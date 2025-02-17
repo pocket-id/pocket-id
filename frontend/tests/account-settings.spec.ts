@@ -12,7 +12,7 @@ test('Update account details', async ({ page }) => {
 	await page.getByLabel('Last name').fill('Apple');
 	await page.getByLabel('Email').fill('timothy.apple@test.com');
 	await page.getByLabel('Username').fill('timothy');
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save' }).first().click();
 
 	await expect(page.getByRole('status')).toHaveText('Account details updated successfully');
 });
@@ -22,7 +22,7 @@ test('Update account details fails with already taken email', async ({ page }) =
 
 	await page.getByLabel('Email').fill(users.craig.email);
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save' }).first().click();
 
 	await expect(page.getByRole('status')).toHaveText('Email is already in use');
 });
@@ -32,7 +32,7 @@ test('Update account details fails with already taken username', async ({ page }
 
 	await page.getByLabel('Username').fill(users.craig.username);
 
-	await page.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save' }).first().click();
 
 	await expect(page.getByRole('status')).toHaveText('Username is already in use');
 });

@@ -154,7 +154,7 @@ test('Update user custom claims', async ({ page }) => {
 	await page.getByPlaceholder('Key').nth(1).fill('customClaim2');
 	await page.getByPlaceholder('Value').nth(1).fill('customClaim2_value');
 
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).nth(2).click();
 
 	await expect(page.getByRole('status')).toHaveText('Custom claims updated successfully');
 
@@ -168,7 +168,7 @@ test('Update user custom claims', async ({ page }) => {
 
 	// Remove one custom claim
 	await page.getByLabel('Remove custom claim').first().click();
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).nth(2).click();
 
 	await expect(page.getByRole('status')).toHaveText('Custom claims updated successfully');
 
