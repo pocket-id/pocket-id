@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/image"
 	"io"
 	"log"
@@ -53,6 +54,11 @@ func (s *UserService) GetUser(userID string) (model.User, error) {
 }
 
 func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error) {
+	// Validate the user ID to prevent directory traversal
+	if err := uuid.Validate(userID); err != nil {
+		return nil, 0, &common.InvalidUUIDError{}
+	}
+
 	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
 	file, err := os.Open(profilePicturePath)
 	if err == nil {
@@ -90,7 +96,7 @@ func (s *UserService) UpdateProfilePicture(userId string, fileHeader *multipart.
 	if err != nil {
 		return err
 	}
-	
+
 	// Ensure the directory exists
 	profilePictureDir := fmt.Sprintf("%s/profile-pictures", common.EnvConfig.UploadPath)
 	if err := os.MkdirAll(profilePictureDir, os.ModePerm); err != nil {

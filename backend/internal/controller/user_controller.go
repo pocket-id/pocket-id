@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"github.com/google/uuid"
 	"net/http"
 	"strconv"
 	"time"
@@ -150,11 +149,6 @@ func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
 
 func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 	userID := c.Param("id")
-
-	if err := uuid.Validate(userID); err != nil {
-		c.Error(&common.InvalidUUIDError{})
-		return
-	}
 
 	picture, size, err := uc.userService.GetProfilePicture(userID)
 	if err != nil {
