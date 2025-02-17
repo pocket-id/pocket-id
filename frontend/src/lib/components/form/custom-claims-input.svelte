@@ -1,5 +1,5 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form-input.svelte';
+	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import CustomClaimService from '$lib/services/custom-claim-service';

@@ -13,6 +13,7 @@
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import PasskeyList from './passkey-list.svelte';
+	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
 	let { data } = $props();
@@ -34,6 +35,13 @@
 			});
 
 		return success;
+	}
+
+	async function updateProfilePicture(image: File) {
+		await userService
+			.updateCurrentUsersProfilePicture(image)
+			.then(() => toast.success('Profile picture updated successfully'))
+			.catch(axiosErrorToast);
 	}
 
 	async function createPasskey() {
@@ -85,6 +93,12 @@
 		</Card.Content>
 	</Card.Root>
 </fieldset>
+
+<Card.Root>
+	<Card.Content class="pt-6">
+		<ProfilePictureSettings userId="me" callback={updateProfilePicture} />
+	</Card.Content>
+</Card.Root>
 
 <Card.Root>
 	<Card.Header>

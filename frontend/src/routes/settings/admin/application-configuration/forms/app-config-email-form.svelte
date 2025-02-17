@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
-	import CheckboxWithLabel from '$lib/components/checkbox-with-label.svelte';
+	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import FormInput from '$lib/components/form-input.svelte';
+	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import AppConfigService from '$lib/services/app-config-service';
 	import type { AllAppConfig } from '$lib/types/application-configuration';

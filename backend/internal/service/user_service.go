@@ -3,8 +3,12 @@ package service
 import (
 	"errors"
 	"fmt"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/image"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -46,6 +50,67 @@ func (s *UserService) GetUser(userID string) (model.User, error) {
 	var user model.User
 	err := s.db.Preload("CustomClaims").Where("id = ?", userID).First(&user).Error
 	return user, err
+}
+
+func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error) {
+	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+	file, err := os.Open(profilePicturePath)
+	if err == nil {
+		// Get the file size
+		fileInfo, err := file.Stat()
+		if err != nil {
+			return nil, 0, err
+		}
+		return file, fileInfo.Size(), nil
+	}
+
+	// If the file does not exist, return the default profile picture
+	user, err := s.GetUser(userID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(user.FirstName, user.LastName)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return defaultPicture, int64(defaultPicture.Len()), nil
+}
+
+func (s *UserService) UpdateProfilePicture(userId string, fileHeader *multipart.FileHeader) error {
+	file, err := fileHeader.Open()
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Convert the image to a smaller square image
+	profilePicture, err := profilepicture.CreateProfilePicture(file)
+	if err != nil {
+		return err
+	}
+	
+	// Ensure the directory exists
+	profilePictureDir := fmt.Sprintf("%s/profile-pictures", common.EnvConfig.UploadPath)
+	if err := os.MkdirAll(profilePictureDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	// Create the profile picture file
+	createdProfilePicture, err := os.Create(fmt.Sprintf("%s/%s.png", profilePictureDir, userId))
+	if err != nil {
+		return err
+	}
+	defer createdProfilePicture.Close()
+
+	// Copy the image to the file
+	_, err = io.Copy(createdProfilePicture, profilePicture)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *UserService) DeleteUser(userID string) error {

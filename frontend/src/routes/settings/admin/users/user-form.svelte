@@ -1,6 +1,6 @@
 <script lang="ts">
-	import CheckboxWithLabel from '$lib/components/checkbox-with-label.svelte';
-	import FormInput from '$lib/components/form-input.svelte';
+	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
+	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { User, UserCreate } from '$lib/types/user.type';

@@ -39,6 +39,20 @@ export default class UserService extends APIService {
 		await this.api.delete(`/users/${id}`);
 	}
 
+	async updateProfilePicture(userId: string, image: File) {
+		const formData = new FormData();
+		formData.append('file', image!);
+
+		await this.api.put(`/users/${userId}/profile-picture`, formData);
+	}
+
+	async updateCurrentUsersProfilePicture(image: File) {
+		const formData = new FormData();
+		formData.append('file', image!);
+
+		await this.api.put('/users/me/profile-picture', formData);
+	}
+
 	async createOneTimeAccessToken(userId: string, expiresAt: Date) {
 		const res = await this.api.post(`/users/${userId}/one-time-access-token`, {
 			userId,

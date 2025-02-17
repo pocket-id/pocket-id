@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/google/uuid"
 	"net/http"
 	"strconv"
 	"time"
@@ -29,6 +30,11 @@ func NewUserController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.Jwt
 	group.PUT("/users/:id", jwtAuthMiddleware.Add(true), uc.updateUserHandler)
 	group.PUT("/users/me", jwtAuthMiddleware.Add(false), uc.updateCurrentUserHandler)
 	group.DELETE("/users/:id", jwtAuthMiddleware.Add(true), uc.deleteUserHandler)
+
+	group.GET("/users/:id/profile-picture.png", uc.getUserProfilePictureHandler)
+	group.GET("/users/me/profile-picture.png", jwtAuthMiddleware.Add(false), uc.getCurrentUserProfilePictureHandler)
+	group.PUT("/users/:id/profile-picture", jwtAuthMiddleware.Add(true), uc.updateUserProfilePictureHandler)
+	group.PUT("/users/me/profile-picture", jwtAuthMiddleware.Add(false), uc.updateUserProfilePictureHandler)
 
 	group.POST("/users/:id/one-time-access-token", jwtAuthMiddleware.Add(true), uc.createOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
@@ -140,6 +146,67 @@ func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
 		return
 	}
 	uc.updateUser(c, true)
+}
+
+func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
+	userID := c.Param("id")
+
+	if err := uuid.Validate(userID); err != nil {
+		c.Error(&common.InvalidUUIDError{})
+		return
+	}
+
+	picture, size, err := uc.userService.GetProfilePicture(userID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.DataFromReader(http.StatusOK, size, "image/png", picture, nil)
+}
+
+func (uc *UserController) getCurrentUserProfilePictureHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	picture, size, err := uc.userService.GetProfilePicture(userID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.DataFromReader(http.StatusOK, size, "image/png", picture, nil)
+}
+
+func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	if err := uc.userService.UpdateProfilePicture(userID, file); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	if err := uc.userService.UpdateProfilePicture(userID, file); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context) {

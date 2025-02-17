@@ -1,5 +1,5 @@
 <script lang="ts">
-	import FileInput from '$lib/components/file-input.svelte';
+	import FileInput from '$lib/components/form/file-input.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import { cn } from '$lib/utils/style';
 	import type { HTMLAttributes } from 'svelte/elements';

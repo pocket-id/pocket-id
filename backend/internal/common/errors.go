@@ -211,3 +211,11 @@ func (e *UiConfigDisabledError) Error() string {
 	return "The configuration can't be changed since the UI configuration is disabled"
 }
 func (e *UiConfigDisabledError) HttpStatusCode() int { return http.StatusForbidden }
+
+type InvalidUUIDError struct{}
+
+func (e *InvalidUUIDError) Error() string {
+	return "Invalid UUID"
+}
+
+type InvalidEmailError struct{}

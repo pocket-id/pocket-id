@@ -1,5 +1,7 @@
 <script lang="ts">
+	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
+	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -9,7 +11,6 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import CustomClaimsInput from '../../../../../lib/components/custom-claims-input.svelte';
 	import UserForm from '../user-form.svelte';
 
 	let { data } = $props();
@@ -39,6 +40,13 @@
 				axiosErrorToast(e);
 			});
 	}
+
+	async function updateProfilePicture(image: File) {
+		await userService
+			.updateProfilePicture(user.id, image)
+			.then(() => toast.success('Profile picture updated successfully'))
+			.catch(axiosErrorToast);
+	}
 </script>
 
 <svelte:head>
@@ -59,6 +67,12 @@
 	</Card.Header>
 	<Card.Content>
 		<UserForm existingUser={user} callback={updateUser} />
+	</Card.Content>
+</Card.Root>
+
+<Card.Root>
+	<Card.Content class="pt-6">
+		<ProfilePictureSettings userId={user.id} callback={updateProfilePicture} />
 	</Card.Content>
 </Card.Root>
 

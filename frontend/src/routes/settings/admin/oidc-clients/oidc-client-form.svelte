@@ -1,7 +1,7 @@
 <script lang="ts">
-	import CheckboxWithLabel from '$lib/components/checkbox-with-label.svelte';
-	import FileInput from '$lib/components/file-input.svelte';
-	import FormInput from '$lib/components/form-input.svelte';
+	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
+	import FileInput from '$lib/components/form/file-input.svelte';
+	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import type {

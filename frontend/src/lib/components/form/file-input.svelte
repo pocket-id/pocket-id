@@ -2,7 +2,7 @@
 	import { cn } from '$lib/utils/style';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import type { VariantProps } from 'tailwind-variants';
-	import type { buttonVariants } from './ui/button';
+	import type { buttonVariants } from '$lib/components/ui/button';
 
 	let {
 		id,

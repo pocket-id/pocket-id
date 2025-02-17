@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Checkbox } from './ui/checkbox';
-	import { Label } from './ui/label';
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { Label } from '$lib/components/ui/label';
 
 	let {
 		id,
@@ -31,7 +31,7 @@
 			{label}
 		</Label>
 		{#if description}
-			<p class="text-[0.8rem] text-muted-foreground">
+			<p class="text-muted-foreground text-[0.8rem]">
 				{description}
 			</p>
 		{/if}
