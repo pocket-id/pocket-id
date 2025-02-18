@@ -38,6 +38,7 @@
 		ldapAttributeUserEmail: appConfig.ldapAttributeUserEmail,
 		ldapAttributeUserFirstName: appConfig.ldapAttributeUserFirstName,
 		ldapAttributeUserLastName: appConfig.ldapAttributeUserLastName,
+		ldapAttributeUserProfilePicture: appConfig.ldapAttributeUserProfilePicture,
 		ldapAttributeGroupMember: appConfig.ldapAttributeGroupMember,
 		ldapAttributeGroupUniqueIdentifier: appConfig.ldapAttributeGroupUniqueIdentifier,
 		ldapAttributeGroupName: appConfig.ldapAttributeGroupName,
@@ -57,6 +58,7 @@
 		ldapAttributeUserEmail: z.string().min(1),
 		ldapAttributeUserFirstName: z.string().min(1),
 		ldapAttributeUserLastName: z.string().min(1),
+		ldapAttributeUserProfilePicture: z.string(),
 		ldapAttributeGroupMember: z.string(),
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
@@ -165,6 +167,12 @@
 				label="User Last Name Attribute"
 				placeholder="sn"
 				bind:input={$inputs.ldapAttributeUserLastName}
+			/>
+			<FormInput
+				label="User Profile Picture Attribute"
+				description="The value can either be a URL, a binary or a base64 encoded image."
+				placeholder="jpegPhoto"
+				bind:input={$inputs.ldapAttributeUserProfilePicture}
 			/>
 			<FormInput
 				label="Group Members Attribute"

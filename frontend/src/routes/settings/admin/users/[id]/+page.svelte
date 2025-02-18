@@ -1,6 +1,6 @@
 <script lang="ts">
-	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
+	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -72,7 +72,11 @@
 
 <Card.Root>
 	<Card.Content class="pt-6">
-		<ProfilePictureSettings userId={user.id} callback={updateProfilePicture} />
+		<ProfilePictureSettings
+			userId={user.id}
+			isLdapUser={!!user.ldapId}
+			callback={updateProfilePicture}
+		/>
 	</Card.Content>
 </Card.Root>
 

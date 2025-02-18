@@ -7,7 +7,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/image"
 	"io"
 	"log"
-	"mime/multipart"
 	"net/url"
 	"os"
 	"strings"
@@ -84,12 +83,7 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	return defaultPicture, int64(defaultPicture.Len()), nil
 }
 
-func (s *UserService) UpdateProfilePicture(userId string, fileHeader *multipart.FileHeader) error {
-	file, err := fileHeader.Open()
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+func (s *UserService) UpdateProfilePicture(userId string, file io.Reader) error {
 
 	// Convert the image to a smaller square image
 	profilePicture, err := profilepicture.CreateProfilePicture(file)

@@ -173,11 +173,17 @@ func (uc *UserController) getCurrentUserProfilePictureHandler(c *gin.Context) {
 
 func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 	userID := c.GetString("userID")
-	file, err := c.FormFile("file")
+	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		c.Error(err)
 		return
 	}
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	defer file.Close()
 
 	if err := uc.userService.UpdateProfilePicture(userID, file); err != nil {
 		c.Error(err)
@@ -189,11 +195,17 @@ func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 
 func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) {
 	userID := c.GetString("userID")
-	file, err := c.FormFile("file")
+	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		c.Error(err)
 		return
 	}
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	defer file.Close()
 
 	if err := uc.userService.UpdateProfilePicture(userID, file); err != nil {
 		c.Error(err)

@@ -96,7 +96,7 @@
 
 <Card.Root>
 	<Card.Content class="pt-6">
-		<ProfilePictureSettings userId="me" callback={updateProfilePicture} />
+		<ProfilePictureSettings userId="me" isLdapUser={!!account.ldapId} callback={updateProfilePicture} />
 	</Card.Content>
 </Card.Root>
 
