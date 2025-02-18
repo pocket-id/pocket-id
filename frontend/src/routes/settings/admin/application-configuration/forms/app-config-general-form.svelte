@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
-	import CheckboxWithLabel from '$lib/components/checkbox-with-label.svelte';
-	import FormInput from '$lib/components/form-input.svelte';
+	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
+	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { createForm } from '$lib/utils/form-util';

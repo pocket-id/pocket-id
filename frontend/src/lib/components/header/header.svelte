@@ -5,9 +5,11 @@
 	import Logo from '../logo.svelte';
 	import HeaderAvatar from './header-avatar.svelte';
 
-	const authUrls = ['/authorize', '/login', '/logout'];
-	let isAuthPage = $derived(!$page.error && authUrls.includes($page.url.pathname));
-	
+	const authUrls = [/^\/authorize$/, /^\/login(?:\/.*)?$/, /^\/logout$/];
+
+	let isAuthPage = $derived(
+		!$page.error && authUrls.some((pattern) => pattern.test($page.url.pathname))
+	);
 </script>
 
 <div class=" w-full {isAuthPage ? 'absolute top-0 z-10 mt-4' : 'border-b'}">

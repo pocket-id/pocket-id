@@ -1,5 +1,5 @@
 <script lang="ts">
-	import FormInput from '$lib/components/form-input.svelte';
+	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { createForm } from '$lib/utils/form-util';

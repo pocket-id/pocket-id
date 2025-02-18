@@ -1,9 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
@@ -177,6 +182,7 @@ func (s *LdapService) SyncUsers() error {
 	emailAttribute := s.appConfigService.DbConfig.LdapAttributeUserEmail.Value
 	firstNameAttribute := s.appConfigService.DbConfig.LdapAttributeUserFirstName.Value
 	lastNameAttribute := s.appConfigService.DbConfig.LdapAttributeUserLastName.Value
+	profilePictureAttribute := s.appConfigService.DbConfig.LdapAttributeUserProfilePicture.Value
 	adminGroupAttribute := s.appConfigService.DbConfig.LdapAttributeAdminGroup.Value
 	filter := s.appConfigService.DbConfig.LdapUserSearchFilter.Value
 
@@ -189,6 +195,7 @@ func (s *LdapService) SyncUsers() error {
 		emailAttribute,
 		firstNameAttribute,
 		lastNameAttribute,
+		profilePictureAttribute,
 	}
 
 	// Filters must start and finish with ()!
@@ -237,9 +244,14 @@ func (s *LdapService) SyncUsers() error {
 			if err != nil {
 				log.Printf("Error syncing user %s: %s", newUser.Username, err)
 			}
-
 		}
 
+		// Save profile picture
+		if pictureString := value.GetAttributeValue(profilePictureAttribute); pictureString != "" {
+			if err := s.SaveProfilePicture(databaseUser.ID, pictureString); err != nil {
+				log.Printf("Error saving profile picture for user %s: %s", newUser.Username, err)
+			}
+		}
 	}
 
 	// Get all LDAP users from the database
@@ -258,5 +270,35 @@ func (s *LdapService) SyncUsers() error {
 			}
 		}
 	}
+	return nil
+}
+
+func (s *LdapService) SaveProfilePicture(userId string, pictureString string) error {
+	var reader io.Reader
+
+	if _, err := url.ParseRequestURI(pictureString); err == nil {
+		// If the photo is a URL, download it
+		response, err := http.Get(pictureString)
+		if err != nil {
+			return fmt.Errorf("failed to download profile picture: %w", err)
+		}
+		defer response.Body.Close()
+
+		reader = response.Body
+
+	} else if decodedPhoto, err := base64.StdEncoding.DecodeString(pictureString); err == nil {
+		// If the photo is a base64 encoded string, decode it
+		reader = bytes.NewReader(decodedPhoto)
+
+	} else {
+		// If the photo is a string, we assume that it's a binary string
+		reader = bytes.NewReader([]byte("pictureString"))
+	}
+
+	// Update the profile picture
+	if err := s.userService.UpdateProfilePicture(userId, reader); err != nil {
+		return fmt.Errorf("failed to update profile picture: %w", err)
+	}
+
 	return nil
 }

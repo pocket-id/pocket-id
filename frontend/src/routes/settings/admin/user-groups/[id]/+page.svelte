@@ -1,6 +1,6 @@
 <script lang="ts">
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
-	import CustomClaimsInput from '$lib/components/custom-claims-input.svelte';
+	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';

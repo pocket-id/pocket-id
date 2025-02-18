@@ -31,6 +31,7 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeUserEmail: string;
 	ldapAttributeUserFirstName: string;
 	ldapAttributeUserLastName: string;
+	ldapAttributeUserProfilePicture: string;
 	ldapAttributeGroupMember: string;
 	ldapAttributeGroupUniqueIdentifier: string;
 	ldapAttributeGroupName: string;
@@ -46,5 +47,5 @@ export type AppConfigRawResponse = {
 export type AppVersionInformation = {
 	isUpToDate: boolean | null;
 	newestVersion: string | null;
-	currentVersion: string 
+	currentVersion: string;
 };

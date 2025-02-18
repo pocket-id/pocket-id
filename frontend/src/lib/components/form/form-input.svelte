@@ -3,7 +3,7 @@
 	import type { FormInput } from '$lib/utils/form-util';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { Input, type FormInputEvent } from './ui/input';
+	import { Input, type FormInputEvent } from '$lib/components/ui/input';
 
 	let {
 		input = $bindable(),

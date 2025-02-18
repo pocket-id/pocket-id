@@ -173,6 +173,10 @@ var defaultDbConfig = model.AppConfig{
 		Key:  "ldapAttributeUserLastName",
 		Type: "string",
 	},
+	LdapAttributeUserProfilePicture: model.AppConfigVariable{
+		Key:  "ldapAttributeUserProfilePicture",
+		Type: "string",
+	},
 	LdapAttributeGroupMember: model.AppConfigVariable{
 		Key:          "ldapAttributeGroupMember",
 		Type:         "string",
