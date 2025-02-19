@@ -83,7 +83,11 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	return defaultPicture, int64(defaultPicture.Len()), nil
 }
 
-func (s *UserService) UpdateProfilePicture(userId string, file io.Reader) error {
+func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error {
+	// Validate the user ID to prevent directory traversal
+	if err := uuid.Validate(userID); err != nil {
+		return &common.InvalidUUIDError{}
+	}
 
 	// Convert the image to a smaller square image
 	profilePicture, err := profilepicture.CreateProfilePicture(file)
@@ -98,7 +102,7 @@ func (s *UserService) UpdateProfilePicture(userId string, file io.Reader) error 
 	}
 
 	// Create the profile picture file
-	createdProfilePicture, err := os.Create(fmt.Sprintf("%s/%s.png", profilePictureDir, userId))
+	createdProfilePicture, err := os.Create(fmt.Sprintf("%s/%s.png", profilePictureDir, userID))
 	if err != nil {
 		return err
 	}
