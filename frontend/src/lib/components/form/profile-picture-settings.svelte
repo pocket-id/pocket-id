@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import * as Avatar from '$lib/components/ui/avatar';
-	import { Button } from '$lib/components/ui/button';
+	import { LucideLoader } from 'lucide-svelte';
 
 	let {
 		userId,
@@ -14,27 +14,23 @@
 	} = $props();
 
 	let isLoading = $state(false);
-	let image: File | null = $state(null);
 
 	let imageDataURL = $state(`/api/users/${userId}/profile-picture.png`);
 
-	function onImageChange(e: Event) {
+	async function onImageChange(e: Event) {
+		isLoading = true;
 		const file = (e.target as HTMLInputElement).files?.[0] || null;
 		if (!file) return;
-
-		image = file;
 
 		const reader = new FileReader();
 		reader.onload = (event) => {
 			imageDataURL = event.target?.result as string;
 		};
 		reader.readAsDataURL(file);
-	}
 
-	async function onSave() {
-		isLoading = true;
-		await callback(image!).catch();
-		image = null;
+		await callback(file).catch(() => {
+			imageDataURL = `/api/users/${userId}/profile-picture.png`;
+		});
 		isLoading = false;
 	}
 </script>
@@ -65,19 +61,26 @@
 				accept="image/png, image/jpeg"
 				onchange={onImageChange}
 			>
-				<div class="group relative h-24 w-24 rounded-full">
+				<div class="group relative h-28 w-28 rounded-full">
 					<Avatar.Root class="h-full w-full transition-opacity duration-200">
-						<Avatar.Image class="object-cover group-hover:opacity-10" src={imageDataURL} />
+						<Avatar.Image
+							class="object-cover group-hover:opacity-10 {isLoading ? 'opacity-10' : ''}"
+							src={imageDataURL}
+						/>
 					</Avatar.Root>
-					<span
-						class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform font-medium opacity-0 transition-opacity group-hover:opacity-100"
-					>
-						Update
-					</span>
+					{#if isLoading}
+						<div class="absolute inset-0 flex items-center justify-center">
+							<LucideLoader class="h-5 w-5 animate-spin" />
+						</div>
+					{:else}
+						<span
+							class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform font-medium opacity-0 transition-opacity group-hover:opacity-100"
+						>
+							Update
+						</span>
+					{/if}
 				</div>
 			</FileInput>
 		{/if}
 	</div>
-
-	<Button class="ml-[5%] self-end" {isLoading} disabled={!image} onclick={onSave}>Save</Button>
 </div>
