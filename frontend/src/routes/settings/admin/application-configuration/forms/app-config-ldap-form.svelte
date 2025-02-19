@@ -170,7 +170,7 @@
 			/>
 			<FormInput
 				label="User Profile Picture Attribute"
-				description="The value can either be a URL, a binary or a base64 encoded image."
+				description="The value of this attribute can either be a URL, a binary or a base64 encoded image."
 				placeholder="jpegPhoto"
 				bind:input={$inputs.ldapAttributeUserProfilePicture}
 			/>
