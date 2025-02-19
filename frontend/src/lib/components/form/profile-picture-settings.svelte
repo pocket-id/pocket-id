@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import * as Avatar from '$lib/components/ui/avatar';
-	import { LucideLoader } from 'lucide-svelte';
+	import { LucideLoader, LucideUpload } from 'lucide-svelte';
 
 	let {
 		userId,
@@ -18,9 +18,10 @@
 	let imageDataURL = $state(`/api/users/${userId}/profile-picture.png`);
 
 	async function onImageChange(e: Event) {
-		isLoading = true;
 		const file = (e.target as HTMLInputElement).files?.[0] || null;
 		if (!file) return;
+
+		isLoading = true;
 
 		const reader = new FileReader();
 		reader.onload = (event) => {
@@ -68,17 +69,13 @@
 							src={imageDataURL}
 						/>
 					</Avatar.Root>
-					{#if isLoading}
-						<div class="absolute inset-0 flex items-center justify-center">
+					<div class="absolute inset-0 flex items-center justify-center">
+						{#if isLoading}
 							<LucideLoader class="h-5 w-5 animate-spin" />
-						</div>
-					{:else}
-						<span
-							class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform font-medium opacity-0 transition-opacity group-hover:opacity-100"
-						>
-							Update
-						</span>
-					{/if}
+						{:else}
+							<LucideUpload class="h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100" />
+						{/if}
+					</div>
 				</div>
 			</FileInput>
 		{/if}
