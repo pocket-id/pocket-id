@@ -1,95 +1,92 @@
 {{ define "style" }}
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background-color: #f0f0f0;
-    color: #333;
-    margin: 0;
-    padding: 0;
-  }
-  .container {
-    background-color: #fff;
-    color: #333;
-    padding: 32px;
-    border-radius: 10px;
-    max-width: 600px;
-    margin: 40px auto;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-  }
-  .header .logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .header .logo img {
-    width: 32px;
-    height: 32px;
-    object-fit: cover;
-  }
-  .header h1 {
-    font-size: 1.5rem;
-    font-weight: bold;
-  }
-  .warning {
-    background-color: #ffd966;
-    color: #7f6000;
-    padding: 4px 12px;
-    border-radius: 50px;
-    font-size: 0.875rem;
-  }
-  .content {
-    background-color: #fafafa;
-    color: #333;
-    padding: 24px;
-    border-radius: 10px;
-  }
-  .content h2 {
-    font-size: 1.25rem;
-    font-weight: bold;
-    margin-bottom: 16px;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-  .grid div {
-    display: flex;
-    flex-direction: column;
-  }
-  .grid p {
-    margin: 0;
-  }
-  .label {
-    color: #888;
-    font-size: 0.875rem;
-    margin-bottom: 4px;
-  }
-  .message {
-    font-size: 1rem;
-    line-height: 1.5;
-  }
-  .button {
-      border-radius: 0.375rem;
-      font-size: 1rem;
-      font-weight: 500;
-      background-color: #000000;
-      color: #ffffff;
-      padding: 0.7rem 1.5rem;
-      outline: none;
-      border: none;
-      text-decoration: none;
-  }
-  .button-container {
-    text-align: center;
-    margin-top: 24px;
-  }
+/* Reset styles for email clients */
+ body, table, td, p, a {
+     margin: 0;
+     padding: 0;
+     border: 0;
+     font-size: 100%;
+     font-family: Arial, sans-serif;
+     line-height: 1.5;
+}
+ body {
+     background-color: #f0f0f0;
+     color: #333;
+}
+ .container {
+     width: 100%;
+     max-width: 600px;
+     margin: 40px auto;
+     background-color: #fff;
+     border-radius: 10px;
+     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+     padding: 32px;
+}
+ .header {
+     display: flex;
+     margin-bottom: 24px;
+}
+ .header .logo img {
+     width: 32px;
+     height: 32px;
+     vertical-align: middle;
+}
+ .header h1 {
+     font-size: 1.5rem;
+     font-weight: bold;
+     display: inline-block;
+     vertical-align: middle;
+     margin-left: 8px;
+}
+ .warning {
+     background-color: #ffd966;
+     color: #7f6000;
+     padding: 4px 12px;
+     border-radius: 50px;
+     font-size: 0.875rem;
+     margin: auto 0 auto auto;
+}
+ .content {
+     background-color: #fafafa;
+     padding: 24px;
+     border-radius: 10px;
+}
+ .content h2 {
+     font-size: 1.25rem;
+     font-weight: bold;
+     margin-bottom: 16px;
+}
+ .grid {
+     width: 100%;
+     margin-bottom: 16px;
+}
+ .grid td {
+     width: 50%;
+     padding-bottom: 8px;
+     vertical-align: top;
+}
+ .label {
+     color: #888;
+     font-size: 0.875rem;
+}
+ .message {
+     font-size: 1rem;
+     line-height: 1.5;
+     margin-top: 16px;
+}
+ .button {
+     background-color: #000000;
+     color: #ffffff;
+     padding: 0.7rem 1.5rem;
+     text-decoration: none;
+     border-radius: 4px;
+     font-size: 1rem;
+     font-weight: 500;
+     display: inline-block;
+     margin-top: 24px;
+}
+ .button-container {
+     text-align: center;
+}
 </style>
 {{ end }}

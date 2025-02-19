@@ -95,7 +95,7 @@ export default class AppConfigService extends APIService {
 			return true;
 		} else if (value === 'false') {
 			return false;
-		} else if (!isNaN(parseFloat(value))) {
+		} else if (/^-?\d+(\.\d+)?$/.test(value)) {
 			return parseFloat(value);
 		} else {
 			return value;
