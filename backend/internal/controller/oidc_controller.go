@@ -1,12 +1,13 @@
 package controller
 
 import (
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -149,7 +150,7 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	if err != nil {
 		// If the validation fails, the user has to confirm the logout manually and doesn't get redirected
 		log.Printf("Error getting logout callback URL, the user has to confirm the logout manually: %v", err)
-		c.Redirect(http.StatusFound, common.EnvConfig.AppURL+"/logout")
+		c.Redirect(http.StatusFound, utils.GetAbsoluteURL(common.EnvConfig.AppURL, "/logout"))
 		return
 	}
 

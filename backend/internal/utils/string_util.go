@@ -40,6 +40,15 @@ func GetHostnameFromURL(rawURL string) string {
 	return parsedURL.Hostname()
 }
 
+// Returns an absolute path when provided with a URL (https://test.com) and a path "/.well-known/openid-configuration"
+func GetAbsoluteURL(baseURL string, path string) string {
+	url, err := url.JoinPath(baseURL, path)
+	if err != nil {
+		return ""
+	}
+	return url
+}
+
 // StringPointer creates a string pointer from a string value
 func StringPointer(s string) *string {
 	return &s

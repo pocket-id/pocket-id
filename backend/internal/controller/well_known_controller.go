@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService) {
@@ -32,11 +33,11 @@ func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
 	appUrl := common.EnvConfig.AppURL
 	config := map[string]interface{}{
 		"issuer":                                appUrl,
-		"authorization_endpoint":                appUrl + "/authorize",
-		"token_endpoint":                        appUrl + "/api/oidc/token",
-		"userinfo_endpoint":                     appUrl + "/api/oidc/userinfo",
-		"end_session_endpoint":                  appUrl + "/api/oidc/end-session",
-		"jwks_uri":                              appUrl + "/.well-known/jwks.json",
+		"authorization_endpoint":                utils.GetAbsoluteURL(appUrl, "/authorize"),
+		"token_endpoint":                        utils.GetAbsoluteURL(appUrl, "/api/oidc/token"),
+		"userinfo_endpoint":                     utils.GetAbsoluteURL(appUrl, "/api/oidc/userinfo"),
+		"end_session_endpoint":                  utils.GetAbsoluteURL(appUrl, "/api/oidc/end-session"),
+		"jwks_uri":                              utils.GetAbsoluteURL(appUrl, "/.well-known/jwks.json"),
 		"scopes_supported":                      []string{"openid", "profile", "email"},
 		"claims_supported":                      []string{"sub", "given_name", "family_name", "name", "email", "email_verified", "preferred_username", "picture"},
 		"response_types_supported":              []string{"code", "id_token"},

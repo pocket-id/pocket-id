@@ -3,14 +3,15 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/image"
 	"io"
 	"log"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -197,7 +198,7 @@ func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath strin
 		return err
 	}
 
-	link := fmt.Sprintf("%s/login/%s", common.EnvConfig.AppURL, oneTimeAccessToken)
+	link := utils.GetAbsoluteURL(common.EnvConfig.AppURL, fmt.Sprintf("/login/%s", oneTimeAccessToken))
 
 	// Add redirect path to the link
 	if strings.HasPrefix(redirectPath, "/") {

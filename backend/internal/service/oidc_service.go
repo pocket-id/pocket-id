@@ -401,7 +401,7 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 		"family_name":        user.LastName,
 		"name":               user.FullName(),
 		"preferred_username": user.Username,
-		"picture":            fmt.Sprintf("%s/api/users/%s/profile-picture.png", common.EnvConfig.AppURL, user.ID),
+		"picture":            utils.GetAbsoluteURL(common.EnvConfig.AppURL, fmt.Sprintf("/api/users/%s/profile-picture.png", user.ID)),
 	}
 
 	if strings.Contains(scope, "profile") {

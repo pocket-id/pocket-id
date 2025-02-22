@@ -16,6 +16,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	"gorm.io/gorm"
 )
@@ -66,7 +67,7 @@ func (srv *EmailService) SendTestEmail(recipientUserId string) error {
 func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
 	data := &email.TemplateData[V]{
 		AppName: srv.appConfigService.DbConfig.AppName.Value,
-		LogoURL: common.EnvConfig.AppURL + "/api/application-configuration/logo",
+		LogoURL: utils.GetAbsoluteURL(common.EnvConfig.AppURL, "/api/application-configuration/logo"),
 		Data:    tData,
 	}
 
