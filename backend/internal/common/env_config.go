@@ -19,6 +19,7 @@ const (
 type EnvConfigSchema struct {
 	AppEnv                   string     `env:"APP_ENV"`
 	AppURL                   string     `env:"PUBLIC_APP_URL"`
+	TrustedProxies           []string   `env:"TRUSTED_PROXIES"`
 	DbProvider               DbProvider `env:"DB_PROVIDER"`
 	SqliteDBPath             string     `env:"SQLITE_DB_PATH"`
 	PostgresConnectionString string     `env:"POSTGRES_CONNECTION_STRING"`
@@ -70,4 +71,6 @@ func init() {
 	if parsedAppUrl.Path != "" {
 		log.Fatal("PUBLIC_APP_URL must not contain a path")
 	}
+
+	// No need to validate TrustedProxies, it will do Gin
 }

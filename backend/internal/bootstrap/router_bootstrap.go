@@ -28,6 +28,13 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	r := gin.Default()
 	r.Use(gin.Logger())
 
+	if common.EnvConfig.TrustedProxies != nil && len(common.EnvConfig.TrustedProxies) > 0 {
+		r.ForwardedByClientIP = true
+		if err := r.SetTrustedProxies(common.EnvConfig.TrustedProxies); err != nil {
+			log.Fatalf("Unable to set trusted proxies: %s", err)
+		}
+	}
+
 	// Initialize services
 	emailService, err := service.NewEmailService(appConfigService, db)
 	if err != nil {
