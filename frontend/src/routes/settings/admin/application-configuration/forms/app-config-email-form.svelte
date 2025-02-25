@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
-	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import Label from '$lib/components/ui/label/label.svelte';
+	import * as Select from '$lib/components/ui/select';
 	import AppConfigService from '$lib/services/app-config-service';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
-	import * as Select from '$lib/components/ui/select';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
@@ -21,6 +22,11 @@
 
 	const appConfigService = new AppConfigService();
 	const uiConfigDisabled = env.PUBLIC_UI_CONFIG_DISABLED === 'true';
+	const tlsOptions = {
+		none: 'None',
+		starttls: 'StartTLS',
+		tls: 'TLS'
+	};
 
 	let isSendingTestEmail = $state(false);
 
@@ -98,21 +104,10 @@
 			<FormInput label="SMTP Password" type="password" bind:input={$inputs.smtpPassword} />
 			<FormInput label="SMTP From" bind:input={$inputs.smtpFrom} />
 			<div class="grid gap-2">
-				<label
-					class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-					for="smtp-tls"
-				>
-					SMTP TLS Option
-				</label>
+				<Label class="mb-0" for="smtp-tls">SMTP TLS Option</Label>
 				<Select.Root
-					selected={$inputs.smtpTls.value
-						? { value: $inputs.smtpTls.value, label: $inputs.smtpTls.value }
-						: undefined}
-					onSelectedChange={(v) => {
-						if (v?.value === 'none' || v?.value === 'starttls' || v?.value === 'tls') {
-							$inputs.smtpTls.value = v.value;
-						}
-					}}
+					selected={{ value: $inputs.smtpTls.value, label: tlsOptions[$inputs.smtpTls.value] }}
+					onSelectedChange={(v) => ($inputs.smtpTls.value = v!.value)}
 				>
 					<Select.Trigger>
 						<Select.Value placeholder="Email TLS Option" />
