@@ -28,46 +28,7 @@ func NewAppConfigService(db *gorm.DB) *AppConfigService {
 		log.Fatalf("Failed to initialize app config service: %v", err)
 	}
 
-	// Run the TLS migration for the old values to the new enum values
-	if err := MigrateTlsValues(db); err != nil {
-		log.Fatalf("Failed to migrate TLS values: %v", err)
-	}
-
 	return service
-}
-
-func MigrateTlsValues(db *gorm.DB) error {
-	var configs []model.AppConfigVariable
-	var smtpPortConfig model.AppConfigVariable
-
-	// Find the SMTP TLS and port configs
-	if err := db.Where("key = ?", "smtpTls").Find(&configs).Error; err != nil {
-		return fmt.Errorf("failed to find smtpTls config: %w", err)
-	}
-
-	if err := db.Where("key = ?", "smtpPort").First(&smtpPortConfig).Error; err != nil {
-		return fmt.Errorf("failed to find smtpPort config: %w", err)
-	}
-
-	for _, config := range configs {
-		// Convert old boolean values to new enum values
-		if config.Value == "true" {
-			// If port is 587, use starttls
-			if smtpPortConfig.Value == "587" {
-				config.Value = "starttls"
-			} else {
-				config.Value = "tls"
-			}
-		} else if config.Value == "false" {
-			config.Value = "none"
-		}
-
-		if err := db.Save(&config).Error; err != nil {
-			return fmt.Errorf("failed to update smtpTls config: %w", err)
-		}
-	}
-
-	return nil
 }
 
 var defaultDbConfig = model.AppConfig{
