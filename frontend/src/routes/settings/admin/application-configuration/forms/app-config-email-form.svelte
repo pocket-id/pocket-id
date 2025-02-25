@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import AppConfigService from '$lib/services/app-config-service';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
+	import * as Select from '$lib/components/ui/select';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
@@ -29,7 +30,7 @@
 		smtpUser: z.string(),
 		smtpPassword: z.string(),
 		smtpFrom: z.string().email(),
-		smtpTls: z.boolean(),
+		smtpTls: z.enum(['none', 'starttls', 'tls']),
 		smtpSkipCertVerify: z.boolean(),
 		emailOneTimeAccessEnabled: z.boolean(),
 		emailLoginNotificationEnabled: z.boolean()
@@ -96,12 +97,33 @@
 			<FormInput label="SMTP User" bind:input={$inputs.smtpUser} />
 			<FormInput label="SMTP Password" type="password" bind:input={$inputs.smtpPassword} />
 			<FormInput label="SMTP From" bind:input={$inputs.smtpFrom} />
-			<CheckboxWithLabel
-				id="tls"
-				label="TLS"
-				description="Enable TLS for the SMTP connection."
-				bind:checked={$inputs.smtpTls.value}
-			/>
+			<div class="grid gap-2">
+				<label
+					class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+					for="smtp-tls"
+				>
+					SMTP TLS Option
+				</label>
+				<Select.Root
+					selected={$inputs.smtpTls.value
+						? { value: $inputs.smtpTls.value, label: $inputs.smtpTls.value }
+						: undefined}
+					onSelectedChange={(v) => {
+						if (v?.value === 'none' || v?.value === 'starttls' || v?.value === 'tls') {
+							$inputs.smtpTls.value = v.value;
+						}
+					}}
+				>
+					<Select.Trigger>
+						<Select.Value placeholder="Email TLS Option" />
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="none" label="None" />
+						<Select.Item value="starttls" label="StartTLS" />
+						<Select.Item value="tls" label="TLS" />
+					</Select.Content>
+				</Select.Root>
+			</div>
 			<CheckboxWithLabel
 				id="skip-cert-verify"
 				label="Skip Certificate Verification"
