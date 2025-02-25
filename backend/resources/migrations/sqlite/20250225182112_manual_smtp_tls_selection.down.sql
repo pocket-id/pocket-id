@@ -1,0 +1,1 @@
+UPDATE app_config_variables SET value = 'true' WHERE key = 'smtpTls';

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -94,7 +95,6 @@ func (s *LdapService) SyncGroups() error {
 	ldapGroupIDs := make(map[string]bool)
 
 	for _, value := range result.Entries {
-		var usersToAddDto dto.UserGroupUpdateUsersDto
 		var membersUserId []string
 
 		ldapId := value.GetAttributeValue(uniqueIdentifierAttribute)
@@ -112,7 +112,16 @@ func (s *LdapService) SyncGroups() error {
 			singleMember := strings.Split(strings.Split(member, "=")[1], ",")[0]
 
 			var databaseUser model.User
-			s.db.Where("username = ?", singleMember).Where("ldap_id IS NOT NULL").First(&databaseUser)
+			err := s.db.Where("username = ? AND ldap_id IS NOT NULL", singleMember).First(&databaseUser).Error
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// The user collides with a non-LDAP user, so we skip it
+					continue
+				} else {
+					return err
+				}
+
+			}
 
 			membersUserId = append(membersUserId, databaseUser.ID)
 		}
@@ -123,7 +132,7 @@ func (s *LdapService) SyncGroups() error {
 			LdapID:       value.GetAttributeValue(uniqueIdentifierAttribute),
 		}
 
-		usersToAddDto = dto.UserGroupUpdateUsersDto{
+		usersToAddDto := dto.UserGroupUpdateUsersDto{
 			UserIDs: membersUserId,
 		}
 

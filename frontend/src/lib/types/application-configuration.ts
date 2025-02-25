@@ -15,7 +15,7 @@ export type AllAppConfig = AppConfig & {
 	smtpFrom: string;
 	smtpUser: string;
 	smtpPassword: string;
-	smtpTls: boolean;
+	smtpTls: 'none' | 'starttls' | 'tls';
 	smtpSkipCertVerify: boolean;
 	emailLoginNotificationEnabled: boolean;
 	// LDAP

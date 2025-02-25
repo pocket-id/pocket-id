@@ -115,18 +115,22 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 	}
 
 	// Connect to the SMTP server
-	if srv.appConfigService.DbConfig.SmtpTls.Value == "false" {
+	// Connect to the SMTP server based on TLS setting
+	switch srv.appConfigService.DbConfig.SmtpTls.Value {
+	case "none":
 		client, err = srv.connectToSmtpServer(smtpAddress)
-	} else if port == "465" {
+	case "tls":
 		client, err = srv.connectToSmtpServerUsingImplicitTLS(
 			smtpAddress,
 			tlsConfig,
 		)
-	} else {
+	case "starttls":
 		client, err = srv.connectToSmtpServerUsingStartTLS(
 			smtpAddress,
 			tlsConfig,
 		)
+	default:
+		return nil, fmt.Errorf("invalid SMTP TLS setting: %s", srv.appConfigService.DbConfig.SmtpTls.Value)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)

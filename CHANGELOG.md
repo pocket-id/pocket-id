@@ -1,3 +1,11 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.35.2...v) (2025-02-25)
+
+
+### Bug Fixes
+
+* add option to manually select SMTP TLS method ([#268](https://github.com/pocket-id/pocket-id/issues/268)) ([01a9de0](https://github.com/pocket-id/pocket-id/commit/01a9de0b04512c62d0f223de33d711f93c49b9cc))
+* **ldap:** sync error if LDAP user collides with an existing user ([fde951b](https://github.com/pocket-id/pocket-id/commit/fde951b543281fedf9f602abae26b50881e3d157))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.35.1...v) (2025-02-24)
 
 

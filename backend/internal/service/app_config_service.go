@@ -27,6 +27,7 @@ func NewAppConfigService(db *gorm.DB) *AppConfigService {
 	if err := service.InitDbConfig(); err != nil {
 		log.Fatalf("Failed to initialize app config service: %v", err)
 	}
+
 	return service
 }
 
@@ -96,8 +97,8 @@ var defaultDbConfig = model.AppConfig{
 	},
 	SmtpTls: model.AppConfigVariable{
 		Key:          "smtpTls",
-		Type:         "bool",
-		DefaultValue: "true",
+		Type:         "string",
+		DefaultValue: "none",
 	},
 	SmtpSkipCertVerify: model.AppConfigVariable{
 		Key:          "smtpSkipCertVerify",
