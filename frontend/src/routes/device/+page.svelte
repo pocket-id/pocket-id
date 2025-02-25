@@ -73,11 +73,7 @@
 				placeholder="Enter the code shown on your device"
 			/>
 		</div>
-		<button
-			on:click={verifyCode}
-			disabled={isLoading}
-			class="bg-primary rounded px-4 py-2 text-white"
-		>
+		<button on:click={verifyCode} disabled={isLoading} class="bg-primary rounded px-4 py-2">
 			{isLoading ? 'Verifying...' : 'Verify'}
 		</button>
 	{/if}
