@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const BASE_URL = "https://idtest.ofkm.us/api";
-const CLIENT_ID = "c7e19c64-09af-4ff3-8750-f614e2c617a9";
+const BASE_URL = "https://id.example.com/api";
+const CLIENT_ID = "client-id";
 
 interface DeviceAuthResponse {
   device_code: string;
