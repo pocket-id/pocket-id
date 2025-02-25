@@ -683,17 +683,32 @@ func (s *OidcService) VerifyDeviceCode(userCode string, userID string) error {
 	if tx.Error != nil {
 		return tx.Error
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
-	// Create user authorization record
-	userAuthorizedClient := model.UserAuthorizedOidcClient{
-		UserID:   userID,
-		ClientID: deviceAuth.ClientID,
-		Scope:    deviceAuth.Scope,
-	}
-
-	if err := tx.Create(&userAuthorizedClient).Error; err != nil {
+	// Check if user has already authorized this client
+	var existingAuth model.UserAuthorizedOidcClient
+	err := tx.Where("user_id = ? AND client_id = ?", userID, deviceAuth.ClientID).First(&existingAuth).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		tx.Rollback()
 		return err
+	}
+
+	// Only create authorization if it doesn't exist
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		userAuthorizedClient := model.UserAuthorizedOidcClient{
+			UserID:   userID,
+			ClientID: deviceAuth.ClientID,
+			Scope:    deviceAuth.Scope,
+		}
+
+		if err := tx.Create(&userAuthorizedClient).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	// Update device auth
