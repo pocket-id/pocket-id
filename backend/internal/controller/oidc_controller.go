@@ -1,12 +1,13 @@
 package controller
 
 import (
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -38,6 +39,9 @@ func NewOidcController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.Jwt
 	group.GET("/oidc/clients/:id/logo", oc.getClientLogoHandler)
 	group.DELETE("/oidc/clients/:id/logo", oc.deleteClientLogoHandler)
 	group.POST("/oidc/clients/:id/logo", jwtAuthMiddleware.Add(true), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)
+
+	group.POST("/oidc/device/authorize", oc.deviceAuthorizationHandler)
+	group.POST("/oidc/device/verify", jwtAuthMiddleware.Add(false), oc.verifyDeviceCodeHandler)
 }
 
 type OidcController struct {
@@ -101,7 +105,14 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		clientID, clientSecret, _ = c.Request.BasicAuth()
 	}
 
-	idToken, accessToken, err := oc.oidcService.CreateTokens(input.Code, input.GrantType, clientID, clientSecret, input.CodeVerifier)
+	idToken, accessToken, err := oc.oidcService.CreateTokens(
+		input.Code,
+		input.GrantType,
+		input.ClientID,
+		input.ClientSecret,
+		input.CodeVerifier,
+		input.DeviceCode,
+	)
 	if err != nil {
 		c.Error(err)
 		return
@@ -341,4 +352,36 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, oidcClientDto)
+}
+
+func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
+	var input dto.OidcDeviceAuthorizationRequestDto
+	if err := c.ShouldBind(&input); err != nil {
+		c.Error(err)
+		return
+	}
+
+	response, err := oc.oidcService.CreateDeviceAuthorization(input)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
+	userCode := c.Query("code")
+	if userCode == "" {
+		c.Error(&common.ValidationError{Message: "code is required"})
+		return
+	}
+
+	err := oc.oidcService.VerifyDeviceCode(userCode, c.GetString("userID"))
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

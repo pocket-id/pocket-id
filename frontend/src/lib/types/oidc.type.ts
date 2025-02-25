@@ -9,6 +9,7 @@ export type OidcClient = {
 	hasLogo: boolean;
 	isPublic: boolean;
 	pkceEnabled: boolean;
+	deviceCodeEnabled: boolean;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {

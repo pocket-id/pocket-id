@@ -12,6 +12,7 @@ type OidcClientDto struct {
 	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
 	IsPublic           bool     `json:"isPublic"`
 	PkceEnabled        bool     `json:"pkceEnabled"`
+	DeviceCodeEnabled  bool     `json:"deviceCodeEnabled"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -20,6 +21,7 @@ type OidcClientWithAllowedUserGroupsDto struct {
 	LogoutCallbackURLs []string                    `json:"logoutCallbackURLs"`
 	IsPublic           bool                        `json:"isPublic"`
 	PkceEnabled        bool                        `json:"pkceEnabled"`
+	DeviceCodeEnabled  bool                        `json:"deviceCodeEnabled"`
 	AllowedUserGroups  []UserGroupDtoWithUserCount `json:"allowedUserGroups"`
 }
 
@@ -29,6 +31,7 @@ type OidcClientCreateDto struct {
 	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
 	IsPublic           bool     `json:"isPublic"`
 	PkceEnabled        bool     `json:"pkceEnabled"`
+	DeviceCodeEnabled  bool     `json:"deviceCodeEnabled"`
 }
 
 type AuthorizeOidcClientRequestDto struct {
@@ -52,7 +55,8 @@ type AuthorizationRequiredDto struct {
 
 type OidcCreateTokensDto struct {
 	GrantType    string `form:"grant_type" binding:"required"`
-	Code         string `form:"code" binding:"required"`
+	Code         string `form:"code"`
+	DeviceCode   string `form:"device_code"`
 	ClientID     string `form:"client_id"`
 	ClientSecret string `form:"client_secret"`
 	CodeVerifier string `form:"code_verifier"`
@@ -67,4 +71,26 @@ type OidcLogoutDto struct {
 	ClientId              string `form:"client_id"`
 	PostLogoutRedirectUri string `form:"post_logout_redirect_uri"`
 	State                 string `form:"state"`
+}
+
+type OidcDeviceAuthorizationRequestDto struct {
+	ClientID     string `form:"client_id" binding:"required"`
+	Scope        string `form:"scope" binding:"required"`
+	ClientSecret string `form:"client_secret"`
+}
+
+type OidcDeviceAuthorizationResponseDto struct {
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+}
+
+type OidcDeviceTokenRequestDto struct {
+	GrantType    string `form:"grant_type" binding:"required,eq=urn:ietf:params:oauth:grant-type:device_code"`
+	DeviceCode   string `form:"device_code" binding:"required"`
+	ClientID     string `form:"client_id"`
+	ClientSecret string `form:"client_secret"`
 }

@@ -219,3 +219,51 @@ func (e *InvalidUUIDError) Error() string {
 }
 
 type InvalidEmailError struct{}
+
+type ValidationError struct {
+	Message string
+}
+
+func (e *ValidationError) Error() string {
+	return e.Message
+}
+
+func (e *ValidationError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type OidcDeviceCodeExpiredError struct{}
+
+func (e *OidcDeviceCodeExpiredError) Error() string {
+	return "device code has expired"
+}
+func (e *OidcDeviceCodeExpiredError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type OidcInvalidDeviceCodeError struct{}
+
+func (e *OidcInvalidDeviceCodeError) Error() string {
+	return "invalid device code"
+}
+func (e *OidcInvalidDeviceCodeError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type OidcSlowDownError struct{}
+
+func (e *OidcSlowDownError) Error() string {
+	return "polling too frequently"
+}
+func (e *OidcSlowDownError) HttpStatusCode() int {
+	return http.StatusTooManyRequests
+}
+
+type OidcAuthorizationPendingError struct{}
+
+func (e *OidcAuthorizationPendingError) Error() string {
+	return "authorization is still pending"
+}
+func (e *OidcAuthorizationPendingError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}

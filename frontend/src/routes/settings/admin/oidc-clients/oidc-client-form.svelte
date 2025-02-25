@@ -32,6 +32,7 @@
 		callbackURLs: existingClient?.callbackURLs || [''],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
+		deviceCodeEnabled: existingClient?.deviceCodeEnabled || false,
 		pkceEnabled: existingClient?.isPublic == true || existingClient?.pkceEnabled || false
 	};
 
@@ -40,6 +41,7 @@
 		callbackURLs: z.array(z.string()).nonempty(),
 		logoutCallbackURLs: z.array(z.string()),
 		isPublic: z.boolean(),
+		deviceCodeEnabled: z.boolean(),
 		pkceEnabled: z.boolean()
 	});
 
@@ -78,7 +80,7 @@
 </script>
 
 <form onsubmit={onSubmit}>
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-7 sm:flex-row">
+	<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
 		<FormInput label="Name" class="w-full" bind:input={$inputs.name} />
 		<div></div>
 		<OidcCallbackUrlInput
@@ -109,6 +111,12 @@
 			description="Public Key Code Exchange is a security feature to prevent CSRF and authorization code interception attacks."
 			disabled={$inputs.isPublic.value}
 			bind:checked={$inputs.pkceEnabled.value}
+		/>
+		<CheckboxWithLabel
+			id="deviceCodeEnabled"
+			bind:checked={$inputs.deviceCodeEnabled.value}
+			label="Device Code Flow"
+			description="Enable device code flow for TVs and other devices with limited input capabilities"
 		/>
 	</div>
 	<div class="mt-8">

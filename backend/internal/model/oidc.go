@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"time"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
@@ -45,6 +46,7 @@ type OidcClient struct {
 	HasLogo            bool `gorm:"-"`
 	IsPublic           bool
 	PkceEnabled        bool
+	DeviceCodeEnabled  bool
 
 	AllowedUserGroups []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID       string
@@ -69,4 +71,19 @@ func (cu *UrlList) Scan(value interface{}) error {
 
 func (cu UrlList) Value() (driver.Value, error) {
 	return json.Marshal(cu)
+}
+
+type OidcDeviceCode struct {
+	Base
+	DeviceCode   string            `gorm:"unique;not null"`
+	UserCode     string            `gorm:"unique;not null"`
+	Scope        string            `gorm:"not null"`
+	ExpiresAt    datatype.DateTime `gorm:"not null"`
+	Interval     int               `gorm:"not null"`
+	LastPollTime *time.Time
+	IsAuthorized bool `gorm:"not null;default:false"`
+	UserID       *string
+	User         User       `gorm:"foreignKey:UserID"`
+	ClientID     string     `gorm:"not null"`
+	Client       OidcClient `gorm:"foreignKey:ClientID"`
 }
