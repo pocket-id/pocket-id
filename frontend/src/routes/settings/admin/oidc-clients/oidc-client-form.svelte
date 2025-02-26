@@ -32,7 +32,7 @@
 		callbackURLs: existingClient?.callbackURLs || [''],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
-		deviceCodeEnabled: existingClient?.deviceCodeEnabled || false,
+		deviceCodeEnabled: true,
 		pkceEnabled: existingClient?.isPublic == true || existingClient?.pkceEnabled || false
 	};
 
@@ -112,12 +112,12 @@
 			disabled={$inputs.isPublic.value}
 			bind:checked={$inputs.pkceEnabled.value}
 		/>
-		<CheckboxWithLabel
+		<!-- <CheckboxWithLabel
 			id="deviceCodeEnabled"
 			bind:checked={$inputs.deviceCodeEnabled.value}
 			label="Device Code Flow"
 			description="Enable device code flow for TVs and other devices with limited input capabilities"
-		/>
+		/> -->
 	</div>
 	<div class="mt-8">
 		<Label for="logo">Logo</Label>
