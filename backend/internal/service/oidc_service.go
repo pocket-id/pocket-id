@@ -167,10 +167,6 @@ func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, code
 			return "", "", &common.OidcDeviceCodeExpiredError{}
 		}
 
-		// Add detailed logging for debugging
-		log.Printf("Device code authorization check: Device Code: %s, IsAuthorized: %t, Has UserID: %t",
-			deviceAuth.DeviceCode, deviceAuth.IsAuthorized, deviceAuth.UserID != nil)
-
 		// Check if device code has been authorized
 		if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
 			return "", "", &common.OidcAuthorizationPendingError{}
@@ -758,9 +754,6 @@ func (s *OidcService) VerifyDeviceCode(userCode string, userID string, ipAddress
 	} else {
 		s.auditLogService.Create(model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name})
 	}
-
-	// Log successful verification
-	log.Printf("Successfully verified device code %s for user %s", userCode, userID)
 
 	return nil
 }
