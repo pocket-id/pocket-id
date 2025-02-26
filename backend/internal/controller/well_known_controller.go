@@ -36,12 +36,14 @@ func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
 		"token_endpoint":                        appUrl + "/api/oidc/token",
 		"userinfo_endpoint":                     appUrl + "/api/oidc/userinfo",
 		"end_session_endpoint":                  appUrl + "/api/oidc/end-session",
+		"device_authorization_endpoint":         appUrl + "/api/oidc/device/authorize",
 		"jwks_uri":                              appUrl + "/.well-known/jwks.json",
 		"scopes_supported":                      []string{"openid", "profile", "email"},
 		"claims_supported":                      []string{"sub", "given_name", "family_name", "name", "email", "email_verified", "preferred_username", "picture"},
 		"response_types_supported":              []string{"code", "id_token"},
 		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
+		"grant_types_supported":                 []string{"authorization_code", "urn:ietf:params:oauth:grant-type:device_code"},
 	}
 	c.JSON(http.StatusOK, config)
 }

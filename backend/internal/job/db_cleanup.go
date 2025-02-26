@@ -22,6 +22,7 @@ func RegisterDbCleanupJobs(db *gorm.DB) {
 	registerJob(scheduler, "ClearWebauthnSessions", "0 3 * * *", jobs.clearWebauthnSessions)
 	registerJob(scheduler, "ClearOneTimeAccessTokens", "0 3 * * *", jobs.clearOneTimeAccessTokens)
 	registerJob(scheduler, "ClearOidcAuthorizationCodes", "0 3 * * *", jobs.clearOidcAuthorizationCodes)
+	registerJob(scheduler, "ClearDeviceAccessCodes", "0 3 * * *", jobs.clearDeviceAccessCodes)
 	scheduler.Start()
 }
 
@@ -37,6 +38,11 @@ func (j *Jobs) clearWebauthnSessions() error {
 // ClearOneTimeAccessTokens deletes one-time access tokens that have expired
 func (j *Jobs) clearOneTimeAccessTokens() error {
 	return j.db.Debug().Delete(&model.OneTimeAccessToken{}, "expires_at < ?", datatype.DateTime(time.Now())).Error
+}
+
+// Fix the existing clearDeviceAccessCodes method
+func (j *Jobs) clearDeviceAccessCodes() error {
+	return j.db.Delete(&model.OidcDeviceCode{}, "expires_at < ?", datatype.DateTime(time.Now())).Error
 }
 
 // ClearOidcAuthorizationCodes deletes OIDC authorization codes that have expired
