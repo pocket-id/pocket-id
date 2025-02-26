@@ -685,6 +685,26 @@ func (s *OidcService) VerifyDeviceCode(userCode string, userID string, ipAddress
 	var deviceAuth model.OidcDeviceCode
 
 	// Load device auth with Client relationship
+	if err := s.db.Preload("Client.AllowedUserGroups").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
+		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
+		return err
+	}
+
+	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
+		return &common.OidcDeviceCodeExpiredError{}
+	}
+
+	// Check if the user group is allowed to authorize the client
+	var user model.User
+	if err := s.db.Preload("UserGroups").First(&user, "id = ?", userID).Error; err != nil {
+		return err
+	}
+
+	if !s.IsUserGroupAllowedToAuthorize(user, deviceAuth.Client) {
+		return &common.OidcAccessDeniedError{}
+	}
+
+	// Load device auth with Client relationship
 	if err := s.db.Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
 		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
 		return err
