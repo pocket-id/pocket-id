@@ -38,7 +38,14 @@
 		try {
 			const info = await oidcService.getDeviceCodeInfo(code);
 			deviceInfo = info;
+
+			// Always set showScopeConfirmation to true so the success UI can be shown
 			showScopeConfirmation = true;
+
+			if (!info.authorizationRequired) {
+				// Skip confirmation for already authorized clients, but still allow showing the success message
+				await verifyCode();
+			}
 		} catch (e) {
 			error = true;
 			axiosErrorToast(e);
@@ -56,8 +63,14 @@
 		}
 
 		isLoading = true;
+
 		try {
-			await oidcService.verifyDeviceCode(userCode);
+			// Add a minimum delay to ensure the loading state is visible
+			const verificationPromise = oidcService.verifyDeviceCode(userCode);
+
+			// Ensure the loading state is visible for at least 500ms
+			await Promise.all([verificationPromise, new Promise((resolve) => setTimeout(resolve, 500))]);
+
 			success = true;
 			setTimeout(() => {
 				authorizationComplete = true;
@@ -195,7 +208,11 @@
 			<div class="flex w-full justify-stretch gap-2">
 				<Button onclick={() => goto('/')} class="w-full" variant="secondary">Cancel</Button>
 				<Button class="w-full" disabled={isLoading} on:click={verifyCode}>
-					{isLoading ? 'Authorizing...' : 'Authorize'}
+					{#if isLoading}
+						<span class="mr-2 inline-block animate-spin">⟳</span> Verifying...
+					{:else}
+						Verify
+					{/if}
 				</Button>
 			</div>
 		{/if}
@@ -219,7 +236,11 @@
 		<div class="flex w-full justify-stretch gap-2">
 			<Button onclick={() => goto('/')} class="w-full" variant="secondary">Cancel</Button>
 			<Button class="w-full" disabled={isLoading} on:click={verifyCode}>
-				{isLoading ? 'Verifying...' : 'Verify'}
+				{#if isLoading}
+					<span class="mr-2 inline-block animate-spin">⟳</span> Verifying...
+				{:else}
+					Verify
+				{/if}
 			</Button>
 		</div>
 	{/if}

@@ -97,7 +97,8 @@ type OidcDeviceTokenRequestDto struct {
 }
 
 type DeviceCodeInfoDto struct {
-	ClientID   string `json:"clientId"`
-	ClientName string `json:"clientName"`
-	Scope      string `json:"scope"`
+	ClientID              string `json:"clientId"`
+	ClientName            string `json:"clientName"`
+	Scope                 string `json:"scope"`
+	AuthorizationRequired bool   `json:"authorizationRequired"`
 }

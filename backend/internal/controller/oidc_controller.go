@@ -398,7 +398,10 @@ func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 		return
 	}
 
-	deviceCodeInfo, err := oc.oidcService.GetDeviceCodeInfo(userCode)
+	// Get the user ID if authenticated
+	userID := c.GetString("userID") // Will be empty string if not authenticated
+
+	deviceCodeInfo, err := oc.oidcService.GetDeviceCodeInfo(userCode, userID)
 	if err != nil {
 		c.Error(err)
 		return

@@ -775,9 +775,6 @@ func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (strin
 
 	// Check if authorized
 	if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
-		// Add debug logging for troubleshooting
-		log.Printf("Authorization pending for device code %s - IsAuthorized: %t, UserID: %v",
-			deviceAuth.DeviceCode, deviceAuth.IsAuthorized, deviceAuth.UserID)
 		return "", "", &common.OidcAuthorizationPendingError{}
 	}
 
@@ -828,7 +825,7 @@ func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (strin
 	return idToken, accessToken, nil
 }
 
-func (s *OidcService) GetDeviceCodeInfo(userCode string) (*dto.DeviceCodeInfoDto, error) {
+func (s *OidcService) GetDeviceCodeInfo(userCode string, userID string) (*dto.DeviceCodeInfoDto, error) {
 	var deviceAuth model.OidcDeviceCode
 	if err := s.db.Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
 		return nil, err
@@ -838,9 +835,20 @@ func (s *OidcService) GetDeviceCodeInfo(userCode string) (*dto.DeviceCodeInfoDto
 		return nil, &common.OidcDeviceCodeExpiredError{}
 	}
 
+	// Check if the user has already authorized this client with this scope
+	hasAuthorizedClient := false
+	if userID != "" {
+		var err error
+		hasAuthorizedClient, err = s.HasAuthorizedClient(deviceAuth.ClientID, userID, deviceAuth.Scope)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &dto.DeviceCodeInfoDto{
-		ClientID:   deviceAuth.ClientID,
-		ClientName: deviceAuth.Client.Name,
-		Scope:      deviceAuth.Scope,
+		ClientID:              deviceAuth.ClientID,
+		ClientName:            deviceAuth.Client.Name,
+		Scope:                 deviceAuth.Scope,
+		AuthorizationRequired: !hasAuthorizedClient,
 	}, nil
 }

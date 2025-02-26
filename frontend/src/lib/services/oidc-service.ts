@@ -7,6 +7,13 @@ import type {
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import APIService from './api-service';
 
+interface DeviceCodeInfo {
+	clientId: string;
+	clientName: string;
+	scope: string;
+	authorizationRequired: boolean;
+}
+
 class OidcService extends APIService {
 	async authorize(
 		clientId: string,
@@ -105,7 +112,7 @@ class OidcService extends APIService {
 		return response.data;
 	}
 
-	async getDeviceCodeInfo(userCode: string) {
+	async getDeviceCodeInfo(userCode: string): Promise<DeviceCodeInfo> {
 		const response = await this.api.get(`/oidc/device/info?code=${userCode}`);
 		return response.data;
 	}
