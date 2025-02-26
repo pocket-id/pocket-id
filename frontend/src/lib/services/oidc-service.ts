@@ -104,6 +104,11 @@ class OidcService extends APIService {
 		});
 		return response.data;
 	}
+
+	async getDeviceCodeInfo(userCode: string) {
+		const response = await this.api.get(`/oidc/device/info?code=${userCode}`);
+		return response.data;
+	}
 }
 
 export default OidcService;

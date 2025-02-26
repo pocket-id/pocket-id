@@ -42,6 +42,7 @@ func NewOidcController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.Jwt
 
 	group.POST("/oidc/device/authorize", oc.deviceAuthorizationHandler)
 	group.POST("/oidc/device/verify", jwtAuthMiddleware.Add(false), oc.verifyDeviceCodeHandler)
+	group.GET("/oidc/device/info", oc.getDeviceCodeInfoHandler)
 }
 
 type OidcController struct {
@@ -388,4 +389,20 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
+	userCode := c.Query("code")
+	if userCode == "" {
+		c.Error(&common.ValidationError{Message: "code is required"})
+		return
+	}
+
+	deviceCodeInfo, err := oc.oidcService.GetDeviceCodeInfo(userCode)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, deviceCodeInfo)
 }
