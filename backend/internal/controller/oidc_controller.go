@@ -377,7 +377,11 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 		return
 	}
 
-	err := oc.oidcService.VerifyDeviceCode(userCode, c.GetString("userID"))
+	// Get IP address and user agent from the request context
+	ipAddress := c.ClientIP()
+	userAgent := c.Request.UserAgent()
+
+	err := oc.oidcService.VerifyDeviceCode(userCode, c.GetString("userID"), ipAddress, userAgent)
 	if err != nil {
 		c.Error(err)
 		return

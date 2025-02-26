@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"os"
 	"regexp"
@@ -152,9 +153,9 @@ func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, code
 			return "", "", &common.ValidationError{Message: "device_code is required"}
 		}
 
-		// Get the device authorization from database
+		// Get the device authorization from database with explicit query conditions
 		var deviceAuth model.OidcDeviceCode
-		if err := s.db.Preload("User").First(&deviceAuth, "device_code = ?", deviceCode).Error; err != nil {
+		if err := s.db.Preload("User").Where("device_code = ? AND client_id = ?", deviceCode, clientID).First(&deviceAuth).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return "", "", &common.OidcInvalidDeviceCodeError{}
 			}
@@ -166,18 +167,26 @@ func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, code
 			return "", "", &common.OidcDeviceCodeExpiredError{}
 		}
 
+		// Add detailed logging for debugging
+		log.Printf("Device code authorization check: Device Code: %s, IsAuthorized: %t, Has UserID: %t",
+			deviceAuth.DeviceCode, deviceAuth.IsAuthorized, deviceAuth.UserID != nil)
+
 		// Check if device code has been authorized
 		if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
 			return "", "", &common.OidcAuthorizationPendingError{}
 		}
 
-		// Get user claims for the ID token
+		// Get user claims for the ID token - ensure UserID is not nil
+		if deviceAuth.UserID == nil {
+			return "", "", &common.OidcAuthorizationPendingError{}
+		}
+
 		userClaims, err := s.GetUserClaimsForClient(*deviceAuth.UserID, clientID)
 		if err != nil {
 			return "", "", err
 		}
 
-		// Generate tokens
+		// Explicitly use the input clientID for the audience claim to ensure consistency
 		idToken, err := s.jwtService.GenerateIDToken(userClaims, clientID, "")
 		if err != nil {
 			return "", "", err
@@ -187,6 +196,9 @@ func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, code
 		if err != nil {
 			return "", "", err
 		}
+
+		// Add logging to debug audience issues
+		log.Printf("Generated tokens for device flow - ClientID (audience): %s", clientID)
 
 		// Delete the used device code
 		if err := s.db.Delete(&deviceAuth).Error; err != nil {
@@ -668,9 +680,13 @@ func (s *OidcService) CreateDeviceAuthorization(input dto.OidcDeviceAuthorizatio
 	}, nil
 }
 
-func (s *OidcService) VerifyDeviceCode(userCode string, userID string) error {
+// Here's the fix for the VerifyDeviceCode method
+func (s *OidcService) VerifyDeviceCode(userCode string, userID string, ipAddress string, userAgent string) error {
 	var deviceAuth model.OidcDeviceCode
-	if err := s.db.First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
+
+	// Load device auth with Client relationship
+	if err := s.db.Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
+		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
 		return err
 	}
 
@@ -678,55 +694,66 @@ func (s *OidcService) VerifyDeviceCode(userCode string, userID string) error {
 		return &common.OidcDeviceCodeExpiredError{}
 	}
 
-	// Begin transaction
-	tx := s.db.Begin()
-	if tx.Error != nil {
-		return tx.Error
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+	// Do all the updates directly without a transaction first to debug
+	deviceAuth.UserID = &userID
+	deviceAuth.IsAuthorized = true
 
-	// Check if user has already authorized this client
-	var existingAuth model.UserAuthorizedOidcClient
-	err := tx.Where("user_id = ? AND client_id = ?", userID, deviceAuth.ClientID).First(&existingAuth).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		tx.Rollback()
+	if err := s.db.Save(&deviceAuth).Error; err != nil {
+		log.Printf("Error saving device auth: %v", err)
 		return err
 	}
 
-	// Only create authorization if it doesn't exist
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	// Verify the update was successful
+	var verifiedAuth model.OidcDeviceCode
+	if err := s.db.First(&verifiedAuth, "device_code = ?", deviceAuth.DeviceCode).Error; err != nil {
+		log.Printf("Error verifying update: %v", err)
+		return err
+	}
+
+	// Create user authorization if needed
+	hasAuthorizedClient, err := s.HasAuthorizedClient(deviceAuth.ClientID, userID, deviceAuth.Scope)
+	if err != nil {
+		return err
+	}
+
+	if !hasAuthorizedClient {
 		userAuthorizedClient := model.UserAuthorizedOidcClient{
 			UserID:   userID,
 			ClientID: deviceAuth.ClientID,
 			Scope:    deviceAuth.Scope,
 		}
 
-		if err := tx.Create(&userAuthorizedClient).Error; err != nil {
-			tx.Rollback()
-			return err
+		if err := s.db.Create(&userAuthorizedClient).Error; err != nil {
+			if !errors.Is(err, gorm.ErrDuplicatedKey) {
+				return err
+			}
+			// If duplicate, update scope
+			if err := s.db.Model(&model.UserAuthorizedOidcClient{}).
+				Where("user_id = ? AND client_id = ?", userID, deviceAuth.ClientID).
+				Update("scope", deviceAuth.Scope).Error; err != nil {
+				return err
+			}
 		}
+		s.auditLogService.Create(model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name})
+	} else {
+		s.auditLogService.Create(model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name})
 	}
 
-	// Update device auth
-	deviceAuth.UserID = &userID
-	deviceAuth.IsAuthorized = true
+	// Log successful verification
+	log.Printf("Successfully verified device code %s for user %s", userCode, userID)
 
-	if err := tx.Save(&deviceAuth).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit().Error
+	return nil
 }
 
 func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (string, string, error) {
 	var deviceAuth model.OidcDeviceCode
-	if err := s.db.Preload("User").First(&deviceAuth, "device_code = ?", input.DeviceCode).Error; err != nil {
-		return "", "", &common.OidcInvalidDeviceCodeError{}
+
+	// Load device auth with User relationship
+	if err := s.db.Preload("User").First(&deviceAuth, "device_code = ? AND client_id = ?", input.DeviceCode, input.ClientID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", "", &common.OidcInvalidDeviceCodeError{}
+		}
+		return "", "", err
 	}
 
 	// Check expiration
@@ -734,40 +761,117 @@ func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (strin
 		return "", "", &common.OidcDeviceCodeExpiredError{}
 	}
 
-	// Check polling interval
-	if deviceAuth.LastPollTime != nil && time.Since(*deviceAuth.LastPollTime) < time.Duration(deviceAuth.Interval)*time.Second {
-		return "", "", &common.OidcSlowDownError{}
+	// Check if authorized
+	if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
+		// Add debug logging for troubleshooting
+		log.Printf("Authorization pending for device code %s - IsAuthorized: %t, UserID: %v",
+			deviceAuth.DeviceCode, deviceAuth.IsAuthorized, deviceAuth.UserID)
+		return "", "", &common.OidcAuthorizationPendingError{}
+	}
+
+	// Check polling interval - make sure LastPollTime is not nil before comparing
+	if deviceAuth.LastPollTime != nil {
+		interval := time.Duration(deviceAuth.Interval) * time.Second
+		timeSinceLastPoll := time.Since(*deviceAuth.LastPollTime)
+		if timeSinceLastPoll < interval {
+			log.Printf("Polling too frequently - last poll: %v, interval: %v, time since: %v",
+				*deviceAuth.LastPollTime, interval, timeSinceLastPoll)
+			return "", "", &common.OidcSlowDownError{}
+		}
 	}
 
 	// Update last poll time
 	now := time.Now()
 	deviceAuth.LastPollTime = &now
-	s.db.Save(&deviceAuth)
+	if err := s.db.Save(&deviceAuth).Error; err != nil {
+		return "", "", err
+	}
 
-	// Check if authorized
-	if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
+	// Get user claims - ensure UserID is not nil (extra safety check)
+	if deviceAuth.UserID == nil {
 		return "", "", &common.OidcAuthorizationPendingError{}
 	}
 
-	// Get user claims
-	userClaims, err := s.GetUserClaimsForClient(*deviceAuth.UserID, input.ClientID)
+	userClaims, err := s.GetUserClaimsForClient(*deviceAuth.UserID, deviceAuth.ClientID)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Generate tokens
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, "")
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, deviceAuth.ClientID, "")
 	if err != nil {
 		return "", "", err
 	}
 
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(deviceAuth.User, input.ClientID)
+	accessToken, err := s.jwtService.GenerateOauthAccessToken(deviceAuth.User, deviceAuth.ClientID)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Delete the used device code
-	s.db.Delete(&deviceAuth)
+	if err := s.db.Delete(&deviceAuth).Error; err != nil {
+		return "", "", err
+	}
 
 	return idToken, accessToken, nil
 }
+
+// func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (string, string, error) {
+// 	var deviceAuth model.OidcDeviceCode
+
+// 	// Load device auth with User relationship outside transaction first
+// 	if err := s.db.Preload("User").First(&deviceAuth, "device_code = ?", input.DeviceCode).Error; err != nil {
+// 		return "", "", &common.OidcInvalidDeviceCodeError{}
+// 	}
+
+// 	// Verify client ID matches
+// 	if input.ClientID != deviceAuth.ClientID {
+// 		return "", "", &common.OidcClientIdNotMatchingError{}
+// 	}
+
+// 	// Check expiration
+// 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
+// 		return "", "", &common.OidcDeviceCodeExpiredError{}
+// 	}
+
+// 	// Check if authorized before polling interval check
+// 	if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
+// 		return "", "", &common.OidcAuthorizationPendingError{}
+// 	}
+
+// 	// Check polling interval
+// 	if deviceAuth.LastPollTime != nil && time.Since(*deviceAuth.LastPollTime) < time.Duration(deviceAuth.Interval)*time.Second {
+// 		return "", "", &common.OidcSlowDownError{}
+// 	}
+
+// 	// Update last poll time
+// 	now := time.Now()
+// 	deviceAuth.LastPollTime = &now
+// 	if err := s.db.Save(&deviceAuth).Error; err != nil {
+// 		return "", "", err
+// 	}
+
+// 	// Get user claims
+// 	userClaims, err := s.GetUserClaimsForClient(*deviceAuth.UserID, deviceAuth.ClientID)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+
+// 	// Generate tokens
+// 	idToken, err := s.jwtService.GenerateIDToken(userClaims, deviceAuth.ClientID, "")
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+
+// 	accessToken, err := s.jwtService.GenerateOauthAccessToken(deviceAuth.User, deviceAuth.ClientID)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+
+// 	// Delete the used device code
+// 	if err := s.db.Delete(&deviceAuth).Error; err != nil {
+// 		return "", "", err
+// 	}
+
+// 	return idToken, accessToken, nil
+// }

@@ -86,6 +86,7 @@ type OidcDeviceAuthorizationResponseDto struct {
 	VerificationURIComplete string `json:"verification_uri_complete"`
 	ExpiresIn               int    `json:"expires_in"`
 	Interval                int    `json:"interval"`
+	RequiresAuthorization   bool   `json:"requires_authorization"`
 }
 
 type OidcDeviceTokenRequestDto struct {
