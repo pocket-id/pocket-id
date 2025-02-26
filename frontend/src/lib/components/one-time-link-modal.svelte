@@ -50,8 +50,7 @@
 		<Dialog.Header>
 			<Dialog.Title>One Time Link</Dialog.Title>
 			<Dialog.Description
-				>Use this link to sign in once. This is needed for users who haven't added a passkey yet or
-				have lost it.</Dialog.Description
+				>Use this link to sign in once and add a passkey from a new device.</Dialog.Description
 			>
 		</Dialog.Header>
 		{#if oneTimeLink === null}

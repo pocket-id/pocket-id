@@ -14,7 +14,7 @@
 	import { LucideLink, LucidePencil, LucideTrash } from 'lucide-svelte';
 	import Ellipsis from 'lucide-svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
-	import OneTimeLinkModal from './one-time-link-modal.svelte';
+	import OneTimeLinkModal from '$lib/components/one-time-link-modal.svelte';
 
 	let { users = $bindable() }: { users: Paginated<User> } = $props();
 	let requestOptions: SearchPaginationSortRequest | undefined = $state();
