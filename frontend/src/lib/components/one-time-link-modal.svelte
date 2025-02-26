@@ -9,9 +9,11 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 
 	let {
-		userId = $bindable()
+		userId = $bindable(),
+		show = $bindable()
 	}: {
 		userId: string | null;
+		show: boolean | null;
 	} = $props();
 
 	const userService = new UserService();
@@ -30,7 +32,7 @@
 	async function createOneTimeAccessToken() {
 		try {
 			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
-			const token = await userService.createOneTimeAccessToken(userId!, expiration);
+			const token = await userService.createOneTimeAccessToken(expiration, userId);
 			oneTimeLink = `${$page.url.origin}/login/${token}`;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -41,11 +43,12 @@
 		if (!open) {
 			oneTimeLink = null;
 			userId = null;
+			show = null;
 		}
 	}
 </script>
 
-<Dialog.Root open={!!userId} {onOpenChange}>
+<Dialog.Root open={!!userId || show} {onOpenChange}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>One Time Link</Dialog.Title>
