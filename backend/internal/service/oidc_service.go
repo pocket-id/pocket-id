@@ -193,9 +193,6 @@ func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, code
 			return "", "", err
 		}
 
-		// Add logging to debug audience issues
-		log.Printf("Generated tokens for device flow - ClientID (audience): %s", clientID)
-
 		// Delete the used device code
 		if err := s.db.Delete(&deviceAuth).Error; err != nil {
 			return "", "", err
