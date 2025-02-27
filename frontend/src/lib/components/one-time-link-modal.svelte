@@ -9,9 +9,11 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 
 	let {
-		userId = $bindable()
+		userId = $bindable(),
+		show = $bindable()
 	}: {
 		userId: string | null;
+		show: boolean | null;
 	} = $props();
 
 	const userService = new UserService();
@@ -30,7 +32,7 @@
 	async function createOneTimeAccessToken() {
 		try {
 			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
-			const token = await userService.createOneTimeAccessToken(userId!, expiration);
+			const token = await userService.createOneTimeAccessToken(expiration, userId);
 			oneTimeLink = `${$page.url.origin}/login/${token}`;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -41,17 +43,17 @@
 		if (!open) {
 			oneTimeLink = null;
 			userId = null;
+			show = null;
 		}
 	}
 </script>
 
-<Dialog.Root open={!!userId} {onOpenChange}>
+<Dialog.Root open={!!userId || show} {onOpenChange}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>One Time Link</Dialog.Title>
 			<Dialog.Description
-				>Use this link to sign in once. This is needed for users who haven't added a passkey yet or
-				have lost it.</Dialog.Description
+				>Use this link to sign in once and add a passkey from a new device.</Dialog.Description
 			>
 		</Dialog.Header>
 		{#if oneTimeLink === null}

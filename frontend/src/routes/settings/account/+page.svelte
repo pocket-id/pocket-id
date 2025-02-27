@@ -15,11 +15,13 @@
 	import PasskeyList from './passkey-list.svelte';
 	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
+	import OneTimeLinkModal from '$lib/components/one-time-link-modal.svelte';
 
 	let { data } = $props();
 	let account = $state(data.account);
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
+	let showOneTimeLinkModal: boolean | null = $state(null);
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
@@ -96,7 +98,11 @@
 
 <Card.Root>
 	<Card.Content class="pt-6">
-		<ProfilePictureSettings userId="me" isLdapUser={!!account.ldapId} callback={updateProfilePicture} />
+		<ProfilePictureSettings
+			userId="me"
+			isLdapUser={!!account.ldapId}
+			callback={updateProfilePicture}
+		/>
 	</Card.Content>
 </Card.Root>
 
@@ -109,7 +115,10 @@
 					Manage your passkeys that you can use to authenticate yourself.
 				</Card.Description>
 			</div>
-			<Button size="sm" on:click={createPasskey}>Add Passkey</Button>
+			<Button size="sm" class="ml-auto" on:click={() => (showOneTimeLinkModal = true)}
+				>One-time Link</Button
+			>
+			<Button size="sm" class="ml-3" on:click={createPasskey}>Add Passkey</Button>
 		</div>
 	</Card.Header>
 	{#if passkeys.length != 0}
@@ -118,7 +127,9 @@
 		</Card.Content>
 	{/if}
 </Card.Root>
+
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
 />
+<OneTimeLinkModal show={showOneTimeLinkModal} />

@@ -23,7 +23,7 @@ type UserCreateDto struct {
 }
 
 type OneTimeAccessTokenCreateDto struct {
-	UserID    string    `json:"userId" binding:"required"`
+	UserID    string    `json:"userId"`
 	ExpiresAt time.Time `json:"expiresAt" binding:"required"`
 }
 
