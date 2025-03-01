@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
@@ -127,7 +128,7 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
 
-	client.CommandTimeout = 5 * time.Second
+	client.CommandTimeout = 10 * time.Second
 
 	// Send the HELO command
 	if err := srv.sendHelloCommand(client); err != nil {
@@ -139,12 +140,21 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 	smtpPassword := srv.appConfigService.DbConfig.SmtpPassword.Value
 
 	if smtpUser != "" || smtpPassword != "" {
+		// Authenticate with plain auth
 		auth := sasl.NewPlainClient("", smtpUser, smtpPassword)
 		if err := client.Auth(auth); err != nil {
-			auth = sasl.NewLoginClient(smtpUser, smtpPassword)
-			if err := client.Auth(auth); err != nil {
+			// If the server does not support plain auth, try login auth
+			var smtpErr *smtp.SMTPError
+			ok := errors.As(err, &smtpErr)
+			if ok && smtpErr.Code == smtp.ErrAuthUnknownMechanism.Code {
+				auth = sasl.NewLoginClient(smtpUser, smtpPassword)
+				err = client.Auth(auth)
+			}
+			// Both plain and login auth failed
+			if err != nil {
 				return nil, fmt.Errorf("failed to authenticate: %w", err)
 			}
+
 		}
 	}
 
