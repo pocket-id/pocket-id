@@ -4,25 +4,20 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	htemplate "html/template"
-	"mime/multipart"
-	"mime/quotedprintable"
-	"net"
-	"net/smtp"
-	"net/textproto"
-	"os"
-	ttemplate "text/template"
-	"time"
-
+	"github.com/emersion/go-sasl"
+	"github.com/emersion/go-smtp"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	"gorm.io/gorm"
+	htemplate "html/template"
+	"mime/multipart"
+	"mime/quotedprintable"
+	"net/textproto"
+	"os"
+	ttemplate "text/template"
+	"time"
 )
-
-var netDialer = &net.Dialer{
-	Timeout: 3 * time.Second,
-}
 
 type EmailService struct {
 	appConfigService *AppConfigService
@@ -114,18 +109,14 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 		ServerName:         srv.appConfigService.DbConfig.SmtpHost.Value,
 	}
 
-	// Connect to the SMTP server
 	// Connect to the SMTP server based on TLS setting
 	switch srv.appConfigService.DbConfig.SmtpTls.Value {
 	case "none":
-		client, err = srv.connectToSmtpServer(smtpAddress)
+		client, err = smtp.Dial(smtpAddress)
 	case "tls":
-		client, err = srv.connectToSmtpServerUsingImplicitTLS(
-			smtpAddress,
-			tlsConfig,
-		)
+		client, err = smtp.DialTLS(smtpAddress, tlsConfig)
 	case "starttls":
-		client, err = srv.connectToSmtpServerUsingStartTLS(
+		client, err = smtp.DialStartTLS(
 			smtpAddress,
 			tlsConfig,
 		)
@@ -136,85 +127,28 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
 
+	client.CommandTimeout = 5 * time.Second
+
+	// Send the HELO command
+	if err := srv.sendHelloCommand(client); err != nil {
+		return nil, fmt.Errorf("failed to send HELO command: %w", err)
+	}
+
 	// Set up the authentication if user or password are set
 	smtpUser := srv.appConfigService.DbConfig.SmtpUser.Value
 	smtpPassword := srv.appConfigService.DbConfig.SmtpPassword.Value
 
 	if smtpUser != "" || smtpPassword != "" {
-		auth := smtp.PlainAuth("",
-			srv.appConfigService.DbConfig.SmtpUser.Value,
-			srv.appConfigService.DbConfig.SmtpPassword.Value,
-			srv.appConfigService.DbConfig.SmtpHost.Value,
-		)
+		auth := sasl.NewPlainClient("", smtpUser, smtpPassword)
 		if err := client.Auth(auth); err != nil {
-			return nil, fmt.Errorf("failed to authenticate SMTP client: %w", err)
+			auth = sasl.NewLoginClient(smtpUser, smtpPassword)
+			if err := client.Auth(auth); err != nil {
+				return nil, fmt.Errorf("failed to authenticate: %w", err)
+			}
 		}
 	}
 
 	return client, err
-}
-
-func (srv *EmailService) connectToSmtpServer(serverAddr string) (*smtp.Client, error) {
-	conn, err := netDialer.Dial("tcp", serverAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
-	}
-	client, err := smtp.NewClient(conn, srv.appConfigService.DbConfig.SmtpHost.Value)
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to create SMTP client: %w", err)
-	}
-
-	if err := srv.sendHelloCommand(client); err != nil {
-		return nil, fmt.Errorf("failed to say hello to SMTP server: %w", err)
-	}
-
-	return client, err
-}
-
-func (srv *EmailService) connectToSmtpServerUsingImplicitTLS(serverAddr string, tlsConfig *tls.Config) (*smtp.Client, error) {
-	tlsDialer := &tls.Dialer{
-		NetDialer: netDialer,
-		Config:    tlsConfig,
-	}
-	conn, err := tlsDialer.Dial("tcp", serverAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
-	}
-
-	client, err := smtp.NewClient(conn, srv.appConfigService.DbConfig.SmtpHost.Value)
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to create SMTP client: %w", err)
-	}
-
-	if err := srv.sendHelloCommand(client); err != nil {
-		return nil, fmt.Errorf("failed to say hello to SMTP server: %w", err)
-	}
-
-	return client, nil
-}
-
-func (srv *EmailService) connectToSmtpServerUsingStartTLS(serverAddr string, tlsConfig *tls.Config) (*smtp.Client, error) {
-	conn, err := netDialer.Dial("tcp", serverAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
-	}
-
-	client, err := smtp.NewClient(conn, srv.appConfigService.DbConfig.SmtpHost.Value)
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to create SMTP client: %w", err)
-	}
-
-	if err := srv.sendHelloCommand(client); err != nil {
-		return nil, fmt.Errorf("failed to say hello to SMTP server: %w", err)
-	}
-
-	if err := client.StartTLS(tlsConfig); err != nil {
-		return nil, fmt.Errorf("failed to start TLS: %w", err)
-	}
-	return client, nil
 }
 
 func (srv *EmailService) sendHelloCommand(client *smtp.Client) error {
@@ -228,23 +162,33 @@ func (srv *EmailService) sendHelloCommand(client *smtp.Client) error {
 }
 
 func (srv *EmailService) sendEmailContent(client *smtp.Client, toEmail email.Address, c *email.Composer) error {
-	if err := client.Mail(srv.appConfigService.DbConfig.SmtpFrom.Value); err != nil {
+	// Set the sender
+	if err := client.Mail(srv.appConfigService.DbConfig.SmtpFrom.Value, nil); err != nil {
 		return fmt.Errorf("failed to set sender: %w", err)
 	}
-	if err := client.Rcpt(toEmail.Email); err != nil {
+
+	// Set the recipient
+	if err := client.Rcpt(toEmail.Email, nil); err != nil {
 		return fmt.Errorf("failed to set recipient: %w", err)
 	}
+
+	// Get a writer to write the email data
 	w, err := client.Data()
 	if err != nil {
 		return fmt.Errorf("failed to start data: %w", err)
 	}
+
+	// Write the email content
 	_, err = w.Write([]byte(c.String()))
 	if err != nil {
 		return fmt.Errorf("failed to write email data: %w", err)
 	}
+
+	// Close the writer
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("failed to close data writer: %w", err)
 	}
+
 	return nil
 }
 
