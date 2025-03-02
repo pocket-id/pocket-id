@@ -33,7 +33,7 @@ func NewUserController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.Jwt
 	group.GET("/users/:id/profile-picture.png", uc.getUserProfilePictureHandler)
 	group.GET("/users/me/profile-picture.png", jwtAuthMiddleware.Add(false), uc.getCurrentUserProfilePictureHandler)
 	group.PUT("/users/:id/profile-picture", jwtAuthMiddleware.Add(true), uc.updateUserProfilePictureHandler)
-	group.PUT("/users/me/profile-picture", jwtAuthMiddleware.Add(false), uc.updateUserProfilePictureHandler)
+	group.PUT("/users/me/profile-picture", jwtAuthMiddleware.Add(false), uc.updateCurrentUserProfilePictureHandler)
 
 	group.POST("/users/:id/one-time-access-token", jwtAuthMiddleware.Add(true), uc.createOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)

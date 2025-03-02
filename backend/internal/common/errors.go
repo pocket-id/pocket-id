@@ -94,6 +94,11 @@ type NotSignedInError struct{}
 func (e *NotSignedInError) Error() string       { return "You are not signed in" }
 func (e *NotSignedInError) HttpStatusCode() int { return http.StatusUnauthorized }
 
+type MissingAccessToken struct{}
+
+func (e *MissingAccessToken) Error() string       { return "Missing access token" }
+func (e *MissingAccessToken) HttpStatusCode() int { return http.StatusUnauthorized }
+
 type MissingPermissionError struct{}
 
 func (e *MissingPermissionError) Error() string {

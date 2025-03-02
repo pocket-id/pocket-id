@@ -24,6 +24,7 @@ func NewOidcController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.Jwt
 
 	group.POST("/oidc/token", oc.createTokensHandler)
 	group.GET("/oidc/userinfo", oc.userInfoHandler)
+	group.POST("/oidc/userinfo", oc.userInfoHandler)
 	group.POST("/oidc/end-session", oc.EndSessionHandler)
 	group.GET("/oidc/end-session", oc.EndSessionHandler)
 
@@ -123,7 +124,14 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 }
 
 func (oc *OidcController) userInfoHandler(c *gin.Context) {
-	token := strings.Split(c.GetHeader("Authorization"), " ")[1]
+	authHeaderSplit := strings.Split(c.GetHeader("Authorization"), " ")
+	if len(authHeaderSplit) != 2 {
+		c.Error(&common.MissingAccessToken{})
+		return
+	}
+
+	token := authHeaderSplit[1]
+
 	jwtClaims, err := oc.jwtService.VerifyOauthAccessToken(token)
 	if err != nil {
 		c.Error(err)
