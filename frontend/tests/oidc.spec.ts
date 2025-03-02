@@ -134,3 +134,68 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 
 	expect(redirectedCorrectly).toBeTruthy();
 });
+
+test('Device code authorization flow', async ({ page, context }) => {
+    // STEP 1: Generate a device code using the API directly
+    const apiContext = await context.newPage();
+    const client = oidcClients.immich;
+    
+    // Request device code
+    const deviceResponse = await apiContext.request.post('/api/oidc/device/authorize', {
+        form: {
+            client_id: client.id,
+            scope: 'openid profile email'
+        },
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    });
+    
+    // Extract the user code and device code
+    const deviceData = await deviceResponse.json();
+    const { user_code, device_code } = deviceData;
+    expect(user_code).toBeTruthy();
+    expect(device_code).toBeTruthy();
+    
+    await apiContext.close();
+    
+    // STEP 2: Authorize the device code through the UI
+    // First, clear cookies to ensure we're not already logged in
+    await context.clearCookies();
+    
+    // Go to the verification page with the user code
+    await page.goto(`/device?code=${user_code}&mode=verify`);
+    
+    // User needs to authenticate with passkey
+    await (await passkeyUtil.init(page)).addPasskey();
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    
+    // We should see the scope confirmation
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Authorize Device');
+    await expect(page.getByText(client.name)).toBeVisible();
+    
+    // Authorize the device
+    await page.getByRole('button', { name: 'Authorize' }).click();
+    
+    // Should see success message
+    await expect(page.getByText('Authorization Complete!')).toBeVisible();
+    
+    // STEP 3: Verify the device code was authorized by polling the token endpoint
+    // We can't fully test this in the UI since the device would poll the token endpoint
+    // Instead, we can check the authorization status through the API
+    const verificationPage = await context.newPage();
+    const deviceInfoResponse = await verificationPage.request.get(`/api/oidc/device/info?code=${user_code}`);
+    const deviceInfo = await deviceInfoResponse.json();
+    
+    expect(deviceInfo.isAuthorized).toBeTruthy();
+    
+    await verificationPage.close();
+});
+
+test('Device code verification with invalid code', async ({ page }) => {
+    await page.goto('/device?code=invalid-code&mode=verify');
+    
+    // Should show an error after trying to verify
+    await page.getByRole('button', { name: 'Verify' }).click();
+    await expect(page.getByRole('status')).toContainText('Invalid code');
+});
