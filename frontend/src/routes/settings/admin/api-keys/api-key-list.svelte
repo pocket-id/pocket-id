@@ -107,10 +107,11 @@
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item
+						data-testid="actions-dropdown"
 						class="text-red-500 focus:!text-red-700"
 						on:click={() => revokeApiKey(item)}
 					>
-						<LucideBan class="mr-2 h-4 w-4" />Revoke
+						<LucideBan data-testid="revoke-button" class="mr-2 h-4 w-4" />Revoke
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
