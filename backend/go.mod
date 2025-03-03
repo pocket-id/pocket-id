@@ -4,7 +4,6 @@ go 1.23.1
 
 require (
 	github.com/caarlos0/env/v11 v11.3.1
-	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/gin-gonic/gin v1.10.0

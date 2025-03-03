@@ -5,13 +5,13 @@ import (
 	"net"
 	"time"
 
-	"github.com/coreos/go-systemd/v22/daemon"
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 )
@@ -88,7 +88,7 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	}
 
 	// Notify systemd that we are ready
-	if _, err := daemon.SdNotify(false, daemon.SdNotifyReady); err != nil {
+	if err := systemd.SdNotify(systemd.SdNotifyReady); err != nil {
 		log.Println("Unable to notify systemd that the service is ready: ", err)
 		// continue to serve anyway since it's not that important
 	}
