@@ -24,6 +24,7 @@ func (m *ApiKeyAuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 
+		// If no Authorization header, just continue to the next middleware
 		if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
 			c.Next()
 			return
@@ -32,21 +33,25 @@ func (m *ApiKeyAuthMiddleware) Add() gin.HandlerFunc {
 		token := strings.TrimPrefix(auth, "Bearer ")
 
 		// First try to validate as API key
-		if user, err := m.apiKeyService.ValidateApiKey(token); err == nil {
+		user, err := m.apiKeyService.ValidateApiKey(token)
+		if err == nil {
+			// API key is valid, set user context
 			c.Set("userID", user.ID)
 			c.Set("userIsAdmin", user.IsAdmin)
 			c.Next()
 			return
 		}
 
-		// Otherwise, try standard JWT token validation
+		// If not an API key, try JWT
 		claims, err := m.jwtService.VerifyAccessToken(token)
 		if err != nil {
+			// Neither API key nor JWT worked
 			c.Error(&common.NotSignedInError{})
 			c.Abort()
 			return
 		}
 
+		// JWT worked
 		c.Set("userID", claims.Subject)
 		c.Set("userIsAdmin", claims.IsAdmin)
 		c.Next()

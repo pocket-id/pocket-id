@@ -65,6 +65,7 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 
 	// Set up API routes
 	apiGroup := r.Group("/api")
+	controller.NewApiKeyController(apiGroup, jwtAuthMiddleware, apiKeyService)
 	controller.NewWebauthnController(apiGroup, jwtAuthMiddleware, middleware.NewRateLimitMiddleware(), webauthnService, appConfigService)
 	controller.NewOidcController(apiGroup, jwtAuthMiddleware, fileSizeLimitMiddleware, oidcService, jwtService)
 	controller.NewUserController(apiGroup, jwtAuthMiddleware, middleware.NewRateLimitMiddleware(), userService, appConfigService)
@@ -72,7 +73,6 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	controller.NewAuditLogController(apiGroup, auditLogService, jwtAuthMiddleware)
 	controller.NewUserGroupController(apiGroup, jwtAuthMiddleware, userGroupService)
 	controller.NewCustomClaimController(apiGroup, jwtAuthMiddleware, customClaimService)
-	controller.NewApiKeyController(apiGroup, jwtAuthMiddleware, apiKeyService)
 
 	// Add test controller in non-production environments
 	if common.EnvConfig.AppEnv != "production" {

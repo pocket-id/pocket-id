@@ -5,7 +5,7 @@ import "time"
 type ApiKeyCreateDto struct {
 	Name        string    `json:"name" binding:"required,min=3,max=50"`
 	Description string    `json:"description"`
-	ExpiresAt   time.Time `json:"expiresAt" binding:"required,gtfield=time.Now"`
+	ExpiresAt   time.Time `json:"expiresAt" binding:"required"`
 }
 
 type ApiKeyDto struct {

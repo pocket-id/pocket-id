@@ -18,8 +18,26 @@ func NewJwtAuthMiddleware(jwtService *service.JwtService, ignoreUnauthenticated 
 	return &JwtAuthMiddleware{jwtService: jwtService, ignoreUnauthenticated: ignoreUnauthenticated}
 }
 
-func (m *JwtAuthMiddleware) Add(adminOnly bool) gin.HandlerFunc {
+func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// If user is already authenticated (by API key middleware), skip JWT check
+		if userID, exists := c.Get("userID"); exists && userID != "" {
+			// User already authenticated via API key
+			if adminRequired {
+				// Check if admin access is required
+				userIsAdmin, _ := c.Get("userIsAdmin")
+				if userIsAdmin == true {
+					c.Next()
+					return
+				}
+				c.Error(&common.MissingPermissionError{})
+				c.Abort()
+				return
+			}
+			c.Next()
+			return
+		}
+
 		// Extract the token from the cookie or the Authorization header
 		token, err := c.Cookie(cookie.AccessTokenCookieName)
 		if err != nil {
@@ -47,7 +65,7 @@ func (m *JwtAuthMiddleware) Add(adminOnly bool) gin.HandlerFunc {
 		}
 
 		// Check if the user is an admin
-		if adminOnly && !claims.IsAdmin {
+		if adminRequired && !claims.IsAdmin {
 			c.Error(&common.MissingPermissionError{})
 			c.Abort()
 			return

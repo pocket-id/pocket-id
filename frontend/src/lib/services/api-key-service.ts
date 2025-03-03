@@ -8,7 +8,14 @@ export default class ApiKeyService extends APIService {
 	}
 
 	async create(apiKey: ApiKeyCreate) {
-		const res = await this.api.post('/api-keys', apiKey);
+		// Ensure expiresAt is a string in ISO format if it's a Date
+		const payload = {
+			...apiKey,
+			expiresAt:
+				apiKey.expiresAt instanceof Date ? apiKey.expiresAt.toISOString() : apiKey.expiresAt
+		};
+
+		const res = await this.api.post('/api-keys', payload);
 		return res.data as ApiKeyResponse;
 	}
 

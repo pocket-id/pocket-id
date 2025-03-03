@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"log"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -27,6 +28,11 @@ func (s *ApiKeyService) ListApiKeys(userID string) ([]model.ApiKey, error) {
 }
 
 func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (model.ApiKey, string, error) {
+	// Check if expiration is in the future
+	if !input.ExpiresAt.After(time.Now()) {
+		return model.ApiKey{}, "", errors.New("expiration time must be in the future")
+	}
+
 	// Generate a secure random API key
 	token, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
@@ -68,13 +74,22 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 
 	if err := s.db.Where("key = ? AND enabled = ? AND expires_at > ?",
 		hashedKey, true, time.Now()).Preload("User").First(&key).Error; err != nil {
-		return model.User{}, errors.New("invalid API key")
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("API key not found or invalid: %v", err)
+			return model.User{}, errors.New("invalid API key")
+		}
+
+		log.Printf("Database error when validating API key: %v", err)
+		return model.User{}, err
 	}
 
 	// Update last used time
 	now := time.Now()
 	key.LastUsedAt = &now
-	s.db.Save(&key)
+	if err := s.db.Save(&key).Error; err != nil {
+		log.Printf("Failed to update last used time: %v", err)
+	}
 
 	return key.User, nil
 }
