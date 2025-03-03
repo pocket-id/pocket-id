@@ -3,6 +3,7 @@ package profilepicture
 import (
 	"bytes"
 	"fmt"
+	"github.com/disintegration/imageorient"
 	"github.com/disintegration/imaging"
 	"github.com/pocket-id/pocket-id/backend/resources"
 	"golang.org/x/image/font"
@@ -18,7 +19,7 @@ const profilePictureSize = 300
 
 // CreateProfilePicture resizes the profile picture to a square
 func CreateProfilePicture(file io.Reader) (*bytes.Buffer, error) {
-	img, err := imaging.Decode(file)
+	img, _, err := imageorient.Decode(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
