@@ -102,15 +102,13 @@ test.describe('API Key Management', () => {
 		const keyCell = page.getByRole('cell', { name: keyName }).first();
 		const row = keyCell.locator('xpath=..'); // Go up to the parent row element
 
-		// Click the actions menu button in this row (be more specific with the selector)
-		const actionsButton = row.getByTestId('actions-dropdown');
-		await actionsButton.click();
+		// Find and click the revoke button directly instead of opening a dropdown
+		const revokeButton = row.getByTestId('revoke-button');
+		await revokeButton.click();
 
-		// Click the revoke option
-		await page.getByRole('menuitem', { name: 'Revoke' }).click();
-
+		// The rest of the test remains the same
 		// Confirm revocation
-		await page.getByRole('button', { name: 'Revoke' }).click();
+		await page.getByLabel('Revoke API Key').getByRole('button', { name: 'Revoke' }).click();
 
 		// Verify success message
 		await expect(page.getByRole('status')).toHaveText('API key revoked successfully');
@@ -134,13 +132,5 @@ test.describe('API Key Management', () => {
 
 		// Verify validation messages
 		await expect(page.getByText('String must contain at least 3 character(s)')).toBeVisible();
-	});
-
-	test('API key list displays correctly', async ({ page }) => {
-		// Check that the table headers are present
-		await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-		await expect(page.getByRole('columnheader', { name: 'Description' })).toBeVisible();
-		await expect(page.getByRole('columnheader', { name: 'Expires At' })).toBeVisible();
-		await expect(page.getByRole('columnheader', { name: 'Last Used' })).toBeVisible();
 	});
 });

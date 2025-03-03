@@ -98,23 +98,16 @@
 		<Table.Cell>{formatDate(item.expiresAt)}</Table.Cell>
 		<Table.Cell>{formatDate(item.lastUsedAt)}</Table.Cell>
 		<Table.Cell class="flex justify-end">
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger asChild let:builder>
-					<Button aria-haspopup="true" size="icon" variant="ghost" builders={[builder]}>
-						<LucideEllipsis class="h-4 w-4" />
-						<span class="sr-only">Toggle menu</span>
-					</Button>
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end">
-					<DropdownMenu.Item
-						data-testid="actions-dropdown"
-						class="text-red-500 focus:!text-red-700"
-						on:click={() => revokeApiKey(item)}
-					>
-						<LucideBan data-testid="revoke-button" class="mr-2 h-4 w-4" />Revoke
-					</DropdownMenu.Item>
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
+			<Button
+				size="sm"
+				variant="ghost"
+				data-testid="revoke-button"
+				class="text-red-500 hover:bg-red-50 hover:text-red-700"
+				on:click={() => revokeApiKey(item)}
+			>
+				<LucideBan class="mr-2 h-4 w-4" />
+				Revoke
+			</Button>
 		</Table.Cell>
 	{/snippet}
 </AdvancedTable>
