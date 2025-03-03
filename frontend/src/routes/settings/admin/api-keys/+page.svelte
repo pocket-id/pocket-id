@@ -59,7 +59,9 @@
 	<Card.Header>
 		<Card.Title>Manage API Keys</Card.Title>
 	</Card.Header>
-	<ApiKeyList />
+	<Card.Content>
+		<ApiKeyList />
+	</Card.Content>
 </Card.Root>
 
 <ApiKeyDialog

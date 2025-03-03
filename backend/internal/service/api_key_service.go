@@ -76,7 +76,6 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 		hashedKey, true, time.Now()).Preload("User").First(&key).Error; err != nil {
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("API key not found or invalid: %v", err)
 			return model.User{}, errors.New("invalid API key")
 		}
 

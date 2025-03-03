@@ -1,14 +1,32 @@
 import type { ApiKey, ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
+import type { Paginated } from '$lib/types/pagination.type';
+import type { SearchPaginationSortRequest } from '$lib/types/sort-pagination.type';
 import APIService from './api-service';
 
 export default class ApiKeyService extends APIService {
-	async list() {
-		const res = await this.api.get('/api-keys');
-		return res.data as ApiKey[];
+	async list(options?: SearchPaginationSortRequest): Promise<Paginated<ApiKey>> {
+		const queryParams = new URLSearchParams();
+
+		if (options?.search) {
+			queryParams.append('search', options.search);
+		}
+
+		if (options?.pagination) {
+			queryParams.append('page', options.pagination.page.toString());
+			queryParams.append('limit', options.pagination.limit.toString());
+		}
+
+		if (options?.sort) {
+			queryParams.append('sort', options.sort.column);
+			queryParams.append('direction', options.sort.direction);
+		}
+
+		const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+		const res = await this.api.get(`/api-keys${query}`);
+		return res.data;
 	}
 
-	async create(apiKey: ApiKeyCreate) {
-		// Ensure expiresAt is a string in ISO format if it's a Date
+	async create(apiKey: ApiKeyCreate): Promise<ApiKeyResponse> {
 		const payload = {
 			...apiKey,
 			expiresAt:
@@ -19,7 +37,7 @@ export default class ApiKeyService extends APIService {
 		return res.data as ApiKeyResponse;
 	}
 
-	async revoke(id: string) {
+	async revoke(id: string): Promise<void> {
 		await this.api.delete(`/api-keys/${id}`);
 	}
 }
