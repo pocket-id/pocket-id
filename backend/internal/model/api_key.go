@@ -21,10 +21,12 @@ type ApiKey struct {
 }
 
 func (m *ApiKey) BeforeCreate(tx *gorm.DB) error {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return err
+	if m.ID == "" {
+		id, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
+		m.ID = id.String()
 	}
-	m.ID = id.String()
 	return nil
 }
