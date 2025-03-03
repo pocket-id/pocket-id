@@ -47,8 +47,10 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	apiKeyService := service.NewApiKeyService(db)
 
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware()
+	apiKeyAuthMiddleware := middleware.NewApiKeyAuthMiddleware(apiKeyService, jwtService)
 
 	// Setup global middleware
+	r.Use(apiKeyAuthMiddleware.Add()) //Add API Key Middleware first
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 	r.Use(rateLimitMiddleware.Add(rate.Every(time.Second), 60))
