@@ -78,13 +78,11 @@ test('Generate own one time access token as non admin', async ({ page, context }
 	await page.getByRole('button', { name: 'Authenticate' }).click();
 	await page.waitForURL('/settings/account');
 
-	await page.getByRole('button', { name: 'One-time Link' }).click();
-	await page.getByRole('button', { name: 'Generate Link' }).click();
-	const link = await page.inputValue('#one-time-link');
+	await page.getByRole('button', { name: 'Create' }).click();
+	const link = await page.getByTestId('login-code-link').textContent();
 
 	await context.clearCookies();
 
-	await page.goto(link);
-	await page.getByRole('button', { name: 'Continue' }).click();
+	await page.goto(link!);
 	await page.waitForURL('/settings/account');
 });

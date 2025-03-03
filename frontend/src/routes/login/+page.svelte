@@ -35,19 +35,19 @@
 	<title>Sign In</title>
 </svelte:head>
 
-<SignInWrapper showEmailOneTimeAccessButton={$appConfigStore.emailOneTimeAccessEnabled}>
+<SignInWrapper showAlternativeSignInMethodButton>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>
-	<h1 class="mt-5 font-playfair text-3xl font-bold sm:text-4xl">
+	<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
 		Sign in to {$appConfigStore.appName}
 	</h1>
 	{#if error}
-		<p class="mt-2 text-muted-foreground" in:fade>
+		<p class="text-muted-foreground mt-2" in:fade>
 			{error}. Please try to sign in again.
 		</p>
 	{:else}
-		<p class="mt-2 text-muted-foreground" in:fade>
+		<p class="text-muted-foreground mt-2" in:fade>
 			Authenticate yourself with your passkey to access the admin panel.
 		</p>
 	{/if}

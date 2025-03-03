@@ -80,7 +80,7 @@
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={() => (userIdToCreateOneTimeLink = item.id)}
-						><LucideLink class="mr-2 h-4 w-4" />One-time link</DropdownMenu.Item
+						><LucideLink class="mr-2 h-4 w-4" />Login Code</DropdownMenu.Item
 					>
 					<DropdownMenu.Item onclick={() => goto(`/settings/admin/users/${item.id}`)}
 						><LucidePencil class="mr-2 h-4 w-4" /> Edit</DropdownMenu.Item

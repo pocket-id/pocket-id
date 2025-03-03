@@ -27,7 +27,7 @@ func NewAppConfigController(
 	}
 	group.GET("/application-configuration", acc.listAppConfigHandler)
 	group.GET("/application-configuration/all", jwtAuthMiddleware.Add(true), acc.listAllAppConfigHandler)
-	group.PUT("/application-configuration", acc.updateAppConfigHandler)
+	group.PUT("/application-configuration", jwtAuthMiddleware.Add(true), acc.updateAppConfigHandler)
 
 	group.GET("/application-configuration/logo", acc.getLogoHandler)
 	group.GET("/application-configuration/background-image", acc.getBackgroundImageHandler)

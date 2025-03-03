@@ -1,46 +1,37 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { browserSupportsWebAuthn } from '@simplewebauthn/browser';
+	import { page } from '$app/state';
 	import type { Snippet } from 'svelte';
-	import { Button } from './ui/button';
 	import * as Card from './ui/card';
-	import WebAuthnUnsupported from './web-authn-unsupported.svelte';
-	import { page } from '$app/stores';
 
 	let {
 		children,
-		showEmailOneTimeAccessButton = false
+		showAlternativeSignInMethodButton = false
 	}: {
 		children: Snippet;
-		showEmailOneTimeAccessButton?: boolean;
+		showAlternativeSignInMethodButton?: boolean;
 	} = $props();
 </script>
 
 <!-- Desktop -->
 <div class="hidden h-screen items-center text-center lg:flex">
-	<div class="h-full min-w-[650px] p-16 {showEmailOneTimeAccessButton ? 'pb-0' : ''}">
-		{#if browser && !browserSupportsWebAuthn()}
-			<WebAuthnUnsupported />
-		{:else}
-			<div class="flex h-full flex-col">
-				<div class="flex flex-grow flex-col items-center justify-center">
-					{@render children()}
-				</div>
-				{#if showEmailOneTimeAccessButton}
-					<div class="mb-4 flex justify-center">
-						<Button
-							href="/login/email?redirect={encodeURIComponent(
-								$page.url.pathname + $page.url.search
-							)}"
-							variant="link"
-							class="text-xs text-muted-foreground"
-						>
-							Don't have access to your passkey?
-						</Button>
-					</div>
-				{/if}
+	<div class="h-full min-w-[650px] p-16 {showAlternativeSignInMethodButton ? 'pb-0' : ''}">
+		<div class="flex h-full flex-col">
+			<div class="flex flex-grow flex-col items-center justify-center">
+				{@render children()}
 			</div>
-		{/if}
+			{#if showAlternativeSignInMethodButton}
+				<div class="mb-4 flex justify-center">
+					<a
+						href="/login/alternative?redirect={encodeURIComponent(
+							page.url.pathname + page.url.search
+						)}"
+						class="text-muted-foreground text-xs"
+					>
+						Don't have access to your passkey?
+					</a>
+				</div>
+			{/if}
+		</div>
 	</div>
 	<img
 		src="/api/application-configuration/background-image"
@@ -55,25 +46,18 @@
 >
 	<Card.Root class="mx-3">
 		<Card.CardContent
-			class="px-4 py-10 sm:p-10 {showEmailOneTimeAccessButton ? 'pb-3 sm:pb-3' : ''}"
+			class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton ? 'pb-3 sm:pb-3' : ''}"
 		>
-			{#if browser && !browserSupportsWebAuthn()}
-				<WebAuthnUnsupported />
-			{:else}
-				{@render children()}
-				{#if showEmailOneTimeAccessButton}
-					<div class="mt-5">
-						<Button
-							href="/login/email?redirect={encodeURIComponent(
-								$page.url.pathname + $page.url.search
-							)}"
-							variant="link"
-							class="text-xs text-muted-foreground"
-						>
-							Don't have access to your passkey?
-						</Button>
-					</div>
-				{/if}
+			{@render children()}
+			{#if showAlternativeSignInMethodButton}
+				<a
+					href="/login/alternative?redirect={encodeURIComponent(
+						page.url.pathname + page.url.search
+					)}"
+					class="text-muted-foreground mt-5 text-xs"
+				>
+					Don't have access to your passkey?
+				</a>
 			{/if}
 		</Card.CardContent>
 	</Card.Root>
