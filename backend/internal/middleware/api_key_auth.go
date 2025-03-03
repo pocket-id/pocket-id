@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -32,28 +31,25 @@ func (m *ApiKeyAuthMiddleware) Add() gin.HandlerFunc {
 
 		token := strings.TrimPrefix(auth, "Bearer ")
 
-		// First try to validate as API key
-		user, err := m.apiKeyService.ValidateApiKey(token)
-		if err == nil {
-			// API key is valid, set user context
-			c.Set("userID", user.ID)
-			c.Set("userIsAdmin", user.IsAdmin)
+		// Check if token looks like a JWT (has 3 parts separated by dots)
+		// If it does, let the JWT middleware handle it
+		if strings.Count(token, ".") == 2 {
 			c.Next()
 			return
 		}
 
-		// If not an API key, try JWT
-		claims, err := m.jwtService.VerifyAccessToken(token)
+		// Not a JWT format, so try to validate as API key
+		user, err := m.apiKeyService.ValidateApiKey(token)
 		if err != nil {
-			// Neither API key nor JWT worked
-			c.Error(&common.NotSignedInError{})
-			c.Abort()
+			// Not a valid API key, let the request continue to JWT auth
+			// which will handle the error if needed
+			c.Next()
 			return
 		}
 
-		// JWT worked
-		c.Set("userID", claims.Subject)
-		c.Set("userIsAdmin", claims.IsAdmin)
+		// API key is valid, set user context
+		c.Set("userID", user.ID)
+		c.Set("userIsAdmin", user.IsAdmin)
 		c.Next()
 	}
 }
