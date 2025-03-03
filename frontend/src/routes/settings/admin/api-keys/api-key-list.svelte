@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog/confirm-dialog.svelte';
+	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import ApiKeyService from '$lib/services/api-key-service';
 	import type { ApiKey } from '$lib/types/api-key.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
