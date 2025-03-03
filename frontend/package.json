@@ -1,6 +1,6 @@
 {
   "name": "pocket-id-frontend",
-  "version": "0.35.4",
+  "version": "0.35.6",
   "private": true,
   "type": "module",
   "scripts": {
