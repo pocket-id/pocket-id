@@ -1,13 +1,15 @@
-import { env } from '$env/dynamic/public';
 import { redirect } from '@sveltejs/kit';
 
+// Alias for /login/alternative/code?code=...
 export function GET({ url, params }) {
-	const targetUrl = new URL('/login/alternative/code', env.PUBLIC_APP_URL);
+	const targetPath = '/login/alternative/code';
 
-	targetUrl.searchParams.set('code', params.code);
+	const searchParams = new URLSearchParams();
+	searchParams.set('code', params.code);
 
 	if (url.searchParams.has('redirect')) {
-		targetUrl.searchParams.set('redirect', url.searchParams.get('redirect')!);
+		searchParams.set('redirect', url.searchParams.get('redirect')!);
 	}
-	return redirect(307, targetUrl.toString());
+
+	return redirect(307, `${targetPath}?${searchParams.toString()}`);
 }
