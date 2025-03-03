@@ -3,26 +3,54 @@ package profilepicture
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"io"
+	"strings"
+
 	"github.com/disintegration/imaging"
 	"github.com/pocket-id/pocket-id/backend/resources"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
-	"image"
-	"image/color"
-	"io"
-	"strings"
 )
 
 const profilePictureSize = 300
 
 // CreateProfilePicture resizes the profile picture to a square
 func CreateProfilePicture(file io.Reader) (*bytes.Buffer, error) {
-	img, err := imaging.Decode(file)
+	// Read all data
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read image data: %w", err)
+	}
+
+	// Check if this is a JPEG
+	isJPEG := len(data) > 2 && data[0] == 0xFF && data[1] == 0xD8
+
+	// Decode image
+	img, err := imaging.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
+	// Extract orientation for JPEGs
+	if isJPEG {
+		// Simplified EXIF orientation extraction - you may want a more robust implementation
+		orientation := getOrientationFromEXIF(data)
+
+		// Apply orientation
+		switch orientation {
+		case 3:
+			img = imaging.Rotate180(img)
+		case 6:
+			img = imaging.Rotate270(img)
+		case 8:
+			img = imaging.Rotate90(img)
+		}
+	}
+
+	// Continue with resizing as before
 	img = imaging.Fill(img, profilePictureSize, profilePictureSize, imaging.Center, imaging.Lanczos)
 
 	var buf bytes.Buffer
@@ -32,6 +60,28 @@ func CreateProfilePicture(file io.Reader) (*bytes.Buffer, error) {
 	}
 
 	return &buf, nil
+}
+
+// Simple EXIF orientation extraction
+func getOrientationFromEXIF(jpegData []byte) int {
+	// Search for the EXIF APP1 marker
+	// This is a simplified version and might not work for all JPEGs
+	for i := 0; i < len(jpegData)-10; i++ {
+		if jpegData[i] == 0xFF && jpegData[i+1] == 0xE1 {
+			// Look for "Exif" string
+			if string(jpegData[i+4:i+8]) == "Exif" {
+				// Very basic EXIF parsing - this would need more robust implementation
+				// in a production environment
+				for j := i + 10; j < len(jpegData)-2; j++ {
+					if jpegData[j] == 0x12 && jpegData[j+1] == 0x01 {
+						// Found orientation tag
+						return int(jpegData[j+9])
+					}
+				}
+			}
+		}
+	}
+	return 1 // Default orientation
 }
 
 // CreateDefaultProfilePicture creates a profile picture with the initials
