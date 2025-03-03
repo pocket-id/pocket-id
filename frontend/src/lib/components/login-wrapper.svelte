@@ -22,9 +22,11 @@
 			{#if showAlternativeSignInMethodButton}
 				<div class="mb-4 flex justify-center">
 					<a
-						href="/login/alternative?redirect={encodeURIComponent(
-							page.url.pathname + page.url.search
-						)}"
+						href={page.url.pathname == '/login'
+							? '/login/alternative'
+							: `/login/alternative?redirect=${encodeURIComponent(
+									page.url.pathname + page.url.search
+								)}`}
 						class="text-muted-foreground text-xs"
 					>
 						Don't have access to your passkey?
@@ -51,9 +53,11 @@
 			{@render children()}
 			{#if showAlternativeSignInMethodButton}
 				<a
-					href="/login/alternative?redirect={encodeURIComponent(
-						page.url.pathname + page.url.search
-					)}"
+					href={page.url.pathname == '/login'
+						? '/login/alternative'
+						: `/login/alternative?redirect=${encodeURIComponent(
+								page.url.pathname + page.url.search
+							)}`}
 					class="text-muted-foreground mt-5 text-xs"
 				>
 					Don't have access to your passkey?
