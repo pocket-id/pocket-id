@@ -9,38 +9,41 @@ export const load: PageServerLoad = async ({ params, cookies, fetch }) => {
 	const userGroupService = new UserGroupService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
 
 	try {
-		// Get the user
+		// Get the user data
 		const user = await userService.get(params.id);
 
-		// Get all user groups
-		const userGroups = await userGroupService.list();
+		// Get user's group memberships separately since they're not included in the user object
+		const userGroups = await userService.getUserGroups(params.id);
 
-		// Get the user's group memberships
-		const userGroupMemberships = await Promise.all(
-			userGroups.data.map(async (group) => {
-				const groupDetails = await userGroupService.get(group.id);
-				return {
-					...group,
-					hasMember: groupDetails.users.some((u) => u.id === params.id)
-				};
-			})
-		);
+		// Get all groups with pagination
+		const allGroups = await userGroupService.list();
 
-		// Add user's groups as a property
-		user.userGroups = userGroups.data.filter((group) =>
-			userGroupMemberships.find((membership) => membership.id === group.id && membership.hasMember)
-		);
+		// Create a set of group IDs the user belongs to for quick lookups
+		const userGroupIds = new Set(userGroups.map((g) => g.id));
 
-		// Add all groups to the page props
+		// Add membership info to each group without additional API calls
+		const groupsWithMembership = {
+			data: allGroups.data.map((group) => ({
+				...group,
+				hasMember: userGroupIds.has(group.id)
+			})),
+			pagination: allGroups.pagination
+		};
+
 		return {
 			user,
-			allUserGroups: {
-				data: userGroupMemberships,
-				pagination: userGroups.pagination
-			}
+			allUserGroups: groupsWithMembership,
+			userGroupIds: Array.from(userGroupIds),
+			// Also include original groups for reference
+			userGroups
 		};
 	} catch (e) {
 		console.error('Error loading user data:', e);
+		// Log more details about the error
+		if (e instanceof Error) {
+			console.error('Error message:', e.message);
+			console.error('Error stack:', e.stack);
+		}
 		throw error(404, 'User not found');
 	}
 };

@@ -1,6 +1,7 @@
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import type { User, UserCreate } from '$lib/types/user.type';
 import APIService from './api-service';
+import type { UserGroup } from '$lib/types/user-group.type';
 
 export default class UserService extends APIService {
 	async list(options?: SearchPaginationSortRequest) {
@@ -23,6 +24,11 @@ export default class UserService extends APIService {
 	async create(user: UserCreate) {
 		const res = await this.api.post('/users', user);
 		return res.data as User;
+	}
+
+	async getUserGroups(userId: string) {
+		const res = await this.api.get(`/users/${userId}/groups`);
+		return res.data as UserGroup[];
 	}
 
 	async update(id: string, user: UserCreate) {

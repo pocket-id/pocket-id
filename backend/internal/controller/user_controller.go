@@ -27,6 +27,7 @@ func NewUserController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.Jwt
 	group.GET("/users/:id", jwtAuthMiddleware.Add(true), uc.getUserHandler)
 	group.POST("/users", jwtAuthMiddleware.Add(true), uc.createUserHandler)
 	group.PUT("/users/:id", jwtAuthMiddleware.Add(true), uc.updateUserHandler)
+	group.GET("/users/:id/groups", jwtAuthMiddleware.Add(true), uc.getUserGroupsHandler)
 	group.PUT("/users/me", jwtAuthMiddleware.Add(false), uc.updateCurrentUserHandler)
 	group.DELETE("/users/:id", jwtAuthMiddleware.Add(true), uc.deleteUserHandler)
 
@@ -44,6 +45,23 @@ func NewUserController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.Jwt
 type UserController struct {
 	userService      *service.UserService
 	appConfigService *service.AppConfigService
+}
+
+func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
+	userID := c.Param("id")
+	groups, err := uc.userService.GetUserGroups(userID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	var groupsDto []dto.UserGroupDtoWithUsers
+	if err := dto.MapStructList(groups, &groupsDto); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, groupsDto)
 }
 
 func (uc *UserController) listUsersHandler(c *gin.Context) {

@@ -3,14 +3,15 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/image"
 	"io"
 	"log"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -81,6 +82,14 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	}
 
 	return defaultPicture, int64(defaultPicture.Len()), nil
+}
+
+func (s *UserService) GetUserGroups(userID string) ([]model.UserGroup, error) {
+	var user model.User
+	if err := s.db.Preload("UserGroups").Where("id = ?", userID).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return user.UserGroups, nil
 }
 
 func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error {
