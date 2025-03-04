@@ -10,6 +10,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 )
@@ -52,6 +53,7 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 	r.Use(rateLimitMiddleware.Add(rate.Every(time.Second), 60))
 	r.Use(middleware.NewJwtAuthMiddleware(jwtService, true).Add(false))
+	r.Use(middleware.NewPrometheusMetricsMiddleware().Add())
 
 	job.RegisterLdapJobs(ldapService, appConfigService)
 	job.RegisterDbCleanupJobs(db)
@@ -78,6 +80,9 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	// Set up base routes
 	baseGroup := r.Group("/")
 	controller.NewWellKnownController(baseGroup, jwtService)
+
+	// Set up metrics route
+	baseGroup.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Run the server
 	if err := r.Run(common.EnvConfig.Host + ":" + common.EnvConfig.Port); err != nil {
