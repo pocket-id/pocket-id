@@ -15,11 +15,20 @@
 	import Ellipsis from 'lucide-svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 	import OneTimeLinkModal from './one-time-link-modal.svelte';
+	import { onMount } from 'svelte';
 
 	let { users = $bindable() }: { users: Paginated<User> } = $props();
-	let requestOptions: SearchPaginationSortRequest | undefined = $state();
 
 	let userIdToCreateOneTimeLink: string | null = $state(null);
+
+	let requestOptions: SearchPaginationSortRequest | undefined = $state({
+		sort: { column: 'firstName', direction: 'asc' }
+	});
+
+	// Fetch the sorted data when the component is mounted
+	onMount(async () => {
+		users = await userService.list(requestOptions!);
+	});
 
 	const userService = new UserService();
 
@@ -47,6 +56,7 @@
 <AdvancedTable
 	items={users}
 	{requestOptions}
+	defaultSort={{ column: 'firstName', direction: 'asc' }}
 	onRefresh={async (options) => (users = await userService.list(options))}
 	columns={[
 		{ label: 'First name', sortColumn: 'firstName' },

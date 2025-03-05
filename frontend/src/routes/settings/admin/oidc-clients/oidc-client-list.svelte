@@ -10,14 +10,22 @@
 	import { LucidePencil, LucideTrash } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import OneTimeLinkModal from './client-secret.svelte';
+	import { onMount } from 'svelte';
 
 	let { clients: initialClients }: { clients: Paginated<OidcClient> } = $props();
 	let clients = $state<Paginated<OidcClient>>(initialClients);
 	let oneTimeLink = $state<string | null>(null);
-	let requestOptions: SearchPaginationSortRequest | undefined = $state();
+	let requestOptions: SearchPaginationSortRequest | undefined = $state({
+		sort: { column: 'name', direction: 'asc' }
+	});
 
 	$effect(() => {
 		clients = initialClients;
+	});
+
+	// Fetch the sorted data when the component is mounted
+	onMount(async () => {
+		clients = await oidcService.listClients(requestOptions!);
 	});
 
 	const oidcService = new OIDCService();
@@ -46,6 +54,7 @@
 <AdvancedTable
 	items={clients}
 	{requestOptions}
+	defaultSort={{ column: 'name', direction: 'asc' }}
 	onRefresh={async (o) => (clients = await oidcService.listClients(o))}
 	columns={[
 		{ label: 'Logo' },

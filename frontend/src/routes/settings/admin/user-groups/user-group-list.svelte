@@ -13,12 +13,20 @@
 	import { LucidePencil, LucideTrash } from 'lucide-svelte';
 	import Ellipsis from 'lucide-svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
+	import { onMount } from 'svelte';
 
 	let { userGroups: initialUserGroups }: { userGroups: Paginated<UserGroupWithUserCount> } =
 		$props();
 
 	let userGroups = $state<Paginated<UserGroupWithUserCount>>(initialUserGroups);
-	let requestOptions: SearchPaginationSortRequest | undefined = $state();
+	let requestOptions: SearchPaginationSortRequest | undefined = $state({
+		sort: { column: 'friendlyName', direction: 'asc' }
+	});
+
+	// Fetch the sorted data when the component is mounted
+	onMount(async () => {
+		userGroups = await userGroupService.list(requestOptions!);
+	});
 
 	const userGroupService = new UserGroupService();
 
@@ -47,6 +55,7 @@
 	items={userGroups}
 	onRefresh={async (o) => (userGroups = await userGroupService.list(o))}
 	{requestOptions}
+	defaultSort={{ column: 'friendlyName', direction: 'asc' }}
 	columns={[
 		{ label: 'Friendly Name', sortColumn: 'friendlyName' },
 		{ label: 'Name', sortColumn: 'name' },
