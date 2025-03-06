@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { users } from './data';
+import { users, userGroups } from './data';
 import { cleanupBackend } from './utils/cleanup.util';
 
 test.beforeEach(cleanupBackend);
@@ -177,4 +177,64 @@ test('Update user custom claims', async ({ page }) => {
 	// Check if custom claim is removed
 	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim2');
 	await expect(page.getByPlaceholder('Value').first()).toHaveValue('customClaim2_value');
+});
+
+test('Update user group assignments', async ({ page }) => {
+	const user = users.craig;
+	await page.goto(`/settings/admin/users/${user.id}`);
+
+	// Increase the test timeout since this test is complex
+	test.setTimeout(30000);
+
+	// Expand the user groups section if it's collapsed
+	const expandButton = page.getByRole('button', { name: 'Expand card' }).first();
+	if (await expandButton.isVisible()) {
+		await expandButton.click();
+	}
+
+	// Wait for the user groups table to load
+	await page.waitForSelector('table');
+
+	// First, ensure we start with a clean state - uncheck any checked boxes
+	const developersCheckbox = page
+		.getByRole('row', { name: userGroups.developers.name })
+		.getByRole('checkbox');
+	const designersCheckbox = page
+		.getByRole('row', { name: userGroups.designers.name })
+		.getByRole('checkbox');
+
+	// Force click if needed to overcome element interception issues
+	if ((await developersCheckbox.getAttribute('data-state')) === 'checked') {
+		await developersCheckbox.click({ force: true });
+	}
+
+	if ((await designersCheckbox.getAttribute('data-state')) === 'checked') {
+		await designersCheckbox.click({ force: true });
+	}
+
+	// Save the changes to reset state if needed
+	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+
+	// Wait for toast message to appear and disappear
+	await expect(page.getByRole('status')).toHaveText('User groups updated successfully');
+	await page.waitForTimeout(1000); // Wait for any animations or state changes
+
+	// Now add both groups (using force: true to avoid interception problems)
+	await developersCheckbox.click({ force: true });
+	await designersCheckbox.click({ force: true });
+
+	// Save the changes
+	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+
+	// Verify success message
+	await expect(page.getByRole('status')).toHaveText('User groups updated successfully');
+
+	await page.reload();
+
+	await expect(
+		page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox')
+	).toHaveAttribute('data-state', 'checked', { timeout: 10000 });
+	await expect(
+		page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox')
+	).toHaveAttribute('data-state', 'checked', { timeout: 10000 });
 });
