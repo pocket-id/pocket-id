@@ -13,7 +13,7 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import UserGroupSelection from '../../oidc-clients/user-group-selection.svelte';
+	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import UserForm from '../user-form.svelte';
 
 	let { data } = $props();
