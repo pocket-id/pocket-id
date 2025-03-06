@@ -1,19 +1,16 @@
 import { ACCESS_TOKEN_COOKIE_NAME } from '$lib/constants';
 import UserGroupService from '$lib/services/user-group-service';
+import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ cookies, url }) => {
+export const load: PageServerLoad = async ({ cookies }) => {
 	const userGroupService = new UserGroupService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
 
-	// Get sort parameters from URL or use defaults
-	const sortColumn = 'friendlyName';
-	const sortDirection = 'asc';
-
 	// Create request options with default sorting
-	const requestOptions = {
+	const requestOptions: SearchPaginationSortRequest = {
 		sort: {
-			column: sortColumn,
-			direction: sortDirection as 'asc' | 'desc'
+			column: 'friendlyName',
+			direction: 'asc'
 		},
 		pagination: {
 			page: 1,
