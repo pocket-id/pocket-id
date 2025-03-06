@@ -3,13 +3,10 @@ name: PR Docker Build
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened]
-    paths:
-      - 'src/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'Dockerfile'
-      - '.dockerignore'
+    types: [opened, synchronize]
+    paths-ignore:
+      - "**.md"
+      - ".github/**"
 
 jobs:
   build-pr:
@@ -17,25 +14,10 @@ jobs:
     permissions:
       contents: read
       packages: write
-      pull-requests: write # Added permission for commenting on PRs
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Extract PR number
-        run: |
-          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          echo "Building for PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
-
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ghcr.io/pocket-id/pocket-id
-          tags: |
-            type=raw,value=pr-${{ env.PR_NUMBER }}
-            type=raw,value=pr-${{ env.PR_NUMBER }}-${{ github.run_number }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -53,37 +35,18 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
+          tags: ghcr.io/pocket-id/pocket-id:pr-${{ github.event.pull_request.number }}
           context: .
           platforms: linux/amd64, linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
           labels: |
-            org.opencontainers.image.title=Pocket ID - PR #${{ env.PR_NUMBER }}
+            org.opencontainers.image.title=Pocket ID - PR #${{ github.event.pull_request.number }}
             org.opencontainers.image.description=PR Build for ${{ github.event.pull_request.title }}
             org.opencontainers.image.source=${{ github.event.pull_request.html_url }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-      # New comment step using GitHub CLI
-      - name: Comment on PR with GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          IMAGE_URL="ghcr.io/pocket-id/pocket-id:pr-${PR_NUMBER}"
-
-          # Create JSON file with proper newlines
-          cat > comment.json <<EOF
-          {
-            "body": "🐳 Docker image built and pushed!\n\n**Image:** \`${IMAGE_URL}\`\n\nYou can pull and run this image with:\n\`\`\`bash\ndocker pull ${IMAGE_URL}\ndocker run -p 3000:3000 ${IMAGE_URL}\n\`\`\`"
-          }
-          EOF
-
-          # Post the comment using the JSON file
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/${REPO}/issues/${PR_NUMBER}/comments \
-            --input comment.json
+      - name: Update PR Description
+        if: github.event.action == 'opened'
+        uses: nefrob/pr-description@v1.2.0
+        with:
+          content: "\n\n---\nDocker image for this PR is available at `ghcr.io/pocket-id/pocket-id:pr-${{ github.event.pull_request.number }}`"
+          token: ${{ secrets.GITHUB_TOKEN }}
