@@ -31,6 +31,8 @@ func NewUserController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.Jwt
 	group.PUT("/users/me", jwtAuthMiddleware.Add(false), uc.updateCurrentUserHandler)
 	group.DELETE("/users/:id", jwtAuthMiddleware.Add(true), uc.deleteUserHandler)
 
+	group.PUT("/users/:id/user-groups", jwtAuthMiddleware.Add(true), uc.updateUserGroups)
+
 	group.GET("/users/:id/profile-picture.png", uc.getUserProfilePictureHandler)
 	group.GET("/users/me/profile-picture.png", jwtAuthMiddleware.Add(false), uc.getCurrentUserProfilePictureHandler)
 	group.PUT("/users/:id/profile-picture", jwtAuthMiddleware.Add(true), uc.updateUserProfilePictureHandler)
@@ -320,6 +322,28 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 	}
 
 	user, err := uc.userService.UpdateUser(userID, input, updateOwnUser, false)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	var userDto dto.UserDto
+	if err := dto.MapStruct(user, &userDto); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, userDto)
+}
+
+func (uc *UserController) updateUserGroups(c *gin.Context) {
+	var input dto.UserUpdateUserGroupDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.Error(err)
+		return
+	}
+
+	user, err := uc.userService.UpdateUserGroups(c.Param("id"), input.UserGroupIds)
 	if err != nil {
 		c.Error(err)
 		return

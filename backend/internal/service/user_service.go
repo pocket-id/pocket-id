@@ -49,7 +49,7 @@ func (s *UserService) ListUsers(searchTerm string, sortedPaginationRequest utils
 
 func (s *UserService) GetUser(userID string) (model.User, error) {
 	var user model.User
-	err := s.db.Preload("CustomClaims").Where("id = ?", userID).First(&user).Error
+	err := s.db.Preload("UserGroups").Preload("CustomClaims").Where("id = ?", userID).First(&user).Error
 	return user, err
 }
 
@@ -276,6 +276,33 @@ func (s *UserService) ExchangeOneTimeAccessToken(token string, ipAddress, userAg
 	}
 
 	return oneTimeAccessToken.User, accessToken, nil
+}
+
+func (s *UserService) UpdateUserGroups(id string, userGroupIds []string) (user model.User, err error) {
+	user, err = s.GetUser(id)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	// Fetch the groups based on userGroupIds
+	var groups []model.UserGroup
+	if len(userGroupIds) > 0 {
+		if err := s.db.Where("id IN (?)", userGroupIds).Find(&groups).Error; err != nil {
+			return model.User{}, err
+		}
+	}
+
+	// Replace the current groups with the new set of groups
+	if err := s.db.Model(&user).Association("UserGroups").Replace(groups); err != nil {
+		return model.User{}, err
+	}
+
+	// Save the updated user
+	if err := s.db.Save(&user).Error; err != nil {
+		return model.User{}, err
+	}
+
+	return user, nil
 }
 
 func (s *UserService) SetupInitialAdmin() (model.User, string, error) {

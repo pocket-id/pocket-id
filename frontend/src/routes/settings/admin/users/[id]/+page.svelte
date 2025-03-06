@@ -5,116 +5,36 @@
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import * as Checkbox from '$lib/components/ui/checkbox';
 	import CustomClaimService from '$lib/services/custom-claim-service';
-	import UserService from '$lib/services/user-service';
 	import UserGroupService from '$lib/services/user-group-service';
+	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
-	import type { UserGroup, UserGroupWithUserCount } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import UserGroupSelection from '../../oidc-clients/user-group-selection.svelte';
 	import UserForm from '../user-form.svelte';
-	import type { Paginated } from '$lib/types/pagination.type';
-	import { onMount } from 'svelte';
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
-	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
-	import GroupSelection from '../group-selection.svelte';
 
 	let { data } = $props();
-	let user = $state(data.user);
-	let allUserGroups = $state<Paginated<UserGroupWithUserCount>>(data.allUserGroups);
-	let requestOptions: SearchPaginationSortRequest | undefined = $state();
-
-	// Initialize with the IDs from the server - no need to recalculate
-	let userGroupIds = $state<string[]>(data.userGroupIds);
+	let user = $state({
+		...data.user,
+		userGroupIds: data.user.userGroups.map((g) => g.id)
+	});
 
 	const userService = new UserService();
 	const customClaimService = new CustomClaimService();
 	const userGroupService = new UserGroupService();
 
-	// Check if user is in a group
-	function isUserInGroup(groupId: string): boolean {
-		return userGroupIds.includes(groupId);
+	async function updateUserGroups(userIds: string[]) {
+		await userService
+			.updateUserGroups(user.id, userIds)
+			.then(() => toast.success('User groups updated successfully'))
+			.catch((e) => {
+				axiosErrorToast(e);
+			});
 	}
 
-	// Toggle user group membership
-	function toggleUserGroup(group: UserGroup): void {
-		if (isUserInGroup(group.id)) {
-			userGroupIds = userGroupIds.filter((id) => id !== group.id);
-		} else {
-			userGroupIds = [...userGroupIds, group.id];
-		}
-	}
-
-	// Update user's group memberships
-	async function updateUserGroups() {
-		try {
-			// Get fresh data about all selected groups
-			const selectedGroups = await Promise.all(
-				userGroupIds.map((groupId) => userGroupService.get(groupId))
-			);
-
-			// Determine which groups to add the user to - use the UI's state (userGroupIds)
-			// as the source of truth, not the backend state
-			const previousUserGroups = await userService.getUserGroups(user.id);
-			const previousUserGroupIds = previousUserGroups.map((g) => g.id);
-
-			// Add user to newly selected groups
-			const addPromises = userGroupIds
-				.filter((groupId) => !previousUserGroupIds.includes(groupId))
-				.map(async (groupId) => {
-					try {
-						console.log(`Adding user ${user.id} to newly selected group ${groupId}`);
-						const group = await userGroupService.get(groupId);
-						const currentUserIds = group.users.map((u) => u.id);
-						return userGroupService.updateUsers(groupId, [...currentUserIds, user.id]);
-					} catch (error) {
-						console.error(`Error adding user to group ${groupId}:`, error);
-						throw error;
-					}
-				});
-
-			// Remove user from unselected groups
-			const removePromises = previousUserGroupIds
-				.filter((groupId) => !userGroupIds.includes(groupId))
-				.map(async (groupId) => {
-					try {
-						const group = await userGroupService.get(groupId);
-						const currentUserIds = group.users.map((u) => u.id);
-						return userGroupService.updateUsers(
-							groupId,
-							currentUserIds.filter((id) => id !== user.id)
-						);
-					} catch (error) {
-						console.error(`Error removing user from group ${groupId}:`, error);
-						throw error;
-					}
-				});
-
-			// Wait for all operations to complete
-			await Promise.all([...addPromises, ...removePromises]);
-
-			toast.success('User group memberships updated successfully');
-
-			// Refresh the table
-			if (requestOptions) {
-				const refreshedGroups = await userGroupService.list(requestOptions);
-				allUserGroups = refreshedGroups;
-
-				// Update the user's group memberships
-				const updatedUserGroups = await userService.getUserGroups(user.id);
-				userGroupIds = updatedUserGroups.map((g) => g.id);
-			}
-		} catch (e) {
-			console.error('Error in updateUserGroups:', e);
-			axiosErrorToast(e);
-		}
-	}
-
-	// Existing functions...
 	async function updateUser(updatedUser: UserCreate) {
 		let success = true;
 		await userService
@@ -179,16 +99,19 @@
 <CollapsibleCard
 	id="user-groups"
 	title="User Groups"
-	description="Manage which groups this user belongs to. Group membership affects permissions and access to OIDC clients."
+	description="Manage which groups this user belongs to."
 >
-	<GroupSelection
-		groups={allUserGroups}
-		bind:selectedGroupIds={userGroupIds}
-		selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
-	/>
+	{#await userGroupService.list() then groups}
+		<UserGroupSelection
+			{groups}
+			bind:selectedGroupIds={user.userGroupIds}
+			selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
+		/>
+	{/await}
+
 	<div class="mt-5 flex justify-end">
 		<Button
-			on:click={updateUserGroups}
+			on:click={() => updateUserGroups(user.userGroupIds)}
 			disabled={!!user.ldapId && $appConfigStore.ldapEnabled}
 			type="submit">Save</Button
 		>
