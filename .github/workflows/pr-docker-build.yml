@@ -1,0 +1,52 @@
+name: PR Docker Build
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize]
+    paths-ignore:
+      - "**.md"
+      - ".github/**"
+
+jobs:
+  build-pr:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          tags: ghcr.io/pocket-id/pocket-id:pr-${{ github.event.pull_request.number }}
+          context: .
+          platforms: linux/amd64, linux/arm64
+          push: true
+          labels: |
+            org.opencontainers.image.title=Pocket ID - PR #${{ github.event.pull_request.number }}
+            org.opencontainers.image.description=PR Build for ${{ github.event.pull_request.title }}
+            org.opencontainers.image.source=${{ github.event.pull_request.html_url }}
+
+      - name: Update PR Description
+        if: github.event.action == 'opened'
+        uses: nefrob/pr-description@v1.2.0
+        with:
+          content: "\n\n---\nDocker image for this PR is available at `ghcr.io/pocket-id/pocket-id:pr-${{ github.event.pull_request.number }}`"
+          token: ${{ secrets.GITHUB_TOKEN }}

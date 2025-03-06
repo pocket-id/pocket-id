@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"log"
+	"net"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 )
@@ -79,8 +81,20 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	baseGroup := r.Group("/")
 	controller.NewWellKnownController(baseGroup, jwtService)
 
-	// Run the server
-	if err := r.Run(common.EnvConfig.Host + ":" + common.EnvConfig.Port); err != nil {
+	// Get the listener
+	l, err := net.Listen("tcp", common.EnvConfig.Host+":"+common.EnvConfig.Port)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Notify systemd that we are ready
+	if err := systemd.SdNotifyReady(); err != nil {
+		log.Println("Unable to notify systemd that the service is ready: ", err)
+		// continue to serve anyway since it's not that important
+	}
+
+	// Serve requests
+	if err := r.RunListener(l); err != nil {
 		log.Fatal(err)
 	}
 }
