@@ -35,7 +35,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
-          tags: ghcr.io/pocket-id/pocket-id:pr-${{ github.event.pull_request.number }}
+          tags: ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}
           context: .
           platforms: linux/amd64, linux/arm64
           push: true
@@ -48,5 +48,5 @@ jobs:
         if: github.event.action == 'opened'
         uses: nefrob/pr-description@v1.2.0
         with:
-          content: "\n\n---\nDocker image for this PR is available at `ghcr.io/pocket-id/pocket-id:pr-${{ github.event.pull_request.number }}`"
+          content: "\n\n---\nDocker image for this PR is available at `ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}`"
           token: ${{ secrets.GITHUB_TOKEN }}
