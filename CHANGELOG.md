@@ -1,3 +1,26 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.35.5...v) (2025-03-03)
+
+
+### Bug Fixes
+
+* support `LOGIN` authentication method for SMTP ([#292](https://github.com/pocket-id/pocket-id/issues/292)) ([2d733fc](https://github.com/pocket-id/pocket-id/commit/2d733fc79faefca23d54b22768029c3ba3427410))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.35.4...v) (2025-03-03)
+
+
+### Bug Fixes
+
+* profile picture orientation if image is rotated with EXIF ([1026ee4](https://github.com/pocket-id/pocket-id/commit/1026ee4f5b5c7fda78b65c94a5d0f899525defd1))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.35.3...v) (2025-03-01)
+
+
+### Bug Fixes
+
+* add `groups` scope and claim to well known endpoint ([4bafee4](https://github.com/pocket-id/pocket-id/commit/4bafee4f58f5a76898cf66d6192916d405eea389))
+* profile picture of other user can't be updated ([#273](https://github.com/pocket-id/pocket-id/issues/273)) ([ef25f6b](https://github.com/pocket-id/pocket-id/commit/ef25f6b6b84b52f1310d366d40aa3769a6fe9bef))
+* support POST for OIDC userinfo endpoint ([1652cc6](https://github.com/pocket-id/pocket-id/commit/1652cc65f3f966d018d81a1ae22abb5ff1b4c47b))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.35.2...v) (2025-02-25)
 
 
