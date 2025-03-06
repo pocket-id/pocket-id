@@ -88,7 +88,7 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	}
 
 	// Notify systemd that we are ready
-	if err := systemd.SdNotify(systemd.SdNotifyReady); err != nil {
+	if err := systemd.SdNotifyReady(); err != nil {
 		log.Println("Unable to notify systemd that the service is ready: ", err)
 		// continue to serve anyway since it's not that important
 	}
