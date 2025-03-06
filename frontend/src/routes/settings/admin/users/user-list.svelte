@@ -15,19 +15,17 @@
 	import Ellipsis from 'lucide-svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 	import OneTimeLinkModal from './one-time-link-modal.svelte';
-	import { onMount } from 'svelte';
 
 	let { users = $bindable() }: { users: Paginated<User> } = $props();
 
 	let userIdToCreateOneTimeLink: string | null = $state(null);
 
 	let requestOptions: SearchPaginationSortRequest | undefined = $state({
-		sort: { column: 'firstName', direction: 'asc' }
-	});
-
-	// Fetch the sorted data when the component is mounted
-	onMount(async () => {
-		users = await userService.list(requestOptions!);
+		sort: { column: 'firstName', direction: 'asc' },
+		pagination: {
+			page: users.pagination.currentPage,
+			limit: users.pagination.itemsPerPage
+		}
 	});
 
 	const userService = new UserService();

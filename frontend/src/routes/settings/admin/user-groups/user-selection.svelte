@@ -4,7 +4,6 @@
 	import UserService from '$lib/services/user-service';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
-	import { onMount } from 'svelte';
 
 	let {
 		users: initialUsers,
@@ -12,15 +11,14 @@
 		selectedUserIds = $bindable()
 	}: { users: Paginated<User>; selectionDisabled?: boolean; selectedUserIds: string[] } = $props();
 	let requestOptions: SearchPaginationSortRequest | undefined = $state({
-		sort: { column: 'name', direction: 'asc' }
+		sort: { column: 'friendlyName', direction: 'asc' },
+		pagination: {
+			page: initialUsers.pagination.currentPage,
+			limit: initialUsers.pagination.itemsPerPage
+		}
 	});
 
 	let users = $state<Paginated<User>>(initialUsers);
-
-	// Fetch the sorted data when the component is mounted
-	onMount(async () => {
-		users = await userService.list(requestOptions!);
-	});
 
 	const userService = new UserService();
 </script>

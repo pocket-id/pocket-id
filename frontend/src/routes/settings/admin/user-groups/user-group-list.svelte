@@ -13,19 +13,17 @@
 	import { LucidePencil, LucideTrash } from 'lucide-svelte';
 	import Ellipsis from 'lucide-svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
 
 	let { userGroups: initialUserGroups }: { userGroups: Paginated<UserGroupWithUserCount> } =
 		$props();
 
 	let userGroups = $state<Paginated<UserGroupWithUserCount>>(initialUserGroups);
 	let requestOptions: SearchPaginationSortRequest | undefined = $state({
-		sort: { column: 'friendlyName', direction: 'asc' }
-	});
-
-	// Fetch the sorted data when the component is mounted
-	onMount(async () => {
-		userGroups = await userGroupService.list(requestOptions!);
+		sort: { column: 'friendlyName', direction: 'asc' },
+		pagination: {
+			page: initialUserGroups.pagination.currentPage,
+			limit: initialUserGroups.pagination.itemsPerPage
+		}
 	});
 
 	const userGroupService = new UserGroupService();
