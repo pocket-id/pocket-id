@@ -2,7 +2,6 @@
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import * as Table from '$lib/components/ui/table';
 	import UserGroupService from '$lib/services/user-group-service';
-	import type { OidcClient } from '$lib/types/oidc.type';
 	import type { Paginated } from '$lib/types/pagination.type';
 	import type { UserGroup } from '$lib/types/user-group.type';
 

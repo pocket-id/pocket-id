@@ -18,7 +18,13 @@
 		$props();
 
 	let userGroups = $state<Paginated<UserGroupWithUserCount>>(initialUserGroups);
-	let requestOptions: SearchPaginationSortRequest | undefined = $state();
+	let requestOptions: SearchPaginationSortRequest | undefined = $state({
+		sort: { column: 'friendlyName', direction: 'asc' },
+		pagination: {
+			page: initialUserGroups.pagination.currentPage,
+			limit: initialUserGroups.pagination.itemsPerPage
+		}
+	});
 
 	const userGroupService = new UserGroupService();
 
@@ -47,6 +53,7 @@
 	items={userGroups}
 	onRefresh={async (o) => (userGroups = await userGroupService.list(o))}
 	{requestOptions}
+	defaultSort={{ column: 'friendlyName', direction: 'asc' }}
 	columns={[
 		{ label: 'Friendly Name', sortColumn: 'friendlyName' },
 		{ label: 'Name', sortColumn: 'name' },

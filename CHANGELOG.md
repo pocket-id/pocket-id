@@ -1,3 +1,16 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.35.6...v) (2025-03-06)
+
+
+### Features
+
+* display groups on the account page ([#296](https://github.com/pocket-id/pocket-id/issues/296)) ([0f14a93](https://github.com/pocket-id/pocket-id/commit/0f14a93e1d6a723b0994ba475b04702646f04464))
+* enable sd_notify support ([#277](https://github.com/pocket-id/pocket-id/issues/277)) ([91f254c](https://github.com/pocket-id/pocket-id/commit/91f254c7bb067646c42424c5c62ebcd90a0c8792))
+
+
+### Bug Fixes
+
+* default sorting on tables ([#299](https://github.com/pocket-id/pocket-id/issues/299)) ([ff34e3b](https://github.com/pocket-id/pocket-id/commit/ff34e3b925321c80e9d7d42d0fd50e397d198435))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.35.5...v) (2025-03-03)
 
 

@@ -132,22 +132,18 @@ func (s *LdapService) SyncGroups() error {
 			LdapID:       value.GetAttributeValue(uniqueIdentifierAttribute),
 		}
 
-		usersToAddDto := dto.UserGroupUpdateUsersDto{
-			UserIDs: membersUserId,
-		}
-
 		if databaseGroup.ID == "" {
 			newGroup, err := s.groupService.Create(syncGroup)
 			if err != nil {
 				log.Printf("Error syncing group %s: %s", syncGroup.Name, err)
 			} else {
-				if _, err = s.groupService.UpdateUsers(newGroup.ID, usersToAddDto); err != nil {
+				if _, err = s.groupService.UpdateUsers(newGroup.ID, membersUserId); err != nil {
 					log.Printf("Error syncing group %s: %s", syncGroup.Name, err)
 				}
 			}
 		} else {
 			_, err = s.groupService.Update(databaseGroup.ID, syncGroup, true)
-			_, err = s.groupService.UpdateUsers(databaseGroup.ID, usersToAddDto)
+			_, err = s.groupService.UpdateUsers(databaseGroup.ID, membersUserId)
 			if err != nil {
 				log.Printf("Error syncing group %s: %s", syncGroup.Name, err)
 				return err
