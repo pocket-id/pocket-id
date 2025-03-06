@@ -103,16 +103,16 @@ func (s *UserGroupService) Update(id string, input dto.UserGroupCreateDto, allow
 	return group, nil
 }
 
-func (s *UserGroupService) UpdateUsers(id string, input dto.UserGroupUpdateUsersDto) (group model.UserGroup, err error) {
+func (s *UserGroupService) UpdateUsers(id string, userIds []string) (group model.UserGroup, err error) {
 	group, err = s.Get(id)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
 
-	// Fetch the users based on UserIDs in input
+	// Fetch the users based on the userIds
 	var users []model.User
-	if len(input.UserIDs) > 0 {
-		if err := s.db.Where("id IN (?)", input.UserIDs).Find(&users).Error; err != nil {
+	if len(userIds) > 0 {
+		if err := s.db.Where("id IN (?)", userIds).Find(&users).Error; err != nil {
 			return model.UserGroup{}, err
 		}
 	}

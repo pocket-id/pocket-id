@@ -1,4 +1,5 @@
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+import type { UserGroup } from '$lib/types/user-group.type';
 import type { User, UserCreate } from '$lib/types/user.type';
 import APIService from './api-service';
 
@@ -23,6 +24,11 @@ export default class UserService extends APIService {
 	async create(user: UserCreate) {
 		const res = await this.api.post('/users', user);
 		return res.data as User;
+	}
+
+	async getUserGroups(userId: string) {
+		const res = await this.api.get(`/users/${userId}/groups`);
+		return res.data as UserGroup[];
 	}
 
 	async update(id: string, user: UserCreate) {
@@ -68,5 +74,10 @@ export default class UserService extends APIService {
 
 	async requestOneTimeAccessEmail(email: string, redirectPath?: string) {
 		await this.api.post('/one-time-access-email', { email, redirectPath });
+	}
+
+	async updateUserGroups(id: string, userGroupIds: string[]) {
+		const res = await this.api.put(`/users/${id}/user-groups`, { userGroupIds });
+		return res.data as User;
 	}
 }
