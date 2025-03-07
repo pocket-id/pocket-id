@@ -7,12 +7,12 @@ import (
 type ApiKey struct {
 	Base
 
-	Name        string
+	Name        string `sortable:"true"`
 	Key         string
-	Description string
-	Enabled     bool
-	ExpiresAt   time.Time
-	LastUsedAt  *time.Time
+	Description string     `sortable:"true"`
+	Enabled     bool       `sortable:"true"`
+	ExpiresAt   time.Time  `sortable:"true"`
+	LastUsedAt  *time.Time `sortable:"true"`
 	UserID      string
 	User        User `gorm:"foreignKey:UserID"`
 }

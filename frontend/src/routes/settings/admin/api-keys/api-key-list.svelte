@@ -1,49 +1,38 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
+	import { Button } from '$lib/components/ui/button';
+	import * as Table from '$lib/components/ui/table';
 	import ApiKeyService from '$lib/services/api-key-service';
 	import type { ApiKey } from '$lib/types/api-key.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { toast } from 'svelte-sonner';
-	import { LucideBan, LucideEllipsis } from 'lucide-svelte';
 	import type { Paginated } from '$lib/types/pagination.type';
-	import type { SearchPaginationSortRequest } from '$lib/types/sort-pagination.type';
+	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { LucideBan } from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
+	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 
-	// Convert the apiKeys array to a Paginated object
-	let apiKeys = $state<Paginated<ApiKey>>({
-		data: [],
-		pagination: {
-			currentPage: 1,
-			totalItems: 0,
-			totalPages: 1,
-			itemsPerPage: 10
+	let {
+		apiKeys: initialApiKeys = {
+			data: [],
+			pagination: { currentPage: 1, itemsPerPage: 10, totalItems: 0, totalPages: 0 }
 		}
-	});
+	}: {
+		apiKeys?: Paginated<ApiKey>;
+	} = $props();
 
+	let apiKeys = $state<Paginated<ApiKey>>(initialApiKeys);
 	let requestOptions: SearchPaginationSortRequest | undefined = $state();
 	const apiKeyService = new ApiKeyService();
+
+	// Update the local state whenever the prop changes
+	$effect(() => {
+		apiKeys = initialApiKeys;
+	});
 
 	async function loadApiKeys(options?: SearchPaginationSortRequest) {
 		try {
 			const keys = await apiKeyService.list(options);
-			// If the service doesn't support pagination yet, convert the response
-			if (Array.isArray(keys)) {
-				apiKeys = {
-					data: keys,
-					pagination: {
-						currentPage: 1,
-						totalItems: keys.length,
-						totalPages: 1,
-						itemsPerPage: keys.length || 10
-					}
-				};
-			} else {
-				apiKeys = keys;
-			}
+			apiKeys = keys;
 		} catch (e) {
 			axiosErrorToast(e);
 		}
@@ -76,17 +65,18 @@
 	}
 
 	$effect(() => {
-		loadApiKeys();
+		// Initial load uses the server-side data
+		apiKeys = initialApiKeys;
 	});
 </script>
 
 <AdvancedTable
 	items={apiKeys}
 	{requestOptions}
-	onRefresh={loadApiKeys}
+	onRefresh={async (o) => (apiKeys = await apiKeyService.list(o))}
 	columns={[
 		{ label: 'Name', sortColumn: 'name' },
-		{ label: 'Description' },
+		{ label: 'Description', sortColumn: 'description' },
 		{ label: 'Expires At', sortColumn: 'expiresAt' },
 		{ label: 'Last Used', sortColumn: 'lastUsedAt' },
 		{ label: 'Actions', hidden: true }

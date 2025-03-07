@@ -28,6 +28,11 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 	userID := ctx.GetString("userID")
 
+	if userID == "" {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
 	apiKeys, err := c.apiKeyService.ListApiKeys(userID)
 	if err != nil {
 		ctx.Error(err)
@@ -40,7 +45,16 @@ func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, apiKeysDto)
+	// Return properly formatted paginated result
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": apiKeysDto,
+		"pagination": gin.H{
+			"currentPage":  1,
+			"itemsPerPage": len(apiKeysDto),
+			"totalItems":   len(apiKeysDto),
+			"totalPages":   1,
+		},
+	})
 }
 
 func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {

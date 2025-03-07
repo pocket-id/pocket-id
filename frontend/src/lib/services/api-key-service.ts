@@ -3,11 +3,11 @@ import type { Paginated, SearchPaginationSortRequest } from '$lib/types/paginati
 import APIService from './api-service';
 
 export default class ApiKeyService extends APIService {
-	async list(options?: SearchPaginationSortRequest): Promise<Paginated<ApiKey>> {
+	async list(options?: SearchPaginationSortRequest) {
 		const res = await this.api.get('/api-keys', {
 			params: options
 		});
-		return res.data;
+		return res.data as Paginated<ApiKey>;
 	}
 
 	async create(apiKey: ApiKeyCreate): Promise<ApiKeyResponse> {

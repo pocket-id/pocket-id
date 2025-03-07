@@ -9,6 +9,11 @@
 	import ApiKeyForm from './api-key-form.svelte';
 	import ApiKeyList from './api-key-list.svelte';
 	import ApiKeyDialog from './api-key-dialog.svelte';
+	import type { Paginated } from '$lib/types/pagination.type';
+	import type { ApiKey } from '$lib/types/api-key.type';
+
+	let { data } = $props();
+	let apiKeys = $state<Paginated<ApiKey>>(data);
 
 	const apiKeyService = new ApiKeyService();
 	let expandAddApiKey = $state(false);
@@ -18,10 +23,29 @@
 		try {
 			const response = await apiKeyService.create(apiKeyData);
 			apiKeyResponse = response;
+
+			// After creation, reload the list of API keys
+			const updatedKeys = await apiKeyService.list();
+			apiKeys = updatedKeys;
+
 			return true;
 		} catch (e) {
 			axiosErrorToast(e);
 			return false;
+		}
+	}
+
+	// Handler for when the dialog closes
+	function handleDialogClose(open: boolean) {
+		if (!open) {
+			apiKeyResponse = null;
+			// Refresh the list when dialog closes
+			apiKeyService
+				.list()
+				.then((keys) => {
+					apiKeys = keys;
+				})
+				.catch(axiosErrorToast);
 		}
 	}
 </script>
@@ -60,13 +84,8 @@
 		<Card.Title>Manage API Keys</Card.Title>
 	</Card.Header>
 	<Card.Content>
-		<ApiKeyList />
+		<ApiKeyList {apiKeys} />
 	</Card.Content>
 </Card.Root>
 
-<ApiKeyDialog
-	bind:apiKeyResponse
-	onOpenChange={(open) => {
-		if (!open) apiKeyResponse = null;
-	}}
-/>
+<ApiKeyDialog bind:apiKeyResponse onOpenChange={handleDialogClose} />

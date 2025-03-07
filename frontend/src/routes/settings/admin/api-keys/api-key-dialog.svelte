@@ -5,7 +5,7 @@
 	import type { ApiKeyResponse } from '$lib/types/api-key.type';
 
 	let {
-		apiKeyResponse,
+		apiKeyResponse = $bindable(),
 		onOpenChange
 	}: {
 		apiKeyResponse: ApiKeyResponse | null;
@@ -44,7 +44,7 @@
 			</div>
 		{/if}
 		<Dialog.Footer>
-			<Button variant="secondary" onclick={() => onOpenChange(false)}>Close</Button>
+			<Button variant="secondary" on:click={() => onOpenChange(false)}>Close</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
