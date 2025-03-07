@@ -26,18 +26,18 @@ func NewAppConfigController(
 		ldapService:      ldapService,
 	}
 	group.GET("/application-configuration", acc.listAppConfigHandler)
-	group.GET("/application-configuration/all", authMiddleware.Add(true), acc.listAllAppConfigHandler)
-	group.PUT("/application-configuration", authMiddleware.Add(true), acc.updateAppConfigHandler)
+	group.GET("/application-configuration/all", authMiddleware.Add(), acc.listAllAppConfigHandler)
+	group.PUT("/application-configuration", authMiddleware.Add(), acc.updateAppConfigHandler)
 
 	group.GET("/application-configuration/logo", acc.getLogoHandler)
 	group.GET("/application-configuration/background-image", acc.getBackgroundImageHandler)
 	group.GET("/application-configuration/favicon", acc.getFaviconHandler)
-	group.PUT("/application-configuration/logo", authMiddleware.Add(true), acc.updateLogoHandler)
-	group.PUT("/application-configuration/favicon", authMiddleware.Add(true), acc.updateFaviconHandler)
-	group.PUT("/application-configuration/background-image", authMiddleware.Add(true), acc.updateBackgroundImageHandler)
+	group.PUT("/application-configuration/logo", authMiddleware.Add(), acc.updateLogoHandler)
+	group.PUT("/application-configuration/favicon", authMiddleware.Add(), acc.updateFaviconHandler)
+	group.PUT("/application-configuration/background-image", authMiddleware.Add(), acc.updateBackgroundImageHandler)
 
-	group.POST("/application-configuration/test-email", authMiddleware.Add(true), acc.testEmailHandler)
-	group.POST("/application-configuration/sync-ldap", authMiddleware.Add(true), acc.syncLdapHandler)
+	group.POST("/application-configuration/test-email", authMiddleware.Add(), acc.testEmailHandler)
+	group.POST("/application-configuration/sync-ldap", authMiddleware.Add(), acc.syncLdapHandler)
 }
 
 type AppConfigController struct {

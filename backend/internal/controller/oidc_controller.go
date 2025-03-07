@@ -18,27 +18,28 @@ import (
 func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, oidcService *service.OidcService, jwtService *service.JwtService) {
 	oc := &OidcController{oidcService: oidcService, jwtService: jwtService}
 
-	group.POST("/oidc/authorize", authMiddleware.Add(false), oc.authorizeHandler)
-	group.POST("/oidc/authorization-required", authMiddleware.Add(false), oc.authorizationConfirmationRequiredHandler)
+	group.POST("/oidc/authorize", authMiddleware.WithAdminNotRequired().Add(), oc.authorizeHandler)
+	group.POST("/oidc/authorization-required", authMiddleware.WithAdminNotRequired().Add(), oc.authorizationConfirmationRequiredHandler)
 
 	group.POST("/oidc/token", oc.createTokensHandler)
 	group.GET("/oidc/userinfo", oc.userInfoHandler)
 	group.POST("/oidc/userinfo", oc.userInfoHandler)
-	group.POST("/oidc/end-session", oc.EndSessionHandler)
-	group.GET("/oidc/end-session", oc.EndSessionHandler)
+	group.POST("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
+	group.GET("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
 
-	group.GET("/oidc/clients", authMiddleware.Add(true), oc.listClientsHandler)
-	group.POST("/oidc/clients", authMiddleware.Add(true), oc.createClientHandler)
-	group.GET("/oidc/clients/:id", oc.getClientHandler)
-	group.PUT("/oidc/clients/:id", authMiddleware.Add(true), oc.updateClientHandler)
-	group.DELETE("/oidc/clients/:id", authMiddleware.Add(true), oc.deleteClientHandler)
+	group.GET("/oidc/clients", authMiddleware.Add(), oc.listClientsHandler)
+	group.POST("/oidc/clients", authMiddleware.Add(), oc.createClientHandler)
+	group.GET("/oidc/clients/:id", authMiddleware.Add(), oc.getClientHandler)
+	group.GET("/oidc/clients/:id/meta", oc.getClientMetaDataHandler)
+	group.PUT("/oidc/clients/:id", authMiddleware.Add(), oc.updateClientHandler)
+	group.DELETE("/oidc/clients/:id", authMiddleware.Add(), oc.deleteClientHandler)
 
-	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(true), oc.updateAllowedUserGroupsHandler)
-	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(true), oc.createClientSecretHandler)
+	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), oc.updateAllowedUserGroupsHandler)
+	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), oc.createClientSecretHandler)
 
 	group.GET("/oidc/clients/:id/logo", oc.getClientLogoHandler)
 	group.DELETE("/oidc/clients/:id/logo", oc.deleteClientLogoHandler)
-	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(true), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)
+	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)
 }
 
 type OidcController struct {
@@ -174,6 +175,24 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, logoutCallbackURL.String())
 }
 
+func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
+	clientId := c.Param("id")
+	client, err := oc.oidcService.GetClient(clientId)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	clientDto := dto.OidcClientMetaDataDto{}
+	err = dto.MapStruct(client, &clientDto)
+	if err == nil {
+		c.JSON(http.StatusOK, clientDto)
+		return
+	}
+
+	c.Error(err)
+}
+
 func (oc *OidcController) getClientHandler(c *gin.Context) {
 	clientId := c.Param("id")
 	client, err := oc.oidcService.GetClient(clientId)
@@ -182,21 +201,11 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 		return
 	}
 
-	// Return a different DTO based on the user's role
-	if c.GetBool("userIsAdmin") {
-		clientDto := dto.OidcClientWithAllowedUserGroupsDto{}
-		err = dto.MapStruct(client, &clientDto)
-		if err == nil {
-			c.JSON(http.StatusOK, clientDto)
-			return
-		}
-	} else {
-		clientDto := dto.PublicOidcClientDto{}
-		err = dto.MapStruct(client, &clientDto)
-		if err == nil {
-			c.JSON(http.StatusOK, clientDto)
-			return
-		}
+	clientDto := dto.OidcClientWithAllowedUserGroupsDto{}
+	err = dto.MapStruct(client, &clientDto)
+	if err == nil {
+		c.JSON(http.StatusOK, clientDto)
+		return
 	}
 
 	c.Error(err)

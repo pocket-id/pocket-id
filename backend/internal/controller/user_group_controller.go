@@ -16,7 +16,7 @@ func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.A
 	}
 
 	userGroupsGroup := group.Group("/user-groups")
-	userGroupsGroup.Use(authMiddleware.Add(true))
+	userGroupsGroup.Use(authMiddleware.Add())
 	{
 		userGroupsGroup.GET("", ugc.list)
 		userGroupsGroup.GET("/:id", ugc.get)

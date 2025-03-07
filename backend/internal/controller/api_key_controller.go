@@ -17,7 +17,7 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 	uc := &ApiKeyController{apiKeyService: apiKeyService}
 
 	apiKeyGroup := group.Group("/api-keys")
-	apiKeyGroup.Use(authMiddleware.Add(false))
+	apiKeyGroup.Use(authMiddleware.WithAdminNotRequired().Add())
 	{
 		apiKeyGroup.GET("", uc.listApiKeysHandler)
 		apiKeyGroup.POST("", uc.createApiKeyHandler)

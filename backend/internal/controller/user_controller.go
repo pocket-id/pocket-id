@@ -22,23 +22,23 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 		appConfigService: appConfigService,
 	}
 
-	group.GET("/users", authMiddleware.Add(true), uc.listUsersHandler)
-	group.GET("/users/me", authMiddleware.Add(false), uc.getCurrentUserHandler)
-	group.GET("/users/:id", authMiddleware.Add(true), uc.getUserHandler)
-	group.POST("/users", authMiddleware.Add(true), uc.createUserHandler)
-	group.PUT("/users/:id", authMiddleware.Add(true), uc.updateUserHandler)
-	group.GET("/users/:id/groups", authMiddleware.Add(true), uc.getUserGroupsHandler)
-	group.PUT("/users/me", authMiddleware.Add(false), uc.updateCurrentUserHandler)
-	group.DELETE("/users/:id", authMiddleware.Add(true), uc.deleteUserHandler)
+	group.GET("/users", authMiddleware.Add(), uc.listUsersHandler)
+	group.GET("/users/me", authMiddleware.WithAdminNotRequired().Add(), uc.getCurrentUserHandler)
+	group.GET("/users/:id", authMiddleware.Add(), uc.getUserHandler)
+	group.POST("/users", authMiddleware.Add(), uc.createUserHandler)
+	group.PUT("/users/:id", authMiddleware.Add(), uc.updateUserHandler)
+	group.GET("/users/:id/groups", authMiddleware.Add(), uc.getUserGroupsHandler)
+	group.PUT("/users/me", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserHandler)
+	group.DELETE("/users/:id", authMiddleware.Add(), uc.deleteUserHandler)
 
-	group.PUT("/users/:id/user-groups", authMiddleware.Add(true), uc.updateUserGroups)
+	group.PUT("/users/:id/user-groups", authMiddleware.Add(), uc.updateUserGroups)
 
 	group.GET("/users/:id/profile-picture.png", uc.getUserProfilePictureHandler)
-	group.GET("/users/me/profile-picture.png", authMiddleware.Add(false), uc.getCurrentUserProfilePictureHandler)
-	group.PUT("/users/:id/profile-picture", authMiddleware.Add(true), uc.updateUserProfilePictureHandler)
-	group.PUT("/users/me/profile-picture", authMiddleware.Add(false), uc.updateCurrentUserProfilePictureHandler)
+	group.GET("/users/me/profile-picture.png", authMiddleware.WithAdminNotRequired().Add(), uc.getCurrentUserProfilePictureHandler)
+	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), uc.updateUserProfilePictureHandler)
+	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserProfilePictureHandler)
 
-	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(true), uc.createOneTimeAccessTokenHandler)
+	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(), uc.createOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/setup", uc.getSetupAccessTokenHandler)
 	group.POST("/one-time-access-email", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), uc.requestOneTimeAccessEmailHandler)

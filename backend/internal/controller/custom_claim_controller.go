@@ -13,7 +13,7 @@ func NewCustomClaimController(group *gin.RouterGroup, authMiddleware *middleware
 	wkc := &CustomClaimController{customClaimService: customClaimService}
 
 	customClaimsGroup := group.Group("/custom-claims")
-	customClaimsGroup.Use(authMiddleware.Add(true))
+	customClaimsGroup.Use(authMiddleware.Add())
 	{
 		customClaimsGroup.GET("/suggestions", wkc.getSuggestionsHandler)
 		customClaimsGroup.PUT("/user/:userId", wkc.UpdateCustomClaimsForUserHandler)

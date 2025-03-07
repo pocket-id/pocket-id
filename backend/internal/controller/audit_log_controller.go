@@ -16,7 +16,7 @@ func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.Audi
 		auditLogService: auditLogService,
 	}
 
-	group.GET("/audit-logs", authMiddleware.Add(false), alc.listAuditLogsForUserHandler)
+	group.GET("/audit-logs", authMiddleware.WithAdminNotRequired().Add(), alc.listAuditLogsForUserHandler)
 }
 
 type AuditLogController struct {
