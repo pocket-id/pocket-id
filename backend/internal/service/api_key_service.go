@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -30,7 +31,7 @@ func (s *ApiKeyService) ListApiKeys(userID string) ([]model.ApiKey, error) {
 func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (model.ApiKey, string, error) {
 	// Check if expiration is in the future
 	if !input.ExpiresAt.After(time.Now()) {
-		return model.ApiKey{}, "", errors.New("expiration time must be in the future")
+		return model.ApiKey{}, "", &common.APIKeyExpirationDateError{}
 	}
 
 	// Generate a secure random API key
@@ -60,7 +61,7 @@ func (s *ApiKeyService) RevokeApiKey(userID, apiKeyID string) error {
 	var apiKey model.ApiKey
 	if err := s.db.Where("id = ? AND user_id = ?", apiKeyID, userID).First(&apiKey).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("API key not found")
+			return &common.APIKeyNotFoundError{}
 		}
 		return err
 	}
@@ -70,7 +71,7 @@ func (s *ApiKeyService) RevokeApiKey(userID, apiKeyID string) error {
 
 func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 	if apiKey == "" {
-		return model.User{}, errors.New("no API key provided")
+		return model.User{}, &common.NoAPIKeyProvidedError{}
 	}
 
 	var key model.ApiKey
@@ -80,10 +81,9 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 		hashedKey, true, time.Now()).Preload("User").First(&key).Error; err != nil {
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.User{}, errors.New("invalid API key")
+			return model.User{}, &common.InvalidAPIKeyError{}
 		}
 
-		log.Printf("Database error when validating API key: %v", err)
 		return model.User{}, err
 	}
 
