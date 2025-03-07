@@ -41,7 +41,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-webauthn/x v0.1.16 // indirect
 	github.com/goccy/go-json v0.10.4 // indirect
-	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/google/go-tpm v0.9.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
