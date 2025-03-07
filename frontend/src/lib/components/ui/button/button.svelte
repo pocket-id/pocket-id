@@ -2,6 +2,7 @@
 	import { cn } from '$lib/utils/style.js';
 	import { Button as ButtonPrimitive } from 'bits-ui';
 	import LoaderCircle from 'lucide-svelte/icons/loader-circle';
+	import type { ClassNameValue } from 'tailwind-merge';
 	import { type Events, type Props, buttonVariants } from './index.js';
 
 	type $$Props = Props;
@@ -19,7 +20,7 @@
 <ButtonPrimitive.Root
 	{builders}
 	disabled={isLoading || disabled}
-	class={cn(buttonVariants({ variant, size, className }))}
+	class={cn(buttonVariants({ variant, size, className: className as ClassNameValue }))}
 	type="button"
 	{...$$restProps}
 	on:click

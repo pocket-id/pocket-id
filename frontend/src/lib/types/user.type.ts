@@ -13,4 +13,4 @@ export type User = {
 	ldapId?: string;
 };
 
-export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId'>;
+export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId' | 'userGroups'>;
