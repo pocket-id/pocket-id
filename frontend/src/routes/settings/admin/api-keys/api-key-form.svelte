@@ -44,11 +44,29 @@
 		const data = form.validate();
 		if (!data) return;
 
-		// Now we can trust that data.expiresAt is already in the future
+		// Ensure expiresAt is properly converted to a Date and then to ISO string
+		let formattedDate: string;
+
+		try {
+			// Check if expiresAt is already a Date object
+			if (data.expiresAt instanceof Date) {
+				formattedDate = data.expiresAt.toISOString();
+			} else {
+				// If it's a string, convert it to a Date first
+				const dateObj = new Date(data.expiresAt as unknown as string);
+				formattedDate = dateObj.toISOString();
+			}
+		} catch (error) {
+			const defaultDate = new Date();
+			defaultDate.setDate(defaultDate.getDate() + 30);
+			formattedDate = defaultDate.toISOString();
+		}
+
+		// Now we can trust that expiresAt is properly formatted with seconds and timezone
 		const apiKeyData: ApiKeyCreate = {
 			name: data.name,
 			description: data.description,
-			expiresAt: data.expiresAt
+			expiresAt: formattedDate
 		};
 
 		isLoading = true;
