@@ -41,7 +41,7 @@ func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (
 
 	apiKey := model.ApiKey{
 		Name:        input.Name,
-		Key:         utils.HashApiKey(token), // Hash the token for storage
+		Key:         utils.CreateSha256Hash(token), // Hash the token for storage
 		Description: input.Description,
 		Enabled:     true,
 		ExpiresAt:   input.ExpiresAt,
@@ -74,7 +74,7 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 	}
 
 	var key model.ApiKey
-	hashedKey := utils.HashApiKey(apiKey)
+	hashedKey := utils.CreateSha256Hash(apiKey)
 
 	if err := s.db.Preload("User").Where("key = ? AND enabled = ? AND expires_at > ?",
 		hashedKey, true, time.Now()).Preload("User").First(&key).Error; err != nil {
