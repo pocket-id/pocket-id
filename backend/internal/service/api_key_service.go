@@ -69,10 +69,14 @@ func (s *ApiKeyService) RevokeApiKey(userID, apiKeyID string) error {
 }
 
 func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
+	if apiKey == "" {
+		return model.User{}, errors.New("no API key provided")
+	}
+
 	var key model.ApiKey
 	hashedKey := utils.HashApiKey(apiKey)
 
-	if err := s.db.Where("key = ? AND enabled = ? AND expires_at > ?",
+	if err := s.db.Preload("User").Where("key = ? AND enabled = ? AND expires_at > ?",
 		hashedKey, true, time.Now()).Preload("User").First(&key).Error; err != nil {
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {

@@ -16,19 +16,19 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func NewWebauthnController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.JwtAuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, webauthnService *service.WebAuthnService, appConfigService *service.AppConfigService) {
+func NewWebauthnController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, webauthnService *service.WebAuthnService, appConfigService *service.AppConfigService) {
 	wc := &WebauthnController{webAuthnService: webauthnService, appConfigService: appConfigService}
-	group.GET("/webauthn/register/start", jwtAuthMiddleware.Add(false), wc.beginRegistrationHandler)
-	group.POST("/webauthn/register/finish", jwtAuthMiddleware.Add(false), wc.verifyRegistrationHandler)
+	group.GET("/webauthn/register/start", authMiddleware.Add(false), wc.beginRegistrationHandler)
+	group.POST("/webauthn/register/finish", authMiddleware.Add(false), wc.verifyRegistrationHandler)
 
 	group.GET("/webauthn/login/start", wc.beginLoginHandler)
 	group.POST("/webauthn/login/finish", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), wc.verifyLoginHandler)
 
-	group.POST("/webauthn/logout", jwtAuthMiddleware.Add(false), wc.logoutHandler)
+	group.POST("/webauthn/logout", authMiddleware.Add(false), wc.logoutHandler)
 
-	group.GET("/webauthn/credentials", jwtAuthMiddleware.Add(false), wc.listCredentialsHandler)
-	group.PATCH("/webauthn/credentials/:id", jwtAuthMiddleware.Add(false), wc.updateCredentialHandler)
-	group.DELETE("/webauthn/credentials/:id", jwtAuthMiddleware.Add(false), wc.deleteCredentialHandler)
+	group.GET("/webauthn/credentials", authMiddleware.Add(false), wc.listCredentialsHandler)
+	group.PATCH("/webauthn/credentials/:id", authMiddleware.Add(false), wc.updateCredentialHandler)
+	group.DELETE("/webauthn/credentials/:id", authMiddleware.Add(false), wc.deleteCredentialHandler)
 }
 
 type WebauthnController struct {

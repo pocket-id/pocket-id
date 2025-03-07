@@ -1,9 +1,8 @@
 package middleware
 
 import (
-	"strings"
-
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -19,37 +18,33 @@ func NewApiKeyAuthMiddleware(apiKeyService *service.ApiKeyService, jwtService *s
 	}
 }
 
-func (m *ApiKeyAuthMiddleware) Add() gin.HandlerFunc {
+func (m *ApiKeyAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		auth := c.GetHeader("Authorization")
-
-		// If no Authorization header, just continue to the next middleware
-		if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
-			c.Next()
-			return
-		}
-
-		token := strings.TrimPrefix(auth, "Bearer ")
-
-		// Check if token looks like a JWT (has 3 parts separated by dots)
-		// If it does, let the JWT middleware handle it
-		if strings.Count(token, ".") == 2 {
-			c.Next()
-			return
-		}
-
-		// Not a JWT format, so try to validate as API key
-		user, err := m.apiKeyService.ValidateApiKey(token)
+		userID, isAdmin, err := m.Verify(c, adminRequired)
 		if err != nil {
-			// Not a valid API key, let the request continue to JWT auth
-			// which will handle the error if needed
-			c.Next()
+			c.Abort()
+			c.Error(err)
 			return
 		}
 
-		// API key is valid, set user context
-		c.Set("userID", user.ID)
-		c.Set("userIsAdmin", user.IsAdmin)
+		c.Set("userID", userID)
+		c.Set("userIsAdmin", isAdmin)
 		c.Next()
 	}
+}
+
+func (m *ApiKeyAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (userID string, isAdmin bool, err error) {
+	apiKey := c.GetHeader("X-API-KEY")
+
+	user, err := m.apiKeyService.ValidateApiKey(apiKey)
+	if err != nil {
+		return "", false, &common.NotSignedInError{}
+	}
+
+	// Check if the user is an admin
+	if adminRequired && !user.IsAdmin {
+		return "", false, &common.MissingPermissionError{}
+	}
+
+	return user.ID, user.IsAdmin, nil
 }

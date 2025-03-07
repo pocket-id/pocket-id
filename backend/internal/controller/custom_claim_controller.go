@@ -9,11 +9,17 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
-func NewCustomClaimController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.JwtAuthMiddleware, customClaimService *service.CustomClaimService) {
+func NewCustomClaimController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, customClaimService *service.CustomClaimService) {
 	wkc := &CustomClaimController{customClaimService: customClaimService}
-	group.GET("/custom-claims/suggestions", jwtAuthMiddleware.Add(true), wkc.getSuggestionsHandler)
-	group.PUT("/custom-claims/user/:userId", jwtAuthMiddleware.Add(true), wkc.UpdateCustomClaimsForUserHandler)
-	group.PUT("/custom-claims/user-group/:userGroupId", jwtAuthMiddleware.Add(true), wkc.UpdateCustomClaimsForUserGroupHandler)
+
+	customClaimsGroup := group.Group("/custom-claims")
+	customClaimsGroup.Use(authMiddleware.Add(true))
+	{
+		customClaimsGroup.GET("/suggestions", wkc.getSuggestionsHandler)
+		customClaimsGroup.PUT("/user/:userId", wkc.UpdateCustomClaimsForUserHandler)
+		customClaimsGroup.PUT("/user-group/:userGroupId", wkc.UpdateCustomClaimsForUserGroupHandler)
+	}
+
 }
 
 type CustomClaimController struct {

@@ -13,11 +13,11 @@ type ApiKeyController struct {
 	apiKeyService *service.ApiKeyService
 }
 
-func NewApiKeyController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.JwtAuthMiddleware, apiKeyService *service.ApiKeyService) {
+func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, apiKeyService *service.ApiKeyService) {
 	uc := &ApiKeyController{apiKeyService: apiKeyService}
 
 	apiKeyGroup := group.Group("/api-keys")
-	apiKeyGroup.Use(jwtAuthMiddleware.Add(false))
+	apiKeyGroup.Use(authMiddleware.Add(false))
 	{
 		apiKeyGroup.GET("", uc.listApiKeysHandler)
 		apiKeyGroup.POST("", uc.createApiKeyHandler)

@@ -49,32 +49,29 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	apiKeyService := service.NewApiKeyService(db)
 
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware()
-	apiKeyAuthMiddleware := middleware.NewApiKeyAuthMiddleware(apiKeyService, jwtService)
 
 	// Setup global middleware
-	r.Use(apiKeyAuthMiddleware.Add()) //Add API Key Middleware first
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 	r.Use(rateLimitMiddleware.Add(rate.Every(time.Second), 60))
-	r.Use(middleware.NewJwtAuthMiddleware(jwtService, true).Add(false))
 
 	job.RegisterLdapJobs(ldapService, appConfigService)
 	job.RegisterDbCleanupJobs(db)
 
 	// Initialize middleware for specific routes
-	jwtAuthMiddleware := middleware.NewJwtAuthMiddleware(jwtService, false)
+	authMiddleware := middleware.NewAuthMiddleware(apiKeyService, jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 
 	// Set up API routes
 	apiGroup := r.Group("/api")
-	controller.NewApiKeyController(apiGroup, jwtAuthMiddleware, apiKeyService)
-	controller.NewWebauthnController(apiGroup, jwtAuthMiddleware, middleware.NewRateLimitMiddleware(), webauthnService, appConfigService)
-	controller.NewOidcController(apiGroup, jwtAuthMiddleware, fileSizeLimitMiddleware, oidcService, jwtService)
-	controller.NewUserController(apiGroup, jwtAuthMiddleware, middleware.NewRateLimitMiddleware(), userService, appConfigService)
-	controller.NewAppConfigController(apiGroup, jwtAuthMiddleware, appConfigService, emailService, ldapService)
-	controller.NewAuditLogController(apiGroup, auditLogService, jwtAuthMiddleware)
-	controller.NewUserGroupController(apiGroup, jwtAuthMiddleware, userGroupService)
-	controller.NewCustomClaimController(apiGroup, jwtAuthMiddleware, customClaimService)
+	controller.NewApiKeyController(apiGroup, authMiddleware, apiKeyService)
+	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), webauthnService, appConfigService)
+	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, oidcService, jwtService)
+	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), userService, appConfigService)
+	controller.NewAppConfigController(apiGroup, authMiddleware, appConfigService, emailService, ldapService)
+	controller.NewAuditLogController(apiGroup, auditLogService, authMiddleware)
+	controller.NewUserGroupController(apiGroup, authMiddleware, userGroupService)
+	controller.NewCustomClaimController(apiGroup, authMiddleware, customClaimService)
 
 	// Add test controller in non-production environments
 	if common.EnvConfig.AppEnv != "production" {

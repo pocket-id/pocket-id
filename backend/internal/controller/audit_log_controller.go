@@ -11,12 +11,12 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
-func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.AuditLogService, jwtAuthMiddleware *middleware.JwtAuthMiddleware) {
+func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.AuditLogService, authMiddleware *middleware.AuthMiddleware) {
 	alc := AuditLogController{
 		auditLogService: auditLogService,
 	}
 
-	group.GET("/audit-logs", jwtAuthMiddleware.Add(false), alc.listAuditLogsForUserHandler)
+	group.GET("/audit-logs", authMiddleware.Add(false), alc.listAuditLogsForUserHandler)
 }
 
 type AuditLogController struct {

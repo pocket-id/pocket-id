@@ -16,29 +16,29 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func NewUserController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.JwtAuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, appConfigService *service.AppConfigService) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, appConfigService *service.AppConfigService) {
 	uc := UserController{
 		userService:      userService,
 		appConfigService: appConfigService,
 	}
 
-	group.GET("/users", jwtAuthMiddleware.Add(true), uc.listUsersHandler)
-	group.GET("/users/me", jwtAuthMiddleware.Add(false), uc.getCurrentUserHandler)
-	group.GET("/users/:id", jwtAuthMiddleware.Add(true), uc.getUserHandler)
-	group.POST("/users", jwtAuthMiddleware.Add(true), uc.createUserHandler)
-	group.PUT("/users/:id", jwtAuthMiddleware.Add(true), uc.updateUserHandler)
-	group.GET("/users/:id/groups", jwtAuthMiddleware.Add(true), uc.getUserGroupsHandler)
-	group.PUT("/users/me", jwtAuthMiddleware.Add(false), uc.updateCurrentUserHandler)
-	group.DELETE("/users/:id", jwtAuthMiddleware.Add(true), uc.deleteUserHandler)
+	group.GET("/users", authMiddleware.Add(true), uc.listUsersHandler)
+	group.GET("/users/me", authMiddleware.Add(false), uc.getCurrentUserHandler)
+	group.GET("/users/:id", authMiddleware.Add(true), uc.getUserHandler)
+	group.POST("/users", authMiddleware.Add(true), uc.createUserHandler)
+	group.PUT("/users/:id", authMiddleware.Add(true), uc.updateUserHandler)
+	group.GET("/users/:id/groups", authMiddleware.Add(true), uc.getUserGroupsHandler)
+	group.PUT("/users/me", authMiddleware.Add(false), uc.updateCurrentUserHandler)
+	group.DELETE("/users/:id", authMiddleware.Add(true), uc.deleteUserHandler)
 
-	group.PUT("/users/:id/user-groups", jwtAuthMiddleware.Add(true), uc.updateUserGroups)
+	group.PUT("/users/:id/user-groups", authMiddleware.Add(true), uc.updateUserGroups)
 
 	group.GET("/users/:id/profile-picture.png", uc.getUserProfilePictureHandler)
-	group.GET("/users/me/profile-picture.png", jwtAuthMiddleware.Add(false), uc.getCurrentUserProfilePictureHandler)
-	group.PUT("/users/:id/profile-picture", jwtAuthMiddleware.Add(true), uc.updateUserProfilePictureHandler)
-	group.PUT("/users/me/profile-picture", jwtAuthMiddleware.Add(false), uc.updateCurrentUserProfilePictureHandler)
+	group.GET("/users/me/profile-picture.png", authMiddleware.Add(false), uc.getCurrentUserProfilePictureHandler)
+	group.PUT("/users/:id/profile-picture", authMiddleware.Add(true), uc.updateUserProfilePictureHandler)
+	group.PUT("/users/me/profile-picture", authMiddleware.Add(false), uc.updateCurrentUserProfilePictureHandler)
 
-	group.POST("/users/:id/one-time-access-token", jwtAuthMiddleware.Add(true), uc.createOneTimeAccessTokenHandler)
+	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(true), uc.createOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/setup", uc.getSetupAccessTokenHandler)
 	group.POST("/one-time-access-email", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), uc.requestOneTimeAccessEmailHandler)

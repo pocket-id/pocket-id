@@ -10,17 +10,21 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-func NewUserGroupController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.JwtAuthMiddleware, userGroupService *service.UserGroupService) {
+func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, userGroupService *service.UserGroupService) {
 	ugc := UserGroupController{
 		UserGroupService: userGroupService,
 	}
 
-	group.GET("/user-groups", jwtAuthMiddleware.Add(true), ugc.list)
-	group.GET("/user-groups/:id", jwtAuthMiddleware.Add(true), ugc.get)
-	group.POST("/user-groups", jwtAuthMiddleware.Add(true), ugc.create)
-	group.PUT("/user-groups/:id", jwtAuthMiddleware.Add(true), ugc.update)
-	group.DELETE("/user-groups/:id", jwtAuthMiddleware.Add(true), ugc.delete)
-	group.PUT("/user-groups/:id/users", jwtAuthMiddleware.Add(true), ugc.updateUsers)
+	userGroupsGroup := group.Group("/user-groups")
+	userGroupsGroup.Use(authMiddleware.Add(true))
+	{
+		userGroupsGroup.GET("", ugc.list)
+		userGroupsGroup.GET("/:id", ugc.get)
+		userGroupsGroup.POST("", ugc.create)
+		userGroupsGroup.PUT("/:id", ugc.update)
+		userGroupsGroup.DELETE("/:id", ugc.delete)
+		userGroupsGroup.PUT("/:id/users", ugc.updateUsers)
+	}
 }
 
 type UserGroupController struct {
