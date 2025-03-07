@@ -3,9 +3,6 @@ import { test, expect } from '@playwright/test';
 
 test.describe('API Key Management', () => {
 	test.beforeEach(async ({ page }) => {
-		// Login as admin before each test
-		// await loginAsAdmin(page);
-		// Navigate to API keys page
 		await page.goto('/settings/admin/api-keys');
 	});
 
@@ -35,7 +32,7 @@ test.describe('API Key Management', () => {
 		await expect(page.getByRole('heading', { name: 'API Key Created' })).toBeVisible();
 
 		// Verify the key details are shown
-		await expect(page.getByText(name)).toBeVisible();
+		await expect(page.getByRole('cell', { name: 'Test API Key' })).toBeVisible();
 
 		// Verify the token is displayed (should be 32 characters)
 		const tokenElement = page.locator('.font-mono');
@@ -131,6 +128,6 @@ test.describe('API Key Management', () => {
 		await page.getByRole('button', { name: 'Generate API Key' }).click();
 
 		// Verify validation messages
-		await expect(page.getByText('String must contain at least 3 character(s)')).toBeVisible();
+		await expect(page.getByText('Name must be at least 3 characters')).toBeVisible();
 	});
 });
