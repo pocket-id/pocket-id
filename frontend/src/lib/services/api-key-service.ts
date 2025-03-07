@@ -1,28 +1,12 @@
 import type { ApiKey, ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
-import type { Paginated } from '$lib/types/pagination.type';
-import type { SearchPaginationSortRequest } from '$lib/types/sort-pagination.type';
+import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import APIService from './api-service';
 
 export default class ApiKeyService extends APIService {
 	async list(options?: SearchPaginationSortRequest): Promise<Paginated<ApiKey>> {
-		const queryParams = new URLSearchParams();
-
-		if (options?.search) {
-			queryParams.append('search', options.search);
-		}
-
-		if (options?.pagination) {
-			queryParams.append('page', options.pagination.page.toString());
-			queryParams.append('limit', options.pagination.limit.toString());
-		}
-
-		if (options?.sort) {
-			queryParams.append('sort', options.sort.column);
-			queryParams.append('direction', options.sort.direction);
-		}
-
-		const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
-		const res = await this.api.get(`/api-keys${query}`);
+		const res = await this.api.get('/api-keys', {
+			params: options
+		});
 		return res.data;
 	}
 
