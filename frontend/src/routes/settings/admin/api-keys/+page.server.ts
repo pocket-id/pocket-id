@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	const requestOptions = {
 		sort: {
 			column: 'name',
-			direction: 'asc'
+			direction: 'asc' as const
 		},
 		pagination: {
 			page: 1,

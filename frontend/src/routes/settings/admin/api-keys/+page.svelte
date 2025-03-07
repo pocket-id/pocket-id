@@ -2,7 +2,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import ApiKeyService from '$lib/services/api-key-service';
-	import type { ApiKeyResponse } from '$lib/types/api-key.type';
+	import type { ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus, LucidePlus } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
@@ -19,7 +19,7 @@
 	let expandAddApiKey = $state(false);
 	let apiKeyResponse = $state<ApiKeyResponse | null>(null);
 
-	async function createApiKey(apiKeyData) {
+	async function createApiKey(apiKeyData: ApiKeyCreate) {
 		try {
 			const response = await apiKeyService.create(apiKeyData);
 			apiKeyResponse = response;

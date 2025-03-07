@@ -21,7 +21,7 @@
 		description?: string;
 		placeholder?: string;
 		disabled?: boolean;
-		type?: 'text' | 'password' | 'email' | 'number' | 'checkbox';
+		type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'datetime-local';
 		onInput?: (e: FormInputEvent) => void;
 		children?: Snippet;
 	} = $props();
@@ -34,7 +34,7 @@
 		<Label class="mb-0" for={id}>{label}</Label>
 	{/if}
 	{#if description}
-		<p class="mt-1 text-xs text-muted-foreground">{description}</p>
+		<p class="text-muted-foreground mt-1 text-xs">{description}</p>
 	{/if}
 	<div class={label || description ? 'mt-2' : ''}>
 		{#if children}

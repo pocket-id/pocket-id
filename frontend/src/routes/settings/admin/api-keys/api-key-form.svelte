@@ -29,13 +29,11 @@
 			.string()
 			.min(3, 'Name must be at least 3 characters')
 			.max(50, 'Name cannot exceed 50 characters'),
-		description: z.string().optional(),
-		expiresAt: z
-			.string()
-			.refine((val) => new Date(val) > new Date(), {
-				message: 'Expiration date must be in the future'
-			})
-			.transform((val) => new Date(val)) // Transform string to Date after validation
+		description: z.string().default(''),
+		expiresAt: z.string().refine((val) => new Date(val) > new Date(), {
+			message: 'Expiration date must be in the future'
+			// Remove the transform here - we'll do it manually in onSubmit
+		})
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, apiKey);
@@ -44,25 +42,17 @@
 		const data = form.validate();
 		if (!data) return;
 
-		// Ensure expiresAt is properly converted to a Date and then to ISO string
+		// Now manually transform to a Date and format as ISO
 		let formattedDate: string;
-
 		try {
-			// Check if expiresAt is already a Date object
-			if (data.expiresAt instanceof Date) {
-				formattedDate = data.expiresAt.toISOString();
-			} else {
-				// If it's a string, convert it to a Date first
-				const dateObj = new Date(data.expiresAt as unknown as string);
-				formattedDate = dateObj.toISOString();
-			}
+			const dateObj = new Date(data.expiresAt);
+			formattedDate = dateObj.toISOString();
 		} catch (error) {
 			const defaultDate = new Date();
 			defaultDate.setDate(defaultDate.getDate() + 30);
 			formattedDate = defaultDate.toISOString();
 		}
 
-		// Now we can trust that expiresAt is properly formatted with seconds and timezone
 		const apiKeyData: ApiKeyCreate = {
 			name: data.name,
 			description: data.description,
