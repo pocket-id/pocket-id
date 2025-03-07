@@ -5,12 +5,6 @@
 	import { createForm } from '$lib/utils/form-util';
 	import { z } from 'zod';
 
-	// Add a function to ensure the date is in the future
-	function ensureFutureDate(date: Date): Date {
-		const now = new Date();
-		return date > now ? date : new Date(now.getTime() + 24 * 60 * 60 * 1000); // Default to tomorrow
-	}
-
 	let {
 		callback
 	}: {
@@ -20,7 +14,7 @@
 	let isLoading = $state(false);
 
 	// Set default expiration to 30 days from now
-	const defaultExpiry = ensureFutureDate(new Date());
+	const defaultExpiry = new Date();
 	defaultExpiry.setDate(defaultExpiry.getDate() + 30);
 
 	const apiKey = {
@@ -29,10 +23,19 @@
 		expiresAt: defaultExpiry.toISOString().slice(0, 16) // Format as YYYY-MM-DDTHH:MM for input
 	};
 
+	// Define a schema that validates the date is in the future
 	const formSchema = z.object({
-		name: z.string().min(3).max(50),
+		name: z
+			.string()
+			.min(3, 'Name must be at least 3 characters')
+			.max(50, 'Name cannot exceed 50 characters'),
 		description: z.string().optional(),
-		expiresAt: z.string().transform((val) => new Date(val)) // Transform string to Date
+		expiresAt: z
+			.string()
+			.refine((val) => new Date(val) > new Date(), {
+				message: 'Expiration date must be in the future'
+			})
+			.transform((val) => new Date(val)) // Transform string to Date after validation
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, apiKey);
@@ -41,11 +44,11 @@
 		const data = form.validate();
 		if (!data) return;
 
-		// Ensure the date is in the future
+		// Now we can trust that data.expiresAt is already in the future
 		const apiKeyData: ApiKeyCreate = {
 			name: data.name,
 			description: data.description,
-			expiresAt: ensureFutureDate(new Date(data.expiresAt)) // Ensure it's a Date object
+			expiresAt: data.expiresAt
 		};
 
 		isLoading = true;
