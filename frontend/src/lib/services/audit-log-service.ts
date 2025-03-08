@@ -9,6 +9,13 @@ class AuditLogService extends APIService {
 		});
 		return res.data as Paginated<AuditLog>;
 	}
+
+	async listAllLogs(options?: SearchPaginationSortRequest) {
+		const res = await this.api.get('/audit-logs/all', {
+			params: options
+		});
+		return res.data as Paginated<AuditLog>;
+	}
 }
 
 export default AuditLogService;

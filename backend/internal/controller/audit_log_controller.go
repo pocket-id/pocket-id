@@ -17,6 +17,7 @@ func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.Audi
 	}
 
 	group.GET("/audit-logs", jwtAuthMiddleware.Add(false), alc.listAuditLogsForUserHandler)
+	group.GET("/audit-logs/all", jwtAuthMiddleware.Add(true), alc.listAllAuditLogsHandler)
 }
 
 type AuditLogController struct {
@@ -34,6 +35,40 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 
 	// Fetch audit logs for the user
 	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(userID, sortedPaginationRequest)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	// Map the audit logs to DTOs
+	var logsDtos []dto.AuditLogDto
+	err = dto.MapStructList(logs, &logsDtos)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	// Add device information to the logs
+	for i, logsDto := range logsDtos {
+		logsDto.Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
+		logsDtos[i] = logsDto
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":       logsDtos,
+		"pagination": pagination,
+	})
+}
+
+func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
+	var sortedPaginationRequest utils.SortedPaginationRequest
+	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
+		c.Error(err)
+		return
+	}
+
+	// This will only be accessible to admins due to the middleware
+	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(sortedPaginationRequest)
 	if err != nil {
 		c.Error(err)
 		return

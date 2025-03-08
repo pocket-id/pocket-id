@@ -97,3 +97,37 @@ func (s *AuditLogService) DeviceStringFromUserAgent(userAgent string) string {
 	ua := userAgentParser.Parse(userAgent)
 	return ua.Name + " on " + ua.OS + " " + ua.OSVersion
 }
+
+func (s *AuditLogService) ListAllAuditLogs(sortedPaginationRequest utils.SortedPaginationRequest) ([]model.AuditLog, utils.PaginationResponse, error) {
+	var logs []model.AuditLog
+
+	// Just get all audit logs without the join
+	query := s.db.Model(&model.AuditLog{})
+
+	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
+	if err != nil {
+		return nil, pagination, err
+	}
+
+	// Create a map to cache user lookups and avoid duplicate DB calls
+	userCache := make(map[string]model.User)
+
+	// For each audit log, fetch the associated user info if needed
+	for i := range logs {
+		if logs[i].UserID != "" {
+			// Check if user is already in cache
+			if user, found := userCache[logs[i].UserID]; found {
+				logs[i].Username = user.Username
+			} else {
+				// Fetch user from database
+				var user model.User
+				if err := s.db.Where("id = ?", logs[i].UserID).First(&user).Error; err == nil {
+					logs[i].Username = user.Username
+					userCache[logs[i].UserID] = user
+				}
+			}
+		}
+	}
+
+	return logs, pagination, nil
+}

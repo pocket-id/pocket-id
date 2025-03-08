@@ -14,6 +14,7 @@ type AuditLog struct {
 	Country   string        `sortable:"true"`
 	City      string        `sortable:"true"`
 	UserAgent string        `sortable:"true"`
+	Username  string        `gorm:"-"`
 	UserID    string
 	Data      AuditLogData
 }
