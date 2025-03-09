@@ -17,7 +17,12 @@
 	} = $props();
 
 	let apiKeys = $state<Paginated<ApiKey>>(initialApiKeys);
-	let requestOptions: SearchPaginationSortRequest | undefined = $state();
+	let requestOptions: SearchPaginationSortRequest | undefined = $state({
+		sort: {
+			column: 'lastUsedAt',
+			direction: 'desc'
+		}
+	});
 	const apiKeyService = new ApiKeyService();
 
 	// Update the local state whenever the prop changes
@@ -61,6 +66,7 @@
 	{requestOptions}
 	onRefresh={async (o) => (apiKeys = await apiKeyService.list(o))}
 	withoutSearch
+	defaultSort={{ column: 'lastUsedAt', direction: 'desc' }}
 	columns={[
 		{ label: 'Name', sortColumn: 'name' },
 		{ label: 'Description' },

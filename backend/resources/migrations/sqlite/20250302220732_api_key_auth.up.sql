@@ -3,7 +3,6 @@ CREATE TABLE api_keys (
     name TEXT NOT NULL,
     key TEXT NOT NULL UNIQUE,
     description TEXT,
-    enabled INTEGER NOT NULL DEFAULT 1,
     expires_at DATETIME NOT NULL,
     last_used_at DATETIME,
     created_at DATETIME,

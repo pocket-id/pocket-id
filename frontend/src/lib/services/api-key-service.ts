@@ -10,13 +10,8 @@ export default class ApiKeyService extends APIService {
 		return res.data as Paginated<ApiKey>;
 	}
 
-	async create(apiKey: ApiKeyCreate): Promise<ApiKeyResponse> {
-		const payload = {
-			...apiKey,
-			expiresAt: apiKey.expiresAt
-		};
-
-		const res = await this.api.post('/api-keys', payload);
+	async create(data: ApiKeyCreate): Promise<ApiKeyResponse> {
+		const res = await this.api.post('/api-keys', data);
 		return res.data as ApiKeyResponse;
 	}
 

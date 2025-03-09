@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"log"
 	"time"
 
@@ -34,7 +35,7 @@ func (s *ApiKeyService) ListApiKeys(userID string, sortedPaginationRequest utils
 
 func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (model.ApiKey, string, error) {
 	// Check if expiration is in the future
-	if !input.ExpiresAt.After(time.Now()) {
+	if !input.ExpiresAt.ToTime().After(time.Now()) {
 		return model.ApiKey{}, "", &common.APIKeyExpirationDateError{}
 	}
 
@@ -47,8 +48,8 @@ func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (
 	apiKey := model.ApiKey{
 		Name:        input.Name,
 		Key:         utils.CreateSha256Hash(token), // Hash the token for storage
-		Description: input.Description,
-		ExpiresAt:   input.ExpiresAt,
+		Description: &input.Description,
+		ExpiresAt:   datatype.DateTime(input.ExpiresAt),
 		UserID:      userID,
 	}
 
@@ -80,8 +81,8 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 	var key model.ApiKey
 	hashedKey := utils.CreateSha256Hash(apiKey)
 
-	if err := s.db.Preload("User").Where("key = ? AND enabled = ? AND expires_at > ?",
-		hashedKey, true, time.Now()).Preload("User").First(&key).Error; err != nil {
+	if err := s.db.Preload("User").Where("key = ? AND expires_at > ?",
+		hashedKey, time.Now()).Preload("User").First(&key).Error; err != nil {
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return model.User{}, &common.InvalidAPIKeyError{}
@@ -91,7 +92,7 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 	}
 
 	// Update last used time
-	now := time.Now()
+	now := datatype.DateTime(time.Now())
 	key.LastUsedAt = &now
 	if err := s.db.Save(&key).Error; err != nil {
 		log.Printf("Failed to update last used time: %v", err)

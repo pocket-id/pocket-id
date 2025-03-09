@@ -1,7 +1,7 @@
 package model
 
 import (
-	"time"
+	"github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
 type ApiKey struct {
@@ -9,9 +9,9 @@ type ApiKey struct {
 
 	Name        string `sortable:"true"`
 	Key         string
-	Description string
-	ExpiresAt   time.Time  `sortable:"true"`
-	LastUsedAt  *time.Time `sortable:"true"`
+	Description *string
+	ExpiresAt   datatype.DateTime  `sortable:"true"`
+	LastUsedAt  *datatype.DateTime `sortable:"true"`
 
 	UserID string
 	User   User

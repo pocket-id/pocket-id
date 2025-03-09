@@ -34,7 +34,6 @@
 		}
 	}
 
-	// Handler for when the dialog closes
 	function handleDialogClose(open: boolean) {
 		if (!open) {
 			apiKeyResponse = null;

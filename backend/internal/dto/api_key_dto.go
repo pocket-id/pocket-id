@@ -1,20 +1,22 @@
 package dto
 
-import "time"
+import (
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+)
 
 type ApiKeyCreateDto struct {
-	Name        string    `json:"name" binding:"required,min=3,max=50"`
-	Description string    `json:"description"`
-	ExpiresAt   time.Time `json:"expiresAt" binding:"required"`
+	Name        string            `json:"name" binding:"required,min=3,max=50"`
+	Description string            `json:"description"`
+	ExpiresAt   datatype.DateTime `json:"expiresAt" binding:"required"`
 }
 
 type ApiKeyDto struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	ExpiresAt   time.Time  `json:"expiresAt"`
-	LastUsedAt  *time.Time `json:"lastUsedAt"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	ExpiresAt   datatype.DateTime  `json:"expiresAt"`
+	LastUsedAt  *datatype.DateTime `json:"lastUsedAt"`
+	CreatedAt   datatype.DateTime  `json:"createdAt"`
 }
 
 type ApiKeyResponseDto struct {
