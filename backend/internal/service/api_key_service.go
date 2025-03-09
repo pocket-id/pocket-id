@@ -20,12 +20,16 @@ func NewApiKeyService(db *gorm.DB) *ApiKeyService {
 	return &ApiKeyService{db: db}
 }
 
-func (s *ApiKeyService) ListApiKeys(userID string) ([]model.ApiKey, error) {
+func (s *ApiKeyService) ListApiKeys(userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.ApiKey, utils.PaginationResponse, error) {
+	query := s.db.Where("user_id = ?", userID).Model(&model.ApiKey{})
+
 	var apiKeys []model.ApiKey
-	if err := s.db.Where("user_id = ?", userID).Order("created_at desc").Find(&apiKeys).Error; err != nil {
-		return nil, err
+	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &apiKeys)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
 	}
-	return apiKeys, nil
+
+	return apiKeys, pagination, nil
 }
 
 func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (model.ApiKey, string, error) {
@@ -44,7 +48,6 @@ func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (
 		Name:        input.Name,
 		Key:         utils.CreateSha256Hash(token), // Hash the token for storage
 		Description: input.Description,
-		Enabled:     true,
 		ExpiresAt:   input.ExpiresAt,
 		UserID:      userID,
 	}

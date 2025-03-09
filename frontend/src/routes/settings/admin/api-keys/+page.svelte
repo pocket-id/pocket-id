@@ -1,16 +1,15 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import ApiKeyService from '$lib/services/api-key-service';
-	import type { ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
+	import type { ApiKey, ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
+	import type { Paginated } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, LucidePlus } from 'lucide-svelte';
+	import { LucideMinus } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
+	import ApiKeyDialog from './api-key-dialog.svelte';
 	import ApiKeyForm from './api-key-form.svelte';
 	import ApiKeyList from './api-key-list.svelte';
-	import ApiKeyDialog from './api-key-dialog.svelte';
-	import type { Paginated } from '$lib/types/pagination.type';
-	import type { ApiKey } from '$lib/types/api-key.type';
 
 	let { data } = $props();
 	let apiKeys = $state<Paginated<ApiKey>>(data);

@@ -9,10 +9,10 @@ type ApiKey struct {
 
 	Name        string `sortable:"true"`
 	Key         string
-	Description string     `sortable:"true"`
-	Enabled     bool       `sortable:"true"`
+	Description string
 	ExpiresAt   time.Time  `sortable:"true"`
 	LastUsedAt  *time.Time `sortable:"true"`
-	UserID      string
-	User        User `gorm:"foreignKey:UserID"`
+
+	UserID string
+	User   User
 }

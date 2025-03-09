@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -28,12 +29,13 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 	userID := ctx.GetString("userID")
 
-	if userID == "" {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+	var sortedPaginationRequest utils.SortedPaginationRequest
+	if err := ctx.ShouldBindQuery(&sortedPaginationRequest); err != nil {
+		ctx.Error(err)
 		return
 	}
 
-	apiKeys, err := c.apiKeyService.ListApiKeys(userID)
+	apiKeys, pagination, err := c.apiKeyService.ListApiKeys(userID, sortedPaginationRequest)
 	if err != nil {
 		ctx.Error(err)
 		return
@@ -45,15 +47,9 @@ func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Return properly formatted paginated result
 	ctx.JSON(http.StatusOK, gin.H{
-		"data": apiKeysDto,
-		"pagination": gin.H{
-			"currentPage":  1,
-			"itemsPerPage": len(apiKeysDto),
-			"totalItems":   len(apiKeysDto),
-			"totalPages":   1,
-		},
+		"data":       apiKeysDto,
+		"pagination": pagination,
 	})
 }
 

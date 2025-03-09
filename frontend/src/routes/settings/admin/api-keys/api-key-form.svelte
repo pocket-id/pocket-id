@@ -32,7 +32,6 @@
 		description: z.string().default(''),
 		expiresAt: z.string().refine((val) => new Date(val) > new Date(), {
 			message: 'Expiration date must be in the future'
-			// Remove the transform here - we'll do it manually in onSubmit
 		})
 	});
 
@@ -66,7 +65,7 @@
 	}
 </script>
 
-<form on:submit|preventDefault={onSubmit}>
+<form onsubmit={onSubmit}>
 	<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 		<FormInput label="Name" bind:input={$inputs.name} description="Name to identify this API key" />
 		<FormInput
