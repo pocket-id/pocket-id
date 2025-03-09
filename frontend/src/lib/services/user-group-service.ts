@@ -14,8 +14,10 @@ export default class UserGroupService extends APIService {
 		return res.data as Paginated<UserGroupWithUserCount>;
 	}
 
-	async get(id: string) {
-		const res = await this.api.get(`/user-groups/${id}`);
+	async get(id: string, options?: SearchPaginationSortRequest) {
+		const res = await this.api.get(`/user-groups/${id}`, {
+			params: options
+		});
 		return res.data as UserGroupWithUsers;
 	}
 

@@ -101,13 +101,20 @@
 	title="User Groups"
 	description="Manage which groups this user belongs to."
 >
-	{#await userGroupService.list() then groups}
+	{#await userGroupService.list( { sort: { column: 'name', direction: 'asc' }, pagination: { page: 1, limit: 10 } } ) then groups}
 		<UserGroupSelection
 			{groups}
 			bind:selectedGroupIds={user.userGroupIds}
 			selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
 		/>
 	{/await}
+	<!-- {#await userGroupService.list() then groups}
+		<UserGroupSelection
+			{groups}
+			bind:selectedGroupIds={user.userGroupIds}
+			selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
+		/>
+	{/await} -->
 
 	<div class="mt-5 flex justify-end">
 		<Button

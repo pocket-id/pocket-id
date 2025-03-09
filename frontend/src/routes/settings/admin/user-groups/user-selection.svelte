@@ -11,7 +11,7 @@
 		selectedUserIds = $bindable()
 	}: { users: Paginated<User>; selectionDisabled?: boolean; selectedUserIds: string[] } = $props();
 	let requestOptions: SearchPaginationSortRequest | undefined = $state({
-		sort: { column: 'friendlyName', direction: 'asc' },
+		sort: { column: 'firstName', direction: 'asc' },
 		pagination: {
 			page: initialUsers.pagination.currentPage,
 			limit: initialUsers.pagination.itemsPerPage
@@ -29,7 +29,7 @@
 	{requestOptions}
 	defaultSort={{ column: 'name', direction: 'asc' }}
 	columns={[
-		{ label: 'Name', sortColumn: 'name' },
+		{ label: 'Name', sortColumn: 'firstName' },
 		{ label: 'Email', sortColumn: 'email' }
 	]}
 	bind:selectedIds={selectedUserIds}

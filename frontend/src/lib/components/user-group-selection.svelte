@@ -2,7 +2,7 @@
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import * as Table from '$lib/components/ui/table';
 	import UserGroupService from '$lib/services/user-group-service';
-	import type { Paginated } from '$lib/types/pagination.type';
+	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { UserGroup } from '$lib/types/user-group.type';
 
 	let {
@@ -14,6 +14,13 @@
 		selectionDisabled?: boolean;
 		selectedGroupIds: string[];
 	} = $props();
+	let requestOptions: SearchPaginationSortRequest | undefined = $state({
+		sort: { column: 'name', direction: 'asc' },
+		pagination: {
+			page: initialGroups.pagination.currentPage,
+			limit: initialGroups.pagination.itemsPerPage
+		}
+	});
 
 	const userGroupService = new UserGroupService();
 
@@ -22,6 +29,7 @@
 
 <AdvancedTable
 	items={groups}
+	{requestOptions}
 	onRefresh={async (o) => (groups = await userGroupService.list(o))}
 	columns={[{ label: 'Name', sortColumn: 'name' }]}
 	bind:selectedIds={selectedGroupIds}
