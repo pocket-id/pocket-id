@@ -20,19 +20,16 @@
 	const apiKey = {
 		name: '',
 		description: '',
-		expiresAt: defaultExpiry.toISOString().slice(0, 16) // Format as YYYY-MM-DDTHH:MM for input
+		expiresAt: defaultExpiry
 	};
 
-	// Define a schema that validates the date is in the future
 	const formSchema = z.object({
 		name: z
 			.string()
 			.min(3, 'Name must be at least 3 characters')
 			.max(50, 'Name cannot exceed 50 characters'),
 		description: z.string().default(''),
-		expiresAt: z.string().refine((val) => new Date(val) > new Date(), {
-			message: 'Expiration date must be in the future'
-		})
+		expiresAt: z.date().min(new Date(), 'Expiration date must be in the future')
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, apiKey);
@@ -41,21 +38,10 @@
 		const data = form.validate();
 		if (!data) return;
 
-		// Now manually transform to a Date and format as ISO
-		let formattedDate: string;
-		try {
-			const dateObj = new Date(data.expiresAt);
-			formattedDate = dateObj.toISOString();
-		} catch (error) {
-			const defaultDate = new Date();
-			defaultDate.setDate(defaultDate.getDate() + 30);
-			formattedDate = defaultDate.toISOString();
-		}
-
 		const apiKeyData: ApiKeyCreate = {
 			name: data.name,
 			description: data.description,
-			expiresAt: formattedDate
+			expiresAt: data.expiresAt
 		};
 
 		isLoading = true;
@@ -67,22 +53,26 @@
 
 <form onsubmit={onSubmit}>
 	<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
-		<FormInput label="Name" bind:input={$inputs.name} description="Name to identify this API key" />
+		<FormInput
+			label="Name"
+			bind:input={$inputs.name}
+			description="Name to identify this API key."
+		/>
 		<FormInput
 			label="Expires At"
-			type="datetime-local"
-			description="When this API key will expire"
+			type="date"
+			description="When this API key will expire."
 			bind:input={$inputs.expiresAt}
 		/>
 		<div class="col-span-1 md:col-span-2">
 			<FormInput
 				label="Description"
-				description="Optional description to help identify this key's purpose"
+				description="Optional description to help identify this key's purpose."
 				bind:input={$inputs.description}
 			/>
 		</div>
 	</div>
 	<div class="mt-5 flex justify-end">
-		<Button {isLoading} type="submit">Generate API Key</Button>
+		<Button {isLoading} type="submit">Save</Button>
 	</div>
 </form>

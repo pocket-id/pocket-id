@@ -10,7 +10,7 @@ export type ApiKey = {
 export type ApiKeyCreate = {
 	name: string;
 	description?: string;
-	expiresAt: string | Date;
+	expiresAt:  Date;
 };
 
 export type ApiKeyResponse = {

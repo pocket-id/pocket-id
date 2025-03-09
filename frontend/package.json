@@ -21,7 +21,7 @@
     "crypto": "^1.0.1",
     "formsnap": "^1.0.1",
     "jose": "^5.9.6",
-    "lucide-svelte": "^0.474.0",
+    "lucide-svelte": "^0.479.0",
     "mode-watcher": "^0.5.1",
     "svelte-sonner": "^0.3.28",
     "sveltekit-superforms": "^2.23.1",
@@ -30,6 +30,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@internationalized/date": "^3.7.0",
     "@playwright/test": "^1.50.0",
     "@sveltejs/adapter-auto": "^4.0.0",
     "@sveltejs/adapter-node": "^5.2.12",
