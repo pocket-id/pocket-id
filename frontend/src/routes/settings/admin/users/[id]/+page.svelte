@@ -108,13 +108,6 @@
 			selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
 		/>
 	{/await}
-	<!-- {#await userGroupService.list() then groups}
-		<UserGroupSelection
-			{groups}
-			bind:selectedGroupIds={user.userGroupIds}
-			selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
-		/>
-	{/await} -->
 
 	<div class="mt-5 flex justify-end">
 		<Button
