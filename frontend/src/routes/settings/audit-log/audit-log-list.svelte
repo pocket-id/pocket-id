@@ -26,16 +26,34 @@
 	export async function refreshAuditLogs(options: any) {
 		// Extract filters from options if they exist
 		const filters = options.filters || {};
-
-		// Build clean API request params
+		
+		// Create a new params object without the filters property
 		const params = {
-			...options
+			sort: options.sort,
+			pagination: options.pagination,
+			filters: {}
 		};
 
-		// Add each filter directly to the params
-		if (filters.userId) params.userId = filters.userId;
-		if (filters.event) params.event = filters.event;
-		if (filters.clientId) params.clientId = filters.clientId;
+		// Add each filter directly to the params, extracting value from proxy objects if needed
+		if (filters.userId) {
+			params.userId = typeof filters.userId === 'object' && 'value' in filters.userId 
+				? filters.userId.value 
+				: filters.userId;
+		}
+
+		if (filters.event) {
+			params.event = typeof filters.event === 'object' && 'value' in filters.event 
+				? filters.event.value 
+				: filters.event;
+		}
+
+		if (filters.clientId) {
+			params.clientId = typeof filters.clientId === 'object' && 'value' in filters.clientId 
+				? filters.clientId.value 
+				: filters.clientId;
+		}
+
+		console.log('Final params:', params); // Add this to debug the actual params being sent
 
 		// Call the appropriate API endpoint
 		if (isAdmin) {
@@ -50,7 +68,7 @@
 
 <AdvancedTable
 	items={auditLogs}
-	onRefresh={refreshAuditLogs}
+	onRefresh={async (options) => (auditLogs = await refreshAuditLogs(options))}
 	defaultSort={{ column: 'createdAt', direction: 'desc' }}
 	columns={[
 		{ label: 'Time', sortColumn: 'createdAt' },

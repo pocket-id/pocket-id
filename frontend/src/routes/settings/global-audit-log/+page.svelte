@@ -126,7 +126,7 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Audit Log</Card.Title>
+		<Card.Title>Global Audit Log</Card.Title>
 		<Card.Description class="mt-1">See all user activity for the last 3 months.</Card.Description>
 	</Card.Header>
 	<Card.Content>
