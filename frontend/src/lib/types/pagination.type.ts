@@ -12,6 +12,7 @@ export type SearchPaginationSortRequest = {
 	search?: string;
 	pagination?: PaginationRequest;
 	sort?: SortRequest;
+	filters?: Record<string, string>;
 };
 
 export type PaginationResponse = {

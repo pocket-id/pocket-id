@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"gorm.io/gorm"
 	"reflect"
+
+	"gorm.io/gorm"
 )
 
 type PaginationResponse struct {
@@ -21,6 +22,7 @@ type SortedPaginationRequest struct {
 		Column    string `form:"sort[column]"`
 		Direction string `form:"sort[direction]"`
 	} `form:"sort"`
+	Filters map[string]string `form:"filters"`
 }
 
 func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gorm.DB, result interface{}) (PaginationResponse, error) {
