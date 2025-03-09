@@ -27,7 +27,6 @@
 		// Extract filters from options if they exist
 		const filters = options.filters || {};
 		
-		// Create a new params object without the filters property
 		const params = {
 			sort: options.sort,
 			pagination: options.pagination,
@@ -53,7 +52,7 @@
 				: filters.clientId;
 		}
 
-		console.log('Final params:', params); // Add this to debug the actual params being sent
+		console.log('Final params:', params); // Debug only
 
 		// Call the appropriate API endpoint
 		if (isAdmin) {
