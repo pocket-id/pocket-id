@@ -10,8 +10,10 @@
 		type DateValue
 	} from '@internationalized/date';
 	import CalendarIcon from 'lucide-svelte/icons/calendar';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-	let { value = $bindable() }: { value: Date } = $props();
+	let { value = $bindable(), ...restProps }: HTMLAttributes<HTMLButtonElement> & { value: Date } =
+		$props();
 
 	let date: CalendarDate = $state(dateToCalendarDate(value));
 	let open = $state(false);
@@ -36,6 +38,7 @@
 <Popover.Root openFocus {open} onOpenChange={(o) => (open = o)}>
 	<Popover.Trigger asChild let:builder>
 		<Button
+			{...restProps}
 			variant="outline"
 			class={cn('w-full justify-start text-left font-normal', !value && 'text-muted-foreground')}
 			builders={[builder]}

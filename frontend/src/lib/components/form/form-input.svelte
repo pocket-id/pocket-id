@@ -42,7 +42,7 @@
 			{@render children()}
 		{:else if input}
 			{#if type === 'date'}
-				<DatePicker bind:value={input.value as Date} />
+				<DatePicker {id} bind:value={input.value as Date} />
 			{:else}
 				<Input
 					{id}
