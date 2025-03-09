@@ -1,9 +1,11 @@
 // frontend/tests/api-key.spec.ts
 import { expect, test } from '@playwright/test';
 import { apiKeys } from './data';
+import { cleanupBackend } from './utils/cleanup.util';
 
 test.describe('API Key Management', () => {
 	test.beforeEach(async ({ page }) => {
+		await cleanupBackend()
 		await page.goto('/settings/admin/api-keys');
 	});
 
