@@ -6,18 +6,13 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ cookies }) => {
 	const userGroupService = new UserGroupService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
 
-	// Create request options with default sorting
-	const requestOptions: SearchPaginationSortRequest = {
+	const userGroupsRequestOptions: SearchPaginationSortRequest = {
 		sort: {
 			column: 'friendlyName',
 			direction: 'asc'
 		},
-		pagination: {
-			page: 1,
-			limit: 10
-		}
 	};
 
-	const userGroups = await userGroupService.list(requestOptions);
-	return userGroups;
+	const userGroups = await userGroupService.list(userGroupsRequestOptions);
+	return {userGroups, userGroupsRequestOptions};
 };

@@ -9,7 +9,6 @@
 	import Label from '$lib/components/ui/label/label.svelte';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import OidcService from '$lib/services/oidc-service';
-	import UserGroupService from '$lib/services/user-group-service';
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
@@ -26,7 +25,6 @@
 	let showAllDetails = $state(false);
 
 	const oidcService = new OidcService();
-	const userGroupService = new UserGroupService();
 
 	const setupDetails = $state({
 		'Authorization URL': `https://${$page.url.hostname}/authorize`,
@@ -178,9 +176,7 @@
 	title="Allowed User Groups"
 	description="Add user groups to this client to restrict access to users in these groups. If no user groups are selected, all users will have access to this client."
 >
-	{#await userGroupService.list() then groups}
-		<UserGroupSelection {groups} bind:selectedGroupIds={client.allowedUserGroupIds} />
-	{/await}
+	<UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
 	<div class="mt-5 flex justify-end">
 		<Button on:click={() => updateUserGroupClients(client.allowedUserGroupIds)}>Save</Button>
 	</div>

@@ -2,32 +2,44 @@
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import * as Table from '$lib/components/ui/table';
 	import UserGroupService from '$lib/services/user-group-service';
-	import type { Paginated } from '$lib/types/pagination.type';
+	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { UserGroup } from '$lib/types/user-group.type';
+	import { onMount } from 'svelte';
 
 	let {
-		groups: initialGroups,
 		selectionDisabled = false,
 		selectedGroupIds = $bindable()
 	}: {
-		groups: Paginated<UserGroup>;
 		selectionDisabled?: boolean;
 		selectedGroupIds: string[];
 	} = $props();
 
 	const userGroupService = new UserGroupService();
 
-	let groups = $state(initialGroups);
+	let groups: Paginated<UserGroup> | undefined = $state();
+	let requestOptions: SearchPaginationSortRequest = $state({
+		sort: {
+			column: 'friendlyName',
+			direction: 'asc'
+		}
+	});
+
+	onMount(async () => {
+		groups = await userGroupService.list(requestOptions);
+	});
 </script>
 
-<AdvancedTable
-	items={groups}
-	onRefresh={async (o) => (groups = await userGroupService.list(o))}
-	columns={[{ label: 'Name', sortColumn: 'name' }]}
-	bind:selectedIds={selectedGroupIds}
-	{selectionDisabled}
->
-	{#snippet rows({ item })}
-		<Table.Cell>{item.name}</Table.Cell>
-	{/snippet}
-</AdvancedTable>
+{#if groups}
+	<AdvancedTable
+		items={groups}
+		{requestOptions}
+		onRefresh={async (o) => (groups = await userGroupService.list(o))}
+		columns={[{ label: 'Name', sortColumn: 'friendlyName' }]}
+		bind:selectedIds={selectedGroupIds}
+		{selectionDisabled}
+	>
+		{#snippet rows({ item })}
+			<Table.Cell>{item.name}</Table.Cell>
+		{/snippet}
+	</AdvancedTable>
+{/if}
