@@ -234,7 +234,7 @@ func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
 // getUserProfilePictureHandler godoc
 // @Summary Get user profile picture
 // @Description Retrieve a specific user's profile picture
-// @Tags Users,Profile Picture
+// @Tags Users
 // @Produce image/png
 // @Param id path string true "User ID"
 // @Success 200 {file} binary "PNG image"
