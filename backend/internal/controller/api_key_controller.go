@@ -11,6 +11,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
+// swag init -g cmd/main.go -o ./docs/swagger --parseDependency
+
 // ApiKeyController manages API keys for authenticated users
 type ApiKeyController struct {
 	apiKeyService *service.ApiKeyService
