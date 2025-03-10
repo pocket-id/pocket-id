@@ -6,10 +6,16 @@
 	import type { AuditLog } from '$lib/types/audit-log.type';
 	import type { Paginated } from '$lib/types/pagination.type';
 
+	// Add requestOptions to the props
 	let {
 		auditLogs: initialAuditLog,
-		isAdmin = false
-	}: { auditLogs: Paginated<AuditLog>; isAdmin?: boolean } = $props();
+		isAdmin = false,
+		requestOptions
+	}: { 
+		auditLogs: Paginated<AuditLog>; 
+		isAdmin?: boolean;
+		requestOptions?: SearchPaginationSortRequest;
+	} = $props();
 	let auditLogs = $state<Paginated<AuditLog>>(initialAuditLog);
 
 	const auditLogService = new AuditLogService();
@@ -27,29 +33,35 @@
 		// Extract filters from options if they exist
 		const filters = options.filters || {};
 		
-		const params = {
+		// Create params with the expected structure for backend
+		const params: any = {
 			sort: options.sort,
-			pagination: options.pagination,
-			filters: {}
+			pagination: options.pagination
 		};
 
-		// Add each filter directly to the params, extracting value from proxy objects if needed
-		if (filters.userId) {
-			params.userId = typeof filters.userId === 'object' && 'value' in filters.userId 
-				? filters.userId.value 
-				: filters.userId;
-		}
+		// Only add filters if there are any
+		if (Object.keys(filters).length > 0) {
+			// Initialize filters property
+			params.filters = {};
+			
+			// Add each filter to params.filters, extracting value from proxy objects if needed
+			if (filters.userId) {
+				params.filters.userId = typeof filters.userId === 'object' && 'value' in filters.userId 
+					? filters.userId.value 
+					: filters.userId;
+			}
 
-		if (filters.event) {
-			params.event = typeof filters.event === 'object' && 'value' in filters.event 
-				? filters.event.value 
-				: filters.event;
-		}
+			if (filters.event) {
+				params.filters.event = typeof filters.event === 'object' && 'value' in filters.event 
+					? filters.event.value 
+					: filters.event;
+			}
 
-		if (filters.clientId) {
-			params.clientId = typeof filters.clientId === 'object' && 'value' in filters.clientId 
-				? filters.clientId.value 
-				: filters.clientId;
+			if (filters.clientId) {
+				params.filters.clientId = typeof filters.clientId === 'object' && 'value' in filters.clientId 
+					? filters.clientId.value 
+					: filters.clientId;
+			}
 		}
 
 		console.log('Final params:', params); // Debug only
@@ -67,6 +79,7 @@
 
 <AdvancedTable
 	items={auditLogs}
+	{requestOptions}
 	onRefresh={async (options) => (auditLogs = await refreshAuditLogs(options))}
 	defaultSort={{ column: 'createdAt', direction: 'desc' }}
 	columns={[

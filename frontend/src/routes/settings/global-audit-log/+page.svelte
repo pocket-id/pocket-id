@@ -3,97 +3,70 @@
 	import AuditLogList from '../audit-log/audit-log-list.svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
-	import UserService from '$lib/services/user-service';
-	import OIDCService from '$lib/services/oidc-service';
-	import { onMount } from 'svelte';
+	import AuditLogService from '$lib/services/audit-log-service';
 	import type { AuditLog } from '$lib/types/audit-log.type';
+	import type { Paginated } from '$lib/types/pagination.type';
 
 	let { data } = $props();
 
-	// Initialize with empty string values to represent "All" options
-	let selectedUserId = $state<string | null>('');
-	let selectedEventType = $state<string | null>('');
-	let selectedClientId = $state<string | null>('');
+	// Store audit logs in local state
+	let auditLogs = $state<Paginated<AuditLog>>(data.auditLogs);
 
-	let users = $state<Array<{ id: string; username: string }>>([]);
-	let eventTypes = $state<Array<{ value: string; label: string }>>([]);
-	let clients = $state<Array<{ id: string; name: string }>>([]);
+	// Create a reference to the AuditLogList component
+	let auditLogListComponent: any;
 
-	let auditLogList: any; // Reference to the AuditLogList component
-	let requestOptions: any; // Object to store request options
+	// Initialize selections with any existing filter values
+	let selectedUserId = $state<string | null>(data.filters.userId || '');
+	let selectedEventType = $state<string | null>(data.filters.eventType || '');
+	let selectedClientId = $state<string | null>(data.filters.clientId || '');
 
-	const userService = new UserService();
-	const oidcService = new OIDCService();
-
-	// Fetch all users and clients for the dropdown
-	onMount(async () => {
-		// Get users for dropdown
-		const userResponse = await userService.list();
-		users = userResponse.data.map((user) => ({
-			id: user.id,
-			username: user.username || user.firstName + ' ' + user.lastName
-		}));
-
-		// Get clients for dropdown
-		const clientResponse = await oidcService.listClients();
-		clients = clientResponse.data.map((client) => ({
-			id: client.id,
-			name: client.name
-		}));
-
-		// Add event types (these are the standard event types in your system)
-		eventTypes = [
-			{ value: 'SIGN_IN', label: 'Sign In' },
-			{ value: 'TOKEN_SIGN_IN', label: 'Token Sign In' },
-			{ value: 'CLIENT_AUTHORIZATION', label: 'Client Authorization' },
-			{ value: 'NEW_CLIENT_AUTHORIZATION', label: 'New Client Authorization' }
-		];
+	// Create request options object
+	let requestOptions = $state({
+		sort: {
+			column: 'createdAt',
+			direction: 'desc'
+		},
+		pagination: {
+			page: 1,
+			limit: 10
+		},
+		filters: {} as Record<string, any>
 	});
 
-	// Apply filters and refresh the audit log
+	// Apply filters directly without URL navigation
 	async function applyFilters() {
-		// Only include non-empty values in filters
-		const filters: Record<string, string> = {};
+		// Clear existing filters
+		requestOptions.filters = {};
 
-		// Only add to filters if not empty/null and not "All" (empty string)
+		// Add filters if they exist
 		if (selectedUserId && selectedUserId !== '') {
-			filters.userId =
+			requestOptions.filters.userId =
 				typeof selectedUserId === 'object' && selectedUserId.value
 					? selectedUserId.value
 					: String(selectedUserId);
 		}
 
 		if (selectedEventType && selectedEventType !== '') {
-			filters.event =
+			requestOptions.filters.event =
 				typeof selectedEventType === 'object' && selectedEventType.value
 					? selectedEventType.value
 					: String(selectedEventType);
 		}
 
 		if (selectedClientId && selectedClientId !== '') {
-			filters.clientId =
+			requestOptions.filters.clientId =
 				typeof selectedClientId === 'object' && selectedClientId.value
 					? selectedClientId.value
 					: String(selectedClientId);
 		}
 
-		// Update your stored request options object
-		requestOptions = {
-			sort: {
-				column: 'createdAt',
-				direction: 'desc'
-			},
-			pagination: {
-				page: 1,
-				limit: 10
-			},
-			filters: Object.keys(filters).length > 0 ? filters : undefined
-		};
+		// Reset pagination to first page when applying filters
+		requestOptions.pagination.page = 1;
 
-		if (auditLogList && auditLogList.refreshAuditLogs) {
-			await auditLogList.refreshAuditLogs(requestOptions);
+		// Call the refreshAuditLogs function on the AuditLogList component
+		if (auditLogListComponent?.refreshAuditLogs) {
+			auditLogs = await auditLogListComponent.refreshAuditLogs(requestOptions);
 		}
-		console.log('applying', selectedUserId, selectedEventType, selectedClientId);
 	}
 
 	// Clear all filters
@@ -102,20 +75,10 @@
 		selectedEventType = '';
 		selectedClientId = '';
 
-		// Reset request options without filters
-		requestOptions = {
-			sort: {
-				column: 'createdAt',
-				direction: 'desc'
-			},
-			pagination: {
-				page: 1,
-				limit: 10
-			}
-		};
-
-		if (auditLogList && auditLogList.refreshAuditLogs) {
-			auditLogList.refreshAuditLogs(requestOptions);
+		// Reset filters and refresh data
+		requestOptions.filters = {};
+		if (auditLogListComponent?.refreshAuditLogs) {
+			auditLogListComponent.refreshAuditLogs(requestOptions);
 		}
 	}
 </script>
@@ -141,7 +104,7 @@
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All Users</Select.Item>
-						{#each users as user}
+						{#each data.users as user}
 							<Select.Item value={user.id}>{user.username}</Select.Item>
 						{/each}
 					</Select.Content>
@@ -157,7 +120,7 @@
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All Events</Select.Item>
-						{#each eventTypes as eventType}
+						{#each data.eventTypes as eventType}
 							<Select.Item value={eventType.value}>{eventType.label}</Select.Item>
 						{/each}
 					</Select.Content>
@@ -173,7 +136,7 @@
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All Clients</Select.Item>
-						{#each clients as client}
+						{#each data.clients as client}
 							<Select.Item value={client.id}>{client.name}</Select.Item>
 						{/each}
 					</Select.Content>
@@ -186,6 +149,6 @@
 			<Button variant="default" size="sm" on:click={applyFilters}>Apply Filters</Button>
 		</div>
 
-		<AuditLogList bind:this={auditLogList} isAdmin={true} auditLogs={data.auditLogs} />
+		<AuditLogList bind:this={auditLogListComponent} isAdmin={true} {auditLogs} {requestOptions} />
 	</Card.Content>
 </Card.Root>
