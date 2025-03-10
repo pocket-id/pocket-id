@@ -31,7 +31,8 @@ export const oidcClients = {
 	immich: {
 		id: '606c7782-f2b1-49e5-8ea9-26eb1b06d018',
 		name: 'Immich',
-		callbackUrl: 'http://immich/auth/callback'
+		callbackUrl: 'http://immich/auth/callback',
+		deviceCodeEnabled: true
 	},
 	pingvinShare: {
 		name: 'Pingvin Share',
