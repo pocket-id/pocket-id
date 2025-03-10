@@ -10,51 +10,50 @@ import (
 )
 
 type JwtAuthMiddleware struct {
-	jwtService            *service.JwtService
-	ignoreUnauthenticated bool
+	jwtService *service.JwtService
 }
 
-func NewJwtAuthMiddleware(jwtService *service.JwtService, ignoreUnauthenticated bool) *JwtAuthMiddleware {
-	return &JwtAuthMiddleware{jwtService: jwtService, ignoreUnauthenticated: ignoreUnauthenticated}
+func NewJwtAuthMiddleware(jwtService *service.JwtService) *JwtAuthMiddleware {
+	return &JwtAuthMiddleware{jwtService: jwtService}
 }
 
-func (m *JwtAuthMiddleware) Add(adminOnly bool) gin.HandlerFunc {
+func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Extract the token from the cookie or the Authorization header
-		token, err := c.Cookie(cookie.AccessTokenCookieName)
+
+		userID, isAdmin, err := m.Verify(c, adminRequired)
 		if err != nil {
-			authorizationHeaderSplitted := strings.Split(c.GetHeader("Authorization"), " ")
-			if len(authorizationHeaderSplitted) == 2 {
-				token = authorizationHeaderSplitted[1]
-			} else if m.ignoreUnauthenticated {
-				c.Next()
-				return
-			} else {
-				c.Error(&common.NotSignedInError{})
-				c.Abort()
-				return
-			}
-		}
-
-		claims, err := m.jwtService.VerifyAccessToken(token)
-		if err != nil && m.ignoreUnauthenticated {
-			c.Next()
-			return
-		} else if err != nil {
-			c.Error(&common.NotSignedInError{})
 			c.Abort()
+			c.Error(err)
 			return
 		}
 
-		// Check if the user is an admin
-		if adminOnly && !claims.IsAdmin {
-			c.Error(&common.MissingPermissionError{})
-			c.Abort()
-			return
-		}
-
-		c.Set("userID", claims.Subject)
-		c.Set("userIsAdmin", claims.IsAdmin)
+		c.Set("userID", userID)
+		c.Set("userIsAdmin", isAdmin)
 		c.Next()
 	}
+}
+
+func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (userID string, isAdmin bool, err error) {
+	// Extract the token from the cookie
+	token, err := c.Cookie(cookie.AccessTokenCookieName)
+	if err != nil {
+		// Try to extract the token from the Authorization header if it's not in the cookie
+		authorizationHeaderSplit := strings.Split(c.GetHeader("Authorization"), " ")
+		if len(authorizationHeaderSplit) != 2 {
+			return "", false, &common.NotSignedInError{}
+		}
+		token = authorizationHeaderSplit[1]
+	}
+
+	claims, err := m.jwtService.VerifyAccessToken(token)
+	if err != nil {
+		return "", false, &common.NotSignedInError{}
+	}
+
+	// Check if the user is an admin
+	if adminRequired && !claims.IsAdmin {
+		return "", false, &common.MissingPermissionError{}
+	}
+
+	return claims.Subject, claims.IsAdmin, nil
 }

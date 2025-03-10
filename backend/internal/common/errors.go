@@ -224,3 +224,27 @@ func (e *InvalidUUIDError) Error() string {
 }
 
 type InvalidEmailError struct{}
+
+type InvalidAPIKeyError struct{}
+
+func (e *InvalidAPIKeyError) Error() string {
+	return "Invalid Api Key"
+}
+
+type NoAPIKeyProvidedError struct{}
+
+func (e *NoAPIKeyProvidedError) Error() string {
+	return "No API Key Provided"
+}
+
+type APIKeyNotFoundError struct{}
+
+func (e *APIKeyNotFoundError) Error() string {
+	return "API Key Not Found"
+}
+
+type APIKeyExpirationDateError struct{}
+
+func (e *APIKeyExpirationDateError) Error() string {
+	return "API Key expiration time must be in the future"
+}
