@@ -11,7 +11,7 @@ import (
 // NewWellKnownController creates a new controller for OIDC discovery endpoints
 // @Summary OIDC Discovery controller
 // @Description Initializes OIDC discovery and JWKS endpoints
-// @Tags OIDC Discovery
+// @Tags Well Known
 func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService) {
 	wkc := &WellKnownController{jwtService: jwtService}
 	group.GET("/.well-known/jwks.json", wkc.jwksHandler)
@@ -25,7 +25,7 @@ type WellKnownController struct {
 // jwksHandler godoc
 // @Summary Get JSON Web Key Set (JWKS)
 // @Description Returns the JSON Web Key Set used for token verification
-// @Tags OIDC Discovery
+// @Tags Well Known
 // @Produce json
 // @Success 200 {object} object "{ \"keys\": []interface{} }"
 // @Router /.well-known/jwks.json [get]
@@ -42,7 +42,7 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 // openIDConfigurationHandler godoc
 // @Summary Get OpenID Connect discovery configuration
 // @Description Returns the OpenID Connect discovery document with endpoints and capabilities
-// @Tags OIDC Discovery
+// @Tags Well Known
 // @Success 200 {object} object "OpenID Connect configuration"
 // @Router /.well-known/openid-configuration [get]
 func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {

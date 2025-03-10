@@ -53,7 +53,7 @@ func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) {
 // UpdateCustomClaimsForUserHandler godoc
 // @Summary Update custom claims for a user
 // @Description Update or create custom claims for a specific user
-// @Tags Custom Claims,Users
+// @Tags Custom Claims
 // @Accept json
 // @Produce json
 // @Param userId path string true "User ID"
@@ -87,17 +87,12 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Contex
 // UpdateCustomClaimsForUserGroupHandler godoc
 // @Summary Update custom claims for a user group
 // @Description Update or create custom claims for a specific user group
-// @Tags Custom Claims,User Groups
+// @Tags Custom Claims
 // @Accept json
 // @Produce json
 // @Param userGroupId path string true "User Group ID"
 // @Param claims body []dto.CustomClaimCreateDto true "List of custom claims to set for the user group"
 // @Success 200 {array} dto.CustomClaimDto "Updated custom claims"
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User group not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /custom-claims/user-group/{userGroupId} [put]
 func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.Context) {

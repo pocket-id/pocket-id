@@ -90,11 +90,6 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 // @Produce json
 // @Param id path string true "User Group ID"
 // @Success 200 {object} dto.UserGroupDtoWithUsers
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User group not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /user-groups/{id} [get]
 func (ugc *UserGroupController) get(c *gin.Context) {
@@ -121,11 +116,6 @@ func (ugc *UserGroupController) get(c *gin.Context) {
 // @Produce json
 // @Param userGroup body dto.UserGroupCreateDto true "User group information"
 // @Success 201 {object} dto.UserGroupDtoWithUsers "Created user group"
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 409 {object} object "Conflict - group name already exists"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /user-groups [post]
 func (ugc *UserGroupController) create(c *gin.Context) {
@@ -159,12 +149,6 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 // @Param id path string true "User Group ID"
 // @Param userGroup body dto.UserGroupCreateDto true "User group information"
 // @Success 200 {object} dto.UserGroupDtoWithUsers "Updated user group"
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User group not found"
-// @Failure 409 {object} object "Conflict - group name already exists"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /user-groups/{id} [put]
 func (ugc *UserGroupController) update(c *gin.Context) {
@@ -197,11 +181,6 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 // @Produce json
 // @Param id path string true "User Group ID"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User group not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /user-groups/{id} [delete]
 func (ugc *UserGroupController) delete(c *gin.Context) {
@@ -222,11 +201,6 @@ func (ugc *UserGroupController) delete(c *gin.Context) {
 // @Param id path string true "User Group ID"
 // @Param users body dto.UserGroupUpdateUsersDto true "List of user IDs to assign to this group"
 // @Success 200 {object} dto.UserGroupDtoWithUsers
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User group not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /user-groups/{id}/users [put]
 func (ugc *UserGroupController) updateUsers(c *gin.Context) {

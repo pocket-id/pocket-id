@@ -254,7 +254,7 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 // getCurrentUserProfilePictureHandler godoc
 // @Summary Get current user's profile picture
 // @Description Retrieve the currently authenticated user's profile picture
-// @Tags Users,Profile Picture
+// @Tags Users
 // @Produce image/png
 // @Success 200 {file} binary "PNG image"
 // @Router /users/me/profile-picture.png [get]
@@ -273,7 +273,7 @@ func (uc *UserController) getCurrentUserProfilePictureHandler(c *gin.Context) {
 // updateUserProfilePictureHandler godoc
 // @Summary Update user profile picture
 // @Description Update a specific user's profile picture
-// @Tags Users,Profile Picture
+// @Tags Users
 // @Accept multipart/form-data
 // @Produce json
 // @Param id path string true "User ID"
@@ -305,7 +305,7 @@ func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 // updateCurrentUserProfilePictureHandler godoc
 // @Summary Update current user's profile picture
 // @Description Update the currently authenticated user's profile picture
-// @Tags Users,Profile Picture
+// @Tags Users
 // @Accept multipart/form-data
 // @Produce json
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
@@ -336,7 +336,7 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 // createOneTimeAccessTokenHandler godoc
 // @Summary Create one-time access token
 // @Description Generate a one-time access token for a specific user
-// @Tags Authentication
+// @Tags Users
 // @Param id path string true "User ID"
 // @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
 // @Success 201 {object} object "{ \"token\": \"string\" }"
@@ -360,7 +360,7 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context) {
 // requestOneTimeAccessEmailHandler godoc
 // @Summary Request one-time access email
 // @Description Send a one-time access link via email
-// @Tags Authentication
+// @Tags Users
 // @Param body body dto.OneTimeAccessEmailDto true "Email and redirect options"
 // @Success 204 "No Content"
 // @Router /one-time-access-email [post]
@@ -383,7 +383,7 @@ func (uc *UserController) requestOneTimeAccessEmailHandler(c *gin.Context) {
 // exchangeOneTimeAccessTokenHandler godoc
 // @Summary Exchange one-time access token
 // @Description Exchange a one-time access token for a session token
-// @Tags Authentication
+// @Tags Users
 // @Param token path string true "One-time access token"
 // @Success 200 {object} dto.UserDto
 // @Router /one-time-access-token/{token} [post]
@@ -410,7 +410,7 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 // getSetupAccessTokenHandler godoc
 // @Summary Setup initial admin
 // @Description Generate setup access token for initial admin user configuration
-// @Tags Authentication,Setup
+// @Tags Users
 // @Success 200 {object} dto.UserDto
 // @Router /one-time-access-token/setup [post]
 func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
@@ -436,7 +436,7 @@ func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
 // updateUserGroups godoc
 // @Summary Update user groups
 // @Description Update the groups a specific user belongs to
-// @Tags Users,User Groups
+// @Tags Users
 // @Param id path string true "User ID"
 // @Param groups body dto.UserUpdateUserGroupDto true "User group IDs"
 // @Success 200 {object} dto.UserDto

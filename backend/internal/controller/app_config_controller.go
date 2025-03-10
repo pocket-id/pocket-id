@@ -82,9 +82,6 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Success 200 {array} dto.AppConfigVariableDto
-// @Failure 401 {object} object "{"error": "Unauthorized"}"
-// @Failure 403 {object} object "{"error": "Forbidden"}"
-// @Failure 500 {object} object "{"error": "error message"}"
 // @Security BearerAuth
 // @Router /application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
@@ -111,10 +108,6 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 // @Produce json
 // @Param body body dto.AppConfigUpdateDto true "Application Configuration"
 // @Success 200 {array} dto.AppConfigVariableDto
-// @Failure 400 {object} object "{"error": "Validation error"}"
-// @Failure 401 {object} object "{"error": "Unauthorized"}"
-// @Failure 403 {object} object "{"error": "Forbidden"}"
-// @Failure 500 {object} object "{"error": "error message"}"
 // @Security BearerAuth
 // @Router /application-configuration [put]
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
@@ -148,7 +141,6 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 // @Produce image/jpeg
 // @Produce image/svg+xml
 // @Success 200 {file} binary "Logo image"
-// @Failure 404 {object} object "{"error": "File not found"}"
 // @Router /application-configuration/logo [get]
 func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
 	lightLogo := c.DefaultQuery("light", "true") == "true"
@@ -201,10 +193,6 @@ func (acc *AppConfigController) getBackgroundImageHandler(c *gin.Context) {
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Param file formData file true "Logo image file"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "{"error": "Invalid file"}"
-// @Failure 401 {object} object "{"error": "Unauthorized"}"
-// @Failure 403 {object} object "{"error": "Forbidden"}"
-// @Failure 500 {object} object "{"error": "error message"}"
 // @Security BearerAuth
 // @Router /application-configuration/logo [put]
 func (acc *AppConfigController) updateLogoHandler(c *gin.Context) {
@@ -231,10 +219,6 @@ func (acc *AppConfigController) updateLogoHandler(c *gin.Context) {
 // @Accept multipart/form-data
 // @Param file formData file true "Favicon file (.ico)"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "{"error": "Invalid file type, expected .ico"}"
-// @Failure 401 {object} object "{"error": "Unauthorized"}"
-// @Failure 403 {object} object "{"error": "Forbidden"}"
-// @Failure 500 {object} object "{"error": "error message"}"
 // @Security BearerAuth
 // @Router /application-configuration/favicon [put]
 func (acc *AppConfigController) updateFaviconHandler(c *gin.Context) {
@@ -259,10 +243,6 @@ func (acc *AppConfigController) updateFaviconHandler(c *gin.Context) {
 // @Accept multipart/form-data
 // @Param file formData file true "Background image file"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "{"error": "Invalid file"}"
-// @Failure 401 {object} object "{"error": "Unauthorized"}"
-// @Failure 403 {object} object "{"error": "Forbidden"}"
-// @Failure 500 {object} object "{"error": "error message"}"
 // @Security BearerAuth
 // @Router /application-configuration/background-image [put]
 func (acc *AppConfigController) updateBackgroundImageHandler(c *gin.Context) {
@@ -301,9 +281,6 @@ func (acc *AppConfigController) updateImage(c *gin.Context, imageName string, ol
 // @Description Manually trigger LDAP synchronization
 // @Tags Application Configuration
 // @Success 204 "No Content"
-// @Failure 401 {object} object "{"error": "Unauthorized"}"
-// @Failure 403 {object} object "{"error": "Forbidden"}"
-// @Failure 500 {object} object "{"error": "error message"}"
 // @Security BearerAuth
 // @Router /application-configuration/sync-ldap [post]
 func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
@@ -321,9 +298,6 @@ func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
 // @Description Send a test email to verify email configuration
 // @Tags Application Configuration
 // @Success 204 "No Content"
-// @Failure 401 {object} object "{"error": "Unauthorized"}"
-// @Failure 403 {object} object "{"error": "Forbidden"}"
-// @Failure 500 {object} object "{"error": "error message"}"
 // @Security BearerAuth
 // @Router /application-configuration/test-email [post]
 func (acc *AppConfigController) testEmailHandler(c *gin.Context) {

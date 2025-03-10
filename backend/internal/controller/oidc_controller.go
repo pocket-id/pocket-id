@@ -55,16 +55,11 @@ type OidcController struct {
 // authorizeHandler godoc
 // @Summary Authorize OIDC client
 // @Description Start the OIDC authorization process for a client
-// @Tags OIDC,Authentication
+// @Tags OIDC
 // @Accept json
 // @Produce json
 // @Param request body dto.AuthorizeOidcClientRequestDto true "Authorization request parameters"
 // @Success 200 {object} dto.AuthorizeOidcClientResponseDto "Authorization code and callback URL"
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "User not authorized for client"
-// @Failure 404 {object} object "Client not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/authorize [post]
 func (oc *OidcController) authorizeHandler(c *gin.Context) {
@@ -91,15 +86,11 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 // authorizationConfirmationRequiredHandler godoc
 // @Summary Check if authorization confirmation is required
 // @Description Check if the user needs to confirm authorization for the client
-// @Tags OIDC,Authentication
+// @Tags OIDC
 // @Accept json
 // @Produce json
 // @Param request body dto.AuthorizationRequiredDto true "Authorization check parameters"
 // @Success 200 {object} object "{ \"authorizationRequired\": true/false }"
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 404 {object} object "Client not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/authorization-required [post]
 func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Context) {
@@ -121,7 +112,7 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 // createTokensHandler godoc
 // @Summary Create OIDC tokens
 // @Description Exchange authorization code for ID and access tokens
-// @Tags OIDC,Authentication
+// @Tags OIDC
 // @Accept application/x-www-form-urlencoded
 // @Produce json
 // @Param client_id formData string false "Client ID (if not using Basic Auth)"
@@ -130,9 +121,6 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 // @Param grant_type formData string true "Grant type (must be 'authorization_code')"
 // @Param code_verifier formData string false "PKCE code verifier"
 // @Success 200 {object} object "{ \"id_token\": \"string\", \"access_token\": \"string\", \"token_type\": \"Bearer\" }"
-// @Failure 400 {object} object "Bad request or invalid code"
-// @Failure 401 {object} object "Invalid client credentials"
-// @Failure 500 {object} object "Internal server error"
 // @Router /oidc/token [post]
 func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	// Disable cors for this endpoint
@@ -165,13 +153,10 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 // userInfoHandler godoc
 // @Summary Get user information
 // @Description Get user information based on the access token
-// @Tags OIDC,Authentication
+// @Tags OIDC
 // @Accept json
 // @Produce json
 // @Success 200 {object} object "User claims based on requested scopes"
-// @Failure 400 {object} object "Missing access token"
-// @Failure 401 {object} object "Invalid access token"
-// @Failure 500 {object} object "Internal server error"
 // @Security OAuth2AccessToken
 // @Router /oidc/userinfo [get]
 func (oc *OidcController) userInfoHandler(c *gin.Context) {
@@ -202,13 +187,10 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 // userInfoHandler godoc (POST method)
 // @Summary Get user information (POST method)
 // @Description Get user information based on the access token using POST
-// @Tags OIDC,Authentication
+// @Tags OIDC
 // @Accept json
 // @Produce json
 // @Success 200 {object} object "User claims based on requested scopes"
-// @Failure 400 {object} object "Missing access token"
-// @Failure 401 {object} object "Invalid access token"
-// @Failure 500 {object} object "Internal server error"
 // @Security OAuth2AccessToken
 // @Router /oidc/userinfo [post]
 func (oc *OidcController) userInfoHandlerPost(c *gin.Context) {
@@ -218,15 +200,13 @@ func (oc *OidcController) userInfoHandlerPost(c *gin.Context) {
 // EndSessionHandler godoc
 // @Summary End OIDC session
 // @Description End user session and handle OIDC logout
-// @Tags OIDC,Authentication
+// @Tags OIDC
 // @Accept application/x-www-form-urlencoded
 // @Produce html
 // @Param id_token_hint query string false "ID token"
 // @Param post_logout_redirect_uri query string false "URL to redirect to after logout"
 // @Param state query string false "State parameter to include in the redirect"
 // @Success 302 "Redirect to post-logout URL or application logout page"
-// @Failure 400 {object} object "Bad request"
-// @Failure 500 {object} object "Internal server error"
 // @Router /oidc/end-session [get]
 func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	var input dto.OidcLogoutDto
@@ -269,15 +249,13 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 // EndSessionHandler godoc (POST method)
 // @Summary End OIDC session (POST method)
 // @Description End user session and handle OIDC logout using POST
-// @Tags OIDC,Authentication
+// @Tags OIDC
 // @Accept application/x-www-form-urlencoded
 // @Produce html
 // @Param id_token_hint formData string false "ID token"
 // @Param post_logout_redirect_uri formData string false "URL to redirect to after logout"
 // @Param state formData string false "State parameter to include in the redirect"
 // @Success 302 "Redirect to post-logout URL or application logout page"
-// @Failure 400 {object} object "Bad request"
-// @Failure 500 {object} object "Internal server error"
 // @Router /oidc/end-session [post]
 func (oc *OidcController) EndSessionHandlerPost(c *gin.Context) {
 	// Implementation is the same as GET
@@ -286,12 +264,10 @@ func (oc *OidcController) EndSessionHandlerPost(c *gin.Context) {
 // getClientMetaDataHandler godoc
 // @Summary Get client metadata
 // @Description Get OIDC client metadata for discovery and configuration
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientMetaDataDto "Client metadata"
-// @Failure 404 {object} object "Client not found"
-// @Failure 500 {object} object "Internal server error"
 // @Router /oidc/clients/{id}/meta [get]
 func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	clientId := c.Param("id")
@@ -314,14 +290,10 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 // getClientHandler godoc
 // @Summary Get OIDC client
 // @Description Get detailed information about an OIDC client
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Client information"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "Client not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/clients/{id} [get]
 func (oc *OidcController) getClientHandler(c *gin.Context) {
@@ -383,16 +355,11 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 // createClientHandler godoc
 // @Summary Create OIDC client
 // @Description Create a new OIDC client
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Accept json
 // @Produce json
 // @Param client body dto.OidcClientCreateDto true "Client information"
 // @Success 201 {object} dto.OidcClientWithAllowedUserGroupsDto "Created client"
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 409 {object} object "Conflict - client ID already exists"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/clients [post]
 func (oc *OidcController) createClientHandler(c *gin.Context) {
@@ -420,13 +387,9 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 // deleteClientHandler godoc
 // @Summary Delete OIDC client
 // @Description Delete an OIDC client by ID
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "Client not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/clients/{id} [delete]
 func (oc *OidcController) deleteClientHandler(c *gin.Context) {
@@ -442,17 +405,12 @@ func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 // updateClientHandler godoc
 // @Summary Update OIDC client
 // @Description Update an existing OIDC client
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Accept json
 // @Produce json
 // @Param id path string true "Client ID"
 // @Param client body dto.OidcClientCreateDto true "Client information"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client"
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "Client not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/clients/{id} [put]
 func (oc *OidcController) updateClientHandler(c *gin.Context) {
@@ -480,14 +438,10 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 // createClientSecretHandler godoc
 // @Summary Create client secret
 // @Description Generate a new secret for an OIDC client
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} object "{ \"secret\": \"string\" }"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "Client not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/clients/{id}/secret [post]
 func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
@@ -503,14 +457,12 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 // getClientLogoHandler godoc
 // @Summary Get client logo
 // @Description Get the logo image for an OIDC client
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Produce image/png
 // @Produce image/jpeg
 // @Produce image/svg+xml
 // @Param id path string true "Client ID"
 // @Success 200 {file} binary "Logo image"
-// @Failure 404 {object} object "Client or logo not found"
-// @Failure 500 {object} object "Internal server error"
 // @Router /oidc/clients/{id}/logo [get]
 func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Param("id"))
@@ -526,17 +478,11 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 // updateClientLogoHandler godoc
 // @Summary Update client logo
 // @Description Upload or update the logo for an OIDC client
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Accept multipart/form-data
 // @Param id path string true "Client ID"
 // @Param file formData file true "Logo image file (PNG, JPG, or SVG, max 2MB)"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "Bad request or invalid file"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "Client not found"
-// @Failure 413 {object} object "File too large (max 2MB)"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/clients/{id}/logo [post]
 func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
@@ -558,13 +504,9 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 // deleteClientLogoHandler godoc
 // @Summary Delete client logo
 // @Description Delete the logo for an OIDC client
-// @Tags OIDC,Clients
+// @Tags OIDC
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "Client or logo not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/clients/{id}/logo [delete]
 func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
@@ -580,17 +522,12 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 // updateAllowedUserGroupsHandler godoc
 // @Summary Update allowed user groups
 // @Description Update the user groups allowed to access an OIDC client
-// @Tags OIDC,Clients,User Groups
+// @Tags OIDC
 // @Accept json
 // @Produce json
 // @Param id path string true "Client ID"
 // @Param groups body dto.OidcUpdateAllowedUserGroupsDto true "User group IDs"
 // @Success 200 {object} dto.OidcClientDto "Updated client"
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "Client not found"
-// @Failure 500 {object} object "Internal server error"
 // @Security BearerAuth
 // @Router /oidc/clients/{id}/allowed-user-groups [put]
 func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
