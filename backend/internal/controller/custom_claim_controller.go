@@ -59,12 +59,6 @@ func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) {
 // @Param userId path string true "User ID"
 // @Param claims body []dto.CustomClaimCreateDto true "List of custom claims to set for the user"
 // @Success 200 {array} dto.CustomClaimDto "Updated custom claims"
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /custom-claims/user/{userId} [put]
 func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Context) {
 	var input []dto.CustomClaimCreateDto

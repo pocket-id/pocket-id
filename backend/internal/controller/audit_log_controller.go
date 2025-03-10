@@ -31,17 +31,11 @@ type AuditLogController struct {
 // @Summary List audit logs
 // @Description Get a paginated list of audit logs for the current user
 // @Tags Audit Logs
-// @Accept json
-// @Produce json
 // @Param page query int false "Page number, starting from 1" default(1)
 // @Param limit query int false "Number of items per page" default(10)
 // @Param sort_column query string false "Column to sort by" default("created_at")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
-// @Success 200 {object} object "{ \"data\": []dto.AuditLogDto, \"pagination\": utils.Pagination }"
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
+// @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /audit-logs [get]
 func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	var sortedPaginationRequest utils.SortedPaginationRequest
@@ -73,8 +67,8 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 		logsDtos[i] = logsDto
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":       logsDtos,
-		"pagination": pagination,
+	c.JSON(http.StatusOK, dto.Paginated[dto.AuditLogDto]{
+		Data:       logsDtos,
+		Pagination: pagination,
 	})
 }

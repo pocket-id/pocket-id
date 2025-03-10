@@ -28,7 +28,6 @@ type WellKnownController struct {
 // @Tags OIDC Discovery
 // @Produce json
 // @Success 200 {object} object "{ \"keys\": []interface{} }"
-// @Failure 500 {object} object "Internal server error"
 // @Router /.well-known/jwks.json [get]
 func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 	jwk, err := wkc.jwtService.GetJWK()
@@ -44,7 +43,6 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 // @Summary Get OpenID Connect discovery configuration
 // @Description Returns the OpenID Connect discovery document with endpoints and capabilities
 // @Tags OIDC Discovery
-// @Produce json
 // @Success 200 {object} object "OpenID Connect configuration"
 // @Router /.well-known/openid-configuration [get]
 func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {

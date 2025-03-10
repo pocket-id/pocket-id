@@ -39,19 +39,12 @@ type UserGroupController struct {
 // @Summary List user groups
 // @Description Get a paginated list of user groups with optional search and sorting
 // @Tags User Groups
-// @Accept json
-// @Produce json
 // @Param search query string false "Search term to filter user groups by name"
 // @Param page query int false "Page number, starting from 1" default(1)
 // @Param limit query int false "Number of items per page" default(10)
 // @Param sort_column query string false "Column to sort by" default("name")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} object "{ \"data\": []dto.UserGroupDtoWithUserCount, \"pagination\": utils.Pagination }"
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
+// @Success 200 {object} dto.Paginated[dto.UserGroupDtoWithUserCount]
 // @Router /user-groups [get]
 func (ugc *UserGroupController) list(c *gin.Context) {
 	searchTerm := c.Query("search")
@@ -83,9 +76,9 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 		groupsDto[i] = groupDto
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":       groupsDto,
-		"pagination": pagination,
+	c.JSON(http.StatusOK, dto.Paginated[dto.UserGroupDtoWithUserCount]{
+		Data:       groupsDto,
+		Pagination: pagination,
 	})
 }
 

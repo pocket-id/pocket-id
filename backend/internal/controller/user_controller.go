@@ -57,16 +57,8 @@ type UserController struct {
 // @Summary Get user groups
 // @Description Retrieve all groups a specific user belongs to
 // @Tags Users,User Groups
-// @Accept json
-// @Produce json
 // @Param id path string true "User ID"
 // @Success 200 {array} dto.UserGroupDtoWithUsers
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/{id}/groups [get]
 func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 	userID := c.Param("id")
@@ -89,19 +81,12 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 // @Summary List users
 // @Description Get a paginated list of users with optional search and sorting
 // @Tags Users
-// @Accept json
-// @Produce json
 // @Param search query string false "Search term to filter users"
 // @Param page query int false "Page number, starting from 1" default(1)
 // @Param limit query int false "Number of items per page" default(10)
 // @Param sort_column query string false "Column to sort by" default("created_at")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
-// @Success 200 {object} object "{ \"data\": []dto.UserDto, \"pagination\": utils.Pagination }"
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
+// @Success 200 {object} dto.Paginated[dto.UserDto]
 // @Router /users [get]
 func (uc *UserController) listUsersHandler(c *gin.Context) {
 	searchTerm := c.Query("search")
@@ -123,9 +108,9 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":       usersDto,
-		"pagination": pagination,
+	c.JSON(http.StatusOK, dto.Paginated[dto.UserDto]{
+		Data:       usersDto,
+		Pagination: pagination,
 	})
 }
 
@@ -133,16 +118,8 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 // @Summary Get user by ID
 // @Description Retrieve detailed information about a specific user
 // @Tags Users
-// @Accept json
-// @Produce json
 // @Param id path string true "User ID"
 // @Success 200 {object} dto.UserDto
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/{id} [get]
 func (uc *UserController) getUserHandler(c *gin.Context) {
 	user, err := uc.userService.GetUser(c.Param("id"))
@@ -164,13 +141,7 @@ func (uc *UserController) getUserHandler(c *gin.Context) {
 // @Summary Get current user
 // @Description Retrieve information about the currently authenticated user
 // @Tags Users
-// @Accept json
-// @Produce json
 // @Success 200 {object} dto.UserDto
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/me [get]
 func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 	user, err := uc.userService.GetUser(c.GetString("userID"))
@@ -192,16 +163,8 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Summary Delete user
 // @Description Delete a specific user by ID
 // @Tags Users
-// @Accept json
-// @Produce json
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) {
 	if err := uc.userService.DeleteUser(c.Param("id")); err != nil {
@@ -216,16 +179,8 @@ func (uc *UserController) deleteUserHandler(c *gin.Context) {
 // @Summary Create user
 // @Description Create a new user
 // @Tags Users
-// @Accept json
-// @Produce json
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 201 {object} dto.UserDto
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 409 {object} object "Conflict - email already exists"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users [post]
 func (uc *UserController) createUserHandler(c *gin.Context) {
 	var input dto.UserCreateDto
@@ -253,18 +208,9 @@ func (uc *UserController) createUserHandler(c *gin.Context) {
 // @Summary Update user
 // @Description Update an existing user by ID
 // @Tags Users
-// @Accept json
-// @Produce json
 // @Param id path string true "User ID"
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User not found"
-// @Failure 409 {object} object "Conflict - email already exists"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/{id} [put]
 func (uc *UserController) updateUserHandler(c *gin.Context) {
 	uc.updateUser(c, false)
@@ -274,17 +220,8 @@ func (uc *UserController) updateUserHandler(c *gin.Context) {
 // @Summary Update current user
 // @Description Update the currently authenticated user's information
 // @Tags Users
-// @Accept json
-// @Produce json
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
-// @Failure 400 {object} object "Bad request or validation error"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Account edit not allowed"
-// @Failure 404 {object} object "User not found"
-// @Failure 409 {object} object "Conflict - email already exists"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/me [put]
 func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
 	if uc.appConfigService.DbConfig.AllowOwnAccountEdit.Value != "true" {
@@ -301,9 +238,6 @@ func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
 // @Produce image/png
 // @Param id path string true "User ID"
 // @Success 200 {file} binary "PNG image"
-// @Failure 400 {object} object "Bad request"
-// @Failure 404 {object} object "User or profile picture not found"
-// @Failure 500 {object} object "Internal server error"
 // @Router /users/{id}/profile-picture.png [get]
 func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 	userID := c.Param("id")
@@ -323,10 +257,6 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 // @Tags Users,Profile Picture
 // @Produce image/png
 // @Success 200 {file} binary "PNG image"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 404 {object} object "Profile picture not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/me/profile-picture.png [get]
 func (uc *UserController) getCurrentUserProfilePictureHandler(c *gin.Context) {
 	userID := c.GetString("userID")
@@ -349,12 +279,6 @@ func (uc *UserController) getCurrentUserProfilePictureHandler(c *gin.Context) {
 // @Param id path string true "User ID"
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "Bad request or invalid file format"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/{id}/profile-picture [put]
 func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 	userID := c.Param("id")
@@ -386,11 +310,6 @@ func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 // @Produce json
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "Bad request or invalid file format"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/me/profile-picture [put]
 func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) {
 	userID := c.GetString("userID")
@@ -418,17 +337,9 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 // @Summary Create one-time access token
 // @Description Generate a one-time access token for a specific user
 // @Tags Authentication
-// @Accept json
-// @Produce json
 // @Param id path string true "User ID"
 // @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
 // @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/{id}/one-time-access-token [post]
 func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context) {
 	var input dto.OneTimeAccessTokenCreateDto
@@ -450,14 +361,8 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context) {
 // @Summary Request one-time access email
 // @Description Send a one-time access link via email
 // @Tags Authentication
-// @Accept json
-// @Produce json
 // @Param body body dto.OneTimeAccessEmailDto true "Email and redirect options"
 // @Success 204 "No Content"
-// @Failure 400 {object} object "Bad request"
-// @Failure 404 {object} object "Email not found"
-// @Failure 429 {object} object "Too many requests"
-// @Failure 500 {object} object "Internal server error"
 // @Router /one-time-access-email [post]
 func (uc *UserController) requestOneTimeAccessEmailHandler(c *gin.Context) {
 	var input dto.OneTimeAccessEmailDto
@@ -479,15 +384,8 @@ func (uc *UserController) requestOneTimeAccessEmailHandler(c *gin.Context) {
 // @Summary Exchange one-time access token
 // @Description Exchange a one-time access token for a session token
 // @Tags Authentication
-// @Accept json
-// @Produce json
 // @Param token path string true "One-time access token"
 // @Success 200 {object} dto.UserDto
-// @Failure 400 {object} object "Bad request"
-// @Failure 404 {object} object "Token not found"
-// @Failure 410 {object} object "Token expired"
-// @Failure 429 {object} object "Too many requests"
-// @Failure 500 {object} object "Internal server error"
 // @Router /one-time-access-token/{token} [post]
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 	user, token, err := uc.userService.ExchangeOneTimeAccessToken(c.Param("token"), c.ClientIP(), c.Request.UserAgent())
@@ -513,11 +411,7 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 // @Summary Setup initial admin
 // @Description Generate setup access token for initial admin user configuration
 // @Tags Authentication,Setup
-// @Accept json
-// @Produce json
 // @Success 200 {object} dto.UserDto
-// @Failure 400 {object} object "Setup already complete"
-// @Failure 500 {object} object "Internal server error"
 // @Router /one-time-access-token/setup [post]
 func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
 	user, token, err := uc.userService.SetupInitialAdmin()
@@ -543,17 +437,9 @@ func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
 // @Summary Update user groups
 // @Description Update the groups a specific user belongs to
 // @Tags Users,User Groups
-// @Accept json
-// @Produce json
 // @Param id path string true "User ID"
 // @Param groups body dto.UserUpdateUserGroupDto true "User group IDs"
 // @Success 200 {object} dto.UserDto
-// @Failure 400 {object} object "Bad request"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 404 {object} object "User not found"
-// @Failure 500 {object} object "Internal server error"
-// @Security BearerAuth
 // @Router /users/{id}/user-groups [put]
 func (uc *UserController) updateUserGroups(c *gin.Context) {
 	var input dto.UserUpdateUserGroupDto

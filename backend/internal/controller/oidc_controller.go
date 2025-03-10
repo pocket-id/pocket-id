@@ -345,17 +345,13 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 // listClientsHandler godoc
 // @Summary List OIDC clients
 // @Description Get a paginated list of OIDC clients with optional search and sorting
-// @Tags OIDC,Clients
-// @Produce json
+// @Tags OIDC
 // @Param search query string false "Search term to filter clients by name"
 // @Param page query int false "Page number, starting from 1" default(1)
 // @Param limit query int false "Number of items per page" default(10)
 // @Param sort_column query string false "Column to sort by" default("name")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} object "{ \"data\": []dto.OidcClientDto, \"pagination\": utils.Pagination }"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 403 {object} object "Forbidden"
-// @Failure 500 {object} object "Internal server error"
+// @Success 200 {object} dto.Paginated[dto.OidcClientDto]
 // @Security BearerAuth
 // @Router /oidc/clients [get]
 func (oc *OidcController) listClientsHandler(c *gin.Context) {
@@ -378,9 +374,9 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":       clientsDto,
-		"pagination": pagination,
+	c.JSON(http.StatusOK, dto.Paginated[dto.OidcClientDto]{
+		Data:       clientsDto,
+		Pagination: pagination,
 	})
 }
 
