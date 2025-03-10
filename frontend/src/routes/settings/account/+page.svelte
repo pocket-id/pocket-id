@@ -77,7 +77,7 @@
 		<LucideAlertTriangle class="size-4" />
 		<Alert.Title>Single Passkey Configured</Alert.Title>
 		<Alert.Description
-			>It is recommended to add more than one passkey to avoid loosing access to your account.</Alert.Description
+			>It is recommended to add more than one passkey to avoid losing access to your account.</Alert.Description
 		>
 	</Alert.Root>
 {/if}
