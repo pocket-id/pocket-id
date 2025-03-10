@@ -8,6 +8,10 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
+// NewWellKnownController creates a new controller for OIDC discovery endpoints
+// @Summary OIDC Discovery controller
+// @Description Initializes OIDC discovery and JWKS endpoints
+// @Tags OIDC Discovery
 func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService) {
 	wkc := &WellKnownController{jwtService: jwtService}
 	group.GET("/.well-known/jwks.json", wkc.jwksHandler)
@@ -18,6 +22,14 @@ type WellKnownController struct {
 	jwtService *service.JwtService
 }
 
+// jwksHandler godoc
+// @Summary Get JSON Web Key Set (JWKS)
+// @Description Returns the JSON Web Key Set used for token verification
+// @Tags OIDC Discovery
+// @Produce json
+// @Success 200 {object} object "{ \"keys\": []interface{} }"
+// @Failure 500 {object} object "Internal server error"
+// @Router /.well-known/jwks.json [get]
 func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 	jwk, err := wkc.jwtService.GetJWK()
 	if err != nil {
@@ -28,6 +40,13 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"keys": []interface{}{jwk}})
 }
 
+// openIDConfigurationHandler godoc
+// @Summary Get OpenID Connect discovery configuration
+// @Description Returns the OpenID Connect discovery document with endpoints and capabilities
+// @Tags OIDC Discovery
+// @Produce json
+// @Success 200 {object} object "OpenID Connect configuration"
+// @Router /.well-known/openid-configuration [get]
 func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
 	appUrl := common.EnvConfig.AppURL
 	config := map[string]interface{}{
