@@ -23,14 +23,16 @@
 		appName: appConfig.appName,
 		sessionDuration: appConfig.sessionDuration,
 		emailsVerified: appConfig.emailsVerified,
-		allowOwnAccountEdit: appConfig.allowOwnAccountEdit
+		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
+		showAlternativeSignInButton: appConfig.showAlternativeSignInButton
 	};
 
 	const formSchema = z.object({
 		appName: z.string().min(2).max(30),
 		sessionDuration: z.number().min(1).max(43200),
 		emailsVerified: z.boolean(),
-		allowOwnAccountEdit: z.boolean()
+		allowOwnAccountEdit: z.boolean(),
+		showAlternativeSignInButton: z.boolean()
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, updatedAppConfig);
@@ -64,6 +66,12 @@
 				label="Emails Verified"
 				description="Whether the user's email should be marked as verified for the OIDC clients."
 				bind:checked={$inputs.emailsVerified.value}
+			/>
+			<CheckboxWithLabel
+				id="alternative-sign-in"
+				label="Show Alternative Sign-In Button"
+				description="Whether to show the alternative sign-in button on the login page."
+				bind:checked={$inputs.showAlternativeSignInButton.value}
 			/>
 		</div>
 		<div class="mt-5 flex justify-end">

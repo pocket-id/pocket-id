@@ -16,6 +16,7 @@ type AppConfigUpdateDto struct {
 	SessionDuration                    string `json:"sessionDuration" binding:"required"`
 	EmailsVerified                     string `json:"emailsVerified" binding:"required"`
 	AllowOwnAccountEdit                string `json:"allowOwnAccountEdit" binding:"required"`
+	ShowAlternativeSignInButton        string `json:"showAlternativeSignInButton" binding:"required"`
 	SmtHost                            string `json:"smtpHost"`
 	SmtpPort                           string `json:"smtpPort"`
 	SmtpFrom                           string `json:"smtpFrom" binding:"omitempty,email"`

@@ -49,6 +49,12 @@ var defaultDbConfig = model.AppConfig{
 		Type:         "bool",
 		DefaultValue: "false",
 	},
+	ShowAlternativeSignInButton: model.AppConfigVariable{
+		Key:          "showAlternativeSignInButton",
+		Type:         "bool",
+		IsPublic:     true,
+		DefaultValue: "true",
+	},
 	AllowOwnAccountEdit: model.AppConfigVariable{
 		Key:          "allowOwnAccountEdit",
 		Type:         "bool",

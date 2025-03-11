@@ -3,6 +3,7 @@ export type AppConfig = {
 	allowOwnAccountEdit: boolean;
 	emailOneTimeAccessEnabled: boolean;
 	ldapEnabled: boolean;
+	showAlternativeSignInButton: boolean;
 };
 
 export type AllAppConfig = AppConfig & {
