@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/backend/cmd/main.go",
+    },
+    {
+      "name": "Frontend",
+      "type": "node",
+      "request": "launch",
+      "env": {
+        "APP_ENV": "development"
+      },
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Development",
+      "configurations": [
+        "Backend",
+        "Frontend"
+      ],
+      "presentation": {
+        "hidden": false,
+        "group": "",
+        "order": 1
+      }
+    }
+  ],
+}
