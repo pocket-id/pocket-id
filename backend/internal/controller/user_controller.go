@@ -42,7 +42,8 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), uc.updateUserProfilePictureHandler)
 	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserProfilePictureHandler)
 
-	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(), uc.createOneTimeAccessTokenHandler)
+	group.POST("/users/me/one-time-access-token", authMiddleware.WithAdminNotRequired().Add(), uc.createOwnOneTimeAccessTokenHandler)
+	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(), uc.createAdminOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/setup", uc.getSetupAccessTokenHandler)
 	group.POST("/one-time-access-email", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), uc.requestOneTimeAccessEmailHandler)
@@ -333,21 +334,16 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 	c.Status(http.StatusNoContent)
 }
 
-// createOneTimeAccessTokenHandler godoc
-// @Summary Create one-time access token
-// @Description Generate a one-time access token for a specific user
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
-// @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Router /users/{id}/one-time-access-token [post]
-func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context) {
+func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bool) {
 	var input dto.OneTimeAccessTokenCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Error(err)
 		return
 	}
 
+	if own {
+		input.UserID = c.GetString("userID")
+	}
 	token, err := uc.userService.CreateOneTimeAccessToken(input.UserID, input.ExpiresAt)
 	if err != nil {
 		c.Error(err)
@@ -357,13 +353,22 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"token": token})
 }
 
-// requestOneTimeAccessEmailHandler godoc
-// @Summary Request one-time access email
-// @Description Send a one-time access link via email
+// createOwnOneTimeAccessTokenHandler godoc
+// @Summary Create one-time access token for current user
+// @Description Generate a one-time access token for the currently authenticated user
 // @Tags Users
-// @Param body body dto.OneTimeAccessEmailDto true "Email and redirect options"
-// @Success 204 "No Content"
-// @Router /one-time-access-email [post]
+// @Param id path string true "User ID"
+// @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
+// @Success 201 {object} object "{ \"token\": \"string\" }"
+// @Router /users/{id}/one-time-access-token [post]
+func (uc *UserController) createOwnOneTimeAccessTokenHandler(c *gin.Context) {
+	uc.createOneTimeAccessTokenHandler(c, true)
+}
+
+func (uc *UserController) createAdminOneTimeAccessTokenHandler(c *gin.Context) {
+	uc.createOneTimeAccessTokenHandler(c, false)
+}
+
 func (uc *UserController) requestOneTimeAccessEmailHandler(c *gin.Context) {
 	var input dto.OneTimeAccessEmailDto
 	if err := c.ShouldBindJSON(&input); err != nil {

@@ -32,7 +32,7 @@ test('Update email configuration', async ({ page }) => {
 	await page.getByLabel('SMTP Password').fill('password');
 	await page.getByLabel('SMTP From').fill('test@gmail.com');
 	await page.getByLabel('Email Login Notification').click();
-	await page.getByLabel('Email One Time Access').click();
+	await page.getByLabel('Email Login', { exact: true }).click();
 
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
@@ -46,7 +46,7 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('SMTP Password')).toHaveValue('password');
 	await expect(page.getByLabel('SMTP From')).toHaveValue('test@gmail.com');
 	await expect(page.getByLabel('Email Login Notification')).toBeChecked();
-	await expect(page.getByLabel('Email One Time Access')).toBeChecked();
+	await expect(page.getByLabel('Email Login', { exact: true })).toBeChecked();
 });
 
 test('Update LDAP configuration', async ({ page }) => {

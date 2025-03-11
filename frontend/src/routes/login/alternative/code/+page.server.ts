@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, url }) => {
+export const load: PageServerLoad = async ({ url }) => {
 	return {
-		token: params.token,
+		code: url.searchParams.get('code'),
 		redirect: url.searchParams.get('redirect') || '/settings'
 	};
 };

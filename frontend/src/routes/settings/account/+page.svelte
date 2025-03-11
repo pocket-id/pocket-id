@@ -11,15 +11,17 @@
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { LucideAlertTriangle } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import AccountForm from './account-form.svelte';
-	import PasskeyList from './passkey-list.svelte';
 	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
+	import AccountForm from './account-form.svelte';
+	import LoginCodeModal from './login-code-modal.svelte';
+	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
 	let { data } = $props();
 	let account = $state(data.account);
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
+	let showLoginCodeModal: boolean = $state(false);
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
@@ -75,7 +77,7 @@
 		<LucideAlertTriangle class="size-4" />
 		<Alert.Title>Single Passkey Configured</Alert.Title>
 		<Alert.Description
-			>It is recommended to add more than one passkey to avoid loosing access to your account.</Alert.Description
+			>It is recommended to add more than one passkey to avoid losing access to your account.</Alert.Description
 		>
 	</Alert.Root>
 {/if}
@@ -96,7 +98,11 @@
 
 <Card.Root>
 	<Card.Content class="pt-6">
-		<ProfilePictureSettings userId="me" isLdapUser={!!account.ldapId} callback={updateProfilePicture} />
+		<ProfilePictureSettings
+			userId="me"
+			isLdapUser={!!account.ldapId}
+			callback={updateProfilePicture}
+		/>
 	</Card.Content>
 </Card.Root>
 
@@ -109,7 +115,7 @@
 					Manage your passkeys that you can use to authenticate yourself.
 				</Card.Description>
 			</div>
-			<Button size="sm" on:click={createPasskey}>Add Passkey</Button>
+			<Button size="sm" class="ml-3" on:click={createPasskey}>Add Passkey</Button>
 		</div>
 	</Card.Header>
 	{#if passkeys.length != 0}
@@ -118,7 +124,23 @@
 		</Card.Content>
 	{/if}
 </Card.Root>
+
+<Card.Root>
+	<Card.Header>
+		<div class="flex items-center justify-between">
+			<div>
+				<Card.Title>Login Code</Card.Title>
+				<Card.Description class="mt-1">
+					Create a one-time login code to sign in from a different device without a passkey.
+				</Card.Description>
+			</div>
+			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}>Create</Button>
+		</div>
+	</Card.Header>
+</Card.Root>
+
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
 />
+<LoginCodeModal bind:show={showLoginCodeModal} />

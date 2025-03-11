@@ -83,7 +83,7 @@
 {#if client == null}
 	<p>Client not found</p>
 {:else}
-	<SignInWrapper showEmailOneTimeAccessButton={$appConfigStore.emailOneTimeAccessEnabled}>
+	<SignInWrapper showAlternativeSignInMethodButton>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
 		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">Sign in to {client.name}</h1>
 		{#if errorMessage}

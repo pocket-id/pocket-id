@@ -4,10 +4,12 @@
 	import * as Table from '$lib/components/ui/table';
 	import AuditLogService from '$lib/services/audit-log-service';
 	import type { AuditLog } from '$lib/types/audit-log.type';
-	import type { Paginated } from '$lib/types/pagination.type';
+	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 
-	let { auditLogs: initialAuditLog }: { auditLogs: Paginated<AuditLog> } = $props();
-	let auditLogs = $state<Paginated<AuditLog>>(initialAuditLog);
+	let {
+		auditLogs,
+		requestOptions
+	}: { auditLogs: Paginated<AuditLog>; requestOptions: SearchPaginationSortRequest } = $props();
 
 	const auditLogService = new AuditLogService();
 
@@ -22,8 +24,8 @@
 
 <AdvancedTable
 	items={auditLogs}
+	{requestOptions}
 	onRefresh={async (options) => (auditLogs = await auditLogService.list(options))}
-	defaultSort={{ column: 'createdAt', direction: 'desc' }}
 	columns={[
 		{ label: 'Time', sortColumn: 'createdAt' },
 		{ label: 'Event', sortColumn: 'event' },

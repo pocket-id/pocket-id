@@ -45,7 +45,7 @@ export type AppConfigRawResponse = {
 }[];
 
 export type AppVersionInformation = {
-	isUpToDate: boolean | null;
-	newestVersion: string | null;
+	isUpToDate?: boolean;
+	newestVersion?: string;
 	currentVersion: string;
 };

@@ -31,7 +31,7 @@ var NewLoginTemplate = email.Template[NewLoginTemplateData]{
 var OneTimeAccessTemplate = email.Template[OneTimeAccessTemplateData]{
 	Path: "one-time-access",
 	Title: func(data *email.TemplateData[OneTimeAccessTemplateData]) string {
-		return "One time access"
+		return "Login Code"
 	},
 }
 
@@ -51,7 +51,9 @@ type NewLoginTemplateData struct {
 }
 
 type OneTimeAccessTemplateData = struct {
-	Link string
+	Code              string
+	LoginLink         string
+	LoginLinkWithCode string
 }
 
 // this is list of all template paths used for preloading templates

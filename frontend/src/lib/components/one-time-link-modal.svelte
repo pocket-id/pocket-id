@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Input from '$lib/components/ui/input/input.svelte';
@@ -30,8 +30,8 @@
 	async function createOneTimeAccessToken() {
 		try {
 			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
-			const token = await userService.createOneTimeAccessToken(userId!, expiration);
-			oneTimeLink = `${$page.url.origin}/login/${token}`;
+			const token = await userService.createOneTimeAccessToken(expiration, userId!);
+			oneTimeLink = `${page.url.origin}/lc/${token}`;
 		} catch (e) {
 			axiosErrorToast(e);
 		}
@@ -48,10 +48,9 @@
 <Dialog.Root open={!!userId} {onOpenChange}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>One Time Link</Dialog.Title>
+			<Dialog.Title>Login Code</Dialog.Title>
 			<Dialog.Description
-				>Use this link to sign in once. This is needed for users who haven't added a passkey yet or
-				have lost it.</Dialog.Description
+				>Create a login code that the user can use to sign in without a passkey once.</Dialog.Description
 			>
 		</Dialog.Header>
 		{#if oneTimeLink === null}
@@ -76,11 +75,11 @@
 				</Select.Root>
 			</div>
 			<Button onclick={() => createOneTimeAccessToken()} disabled={!selectedExpiration}>
-				Generate Link
+				Generate Code
 			</Button>
 		{:else}
-			<Label for="one-time-link" class="sr-only">One Time Link</Label>
-			<Input id="one-time-link" value={oneTimeLink} readonly />
+			<Label for="login-code" class="sr-only">Login Code</Label>
+			<Input id="login-code" value={oneTimeLink} readonly />
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>
