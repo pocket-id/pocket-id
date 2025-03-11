@@ -5,6 +5,10 @@
       "name": "Backend",
       "type": "go",
       "request": "launch",
+      "envFile": "${workspaceFolder}/backend/.env.example",
+      "env": {
+        "APP_ENV": "development"
+      },
       "mode": "debug",
       "program": "${workspaceFolder}/backend/cmd/main.go",
     },
@@ -12,9 +16,7 @@
       "name": "Frontend",
       "type": "node",
       "request": "launch",
-      "env": {
-        "APP_ENV": "development"
-      },
+      "envFile": "${workspaceFolder}/frontend/.env.example",
       "cwd": "${workspaceFolder}/frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
