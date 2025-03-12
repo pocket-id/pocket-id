@@ -4,9 +4,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import AuditLogList from '$lib/components/audit-log-list.svelte';
 	import AuditLogService from '$lib/services/audit-log-service';
-	import type { Paginated } from '$lib/types/pagination.type';
-	import type { AuditLog } from '$lib/types/audit-log.type';
-	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { FilterMap } from '$lib/types/pagination.type';
 
 	// Get data from server
@@ -19,48 +16,49 @@
 	let auditLogs = $state(data.auditLogs);
 	let requestOptions = $state(data.requestOptions);
 
-	// Initialize selections with empty values
-	let selectedUserId = $state('');
-	let selectedEventType = $state('');
-	let selectedClientId = $state('');
+	// Initialize selections with string types, not objects
+	let selectedUserId = $state(''); // Empty string represents "All Users"
+	let selectedEventType = $state(''); // Empty string represents "All Events"
+	let selectedClientId = $state(''); // Empty string represents "All Clients"
 
-	// Helper function to safely extract value from select options
-	function extractValueFromSelect(value: any): string {
-		if (!value) return '';
-		if (typeof value === 'string') return value;
-		if (typeof value === 'object' && value !== null && 'value' in value) {
-			return String(value.value);
-		}
-		return '';
-	}
+	// Create mapping objects for display purposes
+	const userMap = Object.fromEntries([
+		['', 'All Users'],
+		...data.users.map((user) => [user.id, user.username])
+	]);
+
+	const eventMap = Object.fromEntries([
+		['', 'All Events'],
+		...data.eventTypes.map((event) => [event.value, event.label])
+	]);
+
+	const clientMap = Object.fromEntries([
+		['', 'All Clients'],
+		...data.clients.map((client) => [client.id, client.name])
+	]);
 
 	// Apply filters directly
 	async function applyFilters() {
 		// Initialize filters as an empty map
 		const filters: FilterMap = {};
 
-		// Add filters if they exist, extracting just the string value
-		const userId = extractValueFromSelect(selectedUserId);
-		if (userId) {
-			filters.userId = userId;
+		// Add filters if they exist
+		if (selectedUserId) {
+			filters.userId = selectedUserId;
 		}
 
-		const eventType = extractValueFromSelect(selectedEventType);
-		if (eventType) {
-			filters.event = eventType;
+		if (selectedEventType) {
+			filters.event = selectedEventType;
 		}
 
-		const clientId = extractValueFromSelect(selectedClientId);
-		if (clientId) {
-			filters.clientId = clientId;
+		if (selectedClientId) {
+			filters.clientId = selectedClientId;
 		}
 
-		// Set the filters on the request options
 		requestOptions.filters = filters;
 
-		// Fetch the audit logs with the updated filters
 		const result = await auditLogService.listAllLogs(requestOptions);
-		auditLogs = { ...result }; // Create a new object to ensure reactivity
+		auditLogs = { ...result };
 	}
 
 	// Clear all filters
@@ -69,12 +67,10 @@
 		selectedEventType = '';
 		selectedClientId = '';
 
-		// Reset filters to empty object
 		requestOptions.filters = {};
 
-		// Fetch the audit logs with cleared filters
 		const result = await auditLogService.listAllLogs(requestOptions);
-		auditLogs = { ...result }; // Create a new object to ensure reactivity
+		auditLogs = { ...result };
 	}
 </script>
 
@@ -91,8 +87,11 @@
 		<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
 			<div>
 				<Select.Root
-					selected={selectedUserId}
-					onSelectedChange={(value) => (selectedUserId = value)}
+					selected={{
+						value: selectedUserId,
+						label: userMap[selectedUserId] || 'All Users'
+					}}
+					onSelectedChange={(v) => (selectedUserId = v!.value)}
 				>
 					<Select.Trigger class="w-full">
 						<Select.Value placeholder="Filter by user..." />
@@ -107,8 +106,11 @@
 			</div>
 			<div>
 				<Select.Root
-					selected={selectedEventType}
-					onSelectedChange={(value) => (selectedEventType = value)}
+					selected={{
+						value: selectedEventType,
+						label: eventMap[selectedEventType] || 'All Events'
+					}}
+					onSelectedChange={(v) => (selectedEventType = v!.value)}
 				>
 					<Select.Trigger class="w-full">
 						<Select.Value placeholder="Filter by event type..." />
@@ -123,8 +125,11 @@
 			</div>
 			<div>
 				<Select.Root
-					selected={selectedClientId}
-					onSelectedChange={(value) => (selectedClientId = value)}
+					selected={{
+						value: selectedClientId,
+						label: clientMap[selectedClientId] || 'All Clients'
+					}}
+					onSelectedChange={(v) => (selectedClientId = v!.value)}
 				>
 					<Select.Trigger class="w-full">
 						<Select.Value placeholder="Filter by client..." />
