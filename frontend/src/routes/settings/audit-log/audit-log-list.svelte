@@ -9,14 +9,20 @@
 	let {
 		auditLogs,
 		isAdmin = false,
-		requestOptions
+		requestOptions,
+		onRefresh = undefined
 	}: {
 		auditLogs: Paginated<AuditLog>;
 		isAdmin?: boolean;
 		requestOptions: SearchPaginationSortRequest;
+		onRefresh?: (options: SearchPaginationSortRequest) => Promise<Paginated<AuditLog>>;
 	} = $props();
 
 	const auditLogService = new AuditLogService();
+
+	const defaultRefresh = async (options: SearchPaginationSortRequest) => {
+		return isAdmin ? auditLogService.listAllLogs(options) : auditLogService.list(options);
+	};
 
 	function toFriendlyEventString(event: string) {
 		const words = event.split('_');
@@ -30,10 +36,7 @@
 <AdvancedTable
 	items={auditLogs}
 	{requestOptions}
-	onRefresh={async (options) =>
-		(auditLogs = await (isAdmin
-			? auditLogService.listAllLogs(options)
-			: auditLogService.list(options)))}
+	onRefresh={onRefresh || defaultRefresh}
 	columns={[
 		{ label: 'Time', sortColumn: 'createdAt' },
 		...(isAdmin ? [{ label: 'Username' }] : []),

@@ -9,11 +9,10 @@
 
 	let { data } = $props();
 
+	const auditLogService = new AuditLogService();
+
 	// Store audit logs in local state
 	let auditLogs = $state<Paginated<AuditLog>>(data.auditLogs);
-
-	// Create a reference to the AuditLogList component
-	let auditLogListComponent: any;
 
 	// Initialize selections with any existing filter values
 	let selectedUserId = $state<string | null>(data.filters.userId || '');
@@ -24,7 +23,7 @@
 	let requestOptions = $state({
 		sort: {
 			column: 'createdAt',
-			direction: 'desc'
+			direction: 'desc' as const
 		},
 		pagination: {
 			page: 1,
@@ -63,23 +62,31 @@
 		// Reset pagination to first page when applying filters
 		requestOptions.pagination.page = 1;
 
-		// Call the refreshAuditLogs function on the AuditLogList component
-		if (auditLogListComponent?.refreshAuditLogs) {
-			auditLogs = await auditLogListComponent.refreshAuditLogs(requestOptions);
-		}
+		// Fetch the audit logs with the updated filters
+		auditLogs = await auditLogService.listAllLogs(requestOptions);
 	}
 
 	// Clear all filters
-	function clearFilters() {
+	async function clearFilters() {
 		selectedUserId = '';
 		selectedEventType = '';
 		selectedClientId = '';
 
-		// Reset filters and refresh data
+		// Reset filters
 		requestOptions.filters = {};
-		if (auditLogListComponent?.refreshAuditLogs) {
-			auditLogListComponent.refreshAuditLogs(requestOptions);
-		}
+
+		// Fetch the audit logs with cleared filters
+		auditLogs = await auditLogService.listAllLogs(requestOptions);
+	}
+
+	// This function will be passed to the AuditLogList component to handle table refreshing
+	async function handleRefresh(options) {
+		// Update our local reference to options to stay in sync
+		requestOptions = { ...options };
+		// Fetch and return the updated audit logs
+		const result = await auditLogService.listAllLogs(options);
+		auditLogs = result; // Update our local state
+		return result;
 	}
 </script>
 
@@ -149,6 +156,11 @@
 			<Button variant="default" size="sm" on:click={applyFilters}>Apply Filters</Button>
 		</div>
 
-		<AuditLogList bind:this={auditLogListComponent} isAdmin={true} {auditLogs} {requestOptions} />
+		<AuditLogList
+			isAdmin={true}
+			{auditLogs}
+			{requestOptions}
+			onRefresh={() => handleRefresh(requestOptions)}
+		/>
 	</Card.Content>
 </Card.Root>
