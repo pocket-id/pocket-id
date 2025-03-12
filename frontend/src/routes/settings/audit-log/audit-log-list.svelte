@@ -4,19 +4,13 @@
 	import * as Table from '$lib/components/ui/table';
 	import AuditLogService from '$lib/services/audit-log-service';
 	import type { AuditLog } from '$lib/types/audit-log.type';
-	import type { Paginated } from '$lib/types/pagination.type';
+	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 
-	// Add requestOptions to the props
 	let {
-		auditLogs: initialAuditLog,
-		isAdmin = false,
+		auditLogs,
+    isAdmin = flase;
 		requestOptions
-	}: { 
-		auditLogs: Paginated<AuditLog>; 
-		isAdmin?: boolean;
-		requestOptions?: SearchPaginationSortRequest;
-	} = $props();
-	let auditLogs = $state<Paginated<AuditLog>>(initialAuditLog);
+	}: { auditLogs: Paginated<AuditLog>; isAdmin?: boolean; requestOptions: SearchPaginationSortRequest } = $props();
 
 	const auditLogService = new AuditLogService();
 
@@ -80,8 +74,7 @@
 <AdvancedTable
 	items={auditLogs}
 	{requestOptions}
-	onRefresh={async (options) => (auditLogs = await refreshAuditLogs(options))}
-	defaultSort={{ column: 'createdAt', direction: 'desc' }}
+	onRefresh={async (options) => (auditLogs = await auditLogService.list(options))}
 	columns={[
 		{ label: 'Time', sortColumn: 'createdAt' },
 		...(isAdmin ? [{ label: 'Username' }] : []),

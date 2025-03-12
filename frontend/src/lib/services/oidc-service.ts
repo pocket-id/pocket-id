@@ -2,6 +2,7 @@ import type {
 	AuthorizeResponse,
 	OidcClient,
 	OidcClientCreate,
+	OidcClientMetaData,
 	OidcClientWithAllowedUserGroups
 } from '$lib/types/oidc.type';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
@@ -54,6 +55,10 @@ class OidcService extends APIService {
 
 	async getClient(id: string) {
 		return (await this.api.get(`/oidc/clients/${id}`)).data as OidcClientWithAllowedUserGroups;
+	}
+
+	async getClientMetaData(id: string) {
+		return (await this.api.get(`/oidc/clients/${id}/meta`)).data as OidcClientMetaData;
 	}
 
 	async updateClient(id: string, client: OidcClientCreate) {

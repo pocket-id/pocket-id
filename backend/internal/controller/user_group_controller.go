@@ -10,23 +10,42 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-func NewUserGroupController(group *gin.RouterGroup, jwtAuthMiddleware *middleware.JwtAuthMiddleware, userGroupService *service.UserGroupService) {
+// NewUserGroupController creates a new controller for user group management
+// @Summary User group management controller
+// @Description Initializes all user group-related API endpoints
+// @Tags User Groups
+func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, userGroupService *service.UserGroupService) {
 	ugc := UserGroupController{
 		UserGroupService: userGroupService,
 	}
 
-	group.GET("/user-groups", jwtAuthMiddleware.Add(true), ugc.list)
-	group.GET("/user-groups/:id", jwtAuthMiddleware.Add(true), ugc.get)
-	group.POST("/user-groups", jwtAuthMiddleware.Add(true), ugc.create)
-	group.PUT("/user-groups/:id", jwtAuthMiddleware.Add(true), ugc.update)
-	group.DELETE("/user-groups/:id", jwtAuthMiddleware.Add(true), ugc.delete)
-	group.PUT("/user-groups/:id/users", jwtAuthMiddleware.Add(true), ugc.updateUsers)
+	userGroupsGroup := group.Group("/user-groups")
+	userGroupsGroup.Use(authMiddleware.Add())
+	{
+		userGroupsGroup.GET("", ugc.list)
+		userGroupsGroup.GET("/:id", ugc.get)
+		userGroupsGroup.POST("", ugc.create)
+		userGroupsGroup.PUT("/:id", ugc.update)
+		userGroupsGroup.DELETE("/:id", ugc.delete)
+		userGroupsGroup.PUT("/:id/users", ugc.updateUsers)
+	}
 }
 
 type UserGroupController struct {
 	UserGroupService *service.UserGroupService
 }
 
+// list godoc
+// @Summary List user groups
+// @Description Get a paginated list of user groups with optional search and sorting
+// @Tags User Groups
+// @Param search query string false "Search term to filter user groups by name"
+// @Param page query int false "Page number, starting from 1" default(1)
+// @Param limit query int false "Number of items per page" default(10)
+// @Param sort_column query string false "Column to sort by" default("name")
+// @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[dto.UserGroupDtoWithUserCount]
+// @Router /user-groups [get]
 func (ugc *UserGroupController) list(c *gin.Context) {
 	searchTerm := c.Query("search")
 	var sortedPaginationRequest utils.SortedPaginationRequest
@@ -41,7 +60,7 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 		return
 	}
 
-	// Map the user groups to DTOs. The user count can't be mapped directly, so we have to do it manually.
+	// Map the user groups to DTOs
 	var groupsDto = make([]dto.UserGroupDtoWithUserCount, len(groups))
 	for i, group := range groups {
 		var groupDto dto.UserGroupDtoWithUserCount
@@ -57,12 +76,22 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 		groupsDto[i] = groupDto
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":       groupsDto,
-		"pagination": pagination,
+	c.JSON(http.StatusOK, dto.Paginated[dto.UserGroupDtoWithUserCount]{
+		Data:       groupsDto,
+		Pagination: pagination,
 	})
 }
 
+// get godoc
+// @Summary Get user group by ID
+// @Description Retrieve detailed information about a specific user group including its users
+// @Tags User Groups
+// @Accept json
+// @Produce json
+// @Param id path string true "User Group ID"
+// @Success 200 {object} dto.UserGroupDtoWithUsers
+// @Security BearerAuth
+// @Router /user-groups/{id} [get]
 func (ugc *UserGroupController) get(c *gin.Context) {
 	group, err := ugc.UserGroupService.Get(c.Param("id"))
 	if err != nil {
@@ -79,6 +108,16 @@ func (ugc *UserGroupController) get(c *gin.Context) {
 	c.JSON(http.StatusOK, groupDto)
 }
 
+// create godoc
+// @Summary Create user group
+// @Description Create a new user group
+// @Tags User Groups
+// @Accept json
+// @Produce json
+// @Param userGroup body dto.UserGroupCreateDto true "User group information"
+// @Success 201 {object} dto.UserGroupDtoWithUsers "Created user group"
+// @Security BearerAuth
+// @Router /user-groups [post]
 func (ugc *UserGroupController) create(c *gin.Context) {
 	var input dto.UserGroupCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -101,6 +140,17 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 	c.JSON(http.StatusCreated, groupDto)
 }
 
+// update godoc
+// @Summary Update user group
+// @Description Update an existing user group by ID
+// @Tags User Groups
+// @Accept json
+// @Produce json
+// @Param id path string true "User Group ID"
+// @Param userGroup body dto.UserGroupCreateDto true "User group information"
+// @Success 200 {object} dto.UserGroupDtoWithUsers "Updated user group"
+// @Security BearerAuth
+// @Router /user-groups/{id} [put]
 func (ugc *UserGroupController) update(c *gin.Context) {
 	var input dto.UserGroupCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -123,6 +173,16 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 	c.JSON(http.StatusOK, groupDto)
 }
 
+// delete godoc
+// @Summary Delete user group
+// @Description Delete a specific user group by ID
+// @Tags User Groups
+// @Accept json
+// @Produce json
+// @Param id path string true "User Group ID"
+// @Success 204 "No Content"
+// @Security BearerAuth
+// @Router /user-groups/{id} [delete]
 func (ugc *UserGroupController) delete(c *gin.Context) {
 	if err := ugc.UserGroupService.Delete(c.Param("id")); err != nil {
 		c.Error(err)
@@ -132,6 +192,17 @@ func (ugc *UserGroupController) delete(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// updateUsers godoc
+// @Summary Update users in a group
+// @Description Update the list of users belonging to a specific user group
+// @Tags User Groups
+// @Accept json
+// @Produce json
+// @Param id path string true "User Group ID"
+// @Param users body dto.UserGroupUpdateUsersDto true "List of user IDs to assign to this group"
+// @Success 200 {object} dto.UserGroupDtoWithUsers
+// @Security BearerAuth
+// @Router /user-groups/{id}/users [put]
 func (ugc *UserGroupController) updateUsers(c *gin.Context) {
 	var input dto.UserGroupUpdateUsersDto
 	if err := c.ShouldBindJSON(&input); err != nil {

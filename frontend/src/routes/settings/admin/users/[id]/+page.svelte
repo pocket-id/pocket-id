@@ -5,15 +5,14 @@
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import CustomClaimService from '$lib/services/custom-claim-service';
-	import UserGroupService from '$lib/services/user-group-service';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import UserForm from '../user-form.svelte';
 
 	let { data } = $props();
@@ -24,7 +23,6 @@
 
 	const userService = new UserService();
 	const customClaimService = new CustomClaimService();
-	const userGroupService = new UserGroupService();
 
 	async function updateUserGroups(userIds: string[]) {
 		await userService
@@ -101,14 +99,10 @@
 	title="User Groups"
 	description="Manage which groups this user belongs to."
 >
-	{#await userGroupService.list() then groups}
-		<UserGroupSelection
-			{groups}
-			bind:selectedGroupIds={user.userGroupIds}
-			selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
-		/>
-	{/await}
-
+	<UserGroupSelection
+		bind:selectedGroupIds={user.userGroupIds}
+		selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
+	/>
 	<div class="mt-5 flex justify-end">
 		<Button
 			on:click={() => updateUserGroups(user.userGroupIds)}

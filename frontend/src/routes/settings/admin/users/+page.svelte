@@ -3,8 +3,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { Paginated } from '$lib/types/pagination.type';
-	import type { User, UserCreate } from '$lib/types/user.type';
+	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
@@ -13,7 +12,9 @@
 	import UserList from './user-list.svelte';
 
 	let { data } = $props();
-	let users: Paginated<User> = $state(data);
+	let users = $state(data.users);
+	let usersRequestOptions = $state(data.usersRequestOptions);
+
 	let expandAddUser = $state(false);
 
 	const userService = new UserService();
@@ -28,7 +29,7 @@
 				success = false;
 			});
 
-		users = await userService.list();
+		users = await userService.list(usersRequestOptions);
 		return success;
 	}
 </script>
@@ -67,6 +68,6 @@
 		<Card.Title>Manage Users</Card.Title>
 	</Card.Header>
 	<Card.Content>
-		<UserList {users} />
+		<UserList {users} requestOptions={usersRequestOptions} />
 	</Card.Content>
 </Card.Root>

@@ -197,6 +197,11 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 }
 
 func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath string) error {
+	isDisabled := s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.Value != "true"
+	if isDisabled {
+		return &common.OneTimeAccessDisabledError{}
+	}
+
 	var user model.User
 	if err := s.db.Where("email = ?", emailAddress).First(&user).Error; err != nil {
 		// Do not return error if user not found to prevent email enumeration
@@ -207,17 +212,18 @@ func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath strin
 		}
 	}
 
-	oneTimeAccessToken, err := s.CreateOneTimeAccessToken(user.ID, time.Now().Add(time.Hour))
+	oneTimeAccessToken, err := s.CreateOneTimeAccessToken(user.ID, time.Now().Add(15*time.Minute))
 	if err != nil {
 		return err
 	}
 
-	link := fmt.Sprintf("%s/login/%s", common.EnvConfig.AppURL, oneTimeAccessToken)
+	link := fmt.Sprintf("%s/lc", common.EnvConfig.AppURL)
+	linkWithCode := fmt.Sprintf("%s/%s", link, oneTimeAccessToken)
 
 	// Add redirect path to the link
 	if strings.HasPrefix(redirectPath, "/") {
 		encodedRedirectPath := url.QueryEscape(redirectPath)
-		link = fmt.Sprintf("%s?redirect=%s", link, encodedRedirectPath)
+		linkWithCode = fmt.Sprintf("%s?redirect=%s", linkWithCode, encodedRedirectPath)
 	}
 
 	go func() {
@@ -225,7 +231,9 @@ func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath strin
 			Name:  user.Username,
 			Email: user.Email,
 		}, OneTimeAccessTemplate, &OneTimeAccessTemplateData{
-			Link: link,
+			Code:              oneTimeAccessToken,
+			LoginLink:         link,
+			LoginLinkWithCode: linkWithCode,
 		})
 		if err != nil {
 			log.Printf("Failed to send email to '%s': %v\n", user.Email, err)
@@ -236,7 +244,14 @@ func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath strin
 }
 
 func (s *UserService) CreateOneTimeAccessToken(userID string, expiresAt time.Time) (string, error) {
-	randomString, err := utils.GenerateRandomAlphanumericString(16)
+	tokenLength := 16
+
+	// If expires at is less than 15 minutes, use an 6 character token instead of 16
+	if expiresAt.Sub(time.Now()) <= 15*time.Minute {
+		tokenLength = 6
+	}
+
+	randomString, err := utils.GenerateRandomAlphanumericString(tokenLength)
 	if err != nil {
 		return "", err
 	}

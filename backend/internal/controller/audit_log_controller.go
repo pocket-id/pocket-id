@@ -11,19 +11,33 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
-func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.AuditLogService, jwtAuthMiddleware *middleware.JwtAuthMiddleware) {
+// NewAuditLogController creates a new controller for audit log management
+// @Summary Audit log controller
+// @Description Initializes API endpoints for accessing audit logs
+// @Tags Audit Logs
+func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.AuditLogService, authMiddleware *middleware.AuthMiddleware) {
 	alc := AuditLogController{
 		auditLogService: auditLogService,
 	}
 
-	group.GET("/audit-logs", jwtAuthMiddleware.Add(false), alc.listAuditLogsForUserHandler)
-	group.GET("/audit-logs/all", jwtAuthMiddleware.Add(true), alc.listAllAuditLogsHandler)
+	group.GET("/audit-logs/all", authMiddleware.Add(), alc.listAllAuditLogsHandler)
+	group.GET("/audit-logs", authMiddleware.WithAdminNotRequired().Add(), alc.listAuditLogsForUserHandler)
 }
 
 type AuditLogController struct {
 	auditLogService *service.AuditLogService
 }
 
+// listAuditLogsForUserHandler godoc
+// @Summary List audit logs
+// @Description Get a paginated list of audit logs for the current user
+// @Tags Audit Logs
+// @Param page query int false "Page number, starting from 1" default(1)
+// @Param limit query int false "Number of items per page" default(10)
+// @Param sort_column query string false "Column to sort by" default("created_at")
+// @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
+// @Success 200 {object} dto.Paginated[dto.AuditLogDto]
+// @Router /audit-logs [get]
 func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
@@ -54,9 +68,9 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 		logsDtos[i] = logsDto
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":       logsDtos,
-		"pagination": pagination,
+	c.JSON(http.StatusOK, dto.Paginated[dto.AuditLogDto]{
+		Data:       logsDtos,
+		Pagination: pagination,
 	})
 }
 

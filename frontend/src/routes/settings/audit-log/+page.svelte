@@ -3,6 +3,8 @@
 	import AuditLogList from './audit-log-list.svelte';
 
 	let { data } = $props();
+	let { auditLogs } = data;
+	let auditLogsRequestOptions = $state(data.auditLogsRequestOptions);
 </script>
 
 <svelte:head>
@@ -17,6 +19,6 @@
 		>
 	</Card.Header>
 	<Card.Content>
-		<AuditLogList auditLogs={data.auditLogs} />
+		<AuditLogList auditLogs={data.auditLogs} requestOptions={auditLogsRequestOptions} />
 	</Card.Content>
 </Card.Root>

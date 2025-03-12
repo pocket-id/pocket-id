@@ -212,6 +212,18 @@ func (s *TestService) SeedDatabase() error {
 			return err
 		}
 
+		apiKey := model.ApiKey{
+			Base: model.Base{
+				ID: "5f1fa856-c164-4295-961e-175a0d22d725",
+			},
+			Name:   "Test API Key",
+			Key:    "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
+			UserID: users[0].ID,
+		}
+		if err := tx.Create(&apiKey).Error; err != nil {
+			return err
+		}
+
 		return nil
 	})
 }

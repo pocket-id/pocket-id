@@ -12,23 +12,14 @@
 	import OneTimeLinkModal from './client-secret.svelte';
 
 	let {
-		clients: initialClients
+		clients = $bindable(),
+		requestOptions
 	}: {
 		clients: Paginated<OidcClient>;
+		requestOptions: SearchPaginationSortRequest;
 	} = $props();
-	let clients = $state<Paginated<OidcClient>>(initialClients);
-	let oneTimeLink = $state<string | null>(null);
-	let requestOptions: SearchPaginationSortRequest | undefined = $state({
-		sort: { column: 'name', direction: 'asc' },
-		pagination: {
-			page: initialClients.pagination.currentPage,
-			limit: initialClients.pagination.itemsPerPage
-		}
-	});
 
-	$effect(() => {
-		clients = initialClients;
-	});
+	let oneTimeLink = $state<string | null>(null);
 
 	const oidcService = new OIDCService();
 
@@ -56,7 +47,6 @@
 <AdvancedTable
 	items={clients}
 	{requestOptions}
-	defaultSort={{ column: 'name', direction: 'asc' }}
 	onRefresh={async (o) => (clients = await oidcService.listClients(o))}
 	columns={[
 		{ label: 'Logo' },

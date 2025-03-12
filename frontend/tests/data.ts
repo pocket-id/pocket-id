@@ -61,3 +61,11 @@ export const oneTimeAccessTokens = [
 	{ token: 'HPe6k6uiDRRVuAQV', expired: false },
 	{ token: 'YCGDtftvsvYWiXd0', expired: true }
 ];
+
+export const apiKeys = [
+	{
+		id: '5f1fa856-c164-4295-961e-175a0d22d725',
+		key: '6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20',
+		name: 'Test API Key'
+	}
+];

@@ -4,39 +4,46 @@
 	import UserService from '$lib/services/user-service';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
+	import { onMount } from 'svelte';
 
 	let {
-		users: initialUsers,
 		selectionDisabled = false,
 		selectedUserIds = $bindable()
-	}: { users: Paginated<User>; selectionDisabled?: boolean; selectedUserIds: string[] } = $props();
-	let requestOptions: SearchPaginationSortRequest | undefined = $state({
-		sort: { column: 'friendlyName', direction: 'asc' },
-		pagination: {
-			page: initialUsers.pagination.currentPage,
-			limit: initialUsers.pagination.itemsPerPage
+	}: {
+		selectionDisabled?: boolean;
+		selectedUserIds: string[];
+	} = $props();
+
+	const userService = new UserService();
+
+	let users: Paginated<User> | undefined = $state();
+	let requestOptions: SearchPaginationSortRequest = $state({
+		sort: {
+			column: 'firstName',
+			direction: 'asc'
 		}
 	});
 
-	let users = $state<Paginated<User>>(initialUsers);
-
-	const userService = new UserService();
+	onMount(async () => {
+		users = await userService.list(requestOptions);
+	});
 </script>
 
-<AdvancedTable
-	items={users}
-	onRefresh={async (o) => (users = await userService.list(o))}
-	{requestOptions}
-	defaultSort={{ column: 'name', direction: 'asc' }}
-	columns={[
-		{ label: 'Name', sortColumn: 'name' },
-		{ label: 'Email', sortColumn: 'email' }
-	]}
-	bind:selectedIds={selectedUserIds}
-	{selectionDisabled}
->
-	{#snippet rows({ item })}
-		<Table.Cell>{item.firstName} {item.lastName}</Table.Cell>
-		<Table.Cell>{item.email}</Table.Cell>
-	{/snippet}
-</AdvancedTable>
+{#if users}
+	<AdvancedTable
+		items={users}
+		onRefresh={async (o) => (users = await userService.list(o))}
+		{requestOptions}
+		columns={[
+			{ label: 'Name', sortColumn: 'firstName' },
+			{ label: 'Email', sortColumn: 'email' }
+		]}
+		bind:selectedIds={selectedUserIds}
+		{selectionDisabled}
+	>
+		{#snippet rows({ item })}
+			<Table.Cell>{item.firstName} {item.lastName}</Table.Cell>
+			<Table.Cell>{item.email}</Table.Cell>
+		{/snippet}
+	</AdvancedTable>
+{/if}

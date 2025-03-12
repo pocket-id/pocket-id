@@ -1,13 +1,13 @@
 package dto
 
-type PublicOidcClientDto struct {
+type OidcClientMetaDataDto struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	HasLogo bool   `json:"hasLogo"`
 }
 
 type OidcClientDto struct {
-	PublicOidcClientDto
+	OidcClientMetaDataDto
 	CallbackURLs       []string `json:"callbackURLs"`
 	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
 	IsPublic           bool     `json:"isPublic"`
@@ -15,12 +15,8 @@ type OidcClientDto struct {
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
-	PublicOidcClientDto
-	CallbackURLs       []string                    `json:"callbackURLs"`
-	LogoutCallbackURLs []string                    `json:"logoutCallbackURLs"`
-	IsPublic           bool                        `json:"isPublic"`
-	PkceEnabled        bool                        `json:"pkceEnabled"`
-	AllowedUserGroups  []UserGroupDtoWithUserCount `json:"allowedUserGroups"`
+	OidcClientDto
+	AllowedUserGroups []UserGroupDtoWithUserCount `json:"allowedUserGroups"`
 }
 
 type OidcClientCreateDto struct {

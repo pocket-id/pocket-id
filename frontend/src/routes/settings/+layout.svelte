@@ -28,6 +28,7 @@
 			{ href: '/settings/admin/users', label: 'Users' },
 			{ href: '/settings/admin/user-groups', label: 'User Groups' },
 			{ href: '/settings/admin/oidc-clients', label: 'OIDC Clients' },
+			{ href: '/settings/admin/api-keys', label: 'API Keys' },
 			{ href: '/settings/admin/application-configuration', label: 'Application Configuration' }
 		];
 	}

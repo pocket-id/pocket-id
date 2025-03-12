@@ -1,3 +1,43 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.38.0...v) (2025-03-11)
+
+
+### Features
+
+* api key authentication ([#291](https://github.com/pocket-id/pocket-id/issues/291)) ([62915d8](https://github.com/pocket-id/pocket-id/commit/62915d863a4adc09cf467b75c414a045be43c2bb))
+
+
+### Bug Fixes
+
+* alternative login method link on mobile ([9ef2ddf](https://github.com/pocket-id/pocket-id/commit/9ef2ddf7963c6959992f3a5d6816840534e926e9))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.37.0...v) (2025-03-10)
+
+
+### Features
+
+* add env variable to disable update check ([31198fe](https://github.com/pocket-id/pocket-id/commit/31198feec2ae77dd6673c42b42002871ddd02d37))
+
+
+### Bug Fixes
+
+* redirection not correctly if signing in with email code ([e5ec264](https://github.com/pocket-id/pocket-id/commit/e5ec264bfd535752565bcc107099a9df5cb8aba7))
+* typo in account settings ([#307](https://github.com/pocket-id/pocket-id/issues/307)) ([c822192](https://github.com/pocket-id/pocket-id/commit/c8221921245deb3008f655740d1a9460dcdab2fc))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.36.0...v) (2025-03-10)
+
+
+### Features
+
+* **account:** add ability to sign in with login code ([#271](https://github.com/pocket-id/pocket-id/issues/271)) ([eb1426e](https://github.com/pocket-id/pocket-id/commit/eb1426ed2684b5ddd185db247a8e082b28dfd014))
+* increase default item count per page ([a9713cf](https://github.com/pocket-id/pocket-id/commit/a9713cf6a1e3c879dc773889b7983e51bbe3c45b))
+
+
+### Bug Fixes
+
+* add back setup page ([6a8dd84](https://github.com/pocket-id/pocket-id/commit/6a8dd84ca9396ff3369385af22f7e1f081bec2b2))
+* add timeout to update check ([04efc36](https://github.com/pocket-id/pocket-id/commit/04efc3611568a0b0127b542b8cc252d9e783af46))
+* make sorting consistent around tables ([8e344f1](https://github.com/pocket-id/pocket-id/commit/8e344f1151628581b637692a1de0e48e7235a22d))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.35.6...v) (2025-03-06)
 
 

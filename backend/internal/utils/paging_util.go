@@ -49,7 +49,7 @@ func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (Pagin
 	}
 
 	if pageSize < 1 {
-		pageSize = 10
+		pageSize = 20
 	} else if pageSize > 100 {
 		pageSize = 100
 	}

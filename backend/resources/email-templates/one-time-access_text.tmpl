@@ -1,8 +1,10 @@
 {{ define "base" -}}
-One-Time Access
+Login Code
 ====================
 
-Click the link below to sign in to {{ .AppName }} with a one-time access link. This link expires in 15 minutes.
+Click the link below to sign in to {{ .AppName }} with a login code. This code expires in 15 minutes.
 
-{{ .Data.Link }}
+{{ .Data.LoginLinkWithCode }}
+
+Or visit {{ .Data.LoginLink }} and enter the the code "{{ .Data.Code }}".
 {{ end -}}

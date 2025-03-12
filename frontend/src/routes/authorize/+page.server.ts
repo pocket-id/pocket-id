@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	const clientId = url.searchParams.get('client_id');
 	const oidcService = new OidcService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
 
-	const client = await oidcService.getClient(clientId!);
+	const client = await oidcService.getClientMetaData(clientId!);
 
 	return {
 		scope: url.searchParams.get('scope')!,

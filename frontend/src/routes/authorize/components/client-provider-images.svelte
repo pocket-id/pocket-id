@@ -3,7 +3,7 @@
 	import CheckmarkAnimated from '$lib/icons/checkmark-animated.svelte';
 	import ConnectArrow from '$lib/icons/connect-arrow.svelte';
 	import CrossAnimated from '$lib/icons/cross-animated.svelte';
-	import type { OidcClient } from '$lib/types/oidc.type';
+	import type { OidcClientMetaData } from '$lib/types/oidc.type';
 
 	const {
 		success,
@@ -12,7 +12,7 @@
 	}: {
 		success: boolean;
 		error: boolean;
-		client: OidcClient;
+		client: OidcClientMetaData;
 	} = $props();
 
 	let animationDone = $state(false);

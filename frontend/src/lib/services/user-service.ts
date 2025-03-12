@@ -59,7 +59,7 @@ export default class UserService extends APIService {
 		await this.api.put('/users/me/profile-picture', formData);
 	}
 
-	async createOneTimeAccessToken(userId: string, expiresAt: Date) {
+	async createOneTimeAccessToken(expiresAt: Date, userId: string) {
 		const res = await this.api.post(`/users/${userId}/one-time-access-token`, {
 			userId,
 			expiresAt
