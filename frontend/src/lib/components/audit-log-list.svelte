@@ -30,7 +30,10 @@
 <AdvancedTable
 	items={auditLogs}
 	{requestOptions}
-	onRefresh={async (o) => (isAdmin ? auditLogService.listAllLogs(o) : auditLogService.list(o))}
+	onRefresh={async (options) =>
+		isAdmin
+			? (auditLogs = await auditLogService.listAllLogs(options))
+			: (auditLogs = await auditLogService.list(options))}
 	columns={[
 		{ label: 'Time', sortColumn: 'createdAt' },
 		...(isAdmin ? [{ label: 'Username' }] : []),
