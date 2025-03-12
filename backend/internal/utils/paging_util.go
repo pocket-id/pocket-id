@@ -22,12 +22,24 @@ type SortedPaginationRequest struct {
 		Column    string `form:"sort[column]"`
 		Direction string `form:"sort[direction]"`
 	} `form:"sort"`
-	Filters map[string]string `form:"filters"`
+	Filters struct {
+		UserID   string `form:"filters[userId]"`
+		Event    string `form:"filters[event]"`
+		ClientID string `form:"filters[clientId]"`
+	} `form:"filters"`
+}
+
+func applyFilterIfNotEmpty(query *gorm.DB, value string, column string, paramValue interface{}) *gorm.DB {
+	if value != "" {
+		return query.Where(column+" = ?", paramValue)
+	}
+	return query
 }
 
 func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gorm.DB, result interface{}) (PaginationResponse, error) {
 	pagination := sortedPaginationRequest.Pagination
 	sort := sortedPaginationRequest.Sort
+	filters := sortedPaginationRequest.Filters
 
 	capitalizedSortColumn := CapitalizeFirstLetter(sort.Column)
 
@@ -38,6 +50,10 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 	if sortFieldFound && isSortable && isValidSortOrder {
 		query = query.Order(CamelCaseToSnakeCase(sort.Column) + " " + sort.Direction)
 	}
+
+	query = applyFilterIfNotEmpty(query, filters.UserID, "user_id", filters.UserID)
+	query = applyFilterIfNotEmpty(query, filters.Event, "event", filters.Event)
+	query = applyFilterIfNotEmpty(query, filters.ClientID, "data->>'clientId'", filters.ClientID)
 
 	return Paginate(pagination.Page, pagination.Limit, query, result)
 

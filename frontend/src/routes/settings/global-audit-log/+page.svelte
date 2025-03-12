@@ -1,69 +1,66 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
-	import AuditLogList from '../audit-log/audit-log-list.svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
+	import AuditLogList from '$lib/components/audit-log-list.svelte';
 	import AuditLogService from '$lib/services/audit-log-service';
-	import type { AuditLog } from '$lib/types/audit-log.type';
 	import type { Paginated } from '$lib/types/pagination.type';
+	import type { AuditLog } from '$lib/types/audit-log.type';
+	import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import type { FilterMap } from '$lib/types/pagination.type';
 
+	// Get data from server
 	let { data } = $props();
 
+	// Initialize the service
 	const auditLogService = new AuditLogService();
 
-	// Store audit logs in local state
-	let auditLogs = $state<Paginated<AuditLog>>(data.auditLogs);
+	// Create state variables
+	let auditLogs = $state(data.auditLogs);
+	let requestOptions = $state(data.requestOptions);
 
-	// Initialize selections with any existing filter values
-	let selectedUserId = $state<string | null>(data.filters.userId || '');
-	let selectedEventType = $state<string | null>(data.filters.eventType || '');
-	let selectedClientId = $state<string | null>(data.filters.clientId || '');
+	// Initialize selections with empty values
+	let selectedUserId = $state('');
+	let selectedEventType = $state('');
+	let selectedClientId = $state('');
 
-	// Create request options object
-	let requestOptions = $state({
-		sort: {
-			column: 'createdAt',
-			direction: 'desc' as const
-		},
-		pagination: {
-			page: 1,
-			limit: 10
-		},
-		filters: {} as Record<string, any>
-	});
+	// Helper function to safely extract value from select options
+	function extractValueFromSelect(value: any): string {
+		if (!value) return '';
+		if (typeof value === 'string') return value;
+		if (typeof value === 'object' && value !== null && 'value' in value) {
+			return String(value.value);
+		}
+		return '';
+	}
 
-	// Apply filters directly without URL navigation
+	// Apply filters directly
 	async function applyFilters() {
-		// Clear existing filters
-		requestOptions.filters = {};
+		// Initialize filters as an empty map
+		const filters: FilterMap = {};
 
-		// Add filters if they exist
-		if (selectedUserId && selectedUserId !== '') {
-			requestOptions.filters.userId =
-				typeof selectedUserId === 'object' && selectedUserId.value
-					? selectedUserId.value
-					: String(selectedUserId);
+		// Add filters if they exist, extracting just the string value
+		const userId = extractValueFromSelect(selectedUserId);
+		if (userId) {
+			filters.userId = userId;
 		}
 
-		if (selectedEventType && selectedEventType !== '') {
-			requestOptions.filters.event =
-				typeof selectedEventType === 'object' && selectedEventType.value
-					? selectedEventType.value
-					: String(selectedEventType);
+		const eventType = extractValueFromSelect(selectedEventType);
+		if (eventType) {
+			filters.event = eventType;
 		}
 
-		if (selectedClientId && selectedClientId !== '') {
-			requestOptions.filters.clientId =
-				typeof selectedClientId === 'object' && selectedClientId.value
-					? selectedClientId.value
-					: String(selectedClientId);
+		const clientId = extractValueFromSelect(selectedClientId);
+		if (clientId) {
+			filters.clientId = clientId;
 		}
 
-		// Reset pagination to first page when applying filters
-		requestOptions.pagination.page = 1;
+		// Set the filters on the request options
+		requestOptions.filters = filters;
 
 		// Fetch the audit logs with the updated filters
-		auditLogs = await auditLogService.listAllLogs(requestOptions);
+		const result = await auditLogService.listAllLogs(requestOptions);
+		auditLogs = { ...result }; // Create a new object to ensure reactivity
 	}
 
 	// Clear all filters
@@ -72,21 +69,12 @@
 		selectedEventType = '';
 		selectedClientId = '';
 
-		// Reset filters
+		// Reset filters to empty object
 		requestOptions.filters = {};
 
 		// Fetch the audit logs with cleared filters
-		auditLogs = await auditLogService.listAllLogs(requestOptions);
-	}
-
-	// This function will be passed to the AuditLogList component to handle table refreshing
-	async function handleRefresh(options) {
-		// Update our local reference to options to stay in sync
-		requestOptions = { ...options };
-		// Fetch and return the updated audit logs
-		const result = await auditLogService.listAllLogs(options);
-		auditLogs = result; // Update our local state
-		return result;
+		const result = await auditLogService.listAllLogs(requestOptions);
+		auditLogs = { ...result }; // Create a new object to ensure reactivity
 	}
 </script>
 
@@ -156,11 +144,6 @@
 			<Button variant="default" size="sm" on:click={applyFilters}>Apply Filters</Button>
 		</div>
 
-		<AuditLogList
-			isAdmin={true}
-			{auditLogs}
-			{requestOptions}
-			onRefresh={() => handleRefresh(requestOptions)}
-		/>
+		<AuditLogList isAdmin={true} {auditLogs} {requestOptions} />
 	</Card.Content>
 </Card.Root>

@@ -5,6 +5,7 @@ export type AuditLog = {
 	country?: string;
 	city?: string;
 	device: string;
+	userId: string;
 	username?: string;
 	createdAt: string;
 	data: any;

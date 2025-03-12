@@ -104,21 +104,6 @@ func (s *AuditLogService) ListAllAuditLogs(sortedPaginationRequest utils.SortedP
 	// Create the base query
 	query := s.db.Model(&model.AuditLog{})
 
-	// Apply filters if they exist
-	if sortedPaginationRequest.Filters != nil {
-		if userId, ok := sortedPaginationRequest.Filters["userId"]; ok && userId != "" {
-			query = query.Where("user_id = ?", userId)
-		}
-
-		if event, ok := sortedPaginationRequest.Filters["event"]; ok && event != "" {
-			query = query.Where("event = ?", event)
-		}
-
-		if clientId, ok := sortedPaginationRequest.Filters["clientId"]; ok && clientId != "" {
-			query = query.Where("data->>'clientId' = ?", clientId)
-		}
-	}
-
 	// Apply pagination and sorting
 	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
 	if err != nil {

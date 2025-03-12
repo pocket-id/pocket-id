@@ -8,11 +8,13 @@ export type SortRequest = {
 	direction: 'asc' | 'desc';
 };
 
+export type FilterMap = Record<string, string>;
+
 export type SearchPaginationSortRequest = {
 	search?: string;
 	pagination?: PaginationRequest;
 	sort?: SortRequest;
-	filters?: Record<string, string>;
+	filters?: FilterMap;
 };
 
 export type PaginationResponse = {
