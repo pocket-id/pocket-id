@@ -48,10 +48,11 @@ type AuthorizationRequiredDto struct {
 
 type OidcCreateTokensDto struct {
 	GrantType    string `form:"grant_type" binding:"required"`
-	Code         string `form:"code" binding:"required"`
+	Code         string `form:"code"`
 	ClientID     string `form:"client_id"`
 	ClientSecret string `form:"client_secret"`
 	CodeVerifier string `form:"code_verifier"`
+	RefreshToken string `form:"refresh_token"`
 }
 
 type OidcUpdateAllowedUserGroupsDto struct {
@@ -63,4 +64,12 @@ type OidcLogoutDto struct {
 	ClientId              string `form:"client_id"`
 	PostLogoutRedirectUri string `form:"post_logout_redirect_uri"`
 	State                 string `form:"state"`
+}
+
+type OidcTokenResponseDto struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	IdToken      string `json:"id_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	ExpiresIn    int    `json:"expires_in"`
 }

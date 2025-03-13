@@ -127,9 +127,20 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 
 	var input dto.OidcCreateTokensDto
-
 	if err := c.ShouldBind(&input); err != nil {
 		c.Error(err)
+		return
+	}
+
+	// Validate that code is provided for authorization_code grant type
+	if input.GrantType == "authorization_code" && input.Code == "" {
+		c.Error(&common.OidcMissingAuthorizationCodeError{})
+		return
+	}
+
+	// Validate that refresh_token is provided for refresh_token grant type
+	if input.GrantType == "refresh_token" && input.RefreshToken == "" {
+		c.Error(&common.OidcMissingRefreshTokenError{})
 		return
 	}
 
@@ -141,13 +152,37 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		clientID, clientSecret, _ = c.Request.BasicAuth()
 	}
 
-	idToken, accessToken, err := oc.oidcService.CreateTokens(input.Code, input.GrantType, clientID, clientSecret, input.CodeVerifier)
+	idToken, accessToken, refreshToken, expiresIn, err := oc.oidcService.CreateTokens(
+		input.Code,
+		input.GrantType,
+		clientID,
+		clientSecret,
+		input.CodeVerifier,
+		input.RefreshToken,
+	)
+
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"id_token": idToken, "access_token": accessToken, "token_type": "Bearer"})
+	response := dto.OidcTokenResponseDto{
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+		ExpiresIn:   expiresIn,
+	}
+
+	// Include ID token only for authorization_code grant
+	if idToken != "" {
+		response.IdToken = idToken
+	}
+
+	// Include refresh token if generated
+	if refreshToken != "" {
+		response.RefreshToken = refreshToken
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // userInfoHandler godoc
