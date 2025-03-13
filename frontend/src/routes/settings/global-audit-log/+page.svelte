@@ -165,7 +165,7 @@
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All Events</Select.Item>
-						{#each data.eventTypes as eventType}
+						{#each eventTypes as eventType}
 							<Select.Item value={eventType.value}>{eventType.label}</Select.Item>
 						{/each}
 					</Select.Content>
