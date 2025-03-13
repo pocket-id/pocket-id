@@ -74,8 +74,4 @@ func init() {
 	if parsedAppUrl.Path != "" {
 		log.Fatal("PUBLIC_APP_URL must not contain a path")
 	}
-
-	if EnvConfig.KeysPath == "" {
-		log.Fatal("Missing KEYS_PATH environment variable")
-	}
 }

@@ -32,13 +32,13 @@ type JwtService struct {
 	appConfigService *AppConfigService
 }
 
-func NewJwtService(appConfigService *AppConfigService, keysPath string) *JwtService {
+func NewJwtService(appConfigService *AppConfigService) *JwtService {
 	service := &JwtService{
 		appConfigService: appConfigService,
 	}
 
 	// Ensure keys are generated or loaded
-	if err := service.loadOrGenerateKey(keysPath); err != nil {
+	if err := service.loadOrGenerateKey(common.EnvConfig.KeysPath); err != nil {
 		log.Fatalf("Failed to initialize jwt service: %v", err)
 	}
 
@@ -250,11 +250,6 @@ func (s *JwtService) generateKey(keysPath string) error {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	err = s.SetKey(privateKey)
-	if err != nil {
-		return fmt.Errorf("failed to set private key: %w", err)
 	}
 
 	privateKeyPath := filepath.Join(keysPath, privateKeyFile)
