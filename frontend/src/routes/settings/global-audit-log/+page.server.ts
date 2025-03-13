@@ -1,16 +1,11 @@
 import { ACCESS_TOKEN_COOKIE_NAME } from '$lib/constants';
 import AuditLogService from '$lib/services/audit-log-service';
-import UserService from '$lib/services/user-service';
-import OIDCService from '$lib/services/oidc-service';
 import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ cookies, url }) => {
+export const load: PageServerLoad = async ({ cookies }) => {
 	const auditLogService = new AuditLogService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
-	const userService = new UserService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
-	const oidcService = new OIDCService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
 
-	// Create request options with default sorting and any filters
 	const requestOptions: SearchPaginationSortRequest = {
 		sort: {
 			column: 'createdAt',
@@ -18,25 +13,7 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 		}
 	};
 
-	// Get the audit logs
 	const auditLogs = await auditLogService.listAllLogs(requestOptions);
-
-	// I think the user and client stuff can be cleaned up and moved to the backend
-
-	// Load supporting data for the filter dropdowns
-	const userResponse = await userService.list();
-	const clientResponse = await oidcService.listClients();
-
-	// Prepare the data for the dropdowns
-	const users = userResponse.data.map((user) => ({
-		id: user.id,
-		username: user.username || user.firstName + ' ' + user.lastName
-	}));
-
-	const clients = clientResponse.data.map((client) => ({
-		id: client.id,
-		name: client.name
-	}));
 
 	const eventTypes = [
 		{ value: 'SIGN_IN', label: 'Sign In' },
@@ -47,8 +24,6 @@ export const load: PageServerLoad = async ({ cookies, url }) => {
 
 	return {
 		auditLogs,
-		users,
-		clients,
 		eventTypes,
 		requestOptions
 	};
