@@ -136,7 +136,6 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 	expect(redirectedCorrectly).toBeTruthy();
 });
 
-// Complete rewrite of getTokensDirectly to avoid timeouts and handle disabled buttons
 async function getTokensDirectly(page: Page) {
 	const client = oidcClients.nextcloud;
 	const urlParams = createUrlParams(client);
@@ -237,7 +236,6 @@ test('Refresh fails with invalid refresh token', async ({ request }) => {
 		}
 	});
 
-	// Verify request failed - API returns 400 rather than 401
 	expect(response.ok()).toBeFalsy();
 	expect(response.status()).toBe(400);
 });
@@ -255,7 +253,6 @@ test('Refresh fails with missing refresh token', async ({ request }) => {
 		}
 	});
 
-	// Verify request failed - API returns 500 rather than 400
 	expect(response.ok()).toBeFalsy();
 	expect(response.status()).toBe(500);
 });
