@@ -15,16 +15,8 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 	const auditLogs = await auditLogService.listAllLogs(requestOptions);
 
-	const eventTypes = [
-		{ value: 'SIGN_IN', label: 'Sign In' },
-		{ value: 'TOKEN_SIGN_IN', label: 'Token Sign In' },
-		{ value: 'CLIENT_AUTHORIZATION', label: 'Client Authorization' },
-		{ value: 'NEW_CLIENT_AUTHORIZATION', label: 'New Client Authorization' }
-	];
-
 	return {
 		auditLogs,
-		eventTypes,
 		requestOptions
 	};
 };

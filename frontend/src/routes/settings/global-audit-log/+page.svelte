@@ -21,7 +21,6 @@
 	// Create state variables
 	let auditLogs = $state(data.auditLogs);
 	let requestOptions = $state(data.requestOptions);
-	let eventTypes = $state(data.eventTypes);
 
 	// Initialize selections with string types, not objects
 	let selectedUserId = $state(''); // Empty string represents "All Users"
@@ -31,6 +30,13 @@
 	// Create promises for client-side data fetching
 	const usersPromise = userService.list();
 	const clientsPromise = oidcService.listClients();
+
+	const eventTypes = $state([
+		{ value: 'SIGN_IN', label: 'Sign In' },
+		{ value: 'TOKEN_SIGN_IN', label: 'Token Sign In' },
+		{ value: 'CLIENT_AUTHORIZATION', label: 'Client Authorization' },
+		{ value: 'NEW_CLIENT_AUTHORIZATION', label: 'New Client Authorization' }
+	]);
 
 	// Initialize maps for display labels
 	let userMap: Record<string, string> = $state({});
