@@ -144,10 +144,7 @@ test('Successfully refresh tokens with valid refresh token', async ({ request })
 	const refreshData = await refreshTokenResponse.json();
 	const refreshToken = refreshData.refresh_token;
 	const clientId = refreshData.client_id;
-
-	// Get the client secret for the Nextcloud client
-	// You can either hard-code it or add it to your test data
-	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'; // NextCloud client secret
+	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
 
 	// Now refresh the tokens with client authentication
 	const refreshResponse = await request.post('/api/oidc/token', {
@@ -175,7 +172,6 @@ test('Successfully refresh tokens with valid refresh token', async ({ request })
 	expect(tokenData.refresh_token).not.toBe(refreshToken);
 });
 
-// Similarly update the "Using refresh token invalidates it" test
 test('Using refresh token invalidates it for future use', async ({ request }) => {
 	// Get the test refresh token directly from API
 	const refreshTokenResponse = await request.get('/api/test/refresh-token');
