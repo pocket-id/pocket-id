@@ -209,6 +209,24 @@ func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, code
 			return "", "", "", 0, &common.OidcMissingRefreshTokenError{}
 		}
 
+		// Get the client to check if it's public
+		var client model.OidcClient
+		if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+			return "", "", "", 0, err
+		}
+
+		// Verify the client secret if the client is not public
+		if !client.IsPublic {
+			if clientID == "" || clientSecret == "" {
+				return "", "", "", 0, &common.OidcMissingClientCredentialsError{}
+			}
+
+			err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret))
+			if err != nil {
+				return "", "", "", 0, &common.OidcClientSecretInvalidError{}
+			}
+		}
+
 		// Verify refresh token
 		var storedRefreshToken model.OidcRefreshToken
 		if err := s.db.Preload("User").Where("token = ? AND expires_at > ?", refreshToken, datatype.DateTime(time.Now())).First(&storedRefreshToken).Error; err != nil {
