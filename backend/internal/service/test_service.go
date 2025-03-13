@@ -336,8 +336,7 @@ wbeF6l05LexCkI7ShsOuSt+dsyaTJTszuKDIA6YOfWvfo3aVZmlWRaI=
 	block, _ := pem.Decode([]byte(privateKeyString))
 	privateKey, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
 
-	s.jwtService.PrivateKey = privateKey
-	s.jwtService.PublicKey = &privateKey.PublicKey
+	s.jwtService.SetKey(privateKey)
 }
 
 // getCborPublicKey decodes a Base64 encoded public key and returns the CBOR encoded COSE key
