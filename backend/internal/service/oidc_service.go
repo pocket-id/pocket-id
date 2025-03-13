@@ -223,15 +223,6 @@ func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, code
 			return "", "", "", 0, &common.OidcInvalidRefreshTokenError{}
 		}
 
-		// Get user claims
-		// Note: We're intentionally not generating a new ID token here
-		// The OAuth 2.0 spec typically doesn't include refreshing ID tokens
-
-		// userClaims, err := s.GetUserClaimsForClient(storedRefreshToken.UserID, clientID)
-		// if err != nil {
-		// 	return "", "", "", 0, err
-		// }
-
 		// Generate a new access token
 		accessToken, err := s.jwtService.GenerateOauthAccessToken(storedRefreshToken.User, clientID)
 		if err != nil {
