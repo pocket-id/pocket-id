@@ -95,8 +95,11 @@ func (s *WebAuthnService) VerifyRegistration(sessionID, userID string, r *http.R
 		return model.WebauthnCredential{}, err
 	}
 
+	// Determine passkey name using AAGUID and User-Agent
+	passkeyName := determinePasskeyName(credential.Authenticator.AAGUID, r.UserAgent())
+
 	credentialToStore := model.WebauthnCredential{
-		Name:            "New Passkey",
+		Name:            passkeyName,
 		CredentialID:    credential.ID,
 		AttestationType: credential.AttestationType,
 		PublicKey:       credential.PublicKey,
@@ -110,6 +113,16 @@ func (s *WebAuthnService) VerifyRegistration(sessionID, userID string, r *http.R
 	}
 
 	return credentialToStore, nil
+}
+
+func determinePasskeyName(aaguid []byte, userAgent string) string {
+	// First try to identify by AAGUID using the imported map
+	authenticatorName := utils.LookupAuthenticatorName(aaguid)
+	if authenticatorName != "" {
+		return authenticatorName
+	}
+
+	return "New Passkey" // Default fallback
 }
 
 func (s *WebAuthnService) BeginLogin() (*model.PublicKeyCredentialRequestOptions, error) {
