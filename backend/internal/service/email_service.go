@@ -94,11 +94,12 @@ func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.T
 	// so we use the domain of the from address instead (the same as Thunderbird does)
 
 	from_address := srv.appConfigService.DbConfig.SmtpFrom.Value
-	if strings.Contains(from_address, "@" {
-		domain := strings.Split(from_address, "@")[1]
+	domain := ""
+	if strings.Contains(from_address, "@") {
+		domain = strings.Split(from_address, "@")[1]
 	} else {
 		// this is completely wrong, but what else could we do?
-		domain := from_address
+		domain = from_address
 	}
 	c.AddHeader("Message-ID", "<" + uuid.New().String() + "@" + domain + ">")
 
