@@ -37,9 +37,10 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	}
 
 	geoLiteService := service.NewGeoLiteService()
+	mdsService := service.NewMdsService()
 	auditLogService := service.NewAuditLogService(db, appConfigService, emailService, geoLiteService)
 	jwtService := service.NewJwtService(appConfigService)
-	webauthnService := service.NewWebAuthnService(db, jwtService, auditLogService, appConfigService)
+	webauthnService := service.NewWebAuthnService(db, jwtService, auditLogService, appConfigService, mdsService)
 	userService := service.NewUserService(db, jwtService, auditLogService, emailService, appConfigService)
 	customClaimService := service.NewCustomClaimService(db)
 	oidcService := service.NewOidcService(db, jwtService, appConfigService, auditLogService, customClaimService)
@@ -57,6 +58,7 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 
 	job.RegisterLdapJobs(ldapService, appConfigService)
 	job.RegisterDbCleanupJobs(db)
+	job.RegisterMdsJobs(mdsService)
 
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(apiKeyService, jwtService)

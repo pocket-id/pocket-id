@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -19,9 +20,10 @@ type WebAuthnService struct {
 	jwtService       *JwtService
 	auditLogService  *AuditLogService
 	appConfigService *AppConfigService
+	mdsService       *MdsService
 }
 
-func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, appConfigService *AppConfigService) *WebAuthnService {
+func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, appConfigService *AppConfigService, mdsService *MdsService) *WebAuthnService {
 	webauthnConfig := &webauthn.Config{
 		RPDisplayName: appConfigService.DbConfig.AppName.Value,
 		RPID:          utils.GetHostnameFromURL(common.EnvConfig.AppURL),
@@ -40,7 +42,7 @@ func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *Au
 		},
 	}
 	wa, _ := webauthn.New(webauthnConfig)
-	return &WebAuthnService{db: db, webAuthn: wa, jwtService: jwtService, auditLogService: auditLogService, appConfigService: appConfigService}
+	return &WebAuthnService{db: db, webAuthn: wa, jwtService: jwtService, auditLogService: auditLogService, appConfigService: appConfigService, mdsService: mdsService}
 }
 
 func (s *WebAuthnService) BeginRegistration(userID string) (*model.PublicKeyCredentialCreationOptions, error) {
@@ -96,7 +98,7 @@ func (s *WebAuthnService) VerifyRegistration(sessionID, userID string, r *http.R
 	}
 
 	// Determine passkey name using AAGUID and User-Agent
-	passkeyName := determinePasskeyName(credential.Authenticator.AAGUID, r.UserAgent())
+	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID, r.UserAgent())
 
 	credentialToStore := model.WebauthnCredential{
 		Name:            passkeyName,
@@ -115,12 +117,43 @@ func (s *WebAuthnService) VerifyRegistration(sessionID, userID string, r *http.R
 	return credentialToStore, nil
 }
 
-func determinePasskeyName(aaguid []byte, userAgent string) string {
-	// First try to identify by AAGUID using the imported map
-	authenticatorName := utils.LookupAuthenticatorName(aaguid)
+func (s *WebAuthnService) determinePasskeyName(aaguid []byte, userAgent string) string {
+	// First try to identify by AAGUID using a combination of builtin + MDS
+	authenticatorName := s.mdsService.GetAuthenticatorName(aaguid)
+	fmt.Println("AAGUID: ", authenticatorName)
 	if authenticatorName != "" {
 		return authenticatorName
 	}
+
+	// Now try to identify from User-Agent string
+	// userAgentMap := map[string]string{
+	// 	"Bitwarden": "Bitwarden",
+	// 	"1Password": "1Password",
+	// 	"LastPass":  "LastPass",
+	// 	"Dashlane":  "Dashlane",
+	// 	"KeePass":   "KeePass",
+	// 	"Keeper":    "Keeper",
+	// 	"Chrome":    "Chrome",
+	// 	"Firefox":   "Firefox",
+	// 	"Safari":    "Safari",
+	// 	"Edge":      "Edge",
+	// 	"Opera":     "Opera",
+	// 	"Brave":     "Brave",
+	// 	"Vivaldi":   "Vivaldi",
+	// 	"iPhone":    "iOS Device",
+	// 	"iPad":      "iPad",
+	// 	"Android":   "Android Device",
+	// 	"Windows":   "Windows Device",
+	// 	"Macintosh": "Mac",
+	// 	"Linux":     "Linux Device",
+	// 	"Ubuntu":    "Ubuntu Device",
+	// }
+
+	// for keyword, name := range userAgentMap {
+	// 	if strings.Contains(userAgent, keyword) {
+	// 		return name + " Passkey"
+	// 	}
+	// }
 
 	return "New Passkey" // Default fallback
 }
