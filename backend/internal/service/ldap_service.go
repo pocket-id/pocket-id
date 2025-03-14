@@ -163,7 +163,7 @@ func (s *LdapService) SyncGroups() error {
 	// Get all LDAP groups from the database
 	var ldapGroupsInDb []model.UserGroup
 	if err := s.db.Find(&ldapGroupsInDb, "ldap_id IS NOT NULL").Select("ldap_id").Error; err != nil {
-		fmt.Println(fmt.Errorf("failed to fetch groups from database: %v", err))
+		fmt.Println(fmt.Errorf("failed to fetch groups from database: %w", err))
 	}
 
 	// Delete groups that no longer exist in LDAP
@@ -276,7 +276,7 @@ func (s *LdapService) SyncUsers() error {
 	// Get all LDAP users from the database
 	var ldapUsersInDb []model.User
 	if err := s.db.Find(&ldapUsersInDb, "ldap_id IS NOT NULL").Select("ldap_id").Error; err != nil {
-		fmt.Println(fmt.Errorf("failed to fetch users from database: %v", err))
+		fmt.Println(fmt.Errorf("failed to fetch users from database: %w", err))
 	}
 
 	// Delete users that no longer exist in LDAP
