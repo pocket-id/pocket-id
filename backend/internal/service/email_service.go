@@ -18,6 +18,8 @@ import (
 	"os"
 	ttemplate "text/template"
 	"time"
+	"github.com/google/uuid"
+	"strings"
 )
 
 type EmailService struct {
@@ -84,6 +86,22 @@ func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.T
 	c.AddHeaderRaw("Content-Type",
 		fmt.Sprintf("multipart/alternative;\n boundary=%s;\n charset=UTF-8", boundary),
 	)
+
+	c.AddHeader("MIME-Version", "1.0")
+	c.AddHeader("Date", time.Now().Format(time.RFC1123Z))
+
+	// to create a message-id, we need the FQDN of the sending server, but that may be a docker hostname or localhost
+	// so we use the domain of the from address instead (the same as Thunderbird does)
+
+	from_address := srv.appConfigService.DbConfig.SmtpFrom.Value
+	if strings.Contains(from_address, "@" {
+		domain := strings.Split(from_address, "@")[1]
+	} else {
+		// this is completely wrong, but what else could we do?
+		domain := from_address
+	}
+	c.AddHeader("Message-ID", "<" + uuid.New().String() + "@" + domain + ">")
+
 	c.Body(body)
 
 	// Connect to the SMTP server
