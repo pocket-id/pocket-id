@@ -2,8 +2,6 @@ package utils
 
 import (
 	"regexp"
-	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -51,18 +49,6 @@ func TestGenerateRandomAlphanumericString(t *testing.T) {
 	})
 }
 
-func BenchmarkGenerateRandomAlphanumericString(b *testing.B) {
-	lengths := []int{8, 16, 32, 64, 128}
-
-	for _, length := range lengths {
-		b.Run(strconv.Itoa(length), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				GenerateRandomAlphanumericString(length)
-			}
-		})
-	}
-}
-
 func TestCapitalizeFirstLetter(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -85,19 +71,6 @@ func TestCapitalizeFirstLetter(t *testing.T) {
 			result := CapitalizeFirstLetter(tt.input)
 			if result != tt.expected {
 				t.Errorf("CapitalizeFirstLetter(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func BenchmarkCapitalizeFirstLetter(b *testing.B) {
-	lengths := []int{8, 16, 32, 64, 128}
-
-	for _, length := range lengths {
-		b.Run(strconv.Itoa(length), func(b *testing.B) {
-			str := strings.Repeat("a", length)
-			for i := 0; i < b.N; i++ {
-				CapitalizeFirstLetter(str)
 			}
 		})
 	}
@@ -126,24 +99,6 @@ func TestCamelCaseToSnakeCase(t *testing.T) {
 			result := CamelCaseToSnakeCase(tt.input)
 			if result != tt.expected {
 				t.Errorf("CamelCaseToSnakeCase(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func BenchmarkCamelCaseToSnakeCase(b *testing.B) {
-	testCases := []string{
-		"simpleCase",
-		"PascalCase",
-		"ThisIsALongerStringWithMultipleWords",
-		"HTTPRequestHandler",
-		"OAuth2ClientID",
-	}
-
-	for _, tc := range testCases {
-		b.Run(tc, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				CamelCaseToSnakeCase(tc)
 			}
 		})
 	}

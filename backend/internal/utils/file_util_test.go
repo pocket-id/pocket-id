@@ -71,9 +71,3 @@ func TestGetFileExtension(t *testing.T) {
 		})
 	}
 }
-
-// Note: The current GetFileExtension function has issues with:
-// 1. Files without extensions (it will return the filename)
-// 2. Hidden files without extensions (it will return the filename without the dot)
-// 3. Empty filenames (it will panic)
-// You might want to consider making the function more robust
