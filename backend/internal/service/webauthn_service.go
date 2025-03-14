@@ -125,36 +125,6 @@ func (s *WebAuthnService) determinePasskeyName(aaguid []byte, userAgent string) 
 		return authenticatorName
 	}
 
-	// Now try to identify from User-Agent string
-	// userAgentMap := map[string]string{
-	// 	"Bitwarden": "Bitwarden",
-	// 	"1Password": "1Password",
-	// 	"LastPass":  "LastPass",
-	// 	"Dashlane":  "Dashlane",
-	// 	"KeePass":   "KeePass",
-	// 	"Keeper":    "Keeper",
-	// 	"Chrome":    "Chrome",
-	// 	"Firefox":   "Firefox",
-	// 	"Safari":    "Safari",
-	// 	"Edge":      "Edge",
-	// 	"Opera":     "Opera",
-	// 	"Brave":     "Brave",
-	// 	"Vivaldi":   "Vivaldi",
-	// 	"iPhone":    "iOS Device",
-	// 	"iPad":      "iPad",
-	// 	"Android":   "Android Device",
-	// 	"Windows":   "Windows Device",
-	// 	"Macintosh": "Mac",
-	// 	"Linux":     "Linux Device",
-	// 	"Ubuntu":    "Ubuntu Device",
-	// }
-
-	// for keyword, name := range userAgentMap {
-	// 	if strings.Contains(userAgent, keyword) {
-	// 		return name + " Passkey"
-	// 	}
-	// }
-
 	return "New Passkey" // Default fallback
 }
 
