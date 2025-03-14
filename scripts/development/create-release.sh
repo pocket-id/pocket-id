@@ -13,7 +13,11 @@ increment_version() {
     local part=$2
 
     IFS='.' read -r -a parts <<<"$version"
-    if [ "$part" == "minor" ]; then
+    if [ "$part" == "major" ]; then
+        parts[0]=$((parts[0] + 1))
+        parts[1]=0
+        parts[2]=0
+    elif [ "$part" == "minor" ]; then
         parts[1]=$((parts[1] + 1))
         parts[2]=0
     elif [ "$part" == "patch" ]; then
@@ -22,16 +26,36 @@ increment_version() {
     echo "${parts[0]}.${parts[1]}.${parts[2]}"
 }
 
-RELEASE_TYPE=$1
+# Determine the release type
+if [ "$1" == "major" ]; then
+    RELEASE_TYPE="major"
+else
+    # Get the latest tag
+    LATEST_TAG=$(git describe --tags --abbrev=0)
 
-if [ "$RELEASE_TYPE" == "minor" ]; then
+    # Check for "feat" or "fix" in the commit messages since the latest tag
+    if git log "$LATEST_TAG"..HEAD --oneline | grep -q "feat"; then
+        RELEASE_TYPE="minor"
+    elif git log "$LATEST_TAG"..HEAD --oneline | grep -q "fix"; then
+        RELEASE_TYPE="patch"
+    else
+        echo "No 'fix' or 'feat' commits found since the latest release. No new release will be created."
+        exit 0
+    fi
+fi
+
+# Increment the version based on the release type
+if [ "$RELEASE_TYPE" == "major" ]; then
+    echo "Performing major release..."
+    NEW_VERSION=$(increment_version $VERSION major)
+elif [ "$RELEASE_TYPE" == "minor" ]; then
     echo "Performing minor release..."
     NEW_VERSION=$(increment_version $VERSION minor)
 elif [ "$RELEASE_TYPE" == "patch" ]; then
     echo "Performing patch release..."
     NEW_VERSION=$(increment_version $VERSION patch)
 else
-    echo "Invalid release type. Please enter either 'minor' or 'patch'."
+    echo "Invalid release type. Please enter either 'major', 'minor', or 'patch'."
     exit 1
 fi
 
