@@ -45,7 +45,11 @@ func genAddressHeader(name string, addresses []Address, maxLength int) string {
 		} else {
 			email = fmt.Sprintf("<%s>", addr.Email)
 		}
-		writeHeaderQ(hl, addr.Name)
+		if isPrintableASCII(addr.Name) {
+			writeHeaderAtom(hl, addr.Name)
+		} else {
+			writeHeaderQ(hl, addr.Name)
+		}
 		writeHeaderAtom(hl, " ")
 		writeHeaderAtom(hl, email)
 	}
