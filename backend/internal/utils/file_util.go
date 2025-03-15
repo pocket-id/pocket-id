@@ -5,14 +5,16 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 func GetFileExtension(filename string) string {
-	splitted := strings.Split(filename, ".")
-	return splitted[len(splitted)-1]
+	ext := filepath.Ext(filename)
+	if len(ext) > 0 && ext[0] == '.' {
+		return ext[1:]
+	}
+	return filename
 }
 
 func GetImageMimeType(ext string) string {

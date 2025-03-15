@@ -1,3 +1,15 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.39.0...v) (2025-03-13)
+
+
+### Features
+
+* allow setting path where keys are stored ([#327](https://github.com/pocket-id/pocket-id/issues/327)) ([7b654c6](https://github.com/pocket-id/pocket-id/commit/7b654c6bd111ddcddd5e3450cbf326d9cf1777b6))
+
+
+### Bug Fixes
+
+* **docker:** missing write permissions on scripts ([ec4b41a](https://github.com/pocket-id/pocket-id/commit/ec4b41a1d26ea00bb4a95f654ac4cc745b2ce2e8))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.38.0...v) (2025-03-11)
 
 
