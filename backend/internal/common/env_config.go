@@ -24,6 +24,7 @@ type EnvConfigSchema struct {
 	PostgresConnectionString string     `env:"POSTGRES_CONNECTION_STRING"`
 	UploadPath               string     `env:"UPLOAD_PATH"`
 	KeysPath                 string     `env:"KEYS_PATH"`
+	MdsCachePath             string     `env:"MDS_CACHE_PATH"`
 	Port                     string     `env:"BACKEND_PORT"`
 	Host                     string     `env:"HOST"`
 	MaxMindLicenseKey        string     `env:"MAXMIND_LICENSE_KEY"`
@@ -39,6 +40,7 @@ var EnvConfig = &EnvConfigSchema{
 	PostgresConnectionString: "",
 	UploadPath:               "data/uploads",
 	KeysPath:                 "data/keys",
+	MdsCachePath:             "data/mds",
 	AppURL:                   "http://localhost",
 	Port:                     "8080",
 	Host:                     "0.0.0.0",

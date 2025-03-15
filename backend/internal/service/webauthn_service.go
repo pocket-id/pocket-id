@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -19,9 +20,10 @@ type WebAuthnService struct {
 	jwtService       *JwtService
 	auditLogService  *AuditLogService
 	appConfigService *AppConfigService
+	mdsService       *MdsService
 }
 
-func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, appConfigService *AppConfigService) *WebAuthnService {
+func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, appConfigService *AppConfigService, mdsService *MdsService) *WebAuthnService {
 	webauthnConfig := &webauthn.Config{
 		RPDisplayName: appConfigService.DbConfig.AppName.Value,
 		RPID:          utils.GetHostnameFromURL(common.EnvConfig.AppURL),
@@ -40,7 +42,7 @@ func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *Au
 		},
 	}
 	wa, _ := webauthn.New(webauthnConfig)
-	return &WebAuthnService{db: db, webAuthn: wa, jwtService: jwtService, auditLogService: auditLogService, appConfigService: appConfigService}
+	return &WebAuthnService{db: db, webAuthn: wa, jwtService: jwtService, auditLogService: auditLogService, appConfigService: appConfigService, mdsService: mdsService}
 }
 
 func (s *WebAuthnService) BeginRegistration(userID string) (*model.PublicKeyCredentialCreationOptions, error) {
@@ -95,8 +97,11 @@ func (s *WebAuthnService) VerifyRegistration(sessionID, userID string, r *http.R
 		return model.WebauthnCredential{}, err
 	}
 
+	// Determine passkey name using AAGUID and User-Agent
+	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID, r.UserAgent())
+
 	credentialToStore := model.WebauthnCredential{
-		Name:            "New Passkey",
+		Name:            passkeyName,
 		CredentialID:    credential.ID,
 		AttestationType: credential.AttestationType,
 		PublicKey:       credential.PublicKey,
@@ -110,6 +115,17 @@ func (s *WebAuthnService) VerifyRegistration(sessionID, userID string, r *http.R
 	}
 
 	return credentialToStore, nil
+}
+
+func (s *WebAuthnService) determinePasskeyName(aaguid []byte, userAgent string) string {
+	// First try to identify by AAGUID using a combination of builtin + MDS
+	authenticatorName := s.mdsService.GetAuthenticatorName(aaguid)
+	fmt.Println("AAGUID: ", authenticatorName)
+	if authenticatorName != "" {
+		return authenticatorName
+	}
+
+	return "New Passkey" // Default fallback
 }
 
 func (s *WebAuthnService) BeginLogin() (*model.PublicKeyCredentialRequestOptions, error) {
