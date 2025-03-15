@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: |
-          go get .
+          go get ./...
       - name: Run backend unit tests
         working-directory: backend
         run: |
