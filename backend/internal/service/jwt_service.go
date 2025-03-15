@@ -409,7 +409,13 @@ func importRawKey(rawKey any) (jwk.Key, error) {
 
 // saveKeyJWK saves a JWK to a file
 func saveKeyJWK(key jwk.Key, path string) error {
-	keyFile, err := os.Create(path)
+	dir := filepath.Dir(path)
+	err := os.MkdirAll(dir, 0700)
+	if err != nil {
+		return fmt.Errorf("failed to create directory '%s' for key file: %w", dir, err)
+	}
+
+	keyFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to create key file: %w", err)
 	}
