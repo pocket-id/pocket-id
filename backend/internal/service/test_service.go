@@ -32,6 +32,10 @@ func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService 
 	return &TestService{db: db, appConfigService: appConfigService, jwtService: jwtService}
 }
 
+func (s *TestService) DB() *gorm.DB {
+	return s.db
+}
+
 func (s *TestService) SeedDatabase() error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		users := []model.User{
@@ -149,6 +153,17 @@ func (s *TestService) SeedDatabase() error {
 			ClientID:  oidcClients[0].ID,
 		}
 		if err := tx.Create(&authCode).Error; err != nil {
+			return err
+		}
+
+		refreshToken := model.OidcRefreshToken{
+			Token:     "test-refresh-token",
+			ExpiresAt: datatype.DateTime(time.Now().Add(24 * time.Hour)),
+			Scope:     "openid profile email",
+			UserID:    users[0].ID,
+			ClientID:  oidcClients[0].ID,
+		}
+		if err := tx.Create(&refreshToken).Error; err != nil {
 			return err
 		}
 
