@@ -184,7 +184,18 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claim)
 	token.Header["kid"] = s.keyId
 
-	return token.SignedString(s.privateKey)
+	var privateKeyRaw any
+	err := jwk.Export(s.privateKey, &privateKeyRaw)
+	if err != nil {
+		return "", fmt.Errorf("failed to export private key object: %w", err)
+	}
+
+	signed, err := token.SignedString(privateKeyRaw)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	return signed, nil
 }
 
 func (s *JwtService) VerifyAccessToken(tokenString string) (*AccessTokenJWTClaims, error) {

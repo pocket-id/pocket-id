@@ -8,10 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 func TestJwtService_Init(t *testing.T) {
@@ -231,6 +235,123 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 		require.Error(t, err, "GetPublicJWK should return an error when private key is nil")
 		assert.Contains(t, err.Error(), "key is not initialized", "Error message should indicate key is not initialized")
 		assert.Nil(t, publicKey, "Public key should be nil when there's an error")
+	})
+}
+
+func TestGenerateVerifyAccessToken(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Initialize the JWT service with a mock AppConfigService
+	mockConfig := &AppConfigService{
+		DbConfig: &model.AppConfig{
+			SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
+		},
+	}
+
+	// Setup the environment variable required by the token verification
+	originalAppURL := common.EnvConfig.AppURL
+	common.EnvConfig.AppURL = "https://test.example.com"
+	defer func() {
+		common.EnvConfig.AppURL = originalAppURL
+	}()
+
+	t.Run("generates token for regular user", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "user123",
+			},
+			Email:   "user@example.com",
+			IsAdmin: false,
+		}
+
+		// Generate a token
+		tokenString, err := service.GenerateAccessToken(user)
+		require.NoError(t, err, "Failed to generate access token")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token")
+
+		// Check the claims
+		assert.Equal(t, user.ID, claims.Subject, "Token subject should match user ID")
+		assert.Equal(t, false, claims.IsAdmin, "IsAdmin should be false")
+		assert.Contains(t, claims.Audience, "https://test.example.com", "Audience should contain the app URL")
+
+		// Check token expiration time is approximately 60 minutes from now
+		expectedExp := time.Now().Add(60 * time.Minute)
+		tokenExp := claims.ExpiresAt.Time
+		timeDiff := expectedExp.Sub(tokenExp).Minutes()
+		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 60 minutes")
+	})
+
+	t.Run("generates token for admin user", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create a test admin user
+		adminUser := model.User{
+			Base: model.Base{
+				ID: "admin123",
+			},
+			Email:   "admin@example.com",
+			IsAdmin: true,
+		}
+
+		// Generate a token
+		tokenString, err := service.GenerateAccessToken(adminUser)
+		require.NoError(t, err, "Failed to generate access token")
+
+		// Verify the token
+		claims, err := service.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token")
+
+		// Check the IsAdmin claim is true
+		assert.Equal(t, true, claims.IsAdmin, "IsAdmin should be true for admin users")
+		assert.Equal(t, adminUser.ID, claims.Subject, "Token subject should match admin ID")
+	})
+
+	t.Run("uses session duration from config", func(t *testing.T) {
+		// Create a JWT service with a different session duration
+		customMockConfig := &AppConfigService{
+			DbConfig: &model.AppConfig{
+				SessionDuration: model.AppConfigVariable{Value: "30"}, // 30 minutes
+			},
+		}
+
+		service := &JwtService{}
+		err := service.init(customMockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "user456",
+			},
+		}
+
+		// Generate a token
+		tokenString, err := service.GenerateAccessToken(user)
+		require.NoError(t, err, "Failed to generate access token")
+
+		// Verify the token
+		claims, err := service.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token")
+
+		// Check token expiration time is approximately 30 minutes from now
+		expectedExp := time.Now().Add(30 * time.Minute)
+		tokenExp := claims.ExpiresAt.Time
+		timeDiff := expectedExp.Sub(tokenExp).Minutes()
+		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 30 minutes")
 	})
 }
 
