@@ -8,8 +8,13 @@
 
 	let {
 		auditLogs,
+		isAdmin = false,
 		requestOptions
-	}: { auditLogs: Paginated<AuditLog>; requestOptions: SearchPaginationSortRequest } = $props();
+	}: {
+		auditLogs: Paginated<AuditLog>;
+		isAdmin?: boolean;
+		requestOptions: SearchPaginationSortRequest;
+	} = $props();
 
 	const auditLogService = new AuditLogService();
 
@@ -25,9 +30,13 @@
 <AdvancedTable
 	items={auditLogs}
 	{requestOptions}
-	onRefresh={async (options) => (auditLogs = await auditLogService.list(options))}
+	onRefresh={async (options) =>
+		isAdmin
+			? (auditLogs = await auditLogService.listAllLogs(options))
+			: (auditLogs = await auditLogService.list(options))}
 	columns={[
 		{ label: 'Time', sortColumn: 'createdAt' },
+		...(isAdmin ? [{ label: 'Username' }] : []),
 		{ label: 'Event', sortColumn: 'event' },
 		{ label: 'Approximate Location', sortColumn: 'city' },
 		{ label: 'IP Address', sortColumn: 'ipAddress' },
@@ -38,6 +47,15 @@
 >
 	{#snippet rows({ item })}
 		<Table.Cell>{new Date(item.createdAt).toLocaleString()}</Table.Cell>
+		{#if isAdmin}
+			<Table.Cell>
+				{#if item.username}
+					{item.username}
+				{:else}
+					Unknown User
+				{/if}
+			</Table.Cell>
+		{/if}
 		<Table.Cell>
 			<Badge variant="outline">{toFriendlyEventString(item.event)}</Badge>
 		</Table.Cell>

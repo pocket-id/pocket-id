@@ -24,6 +24,7 @@
 		links = [
 			// svelte-ignore state_referenced_locally
 			...links,
+			{ href: '/settings/global-audit-log', label: 'Global Audit Log' },
 			{ href: '/settings/admin/users', label: 'Users' },
 			{ href: '/settings/admin/user-groups', label: 'User Groups' },
 			{ href: '/settings/admin/oidc-clients', label: 'OIDC Clients' },
