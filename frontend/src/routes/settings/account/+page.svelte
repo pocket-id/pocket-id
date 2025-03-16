@@ -16,6 +16,7 @@
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let account = $state(data.account);
@@ -30,7 +31,7 @@
 		let success = true;
 		await userService
 			.updateCurrent(user)
-			.then(() => toast.success('Account details updated successfully'))
+			.then(() => toast.success(m.account_details_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 				success = false;
@@ -42,7 +43,7 @@
 	async function updateProfilePicture(image: File) {
 		await userService
 			.updateCurrentUsersProfilePicture(image)
-			.then(() => toast.success('Profile picture updated successfully'))
+			.then(() => toast.success(m.profile_picture_updated_successfully()))
 			.catch(axiosErrorToast);
 	}
 
@@ -61,23 +62,23 @@
 </script>
 
 <svelte:head>
-	<title>Account Settings</title>
+	<title>{m.account_settings()}</title>
 </svelte:head>
 
 {#if passkeys.length == 0}
 	<Alert.Root variant="warning">
 		<LucideAlertTriangle class="size-4" />
-		<Alert.Title>Passkey missing</Alert.Title>
+		<Alert.Title>{m.passkey_missing()}</Alert.Title>
 		<Alert.Description
-			>Please add a passkey to prevent losing access to your account.</Alert.Description
+			>{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}</Alert.Description
 		>
 	</Alert.Root>
 {:else if passkeys.length == 1}
 	<Alert.Root variant="warning" dismissibleId="single-passkey">
 		<LucideAlertTriangle class="size-4" />
-		<Alert.Title>Single Passkey Configured</Alert.Title>
+		<Alert.Title>{m.single_passkey_configured()}</Alert.Title>
 		<Alert.Description
-			>It is recommended to add more than one passkey to avoid losing access to your account.</Alert.Description
+			>{m.it_is_recommended_to_add_more_than_one_passkey()}</Alert.Description
 		>
 	</Alert.Root>
 {/if}
@@ -88,7 +89,7 @@
 >
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Account Details</Card.Title>
+			<Card.Title>{m.account_details()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<AccountForm {account} callback={updateAccount} />
@@ -110,12 +111,12 @@
 	<Card.Header>
 		<div class="flex items-center justify-between">
 			<div>
-				<Card.Title>Passkeys</Card.Title>
+				<Card.Title>{m.passkeys()}</Card.Title>
 				<Card.Description class="mt-1">
-					Manage your passkeys that you can use to authenticate yourself.
+					{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
 				</Card.Description>
 			</div>
-			<Button size="sm" class="ml-3" on:click={createPasskey}>Add Passkey</Button>
+			<Button size="sm" class="ml-3" on:click={createPasskey}>{m.add_passkey()}</Button>
 		</div>
 	</Card.Header>
 	{#if passkeys.length != 0}
@@ -129,12 +130,12 @@
 	<Card.Header>
 		<div class="flex items-center justify-between">
 			<div>
-				<Card.Title>Login Code</Card.Title>
+				<Card.Title>{m.login_code()}</Card.Title>
 				<Card.Description class="mt-1">
-					Create a one-time login code to sign in from a different device without a passkey.
+					{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 				</Card.Description>
 			</div>
-			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}>Create</Button>
+			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}>{m.create()}</Button>
 		</div>
 	</Card.Header>
 </Card.Root>

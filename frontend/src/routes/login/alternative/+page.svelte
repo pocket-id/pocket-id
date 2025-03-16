@@ -4,14 +4,15 @@
 	import Logo from '$lib/components/logo.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { LucideChevronRight, LucideMail, LucideRectangleEllipsis } from 'lucide-svelte';
 
 	const methods = [
 		{
 			icon: LucideRectangleEllipsis,
-			title: 'Login Code',
-			description: 'Enter a login code to sign in.',
+			title: m.login_code(),
+			description: m.enter_a_login_code_to_sign_in(),
 			href: '/login/alternative/code'
 		}
 	];
@@ -19,15 +20,15 @@
 	if ($appConfigStore.emailOneTimeAccessEnabled) {
 		methods.push({
 			icon: LucideMail,
-			title: 'Email Login',
-			description: 'Request a login code via email.',
+			title: m.email_login(),
+			description: m.request_a_login_code_via_email(),
 			href: '/login/alternative/email'
 		});
 	}
 </script>
 
 <svelte:head>
-	<title>Sign In</title>
+	<title>{m.sign_in()}</title>
 </svelte:head>
 
 <SignInWrapper>
@@ -35,9 +36,9 @@
 		<div class="bg-muted mx-auto rounded-2xl p-3">
 			<Logo class="h-10 w-10" />
 		</div>
-		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">Alternative Sign In</h1>
+		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">{m.alternative_sign_in()}</h1>
 		<p class="text-muted-foreground mt-3">
-			If you dont't have access to your passkey, you can sign in using one of the following methods.
+			{m.if_you_do_not_have_access_to_your_passkey_you_can_sign_in_using_one_of_the_following_methods()}
 		</p>
 		<div class="mt-5 flex flex-col gap-3">
 			{#each methods as method}
@@ -59,7 +60,7 @@
 		</div>
 
 		<a class="text-muted-foreground mt-5 text-xs" href={'/login' + page.url.search}
-			>Use your passkey instead?</a
+			>{m.use_your_passkey_instead()}</a
 		>
 	</div>
 </SignInWrapper>

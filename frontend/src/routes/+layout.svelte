@@ -10,6 +10,7 @@
 	import type { Snippet } from 'svelte';
 	import '../app.css';
 	import type { LayoutData } from './$types';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		data,
@@ -31,7 +32,7 @@
 
 {#if !appConfig}
 	<Error
-		message="A critical error occured. Please contact your administrator."
+		message={m.critical_error_occurred_contact_administrator()}
 		showButton={false}
 	/>
 {:else}

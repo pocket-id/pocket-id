@@ -3,6 +3,7 @@
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import Logo from '$lib/components/logo.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import userStore from '$lib/stores/user-store.js';
 	import { axiosErrorToast } from '$lib/utils/error-util.js';
@@ -22,7 +23,7 @@
 </script>
 
 <svelte:head>
-	<title>Logout</title>
+	<title>{m.logout()}</title>
 </svelte:head>
 
 <SignInWrapper>
@@ -31,13 +32,13 @@
 			<Logo class="h-10 w-10" />
 		</div>
 	</div>
-	<h1 class="font-playfair mt-5 text-4xl font-bold">Sign out</h1>
+	<h1 class="font-playfair mt-5 text-4xl font-bold">{m.sign_out()}</h1>
 
 	<p class="text-muted-foreground mt-2">
-		Do you want to sign out of Pocket ID with the account <b>{$userStore?.username}</b>?
+		{@html m.do_you_want_to_sign_out_of_pocketid_with_the_account({ username: $userStore?.username ?? '' })}
 	</p>
 	<div class="mt-10 flex w-full justify-stretch gap-2">
-		<Button class="w-full" variant="secondary" onclick={() => history.back()}>Cancel</Button>
-		<Button class="w-full" {isLoading} onclick={signOut}>Sign out</Button>
+		<Button class="w-full" variant="secondary" onclick={() => history.back()}>{m.cancel()}</Button>
+		<Button class="w-full" {isLoading} onclick={signOut}>{m.sign_out()}</Button>
 	</div>
 </SignInWrapper>
