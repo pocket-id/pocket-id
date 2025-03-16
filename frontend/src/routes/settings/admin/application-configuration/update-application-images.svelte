@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import ApplicationImage from './application-image.svelte';
 
 	let {
@@ -54,6 +55,6 @@
 </div>
 <div class="flex justify-end">
 	<Button class="mt-5" onclick={() => callback(logoLight, logoDark, backgroundImage, favicon)}
-		>Save</Button
+		>{m.save()}</Button
 	>
 </div>

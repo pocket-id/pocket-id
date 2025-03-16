@@ -9,6 +9,7 @@
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let appConfig = $state(data.appConfig);
@@ -46,36 +47,35 @@
 			: Promise.resolve();
 
 		await Promise.all([lightLogoPromise, darkLogoPromise, backgroundImagePromise, faviconPromise])
-			.then(() => toast.success('Images updated successfully'))
+			.then(() => toast.success(m.images_updated_successfully()))
 			.catch(axiosErrorToast);
 	}
 </script>
 
 <svelte:head>
-	<title>Application Configuration</title>
+	<title>{m.application_configuration()}</title>
 </svelte:head>
 
-<CollapsibleCard id="application-configuration-general" title="General" defaultExpanded>
+<CollapsibleCard id="application-configuration-general" title={m.general()} defaultExpanded>
 	<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
 </CollapsibleCard>
 
 <CollapsibleCard
 	id="application-configuration-email"
-	title="Email"
-	description="Enable email notifications to alert users when a login is detected from a new device or
-			location."
+	title={m.email()}
+	description={m.enable_email_notifications_to_alert_users_when_a_login_is_detected_from_a_new_device_or_location()}
 >
 	<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
 </CollapsibleCard>
 
 <CollapsibleCard
 	id="application-configuration-ldap"
-	title="LDAP"
-	description="Configure LDAP settings to sync users and groups from an LDAP server."
+	title={m.ldap()}
+	description={m.configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server()}
 >
 	<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
 </CollapsibleCard>
 
-<CollapsibleCard id="application-configuration-images" title="Images">
+<CollapsibleCard id="application-configuration-images" title={m.images()}>
 	<UpdateApplicationImages callback={updateImages} />
 </CollapsibleCard>
