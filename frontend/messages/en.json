@@ -1,4 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "example_message": "Hello world {username}"
+  "my_account": "My Account",
+  "logout": "Logout",
+  "english": "English",
+  "dutch": "Nederlands"
 }
