@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { m } from '$lib/paraglide/messages';
 	import { LucideCheck } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 
@@ -31,9 +32,9 @@
 	<Tooltip.Trigger class="text-start" tabindex={-1} onclick={onClick}>{@render children()}</Tooltip.Trigger>
 	<Tooltip.Content onclick={copyToClipboard}>
 		{#if copied}
-			<span class="flex items-center"><LucideCheck class="mr-1 h-4 w-4" /> Copied</span>
+			<span class="flex items-center"><LucideCheck class="mr-1 h-4 w-4" /> {m.copied()}</span>
 		{:else}
-			<span>Click to copy</span>
+			<span>{m.click_to_copy()}</span>
 		{/if}
 	</Tooltip.Content>
 </Tooltip.Root>

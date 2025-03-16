@@ -5,6 +5,7 @@
 	import { slide } from 'svelte/transition';
 	import { Button } from './ui/button';
 	import * as Card from './ui/card';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		id,
@@ -55,7 +56,7 @@
 					<Card.Description>{description}</Card.Description>
 				{/if}
 			</div>
-			<Button class="ml-10 h-8 p-3" variant="ghost" aria-label="Expand card">
+			<Button class="ml-10 h-8 p-3" variant="ghost" aria-label={m.expand_card()}>
 				<LucideChevronDown
 					class={cn(
 						'h-5 w-5 transition-transform duration-200',

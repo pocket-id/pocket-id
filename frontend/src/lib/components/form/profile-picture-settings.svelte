@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import * as Avatar from '$lib/components/ui/avatar';
+	import { m } from '$lib/paraglide/messages';
 	import { LucideLoader, LucideUpload } from 'lucide-svelte';
 
 	let {
@@ -39,16 +40,16 @@
 <div class="flex gap-5">
 	<div class="flex w-full flex-col justify-between gap-5 sm:flex-row">
 		<div>
-			<h3 class="text-xl font-semibold">Profile Picture</h3>
+			<h3 class="text-xl font-semibold">{m.profile_picture()}</h3>
 			{#if isLdapUser}
 				<p class="text-muted-foreground mt-1 text-sm">
-					The profile picture is managed by the LDAP server and cannot be changed here.
+					{m.profile_picture_is_managed_by_ldap_server()}
 				</p>
 			{:else}
 				<p class="text-muted-foreground mt-1 text-sm">
-					Click on the profile picture to upload a custom one from your files.
+					{m.click_profile_picture_to_upload_custom()}
 				</p>
-				<p class="text-muted-foreground mt-1 text-sm">The image should be in PNG or JPEG format.</p>
+				<p class="text-muted-foreground mt-1 text-sm">{m.image_should_be_in_format()}</p>
 			{/if}
 		</div>
 		{#if isLdapUser}
