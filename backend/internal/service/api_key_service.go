@@ -82,7 +82,7 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 	hashedKey := utils.CreateSha256Hash(apiKey)
 
 	if err := s.db.Preload("User").Where("key = ? AND expires_at > ?",
-		hashedKey, time.Now()).Preload("User").First(&key).Error; err != nil {
+		hashedKey, datatype.DateTime(time.Now())).Preload("User").First(&key).Error; err != nil {
 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return model.User{}, &common.InvalidAPIKeyError{}
