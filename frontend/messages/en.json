@@ -39,5 +39,13 @@
   "generate_code": "Generate Code",
   "name": "Name",
   "browser_unsupported": "Browser unsupported",
-  "this_browser_does_not_support_passkeys": "This browser doesn't support passkeys. Please or use a alternative sign in method."
+  "this_browser_does_not_support_passkeys": "This browser doesn't support passkeys. Please or use a alternative sign in method.",
+  "an_unknown_error_occurred": "An unknown error occurred",
+  "authentication_process_was_aborted": "The authentication process was aborted",
+  "error_occurred_with_authenticator": "An error occurred with the authenticator",
+  "authenticator_does_not_support_discoverable_credentials": "The authenticator does not support discoverable credentials",
+  "authenticator_does_not_support_resident_keys": "The authenticator does not support resident keys",
+  "passkey_was_previously_registered": "This passkey was previously registered",
+  "authenticator_does_not_support_any_of_the_requested_algorithms": "The authenticator does not support any of the requested algorithms",
+  "authenticator_timed_out": "The authenticator timed out"
 }
