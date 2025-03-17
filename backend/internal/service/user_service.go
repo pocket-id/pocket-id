@@ -374,7 +374,9 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 	}
 
 	// Remove the profile picture file if it exists
-	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+	profilePictureDir := fmt.Sprintf("%s/profile-pictures", common.EnvConfig.UploadPath)
+	profilePicturePath := fmt.Sprintf("%s/%s.png", profilePictureDir, userID)
+
 	if _, err := os.Stat(profilePicturePath); err == nil {
 		if err := os.Remove(profilePicturePath); err != nil {
 			return fmt.Errorf("failed to delete profile picture: %w", err)
