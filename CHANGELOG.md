@@ -1,3 +1,15 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.40.0...v) (2025-03-16)
+
+
+### Bug Fixes
+
+* API keys not working if sqlite is used ([8ead0be](https://github.com/pocket-id/pocket-id/commit/8ead0be8cd0cfb542fe488b7251cfd5274975ae1))
+* caching for own profile picture ([e45d9e9](https://github.com/pocket-id/pocket-id/commit/e45d9e970d327a5120ff9fb0c8d42df8af69bb38))
+* email logo icon displaying too big ([#336](https://github.com/pocket-id/pocket-id/issues/336)) ([b483e2e](https://github.com/pocket-id/pocket-id/commit/b483e2e92fdb528e7de026350a727d6970227426))
+* emails are considered as medium spam by rspamd ([#337](https://github.com/pocket-id/pocket-id/issues/337)) ([39b7f66](https://github.com/pocket-id/pocket-id/commit/39b7f6678c98cadcdc3abfbcb447d8eb0daa9eb0))
+* Fixes and performance improvements in utils package ([#331](https://github.com/pocket-id/pocket-id/issues/331)) ([348192b](https://github.com/pocket-id/pocket-id/commit/348192b9d7e2698add97810f8fba53d13d0df018))
+* remove custom claim key restrictions ([9f28503](https://github.com/pocket-id/pocket-id/commit/9f28503d6c73d3521d1309bee055704a0507e9b5))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.39.0...v) (2025-03-13)
 
 

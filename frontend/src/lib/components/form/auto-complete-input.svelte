@@ -16,7 +16,6 @@
 
 	let filteredSuggestions: string[] = $state(suggestions.slice(0, suggestionLimit));
 	let selectedIndex = $state(-1);
-	let keyError: string | undefined = $state();
 
 	let isInputFocused = $state(false);
 
@@ -26,13 +25,6 @@
 	}
 
 	function handleOnInput() {
-		if (value.length > 0 && !/^[A-Za-z0-9]*$/.test(value)) {
-			keyError = 'Only alphanumeric characters are allowed';
-			return;
-		} else {
-			keyError = undefined;
-		}
-
 		filteredSuggestions = suggestions
 			.filter((s) => s.includes(value.toLowerCase()))
 			.slice(0, suggestionLimit);
@@ -83,9 +75,6 @@
 		onfocus={() => (isInputFocused = true)}
 		onblur={() => (isInputFocused = false)}
 	/>
-	{#if keyError}
-		<p class="mt-1 text-sm text-red-500">{keyError}</p>
-	{/if}
 	<Popover.Root
 		open={isOpen}
 		disableFocusTrap

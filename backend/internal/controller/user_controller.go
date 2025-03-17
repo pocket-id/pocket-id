@@ -38,7 +38,7 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.PUT("/users/:id/user-groups", authMiddleware.Add(), uc.updateUserGroups)
 
 	group.GET("/users/:id/profile-picture.png", uc.getUserProfilePictureHandler)
-	group.GET("/users/me/profile-picture.png", authMiddleware.WithAdminNotRequired().Add(), uc.getCurrentUserProfilePictureHandler)
+
 	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), uc.updateUserProfilePictureHandler)
 	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserProfilePictureHandler)
 
@@ -249,24 +249,7 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 		return
 	}
 
-	c.DataFromReader(http.StatusOK, size, "image/png", picture, nil)
-}
-
-// getCurrentUserProfilePictureHandler godoc
-// @Summary Get current user's profile picture
-// @Description Retrieve the currently authenticated user's profile picture
-// @Tags Users
-// @Produce image/png
-// @Success 200 {file} binary "PNG image"
-// @Router /users/me/profile-picture.png [get]
-func (uc *UserController) getCurrentUserProfilePictureHandler(c *gin.Context) {
-	userID := c.GetString("userID")
-
-	picture, size, err := uc.userService.GetProfilePicture(userID)
-	if err != nil {
-		c.Error(err)
-		return
-	}
+	c.Header("Cache-Control", "public, max-age=300")
 
 	c.DataFromReader(http.StatusOK, size, "image/png", picture, nil)
 }
