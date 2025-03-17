@@ -3,8 +3,6 @@ package service
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -27,13 +25,15 @@ import (
 )
 
 const (
-	privateKeyFilePem = "jwt_private_key.pem"
-	privateKeyFileJwk = "jwt_private_key.json"
+	// Path in the data/keys folder where the key is stored
+	// This is a JSON file containing a key encoded as JWK
+	PrivateKeyFile = "jwt_private_key.json"
 
 	// Size, in bits, of the RSA key to generate if none is found
-	rsaKeySize = 2048
+	RsaKeySize = 2048
 
-	keyUsageSigning = "sig"
+	// Usage for the private keys, for the "use" property
+	KeyUsageSigning = "sig"
 )
 
 type JwtService struct {
@@ -72,7 +72,7 @@ func (s *JwtService) loadOrGenerateKey(keysPath string) error {
 
 	// First, check if we have a JWK file
 	// If we do, then we just load that
-	jwkPath := filepath.Join(keysPath, privateKeyFileJwk)
+	jwkPath := filepath.Join(keysPath, PrivateKeyFile)
 	ok, err := utils.FileExists(jwkPath)
 	if err != nil {
 		return fmt.Errorf("failed to check if private key file (JWK) exists at path '%s': %w", jwkPath, err)
@@ -92,26 +92,10 @@ func (s *JwtService) loadOrGenerateKey(keysPath string) error {
 		return nil
 	}
 
-	// If we are here, we have not loaded a JWK yet
-	// First, check if we have a PEM-encoded key, which would be "legacy".
-	// If so, we load that and convert it to JWK too.
-	pemPath := filepath.Join(keysPath, privateKeyFilePem)
-	ok, err = utils.FileExists(pemPath)
+	// If we are here, we need to generate a new key
+	key, err = s.generateNewRSAKey()
 	if err != nil {
-		return fmt.Errorf("failed to check if private key file (PEM) exists at path '%s': %w", pemPath, err)
-	}
-	if ok {
-		// PEM file exists, load that
-		key, err = s.loadKeyPEM(pemPath)
-		if err != nil {
-			return fmt.Errorf("failed to load private key file (PEM) at path '%s': %w", pemPath, err)
-		}
-	} else {
-		// If we are here, we need to generate a new key
-		key, err = s.generateNewRSAKey()
-		if err != nil {
-			return fmt.Errorf("failed to generate new private key: %w", err)
-		}
+		return fmt.Errorf("failed to generate new private key: %w", err)
 	}
 
 	// Set the key in the object, which also validates it
@@ -121,7 +105,7 @@ func (s *JwtService) loadOrGenerateKey(keysPath string) error {
 	}
 
 	// Save the key as JWK
-	err = saveKeyJWK(s.privateKey, jwkPath)
+	err = SaveKeyJWK(s.privateKey, jwkPath)
 	if err != nil {
 		return fmt.Errorf("failed to save private key file at path '%s': %w", jwkPath, err)
 	}
@@ -129,7 +113,7 @@ func (s *JwtService) loadOrGenerateKey(keysPath string) error {
 	return nil
 }
 
-func (s *JwtService) SetKey(privateKey jwk.Key) error {
+func ValidateKey(privateKey jwk.Key) error {
 	// Validate the loaded key
 	err := privateKey.Validate()
 	if err != nil {
@@ -140,12 +124,22 @@ func (s *JwtService) SetKey(privateKey jwk.Key) error {
 		return errors.New("key object does not contain a key ID")
 	}
 	usage, ok := privateKey.KeyUsage()
-	if !ok || usage != keyUsageSigning {
+	if !ok || usage != KeyUsageSigning {
 		return errors.New("key object is not valid for signing")
 	}
 	ok, err = jwk.IsPrivateKey(privateKey)
 	if err != nil || !ok {
 		return errors.New("key object is not a private key")
+	}
+
+	return nil
+}
+
+func (s *JwtService) SetKey(privateKey jwk.Key) error {
+	// Validate the loaded key
+	err := ValidateKey(privateKey)
+	if err != nil {
+		return fmt.Errorf("private key is not valid: %w", err)
 	}
 
 	// Set the private key in the object
@@ -298,7 +292,7 @@ func (s *JwtService) GetPublicJWK() (jwk.Key, error) {
 		return nil, fmt.Errorf("failed to get public key: %w", err)
 	}
 
-	ensureAlgInKey(pubKey)
+	EnsureAlgInKey(pubKey)
 
 	return pubKey, nil
 }
@@ -340,34 +334,8 @@ func (s *JwtService) loadKeyJWK(path string) (jwk.Key, error) {
 	return key, nil
 }
 
-func (s *JwtService) loadKeyPEM(path string) (jwk.Key, error) {
-	// Load the key from disk and parse it
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read key data: %w", err)
-	}
-
-	key, err := jwk.ParseKey(data, jwk.WithPEM(true))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse key: %w", err)
-	}
-
-	// Populate the key ID using the "legacy" algorithm
-	keyId, err := generatePemKeyID(key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate key ID: %w", err)
-	}
-	key.Set(jwk.KeyIDKey, keyId)
-
-	// Populate other required fields
-	_ = key.Set(jwk.KeyUsageKey, keyUsageSigning)
-	ensureAlgInKey(key)
-
-	return key, nil
-}
-
-// ensureAlgInKey ensures that the key contains an "alg" parameter, set depending on the key type
-func ensureAlgInKey(key jwk.Key) {
+// EnsureAlgInKey ensures that the key contains an "alg" parameter, set depending on the key type
+func EnsureAlgInKey(key jwk.Key) {
 	_, ok := key.Algorithm()
 	if ok {
 		// Algorithm is already set
@@ -389,7 +357,7 @@ func ensureAlgInKey(key jwk.Key) {
 
 func (s *JwtService) generateNewRSAKey() (jwk.Key, error) {
 	// We generate RSA keys only
-	rawKey, err := rsa.GenerateKey(rand.Reader, rsaKeySize)
+	rawKey, err := rsa.GenerateKey(rand.Reader, RsaKeySize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RSA private key: %w", err)
 	}
@@ -412,14 +380,14 @@ func importRawKey(rawKey any) (jwk.Key, error) {
 	_ = key.Set(jwk.KeyIDKey, kid)
 
 	// Set other required fields
-	_ = key.Set(jwk.KeyUsageKey, keyUsageSigning)
-	ensureAlgInKey(key)
+	_ = key.Set(jwk.KeyUsageKey, KeyUsageSigning)
+	EnsureAlgInKey(key)
 
 	return key, err
 }
 
-// saveKeyJWK saves a JWK to a file
-func saveKeyJWK(key jwk.Key, path string) error {
+// SaveKeyJWK saves a JWK to a file
+func SaveKeyJWK(key jwk.Key, path string) error {
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, 0700)
 	if err != nil {
@@ -452,35 +420,4 @@ func generateRandomKeyID() (string, error) {
 		return "", fmt.Errorf("failed to read random bytes: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
-}
-
-// generatePemKeyID generates a Key ID for the public key using the first 8 bytes of the SHA-256 hash of the public key's PKIX-serialized structure.
-// This is used for legacy keys, imported from PEM.
-func generatePemKeyID(key jwk.Key) (string, error) {
-	// Export the public key and serialize it to PKIX (not in a PEM block)
-	// This is for backwards-compatibility with the algorithm used before the switch to JWK
-	pubKey, err := key.PublicKey()
-	if err != nil {
-		return "", fmt.Errorf("failed to get public key: %w", err)
-	}
-	var pubKeyRaw any
-	err = jwk.Export(pubKey, &pubKeyRaw)
-	if err != nil {
-		return "", fmt.Errorf("failed to export public key: %w", err)
-	}
-	pubASN1, err := x509.MarshalPKIXPublicKey(pubKeyRaw)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal public key: %w", err)
-	}
-
-	// Compute SHA-256 hash of the public key
-	hash := sha256.New()
-	hash.Write(pubASN1)
-	hashed := hash.Sum(nil)
-
-	// Truncate the hash to the first 8 bytes for a shorter Key ID
-	shortHash := hashed[:8]
-
-	// Return Base64 encoded truncated hash as Key ID
-	return base64.RawURLEncoding.EncodeToString(shortHash), nil
 }

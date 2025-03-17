@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -35,7 +34,7 @@ func TestJwtService_Init(t *testing.T) {
 		require.NotNil(t, service.privateKey, "Private key should be set")
 
 		// Verify the key has been saved to disk as JWK
-		jwkPath := filepath.Join(tempDir, privateKeyFileJwk)
+		jwkPath := filepath.Join(tempDir, PrivateKeyFile)
 		_, err = os.Stat(jwkPath)
 		assert.NoError(t, err, "JWK file should exist")
 
@@ -77,60 +76,6 @@ func TestJwtService_Init(t *testing.T) {
 		loadedKeyID, ok := secondService.privateKey.KeyID()
 		require.True(t, ok)
 		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
-	})
-
-	t.Run("should load PEM key and save as JWK", func(t *testing.T) {
-		// Create a temporary directory for the test
-		tempDir := t.TempDir()
-
-		// Create a PEM encoded key file
-		// Note: For simplicity, we'll use init to generate a key first, then convert it to PEM
-		initialService := &JwtService{}
-		err := initialService.init(&AppConfigService{}, tempDir)
-		require.NoError(t, err)
-
-		// Delete the JWK file that was created
-		err = os.Remove(filepath.Join(tempDir, privateKeyFileJwk))
-		require.NoError(t, err)
-
-		// Export the key as PEM
-		var rawKey any
-		err = jwk.Export(initialService.privateKey, &rawKey)
-		require.NoError(t, err)
-
-		// Write the PEM file
-		// For this test, we'll use the jwk library to write a PEM file
-		pemPath := filepath.Join(tempDir, privateKeyFilePem)
-		pemData, err := jwk.EncodePEM(initialService.privateKey)
-		require.NoError(t, err)
-		err = os.WriteFile(pemPath, pemData, 0666)
-		require.NoError(t, err)
-
-		// Now create a new service that should load the PEM key
-		pemLoadService := &JwtService{}
-		err = pemLoadService.init(&AppConfigService{}, tempDir)
-		require.NoError(t, err)
-
-		// Verify the JWK file was created
-		jwkPath := filepath.Join(tempDir, privateKeyFileJwk)
-		_, err = os.Stat(jwkPath)
-		assert.NoError(t, err, "JWK file should have been created")
-
-		// Verify the loaded key is valid
-		require.NotNil(t, pemLoadService.privateKey)
-		keyID, ok := pemLoadService.privateKey.KeyID()
-		assert.True(t, ok)
-		assert.NotEmpty(t, keyID)
-
-		// Verify the loaded key is the same as the original one
-		// We remove the KID since that is re-generated when loading from PEM
-		initialService.privateKey.Set(jwk.KeyIDKey, "")
-		pemLoadService.privateKey.Set(jwk.KeyIDKey, "")
-		initialKey, err := json.Marshal(initialService.privateKey)
-		require.NoError(t, err)
-		pemLoadedKey, err := json.Marshal(pemLoadService.privateKey)
-		require.NoError(t, err)
-		assert.Equal(t, string(initialKey), string(pemLoadedKey), "Imported key does not match PEM key on disk")
 	})
 
 	t.Run("should load existing JWK for EC keys", func(t *testing.T) {
@@ -366,7 +311,7 @@ func createECKeyJWK(t *testing.T, path string) string {
 	privateKey, err := importRawKey(privateKeyRaw)
 	require.NoError(t, err, "Failed to import private key")
 
-	err = saveKeyJWK(privateKey, filepath.Join(path, privateKeyFileJwk))
+	err = SaveKeyJWK(privateKey, filepath.Join(path, PrivateKeyFile))
 	require.NoError(t, err, "Failed to save key")
 
 	kid, _ := privateKey.KeyID()
