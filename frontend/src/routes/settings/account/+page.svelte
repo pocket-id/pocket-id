@@ -16,6 +16,7 @@
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
+	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 
 	let { data } = $props();
 	let account = $state(data.account);
@@ -25,6 +26,27 @@
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
+
+	async function resetProfilePicture() {
+		openConfirmDialog({
+			title: 'Reset profile picture?',
+			message:
+				'This will remove the uploaded image, and reset the profile picture to default. Do you want to continue?',
+			confirm: {
+				label: 'Reset',
+				action: async () => {
+					try {
+						await userService
+							.resetCurrentUserProfilePicture()
+							.then(() => toast.success('Profile picture has been reset'))
+							.catch(axiosErrorToast);
+					} catch (error) {
+						axiosErrorToast(error);
+					}
+				}
+			}
+		});
+	}
 
 	async function updateAccount(user: UserCreate) {
 		let success = true;
@@ -102,6 +124,7 @@
 			userId={account.id}
 			isLdapUser={!!account.ldapId}
 			callback={updateProfilePicture}
+			onReset={resetProfilePicture}
 		/>
 	</Card.Content>
 </Card.Root>

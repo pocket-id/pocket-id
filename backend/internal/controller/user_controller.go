@@ -47,6 +47,9 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/setup", uc.getSetupAccessTokenHandler)
 	group.POST("/one-time-access-email", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), uc.requestOneTimeAccessEmailHandler)
+
+	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
+	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
 }
 
 type UserController struct {
@@ -479,4 +482,41 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 	}
 
 	c.JSON(http.StatusOK, userDto)
+}
+
+// resetUserProfilePictureHandler godoc
+// @Summary Reset user profile picture
+// @Description Reset a specific user's profile picture to the default
+// @Tags Users
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 204 "No Content"
+// @Router /users/{id}/profile-picture [delete]
+func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) {
+	userID := c.Param("id")
+
+	if err := uc.userService.ResetProfilePicture(userID); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// resetCurrentUserProfilePictureHandler godoc
+// @Summary Reset current user's profile picture
+// @Description Reset the currently authenticated user's profile picture to the default
+// @Tags Users
+// @Produce json
+// @Success 204 "No Content"
+// @Router /users/me/profile-picture [delete]
+func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	if err := uc.userService.ResetProfilePicture(userID); err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

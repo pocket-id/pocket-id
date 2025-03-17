@@ -365,3 +365,21 @@ func (s *UserService) checkDuplicatedFields(user model.User) error {
 
 	return nil
 }
+
+// ResetProfilePicture deletes a user's custom profile picture
+func (s *UserService) ResetProfilePicture(userID string) error {
+	// Validate the user ID to prevent directory traversal
+	if err := uuid.Validate(userID); err != nil {
+		return &common.InvalidUUIDError{}
+	}
+
+	// Remove the profile picture file if it exists
+	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+	if _, err := os.Stat(profilePicturePath); err == nil {
+		if err := os.Remove(profilePicturePath); err != nil {
+			return fmt.Errorf("failed to delete profile picture: %w", err)
+		}
+	}
+
+	return nil
+}
