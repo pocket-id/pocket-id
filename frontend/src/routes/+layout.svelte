@@ -31,7 +31,7 @@
 
 {#if !appConfig}
 	<Error
-		message="A critical error occured. Please contact your administrator."
+		message="A critical error occurred. Please contact your administrator."
 		showButton={false}
 	/>
 {:else}

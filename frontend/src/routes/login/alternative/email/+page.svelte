@@ -21,7 +21,7 @@
 		await userService
 			.requestOneTimeAccessEmail(email, data.redirect)
 			.then(() => (success = true))
-			.catch((e) => (error = e.response?.data.error || 'An unknown error occured'));
+			.catch((e) => (error = e.response?.data.error || 'An unknown error occurred'));
 
 		isLoading = false;
 	}
