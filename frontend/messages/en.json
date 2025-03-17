@@ -247,5 +247,22 @@
   "user_details_firstname_lastname": "User Details {firstName} {lastName}",
   "manage_which_groups_this_user_belongs_to": "Manage which groups this user belongs to.",
   "custom_claims": "Custom Claims",
-  "custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user": "Custom claims are key-value pairs that can be used to store additional information about a user. These claims will be included in the ID token if the scope 'profile' is requested."
+  "custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user": "Custom claims are key-value pairs that can be used to store additional information about a user. These claims will be included in the ID token if the scope 'profile' is requested.",
+  "user_group_created_successfully": "User group created successfully",
+  "create_user_group": "Create User Group",
+  "create_a_new_group_that_can_be_assigned_to_users": "Create a new group that can be assigned to users.",
+  "add_group": "Add Group",
+  "manage_user_groups": "Manage User Groups",
+  "friendly_name": "Friendly Name",
+  "name_that_will_be_displayed_in_the_ui": "Name that will be displayed in the UI",
+  "name_that_will_be_in_the_groups_claim": "Name that will be in the \"groups\" claim",
+  "delete_name": "Delete {name}",
+  "are_you_sure_you_want_to_delete_this_user_group": "Are you sure you want to delete this user group?",
+  "user_group_deleted_successfully": "User group deleted successfully",
+  "user_count": "User Count",
+  "user_group_updated_successfully": "User group updated successfully",
+  "users_updated_successfully": "Users updated successfully",
+  "user_group_details_name": "User Group Details {name}",
+  "assign_users_to_this_group": "Assign users to this group.",
+  "custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user_prioritized": "Custom claims are key-value pairs that can be used to store additional information about a user. These claims will be included in the ID token if the scope 'profile' is requested. Custom claims defined on the user will be prioritized if there are conflicts."
 }
