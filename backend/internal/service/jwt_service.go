@@ -212,12 +212,12 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (*AccessTokenJWTClaim
 }
 
 func (s *JwtService) GenerateIDToken(userClaims map[string]interface{}, clientID string, nonce string) (string, error) {
-	claims := jwt.MapClaims{
-		"aud": clientID,
-		"exp": jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
-		"iat": jwt.NewNumericDate(time.Now()),
-		"iss": common.EnvConfig.AppURL,
-	}
+	// Initialize with capacity for userClaims, + 4 fixed claims, + 2 claims which may be set in some cases, to avoid re-allocations
+	claims := make(jwt.MapClaims, len(userClaims)+6)
+	claims["aud"] = clientID
+	claims["exp"] = jwt.NewNumericDate(time.Now().Add(1 * time.Hour))
+	claims["iat"] = jwt.NewNumericDate(time.Now())
+	claims["iss"] = common.EnvConfig.AppURL
 
 	for k, v := range userClaims {
 		claims[k] = v
@@ -230,7 +230,13 @@ func (s *JwtService) GenerateIDToken(userClaims map[string]interface{}, clientID
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = s.keyId
 
-	return token.SignedString(s.privateKey)
+	var privateKeyRaw any
+	err := jwk.Export(s.privateKey, &privateKeyRaw)
+	if err != nil {
+		return "", fmt.Errorf("failed to export private key object: %w", err)
+	}
+
+	return token.SignedString(privateKeyRaw)
 }
 
 func (s *JwtService) VerifyIdToken(tokenString string) (*jwt.RegisteredClaims, error) {
@@ -262,7 +268,13 @@ func (s *JwtService) GenerateOauthAccessToken(user model.User, clientID string) 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claim)
 	token.Header["kid"] = s.keyId
 
-	return token.SignedString(s.privateKey)
+	var privateKeyRaw any
+	err := jwk.Export(s.privateKey, &privateKeyRaw)
+	if err != nil {
+		return "", fmt.Errorf("failed to export private key object: %w", err)
+	}
+
+	return token.SignedString(privateKeyRaw)
 }
 
 func (s *JwtService) VerifyOauthAccessToken(tokenString string) (*jwt.RegisteredClaims, error) {

@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -297,6 +299,113 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		tokenExp := claims.ExpiresAt.Time
 		timeDiff := expectedExp.Sub(tokenExp).Minutes()
 		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 30 minutes")
+	})
+}
+
+func TestGenerateVerifyIdToken(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Initialize the JWT service with a mock AppConfigService
+	mockConfig := &AppConfigService{
+		DbConfig: &model.AppConfig{
+			SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
+		},
+	}
+
+	// Setup the environment variable required by the token verification
+	originalAppURL := common.EnvConfig.AppURL
+	common.EnvConfig.AppURL = "https://test.example.com"
+	defer func() {
+		common.EnvConfig.AppURL = originalAppURL
+	}()
+
+	t.Run("generates and verifies ID token with standard claims", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create test claims
+		userClaims := map[string]interface{}{
+			"sub":   "user123",
+			"name":  "Test User",
+			"email": "user@example.com",
+		}
+		clientID := "test-client-123"
+
+		// Generate a token
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
+		require.NoError(t, err, "Failed to generate ID token")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyIdToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated ID token")
+
+		// Check the claims
+		assert.Equal(t, "user123", claims.Subject, "Token subject should match user ID")
+		assert.Contains(t, claims.Audience, clientID, "Audience should contain the client ID")
+		assert.Equal(t, common.EnvConfig.AppURL, claims.Issuer, "Issuer should match app URL")
+
+		// Check token expiration time is approximately 1 hour from now
+		expectedExp := time.Now().Add(1 * time.Hour)
+		tokenExp := claims.ExpiresAt.Time
+		timeDiff := expectedExp.Sub(tokenExp).Minutes()
+		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
+	})
+
+	t.Run("generates and verifies ID token with nonce", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create test claims with nonce
+		userClaims := map[string]interface{}{
+			"sub":  "user456",
+			"name": "Another User",
+		}
+		clientID := "test-client-456"
+		nonce := "random-nonce-value"
+
+		// Generate a token with nonce
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, nonce)
+		require.NoError(t, err, "Failed to generate ID token with nonce")
+
+		// Parse the token manually to check nonce
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err, "Failed to get public key")
+		token, err := jwt.Parse([]byte(tokenString), jwt.WithKey(jwa.RS256(), publicKey))
+		require.NoError(t, err, "Failed to parse token")
+
+		var tokenNonce string
+		err = token.Get("nonce", &tokenNonce)
+		require.NoError(t, err, "Failed to get claims")
+
+		assert.Equal(t, nonce, tokenNonce, "Token should contain the correct nonce")
+	})
+
+	t.Run("fails verification with incorrect issuer", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Generate a token with standard claims
+		userClaims := map[string]interface{}{
+			"sub": "user789",
+		}
+		tokenString, err := service.GenerateIDToken(userClaims, "client-789", "")
+		require.NoError(t, err, "Failed to generate ID token")
+
+		// Temporarily change the app URL to simulate wrong issuer
+		common.EnvConfig.AppURL = "https://wrong-issuer.com"
+
+		// Verify should fail due to issuer mismatch
+		_, err = service.VerifyIdToken(tokenString)
+		assert.Error(t, err, "Verification should fail with incorrect issuer")
+		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
 	})
 }
 
