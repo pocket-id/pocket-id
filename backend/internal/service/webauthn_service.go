@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -97,7 +96,7 @@ func (s *WebAuthnService) VerifyRegistration(sessionID, userID string, r *http.R
 	}
 
 	// Determine passkey name using AAGUID and User-Agent
-	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID, r.UserAgent())
+	passkeyName := s.determinePasskeyName(credential.Authenticator.AAGUID)
 
 	credentialToStore := model.WebauthnCredential{
 		Name:            passkeyName,
@@ -116,10 +115,9 @@ func (s *WebAuthnService) VerifyRegistration(sessionID, userID string, r *http.R
 	return credentialToStore, nil
 }
 
-func (s *WebAuthnService) determinePasskeyName(aaguid []byte, userAgent string) string {
+func (s *WebAuthnService) determinePasskeyName(aaguid []byte) string {
 	// First try to identify by AAGUID using a combination of builtin + MDS
 	authenticatorName := utils.GetAuthenticatorName(aaguid)
-	fmt.Println("AAGUID: ", authenticatorName)
 	if authenticatorName != "" {
 		return authenticatorName
 	}
