@@ -47,7 +47,7 @@
   "passkey_was_previously_registered": "This passkey was previously registered",
   "authenticator_does_not_support_any_of_the_requested_algorithms": "The authenticator does not support any of the requested algorithms",
   "authenticator_timed_out": "The authenticator timed out",
-  "critical_error_occurred_contact_administrator": "A critical error occured. Please contact your administrator.",
+  "critical_error_occurred_contact_administrator": "A critical error occurred. Please contact your administrator.",
   "failed_to_get_application_configuration": "Failed to get application configuration: {message}",
   "sign_in_to": "Sign in to {name}",
   "client_not_found": "Client not found",
