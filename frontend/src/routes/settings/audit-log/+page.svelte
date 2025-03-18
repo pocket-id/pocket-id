@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
-	import AuditLogList from './audit-log-list.svelte';
+	import AuditLogList from '$lib/components/audit-log-list.svelte';
 
 	let { data } = $props();
 	let { auditLogs } = data;
