@@ -308,5 +308,6 @@
   "favicon": "Favicon",
   "light_mode_logo": "Light Mode Logo",
   "dark_mode_logo": "Dark Mode Logo",
-  "background_image": "Background Image"
+  "background_image": "Background Image",
+  "language": "Language"
 }

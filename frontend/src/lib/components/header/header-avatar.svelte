@@ -41,7 +41,7 @@
 			>
 		</DropdownMenu.Group>
 		<DropdownMenu.Separator />
-		<DropdownMenu.Label>Language</DropdownMenu.Label>
+		<DropdownMenu.Label>{m.language()}</DropdownMenu.Label>
 		<DropdownMenu.Item on:click={() => setLocale('en')}>{m.english()}</DropdownMenu.Item>
 		<DropdownMenu.Item on:click={() => setLocale('nl')}>{m.dutch()}</DropdownMenu.Item>
 	</DropdownMenu.Content>
