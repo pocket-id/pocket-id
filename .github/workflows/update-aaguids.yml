@@ -1,0 +1,36 @@
+name: Update AAGUIDs
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # Runs every Sunday at midnight
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  update-aaguids:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Fetch JSON data
+        run: |
+          curl -o data.json https://raw.githubusercontent.com/passkeydeveloper/passkey-authenticator-aaguids/refs/heads/main/combined_aaguid.json
+
+      - name: Process JSON data
+        run: |
+          mkdir -p backend/resources
+          jq 'map_values(del(.icon_light, .icon_dark))' data.json > backend/resources/aaguids.json
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add backend/resources/aaguids.json
+          git diff --staged --quiet || git commit -m "chore: Update AAGUIDs"
+          git push
