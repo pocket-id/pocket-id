@@ -17,7 +17,7 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
 		><Avatar.Root class="h-9 w-9">
-			<Avatar.Image src="/api/users/me/profile-picture.png" />
+			<Avatar.Image src="/api/users/{$userStore?.id}/profile-picture.png" />
 		</Avatar.Root></DropdownMenu.Trigger
 	>
 	<DropdownMenu.Content class="min-w-40" align="start">
