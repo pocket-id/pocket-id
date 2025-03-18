@@ -24,7 +24,7 @@
 	<ApplicationImage
 		id="favicon"
 		imageClass="h-14 w-14 p-2"
-		label="Favicon"
+		label={m.favicon()}
 		bind:image={favicon}
 		imageURL="/api/application-configuration/favicon"
 		accept="image/x-icon"
@@ -32,7 +32,7 @@
 	<ApplicationImage
 		id="logo-light"
 		imageClass="h-32 w-32"
-		label="Light Mode Logo"
+		label={m.light_mode_logo()}
 		bind:image={logoLight}
 		imageURL="/api/application-configuration/logo?light=true"
 		forceColorScheme="light"
@@ -40,7 +40,7 @@
 	<ApplicationImage
 		id="logo-dark"
 		imageClass="h-32 w-32"
-		label="Dark Mode Logo"
+		label={m.dark_mode_logo()}
 		bind:image={logoDark}
 		imageURL="/api/application-configuration/logo?light=false"
 		forceColorScheme="dark"
@@ -48,7 +48,7 @@
 	<ApplicationImage
 		id="background-image"
 		imageClass="h-[350px] max-w-[500px]"
-		label="Background Image"
+		label={m.background_image()}
 		bind:image={backgroundImage}
 		imageURL="/api/application-configuration/background-image"
 	/>
