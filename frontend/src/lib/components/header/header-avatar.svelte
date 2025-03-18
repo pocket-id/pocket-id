@@ -2,7 +2,6 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
-	import { setLocale } from '$lib/paraglide/runtime';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import userStore from '$lib/stores/user-store';
 	import { LucideLogOut, LucideUser } from 'lucide-svelte';
@@ -40,9 +39,5 @@
 				><LucideLogOut class="mr-2 h-4 w-4" /> {m.logout()}</DropdownMenu.Item
 			>
 		</DropdownMenu.Group>
-		<DropdownMenu.Separator />
-		<DropdownMenu.Label>{m.language()}</DropdownMenu.Label>
-		<DropdownMenu.Item on:click={() => setLocale('en')}>{m.english()}</DropdownMenu.Item>
-		<DropdownMenu.Item on:click={() => setLocale('nl')}>{m.dutch()}</DropdownMenu.Item>
 	</DropdownMenu.Content>
 </DropdownMenu.Root>

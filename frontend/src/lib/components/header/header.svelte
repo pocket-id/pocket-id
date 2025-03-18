@@ -4,6 +4,7 @@
 	import userStore from '$lib/stores/user-store';
 	import Logo from '../logo.svelte';
 	import HeaderAvatar from './header-avatar.svelte';
+	import HeaderLanguage from './header-language.svelte';
 
 	const authUrls = [/^\/authorize$/, /^\/login(?:\/.*)?$/, /^\/logout$/];
 
@@ -26,8 +27,11 @@
 				</h1>
 			{/if}
 		</div>
-		{#if $userStore?.id}
-			<HeaderAvatar />
-		{/if}
+		<div class="flex items-center justify-between gap-4">
+			{#if $userStore?.id}
+				<HeaderAvatar />
+			{/if}
+			<HeaderLanguage />
+		</div>
 	</div>
 </div>
