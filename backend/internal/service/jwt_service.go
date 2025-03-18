@@ -233,6 +233,23 @@ func (s *JwtService) GenerateIDToken(userClaims map[string]interface{}, clientID
 	return token.SignedString(s.privateKey)
 }
 
+func (s *JwtService) VerifyIdToken(tokenString string) (*jwt.RegisteredClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (any, error) {
+		return s.getPublicKeyRaw()
+	}, jwt.WithIssuer(common.EnvConfig.AppURL))
+
+	if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
+		return nil, errors.New("couldn't handle this token")
+	}
+
+	claims, isValid := token.Claims.(*jwt.RegisteredClaims)
+	if !isValid {
+		return nil, errors.New("can't parse claims")
+	}
+
+	return claims, nil
+}
+
 func (s *JwtService) GenerateOauthAccessToken(user model.User, clientID string) (string, error) {
 	claim := jwt.RegisteredClaims{
 		Subject:   user.ID,
@@ -253,23 +270,6 @@ func (s *JwtService) VerifyOauthAccessToken(tokenString string) (*jwt.Registered
 		return s.getPublicKeyRaw()
 	})
 	if err != nil || !token.Valid {
-		return nil, errors.New("couldn't handle this token")
-	}
-
-	claims, isValid := token.Claims.(*jwt.RegisteredClaims)
-	if !isValid {
-		return nil, errors.New("can't parse claims")
-	}
-
-	return claims, nil
-}
-
-func (s *JwtService) VerifyIdToken(tokenString string) (*jwt.RegisteredClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (any, error) {
-		return s.getPublicKeyRaw()
-	}, jwt.WithIssuer(common.EnvConfig.AppURL))
-
-	if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
 		return nil, errors.New("couldn't handle this token")
 	}
 
