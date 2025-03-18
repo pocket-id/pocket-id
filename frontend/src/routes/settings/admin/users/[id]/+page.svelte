@@ -14,7 +14,6 @@
 	import { LucideChevronLeft } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import UserForm from '../user-form.svelte';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 
 	let { data } = $props();
 	let user = $state({
@@ -59,29 +58,15 @@
 	async function updateProfilePicture(image: File) {
 		await userService
 			.updateProfilePicture(user.id, image)
-			.then(() => toast.success('Profile picture updated successfully'))
+			.then(() => toast.success('Profile picture updated successfully. It may take a few minutes to update.'))
 			.catch(axiosErrorToast);
 	}
 
 	async function resetProfilePicture() {
-		openConfirmDialog({
-			title: 'Reset profile picture?',
-			message:
-				'This will remove the uploaded image, and reset the profile picture to default. Do you want to continue?',
-			confirm: {
-				label: 'Reset',
-				action: async () => {
-					try {
-						await userService
-							.resetProfilePicture(user.id)
-							.then(() => toast.success('Profile picture has been reset.'))
-							.catch(axiosErrorToast);
-					} catch (error) {
-						axiosErrorToast(error);
-					}
-				}
-			}
-		});
+		await userService
+			.resetProfilePicture(user.id)
+			.then(() => toast.success('Profile picture has been reset. It may take a few minutes to update.'))
+			.catch(axiosErrorToast);
 	}
 </script>
 
@@ -111,8 +96,8 @@
 		<ProfilePictureSettings
 			userId={user.id}
 			isLdapUser={!!user.ldapId}
-			callback={updateProfilePicture}
-			onReset={resetProfilePicture}
+			updateCallback={updateProfilePicture}
+			resetCallback={resetProfilePicture}
 		/>
 	</Card.Content>
 </Card.Root>

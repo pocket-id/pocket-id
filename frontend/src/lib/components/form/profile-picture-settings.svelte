@@ -2,35 +2,23 @@
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { LucideLoader, LucideUpload, LucideRefreshCw } from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
-	import type UserService from '$lib/services/user-service';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import { LucideLoader, LucideRefreshCw, LucideUpload } from 'lucide-svelte';
+	import { openConfirmDialog } from '../confirm-dialog';
 
 	let {
 		userId,
 		isLdapUser = false,
-		onReset,
-		callback
+		resetCallback,
+		updateCallback
 	}: {
 		userId: string;
 		isLdapUser?: boolean;
-		onReset: () => Promise<void>;
-		callback: (image: File) => Promise<void>;
+		resetCallback: () => Promise<void>;
+		updateCallback: (image: File) => Promise<void>;
 	} = $props();
 
 	let isLoading = $state(false);
-	let isResetting = $state(false);
-
 	let imageDataURL = $state(`/api/users/${userId}/profile-picture.png`);
-	let hasCustomImage = $state(false);
-
-	// Check if the user has a custom profile picture
-	// We'll add a timestamp to the URL to avoid caching issues
-	function refreshImageUrl() {
-		const timestamp = new Date().getTime();
-		imageDataURL = `/api/users/${userId}/profile-picture.png`;
-	}
 
 	async function onImageChange(e: Event) {
 		const file = (e.target as HTMLInputElement).files?.[0] || null;
@@ -41,14 +29,29 @@
 		const reader = new FileReader();
 		reader.onload = (event) => {
 			imageDataURL = event.target?.result as string;
-			hasCustomImage = true;
 		};
 		reader.readAsDataURL(file);
 
-		await callback(file).catch(() => {
-			refreshImageUrl();
+		await updateCallback(file).catch(() => {
+			imageDataURL = `/api/users/${userId}/profile-picture.png}`;
 		});
 		isLoading = false;
+	}
+
+	function onReset() {
+		openConfirmDialog({
+			title: 'Reset profile picture?',
+			message:
+				'This will remove the uploaded image, and reset the profile picture to default. Do you want to continue?',
+			confirm: {
+				label: 'Reset',
+				action: async () => {
+					isLoading = true;
+					await resetCallback().catch();
+					isLoading = false;
+				}
+			}
+		});
 	}
 </script>
 
@@ -66,6 +69,16 @@
 				</p>
 				<p class="text-muted-foreground mt-1 text-sm">The image should be in PNG or JPEG format.</p>
 			{/if}
+			<Button
+				variant="outline"
+				size="sm"
+				class="mt-5"
+				on:click={onReset}
+				disabled={isLoading || isLdapUser}
+			>
+				<LucideRefreshCw class="mr-2 h-4 w-4" />
+				Reset to default
+			</Button>
 		</div>
 		{#if isLdapUser}
 			<Avatar.Root class="h-24 w-24">
@@ -82,14 +95,12 @@
 					<div class="group relative h-28 w-28 rounded-full">
 						<Avatar.Root class="h-full w-full transition-opacity duration-200">
 							<Avatar.Image
-								class="object-cover group-hover:opacity-10 {isLoading || isResetting
-									? 'opacity-10'
-									: ''}"
+								class="object-cover group-hover:opacity-10 {isLoading ? 'opacity-10' : ''}"
 								src={imageDataURL}
 							/>
 						</Avatar.Root>
 						<div class="absolute inset-0 flex items-center justify-center">
-							{#if isLoading || isResetting}
+							{#if isLoading}
 								<LucideLoader class="h-5 w-5 animate-spin" />
 							{:else}
 								<LucideUpload
@@ -99,16 +110,6 @@
 						</div>
 					</div>
 				</FileInput>
-				<Button
-					variant="outline"
-					size="sm"
-					class="mt-1"
-					on:click={onReset}
-					disabled={isLoading || isResetting || isLdapUser}
-				>
-					<LucideRefreshCw class="mr-2 h-4 w-4 {isResetting ? 'animate-spin' : ''}" />
-					Reset to default
-				</Button>
 			</div>
 		{/if}
 	</div>

@@ -63,7 +63,7 @@ export default class UserService extends APIService {
 		await this.api.delete(`/users/me/profile-picture`);
 	}
 
-	async resetProfilePicture(userId: String) {
+	async resetProfilePicture(userId: string) {
 		await this.api.delete(`/users/${userId}/profile-picture`);
 	}
 

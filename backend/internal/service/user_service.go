@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -375,28 +374,11 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 	}
 
 	// Build path to profile picture
-	profilePictureDir := fmt.Sprintf("%s/profile-pictures", common.EnvConfig.UploadPath)
-	profilePicturePath := fmt.Sprintf("%s/%s.png", profilePictureDir, userID)
-
-	// Get absolute paths for comparison
-	absProfilePictureDir, err := filepath.Abs(profilePictureDir)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for directory: %w", err)
-	}
-
-	absProfilePicturePath, err := filepath.Abs(profilePicturePath)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for file: %w", err)
-	}
-
-	// Check that file path is within the expected directory
-	if !strings.HasPrefix(absProfilePicturePath, absProfilePictureDir) {
-		return fmt.Errorf("invalid profile picture path")
-	}
+	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
 
 	// Check if file exists and delete it
-	if _, err := os.Stat(absProfilePicturePath); err == nil {
-		if err := os.Remove(absProfilePicturePath); err != nil {
+	if _, err := os.Stat(profilePicturePath); err == nil {
+		if err := os.Remove(profilePicturePath); err != nil {
 			return fmt.Errorf("failed to delete profile picture: %w", err)
 		}
 	} else if !os.IsNotExist(err) {
