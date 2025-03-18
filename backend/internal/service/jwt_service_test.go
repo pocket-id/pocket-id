@@ -332,7 +332,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			"name":  "Test User",
 			"email": "user@example.com",
 		}
-		clientID := "test-client-123"
+		const clientID = "test-client-123"
 
 		// Generate a token
 		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
@@ -366,7 +366,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			"sub":  "user456",
 			"name": "Another User",
 		}
-		clientID := "test-client-456"
+		const clientID = "test-client-456"
 		nonce := "random-nonce-value"
 
 		// Generate a token with nonce
@@ -405,6 +405,122 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		// Verify should fail due to issuer mismatch
 		_, err = service.VerifyIdToken(tokenString)
 		assert.Error(t, err, "Verification should fail with incorrect issuer")
+		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
+	})
+}
+
+func TestGenerateVerifyOauthAccessToken(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Initialize the JWT service with a mock AppConfigService
+	mockConfig := &AppConfigService{
+		DbConfig: &model.AppConfig{
+			SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
+		},
+	}
+
+	// Setup the environment variable required by the token verification
+	originalAppURL := common.EnvConfig.AppURL
+	common.EnvConfig.AppURL = "https://test.example.com"
+	defer func() {
+		common.EnvConfig.AppURL = originalAppURL
+	}()
+
+	t.Run("generates and verifies OAuth access token with standard claims", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "user123",
+			},
+			Email: "user@example.com",
+		}
+		const clientID = "test-client-123"
+
+		// Generate a token
+		tokenString, err := service.GenerateOauthAccessToken(user, clientID)
+		require.NoError(t, err, "Failed to generate OAuth access token")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyOauthAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated OAuth access token")
+
+		// Check the claims
+		assert.Equal(t, user.ID, claims.Subject, "Token subject should match user ID")
+		assert.Contains(t, claims.Audience, clientID, "Audience should contain the client ID")
+		assert.Equal(t, common.EnvConfig.AppURL, claims.Issuer, "Issuer should match app URL")
+
+		// Check token expiration time is approximately 1 hour from now
+		expectedExp := time.Now().Add(1 * time.Hour)
+		tokenExp := claims.ExpiresAt.Time
+		timeDiff := expectedExp.Sub(tokenExp).Minutes()
+		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
+	})
+
+	t.Run("fails verification for expired token", func(t *testing.T) {
+		// Create a JWT service with a mock function to generate an expired token
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "user456",
+			},
+		}
+		const clientID = "test-client-456"
+
+		// Generate a token using JWT directly to create an expired token
+		token, err := jwt.NewBuilder().
+			Subject(user.ID).
+			Expiration(time.Now().Add(-1 * time.Hour)). // Expired 1 hour ago
+			IssuedAt(time.Now().Add(-2 * time.Hour)).
+			Audience([]string{clientID}).
+			Issuer(common.EnvConfig.AppURL).
+			Build()
+		require.NoError(t, err, "Failed to build token")
+
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), service.privateKey))
+		require.NoError(t, err, "Failed to sign token")
+
+		// Verify should fail due to expiration
+		_, err = service.VerifyOauthAccessToken(string(signed))
+		assert.Error(t, err, "Verification should fail with expired token")
+		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
+	})
+
+	t.Run("fails verification with invalid signature", func(t *testing.T) {
+		// Create two JWT services with different keys
+		service1 := &JwtService{}
+		err := service1.init(mockConfig, t.TempDir()) // Use a different temp dir
+		require.NoError(t, err, "Failed to initialize first JWT service")
+
+		service2 := &JwtService{}
+		err = service2.init(mockConfig, t.TempDir()) // Use a different temp dir
+		require.NoError(t, err, "Failed to initialize second JWT service")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "user789",
+			},
+		}
+		const clientID = "test-client-789"
+
+		// Generate a token with the first service
+		tokenString, err := service1.GenerateOauthAccessToken(user, clientID)
+		require.NoError(t, err, "Failed to generate OAuth access token")
+
+		// Verify with the second service should fail due to different keys
+		_, err = service2.VerifyOauthAccessToken(tokenString)
+		assert.Error(t, err, "Verification should fail with invalid signature")
 		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
 	})
 }
