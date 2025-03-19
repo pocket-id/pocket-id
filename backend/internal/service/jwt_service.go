@@ -336,6 +336,20 @@ func (s *JwtService) GetPublicJWKSAsJSON() ([]byte, error) {
 	return s.jwksEncoded, nil
 }
 
+// GetKeyAlg returns the algorithm of the key
+func (s *JwtService) GetKeyAlg() (jwa.KeyAlgorithm, error) {
+	if len(s.jwksEncoded) == 0 {
+		return nil, errors.New("key is not initialized")
+	}
+
+	alg, ok := s.privateKey.Algorithm()
+	if !ok || alg == nil {
+		return nil, errors.New("failed to retrieve algorithm for key")
+	}
+
+	return alg, nil
+}
+
 func (s *JwtService) loadKeyJWK(path string) (jwk.Key, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
