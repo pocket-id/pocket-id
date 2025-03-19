@@ -25,7 +25,7 @@ jobs:
       - name: Process JSON data
         run: |
           mkdir -p backend/resources
-          jq 'map_values(del(.icon_light, .icon_dark))' data.json > backend/resources/aaguids.json
+          jq -c 'map_values(del(.icon_light, .icon_dark))' data.json > backend/resources/aaguids.json
 
       - name: Commit changes
         run: |
