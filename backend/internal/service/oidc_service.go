@@ -477,17 +477,17 @@ func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string)
 	}
 
 	// If the client ID is provided check if the client ID in the ID token matches the client ID in the request
-	clientID, ok := token.Subject()
-	if !ok {
+	clientID, ok := token.Audience()
+	if !ok || len(clientID) == 0 {
 		return "", &common.TokenInvalidError{}
 	}
-	if input.ClientId != "" && clientID != input.ClientId {
+	if input.ClientId != "" && clientID[0] != input.ClientId {
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
 
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
-	if err := s.db.Preload("Client").First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID, userID).Error; err != nil {
+	if err := s.db.Preload("Client").First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).Error; err != nil {
 		return "", &common.OidcMissingAuthorizationError{}
 	}
 
