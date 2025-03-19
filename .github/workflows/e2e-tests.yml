@@ -66,7 +66,7 @@ jobs:
           -p 80:80 \
           -e APP_ENV=test \
           pocket-id/pocket-id:test \
-            | tee /tmp/tests/report.log
+            | tee /tmp/backend.log
 
       - name: Run Playwright tests
         working-directory: ./frontend
@@ -84,7 +84,7 @@ jobs:
         if: always()
         with:
           name: backend-sqlite
-          path: /tmp/tests/report.log
+          path: /tmp/backend.log
           include-hidden-files: true
           retention-days: 15
 
@@ -148,7 +148,7 @@ jobs:
           -e DB_PROVIDER=postgres \
           -e POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
           pocket-id/pocket-id:test \
-            | tee /tmp/tests/report.log
+            | tee /tmp/backend.log
 
       - name: Run Playwright tests
         working-directory: ./frontend
@@ -166,6 +166,6 @@ jobs:
         if: always()
         with:
           name: backend-postgres
-          path: /tmp/tests/report.log
+          path: /tmp/backend.log
           include-hidden-files: true
           retention-days: 15
