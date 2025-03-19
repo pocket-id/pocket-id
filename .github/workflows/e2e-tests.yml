@@ -65,8 +65,9 @@ jobs:
           docker run -d --name pocket-id-sqlite \
           -p 80:80 \
           -e APP_ENV=test \
-          pocket-id/pocket-id:test \
-            | tee /tmp/backend.log
+          pocket-id/pocket-id:test
+
+          docker logs -f pocket-id-sqlite &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./frontend
@@ -147,8 +148,9 @@ jobs:
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
           -e POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
-          pocket-id/pocket-id:test \
-            | tee /tmp/backend.log
+          pocket-id/pocket-id:test
+
+          docker logs -f pocket-id-postgres &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./frontend
