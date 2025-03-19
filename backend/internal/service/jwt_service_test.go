@@ -2,10 +2,13 @@ package service
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,19 +20,23 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/tokenutils"
 )
 
 func TestJwtService_Init(t *testing.T) {
+	mockConfig := &AppConfigService{
+		DbConfig: &model.AppConfig{
+			SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
+		},
+	}
+
 	t.Run("should generate new key when none exists", func(t *testing.T) {
 		// Create a temporary directory for the test
 		tempDir := t.TempDir()
 
-		// Create a mock AppConfigService
-		appConfigService := &AppConfigService{}
-
 		// Initialize the JWT service
 		service := &JwtService{}
-		err := service.init(appConfigService, tempDir)
+		err := service.init(mockConfig, tempDir)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Verify the private key was set
@@ -62,7 +69,7 @@ func TestJwtService_Init(t *testing.T) {
 
 		// First create a service to generate a key
 		firstService := &JwtService{}
-		err := firstService.init(&AppConfigService{}, tempDir)
+		err := firstService.init(mockConfig, tempDir)
 		require.NoError(t, err)
 
 		// Get the key ID of the first service
@@ -71,7 +78,7 @@ func TestJwtService_Init(t *testing.T) {
 
 		// Now create a new service that should load the existing key
 		secondService := &JwtService{}
-		err = secondService.init(&AppConfigService{}, tempDir)
+		err = secondService.init(mockConfig, tempDir)
 		require.NoError(t, err)
 
 		// Verify the loaded key has the same ID as the original
@@ -80,33 +87,72 @@ func TestJwtService_Init(t *testing.T) {
 		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 	})
 
-	t.Run("should load existing JWK for EC keys", func(t *testing.T) {
+	t.Run("should load existing JWK for ECDSA keys", func(t *testing.T) {
 		// Create a temporary directory for the test
 		tempDir := t.TempDir()
 
 		// Create a new JWK and save it to disk
-		origKeyID := createECKeyJWK(t, tempDir)
+		origKeyID := createECDSAKeyJWK(t, tempDir)
 
 		// Now create a new service that should load the existing key
 		svc := &JwtService{}
-		err := svc.init(&AppConfigService{}, tempDir)
+		err := svc.init(mockConfig, tempDir)
 		require.NoError(t, err)
+
+		// Ensure loaded key has the right algorithm
+		alg, ok := svc.privateKey.Algorithm()
+		_ = assert.True(t, ok) &&
+			assert.Equal(t, jwa.ES256().String(), alg.String(), "Loaded key has the incorrect algorithm")
 
 		// Verify the loaded key has the same ID as the original
 		loadedKeyID, ok := svc.privateKey.KeyID()
-		require.True(t, ok)
-		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+		_ = assert.True(t, ok) &&
+			assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+	})
+
+	t.Run("should load existing JWK for EdDSA keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create a new JWK and save it to disk
+		origKeyID := createEdDSAKeyJWK(t, tempDir)
+
+		// Now create a new service that should load the existing key
+		svc := &JwtService{}
+		err := svc.init(mockConfig, tempDir)
+		require.NoError(t, err)
+
+		// Ensure loaded key has the right algorithm and curve
+		alg, ok := svc.privateKey.Algorithm()
+		_ = assert.True(t, ok) &&
+			assert.Equal(t, jwa.EdDSA().String(), alg.String(), "Loaded key has the incorrect algorithm")
+
+		var curve jwa.EllipticCurveAlgorithm
+		err = svc.privateKey.Get("crv", &curve)
+		_ = assert.NoError(t, err, "Failed to get 'crv' claim") &&
+			assert.Equal(t, jwa.Ed25519().String(), curve.String(), "Curve does not match expected value")
+
+		// Verify the loaded key has the same ID as the original
+		loadedKeyID, ok := svc.privateKey.KeyID()
+		_ = assert.True(t, ok) &&
+			assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 	})
 }
 
 func TestJwtService_GetPublicJWK(t *testing.T) {
+	mockConfig := &AppConfigService{
+		DbConfig: &model.AppConfig{
+			SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
+		},
+	}
+
 	t.Run("returns public key when private key is initialized", func(t *testing.T) {
 		// Create a temporary directory for the test
 		tempDir := t.TempDir()
 
 		// Create a JWT service with initialized key
 		service := &JwtService{}
-		err := service.init(&AppConfigService{}, tempDir)
+		err := service.init(mockConfig, tempDir)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Get the JWK (public key)
@@ -136,11 +182,11 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 		tempDir := t.TempDir()
 
 		// Create an ECDSA key and save it as JWK
-		originalKeyID := createECKeyJWK(t, tempDir)
+		originalKeyID := createECDSAKeyJWK(t, tempDir)
 
 		// Create a JWT service that loads the ECDSA key
 		service := &JwtService{}
-		err := service.init(&AppConfigService{}, tempDir)
+		err := service.init(mockConfig, tempDir)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Get the JWK (public key)
@@ -167,6 +213,44 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 		alg, ok := publicKey.Algorithm()
 		require.True(t, ok, "Public key should have an algorithm")
 		assert.Equal(t, "ES256", alg.String(), "Algorithm should be ES256")
+	})
+
+	t.Run("returns public key when EdDSA private key is initialized", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an EdDSA key and save it as JWK
+		originalKeyID := createEdDSAKeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the EdDSA key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Get the JWK (public key)
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err, "GetPublicJWK should not return an error when private key is initialized")
+
+		// Verify the returned key is valid
+		require.NotNil(t, publicKey, "Public key should not be nil")
+
+		// Validate it's actually a public key
+		isPrivate, err := jwk.IsPrivateKey(publicKey)
+		require.NoError(t, err)
+		assert.False(t, isPrivate, "Returned key should be a public key")
+
+		// Check that key has required properties
+		keyID, ok := publicKey.KeyID()
+		require.True(t, ok, "Public key should have a key ID")
+		assert.Equal(t, originalKeyID, keyID, "Key ID should match the original key ID")
+
+		// Check that the key type is OKP
+		assert.Equal(t, "OKP", publicKey.KeyType().String(), "Key type should be OKP")
+
+		// Check that the algorithm is EdDSA
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok, "Public key should have an algorithm")
+		assert.Equal(t, "EdDSA", alg.String(), "Algorithm should be EdDSA")
 	})
 
 	t.Run("returns error when private key is not initialized", func(t *testing.T) {
@@ -228,15 +312,22 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		require.NoError(t, err, "Failed to verify generated token")
 
 		// Check the claims
-		assert.Equal(t, user.ID, claims.Subject, "Token subject should match user ID")
-		assert.Equal(t, false, claims.IsAdmin, "IsAdmin should be false")
-		assert.Contains(t, claims.Audience, "https://test.example.com", "Audience should contain the app URL")
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
+		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
+			assert.False(t, isAdmin, "isAdmin should be false")
+		audience, ok := claims.Audience()
+		_ = assert.True(t, ok, "Audience not found in token") &&
+			assert.EqualValues(t, []string{"https://test.example.com"}, audience, "Audience should contain the app URL")
 
-		// Check token expiration time is approximately 60 minutes from now
-		expectedExp := time.Now().Add(60 * time.Minute)
-		tokenExp := claims.ExpiresAt.Time
-		timeDiff := expectedExp.Sub(tokenExp).Minutes()
-		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 60 minutes")
+		// Check token expiration time is approximately 1 hour from now
+		expectedExp := time.Now().Add(1 * time.Hour)
+		expiration, ok := claims.Expiration()
+		assert.True(t, ok, "Expiration not found in token")
+		timeDiff := expectedExp.Sub(expiration).Minutes()
+		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
 	})
 
 	t.Run("generates token for admin user", func(t *testing.T) {
@@ -263,8 +354,12 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		require.NoError(t, err, "Failed to verify generated token")
 
 		// Check the IsAdmin claim is true
-		assert.Equal(t, true, claims.IsAdmin, "IsAdmin should be true for admin users")
-		assert.Equal(t, adminUser.ID, claims.Subject, "Token subject should match admin ID")
+		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
+			assert.True(t, isAdmin, "isAdmin should be true")
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, adminUser.ID, subject, "Token subject should match user ID")
 	})
 
 	t.Run("uses session duration from config", func(t *testing.T) {
@@ -296,9 +391,172 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		// Check token expiration time is approximately 30 minutes from now
 		expectedExp := time.Now().Add(30 * time.Minute)
-		tokenExp := claims.ExpiresAt.Time
-		timeDiff := expectedExp.Sub(tokenExp).Minutes()
+		expiration, ok := claims.Expiration()
+		assert.True(t, ok, "Expiration not found in token")
+		timeDiff := expectedExp.Sub(expiration).Minutes()
 		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 30 minutes")
+	})
+
+	t.Run("works with Ed25519 keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an Ed25519 key and save it as JWK
+		origKeyID := createEdDSAKeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "eddsauser123",
+			},
+			Email:   "eddsauser@example.com",
+			IsAdmin: true,
+		}
+
+		// Generate a token
+		tokenString, err := service.GenerateAccessToken(user)
+		require.NoError(t, err, "Failed to generate access token with Ed25519 key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token with Ed25519 key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
+		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
+			assert.True(t, isAdmin, "isAdmin should be true")
+
+		// Verify the key type is OKP
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, "OKP", publicKey.KeyType().String(), "Key type should be OKP")
+
+		// Verify the algorithm is EdDSA
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, "EdDSA", alg.String(), "Algorithm should be EdDSA")
+	})
+
+	t.Run("works with P-256 keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an ECDSA key and save it as JWK
+		origKeyID := createECDSAKeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "ecdsauser123",
+			},
+			Email:   "ecdsauser@example.com",
+			IsAdmin: true,
+		}
+
+		// Generate a token
+		tokenString, err := service.GenerateAccessToken(user)
+		require.NoError(t, err, "Failed to generate access token with ECDSA key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token with ECDSA key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
+		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
+			assert.True(t, isAdmin, "isAdmin should be true")
+
+		// Verify the key type is EC
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, jwa.EC().String(), publicKey.KeyType().String(), "Key type should be EC")
+
+		// Verify the algorithm is ES256
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, jwa.ES256().String(), alg.String(), "Algorithm should be ES256")
+	})
+
+	t.Run("works with RSA-4096 keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an RSA-4096 key and save it as JWK
+		origKeyID := createRSA4096KeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "rsauser123",
+			},
+			Email:   "rsauser@example.com",
+			IsAdmin: true,
+		}
+
+		// Generate a token
+		tokenString, err := service.GenerateAccessToken(user)
+		require.NoError(t, err, "Failed to generate access token with RSA key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token with RSA key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
+		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
+			assert.True(t, isAdmin, "isAdmin should be true")
+
+		// Verify the key type is RSA
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, jwa.RSA().String(), publicKey.KeyType().String(), "Key type should be RSA")
+
+		// Verify the algorithm is RS256
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, jwa.RS256().String(), alg.String(), "Algorithm should be RS256")
 	})
 }
 
@@ -344,14 +602,21 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		require.NoError(t, err, "Failed to verify generated ID token")
 
 		// Check the claims
-		assert.Equal(t, "user123", claims.Subject, "Token subject should match user ID")
-		assert.Contains(t, claims.Audience, clientID, "Audience should contain the client ID")
-		assert.Equal(t, common.EnvConfig.AppURL, claims.Issuer, "Issuer should match app URL")
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, "user123", subject, "Token subject should match user ID")
+		audience, ok := claims.Audience()
+		_ = assert.True(t, ok, "Audience not found in token") &&
+			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+		issuer, ok := claims.Issuer()
+		_ = assert.True(t, ok, "Issuer not found in token") &&
+			assert.Equal(t, common.EnvConfig.AppURL, issuer, "Issuer should match app URL")
 
 		// Check token expiration time is approximately 1 hour from now
 		expectedExp := time.Now().Add(1 * time.Hour)
-		tokenExp := claims.ExpiresAt.Time
-		timeDiff := expectedExp.Sub(tokenExp).Minutes()
+		expiration, ok := claims.Expiration()
+		assert.True(t, ok, "Expiration not found in token")
+		timeDiff := expectedExp.Sub(expiration).Minutes()
 		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
 	})
 
@@ -405,7 +670,166 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		// Verify should fail due to issuer mismatch
 		_, err = service.VerifyIdToken(tokenString)
 		assert.Error(t, err, "Verification should fail with incorrect issuer")
-		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
+		assert.Contains(t, err.Error(), `"iss" not satisfied`, "Error message should indicate token verification failure")
+	})
+
+	t.Run("works with Ed25519 keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an Ed25519 key and save it as JWK
+		origKeyID := createEdDSAKeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create test claims
+		userClaims := map[string]interface{}{
+			"sub":   "eddsauser456",
+			"name":  "EdDSA User",
+			"email": "eddsauser@example.com",
+		}
+		const clientID = "eddsa-client-123"
+
+		// Generate a token
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
+		require.NoError(t, err, "Failed to generate ID token with key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyIdToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated ID token with key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, "eddsauser456", subject, "Token subject should match user ID")
+		issuer, ok := claims.Issuer()
+		_ = assert.True(t, ok, "Issuer not found in token") &&
+			assert.Equal(t, common.EnvConfig.AppURL, issuer, "Issuer should match app URL")
+
+		// Verify the key type is OKP
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, jwa.OKP().String(), publicKey.KeyType().String(), "Key type should be OKP")
+
+		// Verify the algorithm is EdDSA
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, jwa.EdDSA().String(), alg.String(), "Algorithm should be EdDSA")
+	})
+
+	t.Run("works with P-256 keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an ECDSA key and save it as JWK
+		origKeyID := createECDSAKeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create test claims
+		userClaims := map[string]interface{}{
+			"sub":   "ecdsauser456",
+			"name":  "ECDSA User",
+			"email": "ecdsauser@example.com",
+		}
+		const clientID = "ecdsa-client-123"
+
+		// Generate a token
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
+		require.NoError(t, err, "Failed to generate ID token with key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyIdToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated ID token with key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, "ecdsauser456", subject, "Token subject should match user ID")
+		issuer, ok := claims.Issuer()
+		_ = assert.True(t, ok, "Issuer not found in token") &&
+			assert.Equal(t, common.EnvConfig.AppURL, issuer, "Issuer should match app URL")
+
+		// Verify the key type is EC
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, jwa.EC().String(), publicKey.KeyType().String(), "Key type should be EC")
+
+		// Verify the algorithm is ES256
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, jwa.ES256().String(), alg.String(), "Algorithm should be ES256")
+	})
+
+	t.Run("works with RSA-4096 keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an RSA-4096 key and save it as JWK
+		origKeyID := createRSA4096KeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create test claims
+		userClaims := map[string]interface{}{
+			"sub":   "rsauser456",
+			"name":  "RSA User",
+			"email": "rsauser@example.com",
+		}
+		const clientID = "rsa-client-123"
+
+		// Generate a token
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
+		require.NoError(t, err, "Failed to generate ID token with key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyIdToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated ID token with key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, "rsauser456", subject, "Token subject should match user ID")
+		issuer, ok := claims.Issuer()
+		_ = assert.True(t, ok, "Issuer not found in token") &&
+			assert.Equal(t, common.EnvConfig.AppURL, issuer, "Issuer should match app URL")
+
+		// Verify the key type is RSA
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, jwa.RSA().String(), publicKey.KeyType().String(), "Key type should be RSA")
+
+		// Verify the algorithm is RS256
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, jwa.RS256().String(), alg.String(), "Algorithm should be RS256")
 	})
 }
 
@@ -452,14 +876,21 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		require.NoError(t, err, "Failed to verify generated OAuth access token")
 
 		// Check the claims
-		assert.Equal(t, user.ID, claims.Subject, "Token subject should match user ID")
-		assert.Contains(t, claims.Audience, clientID, "Audience should contain the client ID")
-		assert.Equal(t, common.EnvConfig.AppURL, claims.Issuer, "Issuer should match app URL")
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
+		audience, ok := claims.Audience()
+		_ = assert.True(t, ok, "Audience not found in token") &&
+			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+		issuer, ok := claims.Issuer()
+		_ = assert.True(t, ok, "Issuer not found in token") &&
+			assert.Equal(t, common.EnvConfig.AppURL, issuer, "Issuer should match app URL")
 
 		// Check token expiration time is approximately 1 hour from now
 		expectedExp := time.Now().Add(1 * time.Hour)
-		tokenExp := claims.ExpiresAt.Time
-		timeDiff := expectedExp.Sub(tokenExp).Minutes()
+		expiration, ok := claims.Expiration()
+		assert.True(t, ok, "Expiration not found in token")
+		timeDiff := expectedExp.Sub(expiration).Minutes()
 		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
 	})
 
@@ -493,7 +924,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		// Verify should fail due to expiration
 		_, err = service.VerifyOauthAccessToken(string(signed))
 		assert.Error(t, err, "Verification should fail with expired token")
-		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
+		assert.Contains(t, err.Error(), `"exp" not satisfied`, "Error message should indicate token verification failure")
 	})
 
 	t.Run("fails verification with invalid signature", func(t *testing.T) {
@@ -521,18 +952,175 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		// Verify with the second service should fail due to different keys
 		_, err = service2.VerifyOauthAccessToken(tokenString)
 		assert.Error(t, err, "Verification should fail with invalid signature")
-		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
+		assert.Contains(t, err.Error(), "verification error", "Error message should indicate token verification failure")
+	})
+
+	t.Run("works with Ed25519 keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an Ed25519 key and save it as JWK
+		origKeyID := createEdDSAKeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "eddsauser789",
+			},
+			Email: "eddsaoauth@example.com",
+		}
+		const clientID = "eddsa-oauth-client"
+
+		// Generate a token
+		tokenString, err := service.GenerateOauthAccessToken(user, clientID)
+		require.NoError(t, err, "Failed to generate OAuth access token with key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyOauthAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated OAuth access token with key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
+		audience, ok := claims.Audience()
+		_ = assert.True(t, ok, "Audience not found in token") &&
+			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+
+		// Verify the key type is OKP
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, jwa.OKP().String(), publicKey.KeyType().String(), "Key type should be OKP")
+
+		// Verify the algorithm is EdDSA
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, jwa.EdDSA().String(), alg.String(), "Algorithm should be EdDSA")
+	})
+
+	t.Run("works with ECDSA keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an ECDSA key and save it as JWK
+		origKeyID := createECDSAKeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "ecdsauser789",
+			},
+			Email: "ecdsaoauth@example.com",
+		}
+		const clientID = "ecdsa-oauth-client"
+
+		// Generate a token
+		tokenString, err := service.GenerateOauthAccessToken(user, clientID)
+		require.NoError(t, err, "Failed to generate OAuth access token with key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyOauthAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated OAuth access token with key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
+		audience, ok := claims.Audience()
+		_ = assert.True(t, ok, "Audience not found in token") &&
+			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+
+		// Verify the key type is EC
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, jwa.EC().String(), publicKey.KeyType().String(), "Key type should be EC")
+
+		// Verify the algorithm is ES256
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, jwa.ES256().String(), alg.String(), "Algorithm should be ES256")
+	})
+
+	t.Run("works with RSA-4096 keys", func(t *testing.T) {
+		// Create a temporary directory for the test
+		tempDir := t.TempDir()
+
+		// Create an RSA-4096 key and save it as JWK
+		origKeyID := createRSA4096KeyJWK(t, tempDir)
+
+		// Create a JWT service that loads the key
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Verify it loaded the right key
+		loadedKeyID, ok := service.privateKey.KeyID()
+		require.True(t, ok)
+		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
+
+		// Create a test user
+		user := model.User{
+			Base: model.Base{
+				ID: "rsauser789",
+			},
+			Email: "rsaoauth@example.com",
+		}
+		const clientID = "rsa-oauth-client"
+
+		// Generate a token
+		tokenString, err := service.GenerateOauthAccessToken(user, clientID)
+		require.NoError(t, err, "Failed to generate OAuth access token with key")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		claims, err := service.VerifyOauthAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated OAuth access token with key")
+
+		// Check the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
+		audience, ok := claims.Audience()
+		_ = assert.True(t, ok, "Audience not found in token") &&
+			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+
+		// Verify the key type is RSA
+		publicKey, err := service.GetPublicJWK()
+		require.NoError(t, err)
+		assert.Equal(t, jwa.RSA().String(), publicKey.KeyType().String(), "Key type should be RSA")
+
+		// Verify the algorithm is RS256
+		alg, ok := publicKey.Algorithm()
+		require.True(t, ok)
+		assert.Equal(t, jwa.RS256().String(), alg.String(), "Algorithm should be RS256")
 	})
 }
 
-func createECKeyJWK(t *testing.T, path string) string {
+func importKey(t *testing.T, privateKeyRaw any, path string) string {
 	t.Helper()
 
-	// Generate a new P-256 ECDSA key
-	privateKeyRaw, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err, "Failed to generate ECDSA key")
-
-	// Import as JWK and save to disk
 	privateKey, err := importRawKey(privateKeyRaw)
 	require.NoError(t, err, "Failed to import private key")
 
@@ -543,4 +1131,48 @@ func createECKeyJWK(t *testing.T, path string) string {
 	require.NotEmpty(t, kid, "Key ID must be set")
 
 	return kid
+}
+
+// Because generating a RSA-406 key isn't immediate, we pre-compute one
+var (
+	rsaKeyPrecomputed    *rsa.PrivateKey
+	rsaKeyPrecomputeOnce sync.Once
+)
+
+func createRSA4096KeyJWK(t *testing.T, path string) string {
+	t.Helper()
+
+	rsaKeyPrecomputeOnce.Do(func() {
+		var err error
+		rsaKeyPrecomputed, err = rsa.GenerateKey(rand.Reader, 4096)
+		if err != nil {
+			panic("failed to precompute RSA key: " + err.Error())
+		}
+	})
+
+	// Import as JWK and save to disk
+	return importKey(t, rsaKeyPrecomputed, path)
+}
+
+func createECDSAKeyJWK(t *testing.T, path string) string {
+	t.Helper()
+
+	// Generate a new P-256 ECDSA key
+	privateKeyRaw, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err, "Failed to generate ECDSA key")
+
+	// Import as JWK and save to disk
+	return importKey(t, privateKeyRaw, path)
+}
+
+// Helper function to create an Ed25519 key and save it as JWK
+func createEdDSAKeyJWK(t *testing.T, path string) string {
+	t.Helper()
+
+	// Generate a new Ed25519 key pair
+	_, privateKeyRaw, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err, "Failed to generate Ed25519 key")
+
+	// Import as JWK and save to disk
+	return importKey(t, privateKeyRaw, path)
 }
