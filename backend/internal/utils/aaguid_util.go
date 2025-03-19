@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -33,7 +34,8 @@ func FormatAAGUID(aaguid []byte) string {
 	}
 
 	// Otherwise just return as hex
-	return fmt.Sprintf("%x", aaguid)
+	return hex.EncodeToString(aaguid)
+
 }
 
 // GetAuthenticatorName returns the name of the authenticator for the given AAGUID
