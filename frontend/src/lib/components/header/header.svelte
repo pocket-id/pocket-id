@@ -28,10 +28,10 @@
 			{/if}
 		</div>
 		<div class="flex items-center justify-between gap-4">
+			<HeaderLanguage />
 			{#if $userStore?.id}
 				<HeaderAvatar />
 			{/if}
-			<HeaderLanguage />
 		</div>
 	</div>
 </div>
