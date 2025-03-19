@@ -65,7 +65,8 @@ jobs:
           docker run -d --name pocket-id-sqlite \
           -p 80:80 \
           -e APP_ENV=test \
-          pocket-id/pocket-id:test
+          pocket-id/pocket-id:test \
+            | tee /tmp/tests/report.log
 
       - name: Run Playwright tests
         working-directory: ./frontend
@@ -76,6 +77,14 @@ jobs:
         with:
           name: playwright-report-sqlite
           path: frontend/tests/.report
+          include-hidden-files: true
+          retention-days: 15
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-sqlite
+          path: /tmp/tests/report.log
           include-hidden-files: true
           retention-days: 15
 
@@ -138,7 +147,8 @@ jobs:
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
           -e POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
-          pocket-id/pocket-id:test
+          pocket-id/pocket-id:test \
+            | tee /tmp/tests/report.log
 
       - name: Run Playwright tests
         working-directory: ./frontend
@@ -149,5 +159,13 @@ jobs:
         with:
           name: playwright-report-postgres
           path: frontend/tests/.report
+          include-hidden-files: true
+          retention-days: 15
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-postgres
+          path: /tmp/tests/report.log
           include-hidden-files: true
           retention-days: 15
