@@ -26,6 +26,15 @@
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
 
+	async function resetProfilePicture() {
+		await userService
+			.resetCurrentUserProfilePicture()
+			.then(() =>
+				toast.success('Profile picture has been reset. It may take a few minutes to update.')
+			)
+			.catch(axiosErrorToast);
+	}
+
 	async function updateAccount(user: UserCreate) {
 		let success = true;
 		await userService
@@ -42,7 +51,9 @@
 	async function updateProfilePicture(image: File) {
 		await userService
 			.updateCurrentUsersProfilePicture(image)
-			.then(() => toast.success('Profile picture updated successfully'))
+			.then(() =>
+				toast.success('Profile picture updated successfully. It may take a few minutes to update.')
+			)
 			.catch(axiosErrorToast);
 	}
 
@@ -99,9 +110,10 @@
 <Card.Root>
 	<Card.Content class="pt-6">
 		<ProfilePictureSettings
-			userId="me"
+			userId={account.id}
 			isLdapUser={!!account.ldapId}
-			callback={updateProfilePicture}
+			updateCallback={updateProfilePicture}
+			resetCallback={resetProfilePicture}
 		/>
 	</Card.Content>
 </Card.Root>

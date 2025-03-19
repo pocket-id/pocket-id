@@ -90,7 +90,7 @@ func CreateDefaultProfilePicture(firstName, lastName string) (*bytes.Buffer, err
 	var buf bytes.Buffer
 	err = imaging.Encode(&buf, img, imaging.PNG)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode image: %v", err)
+		return nil, fmt.Errorf("failed to encode image: %w", err)
 	}
 
 	return &buf, nil

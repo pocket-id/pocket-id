@@ -58,7 +58,14 @@
 	async function updateProfilePicture(image: File) {
 		await userService
 			.updateProfilePicture(user.id, image)
-			.then(() => toast.success('Profile picture updated successfully'))
+			.then(() => toast.success('Profile picture updated successfully. It may take a few minutes to update.'))
+			.catch(axiosErrorToast);
+	}
+
+	async function resetProfilePicture() {
+		await userService
+			.resetProfilePicture(user.id)
+			.then(() => toast.success('Profile picture has been reset. It may take a few minutes to update.'))
 			.catch(axiosErrorToast);
 	}
 </script>
@@ -89,7 +96,8 @@
 		<ProfilePictureSettings
 			userId={user.id}
 			isLdapUser={!!user.ldapId}
-			callback={updateProfilePicture}
+			updateCallback={updateProfilePicture}
+			resetCallback={resetProfilePicture}
 		/>
 	</Card.Content>
 </Card.Root>
