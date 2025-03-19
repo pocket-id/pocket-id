@@ -38,7 +38,8 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 	accessToken, err := c.Cookie(cookie.AccessTokenCookieName)
 	if err != nil {
 		// Try to extract the token from the Authorization header if it's not in the cookie
-		_, accessToken, ok := strings.Cut(c.GetHeader("Authorization"), " ")
+		var ok bool
+		_, accessToken, ok = strings.Cut(c.GetHeader("Authorization"), " ")
 		if !ok || accessToken == "" {
 			return "", false, &common.NotSignedInError{}
 		}

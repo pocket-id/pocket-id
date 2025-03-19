@@ -197,7 +197,11 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 
 func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 	alg, _ := s.privateKey.Algorithm()
-	token, err := jwt.ParseString(tokenString, jwt.WithKey(alg, s.privateKey))
+	token, err := jwt.ParseString(
+		tokenString,
+		jwt.WithValidate(true),
+		jwt.WithKey(alg, s.privateKey),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
@@ -252,7 +256,11 @@ func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string,
 
 func (s *JwtService) VerifyIdToken(tokenString string) (jwt.Token, error) {
 	alg, _ := s.privateKey.Algorithm()
-	token, err := jwt.ParseString(tokenString, jwt.WithKey(alg, s.privateKey))
+	token, err := jwt.ParseString(
+		tokenString,
+		jwt.WithValidate(true),
+		jwt.WithKey(alg, s.privateKey),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
@@ -293,7 +301,11 @@ func (s *JwtService) GenerateOauthAccessToken(user model.User, clientID string) 
 
 func (s *JwtService) VerifyOauthAccessToken(tokenString string) (jwt.Token, error) {
 	alg, _ := s.privateKey.Algorithm()
-	token, err := jwt.ParseString(tokenString, jwt.WithKey(alg, s.privateKey))
+	token, err := jwt.ParseString(
+		tokenString,
+		jwt.WithValidate(true),
+		jwt.WithKey(alg, s.privateKey),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
