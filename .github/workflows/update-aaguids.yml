@@ -2,7 +2,7 @@ name: Update AAGUIDs
 
 on:
   schedule:
-    - cron: "0 0 * * 0" # Runs every Sunday at midnight
+    - cron: "0 0 * * 1" # Runs every Monday at midnight
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
 
       - name: Fetch JSON data
         run: |
-          curl -o data.json https://raw.githubusercontent.com/passkeydeveloper/passkey-authenticator-aaguids/refs/heads/main/combined_aaguid.json
+          curl -o data.json https://raw.githubusercontent.com/pocket-id/passkey-aaguids/refs/heads/main/combined_aaguid.json
 
       - name: Process JSON data
         run: |
