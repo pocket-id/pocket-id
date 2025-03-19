@@ -466,31 +466,24 @@ func (s *OidcService) UpdateAllowedUserGroups(id string, input dto.OidcUpdateAll
 // ValidateEndSession returns the logout callback URL for the client if all the validations pass
 func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string) (string, error) {
 	// If no ID token hint is provided, return an error
-	fmt.Println("AAAAA")
 	if input.IdTokenHint == "" {
-		fmt.Println("ERR 111")
 		return "", &common.TokenInvalidError{}
 	}
 
 	// If the ID token hint is provided, verify the ID token
 	token, err := s.jwtService.VerifyIdToken(input.IdTokenHint)
 	if err != nil {
-		fmt.Println("ERR 222", err)
 		return "", &common.TokenInvalidError{}
 	}
 
 	// If the client ID is provided check if the client ID in the ID token matches the client ID in the request
 	clientID, ok := token.Subject()
 	if !ok {
-		fmt.Println("ERR 333")
 		return "", &common.TokenInvalidError{}
 	}
 	if input.ClientId != "" && clientID != input.ClientId {
-		fmt.Println("ERR 444", input.ClientId, clientID)
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
-
-	fmt.Println("BBBB")
 
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
