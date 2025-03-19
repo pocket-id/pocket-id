@@ -62,10 +62,22 @@
 			.then(() => toast.success(m.profile_picture_updated_successfully()))
 			.catch(axiosErrorToast);
 	}
+
+	async function resetProfilePicture() {
+		await userService
+			.resetProfilePicture(user.id)
+			.then(() => toast.success(m.profile_picture_has_been_reset()))
+			.catch(axiosErrorToast);
+	}
 </script>
 
 <svelte:head>
-	<title>{m.user_details_firstname_lastname({ firstName: user.firstName, lastName: user.lastName })}</title>
+	<title
+		>{m.user_details_firstname_lastname({
+			firstName: user.firstName,
+			lastName: user.lastName
+		})}</title
+	>
 </svelte:head>
 
 <div class="flex items-center justify-between">
@@ -90,7 +102,8 @@
 		<ProfilePictureSettings
 			userId={user.id}
 			isLdapUser={!!user.ldapId}
-			callback={updateProfilePicture}
+			updateCallback={updateProfilePicture}
+			resetCallback={resetProfilePicture}
 		/>
 	</Card.Content>
 </Card.Root>

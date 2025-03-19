@@ -27,6 +27,15 @@
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
 
+	async function resetProfilePicture() {
+		await userService
+			.resetCurrentUserProfilePicture()
+			.then(() =>
+				toast.success('Profile picture has been reset. It may take a few minutes to update.')
+			)
+			.catch(axiosErrorToast);
+	}
+
 	async function updateAccount(user: UserCreate) {
 		let success = true;
 		await userService
@@ -77,9 +86,7 @@
 	<Alert.Root variant="warning" dismissibleId="single-passkey">
 		<LucideAlertTriangle class="size-4" />
 		<Alert.Title>{m.single_passkey_configured()}</Alert.Title>
-		<Alert.Description
-			>{m.it_is_recommended_to_add_more_than_one_passkey()}</Alert.Description
-		>
+		<Alert.Description>{m.it_is_recommended_to_add_more_than_one_passkey()}</Alert.Description>
 	</Alert.Root>
 {/if}
 
@@ -102,7 +109,8 @@
 		<ProfilePictureSettings
 			userId={account.id}
 			isLdapUser={!!account.ldapId}
-			callback={updateProfilePicture}
+			updateCallback={updateProfilePicture}
+			resetCallback={resetProfilePicture}
 		/>
 	</Card.Content>
 </Card.Root>
@@ -135,7 +143,9 @@
 					{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 				</Card.Description>
 			</div>
-			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}>{m.create()}</Button>
+			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}
+				>{m.create()}</Button
+			>
 		</div>
 	</Card.Header>
 </Card.Root>
