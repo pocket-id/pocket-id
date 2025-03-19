@@ -17,7 +17,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/lestrrat-go/jwx/v3 v3.0.0-alpha3
+	github.com/lestrrat-go/jwx/v3 v3.0.0-beta1
 	github.com/mileusna/useragent v1.3.5
 	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.2
 	github.com/stretchr/testify v1.10.0
