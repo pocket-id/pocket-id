@@ -1,16 +1,18 @@
 <script lang="ts">
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
-	import { setLocale } from '$lib/paraglide/runtime';
+	import { setLocale, getLocale } from '$lib/paraglide/runtime';
 	import { Languages } from 'lucide-svelte';
 	import { Button } from '../ui/button';
+
+	$: currentLocale = getLocale();
 </script>
 
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger asChild let:builder>
 		<Button builders={[builder]} variant="outline" size="sm" class="h-8 gap-1">
 			<Languages class="h-3.5 w-3.5" />
-			<span class="sr-only sm:not-sr-only sm:whitespace-nowrap"> {m.language()} </span>
+			<span class="sr-only sm:not-sr-only sm:whitespace-nowrap"> {currentLocale.toUpperCase()} </span>
 		</Button>
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content class="min-w-40" align="start">
