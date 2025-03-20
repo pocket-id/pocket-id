@@ -309,5 +309,10 @@
 	"dark_mode_logo": "Donkere modus logo",
 	"background_image": "Achtergrondfoto",
 	"language": "Taal",
-	"profile_picture_has_been_reset": "Profielfoto is gereset. Het kan enkele minuten duren voordat de wijzigingen zichtbaar zijn."
+	"reset_profile_picture_question": "Reset profile picture?",
+	"this_will_remove_the_uploaded_image_and_reset_the_profile_picture_to_default": "This will remove the uploaded image, and reset the profile picture to default. Do you want to continue?",
+	"reset": "Reset",
+	"reset_to_default": "Reset to default",
+	"profile_picture_has_been_reset": "Profielfoto is gereset. Het kan enkele minuten duren voordat de wijzigingen zichtbaar zijn.",
+	"select_the_language_you_want_to_use": "Select the language you want to use. Some languages may not be fully translated."
 }
