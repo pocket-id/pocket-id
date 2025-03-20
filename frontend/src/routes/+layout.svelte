@@ -5,7 +5,6 @@
 	import Header from '$lib/components/header/header.svelte';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import { m } from '$lib/paraglide/messages';
-	import { setLocale } from '$lib/paraglide/runtime';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { ModeWatcher } from 'mode-watcher';
@@ -24,9 +23,6 @@
 	const { user, appConfig } = data;
 
 	if (browser && user) {
-		if (user.locale){
-			setLocale(user.locale, {reload: false});
-		}
 		userStore.setUser(user);
 	}
 	if (appConfig) {
