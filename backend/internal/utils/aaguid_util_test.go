@@ -106,10 +106,6 @@ func TestLoadAAGUIDsFromFile(t *testing.T) {
 	// Trigger loading of AAGUIDs by calling GetAuthenticatorName
 	GetAuthenticatorName([]byte{0x01, 0x02, 0x03, 0x04})
 
-	// Verify that the map was populated
-	aaguidMapMu.RLock()
-	defer aaguidMapMu.RUnlock()
-
 	if len(aaguidMap) == 0 {
 		t.Error("loadAAGUIDsFromFile() failed to populate aaguidMap")
 	}

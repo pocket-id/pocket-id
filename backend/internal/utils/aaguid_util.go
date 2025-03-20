@@ -10,19 +10,13 @@ import (
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-type AAGUIDEntry struct {
-	Name string `json:"name"`
-}
-
 var (
 	aaguidMap     map[string]string
 	aaguidMapOnce sync.Once
-	aaguidMapMu   sync.RWMutex
 )
 
 // FormatAAGUID converts an AAGUID byte slice to UUID string format
 func FormatAAGUID(aaguid []byte) string {
-
 	if len(aaguid) == 0 {
 		return ""
 	}
@@ -35,7 +29,6 @@ func FormatAAGUID(aaguid []byte) string {
 
 	// Otherwise just return as hex
 	return hex.EncodeToString(aaguid)
-
 }
 
 // GetAuthenticatorName returns the name of the authenticator for the given AAGUID
@@ -48,9 +41,6 @@ func GetAuthenticatorName(aaguid []byte) string {
 	// Then check JSON-sourced map
 	aaguidMapOnce.Do(loadAAGUIDsFromFile)
 
-	aaguidMapMu.RLock()
-	defer aaguidMapMu.RUnlock()
-
 	if name, ok := aaguidMap[aaguidStr]; ok {
 		return name + " Passkey"
 	}
@@ -60,11 +50,6 @@ func GetAuthenticatorName(aaguid []byte) string {
 
 // loadAAGUIDsFromFile loads AAGUID data from the embedded file system
 func loadAAGUIDsFromFile() {
-	aaguidMapMu.Lock()
-	defer aaguidMapMu.Unlock()
-
-	aaguidMap = make(map[string]string)
-
 	// Read from embedded file system
 	data, err := resources.FS.ReadFile("aaguids.json")
 	if err != nil {
@@ -72,16 +57,8 @@ func loadAAGUIDsFromFile() {
 		return
 	}
 
-	var entries map[string]AAGUIDEntry
-	if err := json.Unmarshal(data, &entries); err != nil {
+	if err := json.Unmarshal(data, &aaguidMap); err != nil {
 		log.Printf("Error unmarshalling AAGUID data: %v", err)
 		return
-	}
-
-	// Populate the AAGUID map
-	for guid, entry := range entries {
-		if guid != "" && entry.Name != "" {
-			aaguidMap[guid] = entry.Name
-		}
 	}
 }

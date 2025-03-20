@@ -5,6 +5,9 @@ on:
     - cron: "0 0 * * 1" # Runs every Monday at midnight
   workflow_dispatch: # Allows manual triggering of the workflow
 
+permissions: 
+    contents: write
+    
 jobs:
   update-aaguids:
     runs-on: ubuntu-latest
@@ -20,12 +23,12 @@ jobs:
       - name: Process JSON data
         run: |
           mkdir -p backend/resources
-          jq -c 'map_values(del(.icon_light, .icon_dark))' data.json > backend/resources/aaguids.json
+          jq -c 'map_values(.name)' data.json > backend/resources/aaguids.json
 
       - name: Commit changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add backend/resources/aaguids.json
-          git diff --staged --quiet || git commit -m "chore: Update AAGUIDs"
+          git diff --staged --quiet || git commit -m "chore: update AAGUIDs"
           git push
