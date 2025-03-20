@@ -28,7 +28,7 @@
 	}}
 	onSelectedChange={(v) => updateLocale(v!.value)}
 >
-	<Select.Trigger class="h-9 max-w-[200px]">
+	<Select.Trigger class="h-9 max-w-[200px]" aria-label="Select locale">
 		<Select.Value>{locales[currentLocale]}</Select.Value>
 	</Select.Trigger>
 	<Select.Content>
