@@ -181,10 +181,14 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 		Expiration(now.Add(s.sessionDuration)).
 		IssuedAt(now).
 		Issuer(common.EnvConfig.AppURL).
-		Audience([]string{common.EnvConfig.AppURL}).
 		Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build token: %w", err)
+	}
+
+	err = SetAudienceString(token, common.EnvConfig.AppURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
 	err = SetIsAdmin(token, user.IsAdmin)
@@ -231,10 +235,14 @@ func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string,
 		Expiration(now.Add(1 * time.Hour)).
 		IssuedAt(now).
 		Issuer(common.EnvConfig.AppURL).
-		Audience([]string{clientID}).
 		Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build token: %w", err)
+	}
+
+	err = SetAudienceString(token, clientID)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
 	for k, v := range userClaims {
@@ -290,10 +298,14 @@ func (s *JwtService) GenerateOauthAccessToken(user model.User, clientID string) 
 		Expiration(now.Add(1 * time.Hour)).
 		IssuedAt(now).
 		Issuer(common.EnvConfig.AppURL).
-		Audience([]string{clientID}).
 		Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build token: %w", err)
+	}
+
+	err = SetAudienceString(token, clientID)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
 	alg, _ := s.privateKey.Algorithm()
@@ -486,4 +498,10 @@ func SetIsAdmin(token jwt.Token, isAdmin bool) error {
 		return nil
 	}
 	return token.Set(IsAdminClaim, isAdmin)
+}
+
+// SetAudienceString sets the "aud" claim with a value that is a string, and not an array
+// This is permitted by RFC 7519, and it's done here for backwards-compatibility
+func SetAudienceString(token jwt.Token, audience string) error {
+	return token.Set(jwt.AudienceKey, audience)
 }
