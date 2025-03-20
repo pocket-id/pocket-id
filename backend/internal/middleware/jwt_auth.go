@@ -7,7 +7,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/tokenutils"
 )
 
 type JwtAuthMiddleware struct {
@@ -57,7 +56,7 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 	}
 
 	// Check if the user is an admin
-	isAdmin, err = tokenutils.GetIsAdmin(token)
+	isAdmin, err = service.GetIsAdmin(token)
 	if err != nil {
 		return "", false, &common.TokenInvalidError{}
 	}

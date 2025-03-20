@@ -21,7 +21,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/tokenutils"
 )
 
 const (
@@ -34,6 +33,13 @@ const (
 
 	// KeyUsageSigning is the usage for the private keys, for the "use" property
 	KeyUsageSigning = "sig"
+
+	// IsAdminClaim is a boolean claim used in access tokens for admin users
+	// This may be omitted on non-admin tokens
+	IsAdminClaim = "isAdmin"
+
+	// Acceptable clock skew for verifying tokens
+	clockSkew = time.Minute
 )
 
 type JwtService struct {
@@ -181,7 +187,7 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 		return "", fmt.Errorf("failed to build token: %w", err)
 	}
 
-	err = tokenutils.SetIsAdmin(token, user.IsAdmin)
+	err = SetIsAdmin(token, user.IsAdmin)
 	if err != nil {
 		return "", fmt.Errorf("failed to set 'isAdmin' claim in token: %w", err)
 	}
@@ -208,7 +214,7 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 
 	err = jwt.Validate(
 		token,
-		jwt.WithAcceptableSkew(5*time.Minute),
+		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithAudience(common.EnvConfig.AppURL),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
 	)
@@ -267,7 +273,7 @@ func (s *JwtService) VerifyIdToken(tokenString string) (jwt.Token, error) {
 
 	err = jwt.Validate(
 		token,
-		jwt.WithAcceptableSkew(5*time.Minute),
+		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
 	)
 	if err != nil {
@@ -312,7 +318,7 @@ func (s *JwtService) VerifyOauthAccessToken(tokenString string) (jwt.Token, erro
 
 	err = jwt.Validate(
 		token,
-		jwt.WithAcceptableSkew(5*time.Minute),
+		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
 	)
 	if err != nil {
@@ -461,4 +467,23 @@ func generateRandomKeyID() (string, error) {
 		return "", fmt.Errorf("failed to read random bytes: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+// GetIsAdmin returns the value of the "isAdmin" claim in the token
+func GetIsAdmin(token jwt.Token) (bool, error) {
+	if !token.Has(IsAdminClaim) {
+		return false, nil
+	}
+	var isAdmin bool
+	err := token.Get(IsAdminClaim, &isAdmin)
+	return isAdmin, err
+}
+
+// SetIsAdmin sets the "isAdmin" claim in the token
+func SetIsAdmin(token jwt.Token, isAdmin bool) error {
+	// Only set if true
+	if !isAdmin {
+		return nil
+	}
+	return token.Set(IsAdminClaim, isAdmin)
 }

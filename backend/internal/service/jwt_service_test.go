@@ -20,7 +20,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/tokenutils"
 )
 
 func TestJwtService_Init(t *testing.T) {
@@ -315,7 +314,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		isAdmin, err := GetIsAdmin(claims)
 		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
 			assert.False(t, isAdmin, "isAdmin should be false")
 		audience, ok := claims.Audience()
@@ -354,7 +353,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		require.NoError(t, err, "Failed to verify generated token")
 
 		// Check the IsAdmin claim is true
-		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		isAdmin, err := GetIsAdmin(claims)
 		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
 			assert.True(t, isAdmin, "isAdmin should be true")
 		subject, ok := claims.Subject()
@@ -436,7 +435,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		isAdmin, err := GetIsAdmin(claims)
 		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
 			assert.True(t, isAdmin, "isAdmin should be true")
 
@@ -490,7 +489,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		isAdmin, err := GetIsAdmin(claims)
 		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
 			assert.True(t, isAdmin, "isAdmin should be true")
 
@@ -544,7 +543,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin, err := tokenutils.GetIsAdmin(claims)
+		isAdmin, err := GetIsAdmin(claims)
 		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
 			assert.True(t, isAdmin, "isAdmin should be true")
 
