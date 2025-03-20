@@ -10,8 +10,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "prettier --check . && eslint .",
-    "format": "prettier --write .",
-    "machine-translate": "inlang machine translate --project project.inlang"
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.1.0",
@@ -31,7 +30,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@inlang/cli": "^3.0.0",
     "@inlang/paraglide-js": "^2.0.0",
     "@internationalized/date": "^3.7.0",
     "@playwright/test": "^1.50.0",
