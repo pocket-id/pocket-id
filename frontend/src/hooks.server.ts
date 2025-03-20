@@ -6,6 +6,11 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { AxiosError } from 'axios';
 import { decodeJwt } from 'jose';
 
+// Workaround so that we can also import this environment variable into client-side code
+// If we would directly import $env/dynamic/private into the api-service.ts file, it would throw an error
+// this is still secure as process will just be undefined in the browser
+process.env.INTERNAL_BACKEND_URL = env.INTERNAL_BACKEND_URL ?? 'http://localhost:8080';
+
 // Handle to use the paraglide middleware
 const paraglideHandle: Handle = ({ event, resolve }) => {
 	return paraglideMiddleware(event.request, ({ locale }) => {
@@ -15,12 +20,7 @@ const paraglideHandle: Handle = ({ event, resolve }) => {
 	});
 };
 
-// Workaround so that we can also import this environment variable into client-side code
-// If we would directly import $env/dynamic/private into the api-service.ts file, it would throw an error
-// this is still secure as process will just be undefined in the browser
-process.env.INTERNAL_BACKEND_URL = env.INTERNAL_BACKEND_URL ?? 'http://localhost:8080';
-
-const _handle: Handle = async ({ event, resolve }) => {
+const authenticationHandle: Handle = async ({ event, resolve }) => {
 	const { isSignedIn, isAdmin } = verifyJwt(event.cookies.get(ACCESS_TOKEN_COOKIE_NAME));
 
 	const isUnauthenticatedOnlyPath = event.url.pathname.startsWith('/login') || event.url.pathname.startsWith('/lc')
@@ -54,7 +54,7 @@ const _handle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle: Handle = sequence(paraglideHandle, _handle);
+export const handle: Handle = sequence(paraglideHandle, authenticationHandle);
 
 export const handleError: HandleServerError = async ({ error, message, status }) => {
 	if (error instanceof AxiosError) {
