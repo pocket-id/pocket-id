@@ -2,18 +2,11 @@ package utils
 
 import (
 	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"log"
-	"sync"
 
-	"github.com/pocket-id/pocket-id/backend/resources"
+	"github.com/google/uuid"
 )
 
-var (
-	aaguidMap     map[string]string
-	aaguidMapOnce sync.Once
-)
+//go:generate go run ../../tools/gen-aaguid/main.go ../../resources/aaguids.json aaguid_map_gen.go
 
 // FormatAAGUID converts an AAGUID byte slice to UUID string format
 func FormatAAGUID(aaguid []byte) string {
@@ -23,8 +16,10 @@ func FormatAAGUID(aaguid []byte) string {
 
 	// If exactly 16 bytes, format as UUID
 	if len(aaguid) == 16 {
-		return fmt.Sprintf("%x-%x-%x-%x-%x",
-			aaguid[0:4], aaguid[4:6], aaguid[6:8], aaguid[8:10], aaguid[10:16])
+		u, err := uuid.FromBytes(aaguid)
+		if err == nil {
+			return u.String()
+		}
 	}
 
 	// Otherwise just return as hex
@@ -38,27 +33,10 @@ func GetAuthenticatorName(aaguid []byte) string {
 		return ""
 	}
 
-	// Then check JSON-sourced map
-	aaguidMapOnce.Do(loadAAGUIDsFromFile)
-
-	if name, ok := aaguidMap[aaguidStr]; ok {
+	// Check the generated static map
+	if name, ok := AAGUIDMap[aaguidStr]; ok {
 		return name + " Passkey"
 	}
 
 	return ""
-}
-
-// loadAAGUIDsFromFile loads AAGUID data from the embedded file system
-func loadAAGUIDsFromFile() {
-	// Read from embedded file system
-	data, err := resources.FS.ReadFile("aaguids.json")
-	if err != nil {
-		log.Printf("Error reading embedded AAGUID file: %v", err)
-		return
-	}
-
-	if err := json.Unmarshal(data, &aaguidMap); err != nil {
-		log.Printf("Error unmarshalling AAGUID data: %v", err)
-		return
-	}
 }

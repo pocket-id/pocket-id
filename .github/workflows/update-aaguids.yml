@@ -25,6 +25,26 @@ jobs:
           mkdir -p backend/resources
           jq -c 'map_values(.name)' data.json > backend/resources/aaguids.json
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'backend/go.mod'
+          cache-dependency-path: 'backend/go.sum'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          go get ./...
+
+      - name: Run source generation
+        working-directory: backend
+        run: |
+          go generate ./...
+
+      - name: Run unit tests for the internal/utils package
+        working-directory: backend
+        run: |
+          go test ./internal/utils/...
+
       - name: Commit changes
         run: |
           git config --local user.email "action@github.com"
