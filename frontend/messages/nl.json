@@ -48,7 +48,6 @@
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "De authenticator ondersteunt geen van de gevraagde algoritmen",
 	"authenticator_timed_out": "De authenticator is verlopen",
 	"critical_error_occurred_contact_administrator": "Er is een kritieke fout opgetreden. Neem contact op met uw beheerder.",
-	"failed_to_get_application_configuration": "Het is niet gelukt om de configuratie van de toepassing op te halen: {message}",
 	"sign_in_to": "Meld u aan bij {name}",
 	"client_not_found": "Client niet gevonden",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> wil toegang tot de volgende informatie:",
