@@ -37,7 +37,7 @@
 		const data = form.validate();
 		if (!data) return;
 		isLoading = true;
-		const success = await callback(data);
+		await callback(data);
 		// Reset form if user was successfully created
 		isLoading = false;
 	}

@@ -1,15 +1,14 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import Logo from '../logo.svelte';
 	import HeaderAvatar from './header-avatar.svelte';
-	import HeaderLanguage from './header-language.svelte';
 
 	const authUrls = [/^\/authorize$/, /^\/login(?:\/.*)?$/, /^\/logout$/];
 
 	let isAuthPage = $derived(
-		!$page.error && authUrls.some((pattern) => pattern.test($page.url.pathname))
+		!page.error && authUrls.some((pattern) => pattern.test(page.url.pathname))
 	);
 </script>
 
@@ -28,7 +27,6 @@
 			{/if}
 		</div>
 		<div class="flex items-center justify-between gap-4">
-			<HeaderLanguage />
 			{#if $userStore?.id}
 				<HeaderAvatar />
 			{/if}

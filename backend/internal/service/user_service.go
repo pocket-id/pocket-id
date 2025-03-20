@@ -153,6 +153,7 @@ func (s *UserService) CreateUser(input dto.UserCreateDto) (model.User, error) {
 		Email:     input.Email,
 		Username:  input.Username,
 		IsAdmin:   input.IsAdmin,
+		Locale:    input.Locale,
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
@@ -182,6 +183,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 	user.LastName = updatedUser.LastName
 	user.Email = updatedUser.Email
 	user.Username = updatedUser.Username
+	user.Locale = updatedUser.Locale
 	if !updateOwnUser {
 		user.IsAdmin = updatedUser.IsAdmin
 	}

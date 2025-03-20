@@ -2,6 +2,7 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
@@ -13,10 +14,10 @@
 	import { toast } from 'svelte-sonner';
 	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
 	import AccountForm from './account-form.svelte';
+	import LocalePicker from './locale-picker.svelte';
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let account = $state(data.account);
@@ -146,6 +147,20 @@
 			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}
 				>{m.create()}</Button
 			>
+		</div>
+	</Card.Header>
+</Card.Root>
+
+<Card.Root>
+	<Card.Header>
+		<div class="flex items-center justify-between">
+			<div>
+				<Card.Title>{m.language()}</Card.Title>
+				<Card.Description class="mt-1">
+					{m.select_the_language_you_want_to_use()}
+				</Card.Description>
+			</div>
+			<LocalePicker />
 		</div>
 	</Card.Header>
 </Card.Root>
