@@ -98,6 +98,13 @@ func (s *LdapService) SyncGroups() error {
 		var membersUserId []string
 
 		ldapId := value.GetAttributeValue(uniqueIdentifierAttribute)
+
+		// Skip groups without a valid LDAP ID
+		if ldapId == "" {
+			log.Printf("Warning: Skipping LDAP group without a valid unique identifier (attribute: %s)", uniqueIdentifierAttribute)
+			continue
+		}
+
 		ldapGroupIDs[ldapId] = true
 
 		// Try to find the group in the database
@@ -216,6 +223,13 @@ func (s *LdapService) SyncUsers() error {
 
 	for _, value := range result.Entries {
 		ldapId := value.GetAttributeValue(uniqueIdentifierAttribute)
+
+		// Skip users without a valid LDAP ID
+		if ldapId == "" {
+			log.Printf("Warning: Skipping LDAP user without a valid unique identifier (attribute: %s)", uniqueIdentifierAttribute)
+			continue
+		}
+
 		ldapUserIDs[ldapId] = true
 
 		// Get the user from the database
