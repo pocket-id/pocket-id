@@ -9,7 +9,8 @@
 
 	const locales = {
 		'en-US': 'English',
-		'nl-NL': 'Nederlands'
+		'nl-NL': 'Nederlands',
+		'ru-RU': 'Русский'
 	};
 
 	function updateLocale(locale: Locale) {
