@@ -3,14 +3,13 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"hash/crc64"
 	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
-
-	"github.com/cespare/xxhash/v2"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
@@ -83,8 +82,10 @@ func SaveFileStream(r io.Reader, dstFileName string) error {
 	// Our strategy is to save to a separate file and then rename it to override the original file
 	// First, get a temp file name that doesn't exist already
 	var tmpFileName string
+	var i int64
 	for {
-		suffix := xxhash.Sum64String(dstFileName + strconv.FormatInt(time.Now().UnixMicro(), 10))
+		seed := strconv.FormatInt(time.Now().UnixNano()+i, 10)
+		suffix := crc64.Checksum([]byte(dstFileName+seed), crc64.MakeTable(crc64.ISO))
 		tmpFileName = dstFileName + "." + strconv.FormatUint(suffix, 10)
 		exists, err := FileExists(tmpFileName)
 		if err != nil {
@@ -93,6 +94,7 @@ func SaveFileStream(r io.Reader, dstFileName string) error {
 		if !exists {
 			break
 		}
+		i++
 	}
 
 	// Write to the temporary file
