@@ -173,7 +173,7 @@
 	"smtp_user": "SMTP пользователь",
 	"smtp_password": "SMTP пароль",
 	"smtp_from": "SMTP отравитель",
-	"smtp_tls_option": "SMTP TLS тип",
+	"smtp_tls_option": "SMTP тип TLS",
 	"email_tls_option": "Тип TLS",
 	"skip_certificate_verification": "Пропустить верификацию сертификата",
 	"this_can_be_useful_for_selfsigned_certificates": "Это может быть полезно для самоподписанных сертификатов.",
