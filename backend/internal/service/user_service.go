@@ -94,7 +94,8 @@ func (s *UserService) GetUserGroups(userID string) ([]model.UserGroup, error) {
 
 func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error {
 	// Validate the user ID to prevent directory traversal
-	if err := uuid.Validate(userID); err != nil {
+	err := uuid.Validate(userID)
+	if err != nil {
 		return &common.InvalidUUIDError{}
 	}
 
@@ -105,20 +106,14 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 	}
 
 	// Ensure the directory exists
-	profilePictureDir := fmt.Sprintf("%s/profile-pictures", common.EnvConfig.UploadPath)
-	if err := os.MkdirAll(profilePictureDir, os.ModePerm); err != nil {
+	profilePictureDir := common.EnvConfig.UploadPath + "/profile-pictures"
+	err = os.MkdirAll(profilePictureDir, os.ModePerm)
+	if err != nil {
 		return err
 	}
 
 	// Create the profile picture file
-	createdProfilePicture, err := os.Create(fmt.Sprintf("%s/%s.png", profilePictureDir, userID))
-	if err != nil {
-		return err
-	}
-	defer createdProfilePicture.Close()
-
-	// Copy the image to the file
-	_, err = io.Copy(createdProfilePicture, profilePicture)
+	err = utils.SaveFileStream(profilePicture, profilePictureDir+"/"+userID+".png")
 	if err != nil {
 		return err
 	}

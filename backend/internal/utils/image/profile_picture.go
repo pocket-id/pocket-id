@@ -3,16 +3,18 @@ package profilepicture
 import (
 	"bytes"
 	"fmt"
-	"github.com/disintegration/imageorient"
-	"github.com/disintegration/imaging"
-	"github.com/pocket-id/pocket-id/backend/resources"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"image/color"
 	"io"
 	"strings"
+
+	"github.com/disintegration/imageorient"
+	"github.com/disintegration/imaging"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
+
+	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 const profilePictureSize = 300
