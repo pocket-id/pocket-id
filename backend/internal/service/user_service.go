@@ -194,7 +194,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 }
 
 func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath string) error {
-	isDisabled := s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.IsTrue()
+	isDisabled := !s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.IsTrue()
 	if isDisabled {
 		return &common.OneTimeAccessDisabledError{}
 	}
