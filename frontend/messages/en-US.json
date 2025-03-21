@@ -2,8 +2,6 @@
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"my_account": "My Account",
 	"logout": "Logout",
-	"english": "English",
-	"dutch": "Nederlands",
 	"confirm": "Confirm",
 	"key": "Key",
 	"value": "Value",

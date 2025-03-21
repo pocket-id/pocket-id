@@ -1,3 +1,18 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.43.0...v) (2025-03-20)
+
+
+### Bug Fixes
+
+* wrong base locale causes crash ([3120ebf](https://github.com/pocket-id/pocket-id/commit/3120ebf239b90f0bc0a0af33f30622e034782398))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.42.1...v) (2025-03-20)
+
+
+### Features
+
+* add support for translations ([#349](https://github.com/pocket-id/pocket-id/issues/349)) ([269b5a3](https://github.com/pocket-id/pocket-id/commit/269b5a3c9249bb8081c74741141d3d5a69ea42a2))
+* **passkeys:** name new passkeys based on agguids ([#332](https://github.com/pocket-id/pocket-id/issues/332)) ([041c565](https://github.com/pocket-id/pocket-id/commit/041c565dc10f15edb3e8ab58e9a4df5e48a2a6d3))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.42.0...v) (2025-03-18)
 
 

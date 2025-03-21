@@ -6,12 +6,14 @@ on:
       - "docs/**"
       - "**.md"
       - ".github/**"
+      - "frontend/messages/**"
   pull_request:
     branches: [main]
     paths-ignore:
       - "docs/**"
       - "**.md"
       - ".github/**"
+      - "frontend/messages/**"
 
 jobs:
   build:
