@@ -160,22 +160,28 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 // @Security OAuth2AccessToken
 // @Router /oidc/userinfo [get]
 func (oc *OidcController) userInfoHandler(c *gin.Context) {
-	authHeaderSplit := strings.Split(c.GetHeader("Authorization"), " ")
-	if len(authHeaderSplit) != 2 {
+	_, authToken, ok := strings.Cut(c.GetHeader("Authorization"), " ")
+	if !ok || authToken == "" {
 		c.Error(&common.MissingAccessToken{})
 		return
 	}
 
-	token := authHeaderSplit[1]
-
-	jwtClaims, err := oc.jwtService.VerifyOauthAccessToken(token)
+	token, err := oc.jwtService.VerifyOauthAccessToken(authToken)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	userID := jwtClaims.Subject
-	clientId := jwtClaims.Audience[0]
-	claims, err := oc.oidcService.GetUserClaimsForClient(userID, clientId)
+	userID, ok := token.Subject()
+	if !ok {
+		c.Error(&common.TokenInvalidError{})
+		return
+	}
+	clientID, ok := token.Audience()
+	if !ok || len(clientID) != 1 {
+		c.Error(&common.TokenInvalidError{})
+		return
+	}
+	claims, err := oc.oidcService.GetUserClaimsForClient(userID, clientID[0])
 	if err != nil {
 		c.Error(err)
 		return
