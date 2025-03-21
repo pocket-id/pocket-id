@@ -2,6 +2,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Calendar } from '$lib/components/ui/calendar';
 	import * as Popover from '$lib/components/ui/popover';
+	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import { cn } from '$lib/utils/style';
 	import {
 		CalendarDate,
@@ -30,7 +32,7 @@
 		open = false;
 	}
 
-	const df = new DateFormatter('en-US', {
+	const df = new DateFormatter(getLocale(), {
 		dateStyle: 'long'
 	});
 </script>
@@ -44,7 +46,7 @@
 			builders={[builder]}
 		>
 			<CalendarIcon class="mr-2 h-4 w-4" />
-			{date ? df.format(date.toDate(getLocalTimeZone())) : 'Select a date'}
+			{date ? df.format(date.toDate(getLocalTimeZone())) : m.select_a_date()}
 		</Button>
 	</Popover.Trigger>
 	<Popover.Content class="w-auto p-0" align="start">

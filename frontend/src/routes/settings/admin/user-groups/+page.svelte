@@ -11,6 +11,7 @@
 	import { slide } from 'svelte/transition';
 	import UserGroupForm from './user-group-form.svelte';
 	import UserGroupList from './user-group-list.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let userGroups = $state(data.userGroups);
@@ -24,7 +25,7 @@
 		await userGroupService
 			.create(userGroup)
 			.then((createdUserGroup) => {
-				toast.success('User group created successfully');
+				toast.success(m.user_group_created_successfully());
 				goto(`/settings/admin/user-groups/${createdUserGroup.id}`);
 			})
 			.catch((e) => {
@@ -36,18 +37,18 @@
 </script>
 
 <svelte:head>
-	<title>User Groups</title>
+	<title>{m.user_groups()}</title>
 </svelte:head>
 
 <Card.Root>
 	<Card.Header>
 		<div class="flex items-center justify-between">
 			<div>
-				<Card.Title>Create User Group</Card.Title>
-				<Card.Description>Create a new group that can be assigned to users.</Card.Description>
+				<Card.Title>{m.create_user_group()}</Card.Title>
+				<Card.Description>{m.create_a_new_group_that_can_be_assigned_to_users()}</Card.Description>
 			</div>
 			{#if !expandAddUserGroup}
-				<Button on:click={() => (expandAddUserGroup = true)}>Add Group</Button>
+				<Button on:click={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
 			{:else}
 				<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUserGroup = false)}>
 					<LucideMinus class="h-5 w-5" />
@@ -66,7 +67,7 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Manage User Groups</Card.Title>
+		<Card.Title>{m.manage_user_groups()}</Card.Title>
 	</Card.Header>
 	<Card.Content>
 		<UserGroupList {userGroups} requestOptions={userGroupsRequestOptions} />

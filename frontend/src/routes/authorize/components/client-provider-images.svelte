@@ -3,6 +3,7 @@
 	import CheckmarkAnimated from '$lib/icons/checkmark-animated.svelte';
 	import ConnectArrow from '$lib/icons/connect-arrow.svelte';
 	import CrossAnimated from '$lib/icons/cross-animated.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type { OidcClientMetaData } from '$lib/types/oidc.type';
 
 	const {
@@ -61,7 +62,7 @@
 				class="h-10 w-10"
 				src="/api/oidc/clients/{client.id}/logo"
 				draggable={false}
-				alt="Client Logo"
+				alt={m.client_logo()}
 			/>
 		{:else}
 			<div class="flex h-10 w-10 items-center justify-center text-3xl font-bold">

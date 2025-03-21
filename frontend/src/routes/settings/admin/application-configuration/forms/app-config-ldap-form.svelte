@@ -3,6 +3,7 @@
 	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { axiosErrorToast } from '$lib/utils/error-util';
@@ -74,14 +75,14 @@
 			...data,
 			ldapEnabled: true
 		});
-		toast.success('LDAP configuration updated successfully');
+		toast.success(m.ldap_configuration_updated_successfully());
 		return true;
 	}
 
 	async function onDisable() {
 		ldapEnabled = false;
 		await callback({ ldapEnabled });
-		toast.success('LDAP disabled successfully');
+		toast.success(m.ldap_disabled_successfully());
 	}
 
 	async function onEnable() {
@@ -94,7 +95,7 @@
 		ldapSyncing = true;
 		await appConfigService
 			.syncLdap()
-			.then(() => toast.success('LDAP sync finished'))
+			.then(() => toast.success(m.ldap_sync_finished()))
 			.catch(axiosErrorToast);
 
 		ldapSyncing = false;
@@ -102,98 +103,98 @@
 </script>
 
 <form onsubmit={onSubmit}>
-	<h4 class="text-lg font-semibold">Client Configuration</h4>
+	<h4 class="text-lg font-semibold">{m.client_configuration()}</h4>
 	<fieldset disabled={uiConfigDisabled}>
 		<div class="mt-4 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<FormInput
-				label="LDAP URL"
+				label={m.ldap_url()}
 				placeholder="ldap://example.com:389"
 				bind:input={$inputs.ldapUrl}
 			/>
 			<FormInput
-				label="LDAP Bind DN"
+				label={m.ldap_bind_dn()}
 				placeholder="cn=people,dc=example,dc=com"
 				bind:input={$inputs.ldapBindDn}
 			/>
-			<FormInput label="LDAP Bind Password" type="password" bind:input={$inputs.ldapBindPassword} />
+			<FormInput label={m.ldap_bind_password()} type="password" bind:input={$inputs.ldapBindPassword} />
 			<FormInput
-				label="LDAP Base DN"
+				label={m.ldap_base_dn()}
 				placeholder="dc=example,dc=com"
 				bind:input={$inputs.ldapBase}
 			/>
 			<FormInput
-				label="User Search Filter"
-				description="The Search filter to use to search/sync users."
+				label={m.user_search_filter()}
+				description={m.the_search_filter_to_use_to_search_or_sync_users()}
 				placeholder="(objectClass=person)"
 				bind:input={$inputs.ldapUserSearchFilter}
 			/>
 			<FormInput
-				label="Groups Search Filter"
-				description="The Search filter to use to search/sync groups."
+				label={m.groups_search_filter()}
+				description={m.the_search_filter_to_use_to_search_or_sync_groups()}
 				placeholder="(objectClass=groupOfNames)"
 				bind:input={$inputs.ldapUserGroupSearchFilter}
 			/>
 			<CheckboxWithLabel
 				id="skip-cert-verify"
-				label="Skip Certificate Verification"
-				description="This can be useful for self-signed certificates."
+				label={m.skip_certificate_verification()}
+				description={m.this_can_be_useful_for_selfsigned_certificates()}
 				bind:checked={$inputs.ldapSkipCertVerify.value}
 			/>
 		</div>
-		<h4 class="mt-10 text-lg font-semibold">Attribute Mapping</h4>
+		<h4 class="mt-10 text-lg font-semibold">{m.attribute_mapping()}</h4>
 		<div class="mt-4 grid grid-cols-1 items-end gap-5 md:grid-cols-2">
 			<FormInput
-				label="User Unique Identifier Attribute"
-				description="The value of this attribute should never change."
+				label={m.user_unique_identifier_attribute()}
+				description={m.the_value_of_this_attribute_should_never_change()}
 				placeholder="uuid"
 				bind:input={$inputs.ldapAttributeUserUniqueIdentifier}
 			/>
 			<FormInput
-				label="Username Attribute"
+				label={m.username_attribute()}
 				placeholder="uid"
 				bind:input={$inputs.ldapAttributeUserUsername}
 			/>
 			<FormInput
-				label="User Mail Attribute"
+				label={m.user_mail_attribute()}
 				placeholder="mail"
 				bind:input={$inputs.ldapAttributeUserEmail}
 			/>
 			<FormInput
-				label="User First Name Attribute"
+				label={m.user_first_name_attribute()}
 				placeholder="givenName"
 				bind:input={$inputs.ldapAttributeUserFirstName}
 			/>
 			<FormInput
-				label="User Last Name Attribute"
+				label={m.user_last_name_attribute()}
 				placeholder="sn"
 				bind:input={$inputs.ldapAttributeUserLastName}
 			/>
 			<FormInput
-				label="User Profile Picture Attribute"
-				description="The value of this attribute can either be a URL, a binary or a base64 encoded image."
+				label={m.user_profile_picture_attribute()}
+				description={m.the_value_of_this_attribute_can_either_be_a_url_binary_or_base64_encoded_image()}
 				placeholder="jpegPhoto"
 				bind:input={$inputs.ldapAttributeUserProfilePicture}
 			/>
 			<FormInput
-				label="Group Members Attribute"
-				description="The attribute to use for querying members of a group."
+				label={m.group_members_attribute()}
+				description={m.the_attribute_to_use_for_querying_members_of_a_group()}
 				placeholder="member"
 				bind:input={$inputs.ldapAttributeGroupMember}
 			/>
 			<FormInput
-				label="Group Unique Identifier Attribute"
-				description="The value of this attribute should never change."
+				label={m.group_unique_identifier_attribute()}
+				description={m.the_value_of_this_attribute_should_never_change()}
 				placeholder="uuid"
 				bind:input={$inputs.ldapAttributeGroupUniqueIdentifier}
 			/>
 			<FormInput
-				label="Group Name Attribute"
+				label={m.group_name_attribute()}
 				placeholder="cn"
 				bind:input={$inputs.ldapAttributeGroupName}
 			/>
 			<FormInput
-				label="Admin Group Name"
-				description="Members of this group will have Admin Privileges in Pocket ID."
+				label={m.admin_group_name()}
+				description={m.members_of_this_group_will_have_admin_privileges_in_pocketid()}
 				placeholder="_admin_group_name"
 				bind:input={$inputs.ldapAttributeAdminGroup}
 			/>
@@ -202,11 +203,11 @@
 
 	<div class="mt-8 flex flex-wrap justify-end gap-3">
 		{#if ldapEnabled}
-			<Button variant="secondary" onclick={onDisable} disabled={uiConfigDisabled}>Disable</Button>
-			<Button variant="secondary" onclick={syncLdap} isLoading={ldapSyncing}>Sync now</Button>
-			<Button type="submit" disabled={uiConfigDisabled}>Save</Button>
+			<Button variant="secondary" onclick={onDisable} disabled={uiConfigDisabled}>{m.disable()}</Button>
+			<Button variant="secondary" onclick={syncLdap} isLoading={ldapSyncing}>{m.sync_now()}</Button>
+			<Button type="submit" disabled={uiConfigDisabled}>{m.save()}</Button>
 		{:else}
-			<Button onclick={onEnable} disabled={uiConfigDisabled}>Enable</Button>
+			<Button onclick={onEnable} disabled={uiConfigDisabled}>{m.enable()}</Button>
 		{/if}
 	</div>
 </form>

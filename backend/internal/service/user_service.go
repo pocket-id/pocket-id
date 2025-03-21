@@ -153,6 +153,7 @@ func (s *UserService) CreateUser(input dto.UserCreateDto) (model.User, error) {
 		Email:     input.Email,
 		Username:  input.Username,
 		IsAdmin:   input.IsAdmin,
+		Locale:    input.Locale,
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
@@ -182,6 +183,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 	user.LastName = updatedUser.LastName
 	user.Email = updatedUser.Email
 	user.Username = updatedUser.Username
+	user.Locale = updatedUser.Locale
 	if !updateOwnUser {
 		user.IsAdmin = updatedUser.IsAdmin
 	}
@@ -362,6 +364,30 @@ func (s *UserService) checkDuplicatedFields(user model.User) error {
 	if s.db.Where("id != ? AND username = ?", user.ID, user.Username).First(&existingUser).Error == nil {
 		return &common.AlreadyInUseError{Property: "username"}
 	}
+
+	return nil
+}
+
+// ResetProfilePicture deletes a user's custom profile picture
+func (s *UserService) ResetProfilePicture(userID string) error {
+	// Validate the user ID to prevent directory traversal
+	if err := uuid.Validate(userID); err != nil {
+		return &common.InvalidUUIDError{}
+	}
+
+	// Build path to profile picture
+	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+
+	// Check if file exists and delete it
+	if _, err := os.Stat(profilePicturePath); err == nil {
+		if err := os.Remove(profilePicturePath); err != nil {
+			return fmt.Errorf("failed to delete profile picture: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		// If any error other than "file not exists"
+		return fmt.Errorf("failed to check if profile picture exists: %w", err)
+	}
+	// It's okay if the file doesn't exist - just means there's no custom picture to delete
 
 	return nil
 }

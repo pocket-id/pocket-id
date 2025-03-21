@@ -12,6 +12,7 @@
 	import { slide } from 'svelte/transition';
 	import OIDCClientForm from './oidc-client-form.svelte';
 	import OIDCClientList from './oidc-client-list.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let clients = $state(data.clients);
@@ -29,7 +30,7 @@
 			const clientSecret = await oidcService.createClientSecret(createdClient.id);
 			clientSecretStore.set(clientSecret);
 			goto(`/settings/admin/oidc-clients/${createdClient.id}`);
-			toast.success('OIDC client created successfully');
+			toast.success(m.oidc_client_created_successfully());
 			return true;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -39,18 +40,18 @@
 </script>
 
 <svelte:head>
-	<title>OIDC Clients</title>
+	<title>{m.oidc_clients()}</title>
 </svelte:head>
 
 <Card.Root>
 	<Card.Header>
 		<div class="flex items-center justify-between">
 			<div>
-				<Card.Title>Create OIDC Client</Card.Title>
-				<Card.Description>Add a new OIDC client to {$appConfigStore.appName}.</Card.Description>
+				<Card.Title>{m.create_oidc_client()}</Card.Title>
+				<Card.Description>{m.add_a_new_oidc_client_to_appname({ appName: $appConfigStore.appName})}</Card.Description>
 			</div>
 			{#if !expandAddClient}
-				<Button on:click={() => (expandAddClient = true)}>Add OIDC Client</Button>
+				<Button on:click={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
 			{:else}
 				<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddClient = false)}>
 					<LucideMinus class="h-5 w-5" />
@@ -69,7 +70,7 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Manage OIDC Clients</Card.Title>
+		<Card.Title>{m.manage_oidc_clients()}</Card.Title>
 	</Card.Header>
 	<Card.Content>
 		<OIDCClientList {clients} requestOptions={clientsRequestOptions} />

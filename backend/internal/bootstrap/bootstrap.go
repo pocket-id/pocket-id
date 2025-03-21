@@ -11,5 +11,7 @@ func Bootstrap() {
 	db := newDatabase()
 	appConfigService := service.NewAppConfigService(db)
 
+	migrateKey()
+
 	initRouter(db, appConfigService)
 }

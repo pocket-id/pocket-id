@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import type { Snippet } from 'svelte';
 	import * as Card from './ui/card';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		children,
@@ -29,7 +30,7 @@
 								)}`}
 						class="text-muted-foreground text-xs"
 					>
-						Don't have access to your passkey?
+						{m.dont_have_access_to_your_passkey()}
 					</a>
 				</div>
 			{/if}
@@ -38,7 +39,7 @@
 	<img
 		src="/api/application-configuration/background-image"
 		class="h-screen w-[calc(100vw-650px)] rounded-l-[60px] object-cover"
-		alt="Login background"
+		alt={m.login_background()}
 	/>
 </div>
 
@@ -60,7 +61,7 @@
 							)}`}
 					class="text-muted-foreground mt-7 flex justify-center text-xs"
 				>
-					Don't have access to your passkey?
+					{m.dont_have_access_to_your_passkey()}
 				</a>
 			{/if}
 		</Card.CardContent>

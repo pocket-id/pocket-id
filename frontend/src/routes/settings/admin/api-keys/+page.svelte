@@ -9,6 +9,7 @@
 	import ApiKeyDialog from './api-key-dialog.svelte';
 	import ApiKeyForm from './api-key-form.svelte';
 	import ApiKeyList from './api-key-list.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let apiKeys = $state(data.apiKeys);
@@ -35,18 +36,18 @@
 </script>
 
 <svelte:head>
-	<title>API Keys</title>
+	<title>{m.api_keys()}</title>
 </svelte:head>
 
 <Card.Root>
 	<Card.Header>
 		<div class="flex items-center justify-between">
 			<div>
-				<Card.Title>Create API Key</Card.Title>
-				<Card.Description>Add a new API key for programmatic access.</Card.Description>
+				<Card.Title>{m.create_api_key()}</Card.Title>
+				<Card.Description>{m.add_a_new_api_key_for_programmatic_access()}</Card.Description>
 			</div>
 			{#if !expandAddApiKey}
-				<Button on:click={() => (expandAddApiKey = true)}>Add API Key</Button>
+				<Button on:click={() => (expandAddApiKey = true)}>{m.add_api_key()}</Button>
 			{:else}
 				<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddApiKey = false)}>
 					<LucideMinus class="h-5 w-5" />
@@ -65,7 +66,7 @@
 
 <Card.Root class="mt-6">
 	<Card.Header>
-		<Card.Title>Manage API Keys</Card.Title>
+		<Card.Title>{m.manage_api_keys()}</Card.Title>
 	</Card.Header>
 	<Card.Content>
 		<ApiKeyList {apiKeys} requestOptions={apiKeysRequestOptions} />

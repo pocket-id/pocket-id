@@ -2,6 +2,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { m } from '$lib/paraglide/messages';
 	import { LucideMinus, LucidePlus } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
@@ -53,7 +54,7 @@
 			on:click={() => (callbackURLs = [...callbackURLs, ''])}
 		>
 			<LucidePlus class="mr-1 h-4 w-4" />
-			{callbackURLs.length === 0 ? 'Add' : 'Add another'}
+			{callbackURLs.length === 0 ? m.add() : m.add_another()}
 		</Button>
 	{/if}
 </div>

@@ -8,6 +8,7 @@
 	import { LucideKeyRound, LucidePencil, LucideTrash } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { passkeys = $bindable() }: { passkeys: Passkey[] } = $props();
 
@@ -17,16 +18,16 @@
 
 	async function deletePasskey(passkey: Passkey) {
 		openConfirmDialog({
-			title: `Delete ${passkey.name}`,
-			message: 'Are you sure you want to delete this passkey?',
+			title: m.delete_passkey_name({ passkeyName: passkey.name }),
+			message: m.are_you_sure_you_want_to_delete_this_passkey(),
 			confirm: {
-				label: 'Delete',
+				label: m.delete(),
 				destructive: true,
 				action: async () => {
 					try {
 						await webauthnService.removeCredential(passkey.id);
 						passkeys = await webauthnService.listCredentials();
-						toast.success('Passkey deleted successfully');
+						toast.success(m.passkey_deleted_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
 					}
@@ -44,7 +45,7 @@
 				<div>
 					<p>{passkey.name}</p>
 					<p class="text-xs text-muted-foreground">
-						Added on {new Date(passkey.createdAt).toLocaleDateString()}
+						{m.added_on()} {new Date(passkey.createdAt).toLocaleDateString()}
 					</p>
 				</div>
 			</div>
@@ -53,13 +54,13 @@
 					on:click={() => (passkeyToRename = passkey)}
 					size="sm"
 					variant="outline"
-					aria-label="Rename"><LucidePencil class="h-3 w-3" /></Button
+					aria-label={m.rename()}><LucidePencil class="h-3 w-3" /></Button
 				>
 				<Button
 					on:click={() => deletePasskey(passkey)}
 					size="sm"
 					variant="outline"
-					aria-label="Delete"><LucideTrash class="h-3 w-3 text-red-500" /></Button
+					aria-label={m.delete()}><LucideTrash class="h-3 w-3 text-red-500" /></Button
 				>
 			</div>
 		</div>

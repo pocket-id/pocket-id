@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store.js';
 	import userStore from '$lib/stores/user-store.js';
@@ -33,18 +34,16 @@
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>
 	<h1 class="font-playfair mt-5 text-4xl font-bold">
-		{`${$appConfigStore.appName} Setup`}
+		{m.appname_setup({ appName: $appConfigStore.appName })}
 	</h1>
 	{#if error}
 		<p class="text-muted-foreground mt-2">
-			{error}. Please try again.
+			{error}. {m.please_try_again()}
 		</p>
 	{:else}
 		<p class="text-muted-foreground mt-2">
-			You're about to sign in to the initial admin account. Anyone with this link can access the
-			account until a passkey is added. Please set up a passkey as soon as possible to prevent
-			unauthorized access.
+			{m.you_are_about_to_sign_in_to_the_initial_admin_account()}
 		</p>
-		<Button class="mt-5" {isLoading} on:click={authenticate}>Continue</Button>
+		<Button class="mt-5" {isLoading} on:click={authenticate}>{m.continue()}</Button>
 	{/if}
 </SignInWrapper>

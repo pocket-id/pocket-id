@@ -1,6 +1,8 @@
 import { env } from '$env/dynamic/private';
 import { ACCESS_TOKEN_COOKIE_NAME } from '$lib/constants';
+import { paraglideMiddleware } from '$lib/paraglide/server';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
 import { AxiosError } from 'axios';
 import { decodeJwt } from 'jose';
 
@@ -9,7 +11,16 @@ import { decodeJwt } from 'jose';
 // this is still secure as process will just be undefined in the browser
 process.env.INTERNAL_BACKEND_URL = env.INTERNAL_BACKEND_URL ?? 'http://localhost:8080';
 
-export const handle: Handle = async ({ event, resolve }) => {
+// Handle to use the paraglide middleware
+const paraglideHandle: Handle = ({ event, resolve }) => {
+	return paraglideMiddleware(event.request, ({ locale }) => {
+		return resolve(event, {
+			transformPageChunk: ({ html }) => html.replace('%lang%', locale)
+		});
+	});
+};
+
+const authenticationHandle: Handle = async ({ event, resolve }) => {
 	const { isSignedIn, isAdmin } = verifyJwt(event.cookies.get(ACCESS_TOKEN_COOKIE_NAME));
 
 	const isUnauthenticatedOnlyPath = event.url.pathname.startsWith('/login') || event.url.pathname.startsWith('/lc')
@@ -42,6 +53,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 	return response;
 };
+
+export const handle: Handle = sequence(paraglideHandle, authenticationHandle);
 
 export const handleError: HandleServerError = async ({ error, message, status }) => {
 	if (error instanceof AxiosError) {

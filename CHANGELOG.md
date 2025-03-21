@@ -1,3 +1,44 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.43.0...v) (2025-03-20)
+
+
+### Bug Fixes
+
+* wrong base locale causes crash ([3120ebf](https://github.com/pocket-id/pocket-id/commit/3120ebf239b90f0bc0a0af33f30622e034782398))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.42.1...v) (2025-03-20)
+
+
+### Features
+
+* add support for translations ([#349](https://github.com/pocket-id/pocket-id/issues/349)) ([269b5a3](https://github.com/pocket-id/pocket-id/commit/269b5a3c9249bb8081c74741141d3d5a69ea42a2))
+* **passkeys:** name new passkeys based on agguids ([#332](https://github.com/pocket-id/pocket-id/issues/332)) ([041c565](https://github.com/pocket-id/pocket-id/commit/041c565dc10f15edb3e8ab58e9a4df5e48a2a6d3))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.42.0...v) (2025-03-18)
+
+
+### Bug Fixes
+
+* kid not added to JWTs ([f7e36a4](https://github.com/pocket-id/pocket-id/commit/f7e36a422ea6b5327360c9a13308ae408ff7fffe))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.41.0...v) (2025-03-18)
+
+
+### Features
+
+* store keys as JWK on disk ([#339](https://github.com/pocket-id/pocket-id/issues/339)) ([a7c9741](https://github.com/pocket-id/pocket-id/commit/a7c9741802667811c530ef4e6313b71615ec6a9b))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.40.1...v) (2025-03-18)
+
+
+### Features
+
+* **profile-picture:** allow reset of profile picture ([#355](https://github.com/pocket-id/pocket-id/issues/355)) ([8f14618](https://github.com/pocket-id/pocket-id/commit/8f146188d57b5c08a4c6204674c15379232280d8))
+
+
+### Bug Fixes
+
+* own avatar not loading ([#351](https://github.com/pocket-id/pocket-id/issues/351)) ([0423d35](https://github.com/pocket-id/pocket-id/commit/0423d354f533d2ff4fd431859af3eea7d4d7044f))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.40.0...v) (2025-03-16)
 
 

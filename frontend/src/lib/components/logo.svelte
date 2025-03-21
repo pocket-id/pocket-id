@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$lib/paraglide/messages';
 	import { mode } from 'mode-watcher';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -7,4 +8,4 @@
 	const isDarkMode = $derived($mode === 'dark');
 </script>
 
-<img {...props} src="/api/application-configuration/logo?light={!isDarkMode}" alt="Logo" />
+<img {...props} src="/api/application-configuration/logo?light={!isDarkMode}" alt={m.logo()} />

@@ -14,6 +14,7 @@ type User struct {
 	FirstName string `sortable:"true"`
 	LastName  string `sortable:"true"`
 	IsAdmin   bool   `sortable:"true"`
+	Locale    *string
 	LdapID    *string
 
 	CustomClaims []CustomClaim

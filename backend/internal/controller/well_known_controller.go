@@ -30,13 +30,13 @@ type WellKnownController struct {
 // @Success 200 {object} object "{ \"keys\": []interface{} }"
 // @Router /.well-known/jwks.json [get]
 func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
-	jwk, err := wkc.jwtService.GetJWK()
+	jwks, err := wkc.jwtService.GetPublicJWKSAsJSON()
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"keys": []interface{}{jwk}})
+	c.Data(http.StatusOK, "application/json; charset=utf-8", jwks)
 }
 
 // openIDConfigurationHandler godoc
