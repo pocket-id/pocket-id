@@ -1,5 +1,9 @@
 package model
 
+import (
+	"strconv"
+)
+
 type AppConfigVariable struct {
 	Key          string `gorm:"primaryKey;not null"`
 	Type         string
@@ -7,6 +11,11 @@ type AppConfigVariable struct {
 	IsInternal   bool
 	Value        string
 	DefaultValue string
+}
+
+func (a *AppConfigVariable) IsTrue() bool {
+	ok, _ := strconv.ParseBool(a.Value)
+	return ok
 }
 
 type AppConfig struct {

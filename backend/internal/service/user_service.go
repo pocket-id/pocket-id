@@ -59,7 +59,7 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 		return nil, 0, &common.InvalidUUIDError{}
 	}
 
-	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
 	file, err := os.Open(profilePicturePath)
 	if err == nil {
 		// Get the file size
@@ -128,12 +128,12 @@ func (s *UserService) DeleteUser(userID string) error {
 	}
 
 	// Disallow deleting the user if it is an LDAP user and LDAP is enabled
-	if user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return &common.LdapUserUpdateError{}
 	}
 
 	// Delete the profile picture
-	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
 	if err := os.Remove(profilePicturePath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -170,7 +170,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 	}
 
 	// Disallow updating the user if it is an LDAP group and LDAP is enabled
-	if !allowLdapUpdate && user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if !allowLdapUpdate && user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return model.User{}, &common.LdapUserUpdateError{}
 	}
 
@@ -194,7 +194,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 }
 
 func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath string) error {
-	isDisabled := s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.Value != "true"
+	isDisabled := s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.IsTrue()
 	if isDisabled {
 		return &common.OneTimeAccessDisabledError{}
 	}
@@ -371,7 +371,7 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 	}
 
 	// Build path to profile picture
-	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
 
 	// Check if file exists and delete it
 	if _, err := os.Stat(profilePicturePath); err == nil {
