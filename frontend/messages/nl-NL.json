@@ -1,13 +1,13 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"my_account": "Mijn Account",
+	"my_account": "Mijn account",
 	"logout": "Uitloggen",
 	"confirm": "Bevestigen",
 	"key": "Sleutel",
 	"value": "Waarde",
 	"remove_custom_claim": "Aangepaste claim verwijderen",
 	"add_custom_claim": "Aangepaste claim toevoegen",
-	"add_another": "Voeg nog een toe",
+	"add_another": "Voeg er nog een toe",
 	"select_a_date": "Selecteer een datum",
 	"select_file": "Selecteer bestand",
 	"profile_picture": "Profielfoto",
@@ -16,7 +16,7 @@
 	"image_should_be_in_format": "De afbeelding moet in PNG- of JPEG-formaat zijn.",
 	"items_per_page": "Aantal per pagina",
 	"no_items_found": "Geen items gevonden",
-	"search": "Zoekopdracht...",
+	"search": "Zoek...",
 	"expand_card": "Kaart uitbreiden",
 	"copied": "Gekopieerd",
 	"click_to_copy": "Klik om te kopiëren",
@@ -307,5 +307,10 @@
 	"dark_mode_logo": "Donkere modus logo",
 	"background_image": "Achtergrondfoto",
 	"language": "Taal",
-	"profile_picture_has_been_reset": "Profielfoto is gereset. Het kan enkele minuten duren voordat de wijzigingen zichtbaar zijn."
+	"reset_profile_picture_question": "Profielfoto opnieuw instellen?",
+	"this_will_remove_the_uploaded_image_and_reset_the_profile_picture_to_default": "Dit verwijdert de geüploade afbeelding en de zet de profielfoto terug naar de standaard-profielfoto. Wilt u doorgaan?",
+	"reset": "Reset",
+	"reset_to_default": "Standaardinstellingen herstellen",
+	"profile_picture_has_been_reset": "Profielfoto is gereset. Het kan enkele minuten duren voordat de wijzigingen zichtbaar zijn.",
+	"select_the_language_you_want_to_use": "Selecteer de taal die u wilt gebruiken. Sommige talen zijn mogelijk niet volledig vertaald."
 }
