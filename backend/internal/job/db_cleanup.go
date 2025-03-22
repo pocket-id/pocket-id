@@ -22,6 +22,7 @@ func RegisterDbCleanupJobs(db *gorm.DB) {
 	registerJob(scheduler, "ClearWebauthnSessions", "0 3 * * *", jobs.clearWebauthnSessions)
 	registerJob(scheduler, "ClearOneTimeAccessTokens", "0 3 * * *", jobs.clearOneTimeAccessTokens)
 	registerJob(scheduler, "ClearOidcAuthorizationCodes", "0 3 * * *", jobs.clearOidcAuthorizationCodes)
+	registerJob(scheduler, "ClearOidcRefreshTokens", "0 3 * * *", jobs.clearOidcRefreshTokens)
 	scheduler.Start()
 }
 
@@ -42,6 +43,11 @@ func (j *Jobs) clearOneTimeAccessTokens() error {
 // ClearOidcAuthorizationCodes deletes OIDC authorization codes that have expired
 func (j *Jobs) clearOidcAuthorizationCodes() error {
 	return j.db.Delete(&model.OidcAuthorizationCode{}, "expires_at < ?", datatype.DateTime(time.Now())).Error
+}
+
+// ClearOidcAuthorizationCodes deletes OIDC authorization codes that have expired
+func (j *Jobs) clearOidcRefreshTokens() error {
+	return j.db.Delete(&model.OidcRefreshToken{}, "expires_at < ?", datatype.DateTime(time.Now())).Error
 }
 
 // ClearAuditLogs deletes audit logs older than 90 days
