@@ -14,7 +14,7 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/go-playground/validator/v10 v10.24.0
 	github.com/go-webauthn/webauthn v0.11.2
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1

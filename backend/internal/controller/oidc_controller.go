@@ -61,7 +61,7 @@ type OidcController struct {
 // @Param request body dto.AuthorizeOidcClientRequestDto true "Authorization request parameters"
 // @Success 200 {object} dto.AuthorizeOidcClientResponseDto "Authorization code and callback URL"
 // @Security BearerAuth
-// @Router /oidc/authorize [post]
+// @Router /api/oidc/authorize [post]
 func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	var input dto.AuthorizeOidcClientRequestDto
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -92,7 +92,7 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 // @Param request body dto.AuthorizationRequiredDto true "Authorization check parameters"
 // @Success 200 {object} object "{ \"authorizationRequired\": true/false }"
 // @Security BearerAuth
-// @Router /oidc/authorization-required [post]
+// @Router /api/oidc/authorization-required [post]
 func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Context) {
 	var input dto.AuthorizationRequiredDto
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -121,7 +121,7 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 // @Param grant_type formData string true "Grant type (must be 'authorization_code')"
 // @Param code_verifier formData string false "PKCE code verifier"
 // @Success 200 {object} object "{ \"id_token\": \"string\", \"access_token\": \"string\", \"token_type\": \"Bearer\" }"
-// @Router /oidc/token [post]
+// @Router /api/oidc/token [post]
 func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	// Disable cors for this endpoint
 	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -158,7 +158,7 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 // @Produce json
 // @Success 200 {object} object "User claims based on requested scopes"
 // @Security OAuth2AccessToken
-// @Router /oidc/userinfo [get]
+// @Router /api/oidc/userinfo [get]
 func (oc *OidcController) userInfoHandler(c *gin.Context) {
 	authHeaderSplit := strings.Split(c.GetHeader("Authorization"), " ")
 	if len(authHeaderSplit) != 2 {
@@ -192,7 +192,7 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 // @Produce json
 // @Success 200 {object} object "User claims based on requested scopes"
 // @Security OAuth2AccessToken
-// @Router /oidc/userinfo [post]
+// @Router /api/oidc/userinfo [post]
 func (oc *OidcController) userInfoHandlerPost(c *gin.Context) {
 	// Implementation is the same as GET
 }
@@ -207,7 +207,7 @@ func (oc *OidcController) userInfoHandlerPost(c *gin.Context) {
 // @Param post_logout_redirect_uri query string false "URL to redirect to after logout"
 // @Param state query string false "State parameter to include in the redirect"
 // @Success 302 "Redirect to post-logout URL or application logout page"
-// @Router /oidc/end-session [get]
+// @Router /api/oidc/end-session [get]
 func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	var input dto.OidcLogoutDto
 
@@ -256,7 +256,7 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 // @Param post_logout_redirect_uri formData string false "URL to redirect to after logout"
 // @Param state formData string false "State parameter to include in the redirect"
 // @Success 302 "Redirect to post-logout URL or application logout page"
-// @Router /oidc/end-session [post]
+// @Router /api/oidc/end-session [post]
 func (oc *OidcController) EndSessionHandlerPost(c *gin.Context) {
 	// Implementation is the same as GET
 }
@@ -268,7 +268,7 @@ func (oc *OidcController) EndSessionHandlerPost(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientMetaDataDto "Client metadata"
-// @Router /oidc/clients/{id}/meta [get]
+// @Router /api/oidc/clients/{id}/meta [get]
 func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	clientId := c.Param("id")
 	client, err := oc.oidcService.GetClient(clientId)
@@ -295,7 +295,7 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Client information"
 // @Security BearerAuth
-// @Router /oidc/clients/{id} [get]
+// @Router /api/oidc/clients/{id} [get]
 func (oc *OidcController) getClientHandler(c *gin.Context) {
 	clientId := c.Param("id")
 	client, err := oc.oidcService.GetClient(clientId)
@@ -325,7 +325,7 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.OidcClientDto]
 // @Security BearerAuth
-// @Router /oidc/clients [get]
+// @Router /api/oidc/clients [get]
 func (oc *OidcController) listClientsHandler(c *gin.Context) {
 	searchTerm := c.Query("search")
 	var sortedPaginationRequest utils.SortedPaginationRequest
@@ -361,7 +361,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 // @Param client body dto.OidcClientCreateDto true "Client information"
 // @Success 201 {object} dto.OidcClientWithAllowedUserGroupsDto "Created client"
 // @Security BearerAuth
-// @Router /oidc/clients [post]
+// @Router /api/oidc/clients [post]
 func (oc *OidcController) createClientHandler(c *gin.Context) {
 	var input dto.OidcClientCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -391,7 +391,7 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
 // @Security BearerAuth
-// @Router /oidc/clients/{id} [delete]
+// @Router /api/oidc/clients/{id} [delete]
 func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 	err := oc.oidcService.DeleteClient(c.Param("id"))
 	if err != nil {
@@ -412,7 +412,7 @@ func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 // @Param client body dto.OidcClientCreateDto true "Client information"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client"
 // @Security BearerAuth
-// @Router /oidc/clients/{id} [put]
+// @Router /api/oidc/clients/{id} [put]
 func (oc *OidcController) updateClientHandler(c *gin.Context) {
 	var input dto.OidcClientCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -443,7 +443,7 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 200 {object} object "{ \"secret\": \"string\" }"
 // @Security BearerAuth
-// @Router /oidc/clients/{id}/secret [post]
+// @Router /api/oidc/clients/{id}/secret [post]
 func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 	secret, err := oc.oidcService.CreateClientSecret(c.Param("id"))
 	if err != nil {
@@ -463,7 +463,7 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 // @Produce image/svg+xml
 // @Param id path string true "Client ID"
 // @Success 200 {file} binary "Logo image"
-// @Router /oidc/clients/{id}/logo [get]
+// @Router /api/oidc/clients/{id}/logo [get]
 func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Param("id"))
 	if err != nil {
@@ -484,7 +484,7 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 // @Param file formData file true "Logo image file (PNG, JPG, or SVG, max 2MB)"
 // @Success 204 "No Content"
 // @Security BearerAuth
-// @Router /oidc/clients/{id}/logo [post]
+// @Router /api/oidc/clients/{id}/logo [post]
 func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -508,7 +508,7 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
 // @Security BearerAuth
-// @Router /oidc/clients/{id}/logo [delete]
+// @Router /api/oidc/clients/{id}/logo [delete]
 func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 	err := oc.oidcService.DeleteClientLogo(c.Param("id"))
 	if err != nil {
@@ -529,7 +529,7 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 // @Param groups body dto.OidcUpdateAllowedUserGroupsDto true "User group IDs"
 // @Success 200 {object} dto.OidcClientDto "Updated client"
 // @Security BearerAuth
-// @Router /oidc/clients/{id}/allowed-user-groups [put]
+// @Router /api/oidc/clients/{id}/allowed-user-groups [put]
 func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 	var input dto.OidcUpdateAllowedUserGroupsDto
 	if err := c.ShouldBindJSON(&input); err != nil {
