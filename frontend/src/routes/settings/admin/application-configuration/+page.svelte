@@ -10,7 +10,6 @@
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { fly } from 'svelte/transition';
 	import { onMount } from 'svelte';
 
 	let { data } = $props();
@@ -64,13 +63,13 @@
 </svelte:head>
 
 {#if mounted}
-	<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+	<div class="animate-fade-in" style="animation-delay: 100ms;">
 		<CollapsibleCard id="application-configuration-general" title={m.general()} defaultExpanded>
 			<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
 		</CollapsibleCard>
 	</div>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 150 }}>
+	<div class="animate-fade-in" style="animation-delay: 150ms;">
 		<CollapsibleCard
 			id="application-configuration-email"
 			title={m.email()}
@@ -80,7 +79,7 @@
 		</CollapsibleCard>
 	</div>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 200 }}>
+	<div class="animate-fade-in" style="animation-delay: 200ms;">
 		<CollapsibleCard
 			id="application-configuration-ldap"
 			title={m.ldap()}
@@ -90,7 +89,7 @@
 		</CollapsibleCard>
 	</div>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 250 }}>
+	<div class="animate-fade-in" style="animation-delay: 250ms;">
 		<CollapsibleCard id="application-configuration-images" title={m.images()}>
 			<UpdateApplicationImages callback={updateImages} />
 		</CollapsibleCard>

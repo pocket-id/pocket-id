@@ -2,7 +2,6 @@
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
 	import AuditLogList from './audit-log-list.svelte';
-	import { fly } from 'svelte/transition';
 	import { onMount } from 'svelte';
 
 	let { data } = $props();
@@ -20,7 +19,7 @@
 </svelte:head>
 
 {#if mounted}
-	<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+	<div class="animate-fade-in" style="animation-delay: 100ms;">
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>{m.audit_log()}</Card.Title>

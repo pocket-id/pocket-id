@@ -5,7 +5,7 @@
 	import type { ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus } from 'lucide-svelte';
-	import { slide, fly } from 'svelte/transition';
+	import { slide } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import ApiKeyDialog from './api-key-dialog.svelte';
 	import ApiKeyForm from './api-key-form.svelte';
@@ -46,7 +46,7 @@
 </svelte:head>
 
 {#if mounted}
-	<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+	<div class="animate-fade-in" style="animation-delay: 100ms;">
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
@@ -73,7 +73,7 @@
 		</Card.Root>
 	</div>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 200 }}>
+	<div class="animate-fade-in" style="animation-delay: 200ms;">
 		<Card.Root class="mt-6">
 			<Card.Header>
 				<Card.Title>{m.manage_api_keys()}</Card.Title>

@@ -8,7 +8,7 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { slide, fly } from 'svelte/transition';
+	import { slide } from 'svelte/transition';
 	import UserGroupForm from './user-group-form.svelte';
 	import UserGroupList from './user-group-list.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -47,7 +47,7 @@
 </svelte:head>
 
 {#if mounted}
-	<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+	<div class="animate-fade-in" style="animation-delay: 100ms;">
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
@@ -76,7 +76,7 @@
 		</Card.Root>
 	</div>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 200 }}>
+	<div class="animate-fade-in" style="animation-delay: 200ms;">
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>{m.manage_user_groups()}</Card.Title>
