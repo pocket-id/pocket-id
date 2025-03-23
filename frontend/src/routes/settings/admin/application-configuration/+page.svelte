@@ -10,9 +10,12 @@
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { fly } from 'svelte/transition';
+	import { onMount } from 'svelte';
 
 	let { data } = $props();
 	let appConfig = $state(data.appConfig);
+	let mounted = $state(false);
 
 	const appConfigService = new AppConfigService();
 
@@ -50,32 +53,46 @@
 			.then(() => toast.success(m.images_updated_successfully()))
 			.catch(axiosErrorToast);
 	}
+
+	onMount(() => {
+		mounted = true;
+	});
 </script>
 
 <svelte:head>
 	<title>{m.application_configuration()}</title>
 </svelte:head>
 
-<CollapsibleCard id="application-configuration-general" title={m.general()} defaultExpanded>
-	<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
-</CollapsibleCard>
+{#if mounted}
+	<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+		<CollapsibleCard id="application-configuration-general" title={m.general()} defaultExpanded>
+			<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
+		</CollapsibleCard>
+	</div>
 
-<CollapsibleCard
-	id="application-configuration-email"
-	title={m.email()}
-	description={m.enable_email_notifications_to_alert_users_when_a_login_is_detected_from_a_new_device_or_location()}
->
-	<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
-</CollapsibleCard>
+	<div in:fly={{ y: -20, duration: 300, delay: 150 }}>
+		<CollapsibleCard
+			id="application-configuration-email"
+			title={m.email()}
+			description={m.enable_email_notifications_to_alert_users_when_a_login_is_detected_from_a_new_device_or_location()}
+		>
+			<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
+		</CollapsibleCard>
+	</div>
 
-<CollapsibleCard
-	id="application-configuration-ldap"
-	title={m.ldap()}
-	description={m.configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server()}
->
-	<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
-</CollapsibleCard>
+	<div in:fly={{ y: -20, duration: 300, delay: 200 }}>
+		<CollapsibleCard
+			id="application-configuration-ldap"
+			title={m.ldap()}
+			description={m.configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server()}
+		>
+			<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
+		</CollapsibleCard>
+	</div>
 
-<CollapsibleCard id="application-configuration-images" title={m.images()}>
-	<UpdateApplicationImages callback={updateImages} />
-</CollapsibleCard>
+	<div in:fly={{ y: -20, duration: 300, delay: 250 }}>
+		<CollapsibleCard id="application-configuration-images" title={m.images()}>
+			<UpdateApplicationImages callback={updateImages} />
+		</CollapsibleCard>
+	</div>
+{/if}

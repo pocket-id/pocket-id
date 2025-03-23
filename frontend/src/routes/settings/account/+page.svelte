@@ -12,6 +12,8 @@
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { LucideAlertTriangle } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { fly, fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
 	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
@@ -24,6 +26,7 @@
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
 	let showLoginCodeModal: boolean = $state(false);
+	let mounted = $state(false);
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
@@ -69,101 +72,120 @@
 			toast.error(getWebauthnErrorMessage(e));
 		}
 	}
+
+	onMount(() => {
+		mounted = true;
+	});
 </script>
 
 <svelte:head>
 	<title>{m.account_settings()}</title>
 </svelte:head>
 
-{#if passkeys.length == 0}
-	<Alert.Root variant="warning">
-		<LucideAlertTriangle class="size-4" />
-		<Alert.Title>{m.passkey_missing()}</Alert.Title>
-		<Alert.Description
-			>{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}</Alert.Description
-		>
-	</Alert.Root>
-{:else if passkeys.length == 1}
-	<Alert.Root variant="warning" dismissibleId="single-passkey">
-		<LucideAlertTriangle class="size-4" />
-		<Alert.Title>{m.single_passkey_configured()}</Alert.Title>
-		<Alert.Description>{m.it_is_recommended_to_add_more_than_one_passkey()}</Alert.Description>
-	</Alert.Root>
-{/if}
-
-<fieldset
-	disabled={!$appConfigStore.allowOwnAccountEdit ||
-		(!!account.ldapId && $appConfigStore.ldapEnabled)}
->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.account_details()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<AccountForm {account} callback={updateAccount} />
-		</Card.Content>
-	</Card.Root>
-</fieldset>
-
-<Card.Root>
-	<Card.Content class="pt-6">
-		<ProfilePictureSettings
-			userId={account.id}
-			isLdapUser={!!account.ldapId}
-			updateCallback={updateProfilePicture}
-			resetCallback={resetProfilePicture}
-		/>
-	</Card.Content>
-</Card.Root>
-
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.passkeys()}</Card.Title>
-				<Card.Description class="mt-1">
-					{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
-				</Card.Description>
-			</div>
-			<Button size="sm" class="ml-3" on:click={createPasskey}>{m.add_passkey()}</Button>
+{#if mounted}
+	{#if passkeys.length == 0}
+		<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+			<Alert.Root variant="warning">
+				<LucideAlertTriangle class="size-4" />
+				<Alert.Title>{m.passkey_missing()}</Alert.Title>
+				<Alert.Description
+					>{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}</Alert.Description
+				>
+			</Alert.Root>
 		</div>
-	</Card.Header>
-	{#if passkeys.length != 0}
-		<Card.Content>
-			<PasskeyList bind:passkeys />
-		</Card.Content>
+	{:else if passkeys.length == 1}
+		<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+			<Alert.Root variant="warning" dismissibleId="single-passkey">
+				<LucideAlertTriangle class="size-4" />
+				<Alert.Title>{m.single_passkey_configured()}</Alert.Title>
+				<Alert.Description>{m.it_is_recommended_to_add_more_than_one_passkey()}</Alert.Description>
+			</Alert.Root>
+		</div>
 	{/if}
-</Card.Root>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.login_code()}</Card.Title>
-				<Card.Description class="mt-1">
-					{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
-				</Card.Description>
-			</div>
-			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}
-				>{m.create()}</Button
-			>
-		</div>
-	</Card.Header>
-</Card.Root>
+	<fieldset
+		disabled={!$appConfigStore.allowOwnAccountEdit ||
+			(!!account.ldapId && $appConfigStore.ldapEnabled)}
+		in:fly={{ y: -20, duration: 300, delay: 150 }}
+	>
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.account_details()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<AccountForm {account} callback={updateAccount} />
+			</Card.Content>
+		</Card.Root>
+	</fieldset>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.language()}</Card.Title>
-				<Card.Description class="mt-1">
-					{m.select_the_language_you_want_to_use()}
-				</Card.Description>
-			</div>
-			<LocalePicker />
-		</div>
-	</Card.Header>
-</Card.Root>
+	<div in:fly={{ y: -20, duration: 300, delay: 200 }}>
+		<Card.Root>
+			<Card.Content class="pt-6">
+				<ProfilePictureSettings
+					userId={account.id}
+					isLdapUser={!!account.ldapId}
+					updateCallback={updateProfilePicture}
+					resetCallback={resetProfilePicture}
+				/>
+			</Card.Content>
+		</Card.Root>
+	</div>
+
+	<div in:fly={{ y: -20, duration: 300, delay: 250 }}>
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>{m.passkeys()}</Card.Title>
+						<Card.Description class="mt-1">
+							{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
+						</Card.Description>
+					</div>
+					<Button size="sm" class="ml-3" on:click={createPasskey}>{m.add_passkey()}</Button>
+				</div>
+			</Card.Header>
+			{#if passkeys.length != 0}
+				<Card.Content>
+					<PasskeyList bind:passkeys />
+				</Card.Content>
+			{/if}
+		</Card.Root>
+	</div>
+
+	<div in:fly={{ y: -20, duration: 300, delay: 300 }}>
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>{m.login_code()}</Card.Title>
+						<Card.Description class="mt-1">
+							{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+						</Card.Description>
+					</div>
+					<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}
+						>{m.create()}</Button
+					>
+				</div>
+			</Card.Header>
+		</Card.Root>
+	</div>
+
+	<div in:fly={{ y: -20, duration: 300, delay: 350 }}>
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>{m.language()}</Card.Title>
+						<Card.Description class="mt-1">
+							{m.select_the_language_you_want_to_use()}
+						</Card.Description>
+					</div>
+					<LocalePicker />
+				</div>
+			</Card.Header>
+		</Card.Root>
+	</div>
+{/if}
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}

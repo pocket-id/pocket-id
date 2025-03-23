@@ -9,15 +9,17 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { slide } from 'svelte/transition';
+	import { slide, fly } from 'svelte/transition';
 	import OIDCClientForm from './oidc-client-form.svelte';
 	import OIDCClientList from './oidc-client-list.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { onMount } from 'svelte';
 
 	let { data } = $props();
 	let clients = $state(data.clients);
 	let clientsRequestOptions = $state(data.clientsRequestOptions);
 	let expandAddClient = $state(false);
+	let mounted = $state(false);
 
 	const oidcService = new OIDCService();
 
@@ -37,42 +39,56 @@
 			return false;
 		}
 	}
+
+	onMount(() => {
+		mounted = true;
+	});
 </script>
 
 <svelte:head>
 	<title>{m.oidc_clients()}</title>
 </svelte:head>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.create_oidc_client()}</Card.Title>
-				<Card.Description>{m.add_a_new_oidc_client_to_appname({ appName: $appConfigStore.appName})}</Card.Description>
-			</div>
-			{#if !expandAddClient}
-				<Button on:click={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
-			{:else}
-				<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddClient = false)}>
-					<LucideMinus class="h-5 w-5" />
-				</Button>
+{#if mounted}
+	<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>{m.create_oidc_client()}</Card.Title>
+						<Card.Description
+							>{m.add_a_new_oidc_client_to_appname({
+								appName: $appConfigStore.appName
+							})}</Card.Description
+						>
+					</div>
+					{#if !expandAddClient}
+						<Button on:click={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
+					{:else}
+						<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddClient = false)}>
+							<LucideMinus class="h-5 w-5" />
+						</Button>
+					{/if}
+				</div>
+			</Card.Header>
+			{#if expandAddClient}
+				<div transition:slide>
+					<Card.Content>
+						<OIDCClientForm callback={createOIDCClient} />
+					</Card.Content>
+				</div>
 			{/if}
-		</div>
-	</Card.Header>
-	{#if expandAddClient}
-		<div transition:slide>
-			<Card.Content>
-				<OIDCClientForm callback={createOIDCClient} />
-			</Card.Content>
-		</div>
-	{/if}
-</Card.Root>
+		</Card.Root>
+	</div>
 
-<Card.Root>
-	<Card.Header>
-		<Card.Title>{m.manage_oidc_clients()}</Card.Title>
-	</Card.Header>
-	<Card.Content>
-		<OIDCClientList {clients} requestOptions={clientsRequestOptions} />
-	</Card.Content>
-</Card.Root>
+	<div in:fly={{ y: -20, duration: 300, delay: 200 }}>
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.manage_oidc_clients()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<OIDCClientList {clients} requestOptions={clientsRequestOptions} />
+			</Card.Content>
+		</Card.Root>
+	</div>
+{/if}

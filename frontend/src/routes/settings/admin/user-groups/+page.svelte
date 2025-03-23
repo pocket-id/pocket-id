@@ -8,15 +8,17 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { slide } from 'svelte/transition';
+	import { slide, fly } from 'svelte/transition';
 	import UserGroupForm from './user-group-form.svelte';
 	import UserGroupList from './user-group-list.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { onMount } from 'svelte';
 
 	let { data } = $props();
 	let userGroups = $state(data.userGroups);
 	let userGroupsRequestOptions = $state(data.userGroupsRequestOptions);
 	let expandAddUserGroup = $state(false);
+	let mounted = $state(false);
 
 	const userGroupService = new UserGroupService();
 
@@ -34,42 +36,54 @@
 			});
 		return success;
 	}
+
+	onMount(() => {
+		mounted = true;
+	});
 </script>
 
 <svelte:head>
 	<title>{m.user_groups()}</title>
 </svelte:head>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.create_user_group()}</Card.Title>
-				<Card.Description>{m.create_a_new_group_that_can_be_assigned_to_users()}</Card.Description>
-			</div>
-			{#if !expandAddUserGroup}
-				<Button on:click={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
-			{:else}
-				<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUserGroup = false)}>
-					<LucideMinus class="h-5 w-5" />
-				</Button>
+{#if mounted}
+	<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>{m.create_user_group()}</Card.Title>
+						<Card.Description
+							>{m.create_a_new_group_that_can_be_assigned_to_users()}</Card.Description
+						>
+					</div>
+					{#if !expandAddUserGroup}
+						<Button on:click={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
+					{:else}
+						<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUserGroup = false)}>
+							<LucideMinus class="h-5 w-5" />
+						</Button>
+					{/if}
+				</div>
+			</Card.Header>
+			{#if expandAddUserGroup}
+				<div transition:slide>
+					<Card.Content>
+						<UserGroupForm callback={createUserGroup} />
+					</Card.Content>
+				</div>
 			{/if}
-		</div>
-	</Card.Header>
-	{#if expandAddUserGroup}
-		<div transition:slide>
-			<Card.Content>
-				<UserGroupForm callback={createUserGroup} />
-			</Card.Content>
-		</div>
-	{/if}
-</Card.Root>
+		</Card.Root>
+	</div>
 
-<Card.Root>
-	<Card.Header>
-		<Card.Title>{m.manage_user_groups()}</Card.Title>
-	</Card.Header>
-	<Card.Content>
-		<UserGroupList {userGroups} requestOptions={userGroupsRequestOptions} />
-	</Card.Content>
-</Card.Root>
+	<div in:fly={{ y: -20, duration: 300, delay: 200 }}>
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.manage_user_groups()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<UserGroupList {userGroups} requestOptions={userGroupsRequestOptions} />
+			</Card.Content>
+		</Card.Root>
+	</div>
+{/if}
