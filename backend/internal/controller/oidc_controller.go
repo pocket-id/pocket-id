@@ -111,25 +111,36 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 
 // createTokensHandler godoc
 // @Summary Create OIDC tokens
-// @Description Exchange authorization code for ID and access tokens
+// @Description Exchange authorization code or refresh token for access tokens
 // @Tags OIDC
-// @Accept application/x-www-form-urlencoded
 // @Produce json
 // @Param client_id formData string false "Client ID (if not using Basic Auth)"
 // @Param client_secret formData string false "Client secret (if not using Basic Auth)"
-// @Param code formData string true "Authorization code"
-// @Param grant_type formData string true "Grant type (must be 'authorization_code')"
-// @Param code_verifier formData string false "PKCE code verifier"
-// @Success 200 {object} object "{ \"id_token\": \"string\", \"access_token\": \"string\", \"token_type\": \"Bearer\" }"
+// @Param code formData string false "Authorization code (required for 'authorization_code' grant)"
+// @Param grant_type formData string true "Grant type ('authorization_code' or 'refresh_token')"
+// @Param code_verifier formData string false "PKCE code verifier (for authorization_code with PKCE)"
+// @Param refresh_token formData string false "Refresh token (required for 'refresh_token' grant)"
+// @Success 200 {object} dto.OidcTokenResponseDto "Token response with access_token and optional id_token and refresh_token"
 // @Router /api/oidc/token [post]
 func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	// Disable cors for this endpoint
 	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 
 	var input dto.OidcCreateTokensDto
-
 	if err := c.ShouldBind(&input); err != nil {
 		c.Error(err)
+		return
+	}
+
+	// Validate that code is provided for authorization_code grant type
+	if input.GrantType == "authorization_code" && input.Code == "" {
+		c.Error(&common.OidcMissingAuthorizationCodeError{})
+		return
+	}
+
+	// Validate that refresh_token is provided for refresh_token grant type
+	if input.GrantType == "refresh_token" && input.RefreshToken == "" {
+		c.Error(&common.OidcMissingRefreshTokenError{})
 		return
 	}
 
@@ -141,13 +152,37 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		clientID, clientSecret, _ = c.Request.BasicAuth()
 	}
 
-	idToken, accessToken, err := oc.oidcService.CreateTokens(input.Code, input.GrantType, clientID, clientSecret, input.CodeVerifier)
+	idToken, accessToken, refreshToken, expiresIn, err := oc.oidcService.CreateTokens(
+		input.Code,
+		input.GrantType,
+		clientID,
+		clientSecret,
+		input.CodeVerifier,
+		input.RefreshToken,
+	)
+
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"id_token": idToken, "access_token": accessToken, "token_type": "Bearer"})
+	response := dto.OidcTokenResponseDto{
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+		ExpiresIn:   expiresIn,
+	}
+
+	// Include ID token only for authorization_code grant
+	if idToken != "" {
+		response.IdToken = idToken
+	}
+
+	// Include refresh token if generated
+	if refreshToken != "" {
+		response.RefreshToken = refreshToken
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // userInfoHandler godoc

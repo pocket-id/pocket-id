@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { oidcClients } from './data';
+import { oidcClients, refreshTokens } from './data';
 import { cleanupBackend } from './utils/cleanup.util';
 import passkeyUtil from './utils/passkey.util';
 
@@ -133,4 +133,61 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 		});
 
 	expect(redirectedCorrectly).toBeTruthy();
+});
+
+test('Successfully refresh tokens with valid refresh token', async ({ request }) => {
+	const { token, clientId } = refreshTokens.filter((token) => !token.expired)[0];
+	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+
+	const refreshResponse = await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: token,
+			client_secret: clientSecret
+		}
+	});
+
+	// Verify we got new tokens
+	const tokenData = await refreshResponse.json();
+	expect(tokenData.access_token).toBeDefined();
+	expect(tokenData.refresh_token).toBeDefined();
+	expect(tokenData.token_type).toBe('Bearer');
+	expect(tokenData.expires_in).toBe(3600);
+
+	// The new refresh token should be different from the old one
+	expect(tokenData.refresh_token).not.toBe(token);
+});
+
+test('Using refresh token invalidates it for future use', async ({ request }) => {
+	const { token, clientId } = refreshTokens.filter((token) => !token.expired)[0];
+	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+
+	await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: token,
+			client_secret: clientSecret
+		}
+	});
+
+	const refreshResponse = await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: token,
+			client_secret: clientSecret
+		}
+	});
+	expect(refreshResponse.status()).toBe(400);
 });

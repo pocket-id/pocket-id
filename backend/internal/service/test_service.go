@@ -152,6 +152,17 @@ func (s *TestService) SeedDatabase() error {
 			return err
 		}
 
+		refreshToken := model.OidcRefreshToken{
+			Token:     "ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo",
+			ExpiresAt: datatype.DateTime(time.Now().Add(24 * time.Hour)),
+			Scope:     "openid profile email",
+			UserID:    users[0].ID,
+			ClientID:  oidcClients[0].ID,
+		}
+		if err := tx.Create(&refreshToken).Error; err != nil {
+			return err
+		}
+
 		accessToken := model.OneTimeAccessToken{
 			Token:     "one-time-token",
 			ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
