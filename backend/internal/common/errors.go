@@ -262,7 +262,7 @@ func (e *OidcInvalidRefreshTokenError) Error() string {
 	return "refresh token is invalid or expired"
 }
 
-func (e *OidcInvalidRefreshTokenError) StatusCode() int {
+func (e *OidcInvalidRefreshTokenError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
 
@@ -272,7 +272,7 @@ func (e *OidcMissingRefreshTokenError) Error() string {
 	return "refresh token is required"
 }
 
-func (e *OidcMissingRefreshTokenError) StatusCode() int {
+func (e *OidcMissingRefreshTokenError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
 
@@ -282,6 +282,6 @@ func (e *OidcMissingAuthorizationCodeError) Error() string {
 	return "authorization code is required"
 }
 
-func (e *OidcMissingAuthorizationCodeError) StatusCode() int {
+func (e *OidcMissingAuthorizationCodeError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }

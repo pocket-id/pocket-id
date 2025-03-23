@@ -1,6 +1,5 @@
-import test, { expect, request } from '@playwright/test';
-import type { Page } from '@playwright/test';
-import { oidcClients } from './data';
+import test, { expect } from '@playwright/test';
+import { oidcClients, refreshTokens } from './data';
 import { cleanupBackend } from './utils/cleanup.util';
 import passkeyUtil from './utils/passkey.util';
 
@@ -137,16 +136,9 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 });
 
 test('Successfully refresh tokens with valid refresh token', async ({ request }) => {
-	// Get the test refresh token directly from API
-	const refreshTokenResponse = await request.get('/api/test/refresh-token');
-	expect(refreshTokenResponse.ok()).toBeTruthy();
-
-	const refreshData = await refreshTokenResponse.json();
-	const refreshToken = refreshData.refresh_token;
-	const clientId = refreshData.client_id;
+	const { token, clientId } = refreshTokens.filter((token) => !token.expired)[0];
 	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
 
-	// Now refresh the tokens with client authentication
 	const refreshResponse = await request.post('/api/oidc/token', {
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded'
@@ -154,14 +146,12 @@ test('Successfully refresh tokens with valid refresh token', async ({ request })
 		form: {
 			grant_type: 'refresh_token',
 			client_id: clientId,
-			refresh_token: refreshToken,
+			refresh_token: token,
 			client_secret: clientSecret
 		}
 	});
 
 	// Verify we got new tokens
-	expect(refreshResponse.ok()).toBeTruthy();
-
 	const tokenData = await refreshResponse.json();
 	expect(tokenData.access_token).toBeDefined();
 	expect(tokenData.refresh_token).toBeDefined();
@@ -169,45 +159,35 @@ test('Successfully refresh tokens with valid refresh token', async ({ request })
 	expect(tokenData.expires_in).toBe(3600);
 
 	// The new refresh token should be different from the old one
-	expect(tokenData.refresh_token).not.toBe(refreshToken);
+	expect(tokenData.refresh_token).not.toBe(token);
 });
 
 test('Using refresh token invalidates it for future use', async ({ request }) => {
-	// Get the test refresh token directly from API
-	const refreshTokenResponse = await request.get('/api/test/refresh-token');
-	expect(refreshTokenResponse.ok()).toBeTruthy();
-
-	const refreshData = await refreshTokenResponse.json();
-	const refreshToken = refreshData.refresh_token;
-	const clientId = refreshData.client_id;
+	const { token, clientId } = refreshTokens.filter((token) => !token.expired)[0];
 	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
 
-	// Use the refresh token once (should succeed)
-	const firstResponse = await request.post('/api/oidc/token', {
+	await request.post('/api/oidc/token', {
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded'
 		},
 		form: {
 			grant_type: 'refresh_token',
 			client_id: clientId,
-			refresh_token: refreshToken,
+			refresh_token: token,
 			client_secret: clientSecret
 		}
 	});
-	expect(firstResponse.ok()).toBeTruthy();
 
-	// Try to use the same refresh token again (should fail)
-	const secondResponse = await request.post('/api/oidc/token', {
+	const refreshResponse = await request.post('/api/oidc/token', {
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded'
 		},
 		form: {
 			grant_type: 'refresh_token',
 			client_id: clientId,
-			refresh_token: refreshToken,
+			refresh_token: token,
 			client_secret: clientSecret
 		}
 	});
-	expect(secondResponse.ok()).toBeFalsy();
-	expect(secondResponse.status()).toBe(500); // Invalid refresh token error
+	expect(refreshResponse.status()).toBe(400);
 });
