@@ -241,7 +241,7 @@ func (s *OidcService) createTokenFromRefreshToken(refreshToken, clientID, client
 	// Verify refresh token
 	var storedRefreshToken model.OidcRefreshToken
 	err = s.db.Preload("User").
-		Where("token = ? AND expires_at > ?", utils.CreateSha256HashBase64(refreshToken), datatype.DateTime(time.Now())).
+		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
 		First(&storedRefreshToken).
 		Error
 	if err != nil {
@@ -649,7 +649,7 @@ func (s *OidcService) createRefreshToken(clientID string, userID string, scope s
 
 	// Compute the hash of the refresh token to store in the DB
 	// Refresh tokens are pretty long already, so a "simple" SHA-256 hash is enough
-	refreshTokenHash := utils.CreateSha256HashBase64(refreshToken)
+	refreshTokenHash := utils.CreateSha256Hash(refreshToken)
 
 	m := model.OidcRefreshToken{
 		ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)), // 30 days
