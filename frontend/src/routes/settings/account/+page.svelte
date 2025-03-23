@@ -12,7 +12,6 @@
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { LucideAlertTriangle } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { fly, fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
 	import AccountForm from './account-form.svelte';
@@ -84,7 +83,7 @@
 
 {#if mounted}
 	{#if passkeys.length == 0}
-		<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+		<div class="animate-fade-in" style="animation-delay: 100ms;">
 			<Alert.Root variant="warning">
 				<LucideAlertTriangle class="size-4" />
 				<Alert.Title>{m.passkey_missing()}</Alert.Title>
@@ -94,7 +93,7 @@
 			</Alert.Root>
 		</div>
 	{:else if passkeys.length == 1}
-		<div in:fly={{ y: -20, duration: 300, delay: 100 }}>
+		<div class="animate-fade-in" style="animation-delay: 100ms;">
 			<Alert.Root variant="warning" dismissibleId="single-passkey">
 				<LucideAlertTriangle class="size-4" />
 				<Alert.Title>{m.single_passkey_configured()}</Alert.Title>
@@ -106,7 +105,8 @@
 	<fieldset
 		disabled={!$appConfigStore.allowOwnAccountEdit ||
 			(!!account.ldapId && $appConfigStore.ldapEnabled)}
-		in:fly={{ y: -20, duration: 300, delay: 150 }}
+		class="animate-fade-in"
+		style="animation-delay: 150ms;"
 	>
 		<Card.Root>
 			<Card.Header>
@@ -118,7 +118,7 @@
 		</Card.Root>
 	</fieldset>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 200 }}>
+	<div class="animate-fade-in" style="animation-delay: 200ms;">
 		<Card.Root>
 			<Card.Content class="pt-6">
 				<ProfilePictureSettings
@@ -131,7 +131,7 @@
 		</Card.Root>
 	</div>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 250 }}>
+	<div class="animate-fade-in" style="animation-delay: 250ms;">
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
@@ -152,7 +152,7 @@
 		</Card.Root>
 	</div>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 300 }}>
+	<div class="animate-fade-in" style="animation-delay: 300ms;">
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
@@ -170,7 +170,7 @@
 		</Card.Root>
 	</div>
 
-	<div in:fly={{ y: -20, duration: 300, delay: 350 }}>
+	<div class="animate-fade-in" style="animation-delay: 350ms;">
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
