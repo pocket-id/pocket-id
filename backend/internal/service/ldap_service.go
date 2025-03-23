@@ -101,7 +101,7 @@ func (s *LdapService) SyncGroups() error {
 
 		// Skip groups without a valid LDAP ID
 		if ldapId == "" {
-			log.Printf("Warning: Skipping LDAP group without a valid unique identifier (attribute: %s)", uniqueIdentifierAttribute)
+			log.Printf("Skipping LDAP group without a valid unique identifier (attribute: %s)", uniqueIdentifierAttribute)
 			continue
 		}
 
@@ -226,7 +226,7 @@ func (s *LdapService) SyncUsers() error {
 
 		// Skip users without a valid LDAP ID
 		if ldapId == "" {
-			log.Printf("Warning: Skipping LDAP user without a valid unique identifier (attribute: %s)", uniqueIdentifierAttribute)
+			log.Printf("Skipping LDAP user without a valid unique identifier (attribute: %s)", uniqueIdentifierAttribute)
 			continue
 		}
 
