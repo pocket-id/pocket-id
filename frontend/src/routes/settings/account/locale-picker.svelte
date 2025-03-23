@@ -8,7 +8,10 @@
 	const currentLocale = getLocale();
 
 	const locales = {
+		'cs-CZ': 'Čeština',
+		'de-DE': 'Deutsch',
 		'en-US': 'English',
+		'fr-FR': 'Français',
 		'nl-NL': 'Nederlands',
 		'ru-RU': 'Русский'
 	};
