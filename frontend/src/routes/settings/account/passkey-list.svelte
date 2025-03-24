@@ -45,10 +45,6 @@
 		);
 		return differenceInDays <= 7;
 	}
-
-	function handleRenamePasskey(item: any) {
-		passkeyToRename = item as Passkey;
-	}
 </script>
 
 <div class="space-y-3">
@@ -56,8 +52,8 @@
 		<GlassRowItem
 			item={passkey}
 			icon={LucideKeyRound}
-			onRename={handleRenamePasskey}
-			onDelete={deletePasskey}
+			onRename={() => (passkeyToRename = passkey)}
+			onDelete={() => deletePasskey(passkey)}
 			showBadge={isRecentlyAdded(passkey.createdAt)}
 			badgeText="New"
 			dateLabel={m.added_on()}

@@ -33,12 +33,10 @@
 		return path.split('.').reduce((prev, curr) => (prev ? prev[curr] : null), obj);
 	}
 
-	// Get the name or primary display field
-	const displayName = getProperty(item, primaryField);
-
-	// Get the date value
-	const dateValue = getProperty(item, dateField);
-	const formattedDate = dateValue ? new Date(dateValue).toLocaleDateString() : '';
+	// Use $derived to make these values reactive to item changes
+	const displayName = $derived(getProperty(item, primaryField));
+	const dateValue = $derived(getProperty(item, dateField));
+	const formattedDate = $derived(dateValue ? new Date(dateValue).toLocaleDateString() : '');
 </script>
 
 <div class="bg-card hover:bg-muted/50 group rounded-lg p-3 transition-colors">
