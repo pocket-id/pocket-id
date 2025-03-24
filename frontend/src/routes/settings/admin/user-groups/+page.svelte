@@ -6,7 +6,7 @@
 	import type { Paginated } from '$lib/types/pagination.type';
 	import type { UserGroupCreate, UserGroupWithUserCount } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus } from 'lucide-svelte';
+	import { LucideMinus, UserCog, UserPlus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserGroupForm from './user-group-form.svelte';
@@ -49,10 +49,13 @@
 {#if mounted}
 	<div class="animate-fade-in" style="animation-delay: 100ms;">
 		<Card.Root>
-			<Card.Header>
+			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
 					<div>
-						<Card.Title>{m.create_user_group()}</Card.Title>
+						<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+							<UserPlus class="text-primary/80 h-5 w-5" />
+							{m.create_user_group()}
+						</Card.Title>
 						<Card.Description
 							>{m.create_a_new_group_that_can_be_assigned_to_users()}</Card.Description
 						>
@@ -68,7 +71,7 @@
 			</Card.Header>
 			{#if expandAddUserGroup}
 				<div transition:slide>
-					<Card.Content>
+					<Card.Content class="bg-muted/20 pt-5">
 						<UserGroupForm callback={createUserGroup} />
 					</Card.Content>
 				</div>
@@ -78,10 +81,13 @@
 
 	<div class="animate-fade-in" style="animation-delay: 200ms;">
 		<Card.Root>
-			<Card.Header>
-				<Card.Title>{m.manage_user_groups()}</Card.Title>
+			<Card.Header class="border-b">
+				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					<UserCog class="text-primary/80 h-5 w-5" />
+					{m.manage_user_groups()}
+				</Card.Title>
 			</Card.Header>
-			<Card.Content>
+			<Card.Content class="bg-muted/20 pt-5">
 				<UserGroupList {userGroups} requestOptions={userGroupsRequestOptions} />
 			</Card.Content>
 		</Card.Root>

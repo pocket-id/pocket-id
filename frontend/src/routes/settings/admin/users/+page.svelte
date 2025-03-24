@@ -5,7 +5,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus } from 'lucide-svelte';
+	import { LucideMinus, UserPen, UserPlus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserForm from './user-form.svelte';
@@ -48,10 +48,13 @@
 {#if mounted}
 	<div class="animate-fade-in" style="animation-delay: 100ms;">
 		<Card.Root>
-			<Card.Header>
+			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
 					<div>
-						<Card.Title>{m.create_user()}</Card.Title>
+						<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+							<UserPlus class="text-primary/80 h-5 w-5" />
+							{m.create_user()}
+						</Card.Title>
 						<Card.Description
 							>{m.add_a_new_user_to_appname({
 								appName: $appConfigStore.appName
@@ -69,7 +72,7 @@
 			</Card.Header>
 			{#if expandAddUser}
 				<div transition:slide>
-					<Card.Content>
+					<Card.Content class="bg-muted/20 pt-5">
 						<UserForm callback={createUser} />
 					</Card.Content>
 				</div>
@@ -79,10 +82,13 @@
 
 	<div class="animate-fade-in" style="animation-delay: 200ms;">
 		<Card.Root>
-			<Card.Header>
-				<Card.Title>{m.manage_users()}</Card.Title>
+			<Card.Header class="border-b">
+				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					<UserPen class="text-primary/80 h-5 w-5" />
+					{m.manage_users()}
+				</Card.Title>
 			</Card.Header>
-			<Card.Content>
+			<Card.Content class="bg-muted/20 pt-5">
 				<UserList {users} requestOptions={usersRequestOptions} />
 			</Card.Content>
 		</Card.Root>

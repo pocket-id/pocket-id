@@ -7,7 +7,7 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus } from 'lucide-svelte';
+	import { LucideMinus, ShieldCheck, ShieldPlus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OIDCClientForm from './oidc-client-form.svelte';
@@ -52,10 +52,13 @@
 {#if mounted}
 	<div class="animate-fade-in" style="animation-delay: 100ms;">
 		<Card.Root>
-			<Card.Header>
+			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
 					<div>
-						<Card.Title>{m.create_oidc_client()}</Card.Title>
+						<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+							<ShieldPlus class="text-primary/80 h-5 w-5" />
+							{m.create_oidc_client()}
+						</Card.Title>
 						<Card.Description
 							>{m.add_a_new_oidc_client_to_appname({
 								appName: $appConfigStore.appName
@@ -73,7 +76,7 @@
 			</Card.Header>
 			{#if expandAddClient}
 				<div transition:slide>
-					<Card.Content>
+					<Card.Content class="bg-muted/20 pt-5">
 						<OIDCClientForm callback={createOIDCClient} />
 					</Card.Content>
 				</div>
@@ -83,10 +86,13 @@
 
 	<div class="animate-fade-in" style="animation-delay: 200ms;">
 		<Card.Root>
-			<Card.Header>
-				<Card.Title>{m.manage_oidc_clients()}</Card.Title>
+			<Card.Header class="border-b">
+				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					<ShieldCheck class="text-primary/80 h-5 w-5" />
+					{m.manage_oidc_clients()}
+				</Card.Title>
 			</Card.Header>
-			<Card.Content>
+			<Card.Content class="bg-muted/20 pt-5">
 				<OIDCClientList {clients} requestOptions={clientsRequestOptions} />
 			</Card.Content>
 		</Card.Root>

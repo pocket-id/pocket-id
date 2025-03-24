@@ -12,12 +12,14 @@
 		title,
 		description,
 		defaultExpanded = false,
+		icon,
 		children
 	}: {
 		id: string;
 		title: string;
 		description?: string;
 		defaultExpanded?: boolean;
+		icon: ConstructorOfATypedSvelteComponent;
 		children: Snippet;
 	} = $props();
 
@@ -48,10 +50,13 @@
 </script>
 
 <Card.Root>
-	<Card.Header class="cursor-pointer" onclick={toggleExpanded}>
+	<Card.Header class="cursor-pointer border-b" onclick={toggleExpanded}>
 		<div class="flex items-center justify-between">
 			<div>
-				<Card.Title>{title}</Card.Title>
+				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					<svelte:component this={icon} class="text-primary/80 h-5 w-5" />
+					{title}
+				</Card.Title>
 				{#if description}
 					<Card.Description>{description}</Card.Description>
 				{/if}
@@ -68,7 +73,7 @@
 	</Card.Header>
 	{#if expanded}
 		<div transition:slide={{ duration: 200 }}>
-			<Card.Content>
+			<Card.Content class="bg-muted/20 pt-5">
 				{@render children()}
 			</Card.Content>
 		</div>
