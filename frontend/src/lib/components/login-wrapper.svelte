@@ -22,19 +22,22 @@
 
 {#if mounted}
 	<!-- Desktop with sliding reveal animation -->
-	<div class="hidden h-screen overflow-hidden lg:flex">
+	<div class="hidden h-screen items-center overflow-hidden text-center lg:flex">
 		<!-- Content area that fades in after background slides -->
 		<div
-			class="animate-delayed-fade relative z-10 flex h-full min-w-[650px] flex-col items-center justify-center p-16 {showAlternativeSignInMethodButton
+			class="animate-delayed-fade relative z-10 flex h-full min-w-[650px] p-16 {showAlternativeSignInMethodButton
 				? 'pb-0'
 				: ''}"
 		>
-			<div class="flex h-full w-full flex-col items-center">
-				<div class="flex w-full flex-grow flex-col items-center justify-center">
+			<div class="flex h-full w-full flex-col">
+				<div class="flex flex-grow flex-col items-center justify-center">
 					{@render children()}
 				</div>
 				{#if showAlternativeSignInMethodButton}
-					<div class="animate-fade-in mb-4 flex justify-center" style="animation-delay: 1000ms;">
+					<div
+						class="animate-fade-in mb-4 flex items-center justify-center"
+						style="animation-delay: 1000ms;"
+					>
 						<a
 							href={page.url.pathname == '/login'
 								? '/login/alternative'
