@@ -10,7 +10,16 @@
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startRegistration } from '@simplewebauthn/browser';
-	import { LucideAlertTriangle } from 'lucide-svelte';
+	import {
+		LucideAlertTriangle,
+		Languages,
+		UserCog,
+		Image,
+		RectangleEllipsis,
+		KeyRound,
+		ShieldPlus,
+		Plus
+	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
@@ -84,43 +93,60 @@
 {#if mounted}
 	{#if passkeys.length == 0}
 		<div class="animate-fade-in" style="animation-delay: 100ms;">
-			<Alert.Root variant="warning">
+			<Alert.Root variant="warning" class="flex gap-3">
 				<LucideAlertTriangle class="size-4" />
-				<Alert.Title>{m.passkey_missing()}</Alert.Title>
-				<Alert.Description
-					>{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}</Alert.Description
-				>
+				<div>
+					<Alert.Title class="font-semibold">{m.passkey_missing()}</Alert.Title>
+					<Alert.Description class="text-sm">
+						{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}
+					</Alert.Description>
+				</div>
 			</Alert.Root>
 		</div>
 	{:else if passkeys.length == 1}
 		<div class="animate-fade-in" style="animation-delay: 100ms;">
-			<Alert.Root variant="warning" dismissibleId="single-passkey">
+			<Alert.Root variant="warning" dismissibleId="single-passkey" class="flex gap-3">
 				<LucideAlertTriangle class="size-4" />
-				<Alert.Title>{m.single_passkey_configured()}</Alert.Title>
-				<Alert.Description>{m.it_is_recommended_to_add_more_than_one_passkey()}</Alert.Description>
+				<div>
+					<Alert.Title class="font-semibold">{m.single_passkey_configured()}</Alert.Title>
+					<Alert.Description class="text-sm">
+						{m.it_is_recommended_to_add_more_than_one_passkey()}
+					</Alert.Description>
+				</div>
 			</Alert.Root>
 		</div>
 	{/if}
 
+	<!-- Account details card -->
 	<fieldset
 		disabled={!$appConfigStore.allowOwnAccountEdit ||
 			(!!account.ldapId && $appConfigStore.ldapEnabled)}
 		class="animate-fade-in"
 		style="animation-delay: 150ms;"
 	>
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>{m.account_details()}</Card.Title>
+		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
+			<Card.Header class="border-b">
+				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					<UserCog class="text-primary/80 h-5 w-5" />
+					{m.account_details()}
+				</Card.Title>
 			</Card.Header>
-			<Card.Content>
+			<Card.Content class="pt-5">
 				<AccountForm {account} callback={updateAccount} />
 			</Card.Content>
 		</Card.Root>
 	</fieldset>
 
-	<div class="animate-fade-in" style="animation-delay: 200ms;">
-		<Card.Root>
-			<Card.Content class="pt-6">
+	<!-- Profile picture card -->
+	<div class="animate-fade-in mt-6" style="animation-delay: 200ms;">
+		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
+			<Card.Header class="border-b">
+				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					<Image class="text-primary/80 h-5 w-5" />
+					{m.profile_picture()}
+				</Card.Title>
+			</Card.Header>
+			<Card.Content class="pt-5">
 				<ProfilePictureSettings
 					userId={account.id}
 					isLdapUser={!!account.ldapId}
@@ -131,57 +157,72 @@
 		</Card.Root>
 	</div>
 
-	<div class="animate-fade-in" style="animation-delay: 250ms;">
-		<Card.Root>
-			<Card.Header>
+	<!-- Passkey management card -->
+	<div class="animate-fade-in mt-6" style="animation-delay: 250ms;">
+		<Card.Root class="overflow-hidden shadow-md transition-shadow duration-200 hover:shadow-lg">
+			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
-					<div>
-						<Card.Title>{m.passkeys()}</Card.Title>
-						<Card.Description class="mt-1">
-							{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
-						</Card.Description>
-					</div>
-					<Button size="sm" class="ml-3" on:click={createPasskey}>{m.add_passkey()}</Button>
+					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+						<KeyRound class="text-primary/80 h-5 w-5" />
+						{m.passkeys()}
+					</Card.Title>
+					<Button size="sm" variant="outline" class="ml-3 gap-1.5" on:click={createPasskey}>
+						<Plus class="text-primary/80 h-5 w-5" />
+						{m.add_passkey()}
+					</Button>
 				</div>
+				<Card.Description class="mt-1.5 text-sm">
+					{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
+				</Card.Description>
 			</Card.Header>
 			{#if passkeys.length != 0}
-				<Card.Content>
+				<Card.Content class="bg-muted/20 pt-4">
 					<PasskeyList bind:passkeys />
 				</Card.Content>
 			{/if}
 		</Card.Root>
 	</div>
 
-	<div class="animate-fade-in" style="animation-delay: 300ms;">
-		<Card.Root>
-			<Card.Header>
+	<!-- Login code card -->
+	<div class="animate-fade-in mt-6" style="animation-delay: 300ms;">
+		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
+			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
-					<div>
-						<Card.Title>{m.login_code()}</Card.Title>
-						<Card.Description class="mt-1">
-							{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
-						</Card.Description>
-					</div>
-					<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}
-						>{m.create()}</Button
+					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
+						{m.login_code()}
+					</Card.Title>
+					<Button
+						size="sm"
+						variant="outline"
+						class="ml-auto gap-1.5"
+						on:click={() => (showLoginCodeModal = true)}
 					>
+						<ShieldPlus class="text-primary/80 h-5 w-5" />
+						{m.create()}
+					</Button>
 				</div>
+				<Card.Description class="mt-1.5 text-sm">
+					{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+				</Card.Description>
 			</Card.Header>
 		</Card.Root>
 	</div>
 
-	<div class="animate-fade-in" style="animation-delay: 350ms;">
-		<Card.Root>
-			<Card.Header>
+	<!-- Language selection card -->
+	<div class="animate-fade-in mb-6 mt-6" style="animation-delay: 350ms;">
+		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
+			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
-					<div>
-						<Card.Title>{m.language()}</Card.Title>
-						<Card.Description class="mt-1">
-							{m.select_the_language_you_want_to_use()}
-						</Card.Description>
-					</div>
+					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+						<Languages class="text-primary/80 h-5 w-5" />
+						{m.language()}
+					</Card.Title>
 					<LocalePicker />
 				</div>
+				<Card.Description class="mt-1.5 text-sm">
+					{m.select_the_language_you_want_to_use()}
+				</Card.Description>
 			</Card.Header>
 		</Card.Root>
 	</div>
