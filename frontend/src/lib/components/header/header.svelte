@@ -20,10 +20,12 @@
 	>
 		<div class="flex h-16 items-center">
 			{#if !isAuthPage}
-				<Logo class="mr-3 h-8 w-8" />
-				<h1 class="text-lg font-medium" data-testid="application-name">
-					{$appConfigStore.appName}
-				</h1>
+				<a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
+					<Logo class="h-8 w-8" />
+					<h1 class="text-lg font-semibold tracking-tight" data-testid="application-name">
+						{$appConfigStore.appName}
+					</h1>
+				</a>
 			{/if}
 		</div>
 		<div class="flex items-center justify-between gap-4">
