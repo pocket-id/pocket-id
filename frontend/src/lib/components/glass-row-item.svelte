@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Tooltip, TooltipContent, TooltipTrigger } from '$lib/components/ui/tooltip';
 	import { Badge } from '$lib/components/ui/badge';
-	import { LucideCalendar, LucidePencil, LucideTrash } from 'lucide-svelte';
+	import { LucideCalendar, LucidePencil, LucideTrash, type Icon as IconType } from 'lucide-svelte';
 	import type { Passkey } from '$lib/types/passkey.type';
 	import { m } from '$lib/paraglide/messages';
 
@@ -18,7 +18,7 @@
 		dateField = 'createdAt'
 	}: {
 		item: Passkey;
-		icon: ConstructorOfATypedSvelteComponent;
+		icon: typeof IconType;
 		onRename: (item: Passkey) => void;
 		onDelete: (item: Passkey) => void;
 		showBadge?: boolean;
@@ -45,7 +45,9 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-start gap-3">
 			<div class="bg-primary/10 text-primary mt-1 rounded-lg p-2">
-				<svelte:component this={icon} class="h-5 w-5" />
+				{#if icon}{@const Icon = icon}
+					<Icon class="h-5 w-5" />
+				{/if}
 			</div>
 			<div>
 				<div class="flex items-center gap-2">
