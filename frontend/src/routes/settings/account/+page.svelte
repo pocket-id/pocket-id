@@ -132,13 +132,21 @@
 				</Card.Title>
 			</Card.Header>
 			<Card.Content class="pt-5">
-				<AccountForm {account} callback={updateAccount} />
+				<AccountForm
+					{account}
+					userId={account.id}
+					callback={updateAccount}
+					isLdapUser={!!account.ldapId}
+					{updateProfilePicture}
+					{resetProfilePicture}
+				/>
 			</Card.Content>
 		</Card.Root>
 	</fieldset>
 
 	<!-- Profile picture card -->
-	<div class="animate-fade-in mt-6" style="animation-delay: 200ms;">
+	<!-- LEAVING COMMENTED OUT TILL ELIAS CONFIRMS HE LIKES THIS -->
+	<!-- <div class="animate-fade-in mt-6" style="animation-delay: 200ms;">
 		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
 			<Card.Header class="border-b">
 				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
@@ -155,10 +163,10 @@
 				/>
 			</Card.Content>
 		</Card.Root>
-	</div>
+	</div> -->
 
 	<!-- Passkey management card -->
-	<div class="animate-fade-in mt-6" style="animation-delay: 250ms;">
+	<div class="animate-fade-in mt-6" style="animation-delay: 200ms;">
 		<Card.Root class="overflow-hidden shadow-md transition-shadow duration-200 hover:shadow-lg">
 			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
@@ -184,7 +192,7 @@
 	</div>
 
 	<!-- Login code card -->
-	<div class="animate-fade-in mt-6" style="animation-delay: 300ms;">
+	<div class="animate-fade-in mt-6" style="animation-delay: 250ms;">
 		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
 			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
@@ -210,7 +218,7 @@
 	</div>
 
 	<!-- Language selection card -->
-	<div class="animate-fade-in mb-6 mt-6" style="animation-delay: 350ms;">
+	<div class="animate-fade-in mb-6 mt-6" style="animation-delay: 300ms;">
 		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
 			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
