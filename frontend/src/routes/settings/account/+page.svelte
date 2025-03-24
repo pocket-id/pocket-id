@@ -131,7 +131,7 @@
 					{m.account_details()}
 				</Card.Title>
 			</Card.Header>
-			<Card.Content class="pt-5">
+			<Card.Content class="bg-muted/20 pt-5">
 				<AccountForm
 					{account}
 					userId={account.id}
