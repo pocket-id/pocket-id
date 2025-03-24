@@ -21,20 +21,20 @@
 </script>
 
 {#if mounted}
-	<!-- Desktop -->
-	<div class="hidden h-screen items-center text-center lg:flex">
+	<!-- Desktop with sliding reveal animation -->
+	<div class="hidden h-screen overflow-hidden lg:flex">
+		<!-- Content area that fades in after background slides -->
 		<div
-			class="animate-fade-in h-full min-w-[650px] p-16 {showAlternativeSignInMethodButton
+			class="animate-delayed-fade relative z-10 flex h-full min-w-[650px] flex-col items-center justify-center p-16 {showAlternativeSignInMethodButton
 				? 'pb-0'
 				: ''}"
-			style="animation-delay: 100ms;"
 		>
-			<div class="flex h-full flex-col">
-				<div class="flex flex-grow flex-col items-center justify-center">
+			<div class="flex h-full w-full flex-col items-center">
+				<div class="flex w-full flex-grow flex-col items-center justify-center">
 					{@render children()}
 				</div>
 				{#if showAlternativeSignInMethodButton}
-					<div class="animate-fade-in mb-4 flex justify-center" style="animation-delay: 400ms;">
+					<div class="animate-fade-in mb-4 flex justify-center" style="animation-delay: 1000ms;">
 						<a
 							href={page.url.pathname == '/login'
 								? '/login/alternative'
@@ -49,19 +49,22 @@
 				{/if}
 			</div>
 		</div>
-		<img
-			src="/api/application-configuration/background-image"
-			class="animate-fade-in h-screen w-[calc(100vw-650px)] rounded-l-[60px] object-cover"
-			style="animation-delay: 300ms;"
-			alt={m.login_background()}
-		/>
+
+		<!-- Background image with slide animation -->
+		<div class="animate-slide-bg-container absolute bottom-0 right-0 top-0 z-0">
+			<img
+				src="/api/application-configuration/background-image"
+				class="h-full rounded-l-[60px] object-cover"
+				alt={m.login_background()}
+			/>
+		</div>
 	</div>
 
 	<!-- Mobile -->
 	<div
 		class="flex h-screen items-center justify-center bg-[url('/api/application-configuration/background-image')] bg-cover bg-center text-center lg:hidden"
 	>
-		<Card.Root class="animate-fade-in mx-3" style="animation-delay: 200ms;">
+		<Card.Root class="animate-fade-in mx-3 w-full max-w-md" style="animation-delay: 200ms;">
 			<Card.CardContent
 				class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton ? 'pb-3 sm:pb-3' : ''}"
 			>
@@ -83,3 +86,36 @@
 		</Card.Root>
 	</div>
 {/if}
+
+<style>
+	/* Animation for the container that holds the background image */
+	@keyframes slide-bg-container {
+		0% {
+			width: 100%;
+			left: 0;
+		}
+		100% {
+			width: calc(100% - 650px);
+			left: 650px;
+		}
+	}
+
+	.animate-slide-bg-container {
+		animation: slide-bg-container 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+	}
+
+	/* Fade in for content after the slide is mostly complete */
+	@keyframes delayed-fade {
+		0%,
+		40% {
+			opacity: 0;
+		}
+		100% {
+			opacity: 1;
+		}
+	}
+
+	.animate-delayed-fade {
+		animation: delayed-fade 1.5s ease-out forwards;
+	}
+</style>
