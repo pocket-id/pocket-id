@@ -15,6 +15,14 @@
 
 	let mounted = $state(false);
 
+	// Determine if we're on the alternative login page
+	let isAlternativePage = $derived(page.url.pathname.includes('/alternative'));
+
+	// Set animation class based on page
+	let bgAnimationClass = $derived(
+		isAlternativePage ? 'animate-slide-bg-container-wide' : 'animate-slide-bg-container'
+	);
+
 	onMount(() => {
 		mounted = true;
 	});
@@ -25,19 +33,16 @@
 	<div class="hidden h-screen items-center overflow-hidden text-center lg:flex">
 		<!-- Content area that fades in after background slides -->
 		<div
-			class="animate-delayed-fade relative z-10 flex h-full min-w-[650px] p-16 {showAlternativeSignInMethodButton
-				? 'pb-0'
-				: ''}"
+			class="animate-delayed-fade relative z-10 flex h-full p-16 {isAlternativePage
+				? 'min-w-[800px]'
+				: 'min-w-[650px]'} {showAlternativeSignInMethodButton ? 'pb-0' : ''}"
 		>
-			<div class="flex h-full w-full flex-col">
-				<div class="flex flex-grow flex-col items-center justify-center">
+			<div class="flex h-full w-full flex-col overflow-hidden">
+				<div class="relative flex flex-grow flex-col items-center justify-center overflow-auto">
 					{@render children()}
 				</div>
 				{#if showAlternativeSignInMethodButton}
-					<div
-						class="animate-fade-in mb-4 flex items-center justify-center"
-						style="animation-delay: 1000ms;"
-					>
+					<div class="mb-4 flex items-center justify-center" style="animation-delay: 1000ms;">
 						<a
 							href={page.url.pathname == '/login'
 								? '/login/alternative'
@@ -54,10 +59,10 @@
 		</div>
 
 		<!-- Background image with slide animation -->
-		<div class="animate-slide-bg-container absolute bottom-0 right-0 top-0 z-0">
+		<div class="{bgAnimationClass} absolute bottom-0 right-0 top-0 z-0">
 			<img
 				src="/api/application-configuration/background-image"
-				class="h-full rounded-l-[60px] object-cover"
+				class="h-screen w-full rounded-l-[60px] object-cover"
 				alt={m.login_background()}
 			/>
 		</div>
@@ -67,7 +72,7 @@
 	<div
 		class="flex h-screen items-center justify-center bg-[url('/api/application-configuration/background-image')] bg-cover bg-center text-center lg:hidden"
 	>
-		<Card.Root class="animate-fade-in mx-3 w-full max-w-md" style="animation-delay: 200ms;">
+		<Card.Root class="mx-3 w-full max-w-md" style="animation-delay: 200ms;">
 			<Card.CardContent
 				class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton ? 'pb-3 sm:pb-3' : ''}"
 			>
@@ -79,8 +84,7 @@
 							: `/login/alternative?redirect=${encodeURIComponent(
 									page.url.pathname + page.url.search
 								)}`}
-						class="text-muted-foreground animate-fade-in mt-7 flex justify-center text-xs transition-colors hover:underline"
-						style="animation-delay: 400ms;"
+						class="text-muted-foreground mt-7 flex justify-center text-xs transition-colors hover:underline"
 					>
 						{m.dont_have_access_to_your_passkey()}
 					</a>
@@ -91,20 +95,47 @@
 {/if}
 
 <style>
-	/* Animation for the container that holds the background image */
+	/* Animation for standard login page */
 	@keyframes slide-bg-container {
 		0% {
-			width: 100%;
 			left: 0;
+			right: 0;
+			bottom: 0%;
 		}
 		100% {
-			width: calc(100% - 650px);
 			left: 650px;
+			right: 0;
+			bottom: 0%;
 		}
 	}
 
+	/* Animation for alternative login page (wider) */
+	@keyframes slide-bg-container-wide {
+		0% {
+			left: 0;
+			right: 0;
+			bottom: 0%;
+		}
+		100% {
+			left: 800px;
+			right: 0;
+			bottom: 0%;
+		}
+	}
+
+	/* Apply animations to respective containers */
 	.animate-slide-bg-container {
+		position: absolute;
+		top: 0;
+		bottom: 0;
 		animation: slide-bg-container 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+	}
+
+	.animate-slide-bg-container-wide {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		animation: slide-bg-container-wide 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
 	}
 
 	/* Fade in for content after the slide is mostly complete */
