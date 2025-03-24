@@ -95,31 +95,23 @@
 {/if}
 
 <style>
-	/* Animation for standard login page */
+	/* Animation for standard login page - horizontal slide only */
 	@keyframes slide-bg-container {
 		0% {
 			left: 0;
-			right: 0;
-			bottom: 0%;
 		}
 		100% {
 			left: 650px;
-			right: 0;
-			bottom: 0%;
 		}
 	}
 
-	/* Animation for alternative login page (wider) */
+	/* Animation for alternative login page (wider) - horizontal slide only */
 	@keyframes slide-bg-container-wide {
 		0% {
 			left: 0;
-			right: 0;
-			bottom: 0%;
 		}
 		100% {
 			left: 800px;
-			right: 0;
-			bottom: 0%;
 		}
 	}
 
@@ -128,6 +120,8 @@
 		position: absolute;
 		top: 0;
 		bottom: 0;
+		left: 0;
+		right: 0;
 		animation: slide-bg-container 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
 	}
 
@@ -135,6 +129,8 @@
 		position: absolute;
 		top: 0;
 		bottom: 0;
+		left: 0;
+		right: 0;
 		animation: slide-bg-container-wide 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
 	}
 
