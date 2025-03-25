@@ -10,7 +10,6 @@
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { onMount } from 'svelte';
 	import { LucideImage, Mail, SlidersHorizontal, UserSearch } from 'lucide-svelte';
 
 	let { data } = $props();
@@ -53,53 +52,47 @@
 			.then(() => toast.success(m.images_updated_successfully()))
 			.catch(axiosErrorToast);
 	}
-
-	onMount(() => {
-		mounted = true;
-	});
 </script>
 
 <svelte:head>
 	<title>{m.application_configuration()}</title>
 </svelte:head>
 
-{#if mounted}
-	<div class="animate-fade-in" style="animation-delay: 100ms;">
-		<CollapsibleCard
-			id="application-configuration-general"
-			icon={SlidersHorizontal}
-			title={m.general()}
-			defaultExpanded
-		>
-			<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
-		</CollapsibleCard>
-	</div>
+<div class="animate-fade-in" style="animation-delay: 100ms;">
+	<CollapsibleCard
+		id="application-configuration-general"
+		icon={SlidersHorizontal}
+		title={m.general()}
+		defaultExpanded
+	>
+		<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
+	</CollapsibleCard>
+</div>
 
-	<div class="animate-fade-in" style="animation-delay: 150ms;">
-		<CollapsibleCard
-			id="application-configuration-email"
-			icon={Mail}
-			title={m.email()}
-			description={m.enable_email_notifications_to_alert_users_when_a_login_is_detected_from_a_new_device_or_location()}
-		>
-			<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
-		</CollapsibleCard>
-	</div>
+<div class="animate-fade-in" style="animation-delay: 150ms;">
+	<CollapsibleCard
+		id="application-configuration-email"
+		icon={Mail}
+		title={m.email()}
+		description={m.enable_email_notifications_to_alert_users_when_a_login_is_detected_from_a_new_device_or_location()}
+	>
+		<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
+	</CollapsibleCard>
+</div>
 
-	<div class="animate-fade-in" style="animation-delay: 200ms;">
-		<CollapsibleCard
-			id="application-configuration-ldap"
-			icon={UserSearch}
-			title={m.ldap()}
-			description={m.configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server()}
-		>
-			<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
-		</CollapsibleCard>
-	</div>
+<div class="animate-fade-in" style="animation-delay: 200ms;">
+	<CollapsibleCard
+		id="application-configuration-ldap"
+		icon={UserSearch}
+		title={m.ldap()}
+		description={m.configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server()}
+	>
+		<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
+	</CollapsibleCard>
+</div>
 
-	<div class="animate-fade-in" style="animation-delay: 250ms;">
-		<CollapsibleCard id="application-configuration-images" icon={LucideImage} title={m.images()}>
-			<UpdateApplicationImages callback={updateImages} />
-		</CollapsibleCard>
-	</div>
-{/if}
+<div class="animate-fade-in" style="animation-delay: 250ms;">
+	<CollapsibleCard id="application-configuration-images" icon={LucideImage} title={m.images()}>
+		<UpdateApplicationImages callback={updateImages} />
+	</CollapsibleCard>
+</div>
