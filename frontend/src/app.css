@@ -84,7 +84,6 @@
 	}
 }
 
-/* Animation for standard login page - horizontal slide only */
 @keyframes slide-bg-container {
 	0% {
 		left: 0;
@@ -94,17 +93,6 @@
 	}
 }
 
-/* Animation for alternative login page (wider) - horizontal slide only */
-@keyframes slide-bg-container-wide {
-	0% {
-		left: 0;
-	}
-	100% {
-		left: 800px;
-	}
-}
-
-/* Apply animations to respective containers */
 .animate-slide-bg-container {
 	position: absolute;
 	top: 0;
@@ -112,15 +100,6 @@
 	left: 0;
 	right: 0;
 	animation: slide-bg-container 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
-}
-
-.animate-slide-bg-container-wide {
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	animation: slide-bg-container-wide 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
 }
 
 /* Fade in for content after the slide is mostly complete */

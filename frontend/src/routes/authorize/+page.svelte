@@ -78,15 +78,17 @@
 </script>
 
 <svelte:head>
-	<title>{m.sign_in_to({name: client.name})}</title>
+	<title>{m.sign_in_to({ name: client.name })}</title>
 </svelte:head>
 
 {#if client == null}
 	<p>{m.client_not_found()}</p>
 {:else}
-	<SignInWrapper showAlternativeSignInMethodButton>
+	<SignInWrapper animate={true} showAlternativeSignInMethodButton>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
-		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">{m.sign_in_to({name: client.name})}</h1>
+		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
+			{m.sign_in_to({ name: client.name })}
+		</h1>
 		{#if errorMessage}
 			<p class="text-muted-foreground mb-10 mt-2">
 				{errorMessage}.
@@ -110,7 +112,11 @@
 					<Card.Content data-testid="scopes">
 						<div class="flex flex-col gap-3">
 							{#if scope!.includes('email')}
-								<ScopeItem icon={LucideMail} name={m.email()} description={m.view_your_email_address()} />
+								<ScopeItem
+									icon={LucideMail}
+									name={m.email()}
+									description={m.view_your_email_address()}
+								/>
 							{/if}
 							{#if scope!.includes('profile')}
 								<ScopeItem
@@ -132,7 +138,8 @@
 			</div>
 		{/if}
 		<div class="flex w-full justify-stretch gap-2">
-			<Button onclick={() => history.back()} class="w-full" variant="secondary">{m.cancel()}</Button>
+			<Button onclick={() => history.back()} class="w-full" variant="secondary">{m.cancel()}</Button
+			>
 			{#if !errorMessage}
 				<Button class="w-full" {isLoading} on:click={authorize}>{m.sign_in()}</Button>
 			{:else}

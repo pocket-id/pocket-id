@@ -3,41 +3,43 @@
 	import type { Snippet } from 'svelte';
 	import * as Card from './ui/card';
 	import { m } from '$lib/paraglide/messages';
-	import { onMount } from 'svelte';
 
 	let {
 		children,
-		showAlternativeSignInMethodButton = false
+		showAlternativeSignInMethodButton = false,
+		animate = false
 	}: {
 		children: Snippet;
 		showAlternativeSignInMethodButton?: boolean;
+		animate?: boolean;
 	} = $props();
 
 	let mounted = $state(false);
 
-	// Determine if we're on the alternative login page
-	let isAlternativePage = $derived(page.url.pathname.includes('/alternative'));
+	// Simplified animation class based only on animate flag
+	let bgAnimationClass = $derived(animate ? 'animate-slide-bg-container' : '');
 
-	// Set animation class based on page
-	let bgAnimationClass = $derived(
-		isAlternativePage ? 'animate-slide-bg-container-wide' : 'animate-slide-bg-container'
-	);
+	// Content animation class based on animate flag
+	let contentAnimationClass = $derived(animate ? 'animate-delayed-fade' : '');
 </script>
 
 <!-- Desktop with sliding reveal animation -->
 <div class="hidden h-screen items-center overflow-hidden text-center lg:flex">
 	<!-- Content area that fades in after background slides -->
 	<div
-		class="animate-delayed-fade relative z-10 flex h-full p-16 {isAlternativePage
-			? 'min-w-[800px]'
-			: 'min-w-[650px]'} {showAlternativeSignInMethodButton ? 'pb-0' : ''}"
+		class="{contentAnimationClass} relative z-10 flex h-full min-w-[650px] p-16 {showAlternativeSignInMethodButton
+			? 'pb-0'
+			: ''}"
 	>
 		<div class="flex h-full w-full flex-col overflow-hidden">
 			<div class="relative flex flex-grow flex-col items-center justify-center overflow-auto">
 				{@render children()}
 			</div>
 			{#if showAlternativeSignInMethodButton}
-				<div class="mb-4 flex items-center justify-center" style="animation-delay: 1000ms;">
+				<div
+					class="mb-4 flex items-center justify-center"
+					style={animate ? 'animation-delay: 1000ms;' : ''}
+				>
 					<a
 						href={page.url.pathname == '/login'
 							? '/login/alternative'
@@ -57,7 +59,7 @@
 	<div class="{bgAnimationClass} absolute bottom-0 right-0 top-0 z-0">
 		<img
 			src="/api/application-configuration/background-image"
-			class="h-screen w-full rounded-l-[60px] object-cover"
+			class="h-screen rounded-l-[60px] object-cover {animate ? 'w-full' : 'w-[calc(100vw-800px)]'}"
 			alt={m.login_background()}
 		/>
 	</div>
@@ -67,7 +69,7 @@
 <div
 	class="flex h-screen items-center justify-center bg-[url('/api/application-configuration/background-image')] bg-cover bg-center text-center lg:hidden"
 >
-	<Card.Root class="mx-3 w-full max-w-md" style="animation-delay: 200ms;">
+	<Card.Root class="mx-3 w-full max-w-md" style={animate ? 'animation-delay: 200ms;' : ''}>
 		<Card.CardContent
 			class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton ? 'pb-3 sm:pb-3' : ''}"
 		>
