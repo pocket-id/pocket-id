@@ -124,7 +124,7 @@
 		class="animate-fade-in"
 		style="animation-delay: 150ms;"
 	>
-		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
+		<Card.Root>
 			<Card.Header class="border-b">
 				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
 					<UserCog class="text-primary/80 h-5 w-5" />
@@ -167,7 +167,7 @@
 
 	<!-- Passkey management card -->
 	<div class="animate-fade-in mt-6" style="animation-delay: 200ms;">
-		<Card.Root class="overflow-hidden shadow-md transition-shadow duration-200 hover:shadow-lg">
+		<Card.Root>
 			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
 					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
@@ -193,7 +193,7 @@
 
 	<!-- Login code card -->
 	<div class="animate-fade-in mt-6" style="animation-delay: 250ms;">
-		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
+		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
 					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
@@ -219,7 +219,7 @@
 
 	<!-- Language selection card -->
 	<div class="animate-fade-in mb-6 mt-6" style="animation-delay: 300ms;">
-		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
+		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
 					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
