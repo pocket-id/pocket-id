@@ -54,8 +54,6 @@
 			icon={LucideKeyRound}
 			onRename={() => (passkeyToRename = passkey)}
 			onDelete={() => deletePasskey(passkey)}
-			showBadge={isRecentlyAdded(passkey.createdAt)}
-			badgeText="New"
 			dateLabel={m.added_on()}
 		/>
 	{/each}

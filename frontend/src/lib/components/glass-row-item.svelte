@@ -11,8 +11,6 @@
 		icon,
 		onRename,
 		onDelete,
-		showBadge = false,
-		badgeText = 'New',
 		dateLabel = m.added_on(),
 		primaryField = 'name',
 		dateField = 'createdAt'
@@ -21,8 +19,6 @@
 		icon: typeof IconType;
 		onRename: (item: Passkey) => void;
 		onDelete: (item: Passkey) => void;
-		showBadge?: boolean;
-		badgeText?: string;
 		dateLabel?: string;
 		primaryField?: string;
 		dateField?: string;
@@ -50,9 +46,6 @@
 			<div>
 				<div class="flex items-center gap-2">
 					<p class="font-medium">{displayName}</p>
-					{#if showBadge}
-						<Badge variant="outline" class="bg-primary/10 text-primary text-xs">{badgeText}</Badge>
-					{/if}
 				</div>
 				{#if formattedDate}
 					<div class="text-muted-foreground mt-1 flex items-center text-xs">
