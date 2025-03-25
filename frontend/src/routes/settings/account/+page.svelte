@@ -194,7 +194,7 @@
 	<!-- Login code card -->
 	<div class="animate-fade-in mt-6" style="animation-delay: 250ms;">
 		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
-			<Card.Header class="border-b">
+			<Card.Header>
 				<div class="flex items-center justify-between">
 					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
 						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
@@ -220,7 +220,7 @@
 	<!-- Language selection card -->
 	<div class="animate-fade-in mb-6 mt-6" style="animation-delay: 300ms;">
 		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
-			<Card.Header class="border-b">
+			<Card.Header>
 				<div class="flex items-center justify-between">
 					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
 						<Languages class="text-primary/80 h-5 w-5" />
