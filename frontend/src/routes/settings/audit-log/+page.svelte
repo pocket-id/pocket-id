@@ -17,15 +17,13 @@
 <div class="animate-fade-in" style="animation-delay: 100ms;">
 	<Card.Root>
 		<Card.Header class="border-b">
-			<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+			<Card.Title>
 				<LogsIcon class="text-primary/80 h-5 w-5" />
 				{m.audit_log()}
 			</Card.Title>
-			<Card.Description class="mt-1"
-				>{m.see_your_account_activities_from_the_last_3_months()}</Card.Description
-			>
+			<Card.Description>{m.see_your_account_activities_from_the_last_3_months()}</Card.Description>
 		</Card.Header>
-		<Card.Content class="bg-muted/20 pt-5">
+		<Card.Content>
 			<AuditLogList auditLogs={data.auditLogs} requestOptions={auditLogsRequestOptions} />
 		</Card.Content>
 	</Card.Root>

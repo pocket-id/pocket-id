@@ -45,7 +45,7 @@
 		<Card.Header class="border-b">
 			<div class="flex items-center justify-between">
 				<div>
-					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					<Card.Title>
 						<ShieldPlus class="text-primary/80 h-5 w-5" />
 						{m.create_api_key()}
 					</Card.Title>
@@ -62,7 +62,7 @@
 		</Card.Header>
 		{#if expandAddApiKey}
 			<div transition:slide>
-				<Card.Content class="bg-muted/20 pt-5">
+				<Card.Content>
 					<ApiKeyForm callback={createApiKey} />
 				</Card.Content>
 			</div>
@@ -71,14 +71,14 @@
 </div>
 
 <div class="animate-fade-in" style="animation-delay: 200ms;">
-	<Card.Root class="mt-6">
+	<Card.Root>
 		<Card.Header class="border-b">
-			<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+			<Card.Title>
 				<ShieldEllipsis class="text-primary/80 h-5 w-5" />
 				{m.manage_api_keys()}
 			</Card.Title>
 		</Card.Header>
-		<Card.Content class="bg-muted/20 pt-5">
+		<Card.Content>
 			<ApiKeyList {apiKeys} requestOptions={apiKeysRequestOptions} />
 		</Card.Content>
 	</Card.Root>

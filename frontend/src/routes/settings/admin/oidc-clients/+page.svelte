@@ -46,10 +46,10 @@
 
 <div class="animate-fade-in" style="animation-delay: 100ms;">
 	<Card.Root>
-		<Card.Header class="border-b">
+		<Card.Header class={expandAddClient ? 'border-b' : ''}>
 			<div class="flex items-center justify-between">
 				<div>
-					<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					<Card.Title>
 						<ShieldPlus class="text-primary/80 h-5 w-5" />
 						{m.create_oidc_client()}
 					</Card.Title>
@@ -70,7 +70,7 @@
 		</Card.Header>
 		{#if expandAddClient}
 			<div transition:slide>
-				<Card.Content class="bg-muted/20 pt-5">
+				<Card.Content>
 					<OIDCClientForm callback={createOIDCClient} />
 				</Card.Content>
 			</div>
@@ -81,12 +81,12 @@
 <div class="animate-fade-in" style="animation-delay: 200ms;">
 	<Card.Root>
 		<Card.Header class="border-b">
-			<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+			<Card.Title>
 				<ShieldCheck class="text-primary/80 h-5 w-5" />
 				{m.manage_oidc_clients()}
 			</Card.Title>
 		</Card.Header>
-		<Card.Content class="bg-muted/20 pt-5">
+		<Card.Content>
 			<OIDCClientList {clients} requestOptions={clientsRequestOptions} />
 		</Card.Content>
 	</Card.Root>

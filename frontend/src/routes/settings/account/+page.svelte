@@ -120,12 +120,12 @@
 >
 	<Card.Root>
 		<Card.Header class="border-b">
-			<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+			<Card.Title>
 				<UserCog class="text-primary/80 h-5 w-5" />
 				{m.account_details()}
 			</Card.Title>
 		</Card.Header>
-		<Card.Content class="bg-muted/20 pt-5">
+		<Card.Content>
 			<AccountForm
 				{account}
 				userId={account.id}
@@ -164,7 +164,7 @@
 	<Card.Root>
 		<Card.Header class="border-b">
 			<div class="flex items-center justify-between">
-				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+				<Card.Title>
 					<KeyRound class="text-primary/80 h-5 w-5" />
 					{m.passkeys()}
 				</Card.Title>
@@ -173,12 +173,12 @@
 					{m.add_passkey()}
 				</Button>
 			</div>
-			<Card.Description class="mt-1.5 text-sm">
+			<Card.Description>
 				{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
 			</Card.Description>
 		</Card.Header>
 		{#if passkeys.length != 0}
-			<Card.Content class="bg-muted/20 pt-4">
+			<Card.Content>
 				<PasskeyList bind:passkeys />
 			</Card.Content>
 		{/if}
@@ -190,7 +190,7 @@
 	<Card.Root>
 		<Card.Header>
 			<div class="flex items-center justify-between">
-				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+				<Card.Title>
 					<RectangleEllipsis class="text-primary/80 h-5 w-5" />
 					{m.login_code()}
 				</Card.Title>
@@ -204,7 +204,7 @@
 					{m.create()}
 				</Button>
 			</div>
-			<Card.Description class="mt-1.5 text-sm">
+			<Card.Description>
 				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 			</Card.Description>
 		</Card.Header>
@@ -216,13 +216,13 @@
 	<Card.Root>
 		<Card.Header>
 			<div class="flex items-center justify-between">
-				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+				<Card.Title>
 					<Languages class="text-primary/80 h-5 w-5" />
 					{m.language()}
 				</Card.Title>
 				<LocalePicker />
 			</div>
-			<Card.Description class="mt-1.5 text-sm">
+			<Card.Description>
 				{m.select_the_language_you_want_to_use()}
 			</Card.Description>
 		</Card.Header>

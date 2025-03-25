@@ -35,70 +35,64 @@
 			{ href: '/settings/admin/application-configuration', label: m.application_configuration() }
 		];
 	}
-
-	onMount(() => {
-		mounted = true;
-	});
 </script>
 
 <section>
 	<div class="bg-muted/40 flex min-h-[calc(100vh-64px)] w-full flex-col justify-between">
-		{#if mounted}
-			<main
-				in:fade={{ duration: 300 }}
-				class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 p-4 md:p-8 lg:flex-row"
-			>
-				<div class="min-w-[200px] xl:min-w-[250px]">
-					<div in:fly={{ x: -15, duration: 300 }} class="sticky top-6">
-						<div class="mx-auto grid w-full gap-2">
-							<h1 class="mb-4 flex items-center gap-2 text-2xl font-semibold">
-								<LucideSettings class="h-5 w-5" />
-								{m.settings()}
-							</h1>
-						</div>
-						<nav class="text-muted-foreground grid gap-2 text-sm">
-							{#each links as { href, label }, i}
-								<a
-									{href}
-									class={`animate-fade-in ${
-										$page.url.pathname.startsWith(href)
-											? 'text-primary bg-card rounded-md px-3 py-1.5 font-medium shadow-sm transition-all'
-											: 'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm'
-									}`}
-									style={`animation-delay: ${150 + i * 75}ms;`}
-								>
-									{label}
-								</a>
-							{/each}
-							{#if $userStore?.isAdmin && versionInformation.isUpToDate === false}
-								<a
-									href="https://github.com/pocket-id/pocket-id/releases/latest"
-									target="_blank"
-									class="animate-fade-in hover:text-foreground hover:bg-muted/70 mt-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-orange-500 transition-all hover:-translate-y-[2px] hover:shadow-sm"
-									style={`animation-delay: ${150 + links.length * 75}ms;`}
-								>
-									{m.update_pocket_id()}
-									<LucideExternalLink class="my-auto inline-block h-3 w-3" />
-								</a>
-							{/if}
-						</nav>
+		<main
+			in:fade={{ duration: 300 }}
+			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 p-4 md:p-8 lg:flex-row"
+		>
+			<div class="min-w-[200px] xl:min-w-[250px]">
+				<div in:fly={{ x: -15, duration: 300 }} class="sticky top-6">
+					<div class="mx-auto grid w-full gap-2">
+						<h1 class="mb-4 flex items-center gap-2 text-2xl font-semibold">
+							<LucideSettings class="h-5 w-5" />
+							{m.settings()}
+						</h1>
 					</div>
+					<nav class="text-muted-foreground grid gap-2 text-sm">
+						{#each links as { href, label }, i}
+							<a
+								{href}
+								class={`animate-fade-in ${
+									$page.url.pathname.startsWith(href)
+										? 'text-primary bg-card rounded-md px-3 py-1.5 font-medium shadow-sm transition-all'
+										: 'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm'
+								}`}
+								style={`animation-delay: ${150 + i * 75}ms;`}
+							>
+								{label}
+							</a>
+						{/each}
+						{#if $userStore?.isAdmin && versionInformation.isUpToDate === false}
+							<a
+								href="https://github.com/pocket-id/pocket-id/releases/latest"
+								target="_blank"
+								class="animate-fade-in hover:text-foreground hover:bg-muted/70 mt-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-orange-500 transition-all hover:-translate-y-[2px] hover:shadow-sm"
+								style={`animation-delay: ${150 + links.length * 75}ms;`}
+							>
+								{m.update_pocket_id()}
+								<LucideExternalLink class="my-auto inline-block h-3 w-3" />
+							</a>
+						{/if}
+					</nav>
 				</div>
-				<div class="flex w-full flex-col gap-4 overflow-x-hidden">
-					{@render children()}
-				</div>
-			</main>
-			<div class="animate-fade-in flex flex-col items-center" style="animation-delay: 400ms;">
-				<p class="text-muted-foreground py-3 text-xs">
-					{m.powered_by()}
-					<a
-						class="text-foreground transition-all hover:underline"
-						href="https://github.com/pocket-id/pocket-id"
-						target="_blank">Pocket ID</a
-					>
-					({versionInformation.currentVersion})
-				</p>
 			</div>
-		{/if}
+			<div class="flex w-full flex-col gap-4 overflow-x-hidden">
+				{@render children()}
+			</div>
+		</main>
+		<div class="animate-fade-in flex flex-col items-center" style="animation-delay: 400ms;">
+			<p class="text-muted-foreground py-3 text-xs">
+				{m.powered_by()}
+				<a
+					class="text-foreground transition-all hover:underline"
+					href="https://github.com/pocket-id/pocket-id"
+					target="_blank">Pocket ID</a
+				>
+				({versionInformation.currentVersion})
+			</p>
+		</div>
 	</div>
 </section>
