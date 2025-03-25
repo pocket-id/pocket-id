@@ -166,7 +166,7 @@
 	</div> -->
 
 	<!-- Passkey management card -->
-	<div class="animate-fade-in mt-6" style="animation-delay: 200ms;">
+	<div class="animate-fade-in" style="animation-delay: 200ms;">
 		<Card.Root>
 			<Card.Header class="border-b">
 				<div class="flex items-center justify-between">
@@ -192,7 +192,7 @@
 	</div>
 
 	<!-- Login code card -->
-	<div class="animate-fade-in mt-6" style="animation-delay: 250ms;">
+	<div class="animate-fade-in" style="animation-delay: 250ms;">
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
@@ -218,7 +218,7 @@
 	</div>
 
 	<!-- Language selection card -->
-	<div class="animate-fade-in mb-6 mt-6" style="animation-delay: 300ms;">
+	<div class="animate-fade-in" style="animation-delay: 300ms;">
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
