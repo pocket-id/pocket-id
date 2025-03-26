@@ -2,9 +2,10 @@ package service
 
 import (
 	"errors"
-	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"log"
 	"time"
+
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -63,14 +64,18 @@ func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (
 
 func (s *ApiKeyService) RevokeApiKey(userID, apiKeyID string) error {
 	var apiKey model.ApiKey
-	if err := s.db.Where("id = ? AND user_id = ?", apiKeyID, userID).First(&apiKey).Error; err != nil {
+	err := s.db.
+		Where("id = ? AND user_id = ?", apiKeyID, userID).
+		Delete(&apiKey).
+		Error
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &common.APIKeyNotFoundError{}
 		}
 		return err
 	}
 
-	return s.db.Delete(&apiKey).Error
+	return nil
 }
 
 func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
