@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
@@ -228,7 +227,7 @@ func (uc *UserController) updateUserHandler(c *gin.Context) {
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/me [put]
 func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
-	if uc.appConfigService.DbConfig.AllowOwnAccountEdit.Value != "true" {
+	if !uc.appConfigService.DbConfig.AllowOwnAccountEdit.IsTrue() {
 		c.Error(&common.AccountEditNotAllowedError{})
 		return
 	}
@@ -391,8 +390,7 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 		return
 	}
 
-	sessionDurationInMinutesParsed, _ := strconv.Atoi(uc.appConfigService.DbConfig.SessionDuration.Value)
-	maxAge := sessionDurationInMinutesParsed * 60
+	maxAge := int(uc.appConfigService.DbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
@@ -417,8 +415,7 @@ func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
 		return
 	}
 
-	sessionDurationInMinutesParsed, _ := strconv.Atoi(uc.appConfigService.DbConfig.SessionDuration.Value)
-	maxAge := sessionDurationInMinutesParsed * 60
+	maxAge := int(uc.appConfigService.DbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)

@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
@@ -43,10 +42,10 @@ const (
 )
 
 type JwtService struct {
-	privateKey      jwk.Key
-	keyId           string
-	sessionDuration time.Duration
-	jwksEncoded     []byte
+	privateKey       jwk.Key
+	keyId            string
+	appConfigService *AppConfigService
+	jwksEncoded      []byte
 }
 
 func NewJwtService(appConfigService *AppConfigService) *JwtService {
@@ -61,11 +60,7 @@ func NewJwtService(appConfigService *AppConfigService) *JwtService {
 }
 
 func (s *JwtService) init(appConfigService *AppConfigService, keysPath string) error {
-	sessionDurationInMinutes, err := strconv.Atoi(appConfigService.DbConfig.SessionDuration.Value)
-	if err != nil {
-		return fmt.Errorf("invalid value for 'SessionDuration' configuration option: %w", err)
-	}
-	s.sessionDuration = time.Duration(sessionDurationInMinutes) * time.Minute
+	s.appConfigService = appConfigService
 
 	// Ensure keys are generated or loaded
 	return s.loadOrGenerateKey(keysPath)
@@ -178,7 +173,7 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
-		Expiration(now.Add(s.sessionDuration)).
+		Expiration(now.Add(s.appConfigService.DbConfig.SessionDuration.AsDurationMinutes())).
 		IssuedAt(now).
 		Issuer(common.EnvConfig.AppURL).
 		Build()
