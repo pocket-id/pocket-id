@@ -256,15 +256,31 @@ func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string,
 	return string(signed), nil
 }
 
-func (s *JwtService) VerifyIdToken(tokenString string) (jwt.Token, error) {
+func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool) (jwt.Token, error) {
 	alg, _ := s.privateKey.Algorithm()
-	token, err := jwt.ParseString(
-		tokenString,
+
+	opts := make([]jwt.ParseOption, 0)
+
+	// These options are always present
+	opts = append(opts,
 		jwt.WithValidate(true),
 		jwt.WithKey(alg, s.privateKey),
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
 	)
+
+	// By default, jwt.Parse includes 3 default validators for "nbf", "iat", and "exp"
+	// In case we want to accept expired tokens (during logout), we need to set the validators explicitly without validating "exp"
+	if acceptExpiredTokens {
+		// This is equivalent to the default validators except it doesn't validate "exp"
+		opts = append(opts,
+			jwt.WithResetValidators(true),
+			jwt.WithValidator(jwt.IsIssuedAtValid()),
+			jwt.WithValidator(jwt.IsNbfValid()),
+		)
+	}
+
+	token, err := jwt.ParseString(tokenString, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}

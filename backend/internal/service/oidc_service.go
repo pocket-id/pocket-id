@@ -544,7 +544,8 @@ func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string)
 	}
 
 	// If the ID token hint is provided, verify the ID token
-	token, err := s.jwtService.VerifyIdToken(input.IdTokenHint)
+	// Here we also accept expired ID tokens, which are fine per spec
+	token, err := s.jwtService.VerifyIdToken(input.IdTokenHint, true)
 	if err != nil {
 		return "", &common.TokenInvalidError{}
 	}

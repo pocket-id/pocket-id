@@ -597,7 +597,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
 		// Verify the token
-		claims, err := service.VerifyIdToken(tokenString)
+		claims, err := service.VerifyIdToken(tokenString, false)
 		require.NoError(t, err, "Failed to verify generated ID token")
 
 		// Check the claims
@@ -617,6 +617,61 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		assert.True(t, ok, "Expiration not found in token")
 		timeDiff := expectedExp.Sub(expiration).Minutes()
 		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
+	})
+
+	t.Run("can accept expired tokens if told so", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create test claims
+		userClaims := map[string]interface{}{
+			"sub":   "user123",
+			"name":  "Test User",
+			"email": "user@example.com",
+		}
+		const clientID = "test-client-123"
+
+		// Create a token that's already expired
+		token, err := jwt.NewBuilder().
+			Subject(userClaims["sub"].(string)).
+			Issuer(common.EnvConfig.AppURL).
+			Audience([]string{clientID}).
+			IssuedAt(time.Now().Add(-2 * time.Hour)).
+			Expiration(time.Now().Add(-1 * time.Hour)). // Expired 1 hour ago
+			Build()
+		require.NoError(t, err, "Failed to build token")
+
+		// Add custom claims
+		for k, v := range userClaims {
+			if k != "sub" { // Already set above
+				err = token.Set(k, v)
+				require.NoError(t, err, "Failed to set claim")
+			}
+		}
+
+		// Sign the token
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), service.privateKey))
+		require.NoError(t, err, "Failed to sign token")
+		tokenString := string(signed)
+
+		// Verify the token without allowExpired flag - should fail
+		_, err = service.VerifyIdToken(tokenString, false)
+		require.Error(t, err, "Verification should fail with expired token when not allowing expired tokens")
+		assert.Contains(t, err.Error(), `"exp" not satisfied`, "Error message should indicate token verification failure")
+
+		// Verify the token with allowExpired flag - should succeed
+		claims, err := service.VerifyIdToken(tokenString, true)
+		require.NoError(t, err, "Verification should succeed with expired token when allowing expired tokens")
+
+		// Validate the claims
+		subject, ok := claims.Subject()
+		_ = assert.True(t, ok, "User ID not found in token") &&
+			assert.Equal(t, userClaims["sub"], subject, "Token subject should match user ID")
+		issuer, ok := claims.Issuer()
+		_ = assert.True(t, ok, "Issuer not found in token") &&
+			assert.Equal(t, common.EnvConfig.AppURL, issuer, "Issuer should match app URL")
 	})
 
 	t.Run("generates and verifies ID token with nonce", func(t *testing.T) {
@@ -667,7 +722,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		common.EnvConfig.AppURL = "https://wrong-issuer.com"
 
 		// Verify should fail due to issuer mismatch
-		_, err = service.VerifyIdToken(tokenString)
+		_, err = service.VerifyIdToken(tokenString, false)
 		assert.Error(t, err, "Verification should fail with incorrect issuer")
 		assert.Contains(t, err.Error(), `"iss" not satisfied`, "Error message should indicate token verification failure")
 	})
@@ -703,7 +758,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
 		// Verify the token
-		claims, err := service.VerifyIdToken(tokenString)
+		claims, err := service.VerifyIdToken(tokenString, false)
 		require.NoError(t, err, "Failed to verify generated ID token with key")
 
 		// Check the claims
@@ -756,7 +811,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
 		// Verify the token
-		claims, err := service.VerifyIdToken(tokenString)
+		claims, err := service.VerifyIdToken(tokenString, false)
 		require.NoError(t, err, "Failed to verify generated ID token with key")
 
 		// Check the claims
@@ -809,7 +864,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
 		// Verify the token
-		claims, err := service.VerifyIdToken(tokenString)
+		claims, err := service.VerifyIdToken(tokenString, false)
 		require.NoError(t, err, "Failed to verify generated ID token with key")
 
 		// Check the claims
