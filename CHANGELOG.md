@@ -1,3 +1,32 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.43.1...v) (2025-03-25)
+
+
+### Features
+
+* add OIDC refresh_token support ([#325](https://github.com/pocket-id/pocket-id/issues/325)) ([b8dcda8](https://github.com/pocket-id/pocket-id/commit/b8dcda80497e554d163a370eff81fe000f8831f4))
+
+
+### Bug Fixes
+
+* hash the refresh token in the DB (security) ([#379](https://github.com/pocket-id/pocket-id/issues/379)) ([8c96381](https://github.com/pocket-id/pocket-id/commit/8c963818bb90c84dac04018eec93790900d4b0ce))
+* skip ldap objects without a valid unique id ([#376](https://github.com/pocket-id/pocket-id/issues/376)) ([cdfe816](https://github.com/pocket-id/pocket-id/commit/cdfe8161d4429bdfe879887fe0b563a67c14f50b))
+* stop container if Caddy, the frontend or the backend fails ([e6f5019](https://github.com/pocket-id/pocket-id/commit/e6f50191cf05a5d0ac0e0000cf66423646f1920e))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.43.0...v) (2025-03-20)
+
+
+### Bug Fixes
+
+* wrong base locale causes crash ([3120ebf](https://github.com/pocket-id/pocket-id/commit/3120ebf239b90f0bc0a0af33f30622e034782398))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.42.1...v) (2025-03-20)
+
+
+### Features
+
+* add support for translations ([#349](https://github.com/pocket-id/pocket-id/issues/349)) ([269b5a3](https://github.com/pocket-id/pocket-id/commit/269b5a3c9249bb8081c74741141d3d5a69ea42a2))
+* **passkeys:** name new passkeys based on agguids ([#332](https://github.com/pocket-id/pocket-id/issues/332)) ([041c565](https://github.com/pocket-id/pocket-id/commit/041c565dc10f15edb3e8ab58e9a4df5e48a2a6d3))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.42.0...v) (2025-03-18)
 
 

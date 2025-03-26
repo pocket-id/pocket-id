@@ -4,6 +4,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { LucideLoader, LucideRefreshCw, LucideUpload } from 'lucide-svelte';
 	import { openConfirmDialog } from '../confirm-dialog';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		userId,
@@ -40,11 +41,10 @@
 
 	function onReset() {
 		openConfirmDialog({
-			title: 'Reset profile picture?',
-			message:
-				'This will remove the uploaded image, and reset the profile picture to default. Do you want to continue?',
+			title: m.reset_profile_picture_question(),
+			message: m.this_will_remove_the_uploaded_image_and_reset_the_profile_picture_to_default(),
 			confirm: {
-				label: 'Reset',
+				label: m.reset(),
 				action: async () => {
 					isLoading = true;
 					await resetCallback().catch();
@@ -58,16 +58,16 @@
 <div class="flex gap-5">
 	<div class="flex w-full flex-col justify-between gap-5 sm:flex-row">
 		<div>
-			<h3 class="text-xl font-semibold">Profile Picture</h3>
+			<h3 class="text-xl font-semibold">{m.profile_picture()}</h3>
 			{#if isLdapUser}
 				<p class="text-muted-foreground mt-1 text-sm">
-					The profile picture is managed by the LDAP server and cannot be changed here.
+					{m.profile_picture_is_managed_by_ldap_server()}
 				</p>
 			{:else}
 				<p class="text-muted-foreground mt-1 text-sm">
-					Click on the profile picture to upload a custom one from your files.
+					{m.click_profile_picture_to_upload_custom()}
 				</p>
-				<p class="text-muted-foreground mt-1 text-sm">The image should be in PNG or JPEG format.</p>
+				<p class="text-muted-foreground mt-1 text-sm">{m.image_should_be_in_format()}</p>
 			{/if}
 			<Button
 				variant="outline"
@@ -77,7 +77,7 @@
 				disabled={isLoading || isLdapUser}
 			>
 				<LucideRefreshCw class="mr-2 h-4 w-4" />
-				Reset to default
+				{m.reset_to_default()}
 			</Button>
 		</div>
 		{#if isLdapUser}

@@ -255,3 +255,33 @@ type APIKeyExpirationDateError struct{}
 func (e *APIKeyExpirationDateError) Error() string {
 	return "API Key expiration time must be in the future"
 }
+
+type OidcInvalidRefreshTokenError struct{}
+
+func (e *OidcInvalidRefreshTokenError) Error() string {
+	return "refresh token is invalid or expired"
+}
+
+func (e *OidcInvalidRefreshTokenError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type OidcMissingRefreshTokenError struct{}
+
+func (e *OidcMissingRefreshTokenError) Error() string {
+	return "refresh token is required"
+}
+
+func (e *OidcMissingRefreshTokenError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type OidcMissingAuthorizationCodeError struct{}
+
+func (e *OidcMissingAuthorizationCodeError) Error() string {
+	return "authorization code is required"
+}
+
+func (e *OidcMissingAuthorizationCodeError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}

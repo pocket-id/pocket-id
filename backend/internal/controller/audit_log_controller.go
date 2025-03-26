@@ -36,7 +36,7 @@ type AuditLogController struct {
 // @Param sort_column query string false "Column to sort by" default("created_at")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
-// @Router /audit-logs [get]
+// @Router /api/audit-logs [get]
 func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {

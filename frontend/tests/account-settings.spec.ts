@@ -2,6 +2,7 @@ import test, { expect } from '@playwright/test';
 import { users } from './data';
 import { cleanupBackend } from './utils/cleanup.util';
 import passkeyUtil from './utils/passkey.util';
+import authUtil from './utils/auth.util';
 
 test.beforeEach(cleanupBackend);
 
@@ -35,6 +36,22 @@ test('Update account details fails with already taken username', async ({ page }
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.getByRole('status')).toHaveText('Username is already in use');
+});
+
+test('Change Locale', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Select Locale').click();
+	await page.getByRole('option', { name: 'Nederlands' }).click();
+
+	// Check if th language heading now says 'Taal' instead of 'Language'
+	await expect(page.getByRole('heading', { name: 'Taal' })).toBeVisible();
+
+	// Clear all cookies and sign in again to check if the language is still set to Dutch
+	await page.context().clearCookies();
+	await authUtil.authenticate(page);
+
+	await expect(page.getByRole('heading', { name: 'Taal' })).toBeVisible();
 });
 
 test('Add passkey to an account', async ({ page }) => {

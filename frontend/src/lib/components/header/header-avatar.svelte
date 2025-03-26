@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import userStore from '$lib/stores/user-store';
 	import { LucideLogOut, LucideUser } from 'lucide-svelte';
@@ -32,10 +33,10 @@
 		<DropdownMenu.Separator />
 		<DropdownMenu.Group>
 			<DropdownMenu.Item href="/settings/account"
-				><LucideUser class="mr-2 h-4 w-4" /> My Account</DropdownMenu.Item
+				><LucideUser class="mr-2 h-4 w-4" /> {m.my_account()}</DropdownMenu.Item
 			>
 			<DropdownMenu.Item on:click={logout}
-				><LucideLogOut class="mr-2 h-4 w-4" /> Logout</DropdownMenu.Item
+				><LucideLogOut class="mr-2 h-4 w-4" /> {m.logout()}</DropdownMenu.Item
 			>
 		</DropdownMenu.Group>
 	</DropdownMenu.Content>

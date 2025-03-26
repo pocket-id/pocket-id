@@ -10,6 +10,7 @@
 	import { slide } from 'svelte/transition';
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let users = $state(data.users);
@@ -23,7 +24,7 @@
 		let success = true;
 		await userService
 			.create(user)
-			.then(() => toast.success('User created successfully'))
+			.then(() => toast.success(m.user_created_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 				success = false;
@@ -35,18 +36,18 @@
 </script>
 
 <svelte:head>
-	<title>Users</title>
+	<title>{m.users()}</title>
 </svelte:head>
 
 <Card.Root>
 	<Card.Header>
 		<div class="flex items-center justify-between">
 			<div>
-				<Card.Title>Create User</Card.Title>
-				<Card.Description>Add a new user to {$appConfigStore.appName}.</Card.Description>
+				<Card.Title>{m.create_user()}</Card.Title>
+				<Card.Description>{m.add_a_new_user_to_appname({ appName: $appConfigStore.appName })}.</Card.Description>
 			</div>
 			{#if !expandAddUser}
-				<Button on:click={() => (expandAddUser = true)}>Add User</Button>
+				<Button on:click={() => (expandAddUser = true)}>{m.add_user()}</Button>
 			{:else}
 				<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUser = false)}>
 					<LucideMinus class="h-5 w-5" />
@@ -65,7 +66,7 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Manage Users</Card.Title>
+		<Card.Title>{m.manage_users()}</Card.Title>
 	</Card.Header>
 	<Card.Content>
 		<UserList {users} requestOptions={usersRequestOptions} />

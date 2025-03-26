@@ -5,6 +5,7 @@
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 
@@ -17,14 +18,14 @@
 	const userService = new UserService();
 
 	let oneTimeLink: string | null = $state(null);
-	let selectedExpiration: keyof typeof availableExpirations = $state('1 hour');
+	let selectedExpiration: keyof typeof availableExpirations = $state(m.one_hour());
 
 	let availableExpirations = {
-		'1 hour': 60 * 60,
-		'12 hours': 60 * 60 * 12,
-		'1 day': 60 * 60 * 24,
-		'1 week': 60 * 60 * 24 * 7,
-		'1 month': 60 * 60 * 24 * 30
+		[m.one_hour()]: 60 * 60,
+		[m.twelve_hours()]: 60 * 60 * 12,
+		[m.one_day()]: 60 * 60 * 24,
+		[m.one_week()]: 60 * 60 * 24 * 7,
+		[m.one_month()]: 60 * 60 * 24 * 30
 	};
 
 	async function createOneTimeAccessToken() {
@@ -48,14 +49,14 @@
 <Dialog.Root open={!!userId} {onOpenChange}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Login Code</Dialog.Title>
+			<Dialog.Title>{m.login_code()}</Dialog.Title>
 			<Dialog.Description
-				>Create a login code that the user can use to sign in without a passkey once.</Dialog.Description
+				>{m.create_a_login_code_to_sign_in_without_a_passkey_once()}</Dialog.Description
 			>
 		</Dialog.Header>
 		{#if oneTimeLink === null}
 			<div>
-				<Label for="expiration">Expiration</Label>
+				<Label for="expiration">{m.expiration()}</Label>
 				<Select.Root
 					selected={{
 						label: Object.keys(availableExpirations)[0],
@@ -75,10 +76,10 @@
 				</Select.Root>
 			</div>
 			<Button onclick={() => createOneTimeAccessToken()} disabled={!selectedExpiration}>
-				Generate Code
+				{m.generate_code()}
 			</Button>
 		{:else}
-			<Label for="login-code" class="sr-only">Login Code</Label>
+			<Label for="login-code" class="sr-only">{m.login_code()}</Label>
 			<Input id="login-code" value={oneTimeLink} readonly />
 		{/if}
 	</Dialog.Content>

@@ -8,6 +8,7 @@
 	import { onMount, type Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import AutoCompleteInput from './auto-complete-input.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		customClaims = $bindable(),
@@ -41,15 +42,15 @@
 			{#each customClaims as _, i}
 				<div class="flex gap-x-2">
 					<AutoCompleteInput
-						placeholder="Key"
+						placeholder={m.key()}
 						suggestions={filteredSuggestions}
 						bind:value={customClaims[i].key}
 					/>
-					<Input placeholder="Value" bind:value={customClaims[i].value} />
+					<Input placeholder={m.value()} bind:value={customClaims[i].value} />
 					<Button
 						variant="outline"
 						size="sm"
-						aria-label="Remove custom claim"
+						aria-label={m.remove_custom_claim()}
 						on:click={() => (customClaims = customClaims.filter((_, index) => index !== i))}
 					>
 						<LucideMinus class="h-4 w-4" />
@@ -69,7 +70,7 @@
 			on:click={() => (customClaims = [...customClaims, { key: '', value: '' }])}
 		>
 			<LucidePlus class="mr-1 h-4 w-4" />
-			{customClaims.length === 0 ? 'Add custom claim' : 'Add another'}
+			{customClaims.length === 0 ? m.add_custom_claim() : m.add_another()}
 		</Button>
 	{/if}
 </div>

@@ -3,22 +3,24 @@ package profilepicture
 import (
 	"bytes"
 	"fmt"
-	"github.com/disintegration/imageorient"
-	"github.com/disintegration/imaging"
-	"github.com/pocket-id/pocket-id/backend/resources"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"image/color"
 	"io"
 	"strings"
+
+	"github.com/disintegration/imageorient"
+	"github.com/disintegration/imaging"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
+
+	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 const profilePictureSize = 300
 
 // CreateProfilePicture resizes the profile picture to a square
-func CreateProfilePicture(file io.Reader) (*bytes.Buffer, error) {
+func CreateProfilePicture(file io.Reader) (io.Reader, error) {
 	img, _, err := imageorient.Decode(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
@@ -26,13 +28,17 @@ func CreateProfilePicture(file io.Reader) (*bytes.Buffer, error) {
 
 	img = imaging.Fill(img, profilePictureSize, profilePictureSize, imaging.Center, imaging.Lanczos)
 
-	var buf bytes.Buffer
-	err = imaging.Encode(&buf, img, imaging.PNG)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode image: %v", err)
-	}
+	pr, pw := io.Pipe()
+	go func() {
+		err = imaging.Encode(pw, img, imaging.PNG)
+		if err != nil {
+			_ = pw.CloseWithError(fmt.Errorf("failed to encode image: %v", err))
+			return
+		}
+		pw.Close()
+	}()
 
-	return &buf, nil
+	return pr, nil
 }
 
 // CreateDefaultProfilePicture creates a profile picture with the initials

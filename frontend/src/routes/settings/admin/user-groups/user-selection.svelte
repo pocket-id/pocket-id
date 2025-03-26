@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import * as Table from '$lib/components/ui/table';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
@@ -35,8 +36,8 @@
 		onRefresh={async (o) => (users = await userService.list(o))}
 		{requestOptions}
 		columns={[
-			{ label: 'Name', sortColumn: 'firstName' },
-			{ label: 'Email', sortColumn: 'email' }
+			{ label: m.name(), sortColumn: 'firstName' },
+			{ label: m.email(), sortColumn: 'email' }
 		]}
 		bind:selectedIds={selectedUserIds}
 		{selectionDisabled}

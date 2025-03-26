@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 	import type { ApiKeyCreate } from '$lib/types/api-key.type';
 	import { createForm } from '$lib/utils/form-util';
 	import { z } from 'zod';
@@ -26,10 +27,10 @@
 	const formSchema = z.object({
 		name: z
 			.string()
-			.min(3, 'Name must be at least 3 characters')
-			.max(50, 'Name cannot exceed 50 characters'),
+			.min(3, m.name_must_be_at_least_3_characters())
+			.max(50, m.name_cannot_exceed_50_characters()),
 		description: z.string().default(''),
-		expiresAt: z.date().min(new Date(), 'Expiration date must be in the future')
+		expiresAt: z.date().min(new Date(), m.expiration_date_must_be_in_the_future())
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, apiKey);
@@ -54,25 +55,25 @@
 <form onsubmit={onSubmit}>
 	<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 		<FormInput
-			label="Name"
+			label={m.name()}
 			bind:input={$inputs.name}
-			description="Name to identify this API key."
+			description={m.name_to_identify_this_api_key()}
 		/>
 		<FormInput
-			label="Expires At"
+			label={m.expires_at()}
 			type="date"
-			description="When this API key will expire."
+			description={m.when_this_api_key_will_expire()}
 			bind:input={$inputs.expiresAt}
 		/>
 		<div class="col-span-1 md:col-span-2">
 			<FormInput
-				label="Description"
-				description="Optional description to help identify this key's purpose."
+				label={m.description()}
+				description={m.optional_description_to_help_identify_this_keys_purpose()}
 				bind:input={$inputs.description}
 			/>
 		</div>
 	</div>
 	<div class="mt-5 flex justify-end">
-		<Button {isLoading} type="submit">Save</Button>
+		<Button {isLoading} type="submit">{m.save()}</Button>
 	</div>
 </form>

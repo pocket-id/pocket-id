@@ -2,6 +2,7 @@
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Table from '$lib/components/ui/table';
+	import { m } from '$lib/paraglide/messages';
 	import AuditLogService from '$lib/services/audit-log-service';
 	import type { AuditLog } from '$lib/types/audit-log.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
@@ -27,12 +28,12 @@
 	{requestOptions}
 	onRefresh={async (options) => (auditLogs = await auditLogService.list(options))}
 	columns={[
-		{ label: 'Time', sortColumn: 'createdAt' },
-		{ label: 'Event', sortColumn: 'event' },
-		{ label: 'Approximate Location', sortColumn: 'city' },
-		{ label: 'IP Address', sortColumn: 'ipAddress' },
-		{ label: 'Device', sortColumn: 'device' },
-		{ label: 'Client' }
+		{ label: m.time(), sortColumn: 'createdAt' },
+		{ label: m.event(), sortColumn: 'event' },
+		{ label: m.approximate_location(), sortColumn: 'city' },
+		{ label: m.ip_address(), sortColumn: 'ipAddress' },
+		{ label: m.device(), sortColumn: 'device' },
+		{ label: m.client() }
 	]}
 	withoutSearch
 >
@@ -42,7 +43,7 @@
 			<Badge variant="outline">{toFriendlyEventString(item.event)}</Badge>
 		</Table.Cell>
 		<Table.Cell
-			>{item.city && item.country ? `${item.city}, ${item.country}` : 'Unknown'}</Table.Cell
+			>{item.city && item.country ? `${item.city}, ${item.country}` : m.unknown()}</Table.Cell
 		>
 		<Table.Cell>{item.ipAddress}</Table.Cell>
 		<Table.Cell>{item.device}</Table.Cell>

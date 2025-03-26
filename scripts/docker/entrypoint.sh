@@ -9,12 +9,15 @@ if [ "$CADDY_DISABLED" != "true" ]; then
 
   # Check if TRUST_PROXY is set to true and use the appropriate Caddyfile
   if [ "$TRUST_PROXY" = "true" ]; then
-    caddy start --adapter caddyfile --config /etc/caddy/Caddyfile.trust-proxy &
+    caddy run --adapter caddyfile --config /etc/caddy/Caddyfile.trust-proxy &
   else
-    caddy start --adapter caddyfile --config /etc/caddy/Caddyfile &
+    caddy run --adapter caddyfile --config /etc/caddy/Caddyfile &
   fi
 else
   echo "Caddy is disabled. Skipping..."
 fi
+
+# Set up trap to catch child process terminations
+trap 'exit 1' SIGCHLD
 
 wait

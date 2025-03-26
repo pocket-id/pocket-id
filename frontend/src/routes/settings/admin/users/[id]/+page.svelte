@@ -14,6 +14,7 @@
 	import { LucideChevronLeft } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import UserForm from '../user-form.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let user = $state({
@@ -27,7 +28,7 @@
 	async function updateUserGroups(userIds: string[]) {
 		await userService
 			.updateUserGroups(user.id, userIds)
-			.then(() => toast.success('User groups updated successfully'))
+			.then(() => toast.success(m.user_groups_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 			});
@@ -37,7 +38,7 @@
 		let success = true;
 		await userService
 			.update(user.id, updatedUser)
-			.then(() => toast.success('User updated successfully'))
+			.then(() => toast.success(m.user_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 				success = false;
@@ -49,7 +50,7 @@
 	async function updateCustomClaims() {
 		await customClaimService
 			.updateUserCustomClaims(user.id, user.customClaims)
-			.then(() => toast.success('Custom claims updated successfully'))
+			.then(() => toast.success(m.custom_claims_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 			});
@@ -58,33 +59,38 @@
 	async function updateProfilePicture(image: File) {
 		await userService
 			.updateProfilePicture(user.id, image)
-			.then(() => toast.success('Profile picture updated successfully. It may take a few minutes to update.'))
+			.then(() => toast.success(m.profile_picture_updated_successfully()))
 			.catch(axiosErrorToast);
 	}
 
 	async function resetProfilePicture() {
 		await userService
 			.resetProfilePicture(user.id)
-			.then(() => toast.success('Profile picture has been reset. It may take a few minutes to update.'))
+			.then(() => toast.success(m.profile_picture_has_been_reset()))
 			.catch(axiosErrorToast);
 	}
 </script>
 
 <svelte:head>
-	<title>User Details {user.firstName} {user.lastName}</title>
+	<title
+		>{m.user_details_firstname_lastname({
+			firstName: user.firstName,
+			lastName: user.lastName
+		})}</title
+	>
 </svelte:head>
 
 <div class="flex items-center justify-between">
 	<a class="text-muted-foreground flex text-sm" href="/settings/admin/users"
-		><LucideChevronLeft class="h-5 w-5" /> Back</a
+		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
 	>
 	{#if !!user.ldapId}
-		<Badge variant="default" class="">LDAP</Badge>
+		<Badge variant="default" class="">{m.ldap()}</Badge>
 	{/if}
 </div>
 <Card.Root>
 	<Card.Header>
-		<Card.Title>General</Card.Title>
+		<Card.Title>{m.general()}</Card.Title>
 	</Card.Header>
 	<Card.Content>
 		<UserForm existingUser={user} callback={updateUser} />
@@ -104,8 +110,8 @@
 
 <CollapsibleCard
 	id="user-groups"
-	title="User Groups"
-	description="Manage which groups this user belongs to."
+	title={m.user_groups()}
+	description={m.manage_which_groups_this_user_belongs_to()}
 >
 	<UserGroupSelection
 		bind:selectedGroupIds={user.userGroupIds}
@@ -115,18 +121,18 @@
 		<Button
 			on:click={() => updateUserGroups(user.userGroupIds)}
 			disabled={!!user.ldapId && $appConfigStore.ldapEnabled}
-			type="submit">Save</Button
+			type="submit">{m.save()}</Button
 		>
 	</div>
 </CollapsibleCard>
 
 <CollapsibleCard
 	id="user-custom-claims"
-	title="Custom Claims"
-	description="Custom claims are key-value pairs that can be used to store additional information about a user. These claims will be included in the ID token if the scope 'profile' is requested."
+	title={m.custom_claims()}
+	description={m.custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user()}
 >
 	<CustomClaimsInput bind:customClaims={user.customClaims} />
 	<div class="mt-5 flex justify-end">
-		<Button on:click={updateCustomClaims} type="submit">Save</Button>
+		<Button on:click={updateCustomClaims} type="submit">{m.save()}</Button>
 	</div>
 </CollapsibleCard>

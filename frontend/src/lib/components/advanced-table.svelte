@@ -11,6 +11,7 @@
 	import { ChevronDown } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import Button from './ui/button/button.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		items,
@@ -93,7 +94,7 @@
 			'relative z-50 mb-4 max-w-sm',
 			items.data.length == 0 && searchValue == '' && 'hidden'
 		)}
-		placeholder={'Search...'}
+		placeholder={m.search()}
 		type="text"
 		oninput={(e) => onSearch((e.target as HTMLInputElement).value)}
 	/>
@@ -102,7 +103,7 @@
 {#if items.data.length === 0 && searchValue === ''}
 	<div class="my-5 flex flex-col items-center">
 		<Empty class="text-muted-foreground h-20" />
-		<p class="text-muted-foreground mt-3 text-sm">No items found</p>
+		<p class="text-muted-foreground mt-3 text-sm">{m.no_items_found()}</p>
 	</div>
 {:else}
 	<Table.Root class="min-w-full table-auto overflow-x-auto">
@@ -166,7 +167,7 @@
 
 	<div class="mt-5 flex flex-col-reverse items-center justify-between gap-3 sm:flex-row">
 		<div class="flex items-center space-x-2">
-			<p class="text-sm font-medium">Items per page</p>
+			<p class="text-sm font-medium">{m.items_per_page()}</p>
 			<Select.Root
 				selected={{
 					label: items.pagination.itemsPerPage.toString(),

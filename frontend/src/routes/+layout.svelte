@@ -4,6 +4,7 @@
 	import Error from '$lib/components/error.svelte';
 	import Header from '$lib/components/header/header.svelte';
 	import { Toaster } from '$lib/components/ui/sonner';
+	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { ModeWatcher } from 'mode-watcher';
@@ -30,10 +31,7 @@
 </script>
 
 {#if !appConfig}
-	<Error
-		message="A critical error occurred. Please contact your administrator."
-		showButton={false}
-	/>
+	<Error message={m.critical_error_occurred_contact_administrator()} showButton={false} />
 {:else}
 	<Header />
 	{@render children()}

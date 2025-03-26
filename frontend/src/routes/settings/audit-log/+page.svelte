@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import AuditLogList from './audit-log-list.svelte';
 
 	let { data } = $props();
@@ -8,14 +9,14 @@
 </script>
 
 <svelte:head>
-	<title>Audit Log</title>
+	<title>{m.audit_log()}</title>
 </svelte:head>
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Audit Log</Card.Title>
+		<Card.Title>{m.audit_log()}</Card.Title>
 		<Card.Description class="mt-1"
-			>See your account activities from the last 3 months.</Card.Description
+			>{m.see_your_account_activities_from_the_last_3_months()}</Card.Description
 		>
 	</Card.Header>
 	<Card.Content>
