@@ -171,7 +171,7 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) {
-	if err := uc.userService.DeleteUser(c.Param("id")); err != nil {
+	if err := uc.userService.DeleteUser(c.Param("id"), nil); err != nil {
 		c.Error(err)
 		return
 	}
@@ -193,7 +193,7 @@ func (uc *UserController) createUserHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := uc.userService.CreateUser(input)
+	user, err := uc.userService.CreateUser(input, nil)
 	if err != nil {
 		c.Error(err)
 		return
@@ -469,7 +469,7 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 		userID = c.Param("id")
 	}
 
-	user, err := uc.userService.UpdateUser(userID, input, updateOwnUser, false)
+	user, err := uc.userService.UpdateUser(userID, input, updateOwnUser, false, nil)
 	if err != nil {
 		c.Error(err)
 		return

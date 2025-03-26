@@ -125,7 +125,7 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 		return
 	}
 
-	group, err := ugc.UserGroupService.Create(input)
+	group, err := ugc.UserGroupService.Create(input, nil)
 	if err != nil {
 		c.Error(err)
 		return
@@ -158,7 +158,7 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 		return
 	}
 
-	group, err := ugc.UserGroupService.Update(c.Param("id"), input, false)
+	group, err := ugc.UserGroupService.Update(c.Param("id"), input, false, nil)
 	if err != nil {
 		c.Error(err)
 		return
@@ -210,7 +210,7 @@ func (ugc *UserGroupController) updateUsers(c *gin.Context) {
 		return
 	}
 
-	group, err := ugc.UserGroupService.UpdateUsers(c.Param("id"), input.UserIDs)
+	group, err := ugc.UserGroupService.UpdateUsers(c.Param("id"), input.UserIDs, nil)
 	if err != nil {
 		c.Error(err)
 		return

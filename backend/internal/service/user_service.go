@@ -121,9 +121,13 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 	return nil
 }
 
-func (s *UserService) DeleteUser(userID string) error {
+func (s *UserService) DeleteUser(userID string, tx *gorm.DB) error {
+	if tx == nil {
+		tx = s.db
+	}
+
 	var user model.User
-	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
 		return err
 	}
 
@@ -138,10 +142,10 @@ func (s *UserService) DeleteUser(userID string) error {
 		return err
 	}
 
-	return s.db.Delete(&user).Error
+	return tx.Delete(&user).Error
 }
 
-func (s *UserService) CreateUser(input dto.UserCreateDto) (model.User, error) {
+func (s *UserService) CreateUser(input dto.UserCreateDto, tx *gorm.DB) (model.User, error) {
 	user := model.User{
 		FirstName: input.FirstName,
 		LastName:  input.LastName,
@@ -154,7 +158,11 @@ func (s *UserService) CreateUser(input dto.UserCreateDto) (model.User, error) {
 		user.LdapID = &input.LdapID
 	}
 
-	if err := s.db.Create(&user).Error; err != nil {
+	if tx == nil {
+		tx = s.db
+	}
+
+	if err := tx.Create(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return model.User{}, s.checkDuplicatedFields(user)
 		}
@@ -163,9 +171,13 @@ func (s *UserService) CreateUser(input dto.UserCreateDto) (model.User, error) {
 	return user, nil
 }
 
-func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, allowLdapUpdate bool) (model.User, error) {
+func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, allowLdapUpdate bool, tx *gorm.DB) (model.User, error) {
+	if tx == nil {
+		tx = s.db
+	}
+
 	var user model.User
-	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
 		return model.User{}, err
 	}
 
@@ -183,7 +195,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 		user.IsAdmin = updatedUser.IsAdmin
 	}
 
-	if err := s.db.Save(&user).Error; err != nil {
+	if err := tx.Save(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return user, s.checkDuplicatedFields(user)
 		}

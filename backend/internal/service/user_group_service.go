@@ -61,7 +61,11 @@ func (s *UserGroupService) Delete(id string) error {
 	return s.db.Delete(&group).Error
 }
 
-func (s *UserGroupService) Create(input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
+func (s *UserGroupService) Create(input dto.UserGroupCreateDto, tx *gorm.DB) (group model.UserGroup, err error) {
+	if tx == nil {
+		tx = s.db
+	}
+
 	group = model.UserGroup{
 		FriendlyName: input.FriendlyName,
 		Name:         input.Name,
@@ -71,7 +75,7 @@ func (s *UserGroupService) Create(input dto.UserGroupCreateDto) (group model.Use
 		group.LdapID = &input.LdapID
 	}
 
-	if err := s.db.Preload("Users").Create(&group).Error; err != nil {
+	if err := tx.Preload("Users").Create(&group).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
 		}
@@ -80,7 +84,11 @@ func (s *UserGroupService) Create(input dto.UserGroupCreateDto) (group model.Use
 	return group, nil
 }
 
-func (s *UserGroupService) Update(id string, input dto.UserGroupCreateDto, allowLdapUpdate bool) (group model.UserGroup, err error) {
+func (s *UserGroupService) Update(id string, input dto.UserGroupCreateDto, allowLdapUpdate bool, tx *gorm.DB) (group model.UserGroup, err error) {
+	if tx == nil {
+		tx = s.db
+	}
+
 	group, err = s.Get(id)
 	if err != nil {
 		return model.UserGroup{}, err
@@ -94,7 +102,7 @@ func (s *UserGroupService) Update(id string, input dto.UserGroupCreateDto, allow
 	group.Name = input.Name
 	group.FriendlyName = input.FriendlyName
 
-	if err := s.db.Preload("Users").Save(&group).Error; err != nil {
+	if err := tx.Preload("Users").Save(&group).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
 		}
@@ -103,7 +111,11 @@ func (s *UserGroupService) Update(id string, input dto.UserGroupCreateDto, allow
 	return group, nil
 }
 
-func (s *UserGroupService) UpdateUsers(id string, userIds []string) (group model.UserGroup, err error) {
+func (s *UserGroupService) UpdateUsers(id string, userIds []string, tx *gorm.DB) (group model.UserGroup, err error) {
+	if tx == nil {
+		tx = s.db
+	}
+
 	group, err = s.Get(id)
 	if err != nil {
 		return model.UserGroup{}, err
@@ -112,18 +124,18 @@ func (s *UserGroupService) UpdateUsers(id string, userIds []string) (group model
 	// Fetch the users based on the userIds
 	var users []model.User
 	if len(userIds) > 0 {
-		if err := s.db.Where("id IN (?)", userIds).Find(&users).Error; err != nil {
+		if err := tx.Where("id IN (?)", userIds).Find(&users).Error; err != nil {
 			return model.UserGroup{}, err
 		}
 	}
 
 	// Replace the current users with the new set of users
-	if err := s.db.Model(&group).Association("Users").Replace(users); err != nil {
+	if err := tx.Model(&group).Association("Users").Replace(users); err != nil {
 		return model.UserGroup{}, err
 	}
 
 	// Save the updated group
-	if err := s.db.Save(&group).Error; err != nil {
+	if err := tx.Save(&group).Error; err != nil {
 		return model.UserGroup{}, err
 	}
 
