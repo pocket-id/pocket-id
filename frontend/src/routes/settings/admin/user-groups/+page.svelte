@@ -12,6 +12,7 @@
 	import UserGroupForm from './user-group-form.svelte';
 	import UserGroupList from './user-group-list.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 
 	let { data } = $props();
 	let userGroups = $state(data.userGroups);
@@ -41,47 +42,50 @@
 	<title>{m.user_groups()}</title>
 </svelte:head>
 
-<div class="animate-fade-in" style="animation-delay: 100ms;">
-	<Card.Root>
-		<Card.Header class={expandAddUserGroup ? 'border-b' : ''}>
-			<div class="flex items-center justify-between">
-				<div>
-					<Card.Title>
-						<UserPlus class="text-primary/80 h-5 w-5" />
-						{m.create_user_group()}
-					</Card.Title>
-					<Card.Description>{m.create_a_new_group_that_can_be_assigned_to_users()}</Card.Description
-					>
+<FadeWrapper delay={250} stagger={50}>
+	<div>
+		<Card.Root>
+			<Card.Header class={expandAddUserGroup ? 'border-b' : ''}>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>
+							<UserPlus class="text-primary/80 h-5 w-5" />
+							{m.create_user_group()}
+						</Card.Title>
+						<Card.Description
+							>{m.create_a_new_group_that_can_be_assigned_to_users()}</Card.Description
+						>
+					</div>
+					{#if !expandAddUserGroup}
+						<Button on:click={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
+					{:else}
+						<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUserGroup = false)}>
+							<LucideMinus class="h-5 w-5" />
+						</Button>
+					{/if}
 				</div>
-				{#if !expandAddUserGroup}
-					<Button on:click={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
-				{:else}
-					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUserGroup = false)}>
-						<LucideMinus class="h-5 w-5" />
-					</Button>
-				{/if}
-			</div>
-		</Card.Header>
-		{#if expandAddUserGroup}
-			<div transition:slide>
-				<Card.Content>
-					<UserGroupForm callback={createUserGroup} />
-				</Card.Content>
-			</div>
-		{/if}
-	</Card.Root>
-</div>
+			</Card.Header>
+			{#if expandAddUserGroup}
+				<div transition:slide>
+					<Card.Content>
+						<UserGroupForm callback={createUserGroup} />
+					</Card.Content>
+				</div>
+			{/if}
+		</Card.Root>
+	</div>
 
-<div class="animate-fade-in" style="animation-delay: 200ms;">
-	<Card.Root>
-		<Card.Header class="border-b">
-			<Card.Title>
-				<UserCog class="text-primary/80 h-5 w-5" />
-				{m.manage_user_groups()}
-			</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<UserGroupList {userGroups} requestOptions={userGroupsRequestOptions} />
-		</Card.Content>
-	</Card.Root>
-</div>
+	<div>
+		<Card.Root>
+			<Card.Header class="border-b">
+				<Card.Title>
+					<UserCog class="text-primary/80 h-5 w-5" />
+					{m.manage_user_groups()}
+				</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<UserGroupList {userGroups} requestOptions={userGroupsRequestOptions} />
+			</Card.Content>
+		</Card.Root>
+	</div>
+</FadeWrapper>

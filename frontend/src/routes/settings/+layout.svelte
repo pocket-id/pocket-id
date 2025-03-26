@@ -41,7 +41,7 @@
 	<div class="bg-muted/40 flex min-h-[calc(100vh-64px)] w-full flex-col justify-between">
 		<main
 			in:fade={{ duration: 300 }}
-			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 p-4 md:p-8 lg:flex-row"
+			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 overflow-hidden p-4 md:p-8 lg:flex-row"
 		>
 			<div class="min-w-[200px] xl:min-w-[250px]">
 				<div in:fly={{ x: -15, duration: 300 }} class="sticky top-6">
@@ -79,7 +79,7 @@
 					</nav>
 				</div>
 			</div>
-			<div class="flex w-full flex-col gap-4 overflow-x-hidden">
+			<div class="flex w-full flex-col gap-4 overflow-hidden">
 				{@render children()}
 			</div>
 		</main>

@@ -11,6 +11,7 @@
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 
 	let { data } = $props();
 	let users = $state(data.users);
@@ -40,50 +41,52 @@
 	<title>{m.users()}</title>
 </svelte:head>
 
-<div class="animate-fade-in" style="animation-delay: 100ms;">
-	<Card.Root>
-		<Card.Header class={expandAddUser ? 'border-b' : ''}>
-			<div class="flex items-center justify-between">
-				<div>
-					<Card.Title>
-						<UserPlus class="text-primary/80 h-5 w-5" />
-						{m.create_user()}
-					</Card.Title>
-					<Card.Description
-						>{m.add_a_new_user_to_appname({
-							appName: $appConfigStore.appName
-						})}.</Card.Description
-					>
+<FadeWrapper delay={250} stagger={50}>
+	<div>
+		<Card.Root>
+			<Card.Header class={expandAddUser ? 'border-b' : ''}>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>
+							<UserPlus class="text-primary/80 h-5 w-5" />
+							{m.create_user()}
+						</Card.Title>
+						<Card.Description
+							>{m.add_a_new_user_to_appname({
+								appName: $appConfigStore.appName
+							})}.</Card.Description
+						>
+					</div>
+					{#if !expandAddUser}
+						<Button on:click={() => (expandAddUser = true)}>{m.add_user()}</Button>
+					{:else}
+						<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUser = false)}>
+							<LucideMinus class="h-5 w-5" />
+						</Button>
+					{/if}
 				</div>
-				{#if !expandAddUser}
-					<Button on:click={() => (expandAddUser = true)}>{m.add_user()}</Button>
-				{:else}
-					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUser = false)}>
-						<LucideMinus class="h-5 w-5" />
-					</Button>
-				{/if}
-			</div>
-		</Card.Header>
-		{#if expandAddUser}
-			<div transition:slide>
-				<Card.Content>
-					<UserForm callback={createUser} />
-				</Card.Content>
-			</div>
-		{/if}
-	</Card.Root>
-</div>
+			</Card.Header>
+			{#if expandAddUser}
+				<div transition:slide>
+					<Card.Content>
+						<UserForm callback={createUser} />
+					</Card.Content>
+				</div>
+			{/if}
+		</Card.Root>
+	</div>
 
-<div class="animate-fade-in" style="animation-delay: 200ms;">
-	<Card.Root>
-		<Card.Header class="border-b">
-			<Card.Title>
-				<UserPen class="text-primary/80 h-5 w-5" />
-				{m.manage_users()}
-			</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<UserList {users} requestOptions={usersRequestOptions} />
-		</Card.Content>
-	</Card.Root>
-</div>
+	<div>
+		<Card.Root>
+			<Card.Header class="border-b">
+				<Card.Title>
+					<UserPen class="text-primary/80 h-5 w-5" />
+					{m.manage_users()}
+				</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<UserList {users} requestOptions={usersRequestOptions} />
+			</Card.Content>
+		</Card.Root>
+	</div>
+</FadeWrapper>

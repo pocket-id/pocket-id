@@ -10,6 +10,7 @@
 	import ApiKeyForm from './api-key-form.svelte';
 	import ApiKeyList from './api-key-list.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 
 	let { data } = $props();
 	let apiKeys = $state(data.apiKeys);
@@ -40,48 +41,50 @@
 	<title>{m.api_keys()}</title>
 </svelte:head>
 
-<div class="animate-fade-in" style="animation-delay: 100ms;">
-	<Card.Root>
-		<Card.Header class="border-b">
-			<div class="flex items-center justify-between">
-				<div>
-					<Card.Title>
-						<ShieldPlus class="text-primary/80 h-5 w-5" />
-						{m.create_api_key()}
-					</Card.Title>
-					<Card.Description>{m.add_a_new_api_key_for_programmatic_access()}</Card.Description>
+<FadeWrapper delay={250} stagger={50}>
+	<div>
+		<Card.Root>
+			<Card.Header class="border-b">
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>
+							<ShieldPlus class="text-primary/80 h-5 w-5" />
+							{m.create_api_key()}
+						</Card.Title>
+						<Card.Description>{m.add_a_new_api_key_for_programmatic_access()}</Card.Description>
+					</div>
+					{#if !expandAddApiKey}
+						<Button on:click={() => (expandAddApiKey = true)}>{m.add_api_key()}</Button>
+					{:else}
+						<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddApiKey = false)}>
+							<LucideMinus class="h-5 w-5" />
+						</Button>
+					{/if}
 				</div>
-				{#if !expandAddApiKey}
-					<Button on:click={() => (expandAddApiKey = true)}>{m.add_api_key()}</Button>
-				{:else}
-					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddApiKey = false)}>
-						<LucideMinus class="h-5 w-5" />
-					</Button>
-				{/if}
-			</div>
-		</Card.Header>
-		{#if expandAddApiKey}
-			<div transition:slide>
-				<Card.Content>
-					<ApiKeyForm callback={createApiKey} />
-				</Card.Content>
-			</div>
-		{/if}
-	</Card.Root>
-</div>
+			</Card.Header>
+			{#if expandAddApiKey}
+				<div transition:slide>
+					<Card.Content>
+						<ApiKeyForm callback={createApiKey} />
+					</Card.Content>
+				</div>
+			{/if}
+		</Card.Root>
+	</div>
 
-<div class="animate-fade-in" style="animation-delay: 200ms;">
-	<Card.Root>
-		<Card.Header class="border-b">
-			<Card.Title>
-				<ShieldEllipsis class="text-primary/80 h-5 w-5" />
-				{m.manage_api_keys()}
-			</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<ApiKeyList {apiKeys} requestOptions={apiKeysRequestOptions} />
-		</Card.Content>
-	</Card.Root>
-</div>
+	<div>
+		<Card.Root>
+			<Card.Header class="border-b">
+				<Card.Title>
+					<ShieldEllipsis class="text-primary/80 h-5 w-5" />
+					{m.manage_api_keys()}
+				</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<ApiKeyList {apiKeys} requestOptions={apiKeysRequestOptions} />
+			</Card.Content>
+		</Card.Root>
+	</div>
+</FadeWrapper>
 
 <ApiKeyDialog bind:apiKeyResponse />
