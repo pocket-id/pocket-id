@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"log"
 	"time"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -12,6 +11,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ApiKeyService struct {
@@ -83,24 +83,25 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 		return model.User{}, &common.NoAPIKeyProvidedError{}
 	}
 
-	var key model.ApiKey
+	now := time.Now()
 	hashedKey := utils.CreateSha256Hash(apiKey)
 
-	if err := s.db.Preload("User").Where("key = ? AND expires_at > ?",
-		hashedKey, datatype.DateTime(time.Now())).Preload("User").First(&key).Error; err != nil {
-
+	var key model.ApiKey
+	err := s.db.Model(&model.ApiKey{}).
+		Clauses(clause.Returning{}).
+		Where("key = ? AND expires_at > ?", hashedKey, datatype.DateTime(now)).
+		Updates(&model.ApiKey{
+			LastUsedAt: utils.Ptr(datatype.DateTime(now)),
+		}).
+		Preload("User").
+		First(&key).
+		Error
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return model.User{}, &common.InvalidAPIKeyError{}
 		}
 
 		return model.User{}, err
-	}
-
-	// Update last used time
-	now := datatype.DateTime(time.Now())
-	key.LastUsedAt = &now
-	if err := s.db.Save(&key).Error; err != nil {
-		log.Printf("Failed to update last used time: %v", err)
 	}
 
 	return key.User, nil
