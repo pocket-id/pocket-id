@@ -206,19 +206,12 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 		tokenString,
 		jwt.WithValidate(true),
 		jwt.WithKey(alg, s.privateKey),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	err = jwt.Validate(
-		token,
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithAudience(common.EnvConfig.AppURL),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("token is not valid: %w", err)
+		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
 	return token, nil
@@ -269,18 +262,11 @@ func (s *JwtService) VerifyIdToken(tokenString string) (jwt.Token, error) {
 		tokenString,
 		jwt.WithValidate(true),
 		jwt.WithKey(alg, s.privateKey),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	err = jwt.Validate(
-		token,
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("token is not valid: %w", err)
+		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
 	return token, nil
@@ -318,18 +304,11 @@ func (s *JwtService) VerifyOauthAccessToken(tokenString string) (jwt.Token, erro
 		tokenString,
 		jwt.WithValidate(true),
 		jwt.WithKey(alg, s.privateKey),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	err = jwt.Validate(
-		token,
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("token is not valid: %w", err)
+		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
 	return token, nil
