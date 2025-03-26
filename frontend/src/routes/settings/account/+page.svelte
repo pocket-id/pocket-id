@@ -21,7 +21,6 @@
 		Plus
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
 	import LoginCodeModal from './login-code-modal.svelte';
@@ -39,15 +38,6 @@
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
 
-	async function resetProfilePicture() {
-		await userService
-			.resetCurrentUserProfilePicture()
-			.then(() =>
-				toast.success('Profile picture has been reset. It may take a few minutes to update.')
-			)
-			.catch(axiosErrorToast);
-	}
-
 	async function updateAccount(user: UserCreate) {
 		let success = true;
 		await userService
@@ -59,13 +49,6 @@
 			});
 
 		return success;
-	}
-
-	async function updateProfilePicture(image: File) {
-		await userService
-			.updateCurrentUsersProfilePicture(image)
-			.then(() => toast.success(m.profile_picture_updated_successfully()))
-			.catch(axiosErrorToast);
 	}
 
 	async function createPasskey() {
@@ -131,33 +114,10 @@
 					userId={account.id}
 					callback={updateAccount}
 					isLdapUser={!!account.ldapId}
-					{updateProfilePicture}
-					{resetProfilePicture}
 				/>
 			</Card.Content>
 		</Card.Root>
 	</fieldset>
-
-	<!-- Profile picture card -->
-	<!-- LEAVING COMMENTED OUT TILL ELIAS CONFIRMS HE LIKES THIS -->
-	<!-- <div class=" mt-6" style="animation-delay: 200ms;">
-		<Card.Root class="shadow-md transition-shadow duration-200 hover:shadow-lg">
-			<Card.Header class="border-b">
-				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
-					<Image class="text-primary/80 h-5 w-5" />
-					{m.profile_picture()}
-				</Card.Title>
-			</Card.Header>
-			<Card.Content class="pt-5">
-				<ProfilePictureSettings
-					userId={account.id}
-					isLdapUser={!!account.ldapId}
-					updateCallback={updateProfilePicture}
-					resetCallback={resetProfilePicture}
-				/>
-			</Card.Content>
-		</Card.Root>
-	</div> -->
 
 	<!-- Passkey management card -->
 	<div>

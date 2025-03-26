@@ -59,7 +59,7 @@
 	<title>{m.application_configuration()}</title>
 </svelte:head>
 
-<FadeWrapper delay-{250} stagger={50}>
+<FadeWrapper delay={250} stagger={50}>
 	<div>
 		<CollapsibleCard
 			id="application-configuration-general"

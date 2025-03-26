@@ -9,26 +9,26 @@
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import { LucideLoader, LucideRefreshCw, LucideUpload, BookUser } from 'lucide-svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
+	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
+	import UserService from '$lib/services/user-service';
+	import { toast } from 'svelte-sonner';
+	import { axiosErrorToast } from '$lib/utils/error-util';
 
 	let {
 		callback,
 		account,
 		userId,
-		updateProfilePicture,
-		resetProfilePicture,
 		isLdapUser = false
 	}: {
 		account: UserCreate;
 		userId: string;
 		callback: (user: UserCreate) => Promise<boolean>;
-		updateProfilePicture: (image: File) => Promise<void>;
-		resetProfilePicture: () => Promise<void>;
 		isLdapUser?: boolean;
 	} = $props();
 
 	let isLoading = $state(false);
-	let isImageLoading = $state(false);
-	let imageDataURL = $state(`/api/users/${userId}/profile-picture.png`);
+
+	const userService = new UserService();
 
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
@@ -53,34 +53,24 @@
 		isLoading = false;
 	}
 
-	async function onImageChange(e: Event) {
-		const file = (e.target as HTMLInputElement).files?.[0] || null;
-		if (!file) return;
-
-		isImageLoading = true;
-
-		const reader = new FileReader();
-		reader.onload = (event) => {
-			imageDataURL = event.target?.result as string;
-		};
-		reader.readAsDataURL(file);
-
-		await updateProfilePicture(file).catch(() => {
-			imageDataURL = `/api/users/${userId}/profile-picture.png`;
-		});
-		isImageLoading = false;
+	async function updateProfilePicture(image: File) {
+		await userService
+			.updateProfilePicture(userId, image)
+			.then(() => toast.success(m.profile_picture_updated_successfully()))
+			.catch(axiosErrorToast);
 	}
 
-	function onReset() {
+	async function resetProfilePicture() {
 		openConfirmDialog({
 			title: m.reset_profile_picture_question(),
 			message: m.this_will_remove_the_uploaded_image_and_reset_the_profile_picture_to_default(),
 			confirm: {
 				label: m.reset(),
 				action: async () => {
-					isImageLoading = true;
-					await resetProfilePicture().catch();
-					isImageLoading = false;
+					await userService
+						.resetProfilePicture(userId)
+						.then(() => toast.success(m.profile_picture_has_been_reset()))
+						.catch(axiosErrorToast);
 				}
 			}
 		});
@@ -88,64 +78,13 @@
 </script>
 
 <form onsubmit={onSubmit} class="space-y-6">
-	<!-- Profile Picture Row -->
-	<div class="flex flex-col items-center gap-6 sm:flex-row">
-		<div class="shrink-0">
-			{#if isLdapUser}
-				<Avatar.Root class="h-24 w-24">
-					<Avatar.Image class="object-cover" src={imageDataURL} />
-				</Avatar.Root>
-			{:else}
-				<FileInput
-					id="profile-picture-input"
-					variant="secondary"
-					accept="image/png, image/jpeg"
-					onchange={onImageChange}
-				>
-					<div class="group relative h-24 w-24 rounded-full">
-						<Avatar.Root class="h-full w-full transition-opacity duration-200">
-							<Avatar.Image
-								class="object-cover group-hover:opacity-30 {isImageLoading ? 'opacity-30' : ''}"
-								src={imageDataURL}
-							/>
-						</Avatar.Root>
-						<div class="absolute inset-0 flex items-center justify-center">
-							{#if isImageLoading}
-								<LucideLoader class="h-5 w-5 animate-spin" />
-							{:else}
-								<LucideUpload
-									class="h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100"
-								/>
-							{/if}
-						</div>
-					</div>
-				</FileInput>
-			{/if}
-		</div>
-
-		<div class="grow">
-			<h3 class="font-medium">{m.profile_picture()}</h3>
-			{#if isLdapUser}
-				<p class="text-muted-foreground text-sm">
-					{m.profile_picture_is_managed_by_ldap_server()}
-				</p>
-			{:else}
-				<p class="text-muted-foreground text-sm">
-					{m.click_profile_picture_to_upload_custom()}
-				</p>
-				<p class="text-muted-foreground mb-2 text-sm">{m.image_should_be_in_format()}</p>
-				<Button
-					variant="outline"
-					size="sm"
-					on:click={onReset}
-					disabled={isImageLoading || isLdapUser}
-				>
-					<LucideRefreshCw class="mr-2 h-4 w-4" />
-					{m.reset_to_default()}
-				</Button>
-			{/if}
-		</div>
-	</div>
+	<!-- Profile Picture Section -->
+	<ProfilePictureSettings
+		{userId}
+		{isLdapUser}
+		updateCallback={updateProfilePicture}
+		resetCallback={resetProfilePicture}
+	/>
 
 	<!-- Divider -->
 	<hr class="border-border" />
