@@ -37,7 +37,7 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 }
 
 func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	var users []model.User
 	query := tx.WithContext(ctx).Model(&model.User{})
@@ -52,7 +52,7 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPa
 }
 
 func (s *UserService) GetUser(ctx context.Context, userID string) (model.User, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 	return s.getUserInternal(ctx, userID, tx)
 }
 
@@ -100,7 +100,7 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 }
 
 func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model.UserGroup, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	var user model.User
 	err := tx.
@@ -145,7 +145,7 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string) error {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	var user model.User
 	if err := tx.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
@@ -167,7 +167,7 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string) error {
 }
 
 func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (model.User, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	user := model.User{
 		FirstName: input.FirstName,
@@ -191,7 +191,7 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 }
 
 func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, allowLdapUpdate bool) (model.User, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	var user model.User
 	err := tx.
@@ -232,7 +232,7 @@ func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser
 }
 
 func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddress, redirectPath string) error {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	isDisabled := !s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.IsTrue()
 	if isDisabled {
@@ -286,7 +286,7 @@ func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddres
 }
 
 func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID string, expiresAt time.Time) (string, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 	return s.createOneTimeAccessTokenInternal(ctx, userID, expiresAt, tx)
 }
 
@@ -316,7 +316,7 @@ func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, user
 }
 
 func (s *UserService) ExchangeOneTimeAccessToken(ctx context.Context, token string, ipAddress, userAgent string) (model.User, string, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	var oneTimeAccessToken model.OneTimeAccessToken
 	err := tx.
@@ -347,7 +347,7 @@ func (s *UserService) ExchangeOneTimeAccessToken(ctx context.Context, token stri
 }
 
 func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroupIds []string) (user model.User, err error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	user, err = s.getUserInternal(ctx, id, tx)
 	if err != nil {
@@ -387,7 +387,7 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 }
 
 func (s *UserService) SetupInitialAdmin(ctx context.Context) (model.User, string, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	var userCount int64
 	if err := tx.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {

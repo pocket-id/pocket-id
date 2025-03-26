@@ -13,8 +13,8 @@ func AddToContext(ctx context.Context, conn *gorm.DB) context.Context {
 	return context.WithValue(ctx, ctxKey{}, conn)
 }
 
-// FromContext returns a *gorm.DB from the context, or the default value if not present.
-func FromContext(ctx context.Context, conn *gorm.DB) *gorm.DB {
+// FromContextOrDefault returns a *gorm.DB from the context, or the default value if not present.
+func FromContextOrDefault(ctx context.Context, conn *gorm.DB) *gorm.DB {
 	val, ok := ctx.Value(ctxKey{}).(*gorm.DB)
 	if !ok {
 		return conn

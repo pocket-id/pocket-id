@@ -22,7 +22,7 @@ func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService) *UserG
 }
 
 func (s *UserGroupService) List(ctx context.Context, name string, sortedPaginationRequest utils.SortedPaginationRequest) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	query := tx.
 		WithContext(ctx).
@@ -50,7 +50,7 @@ func (s *UserGroupService) List(ctx context.Context, name string, sortedPaginati
 }
 
 func (s *UserGroupService) Get(ctx context.Context, id string) (group model.UserGroup, err error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 	err = tx.
 		WithContext(ctx).
 		Where("id = ?", id).
@@ -62,7 +62,7 @@ func (s *UserGroupService) Get(ctx context.Context, id string) (group model.User
 }
 
 func (s *UserGroupService) Delete(ctx context.Context, id string) error {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	var group model.UserGroup
 	err := tx.
@@ -86,7 +86,7 @@ func (s *UserGroupService) Delete(ctx context.Context, id string) error {
 }
 
 func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	group = model.UserGroup{
 		FriendlyName: input.FriendlyName,
@@ -112,7 +112,7 @@ func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreate
 }
 
 func (s *UserGroupService) Update(ctx context.Context, id string, input dto.UserGroupCreateDto, allowLdapUpdate bool) (group model.UserGroup, err error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	group, err = s.Get(ctx, id)
 	if err != nil {
@@ -142,7 +142,7 @@ func (s *UserGroupService) Update(ctx context.Context, id string, input dto.User
 }
 
 func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds []string) (group model.UserGroup, err error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	group, err = s.Get(ctx, id)
 	if err != nil {
@@ -185,7 +185,7 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 }
 
 func (s *UserGroupService) GetUserCountOfGroup(ctx context.Context, id string) (int64, error) {
-	tx := transaction.FromContext(ctx, s.db)
+	tx := transaction.FromContextOrDefault(ctx, s.db)
 
 	var group model.UserGroup
 	err := tx.

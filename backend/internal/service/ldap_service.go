@@ -106,7 +106,7 @@ func (s *LdapService) SyncGroups(ctx context.Context) error {
 	// Create a mapping for groups that exist
 	ldapGroupIDs := make(map[string]bool)
 
-	tx := transaction.FromContext(ctx, nil)
+	tx := transaction.FromContextOrDefault(ctx, nil)
 
 	for _, value := range result.Entries {
 		var membersUserId []string
@@ -233,7 +233,7 @@ func (s *LdapService) SyncUsers(ctx context.Context) error {
 	// Create a mapping for users that exist
 	ldapUserIDs := make(map[string]bool)
 
-	tx := transaction.FromContext(ctx, nil)
+	tx := transaction.FromContextOrDefault(ctx, nil)
 
 	for _, value := range result.Entries {
 		ldapId := value.GetAttributeValue(uniqueIdentifierAttribute)
