@@ -1,6 +1,7 @@
 package job
 
 import (
+	"context"
 	"log"
 
 	"github.com/go-co-op/gocron/v2"
@@ -33,7 +34,7 @@ func RegisterLdapJobs(ldapService *service.LdapService, appConfigService *servic
 
 func (j *LdapJobs) syncLdap() error {
 	if j.appConfigService.DbConfig.LdapEnabled.Value == "true" {
-		return j.ldapService.SyncAll()
+		return j.ldapService.SyncAll(context.Background())
 	}
 	return nil
 }

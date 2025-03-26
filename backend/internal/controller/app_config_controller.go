@@ -284,7 +284,7 @@ func (acc *AppConfigController) updateImage(c *gin.Context, imageName string, ol
 // @Security BearerAuth
 // @Router /api/application-configuration/sync-ldap [post]
 func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
-	err := acc.ldapService.SyncAll()
+	err := acc.ldapService.SyncAll(c.Request.Context())
 	if err != nil {
 		c.Error(err)
 		return

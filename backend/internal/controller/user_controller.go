@@ -66,7 +66,7 @@ type UserController struct {
 // @Router /api/users/{id}/groups [get]
 func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 	userID := c.Param("id")
-	groups, err := uc.userService.GetUserGroups(userID)
+	groups, err := uc.userService.GetUserGroups(c.Request.Context(), userID)
 	if err != nil {
 		c.Error(err)
 		return
@@ -100,7 +100,7 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 		return
 	}
 
-	users, pagination, err := uc.userService.ListUsers(searchTerm, sortedPaginationRequest)
+	users, pagination, err := uc.userService.ListUsers(c.Request.Context(), searchTerm, sortedPaginationRequest)
 	if err != nil {
 		c.Error(err)
 		return
@@ -126,7 +126,7 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/{id} [get]
 func (uc *UserController) getUserHandler(c *gin.Context) {
-	user, err := uc.userService.GetUser(c.Param("id"))
+	user, err := uc.userService.GetUser(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		c.Error(err)
 		return
@@ -148,7 +148,7 @@ func (uc *UserController) getUserHandler(c *gin.Context) {
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/me [get]
 func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
-	user, err := uc.userService.GetUser(c.GetString("userID"))
+	user, err := uc.userService.GetUser(c.Request.Context(), c.GetString("userID"))
 	if err != nil {
 		c.Error(err)
 		return
@@ -171,7 +171,7 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) {
-	if err := uc.userService.DeleteUser(c.Param("id"), nil); err != nil {
+	if err := uc.userService.DeleteUser(c.Request.Context(), c.Param("id")); err != nil {
 		c.Error(err)
 		return
 	}
@@ -193,7 +193,7 @@ func (uc *UserController) createUserHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := uc.userService.CreateUser(input, nil)
+	user, err := uc.userService.CreateUser(c.Request.Context(), input)
 	if err != nil {
 		c.Error(err)
 		return
@@ -246,7 +246,7 @@ func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
 func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 	userID := c.Param("id")
 
-	picture, size, err := uc.userService.GetProfilePicture(userID)
+	picture, size, err := uc.userService.GetProfilePicture(c.Request.Context(), userID)
 	if err != nil {
 		c.Error(err)
 		return
@@ -330,7 +330,7 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 	if own {
 		input.UserID = c.GetString("userID")
 	}
-	token, err := uc.userService.CreateOneTimeAccessToken(input.UserID, input.ExpiresAt)
+	token, err := uc.userService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, input.ExpiresAt)
 	if err != nil {
 		c.Error(err)
 		return
@@ -362,7 +362,7 @@ func (uc *UserController) requestOneTimeAccessEmailHandler(c *gin.Context) {
 		return
 	}
 
-	err := uc.userService.RequestOneTimeAccessEmail(input.Email, input.RedirectPath)
+	err := uc.userService.RequestOneTimeAccessEmail(c.Request.Context(), input.Email, input.RedirectPath)
 	if err != nil {
 		c.Error(err)
 		return
@@ -379,7 +379,7 @@ func (uc *UserController) requestOneTimeAccessEmailHandler(c *gin.Context) {
 // @Success 200 {object} dto.UserDto
 // @Router /api/one-time-access-token/{token} [post]
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
-	user, token, err := uc.userService.ExchangeOneTimeAccessToken(c.Param("token"), c.ClientIP(), c.Request.UserAgent())
+	user, token, err := uc.userService.ExchangeOneTimeAccessToken(c.Request.Context(), c.Param("token"), c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		c.Error(err)
 		return
@@ -405,7 +405,7 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 // @Success 200 {object} dto.UserDto
 // @Router /api/one-time-access-token/setup [post]
 func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
-	user, token, err := uc.userService.SetupInitialAdmin()
+	user, token, err := uc.userService.SetupInitialAdmin(c.Request.Context())
 	if err != nil {
 		c.Error(err)
 		return
@@ -439,7 +439,7 @@ func (uc *UserController) updateUserGroups(c *gin.Context) {
 		return
 	}
 
-	user, err := uc.userService.UpdateUserGroups(c.Param("id"), input.UserGroupIds)
+	user, err := uc.userService.UpdateUserGroups(c.Request.Context(), c.Param("id"), input.UserGroupIds)
 	if err != nil {
 		c.Error(err)
 		return
@@ -469,7 +469,7 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 		userID = c.Param("id")
 	}
 
-	user, err := uc.userService.UpdateUser(userID, input, updateOwnUser, false, nil)
+	user, err := uc.userService.UpdateUser(c.Request.Context(), userID, input, updateOwnUser, false)
 	if err != nil {
 		c.Error(err)
 		return

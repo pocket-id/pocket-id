@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/transaction"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -34,9 +36,11 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 	return &UserService{db: db, jwtService: jwtService, auditLogService: auditLogService, emailService: emailService, appConfigService: appConfigService}
 }
 
-func (s *UserService) ListUsers(searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
+func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
+	tx := transaction.FromContext(ctx, s.db)
+
 	var users []model.User
-	query := s.db.Model(&model.User{})
+	query := tx.WithContext(ctx).Model(&model.User{})
 
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
@@ -47,13 +51,24 @@ func (s *UserService) ListUsers(searchTerm string, sortedPaginationRequest utils
 	return users, pagination, err
 }
 
-func (s *UserService) GetUser(userID string) (model.User, error) {
+func (s *UserService) GetUser(ctx context.Context, userID string) (model.User, error) {
+	tx := transaction.FromContext(ctx, s.db)
+	return s.getUserInternal(ctx, userID, tx)
+}
+
+func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *gorm.DB) (model.User, error) {
 	var user model.User
-	err := s.db.Preload("UserGroups").Preload("CustomClaims").Where("id = ?", userID).First(&user).Error
+	err := tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		Preload("CustomClaims").
+		Where("id = ?", userID).
+		First(&user).
+		Error
 	return user, err
 }
 
-func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error) {
+func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.Reader, int64, error) {
 	// Validate the user ID to prevent directory traversal
 	if err := uuid.Validate(userID); err != nil {
 		return nil, 0, &common.InvalidUUIDError{}
@@ -71,7 +86,7 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	}
 
 	// If the file does not exist, return the default profile picture
-	user, err := s.GetUser(userID)
+	user, err := s.GetUser(ctx, userID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -84,9 +99,17 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	return defaultPicture, int64(defaultPicture.Len()), nil
 }
 
-func (s *UserService) GetUserGroups(userID string) ([]model.UserGroup, error) {
+func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model.UserGroup, error) {
+	tx := transaction.FromContext(ctx, s.db)
+
 	var user model.User
-	if err := s.db.Preload("UserGroups").Where("id = ?", userID).First(&user).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		Where("id = ?", userID).
+		First(&user).
+		Error
+	if err != nil {
 		return nil, err
 	}
 	return user.UserGroups, nil
@@ -121,13 +144,11 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 	return nil
 }
 
-func (s *UserService) DeleteUser(userID string, tx *gorm.DB) error {
-	if tx == nil {
-		tx = s.db
-	}
+func (s *UserService) DeleteUser(ctx context.Context, userID string) error {
+	tx := transaction.FromContext(ctx, s.db)
 
 	var user model.User
-	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := tx.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
 		return err
 	}
 
@@ -142,10 +163,12 @@ func (s *UserService) DeleteUser(userID string, tx *gorm.DB) error {
 		return err
 	}
 
-	return tx.Delete(&user).Error
+	return tx.WithContext(ctx).Delete(&user).Error
 }
 
-func (s *UserService) CreateUser(input dto.UserCreateDto, tx *gorm.DB) (model.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (model.User, error) {
+	tx := transaction.FromContext(ctx, s.db)
+
 	user := model.User{
 		FirstName: input.FirstName,
 		LastName:  input.LastName,
@@ -158,26 +181,25 @@ func (s *UserService) CreateUser(input dto.UserCreateDto, tx *gorm.DB) (model.Us
 		user.LdapID = &input.LdapID
 	}
 
-	if tx == nil {
-		tx = s.db
-	}
-
-	if err := tx.Create(&user).Error; err != nil {
+	if err := tx.WithContext(ctx).Create(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return model.User{}, s.checkDuplicatedFields(user)
+			return model.User{}, s.checkDuplicatedFields(ctx, user, tx)
 		}
 		return model.User{}, err
 	}
 	return user, nil
 }
 
-func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, allowLdapUpdate bool, tx *gorm.DB) (model.User, error) {
-	if tx == nil {
-		tx = s.db
-	}
+func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, allowLdapUpdate bool) (model.User, error) {
+	tx := transaction.FromContext(ctx, s.db)
 
 	var user model.User
-	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Where("id = ?", userID).
+		First(&user).
+		Error
+	if err != nil {
 		return model.User{}, err
 	}
 
@@ -195,9 +217,13 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 		user.IsAdmin = updatedUser.IsAdmin
 	}
 
-	if err := tx.Save(&user).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&user).
+		Error
+	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return user, s.checkDuplicatedFields(user)
+			return user, s.checkDuplicatedFields(ctx, user, tx)
 		}
 		return user, err
 	}
@@ -205,14 +231,21 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 	return user, nil
 }
 
-func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath string) error {
+func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddress, redirectPath string) error {
+	tx := transaction.FromContext(ctx, s.db)
+
 	isDisabled := !s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.IsTrue()
 	if isDisabled {
 		return &common.OneTimeAccessDisabledError{}
 	}
 
 	var user model.User
-	if err := s.db.Where("email = ?", emailAddress).First(&user).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Where("email = ?", emailAddress).
+		First(&user).
+		Error
+	if err != nil {
 		// Do not return error if user not found to prevent email enumeration
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
@@ -221,18 +254,18 @@ func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath strin
 		}
 	}
 
-	oneTimeAccessToken, err := s.CreateOneTimeAccessToken(user.ID, time.Now().Add(15*time.Minute))
+	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, time.Now().Add(15*time.Minute), tx)
 	if err != nil {
 		return err
 	}
 
-	link := fmt.Sprintf("%s/lc", common.EnvConfig.AppURL)
-	linkWithCode := fmt.Sprintf("%s/%s", link, oneTimeAccessToken)
+	link := common.EnvConfig.AppURL + "/lc"
+	linkWithCode := link + "/" + oneTimeAccessToken
 
 	// Add redirect path to the link
 	if strings.HasPrefix(redirectPath, "/") {
 		encodedRedirectPath := url.QueryEscape(redirectPath)
-		linkWithCode = fmt.Sprintf("%s?redirect=%s", linkWithCode, encodedRedirectPath)
+		linkWithCode = linkWithCode + "?redirect=" + encodedRedirectPath
 	}
 
 	go func() {
@@ -252,10 +285,14 @@ func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath strin
 	return nil
 }
 
-func (s *UserService) CreateOneTimeAccessToken(userID string, expiresAt time.Time) (string, error) {
-	tokenLength := 16
+func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID string, expiresAt time.Time) (string, error) {
+	tx := transaction.FromContext(ctx, s.db)
+	return s.createOneTimeAccessTokenInternal(ctx, userID, expiresAt, tx)
+}
 
+func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, expiresAt time.Time, tx *gorm.DB) (string, error) {
 	// If expires at is less than 15 minutes, use an 6 character token instead of 16
+	tokenLength := 16
 	if expiresAt.Sub(time.Now()) <= 15*time.Minute {
 		tokenLength = 6
 	}
@@ -271,16 +308,23 @@ func (s *UserService) CreateOneTimeAccessToken(userID string, expiresAt time.Tim
 		Token:     randomString,
 	}
 
-	if err := s.db.Create(&oneTimeAccessToken).Error; err != nil {
+	if err := tx.WithContext(ctx).Create(&oneTimeAccessToken).Error; err != nil {
 		return "", err
 	}
 
 	return oneTimeAccessToken.Token, nil
 }
 
-func (s *UserService) ExchangeOneTimeAccessToken(token string, ipAddress, userAgent string) (model.User, string, error) {
+func (s *UserService) ExchangeOneTimeAccessToken(ctx context.Context, token string, ipAddress, userAgent string) (model.User, string, error) {
+	tx := transaction.FromContext(ctx, s.db)
+
 	var oneTimeAccessToken model.OneTimeAccessToken
-	if err := s.db.Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).Preload("User").First(&oneTimeAccessToken).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).Preload("User").
+		First(&oneTimeAccessToken).
+		Error
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
 		}
@@ -291,7 +335,7 @@ func (s *UserService) ExchangeOneTimeAccessToken(token string, ipAddress, userAg
 		return model.User{}, "", err
 	}
 
-	if err := s.db.Delete(&oneTimeAccessToken).Error; err != nil {
+	if err := tx.WithContext(ctx).Delete(&oneTimeAccessToken).Error; err != nil {
 		return model.User{}, "", err
 	}
 
@@ -302,8 +346,10 @@ func (s *UserService) ExchangeOneTimeAccessToken(token string, ipAddress, userAg
 	return oneTimeAccessToken.User, accessToken, nil
 }
 
-func (s *UserService) UpdateUserGroups(id string, userGroupIds []string) (user model.User, err error) {
-	user, err = s.GetUser(id)
+func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroupIds []string) (user model.User, err error) {
+	tx := transaction.FromContext(ctx, s.db)
+
+	user, err = s.getUserInternal(ctx, id, tx)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -311,27 +357,40 @@ func (s *UserService) UpdateUserGroups(id string, userGroupIds []string) (user m
 	// Fetch the groups based on userGroupIds
 	var groups []model.UserGroup
 	if len(userGroupIds) > 0 {
-		if err := s.db.Where("id IN (?)", userGroupIds).Find(&groups).Error; err != nil {
+		err = tx.
+			WithContext(ctx).
+			Where("id IN (?)", userGroupIds).
+			Find(&groups).
+			Error
+		if err != nil {
 			return model.User{}, err
 		}
 	}
 
 	// Replace the current groups with the new set of groups
-	if err := s.db.Model(&user).Association("UserGroups").Replace(groups); err != nil {
+	err = tx.
+		WithContext(ctx).
+		Model(&user).
+		Association("UserGroups").
+		Replace(groups)
+	if err != nil {
 		return model.User{}, err
 	}
 
 	// Save the updated user
-	if err := s.db.Save(&user).Error; err != nil {
+	err = tx.WithContext(ctx).Save(&user).Error
+	if err != nil {
 		return model.User{}, err
 	}
 
 	return user, nil
 }
 
-func (s *UserService) SetupInitialAdmin() (model.User, string, error) {
+func (s *UserService) SetupInitialAdmin(ctx context.Context) (model.User, string, error) {
+	tx := transaction.FromContext(ctx, s.db)
+
 	var userCount int64
-	if err := s.db.Model(&model.User{}).Count(&userCount).Error; err != nil {
+	if err := tx.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
 		return model.User{}, "", err
 	}
 	if userCount > 1 {
@@ -346,7 +405,7 @@ func (s *UserService) SetupInitialAdmin() (model.User, string, error) {
 		IsAdmin:   true,
 	}
 
-	if err := s.db.Model(&model.User{}).Preload("Credentials").FirstOrCreate(&user).Error; err != nil {
+	if err := tx.WithContext(ctx).Model(&model.User{}).Preload("Credentials").FirstOrCreate(&user).Error; err != nil {
 		return model.User{}, "", err
 	}
 
@@ -362,13 +421,13 @@ func (s *UserService) SetupInitialAdmin() (model.User, string, error) {
 	return user, token, nil
 }
 
-func (s *UserService) checkDuplicatedFields(user model.User) error {
+func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User, tx *gorm.DB) error {
 	var existingUser model.User
-	if s.db.Where("id != ? AND email = ?", user.ID, user.Email).First(&existingUser).Error == nil {
+	if tx.WithContext(ctx).Where("id != ? AND email = ?", user.ID, user.Email).First(&existingUser).Error == nil {
 		return &common.AlreadyInUseError{Property: "email"}
 	}
 
-	if s.db.Where("id != ? AND username = ?", user.ID, user.Username).First(&existingUser).Error == nil {
+	if tx.WithContext(ctx).Where("id != ? AND username = ?", user.ID, user.Username).First(&existingUser).Error == nil {
 		return &common.AlreadyInUseError{Property: "username"}
 	}
 
