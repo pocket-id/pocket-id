@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/base64"
@@ -301,7 +302,7 @@ func (s *TestService) ResetApplicationImages() error {
 
 func (s *TestService) ResetAppConfig() error {
 	// Reseed the config variables
-	if err := s.appConfigService.InitDbConfig(); err != nil {
+	if err := s.appConfigService.InitDbConfig(context.Background()); err != nil {
 		return err
 	}
 
