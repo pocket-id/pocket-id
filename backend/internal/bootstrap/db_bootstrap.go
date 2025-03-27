@@ -4,9 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -82,9 +80,31 @@ func connectDatabase() (db *gorm.DB, err error) {
 	// Choose the correct database provider
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
-		dialector = sqlite.Open(parseSqliteConnString(common.EnvConfig.SqliteDBPath))
+		// Check if we're using the deprecated SqliteDBPath env var
+		switch {
+		case common.EnvConfig.SqliteDBPath != "":
+			connString := "file:" + common.EnvConfig.SqliteDBPath + "?_journal_mode=WAL&_busy_timeout=2500&_txlock=immediate"
+			log.Printf("[WARN] Env var 'SQLITE_DB_PATH' is deprecated - use 'DB_CONNECTION_STRING' instead with the value: '%s'", connString)
+			dialector = sqlite.Open(connString)
+		case common.EnvConfig.DbConnectionString != "":
+			if !strings.HasPrefix(common.EnvConfig.DbConnectionString, "file:") {
+				return nil, errors.New("invalid value for env var 'DB_CONNECTION_STRING': does not begin with 'file:'")
+			}
+			dialector = sqlite.Open(common.EnvConfig.DbConnectionString)
+		default:
+			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for SQLite database")
+		}
 	case common.DbProviderPostgres:
-		dialector = postgres.Open(common.EnvConfig.PostgresConnectionString)
+		// Check if we're using the deprecated PostgresConnectionString alias
+		switch {
+		case common.EnvConfig.PostgresConnectionString != "":
+			log.Print("[WARN] Env var 'POSTGRES_CONNECTION_STRING' is deprecated - use 'DB_CONNECTION_STRING' instead with the same value")
+			dialector = postgres.Open(common.EnvConfig.PostgresConnectionString)
+		case common.EnvConfig.DbConnectionString != "":
+			dialector = postgres.Open(common.EnvConfig.DbConnectionString)
+		default:
+			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
+		}
 	default:
 		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}
@@ -103,84 +123,6 @@ func connectDatabase() (db *gorm.DB, err error) {
 	}
 
 	return db, err
-}
-
-func parseSqliteConnString(connString string) string {
-	// Inspired by, and adapted from: https://github.com/dapr/components-contrib/blob/v1.15.1/common/authentication/sqlite/metadata.go
-	// Copyright (C) The Dapr Authors.
-	// License: Apache2 http://www.apache.org/licenses/LICENSE-2.0
-
-	// Default value for busy_timeout in ms
-	const defaultBusyTimeout = 2500
-
-	// Extract the query string if present
-	idx := strings.IndexRune(connString, '?')
-	var qs url.Values
-	if idx > 0 {
-		qs, _ = url.ParseQuery(connString[(idx + 1):])
-	}
-	if len(qs) == 0 {
-		qs = make(url.Values, 2)
-	}
-
-	// Check if the database is read-only or immutable
-	isReadOnly := false
-	if len(qs["mode"]) > 0 {
-		// Keep the first value only
-		val := qs.Get("mode")
-		qs.Set("mode", val)
-		if val == "ro" {
-			isReadOnly = true
-		}
-	}
-	if len(qs["immutable"]) > 0 {
-		// Keep the first value only
-		val := qs.Get("immutable")
-		qs.Set("immutable", val)
-		if val == "1" {
-			isReadOnly = true
-		}
-	}
-
-	// We do not want to override a _txlock if set, but we'll show a warning if it's not "immediate"
-	if len(qs["_txlock"]) > 0 {
-		// Keep the first value only
-		val := qs.Get("_txlock")
-		qs.Set("_txlock", val)
-		if val != "immediate" {
-			log.Println("SQLite connection string is being created with a _txlock different from the recommended value 'immediate'")
-		}
-	} else {
-		qs.Set("_txlock", "immediate")
-	}
-
-	// Add busy timeout if not present
-	if len(qs["_busy_timeout"]) == 0 {
-		qs.Set("_busy_timeout", strconv.Itoa(defaultBusyTimeout))
-	}
-
-	if len(qs["_journal_mode"]) == 0 {
-		if isReadOnly {
-			// Set the journaling mode to "DELETE" (the default) if the database is read-only
-			qs.Set("_journal_mode", "DELETE")
-		} else {
-			// Enable WAL
-			qs.Set("_journal_mode", "WAL")
-		}
-	}
-
-	// Build the final connection string
-	if idx > 0 {
-		connString = connString[:idx]
-	}
-	connString += "?" + qs.Encode()
-
-	// If the connection string doesn't begin with "file:", add the prefix
-	if !strings.HasPrefix(strings.ToLower(connString), "file:") {
-		connString = "file:" + connString
-	}
-
-	return connString
 }
 
 func getLogger() logger.Interface {

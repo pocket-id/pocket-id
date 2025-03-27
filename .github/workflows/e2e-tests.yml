@@ -140,7 +140,7 @@ jobs:
           -p 80:80 \
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
-          -e POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
+          -e DB_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
           pocket-id/pocket-id:test
 
       - name: Run Playwright tests
