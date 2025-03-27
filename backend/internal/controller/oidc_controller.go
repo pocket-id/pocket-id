@@ -225,19 +225,6 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, claims)
 }
 
-// userInfoHandler godoc (POST method)
-// @Summary Get user information (POST method)
-// @Description Get user information based on the access token using POST
-// @Tags OIDC
-// @Accept json
-// @Produce json
-// @Success 200 {object} object "User claims based on requested scopes"
-// @Security OAuth2AccessToken
-// @Router /api/oidc/userinfo [post]
-func (oc *OidcController) userInfoHandlerPost(c *gin.Context) {
-	// Implementation is the same as GET
-}
-
 // EndSessionHandler godoc
 // @Summary End OIDC session
 // @Description End user session and handle OIDC logout

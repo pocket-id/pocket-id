@@ -209,6 +209,9 @@ func (s *OidcService) createTokenFromAuthorizationCode(code, clientID, clientSec
 	}
 
 	accessToken, err = s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, clientID)
+	if err != nil {
+		return "", "", "", 0, err
+	}
 
 	s.db.Delete(&authorizationCodeMetaData)
 

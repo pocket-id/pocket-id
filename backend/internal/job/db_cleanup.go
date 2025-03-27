@@ -23,6 +23,7 @@ func RegisterDbCleanupJobs(db *gorm.DB) {
 	registerJob(scheduler, "ClearOneTimeAccessTokens", "0 3 * * *", jobs.clearOneTimeAccessTokens)
 	registerJob(scheduler, "ClearOidcAuthorizationCodes", "0 3 * * *", jobs.clearOidcAuthorizationCodes)
 	registerJob(scheduler, "ClearOidcRefreshTokens", "0 3 * * *", jobs.clearOidcRefreshTokens)
+	registerJob(scheduler, "ClearAuditLogs", "0 3 * * *", jobs.clearAuditLogs)
 	scheduler.Start()
 }
 

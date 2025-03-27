@@ -3,6 +3,7 @@ package service
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -124,8 +125,15 @@ func (s *GeoLiteService) updateDatabase() error {
 	log.Println("Updating GeoLite2 City database...")
 	downloadUrl := fmt.Sprintf(common.EnvConfig.GeoLiteDBUrl, common.EnvConfig.MaxMindLicenseKey)
 
-	// Download the database tar.gz file nolint:gosec
-	resp, err := http.Get(downloadUrl)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadUrl, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download database: %w", err)
 	}
@@ -164,6 +172,9 @@ func (s *GeoLiteService) extractDatabase(reader io.Reader) error {
 
 	tarReader := tar.NewReader(gzr)
 
+	var totalSize int64
+	const maxTotalSize = 300 * 1024 * 1024 // 300 MB limit for total decompressed size
+
 	// Iterate over the files in the tar archive
 	for {
 		header, err := tarReader.Next()
@@ -176,6 +187,11 @@ func (s *GeoLiteService) extractDatabase(reader io.Reader) error {
 
 		// Check if the file is the GeoLite2-City.mmdb file
 		if header.Typeflag == tar.TypeReg && filepath.Base(header.Name) == "GeoLite2-City.mmdb" {
+			totalSize += header.Size
+			if totalSize > maxTotalSize {
+				return errors.New("total decompressed size exceeds maximum allowed limit")
+			}
+
 			// extract to a temporary file to avoid having a corrupted db in case of write failure.
 			baseDir := filepath.Dir(common.EnvConfig.GeoLiteDBPath)
 			tmpFile, err := os.CreateTemp(baseDir, "geolite.*.mmdb.tmp")
@@ -185,7 +201,7 @@ func (s *GeoLiteService) extractDatabase(reader io.Reader) error {
 			tempName := tmpFile.Name()
 
 			// Write the file contents directly to the target location
-			if _, err := io.Copy(tmpFile, tarReader); err != nil {
+			if _, err := io.Copy(tmpFile, tarReader); err != nil { //nolint:gosec
 				// if fails to write, then cleanup and throw an error
 				tmpFile.Close()
 				os.Remove(tempName)

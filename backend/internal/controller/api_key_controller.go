@@ -49,19 +49,19 @@ func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := ctx.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	apiKeys, pagination, err := c.apiKeyService.ListApiKeys(userID, sortedPaginationRequest)
 	if err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	var apiKeysDto []dto.ApiKeyDto
 	if err := dto.MapStructList(apiKeys, &apiKeysDto); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
@@ -83,19 +83,19 @@ func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {
 
 	var input dto.ApiKeyCreateDto
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	apiKey, token, err := c.apiKeyService.CreateApiKey(userID, input)
 	if err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	var apiKeyDto dto.ApiKeyDto
 	if err := dto.MapStruct(apiKey, &apiKeyDto); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (c *ApiKeyController) revokeApiKeyHandler(ctx *gin.Context) {
 	apiKeyID := ctx.Param("id")
 
 	if err := c.apiKeyService.RevokeApiKey(userID, apiKeyID); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 

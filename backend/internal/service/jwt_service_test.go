@@ -44,7 +44,7 @@ func TestJwtService_Init(t *testing.T) {
 		// Verify the key has been saved to disk as JWK
 		jwkPath := filepath.Join(tempDir, PrivateKeyFile)
 		_, err = os.Stat(jwkPath)
-		assert.NoError(t, err, "JWK file should exist")
+		require.NoError(t, err, "JWK file should exist")
 
 		// Verify the generated key is valid
 		keyData, err := os.ReadFile(jwkPath)
