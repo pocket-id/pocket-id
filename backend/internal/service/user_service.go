@@ -511,7 +511,7 @@ func (s *UserService) SetupInitialAdmin(ctx context.Context) (model.User, string
 
 func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User, tx *gorm.DB) error {
 	var result struct {
-		Found int
+		Found bool
 	}
 	err := tx.
 		WithContext(ctx).
@@ -521,7 +521,7 @@ func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User
 	if err != nil {
 		return err
 	}
-	if result.Found == 1 {
+	if result.Found {
 		return &common.AlreadyInUseError{Property: "email"}
 	}
 
@@ -533,7 +533,7 @@ func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User
 	if err != nil {
 		return err
 	}
-	if result.Found == 1 {
+	if result.Found {
 		return &common.AlreadyInUseError{Property: "username"}
 	}
 
