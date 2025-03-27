@@ -492,8 +492,8 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 		for _, customClaim := range customClaims {
 			// The value of the custom claim can be a JSON object or a string
 			var jsonValue interface{}
-			json.Unmarshal([]byte(customClaim.Value), &jsonValue)
-			if jsonValue != nil {
+			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
+			if err == nil {
 				// It's JSON so we store it as an object
 				claims[customClaim.Key] = jsonValue
 			} else {

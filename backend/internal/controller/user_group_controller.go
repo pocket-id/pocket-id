@@ -50,13 +50,13 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 	searchTerm := c.Query("search")
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	groups, pagination, err := ugc.UserGroupService.List(searchTerm, sortedPaginationRequest)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -65,12 +65,12 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 	for i, group := range groups {
 		var groupDto dto.UserGroupDtoWithUserCount
 		if err := dto.MapStruct(group, &groupDto); err != nil {
-			c.Error(err)
+			_ = c.Error(err)
 			return
 		}
 		groupDto.UserCount, err = ugc.UserGroupService.GetUserCountOfGroup(group.ID)
 		if err != nil {
-			c.Error(err)
+			_ = c.Error(err)
 			return
 		}
 		groupsDto[i] = groupDto
@@ -95,13 +95,13 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 func (ugc *UserGroupController) get(c *gin.Context) {
 	group, err := ugc.UserGroupService.Get(c.Param("id"))
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var groupDto dto.UserGroupDtoWithUsers
 	if err := dto.MapStruct(group, &groupDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -121,19 +121,19 @@ func (ugc *UserGroupController) get(c *gin.Context) {
 func (ugc *UserGroupController) create(c *gin.Context) {
 	var input dto.UserGroupCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	group, err := ugc.UserGroupService.Create(input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var groupDto dto.UserGroupDtoWithUsers
 	if err := dto.MapStruct(group, &groupDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -154,19 +154,19 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 func (ugc *UserGroupController) update(c *gin.Context) {
 	var input dto.UserGroupCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	group, err := ugc.UserGroupService.Update(c.Param("id"), input, false)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var groupDto dto.UserGroupDtoWithUsers
 	if err := dto.MapStruct(group, &groupDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -185,7 +185,7 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 // @Router /api/user-groups/{id} [delete]
 func (ugc *UserGroupController) delete(c *gin.Context) {
 	if err := ugc.UserGroupService.Delete(c.Param("id")); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -206,19 +206,19 @@ func (ugc *UserGroupController) delete(c *gin.Context) {
 func (ugc *UserGroupController) updateUsers(c *gin.Context) {
 	var input dto.UserGroupUpdateUsersDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	group, err := ugc.UserGroupService.UpdateUsers(c.Param("id"), input.UserIDs)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var groupDto dto.UserGroupDtoWithUsers
 	if err := dto.MapStruct(group, &groupDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 

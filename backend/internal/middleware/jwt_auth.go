@@ -22,7 +22,7 @@ func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 		userID, isAdmin, err := m.Verify(c, adminRequired)
 		if err != nil {
 			c.Abort()
-			c.Error(err)
+			_ = c.Error(err)
 			return
 		}
 

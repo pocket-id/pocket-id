@@ -39,7 +39,7 @@ func (wc *WebauthnController) beginRegistrationHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 	options, err := wc.webAuthnService.BeginRegistration(userID)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -50,20 +50,20 @@ func (wc *WebauthnController) beginRegistrationHandler(c *gin.Context) {
 func (wc *WebauthnController) verifyRegistrationHandler(c *gin.Context) {
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
-		c.Error(&common.MissingSessionIdError{})
+		_ = c.Error(&common.MissingSessionIdError{})
 		return
 	}
 
 	userID := c.GetString("userID")
 	credential, err := wc.webAuthnService.VerifyRegistration(sessionID, userID, c.Request)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var credentialDto dto.WebauthnCredentialDto
 	if err := dto.MapStruct(credential, &credentialDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -73,7 +73,7 @@ func (wc *WebauthnController) verifyRegistrationHandler(c *gin.Context) {
 func (wc *WebauthnController) beginLoginHandler(c *gin.Context) {
 	options, err := wc.webAuthnService.BeginLogin()
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -84,25 +84,25 @@ func (wc *WebauthnController) beginLoginHandler(c *gin.Context) {
 func (wc *WebauthnController) verifyLoginHandler(c *gin.Context) {
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
-		c.Error(&common.MissingSessionIdError{})
+		_ = c.Error(&common.MissingSessionIdError{})
 		return
 	}
 
 	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	user, token, err := wc.webAuthnService.VerifyLogin(sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -116,13 +116,13 @@ func (wc *WebauthnController) listCredentialsHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 	credentials, err := wc.webAuthnService.ListCredentials(userID)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var credentialDtos []dto.WebauthnCredentialDto
 	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -135,7 +135,7 @@ func (wc *WebauthnController) deleteCredentialHandler(c *gin.Context) {
 
 	err := wc.webAuthnService.DeleteCredential(userID, credentialID)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -148,19 +148,19 @@ func (wc *WebauthnController) updateCredentialHandler(c *gin.Context) {
 
 	var input dto.WebauthnCredentialUpdateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	credential, err := wc.webAuthnService.UpdateCredential(userID, credentialID, input.Name)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var credentialDto dto.WebauthnCredentialDto
 	if err := dto.MapStruct(credential, &credentialDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 

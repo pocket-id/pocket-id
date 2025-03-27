@@ -84,6 +84,6 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 
 		// Both JWT and API key auth failed
 		c.Abort()
-		c.Error(err)
+		_ = c.Error(err)
 	}
 }

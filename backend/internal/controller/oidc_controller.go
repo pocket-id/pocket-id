@@ -65,13 +65,13 @@ type OidcController struct {
 func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	var input dto.AuthorizeOidcClientRequestDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	code, callbackURL, err := oc.oidcService.Authorize(input, c.GetString("userID"), c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -96,13 +96,13 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Context) {
 	var input dto.AuthorizationRequiredDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	hasAuthorizedClient, err := oc.oidcService.HasAuthorizedClient(input.ClientID, c.GetString("userID"), input.Scope)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -128,19 +128,19 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 
 	var input dto.OidcCreateTokensDto
 	if err := c.ShouldBind(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	// Validate that code is provided for authorization_code grant type
 	if input.GrantType == "authorization_code" && input.Code == "" {
-		c.Error(&common.OidcMissingAuthorizationCodeError{})
+		_ = c.Error(&common.OidcMissingAuthorizationCodeError{})
 		return
 	}
 
 	// Validate that refresh_token is provided for refresh_token grant type
 	if input.GrantType == "refresh_token" && input.RefreshToken == "" {
-		c.Error(&common.OidcMissingRefreshTokenError{})
+		_ = c.Error(&common.OidcMissingRefreshTokenError{})
 		return
 	}
 
@@ -162,7 +162,7 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -197,13 +197,13 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 func (oc *OidcController) userInfoHandler(c *gin.Context) {
 	_, authToken, ok := strings.Cut(c.GetHeader("Authorization"), " ")
 	if !ok || authToken == "" {
-		c.Error(&common.MissingAccessToken{})
+		_ = c.Error(&common.MissingAccessToken{})
 		return
 	}
 
 	token, err := oc.jwtService.VerifyOauthAccessToken(authToken)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 	userID, ok := token.Subject()
@@ -218,7 +218,7 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 	}
 	claims, err := oc.oidcService.GetUserClaimsForClient(userID, clientID[0])
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -255,13 +255,13 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	// Bind query parameters to the struct
 	if c.Request.Method == http.MethodGet {
 		if err := c.ShouldBindQuery(&input); err != nil {
-			c.Error(err)
+			_ = c.Error(err)
 			return
 		}
 	} else if c.Request.Method == http.MethodPost {
 		// Bind form parameters to the struct
 		if err := c.ShouldBind(&input); err != nil {
-			c.Error(err)
+			_ = c.Error(err)
 			return
 		}
 	}
@@ -314,7 +314,7 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	clientId := c.Param("id")
 	client, err := oc.oidcService.GetClient(clientId)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 		return
 	}
 
-	c.Error(err)
+	_ = c.Error(err)
 }
 
 // getClientHandler godoc
@@ -341,7 +341,7 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 	clientId := c.Param("id")
 	client, err := oc.oidcService.GetClient(clientId)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -352,7 +352,7 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 		return
 	}
 
-	c.Error(err)
+	_ = c.Error(err)
 }
 
 // listClientsHandler godoc
@@ -371,19 +371,19 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 	searchTerm := c.Query("search")
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	clients, pagination, err := oc.oidcService.ListClients(searchTerm, sortedPaginationRequest)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var clientsDto []dto.OidcClientDto
 	if err := dto.MapStructList(clients, &clientsDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -406,19 +406,19 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 func (oc *OidcController) createClientHandler(c *gin.Context) {
 	var input dto.OidcClientCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	client, err := oc.oidcService.CreateClient(input, c.GetString("userID"))
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var clientDto dto.OidcClientWithAllowedUserGroupsDto
 	if err := dto.MapStruct(client, &clientDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -436,7 +436,7 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 	err := oc.oidcService.DeleteClient(c.Param("id"))
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -457,19 +457,19 @@ func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 func (oc *OidcController) updateClientHandler(c *gin.Context) {
 	var input dto.OidcClientCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	client, err := oc.oidcService.UpdateClient(c.Param("id"), input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var clientDto dto.OidcClientWithAllowedUserGroupsDto
 	if err := dto.MapStruct(client, &clientDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -488,7 +488,7 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 	secret, err := oc.oidcService.CreateClientSecret(c.Param("id"))
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -508,7 +508,7 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Param("id"))
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -529,13 +529,13 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	err = oc.oidcService.UpdateClientLogo(c.Param("id"), file)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -553,7 +553,7 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 	err := oc.oidcService.DeleteClientLogo(c.Param("id"))
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -574,19 +574,19 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 	var input dto.OidcUpdateAllowedUserGroupsDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	oidcClient, err := oc.oidcService.UpdateAllowedUserGroups(c.Param("id"), input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var oidcClientDto dto.OidcClientDto
 	if err := dto.MapStruct(oidcClient, &oidcClientDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
