@@ -1,18 +1,15 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
-	import type { UserCreate } from '$lib/types/user.type';
-	import { createForm } from '$lib/utils/form-util';
-	import { z } from 'zod';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import FileInput from '$lib/components/form/file-input.svelte';
-	import { LucideLoader, LucideRefreshCw, LucideUpload, BookUser } from 'lucide-svelte';
-	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import UserService from '$lib/services/user-service';
-	import { toast } from 'svelte-sonner';
+	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { createForm } from '$lib/utils/form-util';
+	import { BookUser } from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
+	import { z } from 'zod';
 
 	let {
 		callback,
@@ -61,19 +58,10 @@
 	}
 
 	async function resetProfilePicture() {
-		openConfirmDialog({
-			title: m.reset_profile_picture_question(),
-			message: m.this_will_remove_the_uploaded_image_and_reset_the_profile_picture_to_default(),
-			confirm: {
-				label: m.reset(),
-				action: async () => {
-					await userService
-						.resetProfilePicture(userId)
-						.then(() => toast.success(m.profile_picture_has_been_reset()))
-						.catch(axiosErrorToast);
-				}
-			}
-		});
+		await userService
+			.resetProfilePicture(userId)
+			.then(() => toast.success(m.profile_picture_has_been_reset()))
+			.catch(axiosErrorToast);
 	}
 </script>
 
