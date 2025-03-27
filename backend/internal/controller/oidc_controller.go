@@ -208,12 +208,12 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 	}
 	userID, ok := token.Subject()
 	if !ok {
-		c.Error(&common.TokenInvalidError{})
+		_ = c.Error(&common.TokenInvalidError{})
 		return
 	}
 	clientID, ok := token.Audience()
 	if !ok || len(clientID) != 1 {
-		c.Error(&common.TokenInvalidError{})
+		_ = c.Error(&common.TokenInvalidError{})
 		return
 	}
 	claims, err := oc.oidcService.GetUserClaimsForClient(userID, clientID[0])

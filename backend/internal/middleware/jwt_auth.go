@@ -51,7 +51,7 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 
 	subject, ok := token.Subject()
 	if !ok {
-		c.Error(&common.TokenInvalidError{})
+		_ = c.Error(&common.TokenInvalidError{})
 		return
 	}
 

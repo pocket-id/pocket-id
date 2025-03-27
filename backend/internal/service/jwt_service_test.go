@@ -723,7 +723,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 
 		// Verify should fail due to issuer mismatch
 		_, err = service.VerifyIdToken(tokenString, false)
-		assert.Error(t, err, "Verification should fail with incorrect issuer")
+		require.Error(t, err, "Verification should fail with incorrect issuer")
 		assert.Contains(t, err.Error(), `"iss" not satisfied`, "Error message should indicate token verification failure")
 	})
 
@@ -977,7 +977,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 
 		// Verify should fail due to expiration
 		_, err = service.VerifyOauthAccessToken(string(signed))
-		assert.Error(t, err, "Verification should fail with expired token")
+		require.Error(t, err, "Verification should fail with expired token")
 		assert.Contains(t, err.Error(), `"exp" not satisfied`, "Error message should indicate token verification failure")
 	})
 
@@ -1005,7 +1005,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 
 		// Verify with the second service should fail due to different keys
 		_, err = service2.VerifyOauthAccessToken(tokenString)
-		assert.Error(t, err, "Verification should fail with invalid signature")
+		require.Error(t, err, "Verification should fail with invalid signature")
 		assert.Contains(t, err.Error(), "verification error", "Error message should indicate token verification failure")
 	})
 
