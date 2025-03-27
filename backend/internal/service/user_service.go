@@ -205,11 +205,13 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 	}
 
 	err := tx.WithContext(ctx).Create(&user).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			err = s.checkDuplicatedFields(ctx, user, tx)
-			return model.User{}, err
-		}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		tx.Rollback()
+
+		// If we are here, the transaction is already aborted due to an error, so we pass s.db
+		err = s.checkDuplicatedFields(ctx, user, s.db)
+		return model.User{}, err
+	} else if err != nil {
 		return model.User{}, err
 	}
 	return user, nil
@@ -264,10 +266,13 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		WithContext(ctx).
 		Save(&user).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return user, s.checkDuplicatedFields(ctx, user, tx)
-		}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		tx.Rollback()
+
+		// If we are here, the transaction is already aborted due to an error, so we pass s.db
+		err = s.checkDuplicatedFields(ctx, user, s.db)
+		return user, err
+	} else if err != nil {
 		return user, err
 	}
 
