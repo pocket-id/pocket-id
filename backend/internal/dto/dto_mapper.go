@@ -40,13 +40,11 @@ func MapStruct[S any, D any](source S, destination *D) error {
 }
 
 func mapStructInternal(sourceVal reflect.Value, destVal reflect.Value) error {
-	// Loop through the fields of the destination struct
 	for i := 0; i < destVal.NumField(); i++ {
 		destField := destVal.Field(i)
 		destFieldType := destVal.Type().Field(i)
 
 		if destFieldType.Anonymous {
-			// Recursively handle embedded structs
 			if err := mapStructInternal(sourceVal, destField); err != nil {
 				return err
 			}
@@ -55,63 +53,57 @@ func mapStructInternal(sourceVal reflect.Value, destVal reflect.Value) error {
 
 		sourceField := sourceVal.FieldByName(destFieldType.Name)
 
-		// If the source field is valid and can be assigned to the destination field
 		if sourceField.IsValid() && destField.CanSet() {
-			// Handle direct assignment for simple types
-			if sourceField.Type() == destField.Type() {
-				destField.Set(sourceField)
-
-			} else if sourceField.Kind() == reflect.Slice && destField.Kind() == reflect.Slice {
-				// Handle slices
-				if sourceField.Type().Elem() == destField.Type().Elem() {
-					// Direct assignment for slices of primitive types or non-struct elements
-					newSlice := reflect.MakeSlice(destField.Type(), sourceField.Len(), sourceField.Cap())
-
-					for j := 0; j < sourceField.Len(); j++ {
-						newSlice.Index(j).Set(sourceField.Index(j))
-					}
-
-					destField.Set(newSlice)
-
-				} else if sourceField.Type().Elem().Kind() == reflect.Struct && destField.Type().Elem().Kind() == reflect.Struct {
-					// Recursively map slices of structs
-					newSlice := reflect.MakeSlice(destField.Type(), sourceField.Len(), sourceField.Cap())
-
-					for j := 0; j < sourceField.Len(); j++ {
-						// Get the element from both source and destination slice
-						sourceElem := sourceField.Index(j)
-						destElem := reflect.New(destField.Type().Elem()).Elem()
-
-						// Recursively map the struct elements
-						if err := mapStructInternal(sourceElem, destElem); err != nil {
-							return err
-						}
-
-						// Set the mapped element in the new slice
-						newSlice.Index(j).Set(destElem)
-					}
-
-					destField.Set(newSlice)
-				}
-			} else if sourceField.Kind() == reflect.Struct && destField.Kind() == reflect.Struct {
-				// Recursively map nested structs
-				if err := mapStructInternal(sourceField, destField); err != nil {
-					return err
-				}
-			} else {
-				// Type switch for specific type conversions
-				switch sourceField.Interface().(type) {
-				case datatype.DateTime:
-					// Convert datatype.DateTime to time.Time
-					if sourceField.Type() == reflect.TypeOf(datatype.DateTime{}) && destField.Type() == reflect.TypeOf(time.Time{}) {
-						dateValue := sourceField.Interface().(datatype.DateTime)
-						destField.Set(reflect.ValueOf(dateValue.ToTime()))
-					}
-				}
+			if err := mapField(sourceField, destField); err != nil {
+				return err
 			}
-
 		}
 	}
+	return nil
+}
 
+func mapField(sourceField reflect.Value, destField reflect.Value) error {
+	if sourceField.Type() == destField.Type() {
+		destField.Set(sourceField)
+	} else if sourceField.Kind() == reflect.Slice && destField.Kind() == reflect.Slice {
+		return mapSlice(sourceField, destField)
+	} else if sourceField.Kind() == reflect.Struct && destField.Kind() == reflect.Struct {
+		return mapStructInternal(sourceField, destField)
+	} else {
+		return mapSpecialTypes(sourceField, destField)
+	}
+	return nil
+}
+
+func mapSlice(sourceField reflect.Value, destField reflect.Value) error {
+	if sourceField.Type().Elem() == destField.Type().Elem() {
+		newSlice := reflect.MakeSlice(destField.Type(), sourceField.Len(), sourceField.Cap())
+		for j := 0; j < sourceField.Len(); j++ {
+			newSlice.Index(j).Set(sourceField.Index(j))
+		}
+		destField.Set(newSlice)
+	} else if sourceField.Type().Elem().Kind() == reflect.Struct && destField.Type().Elem().Kind() == reflect.Struct {
+		newSlice := reflect.MakeSlice(destField.Type(), sourceField.Len(), sourceField.Cap())
+		for j := 0; j < sourceField.Len(); j++ {
+			sourceElem := sourceField.Index(j)
+			destElem := reflect.New(destField.Type().Elem()).Elem()
+			if err := mapStructInternal(sourceElem, destElem); err != nil {
+				return err
+			}
+			newSlice.Index(j).Set(destElem)
+		}
+		destField.Set(newSlice)
+	}
+	return nil
+}
+
+func mapSpecialTypes(sourceField reflect.Value, destField reflect.Value) error {
+	switch sourceField.Interface().(type) {
+	case datatype.DateTime:
+		if sourceField.Type() == reflect.TypeOf(datatype.DateTime{}) && destField.Type() == reflect.TypeOf(time.Time{}) {
+			dateValue := sourceField.Interface().(datatype.DateTime)
+			destField.Set(reflect.ValueOf(dateValue.ToTime()))
+		}
+	}
 	return nil
 }

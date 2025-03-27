@@ -40,7 +40,7 @@ type AuditLogController struct {
 func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -49,7 +49,7 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	// Fetch audit logs for the user
 	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(userID, sortedPaginationRequest)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -57,7 +57,7 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	var logsDtos []dto.AuditLogDto
 	err = dto.MapStructList(logs, &logsDtos)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
