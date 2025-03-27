@@ -300,8 +300,13 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 
 	// Get all LDAP users from the database
 	var ldapUsersInDb []model.User
-	if err := tx.WithContext(ctx).Find(&ldapUsersInDb, "ldap_id IS NOT NULL").Select("ldap_id").Error; err != nil {
-		fmt.Println(fmt.Errorf("failed to fetch users from database: %v", err))
+	err = tx.
+		WithContext(ctx).
+		Find(&ldapUsersInDb, "ldap_id IS NOT NULL").
+		Select("ldap_id").
+		Error
+	if err != nil {
+		log.Printf("Failed to fetch users from database: %v", err)
 	}
 
 	// Delete users that no longer exist in LDAP

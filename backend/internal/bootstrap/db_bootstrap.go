@@ -56,17 +56,17 @@ func migrateDatabase(driver database.Driver) error {
 	// Use the embedded migrations
 	source, err := iofs.New(resources.FS, "migrations/"+string(common.EnvConfig.DbProvider))
 	if err != nil {
-		return fmt.Errorf("failed to create embedded migration source: %v", err)
+		return fmt.Errorf("failed to create embedded migration source: %w", err)
 	}
 
 	m, err := migrate.NewWithInstance("iofs", source, "pocket-id", driver)
 	if err != nil {
-		return fmt.Errorf("failed to create migration instance: %v", err)
+		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
 
 	err = m.Up()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to apply migrations: %v", err)
+		return fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
 	return nil

@@ -350,7 +350,7 @@ func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID strin
 func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, expiresAt time.Time, tx *gorm.DB) (string, error) {
 	// If expires at is less than 15 minutes, use an 6 character token instead of 16
 	tokenLength := 16
-	if expiresAt.Sub(time.Now()) <= 15*time.Minute {
+	if time.Until(expiresAt) <= 15*time.Minute {
 		tokenLength = 6
 	}
 
