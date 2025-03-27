@@ -32,7 +32,7 @@ func CreateProfilePicture(file io.Reader) (io.Reader, error) {
 	go func() {
 		err = imaging.Encode(pw, img, imaging.PNG)
 		if err != nil {
-			_ = pw.CloseWithError(fmt.Errorf("failed to encode image: %v", err))
+			_ = pw.CloseWithError(fmt.Errorf("failed to encode image: %w", err))
 			return
 		}
 		pw.Close()

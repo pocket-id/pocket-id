@@ -54,7 +54,7 @@ func (s *UserGroupService) Delete(id string) error {
 	}
 
 	// Disallow deleting the group if it is an LDAP group and LDAP is enabled
-	if group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return &common.LdapUserGroupUpdateError{}
 	}
 
@@ -87,7 +87,7 @@ func (s *UserGroupService) Update(id string, input dto.UserGroupCreateDto, allow
 	}
 
 	// Disallow updating the group if it is an LDAP group and LDAP is enabled
-	if !allowLdapUpdate && group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if !allowLdapUpdate && group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
 	}
 
