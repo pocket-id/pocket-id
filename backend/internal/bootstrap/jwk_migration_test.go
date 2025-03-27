@@ -101,25 +101,25 @@ func TestLoadKeyPEM(t *testing.T) {
 		// Check key ID is set
 		var keyID string
 		err = key.Get(jwk.KeyIDKey, &keyID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, keyID)
 
 		// Check algorithm is set
 		var alg jwa.SignatureAlgorithm
 		err = key.Get(jwk.AlgorithmKey, &alg)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, alg)
 
 		// Check key usage is set
 		var keyUsage string
 		err = key.Get(jwk.KeyUsageKey, &keyUsage)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, service.KeyUsageSigning, keyUsage)
 	})
 
 	t.Run("file not found", func(t *testing.T) {
 		key, err := loadKeyPEM(filepath.Join(tempDir, "nonexistent.pem"))
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, key)
 	})
 
@@ -129,7 +129,7 @@ func TestLoadKeyPEM(t *testing.T) {
 		require.NoError(t, err)
 
 		key, err := loadKeyPEM(invalidPath)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, key)
 	})
 }

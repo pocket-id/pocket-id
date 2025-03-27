@@ -51,6 +51,8 @@ func (j *Jobs) clearOidcRefreshTokens() error {
 }
 
 // ClearAuditLogs deletes audit logs older than 90 days
+//
+//nolint:unused
 func (j *Jobs) clearAuditLogs() error {
 	return j.db.Delete(&model.AuditLog{}, "created_at < ?", datatype.DateTime(time.Now().AddDate(0, 0, -90))).Error
 }

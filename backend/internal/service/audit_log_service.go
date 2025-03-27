@@ -49,12 +49,13 @@ func (s *AuditLogService) Create(event model.AuditLogEvent, ipAddress, userAgent
 }
 
 // CreateNewSignInWithEmail creates a new audit log entry in the database and sends an email if the device hasn't been used before
-func (s *AuditLogService) CreateNewSignInWithEmail(ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog {
+func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog {
 	createdAuditLog := s.Create(model.AuditLogEventSignIn, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
 
 	// Count the number of times the user has logged in from the same device
 	var count int64
 	err := tx.
+		WithContext(ctx).
 		Model(&model.AuditLog{}).
 		Where("user_id = ? AND ip_address = ? AND user_agent = ?", userID, ipAddress, userAgent).
 		Count(&count).

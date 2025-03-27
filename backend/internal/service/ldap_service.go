@@ -37,7 +37,9 @@ func (s *LdapService) createClient() (*ldap.Conn, error) {
 	// Setup LDAP connection
 	ldapURL := s.appConfigService.DbConfig.LdapUrl.Value
 	skipTLSVerify := s.appConfigService.DbConfig.LdapSkipCertVerify.Value == "true"
-	client, err := ldap.DialURL(ldapURL, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: skipTLSVerify}))
+	client, err := ldap.DialURL(ldapURL, ldap.DialWithTLSConfig(&tls.Config{
+		InsecureSkipVerify: skipTLSVerify, //nolint:gosec
+	}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to LDAP: %w", err)
 	}

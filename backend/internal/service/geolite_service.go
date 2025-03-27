@@ -124,8 +124,8 @@ func (s *GeoLiteService) updateDatabase() error {
 	log.Println("Updating GeoLite2 City database...")
 	downloadUrl := fmt.Sprintf(common.EnvConfig.GeoLiteDBUrl, common.EnvConfig.MaxMindLicenseKey)
 
-	// Download the database tar.gz file nolint:gosec
-	resp, err := http.Get(downloadUrl)
+	// Download the database tar.gz file
+	resp, err := http.Get(downloadUrl) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to download database: %w", err)
 	}

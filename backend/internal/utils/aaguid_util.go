@@ -12,8 +12,12 @@ import (
 
 var (
 	aaguidMap     map[string]string
-	aaguidMapOnce sync.Once
+	aaguidMapOnce *sync.Once
 )
+
+func init() {
+	aaguidMapOnce = &sync.Once{}
+}
 
 // FormatAAGUID converts an AAGUID byte slice to UUID string format
 func FormatAAGUID(aaguid []byte) string {

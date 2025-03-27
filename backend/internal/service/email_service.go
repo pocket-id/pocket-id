@@ -155,7 +155,7 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 	smtpAddress := srv.appConfigService.DbConfig.SmtpHost.Value + ":" + port
 
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: srv.appConfigService.DbConfig.SmtpSkipCertVerify.Value == "true",
+		InsecureSkipVerify: srv.appConfigService.DbConfig.SmtpSkipCertVerify.IsTrue(), //nolint:gosec
 		ServerName:         srv.appConfigService.DbConfig.SmtpHost.Value,
 	}
 

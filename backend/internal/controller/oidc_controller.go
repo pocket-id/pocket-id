@@ -28,7 +28,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.POST("/oidc/token", oc.createTokensHandler)
 	group.GET("/oidc/userinfo", oc.userInfoHandler)
-	group.POST("/oidc/userinfo", oc.userInfoHandler)
+	group.POST("/oidc/userinfo", oc.userInfoHandlerPost)
 	group.POST("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
 	group.GET("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
 
@@ -230,7 +230,7 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 // @Security OAuth2AccessToken
 // @Router /api/oidc/userinfo [post]
 func (oc *OidcController) userInfoHandlerPost(c *gin.Context) {
-	// Implementation is the same as GET
+	oc.userInfoHandler(c)
 }
 
 // EndSessionHandler godoc

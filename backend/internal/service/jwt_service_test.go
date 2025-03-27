@@ -229,7 +229,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		// Check the claims
 		assert.Equal(t, user.ID, claims.Subject, "Token subject should match user ID")
-		assert.Equal(t, false, claims.IsAdmin, "IsAdmin should be false")
+		assert.False(t, claims.IsAdmin, "IsAdmin should be false")
 		assert.Contains(t, claims.Audience, "https://test.example.com", "Audience should contain the app URL")
 
 		// Check token expiration time is approximately 60 minutes from now
@@ -263,7 +263,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		require.NoError(t, err, "Failed to verify generated token")
 
 		// Check the IsAdmin claim is true
-		assert.Equal(t, true, claims.IsAdmin, "IsAdmin should be true for admin users")
+		assert.True(t, claims.IsAdmin, "IsAdmin should be true for admin users")
 		assert.Equal(t, adminUser.ID, claims.Subject, "Token subject should match admin ID")
 	})
 
@@ -404,7 +404,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 
 		// Verify should fail due to issuer mismatch
 		_, err = service.VerifyIdToken(tokenString)
-		assert.Error(t, err, "Verification should fail with incorrect issuer")
+		require.Error(t, err, "Verification should fail with incorrect issuer")
 		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
 	})
 }
@@ -492,7 +492,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 
 		// Verify should fail due to expiration
 		_, err = service.VerifyOauthAccessToken(string(signed))
-		assert.Error(t, err, "Verification should fail with expired token")
+		require.Error(t, err, "Verification should fail with expired token")
 		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
 	})
 
@@ -520,7 +520,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 
 		// Verify with the second service should fail due to different keys
 		_, err = service2.VerifyOauthAccessToken(tokenString)
-		assert.Error(t, err, "Verification should fail with invalid signature")
+		require.Error(t, err, "Verification should fail with invalid signature")
 		assert.Contains(t, err.Error(), "couldn't handle this token", "Error message should indicate token verification failure")
 	})
 }

@@ -49,13 +49,13 @@ func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := ctx.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	apiKeys, pagination, err := c.apiKeyService.ListApiKeys(ctx.Request.Context(), userID, sortedPaginationRequest)
 	if err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
