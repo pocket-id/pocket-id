@@ -32,7 +32,7 @@ type WellKnownController struct {
 func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 	jwks, err := wkc.jwtService.GetPublicJWKSAsJSON()
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 

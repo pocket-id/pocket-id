@@ -71,7 +71,7 @@ func (c *OidcClient) AfterFind(_ *gorm.DB) (err error) {
 	return nil
 }
 
-type UrlList []string
+type UrlList []string //nolint:recvcheck
 
 func (cu *UrlList) Scan(value interface{}) error {
 	if v, ok := value.([]byte); ok {
