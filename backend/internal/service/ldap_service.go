@@ -16,7 +16,6 @@ import (
 	"github.com/go-ldap/ldap/v3"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/transaction"
 	"gorm.io/gorm"
 )
 
@@ -56,14 +55,13 @@ func (s *LdapService) createClient() (*ldap.Conn, error) {
 func (s *LdapService) SyncAll(ctx context.Context) error {
 	// Start a transaction
 	tx := s.db.Begin()
-	ctx = transaction.AddToContext(ctx, tx)
 
-	err := s.SyncUsers(ctx)
+	err := s.SyncUsers(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to sync users: %w", err)
 	}
 
-	err = s.SyncGroups(ctx)
+	err = s.SyncGroups(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to sync groups: %w", err)
 	}
@@ -77,7 +75,7 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 	return nil
 }
 
-func (s *LdapService) SyncGroups(ctx context.Context) error {
+func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
 	// Setup LDAP connection
 	client, err := s.createClient()
 	if err != nil {
@@ -105,8 +103,6 @@ func (s *LdapService) SyncGroups(ctx context.Context) error {
 
 	// Create a mapping for groups that exist
 	ldapGroupIDs := make(map[string]bool)
-
-	tx := transaction.FromContextOrDefault(ctx, nil)
 
 	for _, value := range result.Entries {
 		var membersUserId []string
@@ -154,34 +150,51 @@ func (s *LdapService) SyncGroups(ctx context.Context) error {
 		}
 
 		if databaseGroup.ID == "" {
-			newGroup, err := s.groupService.Create(ctx, syncGroup)
+			newGroup, err := s.groupService.createInternal(ctx, syncGroup, tx)
 			if err != nil {
-				log.Printf("Error syncing group %s: %s", syncGroup.Name, err)
-			} else {
-				if _, err = s.groupService.UpdateUsers(ctx, newGroup.ID, membersUserId); err != nil {
-					log.Printf("Error syncing group %s: %s", syncGroup.Name, err)
-				}
+				log.Printf("Error syncing group %s: %v", syncGroup.Name, err)
+				continue
+			}
+
+			_, err = s.groupService.updateUsersInternal(ctx, newGroup.ID, membersUserId, tx)
+			if err != nil {
+				log.Printf("Error syncing group %s: %v", syncGroup.Name, err)
+				continue
 			}
 		} else {
-			_, err = s.groupService.Update(ctx, databaseGroup.ID, syncGroup, true)
-			_, err = s.groupService.UpdateUsers(ctx, databaseGroup.ID, membersUserId)
+			_, err = s.groupService.updateInternal(ctx, databaseGroup.ID, syncGroup, true, tx)
 			if err != nil {
-				log.Printf("Error syncing group %s: %s", syncGroup.Name, err)
-				return err
+				log.Printf("Error syncing group %s: %v", syncGroup.Name, err)
+				continue
+			}
+
+			_, err = s.groupService.updateUsersInternal(ctx, databaseGroup.ID, membersUserId, tx)
+			if err != nil {
+				log.Printf("Error syncing group %s: %v", syncGroup.Name, err)
+				continue
 			}
 		}
 	}
 
 	// Get all LDAP groups from the database
 	var ldapGroupsInDb []model.UserGroup
-	if err := tx.WithContext(ctx).Find(&ldapGroupsInDb, "ldap_id IS NOT NULL").Select("ldap_id").Error; err != nil {
-		fmt.Println(fmt.Errorf("failed to fetch groups from database: %v", err))
+	err = tx.
+		WithContext(ctx).
+		Find(&ldapGroupsInDb, "ldap_id IS NOT NULL").
+		Select("ldap_id").
+		Error
+	if err != nil {
+		log.Printf("Failed to fetch groups from database: %v", err)
 	}
 
 	// Delete groups that no longer exist in LDAP
 	for _, group := range ldapGroupsInDb {
 		if _, exists := ldapGroupIDs[*group.LdapID]; !exists {
-			if err := tx.WithContext(ctx).Delete(&model.UserGroup{}, "ldap_id = ?", group.LdapID).Error; err != nil {
+			err = tx.
+				WithContext(ctx).
+				Delete(&model.UserGroup{}, "ldap_id = ?", group.LdapID).
+				Error
+			if err != nil {
 				log.Printf("Failed to delete group %s with: %v", group.Name, err)
 			} else {
 				log.Printf("Deleted group %s", group.Name)
@@ -192,7 +205,7 @@ func (s *LdapService) SyncGroups(ctx context.Context) error {
 	return nil
 }
 
-func (s *LdapService) SyncUsers(ctx context.Context) error {
+func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 	// Setup LDAP connection
 	client, err := s.createClient()
 	if err != nil {
@@ -233,8 +246,6 @@ func (s *LdapService) SyncUsers(ctx context.Context) error {
 	// Create a mapping for users that exist
 	ldapUserIDs := make(map[string]bool)
 
-	tx := transaction.FromContextOrDefault(ctx, nil)
-
 	for _, value := range result.Entries {
 		ldapId := value.GetAttributeValue(uniqueIdentifierAttribute)
 
@@ -268,21 +279,21 @@ func (s *LdapService) SyncUsers(ctx context.Context) error {
 		}
 
 		if databaseUser.ID == "" {
-			_, err = s.userService.CreateUser(ctx, newUser)
+			_, err = s.userService.createUserInternal(ctx, newUser, tx)
 			if err != nil {
-				log.Printf("Error syncing user %s: %s", newUser.Username, err)
+				log.Printf("Error syncing user %s: %v", newUser.Username, err)
 			}
 		} else {
-			_, err = s.userService.UpdateUser(ctx, databaseUser.ID, newUser, false, true)
+			_, err = s.userService.updateUserInternal(ctx, databaseUser.ID, newUser, false, true, tx)
 			if err != nil {
-				log.Printf("Error syncing user %s: %s", newUser.Username, err)
+				log.Printf("Error syncing user %s: %v", newUser.Username, err)
 			}
 		}
 
 		// Save profile picture
 		if pictureString := value.GetAttributeValue(profilePictureAttribute); pictureString != "" {
 			if err := s.SaveProfilePicture(databaseUser.ID, pictureString); err != nil {
-				log.Printf("Error saving profile picture for user %s: %s", newUser.Username, err)
+				log.Printf("Error saving profile picture for user %s: %v", newUser.Username, err)
 			}
 		}
 	}
@@ -296,7 +307,7 @@ func (s *LdapService) SyncUsers(ctx context.Context) error {
 	// Delete users that no longer exist in LDAP
 	for _, user := range ldapUsersInDb {
 		if _, exists := ldapUserIDs[*user.LdapID]; !exists {
-			if err := s.userService.DeleteUser(ctx, user.ID); err != nil {
+			if err := s.userService.deleteUserInternal(ctx, user.ID, tx); err != nil {
 				log.Printf("Failed to delete user %s with: %v", user.Username, err)
 			} else {
 				log.Printf("Deleted user %s", user.Username)

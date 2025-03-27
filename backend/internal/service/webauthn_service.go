@@ -8,12 +8,12 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/transaction"
-	"gorm.io/gorm"
 )
 
 type WebAuthnService struct {
@@ -47,16 +47,30 @@ func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *Au
 }
 
 func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) (*model.PublicKeyCredentialCreationOptions, error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	tx := s.db.Begin()
+	defer func() {
+		// This is a no-op if the transaction has been committed already
+		tx.Rollback()
+	}()
 
 	s.updateWebAuthnConfig()
 
 	var user model.User
-	if err := tx.WithContext(ctx).Preload("Credentials").Find(&user, "id = ?", userID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("Credentials").
+		Find(&user, "id = ?", userID).
+		Error
+	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
-	options, session, err := s.webAuthn.BeginRegistration(&user, webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired), webauthn.WithExclusions(user.WebAuthnCredentialDescriptors()))
+	options, session, err := s.webAuthn.BeginRegistration(
+		&user,
+		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
+		webauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +81,16 @@ func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) 
 		UserVerification: string(session.UserVerification),
 	}
 
-	if err := tx.WithContext(ctx).Create(&sessionToStore).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Create(&sessionToStore).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return nil, err
 	}
 
@@ -79,10 +102,18 @@ func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) 
 }
 
 func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, userID string, r *http.Request) (model.WebauthnCredential, error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	tx := s.db.Begin()
+	defer func() {
+		// This is a no-op if the transaction has been committed already
+		tx.Rollback()
+	}()
 
 	var storedSession model.WebauthnSession
-	if err := tx.WithContext(ctx).First(&storedSession, "id = ?", sessionID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		First(&storedSession, "id = ?", sessionID).
+		Error
+	if err != nil {
 		return model.WebauthnCredential{}, err
 	}
 
@@ -93,7 +124,11 @@ func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, use
 	}
 
 	var user model.User
-	if err := tx.WithContext(ctx).Find(&user, "id = ?", userID).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Find(&user, "id = ?", userID).
+		Error
+	if err != nil {
 		return model.WebauthnCredential{}, err
 	}
 
@@ -115,7 +150,16 @@ func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, use
 		BackupEligible:  credential.Flags.BackupEligible,
 		BackupState:     credential.Flags.BackupState,
 	}
-	if err := tx.WithContext(ctx).Create(&credentialToStore).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Create(&credentialToStore).
+		Error
+	if err != nil {
+		return model.WebauthnCredential{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return model.WebauthnCredential{}, err
 	}
 
@@ -133,8 +177,6 @@ func (s *WebAuthnService) determinePasskeyName(aaguid []byte) string {
 }
 
 func (s *WebAuthnService) BeginLogin(ctx context.Context) (*model.PublicKeyCredentialRequestOptions, error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
-
 	options, session, err := s.webAuthn.BeginDiscoverableLogin()
 	if err != nil {
 		return nil, err
@@ -146,7 +188,11 @@ func (s *WebAuthnService) BeginLogin(ctx context.Context) (*model.PublicKeyCrede
 		UserVerification: string(session.UserVerification),
 	}
 
-	if err := tx.WithContext(ctx).Create(&sessionToStore).Error; err != nil {
+	err = s.db.
+		WithContext(ctx).
+		Create(&sessionToStore).
+		Error
+	if err != nil {
 		return nil, err
 	}
 
@@ -158,10 +204,18 @@ func (s *WebAuthnService) BeginLogin(ctx context.Context) (*model.PublicKeyCrede
 }
 
 func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (model.User, string, error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	tx := s.db.Begin()
+	defer func() {
+		// This is a no-op if the transaction has been committed already
+		tx.Rollback()
+	}()
 
 	var storedSession model.WebauthnSession
-	if err := tx.WithContext(ctx).First(&storedSession, "id = ?", sessionID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		First(&storedSession, "id = ?", sessionID).
+		Error
+	if err != nil {
 		return model.User{}, "", err
 	}
 
@@ -171,9 +225,14 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 	}
 
 	var user *model.User
-	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (webauthn.User, error) {
-		if err := tx.WithContext(ctx).Preload("Credentials").First(&user, "id = ?", string(userHandle)).Error; err != nil {
-			return nil, err
+	_, err = s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (webauthn.User, error) {
+		innerErr := tx.
+			WithContext(ctx).
+			Preload("Credentials").
+			First(&user, "id = ?", string(userHandle)).
+			Error
+		if innerErr != nil {
+			return nil, innerErr
 		}
 		return user, nil
 	}, session, credentialAssertionData)
@@ -187,25 +246,30 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		return model.User{}, "", err
 	}
 
-	s.auditLogService.CreateNewSignInWithEmail(ipAddress, userAgent, user.ID)
+	s.auditLogService.CreateNewSignInWithEmail(ipAddress, userAgent, user.ID, tx)
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.User{}, "", err
+	}
 
 	return *user, token, nil
 }
 
 func (s *WebAuthnService) ListCredentials(ctx context.Context, userID string) ([]model.WebauthnCredential, error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
-
 	var credentials []model.WebauthnCredential
-	if err := tx.WithContext(ctx).Find(&credentials, "user_id = ?", userID).Error; err != nil {
+	err := s.db.
+		WithContext(ctx).
+		Find(&credentials, "user_id = ?", userID).
+		Error
+	if err != nil {
 		return nil, err
 	}
 	return credentials, nil
 }
 
 func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID, credentialID string) error {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
-
-	err := tx.
+	err := s.db.
 		WithContext(ctx).
 		Where("id = ? AND user_id = ?", credentialID, userID).
 		Delete(&model.WebauthnCredential{}).
@@ -218,16 +282,34 @@ func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID, credenti
 }
 
 func (s *WebAuthnService) UpdateCredential(ctx context.Context, userID, credentialID, name string) (model.WebauthnCredential, error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	tx := s.db.Begin()
+	defer func() {
+		// This is a no-op if the transaction has been committed already
+		tx.Rollback()
+	}()
 
 	var credential model.WebauthnCredential
-	if err := tx.WithContext(ctx).Where("id = ? AND user_id = ?", credentialID, userID).First(&credential).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Where("id = ? AND user_id = ?", credentialID, userID).
+		First(&credential).
+		Error
+	if err != nil {
 		return credential, err
 	}
 
 	credential.Name = name
 
-	if err := tx.WithContext(ctx).Save(&credential).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&credential).
+		Error
+	if err != nil {
+		return credential, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return credential, err
 	}
 

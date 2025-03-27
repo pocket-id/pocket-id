@@ -100,9 +100,9 @@ func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID,
 
 	// Log the authorization event
 	if hasAuthorizedClient {
-		s.auditLogService.Create(model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name})
+		s.auditLogService.Create(model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, s.db)
 	} else {
-		s.auditLogService.Create(model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name})
+		s.auditLogService.Create(model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, s.db)
 
 	}
 

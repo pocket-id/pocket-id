@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/transaction"
-	"gorm.io/gorm"
 )
 
 type UserGroupService struct {
@@ -22,9 +22,7 @@ func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService) *UserG
 }
 
 func (s *UserGroupService) List(ctx context.Context, name string, sortedPaginationRequest utils.SortedPaginationRequest) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
-
-	query := tx.
+	query := s.db.
 		WithContext(ctx).
 		Preload("CustomClaims").
 		Model(&model.UserGroup{})
@@ -50,7 +48,10 @@ func (s *UserGroupService) List(ctx context.Context, name string, sortedPaginati
 }
 
 func (s *UserGroupService) Get(ctx context.Context, id string) (group model.UserGroup, err error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	return s.getInternal(ctx, id, s.db)
+}
+
+func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.DB) (group model.UserGroup, err error) {
 	err = tx.
 		WithContext(ctx).
 		Where("id = ?", id).
@@ -62,7 +63,7 @@ func (s *UserGroupService) Get(ctx context.Context, id string) (group model.User
 }
 
 func (s *UserGroupService) Delete(ctx context.Context, id string) error {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	tx := s.db.Begin()
 
 	var group model.UserGroup
 	err := tx.
@@ -76,18 +77,29 @@ func (s *UserGroupService) Delete(ctx context.Context, id string) error {
 
 	// Disallow deleting the group if it is an LDAP group and LDAP is enabled
 	if group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+		err = tx.Rollback().Error
+		if err != nil {
+			return err
+		}
 		return &common.LdapUserGroupUpdateError{}
 	}
 
-	return tx.
+	err = tx.
 		WithContext(ctx).
 		Delete(&group).
 		Error
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	return s.createInternal(ctx, input, s.db)
+}
 
+func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (group model.UserGroup, err error) {
 	group = model.UserGroup{
 		FriendlyName: input.FriendlyName,
 		Name:         input.Name,
@@ -112,9 +124,25 @@ func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreate
 }
 
 func (s *UserGroupService) Update(ctx context.Context, id string, input dto.UserGroupCreateDto, allowLdapUpdate bool) (group model.UserGroup, err error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	tx := s.db.Begin()
 
-	group, err = s.Get(ctx, id)
+	group, err = s.updateInternal(ctx, id, input, allowLdapUpdate, tx)
+	if err != nil {
+		tx.Rollback()
+		return model.UserGroup{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		tx.Rollback()
+		return model.UserGroup{}, err
+	}
+
+	return group, nil
+}
+
+func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, allowLdapUpdate bool, tx *gorm.DB) (group model.UserGroup, err error) {
+	group, err = s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -142,9 +170,25 @@ func (s *UserGroupService) Update(ctx context.Context, id string, input dto.User
 }
 
 func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds []string) (group model.UserGroup, err error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	tx := s.db.Begin()
 
-	group, err = s.Get(ctx, id)
+	group, err = s.updateUsersInternal(ctx, id, userIds, tx)
+	if err != nil {
+		tx.Rollback()
+		return model.UserGroup{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		tx.Rollback()
+		return model.UserGroup{}, err
+	}
+
+	return group, nil
+}
+
+func (s *UserGroupService) updateUsersInternal(ctx context.Context, id string, userIds []string, tx *gorm.DB) (group model.UserGroup, err error) {
+	group, err = s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -185,7 +229,11 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 }
 
 func (s *UserGroupService) GetUserCountOfGroup(ctx context.Context, id string) (int64, error) {
-	tx := transaction.FromContextOrDefault(ctx, s.db)
+	// We only perform select queries here, so we can rollback in all cases
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
 
 	var group model.UserGroup
 	err := tx.
