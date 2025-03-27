@@ -2,6 +2,7 @@ package model
 
 import (
 	"strconv"
+	"time"
 )
 
 type AppConfigVariable struct {
@@ -13,9 +14,19 @@ type AppConfigVariable struct {
 	DefaultValue string
 }
 
+// IsTrue returns true if the value is a truthy string, such as "true", "t", "yes", "1", etc.
 func (a *AppConfigVariable) IsTrue() bool {
 	ok, _ := strconv.ParseBool(a.Value)
 	return ok
+}
+
+// AsDurationMinutes returns the value as a time.Duration, interpreting the string as a whole number of minutes.
+func (a *AppConfigVariable) AsDurationMinutes() time.Duration {
+	val, err := strconv.Atoi(a.Value)
+	if err != nil {
+		return 0
+	}
+	return time.Duration(val) * time.Minute
 }
 
 type AppConfig struct {

@@ -8,7 +8,7 @@ import (
 )
 
 // DateTime custom type for time.Time to store date as unix timestamp for sqlite and as date for postgres
-type DateTime time.Time
+type DateTime time.Time //nolint:recvcheck
 
 func (date *DateTime) Scan(value interface{}) (err error) {
 	*date = DateTime(value.(time.Time))

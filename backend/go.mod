@@ -14,11 +14,10 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/go-playground/validator/v10 v10.24.0
 	github.com/go-webauthn/webauthn v0.11.2
-	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/lestrrat-go/jwx/v3 v3.0.0-alpha3
+	github.com/lestrrat-go/jwx/v3 v3.0.0-beta1
 	github.com/mileusna/useragent v1.3.5
 	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.2
 	github.com/stretchr/testify v1.10.0
@@ -45,6 +44,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-webauthn/x v0.1.16 // indirect
 	github.com/goccy/go-json v0.10.4 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/google/go-tpm v0.9.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect

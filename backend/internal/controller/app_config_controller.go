@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -143,7 +144,7 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 // @Success 200 {file} binary "Logo image"
 // @Router /api/application-configuration/logo [get]
 func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
-	lightLogo := c.DefaultQuery("light", "true") == "true"
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	var imageName string
 	var imageType string
@@ -196,7 +197,7 @@ func (acc *AppConfigController) getBackgroundImageHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/application-configuration/logo [put]
 func (acc *AppConfigController) updateLogoHandler(c *gin.Context) {
-	lightLogo := c.DefaultQuery("light", "true") == "true"
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	var imageName string
 	var imageType string

@@ -16,6 +16,10 @@ linters:
   presets:
     - bugs
     - sql
+  exclusions:
+    paths:
+      - internal/service/test_service.go
+
 run:
   timeout: "5m"
   tests: true
