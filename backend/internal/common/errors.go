@@ -17,7 +17,7 @@ type AlreadyInUseError struct {
 }
 
 func (e *AlreadyInUseError) Error() string {
-	return fmt.Sprintf("%s is already in use", e.Property)
+	return e.Property + " is already in use"
 }
 func (e *AlreadyInUseError) HttpStatusCode() int { return 400 }
 

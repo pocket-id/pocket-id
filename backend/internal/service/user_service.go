@@ -505,12 +505,30 @@ func (s *UserService) SetupInitialAdmin(ctx context.Context) (model.User, string
 }
 
 func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User, tx *gorm.DB) error {
-	var existingUser model.User
-	if tx.WithContext(ctx).Where("id != ? AND email = ?", user.ID, user.Email).First(&existingUser).Error == nil {
+	var result struct {
+		Found int
+	}
+	err := tx.
+		WithContext(ctx).
+		Raw(`SELECT EXISTS(SELECT 1 FROM users WHERE id != ? AND email = ?) AS found`, user.ID, user.Email).
+		First(&result).
+		Error
+	if err != nil {
+		return err
+	}
+	if result.Found == 1 {
 		return &common.AlreadyInUseError{Property: "email"}
 	}
 
-	if tx.WithContext(ctx).Where("id != ? AND username = ?", user.ID, user.Username).First(&existingUser).Error == nil {
+	err = tx.
+		WithContext(ctx).
+		Raw(`SELECT EXISTS(SELECT 1 FROM users WHERE id != ? AND username = ?) AS found`, user.ID, user.Username).
+		First(&result).
+		Error
+	if err != nil {
+		return err
+	}
+	if result.Found == 1 {
 		return &common.AlreadyInUseError{Property: "username"}
 	}
 
