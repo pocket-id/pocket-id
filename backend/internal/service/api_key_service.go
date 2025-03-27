@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -22,8 +23,11 @@ func NewApiKeyService(db *gorm.DB) *ApiKeyService {
 	return &ApiKeyService{db: db}
 }
 
-func (s *ApiKeyService) ListApiKeys(userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.ApiKey, utils.PaginationResponse, error) {
-	query := s.db.Where("user_id = ?", userID).Model(&model.ApiKey{})
+func (s *ApiKeyService) ListApiKeys(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.ApiKey, utils.PaginationResponse, error) {
+	query := s.db.
+		WithContext(ctx).
+		Where("user_id = ?", userID).
+		Model(&model.ApiKey{})
 
 	var apiKeys []model.ApiKey
 	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &apiKeys)
@@ -34,7 +38,7 @@ func (s *ApiKeyService) ListApiKeys(userID string, sortedPaginationRequest utils
 	return apiKeys, pagination, nil
 }
 
-func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (model.ApiKey, string, error) {
+func (s *ApiKeyService) CreateApiKey(ctx context.Context, userID string, input dto.ApiKeyCreateDto) (model.ApiKey, string, error) {
 	// Check if expiration is in the future
 	if !input.ExpiresAt.ToTime().After(time.Now()) {
 		return model.ApiKey{}, "", &common.APIKeyExpirationDateError{}
@@ -54,7 +58,11 @@ func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (
 		UserID:      userID,
 	}
 
-	if err := s.db.Create(&apiKey).Error; err != nil {
+	err = s.db.
+		WithContext(ctx).
+		Create(&apiKey).
+		Error
+	if err != nil {
 		return model.ApiKey{}, "", err
 	}
 
@@ -62,9 +70,10 @@ func (s *ApiKeyService) CreateApiKey(userID string, input dto.ApiKeyCreateDto) (
 	return apiKey, token, nil
 }
 
-func (s *ApiKeyService) RevokeApiKey(userID, apiKeyID string) error {
+func (s *ApiKeyService) RevokeApiKey(ctx context.Context, userID, apiKeyID string) error {
 	var apiKey model.ApiKey
 	err := s.db.
+		WithContext(ctx).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		Delete(&apiKey).
 		Error
@@ -78,7 +87,7 @@ func (s *ApiKeyService) RevokeApiKey(userID, apiKeyID string) error {
 	return nil
 }
 
-func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
+func (s *ApiKeyService) ValidateApiKey(ctx context.Context, apiKey string) (model.User, error) {
 	if apiKey == "" {
 		return model.User{}, &common.NoAPIKeyProvidedError{}
 	}
@@ -87,7 +96,9 @@ func (s *ApiKeyService) ValidateApiKey(apiKey string) (model.User, error) {
 	hashedKey := utils.CreateSha256Hash(apiKey)
 
 	var key model.ApiKey
-	err := s.db.Model(&model.ApiKey{}).
+	err := s.db.
+		WithContext(ctx).
+		Model(&model.ApiKey{}).
 		Clauses(clause.Returning{}).
 		Where("key = ? AND expires_at > ?", hashedKey, datatype.DateTime(now)).
 		Updates(&model.ApiKey{

@@ -303,7 +303,7 @@ func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
 func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 
-	err := acc.emailService.SendTestEmail(userID)
+	err := acc.emailService.SendTestEmail(c.Request.Context(), userID)
 	if err != nil {
 		c.Error(err)
 		return

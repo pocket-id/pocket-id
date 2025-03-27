@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"log"
 
 	userAgentParser "github.com/mileusna/useragent"
@@ -73,7 +74,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ipAddress, userAgent, userID 
 				log.Printf("Failed to load user: %v\n", innerErr)
 			}
 
-			innerErr = SendEmail(s.emailService, email.Address{
+			innerErr = SendEmail(context.Background(), s.emailService, email.Address{
 				Name:  user.Username,
 				Email: user.Email,
 			}, NewLoginTemplate, &NewLoginTemplateData{
