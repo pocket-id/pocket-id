@@ -45,7 +45,7 @@ type PublicKeyCredentialRequestOptions struct {
 	Timeout   time.Duration
 }
 
-type AuthenticatorTransportList []protocol.AuthenticatorTransport
+type AuthenticatorTransportList []protocol.AuthenticatorTransport //nolint:recvcheck
 
 // Scan and Value methods for GORM to handle the custom type
 func (atl *AuthenticatorTransportList) Scan(value interface{}) error {

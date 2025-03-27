@@ -244,7 +244,7 @@ func (s *UserService) CreateOneTimeAccessToken(userID string, expiresAt time.Tim
 	tokenLength := 16
 
 	// If expires at is less than 15 minutes, use an 6 character token instead of 16
-	if expiresAt.Sub(time.Now()) <= 15*time.Minute {
+	if time.Until(expiresAt) <= 15*time.Minute {
 		tokenLength = 6
 	}
 

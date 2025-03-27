@@ -32,7 +32,7 @@ func RegisterLdapJobs(ldapService *service.LdapService, appConfigService *servic
 }
 
 func (j *LdapJobs) syncLdap() error {
-	if j.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if j.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return j.ldapService.SyncAll()
 	}
 	return nil

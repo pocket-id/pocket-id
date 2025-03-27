@@ -1,0 +1,25 @@
+
+linters:
+  # Disable all linters.
+  # Default: false
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+    - gocognit
+
+  presets:
+    - bugs
+    - sql
+  exclusions:
+    paths:
+      - internal/service/test_service.go
+
+run:
+  timeout: "5m"
+  tests: true

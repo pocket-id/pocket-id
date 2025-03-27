@@ -209,6 +209,9 @@ func (s *OidcService) createTokenFromAuthorizationCode(code, clientID, clientSec
 	}
 
 	accessToken, err = s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, clientID)
+	if err != nil {
+		return "", "", "", 0, err
+	}
 
 	s.db.Delete(&authorizationCodeMetaData)
 
@@ -458,7 +461,7 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 
 	if strings.Contains(scope, "email") {
 		claims["email"] = user.Email
-		claims["email_verified"] = s.appConfigService.DbConfig.EmailsVerified.Value == "true"
+		claims["email_verified"] = s.appConfigService.DbConfig.EmailsVerified.IsTrue()
 	}
 
 	if strings.Contains(scope, "groups") {
@@ -492,8 +495,8 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 		for _, customClaim := range customClaims {
 			// The value of the custom claim can be a JSON object or a string
 			var jsonValue interface{}
-			json.Unmarshal([]byte(customClaim.Value), &jsonValue)
-			if jsonValue != nil {
+			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
+			if err == nil {
 				// It's JSON so we store it as an object
 				claims[customClaim.Key] = jsonValue
 			} else {
@@ -544,21 +547,24 @@ func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string)
 	}
 
 	// If the ID token hint is provided, verify the ID token
-	claims, err := s.jwtService.VerifyIdToken(input.IdTokenHint)
+	// Here we also accept expired ID tokens, which are fine per spec
+	token, err := s.jwtService.VerifyIdToken(input.IdTokenHint, true)
 	if err != nil {
 		return "", &common.TokenInvalidError{}
 	}
 
 	// If the client ID is provided check if the client ID in the ID token matches the client ID in the request
-	if input.ClientId != "" && claims.Audience[0] != input.ClientId {
+	clientID, ok := token.Audience()
+	if !ok || len(clientID) == 0 {
+		return "", &common.TokenInvalidError{}
+	}
+	if input.ClientId != "" && clientID[0] != input.ClientId {
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
 
-	clientId := claims.Audience[0]
-
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
-	if err := s.db.Preload("Client").First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientId, userID).Error; err != nil {
+	if err := s.db.Preload("Client").First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).Error; err != nil {
 		return "", &common.OidcMissingAuthorizationError{}
 	}
 

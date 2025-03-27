@@ -19,22 +19,22 @@ type TestController struct {
 
 func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 	if err := tc.TestService.ResetDatabase(); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	if err := tc.TestService.ResetApplicationImages(); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	if err := tc.TestService.SeedDatabase(); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	if err := tc.TestService.ResetAppConfig(); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 

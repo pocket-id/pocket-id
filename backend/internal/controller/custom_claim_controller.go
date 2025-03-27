@@ -43,7 +43,7 @@ type CustomClaimController struct {
 func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) {
 	claims, err := ccc.customClaimService.GetSuggestions()
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -64,20 +64,20 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Contex
 	var input []dto.CustomClaimCreateDto
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	userId := c.Param("userId")
 	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(userId, input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var customClaimsDto []dto.CustomClaimDto
 	if err := dto.MapStructList(claims, &customClaimsDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -99,20 +99,20 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.C
 	var input []dto.CustomClaimCreateDto
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	userGroupId := c.Param("userGroupId")
 	claims, err := ccc.customClaimService.UpdateCustomClaimsForUserGroup(userGroupId, input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var customClaimsDto []dto.CustomClaimDto
 	if err := dto.MapStructList(claims, &customClaimsDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 

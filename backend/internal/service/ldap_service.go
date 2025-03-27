@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -30,13 +32,13 @@ func NewLdapService(db *gorm.DB, appConfigService *AppConfigService, userService
 }
 
 func (s *LdapService) createClient() (*ldap.Conn, error) {
-	if s.appConfigService.DbConfig.LdapEnabled.Value != "true" {
+	if !s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return nil, fmt.Errorf("LDAP is not enabled")
 	}
 	// Setup LDAP connection
 	ldapURL := s.appConfigService.DbConfig.LdapUrl.Value
-	skipTLSVerify := s.appConfigService.DbConfig.LdapSkipCertVerify.Value == "true"
-	client, err := ldap.DialURL(ldapURL, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: skipTLSVerify}))
+	skipTLSVerify := s.appConfigService.DbConfig.LdapSkipCertVerify.IsTrue()
+	client, err := ldap.DialURL(ldapURL, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: skipTLSVerify})) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to LDAP: %w", err)
 	}
@@ -65,6 +67,7 @@ func (s *LdapService) SyncAll() error {
 	return nil
 }
 
+//nolint:gocognit
 func (s *LdapService) SyncGroups() error {
 	// Setup LDAP connection
 	client, err := s.createClient()
@@ -150,6 +153,9 @@ func (s *LdapService) SyncGroups() error {
 			}
 		} else {
 			_, err = s.groupService.Update(databaseGroup.ID, syncGroup, true)
+			if err != nil {
+				log.Printf("Error syncing group %s: %s", syncGroup.Name, err)
+			}
 			_, err = s.groupService.UpdateUsers(databaseGroup.ID, membersUserId)
 			if err != nil {
 				log.Printf("Error syncing group %s: %s", syncGroup.Name, err)
@@ -163,7 +169,7 @@ func (s *LdapService) SyncGroups() error {
 	// Get all LDAP groups from the database
 	var ldapGroupsInDb []model.UserGroup
 	if err := s.db.Find(&ldapGroupsInDb, "ldap_id IS NOT NULL").Select("ldap_id").Error; err != nil {
-		fmt.Println(fmt.Errorf("failed to fetch groups from database: %v", err))
+		fmt.Println(fmt.Errorf("failed to fetch groups from database: %w", err))
 	}
 
 	// Delete groups that no longer exist in LDAP
@@ -180,6 +186,7 @@ func (s *LdapService) SyncGroups() error {
 	return nil
 }
 
+//nolint:gocognit
 func (s *LdapService) SyncUsers() error {
 	// Setup LDAP connection
 	client, err := s.createClient()
@@ -276,7 +283,7 @@ func (s *LdapService) SyncUsers() error {
 	// Get all LDAP users from the database
 	var ldapUsersInDb []model.User
 	if err := s.db.Find(&ldapUsersInDb, "ldap_id IS NOT NULL").Select("ldap_id").Error; err != nil {
-		fmt.Println(fmt.Errorf("failed to fetch users from database: %v", err))
+		fmt.Println(fmt.Errorf("failed to fetch users from database: %w", err))
 	}
 
 	// Delete users that no longer exist in LDAP
@@ -296,8 +303,15 @@ func (s *LdapService) SaveProfilePicture(userId string, pictureString string) er
 	var reader io.Reader
 
 	if _, err := url.ParseRequestURI(pictureString); err == nil {
-		// If the photo is a URL, download it
-		response, err := http.Get(pictureString)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, pictureString, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		response, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("failed to download profile picture: %w", err)
 		}
