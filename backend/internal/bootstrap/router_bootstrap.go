@@ -34,10 +34,10 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	// Initialize services
 	emailService, err := service.NewEmailService(appConfigService, db)
 	if err != nil {
-		log.Fatalf("Unable to create email service: %s", err)
+		log.Fatalf("Unable to create email service: %v", err)
 	}
 
-	geoLiteService := service.NewGeoLiteService()
+	geoLiteService := service.NewGeoLiteService(ctx)
 	auditLogService := service.NewAuditLogService(db, appConfigService, emailService, geoLiteService)
 	jwtService := service.NewJwtService(appConfigService)
 	webauthnService := service.NewWebAuthnService(db, jwtService, auditLogService, appConfigService)

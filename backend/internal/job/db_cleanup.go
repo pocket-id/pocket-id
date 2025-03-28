@@ -7,9 +7,10 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"gorm.io/gorm"
 )
 
 func RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) {

@@ -42,7 +42,7 @@ var tailscaleIPNets = []*net.IPNet{
 }
 
 // NewGeoLiteService initializes a new GeoLiteService instance and starts a goroutine to update the GeoLite2 City database.
-func NewGeoLiteService() *GeoLiteService {
+func NewGeoLiteService(ctx context.Context) *GeoLiteService {
 	service := &GeoLiteService{}
 
 	if common.EnvConfig.MaxMindLicenseKey == "" && common.EnvConfig.GeoLiteDBUrl == common.MaxMindGeoLiteCityUrl {
@@ -52,8 +52,9 @@ func NewGeoLiteService() *GeoLiteService {
 	}
 
 	go func() {
-		if err := service.updateDatabase(context.Background()); err != nil {
-			log.Printf("Failed to update GeoLite2 City database: %v\n", err)
+		err := service.updateDatabase(ctx)
+		if err != nil {
+			log.Printf("Failed to update GeoLite2 City database: %v", err)
 		}
 	}()
 
