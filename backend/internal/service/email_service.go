@@ -2,10 +2,12 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	htemplate "html/template"
+	"io"
 	"mime/multipart"
 	"mime/quotedprintable"
 	"net/textproto"
@@ -17,10 +19,11 @@ import (
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
-	"gorm.io/gorm"
 )
 
 type EmailService struct {
@@ -49,20 +52,24 @@ func NewEmailService(appConfigService *AppConfigService, db *gorm.DB) (*EmailSer
 	}, nil
 }
 
-func (srv *EmailService) SendTestEmail(recipientUserId string) error {
+func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId string) error {
 	var user model.User
-	if err := srv.db.First(&user, "id = ?", recipientUserId).Error; err != nil {
+	err := srv.db.
+		WithContext(ctx).
+		First(&user, "id = ?", recipientUserId).
+		Error
+	if err != nil {
 		return err
 	}
 
-	return SendEmail(srv,
+	return SendEmail(ctx, srv,
 		email.Address{
 			Email: user.Email,
 			Name:  user.FullName(),
 		}, TestTemplate, nil)
 }
 
-func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
+func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
 	data := &email.TemplateData[V]{
 		AppName: srv.appConfigService.DbConfig.AppName.Value,
 		LogoURL: common.EnvConfig.AppURL + "/api/application-configuration/logo",
@@ -112,12 +119,29 @@ func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.T
 
 	c.Body(body)
 
+	// Check if the context is still valid before attemtping to connect
+	// We need to do this because the smtp library doesn't have context support
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		// All good
+	}
+
 	// Connect to the SMTP server
 	client, err := srv.getSmtpClient()
 	if err != nil {
 		return fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
 	defer client.Close()
+
+	// Check if the context is still valid before sending the email
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		// All good
+	}
 
 	// Send the email
 	if err := srv.sendEmailContent(client, toEmail, c); err != nil {
@@ -215,7 +239,7 @@ func (srv *EmailService) sendEmailContent(client *smtp.Client, toEmail email.Add
 	}
 
 	// Write the email content
-	_, err = w.Write([]byte(c.String()))
+	_, err = io.Copy(w, strings.NewReader(c.String()))
 	if err != nil {
 		return fmt.Errorf("failed to write email data: %w", err)
 	}

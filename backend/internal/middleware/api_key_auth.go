@@ -36,7 +36,7 @@ func (m *ApiKeyAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 func (m *ApiKeyAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (userID string, isAdmin bool, err error) {
 	apiKey := c.GetHeader("X-API-KEY")
 
-	user, err := m.apiKeyService.ValidateApiKey(apiKey)
+	user, err := m.apiKeyService.ValidateApiKey(c.Request.Context(), apiKey)
 	if err != nil {
 		return "", false, &common.NotSignedInError{}
 	}

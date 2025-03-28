@@ -47,8 +47,10 @@ func TestFormatAAGUID(t *testing.T) {
 func TestGetAuthenticatorName(t *testing.T) {
 	// Reset the aaguidMap for testing
 	originalMap := aaguidMap
+	originalOnce := aaguidMapOnce
 	defer func() {
 		aaguidMap = originalMap
+		aaguidMapOnce = originalOnce
 	}()
 
 	// Inject a test AAGUID map
@@ -56,7 +58,7 @@ func TestGetAuthenticatorName(t *testing.T) {
 		"adce0002-35bc-c60a-648b-0b25f1f05503": "Test Authenticator",
 		"00000000-0000-0000-0000-000000000000": "Zero Authenticator",
 	}
-	aaguidMapOnce = sync.Once{}
+	aaguidMapOnce = &sync.Once{}
 	aaguidMapOnce.Do(func() {}) // Mark as done to avoid loading from file
 
 	tests := []struct {
@@ -99,7 +101,7 @@ func TestGetAuthenticatorName(t *testing.T) {
 func TestLoadAAGUIDsFromFile(t *testing.T) {
 	// Reset the map and once flag for clean testing
 	aaguidMap = nil
-	aaguidMapOnce = sync.Once{}
+	aaguidMapOnce = &sync.Once{}
 
 	// Trigger loading of AAGUIDs by calling GetAuthenticatorName
 	GetAuthenticatorName([]byte{0x01, 0x02, 0x03, 0x04})
