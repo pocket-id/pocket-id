@@ -1,25 +1,64 @@
-
+version: "2"
+run:
+  tests: true
+  timeout: 5m
 linters:
-  # Disable all linters.
-  # Default: false
-  disable-all: true
+  default: none
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - copyloopvar
+    - durationcheck
     - errcheck
-    - gosimple
+    - errchkjson
+    - errorlint
+    - exhaustive
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gocognit
+    - gocritic
+    - gosec
+    - gosmopolitan
     - govet
     - ineffassign
+    - loggercheck
+    - makezero
+    - musttag
+    - nilerr
+    - nilnesserr
+    - noctx
+    - protogetter
+    - reassign
+    - recvcheck
+    - rowserrcheck
+    - spancheck
+    - sqlclosecheck
     - staticcheck
+    - testifylint
     - unused
-    - gosec
-    - gocognit
-
-  presets:
-    - bugs
-    - sql
+    - usestdlibvars
+    - zerologlint
   exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     paths:
+      - third_party$
+      - builtin$
+      - examples$
       - internal/service/test_service.go
-
-run:
-  timeout: "5m"
-  tests: true
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
