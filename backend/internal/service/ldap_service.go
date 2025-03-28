@@ -289,6 +289,13 @@ func (s *LdapService) SyncUsers() error {
 	// Delete users that no longer exist in LDAP
 	for _, user := range ldapUsersInDb {
 		if _, exists := ldapUserIDs[*user.LdapID]; !exists {
+			// Temporarily mark the user as not managed by LDAP before deleting
+			if err := s.db.Model(&model.User{}).Where("id = ?", user.ID).Update("ldap_id", nil).Error; err != nil {
+				log.Printf("Failed to update LDAP ID for user %s: %v", user.Username, err)
+				continue
+			}
+
+			// Now delete the user
 			if err := s.userService.DeleteUser(user.ID); err != nil {
 				log.Printf("Failed to delete user %s with: %v", user.Username, err)
 			} else {
