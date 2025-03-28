@@ -48,6 +48,6 @@ func (d *AuditLogData) Scan(value interface{}) error {
 	}
 }
 
-func (d *AuditLogData) Value() (driver.Value, error) {
+func (d AuditLogData) Value() (driver.Value, error) {
 	return json.Marshal(d)
 }
