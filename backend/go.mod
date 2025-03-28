@@ -1,6 +1,6 @@
 module github.com/pocket-id/pocket-id/backend
 
-go 1.23.1
+go 1.23.7
 
 require (
 	github.com/caarlos0/env/v11 v11.3.1

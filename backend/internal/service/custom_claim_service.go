@@ -120,9 +120,10 @@ func (s *CustomClaimService) updateCustomClaims(ctx context.Context, idType idTy
 			Value: claim.Value,
 		}
 
-		if idType == UserID {
+		switch idType {
+		case UserID:
 			customClaim.UserID = &value
-		} else if idType == UserGroupID {
+		case UserGroupID:
 			customClaim.UserGroupID = &value
 		}
 

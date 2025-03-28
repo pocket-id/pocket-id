@@ -1,8 +1,6 @@
 package model
 
-import (
-	"github.com/pocket-id/pocket-id/backend/internal/model/types"
-)
+import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 
 type ApiKey struct {
 	Base

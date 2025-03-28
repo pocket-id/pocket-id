@@ -1,10 +1,11 @@
 package dto
 
 import (
-	"github.com/gin-gonic/gin/binding"
-	"github.com/go-playground/validator/v10"
 	"log"
 	"regexp"
+
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 )
 
 var validateUsername validator.Func = func(fl validator.FieldLevel) bool {
