@@ -76,7 +76,7 @@ func (s *UserGroupService) Delete(ctx context.Context, id string) error {
 	}
 
 	// Disallow deleting the group if it is an LDAP group and LDAP is enabled
-	if group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		err = tx.Rollback().Error
 		if err != nil {
 			return err
@@ -148,7 +148,7 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 	}
 
 	// Disallow updating the group if it is an LDAP group and LDAP is enabled
-	if !allowLdapUpdate && group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if !allowLdapUpdate && group.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
 	}
 

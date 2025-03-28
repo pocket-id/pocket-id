@@ -779,24 +779,27 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 	}
 
 	// If the ID token hint is provided, verify the ID token
-	claims, err := s.jwtService.VerifyIdToken(input.IdTokenHint)
+	// Here we also accept expired ID tokens, which are fine per spec
+	token, err := s.jwtService.VerifyIdToken(input.IdTokenHint, true)
 	if err != nil {
 		return "", &common.TokenInvalidError{}
 	}
 
 	// If the client ID is provided check if the client ID in the ID token matches the client ID in the request
-	if input.ClientId != "" && claims.Audience[0] != input.ClientId {
+	clientID, ok := token.Audience()
+	if !ok || len(clientID) == 0 {
+		return "", &common.TokenInvalidError{}
+	}
+	if input.ClientId != "" && clientID[0] != input.ClientId {
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
-
-	clientId := claims.Audience[0]
 
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
 	err = s.db.
 		WithContext(ctx).
 		Preload("Client").
-		First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientId, userID).
+		First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).
 		Error
 	if err != nil {
 		return "", &common.OidcMissingAuthorizationError{}

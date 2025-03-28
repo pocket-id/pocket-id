@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -107,8 +106,7 @@ func (wc *WebauthnController) verifyLoginHandler(c *gin.Context) {
 		return
 	}
 
-	sessionDurationInMinutesParsed, _ := strconv.Atoi(wc.appConfigService.DbConfig.SessionDuration.Value)
-	maxAge := sessionDurationInMinutesParsed * 60
+	maxAge := int(wc.appConfigService.DbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)

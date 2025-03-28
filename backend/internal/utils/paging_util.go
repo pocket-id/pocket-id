@@ -2,6 +2,7 @@ package utils
 
 import (
 	"reflect"
+	"strconv"
 
 	"gorm.io/gorm"
 )
@@ -31,7 +32,7 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 	capitalizedSortColumn := CapitalizeFirstLetter(sort.Column)
 
 	sortField, sortFieldFound := reflect.TypeOf(result).Elem().Elem().FieldByName(capitalizedSortColumn)
-	isSortable := sortField.Tag.Get("sortable") == "true"
+	isSortable, _ := strconv.ParseBool(sortField.Tag.Get("sortable"))
 	isValidSortOrder := sort.Direction == "asc" || sort.Direction == "desc"
 
 	if sortFieldFound && isSortable && isValidSortOrder {

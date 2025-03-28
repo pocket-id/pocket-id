@@ -32,12 +32,12 @@ func NewLdapService(db *gorm.DB, appConfigService *AppConfigService, userService
 }
 
 func (s *LdapService) createClient() (*ldap.Conn, error) {
-	if s.appConfigService.DbConfig.LdapEnabled.Value != "true" {
+	if !s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return nil, fmt.Errorf("LDAP is not enabled")
 	}
 	// Setup LDAP connection
 	ldapURL := s.appConfigService.DbConfig.LdapUrl.Value
-	skipTLSVerify := s.appConfigService.DbConfig.LdapSkipCertVerify.Value == "true"
+	skipTLSVerify := s.appConfigService.DbConfig.LdapSkipCertVerify.IsTrue()
 	client, err := ldap.DialURL(ldapURL, ldap.DialWithTLSConfig(&tls.Config{
 		InsecureSkipVerify: skipTLSVerify, //nolint:gosec
 	}))

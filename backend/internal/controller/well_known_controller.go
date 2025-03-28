@@ -1,9 +1,13 @@
 package controller
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
@@ -14,12 +18,21 @@ import (
 // @Tags Well Known
 func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService) {
 	wkc := &WellKnownController{jwtService: jwtService}
+
+	// Pre-compute the OIDC configuration document, which is static
+	var err error
+	wkc.oidcConfig, err = wkc.computeOIDCConfiguration()
+	if err != nil {
+		log.Fatalf("Failed to pre-compute OpenID Connect configuration document: %v", err)
+	}
+
 	group.GET("/.well-known/jwks.json", wkc.jwksHandler)
 	group.GET("/.well-known/openid-configuration", wkc.openIDConfigurationHandler)
 }
 
 type WellKnownController struct {
 	jwtService *service.JwtService
+	oidcConfig []byte
 }
 
 // jwksHandler godoc
@@ -46,8 +59,16 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 // @Success 200 {object} object "OpenID Connect configuration"
 // @Router /.well-known/openid-configuration [get]
 func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
+	c.Data(http.StatusOK, "application/json; charset=utf-8", wkc.oidcConfig)
+}
+
+func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 	appUrl := common.EnvConfig.AppURL
-	config := map[string]interface{}{
+	alg, err := wkc.jwtService.GetKeyAlg()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get key algorithm: %w", err)
+	}
+	config := map[string]any{
 		"issuer":                                appUrl,
 		"authorization_endpoint":                appUrl + "/authorize",
 		"token_endpoint":                        appUrl + "/api/oidc/token",
@@ -59,7 +80,7 @@ func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
 		"claims_supported":                      []string{"sub", "given_name", "family_name", "name", "email", "email_verified", "preferred_username", "picture", "groups"},
 		"response_types_supported":              []string{"code", "id_token"},
 		"subject_types_supported":               []string{"public"},
-		"id_token_signing_alg_values_supported": []string{"RS256"},
+		"id_token_signing_alg_values_supported": []string{alg.String()},
 	}
-	c.JSON(http.StatusOK, config)
+	return json.Marshal(config)
 }
