@@ -61,7 +61,7 @@ func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 
 	var apiKeysDto []dto.ApiKeyDto
 	if err := dto.MapStructList(apiKeys, &apiKeysDto); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
@@ -83,19 +83,19 @@ func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {
 
 	var input dto.ApiKeyCreateDto
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	apiKey, token, err := c.apiKeyService.CreateApiKey(ctx.Request.Context(), userID, input)
 	if err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	var apiKeyDto dto.ApiKeyDto
 	if err := dto.MapStruct(apiKey, &apiKeyDto); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (c *ApiKeyController) revokeApiKeyHandler(ctx *gin.Context) {
 	apiKeyID := ctx.Param("id")
 
 	if err := c.apiKeyService.RevokeApiKey(ctx.Request.Context(), userID, apiKeyID); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 

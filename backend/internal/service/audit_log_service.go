@@ -67,15 +67,23 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 
 	// If the user hasn't logged in from the same device before and email notifications are enabled, send an email
 	if s.appConfigService.DbConfig.EmailLoginNotificationEnabled.IsTrue() && count <= 1 {
+		// We use a background context here as this is running in a goroutine
+		//nolint:contextcheck
 		go func() {
+			innerCtx := context.Background()
+
 			// Note we don't use the transaction here because this is running in background
 			var user model.User
-			innerErr := s.db.Where("id = ?", userID).First(&user).Error
+			innerErr := s.db.
+				WithContext(innerCtx).
+				Where("id = ?", userID).
+				First(&user).
+				Error
 			if innerErr != nil {
-				log.Printf("Failed to load user: %v\n", innerErr)
+				log.Printf("Failed to load user: %v", innerErr)
 			}
 
-			innerErr = SendEmail(context.Background(), s.emailService, email.Address{
+			innerErr = SendEmail(innerCtx, s.emailService, email.Address{
 				Name:  user.Username,
 				Email: user.Email,
 			}, NewLoginTemplate, &NewLoginTemplateData{
@@ -86,7 +94,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 				DateTime:  createdAuditLog.CreatedAt.UTC(),
 			})
 			if innerErr != nil {
-				log.Printf("Failed to send email to '%s': %v\n", user.Email, innerErr)
+				log.Printf("Failed to send email to '%s': %v", user.Email, innerErr)
 			}
 		}()
 	}

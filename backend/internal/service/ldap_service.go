@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -77,6 +78,7 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 	return nil
 }
 
+//nolint:gocognit
 func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
 	// Setup LDAP connection
 	client, err := s.createClient()
@@ -207,6 +209,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
 	return nil
 }
 
+//nolint:gocognit
 func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 	// Setup LDAP connection
 	client, err := s.createClient()
@@ -294,7 +297,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 
 		// Save profile picture
 		if pictureString := value.GetAttributeValue(profilePictureAttribute); pictureString != "" {
-			if err := s.SaveProfilePicture(databaseUser.ID, pictureString); err != nil {
+			if err := s.saveProfilePicture(ctx, databaseUser.ID, pictureString); err != nil {
 				log.Printf("Error saving profile picture for user %s: %v", newUser.Username, err)
 			}
 		}
@@ -325,18 +328,28 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 	return nil
 }
 
-func (s *LdapService) SaveProfilePicture(userId string, pictureString string) error {
+func (s *LdapService) saveProfilePicture(parentCtx context.Context, userId string, pictureString string) error {
 	var reader io.Reader
 
-	if _, err := url.ParseRequestURI(pictureString); err == nil {
-		// If the photo is a URL, download it
-		response, err := http.Get(pictureString)
+	_, err := url.ParseRequestURI(pictureString)
+	if err == nil {
+		ctx, cancel := context.WithTimeout(parentCtx, 5*time.Second)
+		defer cancel()
+
+		var req *http.Request
+		req, err = http.NewRequestWithContext(ctx, http.MethodGet, pictureString, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		var res *http.Response
+		res, err = http.DefaultClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("failed to download profile picture: %w", err)
 		}
-		defer response.Body.Close()
+		defer res.Body.Close()
 
-		reader = response.Body
+		reader = res.Body
 
 	} else if decodedPhoto, err := base64.StdEncoding.DecodeString(pictureString); err == nil {
 		// If the photo is a base64 encoded string, decode it

@@ -257,6 +257,9 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, code
 	}
 
 	accessToken, err = s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, clientID)
+	if err != nil {
+		return "", "", "", 0, err
+	}
 
 	err = tx.
 		WithContext(ctx).

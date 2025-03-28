@@ -16,6 +16,9 @@ linters:
   presets:
     - bugs
     - sql
+  exclusions:
+    paths: []
+
 run:
   timeout: "5m"
   tests: true

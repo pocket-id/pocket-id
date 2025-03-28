@@ -92,7 +92,10 @@ func loadKeyPEM(path string) (jwk.Key, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key ID: %w", err)
 	}
-	key.Set(jwk.KeyIDKey, keyId)
+	err = key.Set(jwk.KeyIDKey, keyId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set key ID: %w", err)
+	}
 
 	// Populate other required fields
 	_ = key.Set(jwk.KeyUsageKey, service.KeyUsageSigning)

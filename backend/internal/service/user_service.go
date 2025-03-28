@@ -316,7 +316,11 @@ func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddres
 		return err
 	}
 
+	// We use a background context here as this is running in a goroutine
+	//nolint:contextcheck
 	go func() {
+		innerCtx := context.Background()
+
 		link := common.EnvConfig.AppURL + "/lc"
 		linkWithCode := link + "/" + oneTimeAccessToken
 
@@ -326,8 +330,7 @@ func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddres
 			linkWithCode = linkWithCode + "?redirect=" + encodedRedirectPath
 		}
 
-		// We use a background context here as this is running in a goroutine
-		errInternal := SendEmail(context.Background(), s.emailService, email.Address{
+		errInternal := SendEmail(innerCtx, s.emailService, email.Address{
 			Name:  user.Username,
 			Email: user.Email,
 		}, OneTimeAccessTemplate, &OneTimeAccessTemplateData{

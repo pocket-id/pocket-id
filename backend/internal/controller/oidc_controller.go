@@ -28,7 +28,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.POST("/oidc/token", oc.createTokensHandler)
 	group.GET("/oidc/userinfo", oc.userInfoHandler)
-	group.POST("/oidc/userinfo", oc.userInfoHandlerPost)
+	group.POST("/oidc/userinfo", oc.userInfoHandler)
 	group.POST("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
 	group.GET("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
 
@@ -218,19 +218,6 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, claims)
-}
-
-// userInfoHandler godoc (POST method)
-// @Summary Get user information (POST method)
-// @Description Get user information based on the access token using POST
-// @Tags OIDC
-// @Accept json
-// @Produce json
-// @Success 200 {object} object "User claims based on requested scopes"
-// @Security OAuth2AccessToken
-// @Router /api/oidc/userinfo [post]
-func (oc *OidcController) userInfoHandlerPost(c *gin.Context) {
-	oc.userInfoHandler(c)
 }
 
 // EndSessionHandler godoc
