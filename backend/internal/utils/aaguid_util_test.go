@@ -53,8 +53,8 @@ func TestGetAuthenticatorName(t *testing.T) {
 
 	// Inject a test AAGUID map
 	aaguidMap = map[string]string{
-		"adce0002-35bc-c60a-648b-m0b25f1f05503": "Test Authenticator",
-		"00000000-0000-0000-0000-000000000000":  "Zero Authenticator",
+		"adce0002-35bc-c60a-648b-0b25f1f05503": "Test Authenticator",
+		"00000000-0000-0000-0000-000000000000": "Zero Authenticator",
 	}
 	aaguidMapOnce = sync.Once{}
 	aaguidMapOnce.Do(func() {}) // Mark as done to avoid loading from file
