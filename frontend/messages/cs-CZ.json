@@ -111,7 +111,7 @@
 	"it_is_recommended_to_add_more_than_one_passkey": "Doporučujeme přidat více než jeden přístupový klíč, aby nedošlo ke ztrátě přístupu k Vašemu účtu.",
 	"account_details": "Podrobnosti účtu",
 	"passkeys": "Přístupové klíče",
-	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Spravujte své přístupový klíč, které můžete použít pro ověření.",
+	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Spravujte své přístupové klíče, které můžete použít pro ověření.",
 	"add_passkey": "Přidat přístupový klíč",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Vytvořte jednorázový přihlašovací kód pro přihlášení z jiného zařízení bez přístupového klíče.",
 	"create": "Vytvořit",
