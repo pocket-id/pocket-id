@@ -5,18 +5,20 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus } from 'lucide-svelte';
+	import { LucideMinus, UserPen, UserPlus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 
 	let { data } = $props();
 	let users = $state(data.users);
 	let usersRequestOptions = $state(data.usersRequestOptions);
 
 	let expandAddUser = $state(false);
+	let mounted = $state(false);
 
 	const userService = new UserService();
 
@@ -39,36 +41,52 @@
 	<title>{m.users()}</title>
 </svelte:head>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.create_user()}</Card.Title>
-				<Card.Description>{m.add_a_new_user_to_appname({ appName: $appConfigStore.appName })}.</Card.Description>
-			</div>
-			{#if !expandAddUser}
-				<Button on:click={() => (expandAddUser = true)}>{m.add_user()}</Button>
-			{:else}
-				<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUser = false)}>
-					<LucideMinus class="h-5 w-5" />
-				</Button>
+<FadeWrapper delay={250} stagger={50}>
+	<div>
+		<Card.Root>
+			<Card.Header class={expandAddUser ? 'border-b' : ''}>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title>
+							<UserPlus class="text-primary/80 h-5 w-5" />
+							{m.create_user()}
+						</Card.Title>
+						<Card.Description
+							>{m.add_a_new_user_to_appname({
+								appName: $appConfigStore.appName
+							})}.</Card.Description
+						>
+					</div>
+					{#if !expandAddUser}
+						<Button on:click={() => (expandAddUser = true)}>{m.add_user()}</Button>
+					{:else}
+						<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUser = false)}>
+							<LucideMinus class="h-5 w-5" />
+						</Button>
+					{/if}
+				</div>
+			</Card.Header>
+			{#if expandAddUser}
+				<div transition:slide>
+					<Card.Content>
+						<UserForm callback={createUser} />
+					</Card.Content>
+				</div>
 			{/if}
-		</div>
-	</Card.Header>
-	{#if expandAddUser}
-		<div transition:slide>
-			<Card.Content>
-				<UserForm callback={createUser} />
-			</Card.Content>
-		</div>
-	{/if}
-</Card.Root>
+		</Card.Root>
+	</div>
 
-<Card.Root>
-	<Card.Header>
-		<Card.Title>{m.manage_users()}</Card.Title>
-	</Card.Header>
-	<Card.Content>
-		<UserList {users} requestOptions={usersRequestOptions} />
-	</Card.Content>
-</Card.Root>
+	<div>
+		<Card.Root>
+			<Card.Header class="border-b">
+				<Card.Title>
+					<UserPen class="text-primary/80 h-5 w-5" />
+					{m.manage_users()}
+				</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<UserList {users} requestOptions={usersRequestOptions} />
+			</Card.Content>
+		</Card.Root>
+	</div>
+</FadeWrapper>

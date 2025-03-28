@@ -10,32 +10,33 @@
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startRegistration } from '@simplewebauthn/browser';
-	import { LucideAlertTriangle } from 'lucide-svelte';
+	import {
+		LucideAlertTriangle,
+		Languages,
+		UserCog,
+		Image,
+		RectangleEllipsis,
+		KeyRound,
+		ShieldPlus,
+		Plus
+	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
+	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 
 	let { data } = $props();
 	let account = $state(data.account);
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
 	let showLoginCodeModal: boolean = $state(false);
+	let mounted = $state(false);
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
-
-	async function resetProfilePicture() {
-		await userService
-			.resetCurrentUserProfilePicture()
-			.then(() =>
-				toast.success('Profile picture has been reset. It may take a few minutes to update.')
-			)
-			.catch(axiosErrorToast);
-	}
 
 	async function updateAccount(user: UserCreate) {
 		let success = true;
@@ -48,13 +49,6 @@
 			});
 
 		return success;
-	}
-
-	async function updateProfilePicture(image: File) {
-		await userService
-			.updateCurrentUsersProfilePicture(image)
-			.then(() => toast.success(m.profile_picture_updated_successfully()))
-			.catch(axiosErrorToast);
 	}
 
 	async function createPasskey() {
@@ -75,95 +69,126 @@
 	<title>{m.account_settings()}</title>
 </svelte:head>
 
-{#if passkeys.length == 0}
-	<Alert.Root variant="warning">
-		<LucideAlertTriangle class="size-4" />
-		<Alert.Title>{m.passkey_missing()}</Alert.Title>
-		<Alert.Description
-			>{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}</Alert.Description
-		>
-	</Alert.Root>
-{:else if passkeys.length == 1}
-	<Alert.Root variant="warning" dismissibleId="single-passkey">
-		<LucideAlertTriangle class="size-4" />
-		<Alert.Title>{m.single_passkey_configured()}</Alert.Title>
-		<Alert.Description>{m.it_is_recommended_to_add_more_than_one_passkey()}</Alert.Description>
-	</Alert.Root>
-{/if}
+<FadeWrapper delay={250} stagger={50}>
+	{#if passkeys.length == 0}
+		<div>
+			<Alert.Root variant="warning" class="flex gap-3">
+				<LucideAlertTriangle class="size-4" />
+				<div>
+					<Alert.Title class="font-semibold">{m.passkey_missing()}</Alert.Title>
+					<Alert.Description class="text-sm">
+						{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}
+					</Alert.Description>
+				</div>
+			</Alert.Root>
+		</div>
+	{:else if passkeys.length == 1}
+		<div>
+			<Alert.Root variant="warning" dismissibleId="single-passkey" class="flex gap-3">
+				<LucideAlertTriangle class="size-4" />
+				<div>
+					<Alert.Title class="font-semibold">{m.single_passkey_configured()}</Alert.Title>
+					<Alert.Description class="text-sm">
+						{m.it_is_recommended_to_add_more_than_one_passkey()}
+					</Alert.Description>
+				</div>
+			</Alert.Root>
+		</div>
+	{/if}
 
-<fieldset
-	disabled={!$appConfigStore.allowOwnAccountEdit ||
-		(!!account.ldapId && $appConfigStore.ldapEnabled)}
->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>{m.account_details()}</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<AccountForm {account} callback={updateAccount} />
-		</Card.Content>
-	</Card.Root>
-</fieldset>
+	<!-- Account details card -->
+	<fieldset
+		disabled={!$appConfigStore.allowOwnAccountEdit ||
+			(!!account.ldapId && $appConfigStore.ldapEnabled)}
+	>
+		<Card.Root>
+			<Card.Header class="border-b">
+				<Card.Title>
+					<UserCog class="text-primary/80 h-5 w-5" />
+					{m.account_details()}
+				</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<AccountForm
+					{account}
+					userId={account.id}
+					callback={updateAccount}
+					isLdapUser={!!account.ldapId}
+				/>
+			</Card.Content>
+		</Card.Root>
+	</fieldset>
 
-<Card.Root>
-	<Card.Content class="pt-6">
-		<ProfilePictureSettings
-			userId={account.id}
-			isLdapUser={!!account.ldapId}
-			updateCallback={updateProfilePicture}
-			resetCallback={resetProfilePicture}
-		/>
-	</Card.Content>
-</Card.Root>
-
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.passkeys()}</Card.Title>
-				<Card.Description class="mt-1">
+	<!-- Passkey management card -->
+	<div>
+		<Card.Root>
+			<Card.Header class="border-b">
+				<div class="flex items-center justify-between">
+					<Card.Title>
+						<KeyRound class="text-primary/80 h-5 w-5" />
+						{m.passkeys()}
+					</Card.Title>
+					<Button size="sm" variant="outline" class="ml-3 gap-1.5" on:click={createPasskey}>
+						<Plus class="text-primary/80 h-5 w-5" />
+						{m.add_passkey()}
+					</Button>
+				</div>
+				<Card.Description>
 					{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
 				</Card.Description>
-			</div>
-			<Button size="sm" class="ml-3" on:click={createPasskey}>{m.add_passkey()}</Button>
-		</div>
-	</Card.Header>
-	{#if passkeys.length != 0}
-		<Card.Content>
-			<PasskeyList bind:passkeys />
-		</Card.Content>
-	{/if}
-</Card.Root>
+			</Card.Header>
+			{#if passkeys.length != 0}
+				<Card.Content>
+					<PasskeyList bind:passkeys />
+				</Card.Content>
+			{/if}
+		</Card.Root>
+	</div>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.login_code()}</Card.Title>
-				<Card.Description class="mt-1">
+	<!-- Login code card -->
+	<div>
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<Card.Title>
+						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
+						{m.login_code()}
+					</Card.Title>
+					<Button
+						size="sm"
+						variant="outline"
+						class="ml-auto gap-1.5"
+						on:click={() => (showLoginCodeModal = true)}
+					>
+						<ShieldPlus class="text-primary/80 h-5 w-5" />
+						{m.create()}
+					</Button>
+				</div>
+				<Card.Description>
 					{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 				</Card.Description>
-			</div>
-			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}
-				>{m.create()}</Button
-			>
-		</div>
-	</Card.Header>
-</Card.Root>
+			</Card.Header>
+		</Card.Root>
+	</div>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.language()}</Card.Title>
-				<Card.Description class="mt-1">
+	<!-- Language selection card -->
+	<div>
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<Card.Title>
+						<Languages class="text-primary/80 h-5 w-5" />
+						{m.language()}
+					</Card.Title>
+					<LocalePicker />
+				</div>
+				<Card.Description>
 					{m.select_the_language_you_want_to_use()}
 				</Card.Description>
-			</div>
-			<LocalePicker />
-		</div>
-	</Card.Header>
-</Card.Root>
+			</Card.Header>
+		</Card.Root>
+	</div>
+</FadeWrapper>
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}

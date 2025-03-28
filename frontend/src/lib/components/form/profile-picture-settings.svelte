@@ -5,6 +5,7 @@
 	import { LucideLoader, LucideRefreshCw, LucideUpload } from 'lucide-svelte';
 	import { openConfirmDialog } from '../confirm-dialog';
 	import { m } from '$lib/paraglide/messages';
+	import type UserService from '$lib/services/user-service';
 
 	let {
 		userId,
@@ -34,7 +35,7 @@
 		reader.readAsDataURL(file);
 
 		await updateCallback(file).catch(() => {
-			imageDataURL = `/api/users/${userId}/profile-picture.png}`;
+			imageDataURL = `/api/users/${userId}/profile-picture.png`;
 		});
 		isLoading = false;
 	}
@@ -55,62 +56,53 @@
 	}
 </script>
 
-<div class="flex gap-5">
-	<div class="flex w-full flex-col justify-between gap-5 sm:flex-row">
-		<div>
-			<h3 class="text-xl font-semibold">{m.profile_picture()}</h3>
-			{#if isLdapUser}
-				<p class="text-muted-foreground mt-1 text-sm">
-					{m.profile_picture_is_managed_by_ldap_server()}
-				</p>
-			{:else}
-				<p class="text-muted-foreground mt-1 text-sm">
-					{m.click_profile_picture_to_upload_custom()}
-				</p>
-				<p class="text-muted-foreground mt-1 text-sm">{m.image_should_be_in_format()}</p>
-			{/if}
-			<Button
-				variant="outline"
-				size="sm"
-				class="mt-5"
-				on:click={onReset}
-				disabled={isLoading || isLdapUser}
-			>
-				<LucideRefreshCw class="mr-2 h-4 w-4" />
-				{m.reset_to_default()}
-			</Button>
-		</div>
+<div class="flex flex-col items-center gap-6 sm:flex-row">
+	<div class="shrink-0">
 		{#if isLdapUser}
 			<Avatar.Root class="h-24 w-24">
 				<Avatar.Image class="object-cover" src={imageDataURL} />
 			</Avatar.Root>
 		{:else}
-			<div class="flex flex-col items-center gap-2">
-				<FileInput
-					id="profile-picture-input"
-					variant="secondary"
-					accept="image/png, image/jpeg"
-					onchange={onImageChange}
-				>
-					<div class="group relative h-28 w-28 rounded-full">
-						<Avatar.Root class="h-full w-full transition-opacity duration-200">
-							<Avatar.Image
-								class="object-cover group-hover:opacity-10 {isLoading ? 'opacity-10' : ''}"
-								src={imageDataURL}
-							/>
-						</Avatar.Root>
-						<div class="absolute inset-0 flex items-center justify-center">
-							{#if isLoading}
-								<LucideLoader class="h-5 w-5 animate-spin" />
-							{:else}
-								<LucideUpload
-									class="h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100"
-								/>
-							{/if}
-						</div>
+			<FileInput
+				id="profile-picture-input"
+				variant="secondary"
+				accept="image/png, image/jpeg"
+				onchange={onImageChange}
+			>
+				<div class="group relative h-24 w-24 rounded-full">
+					<Avatar.Root class="h-full w-full transition-opacity duration-200">
+						<Avatar.Image
+							class="object-cover group-hover:opacity-30 {isLoading ? 'opacity-30' : ''}"
+							src={imageDataURL}
+						/>
+					</Avatar.Root>
+					<div class="absolute inset-0 flex items-center justify-center">
+						{#if isLoading}
+							<LucideLoader class="h-5 w-5 animate-spin" />
+						{:else}
+							<LucideUpload class="h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100" />
+						{/if}
 					</div>
-				</FileInput>
-			</div>
+				</div>
+			</FileInput>
+		{/if}
+	</div>
+
+	<div class="grow">
+		<h3 class="font-medium">{m.profile_picture()}</h3>
+		{#if isLdapUser}
+			<p class="text-muted-foreground text-sm">
+				{m.profile_picture_is_managed_by_ldap_server()}
+			</p>
+		{:else}
+			<p class="text-muted-foreground text-sm">
+				{m.click_profile_picture_to_upload_custom()}
+			</p>
+			<p class="text-muted-foreground mb-2 text-sm">{m.image_should_be_in_format()}</p>
+			<Button variant="outline" size="sm" on:click={onReset} disabled={isLoading || isLdapUser}>
+				<LucideRefreshCw class="mr-2 h-4 w-4" />
+				{m.reset_to_default()}
+			</Button>
 		{/if}
 	</div>
 </div>

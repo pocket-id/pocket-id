@@ -36,12 +36,12 @@
 	<title>{m.sign_in()}</title>
 </svelte:head>
 
-<SignInWrapper showAlternativeSignInMethodButton>
+<SignInWrapper animate={true} showAlternativeSignInMethodButton>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>
 	<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
-		{m.sign_in_to_appname({ appName: $appConfigStore.appName})}
+		{m.sign_in_to_appname({ appName: $appConfigStore.appName })}
 	</h1>
 	{#if error}
 		<p class="text-muted-foreground mt-2" in:fade>

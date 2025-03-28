@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils/style';
-	import { LucideChevronDown } from 'lucide-svelte';
+	import { LucideChevronDown, type Icon as IconType } from 'lucide-svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { Button } from './ui/button';
@@ -12,12 +12,14 @@
 		title,
 		description,
 		defaultExpanded = false,
+		icon,
 		children
 	}: {
 		id: string;
 		title: string;
 		description?: string;
 		defaultExpanded?: boolean;
+		icon: typeof IconType;
 		children: Snippet;
 	} = $props();
 
@@ -48,10 +50,15 @@
 </script>
 
 <Card.Root>
-	<Card.Header class="cursor-pointer" onclick={toggleExpanded}>
+	<Card.Header class="cursor-pointer border-b" onclick={toggleExpanded}>
 		<div class="flex items-center justify-between">
 			<div>
-				<Card.Title>{title}</Card.Title>
+				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
+					{#if icon}{@const Icon = icon}
+						<Icon class="text-primary/80 h-5 w-5" />
+					{/if}
+					{title}
+				</Card.Title>
 				{#if description}
 					<Card.Description>{description}</Card.Description>
 				{/if}
@@ -68,7 +75,7 @@
 	</Card.Header>
 	{#if expanded}
 		<div transition:slide={{ duration: 200 }}>
-			<Card.Content>
+			<Card.Content class="bg-muted/20 pt-5">
 				{@render children()}
 			</Card.Content>
 		</div>

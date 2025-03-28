@@ -26,7 +26,7 @@
 
 	async function deleteClient(client: OidcClient) {
 		openConfirmDialog({
-			title: m.delete_name({name: client.name}),
+			title: m.delete_name({ name: client.name }),
 			message: m.are_you_sure_you_want_to_delete_this_oidc_client(),
 			confirm: {
 				label: m.delete(),
@@ -58,12 +58,14 @@
 	{#snippet rows({ item })}
 		<Table.Cell class="w-8 font-medium">
 			{#if item.hasLogo}
-				<div class="h-8 w-8">
-					<img
-						class="m-auto max-h-full max-w-full object-contain"
-						src="/api/oidc/clients/{item.id}/logo"
-						alt={m.name_logo({name: item.name})}
-					/>
+				<div class="bg-secondary rounded-2xl p-3">
+					<div class="h-8 w-8">
+						<img
+							class="m-auto max-h-full max-w-full object-contain"
+							src="/api/oidc/clients/{item.id}/logo"
+							alt={m.name_logo({ name: item.name })}
+						/>
+					</div>
 				</div>
 			{/if}
 		</Table.Cell>
@@ -75,8 +77,11 @@
 				variant="outline"
 				aria-label={m.edit()}><LucidePencil class="h-3 w-3 " /></Button
 			>
-			<Button on:click={() => deleteClient(item)} size="sm" variant="outline" aria-label={m.delete()}
-				><LucideTrash class="h-3 w-3 text-red-500" /></Button
+			<Button
+				on:click={() => deleteClient(item)}
+				size="sm"
+				variant="outline"
+				aria-label={m.delete()}><LucideTrash class="h-3 w-3 text-red-500" /></Button
 			>
 		</Table.Cell>
 	{/snippet}

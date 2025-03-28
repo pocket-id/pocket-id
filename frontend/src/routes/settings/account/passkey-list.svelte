@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import { Button } from '$lib/components/ui/button';
-	import { Separator } from '$lib/components/ui/separator';
-	import WebauthnService from '$lib/services/webauthn-service';
-	import type { Passkey } from '$lib/types/passkey.type';
-	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideKeyRound, LucidePencil, LucideTrash } from 'lucide-svelte';
+	import { LucideKeyRound } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import WebauthnService from '$lib/services/webauthn-service';
+	import type { Passkey } from '$lib/types/passkey.type';
+	import { axiosErrorToast } from '$lib/utils/error-util';
+	import GlassRowItem from '$lib/components/glass-row-item.svelte';
 
 	let { passkeys = $bindable() }: { passkeys: Passkey[] } = $props();
 
@@ -16,7 +15,8 @@
 
 	let passkeyToRename: Passkey | null = $state(null);
 
-	async function deletePasskey(passkey: Passkey) {
+	async function deletePasskey(item: any) {
+		const passkey = item as Passkey;
 		openConfirmDialog({
 			title: m.delete_passkey_name({ passkeyName: passkey.name }),
 			message: m.are_you_sure_you_want_to_delete_this_passkey(),
@@ -35,40 +35,30 @@
 			}
 		});
 	}
+
+	// Function to determine if a passkey was recently added (within the last 7 days)
+	function isRecentlyAdded(date: string): boolean {
+		const createdDate = new Date(date);
+		const currentDate = new Date();
+		const differenceInDays = Math.floor(
+			(currentDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)
+		);
+		return differenceInDays <= 7;
+	}
 </script>
 
-<div class="flex flex-col">
+<div class="space-y-3">
 	{#each passkeys as passkey, i}
-		<div class="flex justify-between">
-			<div class="flex items-center">
-				<LucideKeyRound class="mr-4 inline h-6 w-6" />
-				<div>
-					<p>{passkey.name}</p>
-					<p class="text-xs text-muted-foreground">
-						{m.added_on()} {new Date(passkey.createdAt).toLocaleDateString()}
-					</p>
-				</div>
-			</div>
-			<div>
-				<Button
-					on:click={() => (passkeyToRename = passkey)}
-					size="sm"
-					variant="outline"
-					aria-label={m.rename()}><LucidePencil class="h-3 w-3" /></Button
-				>
-				<Button
-					on:click={() => deletePasskey(passkey)}
-					size="sm"
-					variant="outline"
-					aria-label={m.delete()}><LucideTrash class="h-3 w-3 text-red-500" /></Button
-				>
-			</div>
-		</div>
-		{#if i !== passkeys.length - 1}
-			<Separator class="my-2" />
-		{/if}
+		<GlassRowItem
+			item={passkey}
+			icon={LucideKeyRound}
+			onRename={() => (passkeyToRename = passkey)}
+			onDelete={() => deletePasskey(passkey)}
+			dateLabel={m.added_on()}
+		/>
 	{/each}
 </div>
+
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
