@@ -319,7 +319,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			assert.False(t, isAdmin, "isAdmin should be false")
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
-			assert.EqualValues(t, []string{"https://test.example.com"}, audience, "Audience should contain the app URL")
+			assert.Equal(t, []string{"https://test.example.com"}, audience, "Audience should contain the app URL")
 
 		// Check token expiration time is approximately 1 hour from now
 		expectedExp := time.Now().Add(1 * time.Hour)
@@ -606,7 +606,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			assert.Equal(t, "user123", subject, "Token subject should match user ID")
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
-			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+			assert.Equal(t, []string{clientID}, audience, "Audience should contain the client ID")
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
 			assert.Equal(t, common.EnvConfig.AppURL, issuer, "Issuer should match app URL")
@@ -935,7 +935,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
-			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+			assert.Equal(t, []string{clientID}, audience, "Audience should contain the client ID")
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
 			assert.Equal(t, common.EnvConfig.AppURL, issuer, "Issuer should match app URL")
@@ -1050,7 +1050,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
-			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+			assert.Equal(t, []string{clientID}, audience, "Audience should contain the client ID")
 
 		// Verify the key type is OKP
 		publicKey, err := service.GetPublicJWK()
@@ -1104,7 +1104,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
-			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+			assert.Equal(t, []string{clientID}, audience, "Audience should contain the client ID")
 
 		// Verify the key type is EC
 		publicKey, err := service.GetPublicJWK()
@@ -1158,7 +1158,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
-			assert.EqualValues(t, []string{clientID}, audience, "Audience should contain the client ID")
+			assert.Equal(t, []string{clientID}, audience, "Audience should contain the client ID")
 
 		// Verify the key type is RSA
 		publicKey, err := service.GetPublicJWK()
