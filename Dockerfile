@@ -1,3 +1,6 @@
+# Tags passed to "go build"
+ARG BUILD_TAGS=""
+
 # Stage 1: Build Frontend
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
@@ -9,6 +12,7 @@ RUN npm prune --production
 
 # Stage 2: Build Backend
 FROM golang:1.23-alpine AS backend-builder
+ARG BUILD_TAGS
 WORKDIR /app/backend
 COPY ./backend/go.mod ./backend/go.sum ./
 RUN go mod download
@@ -17,7 +21,12 @@ RUN apk add --no-cache gcc musl-dev
 
 COPY ./backend ./
 WORKDIR /app/backend/cmd
-RUN CGO_ENABLED=1 GOOS=linux go build -o /app/backend/pocket-id-backend .
+RUN CGO_ENABLED=1 \
+  GOOS=linux \
+  go build \
+  -tags "${BUILD_TAGS}" \
+  -o /app/backend/pocket-id-backend \
+  .
 
 # Stage 3: Production Image
 FROM node:22-alpine

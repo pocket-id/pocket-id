@@ -27,6 +27,7 @@ jobs:
         with:
           tags: pocket-id/pocket-id:test
           outputs: type=docker,dest=/tmp/docker-image.tar
+          build-args: BUILD_TAGS=e2etest
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
@@ -51,6 +52,7 @@ jobs:
         with:
           name: docker-image
           path: /tmp
+
       - name: Load Docker Image
         run: docker load -i /tmp/docker-image.tar
 
