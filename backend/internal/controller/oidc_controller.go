@@ -240,12 +240,13 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	var input dto.OidcLogoutDto
 
 	// Bind query parameters to the struct
-	if c.Request.Method == http.MethodGet {
+	switch c.Request.Method {
+	case http.MethodGet:
 		if err := c.ShouldBindQuery(&input); err != nil {
 			_ = c.Error(err)
 			return
 		}
-	} else if c.Request.Method == http.MethodPost {
+	case http.MethodPost:
 		// Bind form parameters to the struct
 		if err := c.ShouldBind(&input); err != nil {
 			_ = c.Error(err)

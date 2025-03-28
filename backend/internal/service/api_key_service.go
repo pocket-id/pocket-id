@@ -2,9 +2,10 @@ package service
 
 import (
 	"errors"
-	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"log"
 	"time"
+
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"

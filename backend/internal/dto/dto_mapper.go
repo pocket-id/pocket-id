@@ -63,13 +63,14 @@ func mapStructInternal(sourceVal reflect.Value, destVal reflect.Value) error {
 }
 
 func mapField(sourceField reflect.Value, destField reflect.Value) error {
-	if sourceField.Type() == destField.Type() {
+	switch {
+	case sourceField.Type() == destField.Type():
 		destField.Set(sourceField)
-	} else if sourceField.Kind() == reflect.Slice && destField.Kind() == reflect.Slice {
+	case sourceField.Kind() == reflect.Slice && destField.Kind() == reflect.Slice:
 		return mapSlice(sourceField, destField)
-	} else if sourceField.Kind() == reflect.Struct && destField.Kind() == reflect.Struct {
+	case sourceField.Kind() == reflect.Struct && destField.Kind() == reflect.Struct:
 		return mapStructInternal(sourceField, destField)
-	} else {
+	default:
 		return mapSpecialTypes(sourceField, destField)
 	}
 	return nil
@@ -98,8 +99,7 @@ func mapSlice(sourceField reflect.Value, destField reflect.Value) error {
 }
 
 func mapSpecialTypes(sourceField reflect.Value, destField reflect.Value) error {
-	switch sourceField.Interface().(type) {
-	case datatype.DateTime:
+	if _, ok := sourceField.Interface().(datatype.DateTime); ok {
 		if sourceField.Type() == reflect.TypeOf(datatype.DateTime{}) && destField.Type() == reflect.TypeOf(time.Time{}) {
 			dateValue := sourceField.Interface().(datatype.DateTime)
 			destField.Set(reflect.ValueOf(dateValue.ToTime()))
