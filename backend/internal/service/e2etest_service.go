@@ -1,3 +1,5 @@
+//go:build e2etest
+
 package service
 
 import (

@@ -1,9 +1,12 @@
+//go:build e2etest
+
 package controller
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 

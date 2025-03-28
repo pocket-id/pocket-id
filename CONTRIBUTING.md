@@ -49,7 +49,7 @@ The backend is built with [Gin](https://gin-gonic.com) and written in Go.
 
 1. Open the `backend` folder
 2. Copy the `.env.example` file to `.env` and change the `APP_ENV` to `development`
-3. Start the backend with `go run cmd/main.go`
+3. Start the backend with `go run -tags e2etest ./cmd`
 
 ### Frontend
 
