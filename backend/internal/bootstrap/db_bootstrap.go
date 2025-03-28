@@ -80,31 +80,18 @@ func connectDatabase() (db *gorm.DB, err error) {
 	// Choose the correct database provider
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
-		// Check if we're using the deprecated SqliteDBPath env var
-		switch {
-		case common.EnvConfig.SqliteDBPath != "":
-			connString := "file:" + common.EnvConfig.SqliteDBPath + "?_journal_mode=WAL&_busy_timeout=2500&_txlock=immediate"
-			log.Printf("[WARN] Env var 'SQLITE_DB_PATH' is deprecated - use 'DB_CONNECTION_STRING' instead with the value: '%s'", connString)
-			dialector = sqlite.Open(connString)
-		case common.EnvConfig.DbConnectionString != "":
-			if !strings.HasPrefix(common.EnvConfig.DbConnectionString, "file:") {
-				return nil, errors.New("invalid value for env var 'DB_CONNECTION_STRING': does not begin with 'file:'")
-			}
-			dialector = sqlite.Open(common.EnvConfig.DbConnectionString)
-		default:
+		if common.EnvConfig.DbConnectionString == "" {
 			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for SQLite database")
 		}
+		if !strings.HasPrefix(common.EnvConfig.DbConnectionString, "file:") {
+			return nil, errors.New("invalid value for env var 'DB_CONNECTION_STRING': does not begin with 'file:'")
+		}
+		dialector = sqlite.Open(common.EnvConfig.DbConnectionString)
 	case common.DbProviderPostgres:
-		// Check if we're using the deprecated PostgresConnectionString alias
-		switch {
-		case common.EnvConfig.PostgresConnectionString != "":
-			log.Print("[WARN] Env var 'POSTGRES_CONNECTION_STRING' is deprecated - use 'DB_CONNECTION_STRING' instead with the same value")
-			dialector = postgres.Open(common.EnvConfig.PostgresConnectionString)
-		case common.EnvConfig.DbConnectionString != "":
-			dialector = postgres.Open(common.EnvConfig.DbConnectionString)
-		default:
+		if common.EnvConfig.DbConnectionString == "" {
 			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
 		}
+		dialector = postgres.Open(common.EnvConfig.DbConnectionString)
 	default:
 		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}
@@ -115,14 +102,14 @@ func connectDatabase() (db *gorm.DB, err error) {
 			Logger:         getLogger(),
 		})
 		if err == nil {
-			break
-		} else {
-			log.Printf("Attempt %d: Failed to initialize database. Retrying...", i)
-			time.Sleep(3 * time.Second)
+			return db, nil
 		}
+
+		log.Printf("Attempt %d: Failed to initialize database. Retrying...", i)
+		time.Sleep(3 * time.Second)
 	}
 
-	return db, err
+	return nil, err
 }
 
 func getLogger() logger.Interface {
