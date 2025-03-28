@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -62,13 +63,13 @@ type AppConfigController struct {
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 	configuration, err := acc.appConfigService.ListAppConfig(false)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var configVariablesDto []dto.PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -87,13 +88,13 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 	configuration, err := acc.appConfigService.ListAppConfig(true)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -113,19 +114,19 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 	var input dto.AppConfigUpdateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(savedConfigVariables, &configVariablesDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -143,7 +144,7 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 // @Success 200 {file} binary "Logo image"
 // @Router /api/application-configuration/logo [get]
 func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
-	lightLogo := c.DefaultQuery("light", "true") == "true"
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	var imageName string
 	var imageType string
@@ -196,7 +197,7 @@ func (acc *AppConfigController) getBackgroundImageHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/application-configuration/logo [put]
 func (acc *AppConfigController) updateLogoHandler(c *gin.Context) {
-	lightLogo := c.DefaultQuery("light", "true") == "true"
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	var imageName string
 	var imageType string
@@ -224,13 +225,13 @@ func (acc *AppConfigController) updateLogoHandler(c *gin.Context) {
 func (acc *AppConfigController) updateFaviconHandler(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	fileType := utils.GetFileExtension(file.Filename)
 	if fileType != "ico" {
-		c.Error(&common.WrongFileTypeError{ExpectedFileType: ".ico"})
+		_ = c.Error(&common.WrongFileTypeError{ExpectedFileType: ".ico"})
 		return
 	}
 	acc.updateImage(c, "favicon", "ico")
@@ -263,13 +264,13 @@ func (acc *AppConfigController) getImage(c *gin.Context, name string, imageType 
 func (acc *AppConfigController) updateImage(c *gin.Context, imageName string, oldImageType string) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	err = acc.appConfigService.UpdateImage(file, imageName, oldImageType)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -286,7 +287,7 @@ func (acc *AppConfigController) updateImage(c *gin.Context, imageName string, ol
 func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
 	err := acc.ldapService.SyncAll()
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -305,7 +306,7 @@ func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
 
 	err := acc.emailService.SendTestEmail(userID)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 

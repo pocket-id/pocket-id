@@ -47,10 +47,8 @@ func TestFormatAAGUID(t *testing.T) {
 func TestGetAuthenticatorName(t *testing.T) {
 	// Reset the aaguidMap for testing
 	originalMap := aaguidMap
-	originalOnce := aaguidMapOnce
 	defer func() {
 		aaguidMap = originalMap
-		aaguidMapOnce = originalOnce
 	}()
 
 	// Inject a test AAGUID map

@@ -170,15 +170,13 @@ func (c *Composer) String() string {
 
 func convertRunes(str string) []string {
 	var enc = make([]string, 0, len(str))
-	for _, r := range []rune(str) {
-		if r == ' ' {
+	for _, r := range str {
+		switch {
+		case r == ' ':
 			enc = append(enc, "_")
-		} else if isPrintableASCIIRune(r) &&
-			r != '=' &&
-			r != '?' &&
-			r != '_' {
+		case isPrintableASCIIRune(r) && r != '=' && r != '?' && r != '_':
 			enc = append(enc, string(r))
-		} else {
+		default:
 			enc = append(enc, string(toHex([]byte(string(r)))))
 		}
 	}
@@ -204,7 +202,7 @@ func hex(n byte) byte {
 }
 
 func isPrintableASCII(str string) bool {
-	for _, r := range []rune(str) {
+	for _, r := range str {
 		if !unicode.IsPrint(r) || r >= unicode.MaxASCII {
 			return false
 		}
