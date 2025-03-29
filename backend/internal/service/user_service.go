@@ -121,14 +121,14 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 	return nil
 }
 
-func (s *UserService) DeleteUser(userID string) error {
+func (s *UserService) DeleteUser(userID string, allowLdapDelete bool) error {
 	var user model.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		return err
 	}
 
 	// Disallow deleting the user if it is an LDAP user and LDAP is enabled
-	if user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
+	if !allowLdapDelete && user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return &common.LdapUserUpdateError{}
 	}
 

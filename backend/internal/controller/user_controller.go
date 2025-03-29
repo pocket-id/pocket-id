@@ -170,7 +170,7 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) {
-	if err := uc.userService.DeleteUser(c.Param("id")); err != nil {
+	if err := uc.userService.DeleteUser(c.Param("id"), false); err != nil {
 		_ = c.Error(err)
 		return
 	}
