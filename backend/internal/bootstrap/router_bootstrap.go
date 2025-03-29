@@ -17,7 +17,7 @@ import (
 )
 
 // @title Pocket ID API
-// @version 0.44.0
+// @version 1
 // @description API for Pocket ID
 
 func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
