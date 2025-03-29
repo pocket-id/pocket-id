@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import clientSecretStore from '$lib/stores/client-secret-store';
@@ -12,8 +13,6 @@
 	import { slide } from 'svelte/transition';
 	import OIDCClientForm from './oidc-client-form.svelte';
 	import OIDCClientList from './oidc-client-list.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 
 	let { data } = $props();
 	let clients = $state(data.clients);
@@ -45,7 +44,6 @@
 	<title>{m.oidc_clients()}</title>
 </svelte:head>
 
-<FadeWrapper delay={250} stagger={50}>
 	<div>
 		<Card.Root>
 			<Card.Header class={expandAddClient ? 'border-b' : ''}>
@@ -93,4 +91,4 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
-</FadeWrapper>
+

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
 	import { LucideExternalLink, LucideSettings } from 'lucide-svelte';
@@ -75,7 +76,9 @@
 				</div>
 			</div>
 			<div class="flex w-full flex-col gap-4 overflow-hidden">
-				{@render children()}
+				<FadeWrapper>
+					{@render children()}
+				</FadeWrapper>
 			</div>
 		</main>
 		<div class="animate-fade-in flex flex-col items-center" style="animation-delay: 400ms;">

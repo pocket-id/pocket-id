@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import type { Snippet } from 'svelte';
 
 	let {
-		delay = 0,
-		stagger = 50,
+		delay = 50,
+		stagger = 150,
 		children
 	}: {
 		delay?: number;
@@ -14,32 +14,24 @@
 
 	let containerNode: HTMLElement;
 
+	$effect(() => {
+		page.route;
+		getChildren();
+	});
+
 	// Get all direct children of the container
-	function getChildren(node: HTMLElement | null): HTMLElement[] {
-		let allChildren: HTMLElement[] = [];
-		if (node) {
-			const childNodes = Array.from(node.children);
-			childNodes.forEach((child) => {
+	function getChildren() {
+		if (containerNode) {
+			const childNodes = Array.from(containerNode.children);
+			childNodes.forEach((child, index) => {
 				// Skip comment nodes and text nodes
 				if (child.nodeType === 1) {
-					// Element node
-					allChildren.push(child as HTMLElement);
+					const itemDelay = delay + index * stagger;
+					(child as HTMLElement).style.setProperty('animation-delay', `${itemDelay}ms`);
+					console.log(itemDelay);
 				}
 			});
 		}
-		return allChildren;
-	}
-
-	// Apply initial styles and animation delays
-	function applyAnimationDelays(node: HTMLElement) {
-		const children = getChildren(node);
-
-		children.forEach((el, index) => {
-			const itemDelay = delay + index * stagger;
-			el.style.setProperty('animation-delay', `${itemDelay}ms`);
-		});
-
-		return {};
 	}
 </script>
 
@@ -63,6 +55,6 @@
 	</style>
 </svelte:head>
 
-<div class="fade-wrapper" bind:this={containerNode} use:applyAnimationDelays>
+<div class="fade-wrapper" bind:this={containerNode}>
 	{@render children()}
 </div>

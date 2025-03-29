@@ -11,14 +11,13 @@
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startRegistration } from '@simplewebauthn/browser';
 	import {
-		LucideAlertTriangle,
-		Languages,
-		UserCog,
-		Image,
-		RectangleEllipsis,
 		KeyRound,
+		Languages,
+		LucideAlertTriangle,
+		Plus,
+		RectangleEllipsis,
 		ShieldPlus,
-		Plus
+		UserCog
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
@@ -26,7 +25,6 @@
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
-	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 
 	let { data } = $props();
 	let account = $state(data.account);
@@ -69,126 +67,120 @@
 	<title>{m.account_settings()}</title>
 </svelte:head>
 
-<FadeWrapper delay={250} stagger={50}>
-	{#if passkeys.length == 0}
+{#if passkeys.length == 0}
+	<Alert.Root variant="warning" class="flex gap-3">
+		<LucideAlertTriangle class="size-4" />
 		<div>
-			<Alert.Root variant="warning" class="flex gap-3">
-				<LucideAlertTriangle class="size-4" />
-				<div>
-					<Alert.Title class="font-semibold">{m.passkey_missing()}</Alert.Title>
-					<Alert.Description class="text-sm">
-						{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}
-					</Alert.Description>
-				</div>
-			</Alert.Root>
+			<Alert.Title class="font-semibold">{m.passkey_missing()}</Alert.Title>
+			<Alert.Description class="text-sm">
+				{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}
+			</Alert.Description>
 		</div>
-	{:else if passkeys.length == 1}
+	</Alert.Root>
+{:else if passkeys.length == 1}
+	<Alert.Root variant="warning" dismissibleId="single-passkey" class="flex gap-3">
+		<LucideAlertTriangle class="size-4" />
 		<div>
-			<Alert.Root variant="warning" dismissibleId="single-passkey" class="flex gap-3">
-				<LucideAlertTriangle class="size-4" />
-				<div>
-					<Alert.Title class="font-semibold">{m.single_passkey_configured()}</Alert.Title>
-					<Alert.Description class="text-sm">
-						{m.it_is_recommended_to_add_more_than_one_passkey()}
-					</Alert.Description>
-				</div>
-			</Alert.Root>
+			<Alert.Title class="font-semibold">{m.single_passkey_configured()}</Alert.Title>
+			<Alert.Description class="text-sm">
+				{m.it_is_recommended_to_add_more_than_one_passkey()}
+			</Alert.Description>
 		</div>
-	{/if}
+	</Alert.Root>
+{/if}
 
-	<!-- Account details card -->
-	<fieldset
-		disabled={!$appConfigStore.allowOwnAccountEdit ||
-			(!!account.ldapId && $appConfigStore.ldapEnabled)}
-	>
-		<Card.Root>
-			<Card.Header class="border-b">
+<!-- Account details card -->
+<fieldset
+	disabled={!$appConfigStore.allowOwnAccountEdit ||
+		(!!account.ldapId && $appConfigStore.ldapEnabled)}
+>
+	<Card.Root>
+		<Card.Header class="border-b">
+			<Card.Title>
+				<UserCog class="text-primary/80 h-5 w-5" />
+				{m.account_details()}
+			</Card.Title>
+		</Card.Header>
+		<Card.Content>
+			<AccountForm
+				{account}
+				userId={account.id}
+				callback={updateAccount}
+				isLdapUser={!!account.ldapId}
+			/>
+		</Card.Content>
+	</Card.Root>
+</fieldset>
+
+<!-- Passkey management card -->
+<div>
+	<Card.Root>
+		<Card.Header class="border-b">
+			<div class="flex items-center justify-between">
 				<Card.Title>
-					<UserCog class="text-primary/80 h-5 w-5" />
-					{m.account_details()}
+					<KeyRound class="text-primary/80 h-5 w-5" />
+					{m.passkeys()}
 				</Card.Title>
-			</Card.Header>
+				<Button size="sm" variant="outline" class="ml-3 gap-1.5" on:click={createPasskey}>
+					<Plus class="text-primary/80 h-5 w-5" />
+					{m.add_passkey()}
+				</Button>
+			</div>
+			<Card.Description>
+				{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
+			</Card.Description>
+		</Card.Header>
+		{#if passkeys.length != 0}
 			<Card.Content>
-				<AccountForm
-					{account}
-					userId={account.id}
-					callback={updateAccount}
-					isLdapUser={!!account.ldapId}
-				/>
+				<PasskeyList bind:passkeys />
 			</Card.Content>
-		</Card.Root>
-	</fieldset>
+		{/if}
+	</Card.Root>
+</div>
 
-	<!-- Passkey management card -->
-	<div>
-		<Card.Root>
-			<Card.Header class="border-b">
-				<div class="flex items-center justify-between">
-					<Card.Title>
-						<KeyRound class="text-primary/80 h-5 w-5" />
-						{m.passkeys()}
-					</Card.Title>
-					<Button size="sm" variant="outline" class="ml-3 gap-1.5" on:click={createPasskey}>
-						<Plus class="text-primary/80 h-5 w-5" />
-						{m.add_passkey()}
-					</Button>
-				</div>
-				<Card.Description>
-					{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
-				</Card.Description>
-			</Card.Header>
-			{#if passkeys.length != 0}
-				<Card.Content>
-					<PasskeyList bind:passkeys />
-				</Card.Content>
-			{/if}
-		</Card.Root>
-	</div>
+<!-- Login code card -->
+<div>
+	<Card.Root>
+		<Card.Header>
+			<div class="flex items-center justify-between">
+				<Card.Title>
+					<RectangleEllipsis class="text-primary/80 h-5 w-5" />
+					{m.login_code()}
+				</Card.Title>
+				<Button
+					size="sm"
+					variant="outline"
+					class="ml-auto gap-1.5"
+					on:click={() => (showLoginCodeModal = true)}
+				>
+					<ShieldPlus class="text-primary/80 h-5 w-5" />
+					{m.create()}
+				</Button>
+			</div>
+			<Card.Description>
+				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+			</Card.Description>
+		</Card.Header>
+	</Card.Root>
+</div>
 
-	<!-- Login code card -->
-	<div>
-		<Card.Root>
-			<Card.Header>
-				<div class="flex items-center justify-between">
-					<Card.Title>
-						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
-						{m.login_code()}
-					</Card.Title>
-					<Button
-						size="sm"
-						variant="outline"
-						class="ml-auto gap-1.5"
-						on:click={() => (showLoginCodeModal = true)}
-					>
-						<ShieldPlus class="text-primary/80 h-5 w-5" />
-						{m.create()}
-					</Button>
-				</div>
-				<Card.Description>
-					{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
-				</Card.Description>
-			</Card.Header>
-		</Card.Root>
-	</div>
-
-	<!-- Language selection card -->
-	<div>
-		<Card.Root>
-			<Card.Header>
-				<div class="flex items-center justify-between">
-					<Card.Title>
-						<Languages class="text-primary/80 h-5 w-5" />
-						{m.language()}
-					</Card.Title>
-					<LocalePicker />
-				</div>
-				<Card.Description>
-					{m.select_the_language_you_want_to_use()}
-				</Card.Description>
-			</Card.Header>
-		</Card.Root>
-	</div>
-</FadeWrapper>
+<!-- Language selection card -->
+<div>
+	<Card.Root>
+		<Card.Header>
+			<div class="flex items-center justify-between">
+				<Card.Title>
+					<Languages class="text-primary/80 h-5 w-5" />
+					{m.language()}
+				</Card.Title>
+				<LocalePicker />
+			</div>
+			<Card.Description>
+				{m.select_the_language_you_want_to_use()}
+			</Card.Description>
+		</Card.Header>
+	</Card.Root>
+</div>
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}

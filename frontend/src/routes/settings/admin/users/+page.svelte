@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
@@ -10,8 +11,6 @@
 	import { slide } from 'svelte/transition';
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 
 	let { data } = $props();
 	let users = $state(data.users);
@@ -41,7 +40,7 @@
 	<title>{m.users()}</title>
 </svelte:head>
 
-<FadeWrapper delay={250} stagger={50}>
+
 	<div>
 		<Card.Root>
 			<Card.Header class={expandAddUser ? 'border-b' : ''}>
@@ -89,4 +88,4 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
-</FadeWrapper>
+
