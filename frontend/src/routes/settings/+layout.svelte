@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
 	import { LucideExternalLink, LucideSettings } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import type { LayoutData } from './$types';
-	import { m } from '$lib/paraglide/messages';
-	import { fly, fade } from 'svelte/transition';
-	import { onMount } from 'svelte';
 
 	let {
 		children,
@@ -16,25 +15,21 @@
 		data: LayoutData;
 	} = $props();
 
-	const { versionInformation } = data;
-	let mounted = $state(false);
+	const { versionInformation, user } = data;
 
-	let links = $state([
+	const adminLinks = [
+		{ href: '/settings/admin/users', label: m.users() },
+		{ href: '/settings/admin/user-groups', label: m.user_groups() },
+		{ href: '/settings/admin/oidc-clients', label: m.oidc_clients() },
+		{ href: '/settings/admin/api-keys', label: m.api_keys() },
+		{ href: '/settings/admin/application-configuration', label: m.application_configuration() }
+	];
+
+	const links = [
 		{ href: '/settings/account', label: m.my_account() },
-		{ href: '/settings/audit-log', label: m.audit_log() }
-	]);
-
-	if ($userStore?.isAdmin) {
-		links = [
-			// svelte-ignore state_referenced_locally
-			...links,
-			{ href: '/settings/admin/users', label: m.users() },
-			{ href: '/settings/admin/user-groups', label: m.user_groups() },
-			{ href: '/settings/admin/oidc-clients', label: m.oidc_clients() },
-			{ href: '/settings/admin/api-keys', label: m.api_keys() },
-			{ href: '/settings/admin/application-configuration', label: m.application_configuration() }
-		];
-	}
+		{ href: '/settings/audit-log', label: m.audit_log() },
+		...(user?.isAdmin ? adminLinks : [])
+	];
 </script>
 
 <section>
