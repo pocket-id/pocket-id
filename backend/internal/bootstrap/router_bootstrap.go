@@ -19,6 +19,9 @@ import (
 // This is used to register additional controllers for tests
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, appConfigService *service.AppConfigService, jwtService *service.JwtService)
 
+// @title Pocket ID API
+// @version 1
+// @description API for Pocket ID
 func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	// Set the appropriate Gin mode based on the environment
 	switch common.EnvConfig.AppEnv {
