@@ -16,11 +16,10 @@
 
 	$effect(() => {
 		page.route;
-		getChildren();
+		applyAnimationDelays();
 	});
 
-	// Get all direct children of the container
-	function getChildren() {
+	function applyAnimationDelays() {
 		if (containerNode) {
 			const childNodes = Array.from(containerNode.children);
 			childNodes.forEach((child, index) => {
