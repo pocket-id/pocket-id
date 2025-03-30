@@ -37,7 +37,7 @@ type WebauthnController struct {
 
 func (wc *WebauthnController) beginRegistrationHandler(c *gin.Context) {
 	userID := c.GetString("userID")
-	options, err := wc.webAuthnService.BeginRegistration(userID)
+	options, err := wc.webAuthnService.BeginRegistration(c.Request.Context(), userID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -55,7 +55,7 @@ func (wc *WebauthnController) verifyRegistrationHandler(c *gin.Context) {
 	}
 
 	userID := c.GetString("userID")
-	credential, err := wc.webAuthnService.VerifyRegistration(sessionID, userID, c.Request)
+	credential, err := wc.webAuthnService.VerifyRegistration(c.Request.Context(), sessionID, userID, c.Request)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -71,7 +71,7 @@ func (wc *WebauthnController) verifyRegistrationHandler(c *gin.Context) {
 }
 
 func (wc *WebauthnController) beginLoginHandler(c *gin.Context) {
-	options, err := wc.webAuthnService.BeginLogin()
+	options, err := wc.webAuthnService.BeginLogin(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -94,7 +94,7 @@ func (wc *WebauthnController) verifyLoginHandler(c *gin.Context) {
 		return
 	}
 
-	user, token, err := wc.webAuthnService.VerifyLogin(sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
+	user, token, err := wc.webAuthnService.VerifyLogin(c.Request.Context(), sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -114,7 +114,7 @@ func (wc *WebauthnController) verifyLoginHandler(c *gin.Context) {
 
 func (wc *WebauthnController) listCredentialsHandler(c *gin.Context) {
 	userID := c.GetString("userID")
-	credentials, err := wc.webAuthnService.ListCredentials(userID)
+	credentials, err := wc.webAuthnService.ListCredentials(c.Request.Context(), userID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -133,7 +133,7 @@ func (wc *WebauthnController) deleteCredentialHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 	credentialID := c.Param("id")
 
-	err := wc.webAuthnService.DeleteCredential(userID, credentialID)
+	err := wc.webAuthnService.DeleteCredential(c.Request.Context(), userID, credentialID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -152,7 +152,7 @@ func (wc *WebauthnController) updateCredentialHandler(c *gin.Context) {
 		return
 	}
 
-	credential, err := wc.webAuthnService.UpdateCredential(userID, credentialID, input.Name)
+	credential, err := wc.webAuthnService.UpdateCredential(c.Request.Context(), userID, credentialID, input.Name)
 	if err != nil {
 		_ = c.Error(err)
 		return

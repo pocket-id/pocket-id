@@ -285,7 +285,7 @@ func (acc *AppConfigController) updateImage(c *gin.Context, imageName string, ol
 // @Security BearerAuth
 // @Router /api/application-configuration/sync-ldap [post]
 func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
-	err := acc.ldapService.SyncAll()
+	err := acc.ldapService.SyncAll(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -304,7 +304,7 @@ func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
 func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 
-	err := acc.emailService.SendTestEmail(userID)
+	err := acc.emailService.SendTestEmail(c.Request.Context(), userID)
 	if err != nil {
 		_ = c.Error(err)
 		return

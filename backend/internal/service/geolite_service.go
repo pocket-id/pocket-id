@@ -42,7 +42,7 @@ var tailscaleIPNets = []*net.IPNet{
 }
 
 // NewGeoLiteService initializes a new GeoLiteService instance and starts a goroutine to update the GeoLite2 City database.
-func NewGeoLiteService() *GeoLiteService {
+func NewGeoLiteService(ctx context.Context) *GeoLiteService {
 	service := &GeoLiteService{}
 
 	if common.EnvConfig.MaxMindLicenseKey == "" && common.EnvConfig.GeoLiteDBUrl == common.MaxMindGeoLiteCityUrl {
@@ -52,8 +52,9 @@ func NewGeoLiteService() *GeoLiteService {
 	}
 
 	go func() {
-		if err := service.updateDatabase(); err != nil {
-			log.Printf("Failed to update GeoLite2 City database: %v\n", err)
+		err := service.updateDatabase(ctx)
+		if err != nil {
+			log.Printf("Failed to update GeoLite2 City database: %v", err)
 		}
 	}()
 
@@ -111,7 +112,7 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 }
 
 // UpdateDatabase checks the age of the database and updates it if it's older than 14 days.
-func (s *GeoLiteService) updateDatabase() error {
+func (s *GeoLiteService) updateDatabase(parentCtx context.Context) error {
 	if s.disableUpdater {
 		// Avoid updating the GeoLite2 City database.
 		return nil
@@ -125,7 +126,7 @@ func (s *GeoLiteService) updateDatabase() error {
 	log.Println("Updating GeoLite2 City database...")
 	downloadUrl := fmt.Sprintf(common.EnvConfig.GeoLiteDBUrl, common.EnvConfig.MaxMindLicenseKey)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Minute)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadUrl, nil)

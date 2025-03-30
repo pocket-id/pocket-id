@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"mime/multipart"
@@ -24,7 +26,7 @@ func NewAppConfigService(db *gorm.DB) *AppConfigService {
 		DbConfig: &defaultDbConfig,
 		db:       db,
 	}
-	if err := service.InitDbConfig(); err != nil {
+	if err := service.InitDbConfig(context.Background()); err != nil {
 		log.Fatalf("Failed to initialize app config service: %v", err)
 	}
 
@@ -203,6 +205,11 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 	}
 
 	tx := s.db.Begin()
+	defer func() {
+		// This is a no-op if the transaction has been committed already
+		tx.Rollback()
+	}()
+
 	rt := reflect.ValueOf(input).Type()
 	rv := reflect.ValueOf(input)
 
@@ -221,13 +228,11 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 
 		var appConfigVariable model.AppConfigVariable
 		if err := tx.First(&appConfigVariable, "key = ? AND is_internal = false", key).Error; err != nil {
-			tx.Rollback()
 			return nil, err
 		}
 
 		appConfigVariable.Value = value
 		if err := tx.Save(&appConfigVariable).Error; err != nil {
-			tx.Rollback()
 			return nil, err
 		}
 
@@ -236,7 +241,8 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 
 	tx.Commit()
 
-	if err := s.LoadDbConfigFromDb(); err != nil {
+	err := s.LoadDbConfigFromDb()
+	if err != nil {
 		return nil, err
 	}
 
@@ -312,7 +318,13 @@ func (s *AppConfigService) UpdateImage(uploadedFile *multipart.FileHeader, image
 // InitDbConfig creates the default configuration values in the database if they do not exist,
 // updates existing configurations if they differ from the default, and deletes any configurations
 // that are not in the default configuration.
-func (s *AppConfigService) InitDbConfig() error {
+func (s *AppConfigService) InitDbConfig(ctx context.Context) (err error) {
+	tx := s.db.Begin()
+	defer func() {
+		// This is a no-op if the transaction has been committed already
+		tx.Rollback()
+	}()
+
 	// Reflect to get the underlying value of DbConfig and its default configuration
 	defaultConfigReflectValue := reflect.ValueOf(defaultDbConfig)
 	defaultKeys := make(map[string]struct{})
@@ -324,21 +336,40 @@ func (s *AppConfigService) InitDbConfig() error {
 		defaultKeys[defaultConfigVar.Key] = struct{}{}
 
 		var storedConfigVar model.AppConfigVariable
-		if err := s.db.First(&storedConfigVar, "key = ?", defaultConfigVar.Key).Error; err != nil {
+		err = tx.
+			WithContext(ctx).
+			First(&storedConfigVar, "key = ?", defaultConfigVar.Key).
+			Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// If the configuration does not exist, create it
-			if err := s.db.Create(&defaultConfigVar).Error; err != nil {
+			err = tx.
+				WithContext(ctx).
+				Create(&defaultConfigVar).
+				Error
+			if err != nil {
 				return err
 			}
 			continue
+		} else if err != nil {
+			return err
 		}
 
 		// Update existing configuration if it differs from the default
-		if storedConfigVar.Type != defaultConfigVar.Type || storedConfigVar.IsPublic != defaultConfigVar.IsPublic || storedConfigVar.IsInternal != defaultConfigVar.IsInternal || storedConfigVar.DefaultValue != defaultConfigVar.DefaultValue {
+		if storedConfigVar.Type != defaultConfigVar.Type ||
+			storedConfigVar.IsPublic != defaultConfigVar.IsPublic ||
+			storedConfigVar.IsInternal != defaultConfigVar.IsInternal ||
+			storedConfigVar.DefaultValue != defaultConfigVar.DefaultValue {
+			// Set values
 			storedConfigVar.Type = defaultConfigVar.Type
 			storedConfigVar.IsPublic = defaultConfigVar.IsPublic
 			storedConfigVar.IsInternal = defaultConfigVar.IsInternal
 			storedConfigVar.DefaultValue = defaultConfigVar.DefaultValue
-			if err := s.db.Save(&storedConfigVar).Error; err != nil {
+
+			err = tx.
+				WithContext(ctx).
+				Save(&storedConfigVar).
+				Error
+			if err != nil {
 				return err
 			}
 		}
@@ -346,43 +377,66 @@ func (s *AppConfigService) InitDbConfig() error {
 
 	// Delete any configurations not in the default keys
 	var allConfigVars []model.AppConfigVariable
-	if err := s.db.Find(&allConfigVars).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Find(&allConfigVars).
+		Error
+	if err != nil {
 		return err
 	}
 
 	for _, config := range allConfigVars {
 		if _, exists := defaultKeys[config.Key]; !exists {
-			if err := s.db.Delete(&config).Error; err != nil {
+			err = tx.
+				WithContext(ctx).
+				Delete(&config).
+				Error
+			if err != nil {
 				return err
 			}
 		}
 	}
-	return s.LoadDbConfigFromDb()
+
+	// Commit the changes
+	err = tx.Commit().Error
+	if err != nil {
+		return err
+	}
+
+	// Reload the configuration
+	err = s.LoadDbConfigFromDb()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // LoadDbConfigFromDb loads the configuration values from the database into the DbConfig struct.
 func (s *AppConfigService) LoadDbConfigFromDb() error {
-	dbConfigReflectValue := reflect.ValueOf(s.DbConfig).Elem()
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		dbConfigReflectValue := reflect.ValueOf(s.DbConfig).Elem()
 
-	for i := 0; i < dbConfigReflectValue.NumField(); i++ {
-		dbConfigField := dbConfigReflectValue.Field(i)
-		currentConfigVar := dbConfigField.Interface().(model.AppConfigVariable)
-		var storedConfigVar model.AppConfigVariable
-		if err := s.db.First(&storedConfigVar, "key = ?", currentConfigVar.Key).Error; err != nil {
-			return err
+		for i := 0; i < dbConfigReflectValue.NumField(); i++ {
+			dbConfigField := dbConfigReflectValue.Field(i)
+			currentConfigVar := dbConfigField.Interface().(model.AppConfigVariable)
+			var storedConfigVar model.AppConfigVariable
+			err := tx.First(&storedConfigVar, "key = ?", currentConfigVar.Key).Error
+			if err != nil {
+				return err
+			}
+
+			if common.EnvConfig.UiConfigDisabled {
+				storedConfigVar.Value = s.getConfigVariableFromEnvironmentVariable(currentConfigVar.Key, storedConfigVar.DefaultValue)
+			} else if storedConfigVar.Value == "" && storedConfigVar.DefaultValue != "" {
+				storedConfigVar.Value = storedConfigVar.DefaultValue
+			}
+
+			dbConfigField.Set(reflect.ValueOf(storedConfigVar))
 		}
 
-		if common.EnvConfig.UiConfigDisabled {
-			storedConfigVar.Value = s.getConfigVariableFromEnvironmentVariable(currentConfigVar.Key, storedConfigVar.DefaultValue)
-		} else if storedConfigVar.Value == "" && storedConfigVar.DefaultValue != "" {
-			storedConfigVar.Value = storedConfigVar.DefaultValue
-		}
-
-		dbConfigField.Set(reflect.ValueOf(storedConfigVar))
-
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (s *AppConfigService) getConfigVariableFromEnvironmentVariable(key, fallbackValue string) string {

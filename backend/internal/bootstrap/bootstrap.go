@@ -1,11 +1,15 @@
 package bootstrap
 
 import (
+	"context"
+
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 func Bootstrap() {
+	ctx := context.TODO()
+
 	initApplicationImages()
 
 	migrateConfigDBConnstring()
@@ -15,5 +19,5 @@ func Bootstrap() {
 
 	migrateKey()
 
-	initRouter(db, appConfigService)
+	initRouter(ctx, db, appConfigService)
 }

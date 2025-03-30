@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"log"
 	"net"
 	"time"
@@ -22,7 +23,7 @@ var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, appCo
 // @title Pocket ID API
 // @version 1
 // @description API for Pocket ID
-func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
+func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppConfigService) {
 	// Set the appropriate Gin mode based on the environment
 	switch common.EnvConfig.AppEnv {
 	case "production":
@@ -39,10 +40,10 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	// Initialize services
 	emailService, err := service.NewEmailService(appConfigService, db)
 	if err != nil {
-		log.Fatalf("Unable to create email service: %s", err)
+		log.Fatalf("Unable to create email service: %v", err)
 	}
 
-	geoLiteService := service.NewGeoLiteService()
+	geoLiteService := service.NewGeoLiteService(ctx)
 	auditLogService := service.NewAuditLogService(db, appConfigService, emailService, geoLiteService)
 	jwtService := service.NewJwtService(appConfigService)
 	webauthnService := service.NewWebAuthnService(db, jwtService, auditLogService, appConfigService)
@@ -60,8 +61,8 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 	r.Use(rateLimitMiddleware.Add(rate.Every(time.Second), 60))
 
-	job.RegisterLdapJobs(ldapService, appConfigService)
-	job.RegisterDbCleanupJobs(db)
+	job.RegisterLdapJobs(ctx, ldapService, appConfigService)
+	job.RegisterDbCleanupJobs(ctx, db)
 
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(apiKeyService, jwtService)
