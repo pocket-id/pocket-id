@@ -1,3 +1,17 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.44.0...v) (2025-03-29)
+
+
+### Features
+
+* add support for ECDSA and EdDSA keys ([#359](https://github.com/pocket-id/pocket-id/issues/359)) ([96876a9](https://github.com/pocket-id/pocket-id/commit/96876a99c586508b72c27669ab200ff6a29db771))
+
+
+### Bug Fixes
+
+* ldap users aren't deleted if removed from ldap server ([7e65827](https://github.com/pocket-id/pocket-id/commit/7e658276f04d08a1f5117796e55d45e310204dab))
+* use value receiver for `AuditLogData` ([cbd1bbd](https://github.com/pocket-id/pocket-id/commit/cbd1bbdf741eedd03e93598d67623c75c74b6212))
+* use WAL for SQLite by default and set busy_timeout ([#388](https://github.com/pocket-id/pocket-id/issues/388)) ([519d58d](https://github.com/pocket-id/pocket-id/commit/519d58d88c906abc5139e35933bdeba0396c10a2))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.43.1...v) (2025-03-25)
 
 

@@ -1,6 +1,6 @@
 {
 	"name": "pocket-id-frontend",
-	"version": "0.44.0",
+	"version": "0.45.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -31,6 +31,8 @@
 	},
 	"devDependencies": {
 		"@inlang/paraglide-js": "^2.0.0",
+		"@inlang/plugin-m-function-matcher": "^2.0.7",
+		"@inlang/plugin-message-format": "^4.0.0",
 		"@internationalized/date": "^3.7.0",
 		"@playwright/test": "^1.50.0",
 		"@sveltejs/adapter-auto": "^4.0.0",

@@ -13,6 +13,7 @@
 		'en-US': 'English',
 		'fr-FR': 'Français',
 		'nl-NL': 'Nederlands',
+		'pt-BR': 'Português brasileiro',
 		'ru-RU': 'Русский'
 	};
 

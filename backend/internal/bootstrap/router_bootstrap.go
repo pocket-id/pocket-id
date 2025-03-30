@@ -16,6 +16,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// This is used to register additional controllers for tests
+var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, appConfigService *service.AppConfigService, jwtService *service.JwtService)
+
+// @title Pocket ID API
+// @version 1
+// @description API for Pocket ID
 func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	// Set the appropriate Gin mode based on the environment
 	switch common.EnvConfig.AppEnv {
@@ -43,7 +49,6 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 	userService := service.NewUserService(db, jwtService, auditLogService, emailService, appConfigService)
 	customClaimService := service.NewCustomClaimService(db)
 	oidcService := service.NewOidcService(db, jwtService, appConfigService, auditLogService, customClaimService)
-	testService := service.NewTestService(db, appConfigService, jwtService)
 	userGroupService := service.NewUserGroupService(db, appConfigService)
 	ldapService := service.NewLdapService(db, appConfigService, userService, userGroupService)
 	apiKeyService := service.NewApiKeyService(db)
@@ -75,7 +80,9 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 
 	// Add test controller in non-production environments
 	if common.EnvConfig.AppEnv != "production" {
-		controller.NewTestController(apiGroup, testService)
+		for _, f := range registerTestControllers {
+			f(apiGroup, db, appConfigService, jwtService)
+		}
 	}
 
 	// Set up base routes
