@@ -18,6 +18,11 @@
 
 	const { versionInformation, user } = data;
 
+	const links = [
+		{ href: '/settings/account', label: m.my_account() },
+		{ href: '/settings/audit-log', label: m.audit_log() },		
+	];
+
 	const adminLinks = [
 		{ href: '/settings/admin/users', label: m.users() },
 		{ href: '/settings/admin/user-groups', label: m.user_groups() },
@@ -26,11 +31,9 @@
 		{ href: '/settings/admin/application-configuration', label: m.application_configuration() }
 	];
 
-	const links = [
-		{ href: '/settings/account', label: m.my_account() },
-		{ href: '/settings/audit-log', label: m.audit_log() },
-		...(user?.isAdmin ? adminLinks : [])
-	];
+	if (user?.isAdmin || $userStore?.isAdmin) {
+		links.push(...adminLinks);
+	}
 </script>
 
 <section>
