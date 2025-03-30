@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { m } from '$lib/paraglide/messages';
+	import { cn } from '$lib/utils/style';
 	import type { Snippet } from 'svelte';
 	import * as Card from './ui/card';
 
@@ -13,21 +14,16 @@
 		showAlternativeSignInMethodButton?: boolean;
 		animate?: boolean;
 	} = $props();
-
-	// Simplified animation class based only on animate flag
-	let bgAnimationClass = $derived(animate ? 'animate-slide-bg-container' : '');
-
-	// Content animation class based on animate flag
-	let contentAnimationClass = $derived(animate ? 'animate-delayed-fade' : '');
 </script>
 
 <!-- Desktop with sliding reveal animation -->
 <div class="hidden h-screen items-center overflow-hidden text-center lg:flex">
 	<!-- Content area that fades in after background slides -->
 	<div
-		class="{contentAnimationClass} relative z-10 flex h-full min-w-[650px] p-16 {showAlternativeSignInMethodButton
-			? 'pb-0'
-			: ''}"
+		class="relative z-10 flex h-full w-[650px] p-16 {cn(
+			showAlternativeSignInMethodButton && 'pb-0',
+			animate && 'animate-delayed-fade'
+		)}"
 	>
 		<div class="flex h-full w-full flex-col overflow-hidden">
 			<div class="relative flex flex-grow flex-col items-center justify-center overflow-auto">
@@ -54,10 +50,10 @@
 	</div>
 
 	<!-- Background image with slide animation -->
-	<div class="{bgAnimationClass} absolute bottom-0 right-0 top-0 z-0">
+	<div class="{cn(animate && 'animate-slide-bg-container')} absolute bottom-0 right-0 top-0 z-0">
 		<img
 			src="/api/application-configuration/background-image"
-			class="h-screen rounded-l-[60px] object-cover {animate ? 'w-full' : 'w-[calc(100vw-800px)]'}"
+			class="h-screen rounded-l-[60px] object-cover {animate ? 'w-full' : 'w-[calc(100vw-650px)]'}"
 			alt={m.login_background()}
 		/>
 	</div>
