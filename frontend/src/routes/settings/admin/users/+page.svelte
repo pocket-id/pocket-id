@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus } from 'lucide-svelte';
+	import { LucideMinus, UserPen, UserPlus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let users = $state(data.users);
@@ -39,36 +39,50 @@
 	<title>{m.users()}</title>
 </svelte:head>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>{m.create_user()}</Card.Title>
-				<Card.Description>{m.add_a_new_user_to_appname({ appName: $appConfigStore.appName })}.</Card.Description>
+<div>
+	<Card.Root>
+		<Card.Header>
+			<div class="flex items-center justify-between">
+				<div>
+					<Card.Title>
+						<UserPlus class="text-primary/80 h-5 w-5" />
+						{m.create_user()}
+					</Card.Title>
+					<Card.Description
+						>{m.add_a_new_user_to_appname({
+							appName: $appConfigStore.appName
+						})}.</Card.Description
+					>
+				</div>
+				{#if !expandAddUser}
+					<Button on:click={() => (expandAddUser = true)}>{m.add_user()}</Button>
+				{:else}
+					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUser = false)}>
+						<LucideMinus class="h-5 w-5" />
+					</Button>
+				{/if}
 			</div>
-			{#if !expandAddUser}
-				<Button on:click={() => (expandAddUser = true)}>{m.add_user()}</Button>
-			{:else}
-				<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUser = false)}>
-					<LucideMinus class="h-5 w-5" />
-				</Button>
-			{/if}
-		</div>
-	</Card.Header>
-	{#if expandAddUser}
-		<div transition:slide>
-			<Card.Content>
-				<UserForm callback={createUser} />
-			</Card.Content>
-		</div>
-	{/if}
-</Card.Root>
+		</Card.Header>
+		{#if expandAddUser}
+			<div transition:slide>
+				<Card.Content>
+					<UserForm callback={createUser} />
+				</Card.Content>
+			</div>
+		{/if}
+	</Card.Root>
+</div>
 
-<Card.Root>
-	<Card.Header>
-		<Card.Title>{m.manage_users()}</Card.Title>
-	</Card.Header>
-	<Card.Content>
-		<UserList {users} requestOptions={usersRequestOptions} />
-	</Card.Content>
-</Card.Root>
+<div>
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>
+				<UserPen class="text-primary/80 h-5 w-5" />
+				{m.manage_users()}
+			</Card.Title>
+		</Card.Header>
+		<Card.Content>
+			<UserList {users} requestOptions={usersRequestOptions} />
+		</Card.Content>
+	</Card.Root>
+</div>
