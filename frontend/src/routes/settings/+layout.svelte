@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
@@ -55,7 +55,7 @@
 							<a
 								{href}
 								class={`animate-fade-in ${
-									$page.url.pathname.startsWith(href)
+									page.url.pathname.startsWith(href)
 										? 'text-primary bg-card rounded-md px-3 py-1.5 font-medium shadow-sm transition-all'
 										: 'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm'
 								}`}
