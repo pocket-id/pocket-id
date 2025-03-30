@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import { Button } from '$lib/components/ui/button';
-	import { Separator } from '$lib/components/ui/separator';
+	import GlassRowItem from '$lib/components/glass-row-item.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import WebauthnService from '$lib/services/webauthn-service';
 	import type { Passkey } from '$lib/types/passkey.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideKeyRound, LucidePencil, LucideTrash } from 'lucide-svelte';
+	import { LucideKeyRound } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let { passkeys = $bindable() }: { passkeys: Passkey[] } = $props();
 
@@ -37,38 +36,18 @@
 	}
 </script>
 
-<div class="flex flex-col">
-	{#each passkeys as passkey, i}
-		<div class="flex justify-between">
-			<div class="flex items-center">
-				<LucideKeyRound class="mr-4 inline h-6 w-6" />
-				<div>
-					<p>{passkey.name}</p>
-					<p class="text-xs text-muted-foreground">
-						{m.added_on()} {new Date(passkey.createdAt).toLocaleDateString()}
-					</p>
-				</div>
-			</div>
-			<div>
-				<Button
-					on:click={() => (passkeyToRename = passkey)}
-					size="sm"
-					variant="outline"
-					aria-label={m.rename()}><LucidePencil class="h-3 w-3" /></Button
-				>
-				<Button
-					on:click={() => deletePasskey(passkey)}
-					size="sm"
-					variant="outline"
-					aria-label={m.delete()}><LucideTrash class="h-3 w-3 text-red-500" /></Button
-				>
-			</div>
-		</div>
-		{#if i !== passkeys.length - 1}
-			<Separator class="my-2" />
-		{/if}
+<div class="space-y-3">
+	{#each passkeys as passkey}
+		<GlassRowItem
+			label={passkey.name}
+			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
+			icon={LucideKeyRound}
+			onRename={() => (passkeyToRename = passkey)}
+			onDelete={() => deletePasskey(passkey)}
+		/>
 	{/each}
 </div>
+
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
