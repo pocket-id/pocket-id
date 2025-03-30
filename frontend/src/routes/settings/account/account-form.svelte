@@ -52,14 +52,14 @@
 
 	async function updateProfilePicture(image: File) {
 		await userService
-			.updateProfilePicture(userId, image)
+			.updateCurrentUsersProfilePicture(image)
 			.then(() => toast.success(m.profile_picture_updated_successfully()))
 			.catch(axiosErrorToast);
 	}
 
 	async function resetProfilePicture() {
 		await userService
-			.resetProfilePicture(userId)
+			.resetCurrentUserProfilePicture()
 			.then(() => toast.success(m.profile_picture_has_been_reset()))
 			.catch(axiosErrorToast);
 	}
