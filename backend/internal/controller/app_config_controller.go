@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -61,7 +60,7 @@ type AppConfigController struct {
 // @Failure 500 {object} object "{"error": "error message"}"
 // @Router /application-configuration [get]
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
-	configuration, err := acc.appConfigService.ListAppConfig(false)
+	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), false)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -73,7 +72,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, configVariablesDto)
+	c.JSON(http.StatusOK, configVariablesDto)
 }
 
 // listAllAppConfigHandler godoc
@@ -86,7 +85,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Router /application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
-	configuration, err := acc.appConfigService.ListAppConfig(true)
+	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), true)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -98,7 +97,7 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, configVariablesDto)
+	c.JSON(http.StatusOK, configVariablesDto)
 }
 
 // updateAppConfigHandler godoc
@@ -118,7 +117,7 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 		return
 	}
 
-	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(input)
+	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(c.Request.Context(), input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -253,7 +252,7 @@ func (acc *AppConfigController) updateBackgroundImageHandler(c *gin.Context) {
 
 // getImage is a helper function to serve image files
 func (acc *AppConfigController) getImage(c *gin.Context, name string, imageType string) {
-	imagePath := fmt.Sprintf("%s/application-images/%s.%s", common.EnvConfig.UploadPath, name, imageType)
+	imagePath := common.EnvConfig.UploadPath + "/application-images/" + name + "." + imageType
 	mimeType := utils.GetImageMimeType(imageType)
 
 	c.Header("Content-Type", mimeType)
@@ -268,7 +267,7 @@ func (acc *AppConfigController) updateImage(c *gin.Context, imageName string, ol
 		return
 	}
 
-	err = acc.appConfigService.UpdateImage(file, imageName, oldImageType)
+	err = acc.appConfigService.UpdateImage(c.Request.Context(), file, imageName, oldImageType)
 	if err != nil {
 		_ = c.Error(err)
 		return

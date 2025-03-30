@@ -23,10 +23,10 @@ func NewAuditLogService(db *gorm.DB, appConfigService *AppConfigService, emailSe
 }
 
 // Create creates a new audit log entry in the database
-func (s *AuditLogService) Create(event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) model.AuditLog {
+func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) model.AuditLog {
 	country, city, err := s.geoliteService.GetLocationByIP(ipAddress)
 	if err != nil {
-		log.Printf("Failed to get IP location: %v\n", err)
+		log.Printf("Failed to get IP location: %v", err)
 	}
 
 	auditLog := model.AuditLog{
@@ -40,8 +40,12 @@ func (s *AuditLogService) Create(event model.AuditLogEvent, ipAddress, userAgent
 	}
 
 	// Save the audit log in the database
-	if err := tx.Create(&auditLog).Error; err != nil {
-		log.Printf("Failed to create audit log: %v\n", err)
+	err = tx.
+		WithContext(ctx).
+		Create(&auditLog).
+		Error
+	if err != nil {
+		log.Printf("Failed to create audit log: %v", err)
 		return model.AuditLog{}
 	}
 
@@ -50,7 +54,7 @@ func (s *AuditLogService) Create(event model.AuditLogEvent, ipAddress, userAgent
 
 // CreateNewSignInWithEmail creates a new audit log entry in the database and sends an email if the device hasn't been used before
 func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog {
-	createdAuditLog := s.Create(model.AuditLogEventSignIn, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
+	createdAuditLog := s.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
 
 	// Count the number of times the user has logged in from the same device
 	var count int64
@@ -103,9 +107,12 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 }
 
 // ListAuditLogsForUser retrieves all audit logs for a given user ID
-func (s *AuditLogService) ListAuditLogsForUser(userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.AuditLog, utils.PaginationResponse, error) {
+func (s *AuditLogService) ListAuditLogsForUser(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.AuditLog, utils.PaginationResponse, error) {
 	var logs []model.AuditLog
-	query := s.db.Model(&model.AuditLog{}).Where("user_id = ?", userID)
+	query := s.db.
+		WithContext(ctx).
+		Model(&model.AuditLog{}).
+		Where("user_id = ?", userID)
 
 	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
 	return logs, pagination, err

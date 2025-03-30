@@ -15,7 +15,7 @@ func Bootstrap() {
 	migrateConfigDBConnstring()
 
 	db := newDatabase()
-	appConfigService := service.NewAppConfigService(db)
+	appConfigService := service.NewAppConfigService(ctx, db)
 
 	migrateKey()
 

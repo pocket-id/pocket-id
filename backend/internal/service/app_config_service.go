@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"mime/multipart"
 	"os"
@@ -21,12 +20,14 @@ type AppConfigService struct {
 	db       *gorm.DB
 }
 
-func NewAppConfigService(db *gorm.DB) *AppConfigService {
+func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 	service := &AppConfigService{
 		DbConfig: &defaultDbConfig,
 		db:       db,
 	}
-	if err := service.InitDbConfig(context.Background()); err != nil {
+
+	err := service.InitDbConfig(ctx)
+	if err != nil {
 		log.Fatalf("Failed to initialize app config service: %v", err)
 	}
 
@@ -199,7 +200,7 @@ var defaultDbConfig = model.AppConfig{
 	},
 }
 
-func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, &common.UiConfigDisabledError{}
 	}
@@ -210,11 +211,13 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 		tx.Rollback()
 	}()
 
+	var err error
+
 	rt := reflect.ValueOf(input).Type()
 	rv := reflect.ValueOf(input)
 
-	var savedConfigVariables []model.AppConfigVariable
-	for i := 0; i < rt.NumField(); i++ {
+	savedConfigVariables := make([]model.AppConfigVariable, 0, rt.NumField())
+	for i := range rt.NumField() {
 		field := rt.Field(i)
 		key := field.Tag.Get("json")
 		value := rv.FieldByName(field.Name).String()
@@ -227,21 +230,32 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 		}
 
 		var appConfigVariable model.AppConfigVariable
-		if err := tx.First(&appConfigVariable, "key = ? AND is_internal = false", key).Error; err != nil {
+		err = tx.
+			WithContext(ctx).
+			First(&appConfigVariable, "key = ? AND is_internal = false", key).
+			Error
+		if err != nil {
 			return nil, err
 		}
 
 		appConfigVariable.Value = value
-		if err := tx.Save(&appConfigVariable).Error; err != nil {
+		err = tx.
+			WithContext(ctx).
+			Save(&appConfigVariable).
+			Error
+		if err != nil {
 			return nil, err
 		}
 
 		savedConfigVariables = append(savedConfigVariables, appConfigVariable)
 	}
 
-	tx.Commit()
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
 
-	err := s.LoadDbConfigFromDb()
+	err = s.LoadDbConfigFromDb()
 	if err != nil {
 		return nil, err
 	}
@@ -249,9 +263,14 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 	return savedConfigVariables, nil
 }
 
-func (s *AppConfigService) UpdateImageType(imageName string, fileType string) error {
-	key := fmt.Sprintf("%sImageType", imageName)
-	err := s.db.Model(&model.AppConfigVariable{}).Where("key = ?", key).Update("value", fileType).Error
+func (s *AppConfigService) updateImageType(ctx context.Context, imageName string, fileType string) error {
+	key := imageName + "ImageType"
+	err := s.db.
+		WithContext(ctx).
+		Model(&model.AppConfigVariable{}).
+		Where("key = ?", key).
+		Update("value", fileType).
+		Error
 	if err != nil {
 		return err
 	}
@@ -259,14 +278,17 @@ func (s *AppConfigService) UpdateImageType(imageName string, fileType string) er
 	return s.LoadDbConfigFromDb()
 }
 
-func (s *AppConfigService) ListAppConfig(showAll bool) ([]model.AppConfigVariable, error) {
-	var configuration []model.AppConfigVariable
-	var err error
-
+func (s *AppConfigService) ListAppConfig(ctx context.Context, showAll bool) (configuration []model.AppConfigVariable, err error) {
 	if showAll {
-		err = s.db.Find(&configuration).Error
+		err = s.db.
+			WithContext(ctx).
+			Find(&configuration).
+			Error
 	} else {
-		err = s.db.Find(&configuration, "is_public = true").Error
+		err = s.db.
+			WithContext(ctx).
+			Find(&configuration, "is_public = true").
+			Error
 	}
 
 	if err != nil {
@@ -277,7 +299,6 @@ func (s *AppConfigService) ListAppConfig(showAll bool) ([]model.AppConfigVariabl
 		if common.EnvConfig.UiConfigDisabled {
 			// Set the value to the environment variable if the UI config is disabled
 			configuration[i].Value = s.getConfigVariableFromEnvironmentVariable(configuration[i].Key, configuration[i].DefaultValue)
-
 		} else if configuration[i].Value == "" && configuration[i].DefaultValue != "" {
 			// Set the value to the default value if it is empty
 			configuration[i].Value = configuration[i].DefaultValue
@@ -287,7 +308,7 @@ func (s *AppConfigService) ListAppConfig(showAll bool) ([]model.AppConfigVariabl
 	return configuration, nil
 }
 
-func (s *AppConfigService) UpdateImage(uploadedFile *multipart.FileHeader, imageName string, oldImageType string) error {
+func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multipart.FileHeader, imageName string, oldImageType string) (err error) {
 	fileType := utils.GetFileExtension(uploadedFile.Filename)
 	mimeType := utils.GetImageMimeType(fileType)
 	if mimeType == "" {
@@ -296,19 +317,22 @@ func (s *AppConfigService) UpdateImage(uploadedFile *multipart.FileHeader, image
 
 	// Delete the old image if it has a different file type
 	if fileType != oldImageType {
-		oldImagePath := fmt.Sprintf("%s/application-images/%s.%s", common.EnvConfig.UploadPath, imageName, oldImageType)
-		if err := os.Remove(oldImagePath); err != nil {
+		oldImagePath := common.EnvConfig.UploadPath + "/application-images/" + imageName + "." + oldImageType
+		err = os.Remove(oldImagePath)
+		if err != nil {
 			return err
 		}
 	}
 
-	imagePath := fmt.Sprintf("%s/application-images/%s.%s", common.EnvConfig.UploadPath, imageName, fileType)
-	if err := utils.SaveFile(uploadedFile, imagePath); err != nil {
+	imagePath := common.EnvConfig.UploadPath + "/application-images/" + imageName + "." + fileType
+	err = utils.SaveFile(uploadedFile, imagePath)
+	if err != nil {
 		return err
 	}
 
 	// Update the file type in the database
-	if err := s.UpdateImageType(imageName, fileType); err != nil {
+	err = s.updateImageType(ctx, imageName, fileType)
+	if err != nil {
 		return err
 	}
 
@@ -330,7 +354,7 @@ func (s *AppConfigService) InitDbConfig(ctx context.Context) (err error) {
 	defaultKeys := make(map[string]struct{})
 
 	// Iterate over the fields of DbConfig
-	for i := 0; i < defaultConfigReflectValue.NumField(); i++ {
+	for i := range defaultConfigReflectValue.NumField() {
 		defaultConfigVar := defaultConfigReflectValue.Field(i).Interface().(model.AppConfigVariable)
 
 		defaultKeys[defaultConfigVar.Key] = struct{}{}
@@ -386,14 +410,16 @@ func (s *AppConfigService) InitDbConfig(ctx context.Context) (err error) {
 	}
 
 	for _, config := range allConfigVars {
-		if _, exists := defaultKeys[config.Key]; !exists {
-			err = tx.
-				WithContext(ctx).
-				Delete(&config).
-				Error
-			if err != nil {
-				return err
-			}
+		if _, exists := defaultKeys[config.Key]; exists {
+			continue
+		}
+
+		err = tx.
+			WithContext(ctx).
+			Delete(&config).
+			Error
+		if err != nil {
+			return err
 		}
 	}
 
@@ -417,7 +443,7 @@ func (s *AppConfigService) LoadDbConfigFromDb() error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		dbConfigReflectValue := reflect.ValueOf(s.DbConfig).Elem()
 
-		for i := 0; i < dbConfigReflectValue.NumField(); i++ {
+		for i := range dbConfigReflectValue.NumField() {
 			dbConfigField := dbConfigReflectValue.Field(i)
 			currentConfigVar := dbConfigField.Interface().(model.AppConfigVariable)
 			var storedConfigVar model.AppConfigVariable

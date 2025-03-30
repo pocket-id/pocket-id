@@ -39,7 +39,9 @@ type AuditLogController struct {
 // @Router /api/audit-logs [get]
 func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
+
+	err := c.ShouldBindQuery(&sortedPaginationRequest)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -47,7 +49,7 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 
 	// Fetch audit logs for the user
-	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(userID, sortedPaginationRequest)
+	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(c.Request.Context(), userID, sortedPaginationRequest)
 	if err != nil {
 		_ = c.Error(err)
 		return
