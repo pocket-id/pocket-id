@@ -79,7 +79,6 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 		return nil, 0, err
 	}
 
-	// Generate initials
 	initials := profilepicture.GetUserInitials(user.FirstName, user.LastName)
 
 	// Check if we have a cached default picture for these initials

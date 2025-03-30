@@ -42,7 +42,6 @@ func migrateProfilePicturesPrivate(db *gorm.DB) error {
 	for _, user := range users {
 		initials := profilepicture.GetUserInitials(user.FirstName, user.LastName)
 
-		// Process each user using a switch statement for cleaner flow control
 		switch {
 		// Case 1: User has no initials
 		case initials == "":
@@ -80,7 +79,6 @@ func migrateProfilePicturesPrivate(db *gorm.DB) error {
 	return nil
 }
 
-// Helper function to check if a file exists
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
