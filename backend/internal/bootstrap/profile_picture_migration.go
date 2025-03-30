@@ -14,9 +14,16 @@ import (
 	"gorm.io/gorm"
 )
 
+func migrateProfilePictures(db *gorm.DB) {
+	err := migrateProfilePicturesPrivate(db)
+	if err != nil {
+		log.Fatalf("failed to perform migration of profile pictures: %v", err)
+	}
+}
+
 // MigrateDefaultProfilePictures generates initials-based default profile pictures
 // for users who don't have custom profile pictures
-func migrateProfilePictures(db *gorm.DB) error {
+func migrateProfilePicturesPrivate(db *gorm.DB) error {
 	uploadPath := common.EnvConfig.UploadPath
 	var users []model.User
 	if err := db.Find(&users).Error; err != nil {
