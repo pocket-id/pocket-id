@@ -44,14 +44,7 @@ func CreateProfilePicture(file io.Reader) (io.Reader, error) {
 // CreateDefaultProfilePicture creates a profile picture with the initials
 func CreateDefaultProfilePicture(firstName, lastName string) (*bytes.Buffer, error) {
 	// Get the initials
-	initials := ""
-	if len(firstName) > 0 {
-		initials += string(firstName[0])
-	}
-	if len(lastName) > 0 {
-		initials += string(lastName[0])
-	}
-	initials = strings.ToUpper(initials)
+	initials := GetUserInitials(firstName, lastName)
 
 	// Create a blank image with a white background
 	img := imaging.New(profilePictureSize, profilePictureSize, color.RGBA{R: 255, G: 255, B: 255, A: 255})
@@ -100,4 +93,16 @@ func CreateDefaultProfilePicture(firstName, lastName string) (*bytes.Buffer, err
 	}
 
 	return &buf, nil
+}
+
+// Helper function to get initials from first and last name
+func GetUserInitials(firstName, lastName string) string {
+	initials := ""
+	if len(firstName) > 0 {
+		initials += string(firstName[0])
+	}
+	if len(lastName) > 0 {
+		initials += string(lastName[0])
+	}
+	return strings.ToUpper(initials)
 }

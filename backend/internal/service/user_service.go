@@ -80,7 +80,7 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	}
 
 	// Generate initials
-	initials := getUserInitials(user.FirstName, user.LastName)
+	initials := profilepicture.GetUserInitials(user.FirstName, user.LastName)
 
 	// Check if we have a cached default picture for these initials
 	defaultPicturePath := common.EnvConfig.UploadPath + "/profile-pictures/defaults/" + initials + ".png"
@@ -101,12 +101,6 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 		return nil, 0, err
 	}
 
-	// Create the defaults directory if it doesn't exist
-	defaultsDir := common.EnvConfig.UploadPath + "/profile-pictures/defaults"
-	if err := os.MkdirAll(defaultsDir, os.ModePerm); err != nil {
-		return defaultPicture, int64(defaultPicture.Len()), nil // Return generated image even if we can't save it
-	}
-
 	// Save the default picture for future use (in a goroutine to avoid blocking)
 	defaultPictureCopy := bytes.NewBuffer(defaultPicture.Bytes())
 	go func() {
@@ -116,18 +110,6 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	}()
 
 	return defaultPicture, int64(defaultPicture.Len()), nil
-}
-
-// Helper function to get initials from first and last name
-func getUserInitials(firstName, lastName string) string {
-	initials := ""
-	if len(firstName) > 0 {
-		initials += string(firstName[0])
-	}
-	if len(lastName) > 0 {
-		initials += string(lastName[0])
-	}
-	return strings.ToUpper(initials)
 }
 
 func (s *UserService) GetUserGroups(userID string) ([]model.UserGroup, error) {
