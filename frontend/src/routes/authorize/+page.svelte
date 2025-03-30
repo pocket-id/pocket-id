@@ -84,7 +84,7 @@
 {#if client == null}
 	<p>{m.client_not_found()}</p>
 {:else}
-	<SignInWrapper animate={true} showAlternativeSignInMethodButton>
+	<SignInWrapper animate showAlternativeSignInMethodButton>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
 		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
 			{m.sign_in_to({ name: client.name })}

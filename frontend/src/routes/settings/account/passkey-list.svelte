@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import { LucideKeyRound } from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
-	import RenamePasskeyModal from './rename-passkey-modal.svelte';
+	import GlassRowItem from '$lib/components/glass-row-item.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import WebauthnService from '$lib/services/webauthn-service';
 	import type { Passkey } from '$lib/types/passkey.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import GlassRowItem from '$lib/components/glass-row-item.svelte';
+	import { LucideKeyRound } from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
+	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
 	let { passkeys = $bindable() }: { passkeys: Passkey[] } = $props();
 
@@ -15,8 +15,7 @@
 
 	let passkeyToRename: Passkey | null = $state(null);
 
-	async function deletePasskey(item: any) {
-		const passkey = item as Passkey;
+	async function deletePasskey(passkey: Passkey) {
 		openConfirmDialog({
 			title: m.delete_passkey_name({ passkeyName: passkey.name }),
 			message: m.are_you_sure_you_want_to_delete_this_passkey(),
@@ -35,26 +34,16 @@
 			}
 		});
 	}
-
-	// Function to determine if a passkey was recently added (within the last 7 days)
-	function isRecentlyAdded(date: string): boolean {
-		const createdDate = new Date(date);
-		const currentDate = new Date();
-		const differenceInDays = Math.floor(
-			(currentDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24)
-		);
-		return differenceInDays <= 7;
-	}
 </script>
 
 <div class="space-y-3">
-	{#each passkeys as passkey, i}
+	{#each passkeys as passkey}
 		<GlassRowItem
-			item={passkey}
+			label={passkey.name}
+			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}
 			icon={LucideKeyRound}
 			onRename={() => (passkeyToRename = passkey)}
 			onDelete={() => deletePasskey(passkey)}
-			dateLabel={m.added_on()}
 		/>
 	{/each}
 </div>

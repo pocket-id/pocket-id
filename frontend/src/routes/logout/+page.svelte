@@ -26,7 +26,7 @@
 	<title>{m.logout()}</title>
 </svelte:head>
 
-<SignInWrapper animate={true}>
+<SignInWrapper animate>
 	<div class="flex justify-center">
 		<div class="bg-muted rounded-2xl p-3">
 			<Logo class="h-10 w-10" />

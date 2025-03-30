@@ -11,7 +11,6 @@
 	"select_a_date": "Select a date",
 	"select_file": "Select File",
 	"profile_picture": "Profile Picture",
-	"personal_information": "Personal Information",
 	"profile_picture_is_managed_by_ldap_server": "The profile picture is managed by the LDAP server and cannot be changed here.",
 	"click_profile_picture_to_upload_custom": "Click on the profile picture to upload a custom one from your files.",
 	"image_should_be_in_format": "The image should be in PNG or JPEG format.",

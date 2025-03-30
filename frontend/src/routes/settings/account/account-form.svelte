@@ -79,11 +79,6 @@
 
 	<!-- User Information -->
 	<div>
-		<h3 class="mb-5 flex items-center gap-2 text-xl font-semibold">
-			<BookUser class="text-primary/80 h-5 w-5" />
-			{m.personal_information()}
-		</h3>
-
 		<div class="flex flex-col gap-3 sm:flex-row">
 			<div class="w-full">
 				<FormInput label={m.first_name()} bind:input={$inputs.firstName} />

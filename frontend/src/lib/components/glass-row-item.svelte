@@ -1,38 +1,22 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Tooltip, TooltipContent, TooltipTrigger } from '$lib/components/ui/tooltip';
-	import { Badge } from '$lib/components/ui/badge';
-	import { LucideCalendar, LucidePencil, LucideTrash, type Icon as IconType } from 'lucide-svelte';
-	import type { Passkey } from '$lib/types/passkey.type';
 	import { m } from '$lib/paraglide/messages';
+	import { LucideCalendar, LucidePencil, LucideTrash, type Icon as IconType } from 'lucide-svelte';
 
 	let {
-		item,
 		icon,
 		onRename,
 		onDelete,
-		dateLabel = m.added_on(),
-		primaryField = 'name',
-		dateField = 'createdAt'
+		label,
+		description
 	}: {
-		item: Passkey;
 		icon: typeof IconType;
-		onRename: (item: Passkey) => void;
-		onDelete: (item: Passkey) => void;
-		dateLabel?: string;
-		primaryField?: string;
-		dateField?: string;
+		onRename: () => void;
+		onDelete: () => void;
+		description?: string;
+		label?: string;
 	} = $props();
-
-	// Function to safely access potentially nested properties by dot notation
-	function getProperty(obj: any, path: string): any {
-		return path.split('.').reduce((prev, curr) => (prev ? prev[curr] : null), obj);
-	}
-
-	// Use $derived to make these values reactive to item changes
-	const displayName = $derived(getProperty(item, primaryField));
-	const dateValue = $derived(getProperty(item, dateField));
-	const formattedDate = $derived(dateValue ? new Date(dateValue).toLocaleDateString() : '');
 </script>
 
 <div class="bg-card hover:bg-muted/50 group rounded-lg p-3 transition-colors">
@@ -45,13 +29,12 @@
 			</div>
 			<div>
 				<div class="flex items-center gap-2">
-					<p class="font-medium">{displayName}</p>
+					<p class="font-medium">{label}</p>
 				</div>
-				{#if formattedDate}
+				{#if description}
 					<div class="text-muted-foreground mt-1 flex items-center text-xs">
 						<LucideCalendar class="mr-1 h-3 w-3" />
-						{dateLabel}
-						{formattedDate}
+						{description}
 					</div>
 				{/if}
 			</div>
@@ -61,7 +44,7 @@
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button
-						on:click={() => onRename(item)}
+						on:click={onRename}
 						size="icon"
 						variant="ghost"
 						class="h-8 w-8"
@@ -76,7 +59,7 @@
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button
-						on:click={() => onDelete(item)}
+						on:click={onDelete}
 						size="icon"
 						variant="ghost"
 						class="hover:bg-destructive/10 hover:text-destructive h-8 w-8"
