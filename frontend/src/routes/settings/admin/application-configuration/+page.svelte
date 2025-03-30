@@ -14,7 +14,6 @@
 
 	let { data } = $props();
 	let appConfig = $state(data.appConfig);
-	let mounted = $state(false);
 
 	const appConfigService = new AppConfigService();
 

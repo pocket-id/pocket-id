@@ -16,7 +16,6 @@
 	let userGroups = $state(data.userGroups);
 	let userGroupsRequestOptions = $state(data.userGroupsRequestOptions);
 	let expandAddUserGroup = $state(false);
-	let mounted = $state(false);
 
 	const userGroupService = new UserGroupService();
 

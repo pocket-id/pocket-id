@@ -17,7 +17,6 @@
 	let usersRequestOptions = $state(data.usersRequestOptions);
 
 	let expandAddUser = $state(false);
-	let mounted = $state(false);
 
 	const userService = new UserService();
 

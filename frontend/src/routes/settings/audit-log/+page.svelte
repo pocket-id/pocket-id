@@ -5,9 +5,7 @@
 	import AuditLogList from './audit-log-list.svelte';
 
 	let { data } = $props();
-	let { auditLogs } = data;
 	let auditLogsRequestOptions = $state(data.auditLogsRequestOptions);
-	let mounted = $state(false);
 </script>
 
 <svelte:head>

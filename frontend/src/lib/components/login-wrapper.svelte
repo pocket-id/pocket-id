@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { m } from '$lib/paraglide/messages';
 	import type { Snippet } from 'svelte';
 	import * as Card from './ui/card';
-	import { m } from '$lib/paraglide/messages';
 
 	let {
 		children,
@@ -13,8 +13,6 @@
 		showAlternativeSignInMethodButton?: boolean;
 		animate?: boolean;
 	} = $props();
-
-	let mounted = $state(false);
 
 	// Simplified animation class based only on animate flag
 	let bgAnimationClass = $derived(animate ? 'animate-slide-bg-container' : '');

@@ -18,7 +18,6 @@
 	let clients = $state(data.clients);
 	let clientsRequestOptions = $state(data.clientsRequestOptions);
 	let expandAddClient = $state(false);
-	let mounted = $state(false);
 
 	const oidcService = new OIDCService();
 

@@ -31,7 +31,6 @@
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
 	let showLoginCodeModal: boolean = $state(false);
-	let mounted = $state(false);
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();

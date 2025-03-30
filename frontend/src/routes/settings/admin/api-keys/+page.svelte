@@ -18,7 +18,6 @@
 	const apiKeyService = new ApiKeyService();
 	let expandAddApiKey = $state(false);
 	let apiKeyResponse = $state<ApiKeyResponse | null>(null);
-	let mounted = $state(false);
 
 	async function createApiKey(apiKeyData: ApiKeyCreate) {
 		try {
