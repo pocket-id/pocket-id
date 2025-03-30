@@ -19,7 +19,7 @@
 		title: string;
 		description?: string;
 		defaultExpanded?: boolean;
-		icon: typeof IconType;
+		icon?: typeof IconType;
 		children: Snippet;
 	} = $props();
 
