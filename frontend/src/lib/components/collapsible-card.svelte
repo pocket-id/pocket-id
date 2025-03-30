@@ -1,11 +1,11 @@
 <script lang="ts">
+	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/style';
 	import { LucideChevronDown, type Icon as IconType } from 'lucide-svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { Button } from './ui/button';
 	import * as Card from './ui/card';
-	import { m } from '$lib/paraglide/messages';
 
 	let {
 		id,
@@ -50,7 +50,7 @@
 </script>
 
 <Card.Root>
-	<Card.Header class="cursor-pointer border-b" onclick={toggleExpanded}>
+	<Card.Header class="cursor-pointer" onclick={toggleExpanded}>
 		<div class="flex items-center justify-between">
 			<div>
 				<Card.Title class="flex items-center gap-2 text-xl font-semibold">

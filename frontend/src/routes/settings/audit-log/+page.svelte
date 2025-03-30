@@ -16,7 +16,7 @@
 
 <div>
 	<Card.Root>
-		<Card.Header class="border-b">
+		<Card.Header>
 			<Card.Title>
 				<LogsIcon class="text-primary/80 h-5 w-5" />
 				{m.audit_log()}

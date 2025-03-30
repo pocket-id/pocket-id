@@ -42,7 +42,7 @@
 
 <div>
 	<Card.Root>
-		<Card.Header class={expandAddUserGroup ? 'border-b' : ''}>
+		<Card.Header>
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title>
@@ -73,7 +73,7 @@
 
 <div>
 	<Card.Root>
-		<Card.Header class="border-b">
+		<Card.Header>
 			<Card.Title>
 				<UserCog class="text-primary/80 h-5 w-5" />
 				{m.manage_user_groups()}
