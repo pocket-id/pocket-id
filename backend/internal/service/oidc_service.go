@@ -277,6 +277,67 @@ func (s *OidcService) createTokenFromRefreshToken(refreshToken, clientID, client
 	return accessToken, newRefreshToken, 3600, nil
 }
 
+func (s *OidcService) IntrospectToken(clientID, clientSecret, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	if clientID == "" || clientSecret == "" {
+		return introspectDto, &common.OidcMissingClientCredentialsError{}
+	}
+
+	// Get the client to check if we are authorized.
+	var client model.OidcClient
+	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	// Verify the client secret. This endpoint may not be used by public clients.
+	if client.IsPublic {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret)); err != nil {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	token, err := s.jwtService.VerifyIdToken(tokenString, false)
+	if err != nil {
+		introspectDto.Active = false
+		return introspectDto, nil
+	}
+
+	introspectDto.Active = true
+	if token.Has("scope") {
+		var asString string
+		var asStrings []string
+		if err := token.Get("scope", &asString); err == nil {
+			introspectDto.Scope = asString
+		} else if err := token.Get("scope", &asStrings); err == nil {
+			introspectDto.Scope = strings.Join(asStrings, " ")
+		}
+	}
+	if expiration, hasExpiration := token.Expiration(); hasExpiration {
+		introspectDto.Expiration = expiration.Unix()
+	}
+	if issuedAt, hasIssuedAt := token.IssuedAt(); hasIssuedAt {
+		introspectDto.IssuedAt = issuedAt.Unix()
+	}
+	if notBefore, hasNotBefore := token.NotBefore(); hasNotBefore {
+		introspectDto.NotBefore = notBefore.Unix()
+	}
+	if subject, hasSubject := token.Subject(); hasSubject {
+		introspectDto.Subject = subject
+	}
+	if audience, hasAudience := token.Audience(); hasAudience {
+		introspectDto.Audience = audience
+	}
+	if issuer, hasIssuer := token.Issuer(); hasIssuer {
+		introspectDto.Issuer = issuer
+	}
+	if identifier, hasIdentifier := token.JwtID(); hasIdentifier {
+		introspectDto.Identifier = identifier
+	}
+
+	return introspectDto, nil
+}
+
 func (s *OidcService) GetClient(clientID string) (model.OidcClient, error) {
 	var client model.OidcClient
 	if err := s.db.Preload("CreatedBy").Preload("AllowedUserGroups").First(&client, "id = ?", clientID).Error; err != nil {
