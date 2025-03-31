@@ -24,7 +24,6 @@ func NewAppConfigController(
 	emailService *service.EmailService,
 	ldapService *service.LdapService,
 ) {
-
 	acc := &AppConfigController{
 		appConfigService: appConfigService,
 		emailService:     emailService,
@@ -37,6 +36,7 @@ func NewAppConfigController(
 	group.GET("/application-configuration/logo", acc.getLogoHandler)
 	group.GET("/application-configuration/background-image", acc.getBackgroundImageHandler)
 	group.GET("/application-configuration/favicon", acc.getFaviconHandler)
+
 	group.PUT("/application-configuration/logo", authMiddleware.Add(), acc.updateLogoHandler)
 	group.PUT("/application-configuration/favicon", authMiddleware.Add(), acc.updateFaviconHandler)
 	group.PUT("/application-configuration/background-image", authMiddleware.Add(), acc.updateBackgroundImageHandler)
@@ -114,19 +114,19 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 	var input dto.AppConfigUpdateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}) // Return error
 		return
 	}
 
 	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(input)
 	if err != nil {
-		_ = c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) // Return error
 		return
 	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(savedConfigVariables, &configVariablesDto); err != nil {
-		_ = c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) // Return error
 		return
 	}
 
@@ -149,12 +149,14 @@ func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
 	var imageName string
 	var imageType string
 
+	dbConfig := acc.appConfigService.GetDbConfig() // Get a thread-safe copy
+
 	if lightLogo {
 		imageName = "logoLight"
-		imageType = acc.appConfigService.DbConfig.LogoLightImageType.Value
+		imageType = dbConfig.LogoLightImageType.Value
 	} else {
 		imageName = "logoDark"
-		imageType = acc.appConfigService.DbConfig.LogoDarkImageType.Value
+		imageType = dbConfig.LogoDarkImageType.Value
 	}
 
 	acc.getImage(c, imageName, imageType)
@@ -182,7 +184,8 @@ func (acc *AppConfigController) getFaviconHandler(c *gin.Context) {
 // @Failure 404 {object} object "{"error": "File not found"}"
 // @Router /api/application-configuration/background-image [get]
 func (acc *AppConfigController) getBackgroundImageHandler(c *gin.Context) {
-	imageType := acc.appConfigService.DbConfig.BackgroundImageType.Value
+	dbConfig := acc.appConfigService.GetDbConfig()
+	imageType := dbConfig.BackgroundImageType.Value
 	acc.getImage(c, "background", imageType)
 }
 
@@ -202,12 +205,14 @@ func (acc *AppConfigController) updateLogoHandler(c *gin.Context) {
 	var imageName string
 	var imageType string
 
+	dbConfig := acc.appConfigService.GetDbConfig()
+
 	if lightLogo {
 		imageName = "logoLight"
-		imageType = acc.appConfigService.DbConfig.LogoLightImageType.Value
+		imageType = dbConfig.LogoLightImageType.Value
 	} else {
 		imageName = "logoDark"
-		imageType = acc.appConfigService.DbConfig.LogoDarkImageType.Value
+		imageType = dbConfig.LogoDarkImageType.Value
 	}
 
 	acc.updateImage(c, imageName, imageType)
@@ -247,7 +252,8 @@ func (acc *AppConfigController) updateFaviconHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/application-configuration/background-image [put]
 func (acc *AppConfigController) updateBackgroundImageHandler(c *gin.Context) {
-	imageType := acc.appConfigService.DbConfig.BackgroundImageType.Value
+	dbConfig := acc.appConfigService.GetDbConfig()
+	imageType := dbConfig.BackgroundImageType.Value
 	acc.updateImage(c, "background", imageType)
 }
 

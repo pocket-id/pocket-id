@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"os"
 	"reflect"
+	"sync"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -17,18 +18,28 @@ import (
 type AppConfigService struct {
 	DbConfig *model.AppConfig
 	db       *gorm.DB
+	mu       sync.RWMutex // Add a mutex
 }
 
 func NewAppConfigService(db *gorm.DB) *AppConfigService {
 	service := &AppConfigService{
 		DbConfig: &defaultDbConfig,
 		db:       db,
+		mu:       sync.RWMutex{}, // Initialize the mutex
 	}
 	if err := service.InitDbConfig(); err != nil {
 		log.Fatalf("Failed to initialize app config service: %v", err)
 	}
 
 	return service
+}
+
+// GetDbConfig returns a copy of the DbConfig in a thread-safe manner.
+func (s *AppConfigService) GetDbConfig() model.AppConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	configCopy := *s.DbConfig // Create a copy of the struct
+	return configCopy
 }
 
 var defaultDbConfig = model.AppConfig{
@@ -202,6 +213,9 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 		return nil, &common.UiConfigDisabledError{}
 	}
 
+	s.mu.Lock()         // Acquire write lock
+	defer s.mu.Unlock() // Release write lock
+
 	tx := s.db.Begin()
 	rt := reflect.ValueOf(input).Type()
 	rv := reflect.ValueOf(input)
@@ -236,7 +250,8 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 
 	tx.Commit()
 
-	if err := s.LoadDbConfigFromDb(); err != nil {
+	// Call the internal method while already holding the lock.
+	if err := s.loadDbConfigFromDbLocked(); err != nil {
 		return nil, err
 	}
 
@@ -244,6 +259,9 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 }
 
 func (s *AppConfigService) UpdateImageType(imageName string, fileType string) error {
+	s.mu.Lock()         // Acquire write lock
+	defer s.mu.Unlock() // Release write lock
+
 	key := fmt.Sprintf("%sImageType", imageName)
 	err := s.db.Model(&model.AppConfigVariable{}).Where("key = ?", key).Update("value", fileType).Error
 	if err != nil {
@@ -266,6 +284,9 @@ func (s *AppConfigService) ListAppConfig(showAll bool) ([]model.AppConfigVariabl
 	if err != nil {
 		return nil, err
 	}
+
+	s.mu.RLock()         // Acquire read lock
+	defer s.mu.RUnlock() // Release read lock
 
 	for i := range configuration {
 		if common.EnvConfig.UiConfigDisabled {
@@ -362,6 +383,13 @@ func (s *AppConfigService) InitDbConfig() error {
 
 // LoadDbConfigFromDb loads the configuration values from the database into the DbConfig struct.
 func (s *AppConfigService) LoadDbConfigFromDb() error {
+	s.mu.Lock()         // Acquire write lock
+	defer s.mu.Unlock() // Release write lock
+	return s.loadDbConfigFromDbLocked()
+}
+
+// Add an unexported version that doesn't acquire the lock.
+func (s *AppConfigService) loadDbConfigFromDbLocked() error {
 	dbConfigReflectValue := reflect.ValueOf(s.DbConfig).Elem()
 
 	for i := 0; i < dbConfigReflectValue.NumField(); i++ {
@@ -379,7 +407,6 @@ func (s *AppConfigService) LoadDbConfigFromDb() error {
 		}
 
 		dbConfigField.Set(reflect.ValueOf(storedConfigVar))
-
 	}
 
 	return nil
