@@ -213,33 +213,52 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 		return nil, &common.UiConfigDisabledError{}
 	}
 
-	s.mu.Lock()         // Acquire write lock
-	defer s.mu.Unlock() // Release write lock
-
-	tx := s.db.Begin()
+	// Extract values outside of the lock
 	rt := reflect.ValueOf(input).Type()
 	rv := reflect.ValueOf(input)
 
-	var savedConfigVariables []model.AppConfigVariable
+	// Prepare the updates outside the lock
+	var updates []struct {
+		Key   string
+		Value string
+	}
+
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
 		key := field.Tag.Get("json")
 		value := rv.FieldByName(field.Name).String()
 
-		// If the emailEnabled is set to false, disable the emailOneTimeAccessEnabled
-		if key == s.DbConfig.EmailOneTimeAccessEnabled.Key {
+		// Apply special case logic for email settings
+		emailOneTimeAccessKey := ""
+		s.mu.RLock() // Short read lock just to get the key
+		emailOneTimeAccessKey = s.DbConfig.EmailOneTimeAccessEnabled.Key
+		s.mu.RUnlock()
+
+		if key == emailOneTimeAccessKey {
 			if rv.FieldByName("EmailEnabled").String() == "false" {
 				value = "false"
 			}
 		}
 
+		updates = append(updates, struct {
+			Key   string
+			Value string
+		}{Key: key, Value: value})
+	}
+
+	// Start transaction outside the lock
+	tx := s.db.Begin()
+	var savedConfigVariables []model.AppConfigVariable
+
+	// Perform DB operations outside the lock
+	for _, update := range updates {
 		var appConfigVariable model.AppConfigVariable
-		if err := tx.First(&appConfigVariable, "key = ? AND is_internal = false", key).Error; err != nil {
+		if err := tx.First(&appConfigVariable, "key = ? AND is_internal = false", update.Key).Error; err != nil {
 			tx.Rollback()
 			return nil, err
 		}
 
-		appConfigVariable.Value = value
+		appConfigVariable.Value = update.Value
 		if err := tx.Save(&appConfigVariable).Error; err != nil {
 			tx.Rollback()
 			return nil, err
@@ -248,10 +267,12 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 		savedConfigVariables = append(savedConfigVariables, appConfigVariable)
 	}
 
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
 
-	// Call the internal method while already holding the lock.
-	if err := s.loadDbConfigFromDbLocked(); err != nil {
+	// Reload the configuration after updating the database
+	if err := s.LoadDbConfigFromDb(); err != nil {
 		return nil, err
 	}
 
@@ -259,15 +280,13 @@ func (s *AppConfigService) UpdateAppConfig(input dto.AppConfigUpdateDto) ([]mode
 }
 
 func (s *AppConfigService) UpdateImageType(imageName string, fileType string) error {
-	s.mu.Lock()         // Acquire write lock
-	defer s.mu.Unlock() // Release write lock
-
 	key := fmt.Sprintf("%sImageType", imageName)
 	err := s.db.Model(&model.AppConfigVariable{}).Where("key = ?", key).Update("value", fileType).Error
 	if err != nil {
 		return err
 	}
 
+	// Load the config from the database
 	return s.LoadDbConfigFromDb()
 }
 
@@ -312,9 +331,8 @@ func (s *AppConfigService) UpdateImage(uploadedFile *multipart.FileHeader, image
 	// Delete the old image if it has a different file type
 	if fileType != oldImageType {
 		oldImagePath := fmt.Sprintf("%s/application-images/%s.%s", common.EnvConfig.UploadPath, imageName, oldImageType)
-		if err := os.Remove(oldImagePath); err != nil {
-			return err
-		}
+		// Ignore error if file doesn't exist
+		os.Remove(oldImagePath)
 	}
 
 	imagePath := fmt.Sprintf("%s/application-images/%s.%s", common.EnvConfig.UploadPath, imageName, fileType)
