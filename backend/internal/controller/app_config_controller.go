@@ -114,19 +114,19 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 	var input dto.AppConfigUpdateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}) // Return error
+		_ = c.Error(err)
 		return
 	}
 
 	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) // Return error
+		_ = c.Error(err)
 		return
 	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(savedConfigVariables, &configVariablesDto); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}) // Return error
+		_ = c.Error(err)
 		return
 	}
 
