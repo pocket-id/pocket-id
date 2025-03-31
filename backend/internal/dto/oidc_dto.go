@@ -80,6 +80,7 @@ type OidcTokenResponseDto struct {
 
 type OidcIntrospectionResponseDto struct {
 	Active     bool     `json:"active"`
+	TokenType  string   `json:"token_type,omitempty"`
 	Scope      string   `json:"scope,omitempty"`
 	Expiration int64    `json:"exp,omitempty"`
 	IssuedAt   int64    `json:"iat,omitempty"`

@@ -289,7 +289,6 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionResponse.status()).toBe(200);
 		const introspectionBody = await introspectionResponse.json();
 		expect(introspectionBody.active).toBe(false);
-		expect(introspectionBody.token_type).toBe("refresh_token");
 	});
 })
 

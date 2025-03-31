@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -299,11 +300,18 @@ func (s *OidcService) IntrospectToken(clientID, clientSecret, tokenString string
 
 	token, err := s.jwtService.VerifyIdToken(tokenString, false)
 	if err != nil {
+		if errors.Is(err, jwt.ParseError()) {
+			// It's apparently not a valid JWT token, so we check if it's a valid refresh_token.
+			return s.introspectRefreshToken(tokenString)
+		}
+
+		// Every failure we get means the token is invalid. Nothing more to do with the error.
 		introspectDto.Active = false
 		return introspectDto, nil
 	}
 
 	introspectDto.Active = true
+	introspectDto.TokenType = "access_token"
 	if token.Has("scope") {
 		var asString string
 		var asStrings []string
@@ -335,6 +343,25 @@ func (s *OidcService) IntrospectToken(clientID, clientSecret, tokenString string
 		introspectDto.Identifier = identifier
 	}
 
+	return introspectDto, nil
+}
+
+func (s *OidcService) introspectRefreshToken(refreshToken string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	var storedRefreshToken model.OidcRefreshToken
+	err = s.db.Preload("User").
+		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
+		First(&storedRefreshToken).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			introspectDto.Active = false
+			return introspectDto, nil
+		}
+		return introspectDto, err
+	}
+
+	introspectDto.Active = true
+	introspectDto.TokenType = "refresh_token"
 	return introspectDto, nil
 }
 
