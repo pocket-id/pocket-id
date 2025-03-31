@@ -18,6 +18,8 @@ func (m *CorsMiddleware) Add() gin.HandlerFunc {
 		// Allow all origins for the token endpoint
 		if c.FullPath() == "/api/oidc/token" {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		} else if c.FullPath() == "/api/oidc/introspect" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		} else {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", common.EnvConfig.AppURL)
 		}

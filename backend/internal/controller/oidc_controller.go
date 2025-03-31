@@ -30,7 +30,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/userinfo", oc.userInfoHandler)
 	group.POST("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
 	group.GET("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
-	group.POST("/oidc/introspect", oc.introspectToken)
+	group.POST("/oidc/introspect", oc.introspectTokenHandler)
 
 	group.GET("/oidc/clients", authMiddleware.Add(), oc.listClientsHandler)
 	group.POST("/oidc/clients", authMiddleware.Add(), oc.createClientHandler)
@@ -298,9 +298,7 @@ func (oc *OidcController) EndSessionHandlerPost(c *gin.Context) {
 // @Param token formData string true "The token to be introspected."
 // @Success 200 {object} dto.OidcIntrospectionResponseDto "Response with the introspection result."
 // @Router /api/oidc/introspect [post]
-func (oc *OidcController) introspectToken(c *gin.Context) {
-	// Disable cors for this endpoint
-	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
 
 	var input dto.OidcIntrospectDto
 	if err := c.ShouldBind(&input); err != nil {
