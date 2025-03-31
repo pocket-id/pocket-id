@@ -1,5 +1,5 @@
-import test, { expect } from '@playwright/test';
-import { oidcClients, refreshTokens } from './data';
+import test, {type APIRequestContext, expect} from '@playwright/test';
+import {oidcClients, refreshTokens, users} from './data';
 import { cleanupBackend } from './utils/cleanup.util';
 import passkeyUtil from './utils/passkey.util';
 
@@ -192,3 +192,105 @@ test('Using refresh token invalidates it for future use', async ({ request }) =>
 	});
 	expect(refreshResponse.status()).toBe(400);
 });
+
+test.describe('Introspection endpoint', () => {
+	async function getAccessToken(request: APIRequestContext) {
+		const { token } = refreshTokens.filter((token) => !token.expired)[0];
+		const accessTokenResponse = await request.post('/api/oidc/token', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			form: {
+				refresh_token: token,
+				grant_type: 'refresh_token',
+				client_id: '3654a746-35d4-4321-ac61-0bdcff2b4055',
+				client_secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
+			}
+		});
+		const body = await accessTokenResponse.json();
+		return body.access_token as string;
+	}
+
+	test('without client_id and client_secret fails', async ({ request }) => {
+		const access_token = await getAccessToken(request);
+
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			form: {
+				token: access_token
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(400);
+	});
+
+	test('with client_id and client_secret succeeds', async ({ request }) => {
+		const clientId = '3654a746-35d4-4321-ac61-0bdcff2b4055';
+		const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+		const access_token = await getAccessToken(request);
+
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+			},
+			form: {
+				token: access_token
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(true);
+		expect(introspectionBody.token_type).toBe("access_token");
+		expect(introspectionBody.iss).toBe("http://localhost");
+		expect(introspectionBody.sub).toBe(users.tim.id);
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id]);
+	});
+
+	test('non-expired refresh_token can be verified', async ({ request }) => {
+		const clientId = '3654a746-35d4-4321-ac61-0bdcff2b4055';
+		const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+		const { token } = refreshTokens.filter((token) => !token.expired)[0];
+
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+			},
+			form: {
+				token: token,
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(true);
+		expect(introspectionBody.token_type).toBe("refresh_token");
+	});
+
+	test('expired refresh_token can be verified', async ({ request }) => {
+		const clientId = '3654a746-35d4-4321-ac61-0bdcff2b4055';
+		const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+		const { token } = refreshTokens.filter((token) => token.expired)[0];
+
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+			},
+			form: {
+				token: token,
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(false);
+		expect(introspectionBody.token_type).toBe("refresh_token");
+	});
+})
+
+
