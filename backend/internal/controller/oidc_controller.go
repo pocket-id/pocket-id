@@ -306,7 +306,11 @@ func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
 		return
 	}
 
-	// Client id and secret can also be passed over the Authorization header
+	// Client id and secret have to be passed over the Authorization header. This kind of
+	// authentication allows us to keep the endpoint protected (since it could be used to
+	// find valid tokens) while still allowing it to be used by an application that is
+	// supposed to interact with our IdP (since that needs to have a client_id
+	// and client_secret anyway).
 	clientID, clientSecret, _ := c.Request.BasicAuth()
 
 	response, err := oc.oidcService.IntrospectToken(clientID, clientSecret, input.Token)
