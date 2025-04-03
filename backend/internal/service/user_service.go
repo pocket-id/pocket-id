@@ -79,13 +79,10 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 		return nil, 0, err
 	}
 
-	initials := profilepicture.GetUserInitials(user.FirstName, user.LastName)
-
 	// Check if we have a cached default picture for these initials
-	defaultPicturePath := common.EnvConfig.UploadPath + "/profile-pictures/defaults/" + initials + ".png"
+	defaultPicturePath := common.EnvConfig.UploadPath + "/profile-pictures/defaults/" + user.Initials() + ".png"
 	file, err = os.Open(defaultPicturePath)
 	if err == nil {
-		// Get the file size
 		fileInfo, err := file.Stat()
 		if err != nil {
 			file.Close()
@@ -95,7 +92,7 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	}
 
 	// If no cached default picture exists, create one and save it for future use
-	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(user.FirstName, user.LastName)
+	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(user.Initials())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -104,7 +101,7 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	defaultPictureCopy := bytes.NewBuffer(defaultPicture.Bytes())
 	go func() {
 		if err := utils.SaveFileStream(defaultPictureCopy, defaultPicturePath); err != nil {
-			log.Printf("Failed to save default profile picture for initials %s: %v", initials, err)
+			log.Printf("Failed to cache default profile picture for initials %s: %v", user.Initials(), err)
 		}
 	}()
 

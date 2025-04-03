@@ -4,6 +4,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"strings"
 )
 
 type User struct {
@@ -62,6 +63,17 @@ func (u User) WebAuthnCredentialDescriptors() (descriptors []protocol.Credential
 }
 
 func (u User) FullName() string { return u.FirstName + " " + u.LastName }
+
+func (u User) Initials() string {
+	initials := ""
+	if len(u.FirstName) > 0 {
+		initials += string(u.FirstName[0])
+	}
+	if len(u.LastName) > 0 {
+		initials += string(u.LastName[0])
+	}
+	return strings.ToUpper(initials)
+}
 
 type OneTimeAccessToken struct {
 	Base
