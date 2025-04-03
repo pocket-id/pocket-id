@@ -6,7 +6,6 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"strings"
 
 	"github.com/disintegration/imageorient"
 	"github.com/disintegration/imaging"
@@ -42,17 +41,7 @@ func CreateProfilePicture(file io.Reader) (io.Reader, error) {
 }
 
 // CreateDefaultProfilePicture creates a profile picture with the initials
-func CreateDefaultProfilePicture(firstName, lastName string) (*bytes.Buffer, error) {
-	// Get the initials
-	initials := ""
-	if len(firstName) > 0 {
-		initials += string(firstName[0])
-	}
-	if len(lastName) > 0 {
-		initials += string(lastName[0])
-	}
-	initials = strings.ToUpper(initials)
-
+func CreateDefaultProfilePicture(initials string) (*bytes.Buffer, error) {
 	// Create a blank image with a white background
 	img := imaging.New(profilePictureSize, profilePictureSize, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 
