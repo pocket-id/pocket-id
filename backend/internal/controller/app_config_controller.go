@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -62,13 +63,13 @@ type AppConfigController struct {
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 	configuration, err := acc.appConfigService.ListAppConfig(false)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var configVariablesDto []dto.PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -87,13 +88,13 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 	configuration, err := acc.appConfigService.ListAppConfig(true)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -109,23 +110,23 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 // @Param body body dto.AppConfigUpdateDto true "Application Configuration"
 // @Success 200 {array} dto.AppConfigVariableDto
 // @Security BearerAuth
-// @Router /application-configuration [put]
+// @Router /api/application-configuration [put]
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 	var input dto.AppConfigUpdateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(savedConfigVariables, &configVariablesDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -141,9 +142,9 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 // @Produce image/jpeg
 // @Produce image/svg+xml
 // @Success 200 {file} binary "Logo image"
-// @Router /application-configuration/logo [get]
+// @Router /api/application-configuration/logo [get]
 func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
-	lightLogo := c.DefaultQuery("light", "true") == "true"
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	var imageName string
 	var imageType string
@@ -166,7 +167,7 @@ func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
 // @Produce image/x-icon
 // @Success 200 {file} binary "Favicon image"
 // @Failure 404 {object} object "{"error": "File not found"}"
-// @Router /application-configuration/favicon [get]
+// @Router /api/application-configuration/favicon [get]
 func (acc *AppConfigController) getFaviconHandler(c *gin.Context) {
 	acc.getImage(c, "favicon", "ico")
 }
@@ -179,7 +180,7 @@ func (acc *AppConfigController) getFaviconHandler(c *gin.Context) {
 // @Produce image/jpeg
 // @Success 200 {file} binary "Background image"
 // @Failure 404 {object} object "{"error": "File not found"}"
-// @Router /application-configuration/background-image [get]
+// @Router /api/application-configuration/background-image [get]
 func (acc *AppConfigController) getBackgroundImageHandler(c *gin.Context) {
 	imageType := acc.appConfigService.DbConfig.BackgroundImageType.Value
 	acc.getImage(c, "background", imageType)
@@ -194,9 +195,9 @@ func (acc *AppConfigController) getBackgroundImageHandler(c *gin.Context) {
 // @Param file formData file true "Logo image file"
 // @Success 204 "No Content"
 // @Security BearerAuth
-// @Router /application-configuration/logo [put]
+// @Router /api/application-configuration/logo [put]
 func (acc *AppConfigController) updateLogoHandler(c *gin.Context) {
-	lightLogo := c.DefaultQuery("light", "true") == "true"
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	var imageName string
 	var imageType string
@@ -220,17 +221,17 @@ func (acc *AppConfigController) updateLogoHandler(c *gin.Context) {
 // @Param file formData file true "Favicon file (.ico)"
 // @Success 204 "No Content"
 // @Security BearerAuth
-// @Router /application-configuration/favicon [put]
+// @Router /api/application-configuration/favicon [put]
 func (acc *AppConfigController) updateFaviconHandler(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	fileType := utils.GetFileExtension(file.Filename)
 	if fileType != "ico" {
-		c.Error(&common.WrongFileTypeError{ExpectedFileType: ".ico"})
+		_ = c.Error(&common.WrongFileTypeError{ExpectedFileType: ".ico"})
 		return
 	}
 	acc.updateImage(c, "favicon", "ico")
@@ -244,7 +245,7 @@ func (acc *AppConfigController) updateFaviconHandler(c *gin.Context) {
 // @Param file formData file true "Background image file"
 // @Success 204 "No Content"
 // @Security BearerAuth
-// @Router /application-configuration/background-image [put]
+// @Router /api/application-configuration/background-image [put]
 func (acc *AppConfigController) updateBackgroundImageHandler(c *gin.Context) {
 	imageType := acc.appConfigService.DbConfig.BackgroundImageType.Value
 	acc.updateImage(c, "background", imageType)
@@ -263,13 +264,13 @@ func (acc *AppConfigController) getImage(c *gin.Context, name string, imageType 
 func (acc *AppConfigController) updateImage(c *gin.Context, imageName string, oldImageType string) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	err = acc.appConfigService.UpdateImage(file, imageName, oldImageType)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -282,11 +283,11 @@ func (acc *AppConfigController) updateImage(c *gin.Context, imageName string, ol
 // @Tags Application Configuration
 // @Success 204 "No Content"
 // @Security BearerAuth
-// @Router /application-configuration/sync-ldap [post]
+// @Router /api/application-configuration/sync-ldap [post]
 func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
 	err := acc.ldapService.SyncAll()
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -299,13 +300,13 @@ func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
 // @Tags Application Configuration
 // @Success 204 "No Content"
 // @Security BearerAuth
-// @Router /application-configuration/test-email [post]
+// @Router /api/application-configuration/test-email [post]
 func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 
 	err := acc.emailService.SendTestEmail(userID)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 

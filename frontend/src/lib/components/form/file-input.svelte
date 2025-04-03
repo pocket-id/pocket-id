@@ -3,6 +3,7 @@
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import type { VariantProps } from 'tailwind-variants';
 	import type { buttonVariants } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		id,
@@ -21,7 +22,7 @@
 	{#if restProps.children}
 		{@render restProps.children()}
 	{:else}
-		Select File
+		{m.select_file()}
 	{/if}
 </button>
 <input {id} {...restProps} type="file" class="hidden" />

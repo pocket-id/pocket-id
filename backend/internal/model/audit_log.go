@@ -19,9 +19,9 @@ type AuditLog struct {
 	Data      AuditLogData
 }
 
-type AuditLogData map[string]string
+type AuditLogData map[string]string //nolint:recvcheck
 
-type AuditLogEvent string
+type AuditLogEvent string //nolint:recvcheck
 
 const (
 	AuditLogEventSignIn                   AuditLogEvent = "SIGN_IN"

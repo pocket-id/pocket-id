@@ -2,6 +2,7 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
@@ -9,10 +10,16 @@
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startRegistration } from '@simplewebauthn/browser';
-	import { LucideAlertTriangle } from 'lucide-svelte';
+	import {
+		KeyRound,
+		Languages,
+		LucideAlertTriangle,
+		RectangleEllipsis,
+		UserCog
+	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import ProfilePictureSettings from '../../../lib/components/form/profile-picture-settings.svelte';
 	import AccountForm from './account-form.svelte';
+	import LocalePicker from './locale-picker.svelte';
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
@@ -30,20 +37,13 @@
 		let success = true;
 		await userService
 			.updateCurrent(user)
-			.then(() => toast.success('Account details updated successfully'))
+			.then(() => toast.success(m.account_details_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 				success = false;
 			});
 
 		return success;
-	}
-
-	async function updateProfilePicture(image: File) {
-		await userService
-			.updateCurrentUsersProfilePicture(image)
-			.then(() => toast.success('Profile picture updated successfully'))
-			.catch(axiosErrorToast);
 	}
 
 	async function createPasskey() {
@@ -61,83 +61,123 @@
 </script>
 
 <svelte:head>
-	<title>Account Settings</title>
+	<title>{m.account_settings()}</title>
 </svelte:head>
 
 {#if passkeys.length == 0}
-	<Alert.Root variant="warning">
+	<Alert.Root variant="warning" class="flex gap-3">
 		<LucideAlertTriangle class="size-4" />
-		<Alert.Title>Passkey missing</Alert.Title>
-		<Alert.Description
-			>Please add a passkey to prevent losing access to your account.</Alert.Description
-		>
+		<div>
+			<Alert.Title class="font-semibold">{m.passkey_missing()}</Alert.Title>
+			<Alert.Description class="text-sm">
+				{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}
+			</Alert.Description>
+		</div>
 	</Alert.Root>
 {:else if passkeys.length == 1}
-	<Alert.Root variant="warning" dismissibleId="single-passkey">
+	<Alert.Root variant="warning" dismissibleId="single-passkey" class="flex gap-3">
 		<LucideAlertTriangle class="size-4" />
-		<Alert.Title>Single Passkey Configured</Alert.Title>
-		<Alert.Description
-			>It is recommended to add more than one passkey to avoid losing access to your account.</Alert.Description
-		>
+		<div>
+			<Alert.Title class="font-semibold">{m.single_passkey_configured()}</Alert.Title>
+			<Alert.Description class="text-sm">
+				{m.it_is_recommended_to_add_more_than_one_passkey()}
+			</Alert.Description>
+		</div>
 	</Alert.Root>
 {/if}
 
+<!-- Account details card -->
 <fieldset
 	disabled={!$appConfigStore.allowOwnAccountEdit ||
 		(!!account.ldapId && $appConfigStore.ldapEnabled)}
 >
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Account Details</Card.Title>
+			<Card.Title>
+				<UserCog class="text-primary/80 h-5 w-5" />
+				{m.account_details()}
+			</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<AccountForm {account} callback={updateAccount} />
+			<AccountForm
+				{account}
+				userId={account.id}
+				callback={updateAccount}
+				isLdapUser={!!account.ldapId}
+			/>
 		</Card.Content>
 	</Card.Root>
 </fieldset>
 
-<Card.Root>
-	<Card.Content class="pt-6">
-		<ProfilePictureSettings
-			userId={account.id}
-			isLdapUser={!!account.ldapId}
-			callback={updateProfilePicture}
-		/>
-	</Card.Content>
-</Card.Root>
-
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>Passkeys</Card.Title>
-				<Card.Description class="mt-1">
-					Manage your passkeys that you can use to authenticate yourself.
-				</Card.Description>
+<!-- Passkey management card -->
+<div>
+	<Card.Root>
+		<Card.Header>
+			<div class="flex items-center justify-between">
+				<div>
+					<Card.Title>
+						<KeyRound class="text-primary/80 h-5 w-5" />
+						{m.passkeys()}
+					</Card.Title>
+					<Card.Description>
+						{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
+					</Card.Description>
+				</div>
+				<Button variant="outline" class="ml-3" on:click={createPasskey}>
+					{m.add_passkey()}
+				</Button>
 			</div>
-			<Button size="sm" class="ml-3" on:click={createPasskey}>Add Passkey</Button>
-		</div>
-	</Card.Header>
-	{#if passkeys.length != 0}
-		<Card.Content>
-			<PasskeyList bind:passkeys />
-		</Card.Content>
-	{/if}
-</Card.Root>
+		</Card.Header>
+		{#if passkeys.length != 0}
+			<Card.Content>
+				<PasskeyList bind:passkeys />
+			</Card.Content>
+		{/if}
+	</Card.Root>
+</div>
 
-<Card.Root>
-	<Card.Header>
-		<div class="flex items-center justify-between">
-			<div>
-				<Card.Title>Login Code</Card.Title>
-				<Card.Description class="mt-1">
-					Create a one-time login code to sign in from a different device without a passkey.
-				</Card.Description>
+<!-- Login code card -->
+<div>
+	<Card.Root>
+		<Card.Header>
+			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+				<div>
+					<Card.Title>
+						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
+						{m.login_code()}
+					</Card.Title>
+					<Card.Description>
+						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+					</Card.Description>
+				</div>
+				<Button variant="outline" on:click={() => (showLoginCodeModal = true)}>
+					{m.create()}
+				</Button>
 			</div>
-			<Button size="sm" class="ml-auto" on:click={() => (showLoginCodeModal = true)}>Create</Button>
-		</div>
-	</Card.Header>
-</Card.Root>
+		</Card.Header>
+	</Card.Root>
+</div>
+
+<!-- Language selection card -->
+<div>
+	<Card.Root>
+		<Card.Header>
+			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+				<div>
+					<Card.Title>
+						<Languages class="text-primary/80 h-5 w-5" />
+						{m.language()}
+					</Card.Title>
+
+					<Card.Description>
+						{m.select_the_language_you_want_to_use()}
+					</Card.Description>
+				</div>
+				<LocalePicker />
+			</div>
+		</Card.Header>
+	</Card.Root>
+</div>
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}

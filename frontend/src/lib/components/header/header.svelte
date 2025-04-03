@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import Logo from '../logo.svelte';
@@ -8,7 +8,7 @@
 	const authUrls = [/^\/authorize$/, /^\/login(?:\/.*)?$/, /^\/logout$/];
 
 	let isAuthPage = $derived(
-		!$page.error && authUrls.some((pattern) => pattern.test($page.url.pathname))
+		!page.error && authUrls.some((pattern) => pattern.test(page.url.pathname))
 	);
 </script>
 
@@ -20,14 +20,21 @@
 	>
 		<div class="flex h-16 items-center">
 			{#if !isAuthPage}
-				<Logo class="mr-3 h-8 w-8" />
-				<h1 class="text-lg font-medium" data-testid="application-name">
-					{$appConfigStore.appName}
-				</h1>
+				<a
+					href="/settings/account"
+					class="flex items-center gap-3 transition-opacity hover:opacity-80"
+				>
+					<Logo class="h-8 w-8" />
+					<h1 class="text-lg font-semibold tracking-tight" data-testid="application-name">
+						{$appConfigStore.appName}
+					</h1>
+				</a>
 			{/if}
 		</div>
-		{#if $userStore?.id}
-			<HeaderAvatar />
-		{/if}
+		<div class="flex items-center justify-between gap-4">
+			{#if $userStore?.id}
+				<HeaderAvatar />
+			{/if}
+		</div>
 	</div>
 </div>

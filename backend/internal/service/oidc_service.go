@@ -145,60 +145,136 @@ func (s *OidcService) IsUserGroupAllowedToAuthorize(user model.User, client mode
 	return isAllowedToAuthorize
 }
 
-func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, codeVerifier string) (string, string, error) {
-	if grantType != "authorization_code" {
-		return "", "", &common.OidcGrantTypeNotSupportedError{}
+func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, codeVerifier, refreshToken string) (idToken string, accessToken string, newRefreshToken string, exp int, err error) {
+	switch grantType {
+	case "authorization_code":
+		return s.createTokenFromAuthorizationCode(code, clientID, clientSecret, codeVerifier)
+	case "refresh_token":
+		accessToken, newRefreshToken, exp, err = s.createTokenFromRefreshToken(refreshToken, clientID, clientSecret)
+		return "", accessToken, newRefreshToken, exp, err
+	default:
+		return "", "", "", 0, &common.OidcGrantTypeNotSupportedError{}
 	}
+}
 
+func (s *OidcService) createTokenFromAuthorizationCode(code, clientID, clientSecret, codeVerifier string) (idToken string, accessToken string, refreshToken string, exp int, err error) {
 	var client model.OidcClient
 	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
-		return "", "", err
+		return "", "", "", 0, err
 	}
 
 	// Verify the client secret if the client is not public
 	if !client.IsPublic {
 		if clientID == "" || clientSecret == "" {
-			return "", "", &common.OidcMissingClientCredentialsError{}
+			return "", "", "", 0, &common.OidcMissingClientCredentialsError{}
 		}
 
 		err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret))
 		if err != nil {
-			return "", "", &common.OidcClientSecretInvalidError{}
+			return "", "", "", 0, &common.OidcClientSecretInvalidError{}
 		}
 	}
 
 	var authorizationCodeMetaData model.OidcAuthorizationCode
-	err := s.db.Preload("User").First(&authorizationCodeMetaData, "code = ?", code).Error
+	err = s.db.Preload("User").First(&authorizationCodeMetaData, "code = ?", code).Error
 	if err != nil {
-		return "", "", &common.OidcInvalidAuthorizationCodeError{}
+		return "", "", "", 0, &common.OidcInvalidAuthorizationCodeError{}
 	}
 
 	// If the client is public or PKCE is enabled, the code verifier must match the code challenge
 	if client.IsPublic || client.PkceEnabled {
 		if !s.validateCodeVerifier(codeVerifier, *authorizationCodeMetaData.CodeChallenge, *authorizationCodeMetaData.CodeChallengeMethodSha256) {
-			return "", "", &common.OidcInvalidCodeVerifierError{}
+			return "", "", "", 0, &common.OidcInvalidCodeVerifierError{}
 		}
 	}
 
 	if authorizationCodeMetaData.ClientID != clientID && authorizationCodeMetaData.ExpiresAt.ToTime().Before(time.Now()) {
-		return "", "", &common.OidcInvalidAuthorizationCodeError{}
+		return "", "", "", 0, &common.OidcInvalidAuthorizationCodeError{}
 	}
 
 	userClaims, err := s.GetUserClaimsForClient(authorizationCodeMetaData.UserID, clientID)
 	if err != nil {
-		return "", "", err
+		return "", "", "", 0, err
 	}
 
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, clientID, authorizationCodeMetaData.Nonce)
+	idToken, err = s.jwtService.GenerateIDToken(userClaims, clientID, authorizationCodeMetaData.Nonce)
 	if err != nil {
-		return "", "", err
+		return "", "", "", 0, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, clientID)
+	// Generate a refresh token
+	refreshToken, err = s.createRefreshToken(clientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope)
+	if err != nil {
+		return "", "", "", 0, err
+	}
+
+	accessToken, err = s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, clientID)
+	if err != nil {
+		return "", "", "", 0, err
+	}
 
 	s.db.Delete(&authorizationCodeMetaData)
 
-	return idToken, accessToken, nil
+	return idToken, accessToken, refreshToken, 3600, nil
+}
+
+func (s *OidcService) createTokenFromRefreshToken(refreshToken, clientID, clientSecret string) (accessToken string, newRefreshToken string, exp int, err error) {
+	if refreshToken == "" {
+		return "", "", 0, &common.OidcMissingRefreshTokenError{}
+	}
+
+	// Get the client to check if it's public
+	var client model.OidcClient
+	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+		return "", "", 0, err
+	}
+
+	// Verify the client secret if the client is not public
+	if !client.IsPublic {
+		if clientID == "" || clientSecret == "" {
+			return "", "", 0, &common.OidcMissingClientCredentialsError{}
+		}
+
+		err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret))
+		if err != nil {
+			return "", "", 0, &common.OidcClientSecretInvalidError{}
+		}
+	}
+
+	// Verify refresh token
+	var storedRefreshToken model.OidcRefreshToken
+	err = s.db.Preload("User").
+		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
+		First(&storedRefreshToken).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", "", 0, &common.OidcInvalidRefreshTokenError{}
+		}
+		return "", "", 0, err
+	}
+
+	// Verify that the refresh token belongs to the provided client
+	if storedRefreshToken.ClientID != clientID {
+		return "", "", 0, &common.OidcInvalidRefreshTokenError{}
+	}
+
+	// Generate a new access token
+	accessToken, err = s.jwtService.GenerateOauthAccessToken(storedRefreshToken.User, clientID)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	// Generate a new refresh token and invalidate the old one
+	newRefreshToken, err = s.createRefreshToken(clientID, storedRefreshToken.UserID, storedRefreshToken.Scope)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	// Delete the used refresh token
+	s.db.Delete(&storedRefreshToken)
+
+	return accessToken, newRefreshToken, 3600, nil
 }
 
 func (s *OidcService) GetClient(clientID string) (model.OidcClient, error) {
@@ -385,7 +461,7 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 
 	if strings.Contains(scope, "email") {
 		claims["email"] = user.Email
-		claims["email_verified"] = s.appConfigService.DbConfig.EmailsVerified.Value == "true"
+		claims["email_verified"] = s.appConfigService.DbConfig.EmailsVerified.IsTrue()
 	}
 
 	if strings.Contains(scope, "groups") {
@@ -419,8 +495,8 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 		for _, customClaim := range customClaims {
 			// The value of the custom claim can be a JSON object or a string
 			var jsonValue interface{}
-			json.Unmarshal([]byte(customClaim.Value), &jsonValue)
-			if jsonValue != nil {
+			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
+			if err == nil {
 				// It's JSON so we store it as an object
 				claims[customClaim.Key] = jsonValue
 			} else {
@@ -471,21 +547,24 @@ func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string)
 	}
 
 	// If the ID token hint is provided, verify the ID token
-	claims, err := s.jwtService.VerifyIdToken(input.IdTokenHint)
+	// Here we also accept expired ID tokens, which are fine per spec
+	token, err := s.jwtService.VerifyIdToken(input.IdTokenHint, true)
 	if err != nil {
 		return "", &common.TokenInvalidError{}
 	}
 
 	// If the client ID is provided check if the client ID in the ID token matches the client ID in the request
-	if input.ClientId != "" && claims.Audience[0] != input.ClientId {
+	clientID, ok := token.Audience()
+	if !ok || len(clientID) == 0 {
+		return "", &common.TokenInvalidError{}
+	}
+	if input.ClientId != "" && clientID[0] != input.ClientId {
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
 
-	clientId := claims.Audience[0]
-
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
-	if err := s.db.Preload("Client").First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientId, userID).Error; err != nil {
+	if err := s.db.Preload("Client").First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).Error; err != nil {
 		return "", &common.OidcMissingAuthorizationError{}
 	}
 
@@ -566,4 +645,29 @@ func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string) (ca
 	}
 
 	return "", &common.OidcInvalidCallbackURLError{}
+}
+
+func (s *OidcService) createRefreshToken(clientID string, userID string, scope string) (string, error) {
+	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
+	if err != nil {
+		return "", err
+	}
+
+	// Compute the hash of the refresh token to store in the DB
+	// Refresh tokens are pretty long already, so a "simple" SHA-256 hash is enough
+	refreshTokenHash := utils.CreateSha256Hash(refreshToken)
+
+	m := model.OidcRefreshToken{
+		ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)), // 30 days
+		Token:     refreshTokenHash,
+		ClientID:  clientID,
+		UserID:    userID,
+		Scope:     scope,
+	}
+
+	if err := s.db.Create(&m).Error; err != nil {
+		return "", err
+	}
+
+	return refreshToken, nil
 }

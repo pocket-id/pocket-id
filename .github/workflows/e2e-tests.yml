@@ -15,6 +15,7 @@ on:
 
 jobs:
   build:
+    if: github.event.pull_request.head.ref != 'i18n_crowdin'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
@@ -26,6 +27,7 @@ jobs:
         with:
           tags: pocket-id/pocket-id:test
           outputs: type=docker,dest=/tmp/docker-image.tar
+          build-args: BUILD_TAGS=e2etest
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
@@ -34,6 +36,7 @@ jobs:
           path: /tmp/docker-image.tar
 
   test-sqlite:
+    if: github.event.pull_request.head.ref != 'i18n_crowdin'
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -49,6 +52,7 @@ jobs:
         with:
           name: docker-image
           path: /tmp
+
       - name: Load Docker Image
         run: docker load -i /tmp/docker-image.tar
 
@@ -67,6 +71,8 @@ jobs:
           -e APP_ENV=test \
           pocket-id/pocket-id:test
 
+          docker logs -f pocket-id-sqlite &> /tmp/backend.log &
+
       - name: Run Playwright tests
         working-directory: ./frontend
         run: npx playwright test
@@ -79,7 +85,16 @@ jobs:
           include-hidden-files: true
           retention-days: 15
 
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-sqlite
+          path: /tmp/backend.log
+          include-hidden-files: true
+          retention-days: 15
+
   test-postgres:
+    if: github.event.pull_request.head.ref != 'i18n_crowdin'
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -137,17 +152,27 @@ jobs:
           -p 80:80 \
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
-          -e POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
+          -e DB_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
           pocket-id/pocket-id:test
+
+          docker logs -f pocket-id-postgres &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./frontend
         run: npx playwright test
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: playwright-report-postgres
           path: frontend/tests/.report
+          include-hidden-files: true
+          retention-days: 15
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-postgres
+          path: /tmp/backend.log
           include-hidden-files: true
           retention-days: 15

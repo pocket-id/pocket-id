@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
@@ -47,6 +46,9 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
 	group.POST("/one-time-access-token/setup", uc.getSetupAccessTokenHandler)
 	group.POST("/one-time-access-email", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), uc.requestOneTimeAccessEmailHandler)
+
+	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
+	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
 }
 
 type UserController struct {
@@ -60,18 +62,18 @@ type UserController struct {
 // @Tags Users,User Groups
 // @Param id path string true "User ID"
 // @Success 200 {array} dto.UserGroupDtoWithUsers
-// @Router /users/{id}/groups [get]
+// @Router /api/users/{id}/groups [get]
 func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 	userID := c.Param("id")
 	groups, err := uc.userService.GetUserGroups(userID)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var groupsDto []dto.UserGroupDtoWithUsers
 	if err := dto.MapStructList(groups, &groupsDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -88,24 +90,24 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 // @Param sort_column query string false "Column to sort by" default("created_at")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
 // @Success 200 {object} dto.Paginated[dto.UserDto]
-// @Router /users [get]
+// @Router /api/users [get]
 func (uc *UserController) listUsersHandler(c *gin.Context) {
 	searchTerm := c.Query("search")
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	users, pagination, err := uc.userService.ListUsers(searchTerm, sortedPaginationRequest)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var usersDto []dto.UserDto
 	if err := dto.MapStructList(users, &usersDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -121,17 +123,17 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 // @Tags Users
 // @Param id path string true "User ID"
 // @Success 200 {object} dto.UserDto
-// @Router /users/{id} [get]
+// @Router /api/users/{id} [get]
 func (uc *UserController) getUserHandler(c *gin.Context) {
 	user, err := uc.userService.GetUser(c.Param("id"))
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -143,17 +145,17 @@ func (uc *UserController) getUserHandler(c *gin.Context) {
 // @Description Retrieve information about the currently authenticated user
 // @Tags Users
 // @Success 200 {object} dto.UserDto
-// @Router /users/me [get]
+// @Router /api/users/me [get]
 func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 	user, err := uc.userService.GetUser(c.GetString("userID"))
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -166,10 +168,10 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Tags Users
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
-// @Router /users/{id} [delete]
+// @Router /api/users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) {
-	if err := uc.userService.DeleteUser(c.Param("id")); err != nil {
-		c.Error(err)
+	if err := uc.userService.DeleteUser(c.Param("id"), false); err != nil {
+		_ = c.Error(err)
 		return
 	}
 
@@ -182,23 +184,23 @@ func (uc *UserController) deleteUserHandler(c *gin.Context) {
 // @Tags Users
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 201 {object} dto.UserDto
-// @Router /users [post]
+// @Router /api/users [post]
 func (uc *UserController) createUserHandler(c *gin.Context) {
 	var input dto.UserCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	user, err := uc.userService.CreateUser(input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -212,7 +214,7 @@ func (uc *UserController) createUserHandler(c *gin.Context) {
 // @Param id path string true "User ID"
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
-// @Router /users/{id} [put]
+// @Router /api/users/{id} [put]
 func (uc *UserController) updateUserHandler(c *gin.Context) {
 	uc.updateUser(c, false)
 }
@@ -223,10 +225,10 @@ func (uc *UserController) updateUserHandler(c *gin.Context) {
 // @Tags Users
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
-// @Router /users/me [put]
+// @Router /api/users/me [put]
 func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
-	if uc.appConfigService.DbConfig.AllowOwnAccountEdit.Value != "true" {
-		c.Error(&common.AccountEditNotAllowedError{})
+	if !uc.appConfigService.DbConfig.AllowOwnAccountEdit.IsTrue() {
+		_ = c.Error(&common.AccountEditNotAllowedError{})
 		return
 	}
 	uc.updateUser(c, true)
@@ -239,13 +241,13 @@ func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
 // @Produce image/png
 // @Param id path string true "User ID"
 // @Success 200 {file} binary "PNG image"
-// @Router /users/{id}/profile-picture.png [get]
+// @Router /api/users/{id}/profile-picture.png [get]
 func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 	userID := c.Param("id")
 
 	picture, size, err := uc.userService.GetProfilePicture(userID)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -263,23 +265,23 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 // @Param id path string true "User ID"
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
 // @Success 204 "No Content"
-// @Router /users/{id}/profile-picture [put]
+// @Router /api/users/{id}/profile-picture [put]
 func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 	userID := c.Param("id")
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 	file, err := fileHeader.Open()
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 	defer file.Close()
 
 	if err := uc.userService.UpdateProfilePicture(userID, file); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -294,23 +296,23 @@ func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 // @Produce json
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
 // @Success 204 "No Content"
-// @Router /users/me/profile-picture [put]
+// @Router /api/users/me/profile-picture [put]
 func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 	file, err := fileHeader.Open()
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 	defer file.Close()
 
 	if err := uc.userService.UpdateProfilePicture(userID, file); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -320,7 +322,7 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bool) {
 	var input dto.OneTimeAccessTokenCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -329,7 +331,7 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 	}
 	token, err := uc.userService.CreateOneTimeAccessToken(input.UserID, input.ExpiresAt)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -343,7 +345,7 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 // @Param id path string true "User ID"
 // @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
 // @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Router /users/{id}/one-time-access-token [post]
+// @Router /api/users/{id}/one-time-access-token [post]
 func (uc *UserController) createOwnOneTimeAccessTokenHandler(c *gin.Context) {
 	uc.createOneTimeAccessTokenHandler(c, true)
 }
@@ -355,13 +357,13 @@ func (uc *UserController) createAdminOneTimeAccessTokenHandler(c *gin.Context) {
 func (uc *UserController) requestOneTimeAccessEmailHandler(c *gin.Context) {
 	var input dto.OneTimeAccessEmailDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	err := uc.userService.RequestOneTimeAccessEmail(input.Email, input.RedirectPath)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -374,22 +376,21 @@ func (uc *UserController) requestOneTimeAccessEmailHandler(c *gin.Context) {
 // @Tags Users
 // @Param token path string true "One-time access token"
 // @Success 200 {object} dto.UserDto
-// @Router /one-time-access-token/{token} [post]
+// @Router /api/one-time-access-token/{token} [post]
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 	user, token, err := uc.userService.ExchangeOneTimeAccessToken(c.Param("token"), c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
-	sessionDurationInMinutesParsed, _ := strconv.Atoi(uc.appConfigService.DbConfig.SessionDuration.Value)
-	maxAge := sessionDurationInMinutesParsed * 60
+	maxAge := int(uc.appConfigService.DbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
@@ -400,22 +401,21 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 // @Description Generate setup access token for initial admin user configuration
 // @Tags Users
 // @Success 200 {object} dto.UserDto
-// @Router /one-time-access-token/setup [post]
+// @Router /api/one-time-access-token/setup [post]
 func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
 	user, token, err := uc.userService.SetupInitialAdmin()
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
-	sessionDurationInMinutesParsed, _ := strconv.Atoi(uc.appConfigService.DbConfig.SessionDuration.Value)
-	maxAge := sessionDurationInMinutesParsed * 60
+	maxAge := int(uc.appConfigService.DbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
@@ -428,23 +428,23 @@ func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
 // @Param id path string true "User ID"
 // @Param groups body dto.UserUpdateUserGroupDto true "User group IDs"
 // @Success 200 {object} dto.UserDto
-// @Router /users/{id}/user-groups [put]
+// @Router /api/users/{id}/user-groups [put]
 func (uc *UserController) updateUserGroups(c *gin.Context) {
 	var input dto.UserUpdateUserGroupDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	user, err := uc.userService.UpdateUserGroups(c.Param("id"), input.UserGroupIds)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -455,7 +455,7 @@ func (uc *UserController) updateUserGroups(c *gin.Context) {
 func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 	var input dto.UserCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -468,15 +468,52 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 
 	user, err := uc.userService.UpdateUser(userID, input, updateOwnUser, false)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	c.JSON(http.StatusOK, userDto)
+}
+
+// resetUserProfilePictureHandler godoc
+// @Summary Reset user profile picture
+// @Description Reset a specific user's profile picture to the default
+// @Tags Users
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 204 "No Content"
+// @Router /api/users/{id}/profile-picture [delete]
+func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) {
+	userID := c.Param("id")
+
+	if err := uc.userService.ResetProfilePicture(userID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// resetCurrentUserProfilePictureHandler godoc
+// @Summary Reset current user's profile picture
+// @Description Reset the currently authenticated user's profile picture to the default
+// @Tags Users
+// @Produce json
+// @Success 204 "No Content"
+// @Router /api/users/me/profile-picture [delete]
+func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	if err := uc.userService.ResetProfilePicture(userID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

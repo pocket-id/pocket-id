@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -38,6 +39,7 @@ func newDatabase() (db *gorm.DB) {
 	case common.DbProviderPostgres:
 		driver, err = postgresMigrate.WithInstance(sqlDb, &postgresMigrate.Config{})
 	default:
+		// Should never happen at this point
 		log.Fatalf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}
 	if err != nil {
@@ -56,17 +58,17 @@ func migrateDatabase(driver database.Driver) error {
 	// Use the embedded migrations
 	source, err := iofs.New(resources.FS, "migrations/"+string(common.EnvConfig.DbProvider))
 	if err != nil {
-		return fmt.Errorf("failed to create embedded migration source: %v", err)
+		return fmt.Errorf("failed to create embedded migration source: %w", err)
 	}
 
 	m, err := migrate.NewWithInstance("iofs", source, "pocket-id", driver)
 	if err != nil {
-		return fmt.Errorf("failed to create migration instance: %v", err)
+		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
 
 	err = m.Up()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to apply migrations: %v", err)
+		return fmt.Errorf("failed to apply migrations: %w", err)
 	}
 
 	return nil
@@ -78,9 +80,18 @@ func connectDatabase() (db *gorm.DB, err error) {
 	// Choose the correct database provider
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
-		dialector = sqlite.Open(common.EnvConfig.SqliteDBPath)
+		if common.EnvConfig.DbConnectionString == "" {
+			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for SQLite database")
+		}
+		if !strings.HasPrefix(common.EnvConfig.DbConnectionString, "file:") {
+			return nil, errors.New("invalid value for env var 'DB_CONNECTION_STRING': does not begin with 'file:'")
+		}
+		dialector = sqlite.Open(common.EnvConfig.DbConnectionString)
 	case common.DbProviderPostgres:
-		dialector = postgres.Open(common.EnvConfig.PostgresConnectionString)
+		if common.EnvConfig.DbConnectionString == "" {
+			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
+		}
+		dialector = postgres.Open(common.EnvConfig.DbConnectionString)
 	default:
 		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}
@@ -91,14 +102,14 @@ func connectDatabase() (db *gorm.DB, err error) {
 			Logger:         getLogger(),
 		})
 		if err == nil {
-			break
-		} else {
-			log.Printf("Attempt %d: Failed to initialize database. Retrying...", i)
-			time.Sleep(3 * time.Second)
+			return db, nil
 		}
+
+		log.Printf("Attempt %d: Failed to initialize database. Retrying...", i)
+		time.Sleep(3 * time.Second)
 	}
 
-	return db, err
+	return nil, err
 }
 
 func getLogger() logger.Interface {

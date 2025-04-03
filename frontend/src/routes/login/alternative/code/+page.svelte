@@ -9,6 +9,7 @@
 	import { onMount } from 'svelte';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
 	import { page } from '$app/state';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let code = $state(data.code ?? '');
@@ -26,7 +27,7 @@
 			try {
 				goto(data.redirect);
 			} catch (e) {
-				error = 'Invalid redirect URL';
+				error = m.invalid_redirect_url();
 			}
 		} catch (e) {
 			error = getAxiosErrorMessage(e);
@@ -43,20 +44,20 @@
 </script>
 
 <svelte:head>
-	<title>Login Code</title>
+	<title>{m.login_code()}</title>
 </svelte:head>
 
 <SignInWrapper>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>
-	<h1 class="font-playfair mt-5 text-4xl font-bold">Login Code</h1>
+	<h1 class="font-playfair mt-5 text-4xl font-bold">{m.login_code()}</h1>
 	{#if error}
 		<p class="text-muted-foreground mt-2">
-			{error}. Please try again.
+			{error}. {m.please_try_again()}
 		</p>
 	{:else}
-		<p class="text-muted-foreground mt-2">Enter the code you received to sign in.</p>
+		<p class="text-muted-foreground mt-2">{m.enter_the_code_you_received_to_sign_in()}</p>
 	{/if}
 	<form
 		onsubmit={(e) => {
@@ -65,10 +66,10 @@
 		}}
 		class="w-full max-w-[450px]"
 	>
-		<Input id="Email" class="mt-7" placeholder="Code" bind:value={code} type="text" />
+		<Input id="Email" class="mt-7" placeholder={m.code()} bind:value={code} type="text" />
 		<div class="mt-8 flex justify-stretch gap-2">
-			<Button variant="secondary" class="w-full" href={"/login/alternative" + page.url.search}>Go back</Button>
-			<Button class="w-full" type="submit" {isLoading}>Submit</Button>
+			<Button variant="secondary" class="w-full" href={"/login/alternative" + page.url.search}>{m.go_back()}</Button>
+			<Button class="w-full" type="submit" {isLoading}>{m.submit()}</Button>
 		</div>
 	</form>
 </SignInWrapper>

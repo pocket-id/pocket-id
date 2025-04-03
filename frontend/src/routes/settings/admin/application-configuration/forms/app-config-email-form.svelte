@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select';
+	import { m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { createForm } from '$lib/utils/form-util';
@@ -55,7 +56,7 @@
 			appConfig[key] = value;
 		});
 
-		toast.success('Email configuration updated successfully');
+		toast.success(m.email_configuration_updated_successfully());
 		return true;
 	}
 	async function onTestEmail() {
@@ -64,11 +65,11 @@
 
 		if (hasChanges) {
 			openConfirmDialog({
-				title: 'Save changes?',
+				title: m.save_changes_question(),
 				message:
-					'You have to save the changes before sending a test email. Do you want to save now?',
+					m.you_have_to_save_the_changes_before_sending_a_test_email_do_you_want_to_save_now(),
 				confirm: {
-					label: 'Save and send',
+					label: m.save_and_send(),
 					action: async () => {
 						const saved = await onSubmit();
 						if (saved) {
@@ -86,9 +87,9 @@
 		isSendingTestEmail = true;
 		await appConfigService
 			.sendTestEmail()
-			.then(() => toast.success('Test email sent successfully to your email address.'))
+			.then(() => toast.success(m.test_email_sent_successfully()))
 			.catch(() =>
-				toast.error('Failed to send test email. Check the server logs for more information.')
+				toast.error(m.failed_to_send_test_email())
 			)
 			.finally(() => (isSendingTestEmail = false));
 	}
@@ -96,21 +97,21 @@
 
 <form onsubmit={onSubmit}>
 	<fieldset disabled={uiConfigDisabled}>
-		<h4 class="text-lg font-semibold">SMTP Configuration</h4>
+		<h4 class="text-lg font-semibold">{m.smtp_configuration()}</h4>
 		<div class="mt-4 grid grid-cols-1 items-end gap-5 md:grid-cols-2">
-			<FormInput label="SMTP Host" bind:input={$inputs.smtpHost} />
-			<FormInput label="SMTP Port" type="number" bind:input={$inputs.smtpPort} />
-			<FormInput label="SMTP User" bind:input={$inputs.smtpUser} />
-			<FormInput label="SMTP Password" type="password" bind:input={$inputs.smtpPassword} />
-			<FormInput label="SMTP From" bind:input={$inputs.smtpFrom} />
+			<FormInput label={m.smtp_host()} bind:input={$inputs.smtpHost} />
+			<FormInput label={m.smtp_port()} type="number" bind:input={$inputs.smtpPort} />
+			<FormInput label={m.smtp_user()} bind:input={$inputs.smtpUser} />
+			<FormInput label={m.smtp_password()} type="password" bind:input={$inputs.smtpPassword} />
+			<FormInput label={m.smtp_from()} bind:input={$inputs.smtpFrom} />
 			<div class="grid gap-2">
-				<Label class="mb-0" for="smtp-tls">SMTP TLS Option</Label>
+				<Label class="mb-0" for="smtp-tls">{m.smtp_tls_option()}</Label>
 				<Select.Root
 					selected={{ value: $inputs.smtpTls.value, label: tlsOptions[$inputs.smtpTls.value] }}
 					onSelectedChange={(v) => ($inputs.smtpTls.value = v!.value)}
 				>
 					<Select.Trigger>
-						<Select.Value placeholder="Email TLS Option" />
+						<Select.Value placeholder={m.email_tls_option()} />
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="none" label="None" />
@@ -121,31 +122,31 @@
 			</div>
 			<CheckboxWithLabel
 				id="skip-cert-verify"
-				label="Skip Certificate Verification"
-				description="This can be useful for self-signed certificates."
+				label={m.skip_certificate_verification()}
+				description={m.this_can_be_useful_for_selfsigned_certificates()}
 				bind:checked={$inputs.smtpSkipCertVerify.value}
 			/>
 		</div>
-		<h4 class="mt-10 text-lg font-semibold">Enabled Emails</h4>
+		<h4 class="mt-10 text-lg font-semibold">{m.enabled_emails()}</h4>
 		<div class="mt-4 flex flex-col gap-5">
 			<CheckboxWithLabel
 				id="email-login-notification"
-				label="Email Login Notification"
-				description="Send an email to the user when they log in from a new device."
+				label={m.email_login_notification()}
+				description={m.send_an_email_to_the_user_when_they_log_in_from_a_new_device()}
 				bind:checked={$inputs.emailLoginNotificationEnabled.value}
 			/>
 			<CheckboxWithLabel
 				id="email-login"
-				label="Email Login"
-				description="Allows users to sign in with a login code sent to their email. This reduces the security significantly as anyone with access to the user's email can gain entry."
+				label={m.email_login()}
+				description={m.allow_users_to_sign_in_with_a_login_code_sent_to_their_email()}
 				bind:checked={$inputs.emailOneTimeAccessEnabled.value}
 			/>
 		</div>
 	</fieldset>
 	<div class="mt-8 flex flex-wrap justify-end gap-3">
 		<Button isLoading={isSendingTestEmail} variant="secondary" onclick={onTestEmail}
-			>Send test email</Button
+			>{m.send_test_email()}</Button
 		>
-		<Button type="submit" disabled={uiConfigDisabled}>Save</Button>
+		<Button type="submit" disabled={uiConfigDisabled}>{m.save()}</Button>
 	</div>
 </form>

@@ -14,6 +14,7 @@
 	import type { PageData } from './$types';
 	import ClientProviderImages from './components/client-provider-images.svelte';
 	import ScopeItem from './components/scope-item.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	const webauthnService = new WebAuthnService();
 	const oidService = new OidcService();
@@ -77,15 +78,17 @@
 </script>
 
 <svelte:head>
-	<title>Sign in to {client.name}</title>
+	<title>{m.sign_in_to({ name: client.name })}</title>
 </svelte:head>
 
 {#if client == null}
-	<p>Client not found</p>
+	<p>{m.client_not_found()}</p>
 {:else}
-	<SignInWrapper showAlternativeSignInMethodButton>
+	<SignInWrapper animate showAlternativeSignInMethodButton>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
-		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">Sign in to {client.name}</h1>
+		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
+			{m.sign_in_to({ name: client.name })}
+		</h1>
 		{#if errorMessage}
 			<p class="text-muted-foreground mb-10 mt-2">
 				{errorMessage}.
@@ -93,34 +96,40 @@
 		{/if}
 		{#if !authorizationRequired && !errorMessage}
 			<p class="text-muted-foreground mb-10 mt-2">
-				Do you want to sign in to <b>{client.name}</b> with your
-				<b>{$appConfigStore.appName}</b> account?
+				{@html m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
+					client: client.name,
+					appName: $appConfigStore.appName
+				})}
 			</p>
 		{:else if authorizationRequired}
 			<div transition:slide={{ duration: 300 }}>
 				<Card.Root class="mb-10 mt-6">
 					<Card.Header class="pb-5">
 						<p class="text-muted-foreground text-start">
-							<b>{client.name}</b> wants to access the following information:
+							{@html m.client_wants_to_access_the_following_information({ client: client.name })}
 						</p>
 					</Card.Header>
 					<Card.Content data-testid="scopes">
 						<div class="flex flex-col gap-3">
 							{#if scope!.includes('email')}
-								<ScopeItem icon={LucideMail} name="Email" description="View your email address" />
+								<ScopeItem
+									icon={LucideMail}
+									name={m.email()}
+									description={m.view_your_email_address()}
+								/>
 							{/if}
 							{#if scope!.includes('profile')}
 								<ScopeItem
 									icon={LucideUser}
-									name="Profile"
-									description="View your profile information"
+									name={m.profile()}
+									description={m.view_your_profile_information()}
 								/>
 							{/if}
 							{#if scope!.includes('groups')}
 								<ScopeItem
 									icon={LucideUsers}
-									name="Groups"
-									description="View the groups you are a member of"
+									name={m.groups()}
+									description={m.view_the_groups_you_are_a_member_of()}
 								/>
 							{/if}
 						</div>
@@ -129,11 +138,12 @@
 			</div>
 		{/if}
 		<div class="flex w-full justify-stretch gap-2">
-			<Button onclick={() => history.back()} class="w-full" variant="secondary">Cancel</Button>
+			<Button onclick={() => history.back()} class="w-full" variant="secondary">{m.cancel()}</Button
+			>
 			{#if !errorMessage}
-				<Button class="w-full" {isLoading} on:click={authorize}>Sign in</Button>
+				<Button class="w-full" {isLoading} on:click={authorize}>{m.sign_in()}</Button>
 			{:else}
-				<Button class="w-full" on:click={() => (errorMessage = null)}>Try again</Button>
+				<Button class="w-full" on:click={() => (errorMessage = null)}>{m.try_again()}</Button>
 			{/if}
 		</div>
 	</SignInWrapper>

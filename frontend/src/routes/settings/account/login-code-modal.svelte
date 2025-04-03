@@ -3,6 +3,7 @@
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Separator } from '$lib/components/ui/separator';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 
@@ -37,9 +38,9 @@
 <Dialog.Root open={!!code} {onOpenChange}>
 	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Login Code</Dialog.Title>
+			<Dialog.Title>{m.login_code()}</Dialog.Title>
 			<Dialog.Description
-				>Sign in using the following code. The code will expire in 15 minutes.
+				>{m.sign_in_using_the_following_code_the_code_will_expire_in_minutes()}
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -49,7 +50,7 @@
 			</CopyToClipboard>
 			<div class="text-muted-foreground flex items-center justify-center gap-3">
 				<Separator />
-				<p class="text-nowrap text-xs">or visit</p>
+				<p class="text-nowrap text-xs">{m.or_visit()}</p>
 				<Separator />
 			</div>
 			<div>

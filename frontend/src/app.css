@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @config '../tailwind.config.ts';
 
@@ -68,6 +68,55 @@
 	}
 }
 
+.animate-fade-in {
+	animation: fadeIn 0.8s ease-out forwards;
+	opacity: 0;
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes slide-bg-container {
+	0% {
+		left: 0;
+	}
+	100% {
+		left: 650px;
+	}
+}
+
+.animate-slide-bg-container {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	animation: slide-bg-container 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+
+/* Fade in for content after the slide is mostly complete */
+@keyframes delayed-fade {
+	0%,
+	40% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+
+.animate-delayed-fade {
+	animation: delayed-fade 1.5s ease-out forwards;
+}
+
 @layer base {
 	* {
 		@apply border-border;
@@ -77,7 +126,7 @@
 		@apply bg-background text-foreground;
 	}
 
-	button{
+	button {
 		@apply cursor-pointer;
 	}
 

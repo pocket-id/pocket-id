@@ -43,25 +43,25 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 // @Param sort_column query string false "Column to sort by" default("created_at")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
 // @Success 200 {object} dto.Paginated[dto.ApiKeyDto]
-// @Router /api-keys [get]
+// @Router /api/api-keys [get]
 func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 	userID := ctx.GetString("userID")
 
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := ctx.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	apiKeys, pagination, err := c.apiKeyService.ListApiKeys(userID, sortedPaginationRequest)
 	if err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	var apiKeysDto []dto.ApiKeyDto
 	if err := dto.MapStructList(apiKeys, &apiKeysDto); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
@@ -77,25 +77,25 @@ func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 // @Tags API Keys
 // @Param api_key body dto.ApiKeyCreateDto true "API key information"
 // @Success 201 {object} dto.ApiKeyResponseDto "Created API key with token"
-// @Router /api-keys [post]
+// @Router /api/api-keys [post]
 func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {
 	userID := ctx.GetString("userID")
 
 	var input dto.ApiKeyCreateDto
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	apiKey, token, err := c.apiKeyService.CreateApiKey(userID, input)
 	if err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
 	var apiKeyDto dto.ApiKeyDto
 	if err := dto.MapStruct(apiKey, &apiKeyDto); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 
@@ -111,13 +111,13 @@ func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {
 // @Tags API Keys
 // @Param id path string true "API Key ID"
 // @Success 204 "No Content"
-// @Router /api-keys/{id} [delete]
+// @Router /api/api-keys/{id} [delete]
 func (c *ApiKeyController) revokeApiKeyHandler(ctx *gin.Context) {
 	userID := ctx.GetString("userID")
 	apiKeyID := ctx.Param("id")
 
 	if err := c.apiKeyService.RevokeApiKey(userID, apiKeyID); err != nil {
-		ctx.Error(err)
+		_ = ctx.Error(err)
 		return
 	}
 

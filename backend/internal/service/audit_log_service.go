@@ -60,7 +60,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ipAddress, userAgent, userID 
 	}
 
 	// If the user hasn't logged in from the same device before and email notifications are enabled, send an email
-	if s.appConfigService.DbConfig.EmailLoginNotificationEnabled.Value == "true" && count <= 1 {
+	if s.appConfigService.DbConfig.EmailLoginNotificationEnabled.IsTrue() && count <= 1 {
 		go func() {
 			var user model.User
 			s.db.Where("id = ?", userID).First(&user)

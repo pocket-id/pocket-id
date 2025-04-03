@@ -51,13 +51,27 @@ type OidcClient struct {
 	CreatedBy         User
 }
 
+type OidcRefreshToken struct {
+	Base
+
+	Token     string
+	ExpiresAt datatype.DateTime
+	Scope     string
+
+	UserID string
+	User   User
+
+	ClientID string
+	Client   OidcClient
+}
+
 func (c *OidcClient) AfterFind(_ *gorm.DB) (err error) {
 	// Compute HasLogo field
 	c.HasLogo = c.ImageType != nil && *c.ImageType != ""
 	return nil
 }
 
-type UrlList []string
+type UrlList []string //nolint:recvcheck
 
 func (cu *UrlList) Scan(value interface{}) error {
 	if v, ok := value.([]byte); ok {

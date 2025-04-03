@@ -8,8 +8,12 @@ import (
 func Bootstrap() {
 	initApplicationImages()
 
+	migrateConfigDBConnstring()
+
 	db := newDatabase()
 	appConfigService := service.NewAppConfigService(db)
+
+	migrateKey()
 
 	initRouter(db, appConfigService)
 }

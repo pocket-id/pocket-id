@@ -27,7 +27,7 @@ func GetTemplate[U any, V any](templateMap TemplateMap[U], template Template[V])
 	return templateMap[template.Path]
 }
 
-type clonable[V pareseable[V]] interface {
+type cloneable[V pareseable[V]] interface {
 	Clone() (V, error)
 }
 
@@ -35,7 +35,7 @@ type pareseable[V any] interface {
 	ParseFS(fs.FS, ...string) (V, error)
 }
 
-func prepareTemplate[V pareseable[V]](templateFS fs.FS, template string, rootTemplate clonable[V], suffix string) (V, error) {
+func prepareTemplate[V pareseable[V]](templateFS fs.FS, template string, rootTemplate cloneable[V], suffix string) (V, error) {
 	tmpl, err := rootTemplate.Clone()
 	if err != nil {
 		return *new(V), fmt.Errorf("clone root template: %w", err)

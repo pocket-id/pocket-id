@@ -59,7 +59,7 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 		return nil, 0, &common.InvalidUUIDError{}
 	}
 
-	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
 	file, err := os.Open(profilePicturePath)
 	if err == nil {
 		// Get the file size
@@ -94,7 +94,8 @@ func (s *UserService) GetUserGroups(userID string) ([]model.UserGroup, error) {
 
 func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error {
 	// Validate the user ID to prevent directory traversal
-	if err := uuid.Validate(userID); err != nil {
+	err := uuid.Validate(userID)
+	if err != nil {
 		return &common.InvalidUUIDError{}
 	}
 
@@ -105,20 +106,14 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 	}
 
 	// Ensure the directory exists
-	profilePictureDir := fmt.Sprintf("%s/profile-pictures", common.EnvConfig.UploadPath)
-	if err := os.MkdirAll(profilePictureDir, os.ModePerm); err != nil {
+	profilePictureDir := common.EnvConfig.UploadPath + "/profile-pictures"
+	err = os.MkdirAll(profilePictureDir, os.ModePerm)
+	if err != nil {
 		return err
 	}
 
 	// Create the profile picture file
-	createdProfilePicture, err := os.Create(fmt.Sprintf("%s/%s.png", profilePictureDir, userID))
-	if err != nil {
-		return err
-	}
-	defer createdProfilePicture.Close()
-
-	// Copy the image to the file
-	_, err = io.Copy(createdProfilePicture, profilePicture)
+	err = utils.SaveFileStream(profilePicture, profilePictureDir+"/"+userID+".png")
 	if err != nil {
 		return err
 	}
@@ -126,19 +121,19 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 	return nil
 }
 
-func (s *UserService) DeleteUser(userID string) error {
+func (s *UserService) DeleteUser(userID string, allowLdapDelete bool) error {
 	var user model.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		return err
 	}
 
 	// Disallow deleting the user if it is an LDAP user and LDAP is enabled
-	if user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if !allowLdapDelete && user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return &common.LdapUserUpdateError{}
 	}
 
 	// Delete the profile picture
-	profilePicturePath := fmt.Sprintf("%s/profile-pictures/%s.png", common.EnvConfig.UploadPath, userID)
+	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
 	if err := os.Remove(profilePicturePath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -153,6 +148,7 @@ func (s *UserService) CreateUser(input dto.UserCreateDto) (model.User, error) {
 		Email:     input.Email,
 		Username:  input.Username,
 		IsAdmin:   input.IsAdmin,
+		Locale:    input.Locale,
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
@@ -174,7 +170,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 	}
 
 	// Disallow updating the user if it is an LDAP group and LDAP is enabled
-	if !allowLdapUpdate && user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.Value == "true" {
+	if !allowLdapUpdate && user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
 		return model.User{}, &common.LdapUserUpdateError{}
 	}
 
@@ -182,6 +178,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 	user.LastName = updatedUser.LastName
 	user.Email = updatedUser.Email
 	user.Username = updatedUser.Username
+	user.Locale = updatedUser.Locale
 	if !updateOwnUser {
 		user.IsAdmin = updatedUser.IsAdmin
 	}
@@ -197,7 +194,7 @@ func (s *UserService) UpdateUser(userID string, updatedUser dto.UserCreateDto, u
 }
 
 func (s *UserService) RequestOneTimeAccessEmail(emailAddress, redirectPath string) error {
-	isDisabled := s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.Value != "true"
+	isDisabled := !s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.IsTrue()
 	if isDisabled {
 		return &common.OneTimeAccessDisabledError{}
 	}
@@ -247,7 +244,7 @@ func (s *UserService) CreateOneTimeAccessToken(userID string, expiresAt time.Tim
 	tokenLength := 16
 
 	// If expires at is less than 15 minutes, use an 6 character token instead of 16
-	if expiresAt.Sub(time.Now()) <= 15*time.Minute {
+	if time.Until(expiresAt) <= 15*time.Minute {
 		tokenLength = 6
 	}
 
@@ -362,6 +359,30 @@ func (s *UserService) checkDuplicatedFields(user model.User) error {
 	if s.db.Where("id != ? AND username = ?", user.ID, user.Username).First(&existingUser).Error == nil {
 		return &common.AlreadyInUseError{Property: "username"}
 	}
+
+	return nil
+}
+
+// ResetProfilePicture deletes a user's custom profile picture
+func (s *UserService) ResetProfilePicture(userID string) error {
+	// Validate the user ID to prevent directory traversal
+	if err := uuid.Validate(userID); err != nil {
+		return &common.InvalidUUIDError{}
+	}
+
+	// Build path to profile picture
+	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
+
+	// Check if file exists and delete it
+	if _, err := os.Stat(profilePicturePath); err == nil {
+		if err := os.Remove(profilePicturePath); err != nil {
+			return fmt.Errorf("failed to delete profile picture: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		// If any error other than "file not exists"
+		return fmt.Errorf("failed to check if profile picture exists: %w", err)
+	}
+	// It's okay if the file doesn't exist - just means there's no custom picture to delete
 
 	return nil
 }

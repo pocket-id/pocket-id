@@ -69,3 +69,16 @@ export const apiKeys = [
 		name: 'Test API Key'
 	}
 ];
+
+export const refreshTokens = [
+	{
+		token: 'ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo',
+		clientId: oidcClients.nextcloud.id,
+		expired: false
+	},
+	{
+		token: 'X4vqwtRyCUaq51UafHea4Fsg8Km6CAns6vp3tuX4',
+		clientId: oidcClients.nextcloud.id,
+		expired: true
+	}
+];

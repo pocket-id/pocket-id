@@ -15,6 +15,7 @@
 	import Ellipsis from 'lucide-svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 	import OneTimeLinkModal from '$lib/components/one-time-link-modal.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let {
 		users = $bindable(),
@@ -27,10 +28,10 @@
 
 	async function deleteUser(user: User) {
 		openConfirmDialog({
-			title: `Delete ${user.firstName} ${user.lastName}`,
-			message: 'Are you sure you want to delete this user?',
+			title: m.delete_firstname_lastname({firstName: user.firstName, lastName: user.lastName}),
+			message: m.are_you_sure_you_want_to_delete_this_user(),
 			confirm: {
-				label: 'Delete',
+				label: m.delete(),
 				destructive: true,
 				action: async () => {
 					try {
@@ -39,7 +40,7 @@
 					} catch (e) {
 						axiosErrorToast(e);
 					}
-					toast.success('User deleted successfully');
+					toast.success(m.user_deleted_successfully());
 				}
 			}
 		});
@@ -51,13 +52,13 @@
 	{requestOptions}
 	onRefresh={async (options) => (users = await userService.list(options))}
 	columns={[
-		{ label: 'First name', sortColumn: 'firstName' },
-		{ label: 'Last name', sortColumn: 'lastName' },
-		{ label: 'Email', sortColumn: 'email' },
-		{ label: 'Username', sortColumn: 'username' },
-		{ label: 'Role', sortColumn: 'isAdmin' },
-		...($appConfigStore.ldapEnabled ? [{ label: 'Source' }] : []),
-		{ label: 'Actions', hidden: true }
+		{ label: m.first_name(), sortColumn: 'firstName' },
+		{ label: m.last_name(), sortColumn: 'lastName' },
+		{ label: m.email(), sortColumn: 'email' },
+		{ label: m.username(), sortColumn: 'username' },
+		{ label: m.role(), sortColumn: 'isAdmin' },
+		...($appConfigStore.ldapEnabled ? [{ label: m.source()}] : []),
+		{ label: m.actions(), hidden: true }
 	]}
 >
 	{#snippet rows({ item })}
@@ -66,11 +67,11 @@
 		<Table.Cell>{item.email}</Table.Cell>
 		<Table.Cell>{item.username}</Table.Cell>
 		<Table.Cell>
-			<Badge variant="outline">{item.isAdmin ? 'Admin' : 'User'}</Badge>
+			<Badge variant="outline">{item.isAdmin ? m.admin() : m.user()}</Badge>
 		</Table.Cell>
 		{#if $appConfigStore.ldapEnabled}
 			<Table.Cell>
-				<Badge variant={item.ldapId ? 'default' : 'outline'}>{item.ldapId ? 'LDAP' : 'Local'}</Badge
+				<Badge variant={item.ldapId ? 'default' : 'outline'}>{item.ldapId ? m.ldap() : m.local()}</Badge
 				>
 			</Table.Cell>
 		{/if}
@@ -78,20 +79,20 @@
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
 					<Ellipsis class="h-4 w-4" />
-					<span class="sr-only">Toggle menu</span>
+					<span class="sr-only">{m.toggle_menu()}</span>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={() => (userIdToCreateOneTimeLink = item.id)}
-						><LucideLink class="mr-2 h-4 w-4" />Login Code</DropdownMenu.Item
+						><LucideLink class="mr-2 h-4 w-4" />{m.login_code()}</DropdownMenu.Item
 					>
 					<DropdownMenu.Item onclick={() => goto(`/settings/admin/users/${item.id}`)}
-						><LucidePencil class="mr-2 h-4 w-4" /> Edit</DropdownMenu.Item
+						><LucidePencil class="mr-2 h-4 w-4" /> {m.edit()}</DropdownMenu.Item
 					>
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
 						<DropdownMenu.Item
 							class="text-red-500 focus:!text-red-700"
 							onclick={() => deleteUser(item)}
-							><LucideTrash class="mr-2 h-4 w-4" />Delete</DropdownMenu.Item
+							><LucideTrash class="mr-2 h-4 w-4" />{m.delete()}</DropdownMenu.Item
 						>
 					{/if}
 				</DropdownMenu.Content>

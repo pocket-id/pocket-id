@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { oidcClients } from './data';
+import { oidcClients, refreshTokens } from './data';
 import { cleanupBackend } from './utils/cleanup.util';
 import passkeyUtil from './utils/passkey.util';
 
@@ -116,6 +116,7 @@ test('End session without id token hint shows confirmation page', async ({ page 
 
 test('End session with id token hint redirects to callback URL', async ({ page }) => {
 	const client = oidcClients.nextcloud;
+	// Note: this token has expired, but it should be accepted by the logout endpoint anyways, per spec
 	const idToken =
 		'eyJhbGciOiJSUzI1NiIsImtpZCI6Ijh1SER3M002cmY4IiwidHlwIjoiSldUIn0.eyJhdWQiOiIzNjU0YTc0Ni0zNWQ0LTQzMjEtYWM2MS0wYmRjZmYyYjQwNTUiLCJlbWFpbCI6InRpbS5jb29rQHRlc3QuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImV4cCI6MTY5MDAwMDAwMSwiZmFtaWx5X25hbWUiOiJUaW0iLCJnaXZlbl9uYW1lIjoiQ29vayIsImlhdCI6MTY5MDAwMDAwMCwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdCIsIm5hbWUiOiJUaW0gQ29vayIsIm5vbmNlIjoib1cxQTFPNzhHUTE1RDczT3NIRXg3V1FLajdacXZITFp1XzM3bWRYSXFBUSIsInN1YiI6IjRiODlkYzItNjJmYi00NmJmLTlmNWYtYzM0ZjRlYWZlOTNlIn0.ruYCyjA2BNjROpmLGPNHrhgUNLnpJMEuncvjDYVuv1dAZwvOPfG-Rn-OseAgJDJbV7wJ0qf6ZmBkGWiifwc_B9h--fgd4Vby9fefj0MiHbSDgQyaU5UmpvJU8OlvM-TueD6ICJL0NeT3DwoW5xpIWaHtt3JqJIdP__Q-lTONL2Zokq50kWm0IO-bIw2QrQviSfHNpv8A5rk1RTzpXCPXYNB-eJbm3oBqYQWzerD9HaNrSvrKA7mKG8Te1mI9aMirPpG9FvcAU-I3lY8ky1hJZDu42jHpVEUdWPAmUZPZafoX8iYtlPfkoklDnHj_cdg4aZBGN5bfjM6xf1Oe_rLDWg';
 
@@ -133,4 +134,61 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 		});
 
 	expect(redirectedCorrectly).toBeTruthy();
+});
+
+test('Successfully refresh tokens with valid refresh token', async ({ request }) => {
+	const { token, clientId } = refreshTokens.filter((token) => !token.expired)[0];
+	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+
+	const refreshResponse = await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: token,
+			client_secret: clientSecret
+		}
+	});
+
+	// Verify we got new tokens
+	const tokenData = await refreshResponse.json();
+	expect(tokenData.access_token).toBeDefined();
+	expect(tokenData.refresh_token).toBeDefined();
+	expect(tokenData.token_type).toBe('Bearer');
+	expect(tokenData.expires_in).toBe(3600);
+
+	// The new refresh token should be different from the old one
+	expect(tokenData.refresh_token).not.toBe(token);
+});
+
+test('Using refresh token invalidates it for future use', async ({ request }) => {
+	const { token, clientId } = refreshTokens.filter((token) => !token.expired)[0];
+	const clientSecret = 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY';
+
+	await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: token,
+			client_secret: clientSecret
+		}
+	});
+
+	const refreshResponse = await request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: token,
+			client_secret: clientSecret
+		}
+	});
+	expect(refreshResponse.status()).toBe(400);
 });

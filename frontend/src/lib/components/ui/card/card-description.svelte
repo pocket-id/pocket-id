@@ -8,6 +8,6 @@
 	export { className as class };
 </script>
 
-<p class={cn('text-sm text-muted-foreground mt-1', className)} {...$$restProps}>
+<p class={cn('text-muted-foreground mt-1 text-sm', className)} {...$$restProps}>
 	<slot />
 </p>

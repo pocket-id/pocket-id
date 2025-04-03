@@ -1,12 +1,13 @@
 import { writable } from 'svelte/store';
 import ConfirmDialog from './confirm-dialog.svelte';
+import { m } from '$lib/paraglide/messages';
 
 export const confirmDialogStore = writable({
 	open: false,
 	title: '',
 	message: '',
 	confirm: {
-		label: 'Confirm',
+		label: m.confirm(),
 		destructive: false,
 		action: () => {}
 	}

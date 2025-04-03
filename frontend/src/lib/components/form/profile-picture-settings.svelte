@@ -1,20 +1,25 @@
 <script lang="ts">
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import * as Avatar from '$lib/components/ui/avatar';
-	import { LucideLoader, LucideUpload } from 'lucide-svelte';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { LucideLoader, LucideRefreshCw, LucideUpload } from 'lucide-svelte';
+	import { openConfirmDialog } from '../confirm-dialog';
+	import { m } from '$lib/paraglide/messages';
+	import type UserService from '$lib/services/user-service';
 
 	let {
 		userId,
 		isLdapUser = false,
-		callback
+		resetCallback,
+		updateCallback
 	}: {
 		userId: string;
 		isLdapUser?: boolean;
-		callback: (image: File) => Promise<void>;
+		resetCallback: () => Promise<void>;
+		updateCallback: (image: File) => Promise<void>;
 	} = $props();
 
 	let isLoading = $state(false);
-
 	let imageDataURL = $state(`/api/users/${userId}/profile-picture.png`);
 
 	async function onImageChange(e: Event) {
@@ -29,28 +34,30 @@
 		};
 		reader.readAsDataURL(file);
 
-		await callback(file).catch(() => {
+		await updateCallback(file).catch(() => {
 			imageDataURL = `/api/users/${userId}/profile-picture.png`;
 		});
 		isLoading = false;
 	}
+
+	function onReset() {
+		openConfirmDialog({
+			title: m.reset_profile_picture_question(),
+			message: m.this_will_remove_the_uploaded_image_and_reset_the_profile_picture_to_default(),
+			confirm: {
+				label: m.reset(),
+				action: async () => {
+					isLoading = true;
+					await resetCallback().catch();
+					isLoading = false;
+				}
+			}
+		});
+	}
 </script>
 
-<div class="flex gap-5">
-	<div class="flex w-full flex-col justify-between gap-5 sm:flex-row">
-		<div>
-			<h3 class="text-xl font-semibold">Profile Picture</h3>
-			{#if isLdapUser}
-				<p class="text-muted-foreground mt-1 text-sm">
-					The profile picture is managed by the LDAP server and cannot be changed here.
-				</p>
-			{:else}
-				<p class="text-muted-foreground mt-1 text-sm">
-					Click on the profile picture to upload a custom one from your files.
-				</p>
-				<p class="text-muted-foreground mt-1 text-sm">The image should be in PNG or JPEG format.</p>
-			{/if}
-		</div>
+<div class="flex flex-col items-center gap-6 sm:flex-row">
+	<div class="shrink-0">
 		{#if isLdapUser}
 			<Avatar.Root class="h-24 w-24">
 				<Avatar.Image class="object-cover" src={imageDataURL} />
@@ -62,10 +69,10 @@
 				accept="image/png, image/jpeg"
 				onchange={onImageChange}
 			>
-				<div class="group relative h-28 w-28 rounded-full">
+				<div class="group relative h-24 w-24 rounded-full">
 					<Avatar.Root class="h-full w-full transition-opacity duration-200">
 						<Avatar.Image
-							class="object-cover group-hover:opacity-10 {isLoading ? 'opacity-10' : ''}"
+							class="object-cover group-hover:opacity-30 {isLoading ? 'opacity-30' : ''}"
 							src={imageDataURL}
 						/>
 					</Avatar.Root>
@@ -78,6 +85,24 @@
 					</div>
 				</div>
 			</FileInput>
+		{/if}
+	</div>
+
+	<div class="grow">
+		<h3 class="font-medium">{m.profile_picture()}</h3>
+		{#if isLdapUser}
+			<p class="text-muted-foreground text-sm">
+				{m.profile_picture_is_managed_by_ldap_server()}
+			</p>
+		{:else}
+			<p class="text-muted-foreground text-sm">
+				{m.click_profile_picture_to_upload_custom()}
+			</p>
+			<p class="text-muted-foreground mb-2 text-sm">{m.image_should_be_in_format()}</p>
+			<Button variant="outline" size="sm" on:click={onReset} disabled={isLoading || isLdapUser}>
+				<LucideRefreshCw class="mr-2 h-4 w-4" />
+				{m.reset_to_default()}
+			</Button>
 		{/if}
 	</div>
 </div>
