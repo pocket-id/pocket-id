@@ -103,3 +103,28 @@ func TestCamelCaseToSnakeCase(t *testing.T) {
 		})
 	}
 }
+
+func TestGetFirstCharacter(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"empty string", "", ""},
+		{"single character", "a", "a"},
+		{"multiple characters", "hello", "h"},
+		{"unicode character", "étoile", "é"},
+		{"special character", "!test", "!"},
+		{"number as first character", "123abc", "1"},
+		{"whitespace as first character", " hello", "h"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetFirstCharacter(tt.input)
+			if result != tt.expected {
+				t.Errorf("GetFirstCharacter(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
