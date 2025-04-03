@@ -43,7 +43,7 @@
 		}
 
 		/* Apply these styles to all children */
-		.fade-wrapper > * {
+		.fade-wrapper > *:not(.no-fade) {
 			animation-fill-mode: both;
 			opacity: 0;
 			transform: translateY(10px);

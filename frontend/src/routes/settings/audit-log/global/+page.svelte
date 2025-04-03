@@ -9,6 +9,7 @@
 	import type { FilterMap } from '$lib/types/pagination.type';
 	import { onMount } from 'svelte';
 	import { Loader2 } from 'lucide-svelte';
+	import AuditLogSwitcher from '../audit-log-switcher.svelte';
 
 	// Get data from server
 	let { data } = $props();
@@ -92,6 +93,8 @@
 <svelte:head>
 	<title>Global Audit Log</title>
 </svelte:head>
+
+<AuditLogSwitcher currentPage="global" />
 
 <Card.Root>
 	<Card.Header>

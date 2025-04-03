@@ -1,8 +1,9 @@
 <script lang="ts">
+	import AuditLogList from '$lib/components/audit-log-list.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
 	import { LogsIcon } from 'lucide-svelte';
-	import AuditLogList from '$lib/components/audit-log-list.svelte';
+	import AuditLogSwitcher from './audit-log-switcher.svelte';
 
 	let { data } = $props();
 	let auditLogsRequestOptions = $state(data.auditLogsRequestOptions);
@@ -11,6 +12,8 @@
 <svelte:head>
 	<title>{m.audit_log()}</title>
 </svelte:head>
+
+<AuditLogSwitcher currentPage="personal" />
 
 <div>
 	<Card.Root>

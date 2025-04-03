@@ -312,5 +312,7 @@
 	"reset": "Reset",
 	"reset_to_default": "Reset to default",
 	"profile_picture_has_been_reset": "Profile picture has been reset. It may take a few minutes to update.",
-	"select_the_language_you_want_to_use": "Select the language you want to use. Some languages may not be fully translated."
+	"select_the_language_you_want_to_use": "Select the language you want to use. Some languages may not be fully translated.",
+	"personal": "Personal",
+	"global": "Global"
 }
