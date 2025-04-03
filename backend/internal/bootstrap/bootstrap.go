@@ -15,7 +15,5 @@ func Bootstrap() {
 
 	migrateKey()
 
-	migrateProfilePictures(db)
-
 	initRouter(db, appConfigService)
 }

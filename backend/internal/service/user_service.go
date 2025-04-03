@@ -80,7 +80,8 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	}
 
 	// Check if we have a cached default picture for these initials
-	defaultPicturePath := common.EnvConfig.UploadPath + "/profile-pictures/defaults/" + user.Initials() + ".png"
+	defaultProfilePicturesDir := common.EnvConfig.UploadPath + "/profile-pictures/defaults/"
+	defaultPicturePath := defaultProfilePicturesDir + user.Initials() + ".png"
 	file, err = os.Open(defaultPicturePath)
 	if err == nil {
 		fileInfo, err := file.Stat()
@@ -100,6 +101,12 @@ func (s *UserService) GetProfilePicture(userID string) (io.Reader, int64, error)
 	// Save the default picture for future use (in a goroutine to avoid blocking)
 	defaultPictureCopy := bytes.NewBuffer(defaultPicture.Bytes())
 	go func() {
+		// Ensure the directory exists
+		err = os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
+		if err != nil {
+			log.Printf("Failed to create directory for default profile picture: %v", err)
+			return
+		}
 		if err := utils.SaveFileStream(defaultPictureCopy, defaultPicturePath); err != nil {
 			log.Printf("Failed to cache default profile picture for initials %s: %v", user.Initials(), err)
 		}
