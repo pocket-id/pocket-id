@@ -104,7 +104,7 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 		return
 	}
 
-	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(sortedPaginationRequest, filters)
+	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(c.Request.Context(), sortedPaginationRequest, filters)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -136,7 +136,7 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 // @Success 200 {array} string "List of client names"
 // @Router /api/audit-logs/filters/client-names [get]
 func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) {
-	names, err := alc.auditLogService.ListClientNames()
+	names, err := alc.auditLogService.ListClientNames(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -152,7 +152,7 @@ func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) {
 // @Success 200 {object} map[string]string "Map of user IDs to usernames"
 // @Router /api/audit-logs/filters/users [get]
 func (alc *AuditLogController) listUserNamesWithIdsHandler(c *gin.Context) {
-	users, err := alc.auditLogService.ListUsernamesWithIds()
+	users, err := alc.auditLogService.ListUsernamesWithIds(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return

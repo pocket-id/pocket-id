@@ -125,10 +125,13 @@ func (s *AuditLogService) DeviceStringFromUserAgent(userAgent string) string {
 	return ua.Name + " on " + ua.OS + " " + ua.OSVersion
 }
 
-func (s *AuditLogService) ListAllAuditLogs(sortedPaginationRequest utils.SortedPaginationRequest, filters dto.AuditLogFilterDto) ([]model.AuditLog, utils.PaginationResponse, error) {
+func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, sortedPaginationRequest utils.SortedPaginationRequest, filters dto.AuditLogFilterDto) ([]model.AuditLog, utils.PaginationResponse, error) {
 	var logs []model.AuditLog
 
-	query := s.db.Preload("User").Model(&model.AuditLog{})
+	query := s.db.
+		WithContext(ctx).
+		Preload("User").
+		Model(&model.AuditLog{})
 
 	if filters.UserID != "" {
 		query = query.Where("user_id = ?", filters.UserID)
@@ -156,8 +159,11 @@ func (s *AuditLogService) ListAllAuditLogs(sortedPaginationRequest utils.SortedP
 	return logs, pagination, nil
 }
 
-func (s *AuditLogService) ListUsernamesWithIds() (users map[string]string, err error) {
-	query := s.db.Joins("User").Model(&model.AuditLog{}).
+func (s *AuditLogService) ListUsernamesWithIds(ctx context.Context) (users map[string]string, err error) {
+	query := s.db.
+		WithContext(ctx).
+		Joins("User").
+		Model(&model.AuditLog{}).
 		Select("DISTINCT User.id, User.username").
 		Where("User.username IS NOT NULL")
 
@@ -171,7 +177,7 @@ func (s *AuditLogService) ListUsernamesWithIds() (users map[string]string, err e
 		return nil, fmt.Errorf("failed to query user IDs: %w", err)
 	}
 
-	users = make(map[string]string)
+	users = make(map[string]string, len(results))
 	for _, result := range results {
 		users[result.ID] = result.Username
 	}
@@ -179,17 +185,21 @@ func (s *AuditLogService) ListUsernamesWithIds() (users map[string]string, err e
 	return users, nil
 }
 
-func (s *AuditLogService) ListClientNames() (clientNames []string, err error) {
+func (s *AuditLogService) ListClientNames(ctx context.Context) (clientNames []string, err error) {
 	dialect := s.db.Name()
 	var query *gorm.DB
 
 	switch dialect {
 	case "sqlite":
-		query = s.db.Model(&model.AuditLog{}).
+		query = s.db.
+			WithContext(ctx).
+			Model(&model.AuditLog{}).
 			Select("DISTINCT json_extract(data, '$.clientName') as clientName").
 			Where("json_extract(data, '$.clientName') IS NOT NULL")
 	case "postgres":
-		query = s.db.Model(&model.AuditLog{}).
+		query = s.db.
+			Model(&model.AuditLog{}).
+			WithContext(ctx).
 			Select("DISTINCT data->>'clientName' as clientName").
 			Where("data->>'clientName' IS NOT NULL")
 	default:
@@ -205,9 +215,9 @@ func (s *AuditLogService) ListClientNames() (clientNames []string, err error) {
 		return nil, fmt.Errorf("failed to query client IDs: %w", err)
 	}
 
-	for _, result := range results {
-		clientNames = append(clientNames, result.ClientName)
-
+	clientNames = make([]string, len(results))
+	for i, result := range results {
+		clientNames[i] = result.ClientName
 	}
 
 	return clientNames, nil
