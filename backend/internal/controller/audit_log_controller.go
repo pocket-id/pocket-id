@@ -77,14 +77,14 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	// This will only be accessible to admins due to the middleware
 	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(sortedPaginationRequest)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -92,7 +92,7 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 	var logsDtos []dto.AuditLogDto
 	err = dto.MapStructList(logs, &logsDtos)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
