@@ -312,5 +312,15 @@
 	"reset": "Reset",
 	"reset_to_default": "Standaardinstellingen herstellen",
 	"profile_picture_has_been_reset": "Profielfoto is gereset. Het kan enkele minuten duren voordat de wijzigingen zichtbaar zijn.",
-	"select_the_language_you_want_to_use": "Selecteer de taal die u wilt gebruiken. Sommige talen zijn mogelijk niet volledig vertaald."
+	"select_the_language_you_want_to_use": "Selecteer de taal die u wilt gebruiken. Sommige talen zijn mogelijk niet volledig vertaald.",
+	"personal": "Personal",
+	"global": "Global",
+	"all_users": "All Users",
+	"all_events": "All Events",
+	"all_clients": "All Clients",
+	"global_audit_log": "Global Audit Log",
+	"see_all_account_activities_from_the_last_3_months": "See all user activity for the last 3 months.",
+	"token_sign_in": "Token Sign In",
+	"client_authorization": "Client Authorization",
+	"new_client_authorization": "New Client Authorization"
 }
