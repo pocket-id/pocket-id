@@ -15,8 +15,10 @@ type AuditLog struct {
 	City      string        `sortable:"true"`
 	UserAgent string        `sortable:"true"`
 	Username  string        `gorm:"-"`
-	UserID    string
 	Data      AuditLogData
+
+	UserID string
+	User   User
 }
 
 type AuditLogData map[string]string //nolint:recvcheck

@@ -10,3 +10,9 @@ export type AuditLog = {
 	createdAt: string;
 	data: any;
 };
+
+export type AuditLogFilter = {
+	userId: string,
+	event: string,
+	clientName: string,
+}

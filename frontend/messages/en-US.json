@@ -314,5 +314,13 @@
 	"profile_picture_has_been_reset": "Profile picture has been reset. It may take a few minutes to update.",
 	"select_the_language_you_want_to_use": "Select the language you want to use. Some languages may not be fully translated.",
 	"personal": "Personal",
-	"global": "Global"
+	"global": "Global",
+	"all_users": "All Users",
+	"all_events": "All Events",
+	"all_clients": "All Clients",
+	"global_audit_log": "Global Audit Log",
+	"see_all_account_activities_from_the_last_3_months": "See all user activity for the last 3 months.",
+	"token_sign_in": "Token Sign In",
+	"client_authorization": "Client Authorization",
+	"new_client_authorization": "New Client Authorization"
 }

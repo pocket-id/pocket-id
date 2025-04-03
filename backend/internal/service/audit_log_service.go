@@ -1,13 +1,14 @@
 package service
 
 import (
-	"log"
-
+	"fmt"
 	userAgentParser "github.com/mileusna/useragent"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	"gorm.io/gorm"
+	"log"
 )
 
 type AuditLogService struct {
@@ -98,37 +99,93 @@ func (s *AuditLogService) DeviceStringFromUserAgent(userAgent string) string {
 	return ua.Name + " on " + ua.OS + " " + ua.OSVersion
 }
 
-func (s *AuditLogService) ListAllAuditLogs(sortedPaginationRequest utils.SortedPaginationRequest) ([]model.AuditLog, utils.PaginationResponse, error) {
+func (s *AuditLogService) ListAllAuditLogs(sortedPaginationRequest utils.SortedPaginationRequest, filters dto.AuditLogFilterDto) ([]model.AuditLog, utils.PaginationResponse, error) {
 	var logs []model.AuditLog
 
-	// Create the base query
-	query := s.db.Model(&model.AuditLog{})
+	query := s.db.Preload("User").Model(&model.AuditLog{})
 
-	// Apply pagination and sorting
+	if filters.UserID != "" {
+		query = query.Where("user_id = ?", filters.UserID)
+	}
+	if filters.Event != "" {
+		query = query.Where("event = ?", filters.Event)
+	}
+	if filters.ClientName != "" {
+		dialect := s.db.Dialector.Name()
+		switch dialect {
+		case "sqlite":
+			query = query.Where("json_extract(data, '$.clientName') = ?", filters.ClientName)
+		case "postgres":
+			query = query.Where("data->>'clientName' = ?", filters.ClientName)
+		default:
+			return nil, utils.PaginationResponse{}, fmt.Errorf("unsupported database dialect: %s", dialect)
+		}
+	}
+
 	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
 	if err != nil {
 		return nil, pagination, err
 	}
 
-	// Create a map to cache user lookups and avoid duplicate DB calls
-	userCache := make(map[string]model.User)
+	return logs, pagination, nil
+}
 
-	// For each audit log, fetch the associated user info if needed
-	for i := range logs {
-		if logs[i].UserID != "" {
-			// Check if user is already in cache
-			if user, found := userCache[logs[i].UserID]; found {
-				logs[i].Username = user.Username
-			} else {
-				// Fetch user from database
-				var user model.User
-				if err := s.db.Where("id = ?", logs[i].UserID).First(&user).Error; err == nil {
-					logs[i].Username = user.Username
-					userCache[logs[i].UserID] = user
-				}
-			}
-		}
+func (s *AuditLogService) ListUsernamesWithIds() (users map[string]string, err error) {
+	var query *gorm.DB
+
+	query = s.db.Joins("User").Model(&model.AuditLog{}).
+		Select("DISTINCT User.id, User.username").
+		Where("User.username IS NOT NULL")
+
+	type Result struct {
+		ID       string `gorm:"column:id"`
+		Username string `gorm:"column:username"`
 	}
 
-	return logs, pagination, nil
+	var results []Result
+	if err := query.Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to query user IDs: %w", err)
+	}
+
+	users = make(map[string]string)
+	for _, result := range results {
+		users[result.ID] = result.Username
+	}
+
+	return users, nil
+}
+
+func (s *AuditLogService) ListClientNames() (clientNames []string, err error) {
+	dialect := s.db.Dialector.Name()
+
+	var query *gorm.DB
+
+	switch dialect {
+	case "sqlite":
+		query = s.db.Model(&model.AuditLog{}).
+			Select("DISTINCT json_extract(data, '$.clientName') as clientName").
+			Where("json_extract(data, '$.clientName') IS NOT NULL")
+	case "postgres":
+		query = s.db.Model(&model.AuditLog{}).
+			Select("DISTINCT data->>'clientName' as clientName").
+			Where("data->>'clientName' IS NOT NULL")
+	default:
+		return nil, fmt.Errorf("unsupported database dialect: %s", dialect)
+	}
+
+	type Result struct {
+		ClientName string `gorm:"column:clientName"`
+	}
+
+	var results []Result
+	if err := query.Find(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to query client IDs: %w", err)
+	}
+
+	for _, result := range results {
+		clientNames = append(clientNames, result.ClientName)
+
+	}
+
+	return clientNames, nil
 }

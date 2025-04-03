@@ -27,7 +27,6 @@
 				if (child.nodeType === 1) {
 					const itemDelay = delay + index * stagger;
 					(child as HTMLElement).style.setProperty('animation-delay', `${itemDelay}ms`);
-					console.log(itemDelay);
 				}
 			});
 		}
