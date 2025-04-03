@@ -59,6 +59,7 @@ func initRouter(db *gorm.DB, appConfigService *service.AppConfigService) {
 
 	job.RegisterLdapJobs(ldapService, appConfigService)
 	job.RegisterDbCleanupJobs(db)
+	job.RegisterFileCleanupJobs(db)
 
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(apiKeyService, jwtService)
