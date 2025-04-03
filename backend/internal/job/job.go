@@ -1,16 +1,18 @@
 package job
 
 import (
+	"context"
 	"log"
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
 )
 
-func registerJob(scheduler gocron.Scheduler, name string, interval string, job func() error) {
+func registerJob(ctx context.Context, scheduler gocron.Scheduler, name string, interval string, job func(ctx context.Context) error) {
 	_, err := scheduler.NewJob(
 		gocron.CronJob(interval, false),
 		gocron.NewTask(job),
+		gocron.WithContext(ctx),
 		gocron.WithEventListeners(
 			gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) {
 				log.Printf("Job %q run successfully", name)
