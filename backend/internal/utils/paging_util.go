@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strconv"
 
+	"gorm.io/gorm/clause"
+
 	"gorm.io/gorm"
 )
 
@@ -36,7 +38,12 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 	isValidSortOrder := sort.Direction == "asc" || sort.Direction == "desc"
 
 	if sortFieldFound && isSortable && isValidSortOrder {
-		query = query.Order(CamelCaseToSnakeCase(sort.Column) + " " + sort.Direction)
+		columnName := CamelCaseToSnakeCase(sort.Column)
+		query = query.Clauses(clause.OrderBy{
+			Columns: []clause.OrderByColumn{
+				{Column: clause.Column{Name: columnName}, Desc: sort.Direction == "desc"},
+			},
+		})
 	}
 
 	return Paginate(pagination.Page, pagination.Limit, query, result)

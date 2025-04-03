@@ -15,5 +15,12 @@ type AuditLogDto struct {
 	City      string              `json:"city"`
 	Device    string              `json:"device"`
 	UserID    string              `json:"userID"`
+	Username  string              `json:"username"`
 	Data      model.AuditLogData  `json:"data"`
+}
+
+type AuditLogFilterDto struct {
+	UserID     string `form:"filters[userId]"`
+	Event      string `form:"filters[event]"`
+	ClientName string `form:"filters[clientName]"`
 }
