@@ -3,14 +3,15 @@ package profilepicture
 import (
 	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"io"
+
 	"github.com/disintegration/imageorient"
 	"github.com/disintegration/imaging"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
-	"image"
-	"image/color"
-	"io"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
 )

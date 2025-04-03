@@ -2,14 +2,15 @@ package job
 
 import (
 	"fmt"
-	"github.com/go-co-op/gocron/v2"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"gorm.io/gorm"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/go-co-op/gocron/v2"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"gorm.io/gorm"
 )
 
 func RegisterFileCleanupJobs(db *gorm.DB) {

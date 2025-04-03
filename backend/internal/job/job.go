@@ -1,9 +1,10 @@
 package job
 
 import (
+	"log"
+
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
-	"log"
 )
 
 func registerJob(scheduler gocron.Scheduler, name string, interval string, job func() error) {

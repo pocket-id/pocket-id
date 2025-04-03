@@ -1,10 +1,11 @@
 package model
 
 import (
+	"strings"
+
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"strings"
 )
 
 type User struct {
