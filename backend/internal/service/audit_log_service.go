@@ -2,13 +2,14 @@ package service
 
 import (
 	"fmt"
+	"log"
+
 	userAgentParser "github.com/mileusna/useragent"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	"gorm.io/gorm"
-	"log"
 )
 
 type AuditLogService struct {
@@ -111,7 +112,7 @@ func (s *AuditLogService) ListAllAuditLogs(sortedPaginationRequest utils.SortedP
 		query = query.Where("event = ?", filters.Event)
 	}
 	if filters.ClientName != "" {
-		dialect := s.db.Dialector.Name()
+		dialect := s.db.Name()
 		switch dialect {
 		case "sqlite":
 			query = query.Where("json_extract(data, '$.clientName') = ?", filters.ClientName)
@@ -131,9 +132,7 @@ func (s *AuditLogService) ListAllAuditLogs(sortedPaginationRequest utils.SortedP
 }
 
 func (s *AuditLogService) ListUsernamesWithIds() (users map[string]string, err error) {
-	var query *gorm.DB
-
-	query = s.db.Joins("User").Model(&model.AuditLog{}).
+	query := s.db.Joins("User").Model(&model.AuditLog{}).
 		Select("DISTINCT User.id, User.username").
 		Where("User.username IS NOT NULL")
 
@@ -156,8 +155,7 @@ func (s *AuditLogService) ListUsernamesWithIds() (users map[string]string, err e
 }
 
 func (s *AuditLogService) ListClientNames() (clientNames []string, err error) {
-	dialect := s.db.Dialector.Name()
-
+	dialect := s.db.Name()
 	var query *gorm.DB
 
 	switch dialect {
