@@ -187,27 +187,25 @@ func (s *AuditLogService) ListUsernamesWithIds(ctx context.Context) (users map[s
 
 func (s *AuditLogService) ListClientNames(ctx context.Context) (clientNames []string, err error) {
 	dialect := s.db.Name()
-	var query *gorm.DB
+	query := s.db.
+		WithContext(ctx).
+		Model(&model.AuditLog{})
 
 	switch dialect {
 	case "sqlite":
-		query = s.db.
-			WithContext(ctx).
-			Model(&model.AuditLog{}).
-			Select("DISTINCT json_extract(data, '$.clientName') as clientName").
+		query = query.
+			Select("DISTINCT json_extract(data, '$.clientName') AS client_name").
 			Where("json_extract(data, '$.clientName') IS NOT NULL")
 	case "postgres":
-		query = s.db.
-			Model(&model.AuditLog{}).
-			WithContext(ctx).
-			Select("DISTINCT data->>'clientName' as clientName").
+		query = query.
+			Select("DISTINCT data->>'clientName' AS client_name").
 			Where("data->>'clientName' IS NOT NULL")
 	default:
 		return nil, fmt.Errorf("unsupported database dialect: %s", dialect)
 	}
 
 	type Result struct {
-		ClientName string `gorm:"column:clientName"`
+		ClientName string `gorm:"column:client_name"`
 	}
 
 	var results []Result

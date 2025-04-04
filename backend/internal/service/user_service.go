@@ -65,7 +65,7 @@ func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *go
 	return user, err
 }
 
-func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.Reader, int64, error) {
+func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.ReadCloser, int64, error) {
 	// Validate the user ID to prevent directory traversal
 	if err := uuid.Validate(userID); err != nil {
 		return nil, 0, &common.InvalidUUIDError{}
@@ -110,7 +110,7 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Save the default picture for future use (in a goroutine to avoid blocking)
-	defaultPictureCopy := bytes.NewBuffer(defaultPicture.Bytes())
+	defaultPictureBytes := defaultPicture.Bytes()
 	go func() {
 		// Ensure the directory exists
 		err = os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
@@ -118,12 +118,12 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 			log.Printf("Failed to create directory for default profile picture: %v", err)
 			return
 		}
-		if err := utils.SaveFileStream(defaultPictureCopy, defaultPicturePath); err != nil {
+		if err := utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath); err != nil {
 			log.Printf("Failed to cache default profile picture for initials %s: %v", user.Initials(), err)
 		}
 	}()
 
-	return defaultPicture, int64(defaultPicture.Len()), nil
+	return io.NopCloser(bytes.NewReader(defaultPictureBytes)), int64(defaultPicture.Len()), nil
 }
 
 func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model.UserGroup, error) {
@@ -203,23 +203,7 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 }
 
 func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (model.User, error) {
-	tx := s.db.Begin()
-	defer func() {
-		// This is a no-op if the transaction has been committed already
-		tx.Rollback()
-	}()
-
-	user, err := s.createUserInternal(ctx, input, tx)
-	if err != nil {
-		return model.User{}, err
-	}
-
-	err = tx.Commit().Error
-	if err != nil {
-		return model.User{}, err
-	}
-
-	return user, nil
+	return s.createUserInternal(ctx, input, s.db)
 }
 
 func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, tx *gorm.DB) (model.User, error) {

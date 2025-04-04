@@ -3,7 +3,7 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"errors"
+	"fmt"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
@@ -74,10 +74,13 @@ func (c *OidcClient) AfterFind(_ *gorm.DB) (err error) {
 type UrlList []string //nolint:recvcheck
 
 func (cu *UrlList) Scan(value interface{}) error {
-	if v, ok := value.([]byte); ok {
+	switch v := value.(type) {
+	case []byte:
 		return json.Unmarshal(v, cu)
-	} else {
-		return errors.New("type assertion to []byte failed")
+	case string:
+		return json.Unmarshal([]byte(v), cu)
+	default:
+		return fmt.Errorf("unsupported type: %T", value)
 	}
 }
 

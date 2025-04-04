@@ -250,6 +250,9 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+	if picture != nil {
+		defer picture.Close()
+	}
 
 	c.Header("Cache-Control", "public, max-age=300")
 
