@@ -298,7 +298,7 @@ func (s *OidcService) IntrospectToken(clientID, clientSecret, tokenString string
 		return introspectDto, &common.OidcClientSecretInvalidError{}
 	}
 
-	token, err := s.jwtService.VerifyIdToken(tokenString, false)
+	token, err := s.jwtService.VerifyOauthAccessToken(tokenString)
 	if err != nil {
 		if errors.Is(err, jwt.ParseError()) {
 			// It's apparently not a valid JWT token, so we check if it's a valid refresh_token.
