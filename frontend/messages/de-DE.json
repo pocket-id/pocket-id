@@ -319,8 +319,8 @@
 	"all_events": "Alle Ereignisse",
 	"all_clients": "Alle Clients",
 	"global_audit_log": "Globaler Aktivitäts-Log",
-	"see_all_account_activities_from_the_last_3_months": "See all user activity for the last 3 months.",
-	"token_sign_in": "Token Sign In",
-	"client_authorization": "Client Authorization",
+	"see_all_account_activities_from_the_last_3_months": "Sieh dir alle Benutzeraktivitäten der letzten 3 Monate an.",
+	"token_sign_in": "Token-Anmeldung",
+	"client_authorization": "Client-Autorisierung",
 	"new_client_authorization": "Neue Client-Autorisierung"
 }
