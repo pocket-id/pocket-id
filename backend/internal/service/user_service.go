@@ -203,7 +203,23 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 }
 
 func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (model.User, error) {
-	return s.createUserInternal(ctx, input, s.db)
+	tx := s.db.Begin()
+	defer func() {
+		// This is a no-op if the transaction has been committed already
+		tx.Rollback()
+	}()
+
+	user, err := s.createUserInternal(ctx, input, tx)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.User{}, err
+	}
+
+	return user, nil
 }
 
 func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, tx *gorm.DB) (model.User, error) {
