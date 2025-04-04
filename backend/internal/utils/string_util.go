@@ -102,3 +102,16 @@ func CamelCaseToScreamingSnakeCase(s string) string {
 	// Convert to uppercase
 	return strings.ToUpper(snake)
 }
+
+// GetFirstCharacter returns the first non-whitespace character of the string, correctly handling Unicode
+func GetFirstCharacter(str string) string {
+	for _, c := range str {
+		if unicode.IsSpace(c) {
+			continue
+		}
+		return string(c)
+	}
+
+	// Empty string case
+	return ""
+}

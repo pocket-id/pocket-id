@@ -38,9 +38,9 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures() error {
 	}
 
 	// Create a map to track which initials are in use
-	initialsInUse := make(map[string]bool)
+	initialsInUse := make(map[string]struct{})
 	for _, user := range users {
-		initialsInUse[user.Initials()] = true
+		initialsInUse[user.Initials()] = struct{}{}
 	}
 
 	defaultPicturesDir := common.EnvConfig.UploadPath + "/profile-pictures/defaults"
@@ -63,7 +63,7 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures() error {
 		initials := strings.TrimSuffix(filename, ".png")
 
 		// If these initials aren't used by any user, delete the file
-		if !initialsInUse[initials] {
+		if _, ok := initialsInUse[initials]; !ok {
 			filePath := filepath.Join(defaultPicturesDir, filename)
 			if err := os.Remove(filePath); err != nil {
 				log.Printf("Failed to delete unused default profile picture %s: %v", filePath, err)
