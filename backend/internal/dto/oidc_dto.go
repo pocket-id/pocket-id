@@ -55,6 +55,10 @@ type OidcCreateTokensDto struct {
 	RefreshToken string `form:"refresh_token"`
 }
 
+type OidcIntrospectDto struct {
+	Token string `form:"token" binding:"required"`
+}
+
 type OidcUpdateAllowedUserGroupsDto struct {
 	UserGroupIDs []string `json:"userGroupIds" binding:"required"`
 }
@@ -72,4 +76,17 @@ type OidcTokenResponseDto struct {
 	IdToken      string `json:"id_token,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	ExpiresIn    int    `json:"expires_in"`
+}
+
+type OidcIntrospectionResponseDto struct {
+	Active     bool     `json:"active"`
+	TokenType  string   `json:"token_type,omitempty"`
+	Scope      string   `json:"scope,omitempty"`
+	Expiration int64    `json:"exp,omitempty"`
+	IssuedAt   int64    `json:"iat,omitempty"`
+	NotBefore  int64    `json:"nbf,omitempty"`
+	Subject    string   `json:"sub,omitempty"`
+	Audience   []string `json:"aud,omitempty"`
+	Issuer     string   `json:"iss,omitempty"`
+	Identifier string   `json:"jti,omitempty"`
 }

@@ -74,6 +74,7 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		"token_endpoint":                        appUrl + "/api/oidc/token",
 		"userinfo_endpoint":                     appUrl + "/api/oidc/userinfo",
 		"end_session_endpoint":                  appUrl + "/api/oidc/end-session",
+		"introspection_endpoint":                appUrl + "/api/oidc/introspect",
 		"jwks_uri":                              appUrl + "/.well-known/jwks.json",
 		"grant_types_supported":                 []string{"authorization_code", "refresh_token"},
 		"scopes_supported":                      []string{"openid", "profile", "email", "groups"},
