@@ -1,6 +1,7 @@
 package job
 
 import (
+	"context"
 	"log"
 
 	"github.com/go-co-op/gocron/v2"
@@ -12,28 +13,30 @@ type LdapJobs struct {
 	appConfigService *service.AppConfigService
 }
 
-func RegisterLdapJobs(ldapService *service.LdapService, appConfigService *service.AppConfigService) {
+func RegisterLdapJobs(ctx context.Context, ldapService *service.LdapService, appConfigService *service.AppConfigService) {
 	jobs := &LdapJobs{ldapService: ldapService, appConfigService: appConfigService}
 
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
-		log.Fatalf("Failed to create a new scheduler: %s", err)
+		log.Fatalf("Failed to create a new scheduler: %v", err)
 	}
 
 	// Register the job to run every hour
-	registerJob(scheduler, "SyncLdap", "0 * * * *", jobs.syncLdap)
+	registerJob(ctx, scheduler, "SyncLdap", "0 * * * *", jobs.syncLdap)
 
 	// Run the job immediately on startup
-	if err := jobs.syncLdap(); err != nil {
-		log.Printf("Failed to sync LDAP: %s", err)
+	err = jobs.syncLdap(ctx)
+	if err != nil {
+		log.Printf("Failed to sync LDAP: %v", err)
 	}
 
 	scheduler.Start()
 }
 
-func (j *LdapJobs) syncLdap() error {
-	if j.appConfigService.DbConfig.LdapEnabled.IsTrue() {
-		return j.ldapService.SyncAll()
+func (j *LdapJobs) syncLdap(ctx context.Context) error {
+	if !j.appConfigService.DbConfig.LdapEnabled.IsTrue() {
+		return nil
 	}
-	return nil
+
+	return j.ldapService.SyncAll(ctx)
 }

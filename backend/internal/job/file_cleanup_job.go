@@ -1,6 +1,7 @@
 package job
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -8,12 +9,13 @@ import (
 	"strings"
 
 	"github.com/go-co-op/gocron/v2"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"gorm.io/gorm"
 )
 
-func RegisterFileCleanupJobs(db *gorm.DB) {
+func RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB) {
 	scheduler, err := gocron.NewScheduler()
 	if err != nil {
 		log.Fatalf("Failed to create a new scheduler: %s", err)
@@ -21,7 +23,7 @@ func RegisterFileCleanupJobs(db *gorm.DB) {
 
 	jobs := &FileCleanupJobs{db: db}
 
-	registerJob(scheduler, "ClearUnusedDefaultProfilePictures", "0 2 * * 0", jobs.clearUnusedDefaultProfilePictures)
+	registerJob(ctx, scheduler, "ClearUnusedDefaultProfilePictures", "0 2 * * 0", jobs.clearUnusedDefaultProfilePictures)
 
 	scheduler.Start()
 }
@@ -31,9 +33,13 @@ type FileCleanupJobs struct {
 }
 
 // ClearUnusedDefaultProfilePictures deletes default profile pictures that don't match any user's initials
-func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures() error {
+func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context) error {
 	var users []model.User
-	if err := j.db.Find(&users).Error; err != nil {
+	err := j.db.
+		WithContext(ctx).
+		Find(&users).
+		Error
+	if err != nil {
 		return fmt.Errorf("failed to fetch users: %w", err)
 	}
 

@@ -4,9 +4,8 @@ import (
 	"reflect"
 	"strconv"
 
-	"gorm.io/gorm/clause"
-
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PaginationResponse struct {
@@ -47,7 +46,6 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 	}
 
 	return Paginate(pagination.Page, pagination.Limit, query, result)
-
 }
 
 func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (PaginationResponse, error) {
