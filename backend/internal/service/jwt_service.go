@@ -173,7 +173,7 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
-		Expiration(now.Add(s.appConfigService.DbConfig.SessionDuration.AsDurationMinutes())).
+		Expiration(now.Add(s.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes())).
 		IssuedAt(now).
 		Issuer(common.EnvConfig.AppURL).
 		Build()

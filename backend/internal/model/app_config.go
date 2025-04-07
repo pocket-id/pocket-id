@@ -6,12 +6,8 @@ import (
 )
 
 type AppConfigVariable struct {
-	Key          string `gorm:"primaryKey;not null"`
-	Type         string
-	IsPublic     bool
-	IsInternal   bool
-	Value        string
-	DefaultValue string
+	Key   string `gorm:"primaryKey;not null"`
+	Value string
 }
 
 // IsTrue returns true if the value is a truthy string, such as "true", "t", "yes", "1", etc.
@@ -31,41 +27,41 @@ func (a *AppConfigVariable) AsDurationMinutes() time.Duration {
 
 type AppConfig struct {
 	// General
-	AppName             AppConfigVariable
-	SessionDuration     AppConfigVariable
-	EmailsVerified      AppConfigVariable
-	AllowOwnAccountEdit AppConfigVariable
+	AppName             AppConfigVariable `key:"appName,public"` // Public
+	SessionDuration     AppConfigVariable `key:"sessionDuration"`
+	EmailsVerified      AppConfigVariable `key:"emailsVerified"`
+	AllowOwnAccountEdit AppConfigVariable `key:"allowOwnAccountEdit,public"` // Public
 	// Internal
-	BackgroundImageType AppConfigVariable
-	LogoLightImageType  AppConfigVariable
-	LogoDarkImageType   AppConfigVariable
+	BackgroundImageType AppConfigVariable `key:"backgroundImageType,internal"`
+	LogoLightImageType  AppConfigVariable `key:"logoLightImageType,internal"`
+	LogoDarkImageType   AppConfigVariable `key:"logoDarkImageType,internal"`
 	// Email
-	SmtpHost                      AppConfigVariable
-	SmtpPort                      AppConfigVariable
-	SmtpFrom                      AppConfigVariable
-	SmtpUser                      AppConfigVariable
-	SmtpPassword                  AppConfigVariable
-	SmtpTls                       AppConfigVariable
-	SmtpSkipCertVerify            AppConfigVariable
-	EmailLoginNotificationEnabled AppConfigVariable
-	EmailOneTimeAccessEnabled     AppConfigVariable
+	SmtpHost                      AppConfigVariable `key:"smtpHost"`
+	SmtpPort                      AppConfigVariable `key:"smtpPort"`
+	SmtpFrom                      AppConfigVariable `key:"smtpFrom"`
+	SmtpUser                      AppConfigVariable `key:"smtpUser"`
+	SmtpPassword                  AppConfigVariable `key:"smtpPassword"`
+	SmtpTls                       AppConfigVariable `key:"smtpTls"`
+	SmtpSkipCertVerify            AppConfigVariable `key:"smtpSkipCertVerify"`
+	EmailLoginNotificationEnabled AppConfigVariable `key:"emailLoginNotificationEnabled"`
+	EmailOneTimeAccessEnabled     AppConfigVariable `key:"emailOneTimeAccessEnabled,public"` // Public
 	// LDAP
-	LdapEnabled                        AppConfigVariable
-	LdapUrl                            AppConfigVariable
-	LdapBindDn                         AppConfigVariable
-	LdapBindPassword                   AppConfigVariable
-	LdapBase                           AppConfigVariable
-	LdapUserSearchFilter               AppConfigVariable
-	LdapUserGroupSearchFilter          AppConfigVariable
-	LdapSkipCertVerify                 AppConfigVariable
-	LdapAttributeUserUniqueIdentifier  AppConfigVariable
-	LdapAttributeUserUsername          AppConfigVariable
-	LdapAttributeUserEmail             AppConfigVariable
-	LdapAttributeUserFirstName         AppConfigVariable
-	LdapAttributeUserLastName          AppConfigVariable
-	LdapAttributeUserProfilePicture    AppConfigVariable
-	LdapAttributeGroupMember           AppConfigVariable
-	LdapAttributeGroupUniqueIdentifier AppConfigVariable
-	LdapAttributeGroupName             AppConfigVariable
-	LdapAttributeAdminGroup            AppConfigVariable
+	LdapEnabled                        AppConfigVariable `key:"ldapEnabled,public"` // Public
+	LdapUrl                            AppConfigVariable `key:"ldapUrl"`
+	LdapBindDn                         AppConfigVariable `key:"ldapBindDn"`
+	LdapBindPassword                   AppConfigVariable `key:"ldapBindPassword"`
+	LdapBase                           AppConfigVariable `key:"ldapBase"`
+	LdapUserSearchFilter               AppConfigVariable `key:"ldapUserSearchFilter"`
+	LdapUserGroupSearchFilter          AppConfigVariable `key:"ldapUserGroupSearchFilter"`
+	LdapSkipCertVerify                 AppConfigVariable `key:"ldapSkipCertVerify"`
+	LdapAttributeUserUniqueIdentifier  AppConfigVariable `key:"ldapAttributeUserUniqueIdentifier"`
+	LdapAttributeUserUsername          AppConfigVariable `key:"ldapAttributeUserUsername"`
+	LdapAttributeUserEmail             AppConfigVariable `key:"ldapAttributeUserEmail"`
+	LdapAttributeUserFirstName         AppConfigVariable `key:"ldapAttributeUserFirstName"`
+	LdapAttributeUserLastName          AppConfigVariable `key:"ldapAttributeUserLastName"`
+	LdapAttributeUserProfilePicture    AppConfigVariable `key:"ldapAttributeUserProfilePicture"`
+	LdapAttributeGroupMember           AppConfigVariable `key:"ldapAttributeGroupMember"`
+	LdapAttributeGroupUniqueIdentifier AppConfigVariable `key:"ldapAttributeGroupUniqueIdentifier"`
+	LdapAttributeGroupName             AppConfigVariable `key:"ldapAttributeGroupName"`
+	LdapAttributeAdminGroup            AppConfigVariable `key:"ldapAttributeAdminGroup"`
 }

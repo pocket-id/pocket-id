@@ -70,8 +70,10 @@ func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId stri
 }
 
 func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
+	dbConfig := srv.appConfigService.GetDbConfig()
+
 	data := &email.TemplateData[V]{
-		AppName: srv.appConfigService.DbConfig.AppName.Value,
+		AppName: dbConfig.AppName.Value,
 		LogoURL: common.EnvConfig.AppURL + "/api/application-configuration/logo",
 		Data:    tData,
 	}
@@ -86,8 +88,8 @@ func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Addr
 	c.AddHeader("Subject", template.Title(data))
 	c.AddAddressHeader("From", []email.Address{
 		{
-			Email: srv.appConfigService.DbConfig.SmtpFrom.Value,
-			Name:  srv.appConfigService.DbConfig.AppName.Value,
+			Email: dbConfig.SmtpFrom.Value,
+			Name:  dbConfig.AppName.Value,
 		},
 	})
 	c.AddAddressHeader("To", []email.Address{toEmail})
@@ -102,7 +104,7 @@ func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Addr
 	// so we use the domain of the from address instead (the same as Thunderbird does)
 	// if the address does not have an @ (which would be unusual), we use hostname
 
-	from_address := srv.appConfigService.DbConfig.SmtpFrom.Value
+	from_address := dbConfig.SmtpFrom.Value
 	domain := ""
 	if strings.Contains(from_address, "@") {
 		domain = strings.Split(from_address, "@")[1]
@@ -152,16 +154,18 @@ func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Addr
 }
 
 func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
-	port := srv.appConfigService.DbConfig.SmtpPort.Value
-	smtpAddress := srv.appConfigService.DbConfig.SmtpHost.Value + ":" + port
+	dbConfig := srv.appConfigService.GetDbConfig()
+
+	port := dbConfig.SmtpPort.Value
+	smtpAddress := dbConfig.SmtpHost.Value + ":" + port
 
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: srv.appConfigService.DbConfig.SmtpSkipCertVerify.IsTrue(), //nolint:gosec
-		ServerName:         srv.appConfigService.DbConfig.SmtpHost.Value,
+		InsecureSkipVerify: dbConfig.SmtpSkipCertVerify.IsTrue(), //nolint:gosec
+		ServerName:         dbConfig.SmtpHost.Value,
 	}
 
 	// Connect to the SMTP server based on TLS setting
-	switch srv.appConfigService.DbConfig.SmtpTls.Value {
+	switch dbConfig.SmtpTls.Value {
 	case "none":
 		client, err = smtp.Dial(smtpAddress)
 	case "tls":
@@ -172,7 +176,7 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 			tlsConfig,
 		)
 	default:
-		return nil, fmt.Errorf("invalid SMTP TLS setting: %s", srv.appConfigService.DbConfig.SmtpTls.Value)
+		return nil, fmt.Errorf("invalid SMTP TLS setting: %s", dbConfig.SmtpTls.Value)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
@@ -186,8 +190,8 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 	}
 
 	// Set up the authentication if user or password are set
-	smtpUser := srv.appConfigService.DbConfig.SmtpUser.Value
-	smtpPassword := srv.appConfigService.DbConfig.SmtpPassword.Value
+	smtpUser := dbConfig.SmtpUser.Value
+	smtpPassword := dbConfig.SmtpPassword.Value
 
 	if smtpUser != "" || smtpPassword != "" {
 		// Authenticate with plain auth
@@ -223,7 +227,7 @@ func (srv *EmailService) sendHelloCommand(client *smtp.Client) error {
 
 func (srv *EmailService) sendEmailContent(client *smtp.Client, toEmail email.Address, c *email.Composer) error {
 	// Set the sender
-	if err := client.Mail(srv.appConfigService.DbConfig.SmtpFrom.Value, nil); err != nil {
+	if err := client.Mail(srv.appConfigService.GetDbConfig().SmtpFrom.Value, nil); err != nil {
 		return fmt.Errorf("failed to set sender: %w", err)
 	}
 

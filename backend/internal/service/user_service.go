@@ -188,7 +188,7 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 	}
 
 	// Disallow deleting the user if it is an LDAP user and LDAP is enabled
-	if !allowLdapDelete && user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
+	if !allowLdapDelete && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
 		return &common.LdapUserUpdateError{}
 	}
 
@@ -278,7 +278,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	}
 
 	// Disallow updating the user if it is an LDAP group and LDAP is enabled
-	if !allowLdapUpdate && user.LdapID != nil && s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
+	if !allowLdapUpdate && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
 		return model.User{}, &common.LdapUserUpdateError{}
 	}
 
@@ -314,7 +314,7 @@ func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddres
 		tx.Rollback()
 	}()
 
-	isDisabled := !s.appConfigService.DbConfig.EmailOneTimeAccessEnabled.IsTrue()
+	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessEnabled.IsTrue()
 	if isDisabled {
 		return &common.OneTimeAccessDisabledError{}
 	}

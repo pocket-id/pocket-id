@@ -72,7 +72,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 	}
 
 	// If the user hasn't logged in from the same device before and email notifications are enabled, send an email
-	if s.appConfigService.DbConfig.EmailLoginNotificationEnabled.IsTrue() && count <= 1 {
+	if s.appConfigService.GetDbConfig().EmailLoginNotificationEnabled.IsTrue() && count <= 1 {
 		// We use a background context here as this is running in a goroutine
 		//nolint:contextcheck
 		go func() {

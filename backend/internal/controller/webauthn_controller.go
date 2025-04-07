@@ -106,7 +106,7 @@ func (wc *WebauthnController) verifyLoginHandler(c *gin.Context) {
 		return
 	}
 
-	maxAge := int(wc.appConfigService.DbConfig.SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(wc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)

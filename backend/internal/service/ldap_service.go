@@ -32,12 +32,15 @@ func NewLdapService(db *gorm.DB, appConfigService *AppConfigService, userService
 }
 
 func (s *LdapService) createClient() (*ldap.Conn, error) {
-	if !s.appConfigService.DbConfig.LdapEnabled.IsTrue() {
+	dbConfig := s.appConfigService.GetDbConfig()
+
+	if !dbConfig.LdapEnabled.IsTrue() {
 		return nil, fmt.Errorf("LDAP is not enabled")
 	}
+
 	// Setup LDAP connection
-	ldapURL := s.appConfigService.DbConfig.LdapUrl.Value
-	skipTLSVerify := s.appConfigService.DbConfig.LdapSkipCertVerify.IsTrue()
+	ldapURL := dbConfig.LdapUrl.Value
+	skipTLSVerify := dbConfig.LdapSkipCertVerify.IsTrue()
 	client, err := ldap.DialURL(ldapURL, ldap.DialWithTLSConfig(&tls.Config{
 		InsecureSkipVerify: skipTLSVerify, //nolint:gosec
 	}))
@@ -46,8 +49,8 @@ func (s *LdapService) createClient() (*ldap.Conn, error) {
 	}
 
 	// Bind as service account
-	bindDn := s.appConfigService.DbConfig.LdapBindDn.Value
-	bindPassword := s.appConfigService.DbConfig.LdapBindPassword.Value
+	bindDn := dbConfig.LdapBindDn.Value
+	bindPassword := dbConfig.LdapBindPassword.Value
 	err = client.Bind(bindDn, bindPassword)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to LDAP: %w", err)
@@ -80,6 +83,8 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 
 //nolint:gocognit
 func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
+	dbConfig := s.appConfigService.GetDbConfig()
+
 	// Setup LDAP connection
 	client, err := s.createClient()
 	if err != nil {
@@ -87,19 +92,20 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
 	}
 	defer client.Close()
 
-	baseDN := s.appConfigService.DbConfig.LdapBase.Value
-	nameAttribute := s.appConfigService.DbConfig.LdapAttributeGroupName.Value
-	uniqueIdentifierAttribute := s.appConfigService.DbConfig.LdapAttributeGroupUniqueIdentifier.Value
-	groupMemberOfAttribute := s.appConfigService.DbConfig.LdapAttributeGroupMember.Value
-	filter := s.appConfigService.DbConfig.LdapUserGroupSearchFilter.Value
-
 	searchAttrs := []string{
-		nameAttribute,
-		uniqueIdentifierAttribute,
-		groupMemberOfAttribute,
+		dbConfig.LdapAttributeGroupName.Value,
+		dbConfig.LdapAttributeGroupUniqueIdentifier.Value,
+		dbConfig.LdapAttributeGroupMember.Value,
 	}
 
-	searchReq := ldap.NewSearchRequest(baseDN, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, searchAttrs, []ldap.Control{})
+	searchReq := ldap.NewSearchRequest(
+		dbConfig.LdapBase.Value,
+		ldap.ScopeWholeSubtree,
+		0, 0, 0, false,
+		dbConfig.LdapUserGroupSearchFilter.Value,
+		searchAttrs,
+		[]ldap.Control{},
+	)
 	result, err := client.Search(searchReq)
 	if err != nil {
 		return fmt.Errorf("failed to query LDAP: %w", err)
@@ -111,11 +117,11 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
 	for _, value := range result.Entries {
 		var membersUserId []string
 
-		ldapId := value.GetAttributeValue(uniqueIdentifierAttribute)
+		ldapId := value.GetAttributeValue(dbConfig.LdapAttributeGroupUniqueIdentifier.Value)
 
 		// Skip groups without a valid LDAP ID
 		if ldapId == "" {
-			log.Printf("Skipping LDAP group without a valid unique identifier (attribute: %s)", uniqueIdentifierAttribute)
+			log.Printf("Skipping LDAP group without a valid unique identifier (attribute: %s)", dbConfig.LdapAttributeGroupUniqueIdentifier.Value)
 			continue
 		}
 
@@ -126,7 +132,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
 		tx.WithContext(ctx).Where("ldap_id = ?", ldapId).First(&databaseGroup)
 
 		// Get group members and add to the correct Group
-		groupMembers := value.GetAttributeValues(groupMemberOfAttribute)
+		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
 		for _, member := range groupMembers {
 			// Normal output of this would be CN=username,ou=people,dc=example,dc=com
 			// Splitting at the "=" and "," then just grabbing the username for that string
@@ -148,9 +154,9 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
 		}
 
 		syncGroup := dto.UserGroupCreateDto{
-			Name:         value.GetAttributeValue(nameAttribute),
-			FriendlyName: value.GetAttributeValue(nameAttribute),
-			LdapID:       value.GetAttributeValue(uniqueIdentifierAttribute),
+			Name:         value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
+			FriendlyName: value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
+			LdapID:       value.GetAttributeValue(dbConfig.LdapAttributeGroupUniqueIdentifier.Value),
 		}
 
 		if databaseGroup.ID == "" {
@@ -211,6 +217,8 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB) error {
 
 //nolint:gocognit
 func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
+	dbConfig := s.appConfigService.GetDbConfig()
+
 	// Setup LDAP connection
 	client, err := s.createClient()
 	if err != nil {
@@ -218,30 +226,27 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 	}
 	defer client.Close()
 
-	baseDN := s.appConfigService.DbConfig.LdapBase.Value
-	uniqueIdentifierAttribute := s.appConfigService.DbConfig.LdapAttributeUserUniqueIdentifier.Value
-	usernameAttribute := s.appConfigService.DbConfig.LdapAttributeUserUsername.Value
-	emailAttribute := s.appConfigService.DbConfig.LdapAttributeUserEmail.Value
-	firstNameAttribute := s.appConfigService.DbConfig.LdapAttributeUserFirstName.Value
-	lastNameAttribute := s.appConfigService.DbConfig.LdapAttributeUserLastName.Value
-	profilePictureAttribute := s.appConfigService.DbConfig.LdapAttributeUserProfilePicture.Value
-	adminGroupAttribute := s.appConfigService.DbConfig.LdapAttributeAdminGroup.Value
-	filter := s.appConfigService.DbConfig.LdapUserSearchFilter.Value
-
 	searchAttrs := []string{
 		"memberOf",
 		"sn",
 		"cn",
-		uniqueIdentifierAttribute,
-		usernameAttribute,
-		emailAttribute,
-		firstNameAttribute,
-		lastNameAttribute,
-		profilePictureAttribute,
+		dbConfig.LdapAttributeUserUniqueIdentifier.Value,
+		dbConfig.LdapAttributeUserUsername.Value,
+		dbConfig.LdapAttributeUserEmail.Value,
+		dbConfig.LdapAttributeUserFirstName.Value,
+		dbConfig.LdapAttributeUserLastName.Value,
+		dbConfig.LdapAttributeUserProfilePicture.Value,
 	}
 
 	// Filters must start and finish with ()!
-	searchReq := ldap.NewSearchRequest(baseDN, ldap.ScopeWholeSubtree, 0, 0, 0, false, filter, searchAttrs, []ldap.Control{})
+	searchReq := ldap.NewSearchRequest(
+		dbConfig.LdapBase.Value,
+		ldap.ScopeWholeSubtree,
+		0, 0, 0, false,
+		dbConfig.LdapUserSearchFilter.Value,
+		searchAttrs,
+		[]ldap.Control{},
+	)
 
 	result, err := client.Search(searchReq)
 	if err != nil {
@@ -252,11 +257,11 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 	ldapUserIDs := make(map[string]bool)
 
 	for _, value := range result.Entries {
-		ldapId := value.GetAttributeValue(uniqueIdentifierAttribute)
+		ldapId := value.GetAttributeValue(dbConfig.LdapAttributeUserUniqueIdentifier.Value)
 
 		// Skip users without a valid LDAP ID
 		if ldapId == "" {
-			log.Printf("Skipping LDAP user without a valid unique identifier (attribute: %s)", uniqueIdentifierAttribute)
+			log.Printf("Skipping LDAP user without a valid unique identifier (attribute: %s)", dbConfig.LdapAttributeUserUniqueIdentifier.Value)
 			continue
 		}
 
@@ -269,16 +274,16 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 		// Check if user is admin by checking if they are in the admin group
 		isAdmin := false
 		for _, group := range value.GetAttributeValues("memberOf") {
-			if strings.Contains(group, adminGroupAttribute) {
+			if strings.Contains(group, dbConfig.LdapAttributeAdminGroup.Value) {
 				isAdmin = true
 			}
 		}
 
 		newUser := dto.UserCreateDto{
-			Username:  value.GetAttributeValue(usernameAttribute),
-			Email:     value.GetAttributeValue(emailAttribute),
-			FirstName: value.GetAttributeValue(firstNameAttribute),
-			LastName:  value.GetAttributeValue(lastNameAttribute),
+			Username:  value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
+			Email:     value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value),
+			FirstName: value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
+			LastName:  value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
 			IsAdmin:   isAdmin,
 			LdapID:    ldapId,
 		}
@@ -296,7 +301,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB) error {
 		}
 
 		// Save profile picture
-		if pictureString := value.GetAttributeValue(profilePictureAttribute); pictureString != "" {
+		if pictureString := value.GetAttributeValue(dbConfig.LdapAttributeUserProfilePicture.Value); pictureString != "" {
 			if err := s.saveProfilePicture(ctx, databaseUser.ID, pictureString); err != nil {
 				log.Printf("Error saving profile picture for user %s: %v", newUser.Username, err)
 			}

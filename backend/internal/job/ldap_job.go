@@ -34,7 +34,7 @@ func RegisterLdapJobs(ctx context.Context, ldapService *service.LdapService, app
 }
 
 func (j *LdapJobs) syncLdap(ctx context.Context) error {
-	if !j.appConfigService.DbConfig.LdapEnabled.IsTrue() {
+	if !j.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
 		return nil
 	}
 

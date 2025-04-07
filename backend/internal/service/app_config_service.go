@@ -7,22 +7,24 @@ import (
 	"mime/multipart"
 	"os"
 	"reflect"
+	"sync/atomic"
+
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"gorm.io/gorm"
 )
 
 type AppConfigService struct {
-	DbConfig *model.AppConfig
+	dbConfig atomic.Pointer[model.AppConfig]
 	db       *gorm.DB
 }
 
 func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 	service := &AppConfigService{
-		DbConfig: &defaultDbConfig,
+		dbConfig: atomic.Pointer[model.AppConfig]{},
 		db:       db,
 	}
 
@@ -34,170 +36,58 @@ func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 	return service
 }
 
-var defaultDbConfig = model.AppConfig{
-	// General
-	AppName: model.AppConfigVariable{
-		Key:          "appName",
-		Type:         "string",
-		IsPublic:     true,
-		DefaultValue: "Pocket ID",
-	},
-	SessionDuration: model.AppConfigVariable{
-		Key:          "sessionDuration",
-		Type:         "number",
-		DefaultValue: "60",
-	},
-	EmailsVerified: model.AppConfigVariable{
-		Key:          "emailsVerified",
-		Type:         "bool",
-		DefaultValue: "false",
-	},
-	AllowOwnAccountEdit: model.AppConfigVariable{
-		Key:          "allowOwnAccountEdit",
-		Type:         "bool",
-		IsPublic:     true,
-		DefaultValue: "true",
-	},
-	// Internal
-	BackgroundImageType: model.AppConfigVariable{
-		Key:          "backgroundImageType",
-		Type:         "string",
-		IsInternal:   true,
-		DefaultValue: "jpg",
-	},
-	LogoLightImageType: model.AppConfigVariable{
-		Key:          "logoLightImageType",
-		Type:         "string",
-		IsInternal:   true,
-		DefaultValue: "svg",
-	},
-	LogoDarkImageType: model.AppConfigVariable{
-		Key:          "logoDarkImageType",
-		Type:         "string",
-		IsInternal:   true,
-		DefaultValue: "svg",
-	},
-	// Email
-	SmtpHost: model.AppConfigVariable{
-		Key:  "smtpHost",
-		Type: "string",
-	},
-	SmtpPort: model.AppConfigVariable{
-		Key:  "smtpPort",
-		Type: "number",
-	},
-	SmtpFrom: model.AppConfigVariable{
-		Key:  "smtpFrom",
-		Type: "string",
-	},
-	SmtpUser: model.AppConfigVariable{
-		Key:  "smtpUser",
-		Type: "string",
-	},
-	SmtpPassword: model.AppConfigVariable{
-		Key:  "smtpPassword",
-		Type: "string",
-	},
-	SmtpTls: model.AppConfigVariable{
-		Key:          "smtpTls",
-		Type:         "string",
-		DefaultValue: "none",
-	},
-	SmtpSkipCertVerify: model.AppConfigVariable{
-		Key:          "smtpSkipCertVerify",
-		Type:         "bool",
-		DefaultValue: "false",
-	},
-	EmailLoginNotificationEnabled: model.AppConfigVariable{
-		Key:          "emailLoginNotificationEnabled",
-		Type:         "bool",
-		DefaultValue: "false",
-	},
-	EmailOneTimeAccessEnabled: model.AppConfigVariable{
-		Key:          "emailOneTimeAccessEnabled",
-		Type:         "bool",
-		IsPublic:     true,
-		DefaultValue: "false",
-	},
-	// LDAP
-	LdapEnabled: model.AppConfigVariable{
-		Key:          "ldapEnabled",
-		Type:         "bool",
-		IsPublic:     true,
-		DefaultValue: "false",
-	},
-	LdapUrl: model.AppConfigVariable{
-		Key:  "ldapUrl",
-		Type: "string",
-	},
-	LdapBindDn: model.AppConfigVariable{
-		Key:  "ldapBindDn",
-		Type: "string",
-	},
-	LdapBindPassword: model.AppConfigVariable{
-		Key:  "ldapBindPassword",
-		Type: "string",
-	},
-	LdapBase: model.AppConfigVariable{
-		Key:  "ldapBase",
-		Type: "string",
-	},
-	LdapUserSearchFilter: model.AppConfigVariable{
-		Key:          "ldapUserSearchFilter",
-		Type:         "string",
-		DefaultValue: "(objectClass=person)",
-	},
-	LdapUserGroupSearchFilter: model.AppConfigVariable{
-		Key:          "ldapUserGroupSearchFilter",
-		Type:         "string",
-		DefaultValue: "(objectClass=groupOfNames)",
-	},
-	LdapSkipCertVerify: model.AppConfigVariable{
-		Key:          "ldapSkipCertVerify",
-		Type:         "bool",
-		DefaultValue: "false",
-	},
-	LdapAttributeUserUniqueIdentifier: model.AppConfigVariable{
-		Key:  "ldapAttributeUserUniqueIdentifier",
-		Type: "string",
-	},
-	LdapAttributeUserUsername: model.AppConfigVariable{
-		Key:  "ldapAttributeUserUsername",
-		Type: "string",
-	},
-	LdapAttributeUserEmail: model.AppConfigVariable{
-		Key:  "ldapAttributeUserEmail",
-		Type: "string",
-	},
-	LdapAttributeUserFirstName: model.AppConfigVariable{
-		Key:  "ldapAttributeUserFirstName",
-		Type: "string",
-	},
-	LdapAttributeUserLastName: model.AppConfigVariable{
-		Key:  "ldapAttributeUserLastName",
-		Type: "string",
-	},
-	LdapAttributeUserProfilePicture: model.AppConfigVariable{
-		Key:  "ldapAttributeUserProfilePicture",
-		Type: "string",
-	},
-	LdapAttributeGroupMember: model.AppConfigVariable{
-		Key:          "ldapAttributeGroupMember",
-		Type:         "string",
-		DefaultValue: "member",
-	},
-	LdapAttributeGroupUniqueIdentifier: model.AppConfigVariable{
-		Key:  "ldapAttributeGroupUniqueIdentifier",
-		Type: "string",
-	},
-	LdapAttributeGroupName: model.AppConfigVariable{
-		Key:  "ldapAttributeGroupName",
-		Type: "string",
-	},
-	LdapAttributeAdminGroup: model.AppConfigVariable{
-		Key:  "ldapAttributeAdminGroup",
-		Type: "string",
-	},
+func (s *AppConfigService) GetDbConfig() *model.AppConfig {
+	v := s.dbConfig.Load()
+	if v == nil {
+		// This indicates a development-time error
+		panic("called GetDbConfig before DbConfig is loaded")
+	}
+
+	return v
+}
+
+func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
+	// Values are the default ones
+	return &model.AppConfig{
+		// General
+		AppName:             model.AppConfigVariable{Value: "Pocket ID"},
+		SessionDuration:     model.AppConfigVariable{Value: "60"},
+		EmailsVerified:      model.AppConfigVariable{Value: "false"},
+		AllowOwnAccountEdit: model.AppConfigVariable{Value: "true"},
+		// Internal
+		BackgroundImageType: model.AppConfigVariable{Value: "jpg"},
+		LogoLightImageType:  model.AppConfigVariable{Value: "svg"},
+		LogoDarkImageType:   model.AppConfigVariable{Value: "svg"},
+		// Email
+		SmtpHost:                      model.AppConfigVariable{},
+		SmtpPort:                      model.AppConfigVariable{},
+		SmtpFrom:                      model.AppConfigVariable{},
+		SmtpUser:                      model.AppConfigVariable{},
+		SmtpPassword:                  model.AppConfigVariable{},
+		SmtpTls:                       model.AppConfigVariable{Value: "none"},
+		SmtpSkipCertVerify:            model.AppConfigVariable{Value: "false"},
+		EmailLoginNotificationEnabled: model.AppConfigVariable{Value: "false"},
+		EmailOneTimeAccessEnabled:     model.AppConfigVariable{Value: "false"},
+		// LDAP
+		LdapEnabled:                        model.AppConfigVariable{Value: "false"},
+		LdapUrl:                            model.AppConfigVariable{},
+		LdapBindDn:                         model.AppConfigVariable{},
+		LdapBindPassword:                   model.AppConfigVariable{},
+		LdapBase:                           model.AppConfigVariable{},
+		LdapUserSearchFilter:               model.AppConfigVariable{Value: "(objectClass=person)"},
+		LdapUserGroupSearchFilter:          model.AppConfigVariable{Value: "(objectClass=groupOfNames)"},
+		LdapSkipCertVerify:                 model.AppConfigVariable{Value: "false"},
+		LdapAttributeUserUniqueIdentifier:  model.AppConfigVariable{},
+		LdapAttributeUserUsername:          model.AppConfigVariable{},
+		LdapAttributeUserEmail:             model.AppConfigVariable{},
+		LdapAttributeUserFirstName:         model.AppConfigVariable{},
+		LdapAttributeUserLastName:          model.AppConfigVariable{},
+		LdapAttributeUserProfilePicture:    model.AppConfigVariable{},
+		LdapAttributeGroupMember:           model.AppConfigVariable{Value: "member"},
+		LdapAttributeGroupUniqueIdentifier: model.AppConfigVariable{},
+		LdapAttributeGroupName:             model.AppConfigVariable{},
+		LdapAttributeAdminGroup:            model.AppConfigVariable{},
+	}
 }
 
 func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
