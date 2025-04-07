@@ -69,7 +69,7 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 		return
 	}
 
-	code, callbackURL, err := oc.oidcService.Authorize(input, c.GetString("userID"), c.ClientIP(), c.Request.UserAgent())
+	code, callbackURL, err := oc.oidcService.Authorize(c.Request.Context(), input, c.GetString("userID"), c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -100,7 +100,7 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 		return
 	}
 
-	hasAuthorizedClient, err := oc.oidcService.HasAuthorizedClient(input.ClientID, c.GetString("userID"), input.Scope)
+	hasAuthorizedClient, err := oc.oidcService.HasAuthorizedClient(c.Request.Context(), input.ClientID, c.GetString("userID"), input.Scope)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -153,6 +153,7 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	}
 
 	idToken, accessToken, refreshToken, expiresIn, err := oc.oidcService.CreateTokens(
+		c.Request.Context(),
 		input.Code,
 		input.GrantType,
 		clientID,
@@ -216,7 +217,7 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 		_ = c.Error(&common.TokenInvalidError{})
 		return
 	}
-	claims, err := oc.oidcService.GetUserClaimsForClient(userID, clientID[0])
+	claims, err := oc.oidcService.GetUserClaimsForClient(c.Request.Context(), userID, clientID[0])
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -254,7 +255,7 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 		}
 	}
 
-	callbackURL, err := oc.oidcService.ValidateEndSession(input, c.GetString("userID"))
+	callbackURL, err := oc.oidcService.ValidateEndSession(c.Request.Context(), input, c.GetString("userID"))
 	if err != nil {
 		// If the validation fails, the user has to confirm the logout manually and doesn't get redirected
 		log.Printf("Error getting logout callback URL, the user has to confirm the logout manually: %v", err)
@@ -332,7 +333,7 @@ func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
 // @Router /api/oidc/clients/{id}/meta [get]
 func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	clientId := c.Param("id")
-	client, err := oc.oidcService.GetClient(clientId)
+	client, err := oc.oidcService.GetClient(c.Request.Context(), clientId)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -359,7 +360,7 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 // @Router /api/oidc/clients/{id} [get]
 func (oc *OidcController) getClientHandler(c *gin.Context) {
 	clientId := c.Param("id")
-	client, err := oc.oidcService.GetClient(clientId)
+	client, err := oc.oidcService.GetClient(c.Request.Context(), clientId)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -395,7 +396,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 		return
 	}
 
-	clients, pagination, err := oc.oidcService.ListClients(searchTerm, sortedPaginationRequest)
+	clients, pagination, err := oc.oidcService.ListClients(c.Request.Context(), searchTerm, sortedPaginationRequest)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -430,7 +431,7 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 		return
 	}
 
-	client, err := oc.oidcService.CreateClient(input, c.GetString("userID"))
+	client, err := oc.oidcService.CreateClient(c.Request.Context(), input, c.GetString("userID"))
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -454,7 +455,7 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/oidc/clients/{id} [delete]
 func (oc *OidcController) deleteClientHandler(c *gin.Context) {
-	err := oc.oidcService.DeleteClient(c.Param("id"))
+	err := oc.oidcService.DeleteClient(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -481,7 +482,7 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 		return
 	}
 
-	client, err := oc.oidcService.UpdateClient(c.Param("id"), input)
+	client, err := oc.oidcService.UpdateClient(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -506,7 +507,7 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/oidc/clients/{id}/secret [post]
 func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
-	secret, err := oc.oidcService.CreateClientSecret(c.Param("id"))
+	secret, err := oc.oidcService.CreateClientSecret(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -526,7 +527,7 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 // @Success 200 {file} binary "Logo image"
 // @Router /api/oidc/clients/{id}/logo [get]
 func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
-	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Param("id"))
+	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -553,7 +554,7 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 		return
 	}
 
-	err = oc.oidcService.UpdateClientLogo(c.Param("id"), file)
+	err = oc.oidcService.UpdateClientLogo(c.Request.Context(), c.Param("id"), file)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -571,7 +572,7 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/oidc/clients/{id}/logo [delete]
 func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
-	err := oc.oidcService.DeleteClientLogo(c.Param("id"))
+	err := oc.oidcService.DeleteClientLogo(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -598,7 +599,7 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 		return
 	}
 
-	oidcClient, err := oc.oidcService.UpdateAllowedUserGroups(c.Param("id"), input)
+	oidcClient, err := oc.oidcService.UpdateAllowedUserGroups(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		_ = c.Error(err)
 		return

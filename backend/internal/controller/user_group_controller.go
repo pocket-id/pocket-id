@@ -47,6 +47,8 @@ type UserGroupController struct {
 // @Success 200 {object} dto.Paginated[dto.UserGroupDtoWithUserCount]
 // @Router /api/user-groups [get]
 func (ugc *UserGroupController) list(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	searchTerm := c.Query("search")
 	var sortedPaginationRequest utils.SortedPaginationRequest
 	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
@@ -54,7 +56,7 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 		return
 	}
 
-	groups, pagination, err := ugc.UserGroupService.List(searchTerm, sortedPaginationRequest)
+	groups, pagination, err := ugc.UserGroupService.List(ctx, searchTerm, sortedPaginationRequest)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -68,7 +70,7 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 			_ = c.Error(err)
 			return
 		}
-		groupDto.UserCount, err = ugc.UserGroupService.GetUserCountOfGroup(group.ID)
+		groupDto.UserCount, err = ugc.UserGroupService.GetUserCountOfGroup(ctx, group.ID)
 		if err != nil {
 			_ = c.Error(err)
 			return
@@ -93,7 +95,7 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/user-groups/{id} [get]
 func (ugc *UserGroupController) get(c *gin.Context) {
-	group, err := ugc.UserGroupService.Get(c.Param("id"))
+	group, err := ugc.UserGroupService.Get(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -125,7 +127,7 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 		return
 	}
 
-	group, err := ugc.UserGroupService.Create(input)
+	group, err := ugc.UserGroupService.Create(c.Request.Context(), input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -158,7 +160,7 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 		return
 	}
 
-	group, err := ugc.UserGroupService.Update(c.Param("id"), input, false)
+	group, err := ugc.UserGroupService.Update(c.Request.Context(), c.Param("id"), input, false)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -184,7 +186,7 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/user-groups/{id} [delete]
 func (ugc *UserGroupController) delete(c *gin.Context) {
-	if err := ugc.UserGroupService.Delete(c.Param("id")); err != nil {
+	if err := ugc.UserGroupService.Delete(c.Request.Context(), c.Param("id")); err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -210,7 +212,7 @@ func (ugc *UserGroupController) updateUsers(c *gin.Context) {
 		return
 	}
 
-	group, err := ugc.UserGroupService.UpdateUsers(c.Param("id"), input.UserIDs)
+	group, err := ugc.UserGroupService.UpdateUsers(c.Request.Context(), c.Param("id"), input.UserIDs)
 	if err != nil {
 		_ = c.Error(err)
 		return

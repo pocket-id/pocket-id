@@ -1,18 +1,20 @@
 package service
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"mime/multipart"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -40,9 +42,19 @@ func NewOidcService(db *gorm.DB, jwtService *JwtService, appConfigService *AppCo
 	}
 }
 
-func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID, ipAddress, userAgent string) (string, string, error) {
+func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClientRequestDto, userID, ipAddress, userAgent string) (string, string, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.Preload("AllowedUserGroups").First(&client, "id = ?", input.ClientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("AllowedUserGroups").
+		First(&client, "id = ?", input.ClientID).
+		Error
+	if err != nil {
 		return "", "", err
 	}
 
@@ -59,7 +71,12 @@ func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID,
 
 	// Check if the user group is allowed to authorize the client
 	var user model.User
-	if err := s.db.Preload("UserGroups").First(&user, "id = ?", userID).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if err != nil {
 		return "", "", err
 	}
 
@@ -68,7 +85,7 @@ func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID,
 	}
 
 	// Check if the user has already authorized the client with the given scope
-	hasAuthorizedClient, err := s.HasAuthorizedClient(input.ClientID, userID, input.Scope)
+	hasAuthorizedClient, err := s.hasAuthorizedClientInternal(ctx, input.ClientID, userID, input.Scope, tx)
 	if err != nil {
 		return "", "", err
 	}
@@ -81,39 +98,55 @@ func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID,
 			Scope:    input.Scope,
 		}
 
-		if err := s.db.Create(&userAuthorizedClient).Error; err != nil {
-			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				// The client has already been authorized but with a different scope so we need to update the scope
-				if err := s.db.Model(&userAuthorizedClient).Update("scope", input.Scope).Error; err != nil {
-					return "", "", err
-				}
-			} else {
+		err = tx.
+			WithContext(ctx).
+			Create(&userAuthorizedClient).
+			Error
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			// The client has already been authorized but with a different scope so we need to update the scope
+			if err := tx.
+				WithContext(ctx).
+				Model(&userAuthorizedClient).Update("scope", input.Scope).Error; err != nil {
 				return "", "", err
 			}
+		} else if err != nil {
+			return "", "", err
 		}
 	}
 
 	// Create the authorization code
-	code, err := s.createAuthorizationCode(input.ClientID, userID, input.Scope, input.Nonce, input.CodeChallenge, input.CodeChallengeMethod)
+	code, err := s.createAuthorizationCode(ctx, input.ClientID, userID, input.Scope, input.Nonce, input.CodeChallenge, input.CodeChallengeMethod, tx)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Log the authorization event
 	if hasAuthorizedClient {
-		s.auditLogService.Create(model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name})
+		s.auditLogService.Create(ctx, model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
 	} else {
-		s.auditLogService.Create(model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name})
+		s.auditLogService.Create(ctx, model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
+	}
 
+	err = tx.Commit().Error
+	if err != nil {
+		return "", "", err
 	}
 
 	return code, callbackURL, nil
 }
 
 // HasAuthorizedClient checks if the user has already authorized the client with the given scope
-func (s *OidcService) HasAuthorizedClient(clientID, userID, scope string) (bool, error) {
+func (s *OidcService) HasAuthorizedClient(ctx context.Context, clientID, userID, scope string) (bool, error) {
+	return s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
+}
+
+func (s *OidcService) hasAuthorizedClientInternal(ctx context.Context, clientID, userID, scope string, tx *gorm.DB) (bool, error) {
 	var userAuthorizedOidcClient model.UserAuthorizedOidcClient
-	if err := s.db.First(&userAuthorizedOidcClient, "client_id = ? AND user_id = ?", clientID, userID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		First(&userAuthorizedOidcClient, "client_id = ? AND user_id = ?", clientID, userID).
+		Error
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
 		}
@@ -146,21 +179,30 @@ func (s *OidcService) IsUserGroupAllowedToAuthorize(user model.User, client mode
 	return isAllowedToAuthorize
 }
 
-func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, codeVerifier, refreshToken string) (idToken string, accessToken string, newRefreshToken string, exp int, err error) {
+func (s *OidcService) CreateTokens(ctx context.Context, code, grantType, clientID, clientSecret, codeVerifier, refreshToken string) (idToken string, accessToken string, newRefreshToken string, exp int, err error) {
 	switch grantType {
 	case "authorization_code":
-		return s.createTokenFromAuthorizationCode(code, clientID, clientSecret, codeVerifier)
+		return s.createTokenFromAuthorizationCode(ctx, code, clientID, clientSecret, codeVerifier)
 	case "refresh_token":
-		accessToken, newRefreshToken, exp, err = s.createTokenFromRefreshToken(refreshToken, clientID, clientSecret)
+		accessToken, newRefreshToken, exp, err = s.createTokenFromRefreshToken(ctx, refreshToken, clientID, clientSecret)
 		return "", accessToken, newRefreshToken, exp, err
 	default:
 		return "", "", "", 0, &common.OidcGrantTypeNotSupportedError{}
 	}
 }
 
-func (s *OidcService) createTokenFromAuthorizationCode(code, clientID, clientSecret, codeVerifier string) (idToken string, accessToken string, refreshToken string, exp int, err error) {
+func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, code, clientID, clientSecret, codeVerifier string) (idToken string, accessToken string, refreshToken string, exp int, err error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return "", "", "", 0, err
 	}
 
@@ -177,7 +219,11 @@ func (s *OidcService) createTokenFromAuthorizationCode(code, clientID, clientSec
 	}
 
 	var authorizationCodeMetaData model.OidcAuthorizationCode
-	err = s.db.Preload("User").First(&authorizationCodeMetaData, "code = ?", code).Error
+	err = tx.
+		WithContext(ctx).
+		Preload("User").
+		First(&authorizationCodeMetaData, "code = ?", code).
+		Error
 	if err != nil {
 		return "", "", "", 0, &common.OidcInvalidAuthorizationCodeError{}
 	}
@@ -193,7 +239,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(code, clientID, clientSec
 		return "", "", "", 0, &common.OidcInvalidAuthorizationCodeError{}
 	}
 
-	userClaims, err := s.GetUserClaimsForClient(authorizationCodeMetaData.UserID, clientID)
+	userClaims, err := s.getUserClaimsForClientInternal(ctx, authorizationCodeMetaData.UserID, clientID, tx)
 	if err != nil {
 		return "", "", "", 0, err
 	}
@@ -204,7 +250,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(code, clientID, clientSec
 	}
 
 	// Generate a refresh token
-	refreshToken, err = s.createRefreshToken(clientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope)
+	refreshToken, err = s.createRefreshToken(ctx, clientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope, tx)
 	if err != nil {
 		return "", "", "", 0, err
 	}
@@ -214,19 +260,39 @@ func (s *OidcService) createTokenFromAuthorizationCode(code, clientID, clientSec
 		return "", "", "", 0, err
 	}
 
-	s.db.Delete(&authorizationCodeMetaData)
+	err = tx.
+		WithContext(ctx).
+		Delete(&authorizationCodeMetaData).
+		Error
+	if err != nil {
+		return "", "", "", 0, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return "", "", "", 0, err
+	}
 
 	return idToken, accessToken, refreshToken, 3600, nil
 }
 
-func (s *OidcService) createTokenFromRefreshToken(refreshToken, clientID, clientSecret string) (accessToken string, newRefreshToken string, exp int, err error) {
+func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret string) (accessToken string, newRefreshToken string, exp int, err error) {
 	if refreshToken == "" {
 		return "", "", 0, &common.OidcMissingRefreshTokenError{}
 	}
 
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	// Get the client to check if it's public
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return "", "", 0, err
 	}
 
@@ -244,7 +310,9 @@ func (s *OidcService) createTokenFromRefreshToken(refreshToken, clientID, client
 
 	// Verify refresh token
 	var storedRefreshToken model.OidcRefreshToken
-	err = s.db.Preload("User").
+	err = tx.
+		WithContext(ctx).
+		Preload("User").
 		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
 		First(&storedRefreshToken).
 		Error
@@ -267,13 +335,24 @@ func (s *OidcService) createTokenFromRefreshToken(refreshToken, clientID, client
 	}
 
 	// Generate a new refresh token and invalidate the old one
-	newRefreshToken, err = s.createRefreshToken(clientID, storedRefreshToken.UserID, storedRefreshToken.Scope)
+	newRefreshToken, err = s.createRefreshToken(ctx, clientID, storedRefreshToken.UserID, storedRefreshToken.Scope, tx)
 	if err != nil {
 		return "", "", 0, err
 	}
 
 	// Delete the used refresh token
-	s.db.Delete(&storedRefreshToken)
+	err = tx.
+		WithContext(ctx).
+		Delete(&storedRefreshToken).
+		Error
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return "", "", 0, err
+	}
 
 	return accessToken, newRefreshToken, 3600, nil
 }
@@ -365,18 +444,31 @@ func (s *OidcService) introspectRefreshToken(refreshToken string) (introspectDto
 	return introspectDto, nil
 }
 
-func (s *OidcService) GetClient(clientID string) (model.OidcClient, error) {
+func (s *OidcService) GetClient(ctx context.Context, clientID string) (model.OidcClient, error) {
+	return s.getClientInternal(ctx, clientID, s.db)
+}
+
+func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB) (model.OidcClient, error) {
 	var client model.OidcClient
-	if err := s.db.Preload("CreatedBy").Preload("AllowedUserGroups").First(&client, "id = ?", clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("CreatedBy").
+		Preload("AllowedUserGroups").
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 	return client, nil
 }
 
-func (s *OidcService) ListClients(searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.OidcClient, utils.PaginationResponse, error) {
+func (s *OidcService) ListClients(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.OidcClient, utils.PaginationResponse, error) {
 	var clients []model.OidcClient
 
-	query := s.db.Preload("CreatedBy").Model(&model.OidcClient{})
+	query := s.db.
+		WithContext(ctx).
+		Preload("CreatedBy").
+		Model(&model.OidcClient{})
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
 		query = query.Where("name LIKE ?", searchPattern)
@@ -390,7 +482,7 @@ func (s *OidcService) ListClients(searchTerm string, sortedPaginationRequest uti
 	return clients, pagination, nil
 }
 
-func (s *OidcService) CreateClient(input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
+func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
 		Name:               input.Name,
 		CallbackURLs:       input.CallbackURLs,
@@ -400,16 +492,30 @@ func (s *OidcService) CreateClient(input dto.OidcClientCreateDto, userID string)
 		PkceEnabled:        input.IsPublic || input.PkceEnabled,
 	}
 
-	if err := s.db.Create(&client).Error; err != nil {
+	err := s.db.
+		WithContext(ctx).
+		Create(&client).
+		Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
 	return client, nil
 }
 
-func (s *OidcService) UpdateClient(clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
+func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.Preload("CreatedBy").First(&client, "id = ?", clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("CreatedBy").
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
@@ -419,29 +525,48 @@ func (s *OidcService) UpdateClient(clientID string, input dto.OidcClientCreateDt
 	client.IsPublic = input.IsPublic
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
 
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
 	return client, nil
 }
 
-func (s *OidcService) DeleteClient(clientID string) error {
+func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
-		return err
-	}
-
-	if err := s.db.Delete(&client).Error; err != nil {
+	err := s.db.
+		WithContext(ctx).
+		Where("id = ?", clientID).
+		Delete(&client).
+		Error
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *OidcService) CreateClientSecret(clientID string) (string, error) {
+func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string) (string, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return "", err
 	}
 
@@ -456,16 +581,29 @@ func (s *OidcService) CreateClientSecret(clientID string) (string, error) {
 	}
 
 	client.Secret = string(hashedSecret)
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return "", err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return "", err
 	}
 
 	return clientSecret, nil
 }
 
-func (s *OidcService) GetClientLogo(clientID string) (string, string, error) {
+func (s *OidcService) GetClientLogo(ctx context.Context, clientID string) (string, string, error) {
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err := s.db.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return "", "", err
 	}
 
@@ -473,26 +611,35 @@ func (s *OidcService) GetClientLogo(clientID string) (string, string, error) {
 		return "", "", errors.New("image not found")
 	}
 
-	imageType := *client.ImageType
-	imagePath := fmt.Sprintf("%s/oidc-client-images/%s.%s", common.EnvConfig.UploadPath, client.ID, imageType)
-	mimeType := utils.GetImageMimeType(imageType)
+	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + *client.ImageType
+	mimeType := utils.GetImageMimeType(*client.ImageType)
 
 	return imagePath, mimeType, nil
 }
 
-func (s *OidcService) UpdateClientLogo(clientID string, file *multipart.FileHeader) error {
+func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, file *multipart.FileHeader) error {
 	fileType := utils.GetFileExtension(file.Filename)
 	if mimeType := utils.GetImageMimeType(fileType); mimeType == "" {
 		return &common.FileTypeNotSupportedError{}
 	}
 
-	imagePath := fmt.Sprintf("%s/oidc-client-images/%s.%s", common.EnvConfig.UploadPath, clientID, fileType)
-	if err := utils.SaveFile(file, imagePath); err != nil {
+	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + "." + fileType
+	err := utils.SaveFile(file, imagePath)
+	if err != nil {
 		return err
 	}
 
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return err
 	}
 
@@ -504,16 +651,34 @@ func (s *OidcService) UpdateClientLogo(clientID string, file *multipart.FileHead
 	}
 
 	client.ImageType = &fileType
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *OidcService) DeleteClientLogo(clientID string) error {
+func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return err
 	}
 
@@ -521,38 +686,71 @@ func (s *OidcService) DeleteClientLogo(clientID string) error {
 		return errors.New("image not found")
 	}
 
-	imagePath := fmt.Sprintf("%s/oidc-client-images/%s.%s", common.EnvConfig.UploadPath, client.ID, *client.ImageType)
+	client.ImageType = nil
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return err
+	}
+
+	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + *client.ImageType
 	if err := os.Remove(imagePath); err != nil {
 		return err
 	}
 
-	client.ImageType = nil
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.Commit().Error
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (map[string]interface{}, error) {
+func (s *OidcService) GetUserClaimsForClient(ctx context.Context, userID string, clientID string) (map[string]interface{}, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	claims, err := s.getUserClaimsForClientInternal(ctx, userID, clientID, s.db)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
+
+	return claims, nil
+}
+
+func (s *OidcService) getUserClaimsForClientInternal(ctx context.Context, userID string, clientID string, tx *gorm.DB) (map[string]interface{}, error) {
 	var authorizedOidcClient model.UserAuthorizedOidcClient
-	if err := s.db.Preload("User.UserGroups").First(&authorizedOidcClient, "user_id = ? AND client_id = ?", userID, clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("User.UserGroups").
+		First(&authorizedOidcClient, "user_id = ? AND client_id = ?", userID, clientID).
+		Error
+	if err != nil {
 		return nil, err
 	}
 
 	user := authorizedOidcClient.User
-	scope := authorizedOidcClient.Scope
+	scopes := strings.Split(authorizedOidcClient.Scope, " ")
 
 	claims := map[string]interface{}{
 		"sub": user.ID,
 	}
 
-	if strings.Contains(scope, "email") {
+	if slices.Contains(scopes, "email") {
 		claims["email"] = user.Email
 		claims["email_verified"] = s.appConfigService.DbConfig.EmailsVerified.IsTrue()
 	}
 
-	if strings.Contains(scope, "groups") {
+	if slices.Contains(scopes, "groups") {
 		userGroups := make([]string, len(user.UserGroups))
 		for i, group := range user.UserGroups {
 			userGroups[i] = group.Name
@@ -565,17 +763,17 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 		"family_name":        user.LastName,
 		"name":               user.FullName(),
 		"preferred_username": user.Username,
-		"picture":            fmt.Sprintf("%s/api/users/%s/profile-picture.png", common.EnvConfig.AppURL, user.ID),
+		"picture":            common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png",
 	}
 
-	if strings.Contains(scope, "profile") {
+	if slices.Contains(scopes, "profile") {
 		// Add profile claims
 		for k, v := range profileClaims {
 			claims[k] = v
 		}
 
 		// Add custom claims
-		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(userID)
+		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, userID, tx)
 		if err != nil {
 			return nil, err
 		}
@@ -593,15 +791,21 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 			}
 		}
 	}
-	if strings.Contains(scope, "email") {
+
+	if slices.Contains(scopes, "email") {
 		claims["email"] = user.Email
 	}
 
 	return claims, nil
 }
 
-func (s *OidcService) UpdateAllowedUserGroups(id string, input dto.OidcUpdateAllowedUserGroupsDto) (client model.OidcClient, err error) {
-	client, err = s.GetClient(id)
+func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, input dto.OidcUpdateAllowedUserGroupsDto) (client model.OidcClient, err error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	client, err = s.getClientInternal(ctx, id, tx)
 	if err != nil {
 		return model.OidcClient{}, err
 	}
@@ -609,18 +813,37 @@ func (s *OidcService) UpdateAllowedUserGroups(id string, input dto.OidcUpdateAll
 	// Fetch the user groups based on UserGroupIDs in input
 	var groups []model.UserGroup
 	if len(input.UserGroupIDs) > 0 {
-		if err := s.db.Where("id IN (?)", input.UserGroupIDs).Find(&groups).Error; err != nil {
+		err = tx.
+			WithContext(ctx).
+			Where("id IN (?)", input.UserGroupIDs).
+			Find(&groups).
+			Error
+		if err != nil {
 			return model.OidcClient{}, err
 		}
 	}
 
 	// Replace the current user groups with the new set of user groups
-	if err := s.db.Model(&client).Association("AllowedUserGroups").Replace(groups); err != nil {
+	err = tx.
+		WithContext(ctx).
+		Model(&client).
+		Association("AllowedUserGroups").
+		Replace(groups)
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
 	// Save the updated client
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
@@ -628,7 +851,7 @@ func (s *OidcService) UpdateAllowedUserGroups(id string, input dto.OidcUpdateAll
 }
 
 // ValidateEndSession returns the logout callback URL for the client if all the validations pass
-func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string) (string, error) {
+func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogoutDto, userID string) (string, error) {
 	// If no ID token hint is provided, return an error
 	if input.IdTokenHint == "" {
 		return "", &common.TokenInvalidError{}
@@ -652,7 +875,12 @@ func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string)
 
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
-	if err := s.db.Preload("Client").First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).Error; err != nil {
+	err = s.db.
+		WithContext(ctx).
+		Preload("Client").
+		First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).
+		Error
+	if err != nil {
 		return "", &common.OidcMissingAuthorizationError{}
 	}
 
@@ -670,7 +898,7 @@ func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string)
 
 }
 
-func (s *OidcService) createAuthorizationCode(clientID string, userID string, scope string, nonce string, codeChallenge string, codeChallengeMethod string) (string, error) {
+func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID string, userID string, scope string, nonce string, codeChallenge string, codeChallengeMethod string, tx *gorm.DB) (string, error) {
 	randomString, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
 		return "", err
@@ -689,7 +917,11 @@ func (s *OidcService) createAuthorizationCode(clientID string, userID string, sc
 		CodeChallengeMethodSha256: &codeChallengeMethodSha256,
 	}
 
-	if err := s.db.Create(&oidcAuthorizationCode).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Create(&oidcAuthorizationCode).
+		Error
+	if err != nil {
 		return "", err
 	}
 
@@ -735,7 +967,7 @@ func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string) (ca
 	return "", &common.OidcInvalidCallbackURLError{}
 }
 
-func (s *OidcService) createRefreshToken(clientID string, userID string, scope string) (string, error) {
+func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
 	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
 	if err != nil {
 		return "", err
@@ -753,7 +985,11 @@ func (s *OidcService) createRefreshToken(clientID string, userID string, scope s
 		Scope:     scope,
 	}
 
-	if err := s.db.Create(&m).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Create(&m).
+		Error
+	if err != nil {
 		return "", err
 	}
 

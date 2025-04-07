@@ -41,7 +41,7 @@ type CustomClaimController struct {
 // @Security BearerAuth
 // @Router /api/custom-claims/suggestions [get]
 func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) {
-	claims, err := ccc.customClaimService.GetSuggestions()
+	claims, err := ccc.customClaimService.GetSuggestions(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -69,7 +69,7 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Contex
 	}
 
 	userId := c.Param("userId")
-	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(userId, input)
+	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(c.Request.Context(), userId, input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -104,7 +104,7 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.C
 	}
 
 	userGroupId := c.Param("userGroupId")
-	claims, err := ccc.customClaimService.UpdateCustomClaimsForUserGroup(userGroupId, input)
+	claims, err := ccc.customClaimService.UpdateCustomClaimsForUserGroup(c.Request.Context(), userGroupId, input)
 	if err != nil {
 		_ = c.Error(err)
 		return

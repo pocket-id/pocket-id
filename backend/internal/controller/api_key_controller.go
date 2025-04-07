@@ -53,7 +53,7 @@ func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
 		return
 	}
 
-	apiKeys, pagination, err := c.apiKeyService.ListApiKeys(userID, sortedPaginationRequest)
+	apiKeys, pagination, err := c.apiKeyService.ListApiKeys(ctx.Request.Context(), userID, sortedPaginationRequest)
 	if err != nil {
 		_ = ctx.Error(err)
 		return
@@ -87,7 +87,7 @@ func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {
 		return
 	}
 
-	apiKey, token, err := c.apiKeyService.CreateApiKey(userID, input)
+	apiKey, token, err := c.apiKeyService.CreateApiKey(ctx.Request.Context(), userID, input)
 	if err != nil {
 		_ = ctx.Error(err)
 		return
@@ -116,7 +116,7 @@ func (c *ApiKeyController) revokeApiKeyHandler(ctx *gin.Context) {
 	userID := ctx.GetString("userID")
 	apiKeyID := ctx.Param("id")
 
-	if err := c.apiKeyService.RevokeApiKey(userID, apiKeyID); err != nil {
+	if err := c.apiKeyService.RevokeApiKey(ctx.Request.Context(), userID, apiKeyID); err != nil {
 		_ = ctx.Error(err)
 		return
 	}

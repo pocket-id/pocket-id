@@ -27,7 +27,6 @@
 				if (child.nodeType === 1) {
 					const itemDelay = delay + index * stagger;
 					(child as HTMLElement).style.setProperty('animation-delay', `${itemDelay}ms`);
-					console.log(itemDelay);
 				}
 			});
 		}
@@ -43,7 +42,7 @@
 		}
 
 		/* Apply these styles to all children */
-		.fade-wrapper > * {
+		.fade-wrapper > *:not(.no-fade) {
 			animation-fill-mode: both;
 			opacity: 0;
 			transform: translateY(10px);

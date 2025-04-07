@@ -3,14 +3,12 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"hash/crc64"
 	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"strconv"
-	"time"
 
+	"github.com/google/uuid"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
@@ -80,22 +78,7 @@ func SaveFile(file *multipart.FileHeader, dst string) error {
 // SaveFileStream saves a stream to a file.
 func SaveFileStream(r io.Reader, dstFileName string) error {
 	// Our strategy is to save to a separate file and then rename it to override the original file
-	// First, get a temp file name that doesn't exist already
-	var tmpFileName string
-	var i int64
-	for {
-		seed := strconv.FormatInt(time.Now().UnixNano()+i, 10)
-		suffix := crc64.Checksum([]byte(dstFileName+seed), crc64.MakeTable(crc64.ISO))
-		tmpFileName = dstFileName + "." + strconv.FormatUint(suffix, 10)
-		exists, err := FileExists(tmpFileName)
-		if err != nil {
-			return fmt.Errorf("failed to check if file '%s' exists: %w", tmpFileName, err)
-		}
-		if !exists {
-			break
-		}
-		i++
-	}
+	tmpFileName := dstFileName + "." + uuid.NewString() + "-tmp"
 
 	// Write to the temporary file
 	tmpFile, err := os.Create(tmpFileName)
