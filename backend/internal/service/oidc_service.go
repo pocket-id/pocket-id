@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v3/jwt"
 	"mime/multipart"
 	"os"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/lestrrat-go/jwx/v3/jwt"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"

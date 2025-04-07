@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jws"
@@ -40,10 +41,10 @@ const (
 	IsAdminClaim = "isAdmin"
 
 	// AccessTokenJWTType is the media type for access tokens
-	AccessTokenJWTType = "at+jwt"
+	AccessTokenJWTType = "AT+JWT"
 
 	// IDTokenJWTType is the media type for ID tokens
-	IDTokenJWTType = "id+jwt"
+	IDTokenJWTType = "ID+JWT"
 
 	// Acceptable clock skew for verifying tokens
 	clockSkew = time.Minute
@@ -562,7 +563,7 @@ func VerifyTokenTypeHeader(tokenBytes string, expectedTokenType string) error {
 		return fmt.Errorf("token is missing required protected header '%s'", jws.TypeKey)
 	}
 
-	if typHeaderValue != expectedTokenType {
+	if !strings.EqualFold(typHeaderValue, expectedTokenType) {
 		return fmt.Errorf("'%s' header mismatch: expected '%s', got '%s'", jws.TypeKey, expectedTokenType, typHeaderValue)
 	}
 

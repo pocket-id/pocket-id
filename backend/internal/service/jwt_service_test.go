@@ -654,8 +654,13 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			}
 		}
 
+		// Create headers with the specified type
+		hdrs := jws.NewHeaders()
+		err = hdrs.Set(jws.TypeKey, "ID+JWT")
+		require.NoError(t, err, "Failed to set header type")
+
 		// Sign the token
-		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), service.privateKey))
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), service.privateKey, jws.WithProtectedHeaders(hdrs)))
 		require.NoError(t, err, "Failed to sign token")
 		tokenString := string(signed)
 
@@ -1226,7 +1231,7 @@ func TestVerifyTokenTypeHeader(t *testing.T) {
 
 		// Verify the token with different expected type
 		err = VerifyTokenTypeHeader(tokenString, "JWT")
-		assert.Error(t, err, "Should reject token with non-matching type")
+		require.Error(t, err, "Should reject token with non-matching type")
 		assert.Contains(t, err.Error(), "header mismatch: expected 'JWT', got 'AT+JWT'")
 	})
 
