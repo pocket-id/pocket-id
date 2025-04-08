@@ -60,11 +60,7 @@ type AppConfigController struct {
 // @Failure 500 {object} object "{"error": "error message"}"
 // @Router /application-configuration [get]
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
-	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), false)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
+	configuration := acc.appConfigService.ListAppConfig(false)
 
 	var configVariablesDto []dto.PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
@@ -85,11 +81,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 // @Security BearerAuth
 // @Router /application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
-	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), true)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
+	configuration := acc.appConfigService.ListAppConfig(true)
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {

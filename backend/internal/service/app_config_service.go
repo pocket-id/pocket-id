@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"mime/multipart"
 	"os"
 	"reflect"
+	"strings"
 	"sync/atomic"
 
 	"gorm.io/gorm"
@@ -28,7 +29,7 @@ func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 		db:       db,
 	}
 
-	err := service.InitDbConfig(ctx)
+	err := service.LoadDbConfig(ctx)
 	if err != nil {
 		log.Fatalf("Failed to initialize app config service: %v", err)
 	}
@@ -144,7 +145,7 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		return nil, err
 	}
 
-	err = s.LoadDbConfigFromDb()
+	err = s.LoadDbConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -164,37 +165,41 @@ func (s *AppConfigService) updateImageType(ctx context.Context, imageName string
 		return err
 	}
 
-	return s.LoadDbConfigFromDb()
+	return s.LoadDbConfig(ctx)
 }
 
-func (s *AppConfigService) ListAppConfig(ctx context.Context, showAll bool) (configuration []model.AppConfigVariable, err error) {
-	if showAll {
-		err = s.db.
-			WithContext(ctx).
-			Find(&configuration).
-			Error
-	} else {
-		err = s.db.
-			WithContext(ctx).
-			Find(&configuration, "is_public = true").
-			Error
-	}
+func (s *AppConfigService) ListAppConfig(showAll bool) []model.AppConfigVariable {
+	// Get the config object
+	cfg := s.GetDbConfig()
 
-	if err != nil {
-		return nil, err
-	}
+	// Use reflection to iterate through all fields
+	cfgValue := reflect.ValueOf(cfg).Elem()
+	cfgType := cfgValue.Type()
 
-	for i := range configuration {
-		if common.EnvConfig.UiConfigDisabled {
-			// Set the value to the environment variable if the UI config is disabled
-			configuration[i].Value = s.getConfigVariableFromEnvironmentVariable(configuration[i].Key, configuration[i].DefaultValue)
-		} else if configuration[i].Value == "" && configuration[i].DefaultValue != "" {
-			// Set the value to the default value if it is empty
-			configuration[i].Value = configuration[i].DefaultValue
+	res := make([]model.AppConfigVariable, cfgType.NumField())
+
+	for i := range cfgType.NumField() {
+		field := cfgType.Field(i)
+
+		key, attrs, _ := strings.Cut(field.Tag.Get("key"), ",")
+		if key == "" {
+			continue
+		}
+
+		// If we're only showing public variables and this is not public, skip it
+		if !showAll && attrs != "public" {
+			continue
+		}
+
+		fieldValue := cfgValue.Field(i)
+
+		res[i] = model.AppConfigVariable{
+			Key:   key,
+			Value: fieldValue.FieldByName("Value").String(),
 		}
 	}
 
-	return configuration, nil
+	return res
 }
 
 func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multipart.FileHeader, imageName string, oldImageType string) (err error) {
@@ -228,129 +233,50 @@ func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multip
 	return nil
 }
 
-// InitDbConfig creates the default configuration values in the database if they do not exist,
-// updates existing configurations if they differ from the default, and deletes any configurations
-// that are not in the default configuration.
-func (s *AppConfigService) InitDbConfig(ctx context.Context) (err error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
+// LoadDbConfig loads the configuration values from the database into the DbConfig struct.
+func (s *AppConfigService) LoadDbConfig(ctx context.Context) error {
+	// First, start from the default configuration
+	dest := s.getDefaultDbConfig()
+	destValue := reflect.ValueOf(dest).Elem()
+	destType := destValue.Type()
 
-	// Reflect to get the underlying value of DbConfig and its default configuration
-	defaultConfigReflectValue := reflect.ValueOf(defaultDbConfig)
-	defaultKeys := make(map[string]struct{})
-
-	// Iterate over the fields of DbConfig
-	for i := range defaultConfigReflectValue.NumField() {
-		defaultConfigVar := defaultConfigReflectValue.Field(i).Interface().(model.AppConfigVariable)
-
-		defaultKeys[defaultConfigVar.Key] = struct{}{}
-
-		var storedConfigVar model.AppConfigVariable
-		err = tx.
-			WithContext(ctx).
-			First(&storedConfigVar, "key = ?", defaultConfigVar.Key).
-			Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// If the configuration does not exist, create it
-			err = tx.
-				WithContext(ctx).
-				Create(&defaultConfigVar).
-				Error
-			if err != nil {
-				return err
-			}
-			continue
-		} else if err != nil {
-			return err
-		}
-
-		// Update existing configuration if it differs from the default
-		if storedConfigVar.Type != defaultConfigVar.Type ||
-			storedConfigVar.IsPublic != defaultConfigVar.IsPublic ||
-			storedConfigVar.IsInternal != defaultConfigVar.IsInternal ||
-			storedConfigVar.DefaultValue != defaultConfigVar.DefaultValue {
-			// Set values
-			storedConfigVar.Type = defaultConfigVar.Type
-			storedConfigVar.IsPublic = defaultConfigVar.IsPublic
-			storedConfigVar.IsInternal = defaultConfigVar.IsInternal
-			storedConfigVar.DefaultValue = defaultConfigVar.DefaultValue
-
-			err = tx.
-				WithContext(ctx).
-				Save(&storedConfigVar).
-				Error
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// Delete any configurations not in the default keys
-	var allConfigVars []model.AppConfigVariable
-	err = tx.
-		WithContext(ctx).
-		Find(&allConfigVars).
-		Error
+	// Load all configuration values from the database
+	// This loads all values in a single shot
+	loaded := []model.AppConfigVariable{}
+	err := s.db.Find(&loaded).Error
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load configuration from the database: %w", err)
 	}
 
-	for _, config := range allConfigVars {
-		if _, exists := defaultKeys[config.Key]; exists {
+	// Iterate through all values loaded from the database
+	for _, v := range loaded {
+		// If the value is empty, it means we are using the default value
+		if v.Value == "" {
 			continue
 		}
 
-		err = tx.
-			WithContext(ctx).
-			Delete(&config).
-			Error
-		if err != nil {
-			return err
+		// Find the field in the struct whose "key" tag matches, then update that
+		for i := range destType.NumField() {
+			// Grab only the first part of the key, if there's a comma with additional properties
+			tagValue, _, _ := strings.Cut(destType.Field(i).Tag.Get("key"), ",")
+			if tagValue != v.Key {
+				continue
+			}
+
+			valueField := destValue.Field(i).FieldByName("Value")
+			if !valueField.CanSet() {
+				return fmt.Errorf("field Value in AppConfigVariable is not settable")
+			}
+
+			// Update the value
+			valueField.SetString(v.Value)
 		}
 	}
 
-	// Commit the changes
-	err = tx.Commit().Error
-	if err != nil {
-		return err
-	}
-
-	// Reload the configuration
-	err = s.LoadDbConfigFromDb()
-	if err != nil {
-		return err
-	}
+	// Update the value in the object
+	s.dbConfig.Store(dest)
 
 	return nil
-}
-
-// LoadDbConfigFromDb loads the configuration values from the database into the DbConfig struct.
-func (s *AppConfigService) LoadDbConfigFromDb() error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		dbConfigReflectValue := reflect.ValueOf(s.DbConfig).Elem()
-
-		for i := range dbConfigReflectValue.NumField() {
-			dbConfigField := dbConfigReflectValue.Field(i)
-			currentConfigVar := dbConfigField.Interface().(model.AppConfigVariable)
-			var storedConfigVar model.AppConfigVariable
-			err := tx.First(&storedConfigVar, "key = ?", currentConfigVar.Key).Error
-			if err != nil {
-				return err
-			}
-
-			if common.EnvConfig.UiConfigDisabled {
-				storedConfigVar.Value = s.getConfigVariableFromEnvironmentVariable(currentConfigVar.Key, storedConfigVar.DefaultValue)
-			} else if storedConfigVar.Value == "" && storedConfigVar.DefaultValue != "" {
-				storedConfigVar.Value = storedConfigVar.DefaultValue
-			}
-
-			dbConfigField.Set(reflect.ValueOf(storedConfigVar))
-		}
-
-		return nil
-	})
 }
 
 func (s *AppConfigService) getConfigVariableFromEnvironmentVariable(key, fallbackValue string) string {
