@@ -28,8 +28,7 @@ type AppConfigService struct {
 
 func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 	service := &AppConfigService{
-		dbConfig: atomic.Pointer[model.AppConfig]{},
-		db:       db,
+		db: db,
 	}
 
 	err := service.LoadDbConfig(ctx)

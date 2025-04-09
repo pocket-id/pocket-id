@@ -4,6 +4,7 @@ import (
 	"context"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
