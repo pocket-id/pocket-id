@@ -254,7 +254,10 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 		defer picture.Close()
 	}
 
-	c.Header("Cache-Control", "public, max-age=300")
+	_, ok := c.GetQuery("skipCache")
+	if !ok {
+		c.Header("Cache-Control", "public, max-age=900")
+	}
 
 	c.DataFromReader(http.StatusOK, size, "image/png", picture, nil)
 }

@@ -1,6 +1,9 @@
+import userStore from '$lib/stores/user-store';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import type { UserGroup } from '$lib/types/user-group.type';
 import type { User, UserCreate } from '$lib/types/user.type';
+import { bustProfilePictureCache } from '$lib/utils/profile-picture-util';
+import { get } from 'svelte/store';
 import APIService from './api-service';
 
 export default class UserService extends APIService {
@@ -49,6 +52,7 @@ export default class UserService extends APIService {
 		const formData = new FormData();
 		formData.append('file', image!);
 
+		bustProfilePictureCache(userId);
 		await this.api.put(`/users/${userId}/profile-picture`, formData);
 	}
 
@@ -56,14 +60,17 @@ export default class UserService extends APIService {
 		const formData = new FormData();
 		formData.append('file', image!);
 
+		bustProfilePictureCache(get(userStore)!.id);
 		await this.api.put('/users/me/profile-picture', formData);
 	}
 
 	async resetCurrentUserProfilePicture() {
+		bustProfilePictureCache(get(userStore)!.id);
 		await this.api.delete(`/users/me/profile-picture`);
 	}
 
 	async resetProfilePicture(userId: string) {
+		bustProfilePictureCache(userId);
 		await this.api.delete(`/users/${userId}/profile-picture`);
 	}
 

@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { oidcClients, refreshTokens } from './data';
+import { accessTokens, idTokens, oidcClients, refreshTokens, users } from './data';
 import { cleanupBackend } from './utils/cleanup.util';
 import passkeyUtil from './utils/passkey.util';
 
@@ -116,10 +116,7 @@ test('End session without id token hint shows confirmation page', async ({ page 
 
 test('End session with id token hint redirects to callback URL', async ({ page }) => {
 	const client = oidcClients.nextcloud;
-	// Note: this token has expired, but it should be accepted by the logout endpoint anyways, per spec
-	const idToken =
-		'eyJhbGciOiJSUzI1NiIsImtpZCI6Ijh1SER3M002cmY4IiwidHlwIjoiSldUIn0.eyJhdWQiOiIzNjU0YTc0Ni0zNWQ0LTQzMjEtYWM2MS0wYmRjZmYyYjQwNTUiLCJlbWFpbCI6InRpbS5jb29rQHRlc3QuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImV4cCI6MTY5MDAwMDAwMSwiZmFtaWx5X25hbWUiOiJUaW0iLCJnaXZlbl9uYW1lIjoiQ29vayIsImlhdCI6MTY5MDAwMDAwMCwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdCIsIm5hbWUiOiJUaW0gQ29vayIsIm5vbmNlIjoib1cxQTFPNzhHUTE1RDczT3NIRXg3V1FLajdacXZITFp1XzM3bWRYSXFBUSIsInN1YiI6IjRiODlkYzItNjJmYi00NmJmLTlmNWYtYzM0ZjRlYWZlOTNlIn0.ruYCyjA2BNjROpmLGPNHrhgUNLnpJMEuncvjDYVuv1dAZwvOPfG-Rn-OseAgJDJbV7wJ0qf6ZmBkGWiifwc_B9h--fgd4Vby9fefj0MiHbSDgQyaU5UmpvJU8OlvM-TueD6ICJL0NeT3DwoW5xpIWaHtt3JqJIdP__Q-lTONL2Zokq50kWm0IO-bIw2QrQviSfHNpv8A5rk1RTzpXCPXYNB-eJbm3oBqYQWzerD9HaNrSvrKA7mKG8Te1mI9aMirPpG9FvcAU-I3lY8ky1hJZDu42jHpVEUdWPAmUZPZafoX8iYtlPfkoklDnHj_cdg4aZBGN5bfjM6xf1Oe_rLDWg';
-
+	const idToken = idTokens.filter((token) => token.expired)[0].token;
 	let redirectedCorrectly = false;
 	await page
 		.goto(
@@ -191,4 +188,92 @@ test('Using refresh token invalidates it for future use', async ({ request }) =>
 		}
 	});
 	expect(refreshResponse.status()).toBe(400);
+});
+
+test.describe('Introspection endpoint', () => {
+	const client = oidcClients.nextcloud;
+	const validAccessToken = accessTokens.filter((token) => !token.expired)[0].token;
+	test('without client_id and client_secret fails', async ({ request }) => {
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			form: {
+				token: validAccessToken
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(400);
+	});
+
+	test('with client_id and client_secret succeeds', async ({ request }) => {
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization: 'Basic ' + Buffer.from(`${client.id}:${client.secret}`).toString('base64')
+			},
+			form: {
+				token: validAccessToken
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(true);
+		expect(introspectionBody.token_type).toBe('access_token');
+		expect(introspectionBody.iss).toBe('http://localhost');
+		expect(introspectionBody.sub).toBe(users.tim.id);
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id]);
+	});
+
+	test('non-expired refresh_token can be verified', async ({ request }) => {
+		const { token } = refreshTokens.filter((token) => !token.expired)[0];
+
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization: 'Basic ' + Buffer.from(`${client.id}:${client.secret}`).toString('base64')
+			},
+			form: {
+				token: token
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(true);
+		expect(introspectionBody.token_type).toBe('refresh_token');
+	});
+
+	test('expired refresh_token can be verified', async ({ request }) => {
+		const { token } = refreshTokens.filter((token) => token.expired)[0];
+
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Authorization: 'Basic ' + Buffer.from(`${client.id}:${client.secret}`).toString('base64')
+			},
+			form: {
+				token: token
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(200);
+		const introspectionBody = await introspectionResponse.json();
+		expect(introspectionBody.active).toBe(false);
+	});
+
+	test("expired access_token can't be verified", async ({ request }) => {
+		const expiredAccessToken = accessTokens.filter((token) => token.expired)[0].token;
+		const introspectionResponse = await request.post('/api/oidc/introspect', {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			form: {
+				token: expiredAccessToken
+			}
+		});
+
+		expect(introspectionResponse.status()).toBe(400);
+	});
 });

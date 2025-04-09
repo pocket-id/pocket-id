@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwt"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -354,6 +356,93 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, refreshTo
 	}
 
 	return accessToken, newRefreshToken, 3600, nil
+}
+
+func (s *OidcService) IntrospectToken(clientID, clientSecret, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	if clientID == "" || clientSecret == "" {
+		return introspectDto, &common.OidcMissingClientCredentialsError{}
+	}
+
+	// Get the client to check if we are authorized.
+	var client model.OidcClient
+	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	// Verify the client secret. This endpoint may not be used by public clients.
+	if client.IsPublic {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret)); err != nil {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	token, err := s.jwtService.VerifyOauthAccessToken(tokenString)
+	if err != nil {
+		if errors.Is(err, jwt.ParseError()) {
+			// It's apparently not a valid JWT token, so we check if it's a valid refresh_token.
+			return s.introspectRefreshToken(tokenString)
+		}
+
+		// Every failure we get means the token is invalid. Nothing more to do with the error.
+		introspectDto.Active = false
+		return introspectDto, nil
+	}
+
+	introspectDto.Active = true
+	introspectDto.TokenType = "access_token"
+	if token.Has("scope") {
+		var asString string
+		var asStrings []string
+		if err := token.Get("scope", &asString); err == nil {
+			introspectDto.Scope = asString
+		} else if err := token.Get("scope", &asStrings); err == nil {
+			introspectDto.Scope = strings.Join(asStrings, " ")
+		}
+	}
+	if expiration, hasExpiration := token.Expiration(); hasExpiration {
+		introspectDto.Expiration = expiration.Unix()
+	}
+	if issuedAt, hasIssuedAt := token.IssuedAt(); hasIssuedAt {
+		introspectDto.IssuedAt = issuedAt.Unix()
+	}
+	if notBefore, hasNotBefore := token.NotBefore(); hasNotBefore {
+		introspectDto.NotBefore = notBefore.Unix()
+	}
+	if subject, hasSubject := token.Subject(); hasSubject {
+		introspectDto.Subject = subject
+	}
+	if audience, hasAudience := token.Audience(); hasAudience {
+		introspectDto.Audience = audience
+	}
+	if issuer, hasIssuer := token.Issuer(); hasIssuer {
+		introspectDto.Issuer = issuer
+	}
+	if identifier, hasIdentifier := token.JwtID(); hasIdentifier {
+		introspectDto.Identifier = identifier
+	}
+
+	return introspectDto, nil
+}
+
+func (s *OidcService) introspectRefreshToken(refreshToken string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	var storedRefreshToken model.OidcRefreshToken
+	err = s.db.Preload("User").
+		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
+		First(&storedRefreshToken).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			introspectDto.Active = false
+			return introspectDto, nil
+		}
+		return introspectDto, err
+	}
+
+	introspectDto.Active = true
+	introspectDto.TokenType = "refresh_token"
+	return introspectDto, nil
 }
 
 func (s *OidcService) GetClient(ctx context.Context, clientID string) (model.OidcClient, error) {

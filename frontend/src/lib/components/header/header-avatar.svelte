@@ -4,6 +4,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import userStore from '$lib/stores/user-store';
+	import { getProfilePictureUrl } from '$lib/utils/profile-picture-util';
 	import { LucideLogOut, LucideUser } from 'lucide-svelte';
 
 	const webauthnService = new WebAuthnService();
@@ -17,7 +18,7 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
 		><Avatar.Root class="h-9 w-9">
-			<Avatar.Image src="/api/users/{$userStore?.id}/profile-picture.png" />
+			<Avatar.Image src={getProfilePictureUrl($userStore?.id)} />
 		</Avatar.Root></DropdownMenu.Trigger
 	>
 	<DropdownMenu.Content class="min-w-40" align="start">

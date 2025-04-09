@@ -2,10 +2,11 @@
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { LucideLoader, LucideRefreshCw, LucideUpload } from 'lucide-svelte';
-	import { openConfirmDialog } from '../confirm-dialog';
 	import { m } from '$lib/paraglide/messages';
-	import type UserService from '$lib/services/user-service';
+	import { getProfilePictureUrl } from '$lib/utils/profile-picture-util';
+	import { LucideLoader, LucideRefreshCw, LucideUpload } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+	import { openConfirmDialog } from '../confirm-dialog';
 
 	let {
 		userId,
@@ -20,7 +21,12 @@
 	} = $props();
 
 	let isLoading = $state(false);
-	let imageDataURL = $state(`/api/users/${userId}/profile-picture.png`);
+	let imageDataURL = $state('');
+	onMount(() => {
+		// The "skipCache" query will only be added to the profile picture url on client-side
+		// because of that we need to set the imageDataURL after the component is mounted
+		imageDataURL = getProfilePictureUrl(userId);
+	});
 
 	async function onImageChange(e: Event) {
 		const file = (e.target as HTMLInputElement).files?.[0] || null;
@@ -35,7 +41,7 @@
 		reader.readAsDataURL(file);
 
 		await updateCallback(file).catch(() => {
-			imageDataURL = `/api/users/${userId}/profile-picture.png`;
+			imageDataURL = getProfilePictureUrl(userId);
 		});
 		isLoading = false;
 	}

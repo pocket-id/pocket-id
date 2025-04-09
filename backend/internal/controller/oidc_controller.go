@@ -6,14 +6,13 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
-
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
 // NewOidcController creates a new controller for OIDC related endpoints
@@ -31,6 +30,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/userinfo", oc.userInfoHandler)
 	group.POST("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
 	group.GET("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
+	group.POST("/oidc/introspect", oc.introspectTokenHandler)
 
 	group.GET("/oidc/clients", authMiddleware.Add(), oc.listClientsHandler)
 	group.POST("/oidc/clients", authMiddleware.Add(), oc.createClientHandler)
@@ -289,6 +289,38 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 // @Router /api/oidc/end-session [post]
 func (oc *OidcController) EndSessionHandlerPost(c *gin.Context) {
 	// Implementation is the same as GET
+}
+
+// introspectToken godoc
+// @Summary Introspect OIDC tokens
+// @Description Pass an access_token to verify if it is considered valid.
+// @Tags OIDC
+// @Produce json
+// @Param token formData string true "The token to be introspected."
+// @Success 200 {object} dto.OidcIntrospectionResponseDto "Response with the introspection result."
+// @Router /api/oidc/introspect [post]
+func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
+
+	var input dto.OidcIntrospectDto
+	if err := c.ShouldBind(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	// Client id and secret have to be passed over the Authorization header. This kind of
+	// authentication allows us to keep the endpoint protected (since it could be used to
+	// find valid tokens) while still allowing it to be used by an application that is
+	// supposed to interact with our IdP (since that needs to have a client_id
+	// and client_secret anyway).
+	clientID, clientSecret, _ := c.Request.BasicAuth()
+
+	response, err := oc.oidcService.IntrospectToken(clientID, clientSecret, input.Token)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // getClientMetaDataHandler godoc

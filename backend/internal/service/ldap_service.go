@@ -61,6 +61,9 @@ func (s *LdapService) createClient() (*ldap.Conn, error) {
 func (s *LdapService) SyncAll(ctx context.Context) error {
 	// Start a transaction
 	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
 
 	err := s.SyncUsers(ctx, tx)
 	if err != nil {

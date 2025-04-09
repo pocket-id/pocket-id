@@ -15,7 +15,14 @@ func NewCorsMiddleware() *CorsMiddleware {
 
 func (m *CorsMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", common.EnvConfig.AppURL)
+		// Allow all origins for the token endpoint
+		switch c.FullPath() {
+		case "/api/oidc/token", "/api/oidc/introspect":
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		default:
+			c.Writer.Header().Set("Access-Control-Allow-Origin", common.EnvConfig.AppURL)
+		}
+
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
 
