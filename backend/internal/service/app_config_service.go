@@ -39,6 +39,8 @@ func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 	return service
 }
 
+// GetDbConfig returns the application configuration.
+// Important: Treat the object as read-only: do not modify its properties directly!
 func (s *AppConfigService) GetDbConfig() *model.AppConfig {
 	v := s.dbConfig.Load()
 	if v == nil {
