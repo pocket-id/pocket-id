@@ -228,6 +228,10 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 
 // UpdateAppConfigValues
 func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndValues ...string) error {
+	if common.EnvConfig.UiConfigDisabled {
+		return &common.UiConfigDisabledError{}
+	}
+
 	// Count of keysAndValues must be even
 	if len(keysAndValues)%2 != 0 {
 		return errors.New("invalid number of arguments received")
@@ -341,8 +345,15 @@ func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multip
 }
 
 // LoadDbConfig loads the configuration values from the database into the DbConfig struct.
-func (s *AppConfigService) LoadDbConfig(ctx context.Context) error {
-	dest, err := s.loadDbConfigInternal(ctx, s.db)
+func (s *AppConfigService) LoadDbConfig(ctx context.Context) (err error) {
+	var dest *model.AppConfig
+
+	// If the UI config is disabled, only load from the env
+	if common.EnvConfig.UiConfigDisabled {
+		dest, err = s.loadDbConfigFromEnv()
+	} else {
+		dest, err = s.loadDbConfigInternal(ctx, s.db)
+	}
 	if err != nil {
 		return err
 	}
@@ -351,6 +362,31 @@ func (s *AppConfigService) LoadDbConfig(ctx context.Context) error {
 	s.dbConfig.Store(dest)
 
 	return nil
+}
+
+func (s *AppConfigService) loadDbConfigFromEnv() (*model.AppConfig, error) {
+	// First, start from the default configuration
+	dest := s.getDefaultDbConfig()
+
+	// Iterate through each field
+	rt := reflect.ValueOf(dest).Elem().Type()
+	rv := reflect.ValueOf(dest).Elem()
+	for i := range rt.NumField() {
+		field := rt.Field(i)
+
+		// Get the value of the key tag, taking only what's before the comma
+		// The env var name is the key converted to SCREAMING_SNAKE_CASE
+		key, _, _ := strings.Cut(field.Tag.Get("key"), ",")
+		envVarName := utils.CamelCaseToScreamingSnakeCase(key)
+
+		// Set the value if it's set
+		value, ok := os.LookupEnv(envVarName)
+		if ok {
+			rv.Field(i).FieldByName("Value").SetString(value)
+		}
+	}
+
+	return dest, nil
 }
 
 func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB) (*model.AppConfig, error) {
@@ -386,14 +422,4 @@ func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB
 	}
 
 	return dest, nil
-}
-
-func (s *AppConfigService) getConfigVariableFromEnvironmentVariable(key, fallbackValue string) string {
-	environmentVariableName := utils.CamelCaseToScreamingSnakeCase(key)
-
-	if value, exists := os.LookupEnv(environmentVariableName); exists {
-		return value
-	}
-
-	return fallbackValue
 }

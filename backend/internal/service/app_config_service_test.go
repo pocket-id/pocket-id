@@ -119,6 +119,78 @@ func TestLoadDbConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "UpdatedApp", service.GetDbConfig().AppName.Value)
 	})
+
+	t.Run("loads config from env when UiConfigDisabled is true", func(t *testing.T) {
+		// Save the original state and restore it after the test
+		originalUiConfigDisabled := common.EnvConfig.UiConfigDisabled
+		defer func() {
+			common.EnvConfig.UiConfigDisabled = originalUiConfigDisabled
+		}()
+
+		// Set environment variables for testing
+		t.Setenv("APP_NAME", "EnvTest App")
+		t.Setenv("SESSION_DURATION", "45")
+
+		// Enable UiConfigDisabled to load from env
+		common.EnvConfig.UiConfigDisabled = true
+
+		// Create database with config that should be ignored
+		db := newAppConfigTestDatabaseForTest(t)
+		err := db.Create([]model.AppConfigVariable{
+			{Key: "appName", Value: "DB App"},
+			{Key: "sessionDuration", Value: "120"},
+		}).Error
+		require.NoError(t, err)
+
+		service := &AppConfigService{
+			db: db,
+		}
+
+		// Load the config
+		err = service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// Config should be loaded from env, not DB
+		config := service.GetDbConfig()
+		require.Equal(t, "EnvTest App", config.AppName.Value, "Should load appName from env")
+		require.Equal(t, "45", config.SessionDuration.Value, "Should load sessionDuration from env")
+	})
+
+	t.Run("ignores env vars when UiConfigDisabled is false", func(t *testing.T) {
+		// Save the original state and restore it after the test
+		originalUiConfigDisabled := common.EnvConfig.UiConfigDisabled
+		defer func() {
+			common.EnvConfig.UiConfigDisabled = originalUiConfigDisabled
+		}()
+
+		// Set environment variables that should be ignored
+		t.Setenv("APP_NAME", "EnvTest App")
+		t.Setenv("SESSION_DURATION", "45")
+
+		// Make sure UiConfigDisabled is false to load from DB
+		common.EnvConfig.UiConfigDisabled = false
+
+		// Create database with config values that should take precedence
+		db := newAppConfigTestDatabaseForTest(t)
+		err := db.Create([]model.AppConfigVariable{
+			{Key: "appName", Value: "DB App"},
+			{Key: "sessionDuration", Value: "120"},
+		}).Error
+		require.NoError(t, err)
+
+		service := &AppConfigService{
+			db: db,
+		}
+
+		// Load the config
+		err = service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// Config should be loaded from DB, not env
+		config := service.GetDbConfig()
+		require.Equal(t, "DB App", config.AppName.Value, "Should load appName from DB, not env")
+		require.Equal(t, "120", config.SessionDuration.Value, "Should load sessionDuration from DB, not env")
+	})
 }
 
 func TestUpdateAppConfigValues(t *testing.T) {
