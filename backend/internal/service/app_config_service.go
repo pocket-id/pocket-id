@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -98,7 +99,7 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		return nil, &common.UiConfigDisabledError{}
 	}
 
-	// If EmailLoginNotificationEnabled is set to false, disable the EmailOneTimeAccessEnabled
+	// If EmailLoginNotificationEnabled is set to false (explicitly), disable the EmailOneTimeAccessEnabled
 	if input.EmailLoginNotificationEnabled == "false" {
 		input.EmailOneTimeAccessEnabled = "false"
 	}
@@ -119,10 +120,11 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	switch s.db.Name() {
 	case "postgres":
 		// We do not use "NOWAIT" so this blocks until the database is available, or the context is canceled
-		queryCtx, queryCancel := context.WithTimeout(ctx, 10*time.Second)
-		defer queryCancel()
+		// Here we use a context with a 10s timeout in case the database is blocked for longer
+		lockCtx, lockCancel := context.WithTimeout(ctx, 10*time.Second)
+		defer lockCancel()
 		err = tx.
-			WithContext(queryCtx).
+			WithContext(lockCtx).
 			Exec("LOCK TABLE app_config_variable IN ACCESS EXCLUSIVE MODE").
 			Error
 		if err != nil {
@@ -142,10 +144,10 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	defaultCfg := s.getDefaultDbConfig()
 
 	// Iterate through all the fields to update
-	// We collect all values in a key-value map
+	// We update the in-memory data (in the cfg struct) and collect values to update in the database
 	rt := reflect.ValueOf(input).Type()
 	rv := reflect.ValueOf(input)
-	update := make(map[string]string, rt.NumField())
+	dbUpdate := make([]model.AppConfigVariable, 0, rt.NumField())
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 		value := rv.FieldByName(field.Name).String()
@@ -172,13 +174,29 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		}
 
 		// We always save "value" which can be an empty string
-		update[key] = value
+		dbUpdate = append(dbUpdate, model.AppConfigVariable{
+			Key:   key,
+			Value: value,
+		})
+	}
+
+	// Update the values in the database
+	err = tx.
+		WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "key"}},
+			DoUpdates: clause.AssignmentColumns([]string{"value"}),
+		}).
+		Create(&dbUpdate).
+		Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to update config in database: %w", err)
 	}
 
 	// Commit the changes to the DB, then finally save the updated config in the object
 	err = tx.Commit().Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	s.dbConfig.Store(cfg)
