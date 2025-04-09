@@ -1,7 +1,10 @@
 package model
 
 import (
+	"fmt"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -32,9 +35,9 @@ type AppConfig struct {
 	EmailsVerified      AppConfigVariable `key:"emailsVerified"`
 	AllowOwnAccountEdit AppConfigVariable `key:"allowOwnAccountEdit,public"` // Public
 	// Internal
-	BackgroundImageType AppConfigVariable `key:"backgroundImageType,internal"`
-	LogoLightImageType  AppConfigVariable `key:"logoLightImageType,internal"`
-	LogoDarkImageType   AppConfigVariable `key:"logoDarkImageType,internal"`
+	BackgroundImageType AppConfigVariable `key:"backgroundImageType,internal"` // Internal
+	LogoLightImageType  AppConfigVariable `key:"logoLightImageType,internal"`  // Internal
+	LogoDarkImageType   AppConfigVariable `key:"logoDarkImageType,internal"`   // Internal
 	// Email
 	SmtpHost                      AppConfigVariable `key:"smtpHost"`
 	SmtpPort                      AppConfigVariable `key:"smtpPort"`
@@ -64,4 +67,104 @@ type AppConfig struct {
 	LdapAttributeGroupUniqueIdentifier AppConfigVariable `key:"ldapAttributeGroupUniqueIdentifier"`
 	LdapAttributeGroupName             AppConfigVariable `key:"ldapAttributeGroupName"`
 	LdapAttributeAdminGroup            AppConfigVariable `key:"ldapAttributeAdminGroup"`
+}
+
+func (c *AppConfig) ToAppConfigVariableSlice(showAll bool) []AppConfigVariable {
+	// Use reflection to iterate through all fields
+	cfgValue := reflect.ValueOf(c).Elem()
+	cfgType := cfgValue.Type()
+
+	res := make([]AppConfigVariable, cfgType.NumField())
+
+	for i := range cfgType.NumField() {
+		field := cfgType.Field(i)
+
+		key, attrs, _ := strings.Cut(field.Tag.Get("key"), ",")
+		if key == "" {
+			continue
+		}
+
+		// If we're only showing public variables and this is not public, skip it
+		if !showAll && attrs != "public" {
+			continue
+		}
+
+		fieldValue := cfgValue.Field(i)
+
+		res[i] = AppConfigVariable{
+			Key:   key,
+			Value: fieldValue.FieldByName("Value").String(),
+		}
+	}
+
+	return res
+}
+
+func (c *AppConfig) FieldByKey(key string) (string, error) {
+	rv := reflect.ValueOf(c).Elem()
+	rt := rv.Type()
+
+	// Find the field in the struct whose "key" tag matches
+	for i := range rt.NumField() {
+		// Grab only the first part of the key, if there's a comma with additional properties
+		tagValue, _, _ := strings.Cut(rt.Field(i).Tag.Get("key"), ",")
+		if tagValue != key {
+			continue
+		}
+
+		valueField := rv.Field(i).FieldByName("Value")
+		return valueField.String(), nil
+	}
+
+	// If we are here, the config key was not found
+	return "", AppConfigKeyNotFoundError{field: key}
+}
+
+func (c *AppConfig) UpdateField(key string, value string, noInternal bool) error {
+	rv := reflect.ValueOf(c).Elem()
+	rt := rv.Type()
+
+	// Find the field in the struct whose "key" tag matches, then update that
+	for i := range rt.NumField() {
+		// Separate the key (before the comma) from any optional attributes after
+		tagValue, attrs, _ := strings.Cut(rt.Field(i).Tag.Get("key"), ",")
+		if tagValue != key {
+			continue
+		}
+
+		// If the field is internal and noInternal is true, we skip that
+		if noInternal && attrs == "internal" {
+			return AppConfigInternalForbiddenError{field: key}
+		}
+
+		valueField := rv.Field(i).FieldByName("Value")
+		if !valueField.CanSet() {
+			return fmt.Errorf("field Value in AppConfigVariable is not settable for config key '%s'", key)
+		}
+
+		// Update the value
+		valueField.SetString(value)
+
+		// Return once updated
+		return nil
+	}
+
+	// If we're here, we have not found the right field to update
+	return AppConfigKeyNotFoundError{field: key}
+}
+
+type AppConfigKeyNotFoundError struct {
+	field string
+}
+
+func (e AppConfigKeyNotFoundError) Error() string {
+	return fmt.Sprintf("cannot find config key '%s'", e.field)
+}
+
+type AppConfigInternalForbiddenError struct {
+	field string
+}
+
+func (e AppConfigInternalForbiddenError) Error() string {
+	return fmt.Sprintf("field '%s' is internal and can't be updated", e.field)
 }

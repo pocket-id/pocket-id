@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"mime/multipart"
@@ -9,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -96,61 +98,94 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		return nil, &common.UiConfigDisabledError{}
 	}
 
+	// If EmailLoginNotificationEnabled is set to false, disable the EmailOneTimeAccessEnabled
+	if input.EmailLoginNotificationEnabled == "false" {
+		input.EmailOneTimeAccessEnabled = "false"
+	}
+
+	// We start a transaction before doing any work, to ensure that we are the only ones updating the data in the database
+	// This works across multiple processes too
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
-
-	var err error
-
-	rt := reflect.ValueOf(input).Type()
-	rv := reflect.ValueOf(input)
-
-	savedConfigVariables := make([]model.AppConfigVariable, 0, rt.NumField())
-	for i := range rt.NumField() {
-		field := rt.Field(i)
-		key := field.Tag.Get("json")
-		value := rv.FieldByName(field.Name).String()
-
-		// If the emailEnabled is set to false, disable the emailOneTimeAccessEnabled
-		if key == s.DbConfig.EmailOneTimeAccessEnabled.Key {
-			if rv.FieldByName("EmailEnabled").String() == "false" {
-				value = "false"
-			}
-		}
-
-		var appConfigVariable model.AppConfigVariable
-		err = tx.
-			WithContext(ctx).
-			First(&appConfigVariable, "key = ? AND is_internal = false", key).
-			Error
-		if err != nil {
-			return nil, err
-		}
-
-		appConfigVariable.Value = value
-		err = tx.
-			WithContext(ctx).
-			Save(&appConfigVariable).
-			Error
-		if err != nil {
-			return nil, err
-		}
-
-		savedConfigVariables = append(savedConfigVariables, appConfigVariable)
+	err := tx.Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin database transaction: %w", err)
 	}
 
+	// With SQLite there's nothing else we need to do, because a transaction blocks the entire database
+	// However, with Postgres we need to manually lock the table to prevent others from doing the same
+	switch s.db.Name() {
+	case "postgres":
+		// We do not use "NOWAIT" so this blocks until the database is available, or the context is canceled
+		queryCtx, queryCancel := context.WithTimeout(ctx, 10*time.Second)
+		defer queryCancel()
+		err = tx.
+			WithContext(queryCtx).
+			Exec("LOCK TABLE app_config_variable IN ACCESS EXCLUSIVE MODE").
+			Error
+		if err != nil {
+			return nil, fmt.Errorf("failed to acquire lock on app_config_variable table: %w", err)
+		}
+	default:
+		// Nothing to do here
+	}
+
+	// From here onwards, we know we are the only process/goroutine with exclusive access to the config
+	// Re-load the config from the database to be sure we have the correct data
+	cfg, err := s.loadDbConfigInternal(ctx, tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reload config from database: %w", err)
+	}
+
+	defaultCfg := s.getDefaultDbConfig()
+
+	// Iterate through all the fields to update
+	// We collect all values in a key-value map
+	rt := reflect.ValueOf(input).Type()
+	rv := reflect.ValueOf(input)
+	update := make(map[string]string, rt.NumField())
+	for i := range rt.NumField() {
+		field := rt.Field(i)
+		value := rv.FieldByName(field.Name).String()
+
+		// Get the value of the json tag, taking only what's before the comma
+		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+
+		// Update the in-memory config value
+		// If the new value is an empty string, then we set the in-memory value to the default one
+		// Skip values that are internal only and can't be updated
+		if value == "" {
+			// Ignore errors here as we know the key exists
+			defaultValue, _ := defaultCfg.FieldByKey(key)
+			err = cfg.UpdateField(key, defaultValue, true)
+		} else {
+			err = cfg.UpdateField(key, value, true)
+		}
+
+		// If we tried to update an internal field, ignore the error (and do not update in the DB)
+		if errors.Is(err, model.AppConfigInternalForbiddenError{}) {
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("failed to update in-memory config for key '%s': %w", key, err)
+		}
+
+		// We always save "value" which can be an empty string
+		update[key] = value
+	}
+
+	// Commit the changes to the DB, then finally save the updated config in the object
 	err = tx.Commit().Error
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.LoadDbConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
+	s.dbConfig.Store(cfg)
 
-	return savedConfigVariables, nil
+	// Return the updated config
+	res := cfg.ToAppConfigVariableSlice(true)
+	return res, nil
 }
 
 func (s *AppConfigService) updateImageType(ctx context.Context, imageName string, fileType string) error {
@@ -169,37 +204,7 @@ func (s *AppConfigService) updateImageType(ctx context.Context, imageName string
 }
 
 func (s *AppConfigService) ListAppConfig(showAll bool) []model.AppConfigVariable {
-	// Get the config object
-	cfg := s.GetDbConfig()
-
-	// Use reflection to iterate through all fields
-	cfgValue := reflect.ValueOf(cfg).Elem()
-	cfgType := cfgValue.Type()
-
-	res := make([]model.AppConfigVariable, cfgType.NumField())
-
-	for i := range cfgType.NumField() {
-		field := cfgType.Field(i)
-
-		key, attrs, _ := strings.Cut(field.Tag.Get("key"), ",")
-		if key == "" {
-			continue
-		}
-
-		// If we're only showing public variables and this is not public, skip it
-		if !showAll && attrs != "public" {
-			continue
-		}
-
-		fieldValue := cfgValue.Field(i)
-
-		res[i] = model.AppConfigVariable{
-			Key:   key,
-			Value: fieldValue.FieldByName("Value").String(),
-		}
-	}
-
-	return res
+	return s.GetDbConfig().ToAppConfigVariableSlice(showAll)
 }
 
 func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multipart.FileHeader, imageName string, oldImageType string) (err error) {
@@ -235,17 +240,31 @@ func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multip
 
 // LoadDbConfig loads the configuration values from the database into the DbConfig struct.
 func (s *AppConfigService) LoadDbConfig(ctx context.Context) error {
+	dest, err := s.loadDbConfigInternal(ctx, s.db)
+	if err != nil {
+		return err
+	}
+
+	// Update the value in the object
+	s.dbConfig.Store(dest)
+
+	return nil
+}
+
+func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB) (*model.AppConfig, error) {
 	// First, start from the default configuration
 	dest := s.getDefaultDbConfig()
-	destValue := reflect.ValueOf(dest).Elem()
-	destType := destValue.Type()
 
 	// Load all configuration values from the database
 	// This loads all values in a single shot
 	loaded := []model.AppConfigVariable{}
-	err := s.db.Find(&loaded).Error
+	queryCtx, queryCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer queryCancel()
+	err := tx.
+		WithContext(queryCtx).
+		Find(&loaded).Error
 	if err != nil {
-		return fmt.Errorf("failed to load configuration from the database: %w", err)
+		return nil, fmt.Errorf("failed to load configuration from the database: %w", err)
 	}
 
 	// Iterate through all values loaded from the database
@@ -256,27 +275,15 @@ func (s *AppConfigService) LoadDbConfig(ctx context.Context) error {
 		}
 
 		// Find the field in the struct whose "key" tag matches, then update that
-		for i := range destType.NumField() {
-			// Grab only the first part of the key, if there's a comma with additional properties
-			tagValue, _, _ := strings.Cut(destType.Field(i).Tag.Get("key"), ",")
-			if tagValue != v.Key {
-				continue
-			}
+		err = dest.UpdateField(v.Key, v.Value, false)
 
-			valueField := destValue.Field(i).FieldByName("Value")
-			if !valueField.CanSet() {
-				return fmt.Errorf("field Value in AppConfigVariable is not settable")
-			}
-
-			// Update the value
-			valueField.SetString(v.Value)
+		// We ignore the case of fields that don't exist, as there may be leftover data in the database
+		if err != nil && !errors.Is(err, model.AppConfigKeyNotFoundError{}) {
+			return nil, fmt.Errorf("failed to process config for key '%s': %w", v.Key, err)
 		}
 	}
 
-	// Update the value in the object
-	s.dbConfig.Store(dest)
-
-	return nil
+	return dest, nil
 }
 
 func (s *AppConfigService) getConfigVariableFromEnvironmentVariable(key, fallbackValue string) string {
