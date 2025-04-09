@@ -9,6 +9,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/stretchr/testify/require"
@@ -240,6 +242,203 @@ func TestUpdateAppConfigValues(t *testing.T) {
 		err = service.UpdateAppConfigValues(t.Context(), "nonExistentKey", "some value")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid configuration key")
+	})
+}
+
+func TestUpdateAppConfig(t *testing.T) {
+	t.Run("updates configuration values from DTO", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Create a service with default config
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// Create update DTO
+		input := dto.AppConfigUpdateDto{
+			AppName:         "Updated App Name",
+			SessionDuration: "120",
+			SmtpHost:        "smtp.example.com",
+			SmtpPort:        "587",
+		}
+
+		// Update config
+		updatedVars, err := service.UpdateAppConfig(t.Context(), input)
+		require.NoError(t, err)
+
+		// Verify returned updated variables
+		require.NotEmpty(t, updatedVars)
+
+		var foundAppName, foundSessionDuration, foundSmtpHost, foundSmtpPort bool
+		for _, v := range updatedVars {
+			switch v.Key {
+			case "appName":
+				require.Equal(t, "Updated App Name", v.Value)
+				foundAppName = true
+			case "sessionDuration":
+				require.Equal(t, "120", v.Value)
+				foundSessionDuration = true
+			case "smtpHost":
+				require.Equal(t, "smtp.example.com", v.Value)
+				foundSmtpHost = true
+			case "smtpPort":
+				require.Equal(t, "587", v.Value)
+				foundSmtpPort = true
+			}
+		}
+		require.True(t, foundAppName)
+		require.True(t, foundSessionDuration)
+		require.True(t, foundSmtpHost)
+		require.True(t, foundSmtpPort)
+
+		// Verify in-memory config was updated
+		config := service.GetDbConfig()
+		require.Equal(t, "Updated App Name", config.AppName.Value)
+		require.Equal(t, "120", config.SessionDuration.Value)
+		require.Equal(t, "smtp.example.com", config.SmtpHost.Value)
+		require.Equal(t, "587", config.SmtpPort.Value)
+
+		// Verify database was updated
+		var appName, sessionDuration, smtpHost, smtpPort model.AppConfigVariable
+		err = db.Where("key = ?", "appName").First(&appName).Error
+		require.NoError(t, err)
+		require.Equal(t, "Updated App Name", appName.Value)
+
+		err = db.Where("key = ?", "sessionDuration").First(&sessionDuration).Error
+		require.NoError(t, err)
+		require.Equal(t, "120", sessionDuration.Value)
+
+		err = db.Where("key = ?", "smtpHost").First(&smtpHost).Error
+		require.NoError(t, err)
+		require.Equal(t, "smtp.example.com", smtpHost.Value)
+
+		err = db.Where("key = ?", "smtpPort").First(&smtpPort).Error
+		require.NoError(t, err)
+		require.Equal(t, "587", smtpPort.Value)
+	})
+
+	t.Run("empty values reset to defaults", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Create a service with default config and modify some values
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// First set some non-default values
+		err = service.UpdateAppConfigValues(t.Context(),
+			"appName", "Custom App",
+			"sessionDuration", "120",
+		)
+		require.NoError(t, err)
+
+		// Create update DTO with empty values to reset to defaults
+		input := dto.AppConfigUpdateDto{
+			AppName:         "", // Should reset to default "Pocket ID"
+			SessionDuration: "", // Should reset to default "60"
+		}
+
+		// Update config
+		updatedVars, err := service.UpdateAppConfig(t.Context(), input)
+		require.NoError(t, err)
+
+		// Verify returned updated variables (they should be empty strings in DB)
+		var foundAppName, foundSessionDuration bool
+		for _, v := range updatedVars {
+			switch v.Key {
+			case "appName":
+				require.Equal(t, "Pocket ID", v.Value) // Returns the default value
+				foundAppName = true
+			case "sessionDuration":
+				require.Equal(t, "60", v.Value) // Returns the default value
+				foundSessionDuration = true
+			}
+		}
+		require.True(t, foundAppName)
+		require.True(t, foundSessionDuration)
+
+		// Verify in-memory config was reset to defaults
+		config := service.GetDbConfig()
+		require.Equal(t, "Pocket ID", config.AppName.Value)  // Default value
+		require.Equal(t, "60", config.SessionDuration.Value) // Default value
+
+		// Verify database was updated with empty values
+		for _, key := range []string{"appName", "sessionDuration"} {
+			var loaded model.AppConfigVariable
+			err = db.Where("key = ?", key).First(&loaded).Error
+			require.NoErrorf(t, err, "Failed to load DB value for key '%s'", key)
+			require.Emptyf(t, loaded.Value, "Loaded value for key '%s' is not empty", key)
+		}
+	})
+
+	t.Run("auto disables EmailOneTimeAccessEnabled when EmailLoginNotificationEnabled is false", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Create a service with default config
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// First enable both settings
+		err = service.UpdateAppConfigValues(t.Context(),
+			"emailLoginNotificationEnabled", "true",
+			"emailOneTimeAccessEnabled", "true",
+		)
+		require.NoError(t, err)
+
+		// Verify both are enabled
+		config := service.GetDbConfig()
+		require.True(t, config.EmailLoginNotificationEnabled.IsTrue())
+		require.True(t, config.EmailOneTimeAccessEnabled.IsTrue())
+
+		// Now disable EmailLoginNotificationEnabled
+		input := dto.AppConfigUpdateDto{
+			EmailLoginNotificationEnabled: "false",
+			// Don't set EmailOneTimeAccessEnabled, it should be auto-disabled
+		}
+
+		// Update config
+		_, err = service.UpdateAppConfig(t.Context(), input)
+		require.NoError(t, err)
+
+		// Verify EmailOneTimeAccessEnabled was automatically disabled
+		config = service.GetDbConfig()
+		require.False(t, config.EmailLoginNotificationEnabled.IsTrue())
+		require.False(t, config.EmailOneTimeAccessEnabled.IsTrue())
+	})
+
+	t.Run("cannot update when UiConfigDisabled is true", func(t *testing.T) {
+		// Save the original state and restore it after the test
+		originalUiConfigDisabled := common.EnvConfig.UiConfigDisabled
+		defer func() {
+			common.EnvConfig.UiConfigDisabled = originalUiConfigDisabled
+		}()
+
+		// Disable UI config
+		common.EnvConfig.UiConfigDisabled = true
+
+		db := newAppConfigTestDatabaseForTest(t)
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// Try to update config
+		_, err = service.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+			AppName: "Should Not Update",
+		})
+
+		// Should get a UiConfigDisabledError
+		require.Error(t, err)
+		var uiConfigDisabledErr *common.UiConfigDisabledError
+		require.ErrorAs(t, err, &uiConfigDisabledErr)
 	})
 }
 
