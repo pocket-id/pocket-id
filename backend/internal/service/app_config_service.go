@@ -130,6 +130,7 @@ func (s *AppConfigService) updateAppConfigUpdateDatabase(ctx context.Context, tx
 	err := tx.
 		WithContext(ctx).
 		Clauses(clause.OnConflict{
+			// Perform an "upsert" if the key already exists, replacing the value
 			Columns:   []clause.Column{{Name: "key"}},
 			DoUpdates: clause.AssignmentColumns([]string{"value"}),
 		}).

@@ -300,19 +300,15 @@ func (s *TestService) ResetApplicationImages() error {
 	return nil
 }
 
-func (s *TestService) ResetAppConfig() error {
-	// Reseed the config variables
-	if err := s.appConfigService.InitDbConfig(context.Background()); err != nil {
-		return err
-	}
-
-	// Reset all app config variables to their default values
-	if err := s.db.Session(&gorm.Session{AllowGlobalUpdate: true}).Model(&model.AppConfigVariable{}).Update("value", "").Error; err != nil {
+func (s *TestService) ResetAppConfig(ctx context.Context) error {
+	// Reset all app config variables to their default values in the database
+	err := s.db.Session(&gorm.Session{AllowGlobalUpdate: true}).Model(&model.AppConfigVariable{}).Update("value", "").Error
+	if err != nil {
 		return err
 	}
 
 	// Reload the app config from the database after resetting the values
-	return s.appConfigService.LoadDbConfigFromDb()
+	return s.appConfigService.LoadDbConfig(ctx)
 }
 
 func (s *TestService) SetJWTKeys() {
