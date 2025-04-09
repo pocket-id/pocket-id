@@ -68,6 +68,179 @@ func TestLoadDbConfig(t *testing.T) {
 		expect.SmtpHost.Value = "example"
 		require.EqualValues(t, service.GetDbConfig(), expect)
 	})
+
+	t.Run("ignores unknown config keys", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Add an entry with a key that doesn't exist in the config struct
+		err := db.Create([]model.AppConfigVariable{
+			{Key: "__nonExistentKey", Value: "some value"},
+			{Key: "appName", Value: "TestApp"}, // This one should still be loaded
+		}).Error
+		require.NoError(t, err)
+
+		service := &AppConfigService{
+			db: db,
+		}
+		// This should not fail, just ignore the unknown key
+		err = service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		config := service.GetDbConfig()
+		require.Equal(t, "TestApp", config.AppName.Value)
+	})
+
+	t.Run("loading config multiple times", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Initial state
+		err := db.Create([]model.AppConfigVariable{
+			{Key: "appName", Value: "InitialApp"},
+		}).Error
+		require.NoError(t, err)
+
+		service := &AppConfigService{
+			db: db,
+		}
+		err = service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+		require.Equal(t, "InitialApp", service.GetDbConfig().AppName.Value)
+
+		// Update the database value
+		err = db.Model(&model.AppConfigVariable{}).
+			Where("key = ?", "appName").
+			Update("value", "UpdatedApp").Error
+		require.NoError(t, err)
+
+		// Load the config again, it should reflect the updated value
+		err = service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+		require.Equal(t, "UpdatedApp", service.GetDbConfig().AppName.Value)
+	})
+}
+
+func TestUpdateAppConfigValues(t *testing.T) {
+	t.Run("update single value", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Create a service with default config
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// Update a single config value
+		err = service.UpdateAppConfigValues(t.Context(), "appName", "Test App")
+		require.NoError(t, err)
+
+		// Verify in-memory config was updated
+		config := service.GetDbConfig()
+		require.Equal(t, "Test App", config.AppName.Value)
+
+		// Verify database was updated
+		var dbValue model.AppConfigVariable
+		err = db.Where("key = ?", "appName").First(&dbValue).Error
+		require.NoError(t, err)
+		require.Equal(t, "Test App", dbValue.Value)
+	})
+
+	t.Run("update multiple values", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Create a service with default config
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// Update multiple config values
+		err = service.UpdateAppConfigValues(
+			t.Context(),
+			"appName", "Test App",
+			"sessionDuration", "30",
+			"smtpHost", "mail.example.com",
+		)
+		require.NoError(t, err)
+
+		// Verify in-memory config was updated
+		config := service.GetDbConfig()
+		require.Equal(t, "Test App", config.AppName.Value)
+		require.Equal(t, "30", config.SessionDuration.Value)
+		require.Equal(t, "mail.example.com", config.SmtpHost.Value)
+
+		// Verify database was updated
+		var count int64
+		db.Model(&model.AppConfigVariable{}).Count(&count)
+		require.Equal(t, int64(3), count)
+
+		var appName, sessionDuration, smtpHost model.AppConfigVariable
+		err = db.Where("key = ?", "appName").First(&appName).Error
+		require.NoError(t, err)
+		require.Equal(t, "Test App", appName.Value)
+
+		err = db.Where("key = ?", "sessionDuration").First(&sessionDuration).Error
+		require.NoError(t, err)
+		require.Equal(t, "30", sessionDuration.Value)
+
+		err = db.Where("key = ?", "smtpHost").First(&smtpHost).Error
+		require.NoError(t, err)
+		require.Equal(t, "mail.example.com", smtpHost.Value)
+	})
+
+	t.Run("empty value resets to default", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Create a service with default config
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// First change the value
+		err = service.UpdateAppConfigValues(t.Context(), "sessionDuration", "30")
+		require.NoError(t, err)
+		require.Equal(t, "30", service.GetDbConfig().SessionDuration.Value)
+
+		// Now set it to empty which should use default value
+		err = service.UpdateAppConfigValues(t.Context(), "sessionDuration", "")
+		require.NoError(t, err)
+		require.Equal(t, "60", service.GetDbConfig().SessionDuration.Value) // Default value from getDefaultDbConfig
+	})
+
+	t.Run("error with odd number of arguments", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Create a service with default config
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// Try to update with odd number of arguments
+		err = service.UpdateAppConfigValues(t.Context(), "appName", "Test App", "sessionDuration")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid number of arguments")
+	})
+
+	t.Run("error with invalid key", func(t *testing.T) {
+		db := newAppConfigTestDatabaseForTest(t)
+
+		// Create a service with default config
+		service := &AppConfigService{
+			db: db,
+		}
+		err := service.LoadDbConfig(t.Context())
+		require.NoError(t, err)
+
+		// Try to update with invalid key
+		err = service.UpdateAppConfigValues(t.Context(), "nonExistentKey", "some value")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid configuration key")
+	})
 }
 
 // Implements gorm's logger.Writer interface

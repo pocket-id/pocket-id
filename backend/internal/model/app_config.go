@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -161,10 +162,22 @@ func (e AppConfigKeyNotFoundError) Error() string {
 	return fmt.Sprintf("cannot find config key '%s'", e.field)
 }
 
+func (e AppConfigKeyNotFoundError) Is(target error) bool {
+	// Ignore the field property when checking if an error is of the type AppConfigKeyNotFoundError
+	x := AppConfigKeyNotFoundError{}
+	return errors.As(target, &x)
+}
+
 type AppConfigInternalForbiddenError struct {
 	field string
 }
 
 func (e AppConfigInternalForbiddenError) Error() string {
 	return fmt.Sprintf("field '%s' is internal and can't be updated", e.field)
+}
+
+func (e AppConfigInternalForbiddenError) Is(target error) bool {
+	// Ignore the field property when checking if an error is of the type AppConfigInternalForbiddenError
+	x := AppConfigInternalForbiddenError{}
+	return errors.As(target, &x)
 }
