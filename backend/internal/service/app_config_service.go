@@ -94,23 +94,11 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 	}
 }
 
-func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
-	if common.EnvConfig.UiConfigDisabled {
-		return nil, &common.UiConfigDisabledError{}
-	}
-
-	// If EmailLoginNotificationEnabled is set to false (explicitly), disable the EmailOneTimeAccessEnabled
-	if input.EmailLoginNotificationEnabled == "false" {
-		input.EmailOneTimeAccessEnabled = "false"
-	}
-
+func (s *AppConfigService) updateAppConfigStartTransaction(ctx context.Context) (tx *gorm.DB, err error) {
 	// We start a transaction before doing any work, to ensure that we are the only ones updating the data in the database
 	// This works across multiple processes too
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-	err := tx.Error
+	tx = s.db.Begin()
+	err = tx.Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin database transaction: %w", err)
 	}
@@ -128,11 +116,50 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 			Exec("LOCK TABLE app_config_variable IN ACCESS EXCLUSIVE MODE").
 			Error
 		if err != nil {
+			tx.Rollback()
 			return nil, fmt.Errorf("failed to acquire lock on app_config_variable table: %w", err)
 		}
 	default:
 		// Nothing to do here
 	}
+
+	return tx, nil
+}
+
+func (s *AppConfigService) updateAppConfigUpdateDatabase(ctx context.Context, tx *gorm.DB, dbUpdate *[]model.AppConfigVariable) error {
+	err := tx.
+		WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "key"}},
+			DoUpdates: clause.AssignmentColumns([]string{"value"}),
+		}).
+		Create(&dbUpdate).
+		Error
+	if err != nil {
+		return fmt.Errorf("failed to update config in database: %w", err)
+	}
+
+	return nil
+}
+
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
+	if common.EnvConfig.UiConfigDisabled {
+		return nil, &common.UiConfigDisabledError{}
+	}
+
+	// If EmailLoginNotificationEnabled is set to false (explicitly), disable the EmailOneTimeAccessEnabled
+	if input.EmailLoginNotificationEnabled == "false" {
+		input.EmailOneTimeAccessEnabled = "false"
+	}
+
+	// Start the transaction
+	tx, err := s.updateAppConfigStartTransaction(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		tx.Rollback()
+	}()
 
 	// From here onwards, we know we are the only process/goroutine with exclusive access to the config
 	// Re-load the config from the database to be sure we have the correct data
@@ -181,16 +208,9 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	}
 
 	// Update the values in the database
-	err = tx.
-		WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "key"}},
-			DoUpdates: clause.AssignmentColumns([]string{"value"}),
-		}).
-		Create(&dbUpdate).
-		Error
+	err = s.updateAppConfigUpdateDatabase(ctx, tx, &dbUpdate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update config in database: %w", err)
+		return nil, err
 	}
 
 	// Commit the changes to the DB, then finally save the updated config in the object
@@ -206,19 +226,81 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	return res, nil
 }
 
-func (s *AppConfigService) updateImageType(ctx context.Context, imageName string, fileType string) error {
-	key := imageName + "ImageType"
-	err := s.db.
-		WithContext(ctx).
-		Model(&model.AppConfigVariable{}).
-		Where("key = ?", key).
-		Update("value", fileType).
-		Error
+// UpdateAppConfigValues
+func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndValues ...string) error {
+	// Count of keysAndValues must be even
+	if len(keysAndValues)%2 != 0 {
+		return errors.New("invalid number of arguments received")
+	}
+
+	// Start the transaction
+	tx, err := s.updateAppConfigStartTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// From here onwards, we know we are the only process/goroutine with exclusive access to the config
+	// Re-load the config from the database to be sure we have the correct data
+	cfg, err := s.loadDbConfigInternal(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("failed to reload config from database: %w", err)
+	}
+
+	defaultCfg := s.getDefaultDbConfig()
+
+	// Iterate through all the fields to update
+	// We update the in-memory data (in the cfg struct) and collect values to update in the database
+	// (Note the += 2, as we are iterating through key-value pairs)
+	dbUpdate := make([]model.AppConfigVariable, 0, len(keysAndValues)/2)
+	for i := 0; i < len(keysAndValues); i += 2 {
+		key := keysAndValues[i]
+		value := keysAndValues[i+1]
+
+		// Ensure that the field is valid
+		// We do this by grabbing the default value
+		var defaultValue string
+		defaultValue, err = defaultCfg.FieldByKey(key)
+		if err != nil {
+			return fmt.Errorf("invalid configuration key '%s': %w", key, err)
+		}
+
+		// Update the in-memory config value
+		// If the new value is an empty string, then we set the in-memory value to the default one
+		// Skip values that are internal only and can't be updated
+		if value == "" {
+			err = cfg.UpdateField(key, defaultValue, false)
+		} else {
+			err = cfg.UpdateField(key, value, false)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to update in-memory config for key '%s': %w", key, err)
+		}
+
+		// We always save "value" which can be an empty string
+		dbUpdate = append(dbUpdate, model.AppConfigVariable{
+			Key:   key,
+			Value: value,
+		})
+	}
+
+	// Update the values in the database
+	err = s.updateAppConfigUpdateDatabase(ctx, tx, &dbUpdate)
 	if err != nil {
 		return err
 	}
 
-	return s.LoadDbConfig(ctx)
+	// Commit the changes to the DB, then finally save the updated config in the object
+	err = tx.Commit().Error
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.dbConfig.Store(cfg)
+
+	return nil
 }
 
 func (s *AppConfigService) ListAppConfig(showAll bool) []model.AppConfigVariable {
@@ -232,25 +314,27 @@ func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multip
 		return &common.FileTypeNotSupportedError{}
 	}
 
-	// Delete the old image if it has a different file type
-	if fileType != oldImageType {
-		oldImagePath := common.EnvConfig.UploadPath + "/application-images/" + imageName + "." + oldImageType
-		err = os.Remove(oldImagePath)
-		if err != nil {
-			return err
-		}
-	}
-
+	// Save the updated image
 	imagePath := common.EnvConfig.UploadPath + "/application-images/" + imageName + "." + fileType
 	err = utils.SaveFile(uploadedFile, imagePath)
 	if err != nil {
 		return err
 	}
 
-	// Update the file type in the database
-	err = s.updateImageType(ctx, imageName, fileType)
-	if err != nil {
-		return err
+	// Delete the old image if it has a different file type, then update the type in the database
+	if fileType != oldImageType {
+		oldImagePath := common.EnvConfig.UploadPath + "/application-images/" + imageName + "." + oldImageType
+		err = os.Remove(oldImagePath)
+		if err != nil {
+			return err
+		}
+
+		// Update the file type in the database
+		err = s.UpdateAppConfigValues(ctx, imageName+"ImageType", fileType)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil
