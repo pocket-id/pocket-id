@@ -114,11 +114,11 @@ func (s *AppConfigService) updateAppConfigStartTransaction(ctx context.Context) 
 		defer lockCancel()
 		err = tx.
 			WithContext(lockCtx).
-			Exec("LOCK TABLE app_config_variable IN ACCESS EXCLUSIVE MODE").
+			Exec("LOCK TABLE app_config_variables IN ACCESS EXCLUSIVE MODE").
 			Error
 		if err != nil {
 			tx.Rollback()
-			return nil, fmt.Errorf("failed to acquire lock on app_config_variable table: %w", err)
+			return nil, fmt.Errorf("failed to acquire lock on app_config_variables table: %w", err)
 		}
 	default:
 		// Nothing to do here
