@@ -38,7 +38,7 @@ func TestLoadDbConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Config should be equal to default config
-		require.EqualValues(t, service.GetDbConfig(), service.getDefaultDbConfig())
+		require.Equal(t, service.GetDbConfig(), service.getDefaultDbConfig())
 	})
 
 	t.Run("loads value from config table", func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestLoadDbConfig(t *testing.T) {
 		expect := service.getDefaultDbConfig()
 		expect.SessionDuration.Value = "5"
 		expect.SmtpHost.Value = "example"
-		require.EqualValues(t, service.GetDbConfig(), expect)
+		require.Equal(t, service.GetDbConfig(), expect)
 	})
 
 	t.Run("ignores unknown config keys", func(t *testing.T) {
