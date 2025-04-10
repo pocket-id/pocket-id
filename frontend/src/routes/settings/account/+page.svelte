@@ -67,14 +67,18 @@
 {#if passkeys.length == 0}
 	<Alert.Root variant="warning" class="flex gap-3">
 		<LucideAlertTriangle class="size-4" />
-		<div>
-			<Alert.Title class="font-semibold">{m.passkey_missing()}</Alert.Title>
-			<Alert.Description class="text-sm">
-				{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}
-			</Alert.Description>
-			<Button class="mt-2" on:click={createPasskey}>
-				{m.add_passkey()}
-			</Button>
+		<div class="md:flex md:w-full md:place-content-between">
+			<div>
+				<Alert.Title class="font-semibold">{m.passkey_missing()}</Alert.Title>
+				<Alert.Description class="text-sm">
+					{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}
+				</Alert.Description>
+			</div>
+			<div>
+				<Button class="mt-2 md:mt-0" on:click={createPasskey}>
+					{m.add_passkey()}
+				</Button>
+			</div>
 		</div>
 	</Alert.Root>
 {:else if passkeys.length == 1}
