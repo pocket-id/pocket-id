@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -20,6 +21,12 @@ func (e *AlreadyInUseError) Error() string {
 	return e.Property + " is already in use"
 }
 func (e *AlreadyInUseError) HttpStatusCode() int { return 400 }
+
+func (e *AlreadyInUseError) Is(target error) bool {
+	// Ignore the field property when checking if an error is of the type AlreadyInUseError
+	x := &AlreadyInUseError{}
+	return errors.As(target, &x)
+}
 
 type SetupAlreadyCompletedError struct{}
 

@@ -160,7 +160,7 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 		return
 	}
 
-	group, err := ugc.UserGroupService.Update(c.Request.Context(), c.Param("id"), input, false)
+	group, err := ugc.UserGroupService.Update(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		_ = c.Error(err)
 		return
