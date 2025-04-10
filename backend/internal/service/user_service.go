@@ -184,7 +184,7 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 		First(&user).
 		Error
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load user to delete: %w", err)
 	}
 
 	// Disallow deleting the user if it is an LDAP user and LDAP is enabled
@@ -199,7 +199,12 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 		return err
 	}
 
-	return tx.WithContext(ctx).Delete(&user).Error
+	err = tx.WithContext(ctx).Delete(&user).Error
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	return nil
 }
 
 func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (model.User, error) {
@@ -208,7 +213,7 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 		tx.Rollback()
 	}()
 
-	user, err := s.createUserInternal(ctx, input, tx)
+	user, err := s.createUserInternal(ctx, input, false, tx)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -221,7 +226,7 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 	return user, nil
 }
 
-func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, tx *gorm.DB) (model.User, error) {
+func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
 	user := model.User{
 		FirstName: input.FirstName,
 		LastName:  input.LastName,
@@ -236,10 +241,15 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 
 	err := tx.WithContext(ctx).Create(&user).Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		tx.Rollback()
+		// Do not follow this path if we're using LDAP, as we don't want to roll-back the transaction here
+		if !isLdapSync {
+			tx.Rollback()
+			// If we are here, the transaction is already aborted due to an error, so we pass s.db
+			err = s.checkDuplicatedFields(ctx, user, s.db)
+		} else {
+			err = s.checkDuplicatedFields(ctx, user, tx)
+		}
 
-		// If we are here, the transaction is already aborted due to an error, so we pass s.db
-		err = s.checkDuplicatedFields(ctx, user, s.db)
 		return model.User{}, err
 	} else if err != nil {
 		return model.User{}, err
@@ -266,7 +276,7 @@ func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser
 	return user, nil
 }
 
-func (s *UserService) updateUserInternal(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, allowLdapUpdate bool, tx *gorm.DB) (model.User, error) {
+func (s *UserService) updateUserInternal(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB) (model.User, error) {
 	var user model.User
 	err := tx.
 		WithContext(ctx).
@@ -278,7 +288,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	}
 
 	// Disallow updating the user if it is an LDAP group and LDAP is enabled
-	if !allowLdapUpdate && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	if !isLdapSync && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
 		return model.User{}, &common.LdapUserUpdateError{}
 	}
 
@@ -296,10 +306,15 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		Save(&user).
 		Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		tx.Rollback()
+		// Do not follow this path if we're using LDAP, as we don't want to roll-back the transaction here
+		if !isLdapSync {
+			tx.Rollback()
+			// If we are here, the transaction is already aborted due to an error, so we pass s.db
+			err = s.checkDuplicatedFields(ctx, user, s.db)
+		} else {
+			err = s.checkDuplicatedFields(ctx, user, tx)
+		}
 
-		// If we are here, the transaction is already aborted due to an error, so we pass s.db
-		err = s.checkDuplicatedFields(ctx, user, s.db)
 		return user, err
 	} else if err != nil {
 		return user, err

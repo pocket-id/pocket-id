@@ -122,13 +122,13 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 	return group, nil
 }
 
-func (s *UserGroupService) Update(ctx context.Context, id string, input dto.UserGroupCreateDto, allowLdapUpdate bool) (group model.UserGroup, err error) {
+func (s *UserGroupService) Update(ctx context.Context, id string, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	group, err = s.updateInternal(ctx, id, input, allowLdapUpdate, tx)
+	group, err = s.updateInternal(ctx, id, input, false, tx)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -141,14 +141,14 @@ func (s *UserGroupService) Update(ctx context.Context, id string, input dto.User
 	return group, nil
 }
 
-func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, allowLdapUpdate bool, tx *gorm.DB) (group model.UserGroup, err error) {
+func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB) (group model.UserGroup, err error) {
 	group, err = s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
 
 	// Disallow updating the group if it is an LDAP group and LDAP is enabled
-	if !allowLdapUpdate && group.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	if !isLdapSync && group.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
 		return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
 	}
 
@@ -160,10 +160,9 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 		Preload("Users").
 		Save(&group).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
-		}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
+	} else if err != nil {
 		return model.UserGroup{}, err
 	}
 	return group, nil
