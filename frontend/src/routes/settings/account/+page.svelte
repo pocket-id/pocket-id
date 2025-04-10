@@ -72,6 +72,9 @@
 			<Alert.Description class="text-sm">
 				{m.please_provide_a_passkey_to_prevent_losing_access_to_your_account()}
 			</Alert.Description>
+			<Button class="mt-2" on:click={createPasskey}>
+				{m.add_passkey()}
+			</Button>
 		</div>
 	</Alert.Root>
 {:else if passkeys.length == 1}
