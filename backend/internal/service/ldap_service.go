@@ -146,22 +146,22 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
 		membersUserId := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
-			cn := getCN(member)
-			if cn == "" {
+			ldapId := getDNProperty("uid", member)
+			if ldapId == "" {
 				continue
 			}
 
 			var databaseUser model.User
 			err = tx.
 				WithContext(ctx).
-				Where("username = ? AND ldap_id IS NOT NULL", cn).
+				Where("username = ? AND ldap_id IS NOT NULL", ldapId).
 				First(&databaseUser).
 				Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// The user collides with a non-LDAP user, so we skip it
 				continue
 			} else if err != nil {
-				return fmt.Errorf("failed to query for existing user '%s': %w", cn, err)
+				return fmt.Errorf("failed to query for existing user '%s': %w", ldapId, err)
 			}
 
 			membersUserId = append(membersUserId, databaseUser.ID)
@@ -287,8 +287,9 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		// Check if user is admin by checking if they are in the admin group
 		isAdmin := false
 		for _, group := range value.GetAttributeValues("memberOf") {
-			if strings.Contains(group, dbConfig.LdapAttributeAdminGroup.Value) {
+			if getDNProperty("cn", group) == dbConfig.LdapAttributeAdminGroup.Value {
 				isAdmin = true
+				break
 			}
 		}
 
@@ -397,15 +398,17 @@ func (s *LdapService) saveProfilePicture(parentCtx context.Context, userId strin
 	return nil
 }
 
-// getCN returns the Common Name (CN) property from a LDAP identifier
+// getDNProperty returns the value of a property from a LDAP identifier
 // See: https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ldap/distinguished-names
-func getCN(str string) string {
-	// Format is "CN=username,ou=people,dc=example,dc=com"
+func getDNProperty(property string, str string) string {
+	// Example format is "CN=username,ou=people,dc=example,dc=com"
 	// First we split at the comma
+	property = strings.ToLower(property)
+	l := len(property) + 1
 	for _, v := range strings.Split(str, ",") {
 		v = strings.TrimSpace(v)
-		if len(v) > 3 && strings.ToLower(v)[0:3] == "cn=" {
-			return v[3:]
+		if len(v) > l && strings.ToLower(v)[0:l] == property+"=" {
+			return v[l:]
 		}
 	}
 

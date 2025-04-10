@@ -4,59 +4,69 @@ import (
 	"testing"
 )
 
-func TestGetCN(t *testing.T) {
+func TestGetDNProperty(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected string
+		name           string
+		property       string
+		dn             string
+		expectedResult string
 	}{
 		{
-			name:     "valid CN in the beginning",
-			input:    "CN=username,OU=people,DC=example,DC=com",
-			expected: "username",
+			name:           "simple case",
+			property:       "cn",
+			dn:             "cn=username,ou=people,dc=example,dc=com",
+			expectedResult: "username",
 		},
 		{
-			name:     "lowercase cn",
-			input:    "cn=username,ou=people,dc=example,dc=com",
-			expected: "username",
+			name:           "property not found",
+			property:       "uid",
+			dn:             "cn=username,ou=people,dc=example,dc=com",
+			expectedResult: "",
 		},
 		{
-			name:     "no CN component",
-			input:    "UID=jsmith,OU=people,DC=example,DC=com",
-			expected: "",
+			name:           "mixed case property",
+			property:       "CN",
+			dn:             "cn=username,ou=people,dc=example,dc=com",
+			expectedResult: "username",
 		},
 		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
+			name:           "mixed case DN",
+			property:       "cn",
+			dn:             "CN=username,OU=people,DC=example,DC=com",
+			expectedResult: "username",
 		},
 		{
-			name:     "CN with special characters",
-			input:    "CN=John Doe (Admin),OU=IT Staff,DC=example,DC=com",
-			expected: "John Doe (Admin)",
+			name:           "spaces in DN",
+			property:       "cn",
+			dn:             "cn=username, ou=people, dc=example, dc=com",
+			expectedResult: "username",
 		},
 		{
-			name:     "multiple CN components",
-			input:    "CN=username,CN=backup,OU=people,DC=example,DC=com",
-			expected: "username",
+			name:           "value with special characters",
+			property:       "cn",
+			dn:             "cn=user.name+123,ou=people,dc=example,dc=com",
+			expectedResult: "user.name+123",
 		},
 		{
-			name:     "CN with trailing spaces",
-			input:    "CN=username,OU=people,DC=example,DC=com",
-			expected: "username",
+			name:           "empty DN",
+			property:       "cn",
+			dn:             "",
+			expectedResult: "",
 		},
 		{
-			name:     "malformed DN without equals",
-			input:    "CNusername,OU=people,DC=example,DC=com",
-			expected: "",
+			name:           "empty property",
+			property:       "",
+			dn:             "cn=username,ou=people,dc=example,dc=com",
+			expectedResult: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getCN(tt.input)
-			if got != tt.expected {
-				t.Errorf("getCN(%q) = %q, want %q", tt.input, got, tt.expected)
+			result := getDNProperty(tt.property, tt.dn)
+			if result != tt.expectedResult {
+				t.Errorf("getDNProperty(%q, %q) = %q, want %q",
+					tt.property, tt.dn, result, tt.expectedResult)
 			}
 		})
 	}
