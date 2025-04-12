@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
-	import Qrcode from '$lib/components/ui/qrcode/qrcode.svelte';
+	import Qrcode from '$lib/components/qrcode/qrcode.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
@@ -63,7 +63,13 @@
 					<p data-testId="login-code-link">{loginCodeLink!}</p>
 				</CopyToClipboard>
 			</div>
-			<Qrcode value={loginCodeLink} />
+			<Qrcode
+				value={loginCodeLink}
+				size={180}
+				margin={0}
+				color="#FFFFFF"
+				backgroundColor="#00000000"
+			/>
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
