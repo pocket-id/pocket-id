@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
+	import Qrcode from '$lib/components/ui/qrcode/qrcode.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
@@ -16,13 +17,17 @@
 	const userService = new UserService();
 
 	let code: string | null = $state(null);
+	let loginCodeLink: string | null = $state(null);
 
 	$effect(() => {
 		if (show) {
 			const expiration = new Date(Date.now() + 15 * 60 * 1000);
 			userService
 				.createOneTimeAccessToken(expiration, 'me')
-				.then((c) => (code = c))
+				.then((c) => {
+					code = c;
+					loginCodeLink = page.url.origin + '/lc/' + code;
+				})
 				.catch((e) => axiosErrorToast(e));
 		}
 	});
@@ -54,10 +59,11 @@
 				<Separator />
 			</div>
 			<div>
-				<CopyToClipboard value={page.url.origin + '/lc/' + code!}>
-					<p data-testId="login-code-link">{page.url.origin + '/lc/' + code!}</p>
+				<CopyToClipboard value={loginCodeLink!}>
+					<p data-testId="login-code-link">{loginCodeLink!}</p>
 				</CopyToClipboard>
 			</div>
+			<Qrcode value={loginCodeLink} />
 		</div>
 	</Dialog.Content>
 </Dialog.Root>

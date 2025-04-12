@@ -8,6 +8,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import Qrcode from './ui/qrcode/qrcode.svelte';
 
 	let {
 		userId = $bindable()
@@ -81,6 +82,7 @@
 		{:else}
 			<Label for="login-code" class="sr-only">{m.login_code()}</Label>
 			<Input id="login-code" value={oneTimeLink} readonly />
+			<Qrcode value={oneTimeLink} />
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>
