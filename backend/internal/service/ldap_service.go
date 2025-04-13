@@ -282,7 +282,14 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 
 		// If a user is found (even if disabled), enable them since they're now back in LDAP
 		if databaseUser.ID != "" && databaseUser.Disabled {
-			err = s.userService.EnableUser(ctx, databaseUser.ID)
+			// Use the transaction instead of the direct context
+			err = tx.
+				WithContext(ctx).
+				Model(&model.User{}).
+				Where("id = ?", databaseUser.ID).
+				Update("disabled", false).
+				Error
+
 			if err != nil {
 				log.Printf("Failed to enable user %s: %v", databaseUser.Username, err)
 			} else {
