@@ -292,8 +292,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 
 			if err != nil {
 				log.Printf("Failed to enable user %s: %v", databaseUser.Username, err)
-			} else {
-				log.Printf("Re-enabled user %s who was previously disabled", databaseUser.Username)
 			}
 		}
 
@@ -360,17 +358,12 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		return fmt.Errorf("failed to fetch users from database: %w", err)
 	}
 
-	// Debug - log the count of users found
-	log.Printf("Found %d LDAP users in database", len(ldapUsersInDb))
-
 	// Mark users as disabled or delete users that no longer exist in LDAP
 	for _, user := range ldapUsersInDb {
 		// Skip if the user ID exists in the fetched LDAP results
 		if _, exists := ldapUserIDs[*user.LdapID]; exists {
 			continue
 		}
-
-		log.Printf("User %s (%s) no longer exists in LDAP", user.Username, *user.LdapID)
 
 		// Use the config option to determine whether to disable or delete
 		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
@@ -379,7 +372,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				log.Printf("Failed to disable user %s: %v", user.Username, err)
 				continue
 			}
-			log.Printf("User %s disabled because they no longer exist in LDAP", user.Username)
 		} else {
 			// Traditional delete using the transaction
 			err = s.userService.DeleteUser(ctx, user.ID, true)
@@ -387,7 +379,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				log.Printf("Failed to delete user %s: %v", user.Username, err)
 				continue
 			}
-			log.Printf("User %s deleted because they no longer exist in LDAP", user.Username)
 		}
 	}
 
