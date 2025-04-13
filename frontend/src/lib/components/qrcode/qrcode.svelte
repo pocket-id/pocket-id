@@ -2,6 +2,7 @@
 	import QRCode from 'qrcode';
 	import { onMount } from 'svelte';
 
+	let canvasEl: HTMLCanvasElement | null;
 	let {
 		value,
 		size = 200,
@@ -17,8 +18,7 @@
 	} = $props();
 
 	onMount(() => {
-		const canvas = document.getElementById('qr-code-canvas') as HTMLCanvasElement;
-		if (value && canvas) {
+		if (value && canvasEl) {
 			// Convert "transparent" to a valid value for the QR code library
 			const lightColor = backgroundColor === 'transparent' ? '#00000000' : backgroundColor;
 
@@ -31,7 +31,7 @@
 				}
 			};
 
-			QRCode.toCanvas(canvas, value, options).catch((error: Error) => {
+			QRCode.toCanvas(canvasEl, value, options).catch((error: Error) => {
 				console.error('Error generating QR Code:', error);
 			});
 		}
@@ -42,7 +42,7 @@
 	class="qrcode-container"
 	style="--bg-color: {backgroundColor === 'transparent' ? 'transparent' : backgroundColor};"
 >
-	<canvas id="qr-code-canvas" class="rounded-lg"></canvas>
+	<canvas bind:this={canvasEl} class="rounded-lg"></canvas>
 </div>
 
 <style>
