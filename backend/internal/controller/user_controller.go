@@ -108,14 +108,19 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 		return
 	}
 
-	var usersDto []dto.UserDto
-	if err := dto.MapStructList(users, &usersDto); err != nil {
-		_ = c.Error(err)
-		return
+	// Map the users to DTOs
+	userDtos := make([]dto.UserDto, len(users))
+	for i, user := range users {
+		var userDto dto.UserDto
+		if err := dto.MapStruct(user, &userDto); err != nil {
+			_ = c.Error(err)
+			return
+		}
+		userDtos[i] = userDto
 	}
 
 	c.JSON(http.StatusOK, dto.Paginated[dto.UserDto]{
-		Data:       usersDto,
+		Data:       userDtos,
 		Pagination: pagination,
 	})
 }
@@ -529,13 +534,14 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 
 // disableUserHandler godoc
 // @Summary Disable user
-// @Description Disable a specific user by ID
+// @Description Disable a specific user
 // @Tags Users
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
 // @Router /api/users/{id}/disable [put]
 func (uc *UserController) disableUserHandler(c *gin.Context) {
-	err := uc.userService.DisableUser(c.Request.Context(), c.Param("id"))
+	userID := c.Param("id")
+	err := uc.userService.DisableUser(c.Request.Context(), userID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -545,13 +551,14 @@ func (uc *UserController) disableUserHandler(c *gin.Context) {
 
 // enableUserHandler godoc
 // @Summary Enable user
-// @Description Enable a specific user by ID
+// @Description Enable a specific user
 // @Tags Users
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
 // @Router /api/users/{id}/enable [put]
 func (uc *UserController) enableUserHandler(c *gin.Context) {
-	err := uc.userService.EnableUser(c.Request.Context(), c.Param("id"))
+	userID := c.Param("id")
+	err := uc.userService.EnableUser(c.Request.Context(), userID)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -1,4 +1,4 @@
 ALTER TABLE users
-ADD COLUMN disabled BOOLEAN DEFAULT FALSE NOT NULL;
+ADD COLUMN IF NOT EXISTS disabled BOOLEAN DEFAULT FALSE NOT NULL;
 
-CREATE INDEX idx_users_disabled ON users (disabled);
+CREATE INDEX IF NOT EXISTS idx_users_disabled ON users (disabled);

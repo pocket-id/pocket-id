@@ -279,6 +279,17 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			Where("ldap_id = ?", ldapId).
 			First(&databaseUser).
 			Error
+
+		// If a user is found (even if disabled), enable them since they're now back in LDAP
+		if databaseUser.ID != "" && databaseUser.Disabled {
+			err = s.userService.EnableUser(ctx, databaseUser.ID)
+			if err != nil {
+				log.Printf("Failed to enable user %s: %v", databaseUser.Username, err)
+			} else {
+				log.Printf("Re-enabled user %s who was previously disabled", databaseUser.Username)
+			}
+		}
+
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			// This could error with ErrRecordNotFound and we want to ignore that here
 			return fmt.Errorf("failed to query for LDAP user ID '%s': %w", ldapId, err)
@@ -331,36 +342,46 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		}
 	}
 
-	// Get all LDAP users from the database
+	// Get all LDAP users from the database - modify this to include disabled users
 	var ldapUsersInDb []model.User
 	err = tx.
 		WithContext(ctx).
 		Find(&ldapUsersInDb, "ldap_id IS NOT NULL").
-		Select("ldap_id").
+		Select("id, username, ldap_id, disabled").
 		Error
 	if err != nil {
 		return fmt.Errorf("failed to fetch users from database: %w", err)
 	}
 
+	// Debug - log the count of users found
+	log.Printf("Found %d LDAP users in database", len(ldapUsersInDb))
+
 	// Mark users as disabled or delete users that no longer exist in LDAP
 	for _, user := range ldapUsersInDb {
+		// Skip if the user ID exists in the fetched LDAP results
 		if _, exists := ldapUserIDs[*user.LdapID]; exists {
 			continue
 		}
 
-		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
-			err = s.userService.DisableUser(ctx, user.ID)
-			if err != nil {
-				return fmt.Errorf("failed to disable user '%s': %w", user.Username, err)
-			}
-		} else {
-			err = s.userService.deleteUserInternal(ctx, user.ID, true, tx)
-			if err != nil {
-				return fmt.Errorf("failed to delete user '%s': %w", user.Username, err)
-			}
-		}
+		log.Printf("User %s (%s) no longer exists in LDAP", user.Username, *user.LdapID)
 
-		log.Printf("Processed user '%s'", user.Username)
+		// Use the config option to determine whether to disable or delete
+		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
+			err = s.userService.DisableUserInternal(ctx, user.ID, tx)
+			if err != nil {
+				log.Printf("Failed to disable user %s: %v", user.Username, err)
+				continue
+			}
+			log.Printf("User %s disabled because they no longer exist in LDAP", user.Username)
+		} else {
+			// Traditional delete using the transaction
+			err = s.userService.DeleteUser(ctx, user.ID, true)
+			if err != nil {
+				log.Printf("Failed to delete user %s: %v", user.Username, err)
+				continue
+			}
+			log.Printf("User %s deleted because they no longer exist in LDAP", user.Username)
+		}
 	}
 
 	return nil

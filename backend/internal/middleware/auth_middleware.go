@@ -115,7 +115,7 @@ func (am *AuthMiddleware) validateToken(c *gin.Context) {
 	var user model.User
 	err := am.db.
 		WithContext(c.Request.Context()).
-		Select("disabled").
+		Select("id, username, disabled").
 		Where("id = ?", userID).
 		First(&user).
 		Error

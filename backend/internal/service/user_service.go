@@ -38,14 +38,19 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 
 func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
 	var users []model.User
-	query := s.db.WithContext(ctx).Model(&model.User{})
+	query := s.db.WithContext(ctx).
+		Model(&model.User{}).
+		Preload("UserGroups").
+		Preload("CustomClaims")
 
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
-		query = query.Where("email LIKE ? OR first_name LIKE ? OR username LIKE ?", searchPattern, searchPattern, searchPattern)
+		query = query.Where("email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
 	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &users)
+
 	return users, pagination, err
 }
 
@@ -628,30 +633,53 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 
 // DisableUser disables a user by setting the "disabled" field to true
 func (s *UserService) DisableUser(ctx context.Context, userID string) error {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
+	user, err := s.GetUser(ctx, userID)
+	if err != nil {
+		return err
+	}
 
-	err := tx.
-		WithContext(ctx).
+	// Log the user being disabled
+	log.Printf("Disabling user: %s (%s)", user.Username, userID)
+
+	// Add retry logic for database locks (especially helpful for SQLite)
+	maxRetries := 5
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err = s.db.WithContext(ctx).
+			Model(&model.User{}).
+			Where("id = ?", userID).
+			Update("disabled", true).
+			Error
+
+		if err == nil {
+			log.Printf("Successfully disabled user %s", user.Username)
+			return nil
+		}
+
+		// If it's a database lock error, wait and retry
+		if strings.Contains(err.Error(), "database is locked") {
+			log.Printf("Database locked when disabling user %s (attempt %d/%d), retrying in %d ms",
+				user.Username, attempt, maxRetries, attempt*100)
+			time.Sleep(time.Duration(attempt*100) * time.Millisecond)
+			continue
+		}
+
+		// For other errors, return immediately
+		return err
+	}
+
+	// If we got here, we failed after all retries
+	log.Printf("Failed to disable user %s after %d attempts: %v", user.Username, maxRetries, err)
+	return err
+}
+
+// DisableUserInternal disables a user by setting the "disabled" field to true using the provided transaction
+func (s *UserService) DisableUserInternal(ctx context.Context, userID string, tx *gorm.DB) error {
+	// Use the provided transaction
+	return tx.WithContext(ctx).
 		Model(&model.User{}).
 		Where("id = ?", userID).
 		Update("disabled", true).
 		Error
-	if err != nil {
-		return err
-	}
-
-	// Revoke any active sessions, tokens, etc.
-	// This would depend on how your authentication system works
-
-	err = tx.Commit().Error
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // EnableUser enables a user by setting the "disabled" field to false

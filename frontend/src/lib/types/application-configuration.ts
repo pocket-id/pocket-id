@@ -36,6 +36,7 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeGroupUniqueIdentifier: string;
 	ldapAttributeGroupName: string;
 	ldapAttributeAdminGroup: string;
+	ldapSoftDeleteUsers: boolean;
 };
 
 export type AppConfigRawResponse = {
