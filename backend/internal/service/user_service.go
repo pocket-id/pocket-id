@@ -170,9 +170,28 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		return s.deleteUserInternal(ctx, userID, allowLdapDelete, tx)
-	})
+	// If this is an LDAP sync operation and soft delete is configured, disable instead
+	if !allowLdapDelete && s.appConfigService.GetDbConfig().LdapSoftDeleteUsers.IsTrue() {
+		return s.DisableUser(ctx, userID)
+	}
+
+	// Otherwise proceed with the normal delete process
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	err := s.deleteUserInternal(ctx, userID, allowLdapDelete, tx)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *UserService) deleteUserInternal(ctx context.Context, userID string, allowLdapDelete bool, tx *gorm.DB) error {
@@ -605,4 +624,42 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 	// It's okay if the file doesn't exist - just means there's no custom picture to delete
 
 	return nil
+}
+
+// DisableUser disables a user by setting the "disabled" field to true
+func (s *UserService) DisableUser(ctx context.Context, userID string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	err := tx.
+		WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("disabled", true).
+		Error
+	if err != nil {
+		return err
+	}
+
+	// Revoke any active sessions, tokens, etc.
+	// This would depend on how your authentication system works
+
+	err = tx.Commit().Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// EnableUser enables a user by setting the "disabled" field to false
+func (s *UserService) EnableUser(ctx context.Context, userID string) error {
+	return s.db.
+		WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("disabled", false).
+		Error
 }

@@ -95,4 +95,12 @@ export default class UserService extends APIService {
 		const res = await this.api.put(`/users/${id}/user-groups`, { userGroupIds });
 		return res.data as User;
 	}
+
+	async disableUser(userId: string) {
+		await this.api.put(`/users/${userId}/disable`);
+	}
+
+	async enableUser(userId: string) {
+		await this.api.put(`/users/${userId}/enable`);
+	}
 }

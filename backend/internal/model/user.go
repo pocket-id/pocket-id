@@ -19,6 +19,7 @@ type User struct {
 	IsAdmin   bool   `sortable:"true"`
 	Locale    *string
 	LdapID    *string
+	Disabled  bool `sortable:"true" gorm:"default:false"`
 
 	CustomClaims []CustomClaim
 	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`

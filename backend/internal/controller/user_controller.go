@@ -49,6 +49,9 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
+
+	group.PUT("/users/:id/disable", authMiddleware.Add(), uc.disableUserHandler)
+	group.PUT("/users/:id/enable", authMiddleware.Add(), uc.enableUserHandler)
 }
 
 type UserController struct {
@@ -521,5 +524,37 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 		return
 	}
 
+	c.Status(http.StatusNoContent)
+}
+
+// disableUserHandler godoc
+// @Summary Disable user
+// @Description Disable a specific user by ID
+// @Tags Users
+// @Param id path string true "User ID"
+// @Success 204 "No Content"
+// @Router /api/users/{id}/disable [put]
+func (uc *UserController) disableUserHandler(c *gin.Context) {
+	err := uc.userService.DisableUser(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// enableUserHandler godoc
+// @Summary Enable user
+// @Description Enable a specific user by ID
+// @Tags Users
+// @Param id path string true "User ID"
+// @Success 204 "No Content"
+// @Router /api/users/{id}/enable [put]
+func (uc *UserController) enableUserHandler(c *gin.Context) {
+	err := uc.userService.EnableUser(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
 	c.Status(http.StatusNoContent)
 }

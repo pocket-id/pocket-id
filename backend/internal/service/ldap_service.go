@@ -342,18 +342,25 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		return fmt.Errorf("failed to fetch users from database: %w", err)
 	}
 
-	// Delete users that no longer exist in LDAP
+	// Mark users as disabled or delete users that no longer exist in LDAP
 	for _, user := range ldapUsersInDb {
 		if _, exists := ldapUserIDs[*user.LdapID]; exists {
 			continue
 		}
 
-		err = s.userService.deleteUserInternal(ctx, user.ID, true, tx)
-		if err != nil {
-			return fmt.Errorf("failed to delete user '%s': %w", user.Username, err)
+		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
+			err = s.userService.DisableUser(ctx, user.ID)
+			if err != nil {
+				return fmt.Errorf("failed to disable user '%s': %w", user.Username, err)
+			}
+		} else {
+			err = s.userService.deleteUserInternal(ctx, user.ID, true, tx)
+			if err != nil {
+				return fmt.Errorf("failed to delete user '%s': %w", user.Username, err)
+			}
 		}
 
-		log.Printf("Deleted user '%s'", user.Username)
+		log.Printf("Processed user '%s'", user.Username)
 	}
 
 	return nil

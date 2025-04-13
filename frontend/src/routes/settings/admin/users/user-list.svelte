@@ -11,7 +11,13 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideLink, LucidePencil, LucideTrash } from 'lucide-svelte';
+	import {
+		LucideLink,
+		LucidePencil,
+		LucideTrash,
+		LucideUserCheck,
+		LucideUserX
+	} from 'lucide-svelte';
 	import Ellipsis from 'lucide-svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 	import OneTimeLinkModal from '$lib/components/one-time-link-modal.svelte';
@@ -28,7 +34,7 @@
 
 	async function deleteUser(user: User) {
 		openConfirmDialog({
-			title: m.delete_firstname_lastname({firstName: user.firstName, lastName: user.lastName}),
+			title: m.delete_firstname_lastname({ firstName: user.firstName, lastName: user.lastName }),
 			message: m.are_you_sure_you_want_to_delete_this_user(),
 			confirm: {
 				label: m.delete(),
@@ -45,6 +51,37 @@
 			}
 		});
 	}
+
+	async function enableUser(user: User) {
+		await userService
+			.enableUser(user.id)
+			.then(() => {
+				toast.success(m.user_enabled_successfully());
+				// Refresh the list
+				userService.list(requestOptions!).then((updatedUsers) => (users = updatedUsers));
+			})
+			.catch(axiosErrorToast);
+	}
+
+	async function disableUser(user: User) {
+		openConfirmDialog({
+			title: m.disable_firstname_lastname({ firstName: user.firstName, lastName: user.lastName }),
+			message: m.are_you_sure_you_want_to_disable_this_user(),
+			confirm: {
+				label: m.disable(),
+				destructive: true,
+				action: async () => {
+					try {
+						await userService.disableUser(user.id);
+						users = await userService.list(requestOptions!);
+						toast.success(m.user_disabled_successfully());
+					} catch (e) {
+						axiosErrorToast(e);
+					}
+				}
+			}
+		});
+	}
 </script>
 
 <AdvancedTable
@@ -57,7 +94,8 @@
 		{ label: m.email(), sortColumn: 'email' },
 		{ label: m.username(), sortColumn: 'username' },
 		{ label: m.role(), sortColumn: 'isAdmin' },
-		...($appConfigStore.ldapEnabled ? [{ label: m.source()}] : []),
+		{ label: m.status(), sortColumn: 'disabled' },
+		...($appConfigStore.ldapEnabled ? [{ label: m.source() }] : []),
 		{ label: m.actions(), hidden: true }
 	]}
 >
@@ -69,9 +107,15 @@
 		<Table.Cell>
 			<Badge variant="outline">{item.isAdmin ? m.admin() : m.user()}</Badge>
 		</Table.Cell>
+		<Table.Cell>
+			<Badge variant={item.disabled ? 'destructive' : 'default'}>
+				{item.disabled ? m.disabled() : m.enabled()}
+			</Badge>
+		</Table.Cell>
 		{#if $appConfigStore.ldapEnabled}
 			<Table.Cell>
-				<Badge variant={item.ldapId ? 'default' : 'outline'}>{item.ldapId ? m.ldap() : m.local()}</Badge
+				<Badge variant={item.ldapId ? 'default' : 'outline'}
+					>{item.ldapId ? m.ldap() : m.local()}</Badge
 				>
 			</Table.Cell>
 		{/if}
@@ -88,6 +132,15 @@
 					<DropdownMenu.Item onclick={() => goto(`/settings/admin/users/${item.id}`)}
 						><LucidePencil class="mr-2 h-4 w-4" /> {m.edit()}</DropdownMenu.Item
 					>
+					{#if item.disabled}
+						<DropdownMenu.Item onclick={() => enableUser(item)}
+							><LucideUserCheck class="mr-2 h-4 w-4" />{m.enable()}</DropdownMenu.Item
+						>
+					{:else}
+						<DropdownMenu.Item onclick={() => disableUser(item)}
+							><LucideUserX class="mr-2 h-4 w-4" />{m.disable()}</DropdownMenu.Item
+						>
+					{/if}
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
 						<DropdownMenu.Item
 							class="text-red-500 focus:!text-red-700"
