@@ -24,14 +24,16 @@
 		appName: appConfig.appName,
 		sessionDuration: appConfig.sessionDuration,
 		emailsVerified: appConfig.emailsVerified,
-		allowOwnAccountEdit: appConfig.allowOwnAccountEdit
+		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
+		disableAnimations: appConfig.disableAnimations
 	};
 
 	const formSchema = z.object({
 		appName: z.string().min(2).max(30),
 		sessionDuration: z.number().min(1).max(43200),
 		emailsVerified: z.boolean(),
-		allowOwnAccountEdit: z.boolean()
+		allowOwnAccountEdit: z.boolean(),
+		disableAnimations: z.boolean()
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, updatedAppConfig);
@@ -65,6 +67,12 @@
 				label={m.emails_verified()}
 				description={m.whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients()}
 				bind:checked={$inputs.emailsVerified.value}
+			/>
+			<CheckboxWithLabel
+				id="disable-animations"
+				label="Disable animations"
+				description="Disable all animations in the Admin Settings UI"
+				bind:checked={$inputs.disableAnimations.value}
 			/>
 		</div>
 		<div class="mt-5 flex justify-end">

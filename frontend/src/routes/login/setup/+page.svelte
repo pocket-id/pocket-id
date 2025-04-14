@@ -29,7 +29,7 @@
 	}
 </script>
 
-<SignInWrapper>
+<SignInWrapper animate={!$appConfigStore.disableAnimations}>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>

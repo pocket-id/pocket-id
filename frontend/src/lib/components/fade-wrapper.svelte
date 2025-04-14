@@ -1,18 +1,31 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import type { Snippet } from 'svelte';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 
 	let {
 		delay = 50,
 		stagger = 150,
+		animationsDisabled = false, // Start with a default value
 		children
 	}: {
 		delay?: number;
 		stagger?: number;
+		animationsDisabled?: boolean;
 		children: Snippet;
 	} = $props();
 
 	let containerNode: HTMLElement;
+
+	// Pull the animations disabled value from the store
+	$effect(() => {
+		// Check if the store value exists and use it
+		if ($appConfigStore && $appConfigStore.disableAnimations !== undefined) {
+			console.log('Animations disabled:', $appConfigStore.disableAnimations);
+			animationsDisabled = $appConfigStore.disableAnimations;
+			applyAnimationDelays();
+		}
+	});
 
 	$effect(() => {
 		page.route;
@@ -25,8 +38,13 @@
 			childNodes.forEach((child, index) => {
 				// Skip comment nodes and text nodes
 				if (child.nodeType === 1) {
-					const itemDelay = delay + index * stagger;
-					(child as HTMLElement).style.setProperty('animation-delay', `${itemDelay}ms`);
+					if (animationsDisabled) {
+						// Remove animation-delay if animations are disabled
+						(child as HTMLElement).style.removeProperty('animation-delay');
+					} else {
+						const itemDelay = delay + index * stagger;
+						(child as HTMLElement).style.setProperty('animation-delay', `${itemDelay}ms`);
+					}
 				}
 			});
 		}
@@ -50,9 +68,16 @@
 			animation: fadeIn 0.8s ease-out forwards;
 			will-change: opacity, transform;
 		}
+
+		/* Disable animations completely - add locally to ensure it works */
+		.fade-wrapper.no-animations > * {
+			animation: none !important;
+			opacity: 1 !important;
+			transform: none !important;
+		}
 	</style>
 </svelte:head>
 
-<div class="fade-wrapper" bind:this={containerNode}>
+<div class="fade-wrapper" class:no-animations={animationsDisabled} bind:this={containerNode}>
 	{@render children()}
 </div>

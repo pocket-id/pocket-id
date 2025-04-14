@@ -20,7 +20,7 @@
 
 	const links = [
 		{ href: '/settings/account', label: m.my_account() },
-		{ href: '/settings/audit-log', label: m.audit_log() },		
+		{ href: '/settings/audit-log', label: m.audit_log() }
 	];
 
 	const adminLinks = [
