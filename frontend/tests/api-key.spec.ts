@@ -5,7 +5,7 @@ import { cleanupBackend } from './utils/cleanup.util';
 
 test.describe('API Key Management', () => {
 	test.beforeEach(async ({ page }) => {
-		await cleanupBackend()
+		await cleanupBackend();
 		await page.goto('/settings/admin/api-keys');
 	});
 
