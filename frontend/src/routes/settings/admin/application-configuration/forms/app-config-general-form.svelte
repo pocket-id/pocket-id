@@ -70,8 +70,8 @@
 			/>
 			<CheckboxWithLabel
 				id="disable-animations"
-				label="Disable animations"
-				description="Disable all animations in the Admin Settings UI"
+				label={m.disable_animations}
+				description={m.turn_off_all_animations_throughout_the_admin_ui}
 				bind:checked={$inputs.disableAnimations.value}
 			/>
 		</div>
