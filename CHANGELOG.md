@@ -1,3 +1,30 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.45.0...v) (2025-04-13)
+
+
+### Features
+
+* global audit log ([#320](https://github.com/pocket-id/pocket-id/issues/320)) ([b65e693](https://github.com/pocket-id/pocket-id/commit/b65e693e12be2e7e4cb75a74d6fd43bacb3f6a94))
+* implement token introspection ([#405](https://github.com/pocket-id/pocket-id/issues/405)) ([7e5d16b](https://github.com/pocket-id/pocket-id/commit/7e5d16be9bdfccfa113924547e313886681d11bb))
+* modernize ui ([#381](https://github.com/pocket-id/pocket-id/issues/381)) ([9881a1d](https://github.com/pocket-id/pocket-id/commit/9881a1df9efe32608ab116db71c0e4f66dae171c))
+* **onboarding:** Added button when you don't have a passkey added. ([#426](https://github.com/pocket-id/pocket-id/issues/426)) ([72061ba](https://github.com/pocket-id/pocket-id/commit/72061ba4278a007437cee3a205c3076d58bde644))
+
+
+### Bug Fixes
+
+* add missing rollback for LDAP sync ([658a9ca](https://github.com/pocket-id/pocket-id/commit/658a9ca6dd8d2304ff3639a000bab02e91ff68a6))
+* create reusable default profile pictures ([#406](https://github.com/pocket-id/pocket-id/issues/406)) ([734c681](https://github.com/pocket-id/pocket-id/commit/734c6813eaef166235ae801747e3652d17ae0e2a))
+* ensure file descriptors are closed + other bugs ([#413](https://github.com/pocket-id/pocket-id/issues/413)) ([2f76461](https://github.com/pocket-id/pocket-id/commit/2f7646105e26423f47cbe49dae97e40c4a01a025))
+* ensure indexes on audit_logs table ([#415](https://github.com/pocket-id/pocket-id/issues/415)) ([9e88926](https://github.com/pocket-id/pocket-id/commit/9e88926283a7a663bfc7fd4f4aa16bd02f614176))
+* ignore profile picture cache after profile picture gets updated ([4ba6893](https://github.com/pocket-id/pocket-id/commit/4ba68938dd2a631c633fcb65d8c35cb039d3f59c))
+* improve LDAP error handling ([#425](https://github.com/pocket-id/pocket-id/issues/425)) ([796bc7e](https://github.com/pocket-id/pocket-id/commit/796bc7ed3453839b1dc8d846b71fe9fac9a2d646))
+* use transactions when operations involve multiple database queries ([#392](https://github.com/pocket-id/pocket-id/issues/392)) ([ec626ee](https://github.com/pocket-id/pocket-id/commit/ec626ee7977306539fd1d70cc9091590f0a54af6))
+* use UUID for temporary file names ([ccc18d7](https://github.com/pocket-id/pocket-id/commit/ccc18d716f16a7ef1775d30982e2ba7b5ff159a6))
+
+
+### Performance Improvements
+
+* run async operations in parallel in server load functions ([1762629](https://github.com/pocket-id/pocket-id/commit/17626295964244c5582806bd0f413da2c799d5ad))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.44.0...v) (2025-03-29)
 
 
