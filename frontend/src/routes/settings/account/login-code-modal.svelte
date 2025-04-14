@@ -7,6 +7,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { mode } from 'mode-watcher';
 
 	let {
 		show = $bindable()
@@ -53,23 +54,22 @@
 			<CopyToClipboard value={code!}>
 				<p class="text-3xl font-semibold">{code}</p>
 			</CopyToClipboard>
-			<div class="text-muted-foreground flex items-center justify-center gap-3">
+			<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 				<Separator />
 				<p class="text-nowrap text-xs">{m.or_visit()}</p>
 				<Separator />
 			</div>
-			<div>
-				<CopyToClipboard value={loginCodeLink!}>
-					<p data-testId="login-code-link">{loginCodeLink!}</p>
-				</CopyToClipboard>
-			</div>
+
 			<Qrcode
+				class="mb-2"
 				value={loginCodeLink}
 				size={180}
-				margin={0}
-				color="#FFFFFF"
-				backgroundColor="#00000000"
+				color={$mode === 'dark' ? '#FFFFFF' : '#000000'}
+				backgroundColor={$mode === 'dark' ? '#000000' : '#FFFFFF'}
 			/>
+			<CopyToClipboard value={loginCodeLink!}>
+				<p data-testId="login-code-link">{loginCodeLink!}</p>
+			</CopyToClipboard>
 		</div>
 	</Dialog.Content>
 </Dialog.Root>

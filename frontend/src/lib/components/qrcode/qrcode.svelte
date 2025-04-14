@@ -1,18 +1,19 @@
 <script lang="ts">
+	import { cn } from '$lib/utils/style';
 	import QRCode from 'qrcode';
 	import { onMount } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let canvasEl: HTMLCanvasElement | null;
 	let {
 		value,
 		size = 200,
-		margin = 0,
 		color = '#000000',
-		backgroundColor = '#FFFFFF'
-	}: {
+		backgroundColor = '#FFFFFF',
+		...restProps
+	}: HTMLAttributes<HTMLCanvasElement> & {
 		value: string | null;
 		size?: number;
-		margin?: number;
 		color?: string;
 		backgroundColor?: string;
 	} = $props();
@@ -24,7 +25,7 @@
 
 			const options = {
 				width: size,
-				margin: margin,
+				margin: 0,
 				color: {
 					dark: color,
 					light: lightColor
@@ -38,22 +39,4 @@
 	});
 </script>
 
-<div
-	class="qrcode-container"
-	style="--bg-color: {backgroundColor === 'transparent' ? 'transparent' : backgroundColor};"
->
-	<canvas bind:this={canvasEl} class="rounded-lg"></canvas>
-</div>
-
-<style>
-	.qrcode-container {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		padding: 0.75rem;
-		border-radius: 1rem;
-		background: var(--background, transparent);
-		border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
-		margin: 0.5rem 0;
-	}
-</style>
+<canvas {...restProps} bind:this={canvasEl} class={cn('rounded-lg', restProps.class)}></canvas>

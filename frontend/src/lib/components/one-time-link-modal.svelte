@@ -4,13 +4,13 @@
 	import Qrcode from '$lib/components/qrcode/qrcode.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
-	import { Separator } from '$lib/components/ui/separator';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { mode } from 'mode-watcher';
 
 	let {
 		userId = $bindable()
@@ -94,25 +94,22 @@
 					<p class="text-3xl font-semibold">{code}</p>
 				</CopyToClipboard>
 
-				<div class="text-muted-foreground flex items-center justify-center gap-3">
+				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 					<Separator />
 					<p class="text-nowrap text-xs">{m.or_visit()}</p>
 					<Separator />
 				</div>
 
-				<div>
-					<CopyToClipboard value={oneTimeLink!}>
-						<p data-testId="login-code-link">{oneTimeLink!}</p>
-					</CopyToClipboard>
-				</div>
-
 				<Qrcode
+					class="mb-2"
 					value={oneTimeLink}
 					size={180}
-					margin={0}
-					color="#FFFFFF"
-					backgroundColor="#00000000"
+					color={$mode === 'dark' ? '#FFFFFF' : '#000000'}
+					backgroundColor={$mode === 'dark' ? '#000000' : '#FFFFFF'}
 				/>
+				<CopyToClipboard value={oneTimeLink!}>
+					<p data-testId="login-code-link">{oneTimeLink!}</p>
+				</CopyToClipboard>
 			</div>
 		{/if}
 	</Dialog.Content>
