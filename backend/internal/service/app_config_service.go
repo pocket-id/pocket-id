@@ -58,6 +58,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		AppName:             model.AppConfigVariable{Value: "Pocket ID"},
 		SessionDuration:     model.AppConfigVariable{Value: "60"},
 		EmailsVerified:      model.AppConfigVariable{Value: "false"},
+		DisableAnimations:   model.AppConfigVariable{Value: "true"},
 		AllowOwnAccountEdit: model.AppConfigVariable{Value: "true"},
 		// Internal
 		BackgroundImageType: model.AppConfigVariable{Value: "jpg"},
