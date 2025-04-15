@@ -117,13 +117,6 @@
 	animation: delayed-fade 1.5s ease-out forwards;
 }
 
-/* Disable animations completely */
-.no-animations > * {
-	animation: none !important;
-	opacity: 1 !important;
-	transform: none !important;
-}
-
 @layer base {
 	* {
 		@apply border-border;
