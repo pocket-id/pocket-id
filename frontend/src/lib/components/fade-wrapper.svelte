@@ -51,20 +51,13 @@
 			animation: fadeIn 0.8s ease-out forwards;
 			will-change: opacity, transform;
 		}
-
-		/* Disable animations completely - add locally to ensure it works */
-		.fade-wrapper.no-animations > * {
-			animation: none !important;
-			opacity: 1 !important;
-			transform: none !important;
-		}
 	</style>
 </svelte:head>
 
-<div
-	class="fade-wrapper"
-	class:no-animations={$appConfigStore.disableAnimations}
-	bind:this={containerNode}
->
+{#if $appConfigStore.disableAnimations}
 	{@render children()}
-</div>
+{:else}
+	<div class="fade-wrapper" bind:this={containerNode}>
+		{@render children()}
+	</div>
+{/if}
