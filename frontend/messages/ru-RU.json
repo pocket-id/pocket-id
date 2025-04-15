@@ -322,5 +322,7 @@
 	"see_all_account_activities_from_the_last_3_months": "Смотрите всю активность пользователей за последние 3 месяца.",
 	"token_sign_in": "Вход с помощью токена",
 	"client_authorization": "Авторизация в клиенте",
-	"new_client_authorization": "Новая авторизация в клиенте"
+	"new_client_authorization": "Новая авторизация в клиенте",
+	"disable_animations": "Disable Animations",
+	"turn_off_all_animations_throughout_the_admin_ui": "Turn off all animations throughout the Admin UI"
 }
