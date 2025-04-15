@@ -132,16 +132,16 @@
 					<DropdownMenu.Item onclick={() => goto(`/settings/admin/users/${item.id}`)}
 						><LucidePencil class="mr-2 h-4 w-4" /> {m.edit()}</DropdownMenu.Item
 					>
-					{#if item.disabled}
-						<DropdownMenu.Item onclick={() => enableUser(item)}
-							><LucideUserCheck class="mr-2 h-4 w-4" />{m.enable()}</DropdownMenu.Item
-						>
-					{:else}
-						<DropdownMenu.Item onclick={() => disableUser(item)}
-							><LucideUserX class="mr-2 h-4 w-4" />{m.disable()}</DropdownMenu.Item
-						>
-					{/if}
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
+						{#if item.disabled}
+							<DropdownMenu.Item onclick={() => enableUser(item)}
+								><LucideUserCheck class="mr-2 h-4 w-4" />{m.enable()}</DropdownMenu.Item
+							>
+						{:else}
+							<DropdownMenu.Item onclick={() => disableUser(item)}
+								><LucideUserX class="mr-2 h-4 w-4" />{m.disable()}</DropdownMenu.Item
+							>
+						{/if}
 						<DropdownMenu.Item
 							class="text-red-500 focus:!text-red-700"
 							onclick={() => deleteUser(item)}
