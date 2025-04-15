@@ -96,11 +96,10 @@ export default class UserService extends APIService {
 		return res.data as User;
 	}
 
-	async disableUser(userId: string) {
-		await this.api.put(`/users/${userId}/disable`);
-	}
-
-	async enableUser(userId: string) {
-		await this.api.put(`/users/${userId}/enable`);
+	async setUserAttribute(userId: string, attribute: string, value: any) {
+		const payload: Record<string, any> = {};
+		payload[attribute] = value;
+		const res = await this.api.put(`/users/${userId}/set`, payload);
+		return res.data as User;
 	}
 }

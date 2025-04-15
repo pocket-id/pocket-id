@@ -50,8 +50,7 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
 
-	group.PUT("/users/:id/disable", authMiddleware.Add(), uc.disableUserHandler)
-	group.PUT("/users/:id/enable", authMiddleware.Add(), uc.enableUserHandler)
+	group.PUT("/users/:id/set", authMiddleware.Add(), uc.setUserAttributeHandler)
 }
 
 type UserController struct {
@@ -532,36 +531,52 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 	c.Status(http.StatusNoContent)
 }
 
-// disableUserHandler godoc
-// @Summary Disable user
-// @Description Disable a specific user
+// setUserAttributeHandler godoc
+// @Summary Set user attribute
+// @Description Set a specific attribute for a user (e.g., enabled)
 // @Tags Users
 // @Param id path string true "User ID"
-// @Success 204 "No Content"
-// @Router /api/users/{id}/disable [put]
-func (uc *UserController) disableUserHandler(c *gin.Context) {
+// @Param body body map[string]interface{} true "Attribute to set"
+// @Success 200 {object} dto.UserDto
+// @Router /api/users/{id}/set [put]
+func (uc *UserController) setUserAttributeHandler(c *gin.Context) {
 	userID := c.Param("id")
-	err := uc.userService.DisableUser(c.Request.Context(), userID)
-	if err != nil {
+	var payload map[string]interface{}
+	if err := c.ShouldBindJSON(&payload); err != nil {
 		_ = c.Error(err)
 		return
 	}
-	c.Status(http.StatusNoContent)
-}
 
-// enableUserHandler godoc
-// @Summary Enable user
-// @Description Enable a specific user
-// @Tags Users
-// @Param id path string true "User ID"
-// @Success 204 "No Content"
-// @Router /api/users/{id}/enable [put]
-func (uc *UserController) enableUserHandler(c *gin.Context) {
-	userID := c.Param("id")
-	err := uc.userService.EnableUser(c.Request.Context(), userID)
-	if err != nil {
-		_ = c.Error(err)
+	// Example: Only allow "enabled" attribute for now
+	if enabled, ok := payload["disabled"]; ok {
+		boolVal, ok := enabled.(bool)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "enabled must be a boolean"})
+			return
+		}
+		var err error
+		if boolVal {
+			err = uc.userService.DisableUser(c.Request.Context(), userID)
+		} else {
+			err = uc.userService.EnableUser(c.Request.Context(), userID)
+		}
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+		user, err := uc.userService.GetUser(c.Request.Context(), userID)
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+		var userDto dto.UserDto
+		if err := dto.MapStruct(user, &userDto); err != nil {
+			_ = c.Error(err)
+			return
+		}
+		c.JSON(http.StatusOK, userDto)
 		return
 	}
-	c.Status(http.StatusNoContent)
+
+	c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported attribute"})
 }

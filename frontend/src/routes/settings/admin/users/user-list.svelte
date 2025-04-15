@@ -54,7 +54,7 @@
 
 	async function enableUser(user: User) {
 		await userService
-			.enableUser(user.id)
+			.setUserAttribute(user.id, 'disabled', false)
 			.then(() => {
 				toast.success(m.user_enabled_successfully());
 				// Refresh the list
@@ -72,7 +72,7 @@
 				destructive: true,
 				action: async () => {
 					try {
-						await userService.disableUser(user.id);
+						await userService.setUserAttribute(user.id, 'disabled', true);
 						users = await userService.list(requestOptions!);
 						toast.success(m.user_disabled_successfully());
 					} catch (e) {
