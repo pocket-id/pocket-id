@@ -13,7 +13,7 @@
 		children: Snippet;
 	} = $props();
 
-	let containerNode: HTMLElement;
+	let containerNode: HTMLElement | null = $state(null);
 
 	$effect(() => {
 		page.route;
