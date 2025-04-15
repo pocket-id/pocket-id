@@ -293,7 +293,6 @@ func (e *OidcMissingAuthorizationCodeError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
 
-// UserDisabledError is returned when a disabled user attempts to authenticate
 type UserDisabledError struct{}
 
 func (e *UserDisabledError) Error() string {

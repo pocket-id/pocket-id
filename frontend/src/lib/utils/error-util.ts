@@ -14,7 +14,10 @@ export function getAxiosErrorMessage(
 	return message;
 }
 
-export function axiosErrorToast(e: unknown, defaultMessage: string = m.an_unknown_error_occurred()) {
+export function axiosErrorToast(
+	e: unknown,
+	defaultMessage: string = m.an_unknown_error_occurred()
+) {
 	const message = getAxiosErrorMessage(e, defaultMessage);
 	toast.error(message);
 }
@@ -29,7 +32,8 @@ export function getWebauthnErrorMessage(e: unknown) {
 			m.authenticator_does_not_support_resident_keys(),
 		ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: m.passkey_was_previously_registered(),
 		ERROR_AUTHENTICATOR_NO_SUPPORTED_PUBKEYCREDPARAMS_ALG:
-			m.authenticator_does_not_support_any_of_the_requested_algorithms()
+			m.authenticator_does_not_support_any_of_the_requested_algorithms(),
+		ERROR_USER_DISABLED_MSG: m.user_disabled()
 	};
 
 	let message = m.an_unknown_error_occurred();

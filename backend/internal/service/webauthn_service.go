@@ -237,6 +237,9 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		if innerErr != nil {
 			return nil, innerErr
 		}
+		if user.Disabled {
+			return nil, &common.UserDisabledError{}
+		}
 		return user, nil
 	}, session, credentialAssertionData)
 
