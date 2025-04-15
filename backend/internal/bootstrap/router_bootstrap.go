@@ -63,7 +63,7 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	job.RegisterFileCleanupJobs(ctx, db)
 
 	// Initialize middleware for specific routes
-	authMiddleware := middleware.NewAuthMiddleware(apiKeyService, jwtService, db)
+	authMiddleware := middleware.NewAuthMiddleware(apiKeyService, jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 
 	// Set up API routes

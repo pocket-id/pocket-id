@@ -1,13 +1,8 @@
 package middleware
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"gorm.io/gorm"
 )
 
 // AuthMiddleware is a wrapper middleware that delegates to either API key or JWT authentication
@@ -15,7 +10,6 @@ type AuthMiddleware struct {
 	apiKeyMiddleware *ApiKeyAuthMiddleware
 	jwtMiddleware    *JwtAuthMiddleware
 	options          AuthOptions
-	db               *gorm.DB
 }
 
 type AuthOptions struct {
@@ -26,7 +20,6 @@ type AuthOptions struct {
 func NewAuthMiddleware(
 	apiKeyService *service.ApiKeyService,
 	jwtService *service.JwtService,
-	db *gorm.DB,
 ) *AuthMiddleware {
 	return &AuthMiddleware{
 		apiKeyMiddleware: NewApiKeyAuthMiddleware(apiKeyService, jwtService),
@@ -35,7 +28,6 @@ func NewAuthMiddleware(
 			AdminRequired:   true,
 			SuccessOptional: false,
 		},
-		db: db,
 	}
 }
 
@@ -46,7 +38,6 @@ func (m *AuthMiddleware) WithAdminNotRequired() *AuthMiddleware {
 		apiKeyMiddleware: m.apiKeyMiddleware,
 		jwtMiddleware:    m.jwtMiddleware,
 		options:          m.options,
-		db:               m.db,
 	}
 	clone.options.AdminRequired = false
 	return clone
@@ -59,7 +50,6 @@ func (m *AuthMiddleware) WithSuccessOptional() *AuthMiddleware {
 		apiKeyMiddleware: m.apiKeyMiddleware,
 		jwtMiddleware:    m.jwtMiddleware,
 		options:          m.options,
-		db:               m.db,
 	}
 	clone.options.SuccessOptional = true
 	return clone
@@ -73,7 +63,6 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 			// JWT auth succeeded, continue with the request
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
-			m.validateToken(c)
 			if c.IsAborted() {
 				return
 			}
@@ -87,7 +76,6 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 			// API key auth succeeded, continue with the request
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
-			m.validateToken(c)
 			if c.IsAborted() {
 				return
 			}
@@ -104,27 +92,4 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 		c.Abort()
 		_ = c.Error(err)
 	}
-}
-
-// validateToken checks if the user is disabled
-func (am *AuthMiddleware) validateToken(c *gin.Context) {
-	// After validating the token and extracting the user ID
-	userID := c.GetString("userID")
-
-	// Check if the user is disabled
-	var user model.User
-	err := am.db.
-		WithContext(c.Request.Context()).
-		Select("id, username, disabled").
-		Where("id = ?", userID).
-		First(&user).
-		Error
-
-	if err == nil && user.Disabled {
-		c.AbortWithStatus(http.StatusForbidden)
-		_ = c.Error(&common.UserDisabledError{})
-		return
-	}
-
-	// Continue with your existing middleware flow
 }
