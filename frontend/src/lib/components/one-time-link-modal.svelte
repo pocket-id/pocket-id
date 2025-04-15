@@ -1,13 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
+	import Qrcode from '$lib/components/qrcode/qrcode.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { mode } from 'mode-watcher';
 
 	let {
 		userId = $bindable()
@@ -18,6 +21,7 @@
 	const userService = new UserService();
 
 	let oneTimeLink: string | null = $state(null);
+	let code: string | null = $state(null);
 	let selectedExpiration: keyof typeof availableExpirations = $state(m.one_hour());
 
 	let availableExpirations = {
@@ -31,8 +35,8 @@
 	async function createOneTimeAccessToken() {
 		try {
 			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
-			const token = await userService.createOneTimeAccessToken(expiration, userId!);
-			oneTimeLink = `${page.url.origin}/lc/${token}`;
+			code = await userService.createOneTimeAccessToken(expiration, userId!);
+			oneTimeLink = `${page.url.origin}/lc/${code}`;
 		} catch (e) {
 			axiosErrorToast(e);
 		}
@@ -41,6 +45,7 @@
 	function onOpenChange(open: boolean) {
 		if (!open) {
 			oneTimeLink = null;
+			code = null;
 			userId = null;
 		}
 	}
@@ -54,6 +59,7 @@
 				>{m.create_a_login_code_to_sign_in_without_a_passkey_once()}</Dialog.Description
 			>
 		</Dialog.Header>
+
 		{#if oneTimeLink === null}
 			<div>
 				<Label for="expiration">{m.expiration()}</Label>
@@ -65,7 +71,7 @@
 					onSelectedChange={(v) =>
 						(selectedExpiration = v!.value as keyof typeof availableExpirations)}
 				>
-					<Select.Trigger class="h-9 ">
+					<Select.Trigger class="h-9 w-full">
 						<Select.Value>{selectedExpiration}</Select.Value>
 					</Select.Trigger>
 					<Select.Content>
@@ -75,12 +81,36 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<Button onclick={() => createOneTimeAccessToken()} disabled={!selectedExpiration}>
+			<Button
+				onclick={() => createOneTimeAccessToken()}
+				disabled={!selectedExpiration}
+				class="mt-2 w-full"
+			>
 				{m.generate_code()}
 			</Button>
 		{:else}
-			<Label for="login-code" class="sr-only">{m.login_code()}</Label>
-			<Input id="login-code" value={oneTimeLink} readonly />
+			<div class="flex flex-col items-center gap-2">
+				<CopyToClipboard value={code!}>
+					<p class="text-3xl font-semibold">{code}</p>
+				</CopyToClipboard>
+
+				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
+					<Separator />
+					<p class="text-nowrap text-xs">{m.or_visit()}</p>
+					<Separator />
+				</div>
+
+				<Qrcode
+					class="mb-2"
+					value={oneTimeLink}
+					size={180}
+					color={$mode === 'dark' ? '#FFFFFF' : '#000000'}
+					backgroundColor={$mode === 'dark' ? '#000000' : '#FFFFFF'}
+				/>
+				<CopyToClipboard value={oneTimeLink!}>
+					<p data-testId="login-code-link">{oneTimeLink!}</p>
+				</CopyToClipboard>
+			</div>
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>

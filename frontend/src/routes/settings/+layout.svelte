@@ -2,7 +2,9 @@
 	import { page } from '$app/state';
 	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
+	import { cn } from '$lib/utils/style';
 	import { LucideExternalLink, LucideSettings } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
@@ -20,7 +22,7 @@
 
 	const links = [
 		{ href: '/settings/account', label: m.my_account() },
-		{ href: '/settings/audit-log', label: m.audit_log() },		
+		{ href: '/settings/audit-log', label: m.audit_log() }
 	];
 
 	const adminLinks = [
@@ -54,11 +56,12 @@
 						{#each links as { href, label }, i}
 							<a
 								{href}
-								class={`animate-fade-in ${
+								class={cn(
+									!$appConfigStore.disableAnimations && 'animate-fade-in',
 									page.url.pathname.startsWith(href)
 										? 'text-primary bg-card rounded-md px-3 py-1.5 font-medium shadow-sm transition-all'
 										: 'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm'
-								}`}
+								)}
 								style={`animation-delay: ${150 + i * 75}ms;`}
 							>
 								{label}

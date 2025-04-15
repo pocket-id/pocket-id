@@ -3,14 +3,13 @@
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
+	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import type { OidcClient } from '$lib/types/oidc.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import OneTimeLinkModal from './client-secret.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let {
 		clients = $bindable(),
@@ -19,8 +18,6 @@
 		clients: Paginated<OidcClient>;
 		requestOptions: SearchPaginationSortRequest;
 	} = $props();
-
-	let oneTimeLink = $state<string | null>(null);
 
 	const oidcService = new OIDCService();
 
@@ -86,5 +83,3 @@
 		</Table.Cell>
 	{/snippet}
 </AdvancedTable>
-
-<OneTimeLinkModal {oneTimeLink} />

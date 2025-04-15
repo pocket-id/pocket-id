@@ -1,8 +1,8 @@
 import test, { expect } from '@playwright/test';
 import { users } from './data';
+import authUtil from './utils/auth.util';
 import { cleanupBackend } from './utils/cleanup.util';
 import passkeyUtil from './utils/passkey.util';
-import authUtil from './utils/auth.util';
 
 test.beforeEach(cleanupBackend);
 

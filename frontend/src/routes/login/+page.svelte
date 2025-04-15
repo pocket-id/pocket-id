@@ -36,7 +36,7 @@
 	<title>{m.sign_in()}</title>
 </svelte:head>
 
-<SignInWrapper animate showAlternativeSignInMethodButton>
+<SignInWrapper animate={!$appConfigStore.disableAnimations} showAlternativeSignInMethodButton>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>

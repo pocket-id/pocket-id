@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -12,7 +13,7 @@
 		children: Snippet;
 	} = $props();
 
-	let containerNode: HTMLElement;
+	let containerNode: HTMLElement | null = $state(null);
 
 	$effect(() => {
 		page.route;
@@ -53,6 +54,10 @@
 	</style>
 </svelte:head>
 
-<div class="fade-wrapper" bind:this={containerNode}>
+{#if $appConfigStore.disableAnimations}
 	{@render children()}
-</div>
+{:else}
+	<div class="fade-wrapper" bind:this={containerNode}>
+		{@render children()}
+	</div>
+{/if}

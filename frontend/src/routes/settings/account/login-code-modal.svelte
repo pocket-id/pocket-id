@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
+	import Qrcode from '$lib/components/qrcode/qrcode.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { mode } from 'mode-watcher';
 
 	let {
 		show = $bindable()
@@ -16,13 +18,17 @@
 	const userService = new UserService();
 
 	let code: string | null = $state(null);
+	let loginCodeLink: string | null = $state(null);
 
 	$effect(() => {
 		if (show) {
 			const expiration = new Date(Date.now() + 15 * 60 * 1000);
 			userService
 				.createOneTimeAccessToken(expiration, 'me')
-				.then((c) => (code = c))
+				.then((c) => {
+					code = c;
+					loginCodeLink = page.url.origin + '/lc/' + code;
+				})
 				.catch((e) => axiosErrorToast(e));
 		}
 	});
@@ -48,16 +54,22 @@
 			<CopyToClipboard value={code!}>
 				<p class="text-3xl font-semibold">{code}</p>
 			</CopyToClipboard>
-			<div class="text-muted-foreground flex items-center justify-center gap-3">
+			<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 				<Separator />
 				<p class="text-nowrap text-xs">{m.or_visit()}</p>
 				<Separator />
 			</div>
-			<div>
-				<CopyToClipboard value={page.url.origin + '/lc/' + code!}>
-					<p data-testId="login-code-link">{page.url.origin + '/lc/' + code!}</p>
-				</CopyToClipboard>
-			</div>
+
+			<Qrcode
+				class="mb-2"
+				value={loginCodeLink}
+				size={180}
+				color={$mode === 'dark' ? '#FFFFFF' : '#000000'}
+				backgroundColor={$mode === 'dark' ? '#000000' : '#FFFFFF'}
+			/>
+			<CopyToClipboard value={loginCodeLink!}>
+				<p data-testId="login-code-link">{loginCodeLink!}</p>
+			</CopyToClipboard>
 		</div>
 	</Dialog.Content>
 </Dialog.Root>

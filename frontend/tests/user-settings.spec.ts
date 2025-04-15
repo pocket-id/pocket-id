@@ -50,11 +50,13 @@ test('Create user fails with already taken username', async ({ page }) => {
 	await expect(page.getByRole('status')).toHaveText('Username is already in use');
 });
 
-test('Create one time access token', async ({ page }) => {
+test('Create one time access token', async ({ page, context }) => {
 	await page.goto('/settings/admin/users');
 
 	await page
-		.getByRole('row', { name: `${users.craig.firstname} ${users.craig.lastname}` })
+		.getByRole('row', {
+			name: `${users.craig.firstname} ${users.craig.lastname}`
+		})
 		.getByRole('button')
 		.click();
 
@@ -64,16 +66,20 @@ test('Create one time access token', async ({ page }) => {
 	await page.getByRole('option', { name: '12 hours' }).click();
 	await page.getByRole('button', { name: 'Generate Code' }).click();
 
-	await expect(page.getByRole('textbox', { name: 'Login Code' })).toHaveValue(
-		/http:\/\/localhost\/lc\/.*/
-	);
+	const link = await page.getByTestId('login-code-link').textContent();
+	await context.clearCookies();
+
+	await page.goto(link!);
+	await page.waitForURL('/settings/account');
 });
 
 test('Delete user', async ({ page }) => {
 	await page.goto('/settings/admin/users');
 
 	await page
-		.getByRole('row', { name: `${users.craig.firstname} ${users.craig.lastname}` })
+		.getByRole('row', {
+			name: `${users.craig.firstname} ${users.craig.lastname}`
+		})
 		.getByRole('button')
 		.click();
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
@@ -81,7 +87,9 @@ test('Delete user', async ({ page }) => {
 
 	await expect(page.getByRole('status')).toHaveText('User deleted successfully');
 	await expect(
-		page.getByRole('row', { name: `${users.craig.firstname} ${users.craig.lastname}` })
+		page.getByRole('row', {
+			name: `${users.craig.firstname} ${users.craig.lastname}`
+		})
 	).not.toBeVisible();
 });
 
