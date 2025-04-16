@@ -188,14 +188,14 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDe
 		return err
 	}
 
-	// Only soft-delete if user is LDAP and soft-delete is enabled
+	// Only soft-delete if user is LDAP and soft-delete is enabled and not allowing hard delete
 	if user.LdapID != nil && s.appConfigService.GetDbConfig().LdapSoftDeleteUsers.IsTrue() && !allowLdapDelete {
-		if err := tx.Model(&user).Update("disabled", true).Error; err != nil {
+		if !user.Disabled {
+			// Block hard delete if LDAP user is not disabled
 			tx.Rollback()
-			return err
+			return fmt.Errorf("LDAP user must be disabled before deletion")
 		}
-		// Optionally: log audit, etc.
-		return tx.Commit().Error
+		// If already disabled, allow hard delete below
 	}
 
 	// Otherwise, hard delete (local users or LDAP users when allowed)

@@ -177,7 +177,19 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) {
-	if err := uc.userService.DeleteUser(c.Request.Context(), c.Param("id"), false); err != nil {
+	userID := c.Param("id")
+	user, err := uc.userService.GetUser(c.Request.Context(), userID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	allowLdapDelete := false
+	if user.LdapID != nil && user.Disabled {
+		allowLdapDelete = true
+	}
+
+	if err := uc.userService.DeleteUser(c.Request.Context(), userID, allowLdapDelete); err != nil {
 		_ = c.Error(err)
 		return
 	}

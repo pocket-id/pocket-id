@@ -142,6 +142,8 @@
 								><LucideUserX class="mr-2 h-4 w-4" />{m.disable()}</DropdownMenu.Item
 							>
 						{/if}
+					{/if}
+					{#if !item.ldapId || (item.ldapId && item.disabled)}
 						<DropdownMenu.Item
 							class="text-red-500 focus:!text-red-700"
 							onclick={() => deleteUser(item)}
