@@ -175,28 +175,35 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
-	// If this is an LDAP sync operation and soft delete is configured, disable instead
-	if !allowLdapDelete && s.appConfigService.GetDbConfig().LdapSoftDeleteUsers.IsTrue() {
-		return s.DisableUser(ctx, userID)
-	}
-
-	// Otherwise proceed with the normal delete process
 	tx := s.db.Begin()
 	defer func() {
-		tx.Rollback()
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
 	}()
 
-	err := s.deleteUserInternal(ctx, userID, allowLdapDelete, tx)
-	if err != nil {
+	var user model.User
+	if err := tx.WithContext(ctx).First(&user, "id = ?", userID).Error; err != nil {
+		tx.Rollback()
 		return err
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
-		return err
+	// Only soft-delete if user is LDAP and soft-delete is enabled
+	if user.LdapID != nil && s.appConfigService.GetDbConfig().LdapSoftDeleteUsers.IsTrue() && !allowLdapDelete {
+		if err := tx.Model(&user).Update("disabled", true).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		// Optionally: log audit, etc.
+		return tx.Commit().Error
 	}
 
-	return nil
+	// Otherwise, hard delete (local users or LDAP users when allowed)
+	if err := s.deleteUserInternal(ctx, userID, allowLdapDelete, tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit().Error
 }
 
 func (s *UserService) deleteUserInternal(ctx context.Context, userID string, allowLdapDelete bool, tx *gorm.DB) error {
