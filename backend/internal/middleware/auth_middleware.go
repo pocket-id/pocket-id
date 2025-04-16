@@ -57,10 +57,12 @@ func (m *AuthMiddleware) WithSuccessOptional() *AuthMiddleware {
 
 func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// First try JWT auth
-		userID, isAdmin, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
+		userID, isAdmin, isDisabled, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
 		if err == nil {
-			// JWT auth succeeded, continue with the request
+			if isDisabled {
+				c.AbortWithStatusJSON(403, gin.H{"error": "User account is disabled"})
+				return
+			}
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
 			if c.IsAborted() {
@@ -71,9 +73,12 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 		}
 
 		// JWT auth failed, try API key auth
-		userID, isAdmin, err = m.apiKeyMiddleware.Verify(c, m.options.AdminRequired)
+		userID, isAdmin, isDisabled, err = m.apiKeyMiddleware.Verify(c, m.options.AdminRequired)
 		if err == nil {
-			// API key auth succeeded, continue with the request
+			if isDisabled {
+				c.AbortWithStatusJSON(403, gin.H{"error": "User account is disabled"})
+				return
+			}
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
 			if c.IsAborted() {

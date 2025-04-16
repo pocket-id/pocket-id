@@ -38,6 +38,9 @@ const (
 	// This may be omitted on non-admin tokens
 	IsAdminClaim = "isAdmin"
 
+	// IsDisabledClaim is a boolean claim used in access tokens for disabled users
+	IsDisabledClaim = "disabled"
+
 	// TokenTypeClaim is the claim used to identify the type of token
 	TokenTypeClaim = "type"
 
@@ -207,6 +210,11 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 	err = SetIsAdmin(token, user.IsAdmin)
 	if err != nil {
 		return "", fmt.Errorf("failed to set 'isAdmin' claim in token: %w", err)
+	}
+
+	err = token.Set(IsDisabledClaim, user.Disabled)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'disabled' claim in token: %w", err)
 	}
 
 	alg, _ := s.privateKey.Algorithm()

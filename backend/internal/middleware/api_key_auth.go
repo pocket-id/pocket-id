@@ -20,10 +20,15 @@ func NewApiKeyAuthMiddleware(apiKeyService *service.ApiKeyService, jwtService *s
 
 func (m *ApiKeyAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, isAdmin, err := m.Verify(c, adminRequired)
+		userID, isAdmin, isDisabled, err := m.Verify(c, adminRequired)
 		if err != nil {
 			c.Abort()
 			_ = c.Error(err)
+			return
+		}
+
+		if isDisabled {
+			c.AbortWithStatusJSON(403, gin.H{"error": "User account is disabled"})
 			return
 		}
 
@@ -33,18 +38,17 @@ func (m *ApiKeyAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 	}
 }
 
-func (m *ApiKeyAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (userID string, isAdmin bool, err error) {
+func (m *ApiKeyAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (userID string, isAdmin bool, isDisabled bool, err error) {
 	apiKey := c.GetHeader("X-API-KEY")
 
 	user, err := m.apiKeyService.ValidateApiKey(c.Request.Context(), apiKey)
 	if err != nil {
-		return "", false, &common.NotSignedInError{}
+		return "", false, false, &common.NotSignedInError{}
 	}
 
-	// Check if the user is an admin
 	if adminRequired && !user.IsAdmin {
-		return "", false, &common.MissingPermissionError{}
+		return "", false, false, &common.MissingPermissionError{}
 	}
 
-	return user.ID, user.IsAdmin, nil
+	return user.ID, user.IsAdmin, user.Disabled, nil
 }

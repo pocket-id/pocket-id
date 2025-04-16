@@ -19,7 +19,7 @@ func NewJwtAuthMiddleware(jwtService *service.JwtService) *JwtAuthMiddleware {
 
 func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, isAdmin, err := m.Verify(c, adminRequired)
+		userID, isAdmin, isDisabled, err := m.Verify(c, adminRequired)
 		if err != nil {
 			c.Abort()
 			_ = c.Error(err)
@@ -28,11 +28,12 @@ func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 
 		c.Set("userID", userID)
 		c.Set("userIsAdmin", isAdmin)
+		c.Set("userIsDisabled", isDisabled)
 		c.Next()
 	}
 }
 
-func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject string, isAdmin bool, err error) {
+func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject string, isAdmin bool, isDisabled bool, err error) {
 	// Extract the token from the cookie
 	accessToken, err := c.Cookie(cookie.AccessTokenCookieName)
 	if err != nil {
@@ -40,13 +41,13 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 		var ok bool
 		_, accessToken, ok = strings.Cut(c.GetHeader("Authorization"), " ")
 		if !ok || accessToken == "" {
-			return "", false, &common.NotSignedInError{}
+			return "", false, false, &common.NotSignedInError{}
 		}
 	}
 
 	token, err := m.jwtService.VerifyAccessToken(accessToken)
 	if err != nil {
-		return "", false, &common.NotSignedInError{}
+		return "", false, false, &common.NotSignedInError{}
 	}
 
 	subject, ok := token.Subject()
@@ -55,14 +56,20 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 		return
 	}
 
-	// Check if the user is an admin
 	isAdmin, err = service.GetIsAdmin(token)
 	if err != nil {
-		return "", false, &common.TokenInvalidError{}
-	}
-	if adminRequired && !isAdmin {
-		return "", false, &common.MissingPermissionError{}
+		return "", false, false, &common.TokenInvalidError{}
 	}
 
-	return subject, isAdmin, nil
+	// Extract disabled claim
+	isDisabled = false
+	if token.Has("disabled") {
+		_ = token.Get("disabled", &isDisabled)
+	}
+
+	if adminRequired && !isAdmin {
+		return "", false, false, &common.MissingPermissionError{}
+	}
+
+	return subject, isAdmin, isDisabled, nil
 }
