@@ -184,10 +184,7 @@ func (uc *UserController) deleteUserHandler(c *gin.Context) {
 		return
 	}
 
-	allowLdapDelete := false
-	if user.LdapID != nil && user.Disabled {
-		allowLdapDelete = true
-	}
+	allowLdapDelete := user.LdapID != nil && user.Disabled
 
 	if err := uc.userService.DeleteUser(c.Request.Context(), userID, allowLdapDelete); err != nil {
 		_ = c.Error(err)
