@@ -645,38 +645,21 @@ func (s *UserService) DisableUser(ctx context.Context, userID string) error {
 		return err
 	}
 
-	// Log the user being disabled
 	log.Printf("Disabling user: %s (%s)", user.Username, userID)
 
-	// Add retry logic for database locks (especially helpful for SQLite)
-	maxRetries := 5
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		err = s.db.WithContext(ctx).
-			Model(&model.User{}).
-			Where("id = ?", userID).
-			Update("disabled", true).
-			Error
+	err = s.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("disabled", true).
+		Error
 
-		if err == nil {
-			log.Printf("Successfully disabled user %s", user.Username)
-			return nil
-		}
-
-		// If it's a database lock error, wait and retry
-		if strings.Contains(err.Error(), "database is locked") {
-			log.Printf("Database locked when disabling user %s (attempt %d/%d), retrying in %d ms",
-				user.Username, attempt, maxRetries, attempt*100)
-			time.Sleep(time.Duration(attempt*100) * time.Millisecond)
-			continue
-		}
-
-		// For other errors, return immediately
+	if err != nil {
+		log.Printf("Failed to disable user %s: %v", user.Username, err)
 		return err
 	}
 
-	// If we got here, we failed after all retries
-	log.Printf("Failed to disable user %s after %d attempts: %v", user.Username, maxRetries, err)
-	return err
+	log.Printf("Successfully disabled user %s", user.Username)
+	return nil
 }
 
 // DisableUserInternal disables a user by setting the "disabled" field to true using the provided transaction
