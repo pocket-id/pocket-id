@@ -108,18 +108,14 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 	}
 
 	// Map the users to DTOs
-	userDtos := make([]dto.UserDto, len(users))
-	for i, user := range users {
-		var userDto dto.UserDto
-		if err := dto.MapStruct(user, &userDto); err != nil {
-			_ = c.Error(err)
-			return
-		}
-		userDtos[i] = userDto
+	var usersDto []dto.UserDto
+	if err := dto.MapStructList(users, &usersDto); err != nil {
+		_ = c.Error(err)
+		return
 	}
 
 	c.JSON(http.StatusOK, dto.Paginated[dto.UserDto]{
-		Data:       userDtos,
+		Data:       usersDto,
 		Pagination: pagination,
 	})
 }
