@@ -57,7 +57,6 @@
 			.setUserAttribute(user.id, 'disabled', false)
 			.then(() => {
 				toast.success(m.user_enabled_successfully());
-				// Refresh the list
 				userService.list(requestOptions!).then((updatedUsers) => (users = updatedUsers));
 			})
 			.catch(axiosErrorToast);

@@ -347,7 +347,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		}
 	}
 
-	// Get all LDAP users from the database - modify this to include disabled users
+	// Get all LDAP users from the database
 	var ldapUsersInDb []model.User
 	err = tx.
 		WithContext(ctx).
@@ -365,7 +365,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			continue
 		}
 
-		// Use the config option to determine whether to disable or delete
 		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
 			err = s.userService.DisableUserInternal(ctx, user.ID, tx)
 			if err != nil {
@@ -373,7 +372,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				continue
 			}
 		} else {
-			// Traditional delete using the transaction
 			err = s.userService.DeleteUser(ctx, user.ID, true)
 			if err != nil {
 				log.Printf("Failed to delete user %s: %v", user.Username, err)
