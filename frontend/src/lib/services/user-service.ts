@@ -96,10 +96,8 @@ export default class UserService extends APIService {
 		return res.data as User;
 	}
 
-	async setUserAttribute(userId: string, attribute: string, value: any) {
-		const payload: Record<string, any> = {};
-		payload[attribute] = value;
-		const res = await this.api.put(`/users/${userId}/set`, payload);
-		return res.data as User;
-	}
+async setUserAttribute(userId: string, attribute: string, value: any): Promise<User> {
+  const response = await this.api.put(`/users/${userId}/set`, { [attribute]: value });
+  return response.data as User;
+}
 }
