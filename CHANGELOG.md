@@ -1,3 +1,16 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.46.0...v) (2025-04-16)
+
+
+### Features
+
+* add qrcode representation of one time link ([#424](https://github.com/pocket-id/pocket-id/issues/424)) ([#436](https://github.com/pocket-id/pocket-id/issues/436)) ([abf17f6](https://github.com/pocket-id/pocket-id/commit/abf17f62114a2de549b62cec462b9b0659ee23a7))
+* disable animations setting toggle ([#442](https://github.com/pocket-id/pocket-id/issues/442)) ([b45cf68](https://github.com/pocket-id/pocket-id/commit/b45cf68295975f51777dab95950b98b8db0a9ae5))
+
+
+### Bug Fixes
+
+* define token type as claim for better client compatibility ([adf7458](https://github.com/pocket-id/pocket-id/commit/adf74586afb6ef9a00fb122c150b0248c5bc23f0))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.45.0...v) (2025-04-13)
 
 
