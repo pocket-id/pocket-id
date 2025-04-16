@@ -176,11 +176,6 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
 	tx := s.db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
 
 	var user model.User
 	if err := tx.WithContext(ctx).First(&user, "id = ?", userID).Error; err != nil {
@@ -191,11 +186,9 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDe
 	// Only soft-delete if user is LDAP and soft-delete is enabled and not allowing hard delete
 	if user.LdapID != nil && s.appConfigService.GetDbConfig().LdapSoftDeleteUsers.IsTrue() && !allowLdapDelete {
 		if !user.Disabled {
-			// Block hard delete if LDAP user is not disabled
 			tx.Rollback()
 			return fmt.Errorf("LDAP user must be disabled before deletion")
 		}
-		// If already disabled, allow hard delete below
 	}
 
 	// Otherwise, hard delete (local users or LDAP users when allowed)
