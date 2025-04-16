@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
@@ -11,10 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
-
-	"github.com/lestrrat-go/jwx/v3/jws"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -40,11 +38,17 @@ const (
 	// This may be omitted on non-admin tokens
 	IsAdminClaim = "isAdmin"
 
-	// AccessTokenJWTType is the media type for access tokens
-	AccessTokenJWTType = "AT+JWT"
+	// TokenTypeClaim is the claim used to identify the type of token
+	TokenTypeClaim = "type"
 
-	// IDTokenJWTType is the media type for ID tokens
-	IDTokenJWTType = "ID+JWT"
+	// OAuthAccessTokenJWTType identifies a JWT as an OAuth access token
+	OAuthAccessTokenJWTType = "oauth-access-token" //nolint:gosec
+
+	// AccessTokenJWTType identifies a JWT as an access token used by Pocket ID
+	AccessTokenJWTType = "access-token"
+
+	// IDTokenJWTType identifies a JWT as an ID token used by Pocket ID
+	IDTokenJWTType = "id-token"
 
 	// Acceptable clock skew for verifying tokens
 	clockSkew = time.Minute
@@ -195,6 +199,11 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
+	err = SetTokenType(token, AccessTokenJWTType)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
+	}
+
 	err = SetIsAdmin(token, user.IsAdmin)
 	if err != nil {
 		return "", fmt.Errorf("failed to set 'isAdmin' claim in token: %w", err)
@@ -218,6 +227,7 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithAudience(common.EnvConfig.AppURL),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
+		jwt.WithValidator(TokenTypeValidator(AccessTokenJWTType)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
@@ -242,6 +252,11 @@ func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string,
 		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
+	err = SetTokenType(token, IDTokenJWTType)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
+	}
+
 	for k, v := range userClaims {
 		err = token.Set(k, v)
 		if err != nil {
@@ -256,13 +271,8 @@ func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string,
 		}
 	}
 
-	headers, err := CreateTokenTypeHeader(IDTokenJWTType)
-	if err != nil {
-		return "", fmt.Errorf("failed to set token type: %w", err)
-	}
-
 	alg, _ := s.privateKey.Algorithm()
-	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey, jws.WithProtectedHeaders(headers)))
+	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
@@ -281,6 +291,7 @@ func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool)
 		jwt.WithKey(alg, s.privateKey),
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
+		jwt.WithValidator(TokenTypeValidator(IDTokenJWTType)),
 	)
 
 	// By default, jwt.Parse includes 3 default validators for "nbf", "iat", and "exp"
@@ -297,11 +308,6 @@ func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool)
 	token, err := jwt.ParseString(tokenString, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	err = VerifyTokenTypeHeader(tokenString, IDTokenJWTType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify token type: %w", err)
 	}
 
 	return token, nil
@@ -324,13 +330,13 @@ func (s *JwtService) GenerateOauthAccessToken(user model.User, clientID string) 
 		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
-	headers, err := CreateTokenTypeHeader(AccessTokenJWTType)
+	err = SetTokenType(token, OAuthAccessTokenJWTType)
 	if err != nil {
-		return "", fmt.Errorf("failed to set token type: %w", err)
+		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
 	}
 
 	alg, _ := s.privateKey.Algorithm()
-	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey, jws.WithProtectedHeaders(headers)))
+	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
@@ -346,14 +352,10 @@ func (s *JwtService) VerifyOauthAccessToken(tokenString string) (jwt.Token, erro
 		jwt.WithKey(alg, s.privateKey),
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithIssuer(common.EnvConfig.AppURL),
+		jwt.WithValidator(TokenTypeValidator(OAuthAccessTokenJWTType)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	err = VerifyTokenTypeHeader(tokenString, AccessTokenJWTType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify token type: %w", err)
 	}
 
 	return token, nil
@@ -510,15 +512,12 @@ func GetIsAdmin(token jwt.Token) (bool, error) {
 	return isAdmin, err
 }
 
-// CreateTokenTypeHeader creates a new JWS header with the given token type
-func CreateTokenTypeHeader(tokenType string) (jws.Headers, error) {
-	headers := jws.NewHeaders()
-	err := headers.Set(jws.TypeKey, tokenType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set token type: %w", err)
+// SetTokenType sets the "type" claim in the token
+func SetTokenType(token jwt.Token, tokenType string) error {
+	if tokenType == "" {
+		return nil
 	}
-
-	return headers, nil
+	return token.Set(TokenTypeClaim, tokenType)
 }
 
 // SetIsAdmin sets the "isAdmin" claim in the token
@@ -536,36 +535,17 @@ func SetAudienceString(token jwt.Token, audience string) error {
 	return token.Set(jwt.AudienceKey, audience)
 }
 
-// VerifyTokenTypeHeader verifies that the "typ" header in the token matches the expected type
-func VerifyTokenTypeHeader(tokenBytes string, expectedTokenType string) error {
-	// Parse the raw token string purely as a JWS message structure
-	// We don't need to verify the signature at this stage, just inspect headers.
-	msg, err := jws.Parse([]byte(tokenBytes))
-	if err != nil {
-		return fmt.Errorf("failed to parse token as JWS message: %w", err)
+// TokenTypeValidator is a validator function that checks the "type" claim in the token
+func TokenTypeValidator(expectedTokenType string) jwt.ValidatorFunc {
+	return func(_ context.Context, t jwt.Token) error {
+		var tokenType string
+		err := t.Get(TokenTypeClaim, &tokenType)
+		if err != nil {
+			return fmt.Errorf("failed to get token type claim: %w", err)
+		}
+		if tokenType != expectedTokenType {
+			return fmt.Errorf("invalid token type: expected %s, got %s", expectedTokenType, tokenType)
+		}
+		return nil
 	}
-
-	// Get the list of signatures attached to the message. Usually just one for JWT.
-	signatures := msg.Signatures()
-	if len(signatures) == 0 {
-		return errors.New("JWS message contains no signatures")
-	}
-
-	protectedHeaders := signatures[0].ProtectedHeaders()
-	if protectedHeaders == nil {
-		return fmt.Errorf("JWS signature has no protected headers")
-	}
-
-	// Retrieve the 'typ' header value from the PROTECTED headers.
-	var typHeaderValue string
-	err = protectedHeaders.Get(jws.TypeKey, &typHeaderValue)
-	if err != nil {
-		return fmt.Errorf("token is missing required protected header '%s'", jws.TypeKey)
-	}
-
-	if !strings.EqualFold(typHeaderValue, expectedTokenType) {
-		return fmt.Errorf("'%s' header mismatch: expected '%s', got '%s'", jws.TypeKey, expectedTokenType, typHeaderValue)
-	}
-
-	return nil
 }
