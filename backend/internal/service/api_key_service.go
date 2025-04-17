@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -16,11 +18,12 @@ import (
 )
 
 type ApiKeyService struct {
-	db *gorm.DB
+	db           *gorm.DB
+	emailService *EmailService
 }
 
-func NewApiKeyService(db *gorm.DB) *ApiKeyService {
-	return &ApiKeyService{db: db}
+func NewApiKeyService(db *gorm.DB, emailService *EmailService) *ApiKeyService {
+	return &ApiKeyService{db: db, emailService: emailService}
 }
 
 func (s *ApiKeyService) ListApiKeys(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.ApiKey, utils.PaginationResponse, error) {
@@ -116,4 +119,49 @@ func (s *ApiKeyService) ValidateApiKey(ctx context.Context, apiKey string) (mode
 	}
 
 	return key.User, nil
+}
+
+func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) ([]model.ApiKey, error) {
+	var keys []model.ApiKey
+	now := time.Now()
+	cutoff := now.AddDate(0, 0, daysAhead)
+
+	// Convert to Unix timestamps
+	nowUnix := now.Unix()
+	cutoffUnix := cutoff.Unix()
+
+	log.Printf("Looking for keys expiring between %v (%d) and %v (%d)",
+		now, nowUnix, cutoff, cutoffUnix)
+
+	// Query using Unix timestamps
+	err := s.db.
+		WithContext(ctx).
+		Preload("User").
+		Where("expires_at > ? AND expires_at <= ?", nowUnix, cutoffUnix).
+		Find(&keys).
+		Error
+
+	// Debug found keys
+	for _, key := range keys {
+		log.Printf("Found expiring key: %s (expires: %v / %d)",
+			key.Name, key.ExpiresAt.ToTime(), key.ExpiresAt)
+	}
+
+	return keys, err
+}
+
+func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey model.ApiKey) error {
+	user := apiKey.User
+	if user.ID == "" {
+		if err := s.db.WithContext(ctx).First(&user, "id = ?", apiKey.UserID).Error; err != nil {
+			return err
+		}
+	}
+	return SendEmail(ctx, s.emailService, email.Address{
+		Name:  user.FullName(),
+		Email: user.Email,
+	}, ApiKeyExpiringSoonTemplate, &ApiKeyExpiringSoonTemplateData{
+		ApiKeyName: apiKey.Name,
+		ExpiresAt:  apiKey.ExpiresAt.ToTime(),
+	})
 }
