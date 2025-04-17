@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"log"
 	"time"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -130,22 +129,12 @@ func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) 
 	nowUnix := now.Unix()
 	cutoffUnix := cutoff.Unix()
 
-	log.Printf("Looking for keys expiring between %v (%d) and %v (%d)",
-		now, nowUnix, cutoff, cutoffUnix)
-
-	// Query using Unix timestamps
 	err := s.db.
 		WithContext(ctx).
 		Preload("User").
 		Where("expires_at > ? AND expires_at <= ?", nowUnix, cutoffUnix).
 		Find(&keys).
 		Error
-
-	// Debug found keys
-	for _, key := range keys {
-		log.Printf("Found expiring key: %s (expires: %v / %d)",
-			key.Name, key.ExpiresAt.ToTime(), key.ExpiresAt)
-	}
 
 	return keys, err
 }

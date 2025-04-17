@@ -34,7 +34,6 @@ func RegisterApiKeyExpiryJob(ctx context.Context, apiKeyService *service.ApiKeyS
 }
 
 func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) error {
-	log.Printf("Running API key expiry check...")
 
 	apiKeys, err := j.apiKeyService.ListExpiringApiKeys(ctx, 7)
 	if err != nil {
@@ -42,7 +41,6 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 		return err
 	}
 
-	log.Printf("ExpiredApiKeyEmailJob: found %d keys expiring in the next 7 days", len(apiKeys))
 	for _, key := range apiKeys {
 		if key.User.Email == "" {
 			continue
