@@ -9,7 +9,7 @@
     <div class="content">
         <h2>API Key Expiring Soon</h2>
         <p>
-            Hello,<br/><br/>
+            Hello {{ .Data.Name }},<br/><br/>
             This is a reminder that your API key <strong>{{ .Data.ApiKeyName }}</strong> will expire on <strong>{{ .Data.ExpiresAt.Format "2006-01-02 15:04:05 MST" }}</strong>.<br/><br/>
             Please generate a new API key if you need continued access.<br/><br/>
             If you have any questions, contact your administrator.

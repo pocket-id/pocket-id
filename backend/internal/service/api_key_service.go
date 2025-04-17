@@ -141,16 +141,21 @@ func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) 
 
 func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey model.ApiKey) error {
 	user := apiKey.User
+
 	if user.ID == "" {
 		if err := s.db.WithContext(ctx).First(&user, "id = ?", apiKey.UserID).Error; err != nil {
 			return err
 		}
 	}
+
+	name := user.FirstName
+
 	return SendEmail(ctx, s.emailService, email.Address{
-		Name:  user.FullName(),
+		Name:  name,
 		Email: user.Email,
 	}, ApiKeyExpiringSoonTemplate, &ApiKeyExpiringSoonTemplateData{
 		ApiKeyName: apiKey.Name,
 		ExpiresAt:  apiKey.ExpiresAt.ToTime(),
+		Name:       name,
 	})
 }

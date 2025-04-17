@@ -64,6 +64,7 @@ type OneTimeAccessTemplateData = struct {
 }
 
 type ApiKeyExpiringSoonTemplateData struct {
+	Name       string
 	ApiKeyName string
 	ExpiresAt  time.Time
 }
