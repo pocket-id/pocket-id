@@ -132,7 +132,7 @@ func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) 
 	err := s.db.
 		WithContext(ctx).
 		Preload("User").
-		Where("expires_at > ? AND expires_at <= ?", nowUnix, cutoffUnix).
+		Where("expires_at > ? AND expires_at <= ? AND expiration_email_sent = ?", nowUnix, cutoffUnix, false).
 		Find(&keys).
 		Error
 
@@ -150,7 +150,7 @@ func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey 
 
 	name := user.FirstName
 
-	return SendEmail(ctx, s.emailService, email.Address{
+	err := SendEmail(ctx, s.emailService, email.Address{
 		Name:  name,
 		Email: user.Email,
 	}, ApiKeyExpiringSoonTemplate, &ApiKeyExpiringSoonTemplateData{
@@ -158,4 +158,14 @@ func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey 
 		ExpiresAt:  apiKey.ExpiresAt.ToTime(),
 		Name:       name,
 	})
+	if err != nil {
+		return err
+	}
+
+	// Mark the API key as having had an expiration email sent
+	return s.db.WithContext(ctx).
+		Model(&model.ApiKey{}).
+		Where("id = ?", apiKey.ID).
+		Update("expiration_email_sent", true).
+		Error
 }
