@@ -104,10 +104,10 @@ func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Addr
 	// so we use the domain of the from address instead (the same as Thunderbird does)
 	// if the address does not have an @ (which would be unusual), we use hostname
 
-	from_address := dbConfig.SmtpFrom.Value
+	fromAddress := dbConfig.SmtpFrom.Value
 	domain := ""
-	if strings.Contains(from_address, "@") {
-		domain = strings.Split(from_address, "@")[1]
+	if strings.Contains(fromAddress, "@") {
+		domain = strings.Split(fromAddress, "@")[1]
 	} else {
 		hostname, err := os.Hostname()
 		if err != nil {

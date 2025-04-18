@@ -87,8 +87,12 @@ export default class UserService extends APIService {
 		return res.data as User;
 	}
 
-	async requestOneTimeAccessEmail(email: string, redirectPath?: string) {
+	async requestOneTimeAccessEmailAsUnauthenticatedUser(email: string, redirectPath?: string) {
 		await this.api.post('/one-time-access-email', { email, redirectPath });
+	}
+
+	async requestOneTimeAccessEmailAsAdmin(userId: string, expiresAt: Date) {
+		await this.api.post(`/users/${userId}/one-time-access-email`, { expiresAt });
 	}
 
 	async updateUserGroups(id: string, userGroupIds: string[]) {
