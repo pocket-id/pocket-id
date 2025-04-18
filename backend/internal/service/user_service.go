@@ -211,8 +211,8 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 		return fmt.Errorf("failed to load user to delete: %w", err)
 	}
 
-	// Disallow deleting the user if it is an LDAP user and LDAP is enabled
-	if !allowLdapDelete && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	// Disallow deleting the user if it is an LDAP user, LDAP is enabled, and the user is not disabled
+	if !allowLdapDelete && !user.Disabled && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
 		return &common.LdapUserUpdateError{}
 	}
 
