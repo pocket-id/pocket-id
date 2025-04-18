@@ -323,6 +323,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	user.Locale = updatedUser.Locale
 	if !updateOwnUser {
 		user.IsAdmin = updatedUser.IsAdmin
+		user.Disabled = updatedUser.Disabled
 	}
 
 	err = tx.

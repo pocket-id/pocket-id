@@ -95,9 +95,4 @@ export default class UserService extends APIService {
 		const res = await this.api.put(`/users/${id}/user-groups`, { userGroupIds });
 		return res.data as User;
 	}
-
-async setUserAttribute(userId: string, attribute: string, value: any): Promise<User> {
-  const response = await this.api.put(`/users/${userId}/set`, { [attribute]: value });
-  return response.data as User;
-}
 }

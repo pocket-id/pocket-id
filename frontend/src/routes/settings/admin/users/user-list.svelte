@@ -2,10 +2,12 @@
 	import { goto } from '$app/navigation';
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
+	import OneTimeLinkModal from '$lib/components/one-time-link-modal.svelte';
 	import { Badge } from '$lib/components/ui/badge/index';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
@@ -20,8 +22,6 @@
 	} from 'lucide-svelte';
 	import Ellipsis from 'lucide-svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
-	import OneTimeLinkModal from '$lib/components/one-time-link-modal.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let {
 		users = $bindable(),
@@ -54,7 +54,10 @@
 
 	async function enableUser(user: User) {
 		await userService
-			.setUserAttribute(user.id, 'disabled', false)
+			.update(user.id, {
+				...user,
+				disabled: false
+			})
 			.then(() => {
 				toast.success(m.user_enabled_successfully());
 				userService.list(requestOptions!).then((updatedUsers) => (users = updatedUsers));
@@ -71,7 +74,10 @@
 				destructive: true,
 				action: async () => {
 					try {
-						await userService.setUserAttribute(user.id, 'disabled', true);
+						await userService.update(user.id, {
+							...user,
+							disabled: true
+						});
 						users = await userService.list(requestOptions!);
 						toast.success(m.user_disabled_successfully());
 					} catch (e) {
