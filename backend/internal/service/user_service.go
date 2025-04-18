@@ -632,46 +632,10 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 	return nil
 }
 
-// DisableUser disables a user by setting the "disabled" field to true
-func (s *UserService) DisableUser(ctx context.Context, userID string) error {
-	user, err := s.GetUser(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Disabling user: %s (%s)", user.Username, userID)
-
-	err = s.db.WithContext(ctx).
-		Model(&model.User{}).
-		Where("id = ?", userID).
-		Update("disabled", true).
-		Error
-
-	if err != nil {
-		log.Printf("Failed to disable user %s: %v", user.Username, err)
-		return err
-	}
-
-	log.Printf("Successfully disabled user %s", user.Username)
-	return nil
-}
-
-// DisableUserInternal disables a user by setting the "disabled" field to true using the provided transaction
-func (s *UserService) DisableUserInternal(ctx context.Context, userID string, tx *gorm.DB) error {
-	// Use the provided transaction
+func (s *UserService) DisableUser(ctx context.Context, userID string, tx *gorm.DB) error {
 	return tx.WithContext(ctx).
 		Model(&model.User{}).
 		Where("id = ?", userID).
 		Update("disabled", true).
-		Error
-}
-
-// EnableUser enables a user by setting the "disabled" field to false
-func (s *UserService) EnableUser(ctx context.Context, userID string) error {
-	return s.db.
-		WithContext(ctx).
-		Model(&model.User{}).
-		Where("id = ?", userID).
-		Update("disabled", false).
 		Error
 }

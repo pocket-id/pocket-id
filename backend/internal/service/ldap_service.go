@@ -366,7 +366,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		}
 
 		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
-			err = s.userService.DisableUserInternal(ctx, user.ID, tx)
+			err = s.userService.DisableUser(ctx, user.ID, tx)
 			if err != nil {
 				log.Printf("Failed to disable user %s: %v", user.Username, err)
 				continue
