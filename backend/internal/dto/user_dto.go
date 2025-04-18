@@ -13,6 +13,7 @@ type UserDto struct {
 	CustomClaims []CustomClaimDto `json:"customClaims"`
 	UserGroups   []UserGroupDto   `json:"userGroups"`
 	LdapID       *string          `json:"ldapId"`
+	Disabled     bool             `json:"disabled"`
 }
 
 type UserCreateDto struct {
@@ -22,6 +23,7 @@ type UserCreateDto struct {
 	LastName  string  `json:"lastName" binding:"required,min=1,max=50"`
 	IsAdmin   bool    `json:"isAdmin"`
 	Locale    *string `json:"locale"`
+	Disabled  bool    `json:"disabled"`
 	LdapID    string  `json:"-"`
 }
 

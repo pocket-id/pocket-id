@@ -244,6 +244,10 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		return model.User{}, "", err
 	}
 
+	if user.Disabled {
+		return model.User{}, "", &common.UserDisabledError{}
+	}
+
 	token, err := s.jwtService.GenerateAccessToken(*user)
 	if err != nil {
 		return model.User{}, "", err

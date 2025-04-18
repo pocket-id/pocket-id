@@ -24,7 +24,8 @@
 		lastName: existingUser?.lastName || '',
 		email: existingUser?.email || '',
 		username: existingUser?.username || '',
-		isAdmin: existingUser?.isAdmin || false
+		isAdmin: existingUser?.isAdmin || false,
+		disabled: existingUser?.disabled || false
 	};
 
 	const formSchema = z.object({
@@ -34,12 +35,10 @@
 			.string()
 			.min(2)
 			.max(30)
-			.regex(
-				/^[a-z0-9_@.-]+$/,
-				m.username_can_only_contain()
-			),
+			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
 		email: z.string().email(),
-		isAdmin: z.boolean()
+		isAdmin: z.boolean(),
+		disabled: z.boolean()
 	});
 	type FormSchema = typeof formSchema;
 
@@ -67,6 +66,12 @@
 				label={m.admin_privileges()}
 				description={m.admins_have_full_access_to_the_admin_panel()}
 				bind:checked={$inputs.isAdmin.value}
+			/>
+			<CheckboxWithLabel
+				id="user-disabled"
+				label={m.user_disabled()}
+				description={m.disabled_users_cannot_log_in_or_use_services()}
+				bind:checked={$inputs.disabled.value}
 			/>
 		</div>
 		<div class="mt-5 flex justify-end">

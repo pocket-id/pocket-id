@@ -41,7 +41,10 @@ func (m *ApiKeyAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (userI
 		return "", false, &common.NotSignedInError{}
 	}
 
-	// Check if the user is an admin
+	if user.Disabled {
+		return "", false, &common.UserDisabledError{}
+	}
+
 	if adminRequired && !user.IsAdmin {
 		return "", false, &common.MissingPermissionError{}
 	}
