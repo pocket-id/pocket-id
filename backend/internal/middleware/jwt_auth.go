@@ -10,16 +10,17 @@ import (
 )
 
 type JwtAuthMiddleware struct {
-	jwtService *service.JwtService
+	userService *service.UserService
+	jwtService  *service.JwtService
 }
 
-func NewJwtAuthMiddleware(jwtService *service.JwtService) *JwtAuthMiddleware {
-	return &JwtAuthMiddleware{jwtService: jwtService}
+func NewJwtAuthMiddleware(jwtService *service.JwtService, userService *service.UserService) *JwtAuthMiddleware {
+	return &JwtAuthMiddleware{jwtService: jwtService, userService: userService}
 }
 
 func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, isAdmin, isDisabled, err := m.Verify(c, adminRequired)
+		userID, isAdmin, err := m.Verify(c, adminRequired)
 		if err != nil {
 			c.Abort()
 			_ = c.Error(err)
@@ -28,12 +29,11 @@ func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 
 		c.Set("userID", userID)
 		c.Set("userIsAdmin", isAdmin)
-		c.Set("userIsDisabled", isDisabled)
 		c.Next()
 	}
 }
 
-func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject string, isAdmin bool, isDisabled bool, err error) {
+func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject string, isAdmin bool, err error) {
 	// Extract the token from the cookie
 	accessToken, err := c.Cookie(cookie.AccessTokenCookieName)
 	if err != nil {
@@ -41,13 +41,13 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 		var ok bool
 		_, accessToken, ok = strings.Cut(c.GetHeader("Authorization"), " ")
 		if !ok || accessToken == "" {
-			return "", false, false, &common.NotSignedInError{}
+			return "", false, &common.NotSignedInError{}
 		}
 	}
 
 	token, err := m.jwtService.VerifyAccessToken(accessToken)
 	if err != nil {
-		return "", false, false, &common.NotSignedInError{}
+		return "", false, &common.NotSignedInError{}
 	}
 
 	subject, ok := token.Subject()
@@ -56,20 +56,18 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 		return
 	}
 
-	isAdmin, err = service.GetIsAdmin(token)
+	user, err := m.userService.GetUser(c, subject)
 	if err != nil {
-		return "", false, false, &common.TokenInvalidError{}
+		return "", false, &common.NotSignedInError{}
 	}
 
-	// Extract disabled claim
-	isDisabled = false
-	if token.Has("disabled") {
-		_ = token.Get("disabled", &isDisabled)
+	if user.Disabled {
+		return "", false, &common.UserDisabledError{}
 	}
 
-	if adminRequired && !isAdmin {
-		return "", false, false, &common.MissingPermissionError{}
+	if adminRequired && !user.IsAdmin {
+		return "", false, &common.MissingPermissionError{}
 	}
 
-	return subject, isAdmin, isDisabled, nil
+	return subject, isAdmin, nil
 }

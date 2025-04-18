@@ -19,11 +19,12 @@ type AuthOptions struct {
 
 func NewAuthMiddleware(
 	apiKeyService *service.ApiKeyService,
+	userService *service.UserService,
 	jwtService *service.JwtService,
 ) *AuthMiddleware {
 	return &AuthMiddleware{
 		apiKeyMiddleware: NewApiKeyAuthMiddleware(apiKeyService, jwtService),
-		jwtMiddleware:    NewJwtAuthMiddleware(jwtService),
+		jwtMiddleware:    NewJwtAuthMiddleware(jwtService, userService),
 		options: AuthOptions{
 			AdminRequired:   true,
 			SuccessOptional: false,
@@ -57,12 +58,8 @@ func (m *AuthMiddleware) WithSuccessOptional() *AuthMiddleware {
 
 func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, isAdmin, isDisabled, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
+		userID, isAdmin, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
 		if err == nil {
-			if isDisabled {
-				c.AbortWithStatusJSON(403, gin.H{"error": "User account is disabled"})
-				return
-			}
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
 			if c.IsAborted() {
@@ -73,12 +70,8 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 		}
 
 		// JWT auth failed, try API key auth
-		userID, isAdmin, isDisabled, err = m.apiKeyMiddleware.Verify(c, m.options.AdminRequired)
+		userID, isAdmin, err = m.apiKeyMiddleware.Verify(c, m.options.AdminRequired)
 		if err == nil {
-			if isDisabled {
-				c.AbortWithStatusJSON(403, gin.H{"error": "User account is disabled"})
-				return
-			}
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
 			if c.IsAborted() {
