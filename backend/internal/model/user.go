@@ -68,9 +68,12 @@ func (u User) WebAuthnCredentialDescriptors() (descriptors []protocol.Credential
 func (u User) FullName() string { return u.FirstName + " " + u.LastName }
 
 func (u User) Initials() string {
-	return strings.ToUpper(
-		utils.GetFirstCharacter(u.FirstName) + utils.GetFirstCharacter(u.LastName),
-	)
+	first := utils.GetFirstCharacter(u.FirstName)
+	last := utils.GetFirstCharacter(u.LastName)
+	if first == "" && last == "" && len(u.Username) >= 2 {
+		return strings.ToUpper(u.Username[:2])
+	}
+	return strings.ToUpper(first + last)
 }
 
 type OneTimeAccessToken struct {

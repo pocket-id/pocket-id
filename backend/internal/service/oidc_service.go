@@ -955,7 +955,7 @@ func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string) (ca
 	}
 
 	for _, callbackPattern := range urls {
-		regexPattern := strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
+		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
 		matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
 		if err != nil {
 			return "", err
