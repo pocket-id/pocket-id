@@ -323,7 +323,28 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	return user, nil
 }
 
-func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddress, redirectPath string) error {
+func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, expiration time.Time) error {
+	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", expiration)
+
+}
+
+func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) error {
+	var userId string
+	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
+	if err != nil {
+		// Do not return error if user not found to prevent email enumeration
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	expiration := time.Now().Add(15 * time.Minute)
+	return s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, expiration)
+}
+
+func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, expiration time.Time) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -334,22 +355,12 @@ func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddres
 		return &common.OneTimeAccessDisabledError{}
 	}
 
-	var user model.User
-	err := tx.
-		WithContext(ctx).
-		Where("email = ?", emailAddress).
-		First(&user).
-		Error
+	user, err := s.GetUser(ctx, userID)
 	if err != nil {
-		// Do not return error if user not found to prevent email enumeration
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		} else {
-			return err
-		}
+		return err
 	}
 
-	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, time.Now().Add(15*time.Minute), tx)
+	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, expiration, tx)
 	if err != nil {
 		return err
 	}
@@ -380,6 +391,7 @@ func (s *UserService) RequestOneTimeAccessEmail(ctx context.Context, emailAddres
 			Code:              oneTimeAccessToken,
 			LoginLink:         link,
 			LoginLinkWithCode: linkWithCode,
+			ExpirationString:  utils.DurationToString(time.Until(expiration).Round(time.Second)),
 		})
 		if errInternal != nil {
 			log.Printf("Failed to send email to '%s': %v\n", user.Email, errInternal)

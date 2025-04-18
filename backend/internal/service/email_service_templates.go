@@ -54,6 +54,7 @@ type OneTimeAccessTemplateData = struct {
 	Code              string
 	LoginLink         string
 	LoginLinkWithCode string
+	ExpirationString  string
 }
 
 // this is list of all template paths used for preloading templates

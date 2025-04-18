@@ -324,5 +324,8 @@
 	"client_authorization": "Client Authorization",
 	"new_client_authorization": "New Client Authorization",
 	"disable_animations": "Disable Animations",
-	"turn_off_all_animations_throughout_the_admin_ui": "Turn off all animations throughout the Admin UI"
+	"turn_off_all_animations_throughout_the_admin_ui": "Turn off all animations throughout the Admin UI",
+	"login_code_email_success": "The login code has been sent to the user.",
+	"send_email": "Send Email",
+	"show_code": "Show Code"
 }

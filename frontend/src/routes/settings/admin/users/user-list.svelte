@@ -101,4 +101,4 @@
 	{/snippet}
 </AdvancedTable>
 
-<OneTimeLinkModal userId={userIdToCreateOneTimeLink} />
+<OneTimeLinkModal bind:userId={userIdToCreateOneTimeLink} />
