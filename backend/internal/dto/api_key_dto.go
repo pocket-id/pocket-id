@@ -11,12 +11,13 @@ type ApiKeyCreateDto struct {
 }
 
 type ApiKeyDto struct {
-	ID          string             `json:"id"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	ExpiresAt   datatype.DateTime  `json:"expiresAt"`
-	LastUsedAt  *datatype.DateTime `json:"lastUsedAt"`
-	CreatedAt   datatype.DateTime  `json:"createdAt"`
+	ID                  string             `json:"id"`
+	Name                string             `json:"name"`
+	Description         string             `json:"description"`
+	ExpiresAt           datatype.DateTime  `json:"expiresAt"`
+	LastUsedAt          *datatype.DateTime `json:"lastUsedAt"`
+	CreatedAt           datatype.DateTime  `json:"createdAt"`
+	ExpirationEmailSent bool               `json:"expirationEmailSent"`
 }
 
 type ApiKeyResponseDto struct {

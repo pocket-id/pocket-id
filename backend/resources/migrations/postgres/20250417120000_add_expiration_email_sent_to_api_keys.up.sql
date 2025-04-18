@@ -1,0 +1,2 @@
+ALTER TABLE api_keys
+ADD COLUMN expiration_email_sent BOOLEAN NOT NULL DEFAULT FALSE;

@@ -49,7 +49,7 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	oidcService := service.NewOidcService(db, jwtService, appConfigService, auditLogService, customClaimService)
 	userGroupService := service.NewUserGroupService(db, appConfigService)
 	ldapService := service.NewLdapService(db, appConfigService, userService, userGroupService)
-	apiKeyService := service.NewApiKeyService(db)
+	apiKeyService := service.NewApiKeyService(db, emailService)
 
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware()
 
@@ -61,6 +61,7 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	job.RegisterLdapJobs(ctx, ldapService, appConfigService)
 	job.RegisterDbCleanupJobs(ctx, db)
 	job.RegisterFileCleanupJobs(ctx, db)
+	job.RegisterApiKeyExpiryJob(ctx, apiKeyService, appConfigService)
 
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(apiKeyService, userService, jwtService)
