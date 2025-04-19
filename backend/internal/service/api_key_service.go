@@ -125,14 +125,14 @@ func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) 
 	now := time.Now()
 	cutoff := now.AddDate(0, 0, daysAhead)
 
-	// Convert to Unix timestamps
-	nowUnix := now.Unix()
-	cutoffUnix := cutoff.Unix()
+	// Use datatype.DateTime for comparison instead of Unix timestamps
+	nowDT := datatype.DateTime(now)
+	cutoffDT := datatype.DateTime(cutoff)
 
 	err := s.db.
 		WithContext(ctx).
 		Preload("User").
-		Where("expires_at > ? AND expires_at <= ? AND expiration_email_sent = ?", nowUnix, cutoffUnix, false).
+		Where("expires_at > ? AND expires_at <= ? AND expiration_email_sent = ?", nowDT, cutoffDT, false).
 		Find(&keys).
 		Error
 
