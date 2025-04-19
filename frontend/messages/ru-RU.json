@@ -333,5 +333,6 @@
 	"disable_firstname_lastname": "Отключить {firstName} {lastName}",
 	"are_you_sure_you_want_to_disable_this_user": "Вы уверены, что хотите отключить этого пользователя? Они не смогут войти в систему или получить доступ к любым сервисам.",
 	"ldap_soft_delete_users": "Оставить отключенных пользователей от LDAP.",
-	"ldap_soft_delete_users_description": "Когда включено, пользователи удалённые из LDAP будут отключены вместо удаления из системы."
+	"ldap_soft_delete_users_description": "Когда включено, пользователи удалённые из LDAP будут отключены вместо удаления из системы.",
+	"callback_url_description": "URL(s) provided by your client. Wildcards (*) are supported, but best avoided for better security."
 }
