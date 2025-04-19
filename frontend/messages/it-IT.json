@@ -333,5 +333,6 @@
 	"disable_firstname_lastname": "Disabilita {firstName} {lastName}",
 	"are_you_sure_you_want_to_disable_this_user": "Sei sicuro di voler disabilitare questo utente? Non sarà in grado di accedere o utilizzare qualsiasi servizio.",
 	"ldap_soft_delete_users": "Mantieni gli utenti disabilitati da LDAP.",
-	"ldap_soft_delete_users_description": "Se abilitato, gli utenti rimossi da LDAP saranno disabilitati invece che cancellati dal sistema."
+	"ldap_soft_delete_users_description": "Se abilitato, gli utenti rimossi da LDAP saranno disabilitati invece che cancellati dal sistema.",
+	"callback_url_description": "URL(s) provided by your client. Wildcards (*) are supported, but best avoided for better security."
 }
