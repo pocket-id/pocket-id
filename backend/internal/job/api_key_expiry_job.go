@@ -28,13 +28,6 @@ func RegisterApiKeyExpiryJob(ctx context.Context, apiKeyService *service.ApiKeyS
 
 	// Start the scheduler before running the first check
 	scheduler.Start()
-
-	// Run the first check asynchronously, so it doesn't block startup
-	go func() {
-		if err := jobs.checkAndNotifyExpiringApiKeys(ctx); err != nil {
-			log.Printf("Failed to send expired api key emails: %v", err)
-		}
-	}()
 }
 
 func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) error {
