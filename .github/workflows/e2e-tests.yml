@@ -325,11 +325,10 @@ jobs:
             sleep 3
           done
 
-      - name: Install LLDAP CLI
+      - name: Install LLDAP CLI tools
         run: |
-          wget https://raw.githubusercontent.com/Zepmann/lldap-cli/main/lldap-cli -O /tmp/lldap-cli
-          chmod +x /tmp/lldap-cli
-          sudo mv /tmp/lldap-cli /usr/local/bin/lldap-cli
+          sudo apt-get update
+          sudo apt-get install -y lldap-cli lldap-set-password
 
       - name: Setup test users in LLDAP
         run: |
