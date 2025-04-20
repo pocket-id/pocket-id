@@ -156,7 +156,7 @@
 	"actions": "Ações",
 	"images_updated_successfully": "Imagens atualizadas com sucesso",
 	"general": "Geral",
-	"configure_stmp_to_send_emails": "Enable email notifications to alert users when a login is detected from a new device or location.",
+	"configure_smtp_to_send_emails": "Enable email notifications to alert users when a login is detected from a new device or location.",
 	"ldap": "LDAP",
 	"configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server": "Configure LDAP settings to sync users and groups from an LDAP server.",
 	"images": "Imagens",
