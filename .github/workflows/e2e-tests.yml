@@ -330,45 +330,45 @@ jobs:
           wget https://raw.githubusercontent.com/Zepmann/lldap-cli/main/lldap-cli -O /tmp/lldap-cli
           chmod +x /tmp/lldap-cli
           sudo mv /tmp/lldap-cli /usr/local/bin/lldap-cli
-          # Verify installation
-          lldap-cli --version
 
       - name: Setup test users in LLDAP
         run: |
-          # Configure LLDAP CLI
-          lldap-cli configure --url "http://localhost:17170" --username "admin" --password "admin_password"
+          # Configure LLDAP CLI connection via environment variables
+          export LLDAP_HTTPURL="http://localhost:17170"
+          export LLDAP_USERNAME="admin"
+          export LLDAP_PASSWORD="admin_password"
 
-          # Create test users
-          lldap-cli users create \
-            --id "testuser1" \
-            --display-name "Test User 1" \
-            --first-name "Test" \
-            --last-name "User" \
-            --email "testuser1@pocket-id.org" \
-            --password "password123"
+          # Create test users using the user add command
+          lldap-cli user add "testuser1" "testuser1@pocket-id.org" \
+            -p "password123" \
+            -d "Test User 1" \
+            -f "Test" \
+            -l "User"
             
-          lldap-cli users create \
-            --id "testuser2" \
-            --display-name "Test User 2" \
-            --first-name "Test2" \
-            --last-name "User2" \
-            --email "testuser2@pocket-id.org" \
-            --password "password123"
+          lldap-cli user add "testuser2" "testuser2@pocket-id.org" \
+            -p "password123" \
+            -d "Test User 2" \
+            -f "Test2" \
+            -l "User2"
 
           # Create test groups
-          lldap-cli groups create \
-            --name "testgroup" \
-            --display-name "Test Group"
-            
-          lldap-cli groups create \
-            --name "admingroup" \
-            --display-name "Admin Group"
+          lldap-cli group add "testgroup"
+          lldap-cli group update set "testgroup" "displayName" "Test Group"
+
+          lldap-cli group add "admingroup"
+          lldap-cli group update set "admingroup" "displayName" "Admin Group"
 
           # Add users to groups
-          lldap-cli groups add-member --name "testgroup" --user "testuser1"
-          lldap-cli groups add-member --name "admingroup" --user "testuser2"
+          lldap-cli user group add "testuser1" "testgroup"
+          lldap-cli user group add "testuser2" "admingroup"
 
           echo "LLDAP test data setup complete"
+
+          # Verify setup
+          echo "Listing users:"
+          lldap-cli user list
+          echo "Listing groups:"
+          lldap-cli group list
 
       - name: Run Docker Container with LDAP integration
         run: |
