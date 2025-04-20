@@ -90,7 +90,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 			}
 
 			innerErr = SendEmail(innerCtx, s.emailService, email.Address{
-				Name:  user.Username,
+				Name:  user.FullName(),
 				Email: user.Email,
 			}, NewLoginTemplate, &NewLoginTemplateData{
 				IPAddress: ipAddress,
