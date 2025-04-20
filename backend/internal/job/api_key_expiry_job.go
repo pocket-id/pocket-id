@@ -26,7 +26,6 @@ func RegisterApiKeyExpiryJob(ctx context.Context, apiKeyService *service.ApiKeyS
 
 	registerJob(ctx, scheduler, "ExpiredApiKeyEmailJob", "0 0 * * *", jobs.checkAndNotifyExpiringApiKeys)
 
-	// Start the scheduler before running the first check
 	scheduler.Start()
 }
 
@@ -34,7 +33,7 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 
 	apiKeys, err := j.apiKeyService.ListExpiringApiKeys(ctx, 7)
 	if err != nil {
-		log.Printf("ExpiredApiKeyEmailJob: query failed: %v", err)
+		log.Printf("Failed to list expiring API keys: %v", err)
 		return err
 	}
 
