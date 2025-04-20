@@ -395,7 +395,7 @@ jobs:
           -e LDAP_ATTRIBUTE_GROUP_MEMBER="member" \
           -e LDAP_ATTRIBUTE_ADMIN_GROUP="admingroup" \
           -e LDAP_SOFT_DELETE_USERS=true \
-          pocket-id/pocket-id:test
+          pocket-id:test
 
           docker logs -f pocket-id-ldap &> /tmp/backend.log &
 
