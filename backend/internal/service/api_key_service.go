@@ -125,13 +125,10 @@ func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) 
 	now := time.Now()
 	cutoff := now.AddDate(0, 0, daysAhead)
 
-	nowDT := datatype.DateTime(now)
-	cutoffDT := datatype.DateTime(cutoff)
-
 	err := s.db.
 		WithContext(ctx).
 		Preload("User").
-		Where("expires_at > ? AND expires_at <= ? AND expiration_email_sent = ?", nowDT, cutoffDT, false).
+		Where("expires_at > ? AND expires_at <= ? AND expiration_email_sent = ?", datatype.DateTime(now), datatype.DateTime(cutoff), false).
 		Find(&keys).
 		Error
 
@@ -147,15 +144,13 @@ func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey 
 		}
 	}
 
-	name := user.FirstName
-
 	err := SendEmail(ctx, s.emailService, email.Address{
-		Name:  name,
+		Name:  user.FullName(),
 		Email: user.Email,
 	}, ApiKeyExpiringSoonTemplate, &ApiKeyExpiringSoonTemplateData{
 		ApiKeyName: apiKey.Name,
 		ExpiresAt:  apiKey.ExpiresAt.ToTime(),
-		Name:       name,
+		Name:       user.FirstName,
 	})
 	if err != nil {
 		return err
