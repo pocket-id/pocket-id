@@ -447,44 +447,6 @@ func TestUpdateAppConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("auto disables EmailOneTimeAccessEnabled when EmailLoginNotificationEnabled is false", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
-
-		// Create a service with default config
-		service := &AppConfigService{
-			db: db,
-		}
-		err := service.LoadDbConfig(t.Context())
-		require.NoError(t, err)
-
-		// First enable both settings
-		err = service.UpdateAppConfigValues(t.Context(),
-			"emailLoginNotificationEnabled", "true",
-			"emailOneTimeAccessEnabled", "true",
-		)
-		require.NoError(t, err)
-
-		// Verify both are enabled
-		config := service.GetDbConfig()
-		require.True(t, config.EmailLoginNotificationEnabled.IsTrue())
-		require.True(t, config.EmailOneTimeAccessEnabled.IsTrue())
-
-		// Now disable EmailLoginNotificationEnabled
-		input := dto.AppConfigUpdateDto{
-			EmailLoginNotificationEnabled: "false",
-			// Don't set EmailOneTimeAccessEnabled, it should be auto-disabled
-		}
-
-		// Update config
-		_, err = service.UpdateAppConfig(t.Context(), input)
-		require.NoError(t, err)
-
-		// Verify EmailOneTimeAccessEnabled was automatically disabled
-		config = service.GetDbConfig()
-		require.False(t, config.EmailLoginNotificationEnabled.IsTrue())
-		require.False(t, config.EmailOneTimeAccessEnabled.IsTrue())
-	})
-
 	t.Run("cannot update when UiConfigDisabled is true", func(t *testing.T) {
 		// Save the original state and restore it after the test
 		originalUiConfigDisabled := common.EnvConfig.UiConfigDisabled

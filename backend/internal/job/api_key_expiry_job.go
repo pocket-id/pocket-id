@@ -30,6 +30,10 @@ func RegisterApiKeyExpiryJob(ctx context.Context, apiKeyService *service.ApiKeyS
 }
 
 func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) error {
+	// Skip if the feature is disabled
+	if !j.appConfigService.GetDbConfig().EmailApiKeyExpirationEnabled.IsTrue() {
+		return nil
+	}
 
 	apiKeys, err := j.apiKeyService.ListExpiringApiKeys(ctx, 7)
 	if err != nil {

@@ -32,9 +32,13 @@ type OneTimeAccessTokenCreateDto struct {
 	ExpiresAt time.Time `json:"expiresAt" binding:"required"`
 }
 
-type OneTimeAccessEmailDto struct {
+type OneTimeAccessEmailAsUnauthenticatedUserDto struct {
 	Email        string `json:"email" binding:"required,email"`
 	RedirectPath string `json:"redirectPath"`
+}
+
+type OneTimeAccessEmailAsAdminDto struct {
+	ExpiresAt time.Time `json:"expiresAt" binding:"required"`
 }
 
 type UserUpdateUserGroupDto struct {
