@@ -327,6 +327,8 @@ jobs:
 
       - name: Install LLDAP CLI tools
         run: |
+          echo 'deb http://download.opensuse.org/repositories/home:/Masgalor:/LLDAP/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/home:Masgalor:LLDAP.list
+          curl -fsSL https://download.opensuse.org/repositories/home:Masgalor:LLDAP/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home_Masgalor_LLDAP.gpg > /dev/null
           sudo apt-get update
           sudo apt-get install -y lldap-cli lldap-set-password
 
