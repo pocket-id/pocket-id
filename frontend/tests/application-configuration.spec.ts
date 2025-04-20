@@ -32,7 +32,8 @@ test('Update email configuration', async ({ page }) => {
 	await page.getByLabel('SMTP Password').fill('password');
 	await page.getByLabel('SMTP From').fill('test@gmail.com');
 	await page.getByLabel('Email Login Notification').click();
-	await page.getByLabel('Email Login', { exact: true }).click();
+	await page.getByLabel('Email Login Code Requested by User').click();
+	await page.getByLabel('Email Login Code from Admin').click();
 
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
@@ -46,7 +47,8 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('SMTP Password')).toHaveValue('password');
 	await expect(page.getByLabel('SMTP From')).toHaveValue('test@gmail.com');
 	await expect(page.getByLabel('Email Login Notification')).toBeChecked();
-	await expect(page.getByLabel('Email Login', { exact: true })).toBeChecked();
+	await expect(page.getByLabel('Email Login Code Requested by User')).toBeChecked();
+	await expect(page.getByLabel('Email Login Code from Admin')).toBeChecked();
 });
 
 test('Update LDAP configuration', async ({ page }) => {
