@@ -146,6 +146,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
+      - name: Cache PostgreSQL Docker image
+        uses: actions/cache@v3
+        id: postgres-cache
+        with:
+          path: /tmp/postgres-image.tar
+          key: postgres-17-${{ runner.os }}
+
+      - name: Pull and save PostgreSQL image
+        if: steps.postgres-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull postgres:17
+          docker save postgres:17 > /tmp/postgres-image.tar
+
+      - name: Load PostgreSQL image from cache
+        if: steps.postgres-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/postgres-image.tar
+
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -204,7 +221,8 @@ jobs:
         working-directory: ./frontend
         run: npx playwright test
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Frontend Test Report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report-postgres
@@ -212,7 +230,8 @@ jobs:
           include-hidden-files: true
           retention-days: 15
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Backend Test Report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: backend-postgres

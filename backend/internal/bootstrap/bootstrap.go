@@ -8,7 +8,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
-// Test comment to force run of actions.
+// Test comment to force run of actions..
 
 func Bootstrap() {
 	ctx := context.TODO()
