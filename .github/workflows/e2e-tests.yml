@@ -176,3 +176,213 @@ jobs:
           path: /tmp/backend.log
           include-hidden-files: true
           retention-days: 15
+
+  test-ldap:
+    if: github.event.pull_request.head.ref != 'i18n_crowdin'
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        id: npm-cache
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Cache LLDAP Docker image
+        uses: actions/cache@v3
+        id: lldap-cache
+        with:
+          path: /tmp/lldap-image.tar
+          key: lldap-stable-${{ runner.os }}
+
+      - name: Pull and save LLDAP image
+        if: steps.lldap-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull nitnelave/lldap:stable
+          docker save nitnelave/lldap:stable > /tmp/lldap-image.tar
+
+      - name: Load LLDAP image from cache
+        if: steps.lldap-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/lldap-image.tar
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker Image
+        run: docker load -i /tmp/docker-image.tar
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci --prefer-offline --no-audit
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+
+      - name: Install Playwright Browsers
+        working-directory: ./frontend
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Create Docker network
+        run: docker network create pocket-id-network
+
+      - name: Start LLDAP Server
+        run: |
+          docker run -d --name lldap \
+          --network pocket-id-network \
+          -p 3890:3890 \
+          -p 17170:17170 \
+          -e LLDAP_JWT_SECRET=secret \
+          -e LLDAP_LDAP_USER_PASS=admin_password \
+          -e LLDAP_LDAP_BASE_DN="dc=pocket-id,dc=org" \
+          nitnelave/lldap:stable
+
+      - name: Wait for LLDAP to start
+        run: |
+          for i in {1..15}; do
+            if curl -s --fail http://localhost:17170/api/healthcheck > /dev/null; then
+              echo "LLDAP is ready"
+              break
+            fi
+            if [ $i -eq 15 ]; then
+              echo "LLDAP failed to start in time"
+              exit 1
+            fi
+            echo "Waiting for LLDAP... ($i/15)"
+            sleep 3
+          done
+
+      - name: Setup test users in LLDAP
+        run: |
+          # Create authentication token
+          TOKEN=$(curl -s -X POST http://localhost:17170/auth \
+            -H "Content-Type: application/json" \
+            -d '{"user_id":"admin","password":"admin_password"}' | jq -r .token)
+
+          # Create test users
+          curl -s -X POST http://localhost:17170/api/users \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "id": "testuser1",
+              "display_name": "Test User 1",
+              "first_name": "Test",
+              "last_name": "User",
+              "email": "testuser1@pocket-id.org",
+              "password": "password123"
+            }'
+
+          curl -s -X POST http://localhost:17170/api/users \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "id": "testuser2",
+              "display_name": "Test User 2",
+              "first_name": "Test2",
+              "last_name": "User2",
+              "email": "testuser2@pocket-id.org",
+              "password": "password123"
+            }'
+
+          # Create test groups
+          curl -s -X POST http://localhost:17170/api/groups \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "display_name": "Test Group",
+              "name": "testgroup"
+            }'
+
+          curl -s -X POST http://localhost:17170/api/groups \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "display_name": "Admin Group",
+              "name": "admingroup"
+            }'
+
+          # Add users to groups
+          curl -s -X PUT http://localhost:17170/api/groups/testgroup/members/testuser1 \
+            -H "Authorization: Bearer $TOKEN"
+
+          curl -s -X PUT http://localhost:17170/api/groups/admingroup/members/testuser2 \
+            -H "Authorization: Bearer $TOKEN"
+
+          echo "LLDAP test data setup complete"
+
+      - name: Run Docker Container with LDAP integration
+        run: |
+          docker run -d --name pocket-id-ldap \
+          --network pocket-id-network \
+          -p 80:80 \
+          -e APP_ENV=test \
+          -e LDAP_ENABLED=true \
+          -e LDAP_URL=ldap://lldap:3890 \
+          -e LDAP_BIND_DN="cn=admin,dc=pocket-id,dc=org" \
+          -e LDAP_BIND_PASSWORD=admin_password \
+          -e LDAP_BASE="dc=example,dc=com" \
+          -e LDAP_USER_SEARCH_FILTER="(objectClass=person)" \
+          -e LDAP_USER_GROUP_SEARCH_FILTER="(objectClass=groupOfNames)" \
+          -e LDAP_SKIP_CERT_VERIFY=true \
+          -e LDAP_ATTRIBUTE_USER_UNIQUE_IDENTIFIER="uid" \
+          -e LDAP_ATTRIBUTE_USER_USERNAME="uid" \
+          -e LDAP_ATTRIBUTE_USER_EMAIL="mail" \
+          -e LDAP_ATTRIBUTE_USER_FIRST_NAME="givenName" \
+          -e LDAP_ATTRIBUTE_USER_LAST_NAME="sn" \
+          -e LDAP_ATTRIBUTE_GROUP_UNIQUE_IDENTIFIER="cn" \
+          -e LDAP_ATTRIBUTE_GROUP_NAME="cn" \
+          -e LDAP_ATTRIBUTE_GROUP_MEMBER="member" \
+          -e LDAP_ATTRIBUTE_ADMIN_GROUP="admingroup" \
+          -e LDAP_SOFT_DELETE_USERS=true \
+          pocket-id/pocket-id:test
+
+          docker logs -f pocket-id-ldap &> /tmp/backend.log &
+
+      - name: Wait for backend to sync LDAP data
+        run: sleep 10
+
+      - name: Run Playwright tests
+        working-directory: ./frontend
+        run: npx playwright test tests/ldap
+
+      - name: Upload Frontend Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-ldap
+          path: frontend/tests/.report
+          include-hidden-files: true
+          retention-days: 15
+
+      - name: Upload Backend Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-ldap
+          path: /tmp/backend.log
+          include-hidden-files: true
+          retention-days: 15
