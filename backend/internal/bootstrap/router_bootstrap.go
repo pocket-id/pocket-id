@@ -18,7 +18,7 @@ import (
 )
 
 // This is used to register additional controllers for tests
-var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, appConfigService *service.AppConfigService, jwtService *service.JwtService)
+var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, appConfigService *service.AppConfigService, jwtService *service.JwtService, ldapService *service.LdapService)
 
 func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppConfigService) {
 	// Set the appropriate Gin mode based on the environment
@@ -81,7 +81,7 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	// Add test controller in non-production environments
 	if common.EnvConfig.AppEnv != "production" {
 		for _, f := range registerTestControllers {
-			f(apiGroup, db, appConfigService, jwtService)
+			f(apiGroup, db, appConfigService, jwtService, ldapService)
 		}
 	}
 

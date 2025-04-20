@@ -1,4 +1,7 @@
 import test, { expect } from '@playwright/test';
+import { cleanupBackend } from './utils/cleanup.util';
+
+test.beforeEach(cleanupBackend);
 
 test.describe('LDAP Integration', () => {
 	test('LDAP configuration is working properly', async ({ page }) => {

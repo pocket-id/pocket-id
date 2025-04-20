@@ -124,25 +124,6 @@ jobs:
           --network pocket-id-network \
           -p 80:80 \
           -e APP_ENV=test \
-          -e PUBLIC_UI_CONFIG_DISABLED=true \
-          -e LDAP_ENABLED=true \
-          -e LDAP_URL=ldap://lldap:3890 \
-          -e LDAP_BIND_DN="cn=admin,dc=pocket-id,dc=org" \
-          -e LDAP_BIND_PASSWORD=admin_password \
-          -e LDAP_BASE="dc=pocket-id,dc=org" \
-          -e LDAP_USER_SEARCH_FILTER="(objectClass=person)" \
-          -e LDAP_USER_GROUP_SEARCH_FILTER="(objectClass=groupOfNames)" \
-          -e LDAP_SKIP_CERT_VERIFY=true \
-          -e LDAP_ATTRIBUTE_USER_UNIQUE_IDENTIFIER="uid" \
-          -e LDAP_ATTRIBUTE_USER_USERNAME="uid" \
-          -e LDAP_ATTRIBUTE_USER_EMAIL="mail" \
-          -e LDAP_ATTRIBUTE_USER_FIRST_NAME="givenName" \
-          -e LDAP_ATTRIBUTE_USER_LAST_NAME="sn" \
-          -e LDAP_ATTRIBUTE_GROUP_UNIQUE_IDENTIFIER="cn" \
-          -e LDAP_ATTRIBUTE_GROUP_NAME="cn" \
-          -e LDAP_ATTRIBUTE_GROUP_MEMBER="member" \
-          -e LDAP_ATTRIBUTE_ADMIN_GROUP="admingroup" \
-          -e LDAP_SOFT_DELETE_USERS=true \
           pocket-id:test
 
           docker logs -f pocket-id-sqlite &> /tmp/backend.log &
@@ -294,25 +275,6 @@ jobs:
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
           -e DB_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
-          -e PUBLIC_UI_CONFIG_DISABLED=true \
-          -e LDAP_ENABLED=true \
-          -e LDAP_URL=ldap://lldap:3890 \
-          -e LDAP_BIND_DN="cn=admin,dc=pocket-id,dc=org" \
-          -e LDAP_BIND_PASSWORD=admin_password \
-          -e LDAP_BASE="dc=pocket-id,dc=org" \
-          -e LDAP_USER_SEARCH_FILTER="(objectClass=person)" \
-          -e LDAP_USER_GROUP_SEARCH_FILTER="(objectClass=groupOfNames)" \
-          -e LDAP_SKIP_CERT_VERIFY=true \
-          -e LDAP_ATTRIBUTE_USER_UNIQUE_IDENTIFIER="uid" \
-          -e LDAP_ATTRIBUTE_USER_USERNAME="uid" \
-          -e LDAP_ATTRIBUTE_USER_EMAIL="mail" \
-          -e LDAP_ATTRIBUTE_USER_FIRST_NAME="givenName" \
-          -e LDAP_ATTRIBUTE_USER_LAST_NAME="sn" \
-          -e LDAP_ATTRIBUTE_GROUP_UNIQUE_IDENTIFIER="cn" \
-          -e LDAP_ATTRIBUTE_GROUP_NAME="cn" \
-          -e LDAP_ATTRIBUTE_GROUP_MEMBER="member" \
-          -e LDAP_ATTRIBUTE_ADMIN_GROUP="admingroup" \
-          -e LDAP_SOFT_DELETE_USERS=true \
           pocket-id:test
 
           docker logs -f pocket-id-postgres &> /tmp/backend.log &

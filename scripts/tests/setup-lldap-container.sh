@@ -3,9 +3,6 @@ set -e
 
 echo "Setting up LLDAP container..."
 
-# Create network if needed (will fail gracefully if exists)
-docker network create pocket-id-network || true
-
 # Run LLDAP container
 docker run -d --name lldap \
   --network pocket-id-network \

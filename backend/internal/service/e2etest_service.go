@@ -29,10 +29,11 @@ type TestService struct {
 	db               *gorm.DB
 	jwtService       *JwtService
 	appConfigService *AppConfigService
+	ldapService      *LdapService
 }
 
-func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService) *TestService {
-	return &TestService{db: db, appConfigService: appConfigService, jwtService: jwtService}
+func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService) *TestService {
+	return &TestService{db: db, appConfigService: appConfigService, jwtService: jwtService, ldapService: ldapService}
 }
 
 //nolint:gocognit
@@ -236,6 +237,45 @@ func (s *TestService) SeedDatabase() error {
 			return err
 		}
 
+		ldapEnabled := model.AppConfigVariable{
+			Key:   "ldap_enabled",
+			Value: "true",
+		}
+
+		if err := tx.Where("key = ?", ldapEnabled.Key).
+			Assign(model.AppConfigVariable{Value: ldapEnabled.Value}).
+			FirstOrCreate(&ldapEnabled).Error; err != nil {
+			return err
+		}
+
+		ldapConfig := []model.AppConfigVariable{
+			{Key: "ldap_url", Value: "ldap://lldap:3890"},
+			{Key: "ldap_bind_dn", Value: "cn=admin,dc=pocket-id,dc=org"},
+			{Key: "ldap_bind_password", Value: "admin_password"},
+			{Key: "ldap_base", Value: "dc=pocket-id,dc=org"},
+			{Key: "ldap_user_search_filter", Value: "(objectClass=person)"},
+			{Key: "ldap_user_group_search_filter", Value: "(objectClass=groupOfNames)"},
+			{Key: "ldap_skip_cert_verify", Value: "true"},
+			{Key: "ldap_attribute_user_unique_identifier", Value: "uid"},
+			{Key: "ldap_attribute_user_username", Value: "uid"},
+			{Key: "ldap_attribute_user_email", Value: "mail"},
+			{Key: "ldap_attribute_user_first_name", Value: "givenName"},
+			{Key: "ldap_attribute_user_last_name", Value: "sn"},
+			{Key: "ldap_attribute_group_unique_identifier", Value: "cn"},
+			{Key: "ldap_attribute_group_name", Value: "cn"},
+			{Key: "ldap_attribute_group_member", Value: "member"},
+			{Key: "ldap_attribute_admin_group", Value: "admin_group"},
+			{Key: "ldap_soft_delete_users", Value: "true"},
+		}
+
+		for _, config := range ldapConfig {
+			if err := tx.Where("key = ?", config.Key).
+				Assign(model.AppConfigVariable{Value: config.Value}).
+				FirstOrCreate(&config).Error; err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 }
@@ -348,4 +388,15 @@ func (s *TestService) getCborPublicKey(base64PublicKey string) ([]byte, error) {
 	}
 
 	return cborPublicKey, nil
+}
+
+// SyncLdap triggers an LDAP synchronization
+func (s *TestService) SyncLdap(ctx context.Context) error {
+	// Reload app config to ensure we have the latest LDAP settings
+	if err := s.appConfigService.LoadDbConfig(ctx); err != nil {
+		return err
+	}
+
+	// Perform LDAP sync
+	return s.ldapService.SyncAll(ctx)
 }
