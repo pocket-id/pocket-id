@@ -237,17 +237,6 @@ func (s *TestService) SeedDatabase() error {
 			return err
 		}
 
-		ldapEnabled := model.AppConfigVariable{
-			Key:   "ldap_enabled",
-			Value: "true",
-		}
-
-		if err := tx.Where("key = ?", ldapEnabled.Key).
-			Assign(model.AppConfigVariable{Value: ldapEnabled.Value}).
-			FirstOrCreate(&ldapEnabled).Error; err != nil {
-			return err
-		}
-
 		ldapConfig := []model.AppConfigVariable{
 			{Key: "ldap_url", Value: "ldap://lldap:3890"},
 			{Key: "ldap_bind_dn", Value: "cn=admin,dc=pocket-id,dc=org"},
@@ -274,6 +263,17 @@ func (s *TestService) SeedDatabase() error {
 				FirstOrCreate(&config).Error; err != nil {
 				return err
 			}
+		}
+
+		ldapEnabled := model.AppConfigVariable{
+			Key:   "ldap_enabled",
+			Value: "true",
+		}
+
+		if err := tx.Where("key = ?", ldapEnabled.Key).
+			Assign(model.AppConfigVariable{Value: ldapEnabled.Value}).
+			FirstOrCreate(&ldapEnabled).Error; err != nil {
+			return err
 		}
 
 		return nil
