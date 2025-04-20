@@ -93,6 +93,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		LdapAttributeGroupUniqueIdentifier: model.AppConfigVariable{},
 		LdapAttributeGroupName:             model.AppConfigVariable{},
 		LdapAttributeAdminGroup:            model.AppConfigVariable{},
+		LdapSoftDeleteUsers:                model.AppConfigVariable{Value: "true"},
 	}
 }
 

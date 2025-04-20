@@ -18,12 +18,12 @@
 		'it-IT': 'Italiano'
 	};
 
-	function updateLocale(locale: Locale) {
-		setLocale(locale);
-		userService.updateCurrent({
+	async function updateLocale(locale: Locale) {
+		await userService.updateCurrent({
 			...$userStore!,
 			locale
 		});
+		setLocale(locale);
 	}
 </script>
 

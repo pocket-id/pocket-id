@@ -42,6 +42,7 @@ type AppConfigUpdateDto struct {
 	LdapAttributeGroupUniqueIdentifier string `json:"ldapAttributeGroupUniqueIdentifier"`
 	LdapAttributeGroupName             string `json:"ldapAttributeGroupName"`
 	LdapAttributeAdminGroup            string `json:"ldapAttributeAdminGroup"`
+	LdapSoftDeleteUsers                string `json:"ldapSoftDeleteUsers"`
 	EmailOneTimeAccessEnabled          string `json:"emailOneTimeAccessEnabled" binding:"required"`
 	EmailLoginNotificationEnabled      string `json:"emailLoginNotificationEnabled" binding:"required"`
 }

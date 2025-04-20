@@ -19,11 +19,12 @@ type AuthOptions struct {
 
 func NewAuthMiddleware(
 	apiKeyService *service.ApiKeyService,
+	userService *service.UserService,
 	jwtService *service.JwtService,
 ) *AuthMiddleware {
 	return &AuthMiddleware{
 		apiKeyMiddleware: NewApiKeyAuthMiddleware(apiKeyService, jwtService),
-		jwtMiddleware:    NewJwtAuthMiddleware(jwtService),
+		jwtMiddleware:    NewJwtAuthMiddleware(jwtService, userService),
 		options: AuthOptions{
 			AdminRequired:   true,
 			SuccessOptional: false,
@@ -57,12 +58,13 @@ func (m *AuthMiddleware) WithSuccessOptional() *AuthMiddleware {
 
 func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// First try JWT auth
 		userID, isAdmin, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
 		if err == nil {
-			// JWT auth succeeded, continue with the request
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
+			if c.IsAborted() {
+				return
+			}
 			c.Next()
 			return
 		}
@@ -70,9 +72,11 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 		// JWT auth failed, try API key auth
 		userID, isAdmin, err = m.apiKeyMiddleware.Verify(c, m.options.AdminRequired)
 		if err == nil {
-			// API key auth succeeded, continue with the request
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
+			if c.IsAborted() {
+				return
+			}
 			c.Next()
 			return
 		}

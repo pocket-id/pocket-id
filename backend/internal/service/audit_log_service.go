@@ -164,8 +164,8 @@ func (s *AuditLogService) ListUsernamesWithIds(ctx context.Context) (users map[s
 		WithContext(ctx).
 		Joins("User").
 		Model(&model.AuditLog{}).
-		Select("DISTINCT User.id, User.username").
-		Where("User.username IS NOT NULL")
+		Select("DISTINCT \"User\".id, \"User\".username").
+		Where("\"User\".username IS NOT NULL")
 
 	type Result struct {
 		ID       string `gorm:"column:id"`
