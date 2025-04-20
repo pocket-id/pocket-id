@@ -325,12 +325,35 @@ jobs:
             sleep 3
           done
 
+      - name: Cache APT packages
+        uses: actions/cache@v3
+        id: apt-cache
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-lldap-cli-${{ hashFiles('.github/workflows/e2e-tests.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-lldap-cli-
+
       - name: Install LLDAP CLI tools
         run: |
-          echo 'deb http://download.opensuse.org/repositories/home:/Masgalor:/LLDAP/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/home:Masgalor:LLDAP.list
-          curl -fsSL https://download.opensuse.org/repositories/home:Masgalor:LLDAP/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home_Masgalor_LLDAP.gpg > /dev/null
+          # Add repository only if needed (if cache miss)
+          if [ "${{ steps.apt-cache.outputs.cache-hit }}" != 'true' ]; then
+            echo 'deb http://download.opensuse.org/repositories/home:/Masgalor:/LLDAP/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/home:Masgalor:LLDAP.list
+            curl -fsSL https://download.opensuse.org/repositories/home:Masgalor:LLDAP/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home_Masgalor_LLDAP.gpg > /dev/null
+          fi
+
+          # Configure apt to keep packages
+          sudo cp /etc/apt/apt.conf.d/80-retries /tmp/80-retries || echo "No retries configuration found"
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | sudo tee /etc/apt/apt.conf.d/80-keep-downloads
+
+          # Update and install
           sudo apt-get update
           sudo apt-get install -y lldap-cli lldap-set-password
+
+          # Restore original apt configuration if needed
+          if [ -f /tmp/80-retries ]; then
+            sudo mv /tmp/80-retries /etc/apt/apt.conf.d/80-retries
+          fi
 
       - name: Setup test users in LLDAP
         run: |
@@ -354,10 +377,10 @@ jobs:
 
           # Create test groups
           lldap-cli group add "testgroup"
-          lldap-cli group update set "testgroup" "displayName" "Test Group"
+          lldap-cli group update set "testgroup" "display_name" "Test Group"
 
           lldap-cli group add "admingroup"
-          lldap-cli group update set "admingroup" "displayName" "Admin Group"
+          lldap-cli group update set "admingroup" "display_name" "Admin Group"
 
           # Add users to groups
           lldap-cli user group add "testuser1" "testgroup"
@@ -381,7 +404,7 @@ jobs:
           -e LDAP_URL=ldap://lldap:3890 \
           -e LDAP_BIND_DN="cn=admin,dc=pocket-id,dc=org" \
           -e LDAP_BIND_PASSWORD=admin_password \
-          -e LDAP_BASE="dc=example,dc=com" \
+          -e LDAP_BASE="dc=pocket-id,dc=org" \
           -e LDAP_USER_SEARCH_FILTER="(objectClass=person)" \
           -e LDAP_USER_GROUP_SEARCH_FILTER="(objectClass=groupOfNames)" \
           -e LDAP_SKIP_CERT_VERIFY=true \
