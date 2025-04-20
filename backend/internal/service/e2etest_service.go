@@ -38,7 +38,8 @@ func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService 
 
 //nolint:gocognit
 func (s *TestService) SeedDatabase() error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	// First create all your seed data that needs to be in a transaction
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		users := []model.User{
 			{
 				Base: model.Base{
@@ -237,47 +238,50 @@ func (s *TestService) SeedDatabase() error {
 			return err
 		}
 
-		// Instead of direct database updates, use the AppConfigService
-		// First create a context since we'll need it for the updates
-		ctx := context.Background()
-
-		// Update LDAP config variables using the service
-		ldapConfigs := map[string]string{
-			"ldap_url":                               "ldap://lldap:3890",
-			"ldap_bind_dn":                           "cn=admin,dc=pocket-id,dc=org",
-			"ldap_bind_password":                     "admin_password",
-			"ldap_base":                              "dc=pocket-id,dc=org",
-			"ldap_user_search_filter":                "(objectClass=person)",
-			"ldap_user_group_search_filter":          "(objectClass=groupOfNames)",
-			"ldap_skip_cert_verify":                  "true",
-			"ldap_attribute_user_unique_identifier":  "uid",
-			"ldap_attribute_user_username":           "uid",
-			"ldap_attribute_user_email":              "mail",
-			"ldap_attribute_user_first_name":         "givenName",
-			"ldap_attribute_user_last_name":          "sn",
-			"ldap_attribute_group_unique_identifier": "cn",
-			"ldap_attribute_group_name":              "cn",
-			"ldap_attribute_group_member":            "member",
-			"ldap_attribute_admin_group":             "admin_group",
-			"ldap_soft_delete_users":                 "true",
-			"ldap_enabled":                           "true",
-		}
-
-		// Convert map to flat key-value array for UpdateAppConfigValues
-		keysAndValues := make([]string, 0, len(ldapConfigs)*2+2)
-		for key, value := range ldapConfigs {
-			keysAndValues = append(keysAndValues, key, value)
-		}
-
-		// Update all config in one go
-		err := s.appConfigService.UpdateAppConfigValues(ctx, keysAndValues...)
-		if err != nil {
-			return fmt.Errorf("failed to update LDAP config: %w", err)
-		}
-
-		// Return nil to commit the transaction
 		return nil
 	})
+
+	if err != nil {
+		return err
+	}
+
+	// After the transaction completes, update the app config separately
+	ctx := context.Background()
+
+	// Update LDAP config variables using the service
+	ldapConfigs := map[string]string{
+		"ldap_url":                               "ldap://lldap:3890",
+		"ldap_bind_dn":                           "cn=admin,dc=pocket-id,dc=org",
+		"ldap_bind_password":                     "admin_password",
+		"ldap_base":                              "dc=pocket-id,dc=org",
+		"ldap_user_search_filter":                "(objectClass=person)",
+		"ldap_user_group_search_filter":          "(objectClass=groupOfNames)",
+		"ldap_skip_cert_verify":                  "true",
+		"ldap_attribute_user_unique_identifier":  "uid",
+		"ldap_attribute_user_username":           "uid",
+		"ldap_attribute_user_email":              "mail",
+		"ldap_attribute_user_first_name":         "givenName",
+		"ldap_attribute_user_last_name":          "sn",
+		"ldap_attribute_group_unique_identifier": "cn",
+		"ldap_attribute_group_name":              "cn",
+		"ldap_attribute_group_member":            "member",
+		"ldap_attribute_admin_group":             "admin_group",
+		"ldap_soft_delete_users":                 "true",
+		"ldap_enabled":                           "true",
+	}
+
+	// Convert map to flat key-value array for UpdateAppConfigValues
+	keysAndValues := make([]string, 0, len(ldapConfigs)*2)
+	for key, value := range ldapConfigs {
+		keysAndValues = append(keysAndValues, key, value)
+	}
+
+	// Update all config in one go outside the transaction
+	if err := s.appConfigService.UpdateAppConfigValues(ctx, keysAndValues...); err != nil {
+		return fmt.Errorf("failed to update LDAP config: %w", err)
+	}
+
+	return nil
 }
 
 func (s *TestService) ResetDatabase() error {
