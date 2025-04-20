@@ -19,21 +19,39 @@ jobs:
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and export
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          tags: pocket-id/pocket-id:test
-          outputs: type=docker,dest=/tmp/docker-image.tar
+          push: true
+          tags: ghcr.io/${{ github.repository }}/pocket-id:test
           build-args: BUILD_TAGS=e2etest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
-      - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp/docker-image.tar
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
   test-sqlite:
     if: github.event.pull_request.head.ref != 'i18n_crowdin'
@@ -47,14 +65,24 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v4
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v3
+        id: playwright-cache
         with:
-          name: docker-image
-          path: /tmp
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
-      - name: Load Docker Image
-        run: docker load -i /tmp/docker-image.tar
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Docker image
+        run: docker pull ghcr.io/${{ github.repository }}/pocket-id:test
 
       - name: Install frontend dependencies
         working-directory: ./frontend
@@ -62,6 +90,7 @@ jobs:
 
       - name: Install Playwright Browsers
         working-directory: ./frontend
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run Docker Container with Sqlite DB
@@ -69,7 +98,7 @@ jobs:
           docker run -d --name pocket-id-sqlite \
           -p 80:80 \
           -e APP_ENV=test \
-          pocket-id/pocket-id:test
+          ghcr.io/${{ github.repository }}/pocket-id:test
 
           docker logs -f pocket-id-sqlite &> /tmp/backend.log &
 
@@ -105,13 +134,24 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v4
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v3
+        id: playwright-cache
         with:
-          name: docker-image
-          path: /tmp
-      - name: Load Docker Image
-        run: docker load -i /tmp/docker-image.tar
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Docker image
+        run: docker pull ghcr.io/${{ github.repository }}/pocket-id:test
 
       - name: Install frontend dependencies
         working-directory: ./frontend
@@ -119,6 +159,7 @@ jobs:
 
       - name: Install Playwright Browsers
         working-directory: ./frontend
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Create Docker network
@@ -153,7 +194,7 @@ jobs:
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
           -e DB_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
-          pocket-id/pocket-id:test
+          ghcr.io/${{ github.repository }}/pocket-id:test
 
           docker logs -f pocket-id-postgres &> /tmp/backend.log &
 
@@ -162,7 +203,7 @@ jobs:
         run: npx playwright test
 
       - uses: actions/upload-artifact@v4
-        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
+        if: always()
         with:
           name: playwright-report-postgres
           path: frontend/tests/.report
