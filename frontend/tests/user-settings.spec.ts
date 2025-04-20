@@ -64,7 +64,7 @@ test('Create one time access token', async ({ page, context }) => {
 
 	await page.getByLabel('Login Code').getByRole('combobox').click();
 	await page.getByRole('option', { name: '12 hours' }).click();
-	await page.getByRole('button', { name: 'Generate Code' }).click();
+	await page.getByRole('button', { name: 'Show Code' }).click();
 
 	const link = await page.getByTestId('login-code-link').textContent();
 	await context.clearCookies();

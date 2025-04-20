@@ -17,7 +17,7 @@
 		}
 	];
 
-	if ($appConfigStore.emailOneTimeAccessEnabled) {
+	if ($appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled) {
 		methods.push({
 			icon: LucideMail,
 			title: m.email_login(),

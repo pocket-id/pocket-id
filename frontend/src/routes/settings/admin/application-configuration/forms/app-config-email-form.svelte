@@ -39,8 +39,10 @@
 		smtpFrom: z.string().email(),
 		smtpTls: z.enum(['none', 'starttls', 'tls']),
 		smtpSkipCertVerify: z.boolean(),
-		emailOneTimeAccessEnabled: z.boolean(),
-		emailLoginNotificationEnabled: z.boolean()
+		emailOneTimeAccessAsUnauthenticatedEnabled: z.boolean(),
+		emailOneTimeAccessAsAdminEnabled: z.boolean(),
+		emailLoginNotificationEnabled: z.boolean(),
+		emailApiKeyExpirationEnabled: z.boolean()
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, appConfig);
@@ -88,9 +90,7 @@
 		await appConfigService
 			.sendTestEmail()
 			.then(() => toast.success(m.test_email_sent_successfully()))
-			.catch(() =>
-				toast.error(m.failed_to_send_test_email())
-			)
+			.catch(() => toast.error(m.failed_to_send_test_email()))
 			.finally(() => (isSendingTestEmail = false));
 	}
 </script>
@@ -135,11 +135,24 @@
 				description={m.send_an_email_to_the_user_when_they_log_in_from_a_new_device()}
 				bind:checked={$inputs.emailLoginNotificationEnabled.value}
 			/>
+
 			<CheckboxWithLabel
-				id="email-login"
-				label={m.email_login()}
+				id="email-login-admin"
+				label={m.email_login_code_from_admin()}
+				description={m.allows_an_admin_to_send_a_login_code_to_the_user()}
+				bind:checked={$inputs.emailOneTimeAccessAsAdminEnabled.value}
+			/>
+			<CheckboxWithLabel
+				id="api-key-expiration"
+				label={m.api_key_expiration()}
+				description={m.send_an_email_to_the_user_when_their_api_key_is_about_to_expire()}
+				bind:checked={$inputs.emailApiKeyExpirationEnabled.value}
+			/>
+			<CheckboxWithLabel
+				id="email-login-user"
+				label={m.emai_login_code_requested_by_user()}
 				description={m.allow_users_to_sign_in_with_a_login_code_sent_to_their_email()}
-				bind:checked={$inputs.emailOneTimeAccessEnabled.value}
+				bind:checked={$inputs.emailOneTimeAccessAsUnauthenticatedEnabled.value}
 			/>
 		</div>
 	</fieldset>
