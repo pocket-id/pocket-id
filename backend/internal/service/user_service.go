@@ -38,14 +38,19 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 
 func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
 	var users []model.User
-	query := s.db.WithContext(ctx).Model(&model.User{})
+	query := s.db.WithContext(ctx).
+		Model(&model.User{}).
+		Preload("UserGroups").
+		Preload("CustomClaims")
 
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
-		query = query.Where("email LIKE ? OR first_name LIKE ? OR username LIKE ?", searchPattern, searchPattern, searchPattern)
+		query = query.Where("email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
 	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &users)
+
 	return users, pagination, err
 }
 
@@ -170,9 +175,28 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		return s.deleteUserInternal(ctx, userID, allowLdapDelete, tx)
-	})
+	tx := s.db.Begin()
+
+	var user model.User
+	if err := tx.WithContext(ctx).First(&user, "id = ?", userID).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Only soft-delete if user is LDAP and soft-delete is enabled and not allowing hard delete
+	if user.LdapID != nil && s.appConfigService.GetDbConfig().LdapSoftDeleteUsers.IsTrue() && !allowLdapDelete {
+		if !user.Disabled {
+			tx.Rollback()
+			return fmt.Errorf("LDAP user must be disabled before deletion")
+		}
+	}
+
+	// Otherwise, hard delete (local users or LDAP users when allowed)
+	if err := s.deleteUserInternal(ctx, userID, allowLdapDelete, tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit().Error
 }
 
 func (s *UserService) deleteUserInternal(ctx context.Context, userID string, allowLdapDelete bool, tx *gorm.DB) error {
@@ -187,8 +211,8 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 		return fmt.Errorf("failed to load user to delete: %w", err)
 	}
 
-	// Disallow deleting the user if it is an LDAP user and LDAP is enabled
-	if !allowLdapDelete && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	// Disallow deleting the user if it is an LDAP user, LDAP is enabled, and the user is not disabled
+	if !allowLdapDelete && !user.Disabled && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
 		return &common.LdapUserUpdateError{}
 	}
 
@@ -299,6 +323,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	user.Locale = updatedUser.Locale
 	if !updateOwnUser {
 		user.IsAdmin = updatedUser.IsAdmin
+		user.Disabled = updatedUser.Disabled
 	}
 
 	err = tx.
@@ -605,4 +630,12 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 	// It's okay if the file doesn't exist - just means there's no custom picture to delete
 
 	return nil
+}
+
+func (s *UserService) DisableUser(ctx context.Context, userID string, tx *gorm.DB) error {
+	return tx.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("disabled", true).
+		Error
 }

@@ -1,3 +1,19 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.47.0...v) (2025-04-18)
+
+
+### Features
+
+* add gif support for logo and background image ([56a8b5d](https://github.com/pocket-id/pocket-id/commit/56a8b5d0c02643f869b77cf8475ddf2f9473880b))
+* disable/enable users ([#437](https://github.com/pocket-id/pocket-id/issues/437)) ([c843a60](https://github.com/pocket-id/pocket-id/commit/c843a60131b813177b1e270c4f5d97613c700efa))
+
+
+### Bug Fixes
+
+* add "type" as reserved claim ([0111a58](https://github.com/pocket-id/pocket-id/commit/0111a58dac0342c5ac2fa25a050e8773810d2b0a))
+* callback URL doesn't get rejected if it starts with a different string ([f0dce41](https://github.com/pocket-id/pocket-id/commit/f0dce41fbc5649b3a8fe65de36ca20efa521b880))
+* profile picture empty for users without first or last name ([#449](https://github.com/pocket-id/pocket-id/issues/449)) ([5a6dfd9](https://github.com/pocket-id/pocket-id/commit/5a6dfd9e505f4c84e91b4b378b082fab10e8a8a8))
+* user querying fails on global audit log page with Postgres ([84f1d5c](https://github.com/pocket-id/pocket-id/commit/84f1d5c906ec3f9a74ad3d2f36526eea847af5dd))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.46.0...v) (2025-04-16)
 
 
