@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload Frontend Test Report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: playwright-report-sqlite
           path: frontend/tests/.report
@@ -118,7 +118,7 @@ jobs:
 
       - name: Upload Backend Test Report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: backend-sqlite
           path: /tmp/backend.log
@@ -223,7 +223,7 @@ jobs:
 
       - name: Upload Frontend Test Report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: playwright-report-postgres
           path: frontend/tests/.report
@@ -232,7 +232,7 @@ jobs:
 
       - name: Upload Backend Test Report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: backend-postgres
           path: /tmp/backend.log
