@@ -25,7 +25,7 @@
 </script>
 
 <div {...restProps}>
-	<FormInput {label}>
+	<FormInput {label} description={m.callback_url_description()}>
 		<div class="flex flex-col gap-y-2">
 			{#each callbackURLs as _, i}
 				<div class="flex gap-x-2">

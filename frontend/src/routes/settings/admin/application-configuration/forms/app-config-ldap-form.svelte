@@ -43,7 +43,8 @@
 		ldapAttributeGroupMember: appConfig.ldapAttributeGroupMember,
 		ldapAttributeGroupUniqueIdentifier: appConfig.ldapAttributeGroupUniqueIdentifier,
 		ldapAttributeGroupName: appConfig.ldapAttributeGroupName,
-		ldapAttributeAdminGroup: appConfig.ldapAttributeAdminGroup
+		ldapAttributeAdminGroup: appConfig.ldapAttributeAdminGroup,
+		ldapSoftDeleteUsers: appConfig.ldapSoftDeleteUsers || true
 	};
 
 	const formSchema = z.object({
@@ -63,7 +64,8 @@
 		ldapAttributeGroupMember: z.string(),
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
-		ldapAttributeAdminGroup: z.string()
+		ldapAttributeAdminGroup: z.string(),
+		ldapSoftDeleteUsers: z.boolean()
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, updatedAppConfig);
@@ -116,7 +118,11 @@
 				placeholder="cn=people,dc=example,dc=com"
 				bind:input={$inputs.ldapBindDn}
 			/>
-			<FormInput label={m.ldap_bind_password()} type="password" bind:input={$inputs.ldapBindPassword} />
+			<FormInput
+				label={m.ldap_bind_password()}
+				type="password"
+				bind:input={$inputs.ldapBindPassword}
+			/>
 			<FormInput
 				label={m.ldap_base_dn()}
 				placeholder="dc=example,dc=com"
@@ -139,6 +145,12 @@
 				label={m.skip_certificate_verification()}
 				description={m.this_can_be_useful_for_selfsigned_certificates()}
 				bind:checked={$inputs.ldapSkipCertVerify.value}
+			/>
+			<CheckboxWithLabel
+				id="ldap-soft-delete-users"
+				label={m.ldap_soft_delete_users()}
+				description={m.ldap_soft_delete_users_description()}
+				bind:checked={$inputs.ldapSoftDeleteUsers.value}
 			/>
 		</div>
 		<h4 class="mt-10 text-lg font-semibold">{m.attribute_mapping()}</h4>
@@ -203,7 +215,9 @@
 
 	<div class="mt-8 flex flex-wrap justify-end gap-3">
 		{#if ldapEnabled}
-			<Button variant="secondary" onclick={onDisable} disabled={uiConfigDisabled}>{m.disable()}</Button>
+			<Button variant="secondary" onclick={onDisable} disabled={uiConfigDisabled}
+				>{m.disable()}</Button
+			>
 			<Button variant="secondary" onclick={syncLdap} isLoading={ldapSyncing}>{m.sync_now()}</Button>
 			<Button type="submit" disabled={uiConfigDisabled}>{m.save()}</Button>
 		{:else}

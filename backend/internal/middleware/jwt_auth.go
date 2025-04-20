@@ -10,11 +10,12 @@ import (
 )
 
 type JwtAuthMiddleware struct {
-	jwtService *service.JwtService
+	userService *service.UserService
+	jwtService  *service.JwtService
 }
 
-func NewJwtAuthMiddleware(jwtService *service.JwtService) *JwtAuthMiddleware {
-	return &JwtAuthMiddleware{jwtService: jwtService}
+func NewJwtAuthMiddleware(jwtService *service.JwtService, userService *service.UserService) *JwtAuthMiddleware {
+	return &JwtAuthMiddleware{jwtService: jwtService, userService: userService}
 }
 
 func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
@@ -55,12 +56,16 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 		return
 	}
 
-	// Check if the user is an admin
-	isAdmin, err = service.GetIsAdmin(token)
+	user, err := m.userService.GetUser(c, subject)
 	if err != nil {
-		return "", false, &common.TokenInvalidError{}
+		return "", false, &common.NotSignedInError{}
 	}
-	if adminRequired && !isAdmin {
+
+	if user.Disabled {
+		return "", false, &common.UserDisabledError{}
+	}
+
+	if adminRequired && !user.IsAdmin {
 		return "", false, &common.MissingPermissionError{}
 	}
 

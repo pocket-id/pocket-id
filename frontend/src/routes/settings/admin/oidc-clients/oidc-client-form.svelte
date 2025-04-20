@@ -4,6 +4,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type {
 		OidcClient,
 		OidcClientCreate,
@@ -12,7 +13,6 @@
 	import { createForm } from '$lib/utils/form-util';
 	import { z } from 'zod';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let {
 		callback,
@@ -38,8 +38,8 @@
 
 	const formSchema = z.object({
 		name: z.string().min(2).max(50),
-		callbackURLs: z.array(z.string()).nonempty(),
-		logoutCallbackURLs: z.array(z.string()),
+		callbackURLs: z.array(z.string().nonempty()).nonempty(),
+		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean()
 	});
@@ -79,7 +79,7 @@
 </script>
 
 <form onsubmit={onSubmit}>
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-7 sm:flex-row">
+	<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
 		<FormInput label={m.name()} class="w-full" bind:input={$inputs.name} />
 		<div></div>
 		<OidcCallbackUrlInput
@@ -120,7 +120,7 @@
 					<img
 						class="m-auto max-h-full max-w-full object-contain"
 						src={logoDataURL}
-						alt={m.name_logo({name: $inputs.name.value})}
+						alt={m.name_logo({ name: $inputs.name.value })}
 					/>
 				</div>
 			{/if}

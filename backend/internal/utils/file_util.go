@@ -30,6 +30,8 @@ func GetImageMimeType(ext string) string {
 		return "image/svg+xml"
 	case "ico":
 		return "image/x-icon"
+	case "gif":
+		return "image/gif"
 	default:
 		return ""
 	}

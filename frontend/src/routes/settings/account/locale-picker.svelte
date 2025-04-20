@@ -14,15 +14,16 @@
 		'fr-FR': 'Français',
 		'nl-NL': 'Nederlands',
 		'pt-BR': 'Português brasileiro',
-		'ru-RU': 'Русский'
+		'ru-RU': 'Русский',
+		'it-IT': 'Italiano'
 	};
 
-	function updateLocale(locale: Locale) {
-		setLocale(locale);
-		userService.updateCurrent({
+	async function updateLocale(locale: Locale) {
+		await userService.updateCurrent({
 			...$userStore!,
 			locale
 		});
+		setLocale(locale);
 	}
 </script>
 

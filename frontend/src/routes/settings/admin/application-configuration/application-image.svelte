@@ -11,7 +11,7 @@
 		label,
 		image = $bindable(),
 		imageURL,
-		accept = 'image/png, image/jpeg, image/svg+xml',
+		accept = 'image/png, image/jpeg, image/svg+xml, image/gif',
 		forceColorScheme,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
