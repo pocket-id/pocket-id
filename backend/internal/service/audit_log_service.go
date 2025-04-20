@@ -90,7 +90,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 			}
 
 			innerErr = SendEmail(innerCtx, s.emailService, email.Address{
-				Name:  user.Username,
+				Name:  user.FullName(),
 				Email: user.Email,
 			}, NewLoginTemplate, &NewLoginTemplateData{
 				IPAddress: ipAddress,
@@ -164,8 +164,8 @@ func (s *AuditLogService) ListUsernamesWithIds(ctx context.Context) (users map[s
 		WithContext(ctx).
 		Joins("User").
 		Model(&model.AuditLog{}).
-		Select("DISTINCT User.id, User.username").
-		Where("User.username IS NOT NULL")
+		Select("DISTINCT \"User\".id, \"User\".username").
+		Where("\"User\".username IS NOT NULL")
 
 	type Result struct {
 		ID       string `gorm:"column:id"`

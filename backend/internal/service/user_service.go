@@ -410,7 +410,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 		}
 
 		errInternal := SendEmail(innerCtx, s.emailService, email.Address{
-			Name:  user.Username,
+			Name:  user.FullName(),
 			Email: user.Email,
 		}, OneTimeAccessTemplate, &OneTimeAccessTemplateData{
 			Code:              oneTimeAccessToken,
