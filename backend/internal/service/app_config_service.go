@@ -73,7 +73,9 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		SmtpTls:                       model.AppConfigVariable{Value: "none"},
 		SmtpSkipCertVerify:            model.AppConfigVariable{Value: "false"},
 		EmailLoginNotificationEnabled: model.AppConfigVariable{Value: "false"},
-		EmailOneTimeAccessEnabled:     model.AppConfigVariable{Value: "false"},
+		EmailOneTimeAccessAsUnauthenticatedEnabled: model.AppConfigVariable{Value: "false"},
+		EmailOneTimeAccessAsAdminEnabled:           model.AppConfigVariable{Value: "false"},
+		EmailApiKeyExpirationEnabled:               model.AppConfigVariable{Value: "false"},
 		// LDAP
 		LdapEnabled:                        model.AppConfigVariable{Value: "false"},
 		LdapUrl:                            model.AppConfigVariable{},
@@ -149,11 +151,6 @@ func (s *AppConfigService) updateAppConfigUpdateDatabase(ctx context.Context, tx
 func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, &common.UiConfigDisabledError{}
-	}
-
-	// If EmailLoginNotificationEnabled is set to false (explicitly), disable the EmailOneTimeAccessEnabled
-	if input.EmailLoginNotificationEnabled == "false" {
-		input.EmailOneTimeAccessEnabled = "false"
 	}
 
 	// Start the transaction

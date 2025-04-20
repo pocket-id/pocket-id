@@ -41,15 +41,17 @@ type AppConfig struct {
 	LogoLightImageType  AppConfigVariable `key:"logoLightImageType,internal"`  // Internal
 	LogoDarkImageType   AppConfigVariable `key:"logoDarkImageType,internal"`   // Internal
 	// Email
-	SmtpHost                      AppConfigVariable `key:"smtpHost"`
-	SmtpPort                      AppConfigVariable `key:"smtpPort"`
-	SmtpFrom                      AppConfigVariable `key:"smtpFrom"`
-	SmtpUser                      AppConfigVariable `key:"smtpUser"`
-	SmtpPassword                  AppConfigVariable `key:"smtpPassword"`
-	SmtpTls                       AppConfigVariable `key:"smtpTls"`
-	SmtpSkipCertVerify            AppConfigVariable `key:"smtpSkipCertVerify"`
-	EmailLoginNotificationEnabled AppConfigVariable `key:"emailLoginNotificationEnabled"`
-	EmailOneTimeAccessEnabled     AppConfigVariable `key:"emailOneTimeAccessEnabled,public"` // Public
+	SmtpHost                                   AppConfigVariable `key:"smtpHost"`
+	SmtpPort                                   AppConfigVariable `key:"smtpPort"`
+	SmtpFrom                                   AppConfigVariable `key:"smtpFrom"`
+	SmtpUser                                   AppConfigVariable `key:"smtpUser"`
+	SmtpPassword                               AppConfigVariable `key:"smtpPassword"`
+	SmtpTls                                    AppConfigVariable `key:"smtpTls"`
+	SmtpSkipCertVerify                         AppConfigVariable `key:"smtpSkipCertVerify"`
+	EmailLoginNotificationEnabled              AppConfigVariable `key:"emailLoginNotificationEnabled"`
+	EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigVariable `key:"emailOneTimeAccessAsUnauthenticatedEnabled,public"` // Public
+	EmailOneTimeAccessAsAdminEnabled           AppConfigVariable `key:"emailOneTimeAccessAsAdminEnabled,public"`           // Public
+	EmailApiKeyExpirationEnabled               AppConfigVariable `key:"emailApiKeyExpirationEnabled"`
 	// LDAP
 	LdapEnabled                        AppConfigVariable `key:"ldapEnabled,public"` // Public
 	LdapUrl                            AppConfigVariable `key:"ldapUrl"`
@@ -77,7 +79,7 @@ func (c *AppConfig) ToAppConfigVariableSlice(showAll bool) []AppConfigVariable {
 	cfgValue := reflect.ValueOf(c).Elem()
 	cfgType := cfgValue.Type()
 
-	res := make([]AppConfigVariable, cfgType.NumField())
+	var res []AppConfigVariable
 
 	for i := range cfgType.NumField() {
 		field := cfgType.Field(i)
@@ -94,10 +96,12 @@ func (c *AppConfig) ToAppConfigVariableSlice(showAll bool) []AppConfigVariable {
 
 		fieldValue := cfgValue.Field(i)
 
-		res[i] = AppConfigVariable{
+		appConfigVariable := AppConfigVariable{
 			Key:   key,
 			Value: fieldValue.FieldByName("Value").String(),
 		}
+
+		res = append(res, appConfigVariable)
 	}
 
 	return res

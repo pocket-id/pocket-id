@@ -61,6 +61,7 @@ type OneTimeAccessTemplateData = struct {
 	Code              string
 	LoginLink         string
 	LoginLinkWithCode string
+	ExpirationString  string
 }
 
 type ApiKeyExpiringSoonTemplateData struct {
