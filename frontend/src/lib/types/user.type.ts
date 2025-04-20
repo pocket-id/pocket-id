@@ -13,7 +13,7 @@ export type User = {
 	customClaims: CustomClaim[];
 	locale?: Locale;
 	ldapId?: string;
-	disabled: boolean;
+	disabled?: boolean;
 };
 
 export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId' | 'userGroups'>;

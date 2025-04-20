@@ -20,7 +20,7 @@
 	async function requestEmail() {
 		isLoading = true;
 		await userService
-			.requestOneTimeAccessEmail(email, data.redirect)
+			.requestOneTimeAccessEmailAsUnauthenticatedUser(email, data.redirect)
 			.then(() => (success = true))
 			.catch((e) => (error = e.response?.data.error || m.an_unknown_error_occurred()));
 
