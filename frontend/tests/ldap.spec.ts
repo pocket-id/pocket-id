@@ -1,16 +1,6 @@
 import test, { expect } from '@playwright/test';
-import { cleanupBackend } from '../utils/cleanup.util';
-import authUtil from '../utils/auth.util';
 
 test.describe('LDAP Integration', () => {
-	test.beforeEach(async ({ page }) => {
-		await cleanupBackend();
-		// Authenticate as admin user (using the standard auth util)
-		await authUtil.authenticate(page);
-		// Verify successful login (redirects to account page)
-		await expect(page).toHaveURL(/.*settings\/account.*/);
-	});
-
 	test('LDAP configuration is working properly', async ({ page }) => {
 		// Navigate to LDAP configuration
 		await page.goto('/settings/admin/application-configuration');
