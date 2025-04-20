@@ -107,7 +107,8 @@ jobs:
         working-directory: ./frontend
         run: npx playwright test
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Frontend Test Report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report-sqlite
@@ -115,7 +116,8 @@ jobs:
           include-hidden-files: true
           retention-days: 15
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Backend Test Report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: backend-sqlite
