@@ -237,45 +237,45 @@ func (s *TestService) SeedDatabase() error {
 			return err
 		}
 
-		ldapConfig := []model.AppConfigVariable{
-			{Key: "ldap_url", Value: "ldap://lldap:3890"},
-			{Key: "ldap_bind_dn", Value: "cn=admin,dc=pocket-id,dc=org"},
-			{Key: "ldap_bind_password", Value: "admin_password"},
-			{Key: "ldap_base", Value: "dc=pocket-id,dc=org"},
-			{Key: "ldap_user_search_filter", Value: "(objectClass=person)"},
-			{Key: "ldap_user_group_search_filter", Value: "(objectClass=groupOfNames)"},
-			{Key: "ldap_skip_cert_verify", Value: "true"},
-			{Key: "ldap_attribute_user_unique_identifier", Value: "uid"},
-			{Key: "ldap_attribute_user_username", Value: "uid"},
-			{Key: "ldap_attribute_user_email", Value: "mail"},
-			{Key: "ldap_attribute_user_first_name", Value: "givenName"},
-			{Key: "ldap_attribute_user_last_name", Value: "sn"},
-			{Key: "ldap_attribute_group_unique_identifier", Value: "cn"},
-			{Key: "ldap_attribute_group_name", Value: "cn"},
-			{Key: "ldap_attribute_group_member", Value: "member"},
-			{Key: "ldap_attribute_admin_group", Value: "admin_group"},
-			{Key: "ldap_soft_delete_users", Value: "true"},
+		// Instead of direct database updates, use the AppConfigService
+		// First create a context since we'll need it for the updates
+		ctx := context.Background()
+
+		// Update LDAP config variables using the service
+		ldapConfigs := map[string]string{
+			"ldap_url":                               "ldap://lldap:3890",
+			"ldap_bind_dn":                           "cn=admin,dc=pocket-id,dc=org",
+			"ldap_bind_password":                     "admin_password",
+			"ldap_base":                              "dc=pocket-id,dc=org",
+			"ldap_user_search_filter":                "(objectClass=person)",
+			"ldap_user_group_search_filter":          "(objectClass=groupOfNames)",
+			"ldap_skip_cert_verify":                  "true",
+			"ldap_attribute_user_unique_identifier":  "uid",
+			"ldap_attribute_user_username":           "uid",
+			"ldap_attribute_user_email":              "mail",
+			"ldap_attribute_user_first_name":         "givenName",
+			"ldap_attribute_user_last_name":          "sn",
+			"ldap_attribute_group_unique_identifier": "cn",
+			"ldap_attribute_group_name":              "cn",
+			"ldap_attribute_group_member":            "member",
+			"ldap_attribute_admin_group":             "admin_group",
+			"ldap_soft_delete_users":                 "true",
+			"ldap_enabled":                           "true",
 		}
 
-		for _, config := range ldapConfig {
-			if err := tx.Where("key = ?", config.Key).
-				Assign(model.AppConfigVariable{Value: config.Value}).
-				FirstOrCreate(&config).Error; err != nil {
-				return err
-			}
+		// Convert map to flat key-value array for UpdateAppConfigValues
+		keysAndValues := make([]string, 0, len(ldapConfigs)*2+2)
+		for key, value := range ldapConfigs {
+			keysAndValues = append(keysAndValues, key, value)
 		}
 
-		ldapEnabled := model.AppConfigVariable{
-			Key:   "ldap_enabled",
-			Value: "true",
+		// Update all config in one go
+		err := s.appConfigService.UpdateAppConfigValues(ctx, keysAndValues...)
+		if err != nil {
+			return fmt.Errorf("failed to update LDAP config: %w", err)
 		}
 
-		if err := tx.Where("key = ?", ldapEnabled.Key).
-			Assign(model.AppConfigVariable{Value: ldapEnabled.Value}).
-			FirstOrCreate(&ldapEnabled).Error; err != nil {
-			return err
-		}
-
+		// Return nil to commit the transaction
 		return nil
 	})
 }
