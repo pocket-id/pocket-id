@@ -352,51 +352,16 @@ jobs:
             -f "Test2" \
             -l "User2"
 
-          # Create test groups - wait after each operation to ensure it completes
-          lldap-cli group add "testgroup"
-          sleep 2
-          lldap-cli group update set "testgroup" "display_name" "Test Group"
-          sleep 2
+          # Create test groups
+          lldap-cli group add "test_group"
+          lldap-cli group update set "test_group" "display_name" "test_group"
 
-          lldap-cli group add "admingroup"
-          sleep 2
-          lldap-cli group update set "admingroup" "display_name" "Admin Group"
-          sleep 2
+          lldap-cli group add "admin_group"
+          lldap-cli group update set "admin_group" "display_name" "admin_group"
 
-          # Troubleshoot group creation
-          echo "Listing groups to verify they were created:"
-          lldap-cli group list
-
-          # Try adding users to groups with retry logic
-          for i in {1..3}; do
-            echo "Attempt $i to add testuser1 to testgroup"
-            if lldap-cli user group add "testuser1" "testgroup"; then
-              echo "Successfully added testuser1 to testgroup"
-              break
-            else
-              echo "Failed to add testuser1 to testgroup, retrying in 2 seconds..."
-              sleep 2
-            fi
-            
-            if [ $i -eq 3 ]; then
-              echo "Warning: Could not add testuser1 to testgroup after 3 attempts"
-            fi
-          done
-
-          for i in {1..3}; do
-            echo "Attempt $i to add testuser2 to admingroup"
-            if lldap-cli user group add "testuser2" "admingroup"; then
-              echo "Successfully added testuser2 to admingroup"
-              break
-            else
-              echo "Failed to add testuser2 to admingroup, retrying in 2 seconds..."
-              sleep 2
-            fi
-            
-            if [ $i -eq 3 ]; then
-              echo "Warning: Could not add testuser2 to admingroup after 3 attempts"
-            fi
-          done
+          # Add users to groups
+          lldap-cli user group add "testuser1" "test_group"
+          lldap-cli user group add "testuser2" "admin_group"
 
           echo "LLDAP test data setup complete"
 
@@ -405,12 +370,6 @@ jobs:
           lldap-cli user list
           echo "Listing groups:"
           lldap-cli group list
-
-          # Verify group membership - these may fail but at least we'll see output
-          echo "Listing testgroup members:"
-          lldap-cli group info "testgroup" || true
-          echo "Listing admingroup members:"
-          lldap-cli group info "admingroup" || true
 
       - name: Run Docker Container with LDAP integration
         run: |
