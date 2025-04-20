@@ -32,18 +32,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
+      - name: Build and export
         uses: docker/build-push-action@v6
         with:
-          push: true
-          tags: ghcr.io/${{ github.repository }}/pocket-id:test
+          push: false
+          load: false
+          tags: pocket-id:test
+          outputs: type=docker,dest=/tmp/docker-image.tar
           build-args: BUILD_TAGS=e2etest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
@@ -52,6 +47,13 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/docker-image.tar
+          retention-days: 1
 
   test-sqlite:
     if: github.event.pull_request.head.ref != 'i18n_crowdin'
@@ -74,15 +76,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          name: docker-image
+          path: /tmp
 
-      - name: Pull Docker image
-        run: docker pull ghcr.io/${{ github.repository }}/pocket-id:test
+      - name: Load Docker image
+        run: docker load -i /tmp/docker-image.tar
 
       - name: Install frontend dependencies
         working-directory: ./frontend
@@ -98,7 +99,7 @@ jobs:
           docker run -d --name pocket-id-sqlite \
           -p 80:80 \
           -e APP_ENV=test \
-          ghcr.io/${{ github.repository }}/pocket-id:test
+          pocket-id:test
 
           docker logs -f pocket-id-sqlite &> /tmp/backend.log &
 
@@ -143,15 +144,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          name: docker-image
+          path: /tmp
 
-      - name: Pull Docker image
-        run: docker pull ghcr.io/${{ github.repository }}/pocket-id:test
+      - name: Load Docker image
+        run: docker load -i /tmp/docker-image.tar
 
       - name: Install frontend dependencies
         working-directory: ./frontend
@@ -194,7 +194,7 @@ jobs:
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
           -e DB_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
-          ghcr.io/${{ github.repository }}/pocket-id:test
+          pocket-id:test
 
           docker logs -f pocket-id-postgres &> /tmp/backend.log &
 
