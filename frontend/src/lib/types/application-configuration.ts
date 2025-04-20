@@ -1,7 +1,8 @@
 export type AppConfig = {
 	appName: string;
 	allowOwnAccountEdit: boolean;
-	emailOneTimeAccessEnabled: boolean;
+	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
+	emailOneTimeAccessAsAdminEnabled: boolean;
 	ldapEnabled: boolean;
 	disableAnimations: boolean;
 };

@@ -349,11 +349,21 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 }
 
 func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, expiration time.Time) error {
+	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsAdminEnabled.IsTrue()
+	if isDisabled {
+		return &common.OneTimeAccessDisabledError{}
+	}
+
 	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", expiration)
 
 }
 
 func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) error {
+	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue()
+	if isDisabled {
+		return &common.OneTimeAccessDisabledError{}
+	}
+
 	var userId string
 	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
 	if err != nil {
@@ -374,11 +384,6 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 	defer func() {
 		tx.Rollback()
 	}()
-
-	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessEnabled.IsTrue()
-	if isDisabled {
-		return &common.OneTimeAccessDisabledError{}
-	}
 
 	user, err := s.GetUser(ctx, userID)
 	if err != nil {
