@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store.js';
 	import { axiosErrorToast } from '$lib/utils/error-util.js';
 
@@ -26,7 +27,7 @@
 	<title>{m.logout()}</title>
 </svelte:head>
 
-<SignInWrapper animate>
+<SignInWrapper animate={!$appConfigStore.disableAnimations}>
 	<div class="flex justify-center">
 		<div class="bg-muted rounded-2xl p-3">
 			<Logo class="h-10 w-10" />

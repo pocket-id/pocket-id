@@ -2,6 +2,7 @@
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
@@ -14,7 +15,6 @@
 	import type { PageData } from './$types';
 	import ClientProviderImages from './components/client-provider-images.svelte';
 	import ScopeItem from './components/scope-item.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	const webauthnService = new WebAuthnService();
 	const oidService = new OidcService();
@@ -84,7 +84,7 @@
 {#if client == null}
 	<p>{m.client_not_found()}</p>
 {:else}
-	<SignInWrapper animate showAlternativeSignInMethodButton>
+	<SignInWrapper animate={!$appConfigStore.disableAnimations} showAlternativeSignInMethodButton>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
 		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
 			{m.sign_in_to({ name: client.name })}

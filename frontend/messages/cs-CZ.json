@@ -324,5 +324,15 @@
 	"client_authorization": "Client Authorization",
 	"new_client_authorization": "New Client Authorization",
 	"disable_animations": "Disable Animations",
-	"turn_off_all_animations_throughout_the_admin_ui": "Turn off all animations throughout the Admin UI"
+	"turn_off_all_animations_throughout_the_admin_ui": "Turn off all animations throughout the Admin UI.",
+	"user_disabled": "Account Disabled",
+	"disabled_users_cannot_log_in_or_use_services": "Disabled users cannot log in or use services.",
+	"user_disabled_successfully": "User has been disabled successfully.",
+	"user_enabled_successfully": "User has been enabled successfully.",
+	"status": "Status",
+	"disable_firstname_lastname": "Disable {firstName} {lastName}",
+	"are_you_sure_you_want_to_disable_this_user": "Are you sure you want to disable this user? They will not be able to log in or access any services.",
+	"ldap_soft_delete_users": "Keep disabled users from LDAP.",
+	"ldap_soft_delete_users_description": "When enabled, users removed from LDAP will be disabled rather than deleted from the system.",
+	"callback_url_description": "URL(s) provided by your client. Wildcards (*) are supported, but best avoided for better security."
 }
