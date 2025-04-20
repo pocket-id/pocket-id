@@ -325,61 +325,48 @@ jobs:
             sleep 3
           done
 
+      - name: Install LLDAP CLI
+        run: |
+          wget https://raw.githubusercontent.com/Zepmann/lldap-cli/main/lldap-cli -O /tmp/lldap-cli
+          chmod +x /tmp/lldap-cli
+          sudo mv /tmp/lldap-cli /usr/local/bin/lldap-cli
+          # Verify installation
+          lldap-cli --version
+
       - name: Setup test users in LLDAP
         run: |
-          # Create authentication token
-          TOKEN=$(curl -s -X POST http://localhost:17170/auth \
-            -H "Content-Type: application/json" \
-            -d '{"user_id":"admin","password":"admin_password"}' | jq -r .token)
+          # Configure LLDAP CLI
+          lldap-cli configure --url "http://localhost:17170" --username "admin" --password "admin_password"
 
           # Create test users
-          curl -s -X POST http://localhost:17170/api/users \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "id": "testuser1",
-              "display_name": "Test User 1",
-              "first_name": "Test",
-              "last_name": "User",
-              "email": "testuser1@pocket-id.org",
-              "password": "password123"
-            }'
-
-          curl -s -X POST http://localhost:17170/api/users \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "id": "testuser2",
-              "display_name": "Test User 2",
-              "first_name": "Test2",
-              "last_name": "User2",
-              "email": "testuser2@pocket-id.org",
-              "password": "password123"
-            }'
+          lldap-cli users create \
+            --id "testuser1" \
+            --display-name "Test User 1" \
+            --first-name "Test" \
+            --last-name "User" \
+            --email "testuser1@pocket-id.org" \
+            --password "password123"
+            
+          lldap-cli users create \
+            --id "testuser2" \
+            --display-name "Test User 2" \
+            --first-name "Test2" \
+            --last-name "User2" \
+            --email "testuser2@pocket-id.org" \
+            --password "password123"
 
           # Create test groups
-          curl -s -X POST http://localhost:17170/api/groups \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "display_name": "Test Group",
-              "name": "testgroup"
-            }'
-
-          curl -s -X POST http://localhost:17170/api/groups \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "display_name": "Admin Group",
-              "name": "admingroup"
-            }'
+          lldap-cli groups create \
+            --name "testgroup" \
+            --display-name "Test Group"
+            
+          lldap-cli groups create \
+            --name "admingroup" \
+            --display-name "Admin Group"
 
           # Add users to groups
-          curl -s -X PUT http://localhost:17170/api/groups/testgroup/members/testuser1 \
-            -H "Authorization: Bearer $TOKEN"
-
-          curl -s -X PUT http://localhost:17170/api/groups/admingroup/members/testuser2 \
-            -H "Authorization: Bearer $TOKEN"
+          lldap-cli groups add-member --name "testgroup" --user "testuser1"
+          lldap-cli groups add-member --name "admingroup" --user "testuser2"
 
           echo "LLDAP test data setup complete"
 
