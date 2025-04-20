@@ -125,7 +125,6 @@ func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) 
 	now := time.Now()
 	cutoff := now.AddDate(0, 0, daysAhead)
 
-	// Use datatype.DateTime for comparison instead of Unix timestamps
 	nowDT := datatype.DateTime(now)
 	cutoffDT := datatype.DateTime(cutoff)
 
