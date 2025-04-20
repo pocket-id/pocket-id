@@ -251,7 +251,7 @@ func (s *TestService) SeedDatabase() error {
 	// Update LDAP config variables using the service
 	ldapConfigs := map[string]string{
 		"ldapUrl":                            "ldap://lldap:3890",
-		"ldapBindDN":                         "cn=admin,dc=pocket-id,dc=org",
+		"ldapBindDn":                         "cn=admin,dc=pocket-id,dc=org",
 		"ldapBindPassword":                   "admin_password",
 		"ldapBase":                           "dc=pocket-id,dc=org",
 		"ldapUserSearchFilter":               "(objectClass=person)",
