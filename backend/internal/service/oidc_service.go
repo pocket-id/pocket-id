@@ -189,22 +189,22 @@ func (s *OidcService) CreateTokens(ctx context.Context, input dto.OidcCreateToke
 		accessToken, newRefreshToken, exp, err = s.createTokenFromRefreshToken(ctx, input.RefreshToken, input.ClientID, input.ClientSecret)
 		return "", accessToken, newRefreshToken, exp, err
 	case "urn:ietf:params:oauth:grant-type:device_code":
-		return s.createTokenFromDeviceCode(ctx, input.DeviceCode, input.ClientID)
+		return s.createTokenFromDeviceCode(ctx, input.DeviceCode, input.ClientID, input.ClientSecret)
 	default:
 		return "", "", "", 0, &common.OidcGrantTypeNotSupportedError{}
 	}
 }
 
-func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, deviceCode, clientID string) (idToken string, accessToken string, refreshToken string, exp int, err error) {
-	// Handle device authorization grant
-	if deviceCode == "" {
-		return "", "", "", 0, &common.ValidationError{Message: "device_code is required"}
-	}
-
+func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, deviceCode, clientID string, clientSecret string) (idToken string, accessToken string, refreshToken string, exp int, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
+
+	_, err = s.VerifyClientCredentials(ctx, clientID, clientSecret, tx)
+	if err != nil {
+		return "", "", "", 0, err
+	}
 
 	// Get the device authorization from database with explicit query conditions
 	var deviceAuth model.OidcDeviceCode
@@ -269,25 +269,9 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, code
 		tx.Rollback()
 	}()
 
-	var client model.OidcClient
-	err = tx.
-		WithContext(ctx).
-		First(&client, "id = ?", clientID).
-		Error
+	client, err := s.VerifyClientCredentials(ctx, clientID, clientSecret, tx)
 	if err != nil {
 		return "", "", "", 0, err
-	}
-
-	// Verify the client secret if the client is not public
-	if !client.IsPublic {
-		if clientID == "" || clientSecret == "" {
-			return "", "", "", 0, &common.OidcMissingClientCredentialsError{}
-		}
-
-		err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret))
-		if err != nil {
-			return "", "", "", 0, &common.OidcClientSecretInvalidError{}
-		}
 	}
 
 	var authorizationCodeMetaData model.OidcAuthorizationCode
@@ -358,26 +342,9 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, refreshTo
 		tx.Rollback()
 	}()
 
-	// Get the client to check if it's public
-	var client model.OidcClient
-	err = tx.
-		WithContext(ctx).
-		First(&client, "id = ?", clientID).
-		Error
+	_, err = s.VerifyClientCredentials(ctx, clientID, clientSecret, tx)
 	if err != nil {
 		return "", "", 0, err
-	}
-
-	// Verify the client secret if the client is not public
-	if !client.IsPublic {
-		if clientID == "" || clientSecret == "" {
-			return "", "", 0, &common.OidcMissingClientCredentialsError{}
-		}
-
-		err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret))
-		if err != nil {
-			return "", "", 0, &common.OidcClientSecretInvalidError{}
-		}
 	}
 
 	// Verify refresh token
@@ -434,19 +401,9 @@ func (s *OidcService) IntrospectToken(clientID, clientSecret, tokenString string
 		return introspectDto, &common.OidcMissingClientCredentialsError{}
 	}
 
-	// Get the client to check if we are authorized.
-	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
-		return introspectDto, &common.OidcClientSecretInvalidError{}
-	}
-
-	// Verify the client secret. This endpoint may not be used by public clients.
-	if client.IsPublic {
-		return introspectDto, &common.OidcClientSecretInvalidError{}
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret)); err != nil {
-		return introspectDto, &common.OidcClientSecretInvalidError{}
+	_, err = s.VerifyClientCredentials(context.Background(), clientID, clientSecret, s.db)
+	if err != nil {
+		return introspectDto, err
 	}
 
 	token, err := s.jwtService.VerifyOauthAccessToken(tokenString)
@@ -1040,20 +997,9 @@ func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string) (ca
 }
 
 func (s *OidcService) CreateDeviceAuthorization(input dto.OidcDeviceAuthorizationRequestDto) (*dto.OidcDeviceAuthorizationResponseDto, error) {
-	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", input.ClientID).Error; err != nil {
+	client, err := s.VerifyClientCredentials(context.Background(), input.ClientID, input.ClientSecret, s.db)
+	if err != nil {
 		return nil, err
-	}
-
-	// Verify client secret if the client is not public
-	if !client.IsPublic {
-		if input.ClientSecret == "" {
-			return nil, &common.OidcMissingClientCredentialsError{}
-		}
-		err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(input.ClientSecret))
-		if err != nil {
-			return nil, &common.OidcClientSecretInvalidError{}
-		}
 	}
 
 	// Generate codes
@@ -1306,4 +1252,26 @@ func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, u
 	}
 
 	return refreshToken, nil
+}
+
+func (s *OidcService) VerifyClientCredentials(ctx context.Context, clientID, clientSecret string, tx *gorm.DB) (model.OidcClient, error) {
+	if clientID == "" {
+		return model.OidcClient{}, &common.OidcMissingClientCredentialsError{}
+	}
+	var client model.OidcClient
+	err := tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+
+	if !client.IsPublic {
+		if err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret)); err != nil {
+			return model.OidcClient{}, &common.OidcClientSecretInvalidError{}
+		}
+	}
+
+	return client, nil
 }
