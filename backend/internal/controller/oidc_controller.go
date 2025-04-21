@@ -150,11 +150,8 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		return
 	}
 
-	clientID := input.ClientID
-	clientSecret := input.ClientSecret
-
 	// Client id and secret can also be passed over the Authorization header
-	if clientID == "" && clientSecret == "" {
+	if input.ClientID == "" && input.ClientSecret == "" {
 		input.ClientID, input.ClientSecret, _ = c.Request.BasicAuth()
 	}
 
@@ -630,6 +627,11 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 	if err := c.ShouldBind(&input); err != nil {
 		_ = c.Error(err)
 		return
+	}
+
+	// Client id and secret can also be passed over the Authorization header
+	if input.ClientID == "" && input.ClientSecret == "" {
+		input.ClientID, input.ClientSecret, _ = c.Request.BasicAuth()
 	}
 
 	response, err := oc.oidcService.CreateDeviceAuthorization(input)
