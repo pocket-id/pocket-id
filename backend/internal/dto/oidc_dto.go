@@ -12,7 +12,6 @@ type OidcClientDto struct {
 	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
 	IsPublic           bool     `json:"isPublic"`
 	PkceEnabled        bool     `json:"pkceEnabled"`
-	DeviceCodeEnabled  bool     `json:"deviceCodeEnabled"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -26,7 +25,6 @@ type OidcClientCreateDto struct {
 	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
 	IsPublic           bool     `json:"isPublic"`
 	PkceEnabled        bool     `json:"pkceEnabled"`
-	DeviceCodeEnabled  bool     `json:"deviceCodeEnabled"`
 }
 
 type AuthorizeOidcClientRequestDto struct {

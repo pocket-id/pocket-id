@@ -129,11 +129,10 @@ func (s *TestService) SeedDatabase() error {
 				Base: model.Base{
 					ID: "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
 				},
-				Name:              "Immich",
-				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
-				CallbackURLs:      model.UrlList{"http://immich/auth/callback"},
-				CreatedByID:       users[1].ID,
-				DeviceCodeEnabled: true,
+				Name:         "Immich",
+				Secret:       "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
+				CallbackURLs: model.UrlList{"http://immich/auth/callback"},
+				CreatedByID:  users[1].ID,
 				AllowedUserGroups: []model.UserGroup{
 					userGroups[1],
 				},

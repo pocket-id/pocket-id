@@ -45,7 +45,6 @@ type OidcClient struct {
 	HasLogo            bool `gorm:"-"`
 	IsPublic           bool
 	PkceEnabled        bool
-	DeviceCodeEnabled  bool
 
 	AllowedUserGroups []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID       string

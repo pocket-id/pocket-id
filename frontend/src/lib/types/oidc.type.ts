@@ -11,7 +11,6 @@ export type OidcClient = OidcClientMetaData & {
 	logoutCallbackURLs: string[];
 	isPublic: boolean;
 	pkceEnabled: boolean;
-	deviceCodeEnabled: boolean;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {

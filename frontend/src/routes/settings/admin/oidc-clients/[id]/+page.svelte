@@ -46,7 +46,6 @@
 				: Promise.resolve();
 
 		client.isPublic = updatedClient.isPublic;
-		client.deviceCodeEnabled = updatedClient.deviceCodeEnabled;
 		setupDetails[m.pkce()] = updatedClient.pkceEnabled ? m.enabled() : m.disabled();
 
 		await Promise.all([dataPromise, imagePromise])

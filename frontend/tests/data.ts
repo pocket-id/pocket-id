@@ -34,7 +34,6 @@ export const oidcClients = {
 		name: 'Immich',
 		callbackUrl: 'http://immich/auth/callback',
 		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x',
-		deviceCodeEnabled: true
 	},
 	pingvinShare: {
 		name: 'Pingvin Share',

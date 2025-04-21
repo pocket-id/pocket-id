@@ -33,7 +33,6 @@
 		callbackURLs: existingClient?.callbackURLs || [''],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
-		deviceCodeEnabled: true,
 		pkceEnabled: existingClient?.isPublic == true || existingClient?.pkceEnabled || false
 	};
 
@@ -42,7 +41,6 @@
 		callbackURLs: z.array(z.string().nonempty()).nonempty(),
 		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
-		deviceCodeEnabled: z.boolean(),
 		pkceEnabled: z.boolean()
 	});
 
@@ -113,12 +111,6 @@
 			disabled={$inputs.isPublic.value}
 			bind:checked={$inputs.pkceEnabled.value}
 		/>
-		<!-- <CheckboxWithLabel
-			id="deviceCodeEnabled"
-			bind:checked={$inputs.deviceCodeEnabled.value}
-			label="Device Code Flow"
-			description="Enable device code flow for TVs and other devices with limited input capabilities"
-		/> -->
 	</div>
 	<div class="mt-8">
 		<Label for="logo">{m.logo()}</Label>

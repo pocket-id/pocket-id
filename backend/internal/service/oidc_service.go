@@ -562,7 +562,6 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		CreatedByID:        userID,
 		IsPublic:           input.IsPublic,
 		PkceEnabled:        input.IsPublic || input.PkceEnabled,
-		DeviceCodeEnabled:  input.DeviceCodeEnabled,
 	}
 
 	err := s.db.
@@ -597,7 +596,6 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	client.LogoutCallbackURLs = input.LogoutCallbackURLs
 	client.IsPublic = input.IsPublic
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
-	client.DeviceCodeEnabled = input.DeviceCodeEnabled
 
 	err = tx.
 		WithContext(ctx).
@@ -1042,15 +1040,20 @@ func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string) (ca
 }
 
 func (s *OidcService) CreateDeviceAuthorization(input dto.OidcDeviceAuthorizationRequestDto) (*dto.OidcDeviceAuthorizationResponseDto, error) {
-	// Verify client
 	var client model.OidcClient
 	if err := s.db.First(&client, "id = ?", input.ClientID).Error; err != nil {
 		return nil, err
 	}
 
-	// Check if device code flow is enabled
-	if !client.DeviceCodeEnabled {
-		return nil, &common.OidcGrantTypeNotSupportedError{}
+	// Verify client secret if the client is not public
+	if !client.IsPublic {
+		if input.ClientSecret == "" {
+			return nil, &common.OidcMissingClientCredentialsError{}
+		}
+		err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(input.ClientSecret))
+		if err != nil {
+			return nil, &common.OidcClientSecretInvalidError{}
+		}
 	}
 
 	// Generate codes
