@@ -94,7 +94,7 @@
 {/if}
 
 <!-- Login code card mobile -->
-<div class="hidden sm:block">
+<div class="block sm:hidden">
 	<Card.Root>
 		<Card.Header>
 			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
@@ -166,7 +166,7 @@
 </div>
 
 <!-- Login code card -->
-<div class="sm:hidden">
+<div class="hidden sm:block">
 	<Card.Root>
 		<Card.Header>
 			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
