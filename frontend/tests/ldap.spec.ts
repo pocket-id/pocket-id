@@ -48,8 +48,8 @@ test.describe('LDAP Integration', () => {
 		await page.goto('/settings/admin/user-groups');
 
 		// Verify LDAP groups exist
-		await expect(page.getByText('test_group')).toBeVisible();
-		await expect(page.getByText('admin_group')).toBeVisible();
+		await expect(page.getByRole('cell', { name: 'test_group' }).first()).toBeVisible();
+		await expect(page.getByRole('cell', { name: 'admin_group' }).first()).toBeVisible();
 
 		// Check group details
 		await page.getByRole('row', { name: 'test_group' }).getByRole('button').click();
