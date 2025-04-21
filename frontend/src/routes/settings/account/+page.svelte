@@ -93,6 +93,7 @@
 	</Alert.Root>
 {/if}
 
+
 <!-- Login code card mobile -->
 <div class="block sm:hidden">
 	<Card.Root>
@@ -107,6 +108,7 @@
 						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 					</Card.Description>
 				</div>
+
 				<Button variant="outline" class="w-full" on:click={() => (showLoginCodeModal = true)}>
 					{m.create()}
 				</Button>
@@ -164,6 +166,7 @@
 		{/if}
 	</Card.Root>
 </div>
+
 
 <!-- Login code card -->
 <div class="hidden sm:block">
