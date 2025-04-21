@@ -13,6 +13,7 @@
 	import { toast } from 'svelte-sonner';
 	import UserGroupForm from '../user-group-form.svelte';
 	import UserSelection from '../user-selection.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let userGroup = $state({
@@ -27,7 +28,7 @@
 		let success = true;
 		await userGroupService
 			.update(userGroup.id, updatedUserGroup)
-			.then(() => toast.success('User group updated successfully'))
+			.then(() => toast.success(m.user_group_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 				success = false;
@@ -39,7 +40,7 @@
 	async function updateUserGroupUsers(userIds: string[]) {
 		await userGroupService
 			.updateUsers(userGroup.id, userIds)
-			.then(() => toast.success('Users updated successfully'))
+			.then(() => toast.success(m.users_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 			});
@@ -48,7 +49,7 @@
 	async function updateCustomClaims() {
 		await customClaimService
 			.updateUserGroupCustomClaims(userGroup.id, userGroup.customClaims)
-			.then(() => toast.success('Custom claims updated successfully'))
+			.then(() => toast.success(m.custom_claims_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 			});
@@ -56,20 +57,20 @@
 </script>
 
 <svelte:head>
-	<title>User Group Details {userGroup.name}</title>
+	<title>{m.user_group_details_name({ name: userGroup.name })}</title>
 </svelte:head>
 
 <div class="flex items-center justify-between">
 	<a class="text-muted-foreground flex text-sm" href="/settings/admin/user-groups"
-		><LucideChevronLeft class="h-5 w-5" /> Back</a
+		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
 	>
 	{#if !!userGroup.ldapId}
-		<Badge variant="default" class="">LDAP</Badge>
+		<Badge variant="default" class="">{m.ldap()}</Badge>
 	{/if}
 </div>
 <Card.Root>
 	<Card.Header>
-		<Card.Title>General</Card.Title>
+		<Card.Title>{m.general()}</Card.Title>
 	</Card.Header>
 
 	<Card.Content>
@@ -79,8 +80,8 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Users</Card.Title>
-		<Card.Description>Assign users to this group.</Card.Description>
+		<Card.Title>{m.users()}</Card.Title>
+		<Card.Description>{m.assign_users_to_this_group()}</Card.Description>
 	</Card.Header>
 
 	<Card.Content>
@@ -91,7 +92,7 @@
 		<div class="mt-5 flex justify-end">
 			<Button
 				disabled={!!userGroup.ldapId && $appConfigStore.ldapEnabled}
-				on:click={() => updateUserGroupUsers(userGroup.userIds)}>Save</Button
+				on:click={() => updateUserGroupUsers(userGroup.userIds)}>{m.save()}</Button
 			>
 		</div>
 	</Card.Content>
@@ -99,11 +100,11 @@
 
 <CollapsibleCard
 	id="user-group-custom-claims"
-	title="Custom Claims"
-	description="Custom claims are key-value pairs that can be used to store additional information about a user. These claims will be included in the ID token if the scope 'profile' is requested. Custom claims defined on the user will be prioritized if there are conflicts."
+	title={m.custom_claims()}
+	description={m.custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user_prioritized()}  
 >
 	<CustomClaimsInput bind:customClaims={userGroup.customClaims} />
 	<div class="mt-5 flex justify-end">
-		<Button onclick={updateCustomClaims} type="submit">Save</Button>
+		<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
 	</div>
 </CollapsibleCard>

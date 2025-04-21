@@ -4,23 +4,21 @@ import UserService from '$lib/services/user-service';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ cookies }) => {
-	const userService = new UserService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
-	const appConfigService = new AppConfigService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
+	const accessToken = cookies.get(ACCESS_TOKEN_COOKIE_NAME);
+	const userService = new UserService(accessToken);
+	const appConfigService = new AppConfigService(accessToken);
 
-	const user = await userService
-		.getCurrent()
-		.then((user) => user)
-		.catch(() => null);
+	const userPromise = userService.getCurrent().catch(() => null);
+	
+	const appConfigPromise = appConfigService.list().catch((e) => {
+		console.error(
+			`Failed to get application configuration: ${e.response?.data.error || e.message}`
+		);
+		return null;
+	});
 
-	const appConfig = await appConfigService
-		.list()
-		.then((config) => config)
-		.catch((e) => {
-			console.error(
-				`Failed to get application configuration: ${e.response?.data.error || e.message}`
-			);
-			return null;
-		});
+	const [user, appConfig] = await Promise.all([userPromise, appConfigPromise]);
+
 	return {
 		user,
 		appConfig

@@ -1,13 +1,13 @@
 package dto
 
-type PublicOidcClientDto struct {
+type OidcClientMetaDataDto struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	HasLogo bool   `json:"hasLogo"`
 }
 
 type OidcClientDto struct {
-	PublicOidcClientDto
+	OidcClientMetaDataDto
 	CallbackURLs       []string `json:"callbackURLs"`
 	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
 	IsPublic           bool     `json:"isPublic"`
@@ -16,13 +16,8 @@ type OidcClientDto struct {
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
-	PublicOidcClientDto
-	CallbackURLs       []string                    `json:"callbackURLs"`
-	LogoutCallbackURLs []string                    `json:"logoutCallbackURLs"`
-	IsPublic           bool                        `json:"isPublic"`
-	PkceEnabled        bool                        `json:"pkceEnabled"`
-	DeviceCodeEnabled  bool                        `json:"deviceCodeEnabled"`
-	AllowedUserGroups  []UserGroupDtoWithUserCount `json:"allowedUserGroups"`
+	OidcClientDto
+	AllowedUserGroups []UserGroupDtoWithUserCount `json:"allowedUserGroups"`
 }
 
 type OidcClientCreateDto struct {
@@ -60,6 +55,11 @@ type OidcCreateTokensDto struct {
 	ClientID     string `form:"client_id"`
 	ClientSecret string `form:"client_secret"`
 	CodeVerifier string `form:"code_verifier"`
+	RefreshToken string `form:"refresh_token"`
+}
+
+type OidcIntrospectDto struct {
+	Token string `form:"token" binding:"required"`
 }
 
 type OidcUpdateAllowedUserGroupsDto struct {
@@ -71,6 +71,27 @@ type OidcLogoutDto struct {
 	ClientId              string `form:"client_id"`
 	PostLogoutRedirectUri string `form:"post_logout_redirect_uri"`
 	State                 string `form:"state"`
+}
+
+type OidcTokenResponseDto struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	IdToken      string `json:"id_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
+type OidcIntrospectionResponseDto struct {
+	Active     bool     `json:"active"`
+	TokenType  string   `json:"token_type,omitempty"`
+	Scope      string   `json:"scope,omitempty"`
+	Expiration int64    `json:"exp,omitempty"`
+	IssuedAt   int64    `json:"iat,omitempty"`
+	NotBefore  int64    `json:"nbf,omitempty"`
+	Subject    string   `json:"sub,omitempty"`
+	Audience   []string `json:"aud,omitempty"`
+	Issuer     string   `json:"iss,omitempty"`
+	Identifier string   `json:"jti,omitempty"`
 }
 
 type OidcDeviceAuthorizationRequestDto struct {

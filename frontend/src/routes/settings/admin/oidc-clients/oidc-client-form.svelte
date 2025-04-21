@@ -4,6 +4,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type {
 		OidcClient,
 		OidcClientCreate,
@@ -38,8 +39,8 @@
 
 	const formSchema = z.object({
 		name: z.string().min(2).max(50),
-		callbackURLs: z.array(z.string()).nonempty(),
-		logoutCallbackURLs: z.array(z.string()),
+		callbackURLs: z.array(z.string().nonempty()).nonempty(),
+		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
 		deviceCodeEnabled: z.boolean(),
 		pkceEnabled: z.boolean()
@@ -81,16 +82,16 @@
 
 <form onsubmit={onSubmit}>
 	<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
-		<FormInput label="Name" class="w-full" bind:input={$inputs.name} />
+		<FormInput label={m.name()} class="w-full" bind:input={$inputs.name} />
 		<div></div>
 		<OidcCallbackUrlInput
-			label="Callback URLs"
+			label={m.callback_urls()}
 			class="w-full"
 			bind:callbackURLs={$inputs.callbackURLs.value}
 			bind:error={$inputs.callbackURLs.error}
 		/>
 		<OidcCallbackUrlInput
-			label="Logout Callback URLs"
+			label={m.logout_callback_urls()}
 			class="w-full"
 			allowEmpty
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
@@ -98,8 +99,8 @@
 		/>
 		<CheckboxWithLabel
 			id="public-client"
-			label="Public Client"
-			description="Public clients do not have a client secret and use PKCE instead. Enable this if your client is a SPA or mobile app."
+			label={m.public_client()}
+			description={m.public_clients_do_not_have_a_client_secret_and_use_pkce_instead()}
 			onCheckedChange={(v) => {
 				if (v == true) form.setValue('pkceEnabled', true);
 			}}
@@ -107,8 +108,8 @@
 		/>
 		<CheckboxWithLabel
 			id="pkce"
-			label="PKCE"
-			description="Public Key Code Exchange is a security feature to prevent CSRF and authorization code interception attacks."
+			label={m.pkce()}
+			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
 			disabled={$inputs.isPublic.value}
 			bind:checked={$inputs.pkceEnabled.value}
 		/>
@@ -120,14 +121,14 @@
 		/> -->
 	</div>
 	<div class="mt-8">
-		<Label for="logo">Logo</Label>
+		<Label for="logo">{m.logo()}</Label>
 		<div class="mt-2 flex items-end gap-3">
 			{#if logoDataURL}
 				<div class="bg-muted h-32 w-32 rounded-2xl p-3">
 					<img
 						class="m-auto max-h-full max-w-full object-contain"
 						src={logoDataURL}
-						alt={`${$inputs.name.value} logo`}
+						alt={m.name_logo({ name: $inputs.name.value })}
 					/>
 				</div>
 			{/if}
@@ -139,17 +140,17 @@
 					onchange={onLogoChange}
 				>
 					<Button variant="secondary">
-						{logoDataURL ? 'Change Logo' : 'Upload Logo'}
+						{logoDataURL ? m.change_logo() : m.upload_logo()}
 					</Button>
 				</FileInput>
 				{#if logoDataURL}
-					<Button variant="outline" on:click={resetLogo}>Remove Logo</Button>
+					<Button variant="outline" on:click={resetLogo}>{m.remove_logo()}</Button>
 				{/if}
 			</div>
 		</div>
 	</div>
 	<div class="w-full"></div>
 	<div class="mt-5 flex justify-end">
-		<Button {isLoading} type="submit">Save</Button>
+		<Button {isLoading} type="submit">{m.save()}</Button>
 	</div>
 </form>

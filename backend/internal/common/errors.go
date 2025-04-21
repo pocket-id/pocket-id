@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -17,9 +18,15 @@ type AlreadyInUseError struct {
 }
 
 func (e *AlreadyInUseError) Error() string {
-	return fmt.Sprintf("%s is already in use", e.Property)
+	return e.Property + " is already in use"
 }
 func (e *AlreadyInUseError) HttpStatusCode() int { return 400 }
+
+func (e *AlreadyInUseError) Is(target error) bool {
+	// Ignore the field property when checking if an error is of the type AlreadyInUseError
+	x := &AlreadyInUseError{}
+	return errors.As(target, &x)
+}
 
 type SetupAlreadyCompletedError struct{}
 
@@ -74,11 +81,6 @@ type FileTypeNotSupportedError struct{}
 
 func (e *FileTypeNotSupportedError) Error() string       { return "file type not supported" }
 func (e *FileTypeNotSupportedError) HttpStatusCode() int { return 400 }
-
-type InvalidCredentialsError struct{}
-
-func (e *InvalidCredentialsError) Error() string       { return "no user found with provided credentials" }
-func (e *InvalidCredentialsError) HttpStatusCode() int { return 400 }
 
 type FileTooLargeError struct {
 	MaxSize string
@@ -222,8 +224,78 @@ type InvalidUUIDError struct{}
 func (e *InvalidUUIDError) Error() string {
 	return "Invalid UUID"
 }
+func (e *InvalidUUIDError) HttpStatusCode() int { return http.StatusBadRequest }
 
-type InvalidEmailError struct{}
+type OneTimeAccessDisabledError struct{}
+
+func (e *OneTimeAccessDisabledError) Error() string {
+	return "One-time access is disabled"
+}
+func (e *OneTimeAccessDisabledError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type InvalidAPIKeyError struct{}
+
+func (e *InvalidAPIKeyError) Error() string {
+	return "Invalid Api Key"
+}
+func (e *InvalidAPIKeyError) HttpStatusCode() int { return http.StatusUnauthorized }
+
+type NoAPIKeyProvidedError struct{}
+
+func (e *NoAPIKeyProvidedError) Error() string {
+	return "No API Key Provided"
+}
+func (e *NoAPIKeyProvidedError) HttpStatusCode() int { return http.StatusUnauthorized }
+
+type APIKeyNotFoundError struct{}
+
+func (e *APIKeyNotFoundError) Error() string {
+	return "API Key Not Found"
+}
+func (e *APIKeyNotFoundError) HttpStatusCode() int { return http.StatusUnauthorized }
+
+type APIKeyExpirationDateError struct{}
+
+func (e *APIKeyExpirationDateError) Error() string {
+	return "API Key expiration time must be in the future"
+}
+func (e *APIKeyExpirationDateError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type OidcInvalidRefreshTokenError struct{}
+
+func (e *OidcInvalidRefreshTokenError) Error() string {
+	return "refresh token is invalid or expired"
+}
+func (e *OidcInvalidRefreshTokenError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type OidcMissingRefreshTokenError struct{}
+
+func (e *OidcMissingRefreshTokenError) Error() string {
+	return "refresh token is required"
+}
+func (e *OidcMissingRefreshTokenError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type OidcMissingAuthorizationCodeError struct{}
+
+func (e *OidcMissingAuthorizationCodeError) Error() string {
+	return "authorization code is required"
+}
+func (e *OidcMissingAuthorizationCodeError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type UserDisabledError struct{}
+
+func (e *UserDisabledError) Error() string {
+	return "User account is disabled"
+}
+func (e *UserDisabledError) HttpStatusCode() int {
+	return http.StatusForbidden
+}
 
 type ValidationError struct {
 	Message string

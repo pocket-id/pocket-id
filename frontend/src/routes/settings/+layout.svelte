@@ -1,8 +1,13 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
+	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
+	import { m } from '$lib/paraglide/messages';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
-	import { LucideExternalLink } from 'lucide-svelte';
+	import { cn } from '$lib/utils/style';
+	import { LucideExternalLink, LucideSettings } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import type { LayoutData } from './$types';
 
 	let {
@@ -13,59 +18,80 @@
 		data: LayoutData;
 	} = $props();
 
-	const { versionInformation } = data;
+	const { versionInformation, user } = data;
 
-	let links = $state([
-		{ href: '/settings/account', label: 'My Account' },
-		{ href: '/settings/audit-log', label: 'Audit Log' }
-	]);
+	const links = [
+		{ href: '/settings/account', label: m.my_account() },
+		{ href: '/settings/audit-log', label: m.audit_log() }
+	];
 
-	if ($userStore?.isAdmin) {
-		links = [
-			// svelte-ignore state_referenced_locally
-			...links,
-			{ href: '/settings/admin/users', label: 'Users' },
-			{ href: '/settings/admin/user-groups', label: 'User Groups' },
-			{ href: '/settings/admin/oidc-clients', label: 'OIDC Clients' },
-			{ href: '/settings/admin/application-configuration', label: 'Application Configuration' }
-		];
+	const adminLinks = [
+		{ href: '/settings/admin/users', label: m.users() },
+		{ href: '/settings/admin/user-groups', label: m.user_groups() },
+		{ href: '/settings/admin/oidc-clients', label: m.oidc_clients() },
+		{ href: '/settings/admin/api-keys', label: m.api_keys() },
+		{ href: '/settings/admin/application-configuration', label: m.application_configuration() }
+	];
+
+	if (user?.isAdmin || $userStore?.isAdmin) {
+		links.push(...adminLinks);
 	}
 </script>
 
 <section>
 	<div class="bg-muted/40 flex min-h-[calc(100vh-64px)] w-full flex-col justify-between">
 		<main
-			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-4 gap-y-10 p-4 md:p-10 lg:flex-row"
+			in:fade={{ duration: 300 }}
+			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 overflow-hidden p-4 md:p-8 lg:flex-row"
 		>
 			<div class="min-w-[200px] xl:min-w-[250px]">
-				<div class="mx-auto grid w-full gap-2">
-					<h1 class="mb-5 text-3xl font-semibold">Settings</h1>
+				<div in:fly={{ x: -15, duration: 300 }} class="sticky top-6">
+					<div class="mx-auto grid w-full gap-2">
+						<h1 class="mb-4 flex items-center gap-2 text-2xl font-semibold">
+							<LucideSettings class="h-5 w-5" />
+							{m.settings()}
+						</h1>
+					</div>
+					<nav class="text-muted-foreground grid gap-2 text-sm">
+						{#each links as { href, label }, i}
+							<a
+								{href}
+								class={cn(
+									!$appConfigStore.disableAnimations && 'animate-fade-in',
+									page.url.pathname.startsWith(href)
+										? 'text-primary bg-card rounded-md px-3 py-1.5 font-medium shadow-sm transition-all'
+										: 'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm'
+								)}
+								style={`animation-delay: ${150 + i * 75}ms;`}
+							>
+								{label}
+							</a>
+						{/each}
+						{#if $userStore?.isAdmin && versionInformation.isUpToDate === false}
+							<a
+								href="https://github.com/pocket-id/pocket-id/releases/latest"
+								target="_blank"
+								class="animate-fade-in hover:text-foreground hover:bg-muted/70 mt-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-orange-500 transition-all hover:-translate-y-[2px] hover:shadow-sm"
+								style={`animation-delay: ${150 + links.length * 75}ms;`}
+							>
+								{m.update_pocket_id()}
+								<LucideExternalLink class="my-auto inline-block h-3 w-3" />
+							</a>
+						{/if}
+					</nav>
 				</div>
-				<nav class="text-muted-foreground grid gap-4 text-sm">
-					{#each links as { href, label }}
-						<a {href} class={$page.url.pathname.startsWith(href) ? 'text-primary font-bold' : ''}>
-							{label}
-						</a>
-					{/each}
-					{#if $userStore?.isAdmin && versionInformation.isUpToDate === false}
-						<a
-							href="https://github.com/pocket-id/pocket-id/releases/latest"
-							target="_blank"
-							class="flex items-center gap-2"
-						>
-							Update Pocket ID <LucideExternalLink class="my-auto inline-block h-3 w-3" />
-						</a>
-					{/if}
-				</nav>
 			</div>
-			<div class="flex w-full flex-col gap-5 overflow-x-hidden">
-				{@render children()}
+			<div class="flex w-full flex-col gap-4 overflow-hidden">
+				<FadeWrapper>
+					{@render children()}
+				</FadeWrapper>
 			</div>
 		</main>
-		<div class="flex flex-col items-center">
+		<div class="animate-fade-in flex flex-col items-center" style="animation-delay: 400ms;">
 			<p class="text-muted-foreground py-3 text-xs">
-				Powered by <a
-					class="text-foreground"
+				{m.powered_by()}
+				<a
+					class="text-foreground transition-all hover:underline"
 					href="https://github.com/pocket-id/pocket-id"
 					target="_blank">Pocket ID</a
 				>

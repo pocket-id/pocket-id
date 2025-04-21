@@ -1,18 +1,23 @@
 package utils
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/google/uuid"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 func GetFileExtension(filename string) string {
-	splitted := strings.Split(filename, ".")
-	return splitted[len(splitted)-1]
+	ext := filepath.Ext(filename)
+	if len(ext) > 0 && ext[0] == '.' {
+		return ext[1:]
+	}
+	return filename
 }
 
 func GetImageMimeType(ext string) string {
@@ -25,6 +30,8 @@ func GetImageMimeType(ext string) string {
 		return "image/svg+xml"
 	case "ico":
 		return "image/x-icon"
+	case "gif":
+		return "image/gif"
 	default:
 		return ""
 	}
@@ -67,12 +74,65 @@ func SaveFile(file *multipart.FileHeader, dst string) error {
 		return err
 	}
 
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+	return SaveFileStream(src, dst)
+}
 
-	_, err = io.Copy(out, src)
-	return err
+// SaveFileStream saves a stream to a file.
+func SaveFileStream(r io.Reader, dstFileName string) error {
+	// Our strategy is to save to a separate file and then rename it to override the original file
+	tmpFileName := dstFileName + "." + uuid.NewString() + "-tmp"
+
+	// Write to the temporary file
+	tmpFile, err := os.Create(tmpFileName)
+	if err != nil {
+		return fmt.Errorf("failed to open file '%s' for writing: %w", tmpFileName, err)
+	}
+
+	n, err := io.Copy(tmpFile, r)
+	if err != nil {
+		// Delete the temporary file; we ignore errors here
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFileName)
+
+		return fmt.Errorf("failed to write to file '%s': %w", tmpFileName, err)
+	}
+
+	err = tmpFile.Close()
+	if err != nil {
+		// Delete the temporary file; we ignore errors here
+		_ = os.Remove(tmpFileName)
+
+		return fmt.Errorf("failed to close stream to file '%s': %w", tmpFileName, err)
+	}
+
+	if n == 0 {
+		// Delete the temporary file; we ignore errors here
+		_ = os.Remove(tmpFileName)
+
+		return errors.New("no data written")
+	}
+
+	// Rename to the final file, which overrides existing files
+	// This is an atomic operation
+	err = os.Rename(tmpFileName, dstFileName)
+	if err != nil {
+		// Delete the temporary file; we ignore errors here
+		_ = os.Remove(tmpFileName)
+
+		return fmt.Errorf("failed to rename file '%s': %w", dstFileName, err)
+	}
+
+	return nil
+}
+
+// FileExists returns true if a file exists on disk and is a regular file
+func FileExists(path string) (bool, error) {
+	s, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = nil
+		}
+		return false, err
+	}
+	return !s.IsDir(), nil
 }

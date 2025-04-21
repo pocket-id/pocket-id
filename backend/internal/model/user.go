@@ -1,9 +1,12 @@
 package model
 
 import (
+	"strings"
+
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type User struct {
@@ -14,7 +17,9 @@ type User struct {
 	FirstName string `sortable:"true"`
 	LastName  string `sortable:"true"`
 	IsAdmin   bool   `sortable:"true"`
+	Locale    *string
 	LdapID    *string
+	Disabled  bool `sortable:"true"`
 
 	CustomClaims []CustomClaim
 	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`
@@ -61,6 +66,15 @@ func (u User) WebAuthnCredentialDescriptors() (descriptors []protocol.Credential
 }
 
 func (u User) FullName() string { return u.FirstName + " " + u.LastName }
+
+func (u User) Initials() string {
+	first := utils.GetFirstCharacter(u.FirstName)
+	last := utils.GetFirstCharacter(u.LastName)
+	if first == "" && last == "" && len(u.Username) >= 2 {
+		return strings.ToUpper(u.Username[:2])
+	}
+	return strings.ToUpper(first + last)
+}
 
 type OneTimeAccessToken struct {
 	Base

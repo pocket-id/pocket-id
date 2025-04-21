@@ -1,0 +1,35 @@
+name: Unit Tests
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'backend/go.mod'
+          cache-dependency-path: 'backend/go.sum'
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          go get ./...
+      - name: Run backend unit tests
+        working-directory: backend
+        run: |
+          set -e -o pipefail
+          go test -v ./... | tee /tmp/TestResults.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-unit-tests
+          path: /tmp/TestResults.log
+          retention-days: 15

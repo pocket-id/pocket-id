@@ -3,13 +3,13 @@
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
+	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import type { OidcClient } from '$lib/types/oidc.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import OneTimeLinkModal from './client-secret.svelte';
 
 	let {
 		clients = $bindable(),
@@ -19,22 +19,20 @@
 		requestOptions: SearchPaginationSortRequest;
 	} = $props();
 
-	let oneTimeLink = $state<string | null>(null);
-
 	const oidcService = new OIDCService();
 
 	async function deleteClient(client: OidcClient) {
 		openConfirmDialog({
-			title: `Delete ${client.name}`,
-			message: 'Are you sure you want to delete this OIDC client?',
+			title: m.delete_name({ name: client.name }),
+			message: m.are_you_sure_you_want_to_delete_this_oidc_client(),
 			confirm: {
-				label: 'Delete',
+				label: m.delete(),
 				destructive: true,
 				action: async () => {
 					try {
 						await oidcService.removeClient(client.id);
 						clients = await oidcService.listClients(requestOptions!);
-						toast.success('OIDC client deleted successfully');
+						toast.success(m.oidc_client_deleted_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
 					}
@@ -49,20 +47,22 @@
 	{requestOptions}
 	onRefresh={async (o) => (clients = await oidcService.listClients(o))}
 	columns={[
-		{ label: 'Logo' },
-		{ label: 'Name', sortColumn: 'name' },
-		{ label: 'Actions', hidden: true }
+		{ label: m.logo() },
+		{ label: m.name(), sortColumn: 'name' },
+		{ label: m.actions(), hidden: true }
 	]}
 >
 	{#snippet rows({ item })}
 		<Table.Cell class="w-8 font-medium">
 			{#if item.hasLogo}
-				<div class="h-8 w-8">
-					<img
-						class="m-auto max-h-full max-w-full object-contain"
-						src="/api/oidc/clients/{item.id}/logo"
-						alt="{item.name} logo"
-					/>
+				<div class="bg-secondary rounded-2xl p-3">
+					<div class="h-8 w-8">
+						<img
+							class="m-auto max-h-full max-w-full object-contain"
+							src="/api/oidc/clients/{item.id}/logo"
+							alt={m.name_logo({ name: item.name })}
+						/>
+					</div>
 				</div>
 			{/if}
 		</Table.Cell>
@@ -72,13 +72,14 @@
 				href="/settings/admin/oidc-clients/{item.id}"
 				size="sm"
 				variant="outline"
-				aria-label="Edit"><LucidePencil class="h-3 w-3 " /></Button
+				aria-label={m.edit()}><LucidePencil class="h-3 w-3 " /></Button
 			>
-			<Button on:click={() => deleteClient(item)} size="sm" variant="outline" aria-label="Delete"
-				><LucideTrash class="h-3 w-3 text-red-500" /></Button
+			<Button
+				on:click={() => deleteClient(item)}
+				size="sm"
+				variant="outline"
+				aria-label={m.delete()}><LucideTrash class="h-3 w-3 text-red-500" /></Button
 			>
 		</Table.Cell>
 	{/snippet}
 </AdvancedTable>
-
-<OneTimeLinkModal {oneTimeLink} />

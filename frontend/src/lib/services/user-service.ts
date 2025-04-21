@@ -1,6 +1,9 @@
+import userStore from '$lib/stores/user-store';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import type { UserGroup } from '$lib/types/user-group.type';
 import type { User, UserCreate } from '$lib/types/user.type';
+import { bustProfilePictureCache } from '$lib/utils/profile-picture-util';
+import { get } from 'svelte/store';
 import APIService from './api-service';
 
 export default class UserService extends APIService {
@@ -49,6 +52,7 @@ export default class UserService extends APIService {
 		const formData = new FormData();
 		formData.append('file', image!);
 
+		bustProfilePictureCache(userId);
 		await this.api.put(`/users/${userId}/profile-picture`, formData);
 	}
 
@@ -56,10 +60,21 @@ export default class UserService extends APIService {
 		const formData = new FormData();
 		formData.append('file', image!);
 
+		bustProfilePictureCache(get(userStore)!.id);
 		await this.api.put('/users/me/profile-picture', formData);
 	}
 
-	async createOneTimeAccessToken(userId: string, expiresAt: Date) {
+	async resetCurrentUserProfilePicture() {
+		bustProfilePictureCache(get(userStore)!.id);
+		await this.api.delete(`/users/me/profile-picture`);
+	}
+
+	async resetProfilePicture(userId: string) {
+		bustProfilePictureCache(userId);
+		await this.api.delete(`/users/${userId}/profile-picture`);
+	}
+
+	async createOneTimeAccessToken(expiresAt: Date, userId: string) {
 		const res = await this.api.post(`/users/${userId}/one-time-access-token`, {
 			userId,
 			expiresAt
@@ -72,8 +87,12 @@ export default class UserService extends APIService {
 		return res.data as User;
 	}
 
-	async requestOneTimeAccessEmail(email: string, redirectPath?: string) {
+	async requestOneTimeAccessEmailAsUnauthenticatedUser(email: string, redirectPath?: string) {
 		await this.api.post('/one-time-access-email', { email, redirectPath });
+	}
+
+	async requestOneTimeAccessEmailAsAdmin(userId: string, expiresAt: Date) {
+		await this.api.post(`/users/${userId}/one-time-access-email`, { expiresAt });
 	}
 
 	async updateUserGroups(id: string, userGroupIds: string[]) {

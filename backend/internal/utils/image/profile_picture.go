@@ -3,22 +3,23 @@ package profilepicture
 import (
 	"bytes"
 	"fmt"
-	"github.com/disintegration/imageorient"
-	"github.com/disintegration/imaging"
-	"github.com/pocket-id/pocket-id/backend/resources"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
-	"golang.org/x/image/math/fixed"
 	"image"
 	"image/color"
 	"io"
-	"strings"
+
+	"github.com/disintegration/imageorient"
+	"github.com/disintegration/imaging"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
+
+	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 const profilePictureSize = 300
 
 // CreateProfilePicture resizes the profile picture to a square
-func CreateProfilePicture(file io.Reader) (*bytes.Buffer, error) {
+func CreateProfilePicture(file io.Reader) (io.Reader, error) {
 	img, _, err := imageorient.Decode(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
@@ -26,27 +27,21 @@ func CreateProfilePicture(file io.Reader) (*bytes.Buffer, error) {
 
 	img = imaging.Fill(img, profilePictureSize, profilePictureSize, imaging.Center, imaging.Lanczos)
 
-	var buf bytes.Buffer
-	err = imaging.Encode(&buf, img, imaging.PNG)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode image: %v", err)
-	}
+	pr, pw := io.Pipe()
+	go func() {
+		err = imaging.Encode(pw, img, imaging.PNG)
+		if err != nil {
+			_ = pw.CloseWithError(fmt.Errorf("failed to encode image: %w", err))
+			return
+		}
+		pw.Close()
+	}()
 
-	return &buf, nil
+	return pr, nil
 }
 
 // CreateDefaultProfilePicture creates a profile picture with the initials
-func CreateDefaultProfilePicture(firstName, lastName string) (*bytes.Buffer, error) {
-	// Get the initials
-	initials := ""
-	if len(firstName) > 0 {
-		initials += string(firstName[0])
-	}
-	if len(lastName) > 0 {
-		initials += string(lastName[0])
-	}
-	initials = strings.ToUpper(initials)
-
+func CreateDefaultProfilePicture(initials string) (*bytes.Buffer, error) {
 	// Create a blank image with a white background
 	img := imaging.New(profilePictureSize, profilePictureSize, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 
@@ -90,7 +85,7 @@ func CreateDefaultProfilePicture(firstName, lastName string) (*bytes.Buffer, err
 	var buf bytes.Buffer
 	err = imaging.Encode(&buf, img, imaging.PNG)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode image: %v", err)
+		return nil, fmt.Errorf("failed to encode image: %w", err)
 	}
 
 	return &buf, nil

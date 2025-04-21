@@ -3,7 +3,7 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"errors"
+	"fmt"
 )
 
 type AuditLog struct {
@@ -14,13 +14,16 @@ type AuditLog struct {
 	Country   string        `sortable:"true"`
 	City      string        `sortable:"true"`
 	UserAgent string        `sortable:"true"`
-	UserID    string
+	Username  string        `gorm:"-"`
 	Data      AuditLogData
+
+	UserID string
+	User   User
 }
 
-type AuditLogData map[string]string
+type AuditLogData map[string]string //nolint:recvcheck
 
-type AuditLogEvent string
+type AuditLogEvent string //nolint:recvcheck
 
 const (
 	AuditLogEventSignIn                     AuditLogEvent = "SIGN_IN"
@@ -33,7 +36,7 @@ const (
 
 // Scan and Value methods for GORM to handle the custom type
 
-func (e *AuditLogEvent) Scan(value interface{}) error {
+func (e *AuditLogEvent) Scan(value any) error {
 	*e = AuditLogEvent(value.(string))
 	return nil
 }
@@ -42,11 +45,14 @@ func (e AuditLogEvent) Value() (driver.Value, error) {
 	return string(e), nil
 }
 
-func (d *AuditLogData) Scan(value interface{}) error {
-	if v, ok := value.([]byte); ok {
+func (d *AuditLogData) Scan(value any) error {
+	switch v := value.(type) {
+	case []byte:
 		return json.Unmarshal(v, d)
-	} else {
-		return errors.New("type assertion to []byte failed")
+	case string:
+		return json.Unmarshal([]byte(v), d)
+	default:
+		return fmt.Errorf("unsupported type: %T", value)
 	}
 }
 

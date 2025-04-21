@@ -2,8 +2,9 @@ package utils
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
-	"math/big"
+	"io"
 	"net/url"
 	"regexp"
 	"strings"
@@ -13,23 +14,41 @@ import (
 // GenerateRandomAlphanumericString generates a random alphanumeric string of the given length
 func GenerateRandomAlphanumericString(length int) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	const charsetLength = int64(len(charset))
 
 	if length <= 0 {
-		return "", fmt.Errorf("length must be a positive integer")
+		return "", errors.New("length must be a positive integer")
 	}
 
-	result := make([]byte, length)
+	// The algorithm below is adapted from https://stackoverflow.com/a/35615565
+	const (
+		letterIdxBits = 6                    // 6 bits to represent a letter index
+		letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	)
 
-	for i := range result {
-		num, err := rand.Int(rand.Reader, big.NewInt(charsetLength))
-		if err != nil {
-			return "", err
+	result := strings.Builder{}
+	result.Grow(length)
+	// Because we discard a bunch of bytes, we read more in the buffer to minimize the changes of performing additional IO
+	bufferSize := int(float64(length) * 1.3)
+	randomBytes := make([]byte, bufferSize)
+	for i, j := 0, 0; i < length; j++ {
+		// Fill the buffer if needed
+		if j%bufferSize == 0 {
+			_, err := io.ReadFull(rand.Reader, randomBytes)
+			if err != nil {
+				return "", fmt.Errorf("failed to generate random bytes: %w", err)
+			}
 		}
-		result[i] = charset[num.Int64()]
+
+		// Discard bytes that are outside of the range
+		// This allows making sure that we maintain uniform distribution
+		idx := int(randomBytes[j%length] & letterIdxMask)
+		if idx < len(charset) {
+			result.WriteByte(charset[idx])
+			i++
+		}
 	}
 
-	return string(result), nil
+	return result.String(), nil
 }
 
 func GetHostnameFromURL(rawURL string) string {
@@ -45,31 +64,54 @@ func StringPointer(s string) *string {
 	return &s
 }
 
-func CapitalizeFirstLetter(s string) string {
-	if s == "" {
-		return s
+func CapitalizeFirstLetter(str string) string {
+	if str == "" {
+		return ""
 	}
-	runes := []rune(s)
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
+
+	result := strings.Builder{}
+	result.Grow(len(str))
+	for i, r := range str {
+		if i == 0 {
+			result.WriteRune(unicode.ToUpper(r))
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
 
-func CamelCaseToSnakeCase(s string) string {
-	var result []rune
-	for i, r := range s {
+func CamelCaseToSnakeCase(str string) string {
+	result := strings.Builder{}
+	result.Grow(int(float32(len(str)) * 1.1))
+	for i, r := range str {
 		if unicode.IsUpper(r) && i > 0 {
-			result = append(result, '_')
+			result.WriteByte('_')
 		}
-		result = append(result, unicode.ToLower(r))
+		result.WriteRune(unicode.ToLower(r))
 	}
-	return string(result)
+	return result.String()
 }
+
+var camelCaseToScreamingSnakeCaseRe = regexp.MustCompile(`([a-z0-9])([A-Z])`)
 
 func CamelCaseToScreamingSnakeCase(s string) string {
 	// Insert underscores before uppercase letters (except the first one)
-	re := regexp.MustCompile(`([a-z0-9])([A-Z])`)
-	snake := re.ReplaceAllString(s, `${1}_${2}`)
+	snake := camelCaseToScreamingSnakeCaseRe.ReplaceAllString(s, `${1}_${2}`)
 
 	// Convert to uppercase
 	return strings.ToUpper(snake)
+}
+
+// GetFirstCharacter returns the first non-whitespace character of the string, correctly handling Unicode
+func GetFirstCharacter(str string) string {
+	for _, c := range str {
+		if unicode.IsSpace(c) {
+			continue
+		}
+		return string(c)
+	}
+
+	// Empty string case
+	return ""
 }

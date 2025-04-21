@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
 	import { createForm } from '$lib/utils/form-util';
@@ -60,23 +61,23 @@
 		<div class="flex flex-col gap-3 sm:flex-row">
 			<div class="w-full">
 				<FormInput
-					label="Friendly Name"
-					description="Name that will be displayed in the UI"
+					label={m.friendly_name()}
+					description={m.name_that_will_be_displayed_in_the_ui()}
 					bind:input={$inputs.friendlyName}
 					onInput={onFriendlyNameInput}
 				/>
 			</div>
 			<div class="w-full">
 				<FormInput
-					label="Name"
-					description={`Name that will be in the "groups" claim`}
+					label={m.name()}
+					description={m.name_that_will_be_in_the_groups_claim()}
 					bind:input={$inputs.name}
 					onInput={onNameInput}
 				/>
 			</div>
 		</div>
 		<div class="mt-5 flex justify-end">
-			<Button {isLoading} type="submit">Save</Button>
+			<Button {isLoading} type="submit">{m.save()}</Button>
 		</div>
 	</fieldset>
 </form>

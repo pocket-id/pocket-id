@@ -3,7 +3,7 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -45,15 +45,17 @@ type PublicKeyCredentialRequestOptions struct {
 	Timeout   time.Duration
 }
 
-type AuthenticatorTransportList []protocol.AuthenticatorTransport
+type AuthenticatorTransportList []protocol.AuthenticatorTransport //nolint:recvcheck
 
 // Scan and Value methods for GORM to handle the custom type
 func (atl *AuthenticatorTransportList) Scan(value interface{}) error {
-
-	if v, ok := value.([]byte); ok {
+	switch v := value.(type) {
+	case []byte:
 		return json.Unmarshal(v, atl)
-	} else {
-		return errors.New("type assertion to []byte failed")
+	case string:
+		return json.Unmarshal([]byte(v), atl)
+	default:
+		return fmt.Errorf("unsupported type: %T", value)
 	}
 }
 

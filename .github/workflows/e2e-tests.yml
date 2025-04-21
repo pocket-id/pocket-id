@@ -15,25 +15,35 @@ on:
 
 jobs:
   build:
+    if: github.event.pull_request.head.ref != 'i18n_crowdin'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
-          tags: pocket-id/pocket-id:test
+          push: false
+          load: false
+          tags: pocket-id:test
           outputs: type=docker,dest=/tmp/docker-image.tar
+          build-args: BUILD_TAGS=e2etest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: /tmp/docker-image.tar
+          retention-days: 1
 
   test-sqlite:
+    if: github.event.pull_request.head.ref != 'i18n_crowdin'
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -44,12 +54,22 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
           name: docker-image
           path: /tmp
-      - name: Load Docker Image
+
+      - name: Load Docker image
         run: docker load -i /tmp/docker-image.tar
 
       - name: Install frontend dependencies
@@ -58,6 +78,7 @@ jobs:
 
       - name: Install Playwright Browsers
         working-directory: ./frontend
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run Docker Container with Sqlite DB
@@ -65,21 +86,34 @@ jobs:
           docker run -d --name pocket-id-sqlite \
           -p 80:80 \
           -e APP_ENV=test \
-          pocket-id/pocket-id:test
+          pocket-id:test
+
+          docker logs -f pocket-id-sqlite &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./frontend
         run: npx playwright test
 
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - name: Upload Frontend Test Report
+        uses: actions/upload-artifact@v4
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: playwright-report-sqlite
           path: frontend/tests/.report
           include-hidden-files: true
           retention-days: 15
 
+      - name: Upload Backend Test Report
+        uses: actions/upload-artifact@v4
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
+        with:
+          name: backend-sqlite
+          path: /tmp/backend.log
+          include-hidden-files: true
+          retention-days: 15
+
   test-postgres:
+    if: github.event.pull_request.head.ref != 'i18n_crowdin'
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -90,12 +124,39 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Cache PostgreSQL Docker image
+        uses: actions/cache@v3
+        id: postgres-cache
+        with:
+          path: /tmp/postgres-image.tar
+          key: postgres-17-${{ runner.os }}
+
+      - name: Pull and save PostgreSQL image
+        if: steps.postgres-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull postgres:17
+          docker save postgres:17 > /tmp/postgres-image.tar
+
+      - name: Load PostgreSQL image from cache
+        if: steps.postgres-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/postgres-image.tar
+
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
           name: docker-image
           path: /tmp
-      - name: Load Docker Image
+
+      - name: Load Docker image
         run: docker load -i /tmp/docker-image.tar
 
       - name: Install frontend dependencies
@@ -104,6 +165,7 @@ jobs:
 
       - name: Install Playwright Browsers
         working-directory: ./frontend
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Create Docker network
@@ -137,17 +199,29 @@ jobs:
           -p 80:80 \
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
-          -e POSTGRES_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
-          pocket-id/pocket-id:test
+          -e DB_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
+          pocket-id:test
+
+          docker logs -f pocket-id-postgres &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./frontend
         run: npx playwright test
 
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - name: Upload Frontend Test Report
+        uses: actions/upload-artifact@v4
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: playwright-report-postgres
           path: frontend/tests/.report
+          include-hidden-files: true
+          retention-days: 15
+
+      - name: Upload Backend Test Report
+        uses: actions/upload-artifact@v4
+        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
+        with:
+          name: backend-postgres
+          path: /tmp/backend.log
           include-hidden-files: true
           retention-days: 15

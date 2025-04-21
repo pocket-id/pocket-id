@@ -1,5 +1,6 @@
 import test, { expect } from '@playwright/test';
 import { users } from './data';
+import authUtil from './utils/auth.util';
 import { cleanupBackend } from './utils/cleanup.util';
 import passkeyUtil from './utils/passkey.util';
 
@@ -37,6 +38,22 @@ test('Update account details fails with already taken username', async ({ page }
 	await expect(page.getByRole('status')).toHaveText('Username is already in use');
 });
 
+test('Change Locale', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Select Locale').click();
+	await page.getByRole('option', { name: 'Nederlands' }).click();
+
+	// Check if th language heading now says 'Taal' instead of 'Language'
+	await expect(page.getByRole('heading', { name: 'Taal' })).toBeVisible();
+
+	// Clear all cookies and sign in again to check if the language is still set to Dutch
+	await page.context().clearCookies();
+	await authUtil.authenticate(page);
+
+	await expect(page.getByRole('heading', { name: 'Taal' })).toBeVisible();
+});
+
 test('Add passkey to an account', async ({ page }) => {
 	await page.goto('/settings/account');
 
@@ -68,4 +85,21 @@ test('Delete passkey from account', async ({ page }) => {
 	await page.getByText('Delete', { exact: true }).click();
 
 	await expect(page.getByRole('status')).toHaveText('Passkey deleted successfully');
+});
+
+test('Generate own one time access token as non admin', async ({ page, context }) => {
+	await context.clearCookies();
+	await page.goto('/login');
+	await (await passkeyUtil.init(page)).addPasskey('craig');
+
+	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.waitForURL('/settings/account');
+
+	await page.getByRole('button', { name: 'Create' }).click();
+	const link = await page.getByTestId('login-code-link').textContent();
+
+	await context.clearCookies();
+
+	await page.goto(link!);
+	await page.waitForURL('/settings/account');
 });

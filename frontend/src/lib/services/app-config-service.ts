@@ -63,8 +63,8 @@ export default class AppConfigService extends APIService {
 			.then((res) => res.data)
 			.catch(() => null);
 
-		let newestVersion: string | null = null;
-		let isUpToDate: boolean | null = null;
+		let newestVersion: string | undefined;
+		let isUpToDate: boolean | undefined;
 		if (response) {
 			newestVersion = response.tag_name.replace('v', '');
 			isUpToDate = newestVersion === currentVersion;

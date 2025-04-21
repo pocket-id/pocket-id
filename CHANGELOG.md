@@ -1,3 +1,210 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.48.0...v) (2025-04-20)
+
+
+### Features
+
+* add ability to disable API key expiration email ([9122e75](https://github.com/pocket-id/pocket-id/commit/9122e75101ad39a40135ccf931eb2bfd351b5db6))
+* add ability to send login code via email ([#457](https://github.com/pocket-id/pocket-id/issues/457)) ([fe1c4b1](https://github.com/pocket-id/pocket-id/commit/fe1c4b18cdcc46a4256e0c111b34f1ce00f8e0e1))
+* add description to callback URL inputs ([eb689eb](https://github.com/pocket-id/pocket-id/commit/eb689eb56ec9eaf8b0fb1485040e26f841b9225d))
+* send email to user when api key expires within 7 days ([#451](https://github.com/pocket-id/pocket-id/issues/451)) ([26f01f2](https://github.com/pocket-id/pocket-id/commit/26f01f205be01fb8abd8c2e564c90c0fc4480ea5))
+
+
+### Bug Fixes
+
+* disable animations not respected on authorize and logout page ([e571996](https://github.com/pocket-id/pocket-id/commit/e571996cb57d04232c1f47ab337ad656f48bb3cb))
+* hide alternative sign in button if user is already authenticated ([4e05b82](https://github.com/pocket-id/pocket-id/commit/4e05b82f02740a4bae07cec6c6a64acd34ca0fc3))
+* locale change in dropdown doesn't work on first try ([60bad9e](https://github.com/pocket-id/pocket-id/commit/60bad9e9859d81c9967e6939e1ed10a65145a936))
+* remove limit of 20 callback URLs ([c37a3e0](https://github.com/pocket-id/pocket-id/commit/c37a3e0ed177c3bd2b9a618d1f4b0709004478b0))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.47.0...v) (2025-04-18)
+
+
+### Features
+
+* add gif support for logo and background image ([56a8b5d](https://github.com/pocket-id/pocket-id/commit/56a8b5d0c02643f869b77cf8475ddf2f9473880b))
+* disable/enable users ([#437](https://github.com/pocket-id/pocket-id/issues/437)) ([c843a60](https://github.com/pocket-id/pocket-id/commit/c843a60131b813177b1e270c4f5d97613c700efa))
+
+
+### Bug Fixes
+
+* add "type" as reserved claim ([0111a58](https://github.com/pocket-id/pocket-id/commit/0111a58dac0342c5ac2fa25a050e8773810d2b0a))
+* callback URL doesn't get rejected if it starts with a different string ([f0dce41](https://github.com/pocket-id/pocket-id/commit/f0dce41fbc5649b3a8fe65de36ca20efa521b880))
+* profile picture empty for users without first or last name ([#449](https://github.com/pocket-id/pocket-id/issues/449)) ([5a6dfd9](https://github.com/pocket-id/pocket-id/commit/5a6dfd9e505f4c84e91b4b378b082fab10e8a8a8))
+* user querying fails on global audit log page with Postgres ([84f1d5c](https://github.com/pocket-id/pocket-id/commit/84f1d5c906ec3f9a74ad3d2f36526eea847af5dd))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.46.0...v) (2025-04-16)
+
+
+### Features
+
+* add qrcode representation of one time link ([#424](https://github.com/pocket-id/pocket-id/issues/424)) ([#436](https://github.com/pocket-id/pocket-id/issues/436)) ([abf17f6](https://github.com/pocket-id/pocket-id/commit/abf17f62114a2de549b62cec462b9b0659ee23a7))
+* disable animations setting toggle ([#442](https://github.com/pocket-id/pocket-id/issues/442)) ([b45cf68](https://github.com/pocket-id/pocket-id/commit/b45cf68295975f51777dab95950b98b8db0a9ae5))
+
+
+### Bug Fixes
+
+* define token type as claim for better client compatibility ([adf7458](https://github.com/pocket-id/pocket-id/commit/adf74586afb6ef9a00fb122c150b0248c5bc23f0))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.45.0...v) (2025-04-13)
+
+
+### Features
+
+* global audit log ([#320](https://github.com/pocket-id/pocket-id/issues/320)) ([b65e693](https://github.com/pocket-id/pocket-id/commit/b65e693e12be2e7e4cb75a74d6fd43bacb3f6a94))
+* implement token introspection ([#405](https://github.com/pocket-id/pocket-id/issues/405)) ([7e5d16b](https://github.com/pocket-id/pocket-id/commit/7e5d16be9bdfccfa113924547e313886681d11bb))
+* modernize ui ([#381](https://github.com/pocket-id/pocket-id/issues/381)) ([9881a1d](https://github.com/pocket-id/pocket-id/commit/9881a1df9efe32608ab116db71c0e4f66dae171c))
+* **onboarding:** Added button when you don't have a passkey added. ([#426](https://github.com/pocket-id/pocket-id/issues/426)) ([72061ba](https://github.com/pocket-id/pocket-id/commit/72061ba4278a007437cee3a205c3076d58bde644))
+
+
+### Bug Fixes
+
+* add missing rollback for LDAP sync ([658a9ca](https://github.com/pocket-id/pocket-id/commit/658a9ca6dd8d2304ff3639a000bab02e91ff68a6))
+* create reusable default profile pictures ([#406](https://github.com/pocket-id/pocket-id/issues/406)) ([734c681](https://github.com/pocket-id/pocket-id/commit/734c6813eaef166235ae801747e3652d17ae0e2a))
+* ensure file descriptors are closed + other bugs ([#413](https://github.com/pocket-id/pocket-id/issues/413)) ([2f76461](https://github.com/pocket-id/pocket-id/commit/2f7646105e26423f47cbe49dae97e40c4a01a025))
+* ensure indexes on audit_logs table ([#415](https://github.com/pocket-id/pocket-id/issues/415)) ([9e88926](https://github.com/pocket-id/pocket-id/commit/9e88926283a7a663bfc7fd4f4aa16bd02f614176))
+* ignore profile picture cache after profile picture gets updated ([4ba6893](https://github.com/pocket-id/pocket-id/commit/4ba68938dd2a631c633fcb65d8c35cb039d3f59c))
+* improve LDAP error handling ([#425](https://github.com/pocket-id/pocket-id/issues/425)) ([796bc7e](https://github.com/pocket-id/pocket-id/commit/796bc7ed3453839b1dc8d846b71fe9fac9a2d646))
+* use transactions when operations involve multiple database queries ([#392](https://github.com/pocket-id/pocket-id/issues/392)) ([ec626ee](https://github.com/pocket-id/pocket-id/commit/ec626ee7977306539fd1d70cc9091590f0a54af6))
+* use UUID for temporary file names ([ccc18d7](https://github.com/pocket-id/pocket-id/commit/ccc18d716f16a7ef1775d30982e2ba7b5ff159a6))
+
+
+### Performance Improvements
+
+* run async operations in parallel in server load functions ([1762629](https://github.com/pocket-id/pocket-id/commit/17626295964244c5582806bd0f413da2c799d5ad))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.44.0...v) (2025-03-29)
+
+
+### Features
+
+* add support for ECDSA and EdDSA keys ([#359](https://github.com/pocket-id/pocket-id/issues/359)) ([96876a9](https://github.com/pocket-id/pocket-id/commit/96876a99c586508b72c27669ab200ff6a29db771))
+
+
+### Bug Fixes
+
+* ldap users aren't deleted if removed from ldap server ([7e65827](https://github.com/pocket-id/pocket-id/commit/7e658276f04d08a1f5117796e55d45e310204dab))
+* use value receiver for `AuditLogData` ([cbd1bbd](https://github.com/pocket-id/pocket-id/commit/cbd1bbdf741eedd03e93598d67623c75c74b6212))
+* use WAL for SQLite by default and set busy_timeout ([#388](https://github.com/pocket-id/pocket-id/issues/388)) ([519d58d](https://github.com/pocket-id/pocket-id/commit/519d58d88c906abc5139e35933bdeba0396c10a2))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.43.1...v) (2025-03-25)
+
+
+### Features
+
+* add OIDC refresh_token support ([#325](https://github.com/pocket-id/pocket-id/issues/325)) ([b8dcda8](https://github.com/pocket-id/pocket-id/commit/b8dcda80497e554d163a370eff81fe000f8831f4))
+
+
+### Bug Fixes
+
+* hash the refresh token in the DB (security) ([#379](https://github.com/pocket-id/pocket-id/issues/379)) ([8c96381](https://github.com/pocket-id/pocket-id/commit/8c963818bb90c84dac04018eec93790900d4b0ce))
+* skip ldap objects without a valid unique id ([#376](https://github.com/pocket-id/pocket-id/issues/376)) ([cdfe816](https://github.com/pocket-id/pocket-id/commit/cdfe8161d4429bdfe879887fe0b563a67c14f50b))
+* stop container if Caddy, the frontend or the backend fails ([e6f5019](https://github.com/pocket-id/pocket-id/commit/e6f50191cf05a5d0ac0e0000cf66423646f1920e))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.43.0...v) (2025-03-20)
+
+
+### Bug Fixes
+
+* wrong base locale causes crash ([3120ebf](https://github.com/pocket-id/pocket-id/commit/3120ebf239b90f0bc0a0af33f30622e034782398))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.42.1...v) (2025-03-20)
+
+
+### Features
+
+* add support for translations ([#349](https://github.com/pocket-id/pocket-id/issues/349)) ([269b5a3](https://github.com/pocket-id/pocket-id/commit/269b5a3c9249bb8081c74741141d3d5a69ea42a2))
+* **passkeys:** name new passkeys based on agguids ([#332](https://github.com/pocket-id/pocket-id/issues/332)) ([041c565](https://github.com/pocket-id/pocket-id/commit/041c565dc10f15edb3e8ab58e9a4df5e48a2a6d3))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.42.0...v) (2025-03-18)
+
+
+### Bug Fixes
+
+* kid not added to JWTs ([f7e36a4](https://github.com/pocket-id/pocket-id/commit/f7e36a422ea6b5327360c9a13308ae408ff7fffe))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.41.0...v) (2025-03-18)
+
+
+### Features
+
+* store keys as JWK on disk ([#339](https://github.com/pocket-id/pocket-id/issues/339)) ([a7c9741](https://github.com/pocket-id/pocket-id/commit/a7c9741802667811c530ef4e6313b71615ec6a9b))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.40.1...v) (2025-03-18)
+
+
+### Features
+
+* **profile-picture:** allow reset of profile picture ([#355](https://github.com/pocket-id/pocket-id/issues/355)) ([8f14618](https://github.com/pocket-id/pocket-id/commit/8f146188d57b5c08a4c6204674c15379232280d8))
+
+
+### Bug Fixes
+
+* own avatar not loading ([#351](https://github.com/pocket-id/pocket-id/issues/351)) ([0423d35](https://github.com/pocket-id/pocket-id/commit/0423d354f533d2ff4fd431859af3eea7d4d7044f))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.40.0...v) (2025-03-16)
+
+
+### Bug Fixes
+
+* API keys not working if sqlite is used ([8ead0be](https://github.com/pocket-id/pocket-id/commit/8ead0be8cd0cfb542fe488b7251cfd5274975ae1))
+* caching for own profile picture ([e45d9e9](https://github.com/pocket-id/pocket-id/commit/e45d9e970d327a5120ff9fb0c8d42df8af69bb38))
+* email logo icon displaying too big ([#336](https://github.com/pocket-id/pocket-id/issues/336)) ([b483e2e](https://github.com/pocket-id/pocket-id/commit/b483e2e92fdb528e7de026350a727d6970227426))
+* emails are considered as medium spam by rspamd ([#337](https://github.com/pocket-id/pocket-id/issues/337)) ([39b7f66](https://github.com/pocket-id/pocket-id/commit/39b7f6678c98cadcdc3abfbcb447d8eb0daa9eb0))
+* Fixes and performance improvements in utils package ([#331](https://github.com/pocket-id/pocket-id/issues/331)) ([348192b](https://github.com/pocket-id/pocket-id/commit/348192b9d7e2698add97810f8fba53d13d0df018))
+* remove custom claim key restrictions ([9f28503](https://github.com/pocket-id/pocket-id/commit/9f28503d6c73d3521d1309bee055704a0507e9b5))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.39.0...v) (2025-03-13)
+
+
+### Features
+
+* allow setting path where keys are stored ([#327](https://github.com/pocket-id/pocket-id/issues/327)) ([7b654c6](https://github.com/pocket-id/pocket-id/commit/7b654c6bd111ddcddd5e3450cbf326d9cf1777b6))
+
+
+### Bug Fixes
+
+* **docker:** missing write permissions on scripts ([ec4b41a](https://github.com/pocket-id/pocket-id/commit/ec4b41a1d26ea00bb4a95f654ac4cc745b2ce2e8))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.38.0...v) (2025-03-11)
+
+
+### Features
+
+* api key authentication ([#291](https://github.com/pocket-id/pocket-id/issues/291)) ([62915d8](https://github.com/pocket-id/pocket-id/commit/62915d863a4adc09cf467b75c414a045be43c2bb))
+
+
+### Bug Fixes
+
+* alternative login method link on mobile ([9ef2ddf](https://github.com/pocket-id/pocket-id/commit/9ef2ddf7963c6959992f3a5d6816840534e926e9))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.37.0...v) (2025-03-10)
+
+
+### Features
+
+* add env variable to disable update check ([31198fe](https://github.com/pocket-id/pocket-id/commit/31198feec2ae77dd6673c42b42002871ddd02d37))
+
+
+### Bug Fixes
+
+* redirection not correctly if signing in with email code ([e5ec264](https://github.com/pocket-id/pocket-id/commit/e5ec264bfd535752565bcc107099a9df5cb8aba7))
+* typo in account settings ([#307](https://github.com/pocket-id/pocket-id/issues/307)) ([c822192](https://github.com/pocket-id/pocket-id/commit/c8221921245deb3008f655740d1a9460dcdab2fc))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.36.0...v) (2025-03-10)
+
+
+### Features
+
+* **account:** add ability to sign in with login code ([#271](https://github.com/pocket-id/pocket-id/issues/271)) ([eb1426e](https://github.com/pocket-id/pocket-id/commit/eb1426ed2684b5ddd185db247a8e082b28dfd014))
+* increase default item count per page ([a9713cf](https://github.com/pocket-id/pocket-id/commit/a9713cf6a1e3c879dc773889b7983e51bbe3c45b))
+
+
+### Bug Fixes
+
+* add back setup page ([6a8dd84](https://github.com/pocket-id/pocket-id/commit/6a8dd84ca9396ff3369385af22f7e1f081bec2b2))
+* add timeout to update check ([04efc36](https://github.com/pocket-id/pocket-id/commit/04efc3611568a0b0127b542b8cc252d9e783af46))
+* make sorting consistent around tables ([8e344f1](https://github.com/pocket-id/pocket-id/commit/8e344f1151628581b637692a1de0e48e7235a22d))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.35.6...v) (2025-03-06)
 
 

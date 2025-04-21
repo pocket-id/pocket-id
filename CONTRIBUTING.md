@@ -31,8 +31,15 @@ Before you submit the pull request for review please ensure that
 - You run `npm run format` to format the code
 
 ## Setup project
+Pocket ID consists of a frontend, backend and a reverse proxy. There are two ways to get the development environment setup:
 
-Pocket ID consists of a frontend, backend and a reverse proxy.
+## 1. Using DevContainers
+1. Make sure you have [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension installed
+2. Clone and open the repo in VS Code
+3. VS Code will detect .devcontainer and will prompt you to open the folder in devcontainer
+4. If the auto prompt does not work, hit `F1` and select `Dev Containers: Open Folder in Container.`, then select the pocket-id repo root folder and it'll open in container.
+
+## 2. Manual
 
 ### Backend
 
@@ -42,7 +49,7 @@ The backend is built with [Gin](https://gin-gonic.com) and written in Go.
 
 1. Open the `backend` folder
 2. Copy the `.env.example` file to `.env` and change the `APP_ENV` to `development`
-3. Start the backend with `go run cmd/main.go`
+3. Start the backend with `go run -tags e2etest ./cmd`
 
 ### Frontend
 
@@ -62,6 +69,10 @@ We use [Caddy](https://caddyserver.com) as a reverse proxy. You can use any othe
 Run `caddy run --config reverse-proxy/Caddyfile` in the root folder.
 
 You're all set!
+
+## Debugging
+1. The VS Code is currently setup to auto launch caddy on opening the folder. (Defined in [tasks.json](.vscode/tasks.json))
+2. Press `F5` to start a debug session. This will launch both frontend and backend and attach debuggers to those process. (Defined in [launch.json](.vscode/launch.json))
 
 ### Testing
 

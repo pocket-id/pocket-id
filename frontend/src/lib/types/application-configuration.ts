@@ -1,8 +1,10 @@
 export type AppConfig = {
 	appName: string;
 	allowOwnAccountEdit: boolean;
-	emailOneTimeAccessEnabled: boolean;
+	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
+	emailOneTimeAccessAsAdminEnabled: boolean;
 	ldapEnabled: boolean;
+	disableAnimations: boolean;
 };
 
 export type AllAppConfig = AppConfig & {
@@ -18,6 +20,7 @@ export type AllAppConfig = AppConfig & {
 	smtpTls: 'none' | 'starttls' | 'tls';
 	smtpSkipCertVerify: boolean;
 	emailLoginNotificationEnabled: boolean;
+	emailApiKeyExpirationEnabled: boolean;
 	// LDAP
 	ldapUrl: string;
 	ldapBindDn: string;
@@ -36,6 +39,7 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeGroupUniqueIdentifier: string;
 	ldapAttributeGroupName: string;
 	ldapAttributeAdminGroup: string;
+	ldapSoftDeleteUsers: boolean;
 };
 
 export type AppConfigRawResponse = {
@@ -45,7 +49,7 @@ export type AppConfigRawResponse = {
 }[];
 
 export type AppVersionInformation = {
-	isUpToDate: boolean | null;
-	newestVersion: string | null;
+	isUpToDate?: boolean;
+	newestVersion?: string;
 	currentVersion: string;
 };

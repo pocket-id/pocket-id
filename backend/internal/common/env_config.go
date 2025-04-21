@@ -20,9 +20,11 @@ type EnvConfigSchema struct {
 	AppEnv                   string     `env:"APP_ENV"`
 	AppURL                   string     `env:"PUBLIC_APP_URL"`
 	DbProvider               DbProvider `env:"DB_PROVIDER"`
-	SqliteDBPath             string     `env:"SQLITE_DB_PATH"`
-	PostgresConnectionString string     `env:"POSTGRES_CONNECTION_STRING"`
+	DbConnectionString       string     `env:"DB_CONNECTION_STRING"`
+	SqliteDBPath             string     `env:"SQLITE_DB_PATH"`             // Deprecated: use "DB_CONNECTION_STRING" instead
+	PostgresConnectionString string     `env:"POSTGRES_CONNECTION_STRING"` // Deprecated: use "DB_CONNECTION_STRING" instead
 	UploadPath               string     `env:"UPLOAD_PATH"`
+	KeysPath                 string     `env:"KEYS_PATH"`
 	Port                     string     `env:"BACKEND_PORT"`
 	Host                     string     `env:"HOST"`
 	MaxMindLicenseKey        string     `env:"MAXMIND_LICENSE_KEY"`
@@ -34,9 +36,11 @@ type EnvConfigSchema struct {
 var EnvConfig = &EnvConfigSchema{
 	AppEnv:                   "production",
 	DbProvider:               "sqlite",
-	SqliteDBPath:             "data/pocket-id.db",
+	DbConnectionString:       "file:data/pocket-id.db?_journal_mode=WAL&_busy_timeout=2500&_txlock=immediate",
+	SqliteDBPath:             "",
 	PostgresConnectionString: "",
 	UploadPath:               "data/uploads",
+	KeysPath:                 "data/keys",
 	AppURL:                   "http://localhost",
 	Port:                     "8080",
 	Host:                     "0.0.0.0",
@@ -50,17 +54,19 @@ func init() {
 	if err := env.ParseWithOptions(EnvConfig, env.Options{}); err != nil {
 		log.Fatal(err)
 	}
+
 	// Validate the environment variables
-	if EnvConfig.DbProvider != DbProviderSqlite && EnvConfig.DbProvider != DbProviderPostgres {
+	switch EnvConfig.DbProvider {
+	case DbProviderSqlite:
+		if EnvConfig.DbConnectionString == "" {
+			log.Fatal("Missing required env var 'DB_CONNECTION_STRING' for SQLite database")
+		}
+	case DbProviderPostgres:
+		if EnvConfig.DbConnectionString == "" {
+			log.Fatal("Missing required env var 'DB_CONNECTION_STRING' for Postgres database")
+		}
+	default:
 		log.Fatal("Invalid DB_PROVIDER value. Must be 'sqlite' or 'postgres'")
-	}
-
-	if EnvConfig.DbProvider == DbProviderPostgres && EnvConfig.PostgresConnectionString == "" {
-		log.Fatal("Missing POSTGRES_CONNECTION_STRING environment variable")
-	}
-
-	if EnvConfig.DbProvider == DbProviderSqlite && EnvConfig.SqliteDBPath == "" {
-		log.Fatal("Missing SQLITE_DB_PATH environment variable")
 	}
 
 	parsedAppUrl, err := url.Parse(EnvConfig.AppURL)

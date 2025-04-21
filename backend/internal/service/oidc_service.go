@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -10,8 +11,11 @@ import (
 	"mime/multipart"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
+
+	"github.com/lestrrat-go/jwx/v3/jwt"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -40,9 +44,19 @@ func NewOidcService(db *gorm.DB, jwtService *JwtService, appConfigService *AppCo
 	}
 }
 
-func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID, ipAddress, userAgent string) (string, string, error) {
+func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClientRequestDto, userID, ipAddress, userAgent string) (string, string, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.Preload("AllowedUserGroups").First(&client, "id = ?", input.ClientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("AllowedUserGroups").
+		First(&client, "id = ?", input.ClientID).
+		Error
+	if err != nil {
 		return "", "", err
 	}
 
@@ -59,7 +73,12 @@ func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID,
 
 	// Check if the user group is allowed to authorize the client
 	var user model.User
-	if err := s.db.Preload("UserGroups").First(&user, "id = ?", userID).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if err != nil {
 		return "", "", err
 	}
 
@@ -68,7 +87,7 @@ func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID,
 	}
 
 	// Check if the user has already authorized the client with the given scope
-	hasAuthorizedClient, err := s.HasAuthorizedClient(input.ClientID, userID, input.Scope)
+	hasAuthorizedClient, err := s.hasAuthorizedClientInternal(ctx, input.ClientID, userID, input.Scope, tx)
 	if err != nil {
 		return "", "", err
 	}
@@ -81,39 +100,55 @@ func (s *OidcService) Authorize(input dto.AuthorizeOidcClientRequestDto, userID,
 			Scope:    input.Scope,
 		}
 
-		if err := s.db.Create(&userAuthorizedClient).Error; err != nil {
-			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				// The client has already been authorized but with a different scope so we need to update the scope
-				if err := s.db.Model(&userAuthorizedClient).Update("scope", input.Scope).Error; err != nil {
-					return "", "", err
-				}
-			} else {
+		err = tx.
+			WithContext(ctx).
+			Create(&userAuthorizedClient).
+			Error
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			// The client has already been authorized but with a different scope so we need to update the scope
+			if err := tx.
+				WithContext(ctx).
+				Model(&userAuthorizedClient).Update("scope", input.Scope).Error; err != nil {
 				return "", "", err
 			}
+		} else if err != nil {
+			return "", "", err
 		}
 	}
 
 	// Create the authorization code
-	code, err := s.createAuthorizationCode(input.ClientID, userID, input.Scope, input.Nonce, input.CodeChallenge, input.CodeChallengeMethod)
+	code, err := s.createAuthorizationCode(ctx, input.ClientID, userID, input.Scope, input.Nonce, input.CodeChallenge, input.CodeChallengeMethod, tx)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Log the authorization event
 	if hasAuthorizedClient {
-		s.auditLogService.Create(model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name})
+		s.auditLogService.Create(ctx, model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
 	} else {
-		s.auditLogService.Create(model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name})
+		s.auditLogService.Create(ctx, model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
+	}
 
+	err = tx.Commit().Error
+	if err != nil {
+		return "", "", err
 	}
 
 	return code, callbackURL, nil
 }
 
 // HasAuthorizedClient checks if the user has already authorized the client with the given scope
-func (s *OidcService) HasAuthorizedClient(clientID, userID, scope string) (bool, error) {
+func (s *OidcService) HasAuthorizedClient(ctx context.Context, clientID, userID, scope string) (bool, error) {
+	return s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
+}
+
+func (s *OidcService) hasAuthorizedClientInternal(ctx context.Context, clientID, userID, scope string, tx *gorm.DB) (bool, error) {
 	var userAuthorizedOidcClient model.UserAuthorizedOidcClient
-	if err := s.db.First(&userAuthorizedOidcClient, "client_id = ? AND user_id = ?", clientID, userID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		First(&userAuthorizedOidcClient, "client_id = ? AND user_id = ?", clientID, userID).
+		Error
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
 		}
@@ -146,129 +181,362 @@ func (s *OidcService) IsUserGroupAllowedToAuthorize(user model.User, client mode
 	return isAllowedToAuthorize
 }
 
-func (s *OidcService) CreateTokens(code, grantType, clientID, clientSecret, codeVerifier, deviceCode string) (string, string, error) {
+func (s *OidcService) CreateTokens(ctx context.Context, input dto.OidcCreateTokensDto) (idToken string, accessToken string, newRefreshToken string, exp int, err error) {
+	switch input.GrantType {
+	case "authorization_code":
+		return s.createTokenFromAuthorizationCode(ctx, input.Code, input.ClientID, input.ClientSecret, input.CodeVerifier)
+	case "refresh_token":
+		accessToken, newRefreshToken, exp, err = s.createTokenFromRefreshToken(ctx, input.RefreshToken, input.ClientID, input.ClientSecret)
+		return "", accessToken, newRefreshToken, exp, err
+	case "urn:ietf:params:oauth:grant-type:device_code":
+		return s.createTokenFromDeviceCode(ctx, input.DeviceCode, input.ClientID)
+	default:
+		return "", "", "", 0, &common.OidcGrantTypeNotSupportedError{}
+	}
+}
+
+func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, deviceCode, clientID string) (idToken string, accessToken string, refreshToken string, exp int, err error) {
 	// Handle device authorization grant
-	if grantType == "urn:ietf:params:oauth:grant-type:device_code" {
-		if deviceCode == "" {
-			return "", "", &common.ValidationError{Message: "device_code is required"}
-		}
-
-		// Get the device authorization from database with explicit query conditions
-		var deviceAuth model.OidcDeviceCode
-		if err := s.db.Preload("User").Where("device_code = ? AND client_id = ?", deviceCode, clientID).First(&deviceAuth).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return "", "", &common.OidcInvalidDeviceCodeError{}
-			}
-			return "", "", err
-		}
-
-		// Check if device code has expired
-		if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
-			return "", "", &common.OidcDeviceCodeExpiredError{}
-		}
-
-		// Check if device code has been authorized
-		if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
-			return "", "", &common.OidcAuthorizationPendingError{}
-		}
-
-		// Get user claims for the ID token - ensure UserID is not nil
-		if deviceAuth.UserID == nil {
-			return "", "", &common.OidcAuthorizationPendingError{}
-		}
-
-		userClaims, err := s.GetUserClaimsForClient(*deviceAuth.UserID, clientID)
-		if err != nil {
-			return "", "", err
-		}
-
-		// Explicitly use the input clientID for the audience claim to ensure consistency
-		idToken, err := s.jwtService.GenerateIDToken(userClaims, clientID, "")
-		if err != nil {
-			return "", "", err
-		}
-
-		accessToken, err := s.jwtService.GenerateOauthAccessToken(deviceAuth.User, clientID)
-		if err != nil {
-			return "", "", err
-		}
-
-		// Delete the used device code
-		if err := s.db.Delete(&deviceAuth).Error; err != nil {
-			return "", "", err
-		}
-
-		return idToken, accessToken, nil
+	if deviceCode == "" {
+		return "", "", "", 0, &common.ValidationError{Message: "device_code is required"}
 	}
 
-	// Existing authorization code flow logic
-	if grantType != "authorization_code" {
-		return "", "", &common.OidcGrantTypeNotSupportedError{}
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// Get the device authorization from database with explicit query conditions
+	var deviceAuth model.OidcDeviceCode
+	if err := tx.WithContext(ctx).Preload("User").Where("device_code = ? AND client_id = ?", deviceCode, clientID).First(&deviceAuth).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", "", "", 0, &common.OidcInvalidDeviceCodeError{}
+		}
+		return "", "", "", 0, err
 	}
+
+	// Check if device code has expired
+	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
+		return "", "", "", 0, &common.OidcDeviceCodeExpiredError{}
+	}
+
+	// Check if device code has been authorized
+	if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
+		return "", "", "", 0, &common.OidcAuthorizationPendingError{}
+	}
+
+	// Get user claims for the ID token - ensure UserID is not nil
+	if deviceAuth.UserID == nil {
+		return "", "", "", 0, &common.OidcAuthorizationPendingError{}
+	}
+
+	userClaims, err := s.getUserClaimsForClientInternal(ctx, *deviceAuth.UserID, clientID, tx)
+	if err != nil {
+		return "", "", "", 0, err
+	}
+
+	// Explicitly use the input clientID for the audience claim to ensure consistency
+	idToken, err = s.jwtService.GenerateIDToken(userClaims, clientID, "")
+	if err != nil {
+		return "", "", "", 0, err
+	}
+
+	refreshToken, err = s.createRefreshToken(ctx, clientID, *deviceAuth.UserID, deviceAuth.Scope, tx)
+	if err != nil {
+		return "", "", "", 0, err
+	}
+
+	accessToken, err = s.jwtService.GenerateOauthAccessToken(deviceAuth.User, clientID)
+	if err != nil {
+		return "", "", "", 0, err
+	}
+
+	// Delete the used device code
+	if err := tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
+		return "", "", "", 0, err
+	}
+
+	return idToken, accessToken, refreshToken, 3600, nil
+}
+
+func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, code, clientID, clientSecret, codeVerifier string) (idToken string, accessToken string, refreshToken string, exp int, err error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
 
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
-		return "", "", err
+	err = tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
+		return "", "", "", 0, err
 	}
 
 	// Verify the client secret if the client is not public
 	if !client.IsPublic {
 		if clientID == "" || clientSecret == "" {
-			return "", "", &common.OidcMissingClientCredentialsError{}
+			return "", "", "", 0, &common.OidcMissingClientCredentialsError{}
 		}
 
 		err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret))
 		if err != nil {
-			return "", "", &common.OidcClientSecretInvalidError{}
+			return "", "", "", 0, &common.OidcClientSecretInvalidError{}
 		}
 	}
 
 	var authorizationCodeMetaData model.OidcAuthorizationCode
-	err := s.db.Preload("User").First(&authorizationCodeMetaData, "code = ?", code).Error
+	err = tx.
+		WithContext(ctx).
+		Preload("User").
+		First(&authorizationCodeMetaData, "code = ?", code).
+		Error
 	if err != nil {
-		return "", "", &common.OidcInvalidAuthorizationCodeError{}
+		return "", "", "", 0, &common.OidcInvalidAuthorizationCodeError{}
 	}
 
 	// If the client is public or PKCE is enabled, the code verifier must match the code challenge
 	if client.IsPublic || client.PkceEnabled {
 		if !s.validateCodeVerifier(codeVerifier, *authorizationCodeMetaData.CodeChallenge, *authorizationCodeMetaData.CodeChallengeMethodSha256) {
-			return "", "", &common.OidcInvalidCodeVerifierError{}
+			return "", "", "", 0, &common.OidcInvalidCodeVerifierError{}
 		}
 	}
 
 	if authorizationCodeMetaData.ClientID != clientID && authorizationCodeMetaData.ExpiresAt.ToTime().Before(time.Now()) {
-		return "", "", &common.OidcInvalidAuthorizationCodeError{}
+		return "", "", "", 0, &common.OidcInvalidAuthorizationCodeError{}
 	}
 
-	userClaims, err := s.GetUserClaimsForClient(authorizationCodeMetaData.UserID, clientID)
+	userClaims, err := s.getUserClaimsForClientInternal(ctx, authorizationCodeMetaData.UserID, clientID, tx)
 	if err != nil {
-		return "", "", err
+		return "", "", "", 0, err
 	}
 
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, clientID, authorizationCodeMetaData.Nonce)
+	idToken, err = s.jwtService.GenerateIDToken(userClaims, clientID, authorizationCodeMetaData.Nonce)
 	if err != nil {
-		return "", "", err
+		return "", "", "", 0, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, clientID)
+	// Generate a refresh token
+	refreshToken, err = s.createRefreshToken(ctx, clientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope, tx)
+	if err != nil {
+		return "", "", "", 0, err
+	}
 
-	s.db.Delete(&authorizationCodeMetaData)
+	accessToken, err = s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, clientID)
+	if err != nil {
+		return "", "", "", 0, err
+	}
 
-	return idToken, accessToken, nil
+	err = tx.
+		WithContext(ctx).
+		Delete(&authorizationCodeMetaData).
+		Error
+	if err != nil {
+		return "", "", "", 0, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return "", "", "", 0, err
+	}
+
+	return idToken, accessToken, refreshToken, 3600, nil
 }
 
-func (s *OidcService) GetClient(clientID string) (model.OidcClient, error) {
+func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret string) (accessToken string, newRefreshToken string, exp int, err error) {
+	if refreshToken == "" {
+		return "", "", 0, &common.OidcMissingRefreshTokenError{}
+	}
+
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// Get the client to check if it's public
 	var client model.OidcClient
-	if err := s.db.Preload("CreatedBy").Preload("AllowedUserGroups").First(&client, "id = ?", clientID).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	// Verify the client secret if the client is not public
+	if !client.IsPublic {
+		if clientID == "" || clientSecret == "" {
+			return "", "", 0, &common.OidcMissingClientCredentialsError{}
+		}
+
+		err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret))
+		if err != nil {
+			return "", "", 0, &common.OidcClientSecretInvalidError{}
+		}
+	}
+
+	// Verify refresh token
+	var storedRefreshToken model.OidcRefreshToken
+	err = tx.
+		WithContext(ctx).
+		Preload("User").
+		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
+		First(&storedRefreshToken).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", "", 0, &common.OidcInvalidRefreshTokenError{}
+		}
+		return "", "", 0, err
+	}
+
+	// Verify that the refresh token belongs to the provided client
+	if storedRefreshToken.ClientID != clientID {
+		return "", "", 0, &common.OidcInvalidRefreshTokenError{}
+	}
+
+	// Generate a new access token
+	accessToken, err = s.jwtService.GenerateOauthAccessToken(storedRefreshToken.User, clientID)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	// Generate a new refresh token and invalidate the old one
+	newRefreshToken, err = s.createRefreshToken(ctx, clientID, storedRefreshToken.UserID, storedRefreshToken.Scope, tx)
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	// Delete the used refresh token
+	err = tx.
+		WithContext(ctx).
+		Delete(&storedRefreshToken).
+		Error
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return "", "", 0, err
+	}
+
+	return accessToken, newRefreshToken, 3600, nil
+}
+
+func (s *OidcService) IntrospectToken(clientID, clientSecret, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	if clientID == "" || clientSecret == "" {
+		return introspectDto, &common.OidcMissingClientCredentialsError{}
+	}
+
+	// Get the client to check if we are authorized.
+	var client model.OidcClient
+	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	// Verify the client secret. This endpoint may not be used by public clients.
+	if client.IsPublic {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret)); err != nil {
+		return introspectDto, &common.OidcClientSecretInvalidError{}
+	}
+
+	token, err := s.jwtService.VerifyOauthAccessToken(tokenString)
+	if err != nil {
+		if errors.Is(err, jwt.ParseError()) {
+			// It's apparently not a valid JWT token, so we check if it's a valid refresh_token.
+			return s.introspectRefreshToken(tokenString)
+		}
+
+		// Every failure we get means the token is invalid. Nothing more to do with the error.
+		introspectDto.Active = false
+		return introspectDto, nil
+	}
+
+	introspectDto.Active = true
+	introspectDto.TokenType = "access_token"
+	if token.Has("scope") {
+		var asString string
+		var asStrings []string
+		if err := token.Get("scope", &asString); err == nil {
+			introspectDto.Scope = asString
+		} else if err := token.Get("scope", &asStrings); err == nil {
+			introspectDto.Scope = strings.Join(asStrings, " ")
+		}
+	}
+	if expiration, hasExpiration := token.Expiration(); hasExpiration {
+		introspectDto.Expiration = expiration.Unix()
+	}
+	if issuedAt, hasIssuedAt := token.IssuedAt(); hasIssuedAt {
+		introspectDto.IssuedAt = issuedAt.Unix()
+	}
+	if notBefore, hasNotBefore := token.NotBefore(); hasNotBefore {
+		introspectDto.NotBefore = notBefore.Unix()
+	}
+	if subject, hasSubject := token.Subject(); hasSubject {
+		introspectDto.Subject = subject
+	}
+	if audience, hasAudience := token.Audience(); hasAudience {
+		introspectDto.Audience = audience
+	}
+	if issuer, hasIssuer := token.Issuer(); hasIssuer {
+		introspectDto.Issuer = issuer
+	}
+	if identifier, hasIdentifier := token.JwtID(); hasIdentifier {
+		introspectDto.Identifier = identifier
+	}
+
+	return introspectDto, nil
+}
+
+func (s *OidcService) introspectRefreshToken(refreshToken string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	var storedRefreshToken model.OidcRefreshToken
+	err = s.db.Preload("User").
+		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
+		First(&storedRefreshToken).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			introspectDto.Active = false
+			return introspectDto, nil
+		}
+		return introspectDto, err
+	}
+
+	introspectDto.Active = true
+	introspectDto.TokenType = "refresh_token"
+	return introspectDto, nil
+}
+
+func (s *OidcService) GetClient(ctx context.Context, clientID string) (model.OidcClient, error) {
+	return s.getClientInternal(ctx, clientID, s.db)
+}
+
+func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB) (model.OidcClient, error) {
+	var client model.OidcClient
+	err := tx.
+		WithContext(ctx).
+		Preload("CreatedBy").
+		Preload("AllowedUserGroups").
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 	return client, nil
 }
 
-func (s *OidcService) ListClients(searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.OidcClient, utils.PaginationResponse, error) {
+func (s *OidcService) ListClients(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.OidcClient, utils.PaginationResponse, error) {
 	var clients []model.OidcClient
 
-	query := s.db.Preload("CreatedBy").Model(&model.OidcClient{})
+	query := s.db.
+		WithContext(ctx).
+		Preload("CreatedBy").
+		Model(&model.OidcClient{})
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
 		query = query.Where("name LIKE ?", searchPattern)
@@ -282,7 +550,7 @@ func (s *OidcService) ListClients(searchTerm string, sortedPaginationRequest uti
 	return clients, pagination, nil
 }
 
-func (s *OidcService) CreateClient(input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
+func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
 		Name:               input.Name,
 		CallbackURLs:       input.CallbackURLs,
@@ -293,16 +561,30 @@ func (s *OidcService) CreateClient(input dto.OidcClientCreateDto, userID string)
 		DeviceCodeEnabled:  input.DeviceCodeEnabled,
 	}
 
-	if err := s.db.Create(&client).Error; err != nil {
+	err := s.db.
+		WithContext(ctx).
+		Create(&client).
+		Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
 	return client, nil
 }
 
-func (s *OidcService) UpdateClient(clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
+func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.Preload("CreatedBy").First(&client, "id = ?", clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("CreatedBy").
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
@@ -313,29 +595,48 @@ func (s *OidcService) UpdateClient(clientID string, input dto.OidcClientCreateDt
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
 	client.DeviceCodeEnabled = input.DeviceCodeEnabled
 
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
 	return client, nil
 }
 
-func (s *OidcService) DeleteClient(clientID string) error {
+func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
-		return err
-	}
-
-	if err := s.db.Delete(&client).Error; err != nil {
+	err := s.db.
+		WithContext(ctx).
+		Where("id = ?", clientID).
+		Delete(&client).
+		Error
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *OidcService) CreateClientSecret(clientID string) (string, error) {
+func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string) (string, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return "", err
 	}
 
@@ -350,16 +651,29 @@ func (s *OidcService) CreateClientSecret(clientID string) (string, error) {
 	}
 
 	client.Secret = string(hashedSecret)
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return "", err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return "", err
 	}
 
 	return clientSecret, nil
 }
 
-func (s *OidcService) GetClientLogo(clientID string) (string, string, error) {
+func (s *OidcService) GetClientLogo(ctx context.Context, clientID string) (string, string, error) {
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err := s.db.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return "", "", err
 	}
 
@@ -367,26 +681,35 @@ func (s *OidcService) GetClientLogo(clientID string) (string, string, error) {
 		return "", "", errors.New("image not found")
 	}
 
-	imageType := *client.ImageType
-	imagePath := fmt.Sprintf("%s/oidc-client-images/%s.%s", common.EnvConfig.UploadPath, client.ID, imageType)
-	mimeType := utils.GetImageMimeType(imageType)
+	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + *client.ImageType
+	mimeType := utils.GetImageMimeType(*client.ImageType)
 
 	return imagePath, mimeType, nil
 }
 
-func (s *OidcService) UpdateClientLogo(clientID string, file *multipart.FileHeader) error {
+func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, file *multipart.FileHeader) error {
 	fileType := utils.GetFileExtension(file.Filename)
 	if mimeType := utils.GetImageMimeType(fileType); mimeType == "" {
 		return &common.FileTypeNotSupportedError{}
 	}
 
-	imagePath := fmt.Sprintf("%s/oidc-client-images/%s.%s", common.EnvConfig.UploadPath, clientID, fileType)
-	if err := utils.SaveFile(file, imagePath); err != nil {
+	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + "." + fileType
+	err := utils.SaveFile(file, imagePath)
+	if err != nil {
 		return err
 	}
 
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return err
 	}
 
@@ -398,16 +721,34 @@ func (s *OidcService) UpdateClientLogo(clientID string, file *multipart.FileHead
 	}
 
 	client.ImageType = &fileType
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *OidcService) DeleteClientLogo(clientID string) error {
+func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := s.db.First(&client, "id = ?", clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
 		return err
 	}
 
@@ -415,38 +756,71 @@ func (s *OidcService) DeleteClientLogo(clientID string) error {
 		return errors.New("image not found")
 	}
 
-	imagePath := fmt.Sprintf("%s/oidc-client-images/%s.%s", common.EnvConfig.UploadPath, client.ID, *client.ImageType)
+	client.ImageType = nil
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return err
+	}
+
+	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + *client.ImageType
 	if err := os.Remove(imagePath); err != nil {
 		return err
 	}
 
-	client.ImageType = nil
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.Commit().Error
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (map[string]interface{}, error) {
+func (s *OidcService) GetUserClaimsForClient(ctx context.Context, userID string, clientID string) (map[string]interface{}, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	claims, err := s.getUserClaimsForClientInternal(ctx, userID, clientID, s.db)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
+
+	return claims, nil
+}
+
+func (s *OidcService) getUserClaimsForClientInternal(ctx context.Context, userID string, clientID string, tx *gorm.DB) (map[string]interface{}, error) {
 	var authorizedOidcClient model.UserAuthorizedOidcClient
-	if err := s.db.Preload("User.UserGroups").First(&authorizedOidcClient, "user_id = ? AND client_id = ?", userID, clientID).Error; err != nil {
+	err := tx.
+		WithContext(ctx).
+		Preload("User.UserGroups").
+		First(&authorizedOidcClient, "user_id = ? AND client_id = ?", userID, clientID).
+		Error
+	if err != nil {
 		return nil, err
 	}
 
 	user := authorizedOidcClient.User
-	scope := authorizedOidcClient.Scope
+	scopes := strings.Split(authorizedOidcClient.Scope, " ")
 
 	claims := map[string]interface{}{
 		"sub": user.ID,
 	}
 
-	if strings.Contains(scope, "email") {
+	if slices.Contains(scopes, "email") {
 		claims["email"] = user.Email
-		claims["email_verified"] = s.appConfigService.DbConfig.EmailsVerified.Value == "true"
+		claims["email_verified"] = s.appConfigService.GetDbConfig().EmailsVerified.IsTrue()
 	}
 
-	if strings.Contains(scope, "groups") {
+	if slices.Contains(scopes, "groups") {
 		userGroups := make([]string, len(user.UserGroups))
 		for i, group := range user.UserGroups {
 			userGroups[i] = group.Name
@@ -459,17 +833,17 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 		"family_name":        user.LastName,
 		"name":               user.FullName(),
 		"preferred_username": user.Username,
-		"picture":            fmt.Sprintf("%s/api/users/%s/profile-picture.png", common.EnvConfig.AppURL, user.ID),
+		"picture":            common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png",
 	}
 
-	if strings.Contains(scope, "profile") {
+	if slices.Contains(scopes, "profile") {
 		// Add profile claims
 		for k, v := range profileClaims {
 			claims[k] = v
 		}
 
 		// Add custom claims
-		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(userID)
+		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, userID, tx)
 		if err != nil {
 			return nil, err
 		}
@@ -477,8 +851,8 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 		for _, customClaim := range customClaims {
 			// The value of the custom claim can be a JSON object or a string
 			var jsonValue interface{}
-			json.Unmarshal([]byte(customClaim.Value), &jsonValue)
-			if jsonValue != nil {
+			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
+			if err == nil {
 				// It's JSON so we store it as an object
 				claims[customClaim.Key] = jsonValue
 			} else {
@@ -487,15 +861,21 @@ func (s *OidcService) GetUserClaimsForClient(userID string, clientID string) (ma
 			}
 		}
 	}
-	if strings.Contains(scope, "email") {
+
+	if slices.Contains(scopes, "email") {
 		claims["email"] = user.Email
 	}
 
 	return claims, nil
 }
 
-func (s *OidcService) UpdateAllowedUserGroups(id string, input dto.OidcUpdateAllowedUserGroupsDto) (client model.OidcClient, err error) {
-	client, err = s.GetClient(id)
+func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, input dto.OidcUpdateAllowedUserGroupsDto) (client model.OidcClient, err error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	client, err = s.getClientInternal(ctx, id, tx)
 	if err != nil {
 		return model.OidcClient{}, err
 	}
@@ -503,18 +883,37 @@ func (s *OidcService) UpdateAllowedUserGroups(id string, input dto.OidcUpdateAll
 	// Fetch the user groups based on UserGroupIDs in input
 	var groups []model.UserGroup
 	if len(input.UserGroupIDs) > 0 {
-		if err := s.db.Where("id IN (?)", input.UserGroupIDs).Find(&groups).Error; err != nil {
+		err = tx.
+			WithContext(ctx).
+			Where("id IN (?)", input.UserGroupIDs).
+			Find(&groups).
+			Error
+		if err != nil {
 			return model.OidcClient{}, err
 		}
 	}
 
 	// Replace the current user groups with the new set of user groups
-	if err := s.db.Model(&client).Association("AllowedUserGroups").Replace(groups); err != nil {
+	err = tx.
+		WithContext(ctx).
+		Model(&client).
+		Association("AllowedUserGroups").
+		Replace(groups)
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
 	// Save the updated client
-	if err := s.db.Save(&client).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
@@ -522,28 +921,36 @@ func (s *OidcService) UpdateAllowedUserGroups(id string, input dto.OidcUpdateAll
 }
 
 // ValidateEndSession returns the logout callback URL for the client if all the validations pass
-func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string) (string, error) {
+func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogoutDto, userID string) (string, error) {
 	// If no ID token hint is provided, return an error
 	if input.IdTokenHint == "" {
 		return "", &common.TokenInvalidError{}
 	}
 
 	// If the ID token hint is provided, verify the ID token
-	claims, err := s.jwtService.VerifyIdToken(input.IdTokenHint)
+	// Here we also accept expired ID tokens, which are fine per spec
+	token, err := s.jwtService.VerifyIdToken(input.IdTokenHint, true)
 	if err != nil {
 		return "", &common.TokenInvalidError{}
 	}
 
 	// If the client ID is provided check if the client ID in the ID token matches the client ID in the request
-	if input.ClientId != "" && claims.Audience[0] != input.ClientId {
+	clientID, ok := token.Audience()
+	if !ok || len(clientID) == 0 {
+		return "", &common.TokenInvalidError{}
+	}
+	if input.ClientId != "" && clientID[0] != input.ClientId {
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
 
-	clientId := claims.Audience[0]
-
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
-	if err := s.db.Preload("Client").First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientId, userID).Error; err != nil {
+	err = s.db.
+		WithContext(ctx).
+		Preload("Client").
+		First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).
+		Error
+	if err != nil {
 		return "", &common.OidcMissingAuthorizationError{}
 	}
 
@@ -561,7 +968,7 @@ func (s *OidcService) ValidateEndSession(input dto.OidcLogoutDto, userID string)
 
 }
 
-func (s *OidcService) createAuthorizationCode(clientID string, userID string, scope string, nonce string, codeChallenge string, codeChallengeMethod string) (string, error) {
+func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID string, userID string, scope string, nonce string, codeChallenge string, codeChallengeMethod string, tx *gorm.DB) (string, error) {
 	randomString, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
 		return "", err
@@ -580,7 +987,11 @@ func (s *OidcService) createAuthorizationCode(clientID string, userID string, sc
 		CodeChallengeMethodSha256: &codeChallengeMethodSha256,
 	}
 
-	if err := s.db.Create(&oidcAuthorizationCode).Error; err != nil {
+	err = tx.
+		WithContext(ctx).
+		Create(&oidcAuthorizationCode).
+		Error
+	if err != nil {
 		return "", err
 	}
 
@@ -613,7 +1024,7 @@ func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string) (ca
 	}
 
 	for _, callbackPattern := range urls {
-		regexPattern := strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
+		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
 		matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
 		if err != nil {
 			return "", err
@@ -673,11 +1084,16 @@ func (s *OidcService) CreateDeviceAuthorization(input dto.OidcDeviceAuthorizatio
 	}, nil
 }
 
-func (s *OidcService) VerifyDeviceCode(userCode string, userID string, ipAddress string, userAgent string) error {
+func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, userID string, ipAddress string, userAgent string) error {
 	var deviceAuth model.OidcDeviceCode
 
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	// Load device auth with Client relationship
-	if err := s.db.Preload("Client.AllowedUserGroups").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
+	if err := tx.WithContext(ctx).Preload("Client.AllowedUserGroups").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
 		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
 		return err
 	}
@@ -688,7 +1104,7 @@ func (s *OidcService) VerifyDeviceCode(userCode string, userID string, ipAddress
 
 	// Check if the user group is allowed to authorize the client
 	var user model.User
-	if err := s.db.Preload("UserGroups").First(&user, "id = ?", userID).Error; err != nil {
+	if err := tx.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", userID).Error; err != nil {
 		return err
 	}
 
@@ -697,7 +1113,7 @@ func (s *OidcService) VerifyDeviceCode(userCode string, userID string, ipAddress
 	}
 
 	// Load device auth with Client relationship
-	if err := s.db.Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
+	if err := tx.WithContext(ctx).Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
 		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
 		return err
 	}
@@ -710,20 +1126,20 @@ func (s *OidcService) VerifyDeviceCode(userCode string, userID string, ipAddress
 	deviceAuth.UserID = &userID
 	deviceAuth.IsAuthorized = true
 
-	if err := s.db.Save(&deviceAuth).Error; err != nil {
+	if err := tx.WithContext(ctx).Save(&deviceAuth).Error; err != nil {
 		log.Printf("Error saving device auth: %v", err)
 		return err
 	}
 
 	// Verify the update was successful
 	var verifiedAuth model.OidcDeviceCode
-	if err := s.db.First(&verifiedAuth, "device_code = ?", deviceAuth.DeviceCode).Error; err != nil {
+	if err := tx.WithContext(ctx).First(&verifiedAuth, "device_code = ?", deviceAuth.DeviceCode).Error; err != nil {
 		log.Printf("Error verifying update: %v", err)
 		return err
 	}
 
 	// Create user authorization if needed
-	hasAuthorizedClient, err := s.HasAuthorizedClient(deviceAuth.ClientID, userID, deviceAuth.Scope)
+	hasAuthorizedClient, err := s.hasAuthorizedClientInternal(ctx, deviceAuth.ClientID, userID, deviceAuth.Scope, tx)
 	if err != nil {
 		return err
 	}
@@ -746,19 +1162,23 @@ func (s *OidcService) VerifyDeviceCode(userCode string, userID string, ipAddress
 				return err
 			}
 		}
-		s.auditLogService.Create(model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name})
+		s.auditLogService.Create(ctx, model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name}, tx)
 	} else {
-		s.auditLogService.Create(model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name})
+		s.auditLogService.Create(ctx, model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name}, tx)
 	}
 
 	return nil
 }
 
-func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (string, string, error) {
-	var deviceAuth model.OidcDeviceCode
+func (s *OidcService) PollDeviceCode(ctx context.Context, input dto.OidcDeviceTokenRequestDto) (string, string, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
 
+	var deviceAuth model.OidcDeviceCode
 	// Load device auth with User relationship
-	if err := s.db.Preload("User").First(&deviceAuth, "device_code = ? AND client_id = ?", input.DeviceCode, input.ClientID).Error; err != nil {
+	if err := tx.WithContext(ctx).Preload("User").First(&deviceAuth, "device_code = ? AND client_id = ?", input.DeviceCode, input.ClientID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", "", &common.OidcInvalidDeviceCodeError{}
 		}
@@ -778,7 +1198,7 @@ func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (strin
 	// Check polling interval - make sure LastPollTime is not nil before comparing
 	if deviceAuth.LastPollTime != nil {
 		interval := time.Duration(deviceAuth.Interval) * time.Second
-		timeSinceLastPoll := time.Since(*deviceAuth.LastPollTime)
+		timeSinceLastPoll := time.Since(deviceAuth.LastPollTime.ToTime())
 		if timeSinceLastPoll < interval {
 			log.Printf("Polling too frequently - last poll: %v, interval: %v, time since: %v",
 				*deviceAuth.LastPollTime, interval, timeSinceLastPoll)
@@ -787,9 +1207,8 @@ func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (strin
 	}
 
 	// Update last poll time
-	now := time.Now()
-	deviceAuth.LastPollTime = &now
-	if err := s.db.Save(&deviceAuth).Error; err != nil {
+	deviceAuth.LastPollTime = utils.Ptr(datatype.DateTime(time.Now()))
+	if err := tx.WithContext(ctx).Save(&deviceAuth).Error; err != nil {
 		return "", "", err
 	}
 
@@ -798,7 +1217,7 @@ func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (strin
 		return "", "", &common.OidcAuthorizationPendingError{}
 	}
 
-	userClaims, err := s.GetUserClaimsForClient(*deviceAuth.UserID, deviceAuth.ClientID)
+	userClaims, err := s.getUserClaimsForClientInternal(ctx, *deviceAuth.UserID, deviceAuth.ClientID, tx)
 	if err != nil {
 		return "", "", err
 	}
@@ -815,14 +1234,14 @@ func (s *OidcService) PollDeviceCode(input dto.OidcDeviceTokenRequestDto) (strin
 	}
 
 	// Delete the used device code
-	if err := s.db.Delete(&deviceAuth).Error; err != nil {
+	if err := tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
 		return "", "", err
 	}
 
 	return idToken, accessToken, nil
 }
 
-func (s *OidcService) GetDeviceCodeInfo(userCode string, userID string) (*dto.DeviceCodeInfoDto, error) {
+func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, userID string) (*dto.DeviceCodeInfoDto, error) {
 	var deviceAuth model.OidcDeviceCode
 	if err := s.db.Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
 		return nil, err
@@ -836,7 +1255,7 @@ func (s *OidcService) GetDeviceCodeInfo(userCode string, userID string) (*dto.De
 	hasAuthorizedClient := false
 	if userID != "" {
 		var err error
-		hasAuthorizedClient, err = s.HasAuthorizedClient(deviceAuth.ClientID, userID, deviceAuth.Scope)
+		hasAuthorizedClient, err = s.hasAuthorizedClientInternal(ctx, deviceAuth.ClientID, userID, deviceAuth.Scope, s.db)
 		if err != nil {
 			return nil, err
 		}
@@ -848,4 +1267,33 @@ func (s *OidcService) GetDeviceCodeInfo(userCode string, userID string) (*dto.De
 		Scope:                 deviceAuth.Scope,
 		AuthorizationRequired: !hasAuthorizedClient,
 	}, nil
+}
+
+func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
+	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
+	if err != nil {
+		return "", err
+	}
+
+	// Compute the hash of the refresh token to store in the DB
+	// Refresh tokens are pretty long already, so a "simple" SHA-256 hash is enough
+	refreshTokenHash := utils.CreateSha256Hash(refreshToken)
+
+	m := model.OidcRefreshToken{
+		ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)), // 30 days
+		Token:     refreshTokenHash,
+		ClientID:  clientID,
+		UserID:    userID,
+		Scope:     scope,
+	}
+
+	err = tx.
+		WithContext(ctx).
+		Create(&m).
+		Error
+	if err != nil {
+		return "", err
+	}
+
+	return refreshToken, nil
 }

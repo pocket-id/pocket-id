@@ -31,7 +31,7 @@ var NewLoginTemplate = email.Template[NewLoginTemplateData]{
 var OneTimeAccessTemplate = email.Template[OneTimeAccessTemplateData]{
 	Path: "one-time-access",
 	Title: func(data *email.TemplateData[OneTimeAccessTemplateData]) string {
-		return "One time access"
+		return "Login Code"
 	},
 }
 
@@ -39,6 +39,13 @@ var TestTemplate = email.Template[struct{}]{
 	Path: "test",
 	Title: func(data *email.TemplateData[struct{}]) string {
 		return "Test email"
+	},
+}
+
+var ApiKeyExpiringSoonTemplate = email.Template[ApiKeyExpiringSoonTemplateData]{
+	Path: "api-key-expiring-soon",
+	Title: func(data *email.TemplateData[ApiKeyExpiringSoonTemplateData]) string {
+		return fmt.Sprintf("API Key \"%s\" Expiring Soon", data.Data.ApiKeyName)
 	},
 }
 
@@ -51,8 +58,17 @@ type NewLoginTemplateData struct {
 }
 
 type OneTimeAccessTemplateData = struct {
-	Link string
+	Code              string
+	LoginLink         string
+	LoginLinkWithCode string
+	ExpirationString  string
+}
+
+type ApiKeyExpiringSoonTemplateData struct {
+	Name       string
+	ApiKeyName string
+	ExpiresAt  time.Time
 }
 
 // this is list of all template paths used for preloading templates
-var emailTemplatesPaths = []string{NewLoginTemplate.Path, OneTimeAccessTemplate.Path, TestTemplate.Path}
+var emailTemplatesPaths = []string{NewLoginTemplate.Path, OneTimeAccessTemplate.Path, TestTemplate.Path, ApiKeyExpiringSoonTemplate.Path}

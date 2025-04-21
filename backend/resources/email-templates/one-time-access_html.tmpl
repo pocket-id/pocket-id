@@ -1,17 +1,17 @@
 {{ define "base" }}
     <div class="header">
         <div class="logo">
-            <img src="{{ .LogoURL }}" alt="{{ .AppName }}"/>
+            <img src="{{ .LogoURL }}" alt="{{ .AppName }}" width="32" height="32" style="width: 32px; height: 32px; max-width: 32px;"/>
             <h1>{{ .AppName }}</h1>
         </div>
     </div>
     <div class="content">
-        <h2>One-Time Access</h2>
+        <h2>Login Code</h2>
         <p class="message">
-            Click the button below to sign in to {{ .AppName }} with a one-time access link. This link expires in 15 minutes.
+            Click the button below to sign in to {{ .AppName }} with a login code.</br>Or visit <a href="{{ .Data.LoginLink }}">{{ .Data.LoginLink }}</a> and enter the code <strong>{{ .Data.Code }}</strong>.</br></br>This code expires in {{.Data.ExpirationString}}.
         </p>
         <div class="button-container">
-            <a class="button" href="{{ .Data.Link }}" class="button">Sign In</a>
+            <a class="button" href="{{ .Data.LoginLinkWithCode }}" class="button">Sign In</a>
         </div>
     </div>
 {{ end -}}

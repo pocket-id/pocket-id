@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import { Label } from '$lib/components/ui/label';
+	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/style';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -10,7 +11,7 @@
 		label,
 		image = $bindable(),
 		imageURL,
-		accept = 'image/png, image/jpeg, image/svg+xml',
+		accept = 'image/png, image/jpeg, image/svg+xml, image/gif',
 		forceColorScheme,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
@@ -60,7 +61,7 @@
 			<span
 				class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform font-medium opacity-0 transition-opacity group-hover:opacity-100"
 			>
-				Update
+				{m.update()}
 			</span>
 		</div>
 	</FileInput>

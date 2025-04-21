@@ -49,7 +49,7 @@ body:
       required: false
     attributes:
       label: "Log Output"
-      description: "Output of log files when the issue occured to help us diagnose the issue."
+      description: "Output of log files when the issue occurred to help us diagnose the issue."
   - type: markdown
     attributes:
       value: |

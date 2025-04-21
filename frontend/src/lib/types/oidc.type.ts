@@ -1,12 +1,14 @@
 import type { UserGroup } from './user-group.type';
 
-export type OidcClient = {
+export type OidcClientMetaData = {
 	id: string;
 	name: string;
-	logoURL: string;
+	hasLogo: boolean;
+};
+
+export type OidcClient = OidcClientMetaData & {
 	callbackURLs: [string, ...string[]];
 	logoutCallbackURLs: string[];
-	hasLogo: boolean;
 	isPublic: boolean;
 	pkceEnabled: boolean;
 	deviceCodeEnabled: boolean;

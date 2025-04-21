@@ -2,22 +2,28 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/emersion/go-sasl"
-	"github.com/emersion/go-smtp"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
-	"gorm.io/gorm"
 	htemplate "html/template"
+	"io"
 	"mime/multipart"
 	"mime/quotedprintable"
 	"net/textproto"
 	"os"
+	"strings"
 	ttemplate "text/template"
 	"time"
+
+	"github.com/emersion/go-sasl"
+	"github.com/emersion/go-smtp"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
 
 type EmailService struct {
@@ -46,22 +52,28 @@ func NewEmailService(appConfigService *AppConfigService, db *gorm.DB) (*EmailSer
 	}, nil
 }
 
-func (srv *EmailService) SendTestEmail(recipientUserId string) error {
+func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId string) error {
 	var user model.User
-	if err := srv.db.First(&user, "id = ?", recipientUserId).Error; err != nil {
+	err := srv.db.
+		WithContext(ctx).
+		First(&user, "id = ?", recipientUserId).
+		Error
+	if err != nil {
 		return err
 	}
 
-	return SendEmail(srv,
+	return SendEmail(ctx, srv,
 		email.Address{
 			Email: user.Email,
 			Name:  user.FullName(),
 		}, TestTemplate, nil)
 }
 
-func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
+func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
+	dbConfig := srv.appConfigService.GetDbConfig()
+
 	data := &email.TemplateData[V]{
-		AppName: srv.appConfigService.DbConfig.AppName.Value,
+		AppName: dbConfig.AppName.Value,
 		LogoURL: common.EnvConfig.AppURL + "/api/application-configuration/logo",
 		Data:    tData,
 	}
@@ -76,15 +88,47 @@ func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.T
 	c.AddHeader("Subject", template.Title(data))
 	c.AddAddressHeader("From", []email.Address{
 		{
-			Email: srv.appConfigService.DbConfig.SmtpFrom.Value,
-			Name:  srv.appConfigService.DbConfig.AppName.Value,
+			Email: dbConfig.SmtpFrom.Value,
+			Name:  dbConfig.AppName.Value,
 		},
 	})
 	c.AddAddressHeader("To", []email.Address{toEmail})
 	c.AddHeaderRaw("Content-Type",
 		fmt.Sprintf("multipart/alternative;\n boundary=%s;\n charset=UTF-8", boundary),
 	)
+
+	c.AddHeader("MIME-Version", "1.0")
+	c.AddHeader("Date", time.Now().Format(time.RFC1123Z))
+
+	// to create a message-id, we need the FQDN of the sending server, but that may be a docker hostname or localhost
+	// so we use the domain of the from address instead (the same as Thunderbird does)
+	// if the address does not have an @ (which would be unusual), we use hostname
+
+	fromAddress := dbConfig.SmtpFrom.Value
+	domain := ""
+	if strings.Contains(fromAddress, "@") {
+		domain = strings.Split(fromAddress, "@")[1]
+	} else {
+		hostname, err := os.Hostname()
+		if err != nil {
+			// can that happen? we just give up
+			return fmt.Errorf("failed to get own hostname: %w", err)
+		} else {
+			domain = hostname
+		}
+	}
+	c.AddHeader("Message-ID", "<"+uuid.New().String()+"@"+domain+">")
+
 	c.Body(body)
+
+	// Check if the context is still valid before attemtping to connect
+	// We need to do this because the smtp library doesn't have context support
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		// All good
+	}
 
 	// Connect to the SMTP server
 	client, err := srv.getSmtpClient()
@@ -92,6 +136,14 @@ func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.T
 		return fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
 	defer client.Close()
+
+	// Check if the context is still valid before sending the email
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		// All good
+	}
 
 	// Send the email
 	if err := srv.sendEmailContent(client, toEmail, c); err != nil {
@@ -102,16 +154,18 @@ func SendEmail[V any](srv *EmailService, toEmail email.Address, template email.T
 }
 
 func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
-	port := srv.appConfigService.DbConfig.SmtpPort.Value
-	smtpAddress := srv.appConfigService.DbConfig.SmtpHost.Value + ":" + port
+	dbConfig := srv.appConfigService.GetDbConfig()
+
+	port := dbConfig.SmtpPort.Value
+	smtpAddress := dbConfig.SmtpHost.Value + ":" + port
 
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: srv.appConfigService.DbConfig.SmtpSkipCertVerify.Value == "true",
-		ServerName:         srv.appConfigService.DbConfig.SmtpHost.Value,
+		InsecureSkipVerify: dbConfig.SmtpSkipCertVerify.IsTrue(), //nolint:gosec
+		ServerName:         dbConfig.SmtpHost.Value,
 	}
 
 	// Connect to the SMTP server based on TLS setting
-	switch srv.appConfigService.DbConfig.SmtpTls.Value {
+	switch dbConfig.SmtpTls.Value {
 	case "none":
 		client, err = smtp.Dial(smtpAddress)
 	case "tls":
@@ -122,7 +176,7 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 			tlsConfig,
 		)
 	default:
-		return nil, fmt.Errorf("invalid SMTP TLS setting: %s", srv.appConfigService.DbConfig.SmtpTls.Value)
+		return nil, fmt.Errorf("invalid SMTP TLS setting: %s", dbConfig.SmtpTls.Value)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
@@ -136,8 +190,8 @@ func (srv *EmailService) getSmtpClient() (client *smtp.Client, err error) {
 	}
 
 	// Set up the authentication if user or password are set
-	smtpUser := srv.appConfigService.DbConfig.SmtpUser.Value
-	smtpPassword := srv.appConfigService.DbConfig.SmtpPassword.Value
+	smtpUser := dbConfig.SmtpUser.Value
+	smtpPassword := dbConfig.SmtpPassword.Value
 
 	if smtpUser != "" || smtpPassword != "" {
 		// Authenticate with plain auth
@@ -173,7 +227,7 @@ func (srv *EmailService) sendHelloCommand(client *smtp.Client) error {
 
 func (srv *EmailService) sendEmailContent(client *smtp.Client, toEmail email.Address, c *email.Composer) error {
 	// Set the sender
-	if err := client.Mail(srv.appConfigService.DbConfig.SmtpFrom.Value, nil); err != nil {
+	if err := client.Mail(srv.appConfigService.GetDbConfig().SmtpFrom.Value, nil); err != nil {
 		return fmt.Errorf("failed to set sender: %w", err)
 	}
 
@@ -189,7 +243,7 @@ func (srv *EmailService) sendEmailContent(client *smtp.Client, toEmail email.Add
 	}
 
 	// Write the email content
-	_, err = w.Write([]byte(c.String()))
+	_, err = io.Copy(w, strings.NewReader(c.String()))
 	if err != nil {
 		return fmt.Errorf("failed to write email data: %w", err)
 	}
