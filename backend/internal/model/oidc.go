@@ -91,15 +91,15 @@ func (cu UrlList) Value() (driver.Value, error) {
 
 type OidcDeviceCode struct {
 	Base
-	DeviceCode   string            `gorm:"unique;not null"`
-	UserCode     string            `gorm:"unique;not null"`
-	Scope        string            `gorm:"not null"`
-	ExpiresAt    datatype.DateTime `gorm:"not null"`
-	Interval     int               `gorm:"not null"`
+	DeviceCode   string
+	UserCode     string
+	Scope        string
+	ExpiresAt    datatype.DateTime
 	LastPollTime *datatype.DateTime
-	IsAuthorized bool `gorm:"not null;default:false"`
-	UserID       *string
-	User         User       `gorm:"foreignKey:UserID"`
-	ClientID     string     `gorm:"not null"`
-	Client       OidcClient `gorm:"foreignKey:ClientID"`
+	IsAuthorized bool
+
+	UserID   *string
+	User     User
+	ClientID string
+	Client   OidcClient
 }

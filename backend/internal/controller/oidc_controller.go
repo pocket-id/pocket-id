@@ -163,13 +163,18 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		input,
 	)
 	if err != nil {
-		if errors.Is(err, &common.OidcAuthorizationPendingError{}) {
+		switch {
+		case errors.Is(err, &common.OidcAuthorizationPendingError{}):
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "authorization_pending",
 			})
-			return
+		case errors.Is(err, &common.OidcSlowDownError{}):
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "slow_down",
+			})
+		default:
+			_ = c.Error(err)
 		}
-		_ = c.Error(err)
 		return
 	}
 

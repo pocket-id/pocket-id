@@ -1069,7 +1069,6 @@ func (s *OidcService) CreateDeviceAuthorization(input dto.OidcDeviceAuthorizatio
 		UserCode:     userCode,
 		Scope:        input.Scope,
 		ExpiresAt:    datatype.DateTime(time.Now().Add(15 * time.Minute)),
-		Interval:     5, // 5 seconds between polling
 		IsAuthorized: false,
 		ClientID:     client.ID,
 	}
@@ -1201,7 +1200,7 @@ func (s *OidcService) PollDeviceCode(ctx context.Context, input dto.OidcDeviceTo
 
 	// Check polling interval - make sure LastPollTime is not nil before comparing
 	if deviceAuth.LastPollTime != nil {
-		interval := time.Duration(deviceAuth.Interval) * time.Second
+		interval := 5 * time.Second
 		timeSinceLastPoll := time.Since(deviceAuth.LastPollTime.ToTime())
 		if timeSinceLastPoll < interval {
 			log.Printf("Polling too frequently - last poll: %v, interval: %v, time since: %v",
