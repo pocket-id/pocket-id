@@ -256,6 +256,10 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, deviceCode,
 		return "", "", "", 0, err
 	}
 
+	if err := tx.Commit().Error; err != nil {
+		return "", "", "", 0, err
+	}
+
 	return idToken, accessToken, refreshToken, 3600, nil
 }
 
@@ -1151,12 +1155,12 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 			Scope:    deviceAuth.Scope,
 		}
 
-		if err := s.db.Create(&userAuthorizedClient).Error; err != nil {
+		if err := tx.WithContext(ctx).Create(&userAuthorizedClient).Error; err != nil {
 			if !errors.Is(err, gorm.ErrDuplicatedKey) {
 				return err
 			}
 			// If duplicate, update scope
-			if err := s.db.Model(&model.UserAuthorizedOidcClient{}).
+			if err := tx.WithContext(ctx).Model(&model.UserAuthorizedOidcClient{}).
 				Where("user_id = ? AND client_id = ?", userID, deviceAuth.ClientID).
 				Update("scope", deviceAuth.Scope).Error; err != nil {
 				return err
@@ -1167,7 +1171,7 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		s.auditLogService.Create(ctx, model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name}, tx)
 	}
 
-	return nil
+	return tx.Commit().Error
 }
 
 func (s *OidcService) PollDeviceCode(ctx context.Context, input dto.OidcDeviceTokenRequestDto) (string, string, error) {
@@ -1235,6 +1239,10 @@ func (s *OidcService) PollDeviceCode(ctx context.Context, input dto.OidcDeviceTo
 
 	// Delete the used device code
 	if err := tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
+		return "", "", err
+	}
+
+	if err := tx.Commit().Error; err != nil {
 		return "", "", err
 	}
 
