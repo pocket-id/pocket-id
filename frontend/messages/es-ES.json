@@ -156,7 +156,7 @@
 	"actions": "Actions",
 	"images_updated_successfully": "Images updated successfully",
 	"general": "General",
-	"enable_email_notifications_to_alert_users_when_a_login_is_detected_from_a_new_device_or_location": "Enable email notifications to alert users when a login is detected from a new device or location.",
+	"configure_smtp_to_send_emails": "Enable email notifications to alert users when a login is detected from a new device or location.",
 	"ldap": "LDAP",
 	"configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server": "Configure LDAP settings to sync users and groups from an LDAP server.",
 	"images": "Images",
@@ -180,7 +180,10 @@
 	"enabled_emails": "Enabled Emails",
 	"email_login_notification": "Email Login Notification",
 	"send_an_email_to_the_user_when_they_log_in_from_a_new_device": "Send an email to the user when they log in from a new device.",
-	"allow_users_to_sign_in_with_a_login_code_sent_to_their_email": "Allows users to sign in with a login code sent to their email. This reduces the security significantly as anyone with access to the user's email can gain entry.",
+	"emai_login_code_requested_by_user": "Email Login Code Requested by User",
+	"allow_users_to_sign_in_with_a_login_code_sent_to_their_email": "Allows users to bypass passkeys by requesting a login code sent to their email. This reduces the security significantly as anyone with access to the user's email can gain entry.",
+	"email_login_code_from_admin": "Email Login Code from Admin",
+	"allows_an_admin_to_send_a_login_code_to_the_user": "Allows an admin to send a login code to the user via email.",
 	"send_test_email": "Send test email",
 	"application_configuration_updated_successfully": "Application configuration updated successfully",
 	"application_name": "Application Name",
@@ -333,5 +336,11 @@
 	"disable_firstname_lastname": "Disable {firstName} {lastName}",
 	"are_you_sure_you_want_to_disable_this_user": "Are you sure you want to disable this user? They will not be able to log in or access any services.",
 	"ldap_soft_delete_users": "Keep disabled users from LDAP.",
-	"ldap_soft_delete_users_description": "When enabled, users removed from LDAP will be disabled rather than deleted from the system."
+	"ldap_soft_delete_users_description": "When enabled, users removed from LDAP will be disabled rather than deleted from the system.",
+	"login_code_email_success": "The login code has been sent to the user.",
+	"send_email": "Send Email",
+	"show_code": "Show Code",
+	"callback_url_description": "URL(s) provided by your client. Wildcards (*) are supported, but best avoided for better security.",
+	"api_key_expiration": "API Key Expiration",
+	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Send an email to the user when their API key is about to expire."
 }

@@ -73,7 +73,7 @@
 		id="application-configuration-email"
 		icon={Mail}
 		title={m.email()}
-		description={m.enable_email_notifications_to_alert_users_when_a_login_is_detected_from_a_new_device_or_location()}
+		description={m.configure_smtp_to_send_emails()}
 	>
 		<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
 	</CollapsibleCard>

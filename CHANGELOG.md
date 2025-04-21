@@ -1,3 +1,21 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.48.0...v) (2025-04-20)
+
+
+### Features
+
+* add ability to disable API key expiration email ([9122e75](https://github.com/pocket-id/pocket-id/commit/9122e75101ad39a40135ccf931eb2bfd351b5db6))
+* add ability to send login code via email ([#457](https://github.com/pocket-id/pocket-id/issues/457)) ([fe1c4b1](https://github.com/pocket-id/pocket-id/commit/fe1c4b18cdcc46a4256e0c111b34f1ce00f8e0e1))
+* add description to callback URL inputs ([eb689eb](https://github.com/pocket-id/pocket-id/commit/eb689eb56ec9eaf8b0fb1485040e26f841b9225d))
+* send email to user when api key expires within 7 days ([#451](https://github.com/pocket-id/pocket-id/issues/451)) ([26f01f2](https://github.com/pocket-id/pocket-id/commit/26f01f205be01fb8abd8c2e564c90c0fc4480ea5))
+
+
+### Bug Fixes
+
+* disable animations not respected on authorize and logout page ([e571996](https://github.com/pocket-id/pocket-id/commit/e571996cb57d04232c1f47ab337ad656f48bb3cb))
+* hide alternative sign in button if user is already authenticated ([4e05b82](https://github.com/pocket-id/pocket-id/commit/4e05b82f02740a4bae07cec6c6a64acd34ca0fc3))
+* locale change in dropdown doesn't work on first try ([60bad9e](https://github.com/pocket-id/pocket-id/commit/60bad9e9859d81c9967e6939e1ed10a65145a936))
+* remove limit of 20 callback URLs ([c37a3e0](https://github.com/pocket-id/pocket-id/commit/c37a3e0ed177c3bd2b9a618d1f4b0709004478b0))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.47.0...v) (2025-04-18)
 
 

@@ -9,8 +9,10 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { mode } from 'mode-watcher';
+	import { toast } from 'svelte-sonner';
 
 	let {
 		userId = $bindable()
@@ -32,11 +34,22 @@
 		[m.one_month()]: 60 * 60 * 24 * 30
 	};
 
-	async function createOneTimeAccessToken() {
+	async function createLoginCode() {
 		try {
 			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
 			code = await userService.createOneTimeAccessToken(expiration, userId!);
 			oneTimeLink = `${page.url.origin}/lc/${code}`;
+		} catch (e) {
+			axiosErrorToast(e);
+		}
+	}
+
+	async function sendLoginCodeEmail() {
+		try {
+			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
+			await userService.requestOneTimeAccessEmailAsAdmin(userId!, expiration);
+			toast.success(m.login_code_email_success());
+			onOpenChange(false);
 		} catch (e) {
 			axiosErrorToast(e);
 		}
@@ -81,13 +94,20 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<Button
-				onclick={() => createOneTimeAccessToken()}
-				disabled={!selectedExpiration}
-				class="mt-2 w-full"
-			>
-				{m.generate_code()}
-			</Button>
+			<Dialog.Footer class="mt-2">
+				{#if $appConfigStore.emailOneTimeAccessAsAdminEnabled}
+					<Button
+						onclick={() => sendLoginCodeEmail()}
+						variant="secondary"
+						disabled={!selectedExpiration}
+					>
+						{m.send_email()}
+					</Button>
+				{/if}
+				<Button onclick={() => createLoginCode()} disabled={!selectedExpiration}
+					>{m.show_code()}</Button
+				>
+			</Dialog.Footer>
 		{:else}
 			<div class="flex flex-col items-center gap-2">
 				<CopyToClipboard value={code!}>

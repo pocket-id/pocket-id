@@ -1,7 +1,8 @@
 export type AppConfig = {
 	appName: string;
 	allowOwnAccountEdit: boolean;
-	emailOneTimeAccessEnabled: boolean;
+	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
+	emailOneTimeAccessAsAdminEnabled: boolean;
 	ldapEnabled: boolean;
 	disableAnimations: boolean;
 };
@@ -19,6 +20,7 @@ export type AllAppConfig = AppConfig & {
 	smtpTls: 'none' | 'starttls' | 'tls';
 	smtpSkipCertVerify: boolean;
 	emailLoginNotificationEnabled: boolean;
+	emailApiKeyExpirationEnabled: boolean;
 	// LDAP
 	ldapUrl: string;
 	ldapBindDn: string;

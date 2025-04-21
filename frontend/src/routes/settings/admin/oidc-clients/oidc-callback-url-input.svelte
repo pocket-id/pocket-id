@@ -20,8 +20,6 @@
 		allowEmpty?: boolean;
 		children?: Snippet;
 	} = $props();
-
-	const limit = 20;
 </script>
 
 <div {...restProps}>
@@ -46,15 +44,13 @@
 	{#if error}
 		<p class="mt-1 text-sm text-red-500">{error}</p>
 	{/if}
-	{#if callbackURLs.length < limit}
-		<Button
-			class="mt-2"
-			variant="secondary"
-			size="sm"
-			on:click={() => (callbackURLs = [...callbackURLs, ''])}
-		>
-			<LucidePlus class="mr-1 h-4 w-4" />
-			{callbackURLs.length === 0 ? m.add() : m.add_another()}
-		</Button>
-	{/if}
+	<Button
+		class="mt-2"
+		variant="secondary"
+		size="sm"
+		on:click={() => (callbackURLs = [...callbackURLs, ''])}
+	>
+		<LucidePlus class="mr-1 h-4 w-4" />
+		{callbackURLs.length === 0 ? m.add() : m.add_another()}
+	</Button>
 </div>
