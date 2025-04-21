@@ -93,7 +93,7 @@
 	</Alert.Root>
 {/if}
 
-<!-- Login code card -->
+<!-- Login code card mobile -->
 <div class="hidden sm:block">
 	<Card.Root>
 		<Card.Header>
@@ -107,7 +107,7 @@
 						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 					</Card.Description>
 				</div>
-				<Button variant="outline" class="w-full sm:w-auto" on:click={() => (showLoginCodeModal = true)}>
+				<Button variant="outline" class="w-full" on:click={() => (showLoginCodeModal = true)}>
 					{m.create()}
 				</Button>
 			</div>
@@ -179,7 +179,7 @@
 						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 					</Card.Description>
 				</div>
-				<Button variant="outline" class="w-full sm:w-auto" on:click={() => (showLoginCodeModal = true)}>
+				<Button variant="outline" on:click={() => (showLoginCodeModal = true)}>
 					{m.create()}
 				</Button>
 			</div>
