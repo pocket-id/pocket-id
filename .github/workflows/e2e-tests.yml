@@ -101,22 +101,10 @@ jobs:
       - name: Create Docker network
         run: docker network create pocket-id-network
 
-      - name: Start LLDAP Server
+      - name: Setup and Configure LLDAP Server
         run: |
-          chmod +x ./scripts/tests/setup-lldap-container.sh
-          ./scripts/tests/setup-lldap-container.sh
-
-      - name: Install LLDAP CLI tools
-        run: |
-          echo 'deb http://download.opensuse.org/repositories/home:/Masgalor:/LLDAP/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/home:Masgalor:LLDAP.list
-          curl -fsSL https://download.opensuse.org/repositories/home:Masgalor:LLDAP/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home_Masgalor_LLDAP.gpg > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y lldap-cli lldap-set-password
-
-      - name: Setup test users in LLDAP
-        run: |
-          chmod +x ./scripts/tests/setup-lldap-data.sh
-          ./scripts/tests/setup-lldap-data.sh
+          chmod +x ./scripts/tests/setup-lldap.sh
+          ./scripts/tests/setup-lldap.sh
 
       - name: Run Docker Container with Sqlite DB and LDAP
         run: |
@@ -229,11 +217,6 @@ jobs:
       - name: Create Docker network
         run: docker network create pocket-id-network
 
-      - name: Start LLDAP Server
-        run: |
-          chmod +x ./scripts/tests/setup-lldap-container.sh
-          ./scripts/tests/setup-lldap-container.sh
-
       - name: Start Postgres DB
         run: |
           docker run -d --name pocket-id-db \
@@ -255,17 +238,10 @@ jobs:
             sleep 2
           done
 
-      - name: Install LLDAP CLI tools
+      - name: Setup and Configure LLDAP Server
         run: |
-          echo 'deb http://download.opensuse.org/repositories/home:/Masgalor:/LLDAP/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/home:Masgalor:LLDAP.list
-          curl -fsSL https://download.opensuse.org/repositories/home:Masgalor:LLDAP/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home_Masgalor_LLDAP.gpg > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y lldap-cli lldap-set-password
-
-      - name: Setup test users in LLDAP
-        run: |
-          chmod +x ./scripts/tests/setup-lldap-data.sh
-          ./scripts/tests/setup-lldap-data.sh
+          chmod +x ./scripts/tests/setup-lldap.sh
+          ./scripts/tests/setup-lldap.sh
 
       - name: Run Docker Container with Postgres DB and LDAP
         run: |
