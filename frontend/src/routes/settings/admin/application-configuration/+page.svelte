@@ -73,7 +73,7 @@
 		id="application-configuration-email"
 		icon={Mail}
 		title={m.email()}
-		description={m.configure_stmp_to_send_emails()}
+		description={m.configure_smtp_to_send_emails()}
 	>
 		<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
 	</CollapsibleCard>
