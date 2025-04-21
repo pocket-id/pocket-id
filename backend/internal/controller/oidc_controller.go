@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -162,6 +163,12 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		input,
 	)
 	if err != nil {
+		if errors.Is(err, &common.OidcAuthorizationPendingError{}) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "authorization_pending",
+			})
+			return
+		}
 		_ = c.Error(err)
 		return
 	}
