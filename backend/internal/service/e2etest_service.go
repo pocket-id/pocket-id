@@ -245,42 +245,6 @@ func (s *TestService) SeedDatabase() error {
 		return err
 	}
 
-	// After the transaction completes, update the app config separately
-	ctx := context.Background()
-
-	// Update LDAP config variables using the service
-	ldapConfigs := map[string]string{
-		"ldapUrl":                            "ldap://lldap:3890",
-		"ldapBindDn":                         "cn=admin,dc=pocket-id,dc=org",
-		"ldapBindPassword":                   "admin_password",
-		"ldapBase":                           "dc=pocket-id,dc=org",
-		"ldapUserSearchFilter":               "(objectClass=person)",
-		"ldapUserGroupSearchFilter":          "(objectClass=groupOfNames)",
-		"ldapSkipCertVerify":                 "true",
-		"ldapAttributeUserUniqueIdentifier":  "uid",
-		"ldapAttributeUserUsername":          "uid",
-		"ldapAttributeUserEmail":             "mail",
-		"ldapAttributeUserFirstName":         "givenName",
-		"ldapAttributeUserLastName":          "sn",
-		"ldapAttributeGroupUniqueIdentifier": "cn",
-		"ldapAttributeGroupName":             "cn",
-		"ldapAttributeGroupMember":           "member",
-		"ldapAttributeAdminGroup":            "admin_group",
-		"ldapSoftDeleteUsers":                "true",
-		"ldapEnabled":                        "true",
-	}
-
-	// Convert map to flat key-value array for UpdateAppConfigValues
-	keysAndValues := make([]string, 0, len(ldapConfigs)*2)
-	for key, value := range ldapConfigs {
-		keysAndValues = append(keysAndValues, key, value)
-	}
-
-	// Update all config in one go outside the transaction
-	if err := s.appConfigService.UpdateAppConfigValues(ctx, keysAndValues...); err != nil {
-		return fmt.Errorf("failed to update LDAP config: %w", err)
-	}
-
 	return nil
 }
 
@@ -403,4 +367,57 @@ func (s *TestService) SyncLdap(ctx context.Context) error {
 
 	// Perform LDAP sync
 	return s.ldapService.SyncAll(ctx)
+}
+
+// SetLdapTestConfig writes the test LDAP config variables directly to the database.
+func (s *TestService) SetLdapTestConfig() error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		ldapConfigs := map[string]string{
+			"ldapUrl":                            "ldap://lldap:3890",
+			"ldapBindDn":                         "cn=admin,dc=pocket-id,dc=org",
+			"ldapBindPassword":                   "admin_password",
+			"ldapBase":                           "dc=pocket-id,dc=org",
+			"ldapUserSearchFilter":               "(objectClass=person)",
+			"ldapUserGroupSearchFilter":          "(objectClass=groupOfNames)",
+			"ldapSkipCertVerify":                 "true",
+			"ldapAttributeUserUniqueIdentifier":  "uid",
+			"ldapAttributeUserUsername":          "uid",
+			"ldapAttributeUserEmail":             "mail",
+			"ldapAttributeUserFirstName":         "givenName",
+			"ldapAttributeUserLastName":          "sn",
+			"ldapAttributeGroupUniqueIdentifier": "cn",
+			"ldapAttributeGroupName":             "cn",
+			"ldapAttributeGroupMember":           "member",
+			"ldapAttributeAdminGroup":            "admin_group",
+			"ldapSoftDeleteUsers":                "true",
+			"ldapEnabled":                        "true",
+		}
+
+		for key, value := range ldapConfigs {
+			log.Printf("Upserting config: %s = %s", key, value)
+			var configVar model.AppConfigVariable
+			result := tx.Where("key = ?", key).First(&configVar)
+			if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+				log.Printf("Query error for key %s: %v", key, result.Error)
+				return fmt.Errorf("failed to query config variable '%s': %w", key, result.Error)
+			}
+			if result.RowsAffected == 0 {
+				// Insert new variable
+				configVar = model.AppConfigVariable{Key: key, Value: value}
+				if err := tx.Create(&configVar).Error; err != nil {
+					log.Printf("Create error for key %s: %v", key, err)
+					return fmt.Errorf("failed to create config variable '%s': %w", key, err)
+				}
+				log.Printf("Inserted config: %s", key)
+			} else {
+				// Update existing variable
+				if err := tx.Model(&configVar).Update("value", value).Error; err != nil {
+					log.Printf("Update error for key %s: %v", key, err)
+					return fmt.Errorf("failed to update config variable '%s': %w", key, err)
+				}
+				log.Printf("Updated config: %s", key)
+			}
+		}
+		return nil
+	})
 }

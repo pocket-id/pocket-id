@@ -41,10 +41,15 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		return
 	}
 
-	// if err := tc.TestService.SyncLdap(c.Request.Context()); err != nil {
-	// 	_ = c.Error(err)
-	// 	return
-	// }
+	if err := tc.TestService.SetLdapTestConfig(); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	if err := tc.TestService.SyncLdap(c.Request.Context()); err != nil {
+		_ = c.Error(err)
+		return
+	}
 
 	tc.TestService.SetJWTKeys()
 
