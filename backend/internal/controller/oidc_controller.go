@@ -155,7 +155,7 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 
 	// Client id and secret can also be passed over the Authorization header
 	if clientID == "" && clientSecret == "" {
-		clientID, clientSecret, _ = c.Request.BasicAuth()
+		input.ClientID, input.ClientSecret, _ = c.Request.BasicAuth()
 	}
 
 	idToken, refreshToken, accessToken, expiresIn, err := oc.oidcService.CreateTokens(
@@ -623,13 +623,13 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 	var input dto.OidcDeviceAuthorizationRequestDto
 	if err := c.ShouldBind(&input); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
 	response, err := oc.oidcService.CreateDeviceAuthorization(input)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -639,7 +639,7 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 	userCode := c.Query("code")
 	if userCode == "" {
-		c.Error(&common.ValidationError{Message: "code is required"})
+		_ = c.Error(&common.ValidationError{Message: "code is required"})
 		return
 	}
 
@@ -649,7 +649,7 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 
 	err := oc.oidcService.VerifyDeviceCode(c, userCode, c.GetString("userID"), ipAddress, userAgent)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
@@ -659,7 +659,7 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 	userCode := c.Query("code")
 	if userCode == "" {
-		c.Error(&common.ValidationError{Message: "code is required"})
+		_ = c.Error(&common.ValidationError{Message: "code is required"})
 		return
 	}
 
@@ -668,7 +668,7 @@ func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 
 	deviceCodeInfo, err := oc.oidcService.GetDeviceCodeInfo(c, userCode, userID)
 	if err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 		return
 	}
 
