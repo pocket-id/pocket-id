@@ -36,7 +36,7 @@ test.describe('LDAP Integration', () => {
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 		// Verify user source is LDAP
-		await expect(page.getByText('LDAP')).toBeVisible();
+		await expect(page.getByText('LDAP').first()).toBeVisible();
 
 		// Verify essential fields are filled
 		await expect(page.getByLabel('Username')).not.toBeEmpty();
@@ -56,7 +56,7 @@ test.describe('LDAP Integration', () => {
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 		// Verify group source is LDAP
-		await expect(page.getByText('LDAP')).toBeVisible();
+		await expect(page.getByText('LDAP').first()).toBeVisible();
 	});
 
 	test('LDAP users cannot be modified in PocketID', async ({ page }) => {
