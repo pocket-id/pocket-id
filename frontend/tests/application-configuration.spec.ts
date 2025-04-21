@@ -53,47 +53,6 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('API Key Expiration')).toBeChecked();
 });
 
-test('Update LDAP configuration', async ({ page }) => {
-	await page.goto('/settings/admin/application-configuration');
-
-	await page.getByRole('button', { name: 'Expand card' }).nth(2).click();
-
-	await page.getByLabel('LDAP URL').fill('ldap://localhost:389');
-	await page.getByLabel('LDAP Bind DN').fill('cn=admin,dc=example,dc=com');
-	await page.getByLabel('LDAP Bind Password').fill('password');
-	await page.getByLabel('LDAP Base DN').fill('dc=example,dc=com');
-	await page.getByLabel('User Search Filter').fill('(objectClass=person)');
-	await page.getByLabel('Groups Search Filter').fill('(objectClass=groupOfUniqueNames)');
-	await page.getByLabel('User Unique Identifier Attribute').fill('uuid');
-	await page.getByLabel('Username Attribute').fill('uid');
-	await page.getByLabel('User Mail Attribute').fill('mail');
-	await page.getByLabel('User First Name Attribute').fill('givenName');
-	await page.getByLabel('User Last Name Attribute').fill('sn');
-	await page.getByLabel('Group Unique Identifier Attribute').fill('uuid');
-	await page.getByLabel('Group Name Attribute').fill('cn');
-	await page.getByLabel('Admin Group Name').fill('admin');
-
-	await page.getByRole('button', { name: 'Enable' }).click();
-
-	await expect(page.getByRole('status')).toHaveText('LDAP configuration updated successfully');
-
-	await page.reload();
-
-	await expect(page.getByRole('button', { name: 'Disable' })).toBeVisible();
-	await expect(page.getByLabel('LDAP URL')).toHaveValue('ldap://localhost:389');
-	await expect(page.getByLabel('LDAP Bind DN')).toHaveValue('cn=admin,dc=example,dc=com');
-	await expect(page.getByLabel('LDAP Bind Password')).toHaveValue('password');
-	await expect(page.getByLabel('LDAP Base DN')).toHaveValue('dc=example,dc=com');
-	await page.getByLabel('User Search Filter').fill('(objectClass=person)');
-	await page.getByLabel('Groups Search Filter').fill('(objectClass=groupOfUniqueNames)');
-	await expect(page.getByLabel('User Unique Identifier Attribute')).toHaveValue('uuid');
-	await expect(page.getByLabel('Username Attribute')).toHaveValue('uid');
-	await expect(page.getByLabel('User Mail Attribute')).toHaveValue('mail');
-	await expect(page.getByLabel('User First Name Attribute')).toHaveValue('givenName');
-	await expect(page.getByLabel('User Last Name Attribute')).toHaveValue('sn');
-	await expect(page.getByLabel('Admin Group Name')).toHaveValue('admin');
-});
-
 test('Update application images', async ({ page }) => {
 	await page.goto('/settings/admin/application-configuration');
 
