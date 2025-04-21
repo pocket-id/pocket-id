@@ -94,7 +94,7 @@
 {/if}
 
 <!-- Login code card -->
-<div>
+<div class="hidden sm:block">
 	<Card.Root>
 		<Card.Header>
 			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
@@ -162,6 +162,28 @@
 				<PasskeyList bind:passkeys />
 			</Card.Content>
 		{/if}
+	</Card.Root>
+</div>
+
+<!-- Login code card -->
+<div class="sm:hidden">
+	<Card.Root>
+		<Card.Header>
+			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+				<div>
+					<Card.Title>
+						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
+						{m.login_code()}
+					</Card.Title>
+					<Card.Description>
+						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+					</Card.Description>
+				</div>
+				<Button variant="outline" class="w-full sm:w-auto" on:click={() => (showLoginCodeModal = true)}>
+					{m.create()}
+				</Button>
+			</div>
+		</Card.Header>
 	</Card.Root>
 </div>
 
