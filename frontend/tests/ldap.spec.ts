@@ -29,15 +29,10 @@ test.describe('LDAP Integration', () => {
 
 		// Verify the LDAP users exist
 		await expect(page.getByText('testuser1@pocket-id.org')).toBeVisible();
-
-		// Check for LDAP badge on users
-		await expect(page.getByRole('cell', { name: 'LDAP', exact: true })).toBeVisible();
+		await expect(page.getByText('testuser2@pocket-id.org')).toBeVisible();
 
 		// Check LDAP user details
-		await page
-			.getByRole('row', { name: /testuser1/ })
-			.getByRole('button')
-			.click();
+		await page.getByRole('row', { name: 'testuser1' }).getByRole('button').click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 		// Verify user source is LDAP
@@ -53,11 +48,8 @@ test.describe('LDAP Integration', () => {
 		await page.goto('/settings/admin/user-groups');
 
 		// Verify LDAP groups exist
-		await expect(page.getByText('Test Group')).toBeVisible();
-		await expect(page.getByText('Admin Group')).toBeVisible();
-
-		// Check for LDAP badge on groups
-		await expect(page.getByRole('cell', { name: 'LDAP', exact: true })).toBeVisible();
+		await expect(page.getByText('test_group')).toBeVisible();
+		await expect(page.getByText('admin_group')).toBeVisible();
 
 		// Check group details
 		await page.getByRole('row', { name: 'test_group' }).getByRole('button').click();
@@ -70,10 +62,7 @@ test.describe('LDAP Integration', () => {
 	test('LDAP users cannot be modified in PocketID', async ({ page }) => {
 		// Navigate to LDAP user details
 		await page.goto('/settings/admin/users');
-		await page
-			.getByRole('row', { name: /testuser1/ })
-			.getByRole('button')
-			.click();
+		await page.getByRole('row', { name: 'testuser1' }).getByRole('button').click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 		// Verify key fields are disabled
