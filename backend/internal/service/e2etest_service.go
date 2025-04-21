@@ -374,7 +374,7 @@ func (s *TestService) SetLdapTestConfig() error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		ldapConfigs := map[string]string{
 			"ldapUrl":                            "ldap://lldap:3890",
-			"ldapBindDn":                         "uid=admin,dc=pocket-id,dc=org",
+			"ldapBindDn":                         "uid=admin,ou=people,dc=pocket-id,dc=org",
 			"ldapBindPassword":                   "admin_password",
 			"ldapBase":                           "dc=pocket-id,dc=org",
 			"ldapUserSearchFilter":               "(objectClass=person)",
