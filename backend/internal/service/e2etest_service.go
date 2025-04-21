@@ -394,28 +394,9 @@ func (s *TestService) SetLdapTestConfig() error {
 		}
 
 		for key, value := range ldapConfigs {
-			log.Printf("Upserting config: %s = %s", key, value)
-			var configVar model.AppConfigVariable
-			result := tx.Where("key = ?", key).First(&configVar)
-			if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
-				log.Printf("Query error for key %s: %v", key, result.Error)
-				return fmt.Errorf("failed to query config variable '%s': %w", key, result.Error)
-			}
-			if result.RowsAffected == 0 {
-				// Insert new variable
-				configVar = model.AppConfigVariable{Key: key, Value: value}
-				if err := tx.Create(&configVar).Error; err != nil {
-					log.Printf("Create error for key %s: %v", key, err)
-					return fmt.Errorf("failed to create config variable '%s': %w", key, err)
-				}
-				log.Printf("Inserted config: %s", key)
-			} else {
-				// Update existing variable
-				if err := tx.Model(&configVar).Update("value", value).Error; err != nil {
-					log.Printf("Update error for key %s: %v", key, err)
-					return fmt.Errorf("failed to update config variable '%s': %w", key, err)
-				}
-				log.Printf("Updated config: %s", key)
+			configVar := model.AppConfigVariable{Key: key, Value: value}
+			if err := tx.Create(&configVar).Error; err != nil {
+				return fmt.Errorf("failed to create config variable '%s': %w", key, err)
 			}
 		}
 		return nil
