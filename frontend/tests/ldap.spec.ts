@@ -5,24 +5,19 @@ test.beforeEach(cleanupBackend);
 
 test.describe('LDAP Integration', () => {
 	test('LDAP configuration is working properly', async ({ page }) => {
-		// Navigate to LDAP configuration
 		await page.goto('/settings/admin/application-configuration');
 
-		// Open the LDAP card
 		await page.getByRole('heading', { name: 'LDAP' }).click();
 
-		// Verify LDAP is enabled and configuration is present
 		await expect(page.getByRole('button', { name: 'Disable' })).toBeVisible();
 		await expect(page.getByLabel('LDAP URL')).toHaveValue(/ldap:\/\/.*/);
 		await expect(page.getByLabel('LDAP Base DN')).not.toBeEmpty();
 
-		// Check attribute mapping
 		await expect(page.getByLabel('User Unique Identifier Attribute')).not.toBeEmpty();
 		await expect(page.getByLabel('Username Attribute')).not.toBeEmpty();
 		await expect(page.getByLabel('User Mail Attribute')).not.toBeEmpty();
 		await expect(page.getByLabel('Group Name Attribute')).not.toBeEmpty();
 
-		// Trigger LDAP sync
 		const syncButton = page.getByRole('button', { name: 'Sync now' });
 		await syncButton.click();
 		await expect(page.getByText('LDAP sync finished')).toBeVisible();
@@ -33,7 +28,7 @@ test.describe('LDAP Integration', () => {
 		await page.goto('/settings/admin/users');
 
 		// Verify the LDAP users exist
-		await expect(page.getByText('testuser1@example.com')).toBeVisible();
+		await expect(page.getByText('testuser1@pocket-id.org')).toBeVisible();
 
 		// Check for LDAP badge on users
 		await expect(page.getByRole('cell', { name: 'LDAP', exact: true })).toBeVisible();
@@ -65,10 +60,7 @@ test.describe('LDAP Integration', () => {
 		await expect(page.getByRole('cell', { name: 'LDAP', exact: true })).toBeVisible();
 
 		// Check group details
-		await page
-			.getByRole('row', { name: /Test Group/ })
-			.getByRole('button')
-			.click();
+		await page.getByRole('row', { name: 'test_group' }).getByRole('button').click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 		// Verify group source is LDAP
@@ -92,10 +84,7 @@ test.describe('LDAP Integration', () => {
 	test('LDAP groups cannot be modified in PocketID', async ({ page }) => {
 		// Navigate to LDAP group details
 		await page.goto('/settings/admin/user-groups');
-		await page
-			.getByRole('row', { name: /Test Group/ })
-			.getByRole('button')
-			.click();
+		await page.getByRole('row', { name: 'test_group' }).getByRole('button').click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 		// Verify key fields are disabled
