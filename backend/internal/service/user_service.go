@@ -175,28 +175,9 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
-	tx := s.db.Begin()
-
-	var user model.User
-	if err := tx.WithContext(ctx).First(&user, "id = ?", userID).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// Only soft-delete if user is LDAP and soft-delete is enabled and not allowing hard delete
-	if user.LdapID != nil && s.appConfigService.GetDbConfig().LdapSoftDeleteUsers.IsTrue() && !allowLdapDelete {
-		if !user.Disabled {
-			tx.Rollback()
-			return fmt.Errorf("LDAP user must be disabled before deletion")
-		}
-	}
-
-	// Otherwise, hard delete (local users or LDAP users when allowed)
-	if err := s.deleteUserInternal(ctx, userID, allowLdapDelete, tx); err != nil {
-		tx.Rollback()
-		return err
-	}
-	return tx.Commit().Error
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		return s.deleteUserInternal(ctx, userID, allowLdapDelete, tx)
+	})
 }
 
 func (s *UserService) deleteUserInternal(ctx context.Context, userID string, allowLdapDelete bool, tx *gorm.DB) error {
@@ -355,7 +336,6 @@ func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, user
 	}
 
 	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", expiration)
-
 }
 
 func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) error {
@@ -649,8 +629,9 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 	return nil
 }
 
-func (s *UserService) DisableUser(ctx context.Context, userID string, tx *gorm.DB) error {
-	return tx.WithContext(ctx).
+func (s *UserService) disableUserInternal(ctx context.Context, userID string, tx *gorm.DB) error {
+	return tx.
+		WithContext(ctx).
 		Model(&model.User{}).
 		Where("id = ?", userID).
 		Update("disabled", true).
