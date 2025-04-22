@@ -8,9 +8,9 @@ if [ "$CADDY_DISABLED" != "true" ]; then
   echo "Starting Caddy..."
 
   # https://caddyserver.com/docs/conventions#data-directory
-  export XDG_DATA_HOME=/app/backend/data/.local/share
+  export XDG_DATA_HOME=${XDG_DATA_HOME:-/app/backend/data/.local/share}
   # https://caddyserver.com/docs/conventions#configuration-directory
-  export XDG_CONFIG_HOME=/app/backend/data/.config
+  export XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-/app/backend/data/.config}
 
   # Check if TRUST_PROXY is set to true and use the appropriate Caddyfile
   if [ "$TRUST_PROXY" = "true" ]; then
