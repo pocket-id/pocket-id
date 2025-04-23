@@ -20,7 +20,7 @@ type UserCreateDto struct {
 	Username  string  `json:"username" binding:"required,username,min=2,max=50"`
 	Email     string  `json:"email" binding:"required,email"`
 	FirstName string  `json:"firstName" binding:"required,min=1,max=50"`
-	LastName  string  `json:"lastName" binding:"required,min=1,max=50"`
+	LastName  string  `json:"lastName" binding:"max=50"`
 	IsAdmin   bool    `json:"isAdmin"`
 	Locale    *string `json:"locale"`
 	Disabled  bool    `json:"disabled"`
