@@ -1,6 +1,6 @@
-import type { PageServerLoad } from './$types';
+import type { PageLoad } from './$types';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageLoad = async ({ url }) => {
 	return {
 		code: url.searchParams.get('code'),
 		redirect: url.searchParams.get('redirect') || '/settings'
