@@ -54,6 +54,7 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware()
 
 	// Setup global middleware
+	r.Use(middleware.NewTrustProxyMiddleware().Add())
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 	r.Use(rateLimitMiddleware.Add(rate.Every(time.Second), 60))
