@@ -352,3 +352,25 @@ test('Authorize client with device authorization flow with invalid code', async 
 		page.getByRole('paragraph').filter({ hasText: 'Invalid device code.' })
 	).toBeVisible();
 });
+
+test('Authorize new client with device authorization with user group not allowed', async ({
+	page
+}) => {
+	await page.context().clearCookies();
+	const client = oidcClients.immich;
+	const userCode = await oidcUtil.getUserCode(page, client.id, client.secret);
+
+	await page.goto(`/device?code=${userCode}`);
+
+	await (await passkeyUtil.init(page)).addPasskey('craig');
+	await page.getByRole('button', { name: 'Authorize' }).click();
+
+	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
+	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Authorize' }).click();
+
+	await expect(
+		page.getByRole('paragraph').filter({ hasText: "You're not allowed to access this service." })
+	).toBeVisible();
+});
