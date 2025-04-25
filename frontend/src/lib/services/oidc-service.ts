@@ -1,5 +1,6 @@
 import type {
 	AuthorizeResponse,
+	OidcDeviceCodeInfo,
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
@@ -7,6 +8,7 @@ import type {
 } from '$lib/types/oidc.type';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import APIService from './api-service';
+
 
 class OidcService extends APIService {
 	async authorize(
@@ -91,6 +93,15 @@ class OidcService extends APIService {
 	async updateAllowedUserGroups(id: string, userGroupIds: string[]) {
 		const res = await this.api.put(`/oidc/clients/${id}/allowed-user-groups`, { userGroupIds });
 		return res.data as OidcClientWithAllowedUserGroups;
+	}
+
+	async verifyDeviceCode(userCode: string) {
+		return await this.api.post(`/oidc/device/verify?code=${userCode}`);
+	}
+
+	async getDeviceCodeInfo(userCode: string): Promise<OidcDeviceCodeInfo> {
+		const response = await this.api.get(`/oidc/device/info?code=${userCode}`);
+		return response.data;
 	}
 }
 
