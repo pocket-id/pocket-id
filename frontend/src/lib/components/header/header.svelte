@@ -5,7 +5,7 @@
 	import Logo from '../logo.svelte';
 	import HeaderAvatar from './header-avatar.svelte';
 
-	const authUrls = [/^\/authorize$/, /^\/login(?:\/.*)?$/, /^\/logout$/];
+	const authUrls = [/^\/authorize$/, /^\/device$/, /^\/login(?:\/.*)?$/, /^\/logout$/];
 
 	let isAuthPage = $derived(
 		!page.error && authUrls.some((pattern) => pattern.test(page.url.pathname))

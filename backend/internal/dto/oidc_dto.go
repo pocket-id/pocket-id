@@ -49,6 +49,7 @@ type AuthorizationRequiredDto struct {
 type OidcCreateTokensDto struct {
 	GrantType    string `form:"grant_type" binding:"required"`
 	Code         string `form:"code"`
+	DeviceCode   string `form:"device_code"`
 	ClientID     string `form:"client_id"`
 	ClientSecret string `form:"client_secret"`
 	CodeVerifier string `form:"code_verifier"`
@@ -89,4 +90,33 @@ type OidcIntrospectionResponseDto struct {
 	Audience   []string `json:"aud,omitempty"`
 	Issuer     string   `json:"iss,omitempty"`
 	Identifier string   `json:"jti,omitempty"`
+}
+
+type OidcDeviceAuthorizationRequestDto struct {
+	ClientID     string `form:"client_id" binding:"required"`
+	Scope        string `form:"scope" binding:"required"`
+	ClientSecret string `form:"client_secret"`
+}
+
+type OidcDeviceAuthorizationResponseDto struct {
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+	RequiresAuthorization   bool   `json:"requires_authorization"`
+}
+
+type OidcDeviceTokenRequestDto struct {
+	GrantType    string `form:"grant_type" binding:"required,eq=urn:ietf:params:oauth:grant-type:device_code"`
+	DeviceCode   string `form:"device_code" binding:"required"`
+	ClientID     string `form:"client_id"`
+	ClientSecret string `form:"client_secret"`
+}
+
+type DeviceCodeInfoDto struct {
+	Scope                 string                `json:"scope"`
+	AuthorizationRequired bool                  `json:"authorizationRequired"`
+	Client                OidcClientMetaDataDto `json:"client"`
 }

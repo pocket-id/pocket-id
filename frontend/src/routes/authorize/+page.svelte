@@ -14,7 +14,7 @@
 	import { slide } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import ClientProviderImages from './components/client-provider-images.svelte';
-	import ScopeItem from './components/scope-item.svelte';
+	import ScopeItem from '$lib/components/scope-item.svelte';
 
 	const webauthnService = new WebAuthnService();
 	const oidService = new OidcService();

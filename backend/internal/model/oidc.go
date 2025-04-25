@@ -87,3 +87,17 @@ func (cu *UrlList) Scan(value interface{}) error {
 func (cu UrlList) Value() (driver.Value, error) {
 	return json.Marshal(cu)
 }
+
+type OidcDeviceCode struct {
+	Base
+	DeviceCode   string
+	UserCode     string
+	Scope        string
+	ExpiresAt    datatype.DateTime
+	IsAuthorized bool
+
+	UserID   *string
+	User     User
+	ClientID string
+	Client   OidcClient
+}

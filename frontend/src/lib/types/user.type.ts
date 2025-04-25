@@ -7,7 +7,7 @@ export type User = {
 	username: string;
 	email: string;
 	firstName: string;
-	lastName: string;
+	lastName?: string;
 	isAdmin: boolean;
 	userGroups: UserGroup[];
 	customClaims: CustomClaim[];
