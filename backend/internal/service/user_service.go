@@ -292,11 +292,27 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		return model.User{}, err
 	}
 
-	// Disallow updating the user if it is an LDAP group and LDAP is enabled
+	// For LDAP users when LDAP is enabled, only allow updating the locale
 	if !isLdapSync && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+		// Allow updating only the locale for LDAP users
+		if updatedUser.Locale != nil {
+			user.Locale = updatedUser.Locale
+
+			err = tx.
+				WithContext(ctx).
+				Save(&user).
+				Error
+			if err != nil {
+				return model.User{}, err
+			}
+
+			return user, nil
+		}
+		// If trying to update other fields, return error
 		return model.User{}, &common.LdapUserUpdateError{}
 	}
 
+	// For non-LDAP users, update all fields as before
 	user.FirstName = updatedUser.FirstName
 	user.LastName = updatedUser.LastName
 	user.Email = updatedUser.Email
