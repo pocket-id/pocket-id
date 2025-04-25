@@ -27,13 +27,11 @@ const authenticationHandle: Handle = async ({ event, resolve }) => {
 	const isPublicPath = ['/authorize', '/health'].includes(event.url.pathname);
 	const isAdminPath = event.url.pathname.startsWith('/settings/admin');
 
-	if (!isUnauthenticatedOnlyPath && !isPublicPath) {
-		if (!isSignedIn) {
-			return new Response(null, {
-				status: 302,
-				headers: { location: '/login' }
-			});
-		}
+	if (!isUnauthenticatedOnlyPath && !isPublicPath && !isSignedIn) {
+		return new Response(null, {
+			status: 302,
+			headers: { location: '/login' }
+		});
 	}
 
 	if (isUnauthenticatedOnlyPath && isSignedIn) {
@@ -81,7 +79,7 @@ function verifyJwt(accessToken: string | undefined) {
 		const jwtPayload = decodeJwt<{ isAdmin: boolean }>(accessToken);
 		if (jwtPayload?.exp && jwtPayload.exp * 1000 > Date.now()) {
 			isSignedIn = true;
-			isAdmin = jwtPayload?.isAdmin || false;
+			isAdmin = !!(jwtPayload?.isAdmin);
 		}
 	}
 

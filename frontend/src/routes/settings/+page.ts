@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
+import type { PageLoad } from './$types';
 
-export function load() {
+export const load: PageLoad = async () => {
 	throw redirect(307, '/settings/account');
 }
