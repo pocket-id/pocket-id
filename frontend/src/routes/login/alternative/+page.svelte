@@ -31,7 +31,7 @@
 	<title>{m.sign_in()}</title>
 </svelte:head>
 
-<SignInWrapper animate={!$appConfigStore.disableAnimations}>
+<SignInWrapper>
 	<div class="flex h-full flex-col justify-center">
 		<div class="bg-muted mx-auto rounded-2xl p-3">
 			<Logo class="h-10 w-10" />

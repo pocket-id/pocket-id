@@ -33,7 +33,7 @@ export const oidcClients = {
 		id: '606c7782-f2b1-49e5-8ea9-26eb1b06d018',
 		name: 'Immich',
 		callbackUrl: 'http://immich/auth/callback',
-		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x'
+		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x',
 	},
 	pingvinShare: {
 		name: 'Pingvin Share',

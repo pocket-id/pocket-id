@@ -23,6 +23,12 @@ export type OidcClientCreateWithLogo = OidcClientCreate & {
 	logo: File | null | undefined;
 };
 
+export type OidcDeviceCodeInfo = {
+	scope: string;
+	authorizationRequired: boolean;
+	client: OidcClientMetaData;
+};
+
 export type AuthorizeResponse = {
 	code: string;
 	callbackURL: string;
