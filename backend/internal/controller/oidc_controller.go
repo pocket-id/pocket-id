@@ -50,7 +50,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.POST("/oidc/device/authorize", oc.deviceAuthorizationHandler)
 	group.POST("/oidc/device/verify", authMiddleware.WithAdminNotRequired().Add(), oc.verifyDeviceCodeHandler)
-	group.GET("/oidc/device/info", oc.getDeviceCodeInfoHandler)
+	group.GET("/oidc/device/info", authMiddleware.WithAdminNotRequired().Add(), oc.getDeviceCodeInfoHandler)
 }
 
 type OidcController struct {
@@ -670,10 +670,7 @@ func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 		return
 	}
 
-	// Get the user ID if authenticated
-	userID := c.GetString("userID") // Will be empty string if not authenticated
-
-	deviceCodeInfo, err := oc.oidcService.GetDeviceCodeInfo(c, userCode, userID)
+	deviceCodeInfo, err := oc.oidcService.GetDeviceCodeInfo(c, userCode, c.GetString("userID"))
 	if err != nil {
 		_ = c.Error(err)
 		return

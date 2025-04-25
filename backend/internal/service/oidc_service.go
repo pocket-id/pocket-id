@@ -1037,14 +1037,12 @@ func (s *OidcService) CreateDeviceAuthorization(input dto.OidcDeviceAuthorizatio
 }
 
 func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, userID string, ipAddress string, userAgent string) error {
-	var deviceAuth model.OidcDeviceCode
-
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	// Load device auth with Client relationship
+	var deviceAuth model.OidcDeviceCode
 	if err := tx.WithContext(ctx).Preload("Client.AllowedUserGroups").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
 		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
 		return err
@@ -1064,7 +1062,6 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		return &common.OidcAccessDeniedError{}
 	}
 
-	// Load device auth with Client relationship
 	if err := tx.WithContext(ctx).Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
 		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
 		return err
@@ -1200,6 +1197,9 @@ func (s *OidcService) PollDeviceCode(ctx context.Context, input dto.OidcDeviceTo
 func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, userID string) (*dto.DeviceCodeInfoDto, error) {
 	var deviceAuth model.OidcDeviceCode
 	if err := s.db.Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &common.OidcInvalidDeviceCodeError{}
+		}
 		return nil, err
 	}
 
@@ -1211,15 +1211,18 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 	hasAuthorizedClient := false
 	if userID != "" {
 		var err error
-		hasAuthorizedClient, err = s.hasAuthorizedClientInternal(ctx, deviceAuth.ClientID, userID, deviceAuth.Scope, s.db)
+		hasAuthorizedClient, err = s.HasAuthorizedClient(ctx, deviceAuth.ClientID, userID, deviceAuth.Scope)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return &dto.DeviceCodeInfoDto{
-		ClientID:              deviceAuth.ClientID,
-		ClientName:            deviceAuth.Client.Name,
+		Client: dto.OidcClientMetaDataDto{
+			ID:      deviceAuth.Client.ID,
+			Name:    deviceAuth.Client.Name,
+			HasLogo: deviceAuth.Client.HasLogo,
+		},
 		Scope:                 deviceAuth.Scope,
 		AuthorizationRequired: !hasAuthorizedClient,
 	}, nil
