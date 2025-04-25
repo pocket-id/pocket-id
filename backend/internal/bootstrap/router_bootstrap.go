@@ -72,10 +72,22 @@ func initRouterInternal(ctx context.Context, db *gorm.DB, appConfigService *serv
 		return fmt.Errorf("failed to create job scheduler: %w", err)
 	}
 
-	scheduler.RegisterLdapJobs(ctx, ldapService, appConfigService)
-	scheduler.RegisterDbCleanupJobs(ctx, db)
-	scheduler.RegisterFileCleanupJobs(ctx, db)
-	scheduler.RegisterApiKeyExpiryJob(ctx, apiKeyService, appConfigService)
+	err = scheduler.RegisterLdapJobs(ctx, ldapService, appConfigService)
+	if err != nil {
+		return fmt.Errorf("failed to register LDAP jobs in scheduler: %w", err)
+	}
+	err = scheduler.RegisterDbCleanupJobs(ctx, db)
+	if err != nil {
+		return fmt.Errorf("failed to register DB cleanup jobs in scheduler: %w", err)
+	}
+	err = scheduler.RegisterFileCleanupJobs(ctx, db)
+	if err != nil {
+		return fmt.Errorf("failed to register file cleanup jobs in scheduler: %w", err)
+	}
+	err = scheduler.RegisterApiKeyExpiryJob(ctx, apiKeyService, appConfigService)
+	if err != nil {
+		return fmt.Errorf("failed to register API key expiration jobs in scheduler: %w", err)
+	}
 
 	// Run the scheduler in a background goroutine, until the context is canceled
 	go scheduler.Run(ctx)
@@ -144,8 +156,9 @@ func initRouterInternal(ctx context.Context, db *gorm.DB, appConfigService *serv
 	<-ctx.Done()
 
 	// Handle graceful shutdown
+	// Note we use the background context here as ctx has been canceled already
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	shutdownErr := srv.Shutdown(shutdownCtx)
+	shutdownErr := srv.Shutdown(shutdownCtx) //nolint:contextcheck
 	shutdownCancel()
 	if shutdownErr != nil {
 		// Log the error only (could be context canceled)
