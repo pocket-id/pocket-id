@@ -94,7 +94,6 @@ type OidcDeviceCode struct {
 	UserCode     string
 	Scope        string
 	ExpiresAt    datatype.DateTime
-	LastPollTime *datatype.DateTime
 	IsAuthorized bool
 
 	UserID   *string

@@ -6,7 +6,6 @@ CREATE TABLE oidc_device_codes
     user_code      TEXT        NOT NULL UNIQUE,
     scope          TEXT        NOT NULL,
     expires_at     TIMESTAMPTZ NOT NULL,
-    last_poll_time TIMESTAMPTZ,
     is_authorized  BOOLEAN     NOT NULL DEFAULT FALSE,
     user_id        UUID REFERENCES users ON DELETE CASCADE,
     client_id      UUID        NOT NULL REFERENCES oidc_clients ON DELETE CASCADE
