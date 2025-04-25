@@ -1,7 +1,8 @@
 import { redirect } from '@sveltejs/kit';
+import type { PageLoad } from './$types';
 
 // Alias for /login/alternative/code?code=...
-export function GET({ url, params }) {
+export const load: PageLoad = async ({ url, params }) => {
 	const targetPath = '/login/alternative/code';
 
 	const searchParams = new URLSearchParams();
