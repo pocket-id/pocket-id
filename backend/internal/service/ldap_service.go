@@ -366,17 +366,22 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		}
 
 		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
-			err = s.userService.DisableUser(ctx, user.ID, tx)
+			err = s.userService.disableUserInternal(ctx, user.ID, tx)
 			if err != nil {
-				log.Printf("Failed to disable user %s: %v", user.Username, err)
-				continue
+				return fmt.Errorf("failed to disable user %s: %w", user.Username, err)
 			}
+
+			log.Printf("Disabled user '%s'", user.Username)
 		} else {
-			err = s.userService.DeleteUser(ctx, user.ID, true)
-			if err != nil {
-				log.Printf("Failed to delete user %s: %v", user.Username, err)
-				continue
+			err = s.userService.deleteUserInternal(ctx, user.ID, true, tx)
+			target := &common.LdapUserUpdateError{}
+			if errors.As(err, &target) {
+				return fmt.Errorf("failed to delete user %s: LDAP user must be disabled before deletion", user.Username)
+			} else if err != nil {
+				return fmt.Errorf("failed to delete user %s: %w", user.Username, err)
 			}
+
+			log.Printf("Deleted user '%s'", user.Username)
 		}
 	}
 
