@@ -155,7 +155,7 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		input.ClientID, input.ClientSecret, _ = c.Request.BasicAuth()
 	}
 
-	idToken, refreshToken, accessToken, expiresIn, err :=
+	idToken, accessToken, refreshToken, expiresIn, err :=
 		oc.oidcService.CreateTokens(c.Request.Context(), input)
 
 	switch {
