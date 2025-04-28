@@ -155,23 +155,22 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		input.ClientID, input.ClientSecret, _ = c.Request.BasicAuth()
 	}
 
-	idToken, refreshToken, accessToken, expiresIn, err := oc.oidcService.CreateTokens(
-		c,
-		input,
-	)
-	if err != nil {
-		switch {
-		case errors.Is(err, &common.OidcAuthorizationPendingError{}):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "authorization_pending",
-			})
-		case errors.Is(err, &common.OidcSlowDownError{}):
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "slow_down",
-			})
-		default:
-			_ = c.Error(err)
-		}
+	idToken, accessToken, refreshToken, expiresIn, err :=
+		oc.oidcService.CreateTokens(c.Request.Context(), input)
+
+	switch {
+	case errors.Is(err, &common.OidcAuthorizationPendingError{}):
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "authorization_pending",
+		})
+		return
+	case errors.Is(err, &common.OidcSlowDownError{}):
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "slow_down",
+		})
+		return
+	case err != nil:
+		_ = c.Error(err)
 		return
 	}
 
@@ -308,7 +307,6 @@ func (oc *OidcController) EndSessionHandlerPost(c *gin.Context) {
 // @Success 200 {object} dto.OidcIntrospectionResponseDto "Response with the introspection result."
 // @Router /api/oidc/introspect [post]
 func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
-
 	var input dto.OidcIntrospectDto
 	if err := c.ShouldBind(&input); err != nil {
 		_ = c.Error(err)
@@ -322,7 +320,7 @@ func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
 	// and client_secret anyway).
 	clientID, clientSecret, _ := c.Request.BasicAuth()
 
-	response, err := oc.oidcService.IntrospectToken(clientID, clientSecret, input.Token)
+	response, err := oc.oidcService.IntrospectToken(c.Request.Context(), clientID, clientSecret, input.Token)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -634,7 +632,7 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 		input.ClientID, input.ClientSecret, _ = c.Request.BasicAuth()
 	}
 
-	response, err := oc.oidcService.CreateDeviceAuthorization(input)
+	response, err := oc.oidcService.CreateDeviceAuthorization(c.Request.Context(), input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -654,7 +652,7 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	userAgent := c.Request.UserAgent()
 
-	err := oc.oidcService.VerifyDeviceCode(c, userCode, c.GetString("userID"), ipAddress, userAgent)
+	err := oc.oidcService.VerifyDeviceCode(c.Request.Context(), userCode, c.GetString("userID"), ipAddress, userAgent)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -670,7 +668,7 @@ func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 		return
 	}
 
-	deviceCodeInfo, err := oc.oidcService.GetDeviceCodeInfo(c, userCode, c.GetString("userID"))
+	deviceCodeInfo, err := oc.oidcService.GetDeviceCodeInfo(c.Request.Context(), userCode, c.GetString("userID"))
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -1,3 +1,34 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.50.0...v) (2025-04-28)
+
+
+### Features
+
+* new login code card position for mobile devices ([#452](https://github.com/pocket-id/pocket-id/issues/452)) ([02cacba](https://github.com/pocket-id/pocket-id/commit/02cacba5c5524481684cb0e1790811df113a9481))
+
+
+### Bug Fixes
+
+* do not require PKCE for public clients ([ce24372](https://github.com/pocket-id/pocket-id/commit/ce24372c571cc3b277095dc6a4107663d64f45b3))
+* hide global audit log switch for non admin users ([1efd1d1](https://github.com/pocket-id/pocket-id/commit/1efd1d182dbb6190d3c7e27034426c9e48781b4a))
+* return correct error message if user isn't authorized ([86d2b5f](https://github.com/pocket-id/pocket-id/commit/86d2b5f59f26cb944017826cbd8df915cdc986f1))
+* updating scopes of an authorized client fails with Postgres ([0a24ab8](https://github.com/pocket-id/pocket-id/commit/0a24ab80010eb5a15d99915802c6698274a5c57c))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v0.49.0...v) (2025-04-27)
+
+
+### Features
+
+* device authorization endpoint ([#270](https://github.com/pocket-id/pocket-id/issues/270)) ([22f7d64](https://github.com/pocket-id/pocket-id/commit/22f7d64bf08a5a1ecbe5eee0052453b730f5c360))
+* make family name optional ([#476](https://github.com/pocket-id/pocket-id/issues/476)) ([630327c](https://github.com/pocket-id/pocket-id/commit/630327c979de2f931b9d1f0ba0b4a4de1af3fc7c))
+
+
+### Bug Fixes
+
+* do not override XDG_DATA_HOME/XDG_CONFIG_HOME if they are already set ([#472](https://github.com/pocket-id/pocket-id/issues/472)) ([22725d3](https://github.com/pocket-id/pocket-id/commit/22725d30f4115ffe17625379f56affedfe116778))
+* pass context to methods that were missing it ([#487](https://github.com/pocket-id/pocket-id/issues/487)) ([4c33793](https://github.com/pocket-id/pocket-id/commit/4c33793678709eb4981be2c1fd5803bace5f5939))
+* prevent deadlock when trying to delete LDAP users ([#471](https://github.com/pocket-id/pocket-id/issues/471)) ([270c303](https://github.com/pocket-id/pocket-id/commit/270c30334dc36f215a67f873283a9d6fcd14d065))
+* rootless Caddy data and configuration ([#470](https://github.com/pocket-id/pocket-id/issues/470)) ([76b753f](https://github.com/pocket-id/pocket-id/commit/76b753f9f2a6a4f1af09359530e30844b03ac39b))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.48.0...v) (2025-04-20)
 
 

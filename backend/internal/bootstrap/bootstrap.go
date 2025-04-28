@@ -6,10 +6,12 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/signals"
 )
 
 func Bootstrap() {
-	ctx := context.TODO()
+	// Get a context that is canceled when the application is stopping
+	ctx := signals.SignalContext(context.Background())
 
 	initApplicationImages()
 

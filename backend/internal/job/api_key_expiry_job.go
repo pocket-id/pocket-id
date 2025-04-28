@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/go-co-op/gocron/v2"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -13,20 +12,13 @@ type ApiKeyEmailJobs struct {
 	appConfigService *service.AppConfigService
 }
 
-func RegisterApiKeyExpiryJob(ctx context.Context, apiKeyService *service.ApiKeyService, appConfigService *service.AppConfigService) {
+func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyService *service.ApiKeyService, appConfigService *service.AppConfigService) error {
 	jobs := &ApiKeyEmailJobs{
 		apiKeyService:    apiKeyService,
 		appConfigService: appConfigService,
 	}
 
-	scheduler, err := gocron.NewScheduler()
-	if err != nil {
-		log.Fatalf("Failed to create a new scheduler: %v", err)
-	}
-
-	registerJob(ctx, scheduler, "ExpiredApiKeyEmailJob", "0 0 * * *", jobs.checkAndNotifyExpiringApiKeys)
-
-	scheduler.Start()
+	return s.registerJob(ctx, "ExpiredApiKeyEmailJob", "0 0 * * *", jobs.checkAndNotifyExpiringApiKeys)
 }
 
 func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) error {

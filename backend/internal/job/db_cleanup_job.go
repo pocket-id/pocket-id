@@ -2,30 +2,25 @@ package job
 
 import (
 	"context"
-	"log"
+	"errors"
 	"time"
 
-	"github.com/go-co-op/gocron/v2"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
-func RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) {
-	scheduler, err := gocron.NewScheduler()
-	if err != nil {
-		log.Fatalf("Failed to create a new scheduler: %s", err)
-	}
-
+func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) error {
 	jobs := &DbCleanupJobs{db: db}
 
-	registerJob(ctx, scheduler, "ClearWebauthnSessions", "0 3 * * *", jobs.clearWebauthnSessions)
-	registerJob(ctx, scheduler, "ClearOneTimeAccessTokens", "0 3 * * *", jobs.clearOneTimeAccessTokens)
-	registerJob(ctx, scheduler, "ClearOidcAuthorizationCodes", "0 3 * * *", jobs.clearOidcAuthorizationCodes)
-	registerJob(ctx, scheduler, "ClearOidcRefreshTokens", "0 3 * * *", jobs.clearOidcRefreshTokens)
-	registerJob(ctx, scheduler, "ClearAuditLogs", "0 3 * * *", jobs.clearAuditLogs)
-	scheduler.Start()
+	return errors.Join(
+		s.registerJob(ctx, "ClearWebauthnSessions", "0 3 * * *", jobs.clearWebauthnSessions),
+		s.registerJob(ctx, "ClearOneTimeAccessTokens", "0 3 * * *", jobs.clearOneTimeAccessTokens),
+		s.registerJob(ctx, "ClearOidcAuthorizationCodes", "0 3 * * *", jobs.clearOidcAuthorizationCodes),
+		s.registerJob(ctx, "ClearOidcRefreshTokens", "0 3 * * *", jobs.clearOidcRefreshTokens),
+		s.registerJob(ctx, "ClearAuditLogs", "0 3 * * *", jobs.clearAuditLogs),
+	)
 }
 
 type DbCleanupJobs struct {

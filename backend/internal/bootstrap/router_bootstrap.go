@@ -2,8 +2,10 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +23,13 @@ import (
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, appConfigService *service.AppConfigService, jwtService *service.JwtService)
 
 func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppConfigService) {
+	err := initRouterInternal(ctx, db, appConfigService)
+	if err != nil {
+		log.Fatalf("failed to init router: %v", err)
+	}
+}
+
+func initRouterInternal(ctx context.Context, db *gorm.DB, appConfigService *service.AppConfigService) error {
 	// Set the appropriate Gin mode based on the environment
 	switch common.EnvConfig.AppEnv {
 	case "production":
@@ -37,7 +46,7 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	// Initialize services
 	emailService, err := service.NewEmailService(appConfigService, db)
 	if err != nil {
-		log.Fatalf("Unable to create email service: %v", err)
+		return fmt.Errorf("unable to create email service: %w", err)
 	}
 
 	geoLiteService := service.NewGeoLiteService(ctx)
@@ -58,10 +67,30 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 	r.Use(rateLimitMiddleware.Add(rate.Every(time.Second), 60))
 
-	job.RegisterLdapJobs(ctx, ldapService, appConfigService)
-	job.RegisterDbCleanupJobs(ctx, db)
-	job.RegisterFileCleanupJobs(ctx, db)
-	job.RegisterApiKeyExpiryJob(ctx, apiKeyService, appConfigService)
+	scheduler, err := job.NewScheduler()
+	if err != nil {
+		return fmt.Errorf("failed to create job scheduler: %w", err)
+	}
+
+	err = scheduler.RegisterLdapJobs(ctx, ldapService, appConfigService)
+	if err != nil {
+		return fmt.Errorf("failed to register LDAP jobs in scheduler: %w", err)
+	}
+	err = scheduler.RegisterDbCleanupJobs(ctx, db)
+	if err != nil {
+		return fmt.Errorf("failed to register DB cleanup jobs in scheduler: %w", err)
+	}
+	err = scheduler.RegisterFileCleanupJobs(ctx, db)
+	if err != nil {
+		return fmt.Errorf("failed to register file cleanup jobs in scheduler: %w", err)
+	}
+	err = scheduler.RegisterApiKeyExpiryJob(ctx, apiKeyService, appConfigService)
+	if err != nil {
+		return fmt.Errorf("failed to register API key expiration jobs in scheduler: %w", err)
+	}
+
+	// Run the scheduler in a background goroutine, until the context is canceled
+	go scheduler.Run(ctx)
 
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(apiKeyService, userService, jwtService)
@@ -89,20 +118,52 @@ func initRouter(ctx context.Context, db *gorm.DB, appConfigService *service.AppC
 	baseGroup := r.Group("/")
 	controller.NewWellKnownController(baseGroup, jwtService)
 
-	// Get the listener
-	l, err := net.Listen("tcp", common.EnvConfig.Host+":"+common.EnvConfig.Port)
-	if err != nil {
-		log.Fatal(err)
+	// Set up the server
+	srv := &http.Server{
+		Addr:              net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port),
+		MaxHeaderBytes:    1 << 20,
+		ReadHeaderTimeout: 10 * time.Second,
+		Handler:           r,
 	}
 
+	// Set up the listener
+	listener, err := net.Listen("tcp", srv.Addr)
+	if err != nil {
+		return fmt.Errorf("failed to create TCP listener: %w", err)
+	}
+
+	log.Printf("Server listening on %s", srv.Addr)
+
 	// Notify systemd that we are ready
-	if err := systemd.SdNotifyReady(); err != nil {
-		log.Println("Unable to notify systemd that the service is ready: ", err)
+	err = systemd.SdNotifyReady()
+	if err != nil {
+		log.Printf("[WARN] Unable to notify systemd that the service is ready: %v", err)
 		// continue to serve anyway since it's not that important
 	}
 
-	// Serve requests
-	if err := r.RunListener(l); err != nil {
-		log.Fatal(err)
+	// Start the server in a background goroutine
+	go func() {
+		defer listener.Close()
+
+		// Next call blocks until the server is shut down
+		srvErr := srv.Serve(listener)
+		if srvErr != http.ErrServerClosed {
+			log.Fatalf("Error starting app server: %v", srvErr)
+		}
+	}()
+
+	// Block until the context is canceled
+	<-ctx.Done()
+
+	// Handle graceful shutdown
+	// Note we use the background context here as ctx has been canceled already
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownErr := srv.Shutdown(shutdownCtx) //nolint:contextcheck
+	shutdownCancel()
+	if shutdownErr != nil {
+		// Log the error only (could be context canceled)
+		log.Printf("[WARN] App server shutdown error: %v", shutdownErr)
 	}
+
+	return nil
 }
