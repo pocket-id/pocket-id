@@ -1,3 +1,19 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.49.0...v) (2025-04-27)
+
+
+### Features
+
+* device authorization endpoint ([#270](https://github.com/pocket-id/pocket-id/issues/270)) ([22f7d64](https://github.com/pocket-id/pocket-id/commit/22f7d64bf08a5a1ecbe5eee0052453b730f5c360))
+* make family name optional ([#476](https://github.com/pocket-id/pocket-id/issues/476)) ([630327c](https://github.com/pocket-id/pocket-id/commit/630327c979de2f931b9d1f0ba0b4a4de1af3fc7c))
+
+
+### Bug Fixes
+
+* do not override XDG_DATA_HOME/XDG_CONFIG_HOME if they are already set ([#472](https://github.com/pocket-id/pocket-id/issues/472)) ([22725d3](https://github.com/pocket-id/pocket-id/commit/22725d30f4115ffe17625379f56affedfe116778))
+* pass context to methods that were missing it ([#487](https://github.com/pocket-id/pocket-id/issues/487)) ([4c33793](https://github.com/pocket-id/pocket-id/commit/4c33793678709eb4981be2c1fd5803bace5f5939))
+* prevent deadlock when trying to delete LDAP users ([#471](https://github.com/pocket-id/pocket-id/issues/471)) ([270c303](https://github.com/pocket-id/pocket-id/commit/270c30334dc36f215a67f873283a9d6fcd14d065))
+* rootless Caddy data and configuration ([#470](https://github.com/pocket-id/pocket-id/issues/470)) ([76b753f](https://github.com/pocket-id/pocket-id/commit/76b753f9f2a6a4f1af09359530e30844b03ac39b))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.48.0...v) (2025-04-20)
 
 
