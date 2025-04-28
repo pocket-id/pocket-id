@@ -33,7 +33,7 @@
 		callbackURLs: existingClient?.callbackURLs || [''],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
-		pkceEnabled: existingClient?.isPublic == true || existingClient?.pkceEnabled || false
+		pkceEnabled: existingClient?.pkceEnabled || false
 	};
 
 	const formSchema = z.object({
@@ -98,17 +98,13 @@
 		<CheckboxWithLabel
 			id="public-client"
 			label={m.public_client()}
-			description={m.public_clients_do_not_have_a_client_secret_and_use_pkce_instead()}
-			onCheckedChange={(v) => {
-				if (v == true) form.setValue('pkceEnabled', true);
-			}}
+			description={m.public_clients_description()}
 			bind:checked={$inputs.isPublic.value}
 		/>
 		<CheckboxWithLabel
 			id="pkce"
 			label={m.pkce()}
 			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
-			disabled={$inputs.isPublic.value}
 			bind:checked={$inputs.pkceEnabled.value}
 		/>
 	</div>

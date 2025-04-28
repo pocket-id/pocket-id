@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/go-co-op/gocron/v2"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -13,24 +12,23 @@ type LdapJobs struct {
 	appConfigService *service.AppConfigService
 }
 
-func RegisterLdapJobs(ctx context.Context, ldapService *service.LdapService, appConfigService *service.AppConfigService) {
+func (s *Scheduler) RegisterLdapJobs(ctx context.Context, ldapService *service.LdapService, appConfigService *service.AppConfigService) error {
 	jobs := &LdapJobs{ldapService: ldapService, appConfigService: appConfigService}
 
-	scheduler, err := gocron.NewScheduler()
-	if err != nil {
-		log.Fatalf("Failed to create a new scheduler: %v", err)
-	}
-
 	// Register the job to run every hour
-	registerJob(ctx, scheduler, "SyncLdap", "0 * * * *", jobs.syncLdap)
+	err := s.registerJob(ctx, "SyncLdap", "0 * * * *", jobs.syncLdap)
+	if err != nil {
+		return err
+	}
 
 	// Run the job immediately on startup
 	err = jobs.syncLdap(ctx)
 	if err != nil {
+		// Log the error only, but don't return it
 		log.Printf("Failed to sync LDAP: %v", err)
 	}
 
-	scheduler.Start()
+	return nil
 }
 
 func (j *LdapJobs) syncLdap(ctx context.Context) error {

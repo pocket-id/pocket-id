@@ -2,6 +2,7 @@
 	import AuditLogList from '$lib/components/audit-log-list.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
+	import userStore from '$lib/stores/user-store';
 	import { LogsIcon } from 'lucide-svelte';
 	import AuditLogSwitcher from './audit-log-switcher.svelte';
 
@@ -13,7 +14,9 @@
 	<title>{m.audit_log()}</title>
 </svelte:head>
 
-<AuditLogSwitcher currentPage="personal" />
+{#if $userStore?.isAdmin}
+	<AuditLogSwitcher currentPage="personal" />
+{/if}
 
 <div>
 	<Card.Root>

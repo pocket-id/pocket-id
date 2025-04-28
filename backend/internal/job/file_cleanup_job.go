@@ -8,24 +8,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-co-op/gocron/v2"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
-func RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB) {
-	scheduler, err := gocron.NewScheduler()
-	if err != nil {
-		log.Fatalf("Failed to create a new scheduler: %s", err)
-	}
-
+func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB) error {
 	jobs := &FileCleanupJobs{db: db}
 
-	registerJob(ctx, scheduler, "ClearUnusedDefaultProfilePictures", "0 2 * * 0", jobs.clearUnusedDefaultProfilePictures)
-
-	scheduler.Start()
+	return s.registerJob(ctx, "ClearUnusedDefaultProfilePictures", "0 2 * * 0", jobs.clearUnusedDefaultProfilePictures)
 }
 
 type FileCleanupJobs struct {

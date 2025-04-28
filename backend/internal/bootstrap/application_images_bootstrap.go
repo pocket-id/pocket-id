@@ -38,7 +38,6 @@ func initApplicationImages() {
 			log.Fatalf("Error copying file: %v", err)
 		}
 	}
-
 }
 
 func imageAlreadyExists(fileName string, destinationFiles []os.DirEntry) bool {
@@ -55,6 +54,11 @@ func imageAlreadyExists(fileName string, destinationFiles []os.DirEntry) bool {
 }
 
 func getImageNameWithoutExtension(fileName string) string {
-	splitted := strings.Split(fileName, ".")
-	return strings.Join(splitted[:len(splitted)-1], ".")
+	idx := strings.LastIndexByte(fileName, '.')
+	if idx < 1 {
+		// No dot found, or fileName starts with a dot
+		return fileName
+	}
+
+	return fileName[:idx]
 }
