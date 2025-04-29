@@ -42,23 +42,54 @@ var tailscaleIPNets = []*net.IPNet{
 }
 
 // NewGeoLiteService initializes a new GeoLiteService instance and starts a goroutine to update the GeoLite2 City database.
-func NewGeoLiteService(ctx context.Context) *GeoLiteService {
+func NewGeoLiteService() *GeoLiteService {
 	service := &GeoLiteService{}
 
 	if common.EnvConfig.MaxMindLicenseKey == "" && common.EnvConfig.GeoLiteDBUrl == common.MaxMindGeoLiteCityUrl {
-		// Warn the user, and disable the updater.
+		// Warn the user, and disable the periodic updater
 		log.Println("MAXMIND_LICENSE_KEY environment variable is empty. The GeoLite2 City database won't be updated.")
 		service.disableUpdater = true
 	}
 
-	go func() {
-		err := service.updateDatabase(ctx)
-		if err != nil {
-			log.Printf("Failed to update GeoLite2 City database: %v", err)
-		}
-	}()
-
 	return service
+}
+
+func (s *GeoLiteService) HasBackgroundService() bool {
+	return !s.disableUpdater
+}
+
+func (s *GeoLiteService) Run(ctx context.Context) error {
+	if s.disableUpdater {
+		// If the updater is disabled, this runner is a no-op, which is blocked until the context is canceled
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
+	// Update the GeoIP database immediately (after a 1s delay) and every 2 days
+	ticker := time.NewTicker(48 * time.Hour)
+	defer ticker.Stop()
+	first := time.NewTimer(time.Second)
+
+	// Run on a loop
+	for {
+		select {
+		case <-ctx.Done():
+			// Service is shutting down, return
+			return ctx.Err()
+		case <-first.C:
+			// Run on the first run, and log errors only
+			err := s.updateDatabase(ctx)
+			if err != nil {
+				log.Printf("Failed to update GeoLite2 City database: %v", err)
+			}
+		case <-ticker.C:
+			// Run periodically, logging errors only
+			err := s.updateDatabase(ctx)
+			if err != nil {
+				log.Printf("Failed to update GeoLite2 City database: %v", err)
+			}
+		}
+	}
 }
 
 // GetLocationByIP returns the country and city of the given IP address.
@@ -113,11 +144,6 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 
 // UpdateDatabase checks the age of the database and updates it if it's older than 14 days.
 func (s *GeoLiteService) updateDatabase(parentCtx context.Context) error {
-	if s.disableUpdater {
-		// Avoid updating the GeoLite2 City database.
-		return nil
-	}
-
 	if s.isDatabaseUpToDate() {
 		log.Println("GeoLite2 City database is up-to-date.")
 		return nil
