@@ -60,12 +60,11 @@ func initRouterInternal(ctx context.Context, db *gorm.DB, appConfigService *serv
 	ldapService := service.NewLdapService(db, appConfigService, userService, userGroupService)
 	apiKeyService := service.NewApiKeyService(db, emailService)
 
-	rateLimitMiddleware := middleware.NewRateLimitMiddleware()
+	rateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 60)
 
 	// Setup global middleware
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
-	r.Use(rateLimitMiddleware.Add(rate.Every(time.Second), 60))
 
 	scheduler, err := job.NewScheduler()
 	if err != nil {
@@ -97,7 +96,7 @@ func initRouterInternal(ctx context.Context, db *gorm.DB, appConfigService *serv
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 
 	// Set up API routes
-	apiGroup := r.Group("/api")
+	apiGroup := r.Group("/api", rateLimitMiddleware)
 	controller.NewApiKeyController(apiGroup, authMiddleware, apiKeyService)
 	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), webauthnService, appConfigService)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, oidcService, jwtService)
@@ -115,9 +114,12 @@ func initRouterInternal(ctx context.Context, db *gorm.DB, appConfigService *serv
 	}
 
 	// Set up base routes
-	baseGroup := r.Group("/")
+	baseGroup := r.Group("/", rateLimitMiddleware)
 	controller.NewWellKnownController(baseGroup, jwtService)
-	controller.NewHealthzController(baseGroup)
+
+	// Set up healthcheck routes
+	// These are not rate-limited
+	controller.NewHealthzController(r)
 
 	// Set up the server
 	srv := &http.Server{

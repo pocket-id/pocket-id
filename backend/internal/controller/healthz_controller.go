@@ -10,10 +10,10 @@ import (
 // @Summary Healthcheck controller
 // @Description Initializes healthcheck endpoints
 // @Tags Health
-func NewHealthzController(group *gin.RouterGroup) {
+func NewHealthzController(r *gin.Engine) {
 	hc := &HealthzController{}
 
-	group.GET("/healthz", hc.healthzHandler)
+	r.GET("/healthz", hc.healthzHandler)
 }
 
 type HealthzController struct{}
