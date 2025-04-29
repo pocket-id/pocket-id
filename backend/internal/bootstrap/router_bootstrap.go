@@ -117,6 +117,7 @@ func initRouterInternal(ctx context.Context, db *gorm.DB, appConfigService *serv
 	// Set up base routes
 	baseGroup := r.Group("/")
 	controller.NewWellKnownController(baseGroup, jwtService)
+	controller.NewHealthzController(baseGroup)
 
 	// Set up the server
 	srv := &http.Server{
