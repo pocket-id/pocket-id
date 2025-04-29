@@ -7,7 +7,6 @@
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { createForm } from '$lib/utils/form-util';
-	import { BookUser } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
 
