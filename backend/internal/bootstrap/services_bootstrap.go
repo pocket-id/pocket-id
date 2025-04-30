@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"gorm.io/gorm"
 
@@ -26,7 +27,7 @@ type services struct {
 
 // Initializes all services
 // The context should be used by services only for initialization, and not for running
-func initServices(initCtx context.Context, db *gorm.DB) (svc *services, err error) {
+func initServices(initCtx context.Context, db *gorm.DB, httpClient *http.Client) (svc *services, err error) {
 	svc = &services{}
 
 	svc.appConfigService = service.NewAppConfigService(initCtx, db)
@@ -36,14 +37,14 @@ func initServices(initCtx context.Context, db *gorm.DB) (svc *services, err erro
 		return nil, fmt.Errorf("unable to create email service: %w", err)
 	}
 
-	svc.geoLiteService = service.NewGeoLiteService()
+	svc.geoLiteService = service.NewGeoLiteService(httpClient)
 	svc.auditLogService = service.NewAuditLogService(db, svc.appConfigService, svc.emailService, svc.geoLiteService)
 	svc.jwtService = service.NewJwtService(svc.appConfigService)
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 	svc.customClaimService = service.NewCustomClaimService(db)
 	svc.oidcService = service.NewOidcService(db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService)
 	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService)
-	svc.ldapService = service.NewLdapService(db, svc.appConfigService, svc.userService, svc.userGroupService)
+	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService)
 	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)
 	svc.webauthnService = service.NewWebAuthnService(db, svc.jwtService, svc.auditLogService, svc.appConfigService)
 

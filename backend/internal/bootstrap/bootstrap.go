@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/signals"
@@ -23,11 +24,17 @@ func Bootstrap() error {
 	migrateConfigDBConnstring()
 	migrateKey()
 
+	// Initialize the tracer and metrics exporter
+	shutdownFns, httpClient, err := initOtel(ctx, common.EnvConfig.MetricsEnabled, common.EnvConfig.TracingEnabled)
+	if err != nil {
+		return fmt.Errorf("failed to initialize OpenTelemetry: %w", err)
+	}
+
 	// Connect to the database
 	db := newDatabase()
 
 	// Create all services
-	svc, err := initServices(ctx, db)
+	svc, err := initServices(ctx, db, httpClient)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
@@ -59,8 +66,7 @@ func Bootstrap() error {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	err = utils.
-		// TODO: Add shutdown services here
-		NewServiceRunner().
+		NewServiceRunner(shutdownFns...).
 		Run(shutdownCtx)
 	if err != nil {
 		log.Printf("Error shutting down services: %v", err)
