@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"errors"
-	"sync"
 )
 
 // Source:
@@ -16,7 +15,6 @@ type Service func(ctx context.Context) error
 
 // ServiceRunner oversees a number of services running in background
 type ServiceRunner struct {
-	mu       sync.Mutex
 	services []Service
 }
 
@@ -25,13 +23,6 @@ func NewServiceRunner(services ...Service) *ServiceRunner {
 	return &ServiceRunner{
 		services: services,
 	}
-}
-
-// Add a service
-func (r *ServiceRunner) Add(service ...Service) {
-	r.mu.Lock()
-	r.services = append(r.services, service...)
-	r.mu.Unlock()
 }
 
 // Run all background services
