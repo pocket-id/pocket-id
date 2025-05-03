@@ -33,9 +33,6 @@ func (r *ServiceRunner) Run(ctx context.Context) error {
 	errCh := make(chan error)
 	for _, service := range r.services {
 		go func(service Service) {
-			// When a service returns, cancel all other services
-			defer cancel()
-
 			// Run the service
 			rErr := service(ctx)
 
