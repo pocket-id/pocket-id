@@ -3,6 +3,8 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
@@ -47,6 +49,18 @@ func Bootstrap() error {
 		Run(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to run services: %w", err)
+	}
+
+	// Invoke all shutdown functions
+	// We give these a timeout of 5s
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	err = utils.
+		// TODO: Add shutdown services here
+		NewServiceRunner().
+		Run(shutdownCtx)
+	if err != nil {
+		log.Printf("Error shutting down services: %v", err)
 	}
 
 	return nil
