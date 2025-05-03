@@ -54,8 +54,8 @@ func NewGeoLiteService() *GeoLiteService {
 	return service
 }
 
-func (s *GeoLiteService) HasBackgroundService() bool {
-	return !s.disableUpdater
+func (s *GeoLiteService) DisableUpdater() bool {
+	return s.disableUpdater
 }
 
 // GetLocationByIP returns the country and city of the given IP address.

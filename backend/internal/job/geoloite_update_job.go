@@ -14,7 +14,7 @@ type GeoLiteUpdateJobs struct {
 
 func (s *Scheduler) RegisterGeoLiteUpdateJobs(ctx context.Context, geoLiteService *service.GeoLiteService) error {
 	// Check if the service needs periodic updating
-	if !geoLiteService.HasBackgroundService() {
+	if geoLiteService.DisableUpdater() {
 		// Nothing to do
 		return nil
 	}

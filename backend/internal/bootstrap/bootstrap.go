@@ -37,7 +37,10 @@ func Bootstrap() error {
 	if err != nil {
 		return fmt.Errorf("failed to create job scheduler: %w", err)
 	}
-	registerScheduledJobs(ctx, db, svc, scheduler)
+	err = registerScheduledJobs(ctx, db, svc, scheduler)
+	if err != nil {
+		return fmt.Errorf("failed to register scheduled jobs: %w", err)
+	}
 
 	// Init the router
 	router := initRouter(db, svc)
