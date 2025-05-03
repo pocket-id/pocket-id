@@ -95,13 +95,6 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	runFn := func(ctx context.Context) error {
 		log.Printf("Server listening on %s", srv.Addr)
 
-		// Notify systemd that we are ready
-		err = systemd.SdNotifyReady()
-		if err != nil {
-			// Log the error only
-			log.Printf("[WARN] Unable to notify systemd that the service is ready: %v", err)
-		}
-
 		// Start the server in a background goroutine
 		go func() {
 			defer listener.Close()
@@ -112,6 +105,13 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 				log.Fatalf("Error starting app server: %v", srvErr)
 			}
 		}()
+
+		// Notify systemd that we are ready
+		err = systemd.SdNotifyReady()
+		if err != nil {
+			// Log the error only
+			log.Printf("[WARN] Unable to notify systemd that the service is ready: %v", err)
+		}
 
 		// Block until the context is canceled
 		<-ctx.Done()

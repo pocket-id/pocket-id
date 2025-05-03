@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 type services struct {
@@ -22,9 +22,6 @@ type services struct {
 	userGroupService   *service.UserGroupService
 	ldapService        *service.LdapService
 	apiKeyService      *service.ApiKeyService
-
-	// Background services that are run by the runner
-	backgroundServices []utils.Service
 }
 
 // Initializes all services
@@ -40,10 +37,6 @@ func initServices(initCtx context.Context, db *gorm.DB) (svc *services, err erro
 	}
 
 	svc.geoLiteService = service.NewGeoLiteService()
-	if svc.geoLiteService.HasBackgroundService() {
-		svc.backgroundServices = append(svc.backgroundServices, svc.geoLiteService.Run)
-	}
-
 	svc.auditLogService = service.NewAuditLogService(db, svc.appConfigService, svc.emailService, svc.geoLiteService)
 	svc.jwtService = service.NewJwtService(svc.appConfigService)
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
