@@ -47,6 +47,10 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Build Pocket ID Frontend
+        working-directory: frontend
+        run: npm run build
+
       - name: Add svelte-check problem matcher
         run: echo "::add-matcher::.github/svelte-check-matcher.json"
 
