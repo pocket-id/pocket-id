@@ -12,9 +12,9 @@ import (
 
 // When building for E2E tests, add the e2etest controller
 func init() {
-	registerTestControllers = []func(apiGroup *gin.RouterGroup, db *gorm.DB, appConfigService *service.AppConfigService, jwtService *service.JwtService, ldapService *service.LdapService){
-		func(apiGroup *gin.RouterGroup, db *gorm.DB, appConfigService *service.AppConfigService, jwtService *service.JwtService, ldapService *service.LdapService) {
-			testService := service.NewTestService(db, appConfigService, jwtService, ldapService)
+	registerTestControllers = []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services){
+		func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services) {
+			testService := service.NewTestService(db, svc.appConfigService, svc.jwtService)
 			controller.NewTestController(apiGroup, testService)
 		},
 	}

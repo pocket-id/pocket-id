@@ -1,0 +1,21 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "svelte-check",
+      "pattern": [
+        {
+          "regexp": "^([^\\s].*):(\\d+):(\\d+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "regexp": "^\\s*(Error|Warning):\\s*(.*)\\s+\\((?:ts|js|svelte)\\)$",
+          "severity": 1,
+          "message": 2,
+          "loop": false
+        }
+      ]
+    }
+  ]
+}

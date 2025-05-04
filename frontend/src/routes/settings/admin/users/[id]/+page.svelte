@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import CustomClaimService from '$lib/services/custom-claim-service';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
@@ -14,7 +15,6 @@
 	import { LucideChevronLeft } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import UserForm from '../user-form.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let user = $state({
@@ -75,7 +75,7 @@
 	<title
 		>{m.user_details_firstname_lastname({
 			firstName: user.firstName,
-			lastName: user.lastName
+			lastName: user.lastName ?? ''
 		})}</title
 	>
 </svelte:head>

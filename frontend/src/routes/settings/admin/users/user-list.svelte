@@ -34,7 +34,7 @@
 
 	async function deleteUser(user: User) {
 		openConfirmDialog({
-			title: m.delete_firstname_lastname({ firstName: user.firstName, lastName: user.lastName }),
+			title: m.delete_firstname_lastname({ firstName: user.firstName, lastName: user.lastName ?? "" }),
 			message: m.are_you_sure_you_want_to_delete_this_user(),
 			confirm: {
 				label: m.delete(),
@@ -67,7 +67,7 @@
 
 	async function disableUser(user: User) {
 		openConfirmDialog({
-			title: m.disable_firstname_lastname({ firstName: user.firstName, lastName: user.lastName }),
+			title: m.disable_firstname_lastname({ firstName: user.firstName, lastName: user.lastName ?? "" }),
 			message: m.are_you_sure_you_want_to_disable_this_user(),
 			confirm: {
 				label: m.disable(),
