@@ -14,7 +14,7 @@ import (
 func init() {
 	registerTestControllers = []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services){
 		func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services) {
-			testService := service.NewTestService(db, svc.appConfigService, svc.jwtService)
+			testService := service.NewTestService(db, svc.appConfigService, svc.jwtService, svc.ldapService)
 			controller.NewTestController(apiGroup, testService)
 		},
 	}
