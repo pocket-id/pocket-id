@@ -7,9 +7,9 @@ services:
       - 3000:80
     volumes:
       - "./data:/app/backend/data"
-    # Optional healthcheck  
+    # Optional healthcheck
     healthcheck:
-      test: "curl -f http://localhost/health"
+      test: "curl -f http://localhost/healthz"
       interval: 1m30s
       timeout: 5s
       retries: 2

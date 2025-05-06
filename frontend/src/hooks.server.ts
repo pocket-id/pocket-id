@@ -23,33 +23,33 @@ const paraglideHandle: Handle = ({ event, resolve }) => {
 const authenticationHandle: Handle = async ({ event, resolve }) => {
 	const { isSignedIn, isAdmin } = verifyJwt(event.cookies.get(ACCESS_TOKEN_COOKIE_NAME));
 
-	const isUnauthenticatedOnlyPath = event.url.pathname.startsWith('/login') || event.url.pathname.startsWith('/lc')
-	const isPublicPath = ['/authorize', '/device', '/health'].includes(event.url.pathname);
-	const isAdminPath = event.url.pathname.startsWith('/settings/admin');
+	const path = event.url.pathname;
+	const isUnauthenticatedOnlyPath = path == '/login' || path.startsWith('/login/') || path == '/lc' || path.startsWith('/lc')
+	const isPublicPath = ['/authorize', '/device', '/health', '/healthz'].includes(path);
+	const isAdminPath = path == '/settings/admin' || path.startsWith('/settings/admin/');
 
 	if (!isUnauthenticatedOnlyPath && !isPublicPath && !isSignedIn) {
 		return new Response(null, {
-			status: 302,
+			status: 303,
 			headers: { location: '/login' }
 		});
 	}
 
 	if (isUnauthenticatedOnlyPath && isSignedIn) {
 		return new Response(null, {
-			status: 302,
+			status: 303,
 			headers: { location: '/settings' }
 		});
 	}
 
 	if (isAdminPath && !isAdmin) {
 		return new Response(null, {
-			status: 302,
+			status: 303,
 			headers: { location: '/settings' }
 		});
 	}
 
-	const response = await resolve(event);
-	return response;
+	return resolve(event);
 };
 
 export const handle: Handle = sequence(paraglideHandle, authenticationHandle);
