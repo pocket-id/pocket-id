@@ -26,7 +26,7 @@ func NewScheduler() (*Scheduler, error) {
 
 // Run the scheduler.
 // This function blocks until the context is canceled.
-func (s *Scheduler) Run(ctx context.Context) {
+func (s *Scheduler) Run(ctx context.Context) error {
 	log.Println("Starting job scheduler")
 	s.scheduler.Start()
 
@@ -39,6 +39,8 @@ func (s *Scheduler) Run(ctx context.Context) {
 	} else {
 		log.Println("Job scheduler shut down")
 	}
+
+	return nil
 }
 
 func (s *Scheduler) registerJob(ctx context.Context, name string, interval string, job func(ctx context.Context) error) error {

@@ -262,13 +262,13 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 	return user, nil
 }
 
-func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, allowLdapUpdate bool) (model.User, error) {
+func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool) (model.User, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	user, err := s.updateUserInternal(ctx, userID, updatedUser, updateOwnUser, allowLdapUpdate, tx)
+	user, err := s.updateUserInternal(ctx, userID, updatedUser, updateOwnUser, isLdapSync, tx)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -292,19 +292,23 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		return model.User{}, err
 	}
 
-	// Disallow updating the user if it is an LDAP group and LDAP is enabled
-	if !isLdapSync && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
-		return model.User{}, &common.LdapUserUpdateError{}
-	}
+	// Check if this is an LDAP user and LDAP is enabled
+	isLdapUser := user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue()
 
-	user.FirstName = updatedUser.FirstName
-	user.LastName = updatedUser.LastName
-	user.Email = updatedUser.Email
-	user.Username = updatedUser.Username
-	user.Locale = updatedUser.Locale
-	if !updateOwnUser {
-		user.IsAdmin = updatedUser.IsAdmin
-		user.Disabled = updatedUser.Disabled
+	// For LDAP users, only allow updating the locale unless it's an LDAP sync
+	if !isLdapSync && isLdapUser {
+		// Only update the locale for LDAP users
+		user.Locale = updatedUser.Locale
+	} else {
+		user.FirstName = updatedUser.FirstName
+		user.LastName = updatedUser.LastName
+		user.Email = updatedUser.Email
+		user.Username = updatedUser.Username
+		user.Locale = updatedUser.Locale
+		if !updateOwnUser {
+			user.IsAdmin = updatedUser.IsAdmin
+			user.Disabled = updatedUser.Disabled
+		}
 	}
 
 	err = tx.

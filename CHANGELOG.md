@@ -1,3 +1,12 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.51.0...v) (2025-05-03)
+
+
+### Bug Fixes
+
+* allow LDAP users to update their locale ([0b9cbf4](https://github.com/pocket-id/pocket-id/commit/0b9cbf47e36a332cfd854aa92e761264fb3e4795))
+* last name still showing as required on account form ([#492](https://github.com/pocket-id/pocket-id/issues/492)) ([cf3fe0b](https://github.com/pocket-id/pocket-id/commit/cf3fe0be84f6365f5d4eb08c1b47905962a48a0d))
+* non admin users weren't able to call the end session endpoint ([6bd6cef](https://github.com/pocket-id/pocket-id/commit/6bd6cefaa6dc571a319a6a1c2b2facc2404eadd3))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.50.0...v) (2025-04-28)
 
 

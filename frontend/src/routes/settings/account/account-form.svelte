@@ -7,7 +7,6 @@
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { createForm } from '$lib/utils/form-util';
-	import { BookUser } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
 
@@ -29,7 +28,7 @@
 
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
-		lastName: z.string().min(1).max(50),
+		lastName: z.string().max(50).optional(),
 		username: z
 			.string()
 			.min(2)

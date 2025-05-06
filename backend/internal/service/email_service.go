@@ -33,7 +33,7 @@ type EmailService struct {
 	textTemplates    map[string]*ttemplate.Template
 }
 
-func NewEmailService(appConfigService *AppConfigService, db *gorm.DB) (*EmailService, error) {
+func NewEmailService(db *gorm.DB, appConfigService *AppConfigService) (*EmailService, error) {
 	htmlTemplates, err := email.PrepareHTMLTemplates(emailTemplatesPaths)
 	if err != nil {
 		return nil, fmt.Errorf("prepare html templates: %w", err)

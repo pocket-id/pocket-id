@@ -1,5 +1,6 @@
 # Tags passed to "go build"
 ARG BUILD_TAGS=""
+ARG VERSION="unknown"
 
 # Stage 1: Build Frontend
 FROM node:22-alpine AS frontend-builder
@@ -25,6 +26,7 @@ RUN CGO_ENABLED=1 \
   GOOS=linux \
   go build \
   -tags "${BUILD_TAGS}" \
+  -ldflags="-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${VERSION}" \
   -o /app/backend/pocket-id-backend \
   .
 

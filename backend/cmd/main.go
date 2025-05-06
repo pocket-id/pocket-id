@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 )
 
@@ -9,5 +11,8 @@ import (
 // @description.markdown
 
 func main() {
-	bootstrap.Bootstrap()
+	err := bootstrap.Bootstrap()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }

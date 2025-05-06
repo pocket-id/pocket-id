@@ -30,8 +30,8 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/token", oc.createTokensHandler)
 	group.GET("/oidc/userinfo", oc.userInfoHandler)
 	group.POST("/oidc/userinfo", oc.userInfoHandler)
-	group.POST("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
-	group.GET("/oidc/end-session", authMiddleware.WithSuccessOptional().Add(), oc.EndSessionHandler)
+	group.POST("/oidc/end-session", authMiddleware.WithAdminNotRequired().WithSuccessOptional().Add(), oc.EndSessionHandler)
+	group.GET("/oidc/end-session", authMiddleware.WithAdminNotRequired().WithSuccessOptional().Add(), oc.EndSessionHandler)
 	group.POST("/oidc/introspect", oc.introspectTokenHandler)
 
 	group.GET("/oidc/clients", authMiddleware.Add(), oc.listClientsHandler)

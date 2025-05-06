@@ -11,6 +11,13 @@ import (
 type DbProvider string
 
 const (
+	// TracerName should be passed to otel.Tracer, trace.SpanFromContext when creating custom spans.
+	TracerName = "github.com/pocket-id/pocket-id/backend/tracing"
+	// MeterName should be passed to otel.Meter when create custom metrics.
+	MeterName = "github.com/pocket-id/pocket-id/backend/metrics"
+)
+
+const (
 	DbProviderSqlite      DbProvider = "sqlite"
 	DbProviderPostgres    DbProvider = "postgres"
 	MaxMindGeoLiteCityUrl string     = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
@@ -31,6 +38,8 @@ type EnvConfigSchema struct {
 	GeoLiteDBPath            string     `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl             string     `env:"GEOLITE_DB_URL"`
 	UiConfigDisabled         bool       `env:"PUBLIC_UI_CONFIG_DISABLED"`
+	MetricsEnabled           bool       `env:"METRICS_ENABLED"`
+	TracingEnabled           bool       `env:"TRACING_ENABLED"`
 }
 
 var EnvConfig = &EnvConfigSchema{
@@ -48,6 +57,8 @@ var EnvConfig = &EnvConfigSchema{
 	GeoLiteDBPath:            "data/GeoLite2-City.mmdb",
 	GeoLiteDBUrl:             MaxMindGeoLiteCityUrl,
 	UiConfigDisabled:         false,
+	MetricsEnabled:           false,
+	TracingEnabled:           false,
 }
 
 func init() {

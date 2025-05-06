@@ -22,8 +22,9 @@ import (
 )
 
 type GeoLiteService struct {
+	httpClient     *http.Client
 	disableUpdater bool
-	mutex          sync.Mutex
+	mutex          sync.RWMutex
 }
 
 var localhostIPNets = []*net.IPNet{
@@ -42,23 +43,22 @@ var tailscaleIPNets = []*net.IPNet{
 }
 
 // NewGeoLiteService initializes a new GeoLiteService instance and starts a goroutine to update the GeoLite2 City database.
-func NewGeoLiteService(ctx context.Context) *GeoLiteService {
-	service := &GeoLiteService{}
+func NewGeoLiteService(httpClient *http.Client) *GeoLiteService {
+	service := &GeoLiteService{
+		httpClient: httpClient,
+	}
 
 	if common.EnvConfig.MaxMindLicenseKey == "" && common.EnvConfig.GeoLiteDBUrl == common.MaxMindGeoLiteCityUrl {
-		// Warn the user, and disable the updater.
+		// Warn the user, and disable the periodic updater
 		log.Println("MAXMIND_LICENSE_KEY environment variable is empty. The GeoLite2 City database won't be updated.")
 		service.disableUpdater = true
 	}
 
-	go func() {
-		err := service.updateDatabase(ctx)
-		if err != nil {
-			log.Printf("Failed to update GeoLite2 City database: %v", err)
-		}
-	}()
-
 	return service
+}
+
+func (s *GeoLiteService) DisableUpdater() bool {
+	return s.disableUpdater
 }
 
 // GetLocationByIP returns the country and city of the given IP address.
@@ -83,8 +83,8 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 	}
 
 	// Race condition between reading and writing the database.
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	db, err := maxminddb.Open(common.EnvConfig.GeoLiteDBPath)
 	if err != nil {
@@ -92,7 +92,10 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 	}
 	defer db.Close()
 
-	addr := netip.MustParseAddr(ipAddress)
+	addr, err := netip.ParseAddr(ipAddress)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse IP address: %w", err)
+	}
 
 	var record struct {
 		City struct {
@@ -112,18 +115,13 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 }
 
 // UpdateDatabase checks the age of the database and updates it if it's older than 14 days.
-func (s *GeoLiteService) updateDatabase(parentCtx context.Context) error {
-	if s.disableUpdater {
-		// Avoid updating the GeoLite2 City database.
-		return nil
-	}
-
+func (s *GeoLiteService) UpdateDatabase(parentCtx context.Context) error {
 	if s.isDatabaseUpToDate() {
-		log.Println("GeoLite2 City database is up-to-date.")
+		log.Println("GeoLite2 City database is up-to-date")
 		return nil
 	}
 
-	log.Println("Updating GeoLite2 City database...")
+	log.Println("Updating GeoLite2 City database")
 	downloadUrl := fmt.Sprintf(common.EnvConfig.GeoLiteDBUrl, common.EnvConfig.MaxMindLicenseKey)
 
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Minute)
@@ -134,7 +132,7 @@ func (s *GeoLiteService) updateDatabase(parentCtx context.Context) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download database: %w", err)
 	}
@@ -145,7 +143,8 @@ func (s *GeoLiteService) updateDatabase(parentCtx context.Context) error {
 	}
 
 	// Extract the database file directly to the target path
-	if err := s.extractDatabase(resp.Body); err != nil {
+	err = s.extractDatabase(resp.Body)
+	if err != nil {
 		return fmt.Errorf("failed to extract database: %w", err)
 	}
 
@@ -179,10 +178,9 @@ func (s *GeoLiteService) extractDatabase(reader io.Reader) error {
 	// Iterate over the files in the tar archive
 	for {
 		header, err := tarReader.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
-		}
-		if err != nil {
+		} else if err != nil {
 			return fmt.Errorf("failed to read tar archive: %w", err)
 		}
 

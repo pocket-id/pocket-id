@@ -17,7 +17,7 @@
 		onInput,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
-		input?: FormInput<string | boolean | number | Date>;
+		input?: FormInput<string | boolean | number | Date | undefined>;
 		label?: string;
 		description?: string;
 		placeholder?: string;
