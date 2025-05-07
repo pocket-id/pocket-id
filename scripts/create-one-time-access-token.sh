@@ -1,3 +1,5 @@
+#!/bin/sh
+
 DB_PATH="./backend/data/pocket-id.db"
 DB_PROVIDER="${DB_PROVIDER:=sqlite}"
 
@@ -32,8 +34,14 @@ check_and_install() {
     local cmd=$1
     local pkg=$2
 
-    if ! command -v "$cmd" &>/dev/null; then
-        if command -v apk &>/dev/null; then
+    if
+        ! command -v "$cmd" &
+        >/dev/null
+    then
+        if
+            command -v apk &
+            >/dev/null
+        then
             echo "$cmd not found. Installing..."
             apk add "$pkg" --no-cache
         else

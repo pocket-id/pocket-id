@@ -23,14 +23,16 @@ import (
 
 type LdapService struct {
 	db               *gorm.DB
+	httpClient       *http.Client
 	appConfigService *AppConfigService
 	userService      *UserService
 	groupService     *UserGroupService
 }
 
-func NewLdapService(db *gorm.DB, appConfigService *AppConfigService, userService *UserService, groupService *UserGroupService) *LdapService {
+func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *AppConfigService, userService *UserService, groupService *UserGroupService) *LdapService {
 	return &LdapService{
 		db:               db,
+		httpClient:       httpClient,
 		appConfigService: appConfigService,
 		userService:      userService,
 		groupService:     groupService,
@@ -393,7 +395,7 @@ func (s *LdapService) saveProfilePicture(parentCtx context.Context, userId strin
 
 	_, err := url.ParseRequestURI(pictureString)
 	if err == nil {
-		ctx, cancel := context.WithTimeout(parentCtx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)
 		defer cancel()
 
 		var req *http.Request
@@ -403,7 +405,7 @@ func (s *LdapService) saveProfilePicture(parentCtx context.Context, userId strin
 		}
 
 		var res *http.Response
-		res, err = http.DefaultClient.Do(req)
+		res, err = s.httpClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("failed to download profile picture: %w", err)
 		}

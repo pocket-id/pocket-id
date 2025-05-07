@@ -22,6 +22,7 @@ import (
 )
 
 type GeoLiteService struct {
+	httpClient     *http.Client
 	disableUpdater bool
 	mutex          sync.RWMutex
 }
@@ -42,8 +43,10 @@ var tailscaleIPNets = []*net.IPNet{
 }
 
 // NewGeoLiteService initializes a new GeoLiteService instance and starts a goroutine to update the GeoLite2 City database.
-func NewGeoLiteService() *GeoLiteService {
-	service := &GeoLiteService{}
+func NewGeoLiteService(httpClient *http.Client) *GeoLiteService {
+	service := &GeoLiteService{
+		httpClient: httpClient,
+	}
 
 	if common.EnvConfig.MaxMindLicenseKey == "" && common.EnvConfig.GeoLiteDBUrl == common.MaxMindGeoLiteCityUrl {
 		// Warn the user, and disable the periodic updater
@@ -129,7 +132,7 @@ func (s *GeoLiteService) UpdateDatabase(parentCtx context.Context) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download database: %w", err)
 	}

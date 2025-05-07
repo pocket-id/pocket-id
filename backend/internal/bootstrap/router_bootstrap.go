@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
@@ -44,19 +45,22 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	r := gin.Default()
 	r.Use(gin.Logger())
 
-	rateLimitMiddleware := middleware.NewRateLimitMiddleware()
+	if common.EnvConfig.TracingEnabled {
+		r.Use(otelgin.Middleware("pocket-id-backend"))
+	}
+
+	rateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 60)
 
 	// Setup global middleware
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
-	r.Use(rateLimitMiddleware.Add(rate.Every(time.Second), 60))
 
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 
 	// Set up API routes
-	apiGroup := r.Group("/api")
+	apiGroup := r.Group("/api", rateLimitMiddleware)
 	controller.NewApiKeyController(apiGroup, authMiddleware, svc.apiKeyService)
 	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.webauthnService, svc.appConfigService)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService, svc.jwtService)
@@ -74,8 +78,12 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	}
 
 	// Set up base routes
-	baseGroup := r.Group("/")
+	baseGroup := r.Group("/", rateLimitMiddleware)
 	controller.NewWellKnownController(baseGroup, svc.jwtService)
+
+	// Set up healthcheck routes
+	// These are not rate-limited
+	controller.NewHealthzController(r)
 
 	// Set up the server
 	srv := &http.Server{

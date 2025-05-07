@@ -1,3 +1,16 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.51.1...v) (2025-05-06)
+
+
+### Features
+
+* add healthz endpoint ([#494](https://github.com/pocket-id/pocket-id/issues/494)) ([3c87e4e](https://github.com/pocket-id/pocket-id/commit/3c87e4ec1468c314ac7f8fe831e97b5eead88112))
+* OpenTelemetry tracing and metrics ([#262](https://github.com/pocket-id/pocket-id/issues/262)) ([#495](https://github.com/pocket-id/pocket-id/issues/495)) ([6f54ee5](https://github.com/pocket-id/pocket-id/commit/6f54ee5d668d7a26911db10f2402daf6a1f75f68))
+
+
+### Bug Fixes
+
+* correctly set script permissions inside Docker container ([c55fef0](https://github.com/pocket-id/pocket-id/commit/c55fef057cdcec867af91b29968541983cd80ec0))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.51.0...v) (2025-05-03)
 
 
