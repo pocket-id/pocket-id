@@ -41,7 +41,7 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		return
 	}
 
-	if err := tc.TestService.SetLdapTestConfig(); err != nil {
+	if err := tc.TestService.SetLdapTestConfig(c.Request.Context()); err != nil {
 		_ = c.Error(err)
 		return
 	}

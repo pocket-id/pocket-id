@@ -38,7 +38,6 @@ func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService 
 
 //nolint:gocognit
 func (s *TestService) SeedDatabase() error {
-	// First create all your seed data that needs to be in a transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		users := []model.User{
 			{
@@ -360,18 +359,12 @@ func (s *TestService) getCborPublicKey(base64PublicKey string) ([]byte, error) {
 
 // SyncLdap triggers an LDAP synchronization
 func (s *TestService) SyncLdap(ctx context.Context) error {
-	// Reload app config to ensure we have the latest LDAP settings
-	if err := s.appConfigService.LoadDbConfig(ctx); err != nil {
-		return err
-	}
-
-	// Perform LDAP sync
 	return s.ldapService.SyncAll(ctx)
 }
 
 // SetLdapTestConfig writes the test LDAP config variables directly to the database.
-func (s *TestService) SetLdapTestConfig() error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		ldapConfigs := map[string]string{
 			"ldapUrl":                            "ldap://lldap:3890",
 			"ldapBindDn":                         "uid=admin,ou=people,dc=pocket-id,dc=org",
@@ -401,4 +394,14 @@ func (s *TestService) SetLdapTestConfig() error {
 		}
 		return nil
 	})
+
+	if err != nil {
+		return fmt.Errorf("failed to set LDAP test config: %w", err)
+	}
+
+	if err := s.appConfigService.LoadDbConfig(ctx); err != nil {
+		return fmt.Errorf("failed to load app config: %w", err)
+	}
+
+	return nil
 }
