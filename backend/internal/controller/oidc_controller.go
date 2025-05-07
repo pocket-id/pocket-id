@@ -129,9 +129,6 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 // @Success 200 {object} dto.OidcTokenResponseDto "Token response with access_token and optional id_token and refresh_token"
 // @Router /api/oidc/token [post]
 func (oc *OidcController) createTokensHandler(c *gin.Context) {
-	// Disable cors for this endpoint
-	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-
 	var input dto.OidcCreateTokensDto
 	if err := c.ShouldBind(&input); err != nil {
 		_ = c.Error(err)
