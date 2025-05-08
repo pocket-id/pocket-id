@@ -37,6 +37,7 @@ data
 /frontend/tests/.report
 pocket-id-backend
 /backend/GeoLite2-City.mmdb
+/backend/frontend/dist
 
 # Misc
 .DS_Store

@@ -13,5 +13,13 @@ export default defineConfig({
 			cookieName: 'locale',
 			strategy: ['cookie', 'preferredLanguage', 'baseLocale']
 		})
-	]
+	],
+
+	server: {
+		proxy: {
+			'/api': {
+				target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:8080',
+			}
+		}
+	}
 });

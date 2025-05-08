@@ -2,7 +2,9 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/pocket-id/pocket-id/backend/frontend"
 	"log"
 	"net"
 	"net/http"
@@ -54,6 +56,15 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	// Setup global middleware
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
+
+	err := frontend.RegisterFrontend(r)
+	if err != nil {
+		if errors.Is(err, frontend.ErrFrontendNotIncluded) {
+			log.Println("Frontend is not included in the build. Skipping frontend registration.")
+		} else {
+			return nil, fmt.Errorf("failed to register frontend: %w", err)
+		}
+	}
 
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)
