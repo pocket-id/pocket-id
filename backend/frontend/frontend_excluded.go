@@ -1,4 +1,4 @@
-//go:build !include_frontend
+//go:build exclude_frontend
 
 package frontend
 

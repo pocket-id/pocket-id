@@ -1,6 +1,5 @@
 # Tags passed to "go build"
 ARG BUILD_TAGS=""
-ARG VERSION="unknown"
 
 # Stage 1: Build Frontend
 FROM node:22-alpine AS frontend-builder
@@ -8,8 +7,7 @@ WORKDIR /app/frontend
 COPY ./frontend/package*.json ./
 RUN npm ci
 COPY ./frontend ./
-RUN npm run build
-RUN npm prune --production
+RUN BUILD_OUTPUT_PATH=dist npm run build
 
 # Stage 2: Build Backend
 FROM golang:1.24-alpine AS backend-builder
@@ -21,8 +19,13 @@ RUN go mod download
 RUN apk add --no-cache gcc musl-dev
 
 COPY ./backend ./
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY .version .version
+
+
 WORKDIR /app/backend/cmd
-RUN CGO_ENABLED=1 \
+RUN VERSION=$(cat /app/backend/.version) \ 
+  CGO_ENABLED=1 \
   GOOS=linux \
   go build \
   -tags "${BUILD_TAGS}" \
@@ -31,25 +34,20 @@ RUN CGO_ENABLED=1 \
   .
 
 # Stage 3: Production Image
-FROM node:22-alpine
-# Delete default node user
-RUN deluser --remove-home node
+FROM alpine
 
-RUN apk add --no-cache caddy curl su-exec
-COPY ./reverse-proxy /etc/caddy/
+RUN apk add --no-cache curl su-exec
 
 WORKDIR /app
-COPY --from=frontend-builder /app/frontend/build ./frontend/build
-COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
-COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
 
-COPY --from=backend-builder /app/backend/pocket-id-backend ./backend/pocket-id-backend
+COPY --from=backend-builder /app/backend/pocket-id-backend ./pocket-id
 
 COPY ./scripts ./scripts
 RUN find ./scripts -name "*.sh" -exec chmod +x {} \;
+RUN chmod +x ./pocket-id
 
 EXPOSE 80
 ENV APP_ENV=production
 
-ENTRYPOINT ["sh", "./scripts/docker/create-user.sh"]
-CMD ["sh", "./scripts/docker/entrypoint.sh"]
+ENTRYPOINT ["sh", "./scripts/docker/entrypoint.sh"]
+CMD ["./pocket-id"]
