@@ -40,14 +40,14 @@ RUN apk add --no-cache curl su-exec
 
 WORKDIR /app
 
-COPY --from=backend-builder /app/backend/pocket-id-backend ./pocket-id
+COPY --from=backend-builder /app/backend/pocket-id-backend ./backend/pocket-id
 
 COPY ./scripts ./scripts
 RUN find ./scripts -name "*.sh" -exec chmod +x {} \;
-RUN chmod +x ./pocket-id
+RUN chmod +x ./backend/pocket-id
 
 EXPOSE 80
-ENV APP_ENV=production
+ENV APP_ENV=production 
 
 ENTRYPOINT ["sh", "./scripts/docker/entrypoint.sh"]
-CMD ["./pocket-id"]
+CMD ["/app/backend/pocket-id"]

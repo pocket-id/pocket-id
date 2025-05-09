@@ -1,3 +1,6 @@
+# For backwards compatibility we have to switch into the backend directory
+cd /app/backend
+
 # If we aren't running as root, just exec the CMD
 [ "$(id -u)" -ne 0 ] && exec "$@"
 
