@@ -5,6 +5,7 @@ export type AppConfig = {
 	emailOneTimeAccessAsAdminEnabled: boolean;
 	ldapEnabled: boolean;
 	disableAnimations: boolean;
+	uiConfigDisabled: boolean;
 };
 
 export type AllAppConfig = AppConfig & {

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { env } from '$env/dynamic/public';
 	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
@@ -17,7 +17,6 @@
 		callback: (appConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
-	const uiConfigDisabled = env.PUBLIC_UI_CONFIG_DISABLED === 'true';
 	let isLoading = $state(false);
 
 	const updatedAppConfig = {
@@ -47,7 +46,7 @@
 </script>
 
 <form onsubmit={onSubmit}>
-	<fieldset class="flex flex-col gap-5" disabled={uiConfigDisabled}>
+	<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
 		<div class="flex flex-col gap-5">
 			<FormInput label={m.application_name()} bind:input={$inputs.appName} />
 			<FormInput

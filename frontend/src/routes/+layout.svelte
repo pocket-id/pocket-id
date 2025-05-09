@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import ConfirmDialog from '$lib/components/confirm-dialog/confirm-dialog.svelte';
 	import Error from '$lib/components/error.svelte';
 	import Header from '$lib/components/header/header.svelte';
@@ -22,9 +21,10 @@
 
 	const { user, appConfig } = data;
 
-	if (browser && user) {
+	if (user) {
 		userStore.setUser(user);
 	}
+
 	if (appConfig) {
 		appConfigStore.set(appConfig);
 	}

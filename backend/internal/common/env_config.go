@@ -32,14 +32,15 @@ type EnvConfigSchema struct {
 	PostgresConnectionString string     `env:"POSTGRES_CONNECTION_STRING"` // Deprecated: use "DB_CONNECTION_STRING" instead
 	UploadPath               string     `env:"UPLOAD_PATH"`
 	KeysPath                 string     `env:"KEYS_PATH"`
-	Port                     string     `env:"BACKEND_PORT"`
+	Port                     string     `env:"PORT"`
 	Host                     string     `env:"HOST"`
 	MaxMindLicenseKey        string     `env:"MAXMIND_LICENSE_KEY"`
 	GeoLiteDBPath            string     `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl             string     `env:"GEOLITE_DB_URL"`
-	UiConfigDisabled         bool       `env:"PUBLIC_UI_CONFIG_DISABLED"`
+	UiConfigDisabled         bool       `env:"UI_CONFIG_DISABLED"`
 	MetricsEnabled           bool       `env:"METRICS_ENABLED"`
 	TracingEnabled           bool       `env:"TRACING_ENABLED"`
+	TrustProxy               bool       `env:"TRUST_PROXY"`
 }
 
 var EnvConfig = &EnvConfigSchema{
@@ -59,6 +60,7 @@ var EnvConfig = &EnvConfigSchema{
 	UiConfigDisabled:         false,
 	MetricsEnabled:           false,
 	TracingEnabled:           false,
+	TrustProxy:               false,
 }
 
 func init() {

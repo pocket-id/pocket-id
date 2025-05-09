@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { env } from '$env/dynamic/public';
 	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { createForm } from '$lib/utils/form-util';
@@ -20,7 +20,6 @@
 	} = $props();
 
 	const appConfigService = new AppConfigService();
-	const uiConfigDisabled = env.PUBLIC_UI_CONFIG_DISABLED === 'true';
 
 	let ldapEnabled = $state(appConfig.ldapEnabled);
 	let ldapSyncing = $state(false);
@@ -106,7 +105,7 @@
 
 <form onsubmit={onSubmit}>
 	<h4 class="text-lg font-semibold">{m.client_configuration()}</h4>
-	<fieldset disabled={uiConfigDisabled}>
+	<fieldset disabled={$appConfigStore.uiConfigDisabled}>
 		<div class="mt-4 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<FormInput
 				label={m.ldap_url()}
@@ -215,13 +214,13 @@
 
 	<div class="mt-8 flex flex-wrap justify-end gap-3">
 		{#if ldapEnabled}
-			<Button variant="secondary" onclick={onDisable} disabled={uiConfigDisabled}
+			<Button variant="secondary" onclick={onDisable} disabled={$appConfigStore.uiConfigDisabled}
 				>{m.disable()}</Button
 			>
 			<Button variant="secondary" onclick={syncLdap} isLoading={ldapSyncing}>{m.sync_now()}</Button>
-			<Button type="submit" disabled={uiConfigDisabled}>{m.save()}</Button>
+			<Button type="submit" disabled={$appConfigStore.uiConfigDisabled}>{m.save()}</Button>
 		{:else}
-			<Button onclick={onEnable} disabled={uiConfigDisabled}>{m.enable()}</Button>
+			<Button onclick={onEnable} disabled={$appConfigStore.uiConfigDisabled}>{m.enable()}</Button>
 		{/if}
 	</div>
 </form>
