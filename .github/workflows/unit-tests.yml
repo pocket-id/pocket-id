@@ -29,7 +29,7 @@ jobs:
         working-directory: backend
         run: |
           set -e -o pipefail
-          go test -v ./... | tee /tmp/TestResults.log
+          go test -tags=exclude_frontend -v ./... | tee /tmp/TestResults.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
