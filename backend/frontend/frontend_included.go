@@ -12,6 +12,7 @@ import (
 	"strings"
 )
 
+//nolint:typecheck
 //go:embed all:dist/*
 var frontendFS embed.FS
 
