@@ -1,3 +1,15 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v0.52.0...v) (2025-05-08)
+
+
+### Features
+
+* add support for `TZ` environment variable ([5e2e947](https://github.com/pocket-id/pocket-id/commit/5e2e947fe09fa881a7bbc70133a243a4baf30e90))
+
+
+### Bug Fixes
+
+* handle CORS correctly for endpoints that SPAs need ([#513](https://github.com/pocket-id/pocket-id/issues/513)) ([63a0c08](https://github.com/pocket-id/pocket-id/commit/63a0c08696938e1cefd12018f4bd38aa1808996a))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.51.1...v) (2025-05-06)
 
 
