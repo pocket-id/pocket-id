@@ -25,12 +25,6 @@ func RegisterFrontend(router *gin.Engine) error {
 	fileServer := http.FileServer(http.FS(distFS))
 
 	router.NoRoute(func(c *gin.Context) {
-		// Skip for API requests
-		if strings.HasPrefix(c.Request.URL.Path, "/api") {
-			c.Next()
-			return
-		}
-
 		// Try to serve the requested file
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 		if _, err := fs.Stat(distFS, path); os.IsNotExist(err) {
