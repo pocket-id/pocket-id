@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/pocket-id/pocket-id/backend/frontend"
 	"log"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/pocket-id/pocket-id/backend/frontend"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
