@@ -62,12 +62,10 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 
 	err := frontend.RegisterFrontend(r)
-	if err != nil {
-		if errors.Is(err, frontend.ErrFrontendNotIncluded) {
-			log.Println("Frontend is not included in the build. Skipping frontend registration.")
-		} else {
-			return nil, fmt.Errorf("failed to register frontend: %w", err)
-		}
+	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
+		log.Println("Frontend is not included in the build. Skipping frontend registration.")
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to register frontend: %w", err)
 	}
 
 	// Initialize middleware for specific routes
