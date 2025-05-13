@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 //go:embed all:dist/*
@@ -21,8 +22,8 @@ func RegisterFrontend(router *gin.Engine) error {
 		return fmt.Errorf("failed to create sub FS: %w", err)
 	}
 
-	// Create a file server for the embedded files
-	fileServer := http.FileServer(http.FS(distFS))
+	cacheMaxAge := time.Hour
+	fileServer := NewFileServerWithCaching(http.FS(distFS), int(cacheMaxAge.Seconds()))
 
 	router.NoRoute(func(c *gin.Context) {
 		// Try to serve the requested file
@@ -36,4 +37,37 @@ func RegisterFrontend(router *gin.Engine) error {
 	})
 
 	return nil
+}
+
+// FileServerWithCaching wraps http.FileServer to add caching headers
+type FileServerWithCaching struct {
+	root         http.FileSystem
+	lastModified time.Time
+	cacheMaxAge  int
+	cacheControl string
+}
+
+func NewFileServerWithCaching(root http.FileSystem, maxAge int) *FileServerWithCaching {
+	return &FileServerWithCaching{
+		root:         root,
+		lastModified: time.Now(),
+		cacheMaxAge:  maxAge,
+	}
+}
+
+func (f *FileServerWithCaching) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Check if the client has a cached version
+	if ifModifiedSince := r.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
+		ifModifiedSinceTime, err := time.Parse(http.TimeFormat, ifModifiedSince)
+		if err == nil && f.lastModified.Before(ifModifiedSinceTime.Add(1*time.Second)) {
+			// Client's cached version is up to date
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
+
+	w.Header().Set("Last-Modified", f.lastModified.UTC().Format(http.TimeFormat))
+	w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", f.cacheMaxAge))
+
+	http.FileServer(f.root).ServeHTTP(w, r)
 }
