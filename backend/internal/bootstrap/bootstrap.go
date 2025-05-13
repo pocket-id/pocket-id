@@ -20,10 +20,6 @@ func Bootstrap() error {
 
 	initApplicationImages()
 
-	// Perform migrations for changes
-	migrateConfigDBConnstring()
-	migrateKey()
-
 	// Initialize the tracer and metrics exporter
 	shutdownFns, httpClient, err := initOtel(ctx, common.EnvConfig.MetricsEnabled, common.EnvConfig.TracingEnabled)
 	if err != nil {

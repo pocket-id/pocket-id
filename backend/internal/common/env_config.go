@@ -28,8 +28,6 @@ type EnvConfigSchema struct {
 	AppURL                   string     `env:"PUBLIC_APP_URL"`
 	DbProvider               DbProvider `env:"DB_PROVIDER"`
 	DbConnectionString       string     `env:"DB_CONNECTION_STRING"`
-	SqliteDBPath             string     `env:"SQLITE_DB_PATH"`             // Deprecated: use "DB_CONNECTION_STRING" instead
-	PostgresConnectionString string     `env:"POSTGRES_CONNECTION_STRING"` // Deprecated: use "DB_CONNECTION_STRING" instead
 	UploadPath               string     `env:"UPLOAD_PATH"`
 	KeysPath                 string     `env:"KEYS_PATH"`
 	Port                     string     `env:"PORT"`
@@ -47,8 +45,6 @@ var EnvConfig = &EnvConfigSchema{
 	AppEnv:                   "production",
 	DbProvider:               "sqlite",
 	DbConnectionString:       "file:data/pocket-id.db?_journal_mode=WAL&_busy_timeout=2500&_txlock=immediate",
-	SqliteDBPath:             "",
-	PostgresConnectionString: "",
 	UploadPath:               "data/uploads",
 	KeysPath:                 "data/keys",
 	AppURL:                   "http://localhost",
