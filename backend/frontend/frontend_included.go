@@ -41,17 +41,20 @@ func RegisterFrontend(router *gin.Engine) error {
 
 // FileServerWithCaching wraps http.FileServer to add caching headers
 type FileServerWithCaching struct {
-	root         http.FileSystem
-	lastModified time.Time
-	cacheMaxAge  int
-	cacheControl string
+	root                    http.FileSystem
+	lastModified            time.Time
+	cacheMaxAge             int
+	lastModifiedHeaderValue string
+	cacheControlHeaderValue string
 }
 
 func NewFileServerWithCaching(root http.FileSystem, maxAge int) *FileServerWithCaching {
 	return &FileServerWithCaching{
-		root:         root,
-		lastModified: time.Now(),
-		cacheMaxAge:  maxAge,
+		root:                    root,
+		lastModified:            time.Now(),
+		cacheMaxAge:             maxAge,
+		lastModifiedHeaderValue: time.Now().UTC().Format(http.TimeFormat),
+		cacheControlHeaderValue: fmt.Sprintf("public, max-age=%d", maxAge),
 	}
 }
 
@@ -66,8 +69,8 @@ func (f *FileServerWithCaching) ServeHTTP(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	w.Header().Set("Last-Modified", f.lastModified.UTC().Format(http.TimeFormat))
-	w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", f.cacheMaxAge))
+	w.Header().Set("Last-Modified", f.lastModifiedHeaderValue)
+	w.Header().Set("Cache-Control", f.cacheControlHeaderValue)
 
 	http.FileServer(f.root).ServeHTTP(w, r)
 }
