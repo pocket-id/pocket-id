@@ -22,7 +22,7 @@ func RegisterFrontend(router *gin.Engine) error {
 		return fmt.Errorf("failed to create sub FS: %w", err)
 	}
 
-	cacheMaxAge := time.Hour
+	cacheMaxAge := time.Hour * 24
 	fileServer := NewFileServerWithCaching(http.FS(distFS), int(cacheMaxAge.Seconds()))
 
 	router.NoRoute(func(c *gin.Context) {
