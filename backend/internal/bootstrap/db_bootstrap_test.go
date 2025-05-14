@@ -133,7 +133,7 @@ func TestParseSqliteConnectionString(t *testing.T) {
 			expectedQuery := expectedURL.Query()
 			resultQuery := resultURL.Query()
 
-			assert.Equal(t, len(expectedQuery), len(resultQuery))
+			assert.Len(t, expectedQuery, len(resultQuery))
 
 			for key, expectedValues := range expectedQuery {
 				resultValues, ok := resultQuery[key]
