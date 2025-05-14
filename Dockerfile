@@ -25,7 +25,7 @@ COPY .version .version
 
 WORKDIR /app/backend/cmd
 RUN VERSION=$(cat /app/backend/.version) \ 
-  CGO_ENABLED=1 \
+  CGO_ENABLED=0 \
   GOOS=linux \
   go build \
   -tags "${BUILD_TAGS}" \

@@ -44,7 +44,7 @@ type EnvConfigSchema struct {
 var EnvConfig = &EnvConfigSchema{
 	AppEnv:                   "production",
 	DbProvider:               "sqlite",
-	DbConnectionString:       "file:data/pocket-id.db?_journal_mode=WAL&_busy_timeout=2500&_txlock=immediate",
+    DbConnectionString:        "file:data/pocket-id.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate",
 	UploadPath:               "data/uploads",
 	KeysPath:                 "data/keys",
 	AppURL:                   "http://localhost",

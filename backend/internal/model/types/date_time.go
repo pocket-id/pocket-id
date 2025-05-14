@@ -2,6 +2,7 @@ package datatype
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -10,9 +11,16 @@ import (
 // DateTime custom type for time.Time to store date as unix timestamp for sqlite and as date for postgres
 type DateTime time.Time //nolint:recvcheck
 
-func (date *DateTime) Scan(value interface{}) (err error) {
-	*date = DateTime(value.(time.Time))
-	return
+func (date *DateTime) Scan(value any) (err error) {
+	switch v := value.(type) {
+	case time.Time:
+		*date = DateTime(v)
+	case int64:
+		*date = DateTime(time.Unix(v, 0))
+	default:
+		return fmt.Errorf("unexpected type for DateTime: %T", value)
+	}
+	return nil
 }
 
 func (date DateTime) Value() (driver.Value, error) {
