@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -112,9 +113,32 @@ func TestParseSqliteConnectionString(t *testing.T) {
 
 			if tt.expectedError {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.expected, result)
+				return
+			}
+
+			require.NoError(t, err)
+
+			// Parse both URLs to compare components independently
+			expectedURL, err := url.Parse(tt.expected)
+			require.NoError(t, err)
+
+			resultURL, err := url.Parse(result)
+			require.NoError(t, err)
+
+			// Compare scheme and path components
+			assert.Equal(t, expectedURL.Scheme, resultURL.Scheme)
+			assert.Equal(t, expectedURL.Path, resultURL.Path)
+
+			// Compare query parameters regardless of order
+			expectedQuery := expectedURL.Query()
+			resultQuery := resultURL.Query()
+
+			assert.Equal(t, len(expectedQuery), len(resultQuery))
+
+			for key, expectedValues := range expectedQuery {
+				resultValues, ok := resultQuery[key]
+				_ = assert.True(t, ok) &&
+					assert.ElementsMatch(t, expectedValues, resultValues)
 			}
 		})
 	}
