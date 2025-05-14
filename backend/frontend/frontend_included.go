@@ -5,12 +5,13 @@ package frontend
 import (
 	"embed"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io/fs"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 //go:embed all:dist/*

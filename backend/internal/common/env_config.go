@@ -24,39 +24,39 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv                   string     `env:"APP_ENV"`
-	AppURL                   string     `env:"PUBLIC_APP_URL"`
-	DbProvider               DbProvider `env:"DB_PROVIDER"`
-	DbConnectionString       string     `env:"DB_CONNECTION_STRING"`
-	UploadPath               string     `env:"UPLOAD_PATH"`
-	KeysPath                 string     `env:"KEYS_PATH"`
-	Port                     string     `env:"PORT"`
-	Host                     string     `env:"HOST"`
-	MaxMindLicenseKey        string     `env:"MAXMIND_LICENSE_KEY"`
-	GeoLiteDBPath            string     `env:"GEOLITE_DB_PATH"`
-	GeoLiteDBUrl             string     `env:"GEOLITE_DB_URL"`
-	UiConfigDisabled         bool       `env:"UI_CONFIG_DISABLED"`
-	MetricsEnabled           bool       `env:"METRICS_ENABLED"`
-	TracingEnabled           bool       `env:"TRACING_ENABLED"`
-	TrustProxy               bool       `env:"TRUST_PROXY"`
+	AppEnv             string     `env:"APP_ENV"`
+	AppURL             string     `env:"PUBLIC_APP_URL"`
+	DbProvider         DbProvider `env:"DB_PROVIDER"`
+	DbConnectionString string     `env:"DB_CONNECTION_STRING"`
+	UploadPath         string     `env:"UPLOAD_PATH"`
+	KeysPath           string     `env:"KEYS_PATH"`
+	Port               string     `env:"PORT"`
+	Host               string     `env:"HOST"`
+	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY"`
+	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
+	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
+	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
+	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
+	TracingEnabled     bool       `env:"TRACING_ENABLED"`
+	TrustProxy         bool       `env:"TRUST_PROXY"`
 }
 
 var EnvConfig = &EnvConfigSchema{
-	AppEnv:                   "production",
-	DbProvider:               "sqlite",
-    DbConnectionString:        "file:data/pocket-id.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate",
-	UploadPath:               "data/uploads",
-	KeysPath:                 "data/keys",
-	AppURL:                   "http://localhost",
-	Port:                     "80",
-	Host:                     "0.0.0.0",
-	MaxMindLicenseKey:        "",
-	GeoLiteDBPath:            "data/GeoLite2-City.mmdb",
-	GeoLiteDBUrl:             MaxMindGeoLiteCityUrl,
-	UiConfigDisabled:         false,
-	MetricsEnabled:           false,
-	TracingEnabled:           false,
-	TrustProxy:               false,
+	AppEnv:             "production",
+	DbProvider:         "sqlite",
+	DbConnectionString: "file:data/pocket-id.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate",
+	UploadPath:         "data/uploads",
+	KeysPath:           "data/keys",
+	AppURL:             "http://localhost",
+	Port:               "80",
+	Host:               "0.0.0.0",
+	MaxMindLicenseKey:  "",
+	GeoLiteDBPath:      "data/GeoLite2-City.mmdb",
+	GeoLiteDBUrl:       MaxMindGeoLiteCityUrl,
+	UiConfigDisabled:   false,
+	MetricsEnabled:     false,
+	TracingEnabled:     false,
+	TrustProxy:         false,
 }
 
 func init() {
