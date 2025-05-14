@@ -22,7 +22,7 @@ RUN apk add --no-cache gcc musl-dev
 
 COPY ./backend ./
 WORKDIR /app/backend/cmd
-RUN CGO_ENABLED=1 \
+RUN CGO_ENABLED=0 \
   GOOS=linux \
   go build \
   -tags "${BUILD_TAGS}" \
