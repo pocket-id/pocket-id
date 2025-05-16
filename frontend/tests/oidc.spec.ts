@@ -1,6 +1,7 @@
 import test, { expect } from '@playwright/test';
-import { accessTokens, idTokens, oidcClients, refreshTokens, users } from './data';
+import { oidcClients, refreshTokens, users } from './data';
 import { cleanupBackend } from './utils/cleanup.util';
+import { generateIdToken, generateOauthAccessToken } from './utils/jwt.util';
 import oidcUtil from './utils/oidc.util';
 import passkeyUtil from './utils/passkey.util';
 
@@ -117,7 +118,7 @@ test('End session without id token hint shows confirmation page', async ({ page 
 
 test('End session with id token hint redirects to callback URL', async ({ page }) => {
 	const client = oidcClients.nextcloud;
-	const idToken = idTokens.filter((token) => token.expired)[0].token;
+	const idToken = await generateIdToken(users.tim, client.id);
 	let redirectedCorrectly = false;
 	await page
 		.goto(
@@ -193,8 +194,8 @@ test('Using refresh token invalidates it for future use', async ({ request }) =>
 
 test.describe('Introspection endpoint', () => {
 	const client = oidcClients.nextcloud;
-	const validAccessToken = accessTokens.filter((token) => !token.expired)[0].token;
 	test('without client_id and client_secret fails', async ({ request }) => {
+		const validAccessToken = await generateOauthAccessToken(users.tim, client.id);
 		const introspectionResponse = await request.post('/api/oidc/introspect', {
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
@@ -207,7 +208,8 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionResponse.status()).toBe(400);
 	});
 
-	test('with client_id and client_secret succeeds', async ({ request }) => {
+	test('with client_id and client_secret succeeds', async ({ request, baseURL }) => {
+		const validAccessToken = await generateOauthAccessToken(users.tim, client.id);
 		const introspectionResponse = await request.post('/api/oidc/introspect', {
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
@@ -222,7 +224,7 @@ test.describe('Introspection endpoint', () => {
 		const introspectionBody = await introspectionResponse.json();
 		expect(introspectionBody.active).toBe(true);
 		expect(introspectionBody.token_type).toBe('access_token');
-		expect(introspectionBody.iss).toBe('http://localhost');
+		expect(introspectionBody.iss).toBe(baseURL);
 		expect(introspectionBody.sub).toBe(users.tim.id);
 		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id]);
 	});
@@ -265,7 +267,7 @@ test.describe('Introspection endpoint', () => {
 	});
 
 	test("expired access_token can't be verified", async ({ request }) => {
-		const expiredAccessToken = accessTokens.filter((token) => token.expired)[0].token;
+		const expiredAccessToken = await generateOauthAccessToken(users.tim, client.id, true);
 		const introspectionResponse = await request.post('/api/oidc/introspect', {
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'

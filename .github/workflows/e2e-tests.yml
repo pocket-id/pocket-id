@@ -116,7 +116,7 @@ jobs:
         run: |
           docker run -d --name pocket-id-sqlite \
           --network pocket-id-network \
-          -p 80:80 \
+          -p 1411:1411 \
           -e APP_ENV=test \
           pocket-id:test
 
@@ -253,7 +253,7 @@ jobs:
         run: |
           docker run -d --name pocket-id-postgres \
           --network pocket-id-network \
-          -p 80:80 \
+          -p 1411:1411 \
           -e APP_ENV=test \
           -e DB_PROVIDER=postgres \
           -e DB_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \

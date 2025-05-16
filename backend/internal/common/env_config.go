@@ -25,7 +25,7 @@ const (
 
 type EnvConfigSchema struct {
 	AppEnv             string     `env:"APP_ENV"`
-	AppURL             string     `env:"PUBLIC_APP_URL"`
+	AppURL             string     `env:"APP_URL"`
 	DbProvider         DbProvider `env:"DB_PROVIDER"`
 	DbConnectionString string     `env:"DB_CONNECTION_STRING"`
 	UploadPath         string     `env:"UPLOAD_PATH"`
@@ -47,8 +47,8 @@ var EnvConfig = &EnvConfigSchema{
 	DbConnectionString: "file:data/pocket-id.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate",
 	UploadPath:         "data/uploads",
 	KeysPath:           "data/keys",
-	AppURL:             "http://localhost",
-	Port:               "80",
+	AppURL:             "http://localhost:1411",
+	Port:               "1411",
 	Host:               "0.0.0.0",
 	MaxMindLicenseKey:  "",
 	GeoLiteDBPath:      "data/GeoLite2-City.mmdb",
@@ -80,9 +80,9 @@ func init() {
 
 	parsedAppUrl, err := url.Parse(EnvConfig.AppURL)
 	if err != nil {
-		log.Fatal("PUBLIC_APP_URL is not a valid URL")
+		log.Fatal("APP_URL is not a valid URL")
 	}
 	if parsedAppUrl.Path != "" {
-		log.Fatal("PUBLIC_APP_URL must not contain a path")
+		log.Fatal("APP_URL must not contain a path")
 	}
 }
