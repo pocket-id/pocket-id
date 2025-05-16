@@ -30,6 +30,7 @@ vite.config.ts.timestamp-*
 *.dll
 *.so
 *.dylib
+/backend/.bin
 
 # Application specific
 data
