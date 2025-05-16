@@ -25,7 +25,7 @@ const (
 
 type EnvConfigSchema struct {
 	AppEnv             string     `env:"APP_ENV"`
-	AppURL             string     `env:"PUBLIC_APP_URL"`
+	AppURL             string     `env:"APP_URL"`
 	DbProvider         DbProvider `env:"DB_PROVIDER"`
 	DbConnectionString string     `env:"DB_CONNECTION_STRING"`
 	UploadPath         string     `env:"UPLOAD_PATH"`
@@ -80,9 +80,9 @@ func init() {
 
 	parsedAppUrl, err := url.Parse(EnvConfig.AppURL)
 	if err != nil {
-		log.Fatal("PUBLIC_APP_URL is not a valid URL")
+		log.Fatal("APP_URL is not a valid URL")
 	}
 	if parsedAppUrl.Path != "" {
-		log.Fatal("PUBLIC_APP_URL must not contain a path")
+		log.Fatal("APP_URL must not contain a path")
 	}
 }
