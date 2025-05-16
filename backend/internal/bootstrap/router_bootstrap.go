@@ -2,11 +2,14 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/pocket-id/pocket-id/backend/frontend"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -45,6 +48,10 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	r := gin.Default()
 	r.Use(gin.Logger())
 
+	if !common.EnvConfig.TrustProxy {
+		_ = r.SetTrustedProxies(nil)
+	}
+
 	if common.EnvConfig.TracingEnabled {
 		r.Use(otelgin.Middleware("pocket-id-backend"))
 	}
@@ -54,6 +61,13 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	// Setup global middleware
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
+
+	err := frontend.RegisterFrontend(r)
+	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
+		log.Println("Frontend is not included in the build. Skipping frontend registration.")
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to register frontend: %w", err)
+	}
 
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)

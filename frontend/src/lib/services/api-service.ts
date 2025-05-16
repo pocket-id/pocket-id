@@ -1,19 +1,13 @@
-import { browser } from '$app/environment';
 import axios from 'axios';
 
 abstract class APIService {
 	api = axios.create({
-		withCredentials: true
+		baseURL: '/api'
 	});
 
-	constructor(accessToken?: string) {
-		if (accessToken) {
-			this.api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-		}
-		if (browser) {
-			this.api.defaults.baseURL = '/api';
-		} else {
-			this.api.defaults.baseURL = process!.env!.INTERNAL_BACKEND_URL + '/api';
+	constructor() {
+		if (typeof process !== 'undefined' && process?.env?.DEVELOPMENT_BACKEND_URL) {
+			this.api.defaults.baseURL = process.env.DEVELOPMENT_BACKEND_URL;
 		}
 	}
 }

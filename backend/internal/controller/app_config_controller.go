@@ -68,6 +68,13 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 		return
 	}
 
+	// Manually add uiConfigDisabled which isn't in the database but defined with an environment variable
+	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
+		Key:   "uiConfigDisabled",
+		Value: strconv.FormatBool(common.EnvConfig.UiConfigDisabled),
+		Type:  "boolean",
+	})
+
 	c.JSON(http.StatusOK, configVariablesDto)
 }
 

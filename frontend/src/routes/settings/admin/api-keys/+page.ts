@@ -1,10 +1,9 @@
-import { ACCESS_TOKEN_COOKIE_NAME } from '$lib/constants';
 import ApiKeyService from '$lib/services/api-key-service';
 import type { SearchPaginationSortRequest } from '$lib/types/pagination.type';
-import type { PageServerLoad } from './$types';
+import type { PageLoad } from './$types';
 
-export const load: PageServerLoad = async ({ cookies }) => {
-	const apiKeyService = new ApiKeyService(cookies.get(ACCESS_TOKEN_COOKIE_NAME));
+export const load: PageLoad = async () => {
+	const apiKeyService = new ApiKeyService();
 
 	const apiKeysRequestOptions: SearchPaginationSortRequest = {
 		sort: {

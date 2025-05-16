@@ -15,7 +15,7 @@ export default defineConfig({
 		? [['html', { outputFolder: 'tests/.report' }], ['github']]
 		: [['line'], ['html', { open: 'never', outputFolder: 'tests/.report' }]],
 	use: {
-		baseURL: 'http://localhost',
+		baseURL: process.env.APP_URL ?? 'http://localhost:1411',
 		video: 'retain-on-failure',
 		trace: 'on-first-retry'
 	},

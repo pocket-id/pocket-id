@@ -1,6 +1,7 @@
 #!/bin/sh
 
-DB_PATH="./backend/data/pocket-id.db"
+# TODO: Should parse DB_CONNECTION_STRING
+DB_PATH="/app/data/pocket-id.db"
 DB_PROVIDER="${DB_PROVIDER:=sqlite}"
 
 # Parse command-line arguments for the -d flag (database path)
@@ -108,7 +109,7 @@ fi
 echo "================================================="
 if [ $? -eq 0 ]; then
     echo "A one-time access token valid for 1 hour has been created for \"$USER_IDENTIFIER\"."
-    echo "Use the following URL to sign in once: ${PUBLIC_APP_URL:=https://<your-pocket-id-domain>}/lc/$SECRET_TOKEN"
+    echo "Use the following URL to sign in once: ${APP_URL:=https://<your-pocket-id-domain>}/lc/$SECRET_TOKEN"
 else
     echo "Error creating access token."
     exit 1

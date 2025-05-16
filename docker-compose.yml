@@ -4,12 +4,12 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - 3000:80
+      - 1411:1411
     volumes:
-      - "./data:/app/backend/data"
+      - "./data:/app/data"
     # Optional healthcheck
     healthcheck:
-      test: "curl -f http://localhost/healthz"
+      test: "curl -f http://localhost:1411/healthz"
       interval: 1m30s
       timeout: 5s
       retries: 2
