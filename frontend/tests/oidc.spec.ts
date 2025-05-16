@@ -207,7 +207,7 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionResponse.status()).toBe(400);
 	});
 
-	test('with client_id and client_secret succeeds', async ({ request }) => {
+	test('with client_id and client_secret succeeds', async ({ request, baseURL }) => {
 		const introspectionResponse = await request.post('/api/oidc/introspect', {
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
@@ -222,7 +222,7 @@ test.describe('Introspection endpoint', () => {
 		const introspectionBody = await introspectionResponse.json();
 		expect(introspectionBody.active).toBe(true);
 		expect(introspectionBody.token_type).toBe('access_token');
-		expect(introspectionBody.iss).toBe('http://localhost');
+		expect(introspectionBody.iss).toBe(baseURL);
 		expect(introspectionBody.sub).toBe(users.tim.id);
 		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id]);
 	});

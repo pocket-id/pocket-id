@@ -47,7 +47,7 @@ var EnvConfig = &EnvConfigSchema{
 	DbConnectionString: "file:data/pocket-id.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate",
 	UploadPath:         "data/uploads",
 	KeysPath:           "data/keys",
-	AppURL:             "http://localhost",
+	AppURL:             "http://localhost:1411",
 	Port:               "1411",
 	Host:               "0.0.0.0",
 	MaxMindLicenseKey:  "",
