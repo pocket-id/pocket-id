@@ -1,55 +1,50 @@
 # Tags passed to "go build"
 ARG BUILD_TAGS=""
-ARG VERSION="unknown"
 
 # Stage 1: Build Frontend
 FROM node:22-alpine AS frontend-builder
-WORKDIR /app/frontend
+WORKDIR /build
 COPY ./frontend/package*.json ./
 RUN npm ci
 COPY ./frontend ./
-RUN npm run build
-RUN npm prune --production
+RUN BUILD_OUTPUT_PATH=dist npm run build
 
 # Stage 2: Build Backend
 FROM golang:1.24-alpine AS backend-builder
 ARG BUILD_TAGS
-WORKDIR /app/backend
+WORKDIR /build
 COPY ./backend/go.mod ./backend/go.sum ./
 RUN go mod download
 
-RUN apk add --no-cache gcc musl-dev
-
 COPY ./backend ./
-WORKDIR /app/backend/cmd
-RUN CGO_ENABLED=0 \
+COPY --from=frontend-builder /build/dist ./frontend/dist
+COPY .version .version
+
+WORKDIR /build/cmd
+RUN VERSION=$(cat /build/.version) \ 
+  CGO_ENABLED=0 \
   GOOS=linux \
   go build \
-  -tags "${BUILD_TAGS}" \
-  -ldflags="-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${VERSION}" \
-  -o /app/backend/pocket-id-backend \
-  .
+    -tags "${BUILD_TAGS}" \
+    -ldflags="-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${VERSION}" \
+    -o /build/pocket-id-backend \
+    .
 
 # Stage 3: Production Image
-FROM node:22-alpine
-# Delete default node user
-RUN deluser --remove-home node
-
-RUN apk add --no-cache caddy curl su-exec
-COPY ./reverse-proxy /etc/caddy/
-
+FROM alpine
 WORKDIR /app
-COPY --from=frontend-builder /app/frontend/build ./frontend/build
-COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
-COPY --from=frontend-builder /app/frontend/package.json ./frontend/package.json
 
-COPY --from=backend-builder /app/backend/pocket-id-backend ./backend/pocket-id-backend
+RUN apk add --no-cache curl su-exec
 
-COPY ./scripts ./scripts
-RUN find ./scripts -name "*.sh" -exec chmod +x {} \;
+COPY --from=backend-builder /build/pocket-id-backend /app/pocket-id
+COPY ./scripts/docker /app/docker
+COPY ./scripts/create-one-time-access-token.sh /app/
 
-EXPOSE 80
+RUN chmod +x /app/pocket-id /app/create-one-time-access-token.sh && \
+  find /app/docker -name "*.sh" -exec chmod +x {} \;
+
+EXPOSE 1411
 ENV APP_ENV=production
 
-ENTRYPOINT ["sh", "./scripts/docker/create-user.sh"]
-CMD ["sh", "./scripts/docker/entrypoint.sh"]
+ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]
+CMD ["/app/pocket-id"]

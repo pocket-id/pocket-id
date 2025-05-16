@@ -1,5 +1,6 @@
 import axios from 'axios';
+import playwrightConfig from '../../playwright.config';
 
 export async function cleanupBackend() {
-	await axios.post('http://localhost/api/test/reset');
+	await axios.post(playwrightConfig.use!.baseURL + '/api/test/reset');
 }

@@ -1,5 +1,3 @@
-import { browser } from '$app/environment';
-
 type SkipCacheUntil = {
 	[key: string]: number;
 };
@@ -9,14 +7,12 @@ export function getProfilePictureUrl(userId?: string) {
 
 	let url = `/api/users/${userId}/profile-picture.png`;
 
-	if (browser) {
-		const skipCacheUntil = getSkipCacheUntil(userId);
-		const skipCache = skipCacheUntil > Date.now();
-		if (skipCache) {
-			const skipCacheParam = new URLSearchParams();
-			skipCacheParam.append('skip-cache', skipCacheUntil.toString());
-			url += '?' + skipCacheParam.toString();
-		}
+	const skipCacheUntil = getSkipCacheUntil(userId);
+	const skipCache = skipCacheUntil > Date.now();
+	if (skipCache) {
+		const skipCacheParam = new URLSearchParams();
+		skipCacheParam.append('skip-cache', skipCacheUntil.toString());
+		url += '?' + skipCacheParam.toString();
 	}
 
 	return url.toString();

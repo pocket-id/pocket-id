@@ -1,5 +1,0 @@
-:{$CADDY_PORT:80} {
-	reverse_proxy /api/* http://localhost:{$BACKEND_PORT:8080}
-	reverse_proxy /.well-known/* http://localhost:{$BACKEND_PORT:8080}
-	reverse_proxy /* http://localhost:{$PORT:3000}
-}

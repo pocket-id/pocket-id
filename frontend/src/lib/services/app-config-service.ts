@@ -1,6 +1,4 @@
-import { version as currentVersion } from '$app/environment';
 import type { AllAppConfig, AppConfigRawResponse } from '$lib/types/application-configuration';
-import axios from 'axios';
 import APIService from './api-service';
 
 export default class AppConfigService extends APIService {
@@ -53,28 +51,6 @@ export default class AppConfigService extends APIService {
 
 	async syncLdap() {
 		await this.api.post('/application-configuration/sync-ldap');
-	}
-
-	async getVersionInformation() {
-		const response = await axios
-			.get('https://api.github.com/repos/pocket-id/pocket-id/releases/latest', {
-				timeout: 2000
-			})
-			.then((res) => res.data)
-			.catch(() => null);
-
-		let newestVersion: string | undefined;
-		let isUpToDate: boolean | undefined;
-		if (response) {
-			newestVersion = response.tag_name.replace('v', '');
-			isUpToDate = newestVersion === currentVersion;
-		}
-
-		return {
-			isUpToDate,
-			newestVersion,
-			currentVersion
-		};
 	}
 
 	private parseConfigList(data: AppConfigRawResponse) {

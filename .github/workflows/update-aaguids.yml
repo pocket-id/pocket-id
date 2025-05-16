@@ -25,6 +25,7 @@ jobs:
         run: |
           mkdir -p backend/resources
           jq -c 'map_values(.name)' data.json > backend/resources/aaguids.json
+          rm data.json
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7

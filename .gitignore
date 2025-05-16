@@ -30,6 +30,7 @@ vite.config.ts.timestamp-*
 *.dll
 *.so
 *.dylib
+/backend/.bin
 
 # Application specific
 data
@@ -37,6 +38,7 @@ data
 /frontend/tests/.report
 pocket-id-backend
 /backend/GeoLite2-City.mmdb
+/backend/frontend/dist
 
 # Misc
 .DS_Store

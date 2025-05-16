@@ -5,6 +5,7 @@ export type AppConfig = {
 	emailOneTimeAccessAsAdminEnabled: boolean;
 	ldapEnabled: boolean;
 	disableAnimations: boolean;
+	uiConfigDisabled: boolean;
 };
 
 export type AllAppConfig = AppConfig & {
@@ -49,7 +50,7 @@ export type AppConfigRawResponse = {
 }[];
 
 export type AppVersionInformation = {
-	isUpToDate?: boolean;
-	newestVersion?: string;
+	isUpToDate: boolean | null;
+	newestVersion: string | null;
 	currentVersion: string;
 };

@@ -112,7 +112,7 @@ fi
 
 # Create the release on GitHub
 echo "Creating GitHub release..."
-gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$CHANGELOG"
+gh release create "v$NEW_VERSION" --title "v$NEW_VERSION" --notes "$CHANGELOG" --draft
 
 if [ $? -eq 0 ]; then
     echo "GitHub release created successfully."
