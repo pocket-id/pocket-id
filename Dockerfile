@@ -32,14 +32,15 @@ RUN VERSION=$(cat /build/.version) \
 
 # Stage 3: Production Image
 FROM alpine
-WORKDIR /
+WORKDIR /app
 
 RUN apk add --no-cache curl su-exec
 
 COPY --from=backend-builder /build/pocket-id-backend /app/pocket-id
 COPY ./scripts/docker /app/docker
+COPY ./scripts/create-one-time-access-token.sh /app/
 
-RUN chmod +x /app/pocket-id && \
+RUN chmod +x /app/pocket-id /app/create-one-time-access-token.sh && \
   find /app/docker -name "*.sh" -exec chmod +x {} \;
 
 EXPOSE 1411

@@ -1,6 +1,7 @@
 #!/bin/sh
 
-DB_PATH="./backend/data/pocket-id.db"
+# TODO: Should parse DB_CONNECTION_STRING
+DB_PATH="/app/data/pocket-id.db"
 DB_PROVIDER="${DB_PROVIDER:=sqlite}"
 
 # Parse command-line arguments for the -d flag (database path)

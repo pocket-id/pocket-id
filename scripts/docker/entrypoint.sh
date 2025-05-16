@@ -1,6 +1,7 @@
 #!/bin/sh
 
-cd /
+# Ensure we are in the /app folder
+cd /app
 
 # If we aren't running as root, just exec the CMD
 if [ "$(id -u)" -ne 0 ] ; then
@@ -29,9 +30,9 @@ if ! id -u pocket-id > /dev/null 2>&1; then
     fi
 fi
 
-# Change ownership of the /data directory
-mkdir -p /data
-find /data \( ! -group "${PGID}" -o ! -user "${PUID}" \) -exec chown "${PUID}:${PGID}" {} +
+# Change ownership of the /app/data directory
+mkdir -p /app/data
+find /app/data \( ! -group "${PGID}" -o ! -user "${PUID}" \) -exec chown "${PUID}:${PGID}" {} +
 
 # Switch to the non-root user
 exec su-exec "$PUID:$PGID" "$@"

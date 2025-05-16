@@ -6,7 +6,7 @@ services:
     ports:
       - 1411:1411
     volumes:
-      - "./data:/data"
+      - "./data:/app/data"
     # Optional healthcheck
     healthcheck:
       test: "curl -f http://localhost:1411/healthz"
