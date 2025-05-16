@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-docker-image:
-    runs-on: ubuntu-22.04 # Using an older version because of https://github.com/actions/runner-images/issues/11471
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
