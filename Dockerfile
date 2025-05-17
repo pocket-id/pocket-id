@@ -1,3 +1,5 @@
+# This file uses multi-stage builds to build the application from source, including the front-end
+
 # Tags passed to "go build"
 ARG BUILD_TAGS=""
 
@@ -26,7 +28,8 @@ RUN VERSION=$(cat /build/.version) \
   GOOS=linux \
   go build \
     -tags "${BUILD_TAGS}" \
-    -ldflags="-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${VERSION}" \
+    -ldflags="-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${VERSION} -buildid=${VERSION}" \
+    -trimpath \
     -o /build/pocket-id-backend \
     .
 
