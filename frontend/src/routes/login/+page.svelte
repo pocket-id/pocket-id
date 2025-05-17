@@ -20,7 +20,7 @@
 		isLoading = true;
 		try {
 			const loginOptions = await webauthnService.getLoginOptions();
-			const authResponse = await startAuthentication(loginOptions);
+			const authResponse = await startAuthentication({optionsJSON: loginOptions});
 			const user = await webauthnService.finishLogin(authResponse);
 
 			userStore.setUser(user);
