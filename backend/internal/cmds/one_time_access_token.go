@@ -11,6 +11,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/signals"
 )
 
@@ -51,7 +52,7 @@ func OneTimeAccessToken(args []string) error {
 		}
 
 		// Create a new access token that expires in 1 hour
-		oneTimeAccessToken, txErr = model.NewOneTimeAccessToken(user.ID, time.Now().Add(time.Hour))
+		oneTimeAccessToken, txErr = service.NewOneTimeAccessToken(user.ID, time.Now().Add(time.Hour))
 		if txErr != nil {
 			return fmt.Errorf("failed to generate access token: %w", txErr)
 		}
