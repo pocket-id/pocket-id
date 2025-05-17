@@ -59,9 +59,6 @@ jobs:
           node-version: 22
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'backend/go.mod'
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v3
