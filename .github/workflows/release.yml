@@ -35,8 +35,7 @@ jobs:
         run: |
           # Lowercase REPO_OWNER which is required for containers
           REPO_OWNER=${{ github.repository_owner }}
-          echo "REPO_OWNER=${REPO_OWNER,,}" >>${GITHUB_ENV}
-          DOCKER_IMAGE_NAME="ghcr.io/${REPO_OWNER}/pocket-id"
+          DOCKER_IMAGE_NAME="ghcr.io/${REPO_OWNER,,}/pocket-id"
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >>${GITHUB_ENV}
 
       - name: Login to GitHub Container Registry
