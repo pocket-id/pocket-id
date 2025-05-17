@@ -8,6 +8,7 @@ build_platform() {
     os=$2
     arch=$3
     arm_version=${4:-""}
+    # "sed" is used to remove leading or trailing whitespace characters
     pocket_id_version=$(cat ../.version | sed 's/^\s*\|\s*$//g')
 
     # Set the binary extension to exe for Windows
