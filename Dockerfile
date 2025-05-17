@@ -38,9 +38,8 @@ RUN apk add --no-cache curl su-exec
 
 COPY --from=backend-builder /build/pocket-id-backend /app/pocket-id
 COPY ./scripts/docker /app/docker
-COPY ./scripts/create-one-time-access-token.sh /app/
 
-RUN chmod +x /app/pocket-id /app/create-one-time-access-token.sh && \
+RUN chmod +x /app/pocket-id && \
   find /app/docker -name "*.sh" -exec chmod +x {} \;
 
 EXPOSE 1411

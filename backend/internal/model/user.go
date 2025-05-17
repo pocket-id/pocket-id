@@ -2,6 +2,7 @@ package model
 
 import (
 	"strings"
+	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -83,4 +84,25 @@ type OneTimeAccessToken struct {
 
 	UserID string
 	User   User
+}
+
+func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*OneTimeAccessToken, error) {
+	// If expires at is less than 15 minutes, use a 6-character token instead of 16
+	tokenLength := 16
+	if time.Until(expiresAt) <= 15*time.Minute {
+		tokenLength = 6
+	}
+
+	randomString, err := utils.GenerateRandomAlphanumericString(tokenLength)
+	if err != nil {
+		return nil, err
+	}
+
+	o := &OneTimeAccessToken{
+		UserID:    userID,
+		ExpiresAt: datatype.DateTime(expiresAt),
+		Token:     randomString,
+	}
+
+	return o, nil
 }

@@ -420,24 +420,12 @@ func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID strin
 }
 
 func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, expiresAt time.Time, tx *gorm.DB) (string, error) {
-	// If expires at is less than 15 minutes, use an 6 character token instead of 16
-	tokenLength := 16
-	if time.Until(expiresAt) <= 15*time.Minute {
-		tokenLength = 6
-	}
-
-	randomString, err := utils.GenerateRandomAlphanumericString(tokenLength)
+	oneTimeAccessToken, err := model.NewOneTimeAccessToken(userID, expiresAt)
 	if err != nil {
 		return "", err
 	}
 
-	oneTimeAccessToken := model.OneTimeAccessToken{
-		UserID:    userID,
-		ExpiresAt: datatype.DateTime(expiresAt),
-		Token:     randomString,
-	}
-
-	if err := tx.WithContext(ctx).Create(&oneTimeAccessToken).Error; err != nil {
+	if err := tx.WithContext(ctx).Create(oneTimeAccessToken).Error; err != nil {
 		return "", err
 	}
 
