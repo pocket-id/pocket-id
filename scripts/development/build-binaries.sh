@@ -8,7 +8,8 @@ build_platform() {
     os=$2
     arch=$3
     arm_version=${4:-""}
-    pocket_id_version=$(cat ../.version)
+    # "sed" is used to remove leading or trailing whitespace characters
+    pocket_id_version=$(cat ../.version | sed 's/^\s*\|\s*$//g')
 
     # Set the binary extension to exe for Windows
     binary_ext=""
@@ -21,14 +22,14 @@ build_platform() {
     printf "Building %s/%s%s" "$os" "$arch" "$([ -n "$arm_version" ] && echo " GOARM=$arm_version" || echo "")... "
 
     # Build environment variables
-    env_vars="GOOS=${os} GOARCH=${arch}"
+    env_vars="CGO_ENABLED=0 GOOS=${os} GOARCH=${arch}"
     if [ -n "$arm_version" ]; then
         env_vars="${env_vars} GOARM=${arm_version}"
     fi
 
     # Build the binary
     eval "${env_vars} go build \
-        -ldflags='-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${pocket_id_version}' \
+        -ldflags='-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${pocket_id_version} -buildid ${pocket_id_version}' \
         -o \"${output_dir}\" \
         -trimpath \
         ./cmd"
