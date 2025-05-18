@@ -5,10 +5,16 @@
 
 	type $$Props = CommandPrimitive.CommandProps;
 
-	export let value: $$Props['value'] = undefined;
 
-	let className: ClassValue | undefined | null = undefined;
-	export { className as class };
+	interface Props {
+		value?: $$Props['value'];
+		class?: ClassValue | undefined | null;
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let { value = $bindable(undefined), class: className = undefined, children, ...rest }: Props = $props();
+	
 </script>
 
 <CommandPrimitive.Root
@@ -17,7 +23,7 @@
 		className
 	)}
 	bind:value
-	{...$$restProps}
+	{...rest}
 >
-	<slot />
+	{@render children?.()}
 </CommandPrimitive.Root>

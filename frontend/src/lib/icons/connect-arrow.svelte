@@ -1,12 +1,17 @@
 <script lang="ts">
 	import { mode } from 'mode-watcher';
+	interface Props {
+		[key: string]: any
+	}
+
+	let { ...rest }: Props = $props();
 </script>
 
 <svg
 	version="1.1"
 	xmlns="http://www.w3.org/2000/svg"
 	viewBox="0 0 181.0484047549312 72.61928578581296"
-	class={$$restProps.class}
+	class={rest.class}
 >
 	<g stroke-linecap="round"
 		><g

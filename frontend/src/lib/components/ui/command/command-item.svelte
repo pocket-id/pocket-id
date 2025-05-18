@@ -5,10 +5,18 @@
 
 	type $$Props = CommandPrimitive.ItemProps;
 
-	export let asChild = false;
 
-	let className: ClassValue | undefined | null = undefined;
-	export { className as class };
+	interface Props {
+		asChild?: boolean;
+		class?: ClassValue | undefined | null;
+		children?: import('svelte').Snippet<[any]>;
+		[key: string]: any
+	}
+
+	let { asChild = false, class: className = undefined, children, ...rest }: Props = $props();
+	
+
+	const children_render = $derived(children);
 </script>
 
 <CommandPrimitive.Item
@@ -17,9 +25,11 @@
 		'aria-selected:bg-accent aria-selected:text-accent-foreground relative flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50',
 		className
 	)}
-	{...$$restProps}
-	let:action
-	let:attrs
+	{...rest}
+	
+	
 >
-	<slot {action} {attrs} />
+	{#snippet children({ action, attrs })}
+		{@render children_render?.({ action, attrs, })}
+	{/snippet}
 </CommandPrimitive.Item>

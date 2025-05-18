@@ -8,13 +8,26 @@
 		closeButton?: boolean;
 	};
 
-	let className: $$Props['class'] = undefined;
-	export let transition: $$Props['transition'] = flyAndScale;
-	export let closeButton: $$Props['closeButton'] = true;
-	export let transitionConfig: $$Props['transitionConfig'] = {
+	interface Props {
+		class?: $$Props['class'];
+		transition?: $$Props['transition'];
+		closeButton?: $$Props['closeButton'];
+		transitionConfig?: $$Props['transitionConfig'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let {
+		class: className = undefined,
+		transition = flyAndScale,
+		closeButton = true,
+		transitionConfig = {
 		duration: 200
-	};
-	export { className as class };
+	},
+		children,
+		...rest
+	}: Props = $props();
+	
 </script>
 
 <Dialog.Portal>
@@ -26,9 +39,9 @@
 			'bg-background fixed top-[50%] left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg sm:rounded-lg md:w-full',
 			className
 		)}
-		{...$$restProps}
+		{...rest}
 	>
-		<slot />
+		{@render children?.()}
 		{#if closeButton}
 			<DialogPrimitive.Close
 				class="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none"

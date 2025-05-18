@@ -5,8 +5,14 @@
 	type $$Props = LabelPrimitive.Props;
 	type $$Events = LabelPrimitive.Events;
 
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	interface Props {
+		class?: $$Props['class'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, children, ...rest }: Props = $props();
+	
 </script>
 
 <LabelPrimitive.Root
@@ -14,8 +20,8 @@
 		'mb-3 block text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
 		className
 	)}
-	{...$$restProps}
+	{...rest}
 	on:mousedown
 >
-	<slot />
+	{@render children?.()}
 </LabelPrimitive.Root>

@@ -4,8 +4,14 @@
 	import type { ClassValue } from 'svelte/elements';
 	type $$Props = CommandPrimitive.GroupProps;
 
-	let className: ClassValue | undefined | null = undefined;
-	export { className as class };
+	interface Props {
+		class?: ClassValue | undefined | null;
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, children, ...rest }: Props = $props();
+	
 </script>
 
 <CommandPrimitive.Group
@@ -13,7 +19,7 @@
 		'text-foreground **:data-cmdk-group-heading:text-muted-foreground overflow-hidden p-1 **:data-cmdk-group-heading:px-2 **:data-cmdk-group-heading:py-1.5 **:data-cmdk-group-heading:text-xs **:data-cmdk-group-heading:font-medium',
 		className
 	)}
-	{...$$restProps}
+	{...rest}
 >
-	<slot />
+	{@render children?.()}
 </CommandPrimitive.Group>

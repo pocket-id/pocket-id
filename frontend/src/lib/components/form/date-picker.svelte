@@ -38,17 +38,19 @@
 </script>
 
 <Popover.Root openFocus {open} onOpenChange={(o) => (open = o)}>
-	<Popover.Trigger asChild let:builder>
-		<Button
-			{...restProps}
-			variant="outline"
-			class={cn('w-full justify-start text-left font-normal', !value && 'text-muted-foreground')}
-			builders={[builder]}
-		>
-			<CalendarIcon class="mr-2 h-4 w-4" />
-			{date ? df.format(date.toDate(getLocalTimeZone())) : m.select_a_date()}
-		</Button>
-	</Popover.Trigger>
+	<Popover.Trigger asChild >
+		{#snippet children({ builder })}
+				<Button
+				{...restProps}
+				variant="outline"
+				class={cn('w-full justify-start text-left font-normal', !value && 'text-muted-foreground')}
+				builders={[builder]}
+			>
+				<CalendarIcon class="mr-2 h-4 w-4" />
+				{date ? df.format(date.toDate(getLocalTimeZone())) : m.select_a_date()}
+			</Button>
+					{/snippet}
+		</Popover.Trigger>
 	<Popover.Content class="w-auto p-0" align="start">
 		<Calendar bind:value={date} initialFocus {onValueChange} />
 	</Popover.Content>

@@ -4,10 +4,16 @@
 
 	type $$Props = CalendarPrimitive.GridBodyProps;
 
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	interface Props {
+		class?: $$Props['class'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, children, ...rest }: Props = $props();
+	
 </script>
 
-<CalendarPrimitive.GridBody class={cn(className)} {...$$restProps}>
-	<slot />
+<CalendarPrimitive.GridBody class={cn(className)} {...rest}>
+	{@render children?.()}
 </CalendarPrimitive.GridBody>

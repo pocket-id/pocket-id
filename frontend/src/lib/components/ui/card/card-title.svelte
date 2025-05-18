@@ -7,15 +7,21 @@
 		tag?: HeadingLevel;
 	};
 
-	let className: $$Props['class'] = undefined;
-	export let tag: $$Props['tag'] = 'h3';
-	export { className as class };
+	interface Props {
+		class?: $$Props['class'];
+		tag?: $$Props['tag'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, tag = 'h3', children, ...rest }: Props = $props();
+	
 </script>
 
 <svelte:element
 	this={tag}
 	class={cn('flex items-center gap-2 text-xl leading-none font-semibold tracking-tight', className)}
-	{...$$restProps}
+	{...rest}
 >
-	<slot />
+	{@render children?.()}
 </svelte:element>

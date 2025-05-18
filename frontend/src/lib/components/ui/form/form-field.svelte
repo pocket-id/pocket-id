@@ -1,4 +1,4 @@
-<script lang="ts" context="module">
+<script lang="ts" module>
 	import type { FormPath, SuperForm } from 'sveltekit-superforms';
 	type T = Record<string, unknown>;
 	type U = FormPath<T>;
@@ -11,15 +11,29 @@
 
 	type $$Props = FormPrimitive.FieldProps<T, U> & HTMLAttributes<HTMLElement>;
 
-	export let form: SuperForm<T>;
-	export let name: U;
 
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	interface Props {
+		form: SuperForm<T>;
+		name: U;
+		class?: $$Props['class'];
+		children?: import('svelte').Snippet<[any]>;
+	}
+
+	let {
+		form,
+		name,
+		class: className = undefined,
+		children
+	}: Props = $props();
+	
+
+	const children_render = $derived(children);
 </script>
 
-<FormPrimitive.Field {form} {name} let:constraints let:errors let:tainted let:value>
-	<div class={cn('space-y-2', className)}>
-		<slot {constraints} {errors} {tainted} {value} />
-	</div>
+<FormPrimitive.Field {form} {name}    >
+	{#snippet children({ constraints, errors, tainted, value })}
+		<div class={cn('space-y-2', className)}>
+			{@render children_render?.({ constraints, errors, tainted, value, })}
+		</div>
+	{/snippet}
 </FormPrimitive.Field>

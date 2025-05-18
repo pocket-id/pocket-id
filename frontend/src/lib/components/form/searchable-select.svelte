@@ -52,39 +52,43 @@
 	});
 </script>
 
-<Popover.Root bind:open let:ids>
-	<Popover.Trigger asChild let:builder>
-		<Button
-			{...restProps}
-			builders={[builder]}
-			variant="outline"
-			role="combobox"
-			aria-expanded={open}
-			class={cn('justify-between', restProps.class)}
-		>
-			{items.find((item) => item.value === value)?.label || 'Select an option'}
-			<LucideChevronDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-		</Button>
-	</Popover.Trigger>
-	<Popover.Content class="p-0" sameWidth>
-		<Command.Root shouldFilter={false}>
-			<Command.Input placeholder="Search..." oninput={(e: any) => filterItems(e.target.value)} />
-			<Command.Empty>No results found.</Command.Empty>
-			<Command.Group>
-				{#each filteredItems as item}
-					<Command.Item
-						value={item.value}
-						onSelect={() => {
-							value = item.value;
-							onSelect?.(item.value);
-							closeAndFocusTrigger(ids.trigger);
-						}}
-					>
-						<LucideCheck class={cn('mr-2 h-4 w-4', value !== item.value && 'text-transparent')} />
-						{item.label}
-					</Command.Item>
-				{/each}
-			</Command.Group>
-		</Command.Root>
-	</Popover.Content>
+<Popover.Root bind:open >
+	{#snippet children({ ids })}
+		<Popover.Trigger asChild >
+			{#snippet children({ builder })}
+				<Button
+					{...restProps}
+					builders={[builder]}
+					variant="outline"
+					role="combobox"
+					aria-expanded={open}
+					class={cn('justify-between', restProps.class)}
+				>
+					{items.find((item) => item.value === value)?.label || 'Select an option'}
+					<LucideChevronDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+				</Button>
+						{/snippet}
+		</Popover.Trigger>
+		<Popover.Content class="p-0" sameWidth>
+			<Command.Root shouldFilter={false}>
+				<Command.Input placeholder="Search..." oninput={(e: any) => filterItems(e.target.value)} />
+				<Command.Empty>No results found.</Command.Empty>
+				<Command.Group>
+					{#each filteredItems as item}
+						<Command.Item
+							value={item.value}
+							onSelect={() => {
+								value = item.value;
+								onSelect?.(item.value);
+								closeAndFocusTrigger(ids.trigger);
+							}}
+						>
+							<LucideCheck class={cn('mr-2 h-4 w-4', value !== item.value && 'text-transparent')} />
+							{item.label}
+						</Command.Item>
+					{/each}
+				</Command.Group>
+			</Command.Root>
+		</Popover.Content>
+	{/snippet}
 </Popover.Root>

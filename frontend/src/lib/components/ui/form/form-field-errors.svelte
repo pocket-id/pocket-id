@@ -6,21 +6,31 @@
 		errorClasses?: string | undefined | null;
 	};
 
-	let className: $$Props['class'] = undefined;
-	export { className as class };
-	export let errorClasses: $$Props['class'] = undefined;
+	
+	interface Props {
+		class?: $$Props['class'];
+		errorClasses?: $$Props['class'];
+		children?: import('svelte').Snippet<[any]>;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, errorClasses = undefined, children, ...rest }: Props = $props();
+
+	const children_render = $derived(children);
 </script>
 
 <FormPrimitive.FieldErrors
 	class={cn('text-destructive text-sm font-medium', className)}
-	{...$$restProps}
-	let:errors
-	let:fieldErrorsAttrs
-	let:errorAttrs
+	{...rest}
+	
+	
+	
 >
-	<slot {errors} {fieldErrorsAttrs} {errorAttrs}>
-		{#each errors as error}
-			<div {...errorAttrs} class={cn(errorClasses)}>{error}</div>
-		{/each}
-	</slot>
+	{#snippet children({ errors, fieldErrorsAttrs, errorAttrs })}
+		{#if children_render}{@render children_render({ errors, fieldErrorsAttrs, errorAttrs, })}{:else}
+			{#each errors as error}
+				<div {...errorAttrs} class={cn(errorClasses)}>{error}</div>
+			{/each}
+		{/if}
+	{/snippet}
 </FormPrimitive.FieldErrors>
