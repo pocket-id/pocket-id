@@ -15,3 +15,5 @@
 # vendor/
 ./data
 .env
+pocket-id
+cmd/pocket-id
