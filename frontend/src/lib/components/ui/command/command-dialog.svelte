@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Dialog as DialogPrimitive } from 'bits-ui';
-	import type { Command as CommandPrimitive } from 'cmdk-sv';
+	import type { Command as CommandPrimitive } from 'bits-ui';
 	import Command from './command.svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 
@@ -10,16 +10,21 @@
 		open?: $$Props['open'];
 		value?: $$Props['value'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
-	let { open = $bindable(false), value = $bindable(undefined), children, ...rest }: Props = $props();
+	let {
+		open = $bindable(false),
+		value = $bindable(undefined),
+		children,
+		...rest
+	}: Props = $props();
 </script>
 
 <Dialog.Root bind:open {...rest}>
 	<Dialog.Content class="overflow-hidden p-0 shadow-lg">
 		<Command
-			class="**:data-cmdk-group-heading:text-muted-foreground **:data-cmdk-group-heading:px-2 **:data-cmdk-group-heading:font-medium **:data-cmdk-group:px-2 [&_[data-cmdk-group]:not([hidden])_~[data-cmdk-group]]:pt-0 [&_[data-cmdk-input-wrapper]_svg]:h-5 [&_[data-cmdk-input-wrapper]_svg]:w-5 **:data-cmdk-input:h-12 **:data-cmdk-item:px-2 **:data-cmdk-item:py-3 [&_[data-cmdk-item]_svg]:h-5 [&_[data-cmdk-item]_svg]:w-5"
+			class="**:data-cmdk-group-heading:text-muted-foreground **:data-cmdk-group-heading:px-2 **:data-cmdk-group-heading:font-medium **:data-cmdk-group:px-2 **:data-cmdk-input:h-12 **:data-cmdk-item:px-2 **:data-cmdk-item:py-3 [&_[data-cmdk-group]:not([hidden])_~[data-cmdk-group]]:pt-0 [&_[data-cmdk-input-wrapper]_svg]:h-5 [&_[data-cmdk-input-wrapper]_svg]:w-5 [&_[data-cmdk-item]_svg]:h-5 [&_[data-cmdk-item]_svg]:w-5"
 			{...rest}
 			bind:value
 		>

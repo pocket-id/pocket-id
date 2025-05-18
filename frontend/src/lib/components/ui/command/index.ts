@@ -1,4 +1,4 @@
-import { Command as CommandPrimitive } from 'cmdk-sv';
+import { Command as CommandPrimitive } from 'bits-ui';
 
 import Root from './command.svelte';
 import Dialog from './command-dialog.svelte';

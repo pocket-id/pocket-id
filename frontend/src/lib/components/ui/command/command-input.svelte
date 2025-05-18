@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils/style.js';
-	import { Command as CommandPrimitive } from 'cmdk-sv';
+	import { Command as CommandPrimitive } from 'bits-ui';
 	import Search from '@lucide/svelte/icons/search';
 	import type { ClassValue } from 'svelte/elements';
 
