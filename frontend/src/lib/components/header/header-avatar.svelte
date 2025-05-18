@@ -5,7 +5,7 @@
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import userStore from '$lib/stores/user-store';
 	import { getProfilePictureUrl } from '$lib/utils/profile-picture-util';
-	import { LucideLogOut, LucideUser } from 'lucide-svelte';
+	import { LucideLogOut, LucideUser } from '@lucide/svelte';
 
 	const webauthnService = new WebAuthnService();
 
@@ -24,7 +24,7 @@
 	<DropdownMenu.Content class="min-w-40" align="start">
 		<DropdownMenu.Label class="font-normal">
 			<div class="flex flex-col space-y-1">
-				<p class="text-sm leading-none font-medium">
+				<p class="text-sm font-medium leading-none">
 					{$userStore?.firstName}
 					{$userStore?.lastName}
 				</p>

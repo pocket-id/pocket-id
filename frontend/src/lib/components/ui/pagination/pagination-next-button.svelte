@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cn } from '$lib/utils/style.js';
 	import { Pagination as PaginationPrimitive } from 'bits-ui';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
 	type $$Props = PaginationPrimitive.NextButtonProps;
 	type $$Events = PaginationPrimitive.NextButtonEvents;
@@ -10,16 +10,15 @@
 	interface Props {
 		class?: $$Props['class'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let { class: className = undefined, children, ...rest }: Props = $props();
-	
 
 	const children_render = $derived(children);
 </script>
 
-<PaginationPrimitive.NextButton asChild >
+<PaginationPrimitive.NextButton asChild>
 	{#snippet children({ builder })}
 		<Button
 			variant="ghost"

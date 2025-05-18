@@ -19,8 +19,8 @@
 		LucideTrash,
 		LucideUserCheck,
 		LucideUserX
-	} from 'lucide-svelte';
-	import Ellipsis from 'lucide-svelte/icons/ellipsis';
+	} from '@lucide/svelte';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -156,7 +156,7 @@
 					{/if}
 					{#if !item.ldapId || (item.ldapId && item.disabled)}
 						<DropdownMenu.Item
-							class="text-red-500 focus:text-red-700!"
+							class="focus:text-red-700! text-red-500"
 							onclick={() => deleteUser(item)}
 							><LucideTrash class="mr-2 h-4 w-4" />{m.delete()}</DropdownMenu.Item
 						>

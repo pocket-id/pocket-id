@@ -5,7 +5,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { cn } from '$lib/utils/style';
-	import { LucideExternalLink, LucideSettings } from 'lucide-svelte';
+	import { LucideExternalLink, LucideSettings } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import type { LayoutData } from './$types';

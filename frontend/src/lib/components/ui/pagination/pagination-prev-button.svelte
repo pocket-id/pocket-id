@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Pagination as PaginationPrimitive } from 'bits-ui';
-	import ChevronLeft from 'lucide-svelte/icons/chevron-left';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cn } from '$lib/utils/style.js';
 
@@ -10,16 +10,15 @@
 	interface Props {
 		class?: $$Props['class'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let { class: className = undefined, children, ...rest }: Props = $props();
-	
 
 	const children_render = $derived(children);
 </script>
 
-<PaginationPrimitive.PrevButton asChild >
+<PaginationPrimitive.PrevButton asChild>
 	{#snippet children({ builder })}
 		<Button
 			variant="ghost"

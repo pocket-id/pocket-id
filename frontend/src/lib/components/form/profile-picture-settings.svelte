@@ -4,7 +4,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getProfilePictureUrl } from '$lib/utils/profile-picture-util';
-	import { LucideLoader, LucideRefreshCw, LucideUpload } from 'lucide-svelte';
+	import { LucideLoader, LucideRefreshCw, LucideUpload } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { openConfirmDialog } from '../confirm-dialog';
 

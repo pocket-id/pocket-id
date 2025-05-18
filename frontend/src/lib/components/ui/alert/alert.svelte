@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils/style.js';
-	import { LucideX } from 'lucide-svelte';
+	import { LucideX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { type Variant, alertVariants } from './index.js';
@@ -15,7 +15,7 @@
 		variant?: $$Props['variant'];
 		dismissibleId?: $$Props['dismissibleId'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
@@ -25,7 +25,6 @@
 		children,
 		...rest
 	}: Props = $props();
-	
 
 	let isVisible = $state(!dismissibleId);
 
@@ -49,7 +48,7 @@
 	<div class={cn(alertVariants({ variant }), className)} {...rest} role="alert">
 		{@render children?.()}
 		{#if dismissibleId}
-			<button onclick={dismiss} class="absolute top-0 right-0 m-3 text-black dark:text-white"
+			<button onclick={dismiss} class="absolute right-0 top-0 m-3 text-black dark:text-white"
 				><LucideX class="w-4" /></button
 			>
 		{/if}

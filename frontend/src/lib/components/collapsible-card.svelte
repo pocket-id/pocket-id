@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/style';
-	import { LucideChevronDown, type Icon as IconType } from 'lucide-svelte';
+	import { LucideChevronDown, type Icon as IconType } from '@lucide/svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { Button } from './ui/button';

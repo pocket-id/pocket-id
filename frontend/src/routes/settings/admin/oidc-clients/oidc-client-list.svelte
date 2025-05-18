@@ -8,7 +8,7 @@
 	import type { OidcClient } from '$lib/types/oidc.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucidePencil, LucideTrash } from 'lucide-svelte';
+	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	let {

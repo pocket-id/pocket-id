@@ -9,7 +9,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft } from 'lucide-svelte';
+	import { LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import UserGroupForm from '../user-group-form.svelte';
 	import UserSelection from '../user-selection.svelte';

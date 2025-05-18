@@ -6,7 +6,7 @@
 	import UserGroupService from '$lib/services/user-group-service';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, UserCog, UserPlus } from 'lucide-svelte';
+	import { LucideMinus, UserCog, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserGroupForm from './user-group-form.svelte';

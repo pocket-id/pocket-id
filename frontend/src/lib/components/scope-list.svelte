@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import { LucideMail, LucideUser, LucideUsers } from 'lucide-svelte';
+	import { LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
 	import ScopeItem from './scope-item.svelte';
 
 	let { scope }: { scope: string } = $props();

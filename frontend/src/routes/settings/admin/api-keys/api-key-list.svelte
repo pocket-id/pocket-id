@@ -8,7 +8,7 @@
 	import type { ApiKey } from '$lib/types/api-key.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideBan } from 'lucide-svelte';
+	import { LucideBan } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	let {

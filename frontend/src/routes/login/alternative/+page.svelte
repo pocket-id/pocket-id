@@ -6,7 +6,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
-	import { LucideChevronRight, LucideMail, LucideRectangleEllipsis } from 'lucide-svelte';
+	import { LucideChevronRight, LucideMail, LucideRectangleEllipsis } from '@lucide/svelte';
 
 	const methods = [
 		{

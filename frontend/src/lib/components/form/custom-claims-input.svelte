@@ -4,7 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import CustomClaimService from '$lib/services/custom-claim-service';
 	import type { CustomClaim } from '$lib/types/custom-claim.type';
-	import { LucideMinus, LucidePlus } from 'lucide-svelte';
+	import { LucideMinus, LucidePlus } from '@lucide/svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import AutoCompleteInput from './auto-complete-input.svelte';

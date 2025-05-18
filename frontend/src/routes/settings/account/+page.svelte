@@ -16,7 +16,7 @@
 		LucideAlertTriangle,
 		RectangleEllipsis,
 		UserCog
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';

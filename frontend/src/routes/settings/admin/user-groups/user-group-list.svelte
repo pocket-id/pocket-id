@@ -11,8 +11,8 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { UserGroup, UserGroupWithUserCount } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucidePencil, LucideTrash } from 'lucide-svelte';
-	import Ellipsis from 'lucide-svelte/icons/ellipsis';
+	import { LucidePencil, LucideTrash } from '@lucide/svelte';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -71,21 +71,21 @@
 		{/if}
 		<Table.Cell class="flex justify-end">
 			<DropdownMenu.Root>
-				<DropdownMenu.Trigger asChild >
+				<DropdownMenu.Trigger asChild>
 					{#snippet children({ builder })}
-										<Button aria-haspopup="true" size="icon" variant="ghost" builders={[builder]}>
+						<Button aria-haspopup="true" size="icon" variant="ghost" builders={[builder]}>
 							<Ellipsis class="h-4 w-4" />
 							<span class="sr-only">{m.toggle_menu()}</span>
 						</Button>
-														{/snippet}
-								</DropdownMenu.Trigger>
+					{/snippet}
+				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item href="/settings/admin/user-groups/{item.id}"
 						><LucidePencil class="mr-2 h-4 w-4" /> {m.edit()}</DropdownMenu.Item
 					>
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
 						<DropdownMenu.Item
-							class="text-red-500 focus:text-red-700!"
+							class="focus:text-red-700! text-red-500"
 							on:click={() => deleteUserGroup(item)}
 							><LucideTrash class="mr-2 h-4 w-4" />{m.delete()}</DropdownMenu.Item
 						>
