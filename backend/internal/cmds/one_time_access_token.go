@@ -43,11 +43,12 @@ func OneTimeAccessToken(args []string) error {
 			Where("username = ? OR email = ?", userArg, userArg).
 			First(&user).
 			Error
-		if errors.Is(txErr, gorm.ErrRecordNotFound) {
+		switch {
+		case errors.Is(txErr, gorm.ErrRecordNotFound):
 			return errors.New("user not found")
-		} else if txErr != nil {
+		case txErr != nil:
 			return fmt.Errorf("failed to query for user: %w", txErr)
-		} else if user.ID == "" {
+		case user.ID == "":
 			return errors.New("invalid user loaded: ID is empty")
 		}
 
