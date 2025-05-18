@@ -83,7 +83,7 @@
 					>
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
 						<DropdownMenu.Item
-							class="text-red-500 focus:!text-red-700"
+							class="text-red-500 focus:text-red-700!"
 							on:click={() => deleteUserGroup(item)}
 							><LucideTrash class="mr-2 h-4 w-4" />{m.delete()}</DropdownMenu.Item
 						>

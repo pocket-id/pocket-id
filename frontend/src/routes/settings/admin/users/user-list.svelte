@@ -156,7 +156,7 @@
 					{/if}
 					{#if !item.ldapId || (item.ldapId && item.disabled)}
 						<DropdownMenu.Item
-							class="text-red-500 focus:!text-red-700"
+							class="text-red-500 focus:text-red-700!"
 							onclick={() => deleteUser(item)}
 							><LucideTrash class="mr-2 h-4 w-4" />{m.delete()}</DropdownMenu.Item
 						>
