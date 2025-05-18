@@ -27,7 +27,7 @@ func Bootstrap() error {
 	}
 
 	// Connect to the database
-	db := newDatabase()
+	db := NewDatabase()
 
 	// Create all services
 	svc, err := initServices(ctx, db, httpClient)
