@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Tooltip, TooltipContent, TooltipTrigger } from '$lib/components/ui/tooltip';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import { LucideCalendar, LucidePencil, LucideTrash, type Icon as IconType } from '@lucide/svelte';
 
@@ -41,35 +41,39 @@
 		</div>
 
 		<div class="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						onclick={onRename}
-						size="icon"
-						variant="ghost"
-						class="h-8 w-8"
-						aria-label={m.rename()}
-					>
-						<LucidePencil class="h-4 w-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>{m.rename()}</TooltipContent>
-			</Tooltip>
+			<Tooltip.Provider>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Button
+							onclick={onRename}
+							size="icon"
+							variant="ghost"
+							class="size-8"
+							aria-label={m.rename()}
+						>
+							<LucidePencil class="h-4 w-4" />
+						</Button>
+					</Tooltip.Trigger>
+					<Tooltip.Content>{m.rename()}</Tooltip.Content>
+				</Tooltip.Root></Tooltip.Provider
+			>
 
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						onclick={onDelete}
-						size="icon"
-						variant="ghost"
-						class="hover:bg-destructive/10 hover:text-destructive h-8 w-8"
-						aria-label={m.delete()}
-					>
-						<LucideTrash class="h-4 w-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>{m.delete()}</TooltipContent>
-			</Tooltip>
+			<Tooltip.Provider>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Button
+							onclick={onDelete}
+							size="icon"
+							variant="ghost"
+							class="hover:bg-destructive/10 hover:text-destructive size-8"
+							aria-label={m.delete()}
+						>
+							<LucideTrash class="size-4" />
+						</Button>
+					</Tooltip.Trigger>
+					<Tooltip.Content>{m.delete()}</Tooltip.Content>
+				</Tooltip.Root></Tooltip.Provider
+			>
 		</div>
 	</div>
 </div>
