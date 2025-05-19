@@ -17,7 +17,7 @@
 			<AlertDialog.Action asChild>
 				<Button
 					variant={$confirmDialogStore.confirm.destructive ? 'destructive' : 'default'}
-					on:click={() => {
+					onclick={() => {
 						$confirmDialogStore.confirm.action();
 						$confirmDialogStore.open = false;
 					}}

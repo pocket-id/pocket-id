@@ -32,7 +32,7 @@
 						<Button
 							variant="outline"
 							size="sm"
-							on:click={() => (callbackURLs = callbackURLs.filter((_, index) => index !== i))}
+							onclick={() => (callbackURLs = callbackURLs.filter((_, index) => index !== i))}
 						>
 							<LucideMinus class="h-4 w-4" />
 						</Button>
@@ -48,7 +48,7 @@
 		class="mt-2"
 		variant="secondary"
 		size="sm"
-		on:click={() => (callbackURLs = [...callbackURLs, ''])}
+		onclick={() => (callbackURLs = [...callbackURLs, ''])}
 	>
 		<LucidePlus class="mr-1 h-4 w-4" />
 		{callbackURLs.length === 0 ? m.add() : m.add_another()}

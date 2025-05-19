@@ -68,11 +68,8 @@
 		<Table.Cell>{formatDate(item.expiresAt)}</Table.Cell>
 		<Table.Cell>{formatDate(item.lastUsedAt)}</Table.Cell>
 		<Table.Cell class="flex justify-end">
-			<Button
-				on:click={() => revokeApiKey(item)}
-				size="sm"
-				variant="outline"
-				aria-label={m.revoke()}><LucideBan class="h-3 w-3 text-red-500" /></Button
+			<Button onclick={() => revokeApiKey(item)} size="sm" variant="outline" aria-label={m.revoke()}
+				><LucideBan class="h-3 w-3 text-red-500" /></Button
 			>
 		</Table.Cell>
 	{/snippet}

@@ -44,7 +44,7 @@
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button
-						on:click={onRename}
+						onclick={onRename}
 						size="icon"
 						variant="ghost"
 						class="h-8 w-8"
@@ -59,7 +59,7 @@
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Button
-						on:click={onDelete}
+						onclick={onDelete}
 						size="icon"
 						variant="ghost"
 						class="hover:bg-destructive/10 hover:text-destructive h-8 w-8"

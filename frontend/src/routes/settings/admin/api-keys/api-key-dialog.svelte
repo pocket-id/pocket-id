@@ -32,20 +32,20 @@
 				<p class="text-muted-foreground">{apiKeyResponse.apiKey.name}</p>
 
 				{#if apiKeyResponse.apiKey.description}
-					<div class="mt-4 mb-2 font-medium">{m.description()}</div>
+					<div class="mb-2 mt-4 font-medium">{m.description()}</div>
 					<p class="text-muted-foreground">{apiKeyResponse.apiKey.description}</p>
 				{/if}
 
-				<div class="mt-4 mb-2 font-medium">{m.api_key()}</div>
+				<div class="mb-2 mt-4 font-medium">{m.api_key()}</div>
 				<div class="bg-muted rounded-md p-2">
 					<CopyToClipboard value={apiKeyResponse.token}>
-						<span class="font-mono text-sm break-all">{apiKeyResponse.token}</span>
+						<span class="break-all font-mono text-sm">{apiKeyResponse.token}</span>
 					</CopyToClipboard>
 				</div>
 			</div>
 		{/if}
 		<Dialog.Footer class="mt-3">
-			<Button variant="default" on:click={() => onOpenChange(false)}>{m.close()}</Button>
+			<Button variant="default" onclick={() => onOpenChange(false)}>{m.close()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

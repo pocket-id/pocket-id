@@ -51,7 +51,7 @@
 						variant="outline"
 						size="sm"
 						aria-label={m.remove_custom_claim()}
-						on:click={() => (customClaims = customClaims.filter((_, index) => index !== i))}
+						onclick={() => (customClaims = customClaims.filter((_, index) => index !== i))}
 					>
 						<LucideMinus class="h-4 w-4" />
 					</Button>
@@ -67,7 +67,7 @@
 			class="mt-2"
 			variant="secondary"
 			size="sm"
-			on:click={() => (customClaims = [...customClaims, { key: '', value: '' }])}
+			onclick={() => (customClaims = [...customClaims, { key: '', value: '' }])}
 		>
 			<LucidePlus class="mr-1 h-4 w-4" />
 			{customClaims.length === 0 ? m.add_custom_claim() : m.add_another()}

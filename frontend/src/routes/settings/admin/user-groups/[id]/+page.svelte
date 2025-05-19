@@ -92,7 +92,7 @@
 		<div class="mt-5 flex justify-end">
 			<Button
 				disabled={!!userGroup.ldapId && $appConfigStore.ldapEnabled}
-				on:click={() => updateUserGroupUsers(userGroup.userIds)}>{m.save()}</Button
+				onclick={() => updateUserGroupUsers(userGroup.userIds)}>{m.save()}</Button
 			>
 		</div>
 	</Card.Content>

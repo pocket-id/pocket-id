@@ -119,7 +119,7 @@
 	/>
 	<div class="mt-5 flex justify-end">
 		<Button
-			on:click={() => updateUserGroups(user.userGroupIds)}
+			onclick={() => updateUserGroups(user.userGroupIds)}
 			disabled={!!user.ldapId && $appConfigStore.ldapEnabled}
 			type="submit">{m.save()}</Button
 		>
@@ -133,6 +133,6 @@
 >
 	<CustomClaimsInput bind:customClaims={user.customClaims} />
 	<div class="mt-5 flex justify-end">
-		<Button on:click={updateCustomClaims} type="submit">{m.save()}</Button>
+		<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
 	</div>
 </CollapsibleCard>

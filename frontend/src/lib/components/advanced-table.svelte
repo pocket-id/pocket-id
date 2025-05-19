@@ -124,7 +124,7 @@
 							<Button
 								variant="ghost"
 								class="flex items-center"
-								on:click={() =>
+								onclick={() =>
 									onSort(
 										column.sortColumn,
 										requestOptions.sort?.direction === 'desc' ? 'asc' : 'desc'

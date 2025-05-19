@@ -59,9 +59,9 @@
 					>
 				</div>
 				{#if !expandAddClient}
-					<Button on:click={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
+					<Button onclick={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
 				{:else}
-					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddClient = false)}>
+					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddClient = false)}>
 						<LucideMinus class="h-5 w-5" />
 					</Button>
 				{/if}

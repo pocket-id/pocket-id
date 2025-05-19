@@ -105,7 +105,7 @@
 				{m.click_profile_picture_to_upload_custom()}
 			</p>
 			<p class="text-muted-foreground mb-2 text-sm">{m.image_should_be_in_format()}</p>
-			<Button variant="outline" size="sm" on:click={onReset} disabled={isLoading || isLdapUser}>
+			<Button variant="outline" size="sm" onclick={onReset} disabled={isLoading || isLdapUser}>
 				<LucideRefreshCw class="mr-2 h-4 w-4" />
 				{m.reset_to_default()}
 			</Button>

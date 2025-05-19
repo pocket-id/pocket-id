@@ -146,9 +146,9 @@
 			<Button onclick={() => history.back()} class="w-full" variant="secondary">{m.cancel()}</Button
 			>
 			{#if !errorMessage}
-				<Button class="w-full" {isLoading} on:click={authorize}>{m.sign_in()}</Button>
+				<Button class="w-full" {isLoading} onclick={authorize}>{m.sign_in()}</Button>
 			{:else}
-				<Button class="w-full" on:click={() => (errorMessage = null)}>{m.try_again()}</Button>
+				<Button class="w-full" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
 			{/if}
 		</div>
 	</SignInWrapper>

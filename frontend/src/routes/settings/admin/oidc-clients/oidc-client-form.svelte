@@ -132,7 +132,7 @@
 					</Button>
 				</FileInput>
 				{#if logoDataURL}
-					<Button variant="outline" on:click={resetLogo}>{m.remove_logo()}</Button>
+					<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
 				{/if}
 			</div>
 		</div>

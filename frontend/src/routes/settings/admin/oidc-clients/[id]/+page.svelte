@@ -157,7 +157,7 @@
 
 			{#if !showAllDetails}
 				<div class="mt-4 flex justify-center">
-					<Button on:click={() => (showAllDetails = true)} size="sm" variant="ghost"
+					<Button onclick={() => (showAllDetails = true)} size="sm" variant="ghost"
 						>{m.show_more_details()}</Button
 					>
 				</div>
@@ -177,6 +177,6 @@
 >
 	<UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
 	<div class="mt-5 flex justify-end">
-		<Button on:click={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
+		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
 	</div>
 </CollapsibleCard>

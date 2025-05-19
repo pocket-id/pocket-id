@@ -51,9 +51,9 @@
 					<Card.Description>{m.add_a_new_api_key_for_programmatic_access()}</Card.Description>
 				</div>
 				{#if !expandAddApiKey}
-					<Button on:click={() => (expandAddApiKey = true)}>{m.add_api_key()}</Button>
+					<Button onclick={() => (expandAddApiKey = true)}>{m.add_api_key()}</Button>
 				{:else}
-					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddApiKey = false)}>
+					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddApiKey = false)}>
 						<LucideMinus class="h-5 w-5" />
 					</Button>
 				{/if}

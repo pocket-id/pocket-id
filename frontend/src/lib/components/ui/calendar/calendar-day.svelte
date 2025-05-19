@@ -20,7 +20,7 @@
 </script>
 
 <CalendarPrimitive.Day
-	on:click
+	onclick
 	{date}
 	{month}
 	class={cn(

@@ -36,7 +36,7 @@
 			<DropdownMenu.Item href="/settings/account"
 				><LucideUser class="mr-2 h-4 w-4" /> {m.my_account()}</DropdownMenu.Item
 			>
-			<DropdownMenu.Item on:click={logout}
+			<DropdownMenu.Item onclick={logout}
 				><LucideLogOut class="mr-2 h-4 w-4" /> {m.logout()}</DropdownMenu.Item
 			>
 		</DropdownMenu.Group>

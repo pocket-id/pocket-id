@@ -74,11 +74,8 @@
 				variant="outline"
 				aria-label={m.edit()}><LucidePencil class="h-3 w-3 " /></Button
 			>
-			<Button
-				on:click={() => deleteClient(item)}
-				size="sm"
-				variant="outline"
-				aria-label={m.delete()}><LucideTrash class="h-3 w-3 text-red-500" /></Button
+			<Button onclick={() => deleteClient(item)} size="sm" variant="outline" aria-label={m.delete()}
+				><LucideTrash class="h-3 w-3 text-red-500" /></Button
 			>
 		</Table.Cell>
 	{/snippet}

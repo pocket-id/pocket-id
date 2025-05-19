@@ -75,7 +75,7 @@
 				</Alert.Description>
 			</div>
 			<div>
-				<Button class="mt-2 md:mt-0" on:click={createPasskey}>
+				<Button class="mt-2 md:mt-0" onclick={createPasskey}>
 					{m.add_passkey()}
 				</Button>
 			</div>
@@ -108,7 +108,7 @@
 					</Card.Description>
 				</div>
 
-				<Button variant="outline" class="w-full" on:click={() => (showLoginCodeModal = true)}>
+				<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
 					{m.create()}
 				</Button>
 			</div>
@@ -153,7 +153,7 @@
 						{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
 					</Card.Description>
 				</div>
-				<Button variant="outline" class="ml-3" on:click={createPasskey}>
+				<Button variant="outline" class="ml-3" onclick={createPasskey}>
 					{m.add_passkey()}
 				</Button>
 			</div>
@@ -180,7 +180,7 @@
 						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 					</Card.Description>
 				</div>
-				<Button variant="outline" on:click={() => (showLoginCodeModal = true)}>
+				<Button variant="outline" onclick={() => (showLoginCodeModal = true)}>
 					{m.create()}
 				</Button>
 			</div>

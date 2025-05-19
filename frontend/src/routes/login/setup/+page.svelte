@@ -44,6 +44,6 @@
 		<p class="text-muted-foreground mt-2">
 			{m.you_are_about_to_sign_in_to_the_initial_admin_account()}
 		</p>
-		<Button class="mt-5" {isLoading} on:click={authenticate}>{m.continue()}</Button>
+		<Button class="mt-5" {isLoading} onclick={authenticate}>{m.continue()}</Button>
 	{/if}
 </SignInWrapper>

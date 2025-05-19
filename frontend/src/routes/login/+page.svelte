@@ -20,7 +20,7 @@
 		isLoading = true;
 		try {
 			const loginOptions = await webauthnService.getLoginOptions();
-			const authResponse = await startAuthentication({optionsJSON: loginOptions});
+			const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 			const user = await webauthnService.finishLogin(authResponse);
 
 			userStore.setUser(user);
@@ -52,7 +52,7 @@
 			{m.authenticate_yourself_with_your_passkey_to_access_the_admin_panel()}
 		</p>
 	{/if}
-	<Button class="mt-10" {isLoading} on:click={authenticate}
+	<Button class="mt-10" {isLoading} onclick={authenticate}
 		>{error ? m.try_again() : m.authenticate()}</Button
 	>
 </SignInWrapper>
