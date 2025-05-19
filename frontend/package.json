@@ -13,6 +13,7 @@
 		"format": "prettier --write ."
 	},
 	"dependencies": {
+		"@lucide/svelte": "^0.482.0",
 		"@simplewebauthn/browser": "^13.1.0",
 		"@tailwindcss/vite": "^4.0.0",
 		"axios": "^1.8.2",
@@ -20,13 +21,11 @@
 		"crypto": "^1.0.1",
 		"formsnap": "^1.0.1",
 		"jose": "^5.9.6",
-		"@lucide/svelte": "^0.482.0",
 		"mode-watcher": "^0.5.1",
 		"qrcode": "^1.5.4",
 		"svelte-sonner": "^1.0.0",
 		"sveltekit-superforms": "^2.23.1",
 		"tailwind-merge": "^2.6.0",
-		"tailwind-variants": "^0.3.1",
 		"tailwindcss-animate": "^1.0.7",
 		"zod": "^3.24.1"
 	},
@@ -54,6 +53,7 @@
 		"prettier-plugin-tailwindcss": "^0.6.11",
 		"svelte": "^5.19.3",
 		"svelte-check": "^4.1.4",
+		"tailwind-variants": "^0.2.1",
 		"tailwindcss": "^4.0.0",
 		"tslib": "^2.8.1",
 		"typescript": "^5.7.3",
