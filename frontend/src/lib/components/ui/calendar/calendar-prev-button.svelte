@@ -1,35 +1,28 @@
 <script lang="ts">
-	import { Calendar as CalendarPrimitive } from 'bits-ui-old';
-	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
-	import { cn } from '$lib/utils/style.js';
+	import { Calendar as CalendarPrimitive } from "bits-ui";
+	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
+	import { buttonVariants } from "$lib/components/ui/button/index.js";
+	import { cn } from "$lib/utils/style.js";
 
-	type $$Props = CalendarPrimitive.PrevButtonProps;
-	type $$Events = CalendarPrimitive.PrevButtonEvents;
-
-	interface Props {
-		class?: $$Props['class'];
-		children?: import('svelte').Snippet<[any]>;
-		[key: string]: any;
-	}
-
-	let { class: className = undefined, children, ...rest }: Props = $props();
-
-	const children_render = $derived(children);
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: CalendarPrimitive.PrevButtonProps = $props();
 </script>
 
+{#snippet Fallback()}
+	<ChevronLeftIcon class="size-4" />
+{/snippet}
+
 <CalendarPrimitive.PrevButton
-	on:click
+	bind:ref
 	class={cn(
-		buttonVariants({ variant: 'outline' }),
-		'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100',
+		buttonVariants({ variant: "outline" }),
+		"size-7 bg-transparent p-0 opacity-50 hover:opacity-100",
 		className
 	)}
-	{...rest}
->
-	{#snippet children({ builder })}
-		{#if children_render}{@render children_render({ builder })}{:else}
-			<ChevronLeft class="h-4 w-4" />
-		{/if}
-	{/snippet}
-</CalendarPrimitive.PrevButton>
+	children={children || Fallback}
+	{...restProps}
+/>

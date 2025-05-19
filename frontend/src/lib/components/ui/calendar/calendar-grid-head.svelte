@@ -1,18 +1,12 @@
 <script lang="ts">
-	import { Calendar as CalendarPrimitive } from 'bits-ui-old';
-	import { cn } from '$lib/utils/style.js';
+	import { Calendar as CalendarPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils/style.js";
 
-	type $$Props = CalendarPrimitive.GridHeadProps;
-
-	interface Props {
-		class?: $$Props['class'];
-		children?: import('svelte').Snippet;
-		[key: string]: any;
-	}
-
-	let { class: className = undefined, children, ...rest }: Props = $props();
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: CalendarPrimitive.GridHeadProps = $props();
 </script>
 
-<CalendarPrimitive.GridHead class={cn(className)} {...rest}>
-	{@render children?.()}
-</CalendarPrimitive.GridHead>
+<CalendarPrimitive.GridHead bind:ref class={cn(className)} {...restProps} />
