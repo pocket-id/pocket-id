@@ -3,11 +3,17 @@
 	import { cn } from '$lib/utils/style.js';
 
 	type $$Props = HTMLAttributes<HTMLLIElement>;
-	let className: $$Props['class'] = undefined;
+	interface Props {
+		class?: $$Props['class'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
 
-	export { className as class };
+	let { class: className = undefined, children, ...rest }: Props = $props();
+
+	
 </script>
 
-<li class={cn('', className)} {...$$restProps}>
-	<slot />
+<li class={cn('', className)} {...rest}>
+	{@render children?.()}
 </li>

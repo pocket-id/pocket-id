@@ -191,25 +191,27 @@
 			perPage={items.pagination.itemsPerPage}
 			{onPageChange}
 			page={items.pagination.currentPage}
-			let:pages
+			
 		>
-			<Pagination.Content class="flex justify-end">
-				<Pagination.Item>
-					<Pagination.PrevButton />
-				</Pagination.Item>
-				{#each pages as page (page.key)}
-					{#if page.type !== 'ellipsis' && page.value != 0}
-						<Pagination.Item>
-							<Pagination.Link {page} isActive={items.pagination.currentPage === page.value}>
-								{page.value}
-							</Pagination.Link>
-						</Pagination.Item>
-					{/if}
-				{/each}
-				<Pagination.Item>
-					<Pagination.NextButton />
-				</Pagination.Item>
-			</Pagination.Content>
-		</Pagination.Root>
+			{#snippet children({ pages })}
+						<Pagination.Content class="flex justify-end">
+					<Pagination.Item>
+						<Pagination.PrevButton />
+					</Pagination.Item>
+					{#each pages as page (page.key)}
+						{#if page.type !== 'ellipsis' && page.value != 0}
+							<Pagination.Item>
+								<Pagination.Link {page} isActive={items.pagination.currentPage === page.value}>
+									{page.value}
+								</Pagination.Link>
+							</Pagination.Item>
+						{/if}
+					{/each}
+					<Pagination.Item>
+						<Pagination.NextButton />
+					</Pagination.Item>
+				</Pagination.Content>
+								{/snippet}
+				</Pagination.Root>
 	</div>
 {/if}

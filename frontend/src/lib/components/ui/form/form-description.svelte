@@ -4,14 +4,24 @@
 	import { cn } from '$lib/utils/style.js';
 
 	type $$Props = HTMLAttributes<HTMLSpanElement> & { class?: string | null | undefined };
-	let className: string | undefined | null = undefined;
-	export { className as class };
+	interface Props {
+		class?: string | undefined | null;
+		children?: import('svelte').Snippet<[any]>;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, children, ...rest }: Props = $props();
+	
+
+	const children_render = $derived(children);
 </script>
 
 <FormPrimitive.Description
 	class={cn('text-muted-foreground text-sm', className)}
-	{...$$restProps}
-	let:descriptionAttrs
+	{...rest}
+	
 >
-	<slot {descriptionAttrs} />
+	{#snippet children({ descriptionAttrs })}
+		{@render children_render?.({ descriptionAttrs, })}
+	{/snippet}
 </FormPrimitive.Description>

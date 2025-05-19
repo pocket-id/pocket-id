@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { createBubbler } from 'svelte/legacy';
+
+	const bubble = createBubbler();
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn } from '$lib/utils/style.js';
 
@@ -6,15 +9,21 @@
 		'data-state'?: unknown;
 	};
 
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	interface Props {
+		class?: $$Props['class'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, children, ...rest }: Props = $props();
+	
 </script>
 
 <tr
 	class={cn('data-[state=selected]:bg-muted border-b transition-colors', className)}
-	{...$$restProps}
-	on:click
-	on:keydown
+	{...rest}
+	onclick={bubble('click')}
+	onkeydown={bubble('keydown')}
 >
-	<slot />
+	{@render children?.()}
 </tr>

@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { Toaster as Sonner, type ToasterProps as SonnerProps } from 'svelte-sonner';
 	import { mode } from 'mode-watcher';
+	interface Props {
+		[key: string]: any
+	}
+
+	let { ...rest }: Props = $props();
 
 	type $$Props = SonnerProps;
 </script>
@@ -17,5 +22,5 @@
 			cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground'
 		}
 	}}
-	{...$$restProps}
+	{...rest}
 />

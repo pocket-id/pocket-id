@@ -8,13 +8,28 @@
 	type $$Props = Props;
 	type $$Events = Events;
 
-	let className: $$Props['class'] = undefined;
-	export let variant: $$Props['variant'] = 'default';
-	export let size: $$Props['size'] = 'default';
-	export let disabled: boolean | undefined | null = false;
-	export let isLoading: $$Props['isLoading'] = false;
-	export let builders: $$Props['builders'] = [];
-	export { className as class };
+	interface Props_1 {
+		class?: $$Props['class'];
+		variant?: $$Props['variant'];
+		size?: $$Props['size'];
+		disabled?: boolean | undefined | null;
+		isLoading?: $$Props['isLoading'];
+		builders?: $$Props['builders'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let {
+		class: className = undefined,
+		variant = 'default',
+		size = 'default',
+		disabled = false,
+		isLoading = false,
+		builders = [],
+		children,
+		...rest
+	}: Props_1 = $props();
+	
 </script>
 
 <ButtonPrimitive.Root
@@ -22,12 +37,12 @@
 	disabled={isLoading || disabled}
 	class={cn(buttonVariants({ variant, size, className: className as ClassNameValue }))}
 	type="button"
-	{...$$restProps}
+	{...rest}
 	on:click
 	on:keydown
 >
 	{#if isLoading}
 		<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 	{/if}
-	<slot />
+	{@render children?.()}
 </ButtonPrimitive.Root>

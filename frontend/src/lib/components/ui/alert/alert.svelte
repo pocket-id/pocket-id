@@ -10,12 +10,24 @@
 		dismissibleId?: string;
 	};
 
-	let className: $$Props['class'] = undefined;
-	export let variant: $$Props['variant'] = 'default';
-	export let dismissibleId: $$Props['dismissibleId'] = undefined;
-	export { className as class };
+	interface Props {
+		class?: $$Props['class'];
+		variant?: $$Props['variant'];
+		dismissibleId?: $$Props['dismissibleId'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
 
-	let isVisible = !dismissibleId;
+	let {
+		class: className = undefined,
+		variant = 'default',
+		dismissibleId = undefined,
+		children,
+		...rest
+	}: Props = $props();
+	
+
+	let isVisible = $state(!dismissibleId);
 
 	onMount(() => {
 		if (dismissibleId) {
@@ -34,10 +46,10 @@
 </script>
 
 {#if isVisible}
-	<div class={cn(alertVariants({ variant }), className)} {...$$restProps} role="alert">
-		<slot />
+	<div class={cn(alertVariants({ variant }), className)} {...rest} role="alert">
+		{@render children?.()}
 		{#if dismissibleId}
-			<button on:click={dismiss} class="absolute top-0 right-0 m-3 text-black dark:text-white"
+			<button onclick={dismiss} class="absolute top-0 right-0 m-3 text-black dark:text-white"
 				><LucideX class="w-4" /></button
 			>
 		{/if}

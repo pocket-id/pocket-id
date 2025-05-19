@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
@@ -28,12 +28,12 @@
 	const oidcService = new OidcService();
 
 	const setupDetails = $state({
-		[m.authorization_url()]: `https://${$page.url.hostname}/authorize`,
-		[m.oidc_discovery_url()]: `https://${$page.url.hostname}/.well-known/openid-configuration`,
-		[m.token_url()]: `https://${$page.url.hostname}/api/oidc/token`,
-		[m.userinfo_url()]: `https://${$page.url.hostname}/api/oidc/userinfo`,
-		[m.logout_url()]: `https://${$page.url.hostname}/api/oidc/end-session`,
-		[m.certificate_url()]: `https://${$page.url.hostname}/.well-known/jwks.json`,
+		[m.authorization_url()]: `https://${page.url.hostname}/authorize`,
+		[m.oidc_discovery_url()]: `https://${page.url.hostname}/.well-known/openid-configuration`,
+		[m.token_url()]: `https://${page.url.hostname}/api/oidc/token`,
+		[m.userinfo_url()]: `https://${page.url.hostname}/api/oidc/userinfo`,
+		[m.logout_url()]: `https://${page.url.hostname}/api/oidc/end-session`,
+		[m.certificate_url()]: `https://${page.url.hostname}/.well-known/jwks.json`,
 		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled()
 	});
 

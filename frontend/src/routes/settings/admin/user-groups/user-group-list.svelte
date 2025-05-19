@@ -71,12 +71,14 @@
 		{/if}
 		<Table.Cell class="flex justify-end">
 			<DropdownMenu.Root>
-				<DropdownMenu.Trigger asChild let:builder>
-					<Button aria-haspopup="true" size="icon" variant="ghost" builders={[builder]}>
-						<Ellipsis class="h-4 w-4" />
-						<span class="sr-only">{m.toggle_menu()}</span>
-					</Button>
-				</DropdownMenu.Trigger>
+				<DropdownMenu.Trigger asChild >
+					{#snippet children({ builder })}
+										<Button aria-haspopup="true" size="icon" variant="ghost" builders={[builder]}>
+							<Ellipsis class="h-4 w-4" />
+							<span class="sr-only">{m.toggle_menu()}</span>
+						</Button>
+														{/snippet}
+								</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item href="/settings/admin/user-groups/{item.id}"
 						><LucidePencil class="mr-2 h-4 w-4" /> {m.edit()}</DropdownMenu.Item

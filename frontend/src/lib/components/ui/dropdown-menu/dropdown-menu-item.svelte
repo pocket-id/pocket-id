@@ -7,9 +7,15 @@
 	};
 	type $$Events = DropdownMenuPrimitive.ItemEvents;
 
-	let className: $$Props['class'] = undefined;
-	export let inset: $$Props['inset'] = undefined;
-	export { className as class };
+	interface Props {
+		class?: $$Props['class'];
+		inset?: $$Props['inset'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, inset = undefined, children, ...rest }: Props = $props();
+	
 </script>
 
 <DropdownMenuPrimitive.Item
@@ -18,7 +24,7 @@
 		inset && 'pl-8',
 		className
 	)}
-	{...$$restProps}
+	{...rest}
 	on:click
 	on:keydown
 	on:focusin
@@ -27,5 +33,5 @@
 	on:pointerleave
 	on:pointermove
 >
-	<slot />
+	{@render children?.()}
 </DropdownMenuPrimitive.Item>

@@ -5,11 +5,23 @@
 
 	type $$Props = AlertDialogPrimitive.ContentProps;
 
-	export let transition: $$Props['transition'] = flyAndScale;
-	export let transitionConfig: $$Props['transitionConfig'] = undefined;
 
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	interface Props {
+		transition?: $$Props['transition'];
+		transitionConfig?: $$Props['transitionConfig'];
+		class?: $$Props['class'];
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let {
+		transition = flyAndScale,
+		transitionConfig = undefined,
+		class: className = undefined,
+		children,
+		...rest
+	}: Props = $props();
+	
 </script>
 
 <AlertDialog.Portal>
@@ -21,8 +33,8 @@
 			'bg-background fixed top-[50%] left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg sm:rounded-lg md:w-full',
 			className
 		)}
-		{...$$restProps}
+		{...rest}
 	>
-		<slot />
+		{@render children?.()}
 	</AlertDialogPrimitive.Content>
 </AlertDialog.Portal>

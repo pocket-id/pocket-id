@@ -4,10 +4,16 @@
 	import type { ClassValue } from 'svelte/elements';
 
 	type $$Props = CommandPrimitive.EmptyProps;
-	let className: ClassValue | undefined | null = undefined;
-	export { className as class };
+	interface Props {
+		class?: ClassValue | undefined | null;
+		children?: import('svelte').Snippet;
+		[key: string]: any
+	}
+
+	let { class: className = undefined, children, ...rest }: Props = $props();
+	
 </script>
 
-<CommandPrimitive.Empty class={cn('py-6 text-center text-sm', className)} {...$$restProps}>
-	<slot />
+<CommandPrimitive.Empty class={cn('py-6 text-center text-sm', className)} {...rest}>
+	{@render children?.()}
 </CommandPrimitive.Empty>
