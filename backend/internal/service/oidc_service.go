@@ -183,23 +183,23 @@ type CreatedTokens struct {
 func (s *OidcService) CreateTokens(ctx context.Context, input dto.OidcCreateTokensDto) (CreatedTokens, error) {
 	switch input.GrantType {
 	case GrantTypeAuthorizationCode:
-		return s.createTokenFromAuthorizationCode(ctx, input.Code, input.ClientID, input.ClientSecret, input.CodeVerifier)
+		return s.createTokenFromAuthorizationCode(ctx, input)
 	case GrantTypeRefreshToken:
-		return s.createTokenFromRefreshToken(ctx, input.RefreshToken, input.ClientID, input.ClientSecret)
+		return s.createTokenFromRefreshToken(ctx, input)
 	case GrantTypeDeviceCode:
-		return s.createTokenFromDeviceCode(ctx, input.DeviceCode, input.ClientID, input.ClientSecret)
+		return s.createTokenFromDeviceCode(ctx, input)
 	default:
 		return CreatedTokens{}, &common.OidcGrantTypeNotSupportedError{}
 	}
 }
 
-func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, deviceCode, clientID string, clientSecret string) (CreatedTokens, error) {
+func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.OidcCreateTokensDto) (CreatedTokens, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	_, err := s.verifyClientCredentialsInternal(ctx, clientID, clientSecret, tx)
+	_, err := s.verifyClientCredentialsInternal(ctx, input.ClientID, input.ClientSecret, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -209,7 +209,7 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, deviceCode,
 	err = tx.
 		WithContext(ctx).
 		Preload("User").
-		Where("device_code = ? AND client_id = ?", deviceCode, clientID).
+		Where("device_code = ? AND client_id = ?", input.DeviceCode, input.ClientID).
 		First(&deviceAuth).
 		Error
 	if err != nil {
@@ -234,23 +234,23 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, deviceCode,
 		return CreatedTokens{}, &common.OidcAuthorizationPendingError{}
 	}
 
-	userClaims, err := s.getUserClaimsForClientInternal(ctx, *deviceAuth.UserID, clientID, tx)
+	userClaims, err := s.getUserClaimsForClientInternal(ctx, *deviceAuth.UserID, input.ClientID, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
 	// Explicitly use the input clientID for the audience claim to ensure consistency
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, clientID, "")
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, "")
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	refreshToken, err := s.createRefreshToken(ctx, clientID, *deviceAuth.UserID, deviceAuth.Scope, tx)
+	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, *deviceAuth.UserID, deviceAuth.Scope, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(deviceAuth.User, clientID)
+	accessToken, err := s.jwtService.GenerateOauthAccessToken(deviceAuth.User, input.ClientID)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -274,13 +274,13 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, deviceCode,
 	}, nil
 }
 
-func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, code, clientID, clientSecret, codeVerifier string) (CreatedTokens, error) {
+func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, input dto.OidcCreateTokensDto) (CreatedTokens, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	client, err := s.verifyClientCredentialsInternal(ctx, clientID, clientSecret, tx)
+	client, err := s.verifyClientCredentialsInternal(ctx, input.ClientID, input.ClientSecret, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -289,7 +289,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, code
 	err = tx.
 		WithContext(ctx).
 		Preload("User").
-		First(&authorizationCodeMetaData, "code = ?", code).
+		First(&authorizationCodeMetaData, "code = ?", input.Code).
 		Error
 	if err != nil {
 		return CreatedTokens{}, &common.OidcInvalidAuthorizationCodeError{}
@@ -297,32 +297,32 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, code
 
 	// If the client is public or PKCE is enabled, the code verifier must match the code challenge
 	if client.IsPublic || client.PkceEnabled {
-		if !s.validateCodeVerifier(codeVerifier, *authorizationCodeMetaData.CodeChallenge, *authorizationCodeMetaData.CodeChallengeMethodSha256) {
+		if !s.validateCodeVerifier(input.CodeVerifier, *authorizationCodeMetaData.CodeChallenge, *authorizationCodeMetaData.CodeChallengeMethodSha256) {
 			return CreatedTokens{}, &common.OidcInvalidCodeVerifierError{}
 		}
 	}
 
-	if authorizationCodeMetaData.ClientID != clientID && authorizationCodeMetaData.ExpiresAt.ToTime().Before(time.Now()) {
+	if authorizationCodeMetaData.ClientID != input.ClientID && authorizationCodeMetaData.ExpiresAt.ToTime().Before(time.Now()) {
 		return CreatedTokens{}, &common.OidcInvalidAuthorizationCodeError{}
 	}
 
-	userClaims, err := s.getUserClaimsForClientInternal(ctx, authorizationCodeMetaData.UserID, clientID, tx)
+	userClaims, err := s.getUserClaimsForClientInternal(ctx, authorizationCodeMetaData.UserID, input.ClientID, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, clientID, authorizationCodeMetaData.Nonce)
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, authorizationCodeMetaData.Nonce)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
 	// Generate a refresh token
-	refreshToken, err := s.createRefreshToken(ctx, clientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope, tx)
+	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, clientID)
+	accessToken, err := s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, input.ClientID)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -348,8 +348,8 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, code
 	}, nil
 }
 
-func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, refreshToken, clientID, clientSecret string) (CreatedTokens, error) {
-	if refreshToken == "" {
+func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto.OidcCreateTokensDto) (CreatedTokens, error) {
+	if input.RefreshToken == "" {
 		return CreatedTokens{}, &common.OidcMissingRefreshTokenError{}
 	}
 
@@ -358,7 +358,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, refreshTo
 		tx.Rollback()
 	}()
 
-	_, err := s.verifyClientCredentialsInternal(ctx, clientID, clientSecret, tx)
+	_, err := s.verifyClientCredentialsInternal(ctx, input.ClientID, input.ClientSecret, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -368,7 +368,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, refreshTo
 	err = tx.
 		WithContext(ctx).
 		Preload("User").
-		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
+		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(input.RefreshToken), datatype.DateTime(time.Now())).
 		First(&storedRefreshToken).
 		Error
 	if err != nil {
@@ -379,18 +379,18 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, refreshTo
 	}
 
 	// Verify that the refresh token belongs to the provided client
-	if storedRefreshToken.ClientID != clientID {
+	if storedRefreshToken.ClientID != input.ClientID {
 		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
 	}
 
 	// Generate a new access token
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(storedRefreshToken.User, clientID)
+	accessToken, err := s.jwtService.GenerateOauthAccessToken(storedRefreshToken.User, input.ClientID)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
 	// Generate a new refresh token and invalidate the old one
-	newRefreshToken, err := s.createRefreshToken(ctx, clientID, storedRefreshToken.UserID, storedRefreshToken.Scope, tx)
+	newRefreshToken, err := s.createRefreshToken(ctx, input.ClientID, storedRefreshToken.UserID, storedRefreshToken.Scope, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
