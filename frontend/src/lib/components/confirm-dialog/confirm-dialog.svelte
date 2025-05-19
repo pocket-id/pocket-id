@@ -14,7 +14,7 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<AlertDialog.Action asChild>
+			<AlertDialog.Action>
 				<Button
 					variant={$confirmDialogStore.confirm.destructive ? 'destructive' : 'default'}
 					onclick={() => {
