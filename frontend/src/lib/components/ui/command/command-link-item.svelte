@@ -6,10 +6,10 @@
 		ref = $bindable(null),
 		class: className,
 		...restProps
-	}: CommandPrimitive.ItemProps = $props();
+	}: CommandPrimitive.LinkItemProps = $props();
 </script>
 
-<CommandPrimitive.Item
+<CommandPrimitive.LinkItem
 	bind:ref
 	data-slot="command-item"
 	class={cn(

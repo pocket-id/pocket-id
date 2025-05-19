@@ -1,22 +1,17 @@
 <script lang="ts">
-	import { Command as CommandPrimitive } from 'cmdk-sv';
-	import { cn } from '$lib/utils/style.js';
-	import type { ClassValue } from 'svelte/elements';
+	import { Command as CommandPrimitive } from "bits-ui";
+	import { cn } from "$lib/utils/style.js";
 
-	type $$Props = CommandPrimitive.ListProps;
-	interface Props {
-		class?: ClassValue | undefined | null;
-		children?: import('svelte').Snippet;
-		[key: string]: any
-	}
-
-	let { class: className = undefined, children, ...rest }: Props = $props();
-	
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: CommandPrimitive.ListProps = $props();
 </script>
 
 <CommandPrimitive.List
-	class={cn('max-h-[300px] overflow-x-hidden overflow-y-auto', className)}
-	{...rest}
->
-	{@render children?.()}
-</CommandPrimitive.List>
+	bind:ref
+	data-slot="command-list"
+	class={cn("max-h-[300px] scroll-py-1 overflow-y-auto overflow-x-hidden", className)}
+	{...restProps}
+/>

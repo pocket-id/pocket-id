@@ -1,28 +1,26 @@
 <script lang="ts">
-	import { cn } from '$lib/utils/style.js';
-	import { Command as CommandPrimitive } from 'cmdk-sv';
-	import Search from '@lucide/svelte/icons/search';
-	import type { ClassValue } from 'svelte/elements';
+	import { Command as CommandPrimitive } from "bits-ui";
+	import SearchIcon from "@lucide/svelte/icons/search";
+	import { cn } from "$lib/utils/style.js";
 
-	type $$Props = CommandPrimitive.InputProps;
-
-	interface Props {
-		class?: ClassValue | undefined | null;
-		value?: string;
-		[key: string]: any;
-	}
-
-	let { class: className = undefined, value = $bindable(''), ...rest }: Props = $props();
+	let {
+		ref = $bindable(null),
+		class: className,
+		value = $bindable(""),
+		...restProps
+	}: CommandPrimitive.InputProps = $props();
 </script>
 
-<div class="flex items-center border-b px-2" data-cmdk-input-wrapper="">
-	<Search class="mr-2 h-4 w-4 shrink-0 opacity-50" />
+<div class="flex h-9 items-center gap-2 border-b px-3" data-slot="command-input-wrapper">
+	<SearchIcon class="size-4 shrink-0 opacity-50" />
 	<CommandPrimitive.Input
+		data-slot="command-input"
 		class={cn(
-			'placeholder:text-muted-foreground flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50',
+			"placeholder:text-muted-foreground outline-hidden flex h-10 w-full rounded-md bg-transparent py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50",
 			className
 		)}
-		{...rest}
+		bind:ref
+		{...restProps}
 		bind:value
 	/>
 </div>

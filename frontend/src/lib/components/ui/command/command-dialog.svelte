@@ -1,34 +1,40 @@
 <script lang="ts">
-	import type { Dialog as DialogPrimitive } from 'bits-ui-old';
-	import type { Command as CommandPrimitive } from 'cmdk-sv';
-	import Command from './command.svelte';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
-
-	type $$Props = DialogPrimitive.Props & CommandPrimitive.CommandProps;
-
-	interface Props {
-		open?: $$Props['open'];
-		value?: $$Props['value'];
-		children?: import('svelte').Snippet;
-		[key: string]: any;
-	}
+	import type { Command as CommandPrimitive, Dialog as DialogPrimitive } from "bits-ui";
+	import type { Snippet } from "svelte";
+	import Command from "./command.svelte";
+	import * as Dialog from "$lib/components/ui/dialog/index.js";
+	import type { WithoutChildrenOrChild } from "$lib/utils/style.js";
 
 	let {
 		open = $bindable(false),
-		value = $bindable(undefined),
+		ref = $bindable(null),
+		value = $bindable(""),
+		title = "Command Palette",
+		description = "Search for a command to run",
+		portalProps,
 		children,
-		...rest
-	}: Props = $props();
+		...restProps
+	}: WithoutChildrenOrChild<DialogPrimitive.RootProps> &
+		WithoutChildrenOrChild<CommandPrimitive.RootProps> & {
+			portalProps?: DialogPrimitive.PortalProps;
+			children: Snippet;
+			title?: string;
+			description?: string;
+		} = $props();
 </script>
 
-<Dialog.Root bind:open {...rest}>
-	<Dialog.Content class="overflow-hidden p-0 shadow-lg">
+<Dialog.Root bind:open {...restProps}>
+	<Dialog.Header class="sr-only">
+		<Dialog.Title>{title}</Dialog.Title>
+		<Dialog.Description>{description}</Dialog.Description>
+	</Dialog.Header>
+	<Dialog.Content class="overflow-hidden p-0" {portalProps}>
 		<Command
-			class="[&_[data-cmdk-group-heading]]:text-muted-foreground [&_[data-cmdk-group-heading]]:px-2 [&_[data-cmdk-group-heading]]:font-medium [&_[data-cmdk-group]:not([hidden])_~[data-cmdk-group]]:pt-0 [&_[data-cmdk-group]]:px-2 [&_[data-cmdk-input-wrapper]_svg]:h-5 [&_[data-cmdk-input-wrapper]_svg]:w-5 [&_[data-cmdk-input]]:h-12 [&_[data-cmdk-item]]:px-2 [&_[data-cmdk-item]]:py-3 [&_[data-cmdk-item]_svg]:h-5 [&_[data-cmdk-item]_svg]:w-5"
-			{...rest}
+			class="**:data-[slot=command-input-wrapper]:h-12 [&_[data-command-group]:not([hidden])_~[data-command-group]]:pt-0 [&_[data-command-group]]:px-2 [&_[data-command-input-wrapper]_svg]:h-5 [&_[data-command-input-wrapper]_svg]:w-5 [&_[data-command-input]]:h-12 [&_[data-command-item]]:px-2 [&_[data-command-item]]:py-3 [&_[data-command-item]_svg]:h-5 [&_[data-command-item]_svg]:w-5"
+			{...restProps}
 			bind:value
-		>
-			{@render children?.()}
-		</Command>
+			bind:ref
+			{children}
+		/>
 	</Dialog.Content>
 </Dialog.Root>
