@@ -28,6 +28,12 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	GrantTypeAuthorizationCode = "authorization_code"
+	GrantTypeRefreshToken      = "refresh_token"
+	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
+)
+
 type OidcService struct {
 	db                 *gorm.DB
 	jwtService         *JwtService
@@ -176,11 +182,11 @@ type CreatedTokens struct {
 
 func (s *OidcService) CreateTokens(ctx context.Context, input dto.OidcCreateTokensDto) (CreatedTokens, error) {
 	switch input.GrantType {
-	case "authorization_code":
+	case GrantTypeAuthorizationCode:
 		return s.createTokenFromAuthorizationCode(ctx, input.Code, input.ClientID, input.ClientSecret, input.CodeVerifier)
-	case "refresh_token":
+	case GrantTypeRefreshToken:
 		return s.createTokenFromRefreshToken(ctx, input.RefreshToken, input.ClientID, input.ClientSecret)
-	case "urn:ietf:params:oauth:grant-type:device_code":
+	case GrantTypeDeviceCode:
 		return s.createTokenFromDeviceCode(ctx, input.DeviceCode, input.ClientID, input.ClientSecret)
 	default:
 		return CreatedTokens{}, &common.OidcGrantTypeNotSupportedError{}

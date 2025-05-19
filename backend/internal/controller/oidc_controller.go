@@ -136,13 +136,13 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	}
 
 	// Validate that code is provided for authorization_code grant type
-	if input.GrantType == "authorization_code" && input.Code == "" {
+	if input.GrantType == service.GrantTypeAuthorizationCode && input.Code == "" {
 		_ = c.Error(&common.OidcMissingAuthorizationCodeError{})
 		return
 	}
 
 	// Validate that refresh_token is provided for refresh_token grant type
-	if input.GrantType == "refresh_token" && input.RefreshToken == "" {
+	if input.GrantType == service.GrantTypeRefreshToken && input.RefreshToken == "" {
 		_ = c.Error(&common.OidcMissingRefreshTokenError{})
 		return
 	}
