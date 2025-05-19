@@ -12,7 +12,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft } from 'lucide-svelte';
+	import { LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import UserForm from '../user-form.svelte';
 

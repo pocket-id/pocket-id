@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Ellipsis from 'lucide-svelte/icons/ellipsis';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn } from '$lib/utils/style.js';
 
@@ -7,11 +7,10 @@
 
 	interface Props {
 		class?: $$Props['class'];
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let { class: className = undefined, ...rest }: Props = $props();
-	
 </script>
 
 <span

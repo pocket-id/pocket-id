@@ -1,4 +1,4 @@
-import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+import { AlertDialog as AlertDialogPrimitive } from 'bits-ui-old';
 
 import Title from './alert-dialog-title.svelte';
 import Action from './alert-dialog-action.svelte';

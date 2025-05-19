@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Tabs as TabsPrimitive } from 'bits-ui';
+	import { Tabs as TabsPrimitive } from 'bits-ui-old';
 	import { cn } from '$lib/utils/style.js';
 
 	type $$Props = TabsPrimitive.ListProps;
@@ -7,11 +7,10 @@
 	interface Props {
 		class?: $$Props['class'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let { class: className = undefined, children, ...rest }: Props = $props();
-	
 </script>
 
 <TabsPrimitive.List

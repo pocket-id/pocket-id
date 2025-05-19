@@ -8,7 +8,7 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { debounced } from '$lib/utils/debounce-util';
 	import { cn } from '$lib/utils/style';
-	import { ChevronDown } from 'lucide-svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import Button from './ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -191,10 +191,9 @@
 			perPage={items.pagination.itemsPerPage}
 			{onPageChange}
 			page={items.pagination.currentPage}
-			
 		>
 			{#snippet children({ pages })}
-						<Pagination.Content class="flex justify-end">
+				<Pagination.Content class="flex justify-end">
 					<Pagination.Item>
 						<Pagination.PrevButton />
 					</Pagination.Item>
@@ -211,7 +210,7 @@
 						<Pagination.NextButton />
 					</Pagination.Item>
 				</Pagination.Content>
-								{/snippet}
-				</Pagination.Root>
+			{/snippet}
+		</Pagination.Root>
 	</div>
 {/if}

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideCheck } from 'lucide-svelte';
+	import { LucideCheck } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 
 	let { value, children }: { value: string; children: Snippet } = $props();

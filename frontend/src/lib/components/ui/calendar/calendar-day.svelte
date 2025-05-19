@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Calendar as CalendarPrimitive } from 'bits-ui';
+	import { Calendar as CalendarPrimitive } from 'bits-ui-old';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import { cn } from '$lib/utils/style.js';
 
@@ -11,17 +11,10 @@
 		month: $$Props['month'];
 		class?: $$Props['class'];
 		children?: import('svelte').Snippet<[any]>;
-		[key: string]: any
+		[key: string]: any;
 	}
 
-	let {
-		date,
-		month,
-		class: className = undefined,
-		children,
-		...rest
-	}: Props = $props();
-	
+	let { date, month, class: className = undefined, children, ...rest }: Props = $props();
 
 	const children_render = $derived(children);
 </script>
@@ -45,13 +38,14 @@
 		className
 	)}
 	{...rest}
-	
-	
-	
-	
 >
 	{#snippet children({ selected, disabled, unavailable, builder })}
-		{#if children_render}{@render children_render({ selected, disabled, unavailable, builder, })}{:else}
+		{#if children_render}{@render children_render({
+				selected,
+				disabled,
+				unavailable,
+				builder
+			})}{:else}
 			{date.day}
 		{/if}
 	{/snippet}

@@ -1,17 +1,16 @@
 <script lang="ts">
-	import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+	import { AlertDialog as AlertDialogPrimitive } from 'bits-ui-old';
 	import * as AlertDialog from './index.js';
 	import { cn, flyAndScale } from '$lib/utils/style.js';
 
 	type $$Props = AlertDialogPrimitive.ContentProps;
-
 
 	interface Props {
 		transition?: $$Props['transition'];
 		transitionConfig?: $$Props['transitionConfig'];
 		class?: $$Props['class'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
@@ -21,7 +20,6 @@
 		children,
 		...rest
 	}: Props = $props();
-	
 </script>
 
 <AlertDialog.Portal>
@@ -30,7 +28,7 @@
 		{transition}
 		{transitionConfig}
 		class={cn(
-			'bg-background fixed top-[50%] left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg sm:rounded-lg md:w-full',
+			'bg-background fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg sm:rounded-lg md:w-full',
 			className
 		)}
 		{...rest}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Tooltip as TooltipPrimitive } from 'bits-ui';
+	import { Tooltip as TooltipPrimitive } from 'bits-ui-old';
 	import { cn, flyAndScale } from '$lib/utils/style.js';
 
 	type $$Props = TooltipPrimitive.ContentProps;
@@ -10,7 +10,7 @@
 		transition?: $$Props['transition'];
 		transitionConfig?: $$Props['transitionConfig'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
@@ -18,13 +18,12 @@
 		sideOffset = 4,
 		transition = flyAndScale,
 		transitionConfig = {
-		y: 8,
-		duration: 150
-	},
+			y: 8,
+			duration: 150
+		},
 		children,
 		...rest
 	}: Props = $props();
-	
 </script>
 
 <TooltipPrimitive.Content

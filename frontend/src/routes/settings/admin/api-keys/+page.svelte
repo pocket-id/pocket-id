@@ -5,7 +5,7 @@
 	import ApiKeyService from '$lib/services/api-key-service';
 	import type { ApiKeyCreate, ApiKeyResponse } from '$lib/types/api-key.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, ShieldEllipsis, ShieldPlus } from 'lucide-svelte';
+	import { LucideMinus, ShieldEllipsis, ShieldPlus } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import ApiKeyDialog from './api-key-dialog.svelte';
 	import ApiKeyForm from './api-key-form.svelte';

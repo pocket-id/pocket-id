@@ -19,8 +19,8 @@
 		LucideTrash,
 		LucideUserCheck,
 		LucideUserX
-	} from 'lucide-svelte';
-	import Ellipsis from 'lucide-svelte/icons/ellipsis';
+	} from '@lucide/svelte';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 
 	let {

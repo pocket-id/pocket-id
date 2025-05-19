@@ -1,4 +1,4 @@
-import { Popover as PopoverPrimitive } from 'bits-ui';
+import { Popover as PopoverPrimitive } from 'bits-ui-old';
 import Content from './popover-content.svelte';
 const Root = PopoverPrimitive.Root;
 const Trigger = PopoverPrimitive.Trigger;

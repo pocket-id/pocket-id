@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Tooltip, TooltipContent, TooltipTrigger } from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideCalendar, LucidePencil, LucideTrash, type Icon as IconType } from 'lucide-svelte';
+	import { LucideCalendar, LucidePencil, LucideTrash, type Icon as IconType } from '@lucide/svelte';
 
 	let {
 		icon,

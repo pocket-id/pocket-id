@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+	import { AlertDialog as AlertDialogPrimitive } from 'bits-ui-old';
 	import { fade } from 'svelte/transition';
 	import { cn } from '$lib/utils/style.js';
 
@@ -9,13 +9,17 @@
 		class?: $$Props['class'];
 		transition?: $$Props['transition'];
 		transitionConfig?: $$Props['transitionConfig'];
-		[key: string]: any
+		[key: string]: any;
 	}
 
-	let { class: className = undefined, transition = fade, transitionConfig = {
-		duration: 150
-	}, ...rest }: Props = $props();
-	
+	let {
+		class: className = undefined,
+		transition = fade,
+		transitionConfig = {
+			duration: 150
+		},
+		...rest
+	}: Props = $props();
 </script>
 
 <AlertDialogPrimitive.Overlay

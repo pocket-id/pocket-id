@@ -16,7 +16,7 @@
 		LucideAlertTriangle,
 		RectangleEllipsis,
 		UserCog
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
@@ -49,7 +49,7 @@
 	async function createPasskey() {
 		try {
 			const opts = await webauthnService.getRegistrationOptions();
-			const attResp = await startRegistration({optionsJSON: opts});
+			const attResp = await startRegistration({ optionsJSON: opts });
 			const passkey = await webauthnService.finishRegistration(attResp);
 
 			passkeys = await webauthnService.listCredentials();

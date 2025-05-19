@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideXCircle } from 'lucide-svelte';
+	import { LucideXCircle } from '@lucide/svelte';
 
 	let { message, showButton = true }: { message: string; showButton?: boolean } = $props();
 </script>

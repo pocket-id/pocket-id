@@ -1,4 +1,4 @@
-import { Tabs as TabsPrimitive } from 'bits-ui';
+import { Tabs as TabsPrimitive } from 'bits-ui-old';
 import Content from './tabs-content.svelte';
 import List from './tabs-list.svelte';
 import Trigger from './tabs-trigger.svelte';

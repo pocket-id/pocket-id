@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Pagination as PaginationPrimitive } from 'bits-ui';
+	import { Pagination as PaginationPrimitive } from 'bits-ui-old';
 	import { cn } from '$lib/utils/style.js';
 	import { type Props, buttonVariants } from '$lib/components/ui/button/index.js';
 
@@ -16,7 +16,7 @@
 		size?: $$Props['size'];
 		isActive?: $$Props['isActive'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
@@ -27,8 +27,6 @@
 		children,
 		...rest
 	}: Props_1 = $props();
-
-	
 </script>
 
 <PaginationPrimitive.Page

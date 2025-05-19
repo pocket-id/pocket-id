@@ -3,11 +3,10 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { cn } from '$lib/utils/style';
 	import { DateFormatter, getLocalTimeZone, today } from '@internationalized/date';
-	import { Calendar as CalendarPrimitive } from 'bits-ui';
+	import { Calendar as CalendarPrimitive } from 'bits-ui-old';
 
 	type $$Props = CalendarPrimitive.Props;
 	type $$Events = CalendarPrimitive.Events;
-
 
 	const monthOptions = [
 		'January',
@@ -33,14 +32,12 @@
 		value: new Date().getFullYear() + i
 	}));
 
-
-
 	interface Props {
 		value?: $$Props['value'];
 		placeholder?: $$Props['placeholder'];
 		weekdayFormat?: $$Props['weekdayFormat'];
 		class?: $$Props['class'];
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
@@ -50,19 +47,23 @@
 		class: className = undefined,
 		...rest
 	}: Props = $props();
-	
-	let defaultYear = $derived(placeholder
-		? {
-				value: placeholder.year,
-				label: String(placeholder.year)
-			}
-		: undefined);
-	let defaultMonth = $derived(placeholder
-		? {
-				value: placeholder.month,
-				label: monthFmt.format(placeholder.toDate(getLocalTimeZone()))
-			}
-		: undefined);
+
+	let defaultYear = $derived(
+		placeholder
+			? {
+					value: placeholder.year,
+					label: String(placeholder.year)
+				}
+			: undefined
+	);
+	let defaultMonth = $derived(
+		placeholder
+			? {
+					value: placeholder.month,
+					label: monthFmt.format(placeholder.toDate(getLocalTimeZone()))
+				}
+			: undefined
+	);
 </script>
 
 <CalendarPrimitive.Root
@@ -70,8 +71,6 @@
 	class={cn('rounded-md border p-3', className)}
 	{...rest}
 	on:keydown
-	
-	
 	bind:value
 	bind:placeholder
 >

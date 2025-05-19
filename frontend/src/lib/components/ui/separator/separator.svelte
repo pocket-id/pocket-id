@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Separator as SeparatorPrimitive } from 'bits-ui';
+	import { Separator as SeparatorPrimitive } from 'bits-ui-old';
 	import { cn } from '$lib/utils/style.js';
 
 	type $$Props = SeparatorPrimitive.Props;
@@ -8,11 +8,15 @@
 		class?: $$Props['class'];
 		orientation?: $$Props['orientation'];
 		decorative?: $$Props['decorative'];
-		[key: string]: any
+		[key: string]: any;
 	}
 
-	let { class: className = undefined, orientation = 'horizontal', decorative = undefined, ...rest }: Props = $props();
-	
+	let {
+		class: className = undefined,
+		orientation = 'horizontal',
+		decorative = undefined,
+		...rest
+	}: Props = $props();
 </script>
 
 <SeparatorPrimitive.Root

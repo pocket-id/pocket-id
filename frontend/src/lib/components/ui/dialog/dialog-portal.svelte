@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Dialog as DialogPrimitive } from 'bits-ui';
+	import { Dialog as DialogPrimitive } from 'bits-ui-old';
 	interface Props {
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let { children, ...rest }: Props = $props();

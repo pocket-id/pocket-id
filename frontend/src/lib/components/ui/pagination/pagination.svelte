@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Pagination as PaginationPrimitive } from 'bits-ui';
+	import { Pagination as PaginationPrimitive } from 'bits-ui-old';
 
 	import { cn } from '$lib/utils/style.js';
 
@@ -13,7 +13,7 @@
 		page?: $$Props['page'];
 		siblingCount?: $$Props['siblingCount'];
 		children?: import('svelte').Snippet<[any]>;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
@@ -25,27 +25,16 @@
 		children,
 		...rest
 	}: Props = $props();
-	
 
 	let currentPage = $derived(page);
 
 	const children_render = $derived(children);
 </script>
 
-<PaginationPrimitive.Root
-	{count}
-	{perPage}
-	{siblingCount}
-	bind:page
-	
-	
-	
-	asChild
-	{...rest}
->
+<PaginationPrimitive.Root {count} {perPage} {siblingCount} bind:page asChild {...rest}>
 	{#snippet children({ builder, pages, range })}
 		<nav {...builder} class={cn('mx-auto flex w-full flex-col items-center', className)}>
-			{@render children_render?.({ pages, range, currentPage, })}
+			{@render children_render?.({ pages, range, currentPage })}
 		</nav>
 	{/snippet}
 </PaginationPrimitive.Root>

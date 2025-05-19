@@ -1,16 +1,15 @@
 <script lang="ts">
 	import { cn } from '$lib/utils/style.js';
 	import { Command as CommandPrimitive } from 'cmdk-sv';
-	import Search from 'lucide-svelte/icons/search';
+	import Search from '@lucide/svelte/icons/search';
 	import type { ClassValue } from 'svelte/elements';
 
 	type $$Props = CommandPrimitive.InputProps;
 
-	
 	interface Props {
 		class?: ClassValue | undefined | null;
 		value?: string;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let { class: className = undefined, value = $bindable(''), ...rest }: Props = $props();

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
+	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui-old';
 	import { cn, flyAndScale } from '$lib/utils/style.js';
 
 	type $$Props = DropdownMenuPrimitive.SubContentProps;
@@ -10,20 +10,19 @@
 		transition?: $$Props['transition'];
 		transitionConfig?: $$Props['transitionConfig'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
 		class: className = undefined,
 		transition = flyAndScale,
 		transitionConfig = {
-		x: -10,
-		y: 0
-	},
+			x: -10,
+			y: 0
+		},
 		children,
 		...rest
 	}: Props = $props();
-	
 </script>
 
 <DropdownMenuPrimitive.SubContent

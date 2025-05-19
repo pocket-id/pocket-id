@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Avatar as AvatarPrimitive } from 'bits-ui';
+	import { Avatar as AvatarPrimitive } from 'bits-ui-old';
 	import { cn } from '$lib/utils/style.js';
 
 	type $$Props = AvatarPrimitive.Props;
@@ -8,11 +8,10 @@
 		class?: $$Props['class'];
 		delayMs?: $$Props['delayMs'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let { class: className = undefined, delayMs = undefined, children, ...rest }: Props = $props();
-	
 </script>
 
 <AvatarPrimitive.Root

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { cn } from '$lib/utils/style.js';
-	import { Button as ButtonPrimitive } from 'bits-ui';
-	import LoaderCircle from 'lucide-svelte/icons/loader-circle';
+	import { Button as ButtonPrimitive } from 'bits-ui-old';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import type { ClassNameValue } from 'tailwind-merge';
 	import { type Events, type Props, buttonVariants } from './index.js';
 
@@ -16,7 +16,7 @@
 		isLoading?: $$Props['isLoading'];
 		builders?: $$Props['builders'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
@@ -29,7 +29,6 @@
 		children,
 		...rest
 	}: Props_1 = $props();
-	
 </script>
 
 <ButtonPrimitive.Root

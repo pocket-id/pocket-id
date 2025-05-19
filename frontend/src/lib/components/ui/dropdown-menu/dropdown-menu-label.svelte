@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
+	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui-old';
 	import { cn } from '$lib/utils/style.js';
 
 	type $$Props = DropdownMenuPrimitive.LabelProps & {
@@ -10,11 +10,10 @@
 		class?: $$Props['class'];
 		inset?: $$Props['inset'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let { class: className = undefined, inset = undefined, children, ...rest }: Props = $props();
-	
 </script>
 
 <DropdownMenuPrimitive.Label

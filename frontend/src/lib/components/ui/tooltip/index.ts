@@ -1,4 +1,4 @@
-import { Tooltip as TooltipPrimitive } from 'bits-ui';
+import { Tooltip as TooltipPrimitive } from 'bits-ui-old';
 import Content from './tooltip-content.svelte';
 
 const Root = TooltipPrimitive.Root;

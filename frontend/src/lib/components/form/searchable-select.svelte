@@ -3,7 +3,7 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 	import { cn } from '$lib/utils/style';
-	import { LucideCheck, LucideChevronDown } from 'lucide-svelte';
+	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -52,9 +52,9 @@
 	});
 </script>
 
-<Popover.Root bind:open >
+<Popover.Root bind:open>
 	{#snippet children({ ids })}
-		<Popover.Trigger asChild >
+		<Popover.Trigger asChild>
 			{#snippet children({ builder })}
 				<Button
 					{...restProps}
@@ -67,7 +67,7 @@
 					{items.find((item) => item.value === value)?.label || 'Select an option'}
 					<LucideChevronDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
 				</Button>
-						{/snippet}
+			{/snippet}
 		</Popover.Trigger>
 		<Popover.Content class="p-0" sameWidth>
 			<Command.Root shouldFilter={false}>

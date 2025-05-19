@@ -8,7 +8,7 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, ShieldCheck, ShieldPlus } from 'lucide-svelte';
+	import { LucideMinus, ShieldCheck, ShieldPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OIDCClientForm from './oidc-client-form.svelte';

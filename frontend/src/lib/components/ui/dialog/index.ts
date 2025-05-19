@@ -1,4 +1,4 @@
-import { Dialog as DialogPrimitive } from 'bits-ui';
+import { Dialog as DialogPrimitive } from 'bits-ui-old';
 
 import Title from './dialog-title.svelte';
 import Portal from './dialog-portal.svelte';

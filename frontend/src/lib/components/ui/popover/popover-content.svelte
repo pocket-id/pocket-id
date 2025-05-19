@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Popover as PopoverPrimitive } from 'bits-ui';
+	import { Popover as PopoverPrimitive } from 'bits-ui-old';
 	import { cn, flyAndScale } from '$lib/utils/style.js';
 
 	type $$Props = PopoverPrimitive.ContentProps;
@@ -8,7 +8,7 @@
 		transition?: $$Props['transition'];
 		transitionConfig?: $$Props['transitionConfig'];
 		children?: import('svelte').Snippet;
-		[key: string]: any
+		[key: string]: any;
 	}
 
 	let {
@@ -18,7 +18,6 @@
 		children,
 		...rest
 	}: Props = $props();
-	
 </script>
 
 <PopoverPrimitive.Content

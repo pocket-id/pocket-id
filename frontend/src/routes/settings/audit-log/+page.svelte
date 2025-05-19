@@ -3,7 +3,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
-	import { LogsIcon } from 'lucide-svelte';
+	import { LogsIcon } from '@lucide/svelte';
 	import AuditLogSwitcher from './audit-log-switcher.svelte';
 
 	let { data } = $props();
