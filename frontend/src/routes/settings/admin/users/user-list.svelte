@@ -116,16 +116,16 @@
 		<Table.Cell>{item.email}</Table.Cell>
 		<Table.Cell>{item.username}</Table.Cell>
 		<Table.Cell>
-			<Badge variant="outline">{item.isAdmin ? m.admin() : m.user()}</Badge>
+			<Badge class="rounded-full" variant="outline">{item.isAdmin ? m.admin() : m.user()}</Badge>
 		</Table.Cell>
 		<Table.Cell>
-			<Badge variant={item.disabled ? 'destructive' : 'default'}>
+			<Badge class="rounded-full" variant={item.disabled ? 'destructive' : 'default'}>
 				{item.disabled ? m.disabled() : m.enabled()}
 			</Badge>
 		</Table.Cell>
 		{#if $appConfigStore.ldapEnabled}
 			<Table.Cell>
-				<Badge variant={item.ldapId ? 'default' : 'outline'}
+				<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}
 					>{item.ldapId ? m.ldap() : m.local()}</Badge
 				>
 			</Table.Cell>

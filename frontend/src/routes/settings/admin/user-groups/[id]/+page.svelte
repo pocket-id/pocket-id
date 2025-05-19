@@ -65,7 +65,7 @@
 		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
 	>
 	{#if !!userGroup.ldapId}
-		<Badge variant="default" class="">{m.ldap()}</Badge>
+		<Badge class="rounded-full" variant="default" class="">{m.ldap()}</Badge>
 	{/if}
 </div>
 <Card.Root>
