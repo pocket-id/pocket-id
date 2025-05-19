@@ -15,17 +15,16 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm/clause"
-
 	"github.com/lestrrat-go/jwx/v3/jwt"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 const (
@@ -1215,9 +1214,12 @@ func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID
 }
 
 func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, clientID, clientSecret string, tx *gorm.DB) (model.OidcClient, error) {
+	// First, ensure we have a valid client ID
 	if clientID == "" {
 		return model.OidcClient{}, &common.OidcMissingClientCredentialsError{}
 	}
+
+	// Load the OIDC client's configuration
 	var client model.OidcClient
 	err := tx.
 		WithContext(ctx).
@@ -1227,10 +1229,16 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, clien
 		return model.OidcClient{}, err
 	}
 
-	if !client.IsPublic {
-		if err := bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret)); err != nil {
+	// If we have a client secret, we validate it
+	// Otherwise, we require the client to be public
+	if clientSecret != "" {
+		err = bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(clientSecret))
+		if err != nil {
 			return model.OidcClient{}, &common.OidcClientSecretInvalidError{}
 		}
+		return client, nil
+	} else if !client.IsPublic {
+		return model.OidcClient{}, &common.OidcMissingClientCredentialsError{}
 	}
 
 	return client, nil
