@@ -1,40 +1,28 @@
 <script lang="ts">
-	import { Pagination as PaginationPrimitive } from 'bits-ui-old';
+	import { Pagination as PaginationPrimitive } from "bits-ui";
 
-	import { cn } from '$lib/utils/style.js';
-
-	type $$Props = PaginationPrimitive.Props;
-	type $$Events = PaginationPrimitive.Events;
-
-	interface Props {
-		class?: $$Props['class'];
-		count?: $$Props['count'];
-		perPage?: $$Props['perPage'];
-		page?: $$Props['page'];
-		siblingCount?: $$Props['siblingCount'];
-		children?: import('svelte').Snippet<[any]>;
-		[key: string]: any;
-	}
+	import { cn } from "$lib/utils/style.js";
 
 	let {
-		class: className = undefined,
+		ref = $bindable(null),
+		class: className,
 		count = 0,
 		perPage = 10,
 		page = $bindable(1),
 		siblingCount = 1,
-		children,
-		...rest
-	}: Props = $props();
-
-	let currentPage = $derived(page);
-
-	const children_render = $derived(children);
+		...restProps
+	}: PaginationPrimitive.RootProps = $props();
 </script>
 
-<PaginationPrimitive.Root {count} {perPage} {siblingCount} bind:page asChild {...rest}>
-	{#snippet children({ builder, pages, range })}
-		<nav {...builder} class={cn('mx-auto flex w-full flex-col items-center', className)}>
-			{@render children_render?.({ pages, range, currentPage })}
-		</nav>
-	{/snippet}
-</PaginationPrimitive.Root>
+<PaginationPrimitive.Root
+	bind:ref
+	bind:page
+	role="navigation"
+	aria-label="pagination"
+	data-slot="pagination"
+	class={cn("mx-auto flex w-full justify-center", className)}
+	{count}
+	{perPage}
+	{siblingCount}
+	{...restProps}
+/>

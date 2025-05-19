@@ -1,19 +1,20 @@
 <script lang="ts">
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { cn } from '$lib/utils/style.js';
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils/style.js";
 
-	type $$Props = HTMLAttributes<HTMLUListElement>;
-
-	interface Props {
-		class?: $$Props['class'];
-		children?: import('svelte').Snippet;
-		[key: string]: any
-	}
-
-	let { class: className = undefined, children, ...rest }: Props = $props();
-	
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLUListElement>> = $props();
 </script>
 
-<ul class={cn('flex flex-row items-center gap-1', className)} {...rest}>
+<ul
+	bind:this={ref}
+	data-slot="pagination-content"
+	class={cn("flex flex-row items-center gap-1", className)}
+	{...restProps}
+>
 	{@render children?.()}
 </ul>

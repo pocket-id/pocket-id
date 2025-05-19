@@ -134,7 +134,7 @@
 								{#if requestOptions.sort?.column === column.sortColumn}
 									<ChevronDown
 										class={cn(
-											'ml-2 h-4 w-4',
+											'ml-2 size-4',
 											requestOptions.sort?.direction === 'asc' ? 'rotate-180' : ''
 										)}
 									/>
