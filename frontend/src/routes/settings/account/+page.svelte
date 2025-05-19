@@ -49,7 +49,7 @@
 	async function createPasskey() {
 		try {
 			const opts = await webauthnService.getRegistrationOptions();
-			const attResp = await startRegistration(opts);
+			const attResp = await startRegistration({optionsJSON: opts});
 			const passkey = await webauthnService.finishRegistration(attResp);
 
 			passkeys = await webauthnService.listCredentials();
