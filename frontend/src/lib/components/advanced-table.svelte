@@ -96,7 +96,7 @@
 		)}
 		placeholder={m.search()}
 		type="text"
-		oninput={(e) => onSearch((e.target as HTMLInputElement).value)}
+		oninput={(e: InputEvent) => onSearch((e.target as HTMLInputElement).value)}
 	/>
 {/if}
 
@@ -114,7 +114,7 @@
 						<Checkbox
 							disabled={selectionDisabled}
 							checked={allChecked}
-							onCheckedChange={(c) => onAllCheck(c as boolean)}
+							onCheckedChange={(c: boolean) => onAllCheck(c as boolean)}
 						/>
 					</Table.Head>
 				{/if}
@@ -155,7 +155,7 @@
 							<Checkbox
 								disabled={selectionDisabled}
 								checked={selectedIds.includes(item.id)}
-								onCheckedChange={(c) => onCheck(c as boolean, item.id)}
+								onCheckedChange={(c: boolean) => onCheck(c, item.id)}
 							/>
 						</Table.Cell>
 					{/if}

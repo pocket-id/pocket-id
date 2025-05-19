@@ -19,7 +19,7 @@
 </script>
 
 <Dialog.Root open={!!apiKeyResponse} {onOpenChange}>
-	<Dialog.Content class="max-w-md" closeButton={false}>
+	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>{m.api_key_created()}</Dialog.Title>
 			<Dialog.Description>
