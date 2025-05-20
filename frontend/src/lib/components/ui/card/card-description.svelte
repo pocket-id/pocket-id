@@ -1,19 +1,20 @@
 <script lang="ts">
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { cn } from '$lib/utils/style.js';
+	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from "$lib/utils/style.js";
 
-	type $$Props = HTMLAttributes<HTMLParagraphElement>;
-
-	interface Props {
-		class?: $$Props['class'];
-		children?: import('svelte').Snippet;
-		[key: string]: any
-	}
-
-	let { class: className = undefined, children, ...rest }: Props = $props();
-	
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLParagraphElement>> = $props();
 </script>
 
-<p class={cn('text-muted-foreground mt-1 text-sm', className)} {...rest}>
+<p
+	bind:this={ref}
+	data-slot="card-description"
+	class={cn("text-muted-foreground text-sm", className)}
+	{...restProps}
+>
 	{@render children?.()}
 </p>

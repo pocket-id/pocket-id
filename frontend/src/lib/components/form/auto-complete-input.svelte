@@ -75,15 +75,9 @@
 		onfocus={() => (isInputFocused = true)}
 		onblur={() => (isInputFocused = false)}
 	/>
-	<Popover.Root
-		open={isOpen}
-		disableFocusTrap
-		openFocus={() => {}}
-		closeOnOutsideClick={false}
-		closeOnEscape={false}
-	>
+	<Popover.Root open={isOpen}>
 		<Popover.Trigger tabindex={-1} class="h-0 w-full" aria-hidden />
-		<Popover.Content class="p-0" sideOffset={5} sameWidth>
+		<Popover.Content class="p-0" sideOffset={5}>
 			{#each filteredSuggestions as suggestion, index}
 				<div
 					role="button"
@@ -92,7 +86,7 @@
 					onkeydown={(e) => {
 						if (e.key === 'Enter') handleSuggestionClick(suggestion);
 					}}
-					class="hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 {selectedIndex ===
+					class="hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 {selectedIndex ===
 					index
 						? 'bg-accent text-accent-foreground'
 						: ''}"

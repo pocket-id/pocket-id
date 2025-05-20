@@ -45,7 +45,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title>
-						<UserPlus class="text-primary/80 h-5 w-5" />
+						<UserPlus class="text-primary/80 size-5" />
 						{m.create_user()}
 					</Card.Title>
 					<Card.Description
@@ -77,7 +77,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>
-				<UserPen class="text-primary/80 h-5 w-5" />
+				<UserPen class="text-primary/80 size-5" />
 				{m.manage_users()}
 			</Card.Title>
 		</Card.Header>
