@@ -53,7 +53,7 @@
 </script>
 
 <Popover.Root bind:open {...restProps}>
-	<Popover.Trigger>
+	<Popover.Trigger class="w-full">
 		<Button
 			variant="outline"
 			role="combobox"
