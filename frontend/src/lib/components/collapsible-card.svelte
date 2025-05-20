@@ -72,7 +72,7 @@
 	</Card.Header>
 	{#if expanded}
 		<div transition:slide={{ duration: 200 }}>
-			<Card.Content class="bg-muted/20 pb-5 pt-5">
+			<Card.Content class="pt-5">
 				{@render children()}
 			</Card.Content>
 		</div>

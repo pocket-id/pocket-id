@@ -110,8 +110,8 @@
 					value={$inputs.smtpTls.value}
 					onValueChange={(v) => ($inputs.smtpTls.value = v as typeof $inputs.smtpTls.value)}
 				>
-					<Select.Trigger>
-						{m.email_tls_option()}
+					<Select.Trigger class="w-full" placeholder={m.email_tls_option()}>
+						{tlsOptions[$inputs.smtpTls.value]}
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="none" label="None" />

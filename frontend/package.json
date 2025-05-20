@@ -40,7 +40,6 @@
 		"@types/qrcode": "^1.5.5",
 		"bits-ui": "^1.5.2",
 		"bits-ui-old": "npm:bits-ui@0.22.0",
-		"cmdk-sv": "^0.0.19",
 		"eslint": "^9.19.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^2.46.1",
