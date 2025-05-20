@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
@@ -33,7 +34,7 @@
 		</DropdownMenu.Label>
 		<DropdownMenu.Separator />
 		<DropdownMenu.Group>
-			<DropdownMenu.Item href="/settings/account"
+			<DropdownMenu.Item onclick={() => goto('/settings/account')}
 				><LucideUser class="mr-2 h-4 w-4" /> {m.my_account()}</DropdownMenu.Item
 			>
 			<DropdownMenu.Item onclick={logout}

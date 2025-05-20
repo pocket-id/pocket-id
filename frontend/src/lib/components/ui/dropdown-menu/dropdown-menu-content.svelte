@@ -1,39 +1,27 @@
 <script lang="ts">
-	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui-old';
-	import { cn, flyAndScale } from '$lib/utils/style.js';
-
-	type $$Props = DropdownMenuPrimitive.ContentProps;
-	type $$Events = DropdownMenuPrimitive.ContentEvents;
-
-	interface Props {
-		class?: $$Props['class'];
-		sideOffset?: $$Props['sideOffset'];
-		transition?: $$Props['transition'];
-		transitionConfig?: $$Props['transitionConfig'];
-		children?: import('svelte').Snippet;
-		[key: string]: any;
-	}
+	import { cn } from "$lib/utils/style.js";
+	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
 
 	let {
-		class: className = undefined,
+		ref = $bindable(null),
 		sideOffset = 4,
-		transition = flyAndScale,
-		transitionConfig = undefined,
-		children,
-		...rest
-	}: Props = $props();
+		portalProps,
+		class: className,
+		...restProps
+	}: DropdownMenuPrimitive.ContentProps & {
+		portalProps?: DropdownMenuPrimitive.PortalProps;
+	} = $props();
 </script>
 
-<DropdownMenuPrimitive.Content
-	{transition}
-	{transitionConfig}
-	{sideOffset}
-	class={cn(
-		'bg-popover text-popover-foreground z-50 min-w-[8rem] rounded-md border p-1 shadow-md focus:outline-none',
-		className
-	)}
-	{...rest}
-	on:keydown
->
-	{@render children?.()}
-</DropdownMenuPrimitive.Content>
+<DropdownMenuPrimitive.Portal {...portalProps}>
+	<DropdownMenuPrimitive.Content
+		bind:ref
+		data-slot="dropdown-menu-content"
+		{sideOffset}
+		class={cn(
+			"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 max-h-(--radix-dropdown-menu-content-available-height) origin-(--radix-dropdown-menu-content-transform-origin) z-50 min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border p-1 shadow-md",
+			className
+		)}
+		{...restProps}
+	/>
+</DropdownMenuPrimitive.Portal>

@@ -1,36 +1,27 @@
 <script lang="ts">
-	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui-old';
-	import { cn } from '$lib/utils/style.js';
+	import { cn } from "$lib/utils/style.js";
+	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
 
-	type $$Props = DropdownMenuPrimitive.ItemProps & {
+	let {
+		ref = $bindable(null),
+		class: className,
+		inset,
+		variant = "default",
+		...restProps
+	}: DropdownMenuPrimitive.ItemProps & {
 		inset?: boolean;
-	};
-	type $$Events = DropdownMenuPrimitive.ItemEvents;
-
-	interface Props {
-		class?: $$Props['class'];
-		inset?: $$Props['inset'];
-		children?: import('svelte').Snippet;
-		[key: string]: any;
-	}
-
-	let { class: className = undefined, inset = undefined, children, ...rest }: Props = $props();
+		variant?: "default" | "destructive";
+	} = $props();
 </script>
 
 <DropdownMenuPrimitive.Item
+	bind:ref
+	data-slot="dropdown-menu-item"
+	data-inset={inset}
+	data-variant={variant}
 	class={cn(
-		'data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground relative flex select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-		inset && 'pl-8',
+		"data-highlighted:bg-accent data-highlighted:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:data-highlighted:bg-destructive/10 dark:data-[variant=destructive]:data-highlighted:bg-destructive/20 data-[variant=destructive]:data-highlighted:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive [&_svg:not([class*='text-'])]:text-muted-foreground outline-hidden relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm data-[disabled]:pointer-events-none data-[inset]:pl-8 data-[disabled]:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 		className
 	)}
-	{...rest}
-	on:click
-	on:keydown
-	on:focusin
-	on:focusout
-	on:pointerdown
-	on:pointerleave
-	on:pointermove
->
-	{@render children?.()}
-</DropdownMenuPrimitive.Item>
+	{...restProps}
+/>
