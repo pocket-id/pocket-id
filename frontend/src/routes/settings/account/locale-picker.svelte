@@ -28,15 +28,9 @@
 	}
 </script>
 
-<Select.Root
-	selected={{
-		label: locales[currentLocale],
-		value: currentLocale
-	}}
-	onSelectedChange={(v) => updateLocale(v!.value)}
->
+<Select.Root type="single" value={currentLocale} onValueChange={(v) => updateLocale(v as Locale)}>
 	<Select.Trigger class="h-9 max-w-[200px]" aria-label="Select locale">
-		<Select.Value>{locales[currentLocale]}</Select.Value>
+		{locales[currentLocale]}
 	</Select.Trigger>
 	<Select.Content>
 		{#each Object.entries(locales) as [value, label]}

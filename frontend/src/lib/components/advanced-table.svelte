@@ -96,7 +96,7 @@
 		)}
 		placeholder={m.search()}
 		type="text"
-		oninput={(e: InputEvent) => onSearch((e.target as HTMLInputElement).value)}
+		oninput={(e: Event) => onSearch((e.currentTarget as HTMLInputElement).value)}
 	/>
 {/if}
 
@@ -169,18 +169,16 @@
 		<div class="flex items-center space-x-2">
 			<p class="text-sm font-medium">{m.items_per_page()}</p>
 			<Select.Root
-				selected={{
-					label: items.pagination.itemsPerPage.toString(),
-					value: items.pagination.itemsPerPage
-				}}
-				onSelectedChange={(v) => onPageSizeChange(v?.value as number)}
+				type="single"
+				value={items.pagination.itemsPerPage.toString()}
+				onValueChange={(v) => onPageSizeChange(Number(v))}
 			>
 				<Select.Trigger class="h-9 w-[80px]">
-					<Select.Value>{items.pagination.itemsPerPage}</Select.Value>
+					{items.pagination.itemsPerPage}
 				</Select.Trigger>
 				<Select.Content>
 					{#each availablePageSizes as size}
-						<Select.Item value={size}>{size}</Select.Item>
+						<Select.Item value={size.toString()}>{size}</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>

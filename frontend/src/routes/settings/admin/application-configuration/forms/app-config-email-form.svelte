@@ -106,11 +106,12 @@
 			<div class="grid gap-2">
 				<Label class="mb-0" for="smtp-tls">{m.smtp_tls_option()}</Label>
 				<Select.Root
-					selected={{ value: $inputs.smtpTls.value, label: tlsOptions[$inputs.smtpTls.value] }}
-					onSelectedChange={(v) => ($inputs.smtpTls.value = v!.value)}
+					type="single"
+					value={$inputs.smtpTls.value}
+					onValueChange={(v) => ($inputs.smtpTls.value = v as typeof $inputs.smtpTls.value)}
 				>
 					<Select.Trigger>
-						<Select.Value placeholder={m.email_tls_option()} />
+						{m.email_tls_option()}
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="none" label="None" />

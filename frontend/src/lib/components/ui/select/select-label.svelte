@@ -1,18 +1,20 @@
 <script lang="ts">
-	import { Select as SelectPrimitive } from 'bits-ui-old';
-	import { cn } from '$lib/utils/style.js';
+	import { cn, type WithElementRef } from "$lib/utils/style.js";
+	import type { HTMLAttributes } from "svelte/elements";
 
-	type $$Props = SelectPrimitive.LabelProps;
-
-	interface Props {
-		class?: $$Props['class'];
-		children?: import('svelte').Snippet;
-		[key: string]: any;
-	}
-
-	let { class: className = undefined, children, ...rest }: Props = $props();
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {} = $props();
 </script>
 
-<SelectPrimitive.Label class={cn('py-1.5 pl-8 pr-2 text-sm font-semibold', className)} {...rest}>
+<div
+	bind:this={ref}
+	data-slot="select-label"
+	class={cn("text-muted-foreground px-2 py-1.5 text-xs", className)}
+	{...restProps}
+>
 	{@render children?.()}
-</SelectPrimitive.Label>
+</div>

@@ -50,9 +50,9 @@
 		<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
 			<div>
 				{#await auditLogService.listUsers()}
-					<Select.Root>
+					<Select.Root type="single">
 						<Select.Trigger class="w-full" disabled>
-							<Select.Value placeholder={m.all_users()} />
+							{m.all_users()}
 						</Select.Trigger>
 					</Select.Root>
 				{:then users}
@@ -70,15 +70,9 @@
 				{/await}
 			</div>
 			<div>
-				<Select.Root
-					selected={{
-						value: filters.event,
-						label: eventTypes[filters.event as keyof typeof eventTypes]
-					}}
-					onSelectedChange={(v) => (filters.event = v!.value)}
-				>
+				<Select.Root type="single" value={filters.event} onValueChange={(v) => (filters.event = v)}>
 					<Select.Trigger class="w-full">
-						<Select.Value placeholder={m.all_events()} />
+						{m.all_events()}
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">{m.all_events()}</Select.Item>
@@ -90,9 +84,9 @@
 			</div>
 			<div>
 				{#await auditLogService.listClientNames()}
-					<Select.Root>
+					<Select.Root type="single">
 						<Select.Trigger class="w-full" disabled>
-							<Select.Value placeholder={m.all_clients()} />
+							{m.all_clients()}
 						</Select.Trigger>
 					</Select.Root>
 				{:then clientNames}

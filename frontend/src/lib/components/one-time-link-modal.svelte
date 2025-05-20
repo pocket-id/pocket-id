@@ -77,15 +77,12 @@
 			<div>
 				<Label for="expiration">{m.expiration()}</Label>
 				<Select.Root
-					selected={{
-						label: Object.keys(availableExpirations)[0],
-						value: Object.keys(availableExpirations)[0]
-					}}
-					onSelectedChange={(v) =>
-						(selectedExpiration = v!.value as keyof typeof availableExpirations)}
+					type="single"
+					value={Object.keys(availableExpirations)[0]}
+					onValueChange={(v) => (selectedExpiration = v! as keyof typeof availableExpirations)}
 				>
 					<Select.Trigger class="h-9 w-full">
-						<Select.Value>{selectedExpiration}</Select.Value>
+						{selectedExpiration}
 					</Select.Trigger>
 					<Select.Content>
 						{#each Object.keys(availableExpirations) as key}
@@ -116,7 +113,7 @@
 
 				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 					<Separator />
-					<p class="text-xs text-nowrap">{m.or_visit()}</p>
+					<p class="text-nowrap text-xs">{m.or_visit()}</p>
 					<Separator />
 				</div>
 
@@ -124,8 +121,8 @@
 					class="mb-2"
 					value={oneTimeLink}
 					size={180}
-					color={$mode === 'dark' ? '#FFFFFF' : '#000000'}
-					backgroundColor={$mode === 'dark' ? '#000000' : '#FFFFFF'}
+					color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
+					backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 				/>
 				<CopyToClipboard value={oneTimeLink!}>
 					<p data-testId="login-code-link">{oneTimeLink!}</p>
