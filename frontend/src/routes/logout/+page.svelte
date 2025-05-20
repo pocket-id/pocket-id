@@ -30,7 +30,7 @@
 <SignInWrapper animate={!$appConfigStore.disableAnimations}>
 	<div class="flex justify-center">
 		<div class="bg-muted rounded-2xl p-3">
-			<Logo class="h-10 w-10" />
+			<Logo class="size-10" />
 		</div>
 	</div>
 	<h1 class="font-playfair mt-5 text-4xl font-bold">{m.sign_out()}</h1>

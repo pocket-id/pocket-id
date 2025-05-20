@@ -112,7 +112,7 @@
 		<Label for="logo">{m.logo()}</Label>
 		<div class="mt-2 flex items-end gap-3">
 			{#if logoDataURL}
-				<div class="bg-muted h-32 w-32 rounded-2xl p-3">
+				<div class="bg-muted size-32 rounded-2xl p-3">
 					<img
 						class="m-auto max-h-full max-w-full object-contain"
 						src={logoDataURL}

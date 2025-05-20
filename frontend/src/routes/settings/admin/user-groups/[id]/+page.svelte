@@ -62,7 +62,7 @@
 
 <div class="flex items-center justify-between">
 	<a class="text-muted-foreground flex text-sm" href="/settings/admin/user-groups"
-		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
+		><LucideChevronLeft class="size-5" /> {m.back()}</a
 	>
 	{#if !!userGroup.ldapId}
 		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>

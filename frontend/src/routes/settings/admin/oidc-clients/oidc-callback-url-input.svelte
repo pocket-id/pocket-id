@@ -34,7 +34,7 @@
 							size="sm"
 							onclick={() => (callbackURLs = callbackURLs.filter((_, index) => index !== i))}
 						>
-							<LucideMinus class="h-4 w-4" />
+							<LucideMinus class="size-4" />
 						</Button>
 					{/if}
 				</div>
@@ -50,7 +50,7 @@
 		size="sm"
 		onclick={() => (callbackURLs = [...callbackURLs, ''])}
 	>
-		<LucidePlus class="mr-1 h-4 w-4" />
+		<LucidePlus class="mr-1 size-4" />
 		{callbackURLs.length === 0 ? m.add() : m.add_another()}
 	</Button>
 </div>

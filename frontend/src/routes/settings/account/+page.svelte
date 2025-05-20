@@ -124,7 +124,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>
-				<UserCog class="text-primary/80 h-5 w-5" />
+				<UserCog class="text-primary/80 size-5" />
 				{m.account_details()}
 			</Card.Title>
 		</Card.Header>
@@ -173,7 +173,7 @@
 			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
 				<div>
 					<Card.Title>
-						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
+						<RectangleEllipsis class="text-primary/80 size-5" />
 						{m.login_code()}
 					</Card.Title>
 					<Card.Description>
@@ -195,7 +195,7 @@
 			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
 				<div>
 					<Card.Title>
-						<Languages class="text-primary/80 h-5 w-5" />
+						<Languages class="text-primary/80 size-5" />
 						{m.language()}
 					</Card.Title>
 					<Card.Description>

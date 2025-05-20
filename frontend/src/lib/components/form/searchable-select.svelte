@@ -79,7 +79,7 @@
 							closeAndFocusTrigger('popover-trigger');
 						}}
 					>
-						<LucideCheck class={cn('mr-2 h-4 w-4', value !== item.value && 'text-transparent')} />
+						<LucideCheck class={cn('mr-2 size-4', value !== item.value && 'text-transparent')} />
 						{item.label}
 					</Command.Item>
 				{/each}

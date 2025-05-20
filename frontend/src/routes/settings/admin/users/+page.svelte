@@ -58,7 +58,7 @@
 					<Button onclick={() => (expandAddUser = true)}>{m.add_user()}</Button>
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUser = false)}>
-						<LucideMinus class="h-5 w-5" />
+						<LucideMinus class="size-5" />
 					</Button>
 				{/if}
 			</div>

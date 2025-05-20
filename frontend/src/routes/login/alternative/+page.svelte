@@ -34,7 +34,7 @@
 <SignInWrapper>
 	<div class="flex h-full flex-col justify-center">
 		<div class="bg-muted mx-auto rounded-2xl p-3">
-			<Logo class="h-10 w-10" />
+			<Logo class="size-10" />
 		</div>
 		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">{m.alternative_sign_in()}</h1>
 		<p class="text-muted-foreground mt-3">
@@ -46,13 +46,13 @@
 					<Card.Root>
 						<Card.Content class="flex items-center justify-between p-4">
 							<div class="flex gap-3">
-								<method.icon class="text-primary h-7 w-7" />
+								<method.icon class="text-primary size-7" />
 								<div class="text-start">
 									<h3 class="text-lg font-semibold">{method.title}</h3>
 									<p class="text-muted-foreground text-sm">{method.description}</p>
 								</div>
 							</div>
-							<Button variant="ghost"><LucideChevronRight class="h-5 w-5" /></Button>
+							<Button variant="ghost"><LucideChevronRight class="size-5" /></Button>
 						</Card.Content>
 					</Card.Root>
 				</a>

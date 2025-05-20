@@ -56,7 +56,7 @@
 		<Table.Cell class="w-8 font-medium">
 			{#if item.hasLogo}
 				<div class="bg-secondary rounded-2xl p-3">
-					<div class="h-8 w-8">
+					<div class="size-8">
 						<img
 							class="m-auto max-h-full max-w-full object-contain"
 							src="/api/oidc/clients/{item.id}/logo"
@@ -72,10 +72,10 @@
 				href="/settings/admin/oidc-clients/{item.id}"
 				size="sm"
 				variant="outline"
-				aria-label={m.edit()}><LucidePencil class="h-3 w-3 " /></Button
+				aria-label={m.edit()}><LucidePencil class="size-3 " /></Button
 			>
 			<Button onclick={() => deleteClient(item)} size="sm" variant="outline" aria-label={m.delete()}
-				><LucideTrash class="h-3 w-3 text-red-500" /></Button
+				><LucideTrash class="size-3 text-red-500" /></Button
 			>
 		</Table.Cell>
 	{/snippet}

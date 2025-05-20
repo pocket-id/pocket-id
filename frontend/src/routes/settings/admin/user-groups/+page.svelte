@@ -45,7 +45,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title>
-						<UserPlus class="text-primary/80 h-5 w-5" />
+						<UserPlus class="text-primary/80 size-5" />
 						{m.create_user_group()}
 					</Card.Title>
 					<Card.Description>{m.create_a_new_group_that_can_be_assigned_to_users()}</Card.Description
@@ -55,7 +55,7 @@
 					<Button onclick={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUserGroup = false)}>
-						<LucideMinus class="h-5 w-5" />
+						<LucideMinus class="size-5" />
 					</Button>
 				{/if}
 			</div>
@@ -74,7 +74,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>
-				<UserCog class="text-primary/80 h-5 w-5" />
+				<UserCog class="text-primary/80 size-5" />
 				{m.manage_user_groups()}
 			</Card.Title>
 		</Card.Header>

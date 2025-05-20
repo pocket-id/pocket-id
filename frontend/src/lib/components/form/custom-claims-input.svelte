@@ -53,7 +53,7 @@
 						aria-label={m.remove_custom_claim()}
 						onclick={() => (customClaims = customClaims.filter((_, index) => index !== i))}
 					>
-						<LucideMinus class="h-4 w-4" />
+						<LucideMinus class="size-4" />
 					</Button>
 				</div>
 			{/each}
@@ -69,7 +69,7 @@
 			size="sm"
 			onclick={() => (customClaims = [...customClaims, { key: '', value: '' }])}
 		>
-			<LucidePlus class="mr-1 h-4 w-4" />
+			<LucidePlus class="mr-1 size-4" />
 			{customClaims.length === 0 ? m.add_custom_claim() : m.add_another()}
 		</Button>
 	{/if}

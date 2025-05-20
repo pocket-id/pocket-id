@@ -24,7 +24,7 @@
 		<div class="flex items-start gap-3">
 			<div class="bg-primary/10 text-primary mt-1 rounded-lg p-2">
 				{#if icon}{@const Icon = icon}
-					<Icon class="h-5 w-5" />
+					<Icon class="size-5" />
 				{/if}
 			</div>
 			<div>
@@ -33,7 +33,7 @@
 				</div>
 				{#if description}
 					<div class="text-muted-foreground mt-1 flex items-center text-xs">
-						<LucideCalendar class="mr-1 h-3 w-3" />
+						<LucideCalendar class="mr-1 size-3" />
 						{description}
 					</div>
 				{/if}
@@ -51,7 +51,7 @@
 							class="size-8"
 							aria-label={m.rename()}
 						>
-							<LucidePencil class="h-4 w-4" />
+							<LucidePencil class="size-4" />
 						</Button>
 					</Tooltip.Trigger>
 					<Tooltip.Content>{m.rename()}</Tooltip.Content>

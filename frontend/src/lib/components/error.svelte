@@ -7,7 +7,7 @@
 </script>
 
 <div class="mt-[20%] flex flex-col items-center">
-	<LucideXCircle class="text-muted-foreground h-12 w-12" />
+	<LucideXCircle class="text-muted-foreground size-12" />
 	<h1 class="mt-3 text-2xl font-semibold">{m.something_went_wrong()}</h1>
 	<p class="text-muted-foreground">{message}</p>
 	{#if showButton}

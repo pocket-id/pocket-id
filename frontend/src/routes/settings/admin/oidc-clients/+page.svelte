@@ -49,7 +49,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title>
-						<ShieldPlus class="text-primary/80 h-5 w-5" />
+						<ShieldPlus class="text-primary/80 size-5" />
 						{m.create_oidc_client()}
 					</Card.Title>
 					<Card.Description
@@ -62,7 +62,7 @@
 					<Button onclick={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddClient = false)}>
-						<LucideMinus class="h-5 w-5" />
+						<LucideMinus class="size-5" />
 					</Button>
 				{/if}
 			</div>
@@ -81,7 +81,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>
-				<ShieldCheck class="text-primary/80 h-5 w-5" />
+				<ShieldCheck class="text-primary/80 size-5" />
 				{m.manage_oidc_clients()}
 			</Card.Title>
 		</Card.Header>

@@ -102,7 +102,7 @@
 
 <div>
 	<a class="text-muted-foreground flex text-sm" href="/settings/admin/oidc-clients"
-		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
+		><LucideChevronLeft class="size-5" /> {m.back()}</a
 	>
 </div>
 <Card.Root>
@@ -136,7 +136,7 @@
 								onclick={createClientSecret}
 								size="sm"
 								variant="ghost"
-								aria-label="Create new client secret"><LucideRefreshCcw class="h-3 w-3" /></Button
+								aria-label="Create new client secret"><LucideRefreshCcw class="size-3" /></Button
 							>
 						</div>
 					{/if}

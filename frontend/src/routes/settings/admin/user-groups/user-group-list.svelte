@@ -74,19 +74,19 @@
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
 					<Button aria-haspopup="true" size="icon" variant="ghost">
-						<Ellipsis class="h-4 w-4" />
+						<Ellipsis class="size-4" />
 						<span class="sr-only">{m.toggle_menu()}</span>
 					</Button>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={() => goto('/settings/admin/user-groups/{item.id}')}
-						><LucidePencil class="mr-2 h-4 w-4" /> {m.edit()}</DropdownMenu.Item
+						><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
 					>
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
 						<DropdownMenu.Item
 							class="text-red-500 focus:!text-red-700"
 							onclick={() => deleteUserGroup(item)}
-							><LucideTrash class="mr-2 h-4 w-4" />{m.delete()}</DropdownMenu.Item
+							><LucideTrash class="mr-2 size-4" />{m.delete()}</DropdownMenu.Item
 						>
 					{/if}
 				</DropdownMenu.Content>

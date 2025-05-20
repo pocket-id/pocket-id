@@ -82,7 +82,7 @@
 
 <div class="flex items-center justify-between">
 	<a class="text-muted-foreground flex text-sm" href="/settings/admin/users"
-		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
+		><LucideChevronLeft class="size-5" /> {m.back()}</a
 	>
 	{#if !!user.ldapId}
 		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>

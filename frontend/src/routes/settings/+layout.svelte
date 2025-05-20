@@ -48,7 +48,7 @@
 				<div in:fly={{ x: -15, duration: 200 }} class="sticky top-6">
 					<div class="mx-auto grid w-full gap-2">
 						<h1 class="mb-4 flex items-center gap-2 text-2xl font-semibold">
-							<LucideSettings class="h-5 w-5" />
+							<LucideSettings class="size-5" />
 							{m.settings()}
 						</h1>
 					</div>
@@ -75,7 +75,7 @@
 								style={`animation-delay: ${150 + links.length * 75}ms;`}
 							>
 								{m.update_pocket_id()}
-								<LucideExternalLink class="my-auto inline-block h-3 w-3" />
+								<LucideExternalLink class="my-auto inline-block size-3" />
 							</a>
 						{/if}
 					</nav>
