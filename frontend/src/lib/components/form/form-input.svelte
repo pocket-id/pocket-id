@@ -1,5 +1,3 @@
-<!-- @migration-task Error while migrating Svelte code: Can only bind to an Identifier or MemberExpression or a `{get, set}` pair
-https://svelte.dev/e/bind_invalid_expression -->
 <script lang="ts">
 	import DatePicker from '$lib/components/form/date-picker.svelte';
 	import { Input, type FormInputEvent } from '$lib/components/ui/input';
@@ -52,7 +50,7 @@ https://svelte.dev/e/bind_invalid_expression -->
 					{type}
 					bind:value={input.value}
 					{disabled}
-					on:input={(e) => onInput?.(e)}
+					oninput={(e) => onInput?.(e)}
 				/>
 			{/if}
 		{/if}
