@@ -50,12 +50,12 @@
 </script>
 
 <Card.Root>
-	<Card.Header class="cursor-pointer" onclick={toggleExpanded}>
+	<Card.Header class="bg-card cursor-pointer" onclick={toggleExpanded}>
 		<div class="flex items-center justify-between">
 			<div>
 				<Card.Title class="flex items-center gap-2 text-xl font-semibold">
 					{#if icon}{@const Icon = icon}
-						<Icon class="text-primary/80 h-5 w-5" />
+						<Icon class="text-primary/80 size-5" />
 					{/if}
 					{title}
 				</Card.Title>
@@ -72,7 +72,7 @@
 	</Card.Header>
 	{#if expanded}
 		<div transition:slide={{ duration: 200 }}>
-			<Card.Content class="bg-muted/20 pt-5">
+			<Card.Content class="bg-muted/20 pb-5 pt-5">
 				{@render children()}
 			</Card.Content>
 		</div>

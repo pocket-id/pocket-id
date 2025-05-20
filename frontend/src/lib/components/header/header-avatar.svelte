@@ -18,11 +18,11 @@
 
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
-		><Avatar.Root class="h-9 w-9">
+		><Avatar.Root class="size-9">
 			<Avatar.Image src={getProfilePictureUrl($userStore?.id)} />
 		</Avatar.Root></DropdownMenu.Trigger
 	>
-	<DropdownMenu.Content class="min-w-40" align="start">
+	<DropdownMenu.Content class="min-w-40" align="end">
 		<DropdownMenu.Label class="font-normal">
 			<div class="flex flex-col space-y-1">
 				<p class="text-sm font-medium leading-none">
@@ -35,10 +35,10 @@
 		<DropdownMenu.Separator />
 		<DropdownMenu.Group>
 			<DropdownMenu.Item onclick={() => goto('/settings/account')}
-				><LucideUser class="mr-2 h-4 w-4" /> {m.my_account()}</DropdownMenu.Item
+				><LucideUser class="mr-2 size-4" /> {m.my_account()}</DropdownMenu.Item
 			>
 			<DropdownMenu.Item onclick={logout}
-				><LucideLogOut class="mr-2 h-4 w-4" /> {m.logout()}</DropdownMenu.Item
+				><LucideLogOut class="mr-2 size-4" /> {m.logout()}</DropdownMenu.Item
 			>
 		</DropdownMenu.Group>
 	</DropdownMenu.Content>

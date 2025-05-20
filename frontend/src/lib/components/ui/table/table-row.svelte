@@ -1,29 +1,23 @@
 <script lang="ts">
-	import { createBubbler } from 'svelte/legacy';
-
-	const bubble = createBubbler();
+	import { cn, type WithElementRef } from '$lib/utils/style.js';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { cn } from '$lib/utils/style.js';
 
-	type $$Props = HTMLAttributes<HTMLTableRowElement> & {
-		'data-state'?: unknown;
-	};
-
-	interface Props {
-		class?: $$Props['class'];
-		children?: import('svelte').Snippet;
-		[key: string]: any
-	}
-
-	let { class: className = undefined, children, ...rest }: Props = $props();
-	
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLTableRowElement>> = $props();
 </script>
 
 <tr
-	class={cn('data-[state=selected]:bg-muted border-b transition-colors', className)}
-	{...rest}
-	onclick={bubble('click')}
-	onkeydown={bubble('keydown')}
+	bind:this={ref}
+	data-slot="table-row"
+	class={cn(
+		'hover:bg-muted/20 data-[state=selected]:bg-muted border-b transition-colors',
+		className
+	)}
+	{...restProps}
 >
 	{@render children?.()}
 </tr>
