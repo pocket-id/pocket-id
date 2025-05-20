@@ -67,11 +67,11 @@
 		class="w-full max-w-[450px]"
 	>
 		<Input id="Email" class="mt-7" placeholder={m.code()} bind:value={code} type="text" />
-		<div class="mt-8 flex justify-stretch gap-2">
-			<Button variant="secondary" class="w-full" href={'/login/alternative' + page.url.search}
+		<div class="mt-8 flex justify-between gap-2">
+			<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
 				>{m.go_back()}</Button
 			>
-			<Button class="w-full" type="submit" {isLoading}>{m.submit()}</Button>
+			<Button class="flex-1" type="submit" {isLoading}>{m.submit()}</Button>
 		</div>
 	</form>
 </SignInWrapper>

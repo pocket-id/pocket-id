@@ -44,7 +44,7 @@
 			{#each methods as method}
 				<a href={method.href + page.url.search}>
 					<Card.Root>
-						<Card.Content class="flex items-center justify-between p-4">
+						<Card.Content class="flex items-center justify-between px-4">
 							<div class="flex gap-3">
 								<method.icon class="text-primary size-7" />
 								<div class="text-start">
