@@ -70,21 +70,25 @@
 				{/await}
 			</div>
 			<div>
-				<Select.Root type="single" value={filters.event} onValueChange={(v) => (filters.event = v)}>
-					<Select.Trigger class="w-full">
-						{m.all_events()}
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="">{m.all_events()}</Select.Item>
-						{#each Object.entries(eventTypes) as [value, label]}
-							<Select.Item {value}>{label}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+				<SearchableSelect
+					class="w-full"
+					items={[
+						{ value: '', label: m.all_events() },
+						...Object.entries(eventTypes).map(([value, label]) => ({
+							value,
+							label
+						}))
+					]}
+					bind:value={filters.event}
+				/>
 			</div>
 			<div>
 				{#await auditLogService.listClientNames()}
-					<Select.Root type="single">
+					<Select.Root
+						type="single"
+						value={filters.clientName}
+						onValueChange={(v) => (filters.clientName = v)}
+					>
 						<Select.Trigger class="w-full" disabled>
 							{m.all_clients()}
 						</Select.Trigger>

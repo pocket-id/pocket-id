@@ -56,7 +56,7 @@
 			</CopyToClipboard>
 			<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 				<Separator />
-				<p class="text-xs text-nowrap">{m.or_visit()}</p>
+				<p class="text-nowrap text-xs">{m.or_visit()}</p>
 				<Separator />
 			</div>
 
@@ -64,8 +64,8 @@
 				class="mb-2"
 				value={loginCodeLink}
 				size={180}
-				color={$mode === 'dark' ? '#FFFFFF' : '#000000'}
-				backgroundColor={$mode === 'dark' ? '#000000' : '#FFFFFF'}
+				color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
+				backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 			/>
 			<CopyToClipboard value={loginCodeLink!}>
 				<p data-testId="login-code-link">{loginCodeLink!}</p>
