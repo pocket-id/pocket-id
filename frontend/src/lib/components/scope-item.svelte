@@ -1,6 +1,7 @@
 <script lang="ts">
+	import type { Icon as IconType } from '@lucide/svelte';
 	interface Props {
-		icon: ConstructorOfATypedSvelteComponent;
+		icon: typeof IconType;
 		name: string;
 		description: string;
 	}
