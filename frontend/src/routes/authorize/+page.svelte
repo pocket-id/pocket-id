@@ -86,10 +86,7 @@
 {#if client == null}
 	<p>{m.client_not_found()}</p>
 {:else}
-	<SignInWrapper
-		animate={!$appConfigStore.disableAnimations}
-		showAlternativeSignInMethodButton={$userStore == null}
-	>
+	<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
 		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
 			{m.sign_in_to({ name: client.name })}
@@ -142,14 +139,18 @@
 				</Card.Root>
 			</div>
 		{/if}
-		<div class="flex w-full justify-stretch gap-2">
-			<Button onclick={() => history.back()} class="w-full" variant="secondary">{m.cancel()}</Button
-			>
-			{#if !errorMessage}
-				<Button class="w-full" {isLoading} onclick={authorize}>{m.sign_in()}</Button>
-			{:else}
-				<Button class="w-full" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
-			{/if}
+		<!-- Wrap the buttons in a container with the same width as in the login code page -->
+		<div class="w-full max-w-[450px]">
+			<div class="mt-8 flex justify-between gap-2">
+				<Button onclick={() => history.back()} class="flex-1" variant="secondary"
+					>{m.cancel()}</Button
+				>
+				{#if !errorMessage}
+					<Button class="flex-1" {isLoading} onclick={authorize}>{m.sign_in()}</Button>
+				{:else}
+					<Button class="flex-1" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
+				{/if}
+			</div>
 		</div>
 	</SignInWrapper>
 {/if}
