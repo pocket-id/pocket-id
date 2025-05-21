@@ -42,7 +42,7 @@
 </script>
 
 <Dialog.Root open={!!code} {onOpenChange}>
-	<Dialog.Content class="max-w-md">
+	<Dialog.Content class="max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
 		<Dialog.Header>
 			<Dialog.Title>{m.login_code()}</Dialog.Title>
 			<Dialog.Description
@@ -56,7 +56,7 @@
 			</CopyToClipboard>
 			<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 				<Separator />
-				<p class="text-xs text-nowrap">{m.or_visit()}</p>
+				<p class="text-nowrap text-xs">{m.or_visit()}</p>
 				<Separator />
 			</div>
 

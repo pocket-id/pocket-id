@@ -17,7 +17,7 @@
 	function onOpenChange(state: boolean) {
 		open = state;
 		if (!state) {
-			copied = false;
+			setTimeout(() => (copied = false), 500);
 		}
 	}
 
@@ -29,10 +29,8 @@
 </script>
 
 <Tooltip.Provider>
-	<Tooltip.Root {onOpenChange} {open}>
-		<Tooltip.Trigger class="text-start" tabindex={-1} onclick={onClick}
-			>{@render children()}</Tooltip.Trigger
-		>
+	<Tooltip.Root {onOpenChange} {open} disableCloseOnTriggerClick>
+		<Tooltip.Trigger class="text-start" onclick={onClick}>{@render children()}</Tooltip.Trigger>
 		<Tooltip.Content onclick={copyToClipboard}>
 			{#if copied}
 				<span class="flex items-center"><LucideCheck class="mr-1 size-4" /> {m.copied()}</span>
