@@ -16,7 +16,8 @@
 		'pt-BR': 'Português brasileiro',
 		'ru-RU': 'Русский',
 		'it-IT': 'Italiano',
-		'zh-CN': '简体中文'
+		'zh-CN': '简体中文',
+		'pl-PL': 'Polski'
 	};
 
 	async function updateLocale(locale: Locale) {
