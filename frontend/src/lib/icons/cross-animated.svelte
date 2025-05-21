@@ -1,5 +1,13 @@
+<script lang="ts">
+	interface Props {
+		[key: string]: any;
+	}
+
+	let { ...rest }: Props = $props();
+</script>
+
 <svg
-	class="stroke-red-600 stroke-[13px] {$$restProps.class}"
+	class="stroke-red-600 stroke-[13px] {rest.class}"
 	xmlns="http://www.w3.org/2000/svg"
 	viewBox="0 0 85 85"
 >

@@ -18,16 +18,16 @@
 		 {error ? 'bg-red-200' : success ? 'bg-green-200' : 'bg-muted'}"
 >
 	{#if error || success}
-		<div class="flex h-10 w-10 items-center justify-center">
+		<div class="flex size-10 items-center justify-center">
 			{#if error}
-				<CrossAnimated class="h-5 w-5" />
+				<CrossAnimated class="size-5" />
 			{:else}
-				<CheckmarkAnimated class="h-5 w-5" />
+				<CheckmarkAnimated class="size-5" />
 			{/if}
 		</div>
 	{:else}
 		<div in:fade={{ duration: 300 }}>
-			<Logo class="h-10 w-10" />
+			<Logo class="size-10" />
 		</div>
 	{/if}
 </div>

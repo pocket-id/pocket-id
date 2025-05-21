@@ -8,7 +8,7 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { debounced } from '$lib/utils/debounce-util';
 	import { cn } from '$lib/utils/style';
-	import { ChevronDown } from 'lucide-svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import Button from './ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -96,7 +96,7 @@
 		)}
 		placeholder={m.search()}
 		type="text"
-		oninput={(e) => onSearch((e.target as HTMLInputElement).value)}
+		oninput={(e: Event) => onSearch((e.currentTarget as HTMLInputElement).value)}
 	/>
 {/if}
 
@@ -114,7 +114,7 @@
 						<Checkbox
 							disabled={selectionDisabled}
 							checked={allChecked}
-							onCheckedChange={(c) => onAllCheck(c as boolean)}
+							onCheckedChange={(c: boolean) => onAllCheck(c as boolean)}
 						/>
 					</Table.Head>
 				{/if}
@@ -124,7 +124,7 @@
 							<Button
 								variant="ghost"
 								class="flex items-center"
-								on:click={() =>
+								onclick={() =>
 									onSort(
 										column.sortColumn,
 										requestOptions.sort?.direction === 'desc' ? 'asc' : 'desc'
@@ -134,7 +134,7 @@
 								{#if requestOptions.sort?.column === column.sortColumn}
 									<ChevronDown
 										class={cn(
-											'ml-2 h-4 w-4',
+											'ml-2 size-4',
 											requestOptions.sort?.direction === 'asc' ? 'rotate-180' : ''
 										)}
 									/>
@@ -155,7 +155,7 @@
 							<Checkbox
 								disabled={selectionDisabled}
 								checked={selectedIds.includes(item.id)}
-								onCheckedChange={(c) => onCheck(c as boolean, item.id)}
+								onCheckedChange={(c: boolean) => onCheck(c, item.id)}
 							/>
 						</Table.Cell>
 					{/if}
@@ -169,18 +169,16 @@
 		<div class="flex items-center space-x-2">
 			<p class="text-sm font-medium">{m.items_per_page()}</p>
 			<Select.Root
-				selected={{
-					label: items.pagination.itemsPerPage.toString(),
-					value: items.pagination.itemsPerPage
-				}}
-				onSelectedChange={(v) => onPageSizeChange(v?.value as number)}
+				type="single"
+				value={items.pagination.itemsPerPage.toString()}
+				onValueChange={(v) => onPageSizeChange(Number(v))}
 			>
 				<Select.Trigger class="h-9 w-[80px]">
-					<Select.Value>{items.pagination.itemsPerPage}</Select.Value>
+					{items.pagination.itemsPerPage}
 				</Select.Trigger>
 				<Select.Content>
 					{#each availablePageSizes as size}
-						<Select.Item value={size}>{size}</Select.Item>
+						<Select.Item value={size.toString()}>{size}</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>
@@ -191,25 +189,26 @@
 			perPage={items.pagination.itemsPerPage}
 			{onPageChange}
 			page={items.pagination.currentPage}
-			let:pages
 		>
-			<Pagination.Content class="flex justify-end">
-				<Pagination.Item>
-					<Pagination.PrevButton />
-				</Pagination.Item>
-				{#each pages as page (page.key)}
-					{#if page.type !== 'ellipsis' && page.value != 0}
-						<Pagination.Item>
-							<Pagination.Link {page} isActive={items.pagination.currentPage === page.value}>
-								{page.value}
-							</Pagination.Link>
-						</Pagination.Item>
-					{/if}
-				{/each}
-				<Pagination.Item>
-					<Pagination.NextButton />
-				</Pagination.Item>
-			</Pagination.Content>
+			{#snippet children({ pages })}
+				<Pagination.Content class="flex justify-end">
+					<Pagination.Item>
+						<Pagination.PrevButton />
+					</Pagination.Item>
+					{#each pages as page (page.key)}
+						{#if page.type !== 'ellipsis' && page.value != 0}
+							<Pagination.Item>
+								<Pagination.Link {page} isActive={items.pagination.currentPage === page.value}>
+									{page.value}
+								</Pagination.Link>
+							</Pagination.Item>
+						{/if}
+					{/each}
+					<Pagination.Item>
+						<Pagination.NextButton />
+					</Pagination.Item>
+				</Pagination.Content>
+			{/snippet}
 		</Pagination.Root>
 	</div>
 {/if}

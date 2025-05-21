@@ -1,21 +1,20 @@
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
-	import type { HeadingLevel } from './index.js';
-	import { cn } from '$lib/utils/style.js';
+	import { cn, type WithElementRef } from '$lib/utils/style.js';
 
-	type $$Props = HTMLAttributes<HTMLHeadingElement> & {
-		level?: HeadingLevel;
-	};
-
-	let className: $$Props['class'] = undefined;
-	export let level: $$Props['level'] = 'h5';
-	export { className as class };
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
-<svelte:element
-	this={level}
-	class={cn('mb-1 leading-none font-medium tracking-tight', className)}
-	{...$$restProps}
+<div
+	bind:this={ref}
+	data-slot="alert-title"
+	class={cn('col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight', className)}
+	{...restProps}
 >
-	<slot />
-</svelte:element>
+	{@render children?.()}
+</div>

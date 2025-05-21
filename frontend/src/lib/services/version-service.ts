@@ -88,7 +88,7 @@ async function getVersionFromCache() {
 	return cache.newestVersion;
 }
 
-async function cacheVersion(version :string) {
+async function cacheVersion(version: string) {
 	const cacheObject = {
 		newestVersion: version,
 		timestamp: Date.now(),

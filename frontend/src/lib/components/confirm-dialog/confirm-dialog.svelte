@@ -14,16 +14,18 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<AlertDialog.Action asChild>
-				<Button
-					variant={$confirmDialogStore.confirm.destructive ? 'destructive' : 'default'}
-					on:click={() => {
-						$confirmDialogStore.confirm.action();
-						$confirmDialogStore.open = false;
-					}}
-				>
-					{$confirmDialogStore.confirm.label}
-				</Button>
+			<AlertDialog.Action>
+				{#snippet child()}
+					<Button
+						variant={$confirmDialogStore.confirm.destructive ? 'destructive' : 'default'}
+						onclick={() => {
+							$confirmDialogStore.confirm.action();
+							$confirmDialogStore.open = false;
+						}}
+					>
+						{$confirmDialogStore.confirm.label}
+					</Button>
+				{/snippet}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

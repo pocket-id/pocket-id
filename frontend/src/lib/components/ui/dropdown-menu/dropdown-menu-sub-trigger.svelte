@@ -1,32 +1,29 @@
 <script lang="ts">
-	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
 	import { cn } from '$lib/utils/style.js';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
 
-	type $$Props = DropdownMenuPrimitive.SubTriggerProps & {
+	let {
+		ref = $bindable(null),
+		class: className,
+		inset,
+		children,
+		...restProps
+	}: DropdownMenuPrimitive.SubTriggerProps & {
 		inset?: boolean;
-	};
-	type $$Events = DropdownMenuPrimitive.SubTriggerEvents;
-
-	let className: $$Props['class'] = undefined;
-	export let inset: $$Props['inset'] = undefined;
-	export { className as class };
+	} = $props();
 </script>
 
 <DropdownMenuPrimitive.SubTrigger
+	bind:ref
+	data-slot="dropdown-menu-sub-trigger"
+	data-inset={inset}
 	class={cn(
-		'data-[highlighted]:bg-accent data-[state=open]:bg-accent data-[highlighted]:text-accent-foreground data-[state=open]:text-accent-foreground flex items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none',
-		inset && 'pl-8',
+		"data-highlighted:bg-accent data-highlighted:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 		className
 	)}
-	{...$$restProps}
-	on:click
-	on:keydown
-	on:focusin
-	on:focusout
-	on:pointerleave
-	on:pointermove
+	{...restProps}
 >
-	<slot />
-	<ChevronRight class="ml-auto h-4 w-4" />
+	{@render children?.()}
+	<ChevronRightIcon class="ml-auto size-4" />
 </DropdownMenuPrimitive.SubTrigger>

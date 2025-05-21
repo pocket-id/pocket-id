@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import { Badge } from '$lib/components/ui/badge/index';
@@ -11,8 +12,8 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { UserGroup, UserGroupWithUserCount } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucidePencil, LucideTrash } from 'lucide-svelte';
-	import Ellipsis from 'lucide-svelte/icons/ellipsis';
+	import { LucidePencil, LucideTrash } from '@lucide/svelte';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -64,28 +65,28 @@
 		<Table.Cell>{item.userCount}</Table.Cell>
 		{#if $appConfigStore.ldapEnabled}
 			<Table.Cell>
-				<Badge variant={item.ldapId ? 'default' : 'outline'}
+				<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}
 					>{item.ldapId ? m.ldap() : m.local()}</Badge
 				>
 			</Table.Cell>
 		{/if}
 		<Table.Cell class="flex justify-end">
 			<DropdownMenu.Root>
-				<DropdownMenu.Trigger asChild let:builder>
-					<Button aria-haspopup="true" size="icon" variant="ghost" builders={[builder]}>
-						<Ellipsis class="h-4 w-4" />
+				<DropdownMenu.Trigger>
+					<Button aria-haspopup="true" size="icon" variant="ghost">
+						<Ellipsis class="size-4" />
 						<span class="sr-only">{m.toggle_menu()}</span>
 					</Button>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
-					<DropdownMenu.Item href="/settings/admin/user-groups/{item.id}"
-						><LucidePencil class="mr-2 h-4 w-4" /> {m.edit()}</DropdownMenu.Item
+					<DropdownMenu.Item onclick={() => goto(`/settings/admin/user-groups/${item.id}}`)}
+						><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
 					>
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
 						<DropdownMenu.Item
 							class="text-red-500 focus:!text-red-700"
-							on:click={() => deleteUserGroup(item)}
-							><LucideTrash class="mr-2 h-4 w-4" />{m.delete()}</DropdownMenu.Item
+							onclick={() => deleteUserGroup(item)}
+							><LucideTrash class="mr-2 size-4" />{m.delete()}</DropdownMenu.Item
 						>
 					{/if}
 				</DropdownMenu.Content>

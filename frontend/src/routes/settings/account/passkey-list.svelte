@@ -5,7 +5,7 @@
 	import WebauthnService from '$lib/services/webauthn-service';
 	import type { Passkey } from '$lib/types/passkey.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideKeyRound } from 'lucide-svelte';
+	import { LucideKeyRound } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 

@@ -19,8 +19,8 @@
 		LucideTrash,
 		LucideUserCheck,
 		LucideUserX
-	} from 'lucide-svelte';
-	import Ellipsis from 'lucide-svelte/icons/ellipsis';
+	} from '@lucide/svelte';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -116,16 +116,16 @@
 		<Table.Cell>{item.email}</Table.Cell>
 		<Table.Cell>{item.username}</Table.Cell>
 		<Table.Cell>
-			<Badge variant="outline">{item.isAdmin ? m.admin() : m.user()}</Badge>
+			<Badge class="rounded-full" variant="outline">{item.isAdmin ? m.admin() : m.user()}</Badge>
 		</Table.Cell>
 		<Table.Cell>
-			<Badge variant={item.disabled ? 'destructive' : 'default'}>
+			<Badge class="rounded-full" variant={item.disabled ? 'destructive' : 'default'}>
 				{item.disabled ? m.disabled() : m.enabled()}
 			</Badge>
 		</Table.Cell>
 		{#if $appConfigStore.ldapEnabled}
 			<Table.Cell>
-				<Badge variant={item.ldapId ? 'default' : 'outline'}
+				<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}
 					>{item.ldapId ? m.ldap() : m.local()}</Badge
 				>
 			</Table.Cell>
@@ -133,24 +133,24 @@
 		<Table.Cell>
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
-					<Ellipsis class="h-4 w-4" />
+					<Ellipsis class="size-4" />
 					<span class="sr-only">{m.toggle_menu()}</span>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={() => (userIdToCreateOneTimeLink = item.id)}
-						><LucideLink class="mr-2 h-4 w-4" />{m.login_code()}</DropdownMenu.Item
+						><LucideLink class="mr-2 size-4" />{m.login_code()}</DropdownMenu.Item
 					>
 					<DropdownMenu.Item onclick={() => goto(`/settings/admin/users/${item.id}`)}
-						><LucidePencil class="mr-2 h-4 w-4" /> {m.edit()}</DropdownMenu.Item
+						><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
 					>
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
 						{#if item.disabled}
 							<DropdownMenu.Item onclick={() => enableUser(item)}
-								><LucideUserCheck class="mr-2 h-4 w-4" />{m.enable()}</DropdownMenu.Item
+								><LucideUserCheck class="mr-2 size-4" />{m.enable()}</DropdownMenu.Item
 							>
 						{:else}
 							<DropdownMenu.Item onclick={() => disableUser(item)}
-								><LucideUserX class="mr-2 h-4 w-4" />{m.disable()}</DropdownMenu.Item
+								><LucideUserX class="mr-2 size-4" />{m.disable()}</DropdownMenu.Item
 							>
 						{/if}
 					{/if}
@@ -158,7 +158,7 @@
 						<DropdownMenu.Item
 							class="text-red-500 focus:!text-red-700"
 							onclick={() => deleteUser(item)}
-							><LucideTrash class="mr-2 h-4 w-4" />{m.delete()}</DropdownMenu.Item
+							><LucideTrash class="mr-2 size-4" />{m.delete()}</DropdownMenu.Item
 						>
 					{/if}
 				</DropdownMenu.Content>

@@ -23,7 +23,7 @@
 <div class="flex flex-col gap-8">
 	<ApplicationImage
 		id="favicon"
-		imageClass="h-14 w-14 p-2"
+		imageClass="size-14 p-2"
 		label={m.favicon()}
 		bind:image={favicon}
 		imageURL="/api/application-configuration/favicon"
@@ -31,7 +31,7 @@
 	/>
 	<ApplicationImage
 		id="logo-light"
-		imageClass="h-32 w-32"
+		imageClass="size-32"
 		label={m.light_mode_logo()}
 		bind:image={logoLight}
 		imageURL="/api/application-configuration/logo?light=true"
@@ -39,7 +39,7 @@
 	/>
 	<ApplicationImage
 		id="logo-dark"
-		imageClass="h-32 w-32"
+		imageClass="size-32"
 		label={m.dark_mode_logo()}
 		bind:image={logoDark}
 		imageURL="/api/application-configuration/logo?light=false"

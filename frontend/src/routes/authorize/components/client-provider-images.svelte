@@ -35,7 +35,7 @@
 			? 'translate-x-[108px]'
 			: ''}"
 	>
-		<Logo class="h-10 w-10" />
+		<Logo class="size-10" />
 	</div>
 
 	<ConnectArrow
@@ -50,22 +50,22 @@
 			: ''} {animationDone ? (success ? 'bg-green-200' : 'bg-red-200') : 'bg-muted'}"
 	>
 		{#if animationDone && success}
-			<div class="flex h-10 w-10 items-center justify-center">
-				<CheckmarkAnimated class="h-7 w-7" />
+			<div class="flex size-10 items-center justify-center">
+				<CheckmarkAnimated class="size-7" />
 			</div>
 		{:else if animationDone && error}
-			<div class="flex h-10 w-10 items-center justify-center">
-				<CrossAnimated class="h-5 w-5" />
+			<div class="flex size-10 items-center justify-center">
+				<CrossAnimated class="size-5" />
 			</div>
 		{:else if client.hasLogo}
 			<img
-				class="h-10 w-10"
+				class="size-10"
 				src="/api/oidc/clients/{client.id}/logo"
 				draggable={false}
 				alt={m.client_logo()}
 			/>
 		{:else}
-			<div class="flex h-10 w-10 items-center justify-center text-3xl font-bold">
+			<div class="flex size-10 items-center justify-center text-3xl font-bold">
 				{client.name.charAt(0).toUpperCase()}
 			</div>
 		{/if}

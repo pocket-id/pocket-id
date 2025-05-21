@@ -2,18 +2,11 @@
 	import { Calendar as CalendarPrimitive } from 'bits-ui';
 	import { cn } from '$lib/utils/style.js';
 
-	type $$Props = CalendarPrimitive.HeadingProps;
-
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: CalendarPrimitive.HeadingProps = $props();
 </script>
 
-<CalendarPrimitive.Heading
-	let:headingValue
-	class={cn('text-sm font-medium', className)}
-	{...$$restProps}
->
-	<slot {headingValue}>
-		{headingValue}
-	</slot>
-</CalendarPrimitive.Heading>
+<CalendarPrimitive.Heading bind:ref class={cn('text-sm font-medium', className)} {...restProps} />

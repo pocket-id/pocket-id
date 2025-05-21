@@ -9,7 +9,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft } from 'lucide-svelte';
+	import { LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import UserGroupForm from '../user-group-form.svelte';
 	import UserSelection from '../user-selection.svelte';
@@ -62,10 +62,10 @@
 
 <div class="flex items-center justify-between">
 	<a class="text-muted-foreground flex text-sm" href="/settings/admin/user-groups"
-		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
+		><LucideChevronLeft class="size-5" /> {m.back()}</a
 	>
 	{#if !!userGroup.ldapId}
-		<Badge variant="default" class="">{m.ldap()}</Badge>
+		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>
 	{/if}
 </div>
 <Card.Root>
@@ -92,7 +92,7 @@
 		<div class="mt-5 flex justify-end">
 			<Button
 				disabled={!!userGroup.ldapId && $appConfigStore.ldapEnabled}
-				on:click={() => updateUserGroupUsers(userGroup.userIds)}>{m.save()}</Button
+				onclick={() => updateUserGroupUsers(userGroup.userIds)}>{m.save()}</Button
 			>
 		</div>
 	</Card.Content>

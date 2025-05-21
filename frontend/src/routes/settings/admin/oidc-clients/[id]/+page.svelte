@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
@@ -12,7 +12,7 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft, LucideRefreshCcw } from 'lucide-svelte';
+	import { LucideChevronLeft, LucideRefreshCcw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OidcForm from '../oidc-client-form.svelte';
@@ -28,12 +28,12 @@
 	const oidcService = new OidcService();
 
 	const setupDetails = $state({
-		[m.authorization_url()]: `https://${$page.url.hostname}/authorize`,
-		[m.oidc_discovery_url()]: `https://${$page.url.hostname}/.well-known/openid-configuration`,
-		[m.token_url()]: `https://${$page.url.hostname}/api/oidc/token`,
-		[m.userinfo_url()]: `https://${$page.url.hostname}/api/oidc/userinfo`,
-		[m.logout_url()]: `https://${$page.url.hostname}/api/oidc/end-session`,
-		[m.certificate_url()]: `https://${$page.url.hostname}/.well-known/jwks.json`,
+		[m.authorization_url()]: `https://${page.url.hostname}/authorize`,
+		[m.oidc_discovery_url()]: `https://${page.url.hostname}/.well-known/openid-configuration`,
+		[m.token_url()]: `https://${page.url.hostname}/api/oidc/token`,
+		[m.userinfo_url()]: `https://${page.url.hostname}/api/oidc/userinfo`,
+		[m.logout_url()]: `https://${page.url.hostname}/api/oidc/end-session`,
+		[m.certificate_url()]: `https://${page.url.hostname}/.well-known/jwks.json`,
 		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled()
 	});
 
@@ -102,7 +102,7 @@
 
 <div>
 	<a class="text-muted-foreground flex text-sm" href="/settings/admin/oidc-clients"
-		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
+		><LucideChevronLeft class="size-5" /> {m.back()}</a
 	>
 </div>
 <Card.Root>
@@ -136,7 +136,7 @@
 								onclick={createClientSecret}
 								size="sm"
 								variant="ghost"
-								aria-label="Create new client secret"><LucideRefreshCcw class="h-3 w-3" /></Button
+								aria-label="Create new client secret"><LucideRefreshCcw class="size-3" /></Button
 							>
 						</div>
 					{/if}
@@ -157,7 +157,7 @@
 
 			{#if !showAllDetails}
 				<div class="mt-4 flex justify-center">
-					<Button on:click={() => (showAllDetails = true)} size="sm" variant="ghost"
+					<Button onclick={() => (showAllDetails = true)} size="sm" variant="ghost"
 						>{m.show_more_details()}</Button
 					>
 				</div>
@@ -177,6 +177,6 @@
 >
 	<UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
 	<div class="mt-5 flex justify-end">
-		<Button on:click={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
+		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
 	</div>
 </CollapsibleCard>

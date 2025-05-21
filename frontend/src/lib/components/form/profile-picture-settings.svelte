@@ -4,7 +4,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getProfilePictureUrl } from '$lib/utils/profile-picture-util';
-	import { LucideLoader, LucideRefreshCw, LucideUpload } from 'lucide-svelte';
+	import { LucideLoader, LucideRefreshCw, LucideUpload } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { openConfirmDialog } from '../confirm-dialog';
 
@@ -65,7 +65,7 @@
 <div class="flex flex-col items-center gap-6 sm:flex-row">
 	<div class="shrink-0">
 		{#if isLdapUser}
-			<Avatar.Root class="h-24 w-24">
+			<Avatar.Root class="size-24">
 				<Avatar.Image class="object-cover" src={imageDataURL} />
 			</Avatar.Root>
 		{:else}
@@ -75,7 +75,7 @@
 				accept="image/png, image/jpeg"
 				onchange={onImageChange}
 			>
-				<div class="group relative h-24 w-24 rounded-full">
+				<div class="group relative size-24 rounded-full">
 					<Avatar.Root class="h-full w-full transition-opacity duration-200">
 						<Avatar.Image
 							class="object-cover group-hover:opacity-30 {isLoading ? 'opacity-30' : ''}"
@@ -84,9 +84,9 @@
 					</Avatar.Root>
 					<div class="absolute inset-0 flex items-center justify-center">
 						{#if isLoading}
-							<LucideLoader class="h-5 w-5 animate-spin" />
+							<LucideLoader class="size-5 animate-spin" />
 						{:else}
-							<LucideUpload class="h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100" />
+							<LucideUpload class="size-5 opacity-0 transition-opacity group-hover:opacity-100" />
 						{/if}
 					</div>
 				</div>
@@ -105,8 +105,8 @@
 				{m.click_profile_picture_to_upload_custom()}
 			</p>
 			<p class="text-muted-foreground mb-2 text-sm">{m.image_should_be_in_format()}</p>
-			<Button variant="outline" size="sm" on:click={onReset} disabled={isLoading || isLdapUser}>
-				<LucideRefreshCw class="mr-2 h-4 w-4" />
+			<Button variant="outline" size="sm" onclick={onReset} disabled={isLoading || isLdapUser}>
+				<LucideRefreshCw class="mr-2 size-4" />
 				{m.reset_to_default()}
 			</Button>
 		{/if}

@@ -19,7 +19,7 @@
 </script>
 
 <Dialog.Root open={!!apiKeyResponse} {onOpenChange}>
-	<Dialog.Content class="max-w-md" closeButton={false}>
+	<Dialog.Content class="max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>{m.api_key_created()}</Dialog.Title>
 			<Dialog.Description>
@@ -45,7 +45,7 @@
 			</div>
 		{/if}
 		<Dialog.Footer class="mt-3">
-			<Button variant="default" on:click={() => onOpenChange(false)}>{m.close()}</Button>
+			<Button variant="default" onclick={() => onOpenChange(false)}>{m.close()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

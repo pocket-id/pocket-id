@@ -16,7 +16,7 @@
 		LucideAlertTriangle,
 		RectangleEllipsis,
 		UserCog
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
@@ -49,7 +49,7 @@
 	async function createPasskey() {
 		try {
 			const opts = await webauthnService.getRegistrationOptions();
-			const attResp = await startRegistration({optionsJSON: opts});
+			const attResp = await startRegistration({ optionsJSON: opts });
 			const passkey = await webauthnService.finishRegistration(attResp);
 
 			passkeys = await webauthnService.listCredentials();
@@ -75,7 +75,7 @@
 				</Alert.Description>
 			</div>
 			<div>
-				<Button class="mt-2 md:mt-0" on:click={createPasskey}>
+				<Button class="mt-2 md:mt-0" onclick={createPasskey}>
 					{m.add_passkey()}
 				</Button>
 			</div>
@@ -100,7 +100,7 @@
 			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
 				<div>
 					<Card.Title>
-						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
+						<RectangleEllipsis class="text-primary/80 size-5" />
 						{m.login_code()}
 					</Card.Title>
 					<Card.Description>
@@ -108,7 +108,7 @@
 					</Card.Description>
 				</div>
 
-				<Button variant="outline" class="w-full" on:click={() => (showLoginCodeModal = true)}>
+				<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
 					{m.create()}
 				</Button>
 			</div>
@@ -124,7 +124,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>
-				<UserCog class="text-primary/80 h-5 w-5" />
+				<UserCog class="text-primary/80 size-5" />
 				{m.account_details()}
 			</Card.Title>
 		</Card.Header>
@@ -146,14 +146,14 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title>
-						<KeyRound class="text-primary/80 h-5 w-5" />
+						<KeyRound class="text-primary/80 size-5" />
 						{m.passkeys()}
 					</Card.Title>
 					<Card.Description>
 						{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
 					</Card.Description>
 				</div>
-				<Button variant="outline" class="ml-3" on:click={createPasskey}>
+				<Button variant="outline" class="ml-3" onclick={createPasskey}>
 					{m.add_passkey()}
 				</Button>
 			</div>
@@ -173,14 +173,14 @@
 			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
 				<div>
 					<Card.Title>
-						<RectangleEllipsis class="text-primary/80 h-5 w-5" />
+						<RectangleEllipsis class="text-primary/80 size-5" />
 						{m.login_code()}
 					</Card.Title>
 					<Card.Description>
 						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 					</Card.Description>
 				</div>
-				<Button variant="outline" on:click={() => (showLoginCodeModal = true)}>
+				<Button variant="outline" onclick={() => (showLoginCodeModal = true)}>
 					{m.create()}
 				</Button>
 			</div>
@@ -195,10 +195,9 @@
 			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
 				<div>
 					<Card.Title>
-						<Languages class="text-primary/80 h-5 w-5" />
+						<Languages class="text-primary/80 size-5" />
 						{m.language()}
 					</Card.Title>
-
 					<Card.Description>
 						{m.select_the_language_you_want_to_use()}
 					</Card.Description>

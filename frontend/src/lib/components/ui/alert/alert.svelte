@@ -1,21 +1,44 @@
+<script lang="ts" module>
+	import { type VariantProps, tv } from 'tailwind-variants';
+
+	export const alertVariants = tv({
+		base: 'relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
+		variants: {
+			variant: {
+				default: 'bg-card text-card-foreground',
+				destructive:
+					'text-destructive bg-card *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current',
+				warning:
+					'bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100 [&>svg]:text-amber-900 dark:[&>svg]:text-amber-100'
+			}
+		},
+		defaultVariants: {
+			variant: 'default'
+		}
+	});
+
+	export type AlertVariant = VariantProps<typeof alertVariants>['variant'];
+</script>
+
 <script lang="ts">
-	import { cn } from '$lib/utils/style.js';
-	import { LucideX } from 'lucide-svelte';
-	import { onMount } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { type Variant, alertVariants } from './index.js';
+	import { cn, type WithElementRef } from '$lib/utils/style.js';
+	import { onMount } from 'svelte';
+	import { LucideX } from '@lucide/svelte';
 
-	type $$Props = HTMLAttributes<HTMLDivElement> & {
-		variant?: Variant;
+	let {
+		ref = $bindable(null),
+		class: className,
+		variant = 'default',
+		children,
+		dismissibleId = undefined,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
+		variant?: AlertVariant;
 		dismissibleId?: string;
-	};
+	} = $props();
 
-	let className: $$Props['class'] = undefined;
-	export let variant: $$Props['variant'] = 'default';
-	export let dismissibleId: $$Props['dismissibleId'] = undefined;
-	export { className as class };
-
-	let isVisible = !dismissibleId;
+	let isVisible = $state(!dismissibleId);
 
 	onMount(() => {
 		if (dismissibleId) {
@@ -34,11 +57,17 @@
 </script>
 
 {#if isVisible}
-	<div class={cn(alertVariants({ variant }), className)} {...$$restProps} role="alert">
-		<slot />
+	<div
+		bind:this={ref}
+		data-slot="alert"
+		class={cn(alertVariants({ variant }), className)}
+		{...restProps}
+		role="alert"
+	>
+		{@render children?.()}
 		{#if dismissibleId}
-			<button on:click={dismiss} class="absolute top-0 right-0 m-3 text-black dark:text-white"
-				><LucideX class="w-4" /></button
+			<button onclick={dismiss} class="absolute top-0 right-0 m-3 text-black dark:text-white"
+				><LucideX class="size-4" /></button
 			>
 		{/if}
 	</div>

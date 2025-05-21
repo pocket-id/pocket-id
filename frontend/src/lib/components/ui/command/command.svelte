@@ -1,23 +1,22 @@
 <script lang="ts">
-	import { Command as CommandPrimitive } from 'cmdk-sv';
+	import { Command as CommandPrimitive } from 'bits-ui';
 	import { cn } from '$lib/utils/style.js';
-	import type { ClassValue } from 'svelte/elements';
 
-	type $$Props = CommandPrimitive.CommandProps;
-
-	export let value: $$Props['value'] = undefined;
-
-	let className: ClassValue | undefined | null = undefined;
-	export { className as class };
+	let {
+		ref = $bindable(null),
+		value = $bindable(''),
+		class: className,
+		...restProps
+	}: CommandPrimitive.RootProps = $props();
 </script>
 
 <CommandPrimitive.Root
+	bind:value
+	bind:ref
+	data-slot="command"
 	class={cn(
 		'bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md',
 		className
 	)}
-	bind:value
-	{...$$restProps}
->
-	<slot />
-</CommandPrimitive.Root>
+	{...restProps}
+/>

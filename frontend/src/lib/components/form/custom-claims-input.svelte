@@ -4,7 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import CustomClaimService from '$lib/services/custom-claim-service';
 	import type { CustomClaim } from '$lib/types/custom-claim.type';
-	import { LucideMinus, LucidePlus } from 'lucide-svelte';
+	import { LucideMinus, LucidePlus } from '@lucide/svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import AutoCompleteInput from './auto-complete-input.svelte';
@@ -51,25 +51,25 @@
 						variant="outline"
 						size="sm"
 						aria-label={m.remove_custom_claim()}
-						on:click={() => (customClaims = customClaims.filter((_, index) => index !== i))}
+						onclick={() => (customClaims = customClaims.filter((_, index) => index !== i))}
 					>
-						<LucideMinus class="h-4 w-4" />
+						<LucideMinus class="size-4" />
 					</Button>
 				</div>
 			{/each}
 		</div>
 	</FormInput>
 	{#if error}
-		<p class="mt-1 text-sm text-red-500">{error}</p>
+		<p class="text-destructive mt-1 text-xs">{error}</p>
 	{/if}
 	{#if customClaims.length < limit}
 		<Button
 			class="mt-2"
 			variant="secondary"
 			size="sm"
-			on:click={() => (customClaims = [...customClaims, { key: '', value: '' }])}
+			onclick={() => (customClaims = [...customClaims, { key: '', value: '' }])}
 		>
-			<LucidePlus class="mr-1 h-4 w-4" />
+			<LucidePlus class="mr-1 size-4" />
 			{customClaims.length === 0 ? m.add_custom_claim() : m.add_another()}
 		</Button>
 	{/if}
