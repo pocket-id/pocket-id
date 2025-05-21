@@ -13,11 +13,11 @@
 		'en-US': 'English',
 		'fr-FR': 'Français',
 		'nl-NL': 'Nederlands',
+		'pl-PL': 'Polski',
 		'pt-BR': 'Português brasileiro',
 		'ru-RU': 'Русский',
 		'it-IT': 'Italiano',
-		'zh-CN': '简体中文',
-		'pl-PL': 'Polski'
+		'zh-CN': '简体中文'
 	};
 
 	async function updateLocale(locale: Locale) {
