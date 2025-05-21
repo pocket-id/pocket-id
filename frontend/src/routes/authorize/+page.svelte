@@ -13,21 +13,15 @@
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 	import ClientProviderImages from './components/client-provider-images.svelte';
 
 	const webauthnService = new WebAuthnService();
 	const oidService = new OidcService();
 
-	let {
-		scope,
-		nonce,
-		client,
-		authorizeState,
-		callbackURL,
-		codeChallenge,
-		codeChallengeMethod
-	}: PageData = $props();
+	let { data }: PageProps = $props();
+	let { client, scope, callbackURL, nonce, codeChallenge, codeChallengeMethod, authorizeState } =
+		data;
 
 	let isLoading = $state(false);
 	let success = $state(false);
