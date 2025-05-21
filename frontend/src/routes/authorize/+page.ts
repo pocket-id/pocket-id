@@ -10,7 +10,7 @@ export const load: PageLoad = async ({ url }) => {
 	return {
 		scope: url.searchParams.get('scope')!,
 		nonce: url.searchParams.get('nonce') || undefined,
-		state: url.searchParams.get('state')!,
+		authorizeState: url.searchParams.get('state')!,
 		callbackURL: url.searchParams.get('redirect_uri')!,
 		client,
 		codeChallenge: url.searchParams.get('code_challenge')!,

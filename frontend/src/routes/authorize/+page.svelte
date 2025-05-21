@@ -1,7 +1,6 @@
-<!-- @migration-task Error while migrating Svelte code: can't migrate `let isLoading = false;` to `$state` because there's a variable named state.
-     Rename the variable and try again or migrate by hand. -->
 <script lang="ts">
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
+	import ScopeItem from '$lib/components/scope-item.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
@@ -10,25 +9,31 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
-	import { startAuthentication } from '@simplewebauthn/browser';
 	import { LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
+	import { startAuthentication } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageData } from './$types';
 	import ClientProviderImages from './components/client-provider-images.svelte';
-	import ScopeItem from '$lib/components/scope-item.svelte';
 
 	const webauthnService = new WebAuthnService();
 	const oidService = new OidcService();
 
-	let isLoading = false;
-	let success = false;
-	let errorMessage: string | null = null;
-	let authorizationRequired = false;
-	let authorizationConfirmed = false;
+	let {
+		scope,
+		nonce,
+		client,
+		authorizeState,
+		callbackURL,
+		codeChallenge,
+		codeChallengeMethod
+	}: PageData = $props();
 
-	export let data: PageData;
-	let { scope, nonce, client, state, callbackURL, codeChallenge, codeChallengeMethod } = data;
+	let isLoading = $state(false);
+	let success = $state(false);
+	let errorMessage: string | null = $state(null);
+	let authorizationRequired = $state(false);
+	let authorizationConfirmed = $state(false);
 
 	onMount(() => {
 		if ($userStore) {
@@ -72,7 +77,7 @@
 		setTimeout(() => {
 			const redirectURL = new URL(callbackURL);
 			redirectURL.searchParams.append('code', code);
-			redirectURL.searchParams.append('state', state);
+			redirectURL.searchParams.append('state', authorizeState);
 
 			window.location.href = redirectURL.toString();
 		}, 1000);
@@ -92,12 +97,12 @@
 			{m.sign_in_to({ name: client.name })}
 		</h1>
 		{#if errorMessage}
-			<p class="text-muted-foreground mt-2 mb-10">
+			<p class="text-muted-foreground mb-10 mt-2">
 				{errorMessage}.
 			</p>
 		{/if}
 		{#if !authorizationRequired && !errorMessage}
-			<p class="text-muted-foreground mt-2 mb-10">
+			<p class="text-muted-foreground mb-10 mt-2">
 				{@html m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
 					client: client.name,
 					appName: $appConfigStore.appName
@@ -105,7 +110,7 @@
 			</p>
 		{:else if authorizationRequired}
 			<div transition:slide={{ duration: 300 }}>
-				<Card.Root class="mt-6 mb-10">
+				<Card.Root class="mb-10 mt-6">
 					<Card.Header class="pb-5">
 						<p class="text-muted-foreground text-start">
 							{@html m.client_wants_to_access_the_following_information({ client: client.name })}
