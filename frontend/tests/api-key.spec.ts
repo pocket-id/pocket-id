@@ -62,7 +62,7 @@ test.describe('API Key Management', () => {
 		await page.getByText('Revoke', { exact: true }).click();
 
 		// Verify success message
-		await expect(page.getByRole('status')).toHaveText('API key revoked successfully');
+		await expect(page.locator('[data-type="success"]')).toHaveText('API key revoked successfully');
 
 		// Verify key is no longer in the list
 		await expect(page.getByRole('cell', { name: apiKey.name })).not.toBeVisible();

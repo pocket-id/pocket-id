@@ -10,7 +10,7 @@ test('Update general configuration', async ({ page }) => {
 	await page.getByLabel('Session Duration').fill('30');
 	await page.getByRole('button', { name: 'Save' }).first().click();
 
-	await expect(page.getByRole('status')).toHaveText(
+	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Application configuration updated successfully'
 	);
 	await expect(page.getByTestId('application-name')).toHaveText('Updated Name');
@@ -38,7 +38,9 @@ test('Update email configuration', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
-	await expect(page.getByRole('status')).toHaveText('Email configuration updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Email configuration updated successfully'
+	);
 
 	await page.reload();
 
@@ -64,7 +66,7 @@ test('Update application images', async ({ page }) => {
 	await page.getByLabel('Background Image').setInputFiles('tests/assets/clouds.jpg');
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
-	await expect(page.getByRole('status')).toHaveText('Images updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('Images updated successfully');
 
 	await page.request
 		.get('/api/application-configuration/favicon')

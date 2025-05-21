@@ -20,7 +20,9 @@ test('Create OIDC client', async ({ page }) => {
 
 	const clientId = await page.getByTestId('client-id').textContent();
 
-	await expect(page.getByRole('status')).toHaveText('OIDC client created successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'OIDC client created successfully'
+	);
 	expect(clientId?.length).toBe(36);
 	expect((await page.getByTestId('client-secret').textContent())?.length).toBe(32);
 	await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
@@ -41,7 +43,9 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.getByLabel('logo').setInputFiles('tests/assets/nextcloud-logo.png');
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('OIDC client updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'OIDC client updated successfully'
+	);
 	await expect(page.getByRole('img', { name: 'Nextcloud updated logo' })).toBeVisible();
 	await page.request
 		.get(`/api/oidc/clients/${oidcClient.id}/logo`)
@@ -55,7 +59,9 @@ test('Create new OIDC client secret', async ({ page }) => {
 	await page.getByLabel('Create new client secret').click();
 	await page.getByRole('button', { name: 'Generate' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('New client secret created successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'New client secret created successfully'
+	);
 	expect((await page.getByTestId('client-secret').textContent())?.length).toBe(32);
 });
 
@@ -66,6 +72,8 @@ test('Delete OIDC client', async ({ page }) => {
 	await page.getByRole('row', { name: oidcClient.name }).getByLabel('Delete').click();
 	await page.getByText('Delete', { exact: true }).click();
 
-	await expect(page.getByRole('status')).toHaveText('OIDC client deleted successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'OIDC client deleted successfully'
+	);
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
 });

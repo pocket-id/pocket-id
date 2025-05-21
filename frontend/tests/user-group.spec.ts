@@ -13,7 +13,7 @@ test('Create user group', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('User group created successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('User group created successfully');
 
 	await page.waitForURL('/settings/admin/user-groups/*');
 
@@ -36,7 +36,7 @@ test('Edit user group', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Save' }).nth(0).click();
 
-	await expect(page.getByRole('status')).toHaveText('User group updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('User group updated successfully');
 	await expect(page.getByLabel('Friendly Name')).toHaveValue('Developers updated');
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('developers_updated');
 });
@@ -50,7 +50,7 @@ test('Update user group users', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
-	await expect(page.getByRole('status')).toHaveText('Users updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('Users updated successfully');
 
 	await page.reload();
 
@@ -70,7 +70,7 @@ test('Delete user group', async ({ page }) => {
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
 	await page.getByRole('button', { name: 'Delete' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('User group deleted successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('User group deleted successfully');
 	await expect(page.getByRole('row', { name: group.name })).not.toBeVisible();
 });
 
@@ -91,7 +91,9 @@ test('Update user group custom claims', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Save' }).nth(2).click();
 
-	await expect(page.getByRole('status')).toHaveText('Custom claims updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Custom claims updated successfully'
+	);
 
 	await page.reload();
 

@@ -17,7 +17,7 @@ test('Create user', async ({ page }) => {
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.getByRole('row', { name: `${user.firstname} ${user.lastname}` })).toBeVisible();
-	await expect(page.getByRole('status')).toHaveText('User created successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('User created successfully');
 });
 
 test('Create user fails with already taken email', async ({ page }) => {
@@ -32,7 +32,7 @@ test('Create user fails with already taken email', async ({ page }) => {
 	await page.getByLabel('Username').fill(user.username);
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('Email is already in use');
+	await expect(page.locator('[data-type="error"]')).toHaveText('Email is already in use');
 });
 
 test('Create user fails with already taken username', async ({ page }) => {
@@ -47,7 +47,7 @@ test('Create user fails with already taken username', async ({ page }) => {
 	await page.getByLabel('Username').fill(users.tim.username);
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('Username is already in use');
+	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
 });
 
 test('Create one time access token', async ({ page, context }) => {
@@ -85,7 +85,7 @@ test('Delete user', async ({ page }) => {
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
 	await page.getByRole('button', { name: 'Delete' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('User deleted successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('User deleted successfully');
 	await expect(
 		page.getByRole('row', {
 			name: `${users.craig.firstname} ${users.craig.lastname}`
@@ -110,7 +110,7 @@ test('Update user', async ({ page }) => {
 	await page.getByLabel('Username').fill('crack');
 	await page.getByRole('button', { name: 'Save' }).first().click();
 
-	await expect(page.getByRole('status')).toHaveText('User updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('User updated successfully');
 });
 
 test('Update user fails with already taken email', async ({ page }) => {
@@ -127,7 +127,7 @@ test('Update user fails with already taken email', async ({ page }) => {
 	await page.getByLabel('Email').fill(users.tim.email);
 	await page.getByRole('button', { name: 'Save' }).first().click();
 
-	await expect(page.getByRole('status')).toHaveText('Email is already in use');
+	await expect(page.locator('[data-type="error"]')).toHaveText('Email is already in use');
 });
 
 test('Update user fails with already taken username', async ({ page }) => {
@@ -144,7 +144,7 @@ test('Update user fails with already taken username', async ({ page }) => {
 	await page.getByLabel('Username').fill(users.tim.username);
 	await page.getByRole('button', { name: 'Save' }).first().click();
 
-	await expect(page.getByRole('status')).toHaveText('Username is already in use');
+	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
 });
 
 test('Update user custom claims', async ({ page }) => {
@@ -164,7 +164,9 @@ test('Update user custom claims', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
-	await expect(page.getByRole('status')).toHaveText('Custom claims updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Custom claims updated successfully'
+	);
 
 	await page.reload();
 
@@ -178,7 +180,9 @@ test('Update user custom claims', async ({ page }) => {
 	await page.getByLabel('Remove custom claim').first().click();
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
-	await expect(page.getByRole('status')).toHaveText('Custom claims updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Custom claims updated successfully'
+	);
 
 	await page.reload();
 
@@ -198,7 +202,9 @@ test('Update user group assignments', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
-	await expect(page.getByRole('status')).toHaveText('User groups updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'User groups updated successfully'
+	);
 
 	await page.reload();
 

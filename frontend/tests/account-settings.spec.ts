@@ -15,7 +15,9 @@ test('Update account details', async ({ page }) => {
 	await page.getByLabel('Username').fill('timothy');
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('Account details updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Account details updated successfully'
+	);
 });
 
 test('Update account details fails with already taken email', async ({ page }) => {
@@ -25,7 +27,7 @@ test('Update account details fails with already taken email', async ({ page }) =
 
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('Email is already in use');
+	await expect(page.locator('[data-type="error"]')).toHaveText('Email is already in use');
 });
 
 test('Update account details fails with already taken username', async ({ page }) => {
@@ -35,7 +37,7 @@ test('Update account details fails with already taken username', async ({ page }
 
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.getByRole('status')).toHaveText('Username is already in use');
+	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
 });
 
 test('Change Locale', async ({ page }) => {
@@ -84,7 +86,7 @@ test('Delete passkey from account', async ({ page }) => {
 	await page.getByLabel('Delete').first().click();
 	await page.getByText('Delete', { exact: true }).click();
 
-	await expect(page.getByRole('status')).toHaveText('Passkey deleted successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
 });
 
 test('Generate own one time access token as non admin', async ({ page, context }) => {
