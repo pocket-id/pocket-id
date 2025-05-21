@@ -4,21 +4,23 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/resources"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 func newDatabase() (db *gorm.DB) {
@@ -86,7 +88,11 @@ func connectDatabase() (db *gorm.DB, err error) {
 		if !strings.HasPrefix(common.EnvConfig.DbConnectionString, "file:") {
 			return nil, errors.New("invalid value for env var 'DB_CONNECTION_STRING': does not begin with 'file:'")
 		}
-		dialector = sqlite.Open(common.EnvConfig.DbConnectionString)
+		connString, err := parseSqliteConnectionString(common.EnvConfig.DbConnectionString)
+		if err != nil {
+			return nil, err
+		}
+		dialector = sqlite.Open(connString)
 	case common.DbProviderPostgres:
 		if common.EnvConfig.DbConnectionString == "" {
 			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
@@ -110,6 +116,50 @@ func connectDatabase() (db *gorm.DB, err error) {
 	}
 
 	return nil, err
+}
+
+// The official C implementation of SQLite allows some additional properties in the connection string
+// that are not supported in the in the modernc.org/sqlite driver, and which must be passed as PRAGMA args instead.
+// To ensure that people can use similar args as in the C driver, which was also used by Pocket ID
+// previously (via github.com/mattn/go-sqlite3), we are converting some options.
+func parseSqliteConnectionString(connString string) (string, error) {
+	if !strings.HasPrefix(connString, "file:") {
+		connString = "file:" + connString
+	}
+
+	connStringUrl, err := url.Parse(connString)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse SQLite connection string: %w", err)
+	}
+
+	// Reference: https://github.com/mattn/go-sqlite3?tab=readme-ov-file#connection-string
+	// This only includes a subset of options, excluding those that are not relevant to us
+	qs := make(url.Values, len(connStringUrl.Query()))
+	for k, v := range connStringUrl.Query() {
+		switch k {
+		case "_auto_vacuum", "_vacuum":
+			qs.Add("_pragma", "auto_vacuum("+v[0]+")")
+		case "_busy_timeout", "_timeout":
+			qs.Add("_pragma", "busy_timeout("+v[0]+")")
+		case "_case_sensitive_like", "_cslike":
+			qs.Add("_pragma", "case_sensitive_like("+v[0]+")")
+		case "_foreign_keys", "_fk":
+			qs.Add("_pragma", "foreign_keys("+v[0]+")")
+		case "_locking_mode", "_locking":
+			qs.Add("_pragma", "locking_mode("+v[0]+")")
+		case "_secure_delete":
+			qs.Add("_pragma", "secure_delete("+v[0]+")")
+		case "_synchronous", "_sync":
+			qs.Add("_pragma", "synchronous("+v[0]+")")
+		default:
+			// Pass other query-string args as-is
+			qs[k] = v
+		}
+	}
+
+	connStringUrl.RawQuery = qs.Encode()
+
+	return connStringUrl.String(), nil
 }
 
 func getLogger() logger.Interface {
