@@ -45,6 +45,7 @@
 				<DatePicker {id} bind:value={input.value as Date} />
 			{:else}
 				<Input
+					aria-invalid={!!input.error}
 					{id}
 					{placeholder}
 					{type}
@@ -55,7 +56,7 @@
 			{/if}
 		{/if}
 		{#if input?.error}
-			<p class="mt-1 text-sm text-red-500">{input.error}</p>
+			<p class="text-destructive mt-1 text-xs">{input.error}</p>
 		{/if}
 	</div>
 </div>

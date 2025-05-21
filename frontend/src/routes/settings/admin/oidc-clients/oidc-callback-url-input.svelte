@@ -27,7 +27,11 @@
 		<div class="flex flex-col gap-y-2">
 			{#each callbackURLs as _, i}
 				<div class="flex gap-x-2">
-					<Input data-testid={`callback-url-${i + 1}`} bind:value={callbackURLs[i]} />
+					<Input
+						aria-invalid={!!error}
+						data-testid={`callback-url-${i + 1}`}
+						bind:value={callbackURLs[i]}
+					/>
 					{#if callbackURLs.length > 1 || allowEmpty}
 						<Button
 							variant="outline"
@@ -42,7 +46,7 @@
 		</div>
 	</FormInput>
 	{#if error}
-		<p class="mt-1 text-sm text-red-500">{error}</p>
+		<p class="text-destructive mt-1 text-xs">{error}</p>
 	{/if}
 	<Button
 		class="mt-2"
