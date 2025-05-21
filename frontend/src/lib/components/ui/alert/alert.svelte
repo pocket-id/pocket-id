@@ -66,7 +66,7 @@
 	>
 		{@render children?.()}
 		{#if dismissibleId}
-			<button onclick={dismiss} class="absolute right-0 top-0 m-3 text-black dark:text-white"
+			<button onclick={dismiss} class="absolute top-0 right-0 m-3 text-black dark:text-white"
 				><LucideX class="size-4" /></button
 			>
 		{/if}

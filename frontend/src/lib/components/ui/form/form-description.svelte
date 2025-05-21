@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as FormPrimitive from "formsnap";
-	import { cn, type WithoutChild } from "$lib/utils/style.js";
+	import * as FormPrimitive from 'formsnap';
+	import { cn, type WithoutChild } from '$lib/utils/style.js';
 
 	let {
 		ref = $bindable(null),
@@ -12,6 +12,6 @@
 <FormPrimitive.Description
 	bind:ref
 	data-slot="form-description"
-	class={cn("text-muted-foreground text-sm", className)}
+	class={cn('text-muted-foreground text-sm', className)}
 	{...restProps}
 />

@@ -92,12 +92,12 @@
 			{m.sign_in_to({ name: client.name })}
 		</h1>
 		{#if errorMessage}
-			<p class="text-muted-foreground mb-10 mt-2">
+			<p class="text-muted-foreground mt-2 mb-10">
 				{errorMessage}.
 			</p>
 		{/if}
 		{#if !authorizationRequired && !errorMessage}
-			<p class="text-muted-foreground mb-10 mt-2">
+			<p class="text-muted-foreground mt-2 mb-10">
 				{@html m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
 					client: client.name,
 					appName: $appConfigStore.appName
@@ -105,7 +105,7 @@
 			</p>
 		{:else if authorizationRequired}
 			<div transition:slide={{ duration: 300 }}>
-				<Card.Root class="mb-10 mt-6">
+				<Card.Root class="mt-6 mb-10">
 					<Card.Header class="pb-5">
 						<p class="text-muted-foreground text-start">
 							{@html m.client_wants_to_access_the_following_information({ client: client.name })}

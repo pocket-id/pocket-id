@@ -32,14 +32,14 @@
 				<p class="text-muted-foreground">{apiKeyResponse.apiKey.name}</p>
 
 				{#if apiKeyResponse.apiKey.description}
-					<div class="mb-2 mt-4 font-medium">{m.description()}</div>
+					<div class="mt-4 mb-2 font-medium">{m.description()}</div>
 					<p class="text-muted-foreground">{apiKeyResponse.apiKey.description}</p>
 				{/if}
 
-				<div class="mb-2 mt-4 font-medium">{m.api_key()}</div>
+				<div class="mt-4 mb-2 font-medium">{m.api_key()}</div>
 				<div class="bg-muted rounded-md p-2">
 					<CopyToClipboard value={apiKeyResponse.token}>
-						<span class="break-all font-mono text-sm">{apiKeyResponse.token}</span>
+						<span class="font-mono text-sm break-all">{apiKeyResponse.token}</span>
 					</CopyToClipboard>
 				</div>
 			</div>

@@ -18,7 +18,7 @@ export default defineConfig({
 	server: {
 		proxy: {
 			'/api': {
-				target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411',
+				target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
 			}
 		}
 	}

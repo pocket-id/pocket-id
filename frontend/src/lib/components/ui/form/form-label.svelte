@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as FormPrimitive from "formsnap";
-	import { Label } from "$lib/components/ui/label/index.js";
-	import { cn, type WithoutChild } from "$lib/utils/style.js";
+	import * as FormPrimitive from 'formsnap';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { cn, type WithoutChild } from '$lib/utils/style.js';
 
 	let {
 		ref = $bindable(null),
@@ -16,7 +16,7 @@
 		<Label
 			{...props}
 			data-slot="form-label"
-			class={cn("data-[fs-error]:text-destructive", className)}
+			class={cn('data-[fs-error]:text-destructive', className)}
 		>
 			{@render children?.()}
 		</Label>

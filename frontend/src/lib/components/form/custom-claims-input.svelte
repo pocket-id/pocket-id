@@ -60,7 +60,7 @@
 		</div>
 	</FormInput>
 	{#if error}
-		<p class="mt-1 text-xs text-destructive">{error}</p>
+		<p class="text-destructive mt-1 text-xs">{error}</p>
 	{/if}
 	{#if customClaims.length < limit}
 		<Button
