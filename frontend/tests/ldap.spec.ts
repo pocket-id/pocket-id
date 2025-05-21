@@ -7,7 +7,7 @@ test.describe('LDAP Integration', () => {
 	test('LDAP configuration is working properly', async ({ page }) => {
 		await page.goto('/settings/admin/application-configuration');
 
-		await page.getByRole('heading', { name: 'LDAP' }).click();
+		await page.getByRole('button', { name: 'Expand card' }).nth(2).click();
 
 		await expect(page.getByRole('button', { name: 'Disable' })).toBeVisible();
 		await expect(page.getByLabel('LDAP URL')).toHaveValue(/ldap:\/\/.*/);
@@ -51,8 +51,10 @@ test.describe('LDAP Integration', () => {
 		await expect(page.getByRole('cell', { name: 'test_group' }).first()).toBeVisible();
 		await expect(page.getByRole('cell', { name: 'admin_group' }).first()).toBeVisible();
 
-		// Check group details
-		await page.getByRole('row', { name: 'test_group' }).getByRole('button').click();
+		await page
+			.getByRole('row', { name: 'test_group' })
+			.getByRole('button', { name: 'Toggle menu' })
+			.click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 		// Verify group source is LDAP
@@ -73,7 +75,10 @@ test.describe('LDAP Integration', () => {
 	test('LDAP groups cannot be modified in PocketID', async ({ page }) => {
 		// Navigate to LDAP group details
 		await page.goto('/settings/admin/user-groups');
-		await page.getByRole('row', { name: 'test_group' }).getByRole('button').click();
+		await page
+			.getByRole('row', { name: 'test_group' })
+			.getByRole('button', { name: 'Toggle menu' })
+			.click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 		// Verify key fields are disabled
