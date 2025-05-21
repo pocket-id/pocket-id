@@ -65,6 +65,8 @@ test.describe('LDAP Integration', () => {
 	test('LDAP users cannot be modified in PocketID', async ({ page }) => {
 		// Navigate to LDAP user details
 		await page.goto('/settings/admin/users');
+		await page.waitForLoadState('networkidle');
+
 		await page.getByRole('row', { name: 'testuser1' }).getByRole('button').click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
 
@@ -76,6 +78,8 @@ test.describe('LDAP Integration', () => {
 	test('LDAP groups cannot be modified in PocketID', async ({ page }) => {
 		// Navigate to LDAP group details
 		await page.goto('/settings/admin/user-groups');
+		await page.waitForLoadState('networkidle');
+
 		await page
 			.getByRole('row', { name: 'test_group' })
 			.locator('#bits-10')

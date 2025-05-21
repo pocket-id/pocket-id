@@ -25,7 +25,7 @@ test('Edit user group', async ({ page }) => {
 	await page.goto('/settings/admin/user-groups');
 	const group = userGroups.developers;
 
-	await page.getByRole('row', { name: group.name }).getByRole('button').click();
+	await page.getByRole('row', { name: group.name }).locator('#bits-5').getByRole('button').click();
 	await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 	await page.getByLabel('Friendly Name').fill('Developers updated');
