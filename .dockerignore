@@ -7,8 +7,8 @@ node_modules
 /frontend/build
 /backend/bin
 /backend/frontend/dist
-/frontend/tests/.auth
-/frontend/tests/.report
+/tests/.auth
+/tests/.report
 
 
 # Env

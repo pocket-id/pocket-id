@@ -12,8 +12,8 @@ export default defineConfig({
 	retries: process.env.CI ? 1 : 0,
 	workers: 1,
 	reporter: process.env.CI
-		? [['html', { outputFolder: './.report' }], ['github']]
-		: [['line'], ['html', { open: 'never', outputFolder: './.report' }]],
+		? [['html', { outputFolder: '.report' }], ['github']]
+		: [['line'], ['html', { open: 'never', outputFolder: '.report' }]],
 	use: {
 		baseURL: process.env.APP_URL ?? 'http://localhost:1411',
 		video: 'retain-on-failure',
@@ -23,7 +23,7 @@ export default defineConfig({
 		{ name: 'setup', testMatch: /.*\.setup\.ts/ },
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'], storageState: './.auth/user.json' },
+			use: { ...devices['Desktop Chrome'], storageState: '.auth/user.json' },
 			dependencies: ['setup']
 		}
 	]
