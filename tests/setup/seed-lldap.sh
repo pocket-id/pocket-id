@@ -1,26 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 set -e
-
-echo 'deb http://download.opensuse.org/repositories/home:/Masgalor:/LLDAP/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/home:Masgalor:LLDAP.list
-curl -fsSL https://download.opensuse.org/repositories/home:Masgalor:LLDAP/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/home_Masgalor_LLDAP.gpg > /dev/null
-sudo apt-get update
-sudo apt-get install -y lldap-cli lldap-set-password
-
-echo "Setting up LLDAP container..."
-
-# Run LLDAP container
-docker run -d --name lldap \
-  --network pocket-id-network \
-  -p 3890:3890 \
-  -p 17170:17170 \
-  -e LLDAP_JWT_SECRET=secret \
-  -e LLDAP_LDAP_USER_PASS=admin_password \
-  -e LLDAP_LDAP_BASE_DN="dc=pocket-id,dc=org" \
-  nitnelave/lldap:stable
 
 # Wait for LLDAP to start
 for i in {1..15}; do
-  if curl -s --fail http://localhost:17170/api/healthcheck > /dev/null; then
+  if curl -s --fail http://localhost:17170/api/healthcheck >/dev/null; then
     echo "LLDAP is ready"
     break
   fi
@@ -48,7 +31,7 @@ lldap-cli user add "testuser1" "testuser1@pocket-id.org" \
   -d "Test User 1" \
   -f "Test" \
   -l "User"
-  
+
 lldap-cli user add "testuser2" "testuser2@pocket-id.org" \
   -p "password123" \
   -d "Test User 2" \
@@ -76,7 +59,7 @@ for i in {1..3}; do
     echo "Failed to add testuser1 to test_group, retrying in 2 seconds..."
     sleep 2
   fi
-  
+
   if [ $i -eq 3 ]; then
     echo "Warning: Could not add testuser1 to test_group after 3 attempts"
   fi
@@ -91,7 +74,7 @@ for i in {1..3}; do
     echo "Failed to add testuser2 to admin_group, retrying in 2 seconds..."
     sleep 2
   fi
-  
+
   if [ $i -eq 3 ]; then
     echo "Warning: Could not add testuser2 to admin_group after 3 attempts"
   fi

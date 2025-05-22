@@ -95,43 +95,31 @@ jobs:
         if: steps.lldap-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/lldap-image.tar
 
-      - name: Install frontend dependencies
-        working-directory: ./frontend
+      - name: Install test dependencies
+        working-directory: ./tests
         run: npm ci
 
       - name: Install Playwright Browsers
-        working-directory: ./frontend
+        working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
-      - name: Create Docker network
-        run: docker network create pocket-id-network
-
-      - name: Setup and Configure LLDAP Server
-        run: |
-          chmod +x ./scripts/tests/setup-lldap.sh
-          ./scripts/tests/setup-lldap.sh
-
       - name: Run Docker Container with Sqlite DB and LDAP
+        working-directory: ./tests/setup
         run: |
-          docker run -d --name pocket-id-sqlite \
-          --network pocket-id-network \
-          -p 1411:1411 \
-          -e APP_ENV=test \
-          pocket-id:test
-
-          docker logs -f pocket-id-sqlite &> /tmp/backend.log &
+          docker compose up -d
+          docker compose logs -f pocket-id &> /tmp/backend.log &
 
       - name: Run Playwright tests
-        working-directory: ./frontend
+        working-directory: ./tests
         run: npx playwright test
 
-      - name: Upload Frontend Test Report
+      - name: Upload Test Report
         uses: actions/upload-artifact@v4
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: playwright-report-sqlite
-          path: frontend/tests/.report
+          path: tests/.report
           include-hidden-files: true
           retention-days: 15
 
@@ -211,61 +199,26 @@ jobs:
       - name: Load Docker image
         run: docker load -i /tmp/docker-image.tar
 
-      - name: Install frontend dependencies
-        working-directory: ./frontend
+      - name: Install test dependencies
+        working-directory: ./tests
         run: npm ci
 
       - name: Install Playwright Browsers
-        working-directory: ./frontend
+        working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
-      - name: Create Docker network
-        run: docker network create pocket-id-network
-
-      - name: Start Postgres DB
-        run: |
-          docker run -d --name pocket-id-db \
-          --network pocket-id-network \
-          -e POSTGRES_USER=postgres \
-          -e POSTGRES_PASSWORD=postgres \
-          -e POSTGRES_DB=pocket-id \
-          -p 5432:5432 \
-          postgres:17
-
-      - name: Setup and Configure LLDAP Server
-        run: |
-          chmod +x ./scripts/tests/setup-lldap.sh
-          ./scripts/tests/setup-lldap.sh
-
-      - name: Wait for Postgres to start
-        run: |
-          for i in {1..5}; do
-            if docker exec pocket-id-db pg_isready -U postgres; then
-              echo "Postgres is ready"
-              break
-            fi
-            echo "Waiting for Postgres..."
-            sleep 2
-          done
-
       - name: Run Docker Container with Postgres DB and LDAP
+        working-directory: ./tests/setup
         run: |
-          docker run -d --name pocket-id-postgres \
-          --network pocket-id-network \
-          -p 1411:1411 \
-          -e APP_ENV=test \
-          -e DB_PROVIDER=postgres \
-          -e DB_CONNECTION_STRING=postgresql://postgres:postgres@pocket-id-db:5432/pocket-id \
-          pocket-id:test
-
-          docker logs -f pocket-id-postgres &> /tmp/backend.log &
+          docker compose -f docker-compose-postgres.yml up -d
+          docker compose -f docker-compose-postgres.yml logs -f pocket-id &> /tmp/backend.log &
 
       - name: Run Playwright tests
-        working-directory: ./frontend
+        working-directory: ./tests
         run: npx playwright test
 
-      - name: Upload Frontend Test Report
+      - name: Upload Test Report
         uses: actions/upload-artifact@v4
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
