@@ -79,7 +79,7 @@
 					</Button>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
-					<DropdownMenu.Item onclick={() => goto(`/settings/admin/user-groups/${item.id}}`)}
+					<DropdownMenu.Item onclick={() => goto(`/settings/admin/user-groups/${item.id}`)}
 						><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
 					>
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
