@@ -3,7 +3,6 @@
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import { Badge } from '$lib/components/ui/badge/index';
-	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
@@ -73,10 +72,8 @@
 		<Table.Cell class="flex justify-end">
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
-					<Button aria-haspopup="true" size="icon" variant="ghost">
-						<Ellipsis class="size-4" />
-						<span class="sr-only">{m.toggle_menu()}</span>
-					</Button>
+					<Ellipsis class="size-4" />
+					<span class="sr-only">{m.toggle_menu()}</span>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end">
 					<DropdownMenu.Item onclick={() => goto(`/settings/admin/user-groups/${item.id}`)}
