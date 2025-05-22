@@ -55,13 +55,13 @@ test("Change Locale", async ({ page }) => {
   await page.getByRole("option", { name: "Nederlands" }).click();
 
   // Check if th language heading now says 'Taal' instead of 'Language'
-  await expect(page.getByRole("heading", { name: "Taal" })).toBeVisible();
+  await expect(page.getByText("Taal", { exact: true })).toBeVisible();
 
   // Clear all cookies and sign in again to check if the language is still set to Dutch
   await page.context().clearCookies();
   await authUtil.authenticate(page);
 
-  await expect(page.getByRole("heading", { name: "Taal" })).toBeVisible();
+  await expect(page.getByText("Taal", { exact: true })).toBeVisible();
 });
 
 test("Add passkey to an account", async ({ page }) => {
@@ -69,7 +69,7 @@ test("Add passkey to an account", async ({ page }) => {
 
   await (await passkeyUtil.init(page)).addPasskey("timNew");
 
-  await page.click('button:text("Add Passkey")');
+  await page.getByRole("button", { name: "Add Passkey" }).click();
 
   await page.getByLabel("Name", { exact: true }).fill("Test Passkey");
   await page
