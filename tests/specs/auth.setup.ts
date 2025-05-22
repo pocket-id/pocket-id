@@ -1,8 +1,8 @@
 import { test as setup } from '@playwright/test';
-import authUtil from './utils/auth.util';
-import { cleanupBackend } from './utils/cleanup.util';
+import authUtil from '../utils/auth.util';
+import { cleanupBackend } from '../utils/cleanup.util';
 
-const authFile = '.auth/user.json';
+const authFile = './.auth/user.json';
 
 setup('authenticate', async ({ page }) => {
 	await cleanupBackend();
