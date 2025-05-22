@@ -35,8 +35,8 @@ vite.config.ts.timestamp-*
 
 # Application specific
 data
-/frontend/tests/.auth
-/frontend/tests/.report
+/tests/.auth
+/tests/.report
 pocket-id-backend
 /backend/GeoLite2-City.mmdb
 /backend/frontend/dist

@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { cleanupBackend } from './utils/cleanup.util';
+import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(cleanupBackend);
 
@@ -20,7 +20,7 @@ test.describe('LDAP Integration', () => {
 
 		const syncButton = page.getByRole('button', { name: 'Sync now' });
 		await syncButton.click();
-		await expect(page.getByText('LDAP sync finished')).toBeVisible();
+		await expect(page.locator('[data-type="success"]')).toHaveText('LDAP sync finished');
 	});
 
 	test('LDAP users are synced into PocketID', async ({ page }) => {
