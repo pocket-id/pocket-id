@@ -15,14 +15,18 @@ for i in {1..15}; do
   sleep 3
 done
 
-echo "LLDAP container setup complete"
-
-echo "Setting up LLDAP test data..."
-
 # Configure LLDAP CLI connection via environment variables
 export LLDAP_HTTPURL="http://localhost:17170"
 export LLDAP_USERNAME="admin"
 export LLDAP_PASSWORD="admin_password"
+
+echo "Checking if data is already seeded..."
+if lldap-cli user list | grep -q "testuser1"; then
+  echo "Data already seeded, skipping setup."
+  exit 0
+fi
+
+echo "Setting up LLDAP test data..."
 
 # Create test users using the user add command
 echo "Creating test users..."
