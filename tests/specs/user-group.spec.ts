@@ -33,7 +33,6 @@ test("Edit user group", async ({ page }) => {
 
   await page
     .getByRole("row", { name: group.name })
-    .locator("#bits-5")
     .getByRole("button")
     .click();
   await page.getByRole("menuitem", { name: "Edit" }).click();

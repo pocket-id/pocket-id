@@ -70,7 +70,7 @@ test("Create one time access token", async ({ page, context }) => {
 
   await page.getByRole("menuitem", { name: "Login Code" }).click();
 
-  await page.getByLabel("Login Code").getByRole("combobox").click();
+  await page.getByLabel("Expiration").click();
   await page.getByRole("option", { name: "12 hours" }).click();
   await page.getByRole("button", { name: "Show Code" }).click();
 

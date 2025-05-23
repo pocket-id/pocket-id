@@ -53,7 +53,6 @@ test.describe('LDAP Integration', () => {
 
 		await page
 			.getByRole('row', { name: 'test_group' })
-			.locator('#bits-10')
 			.getByRole('button', { name: 'Toggle menu' })
 			.click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
@@ -82,7 +81,6 @@ test.describe('LDAP Integration', () => {
 
 		await page
 			.getByRole('row', { name: 'test_group' })
-			.locator('#bits-10')
 			.getByRole('button', { name: 'Toggle menu' })
 			.click();
 		await page.getByRole('menuitem', { name: 'Edit' }).click();
