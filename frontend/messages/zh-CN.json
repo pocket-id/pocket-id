@@ -49,7 +49,7 @@
 	"sign_in_to": "登录到 {name}",
 	"client_not_found": "客户端未找到",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> 希望访问以下信息：",
-	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "您是否希望使用您的 <b>{appName}</b> 账户登录到 <b>{client}</b>？",
+	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "您是否希望使用您的 {appName} 账户登录到 <b>{client}</b>？",
 	"email": "电子邮件",
 	"view_your_email_address": "查看您的电子邮件地址",
 	"profile": "个人资料",

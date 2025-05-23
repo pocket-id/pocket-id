@@ -49,7 +49,7 @@
 	"sign_in_to": "Вход в {name}",
 	"client_not_found": "Клиент не найден",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> запрашивает доступ к следующей информации:",
-	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Вы хотите войти в <b>{client}</b> с помощью вашей учетной записи <b>{appName}</b>?",
+	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Вы хотите войти в <b>{client}</b> с помощью вашей учетной записи {appName}?",
 	"email": "Электронная почта",
 	"view_your_email_address": "Просмотр адреса электронной почты",
 	"profile": "Профиль",
