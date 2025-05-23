@@ -68,18 +68,23 @@
 
 <div class="w-full" {...restProps}>
 	<Popover.Root bind:open>
-		<Popover.Trigger class="w-full">
-			<Button
-				{id}
-				variant="outline"
-				class={cn('w-full justify-start text-left font-normal', !value && 'text-muted-foreground')}
-				aria-label={m.select_a_date()}
-			>
-				<CalendarIcon class="mr-2 size-4" />
-				{calendarDisplayDate
-					? df.format(calendarDisplayDate.toDate(getLocalTimeZone()))
-					: m.select_a_date()}
-			</Button>
+		<Popover.Trigger {id} class="w-full" >
+			{#snippet child({ props })}
+				<Button
+					{...props}
+					variant="outline"
+					class={cn(
+						'w-full justify-start text-left font-normal',
+						!value && 'text-muted-foreground'
+					)}
+					aria-label={m.select_a_date()}
+				>
+					<CalendarIcon class="mr-2 size-4" />
+					{calendarDisplayDate
+						? df.format(calendarDisplayDate.toDate(getLocalTimeZone()))
+						: m.select_a_date()}
+				</Button>
+			{/snippet}
 		</Popover.Trigger>
 		<Popover.Content class="w-auto p-0" align="start">
 			<Calendar

@@ -19,7 +19,7 @@
 </script>
 
 <Dialog.Root open={!!apiKeyResponse} {onOpenChange}>
-	<Dialog.Content class="max-w-md">
+	<Dialog.Content class="max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
 		<Dialog.Header>
 			<Dialog.Title>{m.api_key_created()}</Dialog.Title>
 			<Dialog.Description>
@@ -30,7 +30,6 @@
 			<div>
 				<div class="mb-2 font-medium">{m.name()}</div>
 				<p class="text-muted-foreground">{apiKeyResponse.apiKey.name}</p>
-
 				{#if apiKeyResponse.apiKey.description}
 					<div class="mt-4 mb-2 font-medium">{m.description()}</div>
 					<p class="text-muted-foreground">{apiKeyResponse.apiKey.description}</p>

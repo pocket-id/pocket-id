@@ -19,7 +19,7 @@ test.describe("API Key Management", () => {
 
     // Choose the date
     const currentDate = new Date();
-    await page.getByLabel("Expires At").click();
+    await page.getByRole("button", { name: "Select a date" }).click();
     await page.getByLabel("Select year").click();
     // Select the next year
     await page.getByText((currentDate.getFullYear() + 1).toString()).click();
@@ -45,7 +45,10 @@ test.describe("API Key Management", () => {
     expect(token?.length).toBe(32);
 
     // Close the dialog
-    await page.getByRole("button", { name: "Close" }).click();
+    await page
+      .getByRole("button", { name: "Close", exact: true })
+      .nth(1)
+      .click();
 
     await page.reload();
 
