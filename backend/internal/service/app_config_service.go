@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -188,7 +189,7 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		// Skip values that are internal only and can't be updated
 		if value == "" {
 			// Ignore errors here as we know the key exists
-			defaultValue, _ := defaultCfg.FieldByKey(key)
+			defaultValue, _, _ := defaultCfg.FieldByKey(key)
 			err = cfg.UpdateField(key, defaultValue, true)
 		} else {
 			err = cfg.UpdateField(key, value, true)
@@ -229,10 +230,6 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 
 // UpdateAppConfigValues
 func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndValues ...string) error {
-	if common.EnvConfig.UiConfigDisabled {
-		return &common.UiConfigDisabledError{}
-	}
-
 	// Count of keysAndValues must be even
 	if len(keysAndValues)%2 != 0 {
 		return errors.New("invalid number of arguments received")
@@ -267,9 +264,12 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 		// Ensure that the field is valid
 		// We do this by grabbing the default value
 		var defaultValue string
-		defaultValue, err = defaultCfg.FieldByKey(key)
+		defaultValue, isInternal, err := defaultCfg.FieldByKey(key)
 		if err != nil {
 			return fmt.Errorf("invalid configuration key '%s': %w", key, err)
+		}
+		if !isInternal && common.EnvConfig.UiConfigDisabled {
+			return &common.UiConfigDisabledError{}
 		}
 
 		// Update the in-memory config value
@@ -351,7 +351,7 @@ func (s *AppConfigService) LoadDbConfig(ctx context.Context) (err error) {
 
 	// If the UI config is disabled, only load from the env
 	if common.EnvConfig.UiConfigDisabled {
-		dest, err = s.loadDbConfigFromEnv()
+		dest, err = s.loadDbConfigFromEnv(ctx, s.db)
 	} else {
 		dest, err = s.loadDbConfigInternal(ctx, s.db)
 	}
@@ -365,7 +365,7 @@ func (s *AppConfigService) LoadDbConfig(ctx context.Context) (err error) {
 	return nil
 }
 
-func (s *AppConfigService) loadDbConfigFromEnv() (*model.AppConfig, error) {
+func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB) (*model.AppConfig, error) {
 	// First, start from the default configuration
 	dest := s.getDefaultDbConfig()
 
@@ -375,9 +375,25 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*model.AppConfig, error) {
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 
-		// Get the value of the key tag, taking only what's before the comma
-		// The env var name is the key converted to SCREAMING_SNAKE_CASE
-		key, _, _ := strings.Cut(field.Tag.Get("key"), ",")
+		// Get the key and internal tag values
+		tagValue := strings.Split(field.Tag.Get("key"), ",")
+		key := tagValue[0]
+		isInternal := slices.Contains(tagValue, "internal")
+
+		// Internal fields are loaded from the database as they can't be set from the environment
+		if isInternal {
+			var value string
+			err := tx.WithContext(ctx).
+				Model(&model.AppConfigVariable{}).
+				Where("key = ?", key).
+				Select("value").
+				First(&value).Error
+			if err == nil {
+				rv.Field(i).FieldByName("Value").SetString(value)
+			}
+			continue
+		}
+
 		envVarName := utils.CamelCaseToScreamingSnakeCase(key)
 
 		// Set the value if it's set
@@ -396,7 +412,7 @@ func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB
 
 	// Load all configuration values from the database
 	// This loads all values in a single shot
-	loaded := []model.AppConfigVariable{}
+	var loaded []model.AppConfigVariable
 	queryCtx, queryCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer queryCancel()
 	err := tx.

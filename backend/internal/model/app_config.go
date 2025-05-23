@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -107,24 +108,26 @@ func (c *AppConfig) ToAppConfigVariableSlice(showAll bool) []AppConfigVariable {
 	return res
 }
 
-func (c *AppConfig) FieldByKey(key string) (string, error) {
+func (c *AppConfig) FieldByKey(key string) (defaultValue string, isInternal bool, err error) {
 	rv := reflect.ValueOf(c).Elem()
 	rt := rv.Type()
 
 	// Find the field in the struct whose "key" tag matches
 	for i := range rt.NumField() {
 		// Grab only the first part of the key, if there's a comma with additional properties
-		tagValue, _, _ := strings.Cut(rt.Field(i).Tag.Get("key"), ",")
-		if tagValue != key {
+		tagValue := strings.Split(rt.Field(i).Tag.Get("key"), ",")
+		keyFromTag := tagValue[0]
+		isInternal = slices.Contains(tagValue, "internal")
+		if keyFromTag != key {
 			continue
 		}
 
 		valueField := rv.Field(i).FieldByName("Value")
-		return valueField.String(), nil
+		return valueField.String(), isInternal, nil
 	}
 
 	// If we are here, the config key was not found
-	return "", AppConfigKeyNotFoundError{field: key}
+	return "", false, AppConfigKeyNotFoundError{field: key}
 }
 
 func (c *AppConfig) UpdateField(key string, value string, noInternal bool) error {
