@@ -16,6 +16,7 @@ export default defineConfig({
 	],
 
 	server: {
+		host: process.env.HOST,
 		proxy: {
 			'/api': {
 				target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
