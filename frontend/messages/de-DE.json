@@ -49,7 +49,7 @@
 	"sign_in_to": "Bei {name} anmelden",
 	"client_not_found": "Client nicht gefunden",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> möchte auf die folgenden Informationen zugreifen:",
-	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Möchtest du dich bei <b>{client}</b> mit deinem <b>{appName}</b> Konto anmelden?",
+	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Möchtest du dich bei <b>{client}</b> mit deinem {appName} Konto anmelden?",
 	"email": "E-Mail",
 	"view_your_email_address": "Deine E-Mail-Adresse anzeigen",
 	"profile": "Profil",
