@@ -32,12 +32,12 @@ vite.config.ts.timestamp-*
 *.so
 *.dylib
 /backend/.bin
+/pocket-id
 
 # Application specific
 data
 /tests/.auth
 /tests/.report
-pocket-id-backend
 /backend/GeoLite2-City.mmdb
 /backend/frontend/dist
 
