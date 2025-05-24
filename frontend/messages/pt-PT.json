@@ -49,7 +49,7 @@
 	"sign_in_to": "Sign in to {name}",
 	"client_not_found": "Client not found",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> wants to access the following information:",
-	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Do you want to sign in to <b>{client}</b> with your <b>{appName}</b> account?",
+	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Do you want to sign in to <b>{client}</b> with your {appName} account?",
 	"email": "Email",
 	"view_your_email_address": "View your email address",
 	"profile": "Profile",
