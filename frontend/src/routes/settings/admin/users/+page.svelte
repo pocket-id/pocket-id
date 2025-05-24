@@ -6,7 +6,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, UserPen, UserPlus } from 'lucide-svelte';
+	import { LucideMinus, UserPen, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserForm from './user-form.svelte';
@@ -45,7 +45,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title>
-						<UserPlus class="text-primary/80 h-5 w-5" />
+						<UserPlus class="text-primary/80 size-5" />
 						{m.create_user()}
 					</Card.Title>
 					<Card.Description
@@ -55,10 +55,10 @@
 					>
 				</div>
 				{#if !expandAddUser}
-					<Button on:click={() => (expandAddUser = true)}>{m.add_user()}</Button>
+					<Button onclick={() => (expandAddUser = true)}>{m.add_user()}</Button>
 				{:else}
-					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUser = false)}>
-						<LucideMinus class="h-5 w-5" />
+					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUser = false)}>
+						<LucideMinus class="size-5" />
 					</Button>
 				{/if}
 			</div>
@@ -77,7 +77,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>
-				<UserPen class="text-primary/80 h-5 w-5" />
+				<UserPen class="text-primary/80 size-5" />
 				{m.manage_users()}
 			</Card.Title>
 		</Card.Header>

@@ -1,19 +1,24 @@
 <script lang="ts">
 	import { mode } from 'mode-watcher';
+	interface Props {
+		[key: string]: any;
+	}
+
+	let { ...rest }: Props = $props();
 </script>
 
 <svg
 	version="1.1"
 	xmlns="http://www.w3.org/2000/svg"
 	viewBox="0 0 181.0484047549312 72.61928578581296"
-	class={$$restProps.class}
+	class={rest.class}
 >
 	<g stroke-linecap="round"
 		><g
 			transform="translate(11.145277371630073 36.74839942056428) rotate(0 79.30063906887085 0.9091689232315048)"
 			><path
 				d="M-1.15 0.32 C11.9 0.63, 64.54 5.67, 78.54 2.21 C92.54 -1.25, 87.24 -16.24, 82.86 -20.46 C78.48 -24.68, 53.29 -30.73, 52.26 -23.11 C51.23 -15.49, 66.97 22.37, 76.69 25.25 C86.4 28.14, 96.82 -0.58, 110.54 -5.8 C124.26 -11.02, 151.22 -5.98, 159.03 -6.04 M0.45 -0.56 C13.84 -0.08, 66.55 6.8, 80.7 3.71 C94.85 0.61, 90.01 -14.87, 85.35 -19.14 C80.69 -23.4, 54.44 -29.38, 52.74 -21.91 C51.04 -14.43, 65.36 23.23, 75.14 25.72 C84.92 28.21, 97.29 -1.48, 111.42 -6.95 C125.55 -12.43, 151.9 -7.26, 159.9 -7.14"
-				stroke={$mode == 'dark' ? 'white' : 'black'}
+				stroke={mode.current == 'dark' ? 'white' : 'black'}
 				stroke-width="2"
 				fill="none"
 			></path></g
@@ -21,7 +26,7 @@
 			transform="translate(11.145277371630073 36.74839942056428) rotate(0 79.30063906887085 0.9091689232315048)"
 			><path
 				d="M137.15 -1.16 C144.96 -4.61, 151.62 -6.07, 159.9 -7.14 M137.15 -1.16 C143.85 -2.87, 149.96 -4.97, 159.9 -7.14"
-				stroke={$mode == 'dark' ? 'white' : 'black'}
+				stroke={mode.current == 'dark' ? 'white' : 'black'}
 				stroke-width="2"
 				fill="none"
 			></path></g
@@ -29,7 +34,7 @@
 			transform="translate(11.145277371630073 36.74839942056428) rotate(0 79.30063906887085 0.9091689232315048)"
 			><path
 				d="M138.63 -17.19 C146.01 -15.51, 152.19 -11.82, 159.9 -7.14 M138.63 -17.19 C144.94 -14.07, 150.61 -11.36, 159.9 -7.14"
-				stroke={$mode == 'dark' ? 'white' : 'black'}
+				stroke={mode.current == 'dark' ? 'white' : 'black'}
 				stroke-width="2"
 				fill="none"
 			></path></g

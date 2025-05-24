@@ -1,27 +1,32 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { cn } from '$lib/utils/style.js';
 	import { Pagination as PaginationPrimitive } from 'bits-ui';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import { cn } from '$lib/utils/style.js';
 
-	type $$Props = PaginationPrimitive.NextButtonProps;
-	type $$Events = PaginationPrimitive.NextButtonEvents;
-
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	let {
+		ref = $bindable(null),
+		class: className,
+		children,
+		...restProps
+	}: PaginationPrimitive.NextButtonProps = $props();
 </script>
 
-<PaginationPrimitive.NextButton asChild let:builder>
-	<Button
-		variant="ghost"
-		size="sm"
-		class={cn('gap-1 pr-2.5', className)}
-		builders={[builder]}
-		on:click
-		{...$$restProps}
-	>
-		<slot>
-			<ChevronRight class="h-4 w-4" />
-		</slot>
-	</Button>
-</PaginationPrimitive.NextButton>
+{#snippet Fallback()}
+	<ChevronRightIcon class="size-4" />
+{/snippet}
+
+<PaginationPrimitive.NextButton
+	bind:ref
+	aria-label="Go to next page"
+	class={cn(
+		buttonVariants({
+			size: 'default',
+			variant: 'ghost',
+			class: 'gap-1 px-2.5 sm:pr-2.5'
+		}),
+		className
+	)}
+	children={children || Fallback}
+	{...restProps}
+/>

@@ -23,7 +23,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-func newDatabase() (db *gorm.DB) {
+func NewDatabase() (db *gorm.DB) {
 	db, err := connectDatabase()
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)

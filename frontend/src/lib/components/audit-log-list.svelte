@@ -58,7 +58,7 @@
 			</Table.Cell>
 		{/if}
 		<Table.Cell>
-			<Badge variant="outline">{toFriendlyEventString(item.event)}</Badge>
+			<Badge class="rounded-full" variant="outline">{toFriendlyEventString(item.event)}</Badge>
 		</Table.Cell>
 		<Table.Cell
 			>{item.city && item.country ? `${item.city}, ${item.country}` : m.unknown()}</Table.Cell

@@ -3,23 +3,30 @@
 	import { cn } from '$lib/utils/style.js';
 	import { type Props, buttonVariants } from '$lib/components/ui/button/index.js';
 
-	type $$Props = PaginationPrimitive.PageProps &
+	let {
+		ref = $bindable(null),
+		class: className,
+		size = 'icon',
+		isActive = false,
+		page,
+		children,
+		...restProps
+	}: PaginationPrimitive.PageProps &
 		Props & {
 			isActive: boolean;
-		};
-
-	type $$Events = PaginationPrimitive.PageEvents;
-
-	let className: $$Props['class'] = undefined;
-	export let page: $$Props['page'];
-	export let size: $$Props['size'] = 'sm';
-	export let isActive: $$Props['isActive'] = false;
-
-	export { className as class };
+		} = $props();
 </script>
 
+{#snippet Fallback()}
+	{page.value}
+{/snippet}
+
 <PaginationPrimitive.Page
-	bind:page
+	bind:ref
+	{page}
+	aria-current={isActive ? 'page' : undefined}
+	data-slot="pagination-link"
+	data-active={isActive}
 	class={cn(
 		buttonVariants({
 			variant: isActive ? 'outline' : 'ghost',
@@ -27,8 +34,6 @@
 		}),
 		className
 	)}
-	{...$$restProps}
-	on:click
->
-	<slot>{page.value}</slot>
-</PaginationPrimitive.Page>
+	children={children || Fallback}
+	{...restProps}
+/>

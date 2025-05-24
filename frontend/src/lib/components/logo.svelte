@@ -5,7 +5,7 @@
 
 	let { ...props }: HTMLAttributes<HTMLImageElement> = $props();
 
-	const isDarkMode = $derived($mode === 'dark');
+	const isDarkMode = $derived(mode.current === 'dark');
 </script>
 
 <img {...props} src="/api/application-configuration/logo?light={!isDarkMode}" alt={m.logo()} />

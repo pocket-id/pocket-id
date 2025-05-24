@@ -41,7 +41,7 @@
 			// Get access token if not signed in
 			if (!$userStore) {
 				const loginOptions = await webauthnService.getLoginOptions();
-				const authResponse = await startAuthentication({optionsJSON: loginOptions});
+				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
 				userStore.setUser(user);
 			}
@@ -117,7 +117,7 @@
 					>{m.authorize()}</Button
 				>
 			{:else}
-				<Button class="w-full" on:click={() => (errorMessage = null)}>{m.try_again()}</Button>
+				<Button class="w-full" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
 			{/if}
 		</div>
 	{/if}

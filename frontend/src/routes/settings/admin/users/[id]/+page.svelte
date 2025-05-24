@@ -12,7 +12,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft } from 'lucide-svelte';
+	import { LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import UserForm from '../user-form.svelte';
 
@@ -82,10 +82,10 @@
 
 <div class="flex items-center justify-between">
 	<a class="text-muted-foreground flex text-sm" href="/settings/admin/users"
-		><LucideChevronLeft class="h-5 w-5" /> {m.back()}</a
+		><LucideChevronLeft class="size-5" /> {m.back()}</a
 	>
 	{#if !!user.ldapId}
-		<Badge variant="default" class="">{m.ldap()}</Badge>
+		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>
 	{/if}
 </div>
 <Card.Root>
@@ -119,7 +119,7 @@
 	/>
 	<div class="mt-5 flex justify-end">
 		<Button
-			on:click={() => updateUserGroups(user.userGroupIds)}
+			onclick={() => updateUserGroups(user.userGroupIds)}
 			disabled={!!user.ldapId && $appConfigStore.ldapEnabled}
 			type="submit">{m.save()}</Button
 		>
@@ -133,6 +133,6 @@
 >
 	<CustomClaimsInput bind:customClaims={user.customClaims} />
 	<div class="mt-5 flex justify-end">
-		<Button on:click={updateCustomClaims} type="submit">{m.save()}</Button>
+		<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
 	</div>
 </CollapsibleCard>

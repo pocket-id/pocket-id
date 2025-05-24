@@ -2,33 +2,28 @@
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { cn } from '$lib/utils/style';
-	import { DateFormatter, getLocalTimeZone, today } from '@internationalized/date';
-	import { Calendar as CalendarPrimitive } from 'bits-ui';
+	import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date';
+	import { Calendar as CalendarPrimitive, type WithoutChildrenOrChild } from 'bits-ui';
 
-	type $$Props = CalendarPrimitive.Props;
-	type $$Events = CalendarPrimitive.Events;
+	let {
+		value = $bindable(),
+		placeholder = $bindable()
+	}: WithoutChildrenOrChild<CalendarPrimitive.RootProps> & {
+		value: CalendarDate | undefined;
+	} = $props();
 
-	export let value: $$Props['value'] = undefined;
-	export let placeholder: $$Props['placeholder'] = today(getLocalTimeZone());
-	export let weekdayFormat: $$Props['weekdayFormat'] = 'short';
-
-	const monthOptions = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December'
-	].map((month, i) => ({ value: i + 1, label: month }));
+	const currentDate = today(getLocalTimeZone());
 
 	const monthFmt = new DateFormatter('en-US', {
 		month: 'long'
+	});
+
+	const monthOptions = Array.from({ length: 12 }, (_, i) => {
+		const month = currentDate.set({ month: i + 1 });
+		return {
+			value: month.month,
+			label: monthFmt.format(month.toDate(getLocalTimeZone()))
+		};
 	});
 
 	const yearOptions = Array.from({ length: 100 }, (_, i) => ({
@@ -36,102 +31,95 @@
 		value: new Date().getFullYear() + i
 	}));
 
-	$: defaultYear = placeholder
-		? {
-				value: placeholder.year,
-				label: String(placeholder.year)
-			}
-		: undefined;
+	const defaultYear = $derived(
+		placeholder ? { value: placeholder.year, label: String(placeholder.year) } : undefined
+	);
 
-	$: defaultMonth = placeholder
-		? {
-				value: placeholder.month,
-				label: monthFmt.format(placeholder.toDate(getLocalTimeZone()))
-			}
-		: undefined;
+	const defaultMonth = $derived(
+		placeholder
+			? {
+					value: placeholder.month,
+					label: monthFmt.format(placeholder.toDate(getLocalTimeZone()))
+				}
+			: undefined
+	);
 
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	const monthLabel = $derived(
+		monthOptions.find((m) => m.value === defaultMonth?.value)?.label ?? 'Select a month'
+	);
 </script>
 
 <CalendarPrimitive.Root
-	{weekdayFormat}
-	class={cn('rounded-md border p-3', className)}
-	{...$$restProps}
-	on:keydown
-	let:months
-	let:weekdays
+	type="single"
+	weekdayFormat="short"
+	class={cn('rounded-md border p-3')}
 	bind:value
 	bind:placeholder
 >
-	<Calendar.Header>
-		<Calendar.Heading class="flex w-full items-center justify-between gap-2">
+	{#snippet children({ months, weekdays })}
+		<Calendar.Header class="flex w-full items-center justify-between gap-2">
 			<Select.Root
-				selected={defaultMonth}
-				items={monthOptions}
-				onSelectedChange={(v) => {
-					if (!v || !placeholder) return;
-					if (v.value === placeholder?.month) return;
-					placeholder = placeholder.set({ month: v.value });
+				type="single"
+				value={`${defaultMonth?.value}`}
+				onValueChange={(v) => {
+					if (!placeholder) return;
+					if (v === `${placeholder.month}`) return;
+					placeholder = placeholder.set({ month: Number.parseInt(v) });
 				}}
 			>
 				<Select.Trigger aria-label="Select month" class="w-[60%]">
-					<Select.Value placeholder="Select month" />
+					{monthLabel}
 				</Select.Trigger>
 				<Select.Content class="max-h-[200px] overflow-y-auto">
-					{#each monthOptions as { value, label }}
-						<Select.Item {value} {label}>
-							{label}
-						</Select.Item>
+					{#each monthOptions as { value, label } (value)}
+						<Select.Item value={`${value}`} {label} />
 					{/each}
 				</Select.Content>
 			</Select.Root>
 			<Select.Root
-				selected={defaultYear}
-				items={yearOptions}
-				onSelectedChange={(v) => {
+				type="single"
+				value={`${defaultYear?.value}`}
+				onValueChange={(v) => {
 					if (!v || !placeholder) return;
-					if (v.value === placeholder?.year) return;
-					placeholder = placeholder.set({ year: v.value });
+					if (v === `${placeholder?.year}`) return;
+					placeholder = placeholder.set({ year: Number.parseInt(v) });
 				}}
 			>
 				<Select.Trigger aria-label="Select year" class="w-[40%]">
-					<Select.Value placeholder="Select year" />
+					{defaultYear?.label ?? 'Select year'}
 				</Select.Trigger>
 				<Select.Content class="max-h-[200px] overflow-y-auto">
-					{#each yearOptions as { value, label }}
-						<Select.Item {value} {label}>
-							{label}
-						</Select.Item>
+					{#each yearOptions as { value, label } (value)}
+						<Select.Item value={`${value}`} {label} />
 					{/each}
 				</Select.Content>
 			</Select.Root>
-		</Calendar.Heading>
-	</Calendar.Header>
-	<Calendar.Months>
-		{#each months as month}
-			<Calendar.Grid>
-				<Calendar.GridHead>
-					<Calendar.GridRow class="flex">
-						{#each weekdays as weekday}
-							<Calendar.HeadCell>
-								{weekday.slice(0, 2)}
-							</Calendar.HeadCell>
-						{/each}
-					</Calendar.GridRow>
-				</Calendar.GridHead>
-				<Calendar.GridBody>
-					{#each month.weeks as weekDates}
-						<Calendar.GridRow class="mt-2 w-full">
-							{#each weekDates as date}
-								<Calendar.Cell {date}>
-									<Calendar.Day {date} month={month.value} />
-								</Calendar.Cell>
+		</Calendar.Header>
+		<Calendar.Months>
+			{#each months as month (month)}
+				<Calendar.Grid>
+					<Calendar.GridHead>
+						<Calendar.GridRow class="flex">
+							{#each weekdays as weekday (weekday)}
+								<Calendar.HeadCell>
+									{weekday.slice(0, 2)}
+								</Calendar.HeadCell>
 							{/each}
 						</Calendar.GridRow>
-					{/each}
-				</Calendar.GridBody>
-			</Calendar.Grid>
-		{/each}
-	</Calendar.Months>
+					</Calendar.GridHead>
+					<Calendar.GridBody>
+						{#each month.weeks as weekDates (weekDates)}
+							<Calendar.GridRow class="mt-2 w-full">
+								{#each weekDates as date (date)}
+									<Calendar.Cell class="select-none" {date} month={month.value}>
+										<Calendar.Day />
+									</Calendar.Cell>
+								{/each}
+							</Calendar.GridRow>
+						{/each}
+					</Calendar.GridBody>
+				</Calendar.Grid>
+			{/each}
+		</Calendar.Months>
+	{/snippet}
 </CalendarPrimitive.Root>

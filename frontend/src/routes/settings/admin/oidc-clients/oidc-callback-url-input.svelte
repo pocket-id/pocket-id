@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideMinus, LucidePlus } from 'lucide-svelte';
+	import { LucideMinus, LucidePlus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -27,14 +27,18 @@
 		<div class="flex flex-col gap-y-2">
 			{#each callbackURLs as _, i}
 				<div class="flex gap-x-2">
-					<Input data-testid={`callback-url-${i + 1}`} bind:value={callbackURLs[i]} />
+					<Input
+						aria-invalid={!!error}
+						data-testid={`callback-url-${i + 1}`}
+						bind:value={callbackURLs[i]}
+					/>
 					{#if callbackURLs.length > 1 || allowEmpty}
 						<Button
 							variant="outline"
 							size="sm"
-							on:click={() => (callbackURLs = callbackURLs.filter((_, index) => index !== i))}
+							onclick={() => (callbackURLs = callbackURLs.filter((_, index) => index !== i))}
 						>
-							<LucideMinus class="h-4 w-4" />
+							<LucideMinus class="size-4" />
 						</Button>
 					{/if}
 				</div>
@@ -42,15 +46,15 @@
 		</div>
 	</FormInput>
 	{#if error}
-		<p class="mt-1 text-sm text-red-500">{error}</p>
+		<p class="text-destructive mt-1 text-xs">{error}</p>
 	{/if}
 	<Button
 		class="mt-2"
 		variant="secondary"
 		size="sm"
-		on:click={() => (callbackURLs = [...callbackURLs, ''])}
+		onclick={() => (callbackURLs = [...callbackURLs, ''])}
 	>
-		<LucidePlus class="mr-1 h-4 w-4" />
+		<LucidePlus class="mr-1 size-4" />
 		{callbackURLs.length === 0 ? m.add() : m.add_another()}
 	</Button>
 </div>

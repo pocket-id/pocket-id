@@ -8,7 +8,7 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, ShieldCheck, ShieldPlus } from 'lucide-svelte';
+	import { LucideMinus, ShieldCheck, ShieldPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OIDCClientForm from './oidc-client-form.svelte';
@@ -49,7 +49,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title>
-						<ShieldPlus class="text-primary/80 h-5 w-5" />
+						<ShieldPlus class="text-primary/80 size-5" />
 						{m.create_oidc_client()}
 					</Card.Title>
 					<Card.Description
@@ -59,10 +59,10 @@
 					>
 				</div>
 				{#if !expandAddClient}
-					<Button on:click={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
+					<Button onclick={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
 				{:else}
-					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddClient = false)}>
-						<LucideMinus class="h-5 w-5" />
+					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddClient = false)}>
+						<LucideMinus class="size-5" />
 					</Button>
 				{/if}
 			</div>
@@ -81,7 +81,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>
-				<ShieldCheck class="text-primary/80 h-5 w-5" />
+				<ShieldCheck class="text-primary/80 size-5" />
 				{m.manage_oidc_clients()}
 			</Card.Title>
 		</Card.Header>

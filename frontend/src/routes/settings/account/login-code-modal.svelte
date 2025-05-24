@@ -42,7 +42,7 @@
 </script>
 
 <Dialog.Root open={!!code} {onOpenChange}>
-	<Dialog.Content class="max-w-md">
+	<Dialog.Content class="max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
 		<Dialog.Header>
 			<Dialog.Title>{m.login_code()}</Dialog.Title>
 			<Dialog.Description
@@ -64,8 +64,8 @@
 				class="mb-2"
 				value={loginCodeLink}
 				size={180}
-				color={$mode === 'dark' ? '#FFFFFF' : '#000000'}
-				backgroundColor={$mode === 'dark' ? '#000000' : '#FFFFFF'}
+				color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
+				backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 			/>
 			<CopyToClipboard value={loginCodeLink!}>
 				<p data-testId="login-code-link">{loginCodeLink!}</p>

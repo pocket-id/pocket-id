@@ -3,19 +3,16 @@
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import { cn } from '$lib/utils/style.js';
 
-	type $$Props = AlertDialogPrimitive.CancelProps;
-	type $$Events = AlertDialogPrimitive.CancelEvents;
-
-	let className: $$Props['class'] = undefined;
-	export { className as class };
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: AlertDialogPrimitive.CancelProps = $props();
 </script>
 
 <AlertDialogPrimitive.Cancel
-	class={cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0', className)}
-	{...$$restProps}
-	on:click
-	on:keydown
-	let:builder
->
-	<slot {builder} />
-</AlertDialogPrimitive.Cancel>
+	bind:ref
+	data-slot="alert-dialog-cancel"
+	class={cn(buttonVariants({ variant: 'outline' }), className)}
+	{...restProps}
+/>

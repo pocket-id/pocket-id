@@ -6,7 +6,7 @@
 	import UserGroupService from '$lib/services/user-group-service';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, UserCog, UserPlus } from 'lucide-svelte';
+	import { LucideMinus, UserCog, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserGroupForm from './user-group-form.svelte';
@@ -45,17 +45,17 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title>
-						<UserPlus class="text-primary/80 h-5 w-5" />
+						<UserPlus class="text-primary/80 size-5" />
 						{m.create_user_group()}
 					</Card.Title>
 					<Card.Description>{m.create_a_new_group_that_can_be_assigned_to_users()}</Card.Description
 					>
 				</div>
 				{#if !expandAddUserGroup}
-					<Button on:click={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
+					<Button onclick={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
 				{:else}
-					<Button class="h-8 p-3" variant="ghost" on:click={() => (expandAddUserGroup = false)}>
-						<LucideMinus class="h-5 w-5" />
+					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUserGroup = false)}>
+						<LucideMinus class="size-5" />
 					</Button>
 				{/if}
 			</div>
@@ -74,7 +74,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>
-				<UserCog class="text-primary/80 h-5 w-5" />
+				<UserCog class="text-primary/80 size-5" />
 				{m.manage_user_groups()}
 			</Card.Title>
 		</Card.Header>

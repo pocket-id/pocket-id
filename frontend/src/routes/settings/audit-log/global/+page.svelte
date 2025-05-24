@@ -50,9 +50,9 @@
 		<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
 			<div>
 				{#await auditLogService.listUsers()}
-					<Select.Root>
+					<Select.Root type="single">
 						<Select.Trigger class="w-full" disabled>
-							<Select.Value placeholder={m.all_users()} />
+							{m.all_users()}
 						</Select.Trigger>
 					</Select.Root>
 				{:then users}
@@ -70,29 +70,27 @@
 				{/await}
 			</div>
 			<div>
-				<Select.Root
-					selected={{
-						value: filters.event,
-						label: eventTypes[filters.event as keyof typeof eventTypes]
-					}}
-					onSelectedChange={(v) => (filters.event = v!.value)}
-				>
-					<Select.Trigger class="w-full">
-						<Select.Value placeholder={m.all_events()} />
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="">{m.all_events()}</Select.Item>
-						{#each Object.entries(eventTypes) as [value, label]}
-							<Select.Item {value}>{label}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+				<SearchableSelect
+					class="w-full"
+					items={[
+						{ value: '', label: m.all_events() },
+						...Object.entries(eventTypes).map(([value, label]) => ({
+							value,
+							label
+						}))
+					]}
+					bind:value={filters.event}
+				/>
 			</div>
 			<div>
 				{#await auditLogService.listClientNames()}
-					<Select.Root>
+					<Select.Root
+						type="single"
+						value={filters.clientName}
+						onValueChange={(v) => (filters.clientName = v)}
+					>
 						<Select.Trigger class="w-full" disabled>
-							<Select.Value placeholder={m.all_clients()} />
+							{m.all_clients()}
 						</Select.Trigger>
 					</Select.Root>
 				{:then clientNames}

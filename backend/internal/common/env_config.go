@@ -25,19 +25,20 @@ const (
 
 type EnvConfigSchema struct {
 	AppEnv             string     `env:"APP_ENV"`
-	AppURL             string     `env:"PUBLIC_APP_URL"`
+	AppURL             string     `env:"APP_URL"`
 	DbProvider         DbProvider `env:"DB_PROVIDER"`
 	DbConnectionString string     `env:"DB_CONNECTION_STRING"`
 	UploadPath         string     `env:"UPLOAD_PATH"`
 	KeysPath           string     `env:"KEYS_PATH"`
-	Port               string     `env:"BACKEND_PORT"`
+	Port               string     `env:"PORT"`
 	Host               string     `env:"HOST"`
 	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY"`
 	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
-	UiConfigDisabled   bool       `env:"PUBLIC_UI_CONFIG_DISABLED"`
+	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
 	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
 	TracingEnabled     bool       `env:"TRACING_ENABLED"`
+	TrustProxy         bool       `env:"TRUST_PROXY"`
 }
 
 var EnvConfig = &EnvConfigSchema{
@@ -46,8 +47,8 @@ var EnvConfig = &EnvConfigSchema{
 	DbConnectionString: "file:data/pocket-id.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate",
 	UploadPath:         "data/uploads",
 	KeysPath:           "data/keys",
-	AppURL:             "http://localhost",
-	Port:               "8080",
+	AppURL:             "http://localhost:1411",
+	Port:               "1411",
 	Host:               "0.0.0.0",
 	MaxMindLicenseKey:  "",
 	GeoLiteDBPath:      "data/GeoLite2-City.mmdb",
@@ -55,6 +56,7 @@ var EnvConfig = &EnvConfigSchema{
 	UiConfigDisabled:   false,
 	MetricsEnabled:     false,
 	TracingEnabled:     false,
+	TrustProxy:         false,
 }
 
 func init() {
@@ -78,9 +80,9 @@ func init() {
 
 	parsedAppUrl, err := url.Parse(EnvConfig.AppURL)
 	if err != nil {
-		log.Fatal("PUBLIC_APP_URL is not a valid URL")
+		log.Fatal("APP_URL is not a valid URL")
 	}
 	if parsedAppUrl.Path != "" {
-		log.Fatal("PUBLIC_APP_URL must not contain a path")
+		log.Fatal("APP_URL must not contain a path")
 	}
 }

@@ -9,6 +9,7 @@ node_modules
 /frontend/.svelte-kit
 /frontend/build
 /backend/bin
+pocket-id
 
 # OS
 .DS_Store
@@ -30,13 +31,15 @@ vite.config.ts.timestamp-*
 *.dll
 *.so
 *.dylib
+/backend/.bin
+/pocket-id
 
 # Application specific
 data
-/frontend/tests/.auth
-/frontend/tests/.report
-pocket-id-backend
+/tests/.auth
+/tests/.report
 /backend/GeoLite2-City.mmdb
+/backend/frontend/dist
 
 # Misc
 .DS_Store

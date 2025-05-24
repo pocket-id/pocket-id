@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { env } from '$env/dynamic/public';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
@@ -8,6 +7,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
@@ -22,7 +22,6 @@
 	} = $props();
 
 	const appConfigService = new AppConfigService();
-	const uiConfigDisabled = env.PUBLIC_UI_CONFIG_DISABLED === 'true';
 	const tlsOptions = {
 		none: 'None',
 		starttls: 'StartTLS',
@@ -96,7 +95,7 @@
 </script>
 
 <form onsubmit={onSubmit}>
-	<fieldset disabled={uiConfigDisabled}>
+	<fieldset disabled={$appConfigStore.uiConfigDisabled}>
 		<h4 class="text-lg font-semibold">{m.smtp_configuration()}</h4>
 		<div class="mt-4 grid grid-cols-1 items-end gap-5 md:grid-cols-2">
 			<FormInput label={m.smtp_host()} bind:input={$inputs.smtpHost} />
@@ -107,11 +106,12 @@
 			<div class="grid gap-2">
 				<Label class="mb-0" for="smtp-tls">{m.smtp_tls_option()}</Label>
 				<Select.Root
-					selected={{ value: $inputs.smtpTls.value, label: tlsOptions[$inputs.smtpTls.value] }}
-					onSelectedChange={(v) => ($inputs.smtpTls.value = v!.value)}
+					type="single"
+					value={$inputs.smtpTls.value}
+					onValueChange={(v) => ($inputs.smtpTls.value = v as typeof $inputs.smtpTls.value)}
 				>
-					<Select.Trigger>
-						<Select.Value placeholder={m.email_tls_option()} />
+					<Select.Trigger class="w-full" placeholder={m.email_tls_option()}>
+						{tlsOptions[$inputs.smtpTls.value]}
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="none" label="None" />
@@ -160,6 +160,6 @@
 		<Button isLoading={isSendingTestEmail} variant="secondary" onclick={onTestEmail}
 			>{m.send_test_email()}</Button
 		>
-		<Button type="submit" disabled={uiConfigDisabled}>{m.save()}</Button>
+		<Button type="submit" disabled={$appConfigStore.uiConfigDisabled}>{m.save()}</Button>
 	</div>
 </form>

@@ -136,13 +136,13 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	}
 
 	// Validate that code is provided for authorization_code grant type
-	if input.GrantType == "authorization_code" && input.Code == "" {
+	if input.GrantType == service.GrantTypeAuthorizationCode && input.Code == "" {
 		_ = c.Error(&common.OidcMissingAuthorizationCodeError{})
 		return
 	}
 
 	// Validate that refresh_token is provided for refresh_token grant type
-	if input.GrantType == "refresh_token" && input.RefreshToken == "" {
+	if input.GrantType == service.GrantTypeRefreshToken && input.RefreshToken == "" {
 		_ = c.Error(&common.OidcMissingRefreshTokenError{})
 		return
 	}
@@ -152,8 +152,7 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		input.ClientID, input.ClientSecret, _ = c.Request.BasicAuth()
 	}
 
-	idToken, accessToken, refreshToken, expiresIn, err :=
-		oc.oidcService.CreateTokens(c.Request.Context(), input)
+	tokens, err := oc.oidcService.CreateTokens(c.Request.Context(), input)
 
 	switch {
 	case errors.Is(err, &common.OidcAuthorizationPendingError{}):
@@ -171,23 +170,13 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		return
 	}
 
-	response := dto.OidcTokenResponseDto{
-		AccessToken: accessToken,
-		TokenType:   "Bearer",
-		ExpiresIn:   expiresIn,
-	}
-
-	// Include ID token only for authorization_code grant
-	if idToken != "" {
-		response.IdToken = idToken
-	}
-
-	// Include refresh token if generated
-	if refreshToken != "" {
-		response.RefreshToken = refreshToken
-	}
-
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, dto.OidcTokenResponseDto{
+		AccessToken:  tokens.AccessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    int(tokens.ExpiresIn.Seconds()),
+		IdToken:      tokens.IdToken,      // May be empty
+		RefreshToken: tokens.RefreshToken, // May be empty
+	})
 }
 
 // userInfoHandler godoc

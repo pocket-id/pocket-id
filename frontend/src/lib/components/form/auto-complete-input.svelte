@@ -75,15 +75,16 @@
 		onfocus={() => (isInputFocused = true)}
 		onblur={() => (isInputFocused = false)}
 	/>
-	<Popover.Root
-		open={isOpen}
-		disableFocusTrap
-		openFocus={() => {}}
-		closeOnOutsideClick={false}
-		closeOnEscape={false}
-	>
+	<Popover.Root open={isOpen}>
 		<Popover.Trigger tabindex={-1} class="h-0 w-full" aria-hidden />
-		<Popover.Content class="p-0" sideOffset={5} sameWidth>
+		<Popover.Content
+			sameWidth
+			class="p-0"
+			sideOffset={5}
+			trapFocus={false}
+			interactOutsideBehavior="ignore"
+			onCloseAutoFocus={(e) => e.preventDefault()}
+		>
 			{#each filteredSuggestions as suggestion, index}
 				<div
 					role="button"

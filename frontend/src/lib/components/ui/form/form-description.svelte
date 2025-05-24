@@ -1,17 +1,17 @@
 <script lang="ts">
 	import * as FormPrimitive from 'formsnap';
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { cn } from '$lib/utils/style.js';
+	import { cn, type WithoutChild } from '$lib/utils/style.js';
 
-	type $$Props = HTMLAttributes<HTMLSpanElement> & { class?: string | null | undefined };
-	let className: string | undefined | null = undefined;
-	export { className as class };
+	let {
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: WithoutChild<FormPrimitive.DescriptionProps> = $props();
 </script>
 
 <FormPrimitive.Description
+	bind:ref
+	data-slot="form-description"
 	class={cn('text-muted-foreground text-sm', className)}
-	{...$$restProps}
-	let:descriptionAttrs
->
-	<slot {descriptionAttrs} />
-</FormPrimitive.Description>
+	{...restProps}
+/>

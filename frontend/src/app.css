@@ -1,70 +1,199 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
-@config '../tailwind.config.ts';
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+ 
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+	*,
+	::after,
+	::before,
+	::backdrop,
+	::file-selector-button {
+		border-color: var(--color-gray-200, currentcolor);
+	}
+}
+
+:root {
+	--background: hsl(0 0% 100%);
+	--foreground: hsl(240 10% 3.9%);
+
+	--muted: hsl(240 4.8% 95.9%);
+	--muted-foreground: hsl(240 3.8% 46.1%);
+
+	--popover: hsl(0 0% 100%);
+	--popover-foreground: hsl(240 10% 3.9%);
+
+	--card: hsl(0 0% 100%);
+	--card-foreground: hsl(240 10% 3.9%);
+
+	--border: hsl(240 5.9% 90%);
+	--input: hsl(240 5.9% 90%);
+
+	--primary: hsl(240 5.9% 10%);
+	--primary-foreground: hsl(0 0% 98%);
+
+	--secondary: hsl(240 4.8% 95.9%);
+	--secondary-foreground: hsl(240 5.9% 10%);
+
+	--accent: hsl(240 4.8% 95.9%);
+	--accent-foreground: hsl(240 5.9% 10%);
+
+	--destructive: hsl(0 72.2% 50.6%);
+	--destructive-foreground: hsl(0 0% 98%);
+
+	--ring: hsl(240 10% 3.9%);
+
+	--radius: 0.5rem;
+}
+
+.dark {
+	--background: hsl(240 10% 3.9%);
+	--foreground: hsl(0 0% 98%);
+
+	--muted: hsl(240 3.7% 15.9%);
+	--muted-foreground: hsl(240 5% 64.9%);
+
+	--popover: hsl(240 10% 3.9%);
+	--popover-foreground: hsl(0 0% 98%);
+
+	--card: hsl(240 10% 3.9%);
+	--card-foreground: hsl(0 0% 98%);
+
+	--border: hsl(240 3.7% 15.9%);
+	--input: hsl(240 3.7% 15.9%);
+
+	--primary: hsl(0 0% 98%);
+	--primary-foreground: hsl(240 5.9% 10%);
+
+	--secondary: hsl(240 3.7% 15.9%);
+	--secondary-foreground: hsl(0 0% 98%);
+
+	--accent: hsl(240 3.7% 15.9%);
+	--accent-foreground: hsl(0 0% 98%);
+
+	--destructive: hsl(0 62.8% 30.6%);
+	--destructive-foreground: hsl(0 0% 98%);
+
+	--ring: hsl(240 4.9% 83.9%);
+}
+
+@theme inline {
+	/* Radius (for rounded-*) */
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+
+	/* Colors */
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-ring: var(--ring);
+	--color-radius: var(--radius);
+	--color-sidebar-background: var(--sidebar-background);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+
+	/* Animations */
+	--animate-accordion-up: accordion-up 0.2s ease-out;
+	--animate-accordion-down: accordion-down 0.2s ease-out;
+	--animate-caret-blink: caret-blink 1.25s ease-out infinite;
+
+	/* Font */
+	--font-playfair: 'Playfair Display', serif;
+}
 
 @layer base {
-	:root {
-		--background: 0 0% 100%;
-		--foreground: 240 10% 3.9%;
-
-		--muted: 240 4.8% 95.9%;
-		--muted-foreground: 240 3.8% 46.1%;
-
-		--popover: 0 0% 100%;
-		--popover-foreground: 240 10% 3.9%;
-
-		--card: 0 0% 100%;
-		--card-foreground: 240 10% 3.9%;
-
-		--border: 240 5.9% 90%;
-		--input: 240 5.9% 90%;
-
-		--primary: 240 5.9% 10%;
-		--primary-foreground: 0 0% 98%;
-
-		--secondary: 240 4.8% 95.9%;
-		--secondary-foreground: 240 5.9% 10%;
-
-		--accent: 240 4.8% 95.9%;
-		--accent-foreground: 240 5.9% 10%;
-
-		--destructive: 0 72.2% 50.6%;
-		--destructive-foreground: 0 0% 98%;
-
-		--ring: 240 10% 3.9%;
-
-		--radius: 0.5rem;
+	* {
+		@apply border-border;
 	}
 
-	.dark {
-		--background: 240 10% 3.9%;
-		--foreground: 0 0% 98%;
+	body {
+		@apply bg-background text-foreground;
+	}
 
-		--muted: 240 3.7% 15.9%;
-		--muted-foreground: 240 5% 64.9%;
+	button {
+		@apply cursor-pointer;
+	}
 
-		--popover: 240 10% 3.9%;
-		--popover-foreground: 0 0% 98%;
+	@font-face {
+		font-family: 'Playfair Display';
+		font-weight: 400;
+		src: url('/fonts/PlayfairDisplay-Regular.woff') format('woff');
+	}
+	@font-face {
+		font-family: 'Playfair Display';
+		font-weight: 500;
+		src: url('/fonts/PlayfairDisplay-Medium.woff') format('woff');
+	}
+	@font-face {
+		font-family: 'Playfair Display';
+		font-weight: 600;
+		src: url('/fonts/PlayfairDisplay-SemiBold.woff') format('woff');
+	}
+	@font-face {
+		font-family: 'Playfair Display';
+		font-weight: 700;
+		src: url('/fonts/PlayfairDisplay-Bold.woff') format('woff');
+	}
+}
 
-		--card: 240 10% 3.9%;
-		--card-foreground: 0 0% 98%;
+@keyframes accordion-down {
+	from {
+		height: 0;
+	}
 
-		--border: 240 3.7% 15.9%;
-		--input: 240 3.7% 15.9%;
+	to {
+		height: var(--bits-accordion-content-height);
+	}
+}
 
-		--primary: 0 0% 98%;
-		--primary-foreground: 240 5.9% 10%;
+@keyframes accordion-up {
+	from {
+		height: var(--bits-accordion-content-height);
+	}
 
-		--secondary: 240 3.7% 15.9%;
-		--secondary-foreground: 0 0% 98%;
+	to {
+		height: 0;
+	}
+}
 
-		--accent: 240 3.7% 15.9%;
-		--accent-foreground: 0 0% 98%;
+@keyframes caret-blink {
+	0%,
+	70%,
+	100% {
+		opacity: 1;
+	}
 
-		--destructive: 0 62.8% 30.6%;
-		--destructive-foreground: 0 0% 98%;
-
-		--ring: 240 4.9% 83.9%;
+	20%,
+	50% {
+		opacity: 0;
 	}
 }
 
@@ -102,7 +231,6 @@
 	animation: slide-bg-container 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
 }
 
-/* Fade in for content after the slide is mostly complete */
 @keyframes delayed-fade {
 	0%,
 	40% {
@@ -115,39 +243,4 @@
 
 .animate-delayed-fade {
 	animation: delayed-fade 1.5s ease-out forwards;
-}
-
-@layer base {
-	* {
-		@apply border-border;
-	}
-
-	body {
-		@apply bg-background text-foreground;
-	}
-
-	button {
-		@apply cursor-pointer;
-	}
-
-	@font-face {
-		font-family: 'Playfair Display';
-		font-weight: 400;
-		src: url('/fonts/PlayfairDisplay-Regular.woff') format('woff');
-	}
-	@font-face {
-		font-family: 'Playfair Display';
-		font-weight: 500;
-		src: url('/fonts/PlayfairDisplay-Medium.woff') format('woff');
-	}
-	@font-face {
-		font-family: 'Playfair Display';
-		font-weight: 600;
-		src: url('/fonts/PlayfairDisplay-SemiBold.woff') format('woff');
-	}
-	@font-face {
-		font-family: 'Playfair Display';
-		font-weight: 700;
-		src: url('/fonts/PlayfairDisplay-Bold.woff') format('woff');
-	}
 }

@@ -41,19 +41,19 @@
 		<p class="text-muted-foreground mt-2" in:fade>
 			{error}. {m.please_try_again()}
 		</p>
-		<div class="mt-10 flex w-full justify-stretch gap-2">
-			<Button variant="secondary" class="w-full" href="/">{m.go_back()}</Button>
-			<Button class="w-full" onclick={() => (error = undefined)}>{m.try_again()}</Button>
+		<div class="mt-10 flex justify-between gap-2">
+			<Button variant="secondary" class="flex-1" href="/">{m.go_back()}</Button>
+			<Button class="flex-1" onclick={() => (error = undefined)}>{m.try_again()}</Button>
 		</div>
 	{:else if success}
 		<p class="text-muted-foreground mt-2" in:fade>
 			{m.an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system()}
 		</p>
-		<div class="mt-8 flex w-full justify-stretch gap-2">
-			<Button variant="secondary" class="w-full" href={'/login/alternative' + page.url.search}
+		<div class="mt-8 flex justify-between gap-2">
+			<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
 				>{m.go_back()}</Button
 			>
-			<Button class="w-full" href={'/login/alternative/code' + page.url.search}
+			<Button class="flex-1" href={'/login/alternative/code' + page.url.search}
 				>{m.enter_code()}</Button
 			>
 		</div>
@@ -69,11 +69,11 @@
 				{m.enter_your_email_address_to_receive_an_email_with_a_login_code()}
 			</p>
 			<Input id="Email" class="mt-7" placeholder={m.your_email()} bind:value={email} />
-			<div class="mt-8 flex justify-stretch gap-2">
-				<Button variant="secondary" class="w-full" href={'/login/alternative' + page.url.search}
+			<div class="mt-8 flex justify-between gap-2">
+				<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
 					>{m.go_back()}</Button
 				>
-				<Button class="w-full" type="submit" {isLoading}>{m.submit()}</Button>
+				<Button class="flex-1" type="submit" {isLoading}>{m.submit()}</Button>
 			</div>
 		</form>
 	{/if}

@@ -5,7 +5,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { cn } from '$lib/utils/style';
-	import { LucideExternalLink, LucideSettings } from 'lucide-svelte';
+	import { LucideExternalLink, LucideSettings } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import type { LayoutData } from './$types';
@@ -41,14 +41,14 @@
 <section>
 	<div class="bg-muted/40 flex min-h-[calc(100vh-64px)] w-full flex-col justify-between">
 		<main
-			in:fade={{ duration: 300 }}
+			in:fade={{ duration: 200 }}
 			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 overflow-hidden p-4 md:p-8 lg:flex-row"
 		>
 			<div class="min-w-[200px] xl:min-w-[250px]">
-				<div in:fly={{ x: -15, duration: 300 }} class="sticky top-6">
+				<div in:fly={{ x: -15, duration: 200 }} class="sticky top-6">
 					<div class="mx-auto grid w-full gap-2">
 						<h1 class="mb-4 flex items-center gap-2 text-2xl font-semibold">
-							<LucideSettings class="h-5 w-5" />
+							<LucideSettings class="size-5" />
 							{m.settings()}
 						</h1>
 					</div>
@@ -62,7 +62,7 @@
 										? 'text-primary bg-card rounded-md px-3 py-1.5 font-medium shadow-sm transition-all'
 										: 'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm'
 								)}
-								style={`animation-delay: ${150 + i * 75}ms;`}
+								style={`animation-delay: ${150 + i * 50}ms;`}
 							>
 								{label}
 							</a>
@@ -75,7 +75,7 @@
 								style={`animation-delay: ${150 + links.length * 75}ms;`}
 							>
 								{m.update_pocket_id()}
-								<LucideExternalLink class="my-auto inline-block h-3 w-3" />
+								<LucideExternalLink class="my-auto inline-block size-3" />
 							</a>
 						{/if}
 					</nav>

@@ -420,24 +420,12 @@ func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID strin
 }
 
 func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, expiresAt time.Time, tx *gorm.DB) (string, error) {
-	// If expires at is less than 15 minutes, use an 6 character token instead of 16
-	tokenLength := 16
-	if time.Until(expiresAt) <= 15*time.Minute {
-		tokenLength = 6
-	}
-
-	randomString, err := utils.GenerateRandomAlphanumericString(tokenLength)
+	oneTimeAccessToken, err := NewOneTimeAccessToken(userID, expiresAt)
 	if err != nil {
 		return "", err
 	}
 
-	oneTimeAccessToken := model.OneTimeAccessToken{
-		UserID:    userID,
-		ExpiresAt: datatype.DateTime(expiresAt),
-		Token:     randomString,
-	}
-
-	if err := tx.WithContext(ctx).Create(&oneTimeAccessToken).Error; err != nil {
+	if err := tx.WithContext(ctx).Create(oneTimeAccessToken).Error; err != nil {
 		return "", err
 	}
 
@@ -640,4 +628,25 @@ func (s *UserService) disableUserInternal(ctx context.Context, userID string, tx
 		Where("id = ?", userID).
 		Update("disabled", true).
 		Error
+}
+
+func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAccessToken, error) {
+	// If expires at is less than 15 minutes, use a 6-character token instead of 16
+	tokenLength := 16
+	if time.Until(expiresAt) <= 15*time.Minute {
+		tokenLength = 6
+	}
+
+	randomString, err := utils.GenerateRandomAlphanumericString(tokenLength)
+	if err != nil {
+		return nil, err
+	}
+
+	o := &model.OneTimeAccessToken{
+		UserID:    userID,
+		ExpiresAt: datatype.DateTime(expiresAt),
+		Token:     randomString,
+	}
+
+	return o, nil
 }

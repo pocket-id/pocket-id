@@ -48,7 +48,7 @@
 			opacity: 0;
 			transform: translateY(10px);
 			animation-delay: calc(var(--animation-delay, 0ms) + 0.1s);
-			animation: fadeIn 0.8s ease-out forwards;
+			animation: fadeIn 0.3s ease-out forwards;
 			will-change: opacity, transform;
 		}
 	</style>

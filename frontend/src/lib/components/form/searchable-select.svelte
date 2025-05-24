@@ -3,7 +3,7 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 	import { cn } from '$lib/utils/style';
-	import { LucideCheck, LucideChevronDown } from 'lucide-svelte';
+	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -52,21 +52,19 @@
 	});
 </script>
 
-<Popover.Root bind:open let:ids>
-	<Popover.Trigger asChild let:builder>
+<Popover.Root bind:open {...restProps}>
+	<Popover.Trigger class="w-full">
 		<Button
-			{...restProps}
-			builders={[builder]}
 			variant="outline"
 			role="combobox"
 			aria-expanded={open}
 			class={cn('justify-between', restProps.class)}
 		>
 			{items.find((item) => item.value === value)?.label || 'Select an option'}
-			<LucideChevronDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+			<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
 		</Button>
 	</Popover.Trigger>
-	<Popover.Content class="p-0" sameWidth>
+	<Popover.Content class="p-0">
 		<Command.Root shouldFilter={false}>
 			<Command.Input placeholder="Search..." oninput={(e: any) => filterItems(e.target.value)} />
 			<Command.Empty>No results found.</Command.Empty>
@@ -77,10 +75,11 @@
 						onSelect={() => {
 							value = item.value;
 							onSelect?.(item.value);
-							closeAndFocusTrigger(ids.trigger);
+							// If you need to focus the trigger, you may need to refactor to get the trigger id another way
+							closeAndFocusTrigger('popover-trigger');
 						}}
 					>
-						<LucideCheck class={cn('mr-2 h-4 w-4', value !== item.value && 'text-transparent')} />
+						<LucideCheck class={cn('mr-2 size-4', value !== item.value && 'text-transparent')} />
 						{item.label}
 					</Command.Item>
 				{/each}
