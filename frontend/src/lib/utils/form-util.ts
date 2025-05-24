@@ -61,7 +61,10 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 		let values: z.infer<T> | null = null;
 		inputsStore.subscribe((inputs) => {
 			values = Object.fromEntries(
-				Object.entries(inputs).map(([key, input]) => [key, input.value])
+				Object.entries(inputs).map(([key, input]) => {
+					input.value = trimValue(input.value);
+					return [key, input.value];
+				})
 			) as z.infer<T>;
 		})();
 
@@ -85,6 +88,21 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 			inputs[key].value = value;
 			return inputs;
 		});
+	}
+
+	// Trims whitespace from string values and arrays of strings
+	function trimValue(value: any) {
+		if (typeof value === 'string') {
+			value = value.trim();
+		} else if (Array.isArray(value)) {
+			value = value.map((item: any) => {
+				if (typeof item === 'string') {
+					return item.trim();
+				}
+				return item;
+			});
+		}
+		return value;
 	}
 
 	return {
