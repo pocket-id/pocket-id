@@ -1256,13 +1256,19 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 }
 
 func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id string) (int64, error) {
+	// We only perform select queries here, so we can rollback in all cases
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	err := s.db.WithContext(ctx).Where("id = ?", id).First(&client).Error
+	err := tx.WithContext(ctx).Where("id = ?", id).First(&client).Error
 	if err != nil {
 		return 0, err
 	}
 
-	count := s.db.WithContext(ctx).Model(&client).Association("AllowedUserGroups").Count()
+	count := tx.WithContext(ctx).Model(&client).Association("AllowedUserGroups").Count()
 	return count, nil
 }
 
