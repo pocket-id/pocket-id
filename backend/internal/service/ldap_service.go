@@ -148,9 +148,32 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
 		membersUserId := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
+			// Try to extract username from DN
 			username := getDNProperty(dbConfig.LdapAttributeUserUsername.Value, member)
+
+			// If username extraction fails, try to query LDAP directly for the user
 			if username == "" {
-				continue
+				// Query LDAP to get the user by their DN
+				userSearchReq := ldap.NewSearchRequest(
+					member, // Use the full DN as the base
+					ldap.ScopeBaseObject,
+					0, 0, 0, false,
+					"(objectClass=*)", // Match any object
+					[]string{dbConfig.LdapAttributeUserUsername.Value, dbConfig.LdapAttributeUserUniqueIdentifier.Value},
+					[]ldap.Control{},
+				)
+
+				userResult, err := client.Search(userSearchReq)
+				if err != nil || len(userResult.Entries) == 0 {
+					log.Printf("Could not resolve group member DN '%s': %v", member, err)
+					continue
+				}
+
+				username = userResult.Entries[0].GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value)
+				if username == "" {
+					log.Printf("Could not extract username from group member DN '%s'", member)
+					continue
+				}
 			}
 
 			var databaseUser model.User
@@ -305,7 +328,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		// Check if user is admin by checking if they are in the admin group
 		isAdmin := false
 		for _, group := range value.GetAttributeValues("memberOf") {
-			if getDNProperty("cn", group) == dbConfig.LdapAttributeAdminGroup.Value {
+			if getDNProperty(dbConfig.LdapAttributeGroupName.Value, group) == dbConfig.LdapAttributeAdminGroup.Value {
 				isAdmin = true
 				break
 			}
