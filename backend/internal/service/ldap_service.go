@@ -148,17 +148,16 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
 		membersUserId := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
-			// Try to extract username from DN
 			username := getDNProperty(dbConfig.LdapAttributeUserUsername.Value, member)
 
 			// If username extraction fails, try to query LDAP directly for the user
 			if username == "" {
 				// Query LDAP to get the user by their DN
 				userSearchReq := ldap.NewSearchRequest(
-					member, // Use the full DN as the base
+					member,
 					ldap.ScopeBaseObject,
 					0, 0, 0, false,
-					"(objectClass=*)", // Match any object
+					"(objectClass=*)",
 					[]string{dbConfig.LdapAttributeUserUsername.Value, dbConfig.LdapAttributeUserUniqueIdentifier.Value},
 					[]ldap.Control{},
 				)
