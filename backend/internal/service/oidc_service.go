@@ -518,6 +518,7 @@ func (s *OidcService) ListClients(ctx context.Context, searchTerm string, sorted
 	query := s.db.
 		WithContext(ctx).
 		Preload("CreatedBy").
+		Preload("AllowedUserGroups").
 		Model(&model.OidcClient{})
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"

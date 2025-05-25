@@ -377,7 +377,7 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 // @Param limit query int false "Number of items per page" default(10)
 // @Param sort_column query string false "Column to sort by" default("name")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.OidcClientDto]
+// @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedUserGroupsDto]
 // @Security BearerAuth
 // @Router /api/oidc/clients [get]
 func (oc *OidcController) listClientsHandler(c *gin.Context) {
@@ -394,13 +394,13 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 		return
 	}
 
-	var clientsDto []dto.OidcClientDto
+	var clientsDto []dto.OidcClientWithAllowedUserGroupsDto
 	if err := dto.MapStructList(clients, &clientsDto); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.OidcClientDto]{
+	c.JSON(http.StatusOK, dto.Paginated[dto.OidcClientWithAllowedUserGroupsDto]{
 		Data:       clientsDto,
 		Pagination: pagination,
 	})

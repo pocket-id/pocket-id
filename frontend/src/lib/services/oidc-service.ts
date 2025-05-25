@@ -43,7 +43,7 @@ class OidcService extends APIService {
 		const res = await this.api.get('/oidc/clients', {
 			params: options
 		});
-		return res.data as Paginated<OidcClient>;
+		return res.data as Paginated<OidcClientWithAllowedUserGroups>;
 	}
 
 	async createClient(client: OidcClientCreate) {
