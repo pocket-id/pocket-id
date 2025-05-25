@@ -1322,15 +1322,15 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 	}
 }
 
-func (s *OidcService) jwkSetForIssuer(issuer string) (set jwk.Set, err error) {
-	// Check if we have already registered the issuer
+func (s *OidcService) jwkSetForURL(url string) (set jwk.Set, err error) {
+	// Check if we have already registered the URL
 	// This is a background operation and uses a background context; the HTTP client has a timeout anyways
 	registerCtx := context.Background()
-	if !s.jwkCache.IsRegistered(registerCtx, issuer) {
-		// We need to register the issuer
+	if !s.jwkCache.IsRegistered(registerCtx, url) {
+		// We need to register the URL
 		err = s.jwkCache.Register(
 			registerCtx,
-			issuer,
+			url,
 			jwk.WithMaxInterval(24*time.Hour),
 			jwk.WithMinInterval(15*time.Minute),
 		)
@@ -1340,7 +1340,7 @@ func (s *OidcService) jwkSetForIssuer(issuer string) (set jwk.Set, err error) {
 		}
 	}
 
-	jwks, err := s.jwkCache.CachedSet(issuer)
+	jwks, err := s.jwkCache.CachedSet(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cached JWK set: %w", err)
 	}
@@ -1368,7 +1368,7 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(client *model
 	}
 
 	// Get the JWK set for the issuer
-	jwks, err := s.jwkSetForIssuer(issuer)
+	jwks, err := s.jwkSetForURL(ocfi.JWKS)
 	if err != nil {
 		return fmt.Errorf("failed to get JWK set for issuer '%s': %w", issuer, err)
 	}

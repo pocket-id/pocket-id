@@ -81,6 +81,7 @@ type OidcClientFederatedIdentity struct {
 	Issuer   string `json:"issuer"`
 	Subject  string `json:"subject"`
 	Audience string `json:"audience"`
+	JWKS     string `json:"jwks"` // URL of the JWKS
 }
 
 func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (OidcClientFederatedIdentity, bool) {
