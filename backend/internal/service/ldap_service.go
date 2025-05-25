@@ -148,22 +148,23 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
 		membersUserId := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
-			ldapId := getDNProperty("uid", member)
-			if ldapId == "" {
+			// Use the configured username attribute instead of hardcoded "uid"
+			username := getDNProperty(dbConfig.LdapAttributeUserUsername.Value, member)
+			if username == "" {
 				continue
 			}
 
 			var databaseUser model.User
 			err = tx.
 				WithContext(ctx).
-				Where("username = ? AND ldap_id IS NOT NULL", ldapId).
+				Where("username = ? AND ldap_id IS NOT NULL", username).
 				First(&databaseUser).
 				Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// The user collides with a non-LDAP user, so we skip it
 				continue
 			} else if err != nil {
-				return fmt.Errorf("failed to query for existing user '%s': %w", ldapId, err)
+				return fmt.Errorf("failed to query for existing user '%s': %w", username, err)
 			}
 
 			membersUserId = append(membersUserId, databaseUser.ID)
