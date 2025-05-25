@@ -40,8 +40,6 @@ const (
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
 
 	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
-
-	TokenExchangeAudience = "api://PocketIDTokenExchange"
 )
 
 type OidcService struct {
@@ -1387,7 +1385,8 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(client *model
 	// Set default audience and subject if missing
 	audience := ocfi.Audience
 	if audience == "" {
-		audience = TokenExchangeAudience
+		// Default to the Pocket ID's URL
+		audience = common.EnvConfig.AppURL
 	}
 	subject := ocfi.Subject
 	if subject == "" {
