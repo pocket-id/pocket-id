@@ -40,6 +40,8 @@ const (
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
 
 	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
+	TokenExchangeAudience = "api://PocketIDTokenExchange"
 )
 
 type OidcService struct {
@@ -1368,9 +1370,29 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(client *model
 	}
 
 	// Get the JWK set for the issuer
-	jwks, err := s.jwkSetForURL(ocfi.JWKS)
+	jwksURL := ocfi.JWKS
+	if jwksURL == "" {
+		// Default URL is from the issuer
+		if strings.HasSuffix(issuer, "/") {
+			jwksURL = issuer + ".well-known/jwks.json"
+		} else {
+			jwksURL = issuer + "/.well-known/jwks.json"
+		}
+	}
+	jwks, err := s.jwkSetForURL(jwksURL)
 	if err != nil {
 		return fmt.Errorf("failed to get JWK set for issuer '%s': %w", issuer, err)
+	}
+
+	// Set default audience and subject if missing
+	audience := ocfi.Audience
+	if audience == "" {
+		audience = TokenExchangeAudience
+	}
+	subject := ocfi.Subject
+	if subject == "" {
+		// Default to the client ID, per RFC 7523
+		subject = client.ID
 	}
 
 	// Now re-parse the token with proper validation
@@ -1379,8 +1401,8 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(client *model
 		jwt.WithValidate(true),
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithKeySet(jwks, jws.WithInferAlgorithmFromKey(true), jws.WithUseDefault(true)),
-		jwt.WithAudience(ocfi.Audience),
-		jwt.WithSubject(ocfi.Subject),
+		jwt.WithAudience(audience),
+		jwt.WithSubject(subject),
 	)
 	if err != nil {
 		return fmt.Errorf("client assertion is not valid: %w", err)
