@@ -61,7 +61,9 @@ func TestOidcService_jwkSetForURL(t *testing.T) {
 		url2 = "https://other-issuer.com/jwks"
 	)
 	mockResponses := map[string]*http.Response{
+		//nolint:bodyclose
 		url1: NewMockResponse(http.StatusOK, string(jwkSetJSON1)),
+		//nolint:bodyclose
 		url2: NewMockResponse(http.StatusOK, string(jwkSetJSON2)),
 	}
 	httpClient := &http.Client{
@@ -93,7 +95,7 @@ func TestOidcService_jwkSetForURL(t *testing.T) {
 		defer cancel()
 		_, err := s.jwkSetForURL(ctx, "https://bad-url.com")
 		require.Error(t, err)
-		assert.ErrorIs(t, err, context.DeadlineExceeded)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
 	})
 
 	t.Run("Safe for concurrent use", func(t *testing.T) {
@@ -150,7 +152,9 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	httpClient := &http.Client{
 		Transport: &MockRoundTripper{
 			Responses: map[string]*http.Response{
-				federatedClientIssuer + "/jwks.json":                    NewMockResponse(http.StatusOK, string(jwkSetJSON)),
+				//nolint:bodyclose
+				federatedClientIssuer + "/jwks.json": NewMockResponse(http.StatusOK, string(jwkSetJSON)),
+				//nolint:bodyclose
 				federatedClientIssuerDefaults + ".well-known/jwks.json": NewMockResponse(http.StatusOK, string(jwkSetJSONDefaults)),
 			},
 		},
@@ -222,7 +226,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientSecret: "invalid-secret",
 			})
 			require.Error(t, err)
-			assert.ErrorIs(t, err, &common.OidcClientSecretInvalidError{})
+			require.ErrorIs(t, err, &common.OidcClientSecretInvalidError{})
 			assert.Nil(t, client)
 		})
 
@@ -232,7 +236,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientID: confidentialClient.ID,
 			})
 			require.Error(t, err)
-			assert.ErrorIs(t, err, &common.OidcMissingClientCredentialsError{})
+			require.ErrorIs(t, err, &common.OidcMissingClientCredentialsError{})
 			assert.Nil(t, client)
 		})
 	})
@@ -284,7 +288,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientAssertion:     "invalid.jwt.token",
 			})
 			require.Error(t, err)
-			assert.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
+			require.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
 			assert.Nil(t, client)
 		})
 
@@ -313,7 +317,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 					ClientAssertion:     string(signedToken),
 				})
 				require.Error(t, err)
-				assert.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
+				require.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
 				require.Nil(t, client)
 			}
 		}
