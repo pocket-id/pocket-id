@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
+
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
 type UserAuthorizedOidcClient struct {
@@ -45,6 +46,7 @@ type OidcClient struct {
 	HasLogo            bool `gorm:"-"`
 	IsPublic           bool
 	PkceEnabled        bool
+	Credentials        *OidcClientCredentials
 
 	AllowedUserGroups []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID       string
@@ -71,9 +73,48 @@ func (c *OidcClient) AfterFind(_ *gorm.DB) (err error) {
 	return nil
 }
 
+type OidcClientCredentials struct { //nolint:recvcheck
+	FederatedIdentities []OidcClientFederatedIdentity `json:"federatedIdentities"`
+}
+
+type OidcClientFederatedIdentity struct {
+	Issuer   string `json:"issuer"`
+	Subject  string `json:"subject"`
+	Audience string `json:"audience"`
+}
+
+func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (OidcClientFederatedIdentity, bool) {
+	if issuer == "" {
+		return OidcClientFederatedIdentity{}, false
+	}
+
+	for _, fi := range occ.FederatedIdentities {
+		if fi.Issuer == issuer {
+			return fi, true
+		}
+	}
+
+	return OidcClientFederatedIdentity{}, false
+}
+
+func (occ *OidcClientCredentials) Scan(value any) error {
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, occ)
+	case string:
+		return json.Unmarshal([]byte(v), occ)
+	default:
+		return fmt.Errorf("unsupported type: %T", value)
+	}
+}
+
+func (occ OidcClientCredentials) Value() (driver.Value, error) {
+	return json.Marshal(occ)
+}
+
 type UrlList []string //nolint:recvcheck
 
-func (cu *UrlList) Scan(value interface{}) error {
+func (cu *UrlList) Scan(value any) error {
 	switch v := value.(type) {
 	case []byte:
 		return json.Unmarshal(v, cu)

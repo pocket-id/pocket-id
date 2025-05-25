@@ -26,15 +26,14 @@ type services struct {
 }
 
 // Initializes all services
-// The context should be used by services only for initialization, and not for running
-func initServices(initCtx context.Context, db *gorm.DB, httpClient *http.Client) (svc *services, err error) {
+func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (svc *services, err error) {
 	svc = &services{}
 
-	svc.appConfigService = service.NewAppConfigService(initCtx, db)
+	svc.appConfigService = service.NewAppConfigService(ctx, db)
 
 	svc.emailService, err = service.NewEmailService(db, svc.appConfigService)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create email service: %w", err)
+		return nil, fmt.Errorf("failed to create email service: %w", err)
 	}
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
@@ -42,7 +41,12 @@ func initServices(initCtx context.Context, db *gorm.DB, httpClient *http.Client)
 	svc.jwtService = service.NewJwtService(svc.appConfigService)
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 	svc.customClaimService = service.NewCustomClaimService(db)
-	svc.oidcService = service.NewOidcService(db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService)
+
+	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
+	}
+
 	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService)
 	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)

@@ -47,13 +47,15 @@ type AuthorizationRequiredDto struct {
 }
 
 type OidcCreateTokensDto struct {
-	GrantType    string `form:"grant_type" binding:"required"`
-	Code         string `form:"code"`
-	DeviceCode   string `form:"device_code"`
-	ClientID     string `form:"client_id"`
-	ClientSecret string `form:"client_secret"`
-	CodeVerifier string `form:"code_verifier"`
-	RefreshToken string `form:"refresh_token"`
+	GrantType           string `form:"grant_type" binding:"required"`
+	Code                string `form:"code"`
+	DeviceCode          string `form:"device_code"`
+	ClientID            string `form:"client_id"`
+	ClientSecret        string `form:"client_secret"`
+	CodeVerifier        string `form:"code_verifier"`
+	RefreshToken        string `form:"refresh_token"`
+	ClientAssertion     string `form:"client_assertion"`
+	ClientAssertionType string `form:"client_assertion_type"`
 }
 
 type OidcIntrospectDto struct {
