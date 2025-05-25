@@ -350,5 +350,7 @@
 	"federated_identities": "Federated Identities",
 	"federated_identities_description": "Manage federated identities for users. This allows users to sign in with their existing accounts from other identity providers.",
 	"add_federated_identity": "Add Federated Identity",
-	"add_another_federated_identity": "Add another federated identity"
+	"add_another_federated_identity": "Add another federated identity",
+	"oidc_allowed_group_count": "Allowed Group Count",
+	"unrestricted": "Unrestricted"
 }

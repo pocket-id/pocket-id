@@ -148,22 +148,44 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
 		membersUserId := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
-			ldapId := getDNProperty("uid", member)
-			if ldapId == "" {
-				continue
+			username := getDNProperty(dbConfig.LdapAttributeUserUsername.Value, member)
+
+			// If username extraction fails, try to query LDAP directly for the user
+			if username == "" {
+				// Query LDAP to get the user by their DN
+				userSearchReq := ldap.NewSearchRequest(
+					member,
+					ldap.ScopeBaseObject,
+					0, 0, 0, false,
+					"(objectClass=*)",
+					[]string{dbConfig.LdapAttributeUserUsername.Value, dbConfig.LdapAttributeUserUniqueIdentifier.Value},
+					[]ldap.Control{},
+				)
+
+				userResult, err := client.Search(userSearchReq)
+				if err != nil || len(userResult.Entries) == 0 {
+					log.Printf("Could not resolve group member DN '%s': %v", member, err)
+					continue
+				}
+
+				username = userResult.Entries[0].GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value)
+				if username == "" {
+					log.Printf("Could not extract username from group member DN '%s'", member)
+					continue
+				}
 			}
 
 			var databaseUser model.User
 			err = tx.
 				WithContext(ctx).
-				Where("username = ? AND ldap_id IS NOT NULL", ldapId).
+				Where("username = ? AND ldap_id IS NOT NULL", username).
 				First(&databaseUser).
 				Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				// The user collides with a non-LDAP user, so we skip it
 				continue
 			} else if err != nil {
-				return fmt.Errorf("failed to query for existing user '%s': %w", ldapId, err)
+				return fmt.Errorf("failed to query for existing user '%s': %w", username, err)
 			}
 
 			membersUserId = append(membersUserId, databaseUser.ID)
@@ -305,7 +327,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		// Check if user is admin by checking if they are in the admin group
 		isAdmin := false
 		for _, group := range value.GetAttributeValues("memberOf") {
-			if getDNProperty("cn", group) == dbConfig.LdapAttributeAdminGroup.Value {
+			if getDNProperty(dbConfig.LdapAttributeGroupName.Value, group) == dbConfig.LdapAttributeAdminGroup.Value {
 				isAdmin = true
 				break
 			}

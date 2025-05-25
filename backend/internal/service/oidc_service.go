@@ -571,24 +571,32 @@ func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx
 	return client, nil
 }
 
-func (s *OidcService) ListClients(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.OidcClient, utils.PaginationResponse, error) {
+func (s *OidcService) ListClients(ctx context.Context, name string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.OidcClient, utils.PaginationResponse, error) {
 	var clients []model.OidcClient
 
 	query := s.db.
 		WithContext(ctx).
 		Preload("CreatedBy").
 		Model(&model.OidcClient{})
-	if searchTerm != "" {
-		searchPattern := "%" + searchTerm + "%"
-		query = query.Where("name LIKE ?", searchPattern)
+
+	if name != "" {
+		query = query.Where("name LIKE ?", "%"+name+"%")
 	}
 
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
-	if err != nil {
-		return nil, utils.PaginationResponse{}, err
+	// As allowedUserGroupsCount is not a column, we need to manually sort it
+	isValidSortDirection := sortedPaginationRequest.Sort.Direction == "asc" || sortedPaginationRequest.Sort.Direction == "desc"
+	if sortedPaginationRequest.Sort.Column == "allowedUserGroupsCount" && isValidSortDirection {
+		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
+			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
+			Group("oidc_clients.id").
+			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + sortedPaginationRequest.Sort.Direction)
+
+		response, err := utils.Paginate(sortedPaginationRequest.Pagination.Page, sortedPaginationRequest.Pagination.Limit, query, &clients)
+		return clients, response, err
 	}
 
-	return clients, pagination, nil
+	response, err := utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
+	return clients, response, err
 }
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
@@ -1245,6 +1253,17 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 		Scope:                 deviceAuth.Scope,
 		AuthorizationRequired: !hasAuthorizedClient,
 	}, nil
+}
+
+func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id string) (int64, error) {
+	var client model.OidcClient
+	err := s.db.WithContext(ctx).Where("id = ?", id).First(&client).Error
+	if err != nil {
+		return 0, err
+	}
+
+	count := s.db.WithContext(ctx).Model(&client).Association("AllowedUserGroups").Count()
+	return count, nil
 }
 
 func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
