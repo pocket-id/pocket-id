@@ -362,12 +362,12 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 
 	clientDto := dto.OidcClientWithAllowedUserGroupsDto{}
 	err = dto.MapStruct(client, &clientDto)
-	if err == nil {
-		c.JSON(http.StatusOK, clientDto)
+	if err != nil {
+		_ = c.Error(err)
 		return
 	}
 
-	_ = c.Error(err)
+	c.JSON(http.StatusOK, clientDto)
 }
 
 // listClientsHandler godoc

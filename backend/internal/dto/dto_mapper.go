@@ -63,6 +63,53 @@ func mapStructInternal(sourceVal reflect.Value, destVal reflect.Value) error {
 }
 
 func mapField(sourceField reflect.Value, destField reflect.Value) error {
+	// Handle pointer to struct in source
+	if sourceField.Kind() == reflect.Ptr && !sourceField.IsNil() {
+		if sourceField.Elem().Kind() == reflect.Struct {
+			if destField.Kind() == reflect.Struct {
+				// Map from pointer to struct -> struct
+				return mapStructInternal(sourceField.Elem(), destField)
+			} else if destField.Kind() == reflect.Ptr && destField.CanSet() {
+				// Map from pointer to struct -> pointer to struct
+				if destField.IsNil() {
+					destField.Set(reflect.New(destField.Type().Elem()))
+				}
+				return mapStructInternal(sourceField.Elem(), destField.Elem())
+			}
+		} else if destField.Kind() == reflect.Ptr && destField.CanSet() &&
+			sourceField.Elem().Type().AssignableTo(destField.Type().Elem()) {
+			// Handle primitive pointer types (e.g., *string to *string)
+			if destField.IsNil() {
+				destField.Set(reflect.New(destField.Type().Elem()))
+			}
+			destField.Elem().Set(sourceField.Elem())
+			return nil
+		} else if destField.Kind() != reflect.Ptr && destField.CanSet() &&
+			sourceField.Elem().Type().AssignableTo(destField.Type()) {
+			// Handle *T to T conversion for primitive types
+			destField.Set(sourceField.Elem())
+			return nil
+		}
+	}
+
+	// Handle pointer to struct in destination
+	if destField.Kind() == reflect.Ptr && destField.CanSet() {
+		if sourceField.Kind() == reflect.Struct {
+			// Map from struct -> pointer to struct
+			if destField.IsNil() {
+				destField.Set(reflect.New(destField.Type().Elem()))
+			}
+			return mapStructInternal(sourceField, destField.Elem())
+		} else if !sourceField.IsZero() && sourceField.Type().AssignableTo(destField.Type().Elem()) {
+			// Handle T to *T conversion for primitive types
+			if destField.IsNil() {
+				destField.Set(reflect.New(destField.Type().Elem()))
+			}
+			destField.Elem().Set(sourceField)
+			return nil
+		}
+	}
+
 	switch {
 	case sourceField.Type() == destField.Type():
 		destField.Set(sourceField)
