@@ -39,7 +39,7 @@ const (
 	GrantTypeRefreshToken      = "refresh_token"
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
 
-	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" //nolint:gosec
 )
 
 type OidcService struct {
@@ -1304,7 +1304,7 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 
 	// Next, check if we want to use client assertions from federated identities
 	case input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != "":
-		err = s.verifyClientAssertionFromFederatedIdentities(&client, input)
+		err = s.verifyClientAssertionFromFederatedIdentities(&client, input) //nolint:contextcheck
 		if err != nil {
 			log.Printf("Invalid assertion for client '%s': %v", client.ID, err)
 			return nil, &common.OidcClientAssertionInvalidError{}
