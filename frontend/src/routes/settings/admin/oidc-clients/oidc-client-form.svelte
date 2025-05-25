@@ -5,11 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type {
-		OidcClient,
-		OidcClientCreate,
-		OidcClientCreateWithLogo
-	} from '$lib/types/oidc.type';
+	import type {OidcClient, OidcClientCreateWithLogo} from '$lib/types/oidc.type';
 	import { createForm } from '$lib/utils/form-util';
 	import { z } from 'zod';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
@@ -124,6 +120,7 @@
 		<!-- Federated Identities Section -->
 		<div class="md:col-span-2">
 			<FederatedIdentitiesInput
+				client={existingClient}
 				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
 				bind:error={$inputs.credentials.error}
 			/>

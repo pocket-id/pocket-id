@@ -4,16 +4,18 @@
 	import { Input } from '$lib/components/ui/input';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type { OidcClientFederatedIdentity } from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientFederatedIdentity } from '$lib/types/oidc.type';
 	import { LucideMinus, LucidePlus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {
+		client,
 		federatedIdentities = $bindable([]),
 		error = $bindable(null),
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
+		client?: OidcClient,
 		federatedIdentities: OidcClientFederatedIdentity[];
 		error?: string | null;
 		children?: Snippet;
@@ -82,7 +84,7 @@
 							<Label for="subject-{i}" class="text-xs">Subject (Optional)</Label>
 							<Input
 								id="subject-{i}"
-								placeholder="Defaults to client ID"
+								placeholder="Defaults to the client ID: {client?.id}"
 								value={identity.subject || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'subject', e.currentTarget.value)}
 							/>
@@ -92,7 +94,7 @@
 							<Label for="audience-{i}" class="text-xs">Audience (Optional)</Label>
 							<Input
 								id="audience-{i}"
-								placeholder="Defaults to Pocket ID URL"
+								placeholder="Defaults to the Pocket ID URL"
 								value={identity.audience || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'audience', e.currentTarget.value)}
 							/>
@@ -102,7 +104,7 @@
 							<Label for="jwks-{i}" class="text-xs">JWKS URL (Optional)</Label>
 							<Input
 								id="jwks-{i}"
-								placeholder="Defaults to issuer/.well-known/jwks.json"
+								placeholder="Defaults to {identity.issuer || '<issuer>'}/.well-known/jwks.json"
 								value={identity.jwks || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'jwks', e.currentTarget.value)}
 							/>
