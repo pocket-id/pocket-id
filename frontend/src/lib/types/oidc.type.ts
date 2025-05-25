@@ -6,11 +6,23 @@ export type OidcClientMetaData = {
 	hasLogo: boolean;
 };
 
+export type OidcClientFederatedIdentity = {
+	issuer: string;
+	subject?: string;
+	audience?: string;
+	jwks?: string;
+};
+
+export type OidcClientCredentials = {
+	federatedIdentities: OidcClientFederatedIdentity[];
+};
+
 export type OidcClient = OidcClientMetaData & {
 	callbackURLs: [string, ...string[]];
 	logoutCallbackURLs: string[];
 	isPublic: boolean;
 	pkceEnabled: boolean;
+	credentials?: OidcClientCredentials;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {
