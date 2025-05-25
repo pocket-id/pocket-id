@@ -423,7 +423,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param client body dto.OidcClientCreateDto true "Client information"
-// @Success 201 {object} dto.OidcClientWithAllowedGroupsCountDto "Created client"
+// @Success 201 {object} dto.OidcClientWithAllowedUserGroupsDto "Created client"
 // @Security BearerAuth
 // @Router /api/oidc/clients [post]
 func (oc *OidcController) createClientHandler(c *gin.Context) {
@@ -439,7 +439,7 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 		return
 	}
 
-	var clientDto dto.OidcClientWithAllowedGroupsCountDto
+	var clientDto dto.OidcClientWithAllowedUserGroupsDto
 	if err := dto.MapStruct(client, &clientDto); err != nil {
 		_ = c.Error(err)
 		return
