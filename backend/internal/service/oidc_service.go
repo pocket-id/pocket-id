@@ -1323,7 +1323,7 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 
 	// Next, check if we want to use client assertions from federated identities
 	case input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != "":
-		err = s.verifyClientAssertionFromFederatedIdentities(&client, input) //nolint:contextcheck
+		err = s.verifyClientAssertionFromFederatedIdentities(ctx, &client, input)
 		if err != nil {
 			log.Printf("Invalid assertion for client '%s': %v", client.ID, err)
 			return nil, &common.OidcClientAssertionInvalidError{}
@@ -1341,17 +1341,19 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 	}
 }
 
-func (s *OidcService) jwkSetForURL(url string) (set jwk.Set, err error) {
+func (s *OidcService) jwkSetForURL(ctx context.Context, url string) (set jwk.Set, err error) {
 	// Check if we have already registered the URL
-	// This is a background operation and uses a background context; the HTTP client has a timeout anyways
-	registerCtx := context.Background()
-	if !s.jwkCache.IsRegistered(registerCtx, url) {
+	if !s.jwkCache.IsRegistered(ctx, url) {
+		// We set a timeout because otherwise Register will keep trying in case of errors
+		registerCtx, registerCancel := context.WithTimeout(ctx, 15*time.Second)
+		defer registerCancel()
 		// We need to register the URL
 		err = s.jwkCache.Register(
 			registerCtx,
 			url,
 			jwk.WithMaxInterval(24*time.Hour),
 			jwk.WithMinInterval(15*time.Minute),
+			jwk.WithWaitReady(true),
 		)
 		// In case of race conditions (two goroutines calling jwkCache.Register at the same time), it's possible we can get a conflict anyways, so we ignore that error
 		if err != nil && !errors.Is(err, httprc.ErrResourceAlreadyExists()) {
@@ -1367,7 +1369,7 @@ func (s *OidcService) jwkSetForURL(url string) (set jwk.Set, err error) {
 	return jwks, nil
 }
 
-func (s *OidcService) verifyClientAssertionFromFederatedIdentities(client *model.OidcClient, input dto.OidcCreateTokensDto) error {
+func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.Context, client *model.OidcClient, input dto.OidcCreateTokensDto) error {
 	// First, parse the assertion JWT, without validating it, to check the issuer
 	assertion := []byte(input.ClientAssertion)
 	insecureToken, err := jwt.ParseInsecure(assertion)
@@ -1396,7 +1398,7 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(client *model
 			jwksURL = issuer + "/.well-known/jwks.json"
 		}
 	}
-	jwks, err := s.jwkSetForURL(jwksURL)
+	jwks, err := s.jwkSetForURL(ctx, jwksURL)
 	if err != nil {
 		return fmt.Errorf("failed to get JWK set for issuer '%s': %w", issuer, err)
 	}

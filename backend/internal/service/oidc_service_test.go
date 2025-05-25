@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -49,7 +50,85 @@ func generateTestECDSAKey(t *testing.T) (jwk.Key, []byte) {
 	return privateJwk, jwkSetJSON
 }
 
-func TestOidcService_VerifyClientCredentialsInternal(t *testing.T) {
+func TestOidcService_jwkSetForURL(t *testing.T) {
+	// Generate a test key for JWKS
+	_, jwkSetJSON1 := generateTestECDSAKey(t)
+	_, jwkSetJSON2 := generateTestECDSAKey(t)
+
+	// Create a mock HTTP client with responses for different URLs
+	const (
+		url1 = "https://example.com/.well-known/jwks.json"
+		url2 = "https://other-issuer.com/jwks"
+	)
+	mockResponses := map[string]*http.Response{
+		url1: NewMockResponse(http.StatusOK, string(jwkSetJSON1)),
+		url2: NewMockResponse(http.StatusOK, string(jwkSetJSON2)),
+	}
+	httpClient := &http.Client{
+		Transport: &MockRoundTripper{
+			Responses: mockResponses,
+		},
+	}
+
+	// Create the OidcService with our mock client
+	s := &OidcService{
+		httpClient: httpClient,
+	}
+
+	var err error
+	s.jwkCache, err = s.getJWKCache(t.Context())
+	require.NoError(t, err)
+
+	t.Run("Fetches and caches JWK set", func(t *testing.T) {
+		jwks, err := s.jwkSetForURL(t.Context(), url1)
+		require.NoError(t, err)
+		require.NotNil(t, jwks)
+
+		// Verify the JWK set contains our key
+		require.Equal(t, 1, jwks.Len())
+	})
+
+	t.Run("Fails with invalid URL", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+		defer cancel()
+		_, err := s.jwkSetForURL(ctx, "https://bad-url.com")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+
+	t.Run("Safe for concurrent use", func(t *testing.T) {
+		const concurrency = 20
+
+		// Channel to collect errors
+		errChan := make(chan error, concurrency)
+
+		// Start concurrent requests
+		for range concurrency {
+			go func() {
+				jwks, err := s.jwkSetForURL(t.Context(), url2)
+				if err != nil {
+					errChan <- err
+					return
+				}
+
+				// Verify the JWK set is valid
+				if jwks == nil || jwks.Len() != 1 {
+					errChan <- assert.AnError
+					return
+				}
+
+				errChan <- nil
+			}()
+		}
+
+		// Check for errors
+		for range concurrency {
+			assert.NoError(t, <-errChan, "Concurrent JWK set fetching should not produce errors")
+		}
+	})
+}
+
+func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	const (
 		federatedClientIssuer         = "https://external-idp.com"
 		federatedClientAudience       = "https://pocket-id.com"
@@ -68,14 +147,13 @@ func TestOidcService_VerifyClientCredentialsInternal(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a mock HTTP client with custom transport to return the JWKS
-	mockJwksTransport := &MockRoundTripper{
-		Responses: map[string]*http.Response{
-			federatedClientIssuer + "/jwks.json":                    NewMockResponse(http.StatusOK, string(jwkSetJSON)),
-			federatedClientIssuerDefaults + ".well-known/jwks.json": NewMockResponse(http.StatusOK, string(jwkSetJSONDefaults)),
-		},
-	}
 	httpClient := &http.Client{
-		Transport: mockJwksTransport,
+		Transport: &MockRoundTripper{
+			Responses: map[string]*http.Response{
+				federatedClientIssuer + "/jwks.json":                    NewMockResponse(http.StatusOK, string(jwkSetJSON)),
+				federatedClientIssuerDefaults + ".well-known/jwks.json": NewMockResponse(http.StatusOK, string(jwkSetJSONDefaults)),
+			},
+		},
 	}
 
 	// Init the OidcService
