@@ -593,13 +593,9 @@ func (s *OidcService) ListClients(ctx context.Context, searchTerm string, sorted
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
-		Name:               input.Name,
-		CallbackURLs:       input.CallbackURLs,
-		LogoutCallbackURLs: input.LogoutCallbackURLs,
-		CreatedByID:        userID,
-		IsPublic:           input.IsPublic,
-		PkceEnabled:        input.PkceEnabled,
+		CreatedByID: userID,
 	}
+	updateOIDCClientModelFromDto(&client, &input)
 
 	err := s.db.
 		WithContext(ctx).
@@ -628,11 +624,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		return model.OidcClient{}, err
 	}
 
-	client.Name = input.Name
-	client.CallbackURLs = input.CallbackURLs
-	client.LogoutCallbackURLs = input.LogoutCallbackURLs
-	client.IsPublic = input.IsPublic
-	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	updateOIDCClientModelFromDto(&client, &input)
 
 	err = tx.
 		WithContext(ctx).
@@ -648,6 +640,33 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	}
 
 	return client, nil
+}
+
+func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientCreateDto) {
+	// Base fields
+	client.Name = input.Name
+	client.CallbackURLs = input.CallbackURLs
+	client.LogoutCallbackURLs = input.LogoutCallbackURLs
+	client.IsPublic = input.IsPublic
+	// PKCE is required for public clients
+	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+
+	// Credentials
+	if input.Credentials == nil {
+		return
+	}
+	client.Credentials = &model.OidcClientCredentials{}
+	if len(input.Credentials.FederatedIdentities) > 0 {
+		client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
+		for i, fi := range input.Credentials.FederatedIdentities {
+			client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
+				Issuer:   fi.Issuer,
+				Audience: fi.Audience,
+				Subject:  fi.Subject,
+				JWKS:     fi.JWKS,
+			}
+		}
+	}
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {

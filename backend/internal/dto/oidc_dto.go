@@ -20,11 +20,23 @@ type OidcClientWithAllowedUserGroupsDto struct {
 }
 
 type OidcClientCreateDto struct {
-	Name               string   `json:"name" binding:"required,max=50"`
-	CallbackURLs       []string `json:"callbackURLs" binding:"required"`
-	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
-	IsPublic           bool     `json:"isPublic"`
-	PkceEnabled        bool     `json:"pkceEnabled"`
+	Name               string                    `json:"name" binding:"required,max=50"`
+	CallbackURLs       []string                  `json:"callbackURLs" binding:"required"`
+	LogoutCallbackURLs []string                  `json:"logoutCallbackURLs"`
+	IsPublic           bool                      `json:"isPublic"`
+	PkceEnabled        bool                      `json:"pkceEnabled"`
+	Credentials        *OidcClientCredentialsDto `json:"credentials,omitempty"`
+}
+
+type OidcClientCredentialsDto struct {
+	FederatedIdentities []OidcClientFederatedIdentityDto `json:"federatedIdentities,omitempty"`
+}
+
+type OidcClientFederatedIdentityDto struct {
+	Issuer   string `json:"issuer"`
+	Subject  string `json:"subject,omitempty"`
+	Audience string `json:"audience,omitempty"`
+	JWKS     string `json:"jwks,omitempty"`
 }
 
 type AuthorizeOidcClientRequestDto struct {

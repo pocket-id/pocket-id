@@ -74,7 +74,7 @@ func (c *OidcClient) AfterFind(_ *gorm.DB) (err error) {
 }
 
 type OidcClientCredentials struct { //nolint:recvcheck
-	FederatedIdentities []OidcClientFederatedIdentity `json:"federatedIdentities"`
+	FederatedIdentities []OidcClientFederatedIdentity `json:"federatedIdentities,omitempty"`
 }
 
 type OidcClientFederatedIdentity struct {
