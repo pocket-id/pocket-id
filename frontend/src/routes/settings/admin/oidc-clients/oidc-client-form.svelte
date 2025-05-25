@@ -5,7 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type {OidcClient, OidcClientCreateWithLogo} from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { createForm } from '$lib/utils/form-util';
 	import { z } from 'zod';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
@@ -32,7 +32,9 @@
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false,
-		credentials: existingClient?.credentials || { federatedIdentities: [] }
+		credentials: {
+			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
+		}
 	};
 
 	const formSchema = z.object({
@@ -117,7 +119,6 @@
 			bind:checked={$inputs.pkceEnabled.value}
 		/>
 
-		<!-- Federated Identities Section -->
 		<div class="md:col-span-2">
 			<FederatedIdentitiesInput
 				client={existingClient}
