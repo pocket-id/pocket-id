@@ -1,7 +1,5 @@
 package dto
 
-import "github.com/pocket-id/pocket-id/backend/internal/model"
-
 type OidcClientMetaDataDto struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -10,11 +8,11 @@ type OidcClientMetaDataDto struct {
 
 type OidcClientDto struct {
 	OidcClientMetaDataDto
-	CallbackURLs       []string                     `json:"callbackURLs"`
-	LogoutCallbackURLs []string                     `json:"logoutCallbackURLs"`
-	IsPublic           bool                         `json:"isPublic"`
-	PkceEnabled        bool                         `json:"pkceEnabled"`
-	Credentials        *model.OidcClientCredentials `json:"credentials,omitempty"`
+	CallbackURLs       []string                  `json:"callbackURLs"`
+	LogoutCallbackURLs []string                  `json:"logoutCallbackURLs"`
+	IsPublic           bool                      `json:"isPublic"`
+	PkceEnabled        bool                      `json:"pkceEnabled"`
+	Credentials        *OidcClientCredentialsDto `json:"credentials,omitempty"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
