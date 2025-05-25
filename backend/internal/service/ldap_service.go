@@ -148,7 +148,6 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
 		membersUserId := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
-			// Use the configured username attribute instead of hardcoded "uid"
 			username := getDNProperty(dbConfig.LdapAttributeUserUsername.Value, member)
 			if username == "" {
 				continue
