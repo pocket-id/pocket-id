@@ -377,7 +377,7 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 // @Param limit query int false "Number of items per page" default(10)
 // @Param sort_column query string false "Column to sort by" default("name")
 // @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedUserGroupsDto]
+// @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedGroupsCountDto]
 // @Security BearerAuth
 // @Router /api/oidc/clients [get]
 func (oc *OidcController) listClientsHandler(c *gin.Context) {
@@ -394,13 +394,23 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 		return
 	}
 
-	var clientsDto []dto.OidcClientWithAllowedUserGroupsDto
-	if err := dto.MapStructList(clients, &clientsDto); err != nil {
-		_ = c.Error(err)
-		return
+	// Map the user groups to DTOs
+	var clientsDto = make([]dto.OidcClientWithAllowedGroupsCountDto, len(clients))
+	for i, client := range clients {
+		var clientDto dto.OidcClientWithAllowedGroupsCountDto
+		if err := dto.MapStruct(client, &clientDto); err != nil {
+			_ = c.Error(err)
+			return
+		}
+		clientDto.AllowedUserGroupsCount, err = oc.oidcService.GetAllowedGroupsCountOfClient(c, client.ID)
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+		clientsDto[i] = clientDto
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.OidcClientWithAllowedUserGroupsDto]{
+	c.JSON(http.StatusOK, dto.Paginated[dto.OidcClientWithAllowedGroupsCountDto]{
 		Data:       clientsDto,
 		Pagination: pagination,
 	})
@@ -413,7 +423,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param client body dto.OidcClientCreateDto true "Client information"
-// @Success 201 {object} dto.OidcClientWithAllowedUserGroupsDto "Created client"
+// @Success 201 {object} dto.OidcClientWithAllowedGroupsCountDto "Created client"
 // @Security BearerAuth
 // @Router /api/oidc/clients [post]
 func (oc *OidcController) createClientHandler(c *gin.Context) {
@@ -429,7 +439,7 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 		return
 	}
 
-	var clientDto dto.OidcClientWithAllowedUserGroupsDto
+	var clientDto dto.OidcClientWithAllowedGroupsCountDto
 	if err := dto.MapStruct(client, &clientDto); err != nil {
 		_ = c.Error(err)
 		return

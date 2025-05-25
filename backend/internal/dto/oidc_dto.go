@@ -19,6 +19,11 @@ type OidcClientWithAllowedUserGroupsDto struct {
 	AllowedUserGroups []UserGroupDtoWithUserCount `json:"allowedUserGroups"`
 }
 
+type OidcClientWithAllowedGroupsCountDto struct {
+	OidcClientDto
+	AllowedUserGroupsCount int64 `json:"allowedUserGroupsCount"`
+}
+
 type OidcClientCreateDto struct {
 	Name               string   `json:"name" binding:"required,max=50"`
 	CallbackURLs       []string `json:"callbackURLs" binding:"required"`

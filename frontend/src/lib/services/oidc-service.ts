@@ -1,10 +1,11 @@
 import type {
 	AuthorizeResponse,
-	OidcDeviceCodeInfo,
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
-	OidcClientWithAllowedUserGroups
+	OidcClientWithAllowedUserGroups,
+	OidcClientWithAllowedUserGroupsCount,
+	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import APIService from './api-service';
@@ -43,7 +44,7 @@ class OidcService extends APIService {
 		const res = await this.api.get('/oidc/clients', {
 			params: options
 		});
-		return res.data as Paginated<OidcClientWithAllowedUserGroups>;
+		return res.data as Paginated<OidcClientWithAllowedUserGroupsCount>;
 	}
 
 	async createClient(client: OidcClientCreate) {

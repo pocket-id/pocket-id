@@ -5,7 +5,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
-	import type { OidcClient, OidcClientWithAllowedUserGroups } from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
@@ -15,7 +15,7 @@
 		clients = $bindable(),
 		requestOptions
 	}: {
-		clients: Paginated<OidcClientWithAllowedUserGroups>;
+		clients: Paginated<OidcClientWithAllowedUserGroupsCount>;
 		requestOptions: SearchPaginationSortRequest;
 	} = $props();
 
@@ -49,7 +49,7 @@
 	columns={[
 		{ label: m.logo() },
 		{ label: m.name(), sortColumn: 'name' },
-		{ label: m.oidc_allowed_group_count() },
+		{ label: m.oidc_allowed_group_count(), sortColumn: 'allowedUserGroupsCount' },
 		{ label: m.actions(), hidden: true }
 	]}
 >
@@ -69,9 +69,9 @@
 		</Table.Cell>
 		<Table.Cell class="font-medium">{item.name}</Table.Cell>
 		<Table.Cell class="font-medium"
-			>{item.allowedUserGroups.length > 0
-				? item.allowedUserGroups.length
-				: 'Unrestricted'}</Table.Cell
+			>{item.allowedUserGroupsCount > 0
+				? item.allowedUserGroupsCount
+				: m.unrestricted()}</Table.Cell
 		>
 		<Table.Cell class="flex justify-end gap-1">
 			<Button
