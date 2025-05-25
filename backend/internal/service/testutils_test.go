@@ -1,6 +1,9 @@
 package service
 
 import (
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,4 +67,24 @@ type testLoggerAdapter struct {
 
 func (l testLoggerAdapter) Printf(format string, args ...any) {
 	l.t.Logf(format, args...)
+}
+
+// MockRoundTripper is a custom http.RoundTripper that returns predefined responses
+type MockRoundTripper struct {
+	Response *http.Response
+	Err      error
+}
+
+// RoundTrip implements the http.RoundTripper interface
+func (m *MockRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return m.Response, m.Err
+}
+
+// NewMockResponse creates an http.Response with the given status code and body
+func NewMockResponse(statusCode int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: statusCode,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     make(http.Header),
+	}
 }
