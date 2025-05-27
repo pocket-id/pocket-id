@@ -346,5 +346,7 @@
 	"authorize_device": "Авторизовать устройство",
 	"the_device_has_been_authorized": "Устройство авторизовано.",
 	"enter_code_displayed_in_previous_step": "Введите код, который был отображен на предыдущем шаге.",
-	"authorize": "Авторизируйте"
+	"authorize": "Авторизируйте",
+	"oidc_allowed_group_count": "Allowed Group Count",
+	"unrestricted": "Unrestricted"
 }
