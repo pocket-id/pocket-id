@@ -43,10 +43,8 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) registerJob(ctx context.Context, name string, interval string, job func(ctx context.Context) error) error {
-	_, err := s.scheduler.NewJob(
-		gocron.CronJob(interval, false),
-		gocron.NewTask(job),
+func (s *Scheduler) registerJob(ctx context.Context, name string, interval string, job func(ctx context.Context) error, runImmediately bool) error {
+	jobOptions := []gocron.JobOption{
 		gocron.WithContext(ctx),
 		gocron.WithEventListeners(
 			gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) {
@@ -56,6 +54,16 @@ func (s *Scheduler) registerJob(ctx context.Context, name string, interval strin
 				log.Printf("Job %q failed with error: %v", name, err)
 			}),
 		),
+	}
+
+	if runImmediately {
+		jobOptions = append(jobOptions, gocron.JobOption(gocron.WithStartImmediately()))
+	}
+
+	_, err := s.scheduler.NewJob(
+		gocron.CronJob(interval, false),
+		gocron.NewTask(job),
+		jobOptions...,
 	)
 
 	if err != nil {

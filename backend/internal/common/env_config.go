@@ -39,6 +39,7 @@ type EnvConfigSchema struct {
 	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
 	TracingEnabled     bool       `env:"TRACING_ENABLED"`
 	TrustProxy         bool       `env:"TRUST_PROXY"`
+	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
 }
 
 var EnvConfig = &EnvConfigSchema{
@@ -57,6 +58,7 @@ var EnvConfig = &EnvConfigSchema{
 	MetricsEnabled:     false,
 	TracingEnabled:     false,
 	TrustProxy:         false,
+	AnalyticsDisabled:  false,
 }
 
 func init() {
