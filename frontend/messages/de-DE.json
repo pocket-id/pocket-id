@@ -346,5 +346,7 @@
 	"authorize_device": "Gerät autorisieren",
 	"the_device_has_been_authorized": "Das Gerät wurde autorisiert.",
 	"enter_code_displayed_in_previous_step": "Gib den Code ein, der im vorherigen Schritt angezeigt wurde.",
-	"authorize": "Autorisieren"
+	"authorize": "Autorisieren",
+	"oidc_allowed_group_count": "Allowed Group Count",
+	"unrestricted": "Unrestricted"
 }
