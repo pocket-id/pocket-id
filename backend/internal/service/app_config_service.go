@@ -39,7 +39,7 @@ func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 		log.Fatalf("Failed to initialize app config service: %v", err)
 	}
 
-	err = service.initInstanceID(initCtx)
+	err = service.initInstanceID(ctx)
 	if err != nil {
 		log.Fatalf("Failed to initialize instance ID: %v", err)
 	}
