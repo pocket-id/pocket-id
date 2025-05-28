@@ -347,6 +347,6 @@
 	"the_device_has_been_authorized": "Zařízení bylo autorizováno.",
 	"enter_code_displayed_in_previous_step": "Zadejte kód, který byl zobrazen v předchozím kroku.",
 	"authorize": "Autorizovat",
-	"oidc_allowed_group_count": "Allowed Group Count",
-	"unrestricted": "Unrestricted"
+	"oidc_allowed_group_count": "Počet povolených skupin",
+	"unrestricted": "Bez omezení"
 }
