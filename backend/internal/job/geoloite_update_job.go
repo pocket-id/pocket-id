@@ -2,8 +2,6 @@ package job
 
 import (
 	"context"
-	"log"
-	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
@@ -22,22 +20,7 @@ func (s *Scheduler) RegisterGeoLiteUpdateJobs(ctx context.Context, geoLiteServic
 	jobs := &GeoLiteUpdateJobs{geoLiteService: geoLiteService}
 
 	// Register the job to run every day, at 5 minutes past midnight
-	err := s.registerJob(ctx, "UpdateGeoLiteDB", "5 * */1 * *", jobs.updateGoeLiteDB)
-	if err != nil {
-		return err
-	}
-
-	// Run the job immediately on startup, with a 1s delay
-	go func() {
-		time.Sleep(time.Second)
-		err = jobs.updateGoeLiteDB(ctx)
-		if err != nil {
-			// Log the error only, but don't return it
-			log.Printf("Failed to Update GeoLite database: %v", err)
-		}
-	}()
-
-	return nil
+	return s.registerJob(ctx, "UpdateGeoLiteDB", "5 * */1 * *", jobs.updateGoeLiteDB, true)
 }
 
 func (j *GeoLiteUpdateJobs) updateGoeLiteDB(ctx context.Context) error {

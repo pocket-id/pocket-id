@@ -3,13 +3,14 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 )
 
-func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, scheduler *job.Scheduler) error {
+func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, httpClient *http.Client, scheduler *job.Scheduler) error {
 	err := scheduler.RegisterLdapJobs(ctx, svc.ldapService, svc.appConfigService)
 	if err != nil {
 		return fmt.Errorf("failed to register LDAP jobs in scheduler: %w", err)
@@ -29,6 +30,10 @@ func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, sche
 	err = scheduler.RegisterApiKeyExpiryJob(ctx, svc.apiKeyService, svc.appConfigService)
 	if err != nil {
 		return fmt.Errorf("failed to register API key expiration jobs in scheduler: %w", err)
+	}
+	err = scheduler.RegisterAnalyticsJob(ctx, svc.appConfigService, httpClient)
+	if err != nil {
+		return fmt.Errorf("failed to register analytics job in scheduler: %w", err)
 	}
 
 	return nil

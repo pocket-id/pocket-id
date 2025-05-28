@@ -17,7 +17,7 @@ import (
 func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB) error {
 	jobs := &FileCleanupJobs{db: db}
 
-	return s.registerJob(ctx, "ClearUnusedDefaultProfilePictures", "0 2 * * 0", jobs.clearUnusedDefaultProfilePictures)
+	return s.registerJob(ctx, "ClearUnusedDefaultProfilePictures", "0 2 * * 0", jobs.clearUnusedDefaultProfilePictures, false)
 }
 
 type FileCleanupJobs struct {

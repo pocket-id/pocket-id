@@ -1,3 +1,18 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.0.0...v) (2025-05-28)
+
+
+### Features
+
+* add daily heartbeat request for counting Pocket ID instances ([#578](https://github.com/pocket-id/pocket-id/issues/578)) ([e0ec607](https://github.com/pocket-id/pocket-id/commit/e0ec60719883c0230f1a16611b943d6f6f637157))
+* require user verification for passkey sign in ([68e4b67](https://github.com/pocket-id/pocket-id/commit/68e4b67bd212e31ecc20277bfd293c94bf7f3642))
+* show allowed group count on oidc client list ([#567](https://github.com/pocket-id/pocket-id/issues/567)) ([38d7ee4](https://github.com/pocket-id/pocket-id/commit/38d7ee4432e0dacc2cfbabad4bfd9336b8b84079))
+
+
+### Bug Fixes
+
+* run user group count inside a transaction ([f03b80f](https://github.com/pocket-id/pocket-id/commit/f03b80f9d7f2529d8cef23ca6a742a914a4ec883))
+* use ldapAttributeUserUsername for finding group members ([#565](https://github.com/pocket-id/pocket-id/issues/565)) ([f66e8e8](https://github.com/pocket-id/pocket-id/commit/f66e8e8b4478c66ed1ada9168a272b33dbf494d0))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v0.53.0...v) (2025-05-24)
 
 

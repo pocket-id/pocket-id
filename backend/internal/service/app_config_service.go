@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -35,6 +37,11 @@ func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 	err := service.LoadDbConfig(ctx)
 	if err != nil {
 		log.Fatalf("Failed to initialize app config service: %v", err)
+	}
+
+	err = service.initInstanceID(initCtx)
+	if err != nil {
+		log.Fatalf("Failed to initialize instance ID: %v", err)
 	}
 
 	return service
@@ -65,6 +72,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		BackgroundImageType: model.AppConfigVariable{Value: "jpg"},
 		LogoLightImageType:  model.AppConfigVariable{Value: "svg"},
 		LogoDarkImageType:   model.AppConfigVariable{Value: "svg"},
+		InstanceID:          model.AppConfigVariable{Value: ""},
 		// Email
 		SmtpHost:                      model.AppConfigVariable{},
 		SmtpPort:                      model.AppConfigVariable{},
@@ -439,4 +447,24 @@ func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB
 	}
 
 	return dest, nil
+}
+
+func (s *AppConfigService) initInstanceID(ctx context.Context) error {
+	// Check if the instance ID is already set
+	instanceID := s.GetDbConfig().InstanceID.Value
+	if instanceID != "" {
+		return nil
+	}
+
+	newInstanceID, err := uuid.GenerateUUID()
+	if err != nil {
+		return fmt.Errorf("failed to generate new instance ID: %w", err)
+	}
+
+	err = s.UpdateAppConfigValues(ctx, "instanceId", newInstanceID)
+	if err != nil {
+		return fmt.Errorf("failed to update instance ID in the database: %w", err)
+	}
+
+	return nil
 }
