@@ -26,7 +26,7 @@ type OidcClientWithAllowedGroupsCountDto struct {
 
 type OidcClientCreateDto struct {
 	Name               string   `json:"name" binding:"required,max=50"`
-	CallbackURLs       []string `json:"callbackURLs" binding:"required"`
+	CallbackURLs       []string `json:"callbackURLs"`
 	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
 	IsPublic           bool     `json:"isPublic"`
 	PkceEnabled        bool     `json:"pkceEnabled"`

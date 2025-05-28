@@ -30,7 +30,7 @@
 
 	const client: OidcClientCreate = {
 		name: existingClient?.name || '',
-		callbackURLs: existingClient?.callbackURLs || [''],
+		callbackURLs: existingClient?.callbackURLs || [], // Changed from [''] to []
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false
@@ -38,7 +38,7 @@
 
 	const formSchema = z.object({
 		name: z.string().min(2).max(50),
-		callbackURLs: z.array(z.string().nonempty()).nonempty(),
+		callbackURLs: z.array(z.string()).optional().default([]), // Made optional and allow empty strings
 		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean()
@@ -85,6 +85,7 @@
 		<OidcCallbackUrlInput
 			label={m.callback_urls()}
 			class="w-full"
+			allowEmpty
 			bind:callbackURLs={$inputs.callbackURLs.value}
 			bind:error={$inputs.callbackURLs.error}
 		/>

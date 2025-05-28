@@ -73,7 +73,8 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	// Get the callback URL of the client. Return an error if the provided callback URL is not allowed
-	callbackURL, err := s.getCallbackURL(client.CallbackURLs, input.CallbackURL)
+	// This now handles TOFU logic automatically when no URLs are configured
+	callbackURL, err := s.getCallbackURL(client.CallbackURLs, input.CallbackURL, input.ClientID, tx, ctx)
 	if err != nil {
 		return "", "", err
 	}
@@ -947,7 +948,7 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcNoCallbackURLError{}
 	}
 
-	callbackURL, err := s.getCallbackURL(userAuthorizedOIDCClient.Client.LogoutCallbackURLs, input.PostLogoutRedirectUri)
+	callbackURL, err := s.getCallbackURL(userAuthorizedOIDCClient.Client.LogoutCallbackURLs, input.PostLogoutRedirectUri, userAuthorizedOIDCClient.Client.ID, s.db, ctx)
 	if err != nil {
 		return "", err
 	}
@@ -1006,23 +1007,55 @@ func (s *OidcService) validateCodeVerifier(codeVerifier, codeChallenge string, c
 	return encodedVerifierHash == codeChallenge
 }
 
-func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string) (callbackURL string, err error) {
+func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string, clientID string, tx *gorm.DB, ctx context.Context) (callbackURL string, err error) {
+	// If no input callback URL provided, use the first configured URL
 	if inputCallbackURL == "" {
-		return urls[0], nil
+		if len(urls) > 0 {
+			return urls[0], nil
+		}
+		// If no URLs are configured and no input URL, this is an error
+		return "", &common.OidcMissingCallbackURLError{}
 	}
 
-	for _, callbackPattern := range urls {
-		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
-		matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
-		if err != nil {
-			return "", err
+	// If URLs are already configured, validate against them
+	if len(urls) > 0 {
+		for _, callbackPattern := range urls {
+			regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
+			matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
+			if err != nil {
+				return "", err
+			}
+			if matched {
+				return inputCallbackURL, nil
+			}
 		}
-		if matched {
-			return inputCallbackURL, nil
-		}
+		return "", &common.OidcInvalidCallbackURLError{}
 	}
 
-	return "", &common.OidcInvalidCallbackURLError{}
+	// If no URLs are configured, trust and store the first URL (TOFU)
+	err = s.addCallbackURLToClient(ctx, clientID, inputCallbackURL, tx)
+	if err != nil {
+		return "", err
+	}
+	return inputCallbackURL, nil
+}
+
+func (s *OidcService) addCallbackURLToClient(ctx context.Context, clientID string, callbackURL string, tx *gorm.DB) error {
+	var client model.OidcClient
+	err := tx.WithContext(ctx).First(&client, "id = ?", clientID).Error
+	if err != nil {
+		return err
+	}
+
+	// Add the new callback URL to the existing list
+	client.CallbackURLs = append(client.CallbackURLs, callbackURL)
+
+	err = tx.WithContext(ctx).Save(&client).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.OidcDeviceAuthorizationRequestDto) (*dto.OidcDeviceAuthorizationResponseDto, error) {
