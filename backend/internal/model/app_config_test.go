@@ -103,7 +103,7 @@ func TestAppConfigStructMatchesUpdateDto(t *testing.T) {
 
 	// Verify every AppConfig field has a matching DTO field with the same name
 	for fieldName, keyName := range appConfigFields {
-		if strings.HasSuffix(fieldName, "ImageType") {
+		if strings.HasSuffix(fieldName, "ImageType") || keyName == "instanceId" {
 			// Skip internal fields that shouldn't be in the DTO
 			continue
 		}
