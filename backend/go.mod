@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/caarlos0/env/v11 v11.3.1
+	github.com/cenkalti/backoff/v5 v5.0.2
 	github.com/disintegration/imageorient v0.0.0-20180920195336-8147d86e83ec
 	github.com/disintegration/imaging v1.6.2
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21

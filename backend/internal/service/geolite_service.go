@@ -72,7 +72,7 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 		}
 		for _, ipNet := range privateLanIPNets {
 			if ipNet.Contains(ip) {
-				return "Internal Network", "LAN/Docker/k8s", nil
+				return "Internal Network", "LAN", nil
 			}
 		}
 		for _, ipNet := range localhostIPNets {
