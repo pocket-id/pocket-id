@@ -73,7 +73,7 @@ func (e *OidcInvalidAuthorizationCodeError) HttpStatusCode() int { return 400 }
 type OidcMissingCallbackURLError struct{}
 
 func (e *OidcMissingCallbackURLError) Error() string {
-	return "invalid callback URL, it might be necessary for an admin to fix this"
+	return "unable to detect callback url, it might be necessary for an admin to fix this"
 }
 func (e *OidcMissingCallbackURLError) HttpStatusCode() int { return 400 }
 
