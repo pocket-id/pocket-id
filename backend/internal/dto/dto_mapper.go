@@ -62,6 +62,7 @@ func mapStructInternal(sourceVal reflect.Value, destVal reflect.Value) error {
 	return nil
 }
 
+//nolint:gocognit
 func mapField(sourceField reflect.Value, destField reflect.Value) error {
 	// Handle pointer to struct in source
 	if sourceField.Kind() == reflect.Ptr && !sourceField.IsNil() {
