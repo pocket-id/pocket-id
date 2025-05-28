@@ -11,13 +11,12 @@ test("Create OIDC client", async ({ page }) => {
   await page.getByRole("button", { name: "Add OIDC Client" }).click();
   await page.getByLabel("Name").fill(oidcClient.name);
 
+  await page.getByRole("button", { name: "Add" }).nth(1).click();
   await page.getByTestId("callback-url-1").fill(oidcClient.callbackUrl);
   await page.getByRole("button", { name: "Add another" }).click();
   await page.getByTestId("callback-url-2").fill(oidcClient.secondCallbackUrl!);
 
-  await page
-    .getByLabel("logo")
-    .setInputFiles("assets/pingvin-share-logo.png");
+  await page.getByLabel("logo").setInputFiles("assets/pingvin-share-logo.png");
   await page.getByRole("button", { name: "Save" }).click();
 
   const clientId = await page.getByTestId("client-id").textContent();
@@ -53,9 +52,7 @@ test("Edit OIDC client", async ({ page }) => {
     .getByTestId("callback-url-1")
     .first()
     .fill("http://nextcloud-updated/auth/callback");
-  await page
-    .getByLabel("logo")
-    .setInputFiles("assets/nextcloud-logo.png");
+  await page.getByLabel("logo").setInputFiles("assets/nextcloud-logo.png");
   await page.getByRole("button", { name: "Save" }).click();
 
   await expect(page.locator('[data-type="success"]')).toHaveText(
