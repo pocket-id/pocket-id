@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"net/http"
 )
 
 const heartbeatUrl = "https://analytics.pocket-id.org/heartbeat"
@@ -37,6 +38,9 @@ func (j *AnalyticsJob) sendHeartbeat(ctx context.Context) error {
 		InstanceID: j.appConfig.GetDbConfig().InstanceID.Value,
 	}
 	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal heartbeat body: %w", err)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, heartbeatUrl, bytes.NewBuffer(bodyBytes))
 	if err != nil {
