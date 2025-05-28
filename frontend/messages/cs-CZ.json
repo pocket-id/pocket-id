@@ -40,8 +40,8 @@
 	"an_unknown_error_occurred": "Došlo k neznámé chybě",
 	"authentication_process_was_aborted": "Proces přihlášení byl přerušen",
 	"error_occurred_with_authenticator": "Došlo k chybě s autentifikátorem",
-	"authenticator_does_not_support_discoverable_credentials": "Autentifikátor nepodporuje zobrazitelné přihlašovací údaje",
-	"authenticator_does_not_support_resident_keys": "Autentikátor nepodporuje rezidentní klíče.",
+	"authenticator_does_not_support_discoverable_credentials": "Autentifikátor nepodporuje vyhledatelné přihlašovací údaje",
+	"authenticator_does_not_support_resident_keys": "Autentikátor nepodporuje rezidentní klíče",
 	"passkey_was_previously_registered": "Tento přístupový klíč byl již dříve zaregistrován",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Autentikátor nepodporuje žádný z požadovaných algoritmů",
 	"authenticator_timed_out": "Vypršel časový limit autentifikátoru",
@@ -347,6 +347,6 @@
 	"the_device_has_been_authorized": "Zařízení bylo autorizováno.",
 	"enter_code_displayed_in_previous_step": "Zadejte kód, který byl zobrazen v předchozím kroku.",
 	"authorize": "Autorizovat",
-	"oidc_allowed_group_count": "Allowed Group Count",
-	"unrestricted": "Unrestricted"
+	"oidc_allowed_group_count": "Počet povolených skupin",
+	"unrestricted": "Bez omezení"
 }

@@ -347,6 +347,6 @@
 	"the_device_has_been_authorized": "Il dispositivo è stato autorizzato.",
 	"enter_code_displayed_in_previous_step": "Inserisci il codice visualizzato nel passaggio precedente.",
 	"authorize": "Autorizza",
-	"oidc_allowed_group_count": "Allowed Group Count",
-	"unrestricted": "Unrestricted"
+	"oidc_allowed_group_count": "Numero Gruppi Consentiti",
+	"unrestricted": "Illimitati"
 }
