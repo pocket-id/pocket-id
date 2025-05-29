@@ -85,14 +85,12 @@
 		<OidcCallbackUrlInput
 			label={m.callback_urls()}
 			class="w-full"
-			allowEmpty
 			bind:callbackURLs={$inputs.callbackURLs.value}
 			bind:error={$inputs.callbackURLs.error}
 		/>
 		<OidcCallbackUrlInput
 			label={m.logout_callback_urls()}
 			class="w-full"
-			allowEmpty
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
 			bind:error={$inputs.logoutCallbackURLs.error}
 		/>
