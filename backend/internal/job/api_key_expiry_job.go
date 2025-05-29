@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/go-co-op/gocron/v2"
+
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -18,7 +20,8 @@ func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyService *
 		appConfigService: appConfigService,
 	}
 
-	return s.registerJob(ctx, "ExpiredApiKeyEmailJob", "0 0 * * *", jobs.checkAndNotifyExpiringApiKeys, false)
+	// Send every day at midnight
+	return s.registerJob(ctx, "ExpiredApiKeyEmailJob", gocron.CronJob("0 0 * * *", false), jobs.checkAndNotifyExpiringApiKeys, false)
 }
 
 func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) error {

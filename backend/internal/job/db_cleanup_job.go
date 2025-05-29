@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-co-op/gocron/v2"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -14,12 +15,14 @@ import (
 func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) error {
 	jobs := &DbCleanupJobs{db: db}
 
+	// Run every 12 hours, but with some jitter so they don't run at the exact same time
+	def := gocron.DurationRandomJob(12*time.Hour-2*time.Minute, 12*time.Hour+2*time.Minute)
 	return errors.Join(
-		s.registerJob(ctx, "ClearWebauthnSessions", "0 3 * * *", jobs.clearWebauthnSessions, false),
-		s.registerJob(ctx, "ClearOneTimeAccessTokens", "0 3 * * *", jobs.clearOneTimeAccessTokens, false),
-		s.registerJob(ctx, "ClearOidcAuthorizationCodes", "0 3 * * *", jobs.clearOidcAuthorizationCodes, false),
-		s.registerJob(ctx, "ClearOidcRefreshTokens", "0 3 * * *", jobs.clearOidcRefreshTokens, false),
-		s.registerJob(ctx, "ClearAuditLogs", "0 3 * * *", jobs.clearAuditLogs, false),
+		s.registerJob(ctx, "ClearWebauthnSessions", def, jobs.clearWebauthnSessions, true),
+		s.registerJob(ctx, "ClearOneTimeAccessTokens", def, jobs.clearOneTimeAccessTokens, true),
+		s.registerJob(ctx, "ClearOidcAuthorizationCodes", def, jobs.clearOidcAuthorizationCodes, true),
+		s.registerJob(ctx, "ClearOidcRefreshTokens", def, jobs.clearOidcRefreshTokens, true),
+		s.registerJob(ctx, "ClearAuditLogs", def, jobs.clearAuditLogs, true),
 	)
 }
 

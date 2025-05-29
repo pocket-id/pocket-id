@@ -9,6 +9,7 @@ import (
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v5"
+	"github.com/go-co-op/gocron/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -22,11 +23,12 @@ func (s *Scheduler) RegisterAnalyticsJob(ctx context.Context, appConfig *service
 		return nil
 	}
 
+	// Send every 24 hours
 	jobs := &AnalyticsJob{
 		appConfig:  appConfig,
 		httpClient: httpClient,
 	}
-	return s.registerJob(ctx, "SendHeartbeat", "0 0 * * *", jobs.sendHeartbeat, true)
+	return s.registerJob(ctx, "SendHeartbeat", gocron.DurationJob(24*time.Hour), jobs.sendHeartbeat, true)
 }
 
 type AnalyticsJob struct {

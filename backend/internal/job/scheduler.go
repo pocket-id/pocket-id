@@ -43,7 +43,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) registerJob(ctx context.Context, name string, interval string, job func(ctx context.Context) error, runImmediately bool) error {
+func (s *Scheduler) registerJob(ctx context.Context, name string, def gocron.JobDefinition, job func(ctx context.Context) error, runImmediately bool) error {
 	jobOptions := []gocron.JobOption{
 		gocron.WithContext(ctx),
 		gocron.WithEventListeners(
@@ -60,11 +60,7 @@ func (s *Scheduler) registerJob(ctx context.Context, name string, interval strin
 		jobOptions = append(jobOptions, gocron.JobOption(gocron.WithStartImmediately()))
 	}
 
-	_, err := s.scheduler.NewJob(
-		gocron.CronJob(interval, false),
-		gocron.NewTask(job),
-		jobOptions...,
-	)
+	_, err := s.scheduler.NewJob(def, gocron.NewTask(job), jobOptions...)
 
 	if err != nil {
 		return fmt.Errorf("failed to register job %q: %w", name, err)
