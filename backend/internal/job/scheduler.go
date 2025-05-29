@@ -3,7 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
@@ -27,7 +27,7 @@ func NewScheduler() (*Scheduler, error) {
 // Run the scheduler.
 // This function blocks until the context is canceled.
 func (s *Scheduler) Run(ctx context.Context) error {
-	log.Println("Starting job scheduler")
+	slog.Info("Starting job scheduler")
 	s.scheduler.Start()
 
 	// Block until context is canceled
@@ -35,9 +35,9 @@ func (s *Scheduler) Run(ctx context.Context) error {
 
 	err := s.scheduler.Shutdown()
 	if err != nil {
-		log.Printf("[WARN] Error shutting down job scheduler: %v", err)
+		slog.Error("Error shutting down job scheduler", slog.Any("error", err))
 	} else {
-		log.Println("Job scheduler shut down")
+		slog.Info("Job scheduler shut down")
 	}
 
 	return nil
@@ -47,11 +47,24 @@ func (s *Scheduler) registerJob(ctx context.Context, name string, def gocron.Job
 	jobOptions := []gocron.JobOption{
 		gocron.WithContext(ctx),
 		gocron.WithEventListeners(
+			gocron.BeforeJobRuns(func(jobID uuid.UUID, jobName string) {
+				slog.Info("Starting job",
+					slog.String("name", name),
+					slog.String("id", jobID.String()),
+				)
+			}),
 			gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) {
-				log.Printf("Job %q run successfully", name)
+				slog.Info("Job run successfully",
+					slog.String("name", name),
+					slog.String("id", jobID.String()),
+				)
 			}),
 			gocron.AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) {
-				log.Printf("Job %q failed with error: %v", name, err)
+				slog.Error("Job failed with error",
+					slog.String("name", name),
+					slog.String("id", jobID.String()),
+					slog.Any("error", err),
+				)
 			}),
 		),
 	}
