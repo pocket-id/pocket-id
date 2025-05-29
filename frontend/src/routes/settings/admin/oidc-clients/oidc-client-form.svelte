@@ -28,7 +28,7 @@
 	// Ensure credentials is always defined with a default value
 	const client = {
 		name: existingClient?.name || '',
-		callbackURLs: existingClient?.callbackURLs || [''],
+		callbackURLs: existingClient?.callbackURLs || [],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false,
@@ -39,7 +39,7 @@
 
 	const formSchema = z.object({
 		name: z.string().min(2).max(50),
-		callbackURLs: z.array(z.string().nonempty()).nonempty(),
+		callbackURLs: z.array(z.string().nonempty()).default([]),
 		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
@@ -102,7 +102,6 @@
 		<OidcCallbackUrlInput
 			label={m.logout_callback_urls()}
 			class="w-full"
-			allowEmpty
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
 			bind:error={$inputs.logoutCallbackURLs.error}
 		/>

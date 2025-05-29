@@ -2,6 +2,9 @@ package job
 
 import (
 	"context"
+	"time"
+
+	"github.com/go-co-op/gocron/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
@@ -19,8 +22,8 @@ func (s *Scheduler) RegisterGeoLiteUpdateJobs(ctx context.Context, geoLiteServic
 
 	jobs := &GeoLiteUpdateJobs{geoLiteService: geoLiteService}
 
-	// Register the job to run every day, at 5 minutes past midnight
-	return s.registerJob(ctx, "UpdateGeoLiteDB", "5 * */1 * *", jobs.updateGoeLiteDB, true)
+	// Run every 24 hours (and right away)
+	return s.registerJob(ctx, "UpdateGeoLiteDB", gocron.DurationJob(24*time.Hour), jobs.updateGoeLiteDB, true)
 }
 
 func (j *GeoLiteUpdateJobs) updateGoeLiteDB(ctx context.Context) error {

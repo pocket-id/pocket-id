@@ -18,7 +18,7 @@ export type OidcClientCredentials = {
 };
 
 export type OidcClient = OidcClientMetaData & {
-	callbackURLs: [string, ...string[]];
+	callbackURLs: string[]; // No longer requires at least one URL
 	logoutCallbackURLs: string[];
 	isPublic: boolean;
 	pkceEnabled: boolean;

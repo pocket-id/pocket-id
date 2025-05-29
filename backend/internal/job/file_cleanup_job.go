@@ -3,11 +3,13 @@ package job
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/go-co-op/gocron/v2"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -17,7 +19,8 @@ import (
 func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB) error {
 	jobs := &FileCleanupJobs{db: db}
 
-	return s.registerJob(ctx, "ClearUnusedDefaultProfilePictures", "0 2 * * 0", jobs.clearUnusedDefaultProfilePictures, false)
+	// Run every 24 hours
+	return s.registerJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, false)
 }
 
 type FileCleanupJobs struct {
@@ -64,13 +67,13 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 		if _, ok := initialsInUse[initials]; !ok {
 			filePath := filepath.Join(defaultPicturesDir, filename)
 			if err := os.Remove(filePath); err != nil {
-				log.Printf("Failed to delete unused default profile picture %s: %v", filePath, err)
+				slog.ErrorContext(ctx, "Failed to delete unused default profile picture", slog.String("path", filePath), slog.Any("error", err))
 			} else {
 				filesDeleted++
 			}
 		}
 	}
 
-	log.Printf("Deleted %d unused default profile pictures", filesDeleted)
+	slog.Info("Done deleting unused default profile pictures", slog.Int("count", filesDeleted))
 	return nil
 }

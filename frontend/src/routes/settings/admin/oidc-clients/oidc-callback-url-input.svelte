@@ -11,13 +11,11 @@
 		label,
 		callbackURLs = $bindable(),
 		error = $bindable(null),
-		allowEmpty = false,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
 		label: string;
 		callbackURLs: string[];
 		error?: string | null;
-		allowEmpty?: boolean;
 		children?: Snippet;
 	} = $props();
 </script>
@@ -32,15 +30,13 @@
 						data-testid={`callback-url-${i + 1}`}
 						bind:value={callbackURLs[i]}
 					/>
-					{#if callbackURLs.length > 1 || allowEmpty}
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={() => (callbackURLs = callbackURLs.filter((_, index) => index !== i))}
-						>
-							<LucideMinus class="size-4" />
-						</Button>
-					{/if}
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={() => (callbackURLs = callbackURLs.filter((_, index) => index !== i))}
+					>
+						<LucideMinus class="size-4" />
+					</Button>
 				</div>
 			{/each}
 		</div>

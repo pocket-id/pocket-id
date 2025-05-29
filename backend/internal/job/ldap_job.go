@@ -2,6 +2,9 @@ package job
 
 import (
 	"context"
+	"time"
+
+	"github.com/go-co-op/gocron/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
@@ -15,7 +18,7 @@ func (s *Scheduler) RegisterLdapJobs(ctx context.Context, ldapService *service.L
 	jobs := &LdapJobs{ldapService: ldapService, appConfigService: appConfigService}
 
 	// Register the job to run every hour
-	return s.registerJob(ctx, "SyncLdap", "0 * * * *", jobs.syncLdap, true)
+	return s.registerJob(ctx, "SyncLdap", gocron.DurationJob(time.Hour), jobs.syncLdap, true)
 }
 
 func (j *LdapJobs) syncLdap(ctx context.Context) error {
