@@ -952,13 +952,12 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcNoCallbackURLError{}
 	}
 
-	callbackURL, err := s.getCallbackURL(&userAuthorizedOIDCClient.Client, input.PostLogoutRedirectUri, tx, ctx)
+	callbackURL, err := s.getLogoutCallbackURL(&userAuthorizedOIDCClient.Client, input.PostLogoutRedirectUri)
 	if err != nil {
 		return "", err
 	}
 
 	return callbackURL, nil
-
 }
 
 func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID string, userID string, scope string, nonce string, codeChallenge string, codeChallengeMethod string, tx *gorm.DB) (string, error) {
@@ -1023,17 +1022,14 @@ func (s *OidcService) getCallbackURL(client *model.OidcClient, inputCallbackURL 
 
 	// If URLs are already configured, validate against them
 	if len(client.CallbackURLs) > 0 {
-		for _, callbackPattern := range client.CallbackURLs {
-			regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
-			matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
-			if err != nil {
-				return "", err
-			}
-			if matched {
-				return inputCallbackURL, nil
-			}
+		matched, err := s.getCallbackURLFromList(client.LogoutCallbackURLs, inputCallbackURL)
+		if err != nil {
+			return "", err
+		} else if matched == "" {
+			return "", &common.OidcInvalidCallbackURLError{}
 		}
-		return "", &common.OidcInvalidCallbackURLError{}
+
+		return matched, nil
 	}
 
 	// If no URLs are configured, trust and store the first URL (TOFU)
@@ -1042,6 +1038,36 @@ func (s *OidcService) getCallbackURL(client *model.OidcClient, inputCallbackURL 
 		return "", err
 	}
 	return inputCallbackURL, nil
+}
+
+func (s *OidcService) getLogoutCallbackURL(client *model.OidcClient, inputLogoutCallbackURL string) (callbackURL string, err error) {
+	if inputLogoutCallbackURL == "" {
+		return client.LogoutCallbackURLs[0], nil
+	}
+
+	matched, err := s.getCallbackURLFromList(client.LogoutCallbackURLs, inputLogoutCallbackURL)
+	if err != nil {
+		return "", err
+	} else if matched == "" {
+		return "", &common.OidcInvalidCallbackURLError{}
+	}
+
+	return matched, nil
+}
+
+func (s *OidcService) getCallbackURLFromList(urls []string, inputCallbackURL string) (callbackURL string, err error) {
+	for _, callbackPattern := range urls {
+		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
+		matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
+		if err != nil {
+			return "", err
+		}
+		if matched {
+			return inputCallbackURL, nil
+		}
+	}
+
+	return "", nil
 }
 
 func (s *OidcService) addCallbackURLToClient(ctx context.Context, client *model.OidcClient, callbackURL string, tx *gorm.DB) error {
