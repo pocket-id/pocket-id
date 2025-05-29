@@ -340,14 +340,14 @@
 	"login_code_email_success": "Код входа был отправлен пользователю.",
 	"send_email": "Отправить письмо",
 	"show_code": "Показать код",
-	"callback_url_description": "URL(s) provided by your client. Will be automatically added if left blank. Wildcards (*) are supported, but best avoided for better security.",
-	"logout_callback_url_description": "URL(s) provided by your client for logout. Wildcards (*) are supported, but best avoided for better security.",
+	"callback_url_description": "URL-адрес(а) предоставленные вашим клиентом. Будет автоматически добавлен если оставить пустым. Маски (*) поддерживаются, но лучше избегайте их для повышения безопасности.",
+	"logout_callback_url_description": "URL-адрес(а), предоставленный вашим клиентом для выхода. Маски (*) поддерживаются, но лучше избегайте их для повышения безопасности.",
 	"api_key_expiration": "Истечение срока действия API ключа",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Отправлять пользователю письмо, когда истечет срок действия API ключа.",
 	"authorize_device": "Авторизовать устройство",
 	"the_device_has_been_authorized": "Устройство авторизовано.",
 	"enter_code_displayed_in_previous_step": "Введите код, который был отображен на предыдущем шаге.",
 	"authorize": "Авторизируйте",
-	"oidc_allowed_group_count": "Allowed Group Count",
-	"unrestricted": "Unrestricted"
+	"oidc_allowed_group_count": "Кол-во разрешенных групп",
+	"unrestricted": "Не ограничено"
 }
