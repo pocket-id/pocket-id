@@ -73,7 +73,6 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	// Get the callback URL of the client. Return an error if the provided callback URL is not allowed
-	// This now handles TOFU logic automatically when no URLs are configured
 	callbackURL, err := s.getCallbackURL(client.CallbackURLs, input.CallbackURL, input.ClientID, tx, ctx)
 	if err != nil {
 		return "", "", err

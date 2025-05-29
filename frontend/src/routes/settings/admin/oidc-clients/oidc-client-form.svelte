@@ -30,7 +30,7 @@
 
 	const client: OidcClientCreate = {
 		name: existingClient?.name || '',
-		callbackURLs: existingClient?.callbackURLs || [], // Changed from [''] to []
+		callbackURLs: existingClient?.callbackURLs || [],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false
