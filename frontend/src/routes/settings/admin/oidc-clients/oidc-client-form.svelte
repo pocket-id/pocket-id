@@ -38,7 +38,7 @@
 
 	const formSchema = z.object({
 		name: z.string().min(2).max(50),
-		callbackURLs: z.array(z.string()).optional().default([]), // Made optional and allow empty strings
+		callbackURLs: z.array(z.string().nonempty()).default([]),
 		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean()
