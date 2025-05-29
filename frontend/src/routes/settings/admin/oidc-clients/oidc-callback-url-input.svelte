@@ -9,11 +9,13 @@
 
 	let {
 		label,
+		description,
 		callbackURLs = $bindable(),
 		error = $bindable(null),
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
 		label: string;
+		description: string;
 		callbackURLs: string[];
 		error?: string | null;
 		children?: Snippet;
@@ -21,7 +23,7 @@
 </script>
 
 <div {...restProps}>
-	<FormInput {label} description={m.callback_url_description()}>
+	<FormInput {label} {description}>
 		<div class="flex flex-col gap-y-2">
 			{#each callbackURLs as _, i}
 				<div class="flex gap-x-2">
