@@ -931,14 +931,9 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
 
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
-	err = tx.
+	err = s.db.
 		WithContext(ctx).
 		Preload("Client").
 		First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).
