@@ -2,7 +2,8 @@ package job
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
 
 	"github.com/go-co-op/gocron/v2"
 
@@ -32,16 +33,16 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 
 	apiKeys, err := j.apiKeyService.ListExpiringApiKeys(ctx, 7)
 	if err != nil {
-		log.Printf("Failed to list expiring API keys: %v", err)
-		return err
+		return fmt.Errorf("failed to list expiring API keys: %w", err)
 	}
 
 	for _, key := range apiKeys {
 		if key.User.Email == "" {
 			continue
 		}
-		if err := j.apiKeyService.SendApiKeyExpiringSoonEmail(ctx, key); err != nil {
-			log.Printf("Failed to send email for key %s: %v", key.ID, err)
+		err = j.apiKeyService.SendApiKeyExpiringSoonEmail(ctx, key)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to send expiring API key notification email", slog.String("key", key.ID), slog.Any("error", err))
 		}
 	}
 	return nil

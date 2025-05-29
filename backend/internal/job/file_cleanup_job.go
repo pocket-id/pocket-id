@@ -3,7 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,13 +67,13 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 		if _, ok := initialsInUse[initials]; !ok {
 			filePath := filepath.Join(defaultPicturesDir, filename)
 			if err := os.Remove(filePath); err != nil {
-				log.Printf("Failed to delete unused default profile picture %s: %v", filePath, err)
+				slog.ErrorContext(ctx, "Failed to delete unused default profile picture", slog.String("path", filePath), slog.Any("error", err))
 			} else {
 				filesDeleted++
 			}
 		}
 	}
 
-	log.Printf("Deleted %d unused default profile pictures", filesDeleted)
+	slog.Info("Done deleting unused default profile pictures", slog.Int("count", filesDeleted))
 	return nil
 }
