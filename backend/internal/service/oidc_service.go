@@ -1022,7 +1022,7 @@ func (s *OidcService) getCallbackURL(client *model.OidcClient, inputCallbackURL 
 
 	// If URLs are already configured, validate against them
 	if len(client.CallbackURLs) > 0 {
-		matched, err := s.getCallbackURLFromList(client.LogoutCallbackURLs, inputCallbackURL)
+		matched, err := s.getCallbackURLFromList(client.CallbackURLs, inputCallbackURL)
 		if err != nil {
 			return "", err
 		} else if matched == "" {
