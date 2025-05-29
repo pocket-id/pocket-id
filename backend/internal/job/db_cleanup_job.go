@@ -15,8 +15,8 @@ import (
 func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) error {
 	jobs := &DbCleanupJobs{db: db}
 
-	// Run every 12 hours and now
-	return s.registerJob(ctx, "ClearExpiredDatabaseRecords", gocron.DurationJob(12*time.Hour), jobs.clearExpiredRecords, true)
+	// Run every 24 hours and now
+	return s.registerJob(ctx, "ClearExpiredDatabaseRecords", gocron.DurationJob(24*time.Hour), jobs.clearExpiredRecords, true)
 }
 
 type DbCleanupJobs struct {
