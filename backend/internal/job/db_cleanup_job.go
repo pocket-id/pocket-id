@@ -2,7 +2,7 @@ package job
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -15,57 +15,61 @@ import (
 func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) error {
 	jobs := &DbCleanupJobs{db: db}
 
-	// Run every 12 hours, but with some jitter so they don't run at the exact same time
-	def := gocron.DurationRandomJob(12*time.Hour-2*time.Minute, 12*time.Hour+2*time.Minute)
-	return errors.Join(
-		s.registerJob(ctx, "ClearWebauthnSessions", def, jobs.clearWebauthnSessions, true),
-		s.registerJob(ctx, "ClearOneTimeAccessTokens", def, jobs.clearOneTimeAccessTokens, true),
-		s.registerJob(ctx, "ClearOidcAuthorizationCodes", def, jobs.clearOidcAuthorizationCodes, true),
-		s.registerJob(ctx, "ClearOidcRefreshTokens", def, jobs.clearOidcRefreshTokens, true),
-		s.registerJob(ctx, "ClearAuditLogs", def, jobs.clearAuditLogs, true),
-	)
+	// Run every 12 hours and now
+	return s.registerJob(ctx, "ClearExpiredDatabaseRecords", gocron.DurationJob(12*time.Hour), jobs.clearExpiredRecords, true)
 }
 
 type DbCleanupJobs struct {
 	db *gorm.DB
 }
 
-// ClearWebauthnSessions deletes WebAuthn sessions that have expired
-func (j *DbCleanupJobs) clearWebauthnSessions(ctx context.Context) error {
-	return j.db.
-		WithContext(ctx).
-		Delete(&model.WebauthnSession{}, "expires_at < ?", datatype.DateTime(time.Now())).
-		Error
-}
+func (j *DbCleanupJobs) clearExpiredRecords(ctx context.Context) error {
+	return j.db.Transaction(func(tx *gorm.DB) (err error) {
+		// Deletes WebAuthn sessions that have expired
+		err = tx.
+			WithContext(ctx).
+			Delete(&model.WebauthnSession{}, "expires_at < ?", datatype.DateTime(time.Now())).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to clean expired WebAuthn sessions: %w", err)
+		}
 
-// ClearOneTimeAccessTokens deletes one-time access tokens that have expired
-func (j *DbCleanupJobs) clearOneTimeAccessTokens(ctx context.Context) error {
-	return j.db.
-		WithContext(ctx).
-		Delete(&model.OneTimeAccessToken{}, "expires_at < ?", datatype.DateTime(time.Now())).
-		Error
-}
+		// Deletes one-time access tokens that have expired
+		err = tx.
+			WithContext(ctx).
+			Delete(&model.OneTimeAccessToken{}, "expires_at < ?", datatype.DateTime(time.Now())).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to clean expired one-time access tokens: %w", err)
+		}
 
-// ClearOidcAuthorizationCodes deletes OIDC authorization codes that have expired
-func (j *DbCleanupJobs) clearOidcAuthorizationCodes(ctx context.Context) error {
-	return j.db.
-		WithContext(ctx).
-		Delete(&model.OidcAuthorizationCode{}, "expires_at < ?", datatype.DateTime(time.Now())).
-		Error
-}
+		// Deletes OIDC authorization codes that have expired
+		err = tx.
+			WithContext(ctx).
+			Delete(&model.OidcAuthorizationCode{}, "expires_at < ?", datatype.DateTime(time.Now())).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to clean expired OIDC authorization codes: %w", err)
+		}
 
-// ClearOidcAuthorizationCodes deletes OIDC authorization codes that have expired
-func (j *DbCleanupJobs) clearOidcRefreshTokens(ctx context.Context) error {
-	return j.db.
-		WithContext(ctx).
-		Delete(&model.OidcRefreshToken{}, "expires_at < ?", datatype.DateTime(time.Now())).
-		Error
-}
+		// Deletes OIDC refresh tokens that have expired
+		err = tx.
+			WithContext(ctx).
+			Delete(&model.OidcRefreshToken{}, "expires_at < ?", datatype.DateTime(time.Now())).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to clean expired OIDC refresh tokens: %w", err)
+		}
 
-// ClearAuditLogs deletes audit logs older than 90 days
-func (j *DbCleanupJobs) clearAuditLogs(ctx context.Context) error {
-	return j.db.
-		WithContext(ctx).
-		Delete(&model.AuditLog{}, "created_at < ?", datatype.DateTime(time.Now().AddDate(0, 0, -90))).
-		Error
+		// Deletes audit logs older than 90 days
+		err = tx.
+			WithContext(ctx).
+			Delete(&model.AuditLog{}, "created_at < ?", datatype.DateTime(time.Now().AddDate(0, 0, -90))).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to delete old audit logs: %w", err)
+		}
+
+		return nil
+	})
 }
