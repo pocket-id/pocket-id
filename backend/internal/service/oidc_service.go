@@ -127,7 +127,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	// Get the callback URL of the client. Return an error if the provided callback URL is not allowed
-	callbackURL, err := s.getCallbackURL(client.CallbackURLs, input.CallbackURL, input.ClientID, tx, ctx)
+	callbackURL, err := s.getCallbackURL(&client, input.CallbackURL, tx, ctx)
 	if err != nil {
 		return "", "", err
 	}
@@ -1025,13 +1025,12 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcNoCallbackURLError{}
 	}
 
-	callbackURL, err := s.getCallbackURL(userAuthorizedOIDCClient.Client.LogoutCallbackURLs, input.PostLogoutRedirectUri, userAuthorizedOIDCClient.Client.ID, s.db, ctx)
+	callbackURL, err := s.getLogoutCallbackURL(&userAuthorizedOIDCClient.Client, input.PostLogoutRedirectUri)
 	if err != nil {
 		return "", err
 	}
 
 	return callbackURL, nil
-
 }
 
 func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID string, userID string, scope string, nonce string, codeChallenge string, codeChallengeMethod string, tx *gorm.DB) (string, error) {
@@ -1084,50 +1083,71 @@ func (s *OidcService) validateCodeVerifier(codeVerifier, codeChallenge string, c
 	return encodedVerifierHash == codeChallenge
 }
 
-func (s *OidcService) getCallbackURL(urls []string, inputCallbackURL string, clientID string, tx *gorm.DB, ctx context.Context) (callbackURL string, err error) {
+func (s *OidcService) getCallbackURL(client *model.OidcClient, inputCallbackURL string, tx *gorm.DB, ctx context.Context) (callbackURL string, err error) {
 	// If no input callback URL provided, use the first configured URL
 	if inputCallbackURL == "" {
-		if len(urls) > 0 {
-			return urls[0], nil
+		if len(client.CallbackURLs) > 0 {
+			return client.CallbackURLs[0], nil
 		}
 		// If no URLs are configured and no input URL, this is an error
 		return "", &common.OidcMissingCallbackURLError{}
 	}
 
 	// If URLs are already configured, validate against them
-	if len(urls) > 0 {
-		for _, callbackPattern := range urls {
-			regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
-			matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
-			if err != nil {
-				return "", err
-			}
-			if matched {
-				return inputCallbackURL, nil
-			}
+	if len(client.CallbackURLs) > 0 {
+		matched, err := s.getCallbackURLFromList(client.CallbackURLs, inputCallbackURL)
+		if err != nil {
+			return "", err
+		} else if matched == "" {
+			return "", &common.OidcInvalidCallbackURLError{}
 		}
-		return "", &common.OidcInvalidCallbackURLError{}
+
+		return matched, nil
 	}
 
 	// If no URLs are configured, trust and store the first URL (TOFU)
-	err = s.addCallbackURLToClient(ctx, clientID, inputCallbackURL, tx)
+	err = s.addCallbackURLToClient(ctx, client, inputCallbackURL, tx)
 	if err != nil {
 		return "", err
 	}
 	return inputCallbackURL, nil
 }
 
-func (s *OidcService) addCallbackURLToClient(ctx context.Context, clientID string, callbackURL string, tx *gorm.DB) error {
-	var client model.OidcClient
-	err := tx.WithContext(ctx).First(&client, "id = ?", clientID).Error
-	if err != nil {
-		return err
+func (s *OidcService) getLogoutCallbackURL(client *model.OidcClient, inputLogoutCallbackURL string) (callbackURL string, err error) {
+	if inputLogoutCallbackURL == "" {
+		return client.LogoutCallbackURLs[0], nil
 	}
 
+	matched, err := s.getCallbackURLFromList(client.LogoutCallbackURLs, inputLogoutCallbackURL)
+	if err != nil {
+		return "", err
+	} else if matched == "" {
+		return "", &common.OidcInvalidCallbackURLError{}
+	}
+
+	return matched, nil
+}
+
+func (s *OidcService) getCallbackURLFromList(urls []string, inputCallbackURL string) (callbackURL string, err error) {
+	for _, callbackPattern := range urls {
+		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
+		matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
+		if err != nil {
+			return "", err
+		}
+		if matched {
+			return inputCallbackURL, nil
+		}
+	}
+
+	return "", nil
+}
+
+func (s *OidcService) addCallbackURLToClient(ctx context.Context, client *model.OidcClient, callbackURL string, tx *gorm.DB) error {
 	// Add the new callback URL to the existing list
 	client.CallbackURLs = append(client.CallbackURLs, callbackURL)
 
-	err = tx.WithContext(ctx).Save(&client).Error
+	err := tx.WithContext(ctx).Save(client).Error
 	if err != nil {
 		return err
 	}

@@ -340,11 +340,14 @@
 	"login_code_email_success": "The login code has been sent to the user.",
 	"send_email": "Send Email",
 	"show_code": "Show Code",
-	"callback_url_description": "URL(s) provided by your client. Wildcards (*) are supported, but best avoided for better security.",
+	"callback_url_description": "URL(s) provided by your client. Will be automatically added if left blank. Wildcards (*) are supported, but best avoided for better security.",
+	"logout_callback_url_description": "URL(s) provided by your client for logout. Wildcards (*) are supported, but best avoided for better security.",
 	"api_key_expiration": "API Key Expiration",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Send an email to the user when their API key is about to expire.",
 	"authorize_device": "Authorize Device",
 	"the_device_has_been_authorized": "The device has been authorized.",
 	"enter_code_displayed_in_previous_step": "Enter the code that was displayed in the previous step.",
-	"authorize": "Authorize"
+	"authorize": "Authorize",
+	"oidc_allowed_group_count": "Allowed Group Count",
+	"unrestricted": "Unrestricted"
 }

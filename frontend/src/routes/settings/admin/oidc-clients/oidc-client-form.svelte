@@ -95,12 +95,14 @@
 		<div></div>
 		<OidcCallbackUrlInput
 			label={m.callback_urls()}
+			description={m.callback_url_description()}
 			class="w-full"
 			bind:callbackURLs={$inputs.callbackURLs.value}
 			bind:error={$inputs.callbackURLs.error}
 		/>
 		<OidcCallbackUrlInput
 			label={m.logout_callback_urls()}
+			description={m.logout_callback_url_description()}
 			class="w-full"
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
 			bind:error={$inputs.logoutCallbackURLs.error}
