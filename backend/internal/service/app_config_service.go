@@ -29,17 +29,17 @@ type AppConfigService struct {
 	db       *gorm.DB
 }
 
-func NewAppConfigService(initCtx context.Context, db *gorm.DB) *AppConfigService {
+func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
 	service := &AppConfigService{
 		db: db,
 	}
 
-	err := service.LoadDbConfig(initCtx)
+	err := service.LoadDbConfig(ctx)
 	if err != nil {
 		log.Fatalf("Failed to initialize app config service: %v", err)
 	}
 
-	err = service.initInstanceID(initCtx)
+	err = service.initInstanceID(ctx)
 	if err != nil {
 		log.Fatalf("Failed to initialize instance ID: %v", err)
 	}

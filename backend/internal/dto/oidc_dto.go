@@ -8,10 +8,11 @@ type OidcClientMetaDataDto struct {
 
 type OidcClientDto struct {
 	OidcClientMetaDataDto
-	CallbackURLs       []string `json:"callbackURLs"`
-	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
-	IsPublic           bool     `json:"isPublic"`
-	PkceEnabled        bool     `json:"pkceEnabled"`
+	CallbackURLs       []string                  `json:"callbackURLs"`
+	LogoutCallbackURLs []string                  `json:"logoutCallbackURLs"`
+	IsPublic           bool                      `json:"isPublic"`
+	PkceEnabled        bool                      `json:"pkceEnabled"`
+	Credentials        *OidcClientCredentialsDto `json:"credentials,omitempty"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -25,11 +26,23 @@ type OidcClientWithAllowedGroupsCountDto struct {
 }
 
 type OidcClientCreateDto struct {
-	Name               string   `json:"name" binding:"required,max=50"`
-	CallbackURLs       []string `json:"callbackURLs"`
-	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
-	IsPublic           bool     `json:"isPublic"`
-	PkceEnabled        bool     `json:"pkceEnabled"`
+	Name               string                    `json:"name" binding:"required,max=50"`
+	CallbackURLs       []string                  `json:"callbackURLs"`
+	LogoutCallbackURLs []string                  `json:"logoutCallbackURLs"`
+	IsPublic           bool                      `json:"isPublic"`
+	PkceEnabled        bool                      `json:"pkceEnabled"`
+	Credentials        *OidcClientCredentialsDto `json:"credentials,omitempty"`
+}
+
+type OidcClientCredentialsDto struct {
+	FederatedIdentities []OidcClientFederatedIdentityDto `json:"federatedIdentities,omitempty"`
+}
+
+type OidcClientFederatedIdentityDto struct {
+	Issuer   string `json:"issuer"`
+	Subject  string `json:"subject,omitempty"`
+	Audience string `json:"audience,omitempty"`
+	JWKS     string `json:"jwks,omitempty"`
 }
 
 type AuthorizeOidcClientRequestDto struct {
@@ -52,13 +65,15 @@ type AuthorizationRequiredDto struct {
 }
 
 type OidcCreateTokensDto struct {
-	GrantType    string `form:"grant_type" binding:"required"`
-	Code         string `form:"code"`
-	DeviceCode   string `form:"device_code"`
-	ClientID     string `form:"client_id"`
-	ClientSecret string `form:"client_secret"`
-	CodeVerifier string `form:"code_verifier"`
-	RefreshToken string `form:"refresh_token"`
+	GrantType           string `form:"grant_type" binding:"required"`
+	Code                string `form:"code"`
+	DeviceCode          string `form:"device_code"`
+	ClientID            string `form:"client_id"`
+	ClientSecret        string `form:"client_secret"`
+	CodeVerifier        string `form:"code_verifier"`
+	RefreshToken        string `form:"refresh_token"`
+	ClientAssertion     string `form:"client_assertion"`
+	ClientAssertionType string `form:"client_assertion_type"`
 }
 
 type OidcIntrospectDto struct {

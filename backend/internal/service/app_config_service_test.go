@@ -3,16 +3,10 @@ package service
 import (
 	"sync/atomic"
 	"testing"
-	"time"
-
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +22,7 @@ func NewTestAppConfigService(config *model.AppConfig) *AppConfigService {
 
 func TestLoadDbConfig(t *testing.T) {
 	t.Run("empty config table", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 		service := &AppConfigService{
 			db: db,
 		}
@@ -42,7 +36,7 @@ func TestLoadDbConfig(t *testing.T) {
 	})
 
 	t.Run("loads value from config table", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Populate the config table with some initial values
 		err := db.
@@ -72,7 +66,7 @@ func TestLoadDbConfig(t *testing.T) {
 	})
 
 	t.Run("ignores unknown config keys", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Add an entry with a key that doesn't exist in the config struct
 		err := db.Create([]model.AppConfigVariable{
@@ -93,7 +87,7 @@ func TestLoadDbConfig(t *testing.T) {
 	})
 
 	t.Run("loading config multiple times", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Initial state
 		err := db.Create([]model.AppConfigVariable{
@@ -135,7 +129,7 @@ func TestLoadDbConfig(t *testing.T) {
 		common.EnvConfig.UiConfigDisabled = true
 
 		// Create database with config that should be ignored
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 		err := db.Create([]model.AppConfigVariable{
 			{Key: "appName", Value: "DB App"},
 			{Key: "sessionDuration", Value: "120"},
@@ -171,7 +165,7 @@ func TestLoadDbConfig(t *testing.T) {
 		common.EnvConfig.UiConfigDisabled = false
 
 		// Create database with config values that should take precedence
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 		err := db.Create([]model.AppConfigVariable{
 			{Key: "appName", Value: "DB App"},
 			{Key: "sessionDuration", Value: "120"},
@@ -195,7 +189,7 @@ func TestLoadDbConfig(t *testing.T) {
 
 func TestUpdateAppConfigValues(t *testing.T) {
 	t.Run("update single value", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -220,7 +214,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 	})
 
 	t.Run("update multiple values", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -264,7 +258,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 	})
 
 	t.Run("empty value resets to default", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -285,7 +279,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 	})
 
 	t.Run("error with odd number of arguments", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -301,7 +295,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 	})
 
 	t.Run("error with invalid key", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -319,7 +313,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 
 func TestUpdateAppConfig(t *testing.T) {
 	t.Run("updates configuration values from DTO", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -392,7 +386,7 @@ func TestUpdateAppConfig(t *testing.T) {
 	})
 
 	t.Run("empty values reset to defaults", func(t *testing.T) {
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 
 		// Create a service with default config and modify some values
 		service := &AppConfigService{
@@ -457,7 +451,7 @@ func TestUpdateAppConfig(t *testing.T) {
 		// Disable UI config
 		common.EnvConfig.UiConfigDisabled = true
 
-		db := newAppConfigTestDatabaseForTest(t)
+		db := newDatabaseForTest(t)
 		service := &AppConfigService{
 			db: db,
 		}
@@ -474,50 +468,4 @@ func TestUpdateAppConfig(t *testing.T) {
 		var uiConfigDisabledErr *common.UiConfigDisabledError
 		require.ErrorAs(t, err, &uiConfigDisabledErr)
 	})
-}
-
-// Implements gorm's logger.Writer interface
-type testLoggerAdapter struct {
-	t *testing.T
-}
-
-func (l testLoggerAdapter) Printf(format string, args ...any) {
-	l.t.Logf(format, args...)
-}
-
-func newAppConfigTestDatabaseForTest(t *testing.T) *gorm.DB {
-	t.Helper()
-
-	// Get a name for this in-memory database that is specific to the test
-	dbName := utils.CreateSha256Hash(t.Name())
-
-	// Connect to a new in-memory SQL database
-	db, err := gorm.Open(
-		sqlite.Open("file:"+dbName+"?mode=memory&cache=shared"),
-		&gorm.Config{
-			TranslateError: true,
-			Logger: logger.New(
-				testLoggerAdapter{t: t},
-				logger.Config{
-					SlowThreshold:             200 * time.Millisecond,
-					LogLevel:                  logger.Info,
-					IgnoreRecordNotFoundError: false,
-					ParameterizedQueries:      false,
-					Colorful:                  false,
-				},
-			),
-		})
-	require.NoError(t, err, "Failed to connect to test database")
-
-	// Create the app_config_variables table
-	err = db.Exec(`
-CREATE TABLE app_config_variables
-(
-    key           VARCHAR(100) NOT NULL PRIMARY KEY,
-    value         TEXT NOT NULL
-)
-`).Error
-	require.NoError(t, err, "Failed to create test config table")
-
-	return db
 }

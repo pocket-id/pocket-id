@@ -65,6 +65,11 @@ type OidcClientSecretInvalidError struct{}
 func (e *OidcClientSecretInvalidError) Error() string       { return "invalid client secret" }
 func (e *OidcClientSecretInvalidError) HttpStatusCode() int { return 400 }
 
+type OidcClientAssertionInvalidError struct{}
+
+func (e *OidcClientAssertionInvalidError) Error() string       { return "invalid client assertion" }
+func (e *OidcClientAssertionInvalidError) HttpStatusCode() int { return 400 }
+
 type OidcInvalidAuthorizationCodeError struct{}
 
 func (e *OidcInvalidAuthorizationCodeError) Error() string       { return "invalid authorization code" }
