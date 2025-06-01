@@ -349,9 +349,11 @@
 	"enter_code_displayed_in_previous_step": "Enter the code that was displayed in the previous step.",
 	"authorize": "Authorize",
 	"federated_identities": "Federated Identities",
-	"federated_identities_description": "Manage federated identities for users. This allows users to sign in with their existing accounts from other identity providers.",
+	"federated_identities_description": "Add external identity providers (Azure, AWS, Kubernetes, etc.) that can authenticate this client using JWT tokens instead of client secrets for enhanced security.",
 	"add_federated_identity": "Add Federated Identity",
 	"add_another_federated_identity": "Add another federated identity",
 	"oidc_allowed_group_count": "Allowed Group Count",
-	"unrestricted": "Unrestricted"
+	"unrestricted": "Unrestricted",
+	"show_advanced_options": "Show Advanced Options",
+	"hide_advanced_options": "Hide Advanced Options"
 }
