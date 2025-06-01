@@ -46,7 +46,7 @@ type OidcClient struct {
 	HasLogo            bool `gorm:"-"`
 	IsPublic           bool
 	PkceEnabled        bool
-	Credentials        *OidcClientCredentials
+	Credentials        OidcClientCredentials
 
 	AllowedUserGroups []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID       string

@@ -660,10 +660,6 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
 
 	// Credentials
-	if input.Credentials == nil {
-		return
-	}
-	client.Credentials = &model.OidcClientCredentials{}
 	if len(input.Credentials.FederatedIdentities) > 0 {
 		client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
 		for i, fi := range input.Credentials.FederatedIdentities {

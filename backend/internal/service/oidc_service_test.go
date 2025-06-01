@@ -192,7 +192,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	federatedClient, err := s.CreateClient(t.Context(), dto.OidcClientCreateDto{
 		Name:         "Federated Client",
 		CallbackURLs: []string{"https://example.com/callback"},
-		Credentials: &dto.OidcClientCredentialsDto{
+		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{
 				{
 					Issuer:   federatedClientIssuer,
