@@ -7,9 +7,12 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { OidcClient, OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { createForm } from '$lib/utils/form-util';
+	import { cn } from '$lib/utils/style';
+	import { LucideChevronDown } from '@lucide/svelte';
+	import { slide } from 'svelte/transition';
 	import { z } from 'zod';
-	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
+	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 
 	let {
 		callback,
@@ -20,12 +23,12 @@
 	} = $props();
 
 	let isLoading = $state(false);
+	let showAdvancedOptions = $state(false);
 	let logo = $state<File | null | undefined>();
 	let logoDataURL: string | null = $state(
 		existingClient?.hasLogo ? `/api/oidc/clients/${existingClient!.id}/logo` : null
 	);
 
-	// Ensure credentials is always defined with a default value
 	const client = {
 		name: existingClient?.name || '',
 		callbackURLs: existingClient?.callbackURLs || [],
@@ -119,14 +122,6 @@
 			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
 			bind:checked={$inputs.pkceEnabled.value}
 		/>
-
-		<div class="md:col-span-2">
-			<FederatedIdentitiesInput
-				client={existingClient}
-				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
-				bind:error={$inputs.credentials.error}
-			/>
-		</div>
 	</div>
 	<div class="mt-8">
 		<Label for="logo">{m.logo()}</Label>
@@ -157,8 +152,31 @@
 			</div>
 		</div>
 	</div>
-	<div class="w-full"></div>
-	<div class="mt-5 flex justify-end">
-		<Button {isLoading} type="submit">{m.save()}</Button>
+
+	{#if showAdvancedOptions}
+		<div class="mt-5 md:col-span-2" transition:slide={{ duration: 200 }}>
+			<FederatedIdentitiesInput
+				client={existingClient}
+				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
+				bind:error={$inputs.credentials.error}
+			/>
+		</div>
+	{/if}
+
+	<div class="relative mt-5 flex justify-center">
+		<Button
+			variant="ghost"
+			class="text-muted-foregroun"
+			onclick={() => (showAdvancedOptions = !showAdvancedOptions)}
+		>
+			{showAdvancedOptions ? m.hide_advanced_options() : m.show_advanced_options()}
+			<LucideChevronDown
+				class={cn(
+					'size-5 transition-transform duration-200',
+					showAdvancedOptions && 'rotate-180 transform'
+				)}
+			/>
+		</Button>
+		<Button {isLoading} type="submit" class="absolute right-0">{m.save()}</Button>
 	</div>
 </form>

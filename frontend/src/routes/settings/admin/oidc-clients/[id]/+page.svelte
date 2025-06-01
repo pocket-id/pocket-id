@@ -8,6 +8,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
@@ -16,7 +17,6 @@
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OidcForm from '../oidc-client-form.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let client = $state({
@@ -166,7 +166,7 @@
 	</Card.Content>
 </Card.Root>
 <Card.Root>
-	<Card.Content class="p-5">
+	<Card.Content>
 		<OidcForm existingClient={client} callback={updateClient} />
 	</Card.Content>
 </Card.Root>
