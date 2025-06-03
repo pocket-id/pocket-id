@@ -24,6 +24,15 @@ type TestController struct {
 }
 
 func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
+	var baseURL string
+	if c.Request.TLS != nil {
+		baseURL = "https://" + c.Request.Host
+	} else {
+		baseURL = "http://" + c.Request.Host
+	}
+
+	skipLdap := c.Query("skip-ldap") == "1"
+
 	if err := tc.TestService.ResetDatabase(); err != nil {
 		_ = c.Error(err)
 		return
@@ -34,7 +43,7 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		return
 	}
 
-	if err := tc.TestService.SeedDatabase(); err != nil {
+	if err := tc.TestService.SeedDatabase(baseURL); err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -44,14 +53,16 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		return
 	}
 
-	if err := tc.TestService.SetLdapTestConfig(c.Request.Context()); err != nil {
-		_ = c.Error(err)
-		return
-	}
+	if !skipLdap {
+		if err := tc.TestService.SetLdapTestConfig(c.Request.Context()); err != nil {
+			_ = c.Error(err)
+			return
+		}
 
-	if err := tc.TestService.SyncLdap(c.Request.Context()); err != nil {
-		_ = c.Error(err)
-		return
+		if err := tc.TestService.SyncLdap(c.Request.Context()); err != nil {
+			_ = c.Error(err)
+			return
+		}
 	}
 
 	tc.TestService.SetJWTKeys()

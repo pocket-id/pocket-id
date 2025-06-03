@@ -69,7 +69,7 @@ func (s *TestService) initExternalIdP() error {
 }
 
 //nolint:gocognit
-func (s *TestService) SeedDatabase() error {
+func (s *TestService) SeedDatabase(baseURL string) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		users := []model.User{
 			{
@@ -168,6 +168,26 @@ func (s *TestService) SeedDatabase() error {
 				CreatedByID:  users[1].ID,
 				AllowedUserGroups: []model.UserGroup{
 					userGroups[1],
+				},
+			},
+			{
+				Base: model.Base{
+					ID: "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
+				},
+				Name:              "Federated",
+				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
+				CallbackURLs:      model.UrlList{"http://federated/auth/callback"},
+				CreatedByID:       users[1].ID,
+				AllowedUserGroups: []model.UserGroup{},
+				Credentials: model.OidcClientCredentials{
+					FederatedIdentities: []model.OidcClientFederatedIdentity{
+						{
+							Issuer:   "https://external-idp.local",
+							Audience: "api://PocketID",
+							Subject:  "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
+							JWKS:     baseURL + "/api/externalidp/jwks.json",
+						},
+					},
 				},
 			},
 		}
