@@ -35,6 +35,16 @@ export const oidcClients = {
 		callbackUrl: 'http://immich/auth/callback',
 		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x'
 	},
+	federated: {
+		id: "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
+		name: 'Federated',
+		callbackUrl: 'http://federated/auth/callback',
+		federatedJWT: {
+			issuer:   'https://external-idp.local',
+			audience: 'api://PocketID',
+			subject:  'c48232ff-ff65-45ed-ae96-7afa8a9b443b',
+		}
+	},
 	pingvinShare: {
 		name: 'Pingvin Share',
 		callbackUrl: 'http://pingvin.share/auth/callback',
