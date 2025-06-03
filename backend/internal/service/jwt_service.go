@@ -4,11 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -372,7 +370,7 @@ func (s *JwtService) GetPublicJWK() (jwk.Key, error) {
 		return nil, fmt.Errorf("failed to get public key: %w", err)
 	}
 
-	EnsureAlgInKey(pubKey)
+	utils.EnsureAlgInKey(pubKey)
 
 	return pubKey, nil
 }
@@ -415,27 +413,6 @@ func (s *JwtService) loadKeyJWK(path string) (jwk.Key, error) {
 	return key, nil
 }
 
-// EnsureAlgInKey ensures that the key contains an "alg" parameter, set depending on the key type
-func EnsureAlgInKey(key jwk.Key) {
-	_, ok := key.Algorithm()
-	if ok {
-		// Algorithm is already set
-		return
-	}
-
-	switch key.KeyType() {
-	case jwa.RSA():
-		// Default to RS256 for RSA keys
-		_ = key.Set(jwk.AlgorithmKey, jwa.RS256())
-	case jwa.EC():
-		// Default to ES256 for ECDSA keys
-		_ = key.Set(jwk.AlgorithmKey, jwa.ES256())
-	case jwa.OKP():
-		// Default to EdDSA for OKP keys
-		_ = key.Set(jwk.AlgorithmKey, jwa.EdDSA())
-	}
-}
-
 func (s *JwtService) generateNewRSAKey() (jwk.Key, error) {
 	// We generate RSA keys only
 	rawKey, err := rsa.GenerateKey(rand.Reader, RsaKeySize)
@@ -444,27 +421,7 @@ func (s *JwtService) generateNewRSAKey() (jwk.Key, error) {
 	}
 
 	// Import the raw key
-	return importRawKey(rawKey)
-}
-
-func importRawKey(rawKey any) (jwk.Key, error) {
-	key, err := jwk.Import(rawKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to import generated private key: %w", err)
-	}
-
-	// Generate the key ID
-	kid, err := generateRandomKeyID()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate key ID: %w", err)
-	}
-	_ = key.Set(jwk.KeyIDKey, kid)
-
-	// Set other required fields
-	_ = key.Set(jwk.KeyUsageKey, KeyUsageSigning)
-	EnsureAlgInKey(key)
-
-	return key, err
+	return utils.ImportRawKey(rawKey)
 }
 
 // SaveKeyJWK saves a JWK to a file
@@ -490,16 +447,6 @@ func SaveKeyJWK(key jwk.Key, path string) error {
 	}
 
 	return nil
-}
-
-// generateRandomKeyID generates a random key ID.
-func generateRandomKeyID() (string, error) {
-	buf := make([]byte, 8)
-	_, err := io.ReadFull(rand.Reader, buf)
-	if err != nil {
-		return "", fmt.Errorf("failed to read random bytes: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 // GetIsAdmin returns the value of the "isAdmin" claim in the token

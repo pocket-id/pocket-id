@@ -5,6 +5,8 @@ package service
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
@@ -30,10 +32,39 @@ type TestService struct {
 	jwtService       *JwtService
 	appConfigService *AppConfigService
 	ldapService      *LdapService
+	externalIdPKey   jwk.Key
 }
 
-func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService) *TestService {
-	return &TestService{db: db, appConfigService: appConfigService, jwtService: jwtService, ldapService: ldapService}
+func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService) (*TestService, error) {
+	s := &TestService{
+		db:               db,
+		appConfigService: appConfigService,
+		jwtService:       jwtService,
+		ldapService:      ldapService,
+	}
+	err := s.initExternalIdP()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize external IdP: %w", err)
+	}
+	return s, nil
+}
+
+// Initializes the "external IdP"
+// This creates a new "issuing authority" containing a public JWKS
+// It also stores the private key internally that will be used to issue JWTs
+func (s *TestService) initExternalIdP() error {
+	// Generate a new ECDSA key
+	rawKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	s.externalIdPKey, err = utils.ImportRawKey(rawKey)
+	if err != nil {
+		return fmt.Errorf("failed to import private key: %w", err)
+	}
+
+	return nil
 }
 
 //nolint:gocognit
@@ -404,4 +435,20 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// GetExternalIdPJWKS returns the JWKS for the "external IdP".
+func (s *TestService) GetExternalIdPJWKS() (jwk.Set, error) {
+	pubKey, err := s.externalIdPKey.PublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	set := jwk.NewSet()
+	err = set.AddKey(pubKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add public key to set: %w", err)
+	}
+
+	return set, nil
 }

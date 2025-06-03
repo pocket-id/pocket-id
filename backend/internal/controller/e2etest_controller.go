@@ -14,6 +14,7 @@ func NewTestController(group *gin.RouterGroup, testService *service.TestService)
 	testController := &TestController{TestService: testService}
 
 	group.POST("/test/reset", testController.resetAndSeedHandler)
+	group.GET("/test/externalidp/jwks.json", testController.externalIdPJWKS)
 }
 
 type TestController struct {
@@ -54,4 +55,14 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 	tc.TestService.SetJWTKeys()
 
 	c.Status(http.StatusNoContent)
+}
+
+func (tc *TestController) externalIdPJWKS(c *gin.Context) {
+	jwks, err := tc.TestService.GetExternalIdPJWKS()
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, jwks)
 }
