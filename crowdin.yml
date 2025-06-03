@@ -1,4 +1,4 @@
 files:
-  - source: /frontend/messages/en-US.json
-    translation: /%original_path%/%locale%.json
+  - source: /frontend/messages/en.json
+    translation: /%original_path%/%two_letters_code%.json
 pull_request_title: 'chore(translations): update translations via Crowdin'

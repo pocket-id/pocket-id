@@ -1,17 +1,5 @@
-import { paraglideMiddleware } from '$lib/paraglide/server';
-import type { Handle, HandleServerError } from '@sveltejs/kit';
+import type { HandleServerError } from '@sveltejs/kit';
 import { AxiosError } from 'axios';
-
-// Handle to use the paraglide middleware
-const paraglideHandle: Handle = ({ event, resolve }) => {
-	return paraglideMiddleware(event.request, ({ locale }) => {
-		return resolve(event, {
-			transformPageChunk: ({ html }) => html.replace('%lang%', locale)
-		});
-	});
-};
-
-export const handle: Handle = paraglideHandle;
 
 export const handleError: HandleServerError = async ({ error, message, status }) => {
 	if (error instanceof AxiosError) {

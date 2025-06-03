@@ -41,9 +41,8 @@ func TestLoadDbConfig(t *testing.T) {
 		// Populate the config table with some initial values
 		err := db.
 			Create([]model.AppConfigVariable{
-				// Should be set to the default value because it's an empty string
-				{Key: "appName", Value: ""},
 				// Overrides default value
+				{Key: "appName", Value: "Test App"},
 				{Key: "sessionDuration", Value: "5"},
 				// Does not have a default value
 				{Key: "smtpHost", Value: "example"},
@@ -60,6 +59,7 @@ func TestLoadDbConfig(t *testing.T) {
 
 		// Values should match expected ones
 		expect := service.getDefaultDbConfig()
+		expect.AppName.Value = "Test App"
 		expect.SessionDuration.Value = "5"
 		expect.SmtpHost.Value = "example"
 		require.Equal(t, service.GetDbConfig(), expect)

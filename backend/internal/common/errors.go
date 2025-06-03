@@ -168,13 +168,6 @@ func (e *DuplicateClaimError) Error() string {
 }
 func (e *DuplicateClaimError) HttpStatusCode() int { return http.StatusBadRequest }
 
-type AccountEditNotAllowedError struct{}
-
-func (e *AccountEditNotAllowedError) Error() string {
-	return "You are not allowed to edit your account"
-}
-func (e *AccountEditNotAllowedError) HttpStatusCode() int { return http.StatusForbidden }
-
 type OidcInvalidCodeVerifierError struct{}
 
 func (e *OidcInvalidCodeVerifierError) Error() string {

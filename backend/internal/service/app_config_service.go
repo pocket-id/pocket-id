@@ -432,11 +432,6 @@ func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB
 
 	// Iterate through all values loaded from the database
 	for _, v := range loaded {
-		// If the value is empty, it means we are using the default value
-		if v.Value == "" {
-			continue
-		}
-
 		// Find the field in the struct whose "key" tag matches, then update that
 		err = dest.UpdateField(v.Key, v.Value, false)
 

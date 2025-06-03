@@ -26,6 +26,7 @@ func (m *CorsMiddleware) Add() gin.HandlerFunc {
 		}
 
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Authorization")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST")
 
 		// Preflight request

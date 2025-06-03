@@ -7,7 +7,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -228,10 +227,6 @@ func (uc *UserController) updateUserHandler(c *gin.Context) {
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/me [put]
 func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
-	if !uc.appConfigService.GetDbConfig().AllowOwnAccountEdit.IsTrue() {
-		_ = c.Error(&common.AccountEditNotAllowedError{})
-		return
-	}
 	uc.updateUser(c, true)
 }
 

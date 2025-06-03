@@ -8,15 +8,16 @@
 	const currentLocale = getLocale();
 
 	const locales = {
-		'cs-CZ': 'Čeština',
-		'de-DE': 'Deutsch',
-		'en-US': 'English',
-		'fr-FR': 'Français',
-		'nl-NL': 'Nederlands',
-		'pl-PL': 'Polski',
+		cs: 'Čeština',
+		de: 'Deutsch',
+		en: 'English',
+		es: 'Español',
+		fr: 'Français',
+		it: 'Italiano',
+		nl: 'Nederlands',
+		pl: 'Polski',
 		'pt-BR': 'Português brasileiro',
-		'ru-RU': 'Русский',
-		'it-IT': 'Italiano',
+		ru: 'Русский',
 		'zh-CN': '简体中文'
 	};
 
