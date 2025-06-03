@@ -18,6 +18,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -451,4 +452,26 @@ func (s *TestService) GetExternalIdPJWKS() (jwk.Set, error) {
 	}
 
 	return set, nil
+}
+
+func (s *TestService) SignExternalIdPToken(iss, sub, aud string) (string, error) {
+	now := time.Now()
+	token, err := jwt.NewBuilder().
+		Subject(sub).
+		Expiration(now.Add(time.Hour)).
+		IssuedAt(now).
+		Issuer(iss).
+		Audience([]string{aud}).
+		Build()
+	if err != nil {
+		return "", fmt.Errorf("failed to build token: %w", err)
+	}
+
+	alg, _ := s.externalIdPKey.Algorithm()
+	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.externalIdPKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	return string(signed), nil
 }

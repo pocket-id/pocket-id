@@ -14,7 +14,9 @@ func NewTestController(group *gin.RouterGroup, testService *service.TestService)
 	testController := &TestController{TestService: testService}
 
 	group.POST("/test/reset", testController.resetAndSeedHandler)
-	group.GET("/test/externalidp/jwks.json", testController.externalIdPJWKS)
+
+	group.GET("/externalidp/jwks.json", testController.externalIdPJWKS)
+	group.POST("/externalidp/sign", testController.externalIdPSignToken)
 }
 
 type TestController struct {
@@ -65,4 +67,25 @@ func (tc *TestController) externalIdPJWKS(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, jwks)
+}
+
+func (tc *TestController) externalIdPSignToken(c *gin.Context) {
+	var input struct {
+		Aud string `json:"aud"`
+		Iss string `json:"iss"`
+		Sub string `json:"sub"`
+	}
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	token, err := tc.TestService.SignExternalIdPToken(input.Iss, input.Sub, input.Aud)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Writer.WriteString(token)
 }
