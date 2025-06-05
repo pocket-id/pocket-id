@@ -140,3 +140,8 @@ type DeviceCodeInfoDto struct {
 	AuthorizationRequired bool                  `json:"authorizationRequired"`
 	Client                OidcClientMetaDataDto `json:"client"`
 }
+
+type AuthorizedOidcClientDto struct {
+	Scope  string                `json:"scope"`
+	Client OidcClientMetaDataDto `json:"client"`
+}

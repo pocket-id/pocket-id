@@ -6,6 +6,7 @@
 	import UserService from '$lib/services/user-service';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
@@ -64,7 +65,7 @@
 	}
 </script>
 
-<form onsubmit={onSubmit} class="space-y-6">
+<form onsubmit={preventDefault(onSubmit)} class="space-y-6">
 	<!-- Profile Picture Section -->
 	<ProfilePictureSettings
 		{userId}

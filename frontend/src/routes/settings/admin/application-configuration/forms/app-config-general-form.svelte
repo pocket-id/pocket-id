@@ -5,6 +5,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
@@ -45,7 +46,7 @@
 	}
 </script>
 
-<form onsubmit={onSubmit}>
+<form onsubmit={preventDefault(onSubmit)}>
 	<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
 		<div class="flex flex-col gap-5">
 			<FormInput label={m.application_name()} bind:input={$inputs.appName} />

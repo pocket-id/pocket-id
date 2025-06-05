@@ -3,10 +3,11 @@
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { preventDefault } from '$lib/utils/event-util';
 
 	const { data } = $props();
 
@@ -58,13 +59,7 @@
 			>
 		</div>
 	{:else}
-		<form
-			onsubmit={(e) => {
-				e.preventDefault();
-				requestEmail();
-			}}
-			class="w-full max-w-[450px]"
-		>
+		<form onsubmit={preventDefault(requestEmail)} class="w-full max-w-[450px]">
 			<p class="text-muted-foreground mt-2" in:fade>
 				{m.enter_your_email_address_to_receive_an_email_with_a_login_code()}
 			</p>

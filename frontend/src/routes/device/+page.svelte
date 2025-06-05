@@ -11,6 +11,7 @@
 	import userStore from '$lib/stores/user-store';
 	import type { OidcDeviceCodeInfo } from '$lib/types/oidc.type';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
@@ -89,7 +90,7 @@
 	{:else if success}
 		<p class="text-muted-foreground mt-2">{m.the_device_has_been_authorized()}</p>
 	{:else if authorizationRequired}
-		<div transition:slide={{ duration: 300 }}>
+		<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
 			<Card.Root class="mt-6">
 				<Card.Header class="pb-5">
 					<p class="text-muted-foreground text-start">
@@ -105,19 +106,19 @@
 		</div>
 	{:else}
 		<p class="text-muted-foreground mt-2">{m.enter_code_displayed_in_previous_step()}</p>
-		<form id="device-code-form" onsubmit={authorize} class="w-full max-w-[450px]">
+		<form id="device-code-form" onsubmit={preventDefault(authorize)} class="w-full max-w-[450px]">
 			<Input id="user-code" class="mt-7" placeholder={m.code()} bind:value={userCode} type="text" />
 		</form>
 	{/if}
 	{#if !success}
-		<div class="mt-10 flex w-full justify-stretch gap-2">
-			<Button href="/" class="w-full" variant="secondary">{m.cancel()}</Button>
+		<div class="mt-10 flex w-full max-w-[450px] gap-2">
+			<Button href="/" class="flex-1" variant="secondary">{m.cancel()}</Button>
 			{#if !errorMessage}
-				<Button form="device-code-form" class="w-full" onclick={authorize} {isLoading}
+				<Button form="device-code-form" class="flex-1" onclick={authorize} {isLoading}
 					>{m.authorize()}</Button
 				>
 			{:else}
-				<Button class="w-full" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
+				<Button class="flex-1" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
 			{/if}
 		</div>
 	{/if}

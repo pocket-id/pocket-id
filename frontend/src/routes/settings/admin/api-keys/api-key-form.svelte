@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import type { ApiKeyCreate } from '$lib/types/api-key.type';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { z } from 'zod';
 
@@ -52,7 +53,7 @@
 	}
 </script>
 
-<form onsubmit={onSubmit}>
+<form onsubmit={preventDefault(onSubmit)}>
 	<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 		<FormInput
 			label={m.name()}

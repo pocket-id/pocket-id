@@ -1320,6 +1320,20 @@ func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id stri
 	return count, nil
 }
 
+func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
+
+	query := s.db.
+		WithContext(ctx).
+		Model(&model.UserAuthorizedOidcClient{}).
+		Preload("Client").
+		Where("user_id = ?", userID)
+
+	var authorizedClients []model.UserAuthorizedOidcClient
+	response, err := utils.PaginateAndSort(sortedPaginationRequest, query, &authorizedClients)
+
+	return authorizedClients, response, err
+}
+
 func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
 	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
 	if err != nil {

@@ -1,15 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import userStore from '$lib/stores/user-store.js';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { onMount } from 'svelte';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
-	import { page } from '$app/state';
-	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let code = $state(data.code ?? '');
@@ -59,13 +60,7 @@
 	{:else}
 		<p class="text-muted-foreground mt-2">{m.enter_the_code_you_received_to_sign_in()}</p>
 	{/if}
-	<form
-		onsubmit={(e) => {
-			e.preventDefault();
-			authenticate();
-		}}
-		class="w-full max-w-[450px]"
-	>
+	<form onsubmit={preventDefault(authenticate)} class="w-full max-w-[450px]">
 		<Input id="Email" class="mt-7" placeholder={m.code()} bind:value={code} type="text" />
 		<div class="mt-8 flex justify-between gap-2">
 			<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}

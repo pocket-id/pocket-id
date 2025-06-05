@@ -103,9 +103,9 @@
 				})}
 			</p>
 		{:else if authorizationRequired}
-			<div transition:slide={{ duration: 300 }}>
+			<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
 				<Card.Root class="mt-6 mb-10">
-					<Card.Header class="pb-5">
+					<Card.Header>
 						<p class="text-muted-foreground text-start">
 							{@html m.client_wants_to_access_the_following_information({ client: client.name })}
 						</p>
@@ -138,18 +138,14 @@
 				</Card.Root>
 			</div>
 		{/if}
-		<!-- Wrap the buttons in a container with the same width as in the login code page -->
-		<div class="w-full max-w-[450px]">
-			<div class="mt-8 flex justify-between gap-2">
-				<Button onclick={() => history.back()} class="flex-1" variant="secondary"
-					>{m.cancel()}</Button
-				>
-				{#if !errorMessage}
-					<Button class="flex-1" {isLoading} onclick={authorize}>{m.sign_in()}</Button>
-				{:else}
-					<Button class="flex-1" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
-				{/if}
-			</div>
+		<div class="flex w-full max-w-[450px] gap-2">
+			<Button onclick={() => history.back()} class="flex-1" variant="secondary">{m.cancel()}</Button
+			>
+			{#if !errorMessage}
+				<Button class="flex-1" {isLoading} onclick={authorize}>{m.sign_in()}</Button>
+			{:else}
+				<Button class="flex-1" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
+			{/if}
 		</div>
 	</SignInWrapper>
 {/if}

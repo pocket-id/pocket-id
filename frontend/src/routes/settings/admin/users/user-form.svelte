@@ -5,6 +5,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { User, UserCreate } from '$lib/types/user.type';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { z } from 'zod';
 
@@ -54,7 +55,7 @@
 	}
 </script>
 
-<form onsubmit={onSubmit}>
+<form onsubmit={preventDefault(onSubmit)}>
 	<fieldset disabled={inputDisabled}>
 		<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<FormInput label={m.first_name()} bind:input={$inputs.firstName} />

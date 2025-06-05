@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import ConfirmDialog from '$lib/components/confirm-dialog/confirm-dialog.svelte';
 	import Error from '$lib/components/error.svelte';
 	import Header from '$lib/components/header/header.svelte';
@@ -6,6 +8,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
+	import { getAuthRedirectPath } from '$lib/utils/redirection-util';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { Snippet } from 'svelte';
 	import '../app.css';
@@ -20,6 +23,11 @@
 	} = $props();
 
 	const { user, appConfig } = data;
+
+	const redirectPath = getAuthRedirectPath(page.url.pathname, user);
+	if (redirectPath) {
+		goto(redirectPath);
+	}
 
 	if (user) {
 		userStore.setUser(user);

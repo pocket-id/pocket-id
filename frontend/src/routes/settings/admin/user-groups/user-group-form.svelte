@@ -4,6 +4,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { z } from 'zod';
 
@@ -56,7 +57,7 @@
 	}
 </script>
 
-<form onsubmit={onSubmit}>
+<form onsubmit={preventDefault(onSubmit)}>
 	<fieldset disabled={inputDisabled}>
 		<div class="flex flex-col gap-3 sm:flex-row">
 			<div class="w-full">

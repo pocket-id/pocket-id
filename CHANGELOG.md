@@ -1,3 +1,24 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.1.0...v) (2025-06-03)
+
+
+### Features
+
+* auto detect callback url ([#583](https://github.com/pocket-id/pocket-id/issues/583)) ([20d3f78](https://github.com/pocket-id/pocket-id/commit/20d3f780a2a431d0a48cece0f0764b6e4d53c1b9))
+
+
+### Bug Fixes
+
+* allow users to update their locale even when own account update disabled ([6c00aaa](https://github.com/pocket-id/pocket-id/commit/6c00aaa3efa75c76d340718698a0f4556e8de268))
+* clear default app config variables from database ([decf8ec](https://github.com/pocket-id/pocket-id/commit/decf8ec70b5f6a69fe201d6e4ad60ee62e374ad0))
+* don't use TOFU for logout callback URLs ([#588](https://github.com/pocket-id/pocket-id/issues/588)) ([256f74d](https://github.com/pocket-id/pocket-id/commit/256f74d0a348a835107fd5b17b9d57b1e845029e))
+* fallback to primary language if no translation available for specific country ([2440379](https://github.com/pocket-id/pocket-id/commit/2440379cd11b4a6da7c52b122ba8f49d7c72ce1d))
+* improve spacing on auth screens ([04fcf11](https://github.com/pocket-id/pocket-id/commit/04fcf1110e97b42dc5f0c20e169c569075d1e797))
+* page scrolls up on form submisssion ([31ad904](https://github.com/pocket-id/pocket-id/commit/31ad904367e53dd47a15abcce5402dfe84828a14))
+* run jobs at interval instead of specific time ([#585](https://github.com/pocket-id/pocket-id/issues/585)) ([6d6dc66](https://github.com/pocket-id/pocket-id/commit/6d6dc6646a39921a604b6c825d3e7e76af6c693b))
+* show LAN for auditlog location for internal networks ([b874681](https://github.com/pocket-id/pocket-id/commit/b8746818240fde052e6f3b5db5c3355d7bbfcbda))
+* small fixes in analytics_job ([#582](https://github.com/pocket-id/pocket-id/issues/582)) ([3d402fc](https://github.com/pocket-id/pocket-id/commit/3d402fc0ca30626c95b8f7accc274b9f2ab228b9))
+* whitelist authorization header for CORS ([b9489b5](https://github.com/pocket-id/pocket-id/commit/b9489b5e9a32a2a3f54d48705e731a7bcf188d20))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.0.0...v) (2025-05-28)
 
 

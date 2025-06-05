@@ -51,6 +51,9 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/device/authorize", oc.deviceAuthorizationHandler)
 	group.POST("/oidc/device/verify", authMiddleware.WithAdminNotRequired().Add(), oc.verifyDeviceCodeHandler)
 	group.GET("/oidc/device/info", authMiddleware.WithAdminNotRequired().Add(), oc.getDeviceCodeInfoHandler)
+
+	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
+	group.GET("/oidc/users/:id/clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
 }
 
 type OidcController struct {
@@ -637,6 +640,64 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// listOwnAuthorizedClientsHandler godoc
+// @Summary List authorized clients for current user
+// @Description Get a paginated list of OIDC clients that the current user has authorized
+// @Tags OIDC
+// @Param page query int false "Page number, starting from 1" default(1)
+// @Param limit query int false "Number of items per page" default(10)
+// @Param sort_column query string false "Column to sort by" default("name")
+// @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
+// @Security BearerAuth
+// @Router /api/oidc/users/me/clients [get]
+func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+	oc.listAuthorizedClients(c, userID)
+}
+
+// listAuthorizedClientsHandler godoc
+// @Summary List authorized clients for a user
+// @Description Get a paginated list of OIDC clients that a specific user has authorized
+// @Tags OIDC
+// @Param id path string true "User ID"
+// @Param page query int false "Page number, starting from 1" default(1)
+// @Param limit query int false "Number of items per page" default(10)
+// @Param sort_column query string false "Column to sort by" default("name")
+// @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
+// @Security BearerAuth
+// @Router /api/oidc/users/{id}/clients [get]
+func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) {
+	userID := c.Param("id")
+	oc.listAuthorizedClients(c, userID)
+}
+
+func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) {
+	var sortedPaginationRequest utils.SortedPaginationRequest
+	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
+		_ = c.Error(err)
+		return
+	}
+	authorizedClients, pagination, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, sortedPaginationRequest)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	// Map the clients to DTOs
+	var authorizedClientsDto []dto.AuthorizedOidcClientDto
+	if err := dto.MapStructList(authorizedClients, &authorizedClientsDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Paginated[dto.AuthorizedOidcClientDto]{
+		Data:       authorizedClientsDto,
+		Pagination: pagination,
+	})
 }
 
 func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {

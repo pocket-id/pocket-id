@@ -1,7 +1,7 @@
-import type { HandleServerError } from '@sveltejs/kit';
+import type { HandleClientError } from '@sveltejs/kit';
 import { AxiosError } from 'axios';
 
-export const handleError: HandleServerError = async ({ error, message, status }) => {
+export const handleError: HandleClientError = async ({ error, message, status }) => {
 	if (error instanceof AxiosError) {
 		message = error.response?.data.error || message;
 		status = error.response?.status || status;

@@ -6,6 +6,7 @@
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { OidcClient, OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
 	import { LucideChevronDown } from '@lucide/svelte';
@@ -92,7 +93,7 @@
 	}
 </script>
 
-<form onsubmit={onSubmit}>
+<form onsubmit={preventDefault(onSubmit)}>
 	<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
 		<FormInput label={m.name()} class="w-full" bind:input={$inputs.name} />
 		<div></div>

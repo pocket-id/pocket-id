@@ -7,6 +7,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod';
@@ -103,7 +104,7 @@
 	}
 </script>
 
-<form onsubmit={onSubmit}>
+<form onsubmit={preventDefault(onSubmit)}>
 	<h4 class="text-lg font-semibold">{m.client_configuration()}</h4>
 	<fieldset disabled={$appConfigStore.uiConfigDisabled}>
 		<div class="mt-4 grid grid-cols-1 items-start gap-5 md:grid-cols-2">

@@ -7,6 +7,7 @@
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import type { Passkey } from '$lib/types/passkey.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { preventDefault } from '$lib/utils/event-util';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -49,7 +50,7 @@
 			<Dialog.Title>{m.name_passkey()}</Dialog.Title>
 			<Dialog.Description>{m.name_your_passkey_to_easily_identify_it_later()}</Dialog.Description>
 		</Dialog.Header>
-		<form onsubmit={onSubmit}>
+		<form onsubmit={preventDefault(onSubmit)}>
 			<div class="grid items-center gap-4 sm:grid-cols-4">
 				<Label for="name" class="sm:text-right">{m.name()}</Label>
 				<Input id="name" bind:value={name} class="col-span-3" />
