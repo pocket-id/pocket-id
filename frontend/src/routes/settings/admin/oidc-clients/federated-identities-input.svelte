@@ -15,7 +15,7 @@
 		error = $bindable(null),
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
-		client?: OidcClient,
+		client?: OidcClient;
 		federatedIdentities: OidcClientFederatedIdentity[];
 		error?: string | null;
 		children?: Snippet;
