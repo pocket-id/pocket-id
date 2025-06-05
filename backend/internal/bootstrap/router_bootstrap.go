@@ -101,21 +101,27 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// Set up the server
 	srv := &http.Server{
-		Addr:              net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port),
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
 		Handler:           r,
 	}
 
 	// Set up the listener
-	listener, err := net.Listen("tcp", srv.Addr)
+	network := "tcp"
+	addr := net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port)
+	if common.EnvConfig.UnixSocket != "" {
+		network = "unix"
+		addr = common.EnvConfig.UnixSocket
+	}
+
+	listener, err := net.Listen(network, addr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create TCP listener: %w", err)
+		return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
 	}
 
 	// Service runner function
 	runFn := func(ctx context.Context) error {
-		log.Printf("Server listening on %s", srv.Addr)
+		log.Printf("Server listening on %s", addr)
 
 		// Start the server in a background goroutine
 		go func() {
