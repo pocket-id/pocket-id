@@ -236,7 +236,7 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	return res, nil
 }
 
-// UpdateAppConfigValues
+// UpdateAppConfigValues updates the application configuration values in the database.
 func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndValues ...string) error {
 	// Count of keysAndValues must be even
 	if len(keysAndValues)%2 != 0 {
@@ -355,22 +355,50 @@ func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multip
 
 // LoadDbConfig loads the configuration values from the database into the DbConfig struct.
 func (s *AppConfigService) LoadDbConfig(ctx context.Context) (err error) {
-	var dest *model.AppConfig
-
-	// If the UI config is disabled, only load from the env
-	if common.EnvConfig.UiConfigDisabled {
-		dest, err = s.loadDbConfigFromEnv(ctx, s.db)
-	} else {
-		dest, err = s.loadDbConfigInternal(ctx, s.db)
-	}
+	dest, err := s.loadDbConfigInternal(ctx, s.db)
 	if err != nil {
 		return err
 	}
 
-	// Update the value in the object
 	s.dbConfig.Store(dest)
 
 	return nil
+}
+
+func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB) (*model.AppConfig, error) {
+	// If the UI config is disabled, only load from the env
+	if common.EnvConfig.UiConfigDisabled {
+		dest, err := s.loadDbConfigFromEnv(ctx, s.db)
+		return dest, err
+	}
+
+	// First, start from the default configuration
+	dest := s.getDefaultDbConfig()
+
+	// Load all configuration values from the database
+	// This loads all values in a single shot
+	var loaded []model.AppConfigVariable
+	queryCtx, queryCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer queryCancel()
+	err := tx.
+		WithContext(queryCtx).
+		Find(&loaded).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to load configuration from the database: %w", err)
+	}
+
+	// Iterate through all values loaded from the database
+	for _, v := range loaded {
+		// Find the field in the struct whose "key" tag matches, then update that
+		err = dest.UpdateField(v.Key, v.Value, false)
+
+		// We ignore the case of fields that don't exist, as there may be leftover data in the database
+		if err != nil && !errors.Is(err, model.AppConfigKeyNotFoundError{}) {
+			return nil, fmt.Errorf("failed to process config for key '%s': %w", v.Key, err)
+		}
+	}
+
+	return dest, nil
 }
 
 func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB) (*model.AppConfig, error) {
@@ -408,36 +436,6 @@ func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB)
 		value, ok := os.LookupEnv(envVarName)
 		if ok {
 			rv.Field(i).FieldByName("Value").SetString(value)
-		}
-	}
-
-	return dest, nil
-}
-
-func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB) (*model.AppConfig, error) {
-	// First, start from the default configuration
-	dest := s.getDefaultDbConfig()
-
-	// Load all configuration values from the database
-	// This loads all values in a single shot
-	var loaded []model.AppConfigVariable
-	queryCtx, queryCancel := context.WithTimeout(ctx, 10*time.Second)
-	defer queryCancel()
-	err := tx.
-		WithContext(queryCtx).
-		Find(&loaded).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to load configuration from the database: %w", err)
-	}
-
-	// Iterate through all values loaded from the database
-	for _, v := range loaded {
-		// Find the field in the struct whose "key" tag matches, then update that
-		err = dest.UpdateField(v.Key, v.Value, false)
-
-		// We ignore the case of fields that don't exist, as there may be leftover data in the database
-		if err != nil && !errors.Is(err, model.AppConfigKeyNotFoundError{}) {
-			return nil, fmt.Errorf("failed to process config for key '%s': %w", v.Key, err)
 		}
 	}
 
