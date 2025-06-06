@@ -197,16 +197,28 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		authCode := model.OidcAuthorizationCode{
-			Code:      "auth-code",
-			Scope:     "openid profile",
-			Nonce:     "nonce",
-			ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
-			UserID:    users[0].ID,
-			ClientID:  oidcClients[0].ID,
+		authCodes := []model.OidcAuthorizationCode{
+			{
+				Code:      "auth-code",
+				Scope:     "openid profile",
+				Nonce:     "nonce",
+				ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
+				UserID:    users[0].ID,
+				ClientID:  oidcClients[0].ID,
+			},
+			{
+				Code:      "federated",
+				Scope:     "openid profile",
+				Nonce:     "nonce",
+				ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
+				UserID:    users[1].ID,
+				ClientID:  oidcClients[2].ID,
+			},
 		}
-		if err := tx.Create(&authCode).Error; err != nil {
-			return err
+		for _, authCode := range authCodes {
+			if err := tx.Create(&authCode).Error; err != nil {
+				return err
+			}
 		}
 
 		refreshToken := model.OidcRefreshToken{
@@ -229,13 +241,22 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
-		userAuthorizedClient := model.UserAuthorizedOidcClient{
-			Scope:    "openid profile email",
-			UserID:   users[0].ID,
-			ClientID: oidcClients[0].ID,
+		userAuthorizedClients := []model.UserAuthorizedOidcClient{
+			{
+				Scope:    "openid profile email",
+				UserID:   users[0].ID,
+				ClientID: oidcClients[0].ID,
+			},
+			{
+				Scope:    "openid profile email",
+				UserID:   users[1].ID,
+				ClientID: oidcClients[2].ID,
+			},
 		}
-		if err := tx.Create(&userAuthorizedClient).Error; err != nil {
-			return err
+		for _, userAuthorizedClient := range userAuthorizedClients {
+			if err := tx.Create(&userAuthorizedClient).Error; err != nil {
+				return err
+			}
 		}
 
 		// To generate a new key pair, run the following command:

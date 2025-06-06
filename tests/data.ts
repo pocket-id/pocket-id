@@ -43,7 +43,8 @@ export const oidcClients = {
 			issuer:   'https://external-idp.local',
 			audience: 'api://PocketID',
 			subject:  'c48232ff-ff65-45ed-ae96-7afa8a9b443b',
-		}
+		},
+		accessCodes: ['federated']
 	},
 	pingvinShare: {
 		name: 'Pingvin Share',

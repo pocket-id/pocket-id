@@ -2,7 +2,7 @@ import test, { expect } from "@playwright/test";
 import { oidcClients, refreshTokens, users } from "../data";
 import { cleanupBackend } from "../utils/cleanup.util";
 import { generateIdToken, generateOauthAccessToken } from "../utils/jwt.util";
-import oidcUtil from "../utils/oidc.util";
+import * as oidcUtil from "../utils/oidc.util";
 import passkeyUtil from "../utils/passkey.util";
 
 test.beforeEach(cleanupBackend);
@@ -448,4 +448,41 @@ test("Authorize new client with device authorization with user group not allowed
       .getByRole("paragraph")
       .filter({ hasText: "You're not allowed to access this service." })
   ).toBeVisible();
+});
+
+test("Federated identity fails with invalid client assertion", async ({
+  page,
+}) => {
+  const client = oidcClients.federated;
+
+  const res = await oidcUtil.exchangeCode(page, {
+    client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+    grant_type: 'authorization_code',
+    redirect_uri: client.callbackUrl,
+    code: client.accessCodes[0],
+    client_id: client.id,
+    client_assertion:'not-an-assertion',
+  });
+
+  expect(res?.error).toBe('Invalid client assertion');
+});
+
+test("Authorize existing client with federated identity", async ({
+  page,
+}) => {
+  const client = oidcClients.federated;
+  const clientAssertion = await oidcUtil.getClientAssertion(page, client.federatedJWT);
+
+  const res = await oidcUtil.exchangeCode(page, {
+    client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+    grant_type: 'authorization_code',
+    redirect_uri: client.callbackUrl,
+    code: client.accessCodes[0],
+    client_id: client.id,
+    client_assertion: clientAssertion,
+  });
+
+  expect(res.access_token).not.toBeNull;
+  expect(res.expires_in).not.toBeNull;
+  expect(res.token_type).toBe('Bearer');
 });
