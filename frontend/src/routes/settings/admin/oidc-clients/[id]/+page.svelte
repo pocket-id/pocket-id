@@ -8,7 +8,6 @@
 	import * as Card from '$lib/components/ui/card';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
-	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
 	import clientSecretStore from '$lib/stores/client-secret-store';
@@ -27,14 +26,6 @@
 		allowedUserGroupIds: data.allowedUserGroups.map((g) => g.id)
 	});
 	let showAllDetails = $state(false);
-	let selectedUserId = $state('');
-	let selectedUserIds = $state<string[]>([]);
-	let previewData = $state<{
-		idToken?: any;
-		accessToken?: any;
-		userInfo?: any;
-	} | null>(null);
-	let loadingPreview = $state(false);
 
 	const oidcService = new OidcService();
 
@@ -202,6 +193,6 @@
 	title={m.oidc_data_preview()}
 	description={m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
 >
-	<UserClientPreview clientId={client.id} onPreview={handlePreview} />
+	<UserClientPreview onPreview={handlePreview} />
 </CollapsibleCard>
 <OidcClientPreviewModal bind:userId={previewUserId} clientId={client.id} />
