@@ -4,5 +4,8 @@
     "@playwright/test": "^1.52.0",
     "@types/node": "^22.15.21",
     "jose": "^6.0.11"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0"
   }
 }

@@ -4,6 +4,8 @@ import { cleanupBackend } from '../utils/cleanup.util';
 test.beforeEach(cleanupBackend);
 
 test.describe('LDAP Integration', () => {
+	test.skip(process.env.SKIP_LDAP_TESTS === "true", 'Skipping LDAP tests due to SKIP_LDAP_TESTS environment variable');
+	
 	test('LDAP configuration is working properly', async ({ page }) => {
 		await page.goto('/settings/admin/application-configuration');
 

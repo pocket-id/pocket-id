@@ -31,7 +31,7 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		baseURL = "http://" + c.Request.Host
 	}
 
-	skipLdap := c.Query("skip-ldap") == "1"
+	skipLdap := c.Query("skip-ldap") == "true"
 
 	if err := tc.TestService.ResetDatabase(); err != nil {
 		_ = c.Error(err)
