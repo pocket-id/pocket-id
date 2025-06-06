@@ -17,6 +17,8 @@
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OidcForm from '../oidc-client-form.svelte';
+	import UserClientPreview from '../user-client-preview-list.svelte';
+	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
 
 	let { data } = $props();
 	let client = $state({
@@ -91,6 +93,12 @@
 			});
 	}
 
+	let previewUserId = $state<string | null>(null);
+
+	function handlePreview(userId: string) {
+		previewUserId = userId;
+	}
+
 	beforeNavigate(() => {
 		clientSecretStore.clear();
 	});
@@ -118,7 +126,7 @@
 				</CopyToClipboard>
 			</div>
 			{#if !client.isPublic}
-				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
+				<div class="mb-2 mt-1 flex flex-col sm:flex-row sm:items-center">
 					<Label class="mb-0 w-44">{m.client_secret()}</Label>
 					{#if $clientSecretStore}
 						<CopyToClipboard value={$clientSecretStore}>
@@ -180,3 +188,11 @@
 		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
 	</div>
 </CollapsibleCard>
+<CollapsibleCard
+	id="oidc-preview"
+	title={m.oidc_data_preview()}
+	description={m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
+>
+	<UserClientPreview onPreview={handlePreview} />
+</CollapsibleCard>
+<OidcClientPreviewModal bind:userId={previewUserId} clientId={client.id} />

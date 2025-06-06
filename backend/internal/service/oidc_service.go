@@ -1519,3 +1519,208 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.C
 	// If we're here, the assertion is valid
 	return nil
 }
+
+func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string) (*dto.OidcClientPreviewDto, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	client, err := s.getClientInternal(ctx, clientID, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	var user model.User
+	err = tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.IsUserGroupAllowedToAuthorize(user, client) {
+		return nil, &common.OidcAccessDeniedError{}
+	}
+
+	defaultScope := "openid profile email groups"
+
+	tempAuthorizedClient := model.UserAuthorizedOidcClient{
+		UserID:   userID,
+		ClientID: clientID,
+		Scope:    defaultScope,
+		User:     user,
+	}
+
+	userClaims, err := s.getUserClaimsFromAuthorizedClient(ctx, &tempAuthorizedClient)
+	if err != nil {
+		return nil, err
+	}
+
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, clientID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	accessToken, err := s.jwtService.GenerateOauthAccessToken(user, clientID)
+	if err != nil {
+		return nil, err
+	}
+
+	idTokenPayload, err := s.parseTokenPayloadUsingJWTService(idToken, true)
+	if err != nil {
+		return nil, err
+	}
+
+	accessTokenPayload, err := s.parseTokenPayloadUsingJWTService(accessToken, false)
+	if err != nil {
+		return nil, err
+	}
+
+	userInfoResponse := userClaims
+
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.OidcClientPreviewDto{
+		IdToken:     idTokenPayload,
+		AccessToken: accessTokenPayload,
+		UserInfo:    userInfoResponse,
+	}, nil
+}
+
+func (s *OidcService) parseTokenPayloadUsingJWTService(tokenString string, isIdToken bool) (map[string]interface{}, error) {
+	token, err := jwt.ParseInsecure([]byte(tokenString))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	payload := make(map[string]interface{})
+
+	if sub, ok := token.Subject(); ok {
+		payload["sub"] = sub
+	}
+	if iss, ok := token.Issuer(); ok {
+		payload["iss"] = iss
+	}
+	if aud, ok := token.Audience(); ok {
+		payload["aud"] = aud
+	}
+	if exp, ok := token.Expiration(); ok {
+		payload["exp"] = exp.Unix()
+	}
+	if iat, ok := token.IssuedAt(); ok {
+		payload["iat"] = iat.Unix()
+	}
+	if nbf, ok := token.NotBefore(); ok {
+		payload["nbf"] = nbf.Unix()
+	}
+	if jti, ok := token.JwtID(); ok {
+		payload["jti"] = jti
+	}
+
+	if isIdToken {
+		if token.Has("nonce") {
+			var nonce string
+			if err := token.Get("nonce", &nonce); err == nil {
+				payload["nonce"] = nonce
+			}
+		}
+	} else {
+		if token.Has("type") {
+			var tokenType string
+			if err := token.Get("type", &tokenType); err == nil {
+				payload["type"] = tokenType
+			}
+		}
+		if token.Has("isAdmin") {
+			var isAdmin bool
+			if err := token.Get("isAdmin", &isAdmin); err == nil {
+				payload["isAdmin"] = isAdmin
+			}
+		}
+	}
+
+	profileClaims := []string{
+		"given_name", "family_name", "name", "preferred_username",
+		"picture", "email", "email_verified", "groups",
+	}
+	for _, claim := range profileClaims {
+		if token.Has(claim) {
+			var value interface{}
+			if err := token.Get(claim, &value); err == nil {
+				payload[claim] = value
+			}
+		}
+	}
+
+	// Try to extract any other custom claims by checking known claim names
+	// You can extend this list based on what custom claims your application uses
+	customClaims := []string{
+		"scope", "client_id", "auth_time", "acr", "amr",
+	}
+	for _, claim := range customClaims {
+		if token.Has(claim) {
+			var value interface{}
+			if err := token.Get(claim, &value); err == nil {
+				payload[claim] = value
+			}
+		}
+	}
+
+	return payload, nil
+}
+
+// Helper function to get user claims from authorized client model
+func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, authorizedClient *model.UserAuthorizedOidcClient) (map[string]interface{}, error) {
+	user := authorizedClient.User
+	scopes := strings.Split(authorizedClient.Scope, " ")
+
+	claims := map[string]interface{}{
+		"sub": user.ID,
+	}
+
+	if slices.Contains(scopes, "email") {
+		claims["email"] = user.Email
+		claims["email_verified"] = s.appConfigService.GetDbConfig().EmailsVerified.IsTrue()
+	}
+
+	if slices.Contains(scopes, "groups") {
+		userGroups := make([]string, len(user.UserGroups))
+		for i, group := range user.UserGroups {
+			userGroups[i] = group.Name
+		}
+		claims["groups"] = userGroups
+	}
+
+	if slices.Contains(scopes, "profile") {
+		// Add profile claims
+		claims["given_name"] = user.FirstName
+		claims["family_name"] = user.LastName
+		claims["name"] = user.FullName()
+		claims["preferred_username"] = user.Username
+		claims["picture"] = common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png"
+
+		// Add custom claims
+		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, s.db)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, customClaim := range customClaims {
+			var jsonValue interface{}
+			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
+			if err == nil {
+				claims[customClaim.Key] = jsonValue
+			} else {
+				claims[customClaim.Key] = customClaim.Value
+			}
+		}
+	}
+
+	return claims, nil
+}
