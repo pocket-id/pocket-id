@@ -358,8 +358,6 @@
 	"hide_advanced_options": "Hide Advanced Options",
 	"oidc_data_preview": "OIDC Data Preview",
 	"preview_the_oidc_data_that_would_be_sent_for_different_users": "Preview the OIDC data that would be sent for different users",
-	"select_user_for_preview": "Select User for Preview",
-	"search_and_select_user": "Search and select user",
 	"id_token": "ID Token",
 	"access_token": "Access Token",
 	"userinfo_response": "Userinfo Response",
@@ -371,5 +369,6 @@
 	"copy_all": "Copy All",
 	"preview": "Preview",
 	"preview_for_user": "Preview for {name} ({email})",
-	"preview_the_oidc_data_that_would_be_sent_for_this_user": "Preview the OIDC data that would be sent for this user"
+	"preview_the_oidc_data_that_would_be_sent_for_this_user": "Preview the OIDC data that would be sent for this user",
+	"access_denied": "Access Denied"
 }

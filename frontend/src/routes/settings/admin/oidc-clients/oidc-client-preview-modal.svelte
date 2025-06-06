@@ -4,11 +4,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
+	import * as Alert from '$lib/components/ui/alert';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
 	import UserService from '$lib/services/user-service';
-	import { axiosErrorToast } from '$lib/utils/error-util';
+	import { axiosErrorToast, getAxiosErrorMessage } from '$lib/utils/error-util';
 	import type { User } from '$lib/types/user.type';
+	import { LucideAlertTriangle } from '@lucide/svelte';
 
 	let {
 		userId = $bindable(),
@@ -28,11 +30,14 @@
 	} | null>(null);
 	let loadingPreview = $state(false);
 	let user: User | null = $state(null);
+	let errorMessage: string | null = $state(null);
 
 	async function loadPreviewData() {
 		if (!userId) return;
 
 		loadingPreview = true;
+		errorMessage = null;
+
 		try {
 			const [preview, userInfo] = await Promise.all([
 				oidcService.getClientPreview(clientId, userId),
@@ -41,9 +46,20 @@
 			previewData = preview;
 			user = userInfo;
 		} catch (e) {
+			const error = getAxiosErrorMessage(e);
+			errorMessage = error;
+
+			// Still show the toast for consistency with other parts of the app
 			axiosErrorToast(e);
+
+			// Try to get user info even if preview fails
+			try {
+				user = await userService.get(userId);
+			} catch (userError) {
+				user = null;
+			}
+
 			previewData = null;
-			user = null;
 		} finally {
 			loadingPreview = false;
 		}
@@ -53,6 +69,7 @@
 		if (!open) {
 			previewData = null;
 			user = null;
+			errorMessage = null;
 			userId = null;
 		} else if (userId) {
 			loadPreviewData();
@@ -86,6 +103,16 @@
 				<div class="flex items-center justify-center py-12">
 					<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
 				</div>
+			{/if}
+
+			{#if errorMessage && !loadingPreview}
+				<Alert.Root variant="destructive" class="mb-6">
+					<LucideAlertTriangle class="h-4 w-4" />
+					<Alert.Title>{m.access_denied()}</Alert.Title>
+					<Alert.Description>
+						{errorMessage}
+					</Alert.Description>
+				</Alert.Root>
 			{/if}
 
 			{#if previewData && !loadingPreview}

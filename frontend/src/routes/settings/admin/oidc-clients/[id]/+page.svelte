@@ -17,8 +17,8 @@
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OidcForm from '../oidc-client-form.svelte';
-	import UserClientPreview from '$lib/components/user-client-preview.svelte';
-	import OidcClientPreviewModal from '$lib/components/oidc-client-preview-modal.svelte';
+	import UserClientPreview from '../user-client-preview-list.svelte';
+	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
 
 	let { data } = $props();
 	let client = $state({
