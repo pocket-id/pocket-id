@@ -5,7 +5,7 @@
 	import type { ApiKeyCreate } from '$lib/types/api-key.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
-	import { z } from 'zod';
+	import { z } from 'zod/v4';
 
 	let {
 		callback

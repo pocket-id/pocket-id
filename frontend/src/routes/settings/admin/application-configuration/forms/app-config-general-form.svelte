@@ -8,7 +8,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
-	import { z } from 'zod';
+	import { z } from 'zod/v4';
 
 	let {
 		callback,
