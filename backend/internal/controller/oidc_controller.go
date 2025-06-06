@@ -48,6 +48,8 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.DELETE("/oidc/clients/:id/logo", oc.deleteClientLogoHandler)
 	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)
 
+	group.GET("/oidc/clients/:id/preview/:userId", authMiddleware.Add(), oc.getClientPreviewHandler)
+
 	group.POST("/oidc/device/authorize", oc.deviceAuthorizationHandler)
 	group.POST("/oidc/device/verify", authMiddleware.WithAdminNotRequired().Add(), oc.verifyDeviceCodeHandler)
 	group.GET("/oidc/device/info", authMiddleware.WithAdminNotRequired().Add(), oc.getDeviceCodeInfoHandler)
@@ -734,4 +736,37 @@ func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, deviceCodeInfo)
+}
+
+// getClientPreviewHandler godoc
+// @Summary Preview OIDC client data for user
+// @Description Get a preview of the OIDC data (ID token, access token, userinfo) that would be sent to the client for a specific user
+// @Tags OIDC
+// @Produce json
+// @Param id path string true "Client ID"
+// @Param userId path string true "User ID to preview data for"
+// @Success 200 {object} dto.OidcClientPreviewDto "Preview data including ID token, access token, and userinfo payloads"
+// @Security BearerAuth
+// @Router /api/oidc/clients/{id}/preview/{userId} [get]
+func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
+	clientID := c.Param("id")
+	userID := c.Param("userId")
+
+	if clientID == "" {
+		_ = c.Error(&common.ValidationError{Message: "client ID is required"})
+		return
+	}
+
+	if userID == "" {
+		_ = c.Error(&common.ValidationError{Message: "user ID is required"})
+		return
+	}
+
+	preview, err := oc.oidcService.GetClientPreview(c.Request.Context(), clientID, userID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, preview)
 }

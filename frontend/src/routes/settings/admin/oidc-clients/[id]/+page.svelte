@@ -8,6 +8,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
+	import UserSelection from '../../user-groups/user-selection.svelte';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
 	import clientSecretStore from '$lib/stores/client-secret-store';
@@ -24,6 +26,14 @@
 		allowedUserGroupIds: data.allowedUserGroups.map((g) => g.id)
 	});
 	let showAllDetails = $state(false);
+	let selectedUserId = $state('');
+	let selectedUserIds = $state<string[]>([]);
+	let previewData = $state<{
+		idToken?: any;
+		accessToken?: any;
+		userInfo?: any;
+	} | null>(null);
+	let loadingPreview = $state(false);
 
 	const oidcService = new OidcService();
 
@@ -35,6 +45,15 @@
 		[m.logout_url()]: `https://${page.url.hostname}/api/oidc/end-session`,
 		[m.certificate_url()]: `https://${page.url.hostname}/.well-known/jwks.json`,
 		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled()
+	});
+
+	$effect(() => {
+		selectedUserId = selectedUserIds[0] || '';
+		if (selectedUserId) {
+			loadPreviewData(selectedUserId);
+		} else {
+			previewData = null;
+		}
 	});
 
 	async function updateClient(updatedClient: OidcClientCreateWithLogo) {
@@ -91,6 +110,24 @@
 			});
 	}
 
+	async function loadPreviewData(userId: string) {
+		if (!userId) {
+			previewData = null;
+			return;
+		}
+
+		loadingPreview = true;
+		try {
+			const preview = await oidcService.getClientPreview(client.id, userId);
+			previewData = preview;
+		} catch (e) {
+			axiosErrorToast(e);
+			previewData = null;
+		} finally {
+			loadingPreview = false;
+		}
+	}
+
 	beforeNavigate(() => {
 		clientSecretStore.clear();
 	});
@@ -118,7 +155,7 @@
 				</CopyToClipboard>
 			</div>
 			{#if !client.isPublic}
-				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
+				<div class="mb-2 mt-1 flex flex-col sm:flex-row sm:items-center">
 					<Label class="mb-0 w-44">{m.client_secret()}</Label>
 					{#if $clientSecretStore}
 						<CopyToClipboard value={$clientSecretStore}>
@@ -178,5 +215,120 @@
 	<UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
 	<div class="mt-5 flex justify-end">
 		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
+	</div>
+</CollapsibleCard>
+<CollapsibleCard
+	id="oidc-preview"
+	title={m.oidc_data_preview()}
+	description={m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
+>
+	<div class="space-y-4">
+		<div>
+			<Label>{m.select_user_for_preview()}</Label>
+			<UserSelection bind:selectedUserIds />
+		</div>
+
+		{#if loadingPreview}
+			<div class="flex items-center justify-center py-8">
+				<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
+			</div>
+		{/if}
+
+		{#if previewData && !loadingPreview}
+			<Tabs.Root value="id-token" class="w-full">
+				<Tabs.List class="grid w-full grid-cols-3">
+					<Tabs.Trigger value="id-token">{m.id_token()}</Tabs.Trigger>
+					<Tabs.Trigger value="access-token">{m.access_token()}</Tabs.Trigger>
+					<Tabs.Trigger value="userinfo">{m.userinfo_response()}</Tabs.Trigger>
+				</Tabs.List>
+
+				<Tabs.Content value="id-token" class="mt-4">
+					<div class="space-y-4">
+						<div class="mb-4 flex items-center justify-between">
+							<Label class="text-base font-semibold">{m.id_token_payload()}</Label>
+							<CopyToClipboard value={JSON.stringify(previewData.idToken, null, 2)}>
+								<Button size="sm" variant="outline">{m.copy_all()}</Button>
+							</CopyToClipboard>
+						</div>
+						{#each Object.entries(previewData.idToken || {}) as [key, value]}
+							<div class="flex flex-col border-b pb-3 sm:flex-row sm:items-start">
+								<Label class="mb-1 w-32 flex-shrink-0 text-sm font-medium sm:mb-0">{key}</Label>
+								<div class="min-w-0 flex-1">
+									<CopyToClipboard
+										value={typeof value === 'string' ? value : JSON.stringify(value)}
+									>
+										<div
+											class="text-muted-foreground bg-muted/30 break-all rounded px-2 py-1 font-mono text-sm"
+										>
+											{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
+										</div>
+									</CopyToClipboard>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</Tabs.Content>
+
+				<Tabs.Content value="access-token" class="mt-4">
+					<div class="space-y-4">
+						<div class="mb-4 flex items-center justify-between">
+							<Label class="text-base font-semibold">{m.access_token_payload()}</Label>
+							<CopyToClipboard value={JSON.stringify(previewData.accessToken, null, 2)}>
+								<Button size="sm" variant="outline">{m.copy_all()}</Button>
+							</CopyToClipboard>
+						</div>
+						{#each Object.entries(previewData.accessToken || {}) as [key, value]}
+							<div class="flex flex-col border-b pb-3 sm:flex-row sm:items-start">
+								<Label class="mb-1 w-32 flex-shrink-0 text-sm font-medium sm:mb-0">{key}</Label>
+								<div class="min-w-0 flex-1">
+									<CopyToClipboard
+										value={typeof value === 'string' ? value : JSON.stringify(value)}
+									>
+										<div
+											class="text-muted-foreground bg-muted/30 break-all rounded px-2 py-1 font-mono text-sm"
+										>
+											{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
+										</div>
+									</CopyToClipboard>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</Tabs.Content>
+
+				<Tabs.Content value="userinfo" class="mt-4">
+					<div class="space-y-4">
+						<div class="mb-4 flex items-center justify-between">
+							<Label class="text-base font-semibold">{m.userinfo_endpoint_response()}</Label>
+							<CopyToClipboard value={JSON.stringify(previewData.userInfo, null, 2)}>
+								<Button size="sm" variant="outline">{m.copy_all()}</Button>
+							</CopyToClipboard>
+						</div>
+						{#each Object.entries(previewData.userInfo || {}) as [key, value]}
+							<div class="flex flex-col border-b pb-3 sm:flex-row sm:items-start">
+								<Label class="mb-1 w-32 flex-shrink-0 text-sm font-medium sm:mb-0">{key}</Label>
+								<div class="min-w-0 flex-1">
+									<CopyToClipboard
+										value={typeof value === 'string' ? value : JSON.stringify(value)}
+									>
+										<div
+											class="text-muted-foreground bg-muted/30 break-all rounded px-2 py-1 font-mono text-sm"
+										>
+											{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
+										</div>
+									</CopyToClipboard>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</Tabs.Content>
+			</Tabs.Root>
+		{/if}
+
+		{#if selectedUserId && !previewData && !loadingPreview}
+			<div class="text-muted-foreground py-8 text-center">
+				{m.no_preview_data_available()}
+			</div>
+		{/if}
 	</div>
 </CollapsibleCard>
