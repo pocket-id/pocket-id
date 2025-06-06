@@ -8,16 +8,18 @@
 	import { LucideMinus, LucidePlus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import { z } from 'zod/v4';
 
 	let {
 		client,
 		federatedIdentities = $bindable([]),
-		error = $bindable(null),
+		errors,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
 		client?: OidcClient;
 		federatedIdentities: OidcClientFederatedIdentity[];
-		error?: string | null;
+		errors?: z.core.$ZodIssue[];
+
 		children?: Snippet;
 	} = $props();
 
@@ -46,6 +48,17 @@
 			...federatedIdentities[index],
 			[field]: value
 		};
+	}
+	$effect(()=>{
+		console.log(errors)
+	})
+
+	function getFieldError(index: number, field: keyof OidcClientFederatedIdentity): string | null {
+		console.log("exec")
+		if (!errors) return null;
+		console.log("haserror")
+		const path = [index, field];
+		return errors?.filter((e) => e.path[0] == path[0] && e.path[1] == path[1])[0]?.message;
 	}
 </script>
 
@@ -76,8 +89,12 @@
 								placeholder="https://example.com/"
 								value={identity.issuer}
 								oninput={(e) => updateFederatedIdentity(i, 'issuer', e.currentTarget.value)}
+								aria-invalid={!!getFieldError(i, 'issuer')}
 								required
 							/>
+							{#if getFieldError(i, 'issuer')}
+								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'issuer')}</p>
+							{/if}
 						</div>
 
 						<div>
@@ -87,7 +104,11 @@
 								placeholder="Defaults to the client ID: {client?.id}"
 								value={identity.subject || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'subject', e.currentTarget.value)}
+								aria-invalid={!!getFieldError(i, 'subject')}
 							/>
+							{#if getFieldError(i, 'subject')}
+								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'subject')}</p>
+							{/if}
 						</div>
 
 						<div>
@@ -97,7 +118,11 @@
 								placeholder="Defaults to the Pocket ID URL"
 								value={identity.audience || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'audience', e.currentTarget.value)}
+								aria-invalid={!!getFieldError(i, 'audience')}
 							/>
+							{#if getFieldError(i, 'audience')}
+								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'audience')}</p>
+							{/if}
 						</div>
 
 						<div>
@@ -107,17 +132,17 @@
 								placeholder="Defaults to {identity.issuer || '<issuer>'}/.well-known/jwks.json"
 								value={identity.jwks || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'jwks', e.currentTarget.value)}
+								aria-invalid={!!getFieldError(i, 'jwks')}
 							/>
+							{#if getFieldError(i, 'jwks')}
+								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'jwks')}</p>
+							{/if}
 						</div>
 					</div>
 				</div>
 			{/each}
 		</div>
 	</FormInput>
-
-	{#if error}
-		<p class="text-destructive mt-1 text-xs">{error}</p>
-	{/if}
 
 	<Button class="mt-3" variant="secondary" size="sm" onclick={addFederatedIdentity} type="button">
 		<LucidePlus class="mr-1 size-4" />
