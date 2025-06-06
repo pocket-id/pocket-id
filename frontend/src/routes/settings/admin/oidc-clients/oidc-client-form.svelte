@@ -11,7 +11,7 @@
 	import { cn } from '$lib/utils/style';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
-	import { z } from 'zod';
+	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 
@@ -50,17 +50,17 @@
 		credentials: z.object({
 			federatedIdentities: z.array(
 				z.object({
-					issuer: z.string().url(),
+					issuer: z.url(),
 					subject: z.string().optional(),
 					audience: z.string().optional(),
-					jwks: z.string().url().optional().or(z.literal(''))
+					jwks: z.url().optional().or(z.literal(''))
 				})
 			)
 		})
 	});
 
 	type FormSchema = typeof formSchema;
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, client);
+	const { inputs, errors, ...form } = createForm<FormSchema>(formSchema, client);
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -90,6 +90,15 @@
 	function resetLogo() {
 		logo = null;
 		logoDataURL = null;
+	}
+
+	function getFederatedIdentityErrors(errors: z.ZodError<any> | undefined) {
+		return errors?.issues
+			.filter((e) => e.path[0] == 'credentials' && e.path[1] == 'federatedIdentities')
+			.map((e) => {
+				e.path.splice(0, 2);
+				return e;
+			});
 	}
 </script>
 
@@ -159,7 +168,7 @@
 			<FederatedIdentitiesInput
 				client={existingClient}
 				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
-				bind:error={$inputs.credentials.error}
+				errors={getFederatedIdentityErrors($errors)}
 			/>
 		</div>
 	{/if}

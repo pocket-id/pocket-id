@@ -10,7 +10,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
-	import { z } from 'zod';
+	import { z } from 'zod/v4';
 
 	let {
 		callback,
@@ -48,7 +48,7 @@
 	};
 
 	const formSchema = z.object({
-		ldapUrl: z.string().url(),
+		ldapUrl: z.url(),
 		ldapBindDn: z.string().min(1),
 		ldapBindPassword: z.string().min(1),
 		ldapBase: z.string().min(1),

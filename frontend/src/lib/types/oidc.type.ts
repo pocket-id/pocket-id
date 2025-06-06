@@ -10,7 +10,7 @@ export type OidcClientFederatedIdentity = {
 	issuer: string;
 	subject?: string;
 	audience?: string;
-	jwks?: string;
+	jwks: string | undefined;
 };
 
 export type OidcClientCredentials = {
@@ -18,7 +18,7 @@ export type OidcClientCredentials = {
 };
 
 export type OidcClient = OidcClientMetaData & {
-	callbackURLs: string[]; // No longer requires at least one URL
+	callbackURLs: string[];
 	logoutCallbackURLs: string[];
 	isPublic: boolean;
 	pkceEnabled: boolean;
