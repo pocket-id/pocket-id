@@ -9,6 +9,7 @@
 
 	const locales = {
 		cs: 'Čeština',
+		da: 'Dansk',
 		de: 'Deutsch',
 		en: 'English',
 		es: 'Español',
