@@ -49,14 +49,10 @@
 			[field]: value
 		};
 	}
-	$effect(()=>{
-		console.log(errors)
-	})
 
 	function getFieldError(index: number, field: keyof OidcClientFederatedIdentity): string | null {
-		console.log("exec")
+		console.log(federatedIdentities)
 		if (!errors) return null;
-		console.log("haserror")
 		const path = [index, field];
 		return errors?.filter((e) => e.path[0] == path[0] && e.path[1] == path[1])[0]?.message;
 	}
@@ -90,7 +86,6 @@
 								value={identity.issuer}
 								oninput={(e) => updateFederatedIdentity(i, 'issuer', e.currentTarget.value)}
 								aria-invalid={!!getFieldError(i, 'issuer')}
-								required
 							/>
 							{#if getFieldError(i, 'issuer')}
 								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'issuer')}</p>
