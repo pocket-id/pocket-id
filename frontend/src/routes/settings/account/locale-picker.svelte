@@ -19,7 +19,8 @@
 		pl: 'Polski',
 		'pt-BR': 'Português brasileiro',
 		ru: 'Русский',
-		'zh-CN': '简体中文'
+		'zh-CN': '简体中文',
+		'zh-TW': '繁體中文（臺灣)'
 	};
 
 	async function updateLocale(locale: Locale) {
