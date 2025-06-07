@@ -333,7 +333,7 @@
 	"user_disabled_successfully": "用户已成功禁用。",
 	"user_enabled_successfully": "用户已成功启用。",
 	"status": "状态",
-	"disable_firstname_lastname": "禁用 {firstName} {lastName}",
+	"disable_firstname_lastname": "禁用 {lastName} {firstName}",
 	"are_you_sure_you_want_to_disable_this_user": "您确定要禁用此用户吗？他们将无法登录或访问任何服务。",
 	"ldap_soft_delete_users": "保留来自 LDAP 的禁用用户。",
 	"ldap_soft_delete_users_description": "启用后，从 LDAP 中移除的用户将被禁用，而不是从系统中删除。",
