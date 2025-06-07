@@ -1594,88 +1594,9 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 }
 
 func (s *OidcService) parseTokenPayloadUsingJWTService(tokenString string, isIdToken bool) (map[string]interface{}, error) {
-	token, err := jwt.ParseInsecure([]byte(tokenString))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	payload := make(map[string]interface{})
-
-	if sub, ok := token.Subject(); ok {
-		payload["sub"] = sub
-	}
-	if iss, ok := token.Issuer(); ok {
-		payload["iss"] = iss
-	}
-	if aud, ok := token.Audience(); ok {
-		payload["aud"] = aud
-	}
-	if exp, ok := token.Expiration(); ok {
-		payload["exp"] = exp.Unix()
-	}
-	if iat, ok := token.IssuedAt(); ok {
-		payload["iat"] = iat.Unix()
-	}
-	if nbf, ok := token.NotBefore(); ok {
-		payload["nbf"] = nbf.Unix()
-	}
-	if jti, ok := token.JwtID(); ok {
-		payload["jti"] = jti
-	}
-
-	if isIdToken {
-		if token.Has("nonce") {
-			var nonce string
-			if err := token.Get("nonce", &nonce); err == nil {
-				payload["nonce"] = nonce
-			}
-		}
-	} else {
-		if token.Has("type") {
-			var tokenType string
-			if err := token.Get("type", &tokenType); err == nil {
-				payload["type"] = tokenType
-			}
-		}
-		if token.Has("isAdmin") {
-			var isAdmin bool
-			if err := token.Get("isAdmin", &isAdmin); err == nil {
-				payload["isAdmin"] = isAdmin
-			}
-		}
-	}
-
-	profileClaims := []string{
-		"given_name", "family_name", "name", "preferred_username",
-		"picture", "email", "email_verified", "groups",
-	}
-	for _, claim := range profileClaims {
-		if token.Has(claim) {
-			var value interface{}
-			if err := token.Get(claim, &value); err == nil {
-				payload[claim] = value
-			}
-		}
-	}
-
-	// Try to extract any other custom claims by checking known claim names
-	// You can extend this list based on what custom claims your application uses
-	customClaims := []string{
-		"scope", "client_id", "auth_time", "acr", "amr",
-	}
-	for _, claim := range customClaims {
-		if token.Has(claim) {
-			var value interface{}
-			if err := token.Get(claim, &value); err == nil {
-				payload[claim] = value
-			}
-		}
-	}
-
-	return payload, nil
+	return utils.ParseTokenPayload(tokenString, isIdToken)
 }
 
-// Helper function to get user claims from authorized client model
 func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, authorizedClient *model.UserAuthorizedOidcClient) (map[string]interface{}, error) {
 	user := authorizedClient.User
 	scopes := strings.Split(authorizedClient.Scope, " ")
