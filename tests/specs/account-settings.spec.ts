@@ -57,11 +57,20 @@ test("Change Locale", async ({ page }) => {
   // Check if th language heading now says 'Taal' instead of 'Language'
   await expect(page.getByText("Taal", { exact: true })).toBeVisible();
 
+  // Check if the validation messages are translated because they are provided by Zod
+  await page.getByRole("textbox", { name: "Voornaam" }).fill("");
+  await page.getByRole("button", { name: "Opslaan" }).click();
+  await expect(page.getByText("Te kort: verwacht dat string")).toBeVisible();
+
   // Clear all cookies and sign in again to check if the language is still set to Dutch
   await page.context().clearCookies();
   await authUtil.authenticate(page);
 
   await expect(page.getByText("Taal", { exact: true })).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Voornaam" }).fill("");
+  await page.getByRole("button", { name: "Opslaan" }).click();
+  await expect(page.getByText("Te kort: verwacht dat string")).toBeVisible();
 });
 
 test("Add passkey to an account", async ({ page }) => {

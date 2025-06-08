@@ -40,10 +40,10 @@ type UserGroupController struct {
 // @Description Get a paginated list of user groups with optional search and sorting
 // @Tags User Groups
 // @Param search query string false "Search term to filter user groups by name"
-// @Param page query int false "Page number, starting from 1" default(1)
-// @Param limit query int false "Number of items per page" default(10)
-// @Param sort_column query string false "Column to sort by" default("name")
-// @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.UserGroupDtoWithUserCount]
 // @Router /api/user-groups [get]
 func (ugc *UserGroupController) list(c *gin.Context) {
@@ -92,7 +92,6 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 // @Produce json
 // @Param id path string true "User Group ID"
 // @Success 200 {object} dto.UserGroupDtoWithUsers
-// @Security BearerAuth
 // @Router /api/user-groups/{id} [get]
 func (ugc *UserGroupController) get(c *gin.Context) {
 	group, err := ugc.UserGroupService.Get(c.Request.Context(), c.Param("id"))
@@ -118,7 +117,6 @@ func (ugc *UserGroupController) get(c *gin.Context) {
 // @Produce json
 // @Param userGroup body dto.UserGroupCreateDto true "User group information"
 // @Success 201 {object} dto.UserGroupDtoWithUsers "Created user group"
-// @Security BearerAuth
 // @Router /api/user-groups [post]
 func (ugc *UserGroupController) create(c *gin.Context) {
 	var input dto.UserGroupCreateDto
@@ -151,7 +149,6 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 // @Param id path string true "User Group ID"
 // @Param userGroup body dto.UserGroupCreateDto true "User group information"
 // @Success 200 {object} dto.UserGroupDtoWithUsers "Updated user group"
-// @Security BearerAuth
 // @Router /api/user-groups/{id} [put]
 func (ugc *UserGroupController) update(c *gin.Context) {
 	var input dto.UserGroupCreateDto
@@ -183,7 +180,6 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 // @Produce json
 // @Param id path string true "User Group ID"
 // @Success 204 "No Content"
-// @Security BearerAuth
 // @Router /api/user-groups/{id} [delete]
 func (ugc *UserGroupController) delete(c *gin.Context) {
 	if err := ugc.UserGroupService.Delete(c.Request.Context(), c.Param("id")); err != nil {
@@ -203,7 +199,6 @@ func (ugc *UserGroupController) delete(c *gin.Context) {
 // @Param id path string true "User Group ID"
 // @Param users body dto.UserGroupUpdateUsersDto true "List of user IDs to assign to this group"
 // @Success 200 {object} dto.UserGroupDtoWithUsers
-// @Security BearerAuth
 // @Router /api/user-groups/{id}/users [put]
 func (ugc *UserGroupController) updateUsers(c *gin.Context) {
 	var input dto.UserGroupUpdateUsersDto

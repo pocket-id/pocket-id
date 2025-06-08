@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store';
-import { z } from 'zod';
+import { get, writable } from 'svelte/store';
+import { z } from 'zod/v4';
 
 export type FormInput<T> = {
 	value: T;
@@ -13,6 +13,7 @@ type FormInputs<T> = {
 export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValues: z.infer<T>) {
 	// Create a writable store for the inputs
 	const inputsStore = writable<FormInputs<z.infer<T>>>(initializeInputs(initialValues));
+	const errorsStore = writable<z.ZodError<any> | undefined>();
 
 	function initializeInputs(initialValues: z.infer<T>): FormInputs<z.infer<T>> {
 		const inputs: FormInputs<z.infer<T>> = {} as FormInputs<z.infer<T>>;
@@ -36,11 +37,12 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 			);
 
 			const result = schema.safeParse(values);
+			errorsStore.set(result.error);
 
 			if (!result.success) {
 				success = false;
 				for (const input of Object.keys(inputs)) {
-					const error = result.error.errors.find((e) => e.path[0] === input);
+					const error = result.error.issues.find((e) => e.path[0] === input);
 					if (error) {
 						inputs[input as keyof z.infer<T>].error = error.message;
 					} else {
@@ -58,15 +60,14 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 	}
 
 	function data() {
-		let values: z.infer<T> | null = null;
-		inputsStore.subscribe((inputs) => {
-			values = Object.fromEntries(
-				Object.entries(inputs).map(([key, input]) => {
-					input.value = trimValue(input.value);
-					return [key, input.value];
-				})
-			) as z.infer<T>;
-		})();
+		const inputs = get(inputsStore);
+
+		const values = Object.fromEntries(
+			Object.entries(inputs).map(([key, input]) => {
+				input.value = trimValue(input.value);
+				return [key, input.value];
+			})
+		) as z.infer<T>;
 
 		return values;
 	}
@@ -108,6 +109,7 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 	return {
 		schema,
 		inputs: inputsStore,
+		errors: errorsStore,
 		data,
 		validate,
 		setValue,

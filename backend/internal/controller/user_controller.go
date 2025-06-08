@@ -85,10 +85,10 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 // @Description Get a paginated list of users with optional search and sorting
 // @Tags Users
 // @Param search query string false "Search term to filter users"
-// @Param page query int false "Page number, starting from 1" default(1)
-// @Param limit query int false "Number of items per page" default(10)
-// @Param sort_column query string false "Column to sort by" default("created_at")
-// @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.UserDto]
 // @Router /api/users [get]
 func (uc *UserController) listUsersHandler(c *gin.Context) {

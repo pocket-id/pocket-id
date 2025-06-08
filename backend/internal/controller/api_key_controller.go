@@ -38,10 +38,10 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 // @Summary List API keys
 // @Description Get a paginated list of API keys belonging to the current user
 // @Tags API Keys
-// @Param page query int false "Page number, starting from 1" default(1)
-// @Param limit query int false "Number of items per page" default(10)
-// @Param sort_column query string false "Column to sort by" default("created_at")
-// @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.ApiKeyDto]
 // @Router /api/api-keys [get]
 func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {

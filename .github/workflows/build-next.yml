@@ -1,0 +1,77 @@
+name: Build Next Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-next:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "backend/go.mod"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set DOCKER_IMAGE_NAME
+        run: |
+          # Lowercase REPO_OWNER which is required for containers
+          REPO_OWNER=${{ github.repository_owner }}
+          DOCKER_IMAGE_NAME="ghcr.io/${REPO_OWNER,,}/pocket-id"
+          echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >>${GITHUB_ENV}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Build binaries
+        run: sh scripts/development/build-binaries.sh
+
+      - name: Build and push container image
+        id: build-push-image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.DOCKER_IMAGE_NAME }}:next
+          file: Dockerfile-prebuilt
+
+      - name: Container image attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-digest: ${{ steps.build-push-image.outputs.digest }}
+          push-to-registry: true

@@ -34,10 +34,10 @@ type AuditLogController struct {
 // @Summary List audit logs
 // @Description Get a paginated list of audit logs for the current user
 // @Tags Audit Logs
-// @Param page query int false "Page number, starting from 1" default(1)
-// @Param limit query int false "Number of items per page" default(10)
-// @Param sort_column query string false "Column to sort by" default("created_at")
-// @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /api/audit-logs [get]
 func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
@@ -82,13 +82,13 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 // @Summary List all audit logs
 // @Description Get a paginated list of all audit logs (admin only)
 // @Tags Audit Logs
-// @Param page query int false "Page number, starting from 1" default(1)
-// @Param limit query int false "Number of items per page" default(10)
-// @Param sort_column query string false "Column to sort by" default("created_at")
-// @Param sort_direction query string false "Sort direction (asc or desc)" default("desc")
-// @Param user_id query string false "Filter by user ID"
-// @Param event query string false "Filter by event type"
-// @Param client_name query string false "Filter by client name"
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Param filters[userId] query string false "Filter by user ID"
+// @Param filters[event] query string false "Filter by event type"
+// @Param filters[clientName] query string false "Filter by client name"
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /api/audit-logs/all [get]
 func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {

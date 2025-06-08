@@ -71,7 +71,6 @@ type OidcController struct {
 // @Produce json
 // @Param request body dto.AuthorizeOidcClientRequestDto true "Authorization request parameters"
 // @Success 200 {object} dto.AuthorizeOidcClientResponseDto "Authorization code and callback URL"
-// @Security BearerAuth
 // @Router /api/oidc/authorize [post]
 func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	var input dto.AuthorizeOidcClientRequestDto
@@ -102,7 +101,6 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 // @Produce json
 // @Param request body dto.AuthorizationRequiredDto true "Authorization check parameters"
 // @Success 200 {object} object "{ \"authorizationRequired\": true/false }"
-// @Security BearerAuth
 // @Router /api/oidc/authorization-required [post]
 func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Context) {
 	var input dto.AuthorizationRequiredDto
@@ -231,7 +229,6 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 // @Description End user session and handle OIDC logout
 // @Tags OIDC
 // @Accept application/x-www-form-urlencoded
-// @Produce html
 // @Param id_token_hint query string false "ID token"
 // @Param post_logout_redirect_uri query string false "URL to redirect to after logout"
 // @Param state query string false "State parameter to include in the redirect"
@@ -355,7 +352,6 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Client information"
-// @Security BearerAuth
 // @Router /api/oidc/clients/{id} [get]
 func (oc *OidcController) getClientHandler(c *gin.Context) {
 	clientId := c.Param("id")
@@ -380,12 +376,11 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 // @Description Get a paginated list of OIDC clients with optional search and sorting
 // @Tags OIDC
 // @Param search query string false "Search term to filter clients by name"
-// @Param page query int false "Page number, starting from 1" default(1)
-// @Param limit query int false "Number of items per page" default(10)
-// @Param sort_column query string false "Column to sort by" default("name")
-// @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedGroupsCountDto]
-// @Security BearerAuth
 // @Router /api/oidc/clients [get]
 func (oc *OidcController) listClientsHandler(c *gin.Context) {
 	searchTerm := c.Query("search")
@@ -431,7 +426,6 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 // @Produce json
 // @Param client body dto.OidcClientCreateDto true "Client information"
 // @Success 201 {object} dto.OidcClientWithAllowedUserGroupsDto "Created client"
-// @Security BearerAuth
 // @Router /api/oidc/clients [post]
 func (oc *OidcController) createClientHandler(c *gin.Context) {
 	var input dto.OidcClientCreateDto
@@ -461,7 +455,6 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 // @Tags OIDC
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
-// @Security BearerAuth
 // @Router /api/oidc/clients/{id} [delete]
 func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 	err := oc.oidcService.DeleteClient(c.Request.Context(), c.Param("id"))
@@ -482,7 +475,6 @@ func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Param client body dto.OidcClientCreateDto true "Client information"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client"
-// @Security BearerAuth
 // @Router /api/oidc/clients/{id} [put]
 func (oc *OidcController) updateClientHandler(c *gin.Context) {
 	var input dto.OidcClientCreateDto
@@ -513,7 +505,6 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} object "{ \"secret\": \"string\" }"
-// @Security BearerAuth
 // @Router /api/oidc/clients/{id}/secret [post]
 func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 	secret, err := oc.oidcService.CreateClientSecret(c.Request.Context(), c.Param("id"))
@@ -552,9 +543,8 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 // @Tags OIDC
 // @Accept multipart/form-data
 // @Param id path string true "Client ID"
-// @Param file formData file true "Logo image file (PNG, JPG, or SVG, max 2MB)"
+// @Param file formData file true "Logo image file (PNG, JPG, or SVG)"
 // @Success 204 "No Content"
-// @Security BearerAuth
 // @Router /api/oidc/clients/{id}/logo [post]
 func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 	file, err := c.FormFile("file")
@@ -578,7 +568,6 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 // @Tags OIDC
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
-// @Security BearerAuth
 // @Router /api/oidc/clients/{id}/logo [delete]
 func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 	err := oc.oidcService.DeleteClientLogo(c.Request.Context(), c.Param("id"))
@@ -599,7 +588,6 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Param groups body dto.OidcUpdateAllowedUserGroupsDto true "User group IDs"
 // @Success 200 {object} dto.OidcClientDto "Updated client"
-// @Security BearerAuth
 // @Router /api/oidc/clients/{id}/allowed-user-groups [put]
 func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 	var input dto.OidcUpdateAllowedUserGroupsDto
@@ -648,12 +636,11 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 // @Summary List authorized clients for current user
 // @Description Get a paginated list of OIDC clients that the current user has authorized
 // @Tags OIDC
-// @Param page query int false "Page number, starting from 1" default(1)
-// @Param limit query int false "Number of items per page" default(10)
-// @Param sort_column query string false "Column to sort by" default("name")
-// @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
-// @Security BearerAuth
 // @Router /api/oidc/users/me/clients [get]
 func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) {
 	userID := c.GetString("userID")
@@ -665,12 +652,11 @@ func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) {
 // @Description Get a paginated list of OIDC clients that a specific user has authorized
 // @Tags OIDC
 // @Param id path string true "User ID"
-// @Param page query int false "Page number, starting from 1" default(1)
-// @Param limit query int false "Number of items per page" default(10)
-// @Param sort_column query string false "Column to sort by" default("name")
-// @Param sort_direction query string false "Sort direction (asc or desc)" default("asc")
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
-// @Security BearerAuth
 // @Router /api/oidc/users/{id}/clients [get]
 func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) {
 	userID := c.Param("id")
