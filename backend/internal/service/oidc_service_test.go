@@ -210,7 +210,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	t.Run("Confidential client", func(t *testing.T) {
 		t.Run("Succeeds with valid secret", func(t *testing.T) {
 			// Test with valid client credentials
-			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, dto.OidcCreateTokensDto{
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:     confidentialClient.ID,
 				ClientSecret: confidentialSecret,
 			})
@@ -221,7 +221,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 		t.Run("Fails with invalid secret", func(t *testing.T) {
 			// Test with invalid client secret
-			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, dto.OidcCreateTokensDto{
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:     confidentialClient.ID,
 				ClientSecret: "invalid-secret",
 			})
@@ -232,7 +232,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 		t.Run("Fails with missing secret", func(t *testing.T) {
 			// Test with missing client secret
-			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, dto.OidcCreateTokensDto{
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID: confidentialClient.ID,
 			})
 			require.Error(t, err)
@@ -245,7 +245,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	t.Run("Public client", func(t *testing.T) {
 		t.Run("Succeeds with no credentials", func(t *testing.T) {
 			// Public clients don't require client secret
-			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, dto.OidcCreateTokensDto{
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID: publicClient.ID,
 			})
 			require.NoError(t, err)
@@ -270,7 +270,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			require.NoError(t, err)
 
 			// Test with valid JWT assertion
-			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, dto.OidcCreateTokensDto{
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     string(signedToken),
@@ -282,7 +282,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 		t.Run("Fails with malformed JWT", func(t *testing.T) {
 			// Test with invalid JWT assertion (just a random string)
-			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, dto.OidcCreateTokensDto{
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     "invalid.jwt.token",
@@ -311,7 +311,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				require.NoError(t, err)
 
 				// Test with invalid JWT assertion
-				client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, dto.OidcCreateTokensDto{
+				client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 					ClientID:            federatedClient.ID,
 					ClientAssertionType: ClientAssertionTypeJWTBearer,
 					ClientAssertion:     string(signedToken),
@@ -352,7 +352,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			require.NoError(t, err)
 
 			// Test with valid JWT assertion
-			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, dto.OidcCreateTokensDto{
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     string(signedToken),

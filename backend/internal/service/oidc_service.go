@@ -40,6 +40,8 @@ const (
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
 
 	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" //nolint:gosec
+
+	RefreshTokenDuration = 30 * 24 * time.Hour // 30 days
 )
 
 type OidcService struct {
@@ -252,7 +254,7 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		tx.Rollback()
 	}()
 
-	_, err := s.verifyClientCredentialsInternal(ctx, tx, input)
+	_, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input))
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -303,7 +305,7 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(deviceAuth.User, input.ClientID)
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(deviceAuth.User, input.ClientID)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -333,7 +335,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 		tx.Rollback()
 	}()
 
-	client, err := s.verifyClientCredentialsInternal(ctx, tx, input)
+	client, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input))
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -375,7 +377,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 		return CreatedTokens{}, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(authorizationCodeMetaData.User, input.ClientID)
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(authorizationCodeMetaData.User, input.ClientID)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -411,7 +413,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 		tx.Rollback()
 	}()
 
-	_, err := s.verifyClientCredentialsInternal(ctx, tx, input)
+	_, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input))
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -437,7 +439,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	}
 
 	// Generate a new access token
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(storedRefreshToken.User, input.ClientID)
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(storedRefreshToken.User, input.ClientID)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -469,20 +471,17 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	}, nil
 }
 
-func (s *OidcService) IntrospectToken(ctx context.Context, clientID, clientSecret, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
-	if clientID == "" || clientSecret == "" {
+func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCredentials, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	if creds.ClientID == "" || creds.ClientSecret == "" {
 		return introspectDto, &common.OidcMissingClientCredentialsError{}
 	}
 
-	_, err = s.verifyClientCredentialsInternal(ctx, s.db, dto.OidcCreateTokensDto{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-	})
+	_, err = s.verifyClientCredentialsInternal(ctx, s.db, creds)
 	if err != nil {
 		return introspectDto, err
 	}
 
-	token, err := s.jwtService.VerifyOauthAccessToken(tokenString)
+	token, err := s.jwtService.VerifyOAuthAccessToken(tokenString)
 	if err != nil {
 		if errors.Is(err, jwt.ParseError()) {
 			// It's apparently not a valid JWT token, so we check if it's a valid refresh_token.
@@ -1153,7 +1152,7 @@ func (s *OidcService) addCallbackURLToClient(ctx context.Context, client *model.
 }
 
 func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.OidcDeviceAuthorizationRequestDto) (*dto.OidcDeviceAuthorizationResponseDto, error) {
-	client, err := s.verifyClientCredentialsInternal(ctx, s.db, dto.OidcCreateTokensDto{
+	client, err := s.verifyClientCredentialsInternal(ctx, s.db, ClientAuthCredentials{
 		ClientID:     input.ClientID,
 		ClientSecret: input.ClientSecret,
 	})
@@ -1346,7 +1345,7 @@ func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, u
 	refreshTokenHash := utils.CreateSha256Hash(refreshToken)
 
 	m := model.OidcRefreshToken{
-		ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)), // 30 days
+		ExpiresAt: datatype.DateTime(time.Now().Add(RefreshTokenDuration)),
 		Token:     refreshTokenHash,
 		ClientID:  clientID,
 		UserID:    userID,
@@ -1382,7 +1381,23 @@ func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID
 	return err
 }
 
-func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *gorm.DB, input dto.OidcCreateTokensDto) (*model.OidcClient, error) {
+type ClientAuthCredentials struct {
+	ClientID            string
+	ClientSecret        string
+	ClientAssertion     string
+	ClientAssertionType string
+}
+
+func clientAuthCredentialsFromCreateTokensDto(d *dto.OidcCreateTokensDto) ClientAuthCredentials {
+	return ClientAuthCredentials{
+		ClientID:            d.ClientID,
+		ClientSecret:        d.ClientSecret,
+		ClientAssertion:     d.ClientAssertion,
+		ClientAssertionType: d.ClientAssertionType,
+	}
+}
+
+func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *gorm.DB, input ClientAuthCredentials) (*model.OidcClient, error) {
 	// First, ensure we have a valid client ID
 	if input.ClientID == "" {
 		return nil, &common.OidcMissingClientCredentialsError{}
@@ -1457,7 +1472,7 @@ func (s *OidcService) jwkSetForURL(ctx context.Context, url string) (set jwk.Set
 	return jwks, nil
 }
 
-func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.Context, client *model.OidcClient, input dto.OidcCreateTokensDto) error {
+func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.Context, client *model.OidcClient, input ClientAuthCredentials) error {
 	// First, parse the assertion JWT, without validating it, to check the issuer
 	assertion := []byte(input.ClientAssertion)
 	insecureToken, err := jwt.ParseInsecure(assertion)

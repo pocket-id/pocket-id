@@ -198,7 +198,7 @@ func (oc *OidcController) userInfoHandler(c *gin.Context) {
 		return
 	}
 
-	token, err := oc.jwtService.VerifyOauthAccessToken(authToken)
+	token, err := oc.jwtService.VerifyOAuthAccessToken(authToken)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -306,9 +306,10 @@ func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
 	// find valid tokens) while still allowing it to be used by an application that is
 	// supposed to interact with our IdP (since that needs to have a client_id
 	// and client_secret anyway).
-	clientID, clientSecret, _ := c.Request.BasicAuth()
+	var creds service.ClientAuthCredentials
+	creds.ClientID, creds.ClientSecret, _ = c.Request.BasicAuth()
 
-	response, err := oc.oidcService.IntrospectToken(c.Request.Context(), clientID, clientSecret, input.Token)
+	response, err := oc.oidcService.IntrospectToken(c.Request.Context(), creds, input.Token)
 	if err != nil {
 		_ = c.Error(err)
 		return
