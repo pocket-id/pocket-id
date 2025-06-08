@@ -1547,39 +1547,37 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 
 	defaultScope := "openid profile email groups"
 
-	tempAuthorizedClient := model.UserAuthorizedOidcClient{
+	dummyAuthorizedClient := model.UserAuthorizedOidcClient{
 		UserID:   userID,
 		ClientID: clientID,
 		Scope:    defaultScope,
 		User:     user,
 	}
 
-	userClaims, err := s.getUserClaimsFromAuthorizedClient(ctx, &tempAuthorizedClient)
+	userClaims, err := s.getUserClaimsFromAuthorizedClient(ctx, &dummyAuthorizedClient)
 	if err != nil {
 		return nil, err
 	}
 
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, clientID, "")
+	idToken, err := s.jwtService.BuildIDToken(userClaims, clientID, "")
 	if err != nil {
 		return nil, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOauthAccessToken(user, clientID)
+	accessToken, err := s.jwtService.BuildOauthAccessToken(user, clientID)
 	if err != nil {
 		return nil, err
 	}
 
-	idTokenPayload, err := s.parseTokenPayloadUsingJWTService(idToken, true)
+	idTokenPayload, err := utils.GetClaimsFromToken(idToken)
 	if err != nil {
 		return nil, err
 	}
 
-	accessTokenPayload, err := s.parseTokenPayloadUsingJWTService(accessToken, false)
+	accessTokenPayload, err := utils.GetClaimsFromToken(accessToken)
 	if err != nil {
 		return nil, err
 	}
-
-	userInfoResponse := userClaims
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -1589,12 +1587,8 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 	return &dto.OidcClientPreviewDto{
 		IdToken:     idTokenPayload,
 		AccessToken: accessTokenPayload,
-		UserInfo:    userInfoResponse,
+		UserInfo:    userClaims,
 	}, nil
-}
-
-func (s *OidcService) parseTokenPayloadUsingJWTService(tokenString string, isIdToken bool) (map[string]interface{}, error) {
-	return utils.ParseTokenPayload(tokenString, isIdToken)
 }
 
 func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, authorizedClient *model.UserAuthorizedOidcClient) (map[string]interface{}, error) {
