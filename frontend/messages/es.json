@@ -144,8 +144,6 @@
 	"expires_at": "Expira el",
 	"when_this_api_key_will_expire": "Cuando esta clave de API caducará.",
 	"optional_description_to_help_identify_this_keys_purpose": "Descripción opcional para ayudar a identificar el propósito de esta clave.",
-	"name_must_be_at_least_3_characters": "El nombre debe tener al menos 3 caracteres",
-	"name_cannot_exceed_50_characters": "El nombre no puede exceder los 50 caracteres",
 	"expiration_date_must_be_in_the_future": "La fecha de caducidad debe ser en el futuro",
 	"revoke_api_key": "Invalidar API Key",
 	"never": "Nunca",
