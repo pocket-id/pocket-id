@@ -59,6 +59,7 @@ jobs:
         run: sh scripts/development/build-binaries.sh
 
       - name: Build and push container image
+        id: build-push-image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -66,3 +67,10 @@ jobs:
           push: true
           tags: ${{ env.DOCKER_IMAGE_NAME }}:next
           file: Dockerfile-prebuilt
+
+      - name: Container image attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-digest: ${{ steps.build-push-image.outputs.digest }}
+          push-to-registry: true
