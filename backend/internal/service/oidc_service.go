@@ -1520,7 +1520,7 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.C
 	return nil
 }
 
-func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string) (*dto.OidcClientPreviewDto, error) {
+func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes string) (*dto.OidcClientPreviewDto, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -1545,12 +1545,10 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		return nil, &common.OidcAccessDeniedError{}
 	}
 
-	defaultScope := "openid profile email groups"
-
 	dummyAuthorizedClient := model.UserAuthorizedOidcClient{
 		UserID:   userID,
 		ClientID: clientID,
-		Scope:    defaultScope,
+		Scope:    scopes,
 		User:     user,
 	}
 

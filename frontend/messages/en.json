@@ -368,5 +368,6 @@
 	"preview": "Preview",
 	"preview_for_user": "Preview for {name} ({email})",
 	"preview_the_oidc_data_that_would_be_sent_for_this_user": "Preview the OIDC data that would be sent for this user",
-	"access_denied": "Access Denied"
+	"access_denied": "Access Denied",
+	"show": "Show"
 }

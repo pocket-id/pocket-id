@@ -13,11 +13,10 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft, LucideRefreshCcw } from '@lucide/svelte';
+	import { LucideChevronLeft, LucideRefreshCcw, RectangleEllipsis } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OidcForm from '../oidc-client-form.svelte';
-	import UserClientPreview from '../user-client-preview-list.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
 
 	let { data } = $props();
@@ -26,6 +25,7 @@
 		allowedUserGroupIds: data.allowedUserGroups.map((g) => g.id)
 	});
 	let showAllDetails = $state(false);
+	let showPreview = $state(false);
 
 	const oidcService = new OidcService();
 
@@ -126,7 +126,7 @@
 				</CopyToClipboard>
 			</div>
 			{#if !client.isPublic}
-				<div class="mb-2 mt-1 flex flex-col sm:flex-row sm:items-center">
+				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
 					<Label class="mb-0 w-44">{m.client_secret()}</Label>
 					{#if $clientSecretStore}
 						<CopyToClipboard value={$clientSecretStore}>
@@ -188,11 +188,22 @@
 		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
 	</div>
 </CollapsibleCard>
-<CollapsibleCard
-	id="oidc-preview"
-	title={m.oidc_data_preview()}
-	description={m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
->
-	<UserClientPreview onPreview={handlePreview} />
-</CollapsibleCard>
-<OidcClientPreviewModal bind:userId={previewUserId} clientId={client.id} />
+<Card.Root>
+	<Card.Header>
+		<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+			<div>
+				<Card.Title>
+					{m.oidc_data_preview()}
+				</Card.Title>
+				<Card.Description>
+					{m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
+				</Card.Description>
+			</div>
+
+			<Button variant="outline" onclick={() => (showPreview = true)}>
+				{m.show()}
+			</Button>
+		</div>
+	</Card.Header>
+</Card.Root>
+<OidcClientPreviewModal bind:open={showPreview} clientId={client.id} />

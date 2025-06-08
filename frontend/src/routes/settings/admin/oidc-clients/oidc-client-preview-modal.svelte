@@ -1,22 +1,26 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import { Button } from '$lib/components/ui/button';
-	import Label from '$lib/components/ui/label/label.svelte';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
+	import MultiSelect from '$lib/components/form/multi-select.svelte';
+	import SearchableSelect from '$lib/components/form/searchable-select.svelte';
 	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import Label from '$lib/components/ui/label/label.svelte';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
 	import UserService from '$lib/services/user-service';
-	import { axiosErrorToast, getAxiosErrorMessage } from '$lib/utils/error-util';
 	import type { User } from '$lib/types/user.type';
+	import { debounced } from '$lib/utils/debounce-util';
+	import { axiosErrorToast, getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { LucideAlertTriangle } from '@lucide/svelte';
+	import { onMount } from 'svelte';
 
 	let {
-		userId = $bindable(),
+		open = $bindable(),
 		clientId
 	}: {
-		userId: string | null;
+		open: boolean;
 		clientId: string;
 	} = $props();
 
@@ -30,63 +34,64 @@
 	} | null>(null);
 	let loadingPreview = $state(false);
 	let user: User | null = $state(null);
+	let users: User[] = $state([]);
+	let scopes: string[] = $state(['openid', 'email', 'profile']);
 	let errorMessage: string | null = $state(null);
 
 	async function loadPreviewData() {
-		if (!userId) return;
-
-		loadingPreview = true;
 		errorMessage = null;
 
 		try {
-			const [preview, userInfo] = await Promise.all([
-				oidcService.getClientPreview(clientId, userId),
-				userService.get(userId)
-			]);
-			previewData = preview;
-			user = userInfo;
+			previewData = await oidcService.getClientPreview(clientId, user!.id, scopes.join(' '));
 		} catch (e) {
 			const error = getAxiosErrorMessage(e);
 			errorMessage = error;
-
-			// Still show the toast for consistency with other parts of the app
 			axiosErrorToast(e);
-
-			// Try to get user info even if preview fails
-			try {
-				user = await userService.get(userId);
-			} catch (userError) {
-				user = null;
-			}
-
 			previewData = null;
 		} finally {
 			loadingPreview = false;
 		}
 	}
 
-	function onOpenChange(open: boolean) {
-		if (!open) {
-			previewData = null;
-			user = null;
-			errorMessage = null;
-			userId = null;
-		} else if (userId) {
-			loadPreviewData();
+	async function loadUsers(search?: string) {
+		users = (
+			await userService.list({
+				search,
+				pagination: { limit: 3, page: 1 }
+			})
+		).data;
+		if (!user) {
+			user = users[0];
 		}
 	}
 
+	async function onOpenChange(open: boolean) {
+		if (!open) {
+			previewData = null;
+			errorMessage = null;
+		} else {
+			loadingPreview = true;
+			await loadPreviewData().finally(() => {
+				loadingPreview = false;
+			});
+		}
+	}
+
+	const onUserSearch = debounced(async (search: string) => await loadUsers(search), 300);
+
 	$effect(() => {
-		if (userId) {
+		if (open) {
 			loadPreviewData();
 		}
 	});
+
+	onMount(() => {
+		loadUsers();
+	});
 </script>
 
-<Dialog.Root open={!!userId} {onOpenChange}>
-	<Dialog.Content
-		class="max-h-[90vh] min-w-[800px] max-w-[95vw] overflow-auto md:min-w-[1000px] lg:min-w-[1200px]"
-	>
+<Dialog.Root bind:open {onOpenChange}>
+	<Dialog.Content class="sm-min-w[500px] max-h-[90vh] min-w-[90vw] overflow-auto lg:min-w-[1000px]">
 		<Dialog.Header>
 			<Dialog.Title>{m.oidc_data_preview()}</Dialog.Title>
 			<Dialog.Description>
@@ -105,6 +110,42 @@
 				</div>
 			{/if}
 
+			<div class="flex justify-start gap-3">
+				<div>
+					<Label class="text-sm font-medium">Users</Label>
+					<div>
+						<SearchableSelect
+							class="w-48"
+							items={[
+								{ value: '', label: m.all_users() },
+								...Object.values(users).map((user) => ({
+									value: user.id,
+									label: user.username
+								}))
+							]}
+							value={user?.id || ''}
+							oninput={(e) => onUserSearch(e.currentTarget.value)}
+							onSelect={(value) => {
+								user = users.find((u) => u.id === value) || null;
+								loadPreviewData();
+							}}
+						/>
+					</div>
+				</div>
+				<div>
+					<Label class="text-sm font-medium">Scopes</Label>
+					<MultiSelect
+						items={[
+							{ value: 'openid', label: 'openid' },
+							{ value: 'email', label: 'email' },
+							{ value: 'profile', label: 'profile' },
+							{ value: 'groups', label: 'groups' }
+						]}
+						bind:selectedItems={scopes}
+					/>
+				</div>
+			</div>
+
 			{#if errorMessage && !loadingPreview}
 				<Alert.Root variant="destructive" class="mb-6">
 					<LucideAlertTriangle class="h-4 w-4" />
@@ -116,101 +157,52 @@
 			{/if}
 
 			{#if previewData && !loadingPreview}
-				<Tabs.Root value="id-token" class="w-full">
+				<Tabs.Root value="id-token" class="mt-5 w-full">
 					<Tabs.List class="mb-6 grid w-full grid-cols-3">
 						<Tabs.Trigger value="id-token">{m.id_token()}</Tabs.Trigger>
 						<Tabs.Trigger value="access-token">{m.access_token()}</Tabs.Trigger>
 						<Tabs.Trigger value="userinfo">{m.userinfo_response()}</Tabs.Trigger>
 					</Tabs.List>
-
-					<Tabs.Content value="id-token" class="mt-4">
-						<div class="space-y-4">
-							<div class="mb-6 flex items-center justify-between">
-								<Label class="text-lg font-semibold">{m.id_token_payload()}</Label>
-								<CopyToClipboard value={JSON.stringify(previewData.idToken, null, 2)}>
-									<Button size="sm" variant="outline">{m.copy_all()}</Button>
-								</CopyToClipboard>
-							</div>
-							<div class="space-y-3">
-								{#each Object.entries(previewData.idToken || {}) as [key, value]}
-									<div class="grid grid-cols-[200px_1fr] items-start gap-4 border-b pb-3">
-										<Label class="pt-1 text-sm font-medium">{key}</Label>
-										<div class="min-w-0">
-											<CopyToClipboard
-												value={typeof value === 'string' ? value : JSON.stringify(value)}
-											>
-												<div
-													class="text-muted-foreground bg-muted/30 hover:bg-muted/50 cursor-pointer rounded px-3 py-2 font-mono text-sm"
-												>
-													{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
-												</div>
-											</CopyToClipboard>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
+					<Tabs.Content value="id-token">
+						{@render tabContent(previewData.idToken, m.id_token_payload())}
 					</Tabs.Content>
 
 					<Tabs.Content value="access-token" class="mt-4">
-						<div class="space-y-4">
-							<div class="mb-6 flex items-center justify-between">
-								<Label class="text-lg font-semibold">{m.access_token_payload()}</Label>
-								<CopyToClipboard value={JSON.stringify(previewData.accessToken, null, 2)}>
-									<Button size="sm" variant="outline">{m.copy_all()}</Button>
-								</CopyToClipboard>
-							</div>
-							<div class="space-y-3">
-								{#each Object.entries(previewData.accessToken || {}) as [key, value]}
-									<div class="grid grid-cols-[200px_1fr] items-start gap-4 border-b pb-3">
-										<Label class="pt-1 text-sm font-medium">{key}</Label>
-										<div class="min-w-0">
-											<CopyToClipboard
-												value={typeof value === 'string' ? value : JSON.stringify(value)}
-											>
-												<div
-													class="text-muted-foreground bg-muted/30 hover:bg-muted/50 cursor-pointer rounded px-3 py-2 font-mono text-sm"
-												>
-													{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
-												</div>
-											</CopyToClipboard>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
+						{@render tabContent(previewData.accessToken, m.access_token_payload())}
 					</Tabs.Content>
 
 					<Tabs.Content value="userinfo" class="mt-4">
-						<div class="space-y-4">
-							<div class="mb-6 flex items-center justify-between">
-								<Label class="text-lg font-semibold">{m.userinfo_endpoint_response()}</Label>
-								<CopyToClipboard value={JSON.stringify(previewData.userInfo, null, 2)}>
-									<Button size="sm" variant="outline">{m.copy_all()}</Button>
-								</CopyToClipboard>
-							</div>
-							<div class="space-y-3">
-								{#each Object.entries(previewData.userInfo || {}) as [key, value]}
-									<div class="grid grid-cols-[200px_1fr] items-start gap-4 border-b pb-3">
-										<Label class="pt-1 text-sm font-medium">{key}</Label>
-										<div class="min-w-0">
-											<CopyToClipboard
-												value={typeof value === 'string' ? value : JSON.stringify(value)}
-											>
-												<div
-													class="text-muted-foreground bg-muted/30 hover:bg-muted/50 cursor-pointer rounded px-3 py-2 font-mono text-sm"
-												>
-													{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
-												</div>
-											</CopyToClipboard>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
+						{@render tabContent(previewData.userInfo, m.userinfo_endpoint_response())}
 					</Tabs.Content>
 				</Tabs.Root>
 			{/if}
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
+
+{#snippet tabContent(data: any, title: string)}
+	<div class="space-y-4">
+		<div class="mb-6 flex items-center justify-between">
+			<Label class="text-lg font-semibold">{title}</Label>
+			<CopyToClipboard value={JSON.stringify(data, null, 2)}>
+				<Button size="sm" variant="outline">{m.copy_all()}</Button>
+			</CopyToClipboard>
+		</div>
+		<div class="space-y-3">
+			{#each Object.entries(data || {}) as [key, value]}
+				<div class="grid grid-cols-1 items-start gap-4 border-b pb-3 md:grid-cols-[200px_1fr]">
+					<Label class="pt-1 text-sm font-medium">{key}</Label>
+					<div class="min-w-0">
+						<CopyToClipboard value={typeof value === 'string' ? value : JSON.stringify(value)}>
+							<div
+								class="text-muted-foreground bg-muted/30 hover:bg-muted/50 cursor-pointer rounded px-3 py-2 font-mono text-sm"
+							>
+								{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
+							</div>
+						</CopyToClipboard>
+					</div>
+				</div>
+			{/each}
+		</div>
+	</div>
+{/snippet}

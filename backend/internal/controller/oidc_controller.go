@@ -731,12 +731,14 @@ func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Param userId path string true "User ID to preview data for"
+// @Param scopes query string false "Scopes to include in the preview (comma-separated)"
 // @Success 200 {object} dto.OidcClientPreviewDto "Preview data including ID token, access token, and userinfo payloads"
 // @Security BearerAuth
 // @Router /api/oidc/clients/{id}/preview/{userId} [get]
 func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 	clientID := c.Param("id")
 	userID := c.Param("userId")
+	scopes := c.Query("scopes")
 
 	if clientID == "" {
 		_ = c.Error(&common.ValidationError{Message: "client ID is required"})
@@ -748,7 +750,12 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 		return
 	}
 
-	preview, err := oc.oidcService.GetClientPreview(c.Request.Context(), clientID, userID)
+	if scopes == "" {
+		_ = c.Error(&common.ValidationError{Message: "scopes are required"})
+		return
+	}
+
+	preview, err := oc.oidcService.GetClientPreview(c.Request.Context(), clientID, userID, scopes)
 	if err != nil {
 		_ = c.Error(err)
 		return

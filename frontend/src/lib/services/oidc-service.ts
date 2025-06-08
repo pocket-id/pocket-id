@@ -104,8 +104,10 @@ class OidcService extends APIService {
 		return response.data;
 	}
 
-	async getClientPreview(id: string, userId: string) {
-		const response = await this.api.get(`/oidc/clients/${id}/preview/${userId}`);
+	async getClientPreview(id: string, userId: string, scopes: string) {
+		const response = await this.api.get(`/oidc/clients/${id}/preview/${userId}`, {
+			params: { scopes }
+		});
 		return response.data;
 	}
 }

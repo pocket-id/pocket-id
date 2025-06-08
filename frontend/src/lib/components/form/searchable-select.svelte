@@ -5,12 +5,13 @@
 	import { cn } from '$lib/utils/style';
 	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import { tick } from 'svelte';
-	import type { HTMLAttributes } from 'svelte/elements';
+	import type { FormEventHandler, HTMLAttributes } from 'svelte/elements';
 
 	let {
 		items,
 		value = $bindable(),
 		onSelect,
+		oninput,
 		...restProps
 	}: HTMLAttributes<HTMLButtonElement> & {
 		items: {
@@ -18,6 +19,7 @@
 			label: string;
 		}[];
 		value: string;
+		oninput?: FormEventHandler<HTMLInputElement>;
 		onSelect?: (value: string) => void;
 	} = $props();
 
@@ -53,7 +55,7 @@
 </script>
 
 <Popover.Root bind:open {...restProps}>
-	<Popover.Trigger class="w-full">
+	<Popover.Trigger>
 		<Button
 			variant="outline"
 			role="combobox"
@@ -64,9 +66,15 @@
 			<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
 		</Button>
 	</Popover.Trigger>
-	<Popover.Content class="p-0">
+	<Popover.Content class="p-0" sameWidth>
 		<Command.Root shouldFilter={false}>
-			<Command.Input placeholder="Search..." oninput={(e: any) => filterItems(e.target.value)} />
+			<Command.Input
+				placeholder="Search..."
+				oninput={(e: any) => {
+					filterItems(e.currentTarget.value);
+					oninput?.(e);
+				}}
+			/>
 			<Command.Empty>No results found.</Command.Empty>
 			<Command.Group>
 				{#each filteredItems as item}
