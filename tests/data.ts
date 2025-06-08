@@ -87,11 +87,13 @@ export const refreshTokens = [
 	{
 		token: 'ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo',
 		clientId: oidcClients.nextcloud.id,
+		userId: 'f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e',
 		expired: false
 	},
 	{
 		token: 'X4vqwtRyCUaq51UafHea4Fsg8Km6CAns6vp3tuX4',
 		clientId: oidcClients.nextcloud.id,
+		userId: 'f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e',
 		expired: true
 	}
 ];

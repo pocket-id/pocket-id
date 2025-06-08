@@ -408,14 +408,25 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 		return CreatedTokens{}, &common.OidcMissingRefreshTokenError{}
 	}
 
+	// Validate the signed refresh token and extract the actual token (which is a claim in the signed one)
+	userID, clientID, rt, err := s.jwtService.VerifyOAuthRefreshToken(input.RefreshToken)
+	if err != nil {
+		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	_, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input))
+	client, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input))
 	if err != nil {
 		return CreatedTokens{}, err
+	}
+
+	// The ID of the client that made the call must match the client ID in the token
+	if client.ID != clientID {
+		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
 	}
 
 	// Verify refresh token
@@ -423,7 +434,13 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	err = tx.
 		WithContext(ctx).
 		Preload("User").
-		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(input.RefreshToken), datatype.DateTime(time.Now())).
+		Where(
+			"token = ? AND expires_at > ? AND user_id = ? AND client_id = ?",
+			utils.CreateSha256Hash(rt),
+			datatype.DateTime(time.Now()),
+			userID,
+			input.ClientID,
+		).
 		First(&storedRefreshToken).
 		Error
 	if err != nil {
@@ -1360,7 +1377,13 @@ func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, u
 		return "", err
 	}
 
-	return refreshToken, nil
+	// Sign the refresh token
+	signed, err := s.jwtService.GenerateOAuthRefreshToken(userID, clientID, refreshToken)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign refresh token: %w", err)
+	}
+
+	return signed, nil
 }
 
 func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID string, clientID string, scope string, tx *gorm.DB) error {

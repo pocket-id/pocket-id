@@ -45,14 +45,14 @@ const (
 	// OAuthAccessTokenJWTType identifies a JWT as an OAuth access token
 	OAuthAccessTokenJWTType = "oauth-access-token" //nolint:gosec
 
+	// OAuthRefreshTokenJWTType identifies a JWT as an OAuth refresh token
+	OAuthRefreshTokenJWTType = "refresh-token"
+
 	// AccessTokenJWTType identifies a JWT as an access token used by Pocket ID
 	AccessTokenJWTType = "access-token"
 
 	// IDTokenJWTType identifies a JWT as an ID token used by Pocket ID
 	IDTokenJWTType = "id-token"
-
-	// RefreshTokenJWTType identifies a JWT as a refresh token used by Pocket ID
-	RefreshTokenJWTType = "refresh-token"
 
 	// Acceptable clock skew for verifying tokens
 	clockSkew = time.Minute
@@ -240,71 +240,6 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 	return token, nil
 }
 
-func (s *JwtService) GenerateRefreshToken(user model.User, refreshToken string) (string, error) {
-	now := time.Now()
-	token, err := jwt.NewBuilder().
-		Subject(user.ID).
-		Expiration(now.Add(RefreshTokenDuration)).
-		IssuedAt(now).
-		Issuer(common.EnvConfig.AppURL).
-		Build()
-	if err != nil {
-		return "", fmt.Errorf("failed to build token: %w", err)
-	}
-
-	err = token.Set(RefreshTokenClaim, refreshToken)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'rt' claim in token: %w", err)
-	}
-
-	err = SetAudienceString(token, common.EnvConfig.AppURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
-	}
-
-	err = SetTokenType(token, RefreshTokenJWTType)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
-	}
-
-	alg, _ := s.privateKey.Algorithm()
-	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
-	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
-	}
-
-	return string(signed), nil
-}
-
-func (s *JwtService) VerifyRefreshToken(tokenString string) (userID string, rt string, err error) {
-	alg, _ := s.privateKey.Algorithm()
-	token, err := jwt.ParseString(
-		tokenString,
-		jwt.WithValidate(true),
-		jwt.WithKey(alg, s.privateKey),
-		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithAudience(common.EnvConfig.AppURL),
-		jwt.WithIssuer(common.EnvConfig.AppURL),
-		jwt.WithValidator(TokenTypeValidator(RefreshTokenJWTType)),
-	)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	err = token.Get(RefreshTokenClaim, &rt)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get '%s' claim from token: %w", RefreshTokenClaim, err)
-	}
-
-	var ok bool
-	userID, ok = token.Subject()
-	if !ok {
-		return "", "", errors.New("failed to get 'sub' claim from token")
-	}
-
-	return userID, rt, nil
-}
-
 func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string, nonce string) (string, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
@@ -428,6 +363,75 @@ func (s *JwtService) VerifyOAuthAccessToken(tokenString string) (jwt.Token, erro
 	}
 
 	return token, nil
+}
+
+func (s *JwtService) GenerateOAuthRefreshToken(userID string, clientID string, refreshToken string) (string, error) {
+	now := time.Now()
+	token, err := jwt.NewBuilder().
+		Subject(userID).
+		Expiration(now.Add(RefreshTokenDuration)).
+		IssuedAt(now).
+		Issuer(common.EnvConfig.AppURL).
+		Build()
+	if err != nil {
+		return "", fmt.Errorf("failed to build token: %w", err)
+	}
+
+	err = token.Set(RefreshTokenClaim, refreshToken)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'rt' claim in token: %w", err)
+	}
+
+	err = SetAudienceString(token, clientID)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
+	}
+
+	err = SetTokenType(token, OAuthRefreshTokenJWTType)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
+	}
+
+	alg, _ := s.privateKey.Algorithm()
+	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	return string(signed), nil
+}
+
+func (s *JwtService) VerifyOAuthRefreshToken(tokenString string) (userID, clientID, rt string, err error) {
+	alg, _ := s.privateKey.Algorithm()
+	token, err := jwt.ParseString(
+		tokenString,
+		jwt.WithValidate(true),
+		jwt.WithKey(alg, s.privateKey),
+		jwt.WithAcceptableSkew(clockSkew),
+		jwt.WithIssuer(common.EnvConfig.AppURL),
+		jwt.WithValidator(TokenTypeValidator(OAuthRefreshTokenJWTType)),
+	)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	err = token.Get(RefreshTokenClaim, &rt)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to get '%s' claim from token: %w", RefreshTokenClaim, err)
+	}
+
+	audiences, ok := token.Audience()
+	if !ok || len(audiences) != 1 || audiences[0] == "" {
+		return "", "", "", errors.New("failed to get 'aud' claim from token")
+	}
+	clientID = audiences[0]
+
+	userID, ok = token.Subject()
+	if !ok {
+		return "", "", "", errors.New("failed to get 'sub' claim from token")
+	}
+
+	return userID, clientID, rt, nil
 }
 
 // GetPublicJWK returns the JSON Web Key (JWK) for the public key.

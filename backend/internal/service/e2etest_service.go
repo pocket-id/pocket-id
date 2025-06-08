@@ -479,6 +479,10 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 	return nil
 }
 
+func (s *TestService) SignRefreshToken(userID, clientID, refreshToken string) (string, error) {
+	return s.jwtService.GenerateOAuthRefreshToken(userID, clientID, refreshToken)
+}
+
 // GetExternalIdPJWKS returns the JWKS for the "external IdP".
 func (s *TestService) GetExternalIdPJWKS() (jwk.Set, error) {
 	pubKey, err := s.externalIdPKey.PublicKey()

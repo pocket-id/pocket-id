@@ -156,11 +156,21 @@ test("End session with id token hint redirects to callback URL", async ({
 test("Successfully refresh tokens with valid refresh token", async ({
   request,
 }) => {
-  const { token, clientId } = refreshTokens.filter(
+  const { token, clientId, userId } = refreshTokens.filter(
     (token) => !token.expired
   )[0];
   const clientSecret = "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY";
 
+  // Sign the refresh token
+  const refreshToken = await request.post("/api/test/refreshtoken", {
+    data: {
+      rt: token,
+      client: clientId,
+      user: userId,
+    }
+  }).then((r) => r.text())
+
+  // Perform the exchange
   const refreshResponse = await request.post("/api/oidc/token", {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -168,7 +178,7 @@ test("Successfully refresh tokens with valid refresh token", async ({
     form: {
       grant_type: "refresh_token",
       client_id: clientId,
-      refresh_token: token,
+      refresh_token: refreshToken,
       client_secret: clientSecret,
     },
   });
@@ -184,26 +194,25 @@ test("Successfully refresh tokens with valid refresh token", async ({
   expect(tokenData.refresh_token).not.toBe(token);
 });
 
-test("Using refresh token invalidates it for future use", async ({
+
+test("Refresh token fails when used for the wrong client", async ({
   request,
 }) => {
-  const { token, clientId } = refreshTokens.filter(
+  const { token, clientId, userId } = refreshTokens.filter(
     (token) => !token.expired
   )[0];
   const clientSecret = "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY";
 
-  await request.post("/api/oidc/token", {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    form: {
-      grant_type: "refresh_token",
-      client_id: clientId,
-      refresh_token: token,
-      client_secret: clientSecret,
-    },
-  });
+  // Sign the refresh token
+  const refreshToken = await request.post("/api/test/refreshtoken", {
+    data: {
+      rt: token,
+      client: 'bad-client',
+      user: userId,
+    }
+  }).then((r) => r.text())
 
+  // Perform the exchange
   const refreshResponse = await request.post("/api/oidc/token", {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -211,7 +220,86 @@ test("Using refresh token invalidates it for future use", async ({
     form: {
       grant_type: "refresh_token",
       client_id: clientId,
-      refresh_token: token,
+      refresh_token: refreshToken,
+      client_secret: clientSecret,
+    },
+  });
+
+  expect(refreshResponse.status()).toBe(400);
+});
+
+test("Refresh token fails when used for the wrong user", async ({
+  request,
+}) => {
+  const { token, clientId } = refreshTokens.filter(
+    (token) => !token.expired
+  )[0];
+  const clientSecret = "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY";
+
+  // Sign the refresh token
+  const refreshToken = await request.post("/api/test/refreshtoken", {
+    data: {
+      rt: token,
+      client: clientId,
+      user: 'bad-user',
+    }
+  }).then((r) => r.text())
+
+  // Perform the exchange
+  const refreshResponse = await request.post("/api/oidc/token", {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    form: {
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: refreshToken,
+      client_secret: clientSecret,
+    },
+  });
+
+  expect(refreshResponse.status()).toBe(400);
+});
+
+test("Using refresh token invalidates it for future use", async ({
+  request,
+}) => {
+  const { token, clientId, userId } = refreshTokens.filter(
+    (token) => !token.expired
+  )[0];
+  const clientSecret = "w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY";
+
+  // Sign the refresh token
+  const refreshToken = await request.post("/api/test/refreshtoken", {
+    data: {
+      rt: token,
+      client: clientId,
+      user: userId,
+    }
+  }).then((r) => r.text())
+
+  // Perform the exchange
+  await request.post("/api/oidc/token", {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    form: {
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: refreshToken,
+      client_secret: clientSecret,
+    },
+  });
+
+  // Try again
+  const refreshResponse = await request.post("/api/oidc/token", {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    form: {
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: refreshToken,
       client_secret: clientSecret,
     },
   });
