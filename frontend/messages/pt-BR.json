@@ -144,8 +144,6 @@
 	"expires_at": "Expires At",
 	"when_this_api_key_will_expire": "When this API key will expire.",
 	"optional_description_to_help_identify_this_keys_purpose": "Optional description to help identify this key's purpose.",
-	"name_must_be_at_least_3_characters": "Name must be at least 3 characters",
-	"name_cannot_exceed_50_characters": "Name cannot exceed 50 characters",
 	"expiration_date_must_be_in_the_future": "Expiration date must be in the future",
 	"revoke_api_key": "Revoke API Key",
 	"never": "Nunca",
