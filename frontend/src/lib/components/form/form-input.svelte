@@ -2,6 +2,7 @@
 	import DatePicker from '$lib/components/form/date-picker.svelte';
 	import { Input, type FormInputEvent } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { m } from '$lib/paraglide/messages';
 	import type { FormInput } from '$lib/utils/form-util';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
@@ -10,6 +11,7 @@
 		input = $bindable(),
 		label,
 		description,
+		docsLink,
 		placeholder,
 		disabled = false,
 		type = 'text',
@@ -20,6 +22,7 @@
 		input?: FormInput<string | boolean | number | Date | undefined>;
 		label?: string;
 		description?: string;
+		docsLink?: string;
 		placeholder?: string;
 		disabled?: boolean;
 		type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date';
@@ -36,6 +39,9 @@
 	{/if}
 	{#if description}
 		<p class="text-muted-foreground mt-1 text-xs">{description}</p>
+	{/if}
+	{#if docsLink}
+		<p class="text-muted-foreground text-xs underline"><a href={docsLink} target="_blank">{m.docs()}</a></p>
 	{/if}
 	<div class={label || description ? 'mt-2' : ''}>
 		{#if children}

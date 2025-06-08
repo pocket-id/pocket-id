@@ -50,7 +50,7 @@
 </script>
 
 <div {...restProps}>
-	<FormInput label={m.federated_identities()} description={m.federated_identities_description()}>
+	<FormInput label={m.federated_identities()} description={m.federated_identities_description()} docsLink="https://pocket-id.org/docs/guides/oidc-client-authentication">
 		<div class="space-y-4">
 			{#each federatedIdentities as identity, i}
 				<div class="space-y-3 rounded-lg border p-4">
