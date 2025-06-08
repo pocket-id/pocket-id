@@ -6,7 +6,7 @@
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
-	import { z } from 'zod';
+	import { z } from 'zod/v4';
 
 	let {
 		callback,

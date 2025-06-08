@@ -5,7 +5,7 @@
 	import type { ApiKeyCreate } from '$lib/types/api-key.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
-	import { z } from 'zod';
+	import { z } from 'zod/v4';
 
 	let {
 		callback
@@ -28,8 +28,8 @@
 	const formSchema = z.object({
 		name: z
 			.string()
-			.min(3, m.name_must_be_at_least_3_characters())
-			.max(50, m.name_cannot_exceed_50_characters()),
+			.min(3)
+			.max(50),
 		description: z.string().default(''),
 		expiresAt: z.date().min(new Date(), m.expiration_date_must_be_in_the_future())
 	});

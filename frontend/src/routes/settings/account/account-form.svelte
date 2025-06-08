@@ -9,7 +9,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
-	import { z } from 'zod';
+	import { z } from 'zod/v4';
 
 	let {
 		callback,
@@ -35,7 +35,7 @@
 			.min(2)
 			.max(30)
 			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
-		email: z.string().email(),
+		email: z.email(),
 		isAdmin: z.boolean()
 	});
 	type FormSchema = typeof formSchema;

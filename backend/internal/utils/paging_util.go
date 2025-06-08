@@ -34,9 +34,12 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 
 	sortField, sortFieldFound := reflect.TypeOf(result).Elem().Elem().FieldByName(capitalizedSortColumn)
 	isSortable, _ := strconv.ParseBool(sortField.Tag.Get("sortable"))
-	isValidSortOrder := sort.Direction == "asc" || sort.Direction == "desc"
 
-	if sortFieldFound && isSortable && isValidSortOrder {
+	if sort.Direction == "" || (sort.Direction != "asc" && sort.Direction != "desc") {
+		sort.Direction = "asc"
+	}
+
+	if sortFieldFound && isSortable {
 		columnName := CamelCaseToSnakeCase(sort.Column)
 		query = query.Clauses(clause.OrderBy{
 			Columns: []clause.OrderByColumn{

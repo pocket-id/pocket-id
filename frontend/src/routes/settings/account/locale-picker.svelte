@@ -1,8 +1,9 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select';
-	import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
+	import { getLocale, type Locale } from '$lib/paraglide/runtime';
 	import UserService from '$lib/services/user-service';
 	import userStore from '$lib/stores/user-store';
+	import { setLocale } from '$lib/utils/locale.util';
 
 	const userService = new UserService();
 	const currentLocale = getLocale();
