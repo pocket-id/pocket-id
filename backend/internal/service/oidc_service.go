@@ -42,6 +42,7 @@ const (
 	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" //nolint:gosec
 
 	RefreshTokenDuration = 30 * 24 * time.Hour // 30 days
+	DeviceCodeDuration   = 15 * time.Minute
 )
 
 type OidcService struct {
@@ -1223,8 +1224,10 @@ func (s *OidcService) addCallbackURLToClient(ctx context.Context, client *model.
 
 func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.OidcDeviceAuthorizationRequestDto) (*dto.OidcDeviceAuthorizationResponseDto, error) {
 	client, err := s.verifyClientCredentialsInternal(ctx, s.db, ClientAuthCredentials{
-		ClientID:     input.ClientID,
-		ClientSecret: input.ClientSecret,
+		ClientID:            input.ClientID,
+		ClientSecret:        input.ClientSecret,
+		ClientAssertionType: input.ClientAssertionType,
+		ClientAssertion:     input.ClientAssertion,
 	})
 	if err != nil {
 		return nil, err
@@ -1245,7 +1248,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		DeviceCode:   deviceCode,
 		UserCode:     userCode,
 		Scope:        input.Scope,
-		ExpiresAt:    datatype.DateTime(time.Now().Add(15 * time.Minute)),
+		ExpiresAt:    datatype.DateTime(time.Now().Add(DeviceCodeDuration)),
 		IsAuthorized: false,
 		ClientID:     client.ID,
 	}
@@ -1259,7 +1262,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		UserCode:                userCode,
 		VerificationURI:         common.EnvConfig.AppURL + "/device",
 		VerificationURIComplete: common.EnvConfig.AppURL + "/device?code=" + userCode,
-		ExpiresIn:               900, // 15 minutes
+		ExpiresIn:               int(DeviceCodeDuration.Seconds()),
 		Interval:                5,
 	}, nil
 }
