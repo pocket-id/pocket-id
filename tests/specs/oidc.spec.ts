@@ -405,6 +405,7 @@ test.describe("Introspection endpoint", () => {
   });
 
   test("fails with federated credentials for wrong app", async ({
+    page,
     request,
   }) => {
     const validAccessToken = await generateOauthAccessToken(
