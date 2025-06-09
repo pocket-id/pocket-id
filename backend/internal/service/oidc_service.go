@@ -494,7 +494,7 @@ func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCrede
 	if err != nil {
 		// We just treat the token as invalid
 		introspectDto.Active = false
-		return introspectDto, nil
+		return introspectDto, nil //nolint:nilerr
 	}
 
 	// If we don't have a client ID, get it from the token
