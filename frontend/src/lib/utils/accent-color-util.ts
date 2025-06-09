@@ -13,11 +13,22 @@ export function applyAccentColor(accentValue: string) {
 	if (accentValue !== 'default') {
 		const accent = accentColors.find((a) => a.value === accentValue);
 		if (accent) {
-			document.documentElement.style.setProperty('--primary', accent.cssVar);
-			document.documentElement.style.setProperty('--primary-foreground', accent.foregroundVar);
+			// Parse the OKLCH values to create a faded version for rings
+			const match = accent.cssVar.match(/oklch\(([^)]+)\)/);
+			if (match) {
+				const [l, c, h] = match[1].split(' ').map((v) => parseFloat(v));
+				const fadedRing = `oklch(${Math.min(l + 0.15, 1)} ${c * 0.6} ${h} / 0.3)`;
+
+				document.documentElement.style.setProperty('--primary', accent.cssVar);
+				document.documentElement.style.setProperty('--primary-foreground', accent.foregroundVar);
+				document.documentElement.style.setProperty('--ring', fadedRing);
+				document.documentElement.style.setProperty('--sidebar-ring', fadedRing);
+			}
 		}
 	} else {
 		document.documentElement.style.removeProperty('--primary');
 		document.documentElement.style.removeProperty('--primary-foreground');
+		document.documentElement.style.removeProperty('--ring');
+		document.documentElement.style.removeProperty('--sidebar-ring');
 	}
 }
