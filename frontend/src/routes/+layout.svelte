@@ -36,7 +36,9 @@
 
 	if (appConfig) {
 		appConfigStore.set(appConfig);
-		applyAccentColor(appConfig.accentColor);
+		if (appConfig.accentColor) {
+			applyAccentColor(appConfig.accentColor);
+		}
 	}
 </script>
 
