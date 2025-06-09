@@ -218,12 +218,10 @@
 				<div>
 					<Card.Title>
 						<LucideBrush class="text-primary/80 size-5" />
-						Accent Color
-						<!-- {m.accent_color()} -->
+						{m.accent_color()}
 					</Card.Title>
 					<Card.Description>
-						Select an accent color to customize the appearance of Pocket ID.
-						<!-- {m.select_an_accent_color_to_customize_the_appearance_of_pocket_id()} -->
+						{m.select_an_accent_color_to_customize_the_appearance_of_pocket_id()}
 					</Card.Description>
 				</div>
 				<AccentPicker />
