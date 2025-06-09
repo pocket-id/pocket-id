@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
@@ -140,13 +140,13 @@
 				placeholder="(objectClass=groupOfNames)"
 				bind:input={$inputs.ldapUserGroupSearchFilter}
 			/>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="skip-cert-verify"
 				label={m.skip_certificate_verification()}
 				description={m.this_can_be_useful_for_selfsigned_certificates()}
 				bind:checked={$inputs.ldapSkipCertVerify.value}
 			/>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="ldap-soft-delete-users"
 				label={m.ldap_soft_delete_users()}
 				description={m.ldap_soft_delete_users_description()}

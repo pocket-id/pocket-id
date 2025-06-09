@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -120,13 +120,13 @@
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
 			bind:error={$inputs.logoutCallbackURLs.error}
 		/>
-		<CheckboxWithLabel
+		<SwitchWithLabel
 			id="public-client"
 			label={m.public_client()}
 			description={m.public_clients_description()}
 			bind:checked={$inputs.isPublic.value}
 		/>
-		<CheckboxWithLabel
+		<SwitchWithLabel
 			id="pkce"
 			label={m.pkce()}
 			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}

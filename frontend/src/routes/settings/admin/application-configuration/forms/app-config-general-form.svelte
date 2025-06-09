@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
@@ -56,19 +56,19 @@
 				description={m.the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again()}
 				bind:input={$inputs.sessionDuration}
 			/>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="self-account-editing"
 				label={m.enable_self_account_editing()}
 				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
 				bind:checked={$inputs.allowOwnAccountEdit.value}
 			/>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="emails-verified"
 				label={m.emails_verified()}
 				description={m.whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients()}
 				bind:checked={$inputs.emailsVerified.value}
 			/>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="disable-animations"
 				label={m.disable_animations()}
 				description={m.turn_off_ui_animations()}

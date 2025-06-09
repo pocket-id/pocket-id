@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
@@ -121,7 +121,7 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="skip-cert-verify"
 				label={m.skip_certificate_verification()}
 				description={m.this_can_be_useful_for_selfsigned_certificates()}
@@ -130,26 +130,26 @@
 		</div>
 		<h4 class="mt-10 text-lg font-semibold">{m.enabled_emails()}</h4>
 		<div class="mt-4 flex flex-col gap-5">
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="email-login-notification"
 				label={m.email_login_notification()}
 				description={m.send_an_email_to_the_user_when_they_log_in_from_a_new_device()}
 				bind:checked={$inputs.emailLoginNotificationEnabled.value}
 			/>
 
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="email-login-admin"
 				label={m.email_login_code_from_admin()}
 				description={m.allows_an_admin_to_send_a_login_code_to_the_user()}
 				bind:checked={$inputs.emailOneTimeAccessAsAdminEnabled.value}
 			/>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="api-key-expiration"
 				label={m.api_key_expiration()}
 				description={m.send_an_email_to_the_user_when_their_api_key_is_about_to_expire()}
 				bind:checked={$inputs.emailApiKeyExpirationEnabled.value}
 			/>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="email-login-user"
 				label={m.emai_login_code_requested_by_user()}
 				description={m.allow_users_to_sign_in_with_a_login_code_sent_to_their_email()}

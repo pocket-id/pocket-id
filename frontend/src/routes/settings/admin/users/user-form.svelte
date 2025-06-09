@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CheckboxWithLabel from '$lib/components/form/checkbox-with-label.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
@@ -62,13 +62,13 @@
 			<FormInput label={m.last_name()} bind:input={$inputs.lastName} />
 			<FormInput label={m.username()} bind:input={$inputs.username} />
 			<FormInput label={m.email()} bind:input={$inputs.email} />
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="admin-privileges"
 				label={m.admin_privileges()}
 				description={m.admins_have_full_access_to_the_admin_panel()}
 				bind:checked={$inputs.isAdmin.value}
 			/>
-			<CheckboxWithLabel
+			<SwitchWithLabel
 				id="user-disabled"
 				label={m.user_disabled()}
 				description={m.disabled_users_cannot_log_in_or_use_services()}

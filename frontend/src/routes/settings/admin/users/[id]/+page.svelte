@@ -98,7 +98,7 @@
 </Card.Root>
 
 <Card.Root>
-	<Card.Content class="pt-6">
+	<Card.Content>
 		<ProfilePictureSettings
 			userId={user.id}
 			isLdapUser={!!user.ldapId}
