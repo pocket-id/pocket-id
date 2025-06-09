@@ -240,7 +240,8 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 	return token, nil
 }
 
-func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string, nonce string) (string, error) {
+// BuildIDToken creates an ID token with all claims
+func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, nonce string) (jwt.Token, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Expiration(now.Add(1 * time.Hour)).
@@ -248,31 +249,41 @@ func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string,
 		Issuer(common.EnvConfig.AppURL).
 		Build()
 	if err != nil {
-		return "", fmt.Errorf("failed to build token: %w", err)
+		return nil, fmt.Errorf("failed to build token: %w", err)
 	}
 
 	err = SetAudienceString(token, clientID)
 	if err != nil {
-		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
+		return nil, fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
 	err = SetTokenType(token, IDTokenJWTType)
 	if err != nil {
-		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
+		return nil, fmt.Errorf("failed to set 'type' claim in token: %w", err)
 	}
 
 	for k, v := range userClaims {
 		err = token.Set(k, v)
 		if err != nil {
-			return "", fmt.Errorf("failed to set claim '%s': %w", k, err)
+			return nil, fmt.Errorf("failed to set claim '%s': %w", k, err)
 		}
 	}
 
 	if nonce != "" {
 		err = token.Set("nonce", nonce)
 		if err != nil {
-			return "", fmt.Errorf("failed to set claim 'nonce': %w", err)
+			return nil, fmt.Errorf("failed to set claim 'nonce': %w", err)
 		}
+	}
+
+	return token, nil
+}
+
+// GenerateIDToken creates and signs an ID token
+func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string, nonce string) (string, error) {
+	token, err := s.BuildIDToken(userClaims, clientID, nonce)
+	if err != nil {
+		return "", err
 	}
 
 	alg, _ := s.privateKey.Algorithm()
@@ -317,7 +328,8 @@ func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool)
 	return token, nil
 }
 
-func (s *JwtService) GenerateOAuthAccessToken(user model.User, clientID string) (string, error) {
+// BuildOAuthAccessToken creates an OAuth access token with all claims
+func (s *JwtService) BuildOAuthAccessToken(user model.User, clientID string) (jwt.Token, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
@@ -326,17 +338,27 @@ func (s *JwtService) GenerateOAuthAccessToken(user model.User, clientID string) 
 		Issuer(common.EnvConfig.AppURL).
 		Build()
 	if err != nil {
-		return "", fmt.Errorf("failed to build token: %w", err)
+		return nil, fmt.Errorf("failed to build token: %w", err)
 	}
 
 	err = SetAudienceString(token, clientID)
 	if err != nil {
-		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
+		return nil, fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
 	err = SetTokenType(token, OAuthAccessTokenJWTType)
 	if err != nil {
-		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
+		return nil, fmt.Errorf("failed to set 'type' claim in token: %w", err)
+	}
+
+	return token, nil
+}
+
+// GenerateOAuthAccessToken creates and signs an OAuth access token
+func (s *JwtService) GenerateOAuthAccessToken(user model.User, clientID string) (string, error) {
+	token, err := s.BuildOAuthAccessToken(user, clientID)
+	if err != nil {
+		return "", err
 	}
 
 	alg, _ := s.privateKey.Algorithm()

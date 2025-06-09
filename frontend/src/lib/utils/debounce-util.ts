@@ -1,4 +1,8 @@
-export function debounced<T extends (...args: any[]) => void>(func: T, delay: number) {
+export function debounced<T extends (...args: any[]) => any>(
+	func: T,
+	delay: number,
+	onLoadingChange?: (loading: boolean) => void
+) {
 	let debounceTimeout: ReturnType<typeof setTimeout>;
 
 	return (...args: Parameters<T>) => {
@@ -6,8 +10,14 @@ export function debounced<T extends (...args: any[]) => void>(func: T, delay: nu
 			clearTimeout(debounceTimeout);
 		}
 
-		debounceTimeout = setTimeout(() => {
-			func(...args);
+		onLoadingChange?.(true);
+
+		debounceTimeout = setTimeout(async () => {
+			try {
+				await func(...args);
+			} finally {
+				onLoadingChange?.(false);
+			}
 		}, delay);
 	};
 }

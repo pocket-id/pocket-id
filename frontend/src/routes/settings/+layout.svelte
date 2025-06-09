@@ -39,7 +39,9 @@
 </script>
 
 <section>
-	<div class="bg-muted/40 flex min-h-[calc(100vh-64px)] w-full flex-col justify-between">
+	<div
+		class="bg-muted/40 dark:bg-background flex min-h-[calc(100vh-64px)] w-full flex-col justify-between"
+	>
 		<main
 			in:fade={{ duration: 200 }}
 			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 overflow-hidden p-4 md:p-8 lg:flex-row"

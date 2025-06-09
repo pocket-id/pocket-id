@@ -49,7 +49,7 @@ func TestBearerAuth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.com", nil)
 			require.NoError(t, err, "Failed to create request")
 
 			if tt.authHeader != "" {
