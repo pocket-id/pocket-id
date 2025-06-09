@@ -358,7 +358,7 @@
 	"preview_the_oidc_data_that_would_be_sent_for_different_users": "Preview the OIDC data that would be sent for different users",
 	"id_token": "ID Token",
 	"access_token": "Access Token",
-	"userinfo_response": "Userinfo Response",
+	"userinfo": "Userinfo",
 	"id_token_payload": "ID Token Payload",
 	"access_token_payload": "Access Token Payload",
 	"userinfo_endpoint_response": "Userinfo Endpoint Response",
@@ -368,6 +368,8 @@
 	"preview": "Preview",
 	"preview_for_user": "Preview for {name} ({email})",
 	"preview_the_oidc_data_that_would_be_sent_for_this_user": "Preview the OIDC data that would be sent for this user",
-	"access_denied": "Access Denied",
-	"show": "Show"
+	"show": "Show",
+	"select_an_option": "Select an option",
+	"select_user": "Select User",
+	"error": "Error"
 }

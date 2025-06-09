@@ -33,6 +33,7 @@
 		userInfo?: any;
 	} | null>(null);
 	let loadingPreview = $state(false);
+	let isUserSearchLoading = $state(false);
 	let user: User | null = $state(null);
 	let users: User[] = $state([]);
 	let scopes: string[] = $state(['openid', 'email', 'profile']);
@@ -46,7 +47,6 @@
 		} catch (e) {
 			const error = getAxiosErrorMessage(e);
 			errorMessage = error;
-			axiosErrorToast(e);
 			previewData = null;
 		} finally {
 			loadingPreview = false;
@@ -77,7 +77,11 @@
 		}
 	}
 
-	const onUserSearch = debounced(async (search: string) => await loadUsers(search), 300);
+	const onUserSearch = debounced(
+		async (search: string) => await loadUsers(search),
+		300,
+		(loading) => (isUserSearchLoading = loading)
+	);
 
 	$effect(() => {
 		if (open) {
@@ -112,17 +116,16 @@
 
 			<div class="flex justify-start gap-3">
 				<div>
-					<Label class="text-sm font-medium">Users</Label>
+					<Label class="text-sm font-medium">{m.users()}</Label>
 					<div>
 						<SearchableSelect
 							class="w-48"
-							items={[
-								{ value: '', label: m.all_users() },
-								...Object.values(users).map((user) => ({
-									value: user.id,
-									label: user.username
-								}))
-							]}
+							selectText={m.select_user()}
+							isLoading={isUserSearchLoading}
+							items={Object.values(users).map((user) => ({
+								value: user.id,
+								label: user.username
+							}))}
 							value={user?.id || ''}
 							oninput={(e) => onUserSearch(e.currentTarget.value)}
 							onSelect={(value) => {
@@ -147,9 +150,9 @@
 			</div>
 
 			{#if errorMessage && !loadingPreview}
-				<Alert.Root variant="destructive" class="mb-6">
+				<Alert.Root variant="destructive" class="mt-5 mb-6">
 					<LucideAlertTriangle class="h-4 w-4" />
-					<Alert.Title>{m.access_denied()}</Alert.Title>
+					<Alert.Title>{m.error()}</Alert.Title>
 					<Alert.Description>
 						{errorMessage}
 					</Alert.Description>
@@ -161,7 +164,7 @@
 					<Tabs.List class="mb-6 grid w-full grid-cols-3">
 						<Tabs.Trigger value="id-token">{m.id_token()}</Tabs.Trigger>
 						<Tabs.Trigger value="access-token">{m.access_token()}</Tabs.Trigger>
-						<Tabs.Trigger value="userinfo">{m.userinfo_response()}</Tabs.Trigger>
+						<Tabs.Trigger value="userinfo">{m.userinfo()}</Tabs.Trigger>
 					</Tabs.List>
 					<Tabs.Content value="id-token">
 						{@render tabContent(previewData.idToken, m.id_token_payload())}
