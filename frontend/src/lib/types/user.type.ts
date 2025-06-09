@@ -12,6 +12,7 @@ export type User = {
 	userGroups: UserGroup[];
 	customClaims: CustomClaim[];
 	locale?: Locale;
+	accentColor?: string;
 	ldapId?: string;
 	disabled?: boolean;
 };

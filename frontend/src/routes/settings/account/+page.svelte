@@ -14,6 +14,7 @@
 		KeyRound,
 		Languages,
 		LucideAlertTriangle,
+		LucideBrush,
 		RectangleEllipsis,
 		UserCog
 	} from '@lucide/svelte';
@@ -23,6 +24,7 @@
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
+	import AccentPicker from './accent-picker.svelte';
 
 	let { data } = $props();
 	let account = $state(data.account);
@@ -203,6 +205,28 @@
 					</Card.Description>
 				</div>
 				<LocalePicker />
+			</div>
+		</Card.Header>
+	</Card.Root>
+</div>
+
+<!-- Accent Switcher Card -->
+<div class="hidden sm:block">
+	<Card.Root>
+		<Card.Header>
+			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+				<div>
+					<Card.Title>
+						<LucideBrush class="text-primary/80 size-5" />
+						Accent Color
+						<!-- {m.accent_color()} -->
+					</Card.Title>
+					<Card.Description>
+						Select an accent color to customize the appearance of Pocket ID.
+						<!-- {m.select_an_accent_color_to_customize_the_appearance_of_pocket_id()} -->
+					</Card.Description>
+				</div>
+				<AccentPicker />
 			</div>
 		</Card.Header>
 	</Card.Root>
