@@ -2,15 +2,19 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
+	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/style';
-	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
+	import { LoaderCircle, LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import { tick } from 'svelte';
-	import type { HTMLAttributes } from 'svelte/elements';
+	import type { FormEventHandler, HTMLAttributes } from 'svelte/elements';
 
 	let {
 		items,
 		value = $bindable(),
 		onSelect,
+		oninput,
+		isLoading,
+		selectText = m.select_an_option(),
 		...restProps
 	}: HTMLAttributes<HTMLButtonElement> & {
 		items: {
@@ -18,7 +22,10 @@
 			label: string;
 		}[];
 		value: string;
+		oninput?: FormEventHandler<HTMLInputElement>;
 		onSelect?: (value: string) => void;
+		isLoading?: boolean;
+		selectText?: string;
 	} = $props();
 
 	let open = $state(false);
@@ -53,21 +60,38 @@
 </script>
 
 <Popover.Root bind:open {...restProps}>
-	<Popover.Trigger class="w-full">
-		<Button
-			variant="outline"
-			role="combobox"
-			aria-expanded={open}
-			class={cn('justify-between', restProps.class)}
-		>
-			{items.find((item) => item.value === value)?.label || 'Select an option'}
-			<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
-		</Button>
+	<Popover.Trigger>
+		{#snippet child({ props })}
+			<Button
+				variant="outline"
+				role="combobox"
+				aria-expanded={open}
+				{...props}
+				class={cn('justify-between', restProps.class)}
+			>
+				{items.find((item) => item.value === value)?.label || selectText}
+				<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
+			</Button>
+		{/snippet}
 	</Popover.Trigger>
-	<Popover.Content class="p-0">
+	<Popover.Content class="p-0" sameWidth>
 		<Command.Root shouldFilter={false}>
-			<Command.Input placeholder="Search..." oninput={(e: any) => filterItems(e.target.value)} />
-			<Command.Empty>No results found.</Command.Empty>
+			<Command.Input
+				placeholder={m.search()}
+				oninput={(e) => {
+					filterItems(e.currentTarget.value);
+					oninput?.(e);
+				}}
+			/>
+			<Command.Empty>
+				{#if isLoading}
+					<div class="flex w-full justify-center">
+						<LoaderCircle class="size-4 animate-spin" />
+					</div>
+				{:else}
+					{m.no_items_found()}
+				{/if}
+			</Command.Empty>
 			<Command.Group>
 				{#each filteredItems as item}
 					<Command.Item

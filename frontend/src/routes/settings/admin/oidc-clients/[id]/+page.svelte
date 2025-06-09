@@ -13,10 +13,11 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft, LucideRefreshCcw } from '@lucide/svelte';
+	import { LucideChevronLeft, LucideRefreshCcw, RectangleEllipsis } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import OidcForm from '../oidc-client-form.svelte';
+	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
 
 	let { data } = $props();
 	let client = $state({
@@ -24,6 +25,7 @@
 		allowedUserGroupIds: data.allowedUserGroups.map((g) => g.id)
 	});
 	let showAllDetails = $state(false);
+	let showPreview = $state(false);
 
 	const oidcService = new OidcService();
 
@@ -89,6 +91,12 @@
 			.catch((e) => {
 				axiosErrorToast(e);
 			});
+	}
+
+	let previewUserId = $state<string | null>(null);
+
+	function handlePreview(userId: string) {
+		previewUserId = userId;
 	}
 
 	beforeNavigate(() => {
@@ -180,3 +188,22 @@
 		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
 	</div>
 </CollapsibleCard>
+<Card.Root>
+	<Card.Header>
+		<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+			<div>
+				<Card.Title>
+					{m.oidc_data_preview()}
+				</Card.Title>
+				<Card.Description>
+					{m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
+				</Card.Description>
+			</div>
+
+			<Button variant="outline" onclick={() => (showPreview = true)}>
+				{m.show()}
+			</Button>
+		</div>
+	</Card.Header>
+</Card.Root>
+<OidcClientPreviewModal bind:open={showPreview} clientId={client.id} />

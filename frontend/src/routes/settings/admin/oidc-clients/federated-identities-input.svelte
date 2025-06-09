@@ -51,7 +51,7 @@
 	}
 
 	function getFieldError(index: number, field: keyof OidcClientFederatedIdentity): string | null {
-		console.log(federatedIdentities)
+		console.log(federatedIdentities);
 		if (!errors) return null;
 		const path = [index, field];
 		return errors?.filter((e) => e.path[0] == path[0] && e.path[1] == path[1])[0]?.message;
@@ -59,7 +59,11 @@
 </script>
 
 <div {...restProps}>
-	<FormInput label={m.federated_identities()} description={m.federated_identities_description()} docsLink="https://pocket-id.org/docs/guides/oidc-client-authentication">
+	<FormInput
+		label={m.federated_client_credentials()}
+		description={m.federated_client_credentials_description()}
+		docsLink="https://pocket-id.org/docs/guides/oidc-client-authentication"
+	>
 		<div class="space-y-4">
 			{#each federatedIdentities as identity, i}
 				<div class="space-y-3 rounded-lg border p-4">
@@ -142,7 +146,7 @@
 	<Button class="mt-3" variant="secondary" size="sm" onclick={addFederatedIdentity} type="button">
 		<LucidePlus class="mr-1 size-4" />
 		{federatedIdentities.length === 0
-			? m.add_federated_identity()
-			: m.add_another_federated_identity()}
+			? m.add_federated_client_credential()
+			: m.add_another_federated_client_credential()}
 	</Button>
 </div>

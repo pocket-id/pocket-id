@@ -145,3 +145,9 @@ type AuthorizedOidcClientDto struct {
 	Scope  string                `json:"scope"`
 	Client OidcClientMetaDataDto `json:"client"`
 }
+
+type OidcClientPreviewDto struct {
+	IdToken     map[string]interface{} `json:"idToken"`
+	AccessToken map[string]interface{} `json:"accessToken"`
+	UserInfo    map[string]interface{} `json:"userInfo"`
+}
