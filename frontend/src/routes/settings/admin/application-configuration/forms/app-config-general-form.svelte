@@ -12,7 +12,8 @@
 	import { applyAccentColor } from '$lib/utils/accent-color-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
-	import { Check } from '@lucide/svelte';
+	import { Check, Plus } from '@lucide/svelte';
+	import CustomColorDialog from './custom-color-dialog.svelte';
 
 	let {
 		callback,
@@ -23,6 +24,7 @@
 	} = $props();
 
 	let isLoading = $state(false);
+	let showCustomColorDialog = $state(false);
 
 	const updatedAppConfig = {
 		appName: appConfig.appName,
@@ -55,6 +57,11 @@
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, updatedAppConfig);
 
+	// Check if current accent color is a custom color (not in predefined list)
+	let isCustomColor = $derived(
+		!accentColors.some((color) => color.value === $inputs.accentColor.value)
+	);
+
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;
@@ -71,6 +78,14 @@
 		$inputs.accentColor.value = accentValue;
 		applyAccentColor(accentValue);
 	}
+
+	function openCustomColorDialog() {
+		showCustomColorDialog = true;
+	}
+
+	function handleCustomColorApply(color: string) {
+		handleAccentColorChange(color);
+	}
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>
@@ -82,6 +97,25 @@
 				type="number"
 				description={m.the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again()}
 				bind:input={$inputs.sessionDuration}
+			/>
+
+			<SwitchWithLabel
+				id="self-account-editing"
+				label={m.enable_self_account_editing()}
+				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
+				bind:checked={$inputs.allowOwnAccountEdit.value}
+			/>
+			<SwitchWithLabel
+				id="emails-verified"
+				label={m.emails_verified()}
+				description={m.whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients()}
+				bind:checked={$inputs.emailsVerified.value}
+			/>
+			<SwitchWithLabel
+				id="disable-animations"
+				label={m.disable_animations()}
+				description={m.turn_off_ui_animations()}
+				bind:checked={$inputs.disableAnimations.value}
 			/>
 
 			<!-- Accent Color Picker -->
@@ -99,8 +133,14 @@
 
 				<RadioGroup.Root
 					class="flex flex-wrap gap-3"
-					value={$inputs.accentColor.value}
-					onValueChange={handleAccentColorChange}
+					value={isCustomColor ? 'custom' : $inputs.accentColor.value}
+					onValueChange={(value) => {
+						if (value === 'custom') {
+							openCustomColorDialog();
+						} else {
+							handleAccentColorChange(value);
+						}
+					}}
 				>
 					{#each accentColors as accent}
 						<div class="relative">
@@ -128,30 +168,46 @@
 							</Label>
 						</div>
 					{/each}
+
+					<!-- Custom Color Option -->
+					<div class="relative">
+						<RadioGroup.Item value="custom" id="custom" class="sr-only" />
+						<Label for="custom" class="group cursor-pointer">
+							<div
+								class="relative h-10 w-10 rounded-full border-2 transition-all duration-200 {isCustomColor
+									? 'border-primary ring-primary ring-2 ring-offset-2'
+									: 'group-hover:border-primary group-hover:ring-primary border-gray-200 group-hover:ring-1 group-hover:ring-offset-1'}"
+								style="background-color: {isCustomColor
+									? $inputs.accentColor.value
+									: 'transparent'}"
+								title="Custom Color"
+							>
+								{#if isCustomColor}
+									<div class="absolute inset-0 flex items-center justify-center">
+										<Check class="size-4 text-white drop-shadow-sm" />
+									</div>
+								{:else}
+									<div
+										class="bg-muted absolute inset-0 flex items-center justify-center rounded-full border-2 border-dashed border-gray-300"
+									>
+										<Plus class="text-muted-foreground size-4" />
+									</div>
+								{/if}
+							</div>
+							<div
+								class="text-muted-foreground group-hover:text-foreground mt-1 text-center text-xs transition-colors"
+							>
+								Custom
+							</div>
+						</Label>
+					</div>
 				</RadioGroup.Root>
 			</div>
-
-			<SwitchWithLabel
-				id="self-account-editing"
-				label={m.enable_self_account_editing()}
-				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
-				bind:checked={$inputs.allowOwnAccountEdit.value}
-			/>
-			<SwitchWithLabel
-				id="emails-verified"
-				label={m.emails_verified()}
-				description={m.whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients()}
-				bind:checked={$inputs.emailsVerified.value}
-			/>
-			<SwitchWithLabel
-				id="disable-animations"
-				label={m.disable_animations()}
-				description={m.turn_off_ui_animations()}
-				bind:checked={$inputs.disableAnimations.value}
-			/>
 		</div>
 		<div class="mt-5 flex justify-end">
 			<Button {isLoading} type="submit">{m.save()}</Button>
 		</div>
 	</fieldset>
 </form>
+
+<CustomColorDialog bind:open={showCustomColorDialog} onApply={handleCustomColorApply} />
