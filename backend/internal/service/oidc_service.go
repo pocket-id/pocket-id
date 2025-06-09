@@ -841,97 +841,6 @@ func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) err
 	return nil
 }
 
-func (s *OidcService) GetUserClaimsForClient(ctx context.Context, userID string, clientID string) (map[string]interface{}, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	claims, err := s.getUserClaimsForClientInternal(ctx, userID, clientID, s.db)
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit().Error
-	if err != nil {
-		return nil, err
-	}
-
-	return claims, nil
-}
-
-func (s *OidcService) getUserClaimsForClientInternal(ctx context.Context, userID string, clientID string, tx *gorm.DB) (map[string]interface{}, error) {
-	var authorizedOidcClient model.UserAuthorizedOidcClient
-	err := tx.
-		WithContext(ctx).
-		Preload("User.UserGroups").
-		First(&authorizedOidcClient, "user_id = ? AND client_id = ?", userID, clientID).
-		Error
-	if err != nil {
-		return nil, err
-	}
-
-	user := authorizedOidcClient.User
-	scopes := strings.Split(authorizedOidcClient.Scope, " ")
-
-	claims := map[string]interface{}{
-		"sub": user.ID,
-	}
-
-	if slices.Contains(scopes, "email") {
-		claims["email"] = user.Email
-		claims["email_verified"] = s.appConfigService.GetDbConfig().EmailsVerified.IsTrue()
-	}
-
-	if slices.Contains(scopes, "groups") {
-		userGroups := make([]string, len(user.UserGroups))
-		for i, group := range user.UserGroups {
-			userGroups[i] = group.Name
-		}
-		claims["groups"] = userGroups
-	}
-
-	profileClaims := map[string]interface{}{
-		"given_name":         user.FirstName,
-		"family_name":        user.LastName,
-		"name":               user.FullName(),
-		"preferred_username": user.Username,
-		"picture":            common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png",
-	}
-
-	if slices.Contains(scopes, "profile") {
-		// Add profile claims
-		for k, v := range profileClaims {
-			claims[k] = v
-		}
-
-		// Add custom claims
-		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, userID, tx)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, customClaim := range customClaims {
-			// The value of the custom claim can be a JSON object or a string
-			var jsonValue interface{}
-			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
-			if err == nil {
-				// It's JSON so we store it as an object
-				claims[customClaim.Key] = jsonValue
-			} else {
-				// Marshalling failed, so we store it as a string
-				claims[customClaim.Key] = customClaim.Value
-			}
-		}
-	}
-
-	if slices.Contains(scopes, "email") {
-		claims["email"] = user.Email
-	}
-
-	return claims, nil
-}
-
 func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, input dto.OidcUpdateAllowedUserGroupsDto) (client model.OidcClient, err error) {
 	tx := s.db.Begin()
 	defer func() {
@@ -1552,7 +1461,7 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		User:     user,
 	}
 
-	userClaims, err := s.getUserClaimsFromAuthorizedClient(ctx, &dummyAuthorizedClient)
+	userClaims, err := s.getUserClaimsFromAuthorizedClient(ctx, &dummyAuthorizedClient, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -1589,7 +1498,41 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 	}, nil
 }
 
-func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, authorizedClient *model.UserAuthorizedOidcClient) (map[string]interface{}, error) {
+func (s *OidcService) GetUserClaimsForClient(ctx context.Context, userID string, clientID string) (map[string]interface{}, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	claims, err := s.getUserClaimsForClientInternal(ctx, userID, clientID, s.db)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
+
+	return claims, nil
+}
+
+func (s *OidcService) getUserClaimsForClientInternal(ctx context.Context, userID string, clientID string, tx *gorm.DB) (map[string]interface{}, error) {
+	var authorizedOidcClient model.UserAuthorizedOidcClient
+	err := tx.
+		WithContext(ctx).
+		Preload("User.UserGroups").
+		First(&authorizedOidcClient, "user_id = ? AND client_id = ?", userID, clientID).
+		Error
+	if err != nil {
+		return nil, err
+	}
+
+	return s.getUserClaimsFromAuthorizedClient(ctx, &authorizedOidcClient, tx)
+
+}
+
+func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, authorizedClient *model.UserAuthorizedOidcClient, tx *gorm.DB) (map[string]interface{}, error) {
 	user := authorizedClient.User
 	scopes := strings.Split(authorizedClient.Scope, " ")
 
@@ -1610,29 +1553,42 @@ func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, aut
 		claims["groups"] = userGroups
 	}
 
+	profileClaims := map[string]interface{}{
+		"given_name":         user.FirstName,
+		"family_name":        user.LastName,
+		"name":               user.FullName(),
+		"preferred_username": user.Username,
+		"picture":            common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png",
+	}
+
 	if slices.Contains(scopes, "profile") {
 		// Add profile claims
-		claims["given_name"] = user.FirstName
-		claims["family_name"] = user.LastName
-		claims["name"] = user.FullName()
-		claims["preferred_username"] = user.Username
-		claims["picture"] = common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png"
+		for k, v := range profileClaims {
+			claims[k] = v
+		}
 
 		// Add custom claims
-		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, s.db)
+		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, tx)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, customClaim := range customClaims {
+			// The value of the custom claim can be a JSON object or a string
 			var jsonValue interface{}
 			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
 			if err == nil {
+				// It's JSON, so we store it as an object
 				claims[customClaim.Key] = jsonValue
 			} else {
+				// Marshaling failed, so we store it as a string
 				claims[customClaim.Key] = customClaim.Value
 			}
 		}
+	}
+
+	if slices.Contains(scopes, "email") {
+		claims["email"] = user.Email
 	}
 
 	return claims, nil
