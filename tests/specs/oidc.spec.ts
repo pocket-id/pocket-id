@@ -307,11 +307,10 @@ test("Using refresh token invalidates it for future use", async ({
 });
 
 test.describe("Introspection endpoint", () => {
-  const client = oidcClients.nextcloud;
-  test("without client_id and client_secret fails", async ({ request }) => {
+  test("fails without client credentials", async ({ request }) => {
     const validAccessToken = await generateOauthAccessToken(
       users.tim,
-      client.id
+      oidcClients.nextcloud.id
     );
     const introspectionResponse = await request.post("/api/oidc/introspect", {
       headers: {
@@ -325,20 +324,20 @@ test.describe("Introspection endpoint", () => {
     expect(introspectionResponse.status()).toBe(400);
   });
 
-  test("with client_id and client_secret succeeds", async ({
+  test("succeeds with client credentials", async ({
     request,
     baseURL,
   }) => {
     const validAccessToken = await generateOauthAccessToken(
       users.tim,
-      client.id
+      oidcClients.nextcloud.id
     );
     const introspectionResponse = await request.post("/api/oidc/introspect", {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization:
           "Basic " +
-          Buffer.from(`${client.id}:${client.secret}`).toString("base64"),
+          Buffer.from(`${oidcClients.nextcloud.id}:${oidcClients.nextcloud.secret}`).toString("base64"),
       },
       form: {
         token: validAccessToken,
@@ -352,6 +351,78 @@ test.describe("Introspection endpoint", () => {
     expect(introspectionBody.iss).toBe(baseURL);
     expect(introspectionBody.sub).toBe(users.tim.id);
     expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id]);
+  });
+
+  test("succeeds with federated client credentials", async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    const validAccessToken = await generateOauthAccessToken(
+      users.tim,
+      oidcClients.federated.id
+    );
+    const clientAssertion = await oidcUtil.getClientAssertion(page, oidcClients.federated.federatedJWT);
+    const introspectionResponse = await request.post("/api/oidc/introspect", {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: "Bearer " + clientAssertion,
+      },
+      form: {
+        token: validAccessToken,
+      },
+    });
+
+    expect(introspectionResponse.status()).toBe(200);
+    const introspectionBody = await introspectionResponse.json();
+    expect(introspectionBody.active).toBe(true);
+    expect(introspectionBody.token_type).toBe("access_token");
+    expect(introspectionBody.iss).toBe(baseURL);
+    expect(introspectionBody.sub).toBe(users.tim.id);
+    expect(introspectionBody.aud).toStrictEqual([oidcClients.federated.id]);
+  });
+
+  test("fails with client credentials for wrong app", async ({
+    request,
+  }) => {
+    const validAccessToken = await generateOauthAccessToken(
+      users.tim,
+      oidcClients.nextcloud.id
+    );
+    const introspectionResponse = await request.post("/api/oidc/introspect", {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization:
+          "Basic " +
+          Buffer.from(`${oidcClients.immich.id}:${oidcClients.immich.secret}`).toString("base64"),
+      },
+      form: {
+        token: validAccessToken,
+      },
+    });
+
+    expect(introspectionResponse.status()).toBe(400);
+  });
+
+  test("fails with federated credentials for wrong app", async ({
+    request,
+  }) => {
+    const validAccessToken = await generateOauthAccessToken(
+      users.tim,
+      oidcClients.nextcloud.id
+    );
+    const clientAssertion = await oidcUtil.getClientAssertion(page, oidcClients.federated.federatedJWT);
+    const introspectionResponse = await request.post("/api/oidc/introspect", {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: "Bearer " + clientAssertion,
+      },
+      form: {
+        token: validAccessToken,
+      },
+    });
+
+    expect(introspectionResponse.status()).toBe(400);
   });
 
   test("non-expired refresh_token can be verified", async ({ request }) => {
@@ -373,7 +444,7 @@ test.describe("Introspection endpoint", () => {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization:
           "Basic " +
-          Buffer.from(`${client.id}:${client.secret}`).toString("base64"),
+          Buffer.from(`${oidcClients.nextcloud.id}:${oidcClients.nextcloud.secret}`).toString("base64"),
       },
       form: {
         token: refreshToken,
@@ -405,7 +476,7 @@ test.describe("Introspection endpoint", () => {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization:
           "Basic " +
-          Buffer.from(`${client.id}:${client.secret}`).toString("base64"),
+          Buffer.from(`${oidcClients.nextcloud.id}:${oidcClients.nextcloud.secret}`).toString("base64"),
       },
       form: {
         token: refreshToken,
@@ -420,7 +491,7 @@ test.describe("Introspection endpoint", () => {
   test("expired access_token can't be verified", async ({ request }) => {
     const expiredAccessToken = await generateOauthAccessToken(
       users.tim,
-      client.id,
+      oidcClients.nextcloud.id,
       true
     );
     const introspectionResponse = await request.post("/api/oidc/introspect", {

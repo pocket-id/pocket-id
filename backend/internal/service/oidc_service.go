@@ -489,26 +489,40 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 }
 
 func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCredentials, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
-	_, err = s.verifyClientCredentialsInternal(ctx, s.db, creds)
-	if err != nil {
-		return introspectDto, err
-	}
-
-	// Get the type of the token
-	tokenType, err := s.jwtService.GetTokenType(tokenString)
+	// Get the type of the token and the client ID
+	tokenType, token, err := s.jwtService.GetTokenType(tokenString)
 	if err != nil {
 		// We just treat the token as invalid
 		introspectDto.Active = false
 		return introspectDto, nil
 	}
 
+	// If we don't have a client ID, get it from the token
+	// Otherwise, we need to make sure that the client ID passed as credential matches
+	tokenAudiences, _ := token.Audience()
+	if len(tokenAudiences) != 1 || tokenAudiences[0] == "" {
+		// We just treat the token as invalid
+		introspectDto.Active = false
+		return introspectDto, nil
+	}
+	if creds.ClientID == "" {
+		creds.ClientID = tokenAudiences[0]
+	} else if creds.ClientID != tokenAudiences[0] {
+		return introspectDto, &common.OidcMissingClientCredentialsError{}
+	}
+
+	// Verify the credentials for the call
+	client, err := s.verifyClientCredentialsInternal(ctx, s.db, creds)
+	if err != nil {
+		return introspectDto, err
+	}
+
+	// Introspect the token
 	switch tokenType {
 	case OAuthAccessTokenJWTType:
-		return s.introspectAccessToken(creds.ClientID, tokenString)
-
+		return s.introspectAccessToken(client.ID, tokenString)
 	case OAuthRefreshTokenJWTType:
-		return s.introspectRefreshToken(ctx, creds.ClientID, tokenString)
-
+		return s.introspectRefreshToken(ctx, client.ID, tokenString)
 	default:
 		// We just treat the token as invalid
 		introspectDto.Active = false

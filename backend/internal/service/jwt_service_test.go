@@ -1299,7 +1299,104 @@ func TestTokenTypeValidator(t *testing.T) {
 		require.Error(t, err, "Validator should reject token without type claim")
 		assert.Contains(t, err.Error(), "failed to get token type claim")
 	})
+}
 
+func TestGetTokenType(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Initialize the JWT service
+	mockConfig := NewTestAppConfigService(&model.AppConfig{})
+	service := &JwtService{}
+	err := service.init(mockConfig, tempDir)
+	require.NoError(t, err, "Failed to initialize JWT service")
+
+	buildTokenForType := func(t *testing.T, typ string, setClaimsFn func(b *jwt.Builder)) string {
+		t.Helper()
+
+		b := jwt.NewBuilder()
+		b.Subject("user123")
+		if setClaimsFn != nil {
+			setClaimsFn(b)
+		}
+
+		token, err := b.Build()
+		require.NoError(t, err, "Failed to build token")
+
+		err = SetTokenType(token, typ)
+		require.NoError(t, err, "Failed to set token type")
+
+		alg, _ := service.privateKey.Algorithm()
+		signed, err := jwt.Sign(token, jwt.WithKey(alg, service.privateKey))
+		require.NoError(t, err, "Failed to sign token")
+
+		return string(signed)
+	}
+
+	t.Run("correctly identifies access tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, AccessTokenJWTType, nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error")
+		assert.Equal(t, AccessTokenJWTType, tokenType, "Token type should be correctly identified as access token")
+	})
+
+	t.Run("correctly identifies ID tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, IDTokenJWTType, nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error")
+		assert.Equal(t, IDTokenJWTType, tokenType, "Token type should be correctly identified as ID token")
+	})
+
+	t.Run("correctly identifies OAuth access tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, OAuthAccessTokenJWTType, nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error")
+		assert.Equal(t, OAuthAccessTokenJWTType, tokenType, "Token type should be correctly identified as OAuth access token")
+	})
+
+	t.Run("correctly identifies refresh tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, OAuthRefreshTokenJWTType, nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error")
+		assert.Equal(t, OAuthRefreshTokenJWTType, tokenType, "Token type should be correctly identified as refresh token")
+	})
+
+	t.Run("works with expired tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, AccessTokenJWTType, func(b *jwt.Builder) {
+			b.Expiration(time.Now().Add(-1 * time.Hour)) // Expired 1 hour ago
+		})
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error for expired tokens")
+		assert.Equal(t, AccessTokenJWTType, tokenType, "Token type should be correctly identified even for expired tokens")
+	})
+
+	t.Run("returns error for malformed tokens", func(t *testing.T) {
+		// Try to get the token type of a malformed token
+		tokenType, _, err := service.GetTokenType("not.a.valid.jwt.token")
+		require.Error(t, err, "GetTokenType should return an error for malformed tokens")
+		assert.Empty(t, tokenType, "Token type should be empty for malformed tokens")
+	})
+
+	t.Run("returns error for tokens without type claim", func(t *testing.T) {
+		// Create a token without type claim
+		tokenString := buildTokenForType(t, "", nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.Error(t, err, "GetTokenType should return an error for tokens without type claim")
+		assert.Empty(t, tokenType, "Token type should be empty when type claim is missing")
+		assert.Contains(t, err.Error(), "failed to get token type claim", "Error message should indicate missing token type claim")
+	})
 }
 
 func importKey(t *testing.T, privateKeyRaw any, path string) string {

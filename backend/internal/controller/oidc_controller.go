@@ -306,8 +306,20 @@ func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
 	// find valid tokens) while still allowing it to be used by an application that is
 	// supposed to interact with our IdP (since that needs to have a client_id
 	// and client_secret anyway).
-	var creds service.ClientAuthCredentials
-	creds.ClientID, creds.ClientSecret, _ = c.Request.BasicAuth()
+	var (
+		creds service.ClientAuthCredentials
+		ok    bool
+	)
+	creds.ClientID, creds.ClientSecret, ok = c.Request.BasicAuth()
+	if !ok {
+		// If there's no basic auth, check if we have a bearer token
+		const prefix = "bearer "
+		authHeader := c.Request.Header.Get("Authorization")
+		if len(authHeader) >= len(prefix) && strings.ToLower(authHeader[:len(prefix)]) == prefix {
+			creds.ClientAssertionType = service.ClientAssertionTypeJWTBearer
+			creds.ClientAssertion = authHeader[len(prefix):]
+		}
+	}
 
 	response, err := oc.oidcService.IntrospectToken(c.Request.Context(), creds, input.Token)
 	if err != nil {
