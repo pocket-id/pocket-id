@@ -297,7 +297,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	allowOwnAccountEdit := s.appConfigService.GetDbConfig().AllowOwnAccountEdit.IsTrue()
 
 	// For LDAP users or if own account editing is not allowed, only allow updating the locale unless it's an LDAP sync
-	if !isLdapSync && (isLdapUser || (!allowOwnAccountEdit && updateOwnUser)) {
+	if !isLdapSync && (isLdapUser || (!allowOwnAccountEdit && !updateOwnUser)) {
 		user.Locale = updatedUser.Locale
 	} else {
 		user.FirstName = updatedUser.FirstName
