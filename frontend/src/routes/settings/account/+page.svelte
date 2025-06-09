@@ -14,7 +14,6 @@
 		KeyRound,
 		Languages,
 		LucideAlertTriangle,
-		LucideBrush,
 		RectangleEllipsis,
 		UserCog
 	} from '@lucide/svelte';
