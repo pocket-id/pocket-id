@@ -12,7 +12,7 @@
 	import UserService from '$lib/services/user-service';
 	import type { User } from '$lib/types/user.type';
 	import { debounced } from '$lib/utils/debounce-util';
-	import { axiosErrorToast, getAxiosErrorMessage } from '$lib/utils/error-util';
+	import { getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { LucideAlertTriangle } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
@@ -57,7 +57,7 @@
 		users = (
 			await userService.list({
 				search,
-				pagination: { limit: 3, page: 1 }
+				pagination: { limit: 10, page: 1 }
 			})
 		).data;
 		if (!user) {
