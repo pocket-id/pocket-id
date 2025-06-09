@@ -9,7 +9,6 @@ type UserDto struct {
 	FirstName    string           `json:"firstName"`
 	LastName     string           `json:"lastName"`
 	IsAdmin      bool             `json:"isAdmin"`
-	AccentColor  *string          `json:"accentColor"`
 	CustomClaims []CustomClaimDto `json:"customClaims"`
 	UserGroups   []UserGroupDto   `json:"userGroups"`
 	LdapID       *string          `json:"ldapId"`
