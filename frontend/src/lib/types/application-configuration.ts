@@ -6,6 +6,7 @@ export type AppConfig = {
 	ldapEnabled: boolean;
 	disableAnimations: boolean;
 	uiConfigDisabled: boolean;
+	accentColor?: string;
 };
 
 export type AllAppConfig = AppConfig & {

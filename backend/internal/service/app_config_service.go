@@ -68,6 +68,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		EmailsVerified:      model.AppConfigVariable{Value: "false"},
 		DisableAnimations:   model.AppConfigVariable{Value: "false"},
 		AllowOwnAccountEdit: model.AppConfigVariable{Value: "true"},
+		AccentColor:         model.AppConfigVariable{Value: "default"},
 		// Internal
 		BackgroundImageType: model.AppConfigVariable{Value: "jpg"},
 		LogoLightImageType:  model.AppConfigVariable{Value: "svg"},

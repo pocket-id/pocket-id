@@ -9,7 +9,6 @@ type UserDto struct {
 	FirstName    string           `json:"firstName"`
 	LastName     string           `json:"lastName"`
 	IsAdmin      bool             `json:"isAdmin"`
-	Locale       *string          `json:"locale"`
 	AccentColor  *string          `json:"accentColor"`
 	CustomClaims []CustomClaimDto `json:"customClaims"`
 	UserGroups   []UserGroupDto   `json:"userGroups"`
@@ -18,15 +17,14 @@ type UserDto struct {
 }
 
 type UserCreateDto struct {
-	Username    string  `json:"username" binding:"required,username,min=2,max=50"`
-	Email       string  `json:"email" binding:"required,email"`
-	FirstName   string  `json:"firstName" binding:"required,min=1,max=50"`
-	LastName    string  `json:"lastName" binding:"max=50"`
-	IsAdmin     bool    `json:"isAdmin"`
-	Locale      *string `json:"locale"`
-	AccentColor *string `json:"accentColor"`
-	Disabled    bool    `json:"disabled"`
-	LdapID      string  `json:"-"`
+	Username  string  `json:"username" binding:"required,username,min=2,max=50"`
+	Email     string  `json:"email" binding:"required,email"`
+	FirstName string  `json:"firstName" binding:"required,min=1,max=50"`
+	LastName  string  `json:"lastName" binding:"max=50"`
+	IsAdmin   bool    `json:"isAdmin"`
+	Locale    *string `json:"locale"`
+	Disabled  bool    `json:"disabled"`
+	LdapID    string  `json:"-"`
 }
 
 type OneTimeAccessTokenCreateDto struct {

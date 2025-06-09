@@ -11,6 +11,7 @@
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
+	import AccentPicker from './accent-picker.svelte';
 
 	let { data } = $props();
 	let appConfig = $state(data.appConfig);

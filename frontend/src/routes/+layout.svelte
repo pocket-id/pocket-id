@@ -9,6 +9,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { getAuthRedirectPath } from '$lib/utils/redirection-util';
+	import { applyAccentColor } from '$lib/utils/accent-color-util';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { Snippet } from 'svelte';
 	import '../app.css';
@@ -35,6 +36,7 @@
 
 	if (appConfig) {
 		appConfigStore.set(appConfig);
+		applyAccentColor(appConfig.accentColor);
 	}
 </script>
 

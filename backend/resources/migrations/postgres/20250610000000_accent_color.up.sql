@@ -1,0 +1,1 @@
+ALTER TABLE app_config_variables ADD COLUMN accent_color TEXT;

@@ -17,7 +17,7 @@ export function applyAccentColor(accentValue: string) {
 			const match = accent.cssVar.match(/oklch\(([^)]+)\)/);
 			if (match) {
 				const [l, c, h] = match[1].split(' ').map((v) => parseFloat(v));
-				const fadedRing = `oklch(${Math.min(l + 0.15, 1)} ${c * 0.6} ${h} / 0.3)`;
+				const fadedRing = `oklch(${Math.min(l + 0.15, 1)} ${c * 0.6} ${h} / 0.5)`;
 
 				document.documentElement.style.setProperty('--primary', accent.cssVar);
 				document.documentElement.style.setProperty('--primary-foreground', accent.foregroundVar);

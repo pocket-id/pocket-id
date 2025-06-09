@@ -24,7 +24,6 @@
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
-	import AccentPicker from './accent-picker.svelte';
 
 	let { data } = $props();
 	let account = $state(data.account);
@@ -210,7 +209,7 @@
 	</Card.Root>
 </div>
 
-<!-- Accent Switcher Card -->
+<!-- Accent Switcher Card
 <div class="hidden sm:block">
 	<Card.Root>
 		<Card.Header>
@@ -228,7 +227,7 @@
 			</div>
 		</Card.Header>
 	</Card.Root>
-</div>
+</div> -->
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}
