@@ -313,11 +313,10 @@ func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
 	creds.ClientID, creds.ClientSecret, ok = c.Request.BasicAuth()
 	if !ok {
 		// If there's no basic auth, check if we have a bearer token
-		const prefix = "bearer "
-		authHeader := c.Request.Header.Get("Authorization")
-		if len(authHeader) >= len(prefix) && strings.ToLower(authHeader[:len(prefix)]) == prefix {
+		bearer, ok := utils.BearerAuth(c.Request)
+		if ok {
 			creds.ClientAssertionType = service.ClientAssertionTypeJWTBearer
-			creds.ClientAssertion = authHeader[len(prefix):]
+			creds.ClientAssertion = bearer
 		}
 	}
 
