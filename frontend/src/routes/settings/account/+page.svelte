@@ -209,26 +209,6 @@
 	</Card.Root>
 </div>
 
-<!-- Accent Switcher Card
-<div class="hidden sm:block">
-	<Card.Root>
-		<Card.Header>
-			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-				<div>
-					<Card.Title>
-						<LucideBrush class="text-primary/80 size-5" />
-						{m.accent_color()}
-					</Card.Title>
-					<Card.Description>
-						{m.select_an_accent_color_to_customize_the_appearance_of_pocket_id()}
-					</Card.Description>
-				</div>
-				<AccentPicker />
-			</div>
-		</Card.Header>
-	</Card.Root>
-</div> -->
-
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
