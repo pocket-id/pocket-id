@@ -489,29 +489,54 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 }
 
 func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCredentials, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
-	if creds.ClientID == "" || creds.ClientSecret == "" {
-		return introspectDto, &common.OidcMissingClientCredentialsError{}
-	}
-
 	_, err = s.verifyClientCredentialsInternal(ctx, s.db, creds)
 	if err != nil {
 		return introspectDto, err
 	}
 
+	// Get the type of the token
+	tokenType, err := s.jwtService.GetTokenType(tokenString)
+	if err != nil {
+		// We just treat the token as invalid
+		introspectDto.Active = false
+		return introspectDto, nil
+	}
+
+	switch tokenType {
+	case OAuthAccessTokenJWTType:
+		return s.introspectAccessToken(creds.ClientID, tokenString)
+
+	case OAuthRefreshTokenJWTType:
+		return s.introspectRefreshToken(ctx, creds.ClientID, tokenString)
+
+	default:
+		// We just treat the token as invalid
+		introspectDto.Active = false
+		return introspectDto, nil
+	}
+}
+
+func (s *OidcService) introspectAccessToken(clientID string, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
 	token, err := s.jwtService.VerifyOAuthAccessToken(tokenString)
 	if err != nil {
-		if errors.Is(err, jwt.ParseError()) {
-			// It's apparently not a valid JWT token, so we check if it's a valid refresh_token.
-			return s.introspectRefreshToken(ctx, tokenString)
-		}
-
 		// Every failure we get means the token is invalid. Nothing more to do with the error.
 		introspectDto.Active = false
 		return introspectDto, nil
 	}
 
+	// The ID of the client that made the request must match the client ID in the token
+	audience, ok := token.Audience()
+	if !ok || len(audience) != 1 || audience[0] == "" {
+		introspectDto.Active = false
+		return introspectDto, nil
+	}
+	if audience[0] != clientID {
+		return introspectDto, &common.OidcMissingClientCredentialsError{}
+	}
+
 	introspectDto.Active = true
 	introspectDto.TokenType = "access_token"
+	introspectDto.Audience = audience
 	if token.Has("scope") {
 		var (
 			asString  string
@@ -535,9 +560,6 @@ func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCrede
 	if subject, ok := token.Subject(); ok {
 		introspectDto.Subject = subject
 	}
-	if audience, ok := token.Audience(); ok {
-		introspectDto.Audience = audience
-	}
 	if issuer, ok := token.Issuer(); ok {
 		introspectDto.Issuer = issuer
 	}
@@ -548,12 +570,29 @@ func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCrede
 	return introspectDto, nil
 }
 
-func (s *OidcService) introspectRefreshToken(ctx context.Context, refreshToken string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+func (s *OidcService) introspectRefreshToken(ctx context.Context, clientID string, refreshToken string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	// Validate the signed refresh token and extract the actual token (which is a claim in the signed one)
+	tokenUserID, tokenClientID, tokenRT, err := s.jwtService.VerifyOAuthRefreshToken(refreshToken)
+	if err != nil {
+		return introspectDto, fmt.Errorf("invalid refresh token: %w", err)
+	}
+
+	// The ID of the client that made the call must match the client ID in the token
+	if tokenClientID != clientID {
+		return introspectDto, errors.New("invalid refresh token: client ID does not match")
+	}
+
 	var storedRefreshToken model.OidcRefreshToken
 	err = s.db.
 		WithContext(ctx).
 		Preload("User").
-		Where("token = ? AND expires_at > ?", utils.CreateSha256Hash(refreshToken), datatype.DateTime(time.Now())).
+		Where(
+			"token = ? AND expires_at > ? AND user_id = ? AND client_id = ?",
+			utils.CreateSha256Hash(tokenRT),
+			datatype.DateTime(time.Now()),
+			tokenUserID,
+			tokenClientID,
+		).
 		First(&storedRefreshToken).
 		Error
 	if err != nil {

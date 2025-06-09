@@ -434,6 +434,27 @@ func (s *JwtService) VerifyOAuthRefreshToken(tokenString string) (userID, client
 	return userID, clientID, rt, nil
 }
 
+// GetTokenType returns the type of the JWT token issued by Pocket ID, but **does not validate it**.
+func (s *JwtService) GetTokenType(tokenString string) (string, error) {
+	// Disable validation and verification to parse the token without checking it
+	token, err := jwt.ParseString(
+		tokenString,
+		jwt.WithValidate(false),
+		jwt.WithVerify(false),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	var tokenType string
+	err = token.Get(TokenTypeClaim, &tokenType)
+	if err != nil {
+		return "", fmt.Errorf("failed to get token type claim: %w", err)
+	}
+
+	return tokenType, nil
+}
+
 // GetPublicJWK returns the JSON Web Key (JWK) for the public key.
 func (s *JwtService) GetPublicJWK() (jwk.Key, error) {
 	if s.privateKey == nil {

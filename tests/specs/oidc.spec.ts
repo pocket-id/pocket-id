@@ -355,7 +355,18 @@ test.describe("Introspection endpoint", () => {
   });
 
   test("non-expired refresh_token can be verified", async ({ request }) => {
-    const { token } = refreshTokens.filter((token) => !token.expired)[0];
+    const { token, clientId, userId } = refreshTokens.filter(
+      (token) => !token.expired
+    )[0];
+
+    // Sign the refresh token
+    const refreshToken = await request.post("/api/test/refreshtoken", {
+      data: {
+        rt: token,
+        client: clientId,
+        user: userId,
+      }
+    }).then((r) => r.text())
 
     const introspectionResponse = await request.post("/api/oidc/introspect", {
       headers: {
@@ -365,7 +376,7 @@ test.describe("Introspection endpoint", () => {
           Buffer.from(`${client.id}:${client.secret}`).toString("base64"),
       },
       form: {
-        token: token,
+        token: refreshToken,
       },
     });
 
@@ -376,7 +387,18 @@ test.describe("Introspection endpoint", () => {
   });
 
   test("expired refresh_token can be verified", async ({ request }) => {
-    const { token } = refreshTokens.filter((token) => token.expired)[0];
+    const { token, clientId, userId } = refreshTokens.filter(
+      (token) => token.expired
+    )[0];
+
+    // Sign the refresh token
+    const refreshToken = await request.post("/api/test/refreshtoken", {
+      data: {
+        rt: token,
+        client: clientId,
+        user: userId,
+      }
+    }).then((r) => r.text())
 
     const introspectionResponse = await request.post("/api/oidc/introspect", {
       headers: {
@@ -386,7 +408,7 @@ test.describe("Introspection endpoint", () => {
           Buffer.from(`${client.id}:${client.secret}`).toString("base64"),
       },
       form: {
-        token: token,
+        token: refreshToken,
       },
     });
 
