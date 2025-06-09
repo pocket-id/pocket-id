@@ -4,6 +4,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { m } from '$lib/paraglide/messages';
 	import type { FormInput } from '$lib/utils/form-util';
+	import { LucideExternalLink } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -38,10 +39,19 @@
 		<Label class="mb-0" for={id}>{label}</Label>
 	{/if}
 	{#if description}
-		<p class="text-muted-foreground mt-1 text-xs">{description}</p>
-	{/if}
-	{#if docsLink}
-		<p class="text-muted-foreground text-xs underline"><a href={docsLink} target="_blank">{m.docs()}</a></p>
+		<p class="text-muted-foreground mt-1 text-xs">
+			{description}
+			{#if docsLink}
+				<a
+					class="relative text-white after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:translate-y-[-1px] after:bg-white"
+					href={docsLink}
+					target="_blank"
+				>
+					{m.docs()}
+					<LucideExternalLink class="inline size-3 align-text-top" />
+				</a>
+			{/if}
+		</p>
 	{/if}
 	<div class={label || description ? 'mt-2' : ''}>
 		{#if children}
