@@ -7,8 +7,9 @@ import (
 )
 
 func GetClaimsFromToken(token jwt.Token) (map[string]any, error) {
-	claims := make(map[string]any)
-	for _, key := range token.Keys() {
+	keys := token.Keys()
+	claims := make(map[string]any, len(keys))
+	for _, key := range keys {
 		var value any
 		if err := token.Get(key, &value); err != nil {
 			return nil, fmt.Errorf("failed to get claim %s: %w", key, err)

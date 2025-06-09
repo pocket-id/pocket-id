@@ -882,7 +882,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	})
 }
 
-func TestGenerateVerifyOauthAccessToken(t *testing.T) {
+func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 
@@ -914,12 +914,12 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		const clientID = "test-client-123"
 
 		// Generate a token
-		tokenString, err := service.GenerateOauthAccessToken(user, clientID)
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID)
 		require.NoError(t, err, "Failed to generate OAuth access token")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
 		// Verify the token
-		claims, err := service.VerifyOauthAccessToken(tokenString)
+		claims, err := service.VerifyOAuthAccessToken(tokenString)
 		require.NoError(t, err, "Failed to verify generated OAuth access token")
 
 		// Check the claims
@@ -972,7 +972,7 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		require.NoError(t, err, "Failed to sign token")
 
 		// Verify should fail due to expiration
-		_, err = service.VerifyOauthAccessToken(string(signed))
+		_, err = service.VerifyOAuthAccessToken(string(signed))
 		require.Error(t, err, "Verification should fail with expired token")
 		assert.Contains(t, err.Error(), `"exp" not satisfied`, "Error message should indicate token verification failure")
 	})
@@ -996,11 +996,11 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		const clientID = "test-client-789"
 
 		// Generate a token with the first service
-		tokenString, err := service1.GenerateOauthAccessToken(user, clientID)
+		tokenString, err := service1.GenerateOAuthAccessToken(user, clientID)
 		require.NoError(t, err, "Failed to generate OAuth access token")
 
 		// Verify with the second service should fail due to different keys
-		_, err = service2.VerifyOauthAccessToken(tokenString)
+		_, err = service2.VerifyOAuthAccessToken(tokenString)
 		require.Error(t, err, "Verification should fail with invalid signature")
 		assert.Contains(t, err.Error(), "verification error", "Error message should indicate token verification failure")
 	})
@@ -1032,12 +1032,12 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		const clientID = "eddsa-oauth-client"
 
 		// Generate a token
-		tokenString, err := service.GenerateOauthAccessToken(user, clientID)
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID)
 		require.NoError(t, err, "Failed to generate OAuth access token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
 		// Verify the token
-		claims, err := service.VerifyOauthAccessToken(tokenString)
+		claims, err := service.VerifyOAuthAccessToken(tokenString)
 		require.NoError(t, err, "Failed to verify generated OAuth access token with key")
 
 		// Check the claims
@@ -1086,12 +1086,12 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		const clientID = "ecdsa-oauth-client"
 
 		// Generate a token
-		tokenString, err := service.GenerateOauthAccessToken(user, clientID)
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID)
 		require.NoError(t, err, "Failed to generate OAuth access token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
 		// Verify the token
-		claims, err := service.VerifyOauthAccessToken(tokenString)
+		claims, err := service.VerifyOAuthAccessToken(tokenString)
 		require.NoError(t, err, "Failed to verify generated OAuth access token with key")
 
 		// Check the claims
@@ -1140,12 +1140,12 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		const clientID = "rsa-oauth-client"
 
 		// Generate a token
-		tokenString, err := service.GenerateOauthAccessToken(user, clientID)
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID)
 		require.NoError(t, err, "Failed to generate OAuth access token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
 		// Verify the token
-		claims, err := service.VerifyOauthAccessToken(tokenString)
+		claims, err := service.VerifyOAuthAccessToken(tokenString)
 		require.NoError(t, err, "Failed to verify generated OAuth access token with key")
 
 		// Check the claims
@@ -1165,6 +1165,92 @@ func TestGenerateVerifyOauthAccessToken(t *testing.T) {
 		alg, ok := publicKey.Algorithm()
 		require.True(t, ok)
 		assert.Equal(t, jwa.RS256().String(), alg.String(), "Algorithm should be RS256")
+	})
+}
+
+func TestGenerateVerifyOAuthRefreshToken(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Initialize the JWT service with a mock AppConfigService
+	mockConfig := NewTestAppConfigService(&model.AppConfig{})
+
+	// Setup the environment variable required by the token verification
+	originalAppURL := common.EnvConfig.AppURL
+	common.EnvConfig.AppURL = "https://test.example.com"
+	defer func() {
+		common.EnvConfig.AppURL = originalAppURL
+	}()
+
+	t.Run("generates and verifies refresh token", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Create a test user
+		const (
+			userID       = "user123"
+			clientID     = "client123"
+			refreshToken = "rt-123"
+		)
+
+		// Generate a token
+		tokenString, err := service.GenerateOAuthRefreshToken(userID, clientID, refreshToken)
+		require.NoError(t, err, "Failed to generate refresh token")
+		assert.NotEmpty(t, tokenString, "Token should not be empty")
+
+		// Verify the token
+		resUser, resClient, resRT, err := service.VerifyOAuthRefreshToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token")
+		assert.Equal(t, userID, resUser, "Should return correct user ID")
+		assert.Equal(t, clientID, resClient, "Should return correct client ID")
+		assert.Equal(t, refreshToken, resRT, "Should return correct refresh token")
+	})
+
+	t.Run("fails verification for expired token", func(t *testing.T) {
+		// Create a JWT service
+		service := &JwtService{}
+		err := service.init(mockConfig, tempDir)
+		require.NoError(t, err, "Failed to initialize JWT service")
+
+		// Generate a token using JWT directly to create an expired token
+		token, err := jwt.NewBuilder().
+			Subject("user789").
+			Expiration(time.Now().Add(-1 * time.Hour)). // Expired 1 hour ago
+			IssuedAt(time.Now().Add(-2 * time.Hour)).
+			Audience([]string{"client123"}).
+			Issuer(common.EnvConfig.AppURL).
+			Build()
+		require.NoError(t, err, "Failed to build token")
+
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), service.privateKey))
+		require.NoError(t, err, "Failed to sign token")
+
+		// Verify should fail due to expiration
+		_, _, _, err = service.VerifyOAuthRefreshToken(string(signed))
+		require.Error(t, err, "Verification should fail with expired token")
+		assert.Contains(t, err.Error(), `"exp" not satisfied`, "Error message should indicate token verification failure")
+	})
+
+	t.Run("fails verification with invalid signature", func(t *testing.T) {
+		// Create two JWT services with different keys
+		service1 := &JwtService{}
+		err := service1.init(mockConfig, t.TempDir())
+		require.NoError(t, err, "Failed to initialize first JWT service")
+
+		service2 := &JwtService{}
+		err = service2.init(mockConfig, t.TempDir())
+		require.NoError(t, err, "Failed to initialize second JWT service")
+
+		// Generate a token with the first service
+		tokenString, err := service1.GenerateOAuthRefreshToken("user789", "client123", "my-rt-123")
+		require.NoError(t, err, "Failed to generate refresh token")
+
+		// Verify with the second service should fail due to different keys
+		_, _, _, err = service2.VerifyOAuthRefreshToken(tokenString)
+		require.Error(t, err, "Verification should fail with invalid signature")
+		assert.Contains(t, err.Error(), "verification error", "Error message should indicate token verification failure")
 	})
 }
 
@@ -1213,7 +1299,104 @@ func TestTokenTypeValidator(t *testing.T) {
 		require.Error(t, err, "Validator should reject token without type claim")
 		assert.Contains(t, err.Error(), "failed to get token type claim")
 	})
+}
 
+func TestGetTokenType(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Initialize the JWT service
+	mockConfig := NewTestAppConfigService(&model.AppConfig{})
+	service := &JwtService{}
+	err := service.init(mockConfig, tempDir)
+	require.NoError(t, err, "Failed to initialize JWT service")
+
+	buildTokenForType := func(t *testing.T, typ string, setClaimsFn func(b *jwt.Builder)) string {
+		t.Helper()
+
+		b := jwt.NewBuilder()
+		b.Subject("user123")
+		if setClaimsFn != nil {
+			setClaimsFn(b)
+		}
+
+		token, err := b.Build()
+		require.NoError(t, err, "Failed to build token")
+
+		err = SetTokenType(token, typ)
+		require.NoError(t, err, "Failed to set token type")
+
+		alg, _ := service.privateKey.Algorithm()
+		signed, err := jwt.Sign(token, jwt.WithKey(alg, service.privateKey))
+		require.NoError(t, err, "Failed to sign token")
+
+		return string(signed)
+	}
+
+	t.Run("correctly identifies access tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, AccessTokenJWTType, nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error")
+		assert.Equal(t, AccessTokenJWTType, tokenType, "Token type should be correctly identified as access token")
+	})
+
+	t.Run("correctly identifies ID tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, IDTokenJWTType, nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error")
+		assert.Equal(t, IDTokenJWTType, tokenType, "Token type should be correctly identified as ID token")
+	})
+
+	t.Run("correctly identifies OAuth access tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, OAuthAccessTokenJWTType, nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error")
+		assert.Equal(t, OAuthAccessTokenJWTType, tokenType, "Token type should be correctly identified as OAuth access token")
+	})
+
+	t.Run("correctly identifies refresh tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, OAuthRefreshTokenJWTType, nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error")
+		assert.Equal(t, OAuthRefreshTokenJWTType, tokenType, "Token type should be correctly identified as refresh token")
+	})
+
+	t.Run("works with expired tokens", func(t *testing.T) {
+		tokenString := buildTokenForType(t, AccessTokenJWTType, func(b *jwt.Builder) {
+			b.Expiration(time.Now().Add(-1 * time.Hour)) // Expired 1 hour ago
+		})
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.NoError(t, err, "GetTokenType should not return an error for expired tokens")
+		assert.Equal(t, AccessTokenJWTType, tokenType, "Token type should be correctly identified even for expired tokens")
+	})
+
+	t.Run("returns error for malformed tokens", func(t *testing.T) {
+		// Try to get the token type of a malformed token
+		tokenType, _, err := service.GetTokenType("not.a.valid.jwt.token")
+		require.Error(t, err, "GetTokenType should return an error for malformed tokens")
+		assert.Empty(t, tokenType, "Token type should be empty for malformed tokens")
+	})
+
+	t.Run("returns error for tokens without type claim", func(t *testing.T) {
+		// Create a token without type claim
+		tokenString := buildTokenForType(t, "", nil)
+
+		// Get the token type without validating
+		tokenType, _, err := service.GetTokenType(tokenString)
+		require.Error(t, err, "GetTokenType should return an error for tokens without type claim")
+		assert.Empty(t, tokenType, "Token type should be empty when type claim is missing")
+		assert.Contains(t, err.Error(), "failed to get token type claim", "Error message should indicate missing token type claim")
+	})
 }
 
 func importKey(t *testing.T, privateKeyRaw any, path string) string {

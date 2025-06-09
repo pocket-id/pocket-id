@@ -113,9 +113,11 @@ type OidcIntrospectionResponseDto struct {
 }
 
 type OidcDeviceAuthorizationRequestDto struct {
-	ClientID     string `form:"client_id" binding:"required"`
-	Scope        string `form:"scope" binding:"required"`
-	ClientSecret string `form:"client_secret"`
+	ClientID            string `form:"client_id" binding:"required"`
+	Scope               string `form:"scope" binding:"required"`
+	ClientSecret        string `form:"client_secret"`
+	ClientAssertion     string `form:"client_assertion"`
+	ClientAssertionType string `form:"client_assertion_type"`
 }
 
 type OidcDeviceAuthorizationResponseDto struct {

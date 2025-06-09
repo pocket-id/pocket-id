@@ -1,3 +1,31 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.3.0...v) (2025-06-09)
+
+
+### Bug Fixes
+
+* change timestamp of `client_credentials.sql` migration ([2935236](https://github.com/pocket-id/pocket-id/commit/2935236acee9c78c2fe6787ec8b5f53ae0eca047))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v1.2.0...v) (2025-06-09)
+
+
+### Features
+
+* add API endpoint for user authorized clients ([d217083](https://github.com/pocket-id/pocket-id/commit/d217083059120171d5c555b09eefe6ba3c8a8d42))
+* add unix socket support ([#615](https://github.com/pocket-id/pocket-id/issues/615)) ([035b2c0](https://github.com/pocket-id/pocket-id/commit/035b2c022bfd2b98f13355ec7a126e0f1ab3ebd8))
+* allow introspection and device code endpoints to use Federated Client Credentials ([#640](https://github.com/pocket-id/pocket-id/issues/640)) ([b62b61f](https://github.com/pocket-id/pocket-id/commit/b62b61fb017dba31a6fc612c138bebf370d3956c))
+* JWT bearer assertions for client authentication ([#566](https://github.com/pocket-id/pocket-id/issues/566)) ([05bfe00](https://github.com/pocket-id/pocket-id/commit/05bfe0092450c9bc26d03c6a54c21050eef8f63a))
+* new color theme for the UI ([97f7326](https://github.com/pocket-id/pocket-id/commit/97f7326da40265a954340d519661969530f097a0))
+* oidc client data preview ([#624](https://github.com/pocket-id/pocket-id/issues/624)) ([c111b79](https://github.com/pocket-id/pocket-id/commit/c111b7914731a3cafeaa55102b515f84a1ad74dc))
+
+
+### Bug Fixes
+
+* don't load app config and user on every route change ([bdcef60](https://github.com/pocket-id/pocket-id/commit/bdcef60cab6a61e1717661e918c42e3650d23fee))
+* misleading text for disable animations option ([657a51f](https://github.com/pocket-id/pocket-id/commit/657a51f7ed8a77e8a937971032091058aacfded6))
+* OIDC client image can't be deleted ([61b62d4](https://github.com/pocket-id/pocket-id/commit/61b62d461200c1359a16c92c9c62530362a4785c))
+* UI config overridden by env variables don't apply on first start ([5e9096e](https://github.com/pocket-id/pocket-id/commit/5e9096e328741ba2a0e03835927fe62e6aea2a89))
+* use full width for audit log filters ([575b2f7](https://github.com/pocket-id/pocket-id/commit/575b2f71e9f1ff9c4f6fd411b136676c213b7201))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.1.0...v) (2025-06-03)
 
 

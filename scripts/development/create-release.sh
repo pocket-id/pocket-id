@@ -4,6 +4,29 @@ if [ ! -f .version ] || [ ! -f frontend/package.json ] || [ ! -f CHANGELOG.md ];
     exit 1
 fi
 
+# Check if conventional-changelog is installed, if not install it
+if ! command -v conventional-changelog &>/dev/null; then
+    echo "conventional-changelog not found, installing..."
+    npm install -g conventional-changelog-cli
+    # Verify installation was successful
+    if ! command -v conventional-changelog &>/dev/null; then
+        echo "Error: Failed to install conventional-changelog-cli."
+        exit 1
+    fi
+fi
+
+# Check if GitHub CLI is installed
+if ! command -v gh &>/dev/null; then
+    echo "Error: GitHub CLI (gh) is not installed. Please install it and authenticate using 'gh auth login'."
+    exit 1
+fi
+
+# Check if we're on the main branch
+if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
+    echo "Error: This script must be run on the main branch."
+    exit 1
+fi
+
 # Read the current version from .version
 VERSION=$(cat .version)
 
@@ -88,12 +111,6 @@ git add .version
 jq --arg new_version "$NEW_VERSION" '.version = $new_version' frontend/package.json >frontend/package_tmp.json && mv frontend/package_tmp.json frontend/package.json
 git add frontend/package.json
 
-# Check if conventional-changelog is installed, if not install it
-if ! command -v conventional-changelog &>/dev/null; then
-    echo "conventional-changelog not found, installing..."
-    npm install -g conventional-changelog-cli
-fi
-
 # Generate changelog
 echo "Generating changelog..."
 conventional-changelog -p conventionalcommits -i CHANGELOG.md -s
@@ -108,12 +125,6 @@ git tag "v$NEW_VERSION"
 # Push the commit and the tag to the repository
 git push
 git push --tags
-
-# Check if GitHub CLI is installed
-if ! command -v gh &>/dev/null; then
-    echo "GitHub CLI (gh) is not installed. Please install it and authenticate using 'gh auth login'."
-    exit 1
-fi
 
 # Extract the changelog content for the latest release
 echo "Extracting changelog content for version $NEW_VERSION..."

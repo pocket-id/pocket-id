@@ -39,8 +39,14 @@ const (
 	// TokenTypeClaim is the claim used to identify the type of token
 	TokenTypeClaim = "type"
 
+	// RefreshTokenClaim is the claim used for the refresh token's value
+	RefreshTokenClaim = "rt"
+
 	// OAuthAccessTokenJWTType identifies a JWT as an OAuth access token
 	OAuthAccessTokenJWTType = "oauth-access-token" //nolint:gosec
+
+	// OAuthRefreshTokenJWTType identifies a JWT as an OAuth refresh token
+	OAuthRefreshTokenJWTType = "refresh-token"
 
 	// AccessTokenJWTType identifies a JWT as an access token used by Pocket ID
 	AccessTokenJWTType = "access-token"
@@ -322,8 +328,8 @@ func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool)
 	return token, nil
 }
 
-// BuildOauthAccessToken creates an OAuth access token with all claims
-func (s *JwtService) BuildOauthAccessToken(user model.User, clientID string) (jwt.Token, error) {
+// BuildOAuthAccessToken creates an OAuth access token with all claims
+func (s *JwtService) BuildOAuthAccessToken(user model.User, clientID string) (jwt.Token, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
@@ -348,9 +354,9 @@ func (s *JwtService) BuildOauthAccessToken(user model.User, clientID string) (jw
 	return token, nil
 }
 
-// GenerateOauthAccessToken creates and signs an OAuth access token
-func (s *JwtService) GenerateOauthAccessToken(user model.User, clientID string) (string, error) {
-	token, err := s.BuildOauthAccessToken(user, clientID)
+// GenerateOAuthAccessToken creates and signs an OAuth access token
+func (s *JwtService) GenerateOAuthAccessToken(user model.User, clientID string) (string, error) {
+	token, err := s.BuildOAuthAccessToken(user, clientID)
 	if err != nil {
 		return "", err
 	}
@@ -364,7 +370,7 @@ func (s *JwtService) GenerateOauthAccessToken(user model.User, clientID string) 
 	return string(signed), nil
 }
 
-func (s *JwtService) VerifyOauthAccessToken(tokenString string) (jwt.Token, error) {
+func (s *JwtService) VerifyOAuthAccessToken(tokenString string) (jwt.Token, error) {
 	alg, _ := s.privateKey.Algorithm()
 	token, err := jwt.ParseString(
 		tokenString,
@@ -379,6 +385,96 @@ func (s *JwtService) VerifyOauthAccessToken(tokenString string) (jwt.Token, erro
 	}
 
 	return token, nil
+}
+
+func (s *JwtService) GenerateOAuthRefreshToken(userID string, clientID string, refreshToken string) (string, error) {
+	now := time.Now()
+	token, err := jwt.NewBuilder().
+		Subject(userID).
+		Expiration(now.Add(RefreshTokenDuration)).
+		IssuedAt(now).
+		Issuer(common.EnvConfig.AppURL).
+		Build()
+	if err != nil {
+		return "", fmt.Errorf("failed to build token: %w", err)
+	}
+
+	err = token.Set(RefreshTokenClaim, refreshToken)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'rt' claim in token: %w", err)
+	}
+
+	err = SetAudienceString(token, clientID)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
+	}
+
+	err = SetTokenType(token, OAuthRefreshTokenJWTType)
+	if err != nil {
+		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
+	}
+
+	alg, _ := s.privateKey.Algorithm()
+	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	return string(signed), nil
+}
+
+func (s *JwtService) VerifyOAuthRefreshToken(tokenString string) (userID, clientID, rt string, err error) {
+	alg, _ := s.privateKey.Algorithm()
+	token, err := jwt.ParseString(
+		tokenString,
+		jwt.WithValidate(true),
+		jwt.WithKey(alg, s.privateKey),
+		jwt.WithAcceptableSkew(clockSkew),
+		jwt.WithIssuer(common.EnvConfig.AppURL),
+		jwt.WithValidator(TokenTypeValidator(OAuthRefreshTokenJWTType)),
+	)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	err = token.Get(RefreshTokenClaim, &rt)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to get '%s' claim from token: %w", RefreshTokenClaim, err)
+	}
+
+	audiences, ok := token.Audience()
+	if !ok || len(audiences) != 1 || audiences[0] == "" {
+		return "", "", "", errors.New("failed to get 'aud' claim from token")
+	}
+	clientID = audiences[0]
+
+	userID, ok = token.Subject()
+	if !ok {
+		return "", "", "", errors.New("failed to get 'sub' claim from token")
+	}
+
+	return userID, clientID, rt, nil
+}
+
+// GetTokenType returns the type of the JWT token issued by Pocket ID, but **does not validate it**.
+func (s *JwtService) GetTokenType(tokenString string) (string, jwt.Token, error) {
+	// Disable validation and verification to parse the token without checking it
+	token, err := jwt.ParseString(
+		tokenString,
+		jwt.WithValidate(false),
+		jwt.WithVerify(false),
+	)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	var tokenType string
+	err = token.Get(TokenTypeClaim, &tokenType)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get token type claim: %w", err)
+	}
+
+	return tokenType, token, nil
 }
 
 // GetPublicJWK returns the JSON Web Key (JWK) for the public key.
@@ -478,7 +574,10 @@ func GetIsAdmin(token jwt.Token) (bool, error) {
 	}
 	var isAdmin bool
 	err := token.Get(IsAdminClaim, &isAdmin)
-	return isAdmin, err
+	if err != nil {
+		return false, fmt.Errorf("failed to get 'isAdmin' claim from token: %w", err)
+	}
+	return isAdmin, nil
 }
 
 // SetTokenType sets the "type" claim in the token
