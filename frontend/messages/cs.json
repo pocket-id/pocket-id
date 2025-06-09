@@ -144,8 +144,6 @@
 	"expires_at": "Vyprší",
 	"when_this_api_key_will_expire": "Až vyprší platnost tohoto API klíče.",
 	"optional_description_to_help_identify_this_keys_purpose": "Volitelný popis, který pomůže identifikovat účel tohoto klíče.",
-	"name_must_be_at_least_3_characters": "Název musí obsahovat alespoň 3 znaky",
-	"name_cannot_exceed_50_characters": "Název nesmí překročit 50 znaků",
 	"expiration_date_must_be_in_the_future": "Datum vypršení musí být v budoucnu",
 	"revoke_api_key": "Zrušit API klíč",
 	"never": "Nikdy",

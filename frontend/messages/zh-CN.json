@@ -144,8 +144,6 @@
 	"expires_at": "到期时间",
 	"when_this_api_key_will_expire": "此 API 密钥的到期时间。",
 	"optional_description_to_help_identify_this_keys_purpose": "可选描述，用于帮助识别此密钥的用途。",
-	"name_must_be_at_least_3_characters": "名称必须至少为 3 个字符",
-	"name_cannot_exceed_50_characters": "名称不能超过 50 个字符",
 	"expiration_date_must_be_in_the_future": "到期日期必须设定为未来的日期",
 	"revoke_api_key": "撤销 API 密钥",
 	"never": "永不",

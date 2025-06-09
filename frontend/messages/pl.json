@@ -144,8 +144,6 @@
 	"expires_at": "Wygasa o",
 	"when_this_api_key_will_expire": "Kiedy ten klucz API wygaśnie.",
 	"optional_description_to_help_identify_this_keys_purpose": "Opcjonalny opis, aby pomóc zidentyfikować cel tego klucza.",
-	"name_must_be_at_least_3_characters": "Nazwa musi mieć co najmniej 3 znaki",
-	"name_cannot_exceed_50_characters": "Nazwa nie może przekraczać 50 znaków",
 	"expiration_date_must_be_in_the_future": "Data wygaśnięcia musi być w przyszłości",
 	"revoke_api_key": "Unieważnij klucz API",
 	"never": "Nigdy",

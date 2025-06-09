@@ -144,8 +144,6 @@
 	"expires_at": "Действителен до",
 	"when_this_api_key_will_expire": "Когда срок действия этого API ключа истечет.",
 	"optional_description_to_help_identify_this_keys_purpose": "Опциональное описание, чтобы помочь определить цель этого ключа.",
-	"name_must_be_at_least_3_characters": "Имя должно содержать не менее 3 символов",
-	"name_cannot_exceed_50_characters": "Длина имени не может превышать 50 символов",
 	"expiration_date_must_be_in_the_future": "Дата истечения должна быть определена в будущем",
 	"revoke_api_key": "Отозвать API ключ",
 	"never": "Никогда",

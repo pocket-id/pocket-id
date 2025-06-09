@@ -144,8 +144,6 @@
 	"expires_at": "Verloopt op",
 	"when_this_api_key_will_expire": "Wanneer deze API-sleutel verloopt.",
 	"optional_description_to_help_identify_this_keys_purpose": "Optionele beschrijving om het doel van deze sleutel te helpen identificeren.",
-	"name_must_be_at_least_3_characters": "Naam moet minimaal 3 tekens lang zijn",
-	"name_cannot_exceed_50_characters": "Naam mag niet langer zijn dan 50 tekens",
 	"expiration_date_must_be_in_the_future": "Vervaldatum moet in de toekomst liggen",
 	"revoke_api_key": "API-sleutel intrekken",
 	"never": "Nooit",
