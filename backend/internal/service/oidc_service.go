@@ -820,7 +820,7 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string) (strin
 }
 
 func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, file *multipart.FileHeader) error {
-	fileType := utils.GetFileExtension(file.Filename)
+	fileType := strings.ToLower(utils.GetFileExtension(file.Filename))
 	if mimeType := utils.GetImageMimeType(fileType); mimeType == "" {
 		return &common.FileTypeNotSupportedError{}
 	}
