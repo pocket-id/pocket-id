@@ -37,11 +37,13 @@
 			variant?: ButtonVariant;
 			size?: ButtonSize;
 			isLoading?: boolean;
+			autofocus?: boolean;
 		};
 </script>
 
 <script lang="ts">
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import { onMount } from 'svelte';
 
 	let {
 		class: className,
@@ -52,9 +54,18 @@
 		type = 'button',
 		disabled,
 		isLoading = false,
+		autofocus = false,
 		children,
 		...restProps
 	}: ButtonProps = $props();
+
+	onMount(async () => {
+		// Using autofocus can be bad for a11y, but in the case of Pocket ID is only used responsibly in places where there are not many choices, and on buttons only where there's descriptive text
+		if (autofocus) {
+			// Use setTimeout to make sure the element is showing
+			setTimeout(() => ref?.focus(), 100)
+		}
+	});
 </script>
 
 {#if href}
