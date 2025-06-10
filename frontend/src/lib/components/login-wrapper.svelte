@@ -34,7 +34,7 @@
 				{#if showAlternativeSignInMethodButton}
 					<div
 						class="mb-4 flex items-center justify-center"
-						style={animate ? 'animation-delay: 1000ms;' : ''}
+						style={animate ? 'animation-delay: 500ms;' : ''}
 					>
 						<a
 							href={page.url.pathname == '/login'
