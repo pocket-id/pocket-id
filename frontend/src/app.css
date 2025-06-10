@@ -203,7 +203,7 @@
 }
 
 .animate-fade-in {
-	animation: fadeIn 0.8s ease-out forwards;
+	animation: fadeIn 0.3s ease-out forwards;
 	opacity: 0;
 }
 
@@ -233,7 +233,7 @@
 	bottom: 0;
 	left: 0;
 	right: 0;
-	animation: slide-bg-container 1.2s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+	animation: slide-bg-container 0.6s cubic-bezier(0.33, 1, 0.68, 1) forwards;
 }
 
 @keyframes delayed-fade {
@@ -247,5 +247,5 @@
 }
 
 .animate-delayed-fade {
-	animation: delayed-fade 1.5s ease-out forwards;
+	animation: delayed-fade 0.5s ease-out forwards;
 }

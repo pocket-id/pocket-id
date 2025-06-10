@@ -52,7 +52,7 @@
 			{m.authenticate_yourself_with_your_passkey_to_access_the_admin_panel()}
 		</p>
 	{/if}
-	<Button class="mt-10" {isLoading} onclick={authenticate}
-		>{error ? m.try_again() : m.authenticate()}</Button
-	>
+	<Button class="mt-10" {isLoading} onclick={authenticate} autofocus={true}>
+		{error ? m.try_again() : m.authenticate()}
+	</Button>
 </SignInWrapper>

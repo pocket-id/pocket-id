@@ -138,14 +138,20 @@
 				</Card.Root>
 			</div>
 		{/if}
-		<div class="flex w-full max-w-[450px] gap-2">
-			<Button onclick={() => history.back()} class="flex-1" variant="secondary">{m.cancel()}</Button
-			>
+		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
+		<div class="flex w-full max-w-[450px] gap-2 flex-row-reverse">
 			{#if !errorMessage}
-				<Button class="flex-1" {isLoading} onclick={authorize}>{m.sign_in()}</Button>
+				<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
+					{m.sign_in()}
+				</Button>
 			{:else}
-				<Button class="flex-1" onclick={() => (errorMessage = null)}>{m.try_again()}</Button>
+				<Button class="flex-1" onclick={() => (errorMessage = null)}>
+					{m.try_again()}
+				</Button>
 			{/if}
+			<Button onclick={() => history.back()} class="flex-1" variant="secondary">
+				{m.cancel()}
+			</Button>
 		</div>
 	</SignInWrapper>
 {/if}
