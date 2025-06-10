@@ -322,7 +322,7 @@ func (s *AppConfigService) ListAppConfig(showAll bool) []model.AppConfigVariable
 }
 
 func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multipart.FileHeader, imageName string, oldImageType string) (err error) {
-	fileType := utils.GetFileExtension(uploadedFile.Filename)
+	fileType := strings.ToLower(utils.GetFileExtension(uploadedFile.Filename))
 	mimeType := utils.GetImageMimeType(fileType)
 	if mimeType == "" {
 		return &common.FileTypeNotSupportedError{}

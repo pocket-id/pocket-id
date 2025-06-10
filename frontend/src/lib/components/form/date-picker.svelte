@@ -68,7 +68,7 @@
 
 <div class="w-full" {...restProps}>
 	<Popover.Root bind:open>
-		<Popover.Trigger {id} class="w-full" >
+		<Popover.Trigger {id} class="w-full">
 			{#snippet child({ props })}
 				<Button
 					{...props}
