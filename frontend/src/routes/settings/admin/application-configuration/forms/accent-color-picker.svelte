@@ -3,7 +3,7 @@
 	import * as RadioGroup from '$lib/components/ui/radio-group/index.js';
 	import { applyAccentColor } from '$lib/utils/accent-color-util';
 	import { Check, Plus } from '@lucide/svelte';
-	import CustomColorDialog from './custom-color-dialog.svelte';
+	import CustomColorDialog from './custom-accent-color-dialog.svelte';
 
 	let {
 		selectedColor = $bindable(),
