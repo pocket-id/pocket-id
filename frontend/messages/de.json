@@ -372,5 +372,11 @@
 	"show": "Anzeigen",
 	"select_an_option": "Wähle eine Option",
 	"select_user": "Benutzer auswählen",
-	"error": "Fehler"
+	"error": "Fehler",
+	"select_an_accent_color_to_customize_the_appearance_of_pocket_id": "Select an accent color to customize the appearance of Pocket ID.",
+	"accent_color": "Accent Color",
+	"custom_accent_color": "Custom Accent Color",
+	"custom_accent_color_description": "Enter a custom color using valid CSS color formats (e.g., hex, rgb, hsl).",
+	"color_value": "Color Value",
+	"apply": "Apply"
 }
