@@ -1,1 +1,0 @@
-ALTER TABLE app_config_variables DROP COLUMN accent_color;
