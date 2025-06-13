@@ -6,7 +6,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
-	import { applyAccentColor } from '$lib/utils/accent-color-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
@@ -47,9 +46,6 @@
 		const data = form.validate();
 		if (!data) return;
 		isLoading = true;
-
-		// Apply accent color immediately
-		applyAccentColor(data.accentColor);
 
 		await callback(data).finally(() => (isLoading = false));
 		toast.success(m.application_configuration_updated_successfully());
