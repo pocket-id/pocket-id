@@ -27,7 +27,7 @@
 		bind:checked
 	/>
 	<div class="grid gap-1.5 leading-none">
-		<Label for={id} class="mb-0 text-sm font-medium leading-none">
+		<Label for={id} class="mb-0 text-sm leading-none font-medium">
 			{label}
 		</Label>
 		{#if description}
