@@ -1,66 +1,22 @@
-export const accentColors = [
-	{ value: 'default', cssVar: 'oklch(0.205 0 0)', foregroundVar: 'oklch(0.98 0 0)' },
-	{ value: 'red', cssVar: 'oklch(0.637 0.237 25.331)', foregroundVar: 'oklch(0.98 0 0)' },
-	{ value: 'rose', cssVar: 'oklch(0.658 0.218 12.180)', foregroundVar: 'oklch(0.98 0 0)' },
-	{ value: 'orange', cssVar: 'oklch(0.705 0.213 47.604)', foregroundVar: 'oklch(0.98 0 0)' },
-	{ value: 'green', cssVar: 'oklch(0.723 0.219 149.579)', foregroundVar: 'oklch(0.98 0 0)' },
-	{ value: 'blue', cssVar: 'oklch(0.623 0.214 259.815)', foregroundVar: 'oklch(0.98 0 0)' },
-	{ value: 'yellow', cssVar: 'oklch(0.795 0.184 86.047)', foregroundVar: 'oklch(0.09 0 0)' },
-	{ value: 'violet', cssVar: 'oklch(0.649 0.221 285.75)', foregroundVar: 'oklch(0.98 0 0)' }
-];
-
 export function applyAccentColor(accentValue: string) {
-	if (accentValue !== 'default') {
-		const predefinedAccent = accentColors.find((a) => a.value === accentValue);
-
-		if (predefinedAccent) {
-			// Handle predefined colors
-			const match = predefinedAccent.cssVar.match(/oklch\(([^)]+)\)/);
-			if (match) {
-				const [l, c, h] = match[1].split(' ').map((v) => parseFloat(v));
-				const fadedRing = `oklch(${Math.min(l + 0.15, 1)} ${c * 0.6} ${h} / 0.5)`;
-
-				document.documentElement.style.setProperty('--primary', predefinedAccent.cssVar);
-				document.documentElement.style.setProperty(
-					'--primary-foreground',
-					predefinedAccent.foregroundVar
-				);
-				document.documentElement.style.setProperty('--ring', fadedRing);
-				document.documentElement.style.setProperty('--sidebar-ring', fadedRing);
-			}
-		} else {
-			// Handle custom colors
-			document.documentElement.style.setProperty('--primary', accentValue);
-
-			// Smart foreground color selection based on brightness
-			const foregroundColor = getContrastingForeground(accentValue);
-			document.documentElement.style.setProperty('--primary-foreground', foregroundColor);
-
-			// Create proper ring colors based on input format
-			let ringColor;
-			if (accentValue.startsWith('#')) {
-				const hex = accentValue.slice(1);
-				const r = parseInt(hex.slice(0, 2), 16);
-				const g = parseInt(hex.slice(2, 4), 16);
-				const b = parseInt(hex.slice(4, 6), 16);
-				ringColor = `rgb(${r} ${g} ${b} / 0.5)`;
-			} else if (accentValue.startsWith('hsl')) {
-				ringColor = accentValue.replace('hsl(', 'hsl(').replace(')', ' / 0.5)');
-			} else if (accentValue.startsWith('oklch')) {
-				ringColor = accentValue.replace(')', ' / 0.5)');
-			} else {
-				ringColor = `color-mix(in srgb, ${accentValue} 50%, transparent)`;
-			}
-
-			document.documentElement.style.setProperty('--ring', ringColor);
-			document.documentElement.style.setProperty('--sidebar-ring', ringColor);
-		}
-	} else {
+	if (accentValue === 'default') {
 		document.documentElement.style.removeProperty('--primary');
 		document.documentElement.style.removeProperty('--primary-foreground');
 		document.documentElement.style.removeProperty('--ring');
 		document.documentElement.style.removeProperty('--sidebar-ring');
+		return;
 	}
+
+	document.documentElement.style.setProperty('--primary', accentValue);
+
+	// Smart foreground color selection based on brightness
+	const foregroundColor = getContrastingForeground(accentValue);
+	document.documentElement.style.setProperty('--primary-foreground', foregroundColor);
+
+	// Create proper ring colors based on input format
+	const ringColor = `color-mix(in srgb, ${accentValue} 50%, transparent)`;
+	document.documentElement.style.setProperty('--ring', ringColor);
+	document.documentElement.style.setProperty('--sidebar-ring', ringColor);
 }
 
 function getContrastingForeground(color: string): string {
