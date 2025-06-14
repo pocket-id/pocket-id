@@ -373,10 +373,10 @@
 	"select_an_option": "Seleziona un'opzione",
 	"select_user": "Seleziona utente",
 	"error": "Errore",
-	"select_an_accent_color_to_customize_the_appearance_of_pocket_id": "Select an accent color to customize the appearance of Pocket ID.",
-	"accent_color": "Accent Color",
-	"custom_accent_color": "Custom Accent Color",
-	"custom_accent_color_description": "Enter a custom color using valid CSS color formats (e.g., hex, rgb, hsl).",
-	"color_value": "Color Value",
-	"apply": "Apply"
+	"select_an_accent_color_to_customize_the_appearance_of_pocket_id": "Seleziona un colore in risalto per personalizzare l'aspetto di Pocket ID.",
+	"accent_color": "Colore in Risalto",
+	"custom_accent_color": "Colore in Risalto Personalizzato",
+	"custom_accent_color_description": "Inserisci un colore personalizzato usando formati di colore CSS validi (es: hex, rgb, hsl).",
+	"color_value": "Valore Colore",
+	"apply": "Applica"
 }
