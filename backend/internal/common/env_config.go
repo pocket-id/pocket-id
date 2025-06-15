@@ -36,6 +36,7 @@ type EnvConfigSchema struct {
 	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY"`
 	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
+	LocalIPv6Ranges    string     `env:"LOCAL_IPV6_RANGES"`
 	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
 	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
 	TracingEnabled     bool       `env:"TRACING_ENABLED"`
@@ -56,6 +57,7 @@ var EnvConfig = &EnvConfigSchema{
 	MaxMindLicenseKey:  "",
 	GeoLiteDBPath:      "data/GeoLite2-City.mmdb",
 	GeoLiteDBUrl:       MaxMindGeoLiteCityUrl,
+	LocalIPv6Ranges:    "",
 	UiConfigDisabled:   false,
 	MetricsEnabled:     false,
 	TracingEnabled:     false,

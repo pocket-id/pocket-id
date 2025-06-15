@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,9 +23,11 @@ import (
 )
 
 type GeoLiteService struct {
-	httpClient     *http.Client
-	disableUpdater bool
-	mutex          sync.RWMutex
+	httpClient      *http.Client
+	disableUpdater  bool
+	mutex           sync.RWMutex
+	localIPv6Ranges []*net.IPNet
+	ipv6RangeMutex  sync.RWMutex
 }
 
 var localhostIPNets = []*net.IPNet{
@@ -54,7 +57,69 @@ func NewGeoLiteService(httpClient *http.Client) *GeoLiteService {
 		service.disableUpdater = true
 	}
 
+	// Initialize IPv6 local ranges
+	if err := service.initializeIPv6LocalRanges(); err != nil {
+		log.Printf("Warning: Failed to initialize IPv6 local ranges: %v", err)
+	}
+
 	return service
+}
+
+// initializeIPv6LocalRanges parses the LOCAL_IPV6_RANGES environment variable
+func (s *GeoLiteService) initializeIPv6LocalRanges() error {
+	rangesEnv := common.EnvConfig.LocalIPv6Ranges
+	if rangesEnv == "" {
+		return nil // No local IPv6 ranges configured
+	}
+
+	ranges := strings.Split(rangesEnv, ",")
+	localRanges := make([]*net.IPNet, 0, len(ranges))
+
+	for _, rangeStr := range ranges {
+		rangeStr = strings.TrimSpace(rangeStr)
+		if rangeStr == "" {
+			continue
+		}
+
+		_, ipNet, err := net.ParseCIDR(rangeStr)
+		if err != nil {
+			return fmt.Errorf("invalid IPv6 range '%s': %v", rangeStr, err)
+		}
+
+		// Ensure it's an IPv6 range
+		if ipNet.IP.To4() != nil {
+			return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
+		}
+
+		localRanges = append(localRanges, ipNet)
+	}
+
+	s.ipv6RangeMutex.Lock()
+	s.localIPv6Ranges = localRanges
+	s.ipv6RangeMutex.Unlock()
+
+	if len(localRanges) > 0 {
+		log.Printf("Initialized %d IPv6 local ranges", len(localRanges))
+	}
+	return nil
+}
+
+// isLocalIPv6 checks if the given IPv6 address is within any of the configured local ranges
+func (s *GeoLiteService) isLocalIPv6(ip net.IP) bool {
+	if ip.To4() != nil {
+		return false // Not an IPv6 address
+	}
+
+	s.ipv6RangeMutex.RLock()
+	defer s.ipv6RangeMutex.RUnlock()
+
+	for _, localRange := range s.localIPv6Ranges {
+		if localRange.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s *GeoLiteService) DisableUpdater() bool {
@@ -65,6 +130,12 @@ func (s *GeoLiteService) DisableUpdater() bool {
 func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string, err error) {
 	// Check the IP address against known private IP ranges
 	if ip := net.ParseIP(ipAddress); ip != nil {
+		// Check IPv6 local ranges first
+		if s.isLocalIPv6(ip) {
+			return "Internal Network", "LAN", nil
+		}
+
+		// Check existing IPv4 ranges
 		for _, ipNet := range tailscaleIPNets {
 			if ipNet.Contains(ip) {
 				return "Internal Network", "Tailscale", nil
