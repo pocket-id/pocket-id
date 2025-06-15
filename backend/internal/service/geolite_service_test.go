@@ -29,7 +29,7 @@ func TestGeoLiteService_IPv6LocalRanges(t *testing.T) {
             name:        "IPv6 not in local range",
             localRanges: "2001:0db8:abcd:000::/56",
             testIP:      "2001:0db8:ffff:000::1",
-            expectError: true, // Will fail to lookup external IP without MaxMind DB
+            expectError: true,
         },
         {
             name:            "Multiple ranges - second range match",
@@ -43,7 +43,7 @@ func TestGeoLiteService_IPv6LocalRanges(t *testing.T) {
             name:        "Empty local ranges",
             localRanges: "",
             testIP:      "2001:0db8:abcd:000::1",
-            expectError: true, // Will fail to lookup external IP without MaxMind DB
+            expectError: true,
         },
         {
             name:            "IPv4 private address still works",
@@ -65,7 +65,6 @@ func TestGeoLiteService_IPv6LocalRanges(t *testing.T) {
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            // Setup
             originalConfig := common.EnvConfig.LocalIPv6Ranges
             common.EnvConfig.LocalIPv6Ranges = tt.localRanges
             defer func() {
@@ -74,7 +73,6 @@ func TestGeoLiteService_IPv6LocalRanges(t *testing.T) {
 
             service := NewGeoLiteService(&http.Client{})
 
-            // Test
             country, city, err := service.GetLocationByIP(tt.testIP)
 
             if tt.expectError {
@@ -137,7 +135,6 @@ func TestGeoLiteService_isLocalIPv6(t *testing.T) {
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            // Setup
             originalConfig := common.EnvConfig.LocalIPv6Ranges
             common.EnvConfig.LocalIPv6Ranges = tt.localRanges
             defer func() {
@@ -205,7 +202,6 @@ func TestGeoLiteService_initializeIPv6LocalRanges(t *testing.T) {
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            // Setup
             originalConfig := common.EnvConfig.LocalIPv6Ranges
             common.EnvConfig.LocalIPv6Ranges = tt.envValue
             defer func() {

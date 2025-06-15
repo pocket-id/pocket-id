@@ -83,7 +83,7 @@ func (s *GeoLiteService) initializeIPv6LocalRanges() error {
 
 		_, ipNet, err := net.ParseCIDR(rangeStr)
 		if err != nil {
-			return fmt.Errorf("invalid IPv6 range '%s': %v", rangeStr, err)
+			return fmt.Errorf("invalid IPv6 range '%s': %w", rangeStr, err)
 		}
 
 		// Ensure it's an IPv6 range
