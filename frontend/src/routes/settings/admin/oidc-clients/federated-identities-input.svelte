@@ -51,7 +51,6 @@
 	}
 
 	function getFieldError(index: number, field: keyof OidcClientFederatedIdentity): string | null {
-		console.log(federatedIdentities);
 		if (!errors) return null;
 		const path = [index, field];
 		return errors?.filter((e) => e.path[0] == path[0] && e.path[1] == path[1])[0]?.message;

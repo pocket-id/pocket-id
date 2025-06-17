@@ -8,6 +8,7 @@ import type {
 	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 import APIService from './api-service';
 
 class OidcService extends APIService {
@@ -80,10 +81,12 @@ class OidcService extends APIService {
 		formData.append('file', image!);
 
 		await this.api.post(`/oidc/clients/${client.id}/logo`, formData);
+		cachedOidcClientLogo.bustCache(client.id);
 	}
 
 	async removeClientLogo(id: string) {
 		await this.api.delete(`/oidc/clients/${id}/logo`);
+		cachedOidcClientLogo.bustCache(id);
 	}
 
 	async createClientSecret(id: string) {

@@ -1,5 +1,5 @@
 # This Dockerfile embeds a pre-built binary for the given Linux architecture
-# Binaries must be built using ./scripts/development/build-binaries.sh first
+# Binaries must be built using ""./scripts/development/build-binaries.sh --docker-only"
 
 FROM alpine
 

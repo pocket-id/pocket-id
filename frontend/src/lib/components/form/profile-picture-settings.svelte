@@ -3,7 +3,7 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { getProfilePictureUrl } from '$lib/utils/profile-picture-util';
+	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 	import { LucideLoader, LucideRefreshCw, LucideUpload } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { openConfirmDialog } from '../confirm-dialog';
@@ -25,7 +25,7 @@
 	onMount(() => {
 		// The "skipCache" query will only be added to the profile picture url on client-side
 		// because of that we need to set the imageDataURL after the component is mounted
-		imageDataURL = getProfilePictureUrl(userId);
+		imageDataURL = cachedProfilePicture.getUrl(userId);
 	});
 
 	async function onImageChange(e: Event) {
@@ -41,7 +41,7 @@
 		reader.readAsDataURL(file);
 
 		await updateCallback(file).catch(() => {
-			imageDataURL = getProfilePictureUrl(userId);
+			imageDataURL = cachedProfilePicture.getUrl(userId);
 		});
 		isLoading = false;
 	}

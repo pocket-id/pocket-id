@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: build-next-image
+  cancel-in-progress: true
+
 jobs:
   build-next:
     runs-on: ubuntu-latest
@@ -58,7 +62,7 @@ jobs:
         run: npm run build
 
       - name: Build binaries
-        run: sh scripts/development/build-binaries.sh
+        run: sh scripts/development/build-binaries.sh --docker-only
 
       - name: Build and push container image
         id: build-push-image

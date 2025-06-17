@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -544,6 +545,8 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+
+	utils.SetCacheControlHeader(c, 15*time.Minute, 12*time.Hour)
 
 	c.Header("Content-Type", mimeType)
 	c.File(imagePath)

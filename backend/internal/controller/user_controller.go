@@ -250,10 +250,7 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 		defer picture.Close()
 	}
 
-	_, ok := c.GetQuery("skipCache")
-	if !ok {
-		c.Header("Cache-Control", "public, max-age=900")
-	}
+	utils.SetCacheControlHeader(c, 15*time.Minute, 1*time.Hour)
 
 	c.DataFromReader(http.StatusOK, size, "image/png", picture, nil)
 }

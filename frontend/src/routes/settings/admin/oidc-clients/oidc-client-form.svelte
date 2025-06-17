@@ -7,6 +7,7 @@
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { OidcClient, OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
@@ -28,7 +29,7 @@
 	let showAdvancedOptions = $state(false);
 	let logo = $state<File | null | undefined>();
 	let logoDataURL: string | null = $state(
-		existingClient?.hasLogo ? `/api/oidc/clients/${existingClient!.id}/logo` : null
+		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
 	);
 
 	const client = {

@@ -1,4 +1,5 @@
 import type { AllAppConfig, AppConfigRawResponse } from '$lib/types/application-configuration';
+import { cachedApplicationLogo, cachedBackgroundImage } from '$lib/utils/cached-image-util';
 import APIService from './api-service';
 
 export default class AppConfigService extends APIService {
@@ -36,6 +37,7 @@ export default class AppConfigService extends APIService {
 		await this.api.put(`/application-configuration/logo`, formData, {
 			params: { light }
 		});
+		cachedApplicationLogo.bustCache(light);
 	}
 
 	async updateBackgroundImage(backgroundImage: File) {
@@ -43,6 +45,7 @@ export default class AppConfigService extends APIService {
 		formData.append('file', backgroundImage!);
 
 		await this.api.put(`/application-configuration/background-image`, formData);
+		cachedBackgroundImage.bustCache();
 	}
 
 	async sendTestEmail() {

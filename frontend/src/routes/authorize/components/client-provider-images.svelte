@@ -5,6 +5,7 @@
 	import CrossAnimated from '$lib/icons/cross-animated.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { OidcClientMetaData } from '$lib/types/oidc.type';
+	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 
 	const {
 		success,
@@ -60,7 +61,7 @@
 		{:else if client.hasLogo}
 			<img
 				class="size-10"
-				src="/api/oidc/clients/{client.id}/logo"
+				src={cachedOidcClientLogo.getUrl(client.id)}
 				draggable={false}
 				alt={m.client_logo()}
 			/>

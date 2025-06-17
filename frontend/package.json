@@ -17,7 +17,6 @@
 		"@tailwindcss/vite": "^4.1.7",
 		"axios": "^1.8.2",
 		"clsx": "^2.1.1",
-		"crypto": "^1.0.1",
 		"jose": "^5.9.6",
 		"qrcode": "^1.5.4",
 		"sveltekit-superforms": "^2.23.1",

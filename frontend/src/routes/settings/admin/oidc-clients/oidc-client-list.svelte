@@ -8,6 +8,7 @@
 	import OIDCService from '$lib/services/oidc-service';
 	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -59,7 +60,7 @@
 			{#if item.hasLogo}
 				<ImageBox
 					class="min-h-8 min-w-8"
-					src={`/api/oidc/clients/${item.id}/logo`}
+					src={cachedOidcClientLogo.getUrl(item.id)}
 					alt={m.name_logo({ name: item.name })}
 				/>
 			{/if}

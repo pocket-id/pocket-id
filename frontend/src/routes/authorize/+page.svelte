@@ -139,7 +139,7 @@
 			</div>
 		{/if}
 		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
-		<div class="flex w-full max-w-[450px] gap-2 flex-row-reverse">
+		<div class="flex w-full max-w-[450px] flex-row-reverse gap-2">
 			{#if !errorMessage}
 				<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
 					{m.sign_in()}

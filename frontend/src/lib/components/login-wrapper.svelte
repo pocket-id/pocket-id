@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { m } from '$lib/paraglide/messages';
+	import { cachedBackgroundImage } from '$lib/utils/cached-image-util';
 	import { cn } from '$lib/utils/style';
 	import type { Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
@@ -54,7 +55,7 @@
 		<!-- Background image with slide animation -->
 		<div class="{cn(animate && 'animate-slide-bg-container')} absolute top-0 right-0 bottom-0 z-0">
 			<img
-				src="/api/application-configuration/background-image"
+				src={cachedBackgroundImage.getUrl()}
 				class="h-screen rounded-l-[60px] object-cover {animate
 					? 'w-full'
 					: 'w-[calc(100vw-650px)]'}"
@@ -64,7 +65,8 @@
 	</div>
 {:else}
 	<div
-		class="flex h-screen items-center justify-center bg-[url('/api/application-configuration/background-image')] bg-cover bg-center text-center"
+		class="flex h-screen items-center justify-center bg-cover bg-center text-center"
+		style="background-image: url({cachedBackgroundImage.getUrl()});"
 	>
 		<Card.Root class="mx-3 w-full max-w-md" style={animate ? 'animation-delay: 200ms;' : ''}>
 			<Card.CardContent

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { cachedApplicationLogo, cachedBackgroundImage } from '$lib/utils/cached-image-util';
 	import ApplicationImage from './application-image.svelte';
 
 	let {
@@ -34,7 +35,7 @@
 		imageClass="size-32"
 		label={m.light_mode_logo()}
 		bind:image={logoLight}
-		imageURL="/api/application-configuration/logo?light=true"
+		imageURL={cachedApplicationLogo.getUrl(true)}
 		forceColorScheme="light"
 	/>
 	<ApplicationImage
@@ -42,7 +43,7 @@
 		imageClass="size-32"
 		label={m.dark_mode_logo()}
 		bind:image={logoDark}
-		imageURL="/api/application-configuration/logo?light=false"
+		imageURL={cachedApplicationLogo.getUrl(false)}
 		forceColorScheme="dark"
 	/>
 	<ApplicationImage
@@ -50,7 +51,7 @@
 		imageClass="h-[350px] max-w-[500px]"
 		label={m.background_image()}
 		bind:image={backgroundImage}
-		imageURL="/api/application-configuration/background-image"
+		imageURL={cachedBackgroundImage.getUrl()}
 	/>
 </div>
 <div class="flex justify-end">

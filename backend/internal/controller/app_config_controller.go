@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -247,6 +248,8 @@ func (acc *AppConfigController) getImage(c *gin.Context, name string, imageType 
 	mimeType := utils.GetImageMimeType(imageType)
 
 	c.Header("Content-Type", mimeType)
+
+	utils.SetCacheControlHeader(c, 15*time.Minute, 24*time.Hour)
 	c.File(imagePath)
 }
 
