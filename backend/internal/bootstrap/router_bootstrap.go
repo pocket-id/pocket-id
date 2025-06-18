@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
@@ -117,6 +119,18 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	listener, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
+	}
+
+	// Set the socket mode if using a Unix socket
+	if network == "unix" && common.EnvConfig.UnixSocketMode != "" {
+		mode, err := strconv.ParseUint(common.EnvConfig.UnixSocketMode, 8, 32)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
+		}
+
+		if err := os.Chmod(addr, os.FileMode(mode)); err != nil {
+			return nil, fmt.Errorf("failed to set UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
+		}
 	}
 
 	// Service runner function
