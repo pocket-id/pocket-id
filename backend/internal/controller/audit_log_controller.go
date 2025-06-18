@@ -89,6 +89,7 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 // @Param filters[userId] query string false "Filter by user ID"
 // @Param filters[event] query string false "Filter by event type"
 // @Param filters[clientName] query string false "Filter by client name"
+// @Param filters[location] query string false "Filter by location type (external or internal)"
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /api/audit-logs/all [get]
 func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {

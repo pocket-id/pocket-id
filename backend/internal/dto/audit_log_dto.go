@@ -23,4 +23,5 @@ type AuditLogFilterDto struct {
 	UserID     string `form:"filters[userId]"`
 	Event      string `form:"filters[event]"`
 	ClientName string `form:"filters[clientName]"`
+	Location   string `form:"filters[location]"`
 }

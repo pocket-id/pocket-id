@@ -18,7 +18,13 @@
 	let filters: AuditLogFilter = $state({
 		userId: '',
 		event: '',
+		location: '',
 		clientName: ''
+	});
+
+	const locationTypes = $state({
+		external: 'External Networks',
+		internal: 'Internal Networks'
 	});
 
 	const eventTypes = $state({
@@ -47,7 +53,7 @@
 		>
 	</Card.Header>
 	<Card.Content>
-		<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+		<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
 			<div>
 				{#await auditLogService.listUsers()}
 					<Select.Root type="single">
@@ -80,6 +86,19 @@
 						}))
 					]}
 					bind:value={filters.event}
+				/>
+			</div>
+			<div>
+				<SearchableSelect
+					class="w-full"
+					items={[
+						{ value: '', label: m.all_locations() },
+						...Object.entries(locationTypes).map(([value, label]) => ({
+							value,
+							label
+						}))
+					]}
+					bind:value={filters.location}
 				/>
 			</div>
 			<div>

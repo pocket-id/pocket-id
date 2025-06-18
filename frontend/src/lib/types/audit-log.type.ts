@@ -14,5 +14,6 @@ export type AuditLog = {
 export type AuditLogFilter = {
 	userId: string;
 	event: string;
+	location: string;
 	clientName: string;
 };
