@@ -151,9 +151,10 @@ func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, sortedPagination
 		}
 	}
 	if filters.Location != "" {
-		if filters.Location == "external" {
+		switch filters.Location {
+		case "external":
 			query = query.Where("country != 'Internal Network' AND country IS NOT NULL AND country != ''")
-		} else if filters.Location == "internal" {
+		case "internal":
 			query = query.Where("country = 'Internal Network' OR country IS NULL OR country = ''")
 		}
 	}
