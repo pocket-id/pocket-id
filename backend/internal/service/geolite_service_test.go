@@ -221,9 +221,7 @@ func TestGeoLiteService_initializeIPv6LocalRanges(t *testing.T) {
 				t.Errorf("Expected no error but got: %v", err)
 			}
 
-			service.ipv6RangeMutex.RLock()
 			rangeCount := len(service.localIPv6Ranges)
-			service.ipv6RangeMutex.RUnlock()
 
 			if rangeCount != tt.expectCount {
 				t.Errorf("Expected %d ranges, got %d", tt.expectCount, rangeCount)

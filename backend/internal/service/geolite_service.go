@@ -27,7 +27,6 @@ type GeoLiteService struct {
 	disableUpdater  bool
 	mutex           sync.RWMutex
 	localIPv6Ranges []*net.IPNet
-	ipv6RangeMutex  sync.RWMutex
 }
 
 var localhostIPNets = []*net.IPNet{
@@ -94,9 +93,7 @@ func (s *GeoLiteService) initializeIPv6LocalRanges() error {
 		localRanges = append(localRanges, ipNet)
 	}
 
-	s.ipv6RangeMutex.Lock()
 	s.localIPv6Ranges = localRanges
-	s.ipv6RangeMutex.Unlock()
 
 	if len(localRanges) > 0 {
 		log.Printf("Initialized %d IPv6 local ranges", len(localRanges))
@@ -109,9 +106,6 @@ func (s *GeoLiteService) isLocalIPv6(ip net.IP) bool {
 	if ip.To4() != nil {
 		return false // Not an IPv6 address
 	}
-
-	s.ipv6RangeMutex.RLock()
-	defer s.ipv6RangeMutex.RUnlock()
 
 	for _, localRange := range s.localIPv6Ranges {
 		if localRange.Contains(ip) {
