@@ -320,6 +320,7 @@
 	"all_users": "所有使用者",
 	"all_events": "所有事件",
 	"all_clients": "所有客戶端",
+	"all_locations": "All Locations",
 	"global_audit_log": "全域稽核日誌",
 	"see_all_account_activities_from_the_last_3_months": "查看過去 3 個月的所有使用者活動。",
 	"token_sign_in": "Token 登入",
