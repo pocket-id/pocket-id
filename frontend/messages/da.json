@@ -320,6 +320,7 @@
 	"all_users": "Alle brugere",
 	"all_events": "Alle hændelser",
 	"all_clients": "Alle klienter",
+	"all_locations": "All Locations",
 	"global_audit_log": "Global aktivitetslog",
 	"see_all_account_activities_from_the_last_3_months": "Se al brugeraktivitet for de seneste 3 måneder.",
 	"token_sign_in": "Token-login",
