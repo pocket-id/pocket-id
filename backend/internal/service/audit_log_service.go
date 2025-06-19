@@ -150,6 +150,14 @@ func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, sortedPagination
 			return nil, utils.PaginationResponse{}, fmt.Errorf("unsupported database dialect: %s", dialect)
 		}
 	}
+	if filters.Location != "" {
+		switch filters.Location {
+		case "external":
+			query = query.Where("country != 'Internal Network'")
+		case "internal":
+			query = query.Where("country = 'Internal Network'")
+		}
+	}
 
 	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
 	if err != nil {

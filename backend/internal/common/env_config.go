@@ -33,6 +33,7 @@ type EnvConfigSchema struct {
 	Port               string     `env:"PORT"`
 	Host               string     `env:"HOST"`
 	UnixSocket         string     `env:"UNIX_SOCKET"`
+	UnixSocketMode     string     `env:"UNIX_SOCKET_MODE"`
 	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY"`
 	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
@@ -54,6 +55,7 @@ var EnvConfig = &EnvConfigSchema{
 	Port:               "1411",
 	Host:               "0.0.0.0",
 	UnixSocket:         "",
+	UnixSocketMode:     "",
 	MaxMindLicenseKey:  "",
 	GeoLiteDBPath:      "data/GeoLite2-City.mmdb",
 	GeoLiteDBUrl:       MaxMindGeoLiteCityUrl,
