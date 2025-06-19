@@ -320,6 +320,7 @@
 	"all_users": "Alle Benutzer",
 	"all_events": "Alle Ereignisse",
 	"all_clients": "Alle Clients",
+	"all_locations": "All Locations",
 	"global_audit_log": "Globaler Aktivitäts-Log",
 	"see_all_account_activities_from_the_last_3_months": "Sieh dir alle Benutzeraktivitäten der letzten 3 Monate an.",
 	"token_sign_in": "Token-Anmeldung",
