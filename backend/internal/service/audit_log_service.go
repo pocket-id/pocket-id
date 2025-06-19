@@ -153,9 +153,9 @@ func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, sortedPagination
 	if filters.Location != "" {
 		switch filters.Location {
 		case "external":
-			query = query.Where("country != 'Internal Network' AND country IS NOT NULL AND country != ''")
+			query = query.Where("country != 'Internal Network'")
 		case "internal":
-			query = query.Where("country = 'Internal Network' OR country IS NULL OR country = ''")
+			query = query.Where("country = 'Internal Network'")
 		}
 	}
 
