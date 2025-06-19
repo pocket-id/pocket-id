@@ -80,7 +80,6 @@
 		<Command.Root shouldFilter={false}>
 			{#if !disableSearch}
 				<Command.Input
-					class="border-b"
 					placeholder={m.search()}
 					oninput={(e) => {
 						filterItems(e.currentTarget.value);
