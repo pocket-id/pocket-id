@@ -1,0 +1,12 @@
+root = "."
+tmp_dir = ".bin"
+
+[build]
+  bin = "./.bin/pocket-id"
+  cmd = "CGO_ENABLED=0 go build -o ./.bin/pocket-id ./cmd"
+  exclude_dir = ["resources", ".bin", "data"]
+  exclude_regex = [".*_test\\.go"]
+  stop_on_error = true
+
+[misc]
+  clean_on_exit = true
