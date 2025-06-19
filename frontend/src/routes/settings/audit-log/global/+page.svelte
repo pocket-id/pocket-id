@@ -90,6 +90,7 @@
 			</div>
 			<div>
 				<SearchableSelect
+					disableSearch={true}
 					class="w-full"
 					items={[
 						{ value: '', label: m.all_locations() },

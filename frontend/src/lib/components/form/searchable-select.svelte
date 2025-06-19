@@ -14,6 +14,7 @@
 		onSelect,
 		oninput,
 		isLoading,
+		disableSearch = false,
 		selectText = m.select_an_option(),
 		...restProps
 	}: HTMLAttributes<HTMLButtonElement> & {
@@ -25,6 +26,7 @@
 		oninput?: FormEventHandler<HTMLInputElement>;
 		onSelect?: (value: string) => void;
 		isLoading?: boolean;
+		disableSearch?: boolean;
 		selectText?: string;
 	} = $props();
 
@@ -76,13 +78,16 @@
 	</Popover.Trigger>
 	<Popover.Content class="p-0" sameWidth>
 		<Command.Root shouldFilter={false}>
-			<Command.Input
-				placeholder={m.search()}
-				oninput={(e) => {
-					filterItems(e.currentTarget.value);
-					oninput?.(e);
-				}}
-			/>
+			{#if !disableSearch}
+				<Command.Input
+					class="border-b"
+					placeholder={m.search()}
+					oninput={(e) => {
+						filterItems(e.currentTarget.value);
+						oninput?.(e);
+					}}
+				/>
+			{/if}
 			<Command.Empty>
 				{#if isLoading}
 					<div class="flex w-full justify-center">
