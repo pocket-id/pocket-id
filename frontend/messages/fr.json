@@ -108,7 +108,7 @@
 	"account_settings": "Paramètres du compte",
 	"passkey_missing": "Clé d'accès manquante",
 	"please_provide_a_passkey_to_prevent_losing_access_to_your_account": "Veuillez ajouter une clé d'accès pour éviter de perdre l'accès à votre compte.",
-	"single_passkey_configured": "Une seul clé d'accès configuré",
+	"single_passkey_configured": "Une seule clé d'accès configurée",
 	"it_is_recommended_to_add_more_than_one_passkey": "Il est recommandé d'ajouter plus d'une clé d'accès pour éviter de perdre l'accès à votre compte.",
 	"account_details": "Paramètres du compte",
 	"passkeys": "Clés d'accès",
