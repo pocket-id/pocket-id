@@ -399,5 +399,8 @@
 	"setup_your_passkey": "Set up your passkey",
 	"create_a_passkey_to_securely_access_your_account": "Create a passkey to securely access your account. This will be your primary way to sign in.",
 	"skip_for_now": "Skip for now",
-	"account_created": "Account Created"
+	"account_created": "Account Created",
+	"enable_user_signups": "Enable User Signups",
+	"enable_user_signups_description": "Whether the Signup Token functionality should be enabled. If disabled, admins will need to create users manually.",
+	"user_signups_are_disabled": "User signups are currently disabled"
 }

@@ -51,6 +51,11 @@
 	}
 
 	onMount(() => {
+		if (!$appConfigStore.allowUserSignups) {
+			error = m.user_signups_are_disabled();
+			return;
+		}
+
 		if (data.token) {
 			validateToken();
 		} else {

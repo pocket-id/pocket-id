@@ -59,28 +59,28 @@
 					>
 				</div>
 				{#if !expandAddUser}
-					<DropdownButton.DropdownRoot>
-						<DropdownButton.Root>
-							<DropdownButton.Main
-								variant="default"
-								disabled={false}
-								onclick={() => (expandAddUser = true)}
-							>
-								<PlusIcon class="size-4" />
-								{selectedCreateOptions}
-							</DropdownButton.Main>
+					{#if $appConfigStore.allowUserSignups}
+						<DropdownButton.DropdownRoot>
+							<DropdownButton.Root>
+								<DropdownButton.Main disabled={false} onclick={() => (expandAddUser = true)}>
+									<PlusIcon class="size-4" />
+									{selectedCreateOptions}
+								</DropdownButton.Main>
 
-							<DropdownButton.DropdownTrigger>
-								<DropdownButton.Trigger class="border-l" variant="default" />
-							</DropdownButton.DropdownTrigger>
-						</DropdownButton.Root>
+								<DropdownButton.DropdownTrigger>
+									<DropdownButton.Trigger class="border-l" />
+								</DropdownButton.DropdownTrigger>
+							</DropdownButton.Root>
 
-						<DropdownButton.Content align="end">
-							<DropdownButton.Item onclick={() => (signupTokenModalOpen = true)}>
-								Create Signup Link
-							</DropdownButton.Item>
-						</DropdownButton.Content>
-					</DropdownButton.DropdownRoot>
+							<DropdownButton.Content align="end">
+								<DropdownButton.Item onclick={() => (signupTokenModalOpen = true)}>
+									Create Signup Link
+								</DropdownButton.Item>
+							</DropdownButton.Content>
+						</DropdownButton.DropdownRoot>
+					{:else}
+						<Button onclick={() => (expandAddUser = true)}>{m.add_user()}</Button>
+					{/if}
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUser = false)}>
 						<LucideMinus class="size-5" />

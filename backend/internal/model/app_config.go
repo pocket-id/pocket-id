@@ -38,6 +38,7 @@ type AppConfig struct {
 	AccentColor         AppConfigVariable `key:"accentColor,public"`         // Public
 	DisableAnimations   AppConfigVariable `key:"disableAnimations,public"`   // Public
 	AllowOwnAccountEdit AppConfigVariable `key:"allowOwnAccountEdit,public"` // Public
+	AllowUserSignups    AppConfigVariable `key:"allowUserSignups,public"`    // Public
 	// Internal
 	BackgroundImageType AppConfigVariable `key:"backgroundImageType,internal"` // Internal
 	LogoLightImageType  AppConfigVariable `key:"logoLightImageType,internal"`  // Internal

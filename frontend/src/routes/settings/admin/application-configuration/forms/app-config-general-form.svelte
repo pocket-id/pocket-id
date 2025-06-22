@@ -27,6 +27,7 @@
 		sessionDuration: appConfig.sessionDuration,
 		emailsVerified: appConfig.emailsVerified,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
+		allowUserSignups: appConfig.allowUserSignups,
 		disableAnimations: appConfig.disableAnimations,
 		accentColor: appConfig.accentColor
 	};
@@ -36,6 +37,7 @@
 		sessionDuration: z.number().min(1).max(43200),
 		emailsVerified: z.boolean(),
 		allowOwnAccountEdit: z.boolean(),
+		allowUserSignups: z.boolean(),
 		disableAnimations: z.boolean(),
 		accentColor: z.string()
 	});
@@ -68,6 +70,12 @@
 				label={m.enable_self_account_editing()}
 				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
 				bind:checked={$inputs.allowOwnAccountEdit.value}
+			/>
+			<SwitchWithLabel
+				id="allow-user-signups"
+				label={m.enable_user_signups()}
+				description={m.enable_user_signups_description()}
+				bind:checked={$inputs.allowUserSignups.value}
 			/>
 			<SwitchWithLabel
 				id="emails-verified"
