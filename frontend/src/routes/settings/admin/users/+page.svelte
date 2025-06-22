@@ -13,14 +13,18 @@
 	import UserList from './user-list.svelte';
 	import * as DropdownButton from '$lib/components/ui/dropdown-button';
 	import SignupTokenModal from '$lib/components/signup-token-modal.svelte';
+	import SignupTokenListModal from '$lib/components/signup-token-list-modal.svelte';
 
 	let { data } = $props();
 	let users = $state(data.users);
 	let usersRequestOptions = $state(data.usersRequestOptions);
+	let signupTokens = $state(data.signupTokens);
+	let signupTokensRequestOptions = $state(data.signupTokensRequestOptions);
 
 	let selectedCreateOptions = $state('Add User');
 	let expandAddUser = $state(false);
 	let signupTokenModalOpen = $state(false);
+	let signupTokenListModalOpen = $state(false);
 
 	const userService = new UserService();
 
@@ -36,6 +40,11 @@
 
 		users = await userService.list(usersRequestOptions);
 		return success;
+	}
+
+	// Function to refresh signup tokens after creation/deletion
+	async function refreshSignupTokens() {
+		signupTokens = await userService.listSignupTokens(signupTokensRequestOptions);
 	}
 </script>
 
@@ -74,7 +83,10 @@
 
 							<DropdownButton.Content align="end">
 								<DropdownButton.Item onclick={() => (signupTokenModalOpen = true)}>
-									Create Signup Link
+									{m.create_signup_token()}
+								</DropdownButton.Item>
+								<DropdownButton.Item onclick={() => (signupTokenListModalOpen = true)}>
+									{m.view_active_signup_tokens()}
 								</DropdownButton.Item>
 							</DropdownButton.Content>
 						</DropdownButton.DropdownRoot>
@@ -112,4 +124,10 @@
 	</Card.Root>
 </div>
 
-<SignupTokenModal bind:open={signupTokenModalOpen} />
+<SignupTokenModal bind:open={signupTokenModalOpen} onTokenCreated={refreshSignupTokens} />
+<SignupTokenListModal
+	bind:open={signupTokenListModalOpen}
+	bind:signupTokens
+	{signupTokensRequestOptions}
+	onTokenDeleted={refreshSignupTokens}
+/>

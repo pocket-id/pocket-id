@@ -402,5 +402,20 @@
 	"account_created": "Account Created",
 	"enable_user_signups": "Enable User Signups",
 	"enable_user_signups_description": "Whether the Signup Token functionality should be enabled. If disabled, admins will need to create users manually.",
-	"user_signups_are_disabled": "User signups are currently disabled"
+	"user_signups_are_disabled": "User signups are currently disabled",
+	"create_signup_token": "Create Signup Token",
+	"view_active_signup_tokens": "View Active Signup Tokens",
+	"manage_signup_tokens": "Manage Signup Tokens",
+	"view_and_manage_active_signup_tokens": "View and manage active signup tokens",
+	"no_active_signup_tokens": "No active signup tokens found",
+	"signup_token_deleted_successfully": "Signup token deleted successfully",
+	"expired": "Expired",
+	"used_up": "Used Up",
+	"active": "Active",
+	"usage": "Usage",
+	"created": "Created",
+	"token": "Token",
+	"loading": "Loading",
+	"delete_signup_token": "Delete Signup Token",
+	"are_you_sure_you_want_to_delete_this_signup_token": "Are you sure you want to delete this signup token? This action cannot be undone."
 }

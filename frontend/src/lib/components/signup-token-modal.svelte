@@ -14,9 +14,11 @@
 	import { mode } from 'mode-watcher';
 
 	let {
-		open = $bindable()
+		open = $bindable(),
+		onTokenCreated
 	}: {
 		open: boolean;
+		onTokenCreated?: () => Promise<void>;
 	} = $props();
 
 	const userService = new UserService();
@@ -39,6 +41,10 @@
 			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
 			signupToken = await userService.createSignupToken(expiration, usageLimit);
 			signupLink = `${page.url.origin}/st/${signupToken}`;
+
+			if (onTokenCreated) {
+				await onTokenCreated();
+			}
 		} catch (e) {
 			axiosErrorToast(e);
 		}
