@@ -24,14 +24,6 @@
 
 	const userService = new UserService();
 
-	async function handleUserCreateOption() {
-		if (selectedCreateOptions === 'Add User') {
-			expandAddUser = true;
-		} else {
-			signupTokenModalOpen = true;
-		}
-	}
-
 	async function createUser(user: UserCreate) {
 		let success = true;
 		await userService
@@ -72,7 +64,7 @@
 							<DropdownButton.Main
 								variant="default"
 								disabled={false}
-								onclick={handleUserCreateOption}
+								onclick={() => (expandAddUser = true)}
 							>
 								<PlusIcon class="size-4" />
 								{selectedCreateOptions}
@@ -84,10 +76,7 @@
 						</DropdownButton.Root>
 
 						<DropdownButton.Content align="end">
-							<DropdownButton.Item onclick={() => (selectedCreateOptions = 'Add User')}>
-								Add User
-							</DropdownButton.Item>
-							<DropdownButton.Item onclick={() => (selectedCreateOptions = 'Create Signup Link')}>
+							<DropdownButton.Item onclick={() => (signupTokenModalOpen = true)}>
 								Create Signup Link
 							</DropdownButton.Item>
 						</DropdownButton.Content>
