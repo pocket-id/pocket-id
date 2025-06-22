@@ -398,5 +398,6 @@
 	"please_enter_a_valid_email": "Please enter a valid email address",
 	"setup_your_passkey": "Set up your passkey",
 	"create_a_passkey_to_securely_access_your_account": "Create a passkey to securely access your account. This will be your primary way to sign in.",
-	"skip_for_now": "Skip for now"
+	"skip_for_now": "Skip for now",
+	"account_created": "Account Created"
 }

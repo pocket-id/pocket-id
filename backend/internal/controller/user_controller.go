@@ -624,7 +624,10 @@ func (uc *UserController) completeSignupWithTokenHandler(c *gin.Context) {
 		return
 	}
 
-	user, accessToken, err := uc.userService.CompleteSignupWithToken(c.Request.Context(), token, input)
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
+	user, accessToken, err := uc.userService.CompleteSignupWithToken(c.Request.Context(), token, input, ipAddress, userAgent)
 	if err != nil {
 		_ = c.Error(err)
 		return

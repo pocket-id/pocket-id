@@ -669,7 +669,7 @@ func (s *UserService) ValidateSignupToken(ctx context.Context, token string) err
 	return nil
 }
 
-func (s *UserService) CompleteSignupWithToken(ctx context.Context, token string, userData dto.UserCreateDto) (model.User, string, error) {
+func (s *UserService) CompleteSignupWithToken(ctx context.Context, token string, userData dto.UserCreateDto, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -698,11 +698,16 @@ func (s *UserService) CompleteSignupWithToken(ctx context.Context, token string,
 		return model.User{}, "", err
 	}
 
-	// Generate a JWT access token for the new user (like ExchangeOneTimeAccessToken does)
+	// Generate a JWT access token for the new user
 	accessToken, err := s.jwtService.GenerateAccessToken(user)
 	if err != nil {
 		return model.User{}, "", err
 	}
+
+	// Create audit log entry for the signup
+	s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
+		"signupToken": signupToken.Token,
+	}, tx)
 
 	// Update the token usage count
 	signupToken.UsageCount++
