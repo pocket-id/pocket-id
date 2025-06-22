@@ -6,19 +6,31 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, UserPen, UserPlus } from '@lucide/svelte';
+	import { LucideMinus, PlusIcon, UserPen, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
+	import * as DropdownButton from '$lib/components/ui/dropdown-button';
+	import SignupTokenModal from '$lib/components/signup-token-modal.svelte';
 
 	let { data } = $props();
 	let users = $state(data.users);
 	let usersRequestOptions = $state(data.usersRequestOptions);
 
+	let selectedCreateOptions = $state('Add User');
 	let expandAddUser = $state(false);
+	let signupTokenModalOpen = $state(false);
 
 	const userService = new UserService();
+
+	async function handleUserCreateOption() {
+		if (selectedCreateOptions === 'Add User') {
+			expandAddUser = true;
+		} else {
+			signupTokenModalOpen = true;
+		}
+	}
 
 	async function createUser(user: UserCreate) {
 		let success = true;
@@ -55,7 +67,31 @@
 					>
 				</div>
 				{#if !expandAddUser}
-					<Button onclick={() => (expandAddUser = true)}>{m.add_user()}</Button>
+					<DropdownButton.DropdownRoot>
+						<DropdownButton.Root>
+							<DropdownButton.Main
+								variant="default"
+								disabled={false}
+								onclick={handleUserCreateOption}
+							>
+								<PlusIcon class="size-4" />
+								{selectedCreateOptions}
+							</DropdownButton.Main>
+
+							<DropdownButton.DropdownTrigger>
+								<DropdownButton.Trigger class="border-l" variant="default" />
+							</DropdownButton.DropdownTrigger>
+						</DropdownButton.Root>
+
+						<DropdownButton.Content align="end">
+							<DropdownButton.Item onclick={() => (selectedCreateOptions = 'Add User')}>
+								Add User
+							</DropdownButton.Item>
+							<DropdownButton.Item onclick={() => (selectedCreateOptions = 'Create Signup Link')}>
+								Create Signup Link
+							</DropdownButton.Item>
+						</DropdownButton.Content>
+					</DropdownButton.DropdownRoot>
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUser = false)}>
 						<LucideMinus class="size-5" />
@@ -86,3 +122,5 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<SignupTokenModal bind:open={signupTokenModalOpen} />

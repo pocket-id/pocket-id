@@ -49,6 +49,12 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
+
+	group.POST("/signup-tokens", authMiddleware.Add(), uc.createSignupTokenHandler)
+	group.GET("/signup-tokens", authMiddleware.Add(), uc.listSignupTokensHandler)
+	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), uc.deleteSignupTokenHandler)
+	group.GET("/signup-token/:token/validate", uc.validateSignupTokenHandler)
+	group.POST("/signup-token/:token/complete", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.completeSignupWithTokenHandler)
 }
 
 type UserController struct {
@@ -493,6 +499,147 @@ func (uc *UserController) updateUserGroups(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, userDto)
+}
+
+// createSignupTokenHandler godoc
+// @Summary Create signup token
+// @Description Create a new signup token that allows user registration
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param token body dto.SignupTokenCreateDto true "Signup token information"
+// @Success 201 {object} dto.SignupTokenDto
+// @Router /api/signup-tokens [post]
+func (uc *UserController) createSignupTokenHandler(c *gin.Context) {
+	var input dto.SignupTokenCreateDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), input.ExpiresAt, input.UsageLimit)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var tokenDto dto.SignupTokenDto
+	if err := dto.MapStruct(signupToken, &tokenDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, tokenDto)
+}
+
+// listSignupTokensHandler godoc
+// @Summary List signup tokens
+// @Description Get a paginated list of signup tokens
+// @Tags Users
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[dto.SignupTokenDto]
+// @Router /api/signup-tokens [get]
+func (uc *UserController) listSignupTokensHandler(c *gin.Context) {
+	var sortedPaginationRequest utils.SortedPaginationRequest
+	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	tokens, pagination, err := uc.userService.ListSignupTokens(c.Request.Context(), sortedPaginationRequest)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var tokensDto []dto.SignupTokenDto
+	if err := dto.MapStructList(tokens, &tokensDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Paginated[dto.SignupTokenDto]{
+		Data:       tokensDto,
+		Pagination: pagination,
+	})
+}
+
+// deleteSignupTokenHandler godoc
+// @Summary Delete signup token
+// @Description Delete a signup token by ID
+// @Tags Users
+// @Param id path string true "Token ID"
+// @Success 204 "No Content"
+// @Router /api/signup-tokens/{id} [delete]
+func (uc *UserController) deleteSignupTokenHandler(c *gin.Context) {
+	tokenID := c.Param("id")
+
+	err := uc.userService.DeleteSignupToken(c.Request.Context(), tokenID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// validateSignupTokenHandler godoc
+// @Summary Validate signup token
+// @Description Check if a signup token is valid
+// @Tags Users
+// @Param token path string true "Signup token"
+// @Success 200 {object} object "{ \"valid\": true }"
+// @Router /api/signup-token/{token}/validate [get]
+func (uc *UserController) validateSignupTokenHandler(c *gin.Context) {
+	token := c.Param("token")
+
+	err := uc.userService.ValidateSignupToken(c.Request.Context(), token)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"valid": true})
+}
+
+// completeSignupWithTokenHandler godoc
+// @Summary Complete signup with token
+// @Description Complete user registration using a signup token
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param token path string true "Signup token"
+// @Param user body dto.UserCreateDto true "User information"
+// @Success 201 {object} dto.UserDto
+// @Router /api/signup-token/{token}/complete [post]
+func (uc *UserController) completeSignupWithTokenHandler(c *gin.Context) {
+	token := c.Param("token")
+
+	var input dto.UserCreateDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	user, accessToken, err := uc.userService.CompleteSignupWithToken(c.Request.Context(), token, input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
+
+	var userDto dto.UserDto
+	if err := dto.MapStruct(user, &userDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, userDto)
 }
 
 // updateUser is an internal helper method, not exposed as an API endpoint

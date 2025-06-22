@@ -375,6 +375,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 	}
 
 	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, expiration, tx)
+	// fmt.Println("oneTimeAccessToken", oneTimeAccessToken)
 	if err != nil {
 		return err
 	}
@@ -630,6 +631,114 @@ func (s *UserService) disableUserInternal(ctx context.Context, userID string, tx
 		Error
 }
 
+func (s *UserService) CreateSignupToken(ctx context.Context, expiresAt time.Time, usageLimit int) (model.SignupToken, error) {
+	return s.createSignupTokenInternal(ctx, expiresAt, usageLimit, s.db)
+}
+
+func (s *UserService) createSignupTokenInternal(ctx context.Context, expiresAt time.Time, usageLimit int, tx *gorm.DB) (model.SignupToken, error) {
+	signupToken, err := NewSignupToken(expiresAt, usageLimit)
+	if err != nil {
+		return model.SignupToken{}, err
+	}
+
+	if err := tx.WithContext(ctx).Create(signupToken).Error; err != nil {
+		return model.SignupToken{}, err
+	}
+
+	return *signupToken, nil
+}
+
+func (s *UserService) ValidateSignupToken(ctx context.Context, token string) error {
+	var signupToken model.SignupToken
+	err := s.db.
+		WithContext(ctx).
+		Where("token = ?", token).
+		First(&signupToken).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &common.TokenInvalidOrExpiredError{}
+		}
+		return err
+	}
+
+	if !signupToken.IsValid() {
+		return &common.TokenInvalidOrExpiredError{}
+	}
+
+	return nil
+}
+
+func (s *UserService) CompleteSignupWithToken(ctx context.Context, token string, userData dto.UserCreateDto) (model.User, string, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var signupToken model.SignupToken
+	err := tx.
+		WithContext(ctx).
+		Where("token = ?", token).
+		First(&signupToken).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
+		}
+		return model.User{}, "", err
+	}
+
+	if !signupToken.IsValid() {
+		return model.User{}, "", &common.TokenInvalidOrExpiredError{}
+	}
+
+	// Create the user
+	user, err := s.createUserInternal(ctx, userData, false, tx)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	// Generate a JWT access token for the new user (like ExchangeOneTimeAccessToken does)
+	accessToken, err := s.jwtService.GenerateAccessToken(user)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	// Update the token usage count
+	signupToken.UsageCount++
+	err = tx.WithContext(ctx).Save(&signupToken).Error
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	// If usage limit reached, delete the token
+	if signupToken.IsUsageLimitReached() {
+		err = tx.WithContext(ctx).Delete(&signupToken).Error
+		if err != nil {
+			return model.User{}, "", err
+		}
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	return user, accessToken, nil
+}
+
+func (s *UserService) ListSignupTokens(ctx context.Context, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.SignupToken, utils.PaginationResponse, error) {
+	var tokens []model.SignupToken
+	query := s.db.WithContext(ctx).Model(&model.SignupToken{})
+
+	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &tokens)
+	return tokens, pagination, err
+}
+
+func (s *UserService) DeleteSignupToken(ctx context.Context, tokenID string) error {
+	return s.db.WithContext(ctx).Delete(&model.SignupToken{}, "id = ?", tokenID).Error
+}
+
 func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAccessToken, error) {
 	// If expires at is less than 15 minutes, use a 6-character token instead of 16
 	tokenLength := 16
@@ -649,4 +758,21 @@ func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAc
 	}
 
 	return o, nil
+}
+
+func NewSignupToken(expiresAt time.Time, usageLimit int) (*model.SignupToken, error) {
+	// Generate a random token
+	randomString, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return nil, err
+	}
+
+	token := &model.SignupToken{
+		Token:      randomString,
+		ExpiresAt:  datatype.DateTime(expiresAt),
+		UsageLimit: usageLimit,
+		UsageCount: 0,
+	}
+
+	return token, nil
 }
