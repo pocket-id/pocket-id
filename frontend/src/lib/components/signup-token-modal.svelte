@@ -117,12 +117,12 @@
 		{:else}
 			<div class="flex flex-col items-center gap-2">
 				<CopyToClipboard value={signupToken!}>
-					<p class="break-all px-2 text-center text-2xl font-semibold">{signupToken}</p>
+					<p class="px-2 text-center text-2xl font-semibold break-all">{signupToken}</p>
 				</CopyToClipboard>
 
 				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 					<Separator />
-					<p class="text-nowrap text-xs">{m.or_visit()}</p>
+					<p class="text-xs text-nowrap">{m.or_visit()}</p>
 					<Separator />
 				</div>
 
@@ -134,7 +134,7 @@
 					backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 				/>
 				<CopyToClipboard value={signupLink!}>
-					<p data-testId="signup-token-link" class="break-all px-2 text-center text-sm">
+					<p data-testId="signup-token-link" class="px-2 text-center text-sm break-all">
 						{signupLink!}
 					</p>
 				</CopyToClipboard>

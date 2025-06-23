@@ -113,7 +113,7 @@
 
 				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 					<Separator />
-					<p class="text-nowrap text-xs">{m.or_visit()}</p>
+					<p class="text-xs text-nowrap">{m.or_visit()}</p>
 					<Separator />
 				</div>
 
