@@ -1,7 +1,7 @@
 export type AppConfig = {
 	appName: string;
 	allowOwnAccountEdit: boolean;
-	allowUserSignups: boolean;
+	allowUserSignups: 'disabled' | 'withtoken' | 'open';
 	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
 	emailOneTimeAccessAsAdminEnabled: boolean;
 	ldapEnabled: boolean;

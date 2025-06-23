@@ -68,7 +68,7 @@
 					>
 				</div>
 				{#if !expandAddUser}
-					{#if $appConfigStore.allowUserSignups}
+					{#if $appConfigStore.allowUserSignups !== 'disabled'}
 						<DropdownButton.DropdownRoot>
 							<DropdownButton.Root>
 								<DropdownButton.Main disabled={false} onclick={() => (expandAddUser = true)}>

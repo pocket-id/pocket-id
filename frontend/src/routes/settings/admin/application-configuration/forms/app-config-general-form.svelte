@@ -11,6 +11,7 @@
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 	import AccentColorPicker from './accent-color-picker.svelte';
+	import * as Select from '$lib/components/ui/select';
 
 	let {
 		callback,
@@ -21,6 +22,12 @@
 	} = $props();
 
 	let isLoading = $state(false);
+
+	const signupOptions = {
+		disabled: 'Disabled',
+		withtoken: 'Signup with token',
+		open: 'Open Signup'
+	};
 
 	const updatedAppConfig = {
 		appName: appConfig.appName,
@@ -37,7 +44,7 @@
 		sessionDuration: z.number().min(1).max(43200),
 		emailsVerified: z.boolean(),
 		allowOwnAccountEdit: z.boolean(),
-		allowUserSignups: z.boolean(),
+		allowUserSignups: z.enum(['disabled', 'withtoken', 'open']),
 		disableAnimations: z.boolean(),
 		accentColor: z.string()
 	});
@@ -64,19 +71,34 @@
 				description={m.the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again()}
 				bind:input={$inputs.sessionDuration}
 			/>
-
+			<div class="grid gap-2">
+				<Label class="mb-0" for="smtp-tls">{m.enable_user_signups()}</Label>
+				<p class="text-muted-foreground text-[0.8rem]">
+					{m.enable_user_signups_description()}
+				</p>
+				<Select.Root
+					type="single"
+					value={$inputs.allowUserSignups.value}
+					onValueChange={(v) =>
+						($inputs.allowUserSignups.value = v as typeof $inputs.allowUserSignups.value)}
+				>
+					<Select.Trigger class="w-full" placeholder={m.email_tls_option()}>
+						{signupOptions[$inputs.allowUserSignups.value]}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="disabled">Disabled</Select.Item>
+						<Select.Item value="withtoken">Signup with token</Select.Item>
+						<Select.Item value="open">Open Signup</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</div>
 			<SwitchWithLabel
 				id="self-account-editing"
 				label={m.enable_self_account_editing()}
 				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
 				bind:checked={$inputs.allowOwnAccountEdit.value}
 			/>
-			<SwitchWithLabel
-				id="allow-user-signups"
-				label={m.enable_user_signups()}
-				description={m.enable_user_signups_description()}
-				bind:checked={$inputs.allowUserSignups.value}
-			/>
+
 			<SwitchWithLabel
 				id="emails-verified"
 				label={m.emails_verified()}
