@@ -1,9 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-// Alias for /login/signup?token=...
+// Alias for /signup?token=...
 export const load: PageLoad = async ({ url, params }) => {
-	const targetPath = '/login/signup';
+	const targetPath = '/signup';
 
 	const searchParams = new URLSearchParams();
 	searchParams.set('token', params.token);

@@ -8,7 +8,7 @@
 	import userStore from '$lib/stores/user-store';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { fade } from 'svelte/transition';
-	import LoginLogoErrorSuccessIndicator from '../components/login-logo-error-success-indicator.svelte';
+	import LoginLogoErrorSuccessIndicator from '../login/components/login-logo-error-success-indicator.svelte';
 	import { onMount } from 'svelte';
 	import SignupForm from '$lib/components/signup-form.svelte';
 

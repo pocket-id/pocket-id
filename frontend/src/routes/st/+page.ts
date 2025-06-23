@@ -1,9 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
-// Alias for /login/signup
+// Alias for /signup
 export const load: PageLoad = async ({ url }) => {
-	let targetPath = '/login/signup';
+	let targetPath = '/signup';
 	if (url.searchParams.has('redirect')) {
 		targetPath += `?redirect=${encodeURIComponent(url.searchParams.get('redirect')!)}`;
 	}

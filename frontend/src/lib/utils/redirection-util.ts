@@ -7,7 +7,14 @@ export function getAuthRedirectPath(path: string, user: User | null) {
 	const isAdmin = user?.isAdmin;
 
 	const isUnauthenticatedOnlyPath =
-		path == '/login' || path.startsWith('/login/') || path == '/lc' || path.startsWith('/lc/');
+		path == '/login' ||
+		path.startsWith('/login/') ||
+		path == '/lc' ||
+		path.startsWith('/lc/') ||
+		path == '/signup' ||
+		path.startsWith('/signup/') ||
+		path == '/st' ||
+		path.startsWith('/st/');
 	const isPublicPath = ['/authorize', '/device', '/health', '/healthz'].includes(path);
 	const isAdminPath = path == '/settings/admin' || path.startsWith('/settings/admin/');
 
