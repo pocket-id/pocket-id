@@ -767,7 +767,7 @@ func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAc
 
 func NewSignupToken(expiresAt time.Time, usageLimit int) (*model.SignupToken, error) {
 	// Generate a random token
-	randomString, err := utils.GenerateRandomAlphanumericString(32)
+	randomString, err := utils.GenerateRandomAlphanumericString(16)
 	if err != nil {
 		return nil, err
 	}
