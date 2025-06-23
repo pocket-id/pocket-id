@@ -6,6 +6,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
+	import { tryCatch } from '$lib/utils/try-catch-util';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../login/components/login-logo-error-success-indicator.svelte';
 	import { onMount } from 'svelte';
@@ -21,16 +22,17 @@
 		if (!data.token) return false;
 
 		isLoading = true;
-		try {
-			const user = await userService.signupWithToken(data.token, userData);
-			userStore.setUser(user);
-			return true;
-		} catch (e) {
-			error = getAxiosErrorMessage(e);
-			return false;
-		} finally {
+		const result = await tryCatch(userService.signupWithToken(data.token, userData));
+
+		if (result.error) {
+			error = getAxiosErrorMessage(result.error);
 			isLoading = false;
+			return false;
 		}
+
+		userStore.setUser(result.data);
+		isLoading = false;
+		return true;
 	}
 
 	onMount(() => {
