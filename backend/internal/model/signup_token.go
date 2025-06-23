@@ -3,27 +3,16 @@ package model
 import (
 	"time"
 
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
 type SignupToken struct {
-	ID         string            `gorm:"primaryKey" json:"id"`
-	CreatedAt  datatype.DateTime `gorm:"not null" json:"createdAt"`
-	Token      string            `gorm:"uniqueIndex;not null" json:"token"`
-	ExpiresAt  datatype.DateTime `gorm:"not null" json:"expiresAt"`
-	UsageLimit int               `gorm:"not null;default:1" json:"usageLimit"`
-	UsageCount int               `gorm:"not null;default:0" json:"usageCount"`
-}
+	Base
 
-func (st *SignupToken) BeforeCreate(tx *gorm.DB) error {
-	if st.ID == "" {
-		st.ID = uuid.New().String()
-	}
-	st.CreatedAt = datatype.DateTime(time.Now())
-	return nil
+	Token      string            `gorm:"uniqueIndex;not null" json:"token" sortable:"true"`
+	ExpiresAt  datatype.DateTime `gorm:"not null" json:"expiresAt" sortable:"true"`
+	UsageLimit int               `gorm:"not null;default:1" json:"usageLimit" sortable:"true"`
+	UsageCount int               `gorm:"not null;default:0" json:"usageCount" sortable:"true"`
 }
 
 func (st *SignupToken) IsExpired() bool {
