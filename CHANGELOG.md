@@ -1,3 +1,10 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.4.0...v) (2025-06-22)
+
+
+### Bug Fixes
+
+* app not starting if UI config is disabled and Postgres is used ([7d36bda](https://github.com/pocket-id/pocket-id/commit/7d36bda769e25497dec6b76206a4f7e151b0bd72))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.3.1...v) (2025-06-19)
 
 ### Features

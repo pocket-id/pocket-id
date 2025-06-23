@@ -369,7 +369,7 @@ func (s *AppConfigService) LoadDbConfig(ctx context.Context) (err error) {
 func (s *AppConfigService) loadDbConfigInternal(ctx context.Context, tx *gorm.DB) (*model.AppConfig, error) {
 	// If the UI config is disabled, only load from the env
 	if common.EnvConfig.UiConfigDisabled {
-		dest, err := s.loadDbConfigFromEnv(ctx, s.db)
+		dest, err := s.loadDbConfigFromEnv(ctx, tx)
 		return dest, err
 	}
 
