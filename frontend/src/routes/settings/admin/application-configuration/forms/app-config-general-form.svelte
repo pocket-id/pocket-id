@@ -72,7 +72,7 @@
 				bind:input={$inputs.sessionDuration}
 			/>
 			<div class="grid gap-2">
-				<Label class="mb-0" for="smtp-tls">{m.enable_user_signups()}</Label>
+				<Label class="mb-0" for="enable-user-signup">{m.enable_user_signups()}</Label>
 				<p class="text-muted-foreground text-[0.8rem]">
 					{m.enable_user_signups_description()}
 				</p>
@@ -82,7 +82,7 @@
 					onValueChange={(v) =>
 						($inputs.allowUserSignups.value = v as typeof $inputs.allowUserSignups.value)}
 				>
-					<Select.Trigger class="w-full" placeholder={m.email_tls_option()}>
+					<Select.Trigger class="w-full" placeholder={m.enable_user_signups()}>
 						{signupOptions[$inputs.allowUserSignups.value]}
 					</Select.Trigger>
 					<Select.Content>
