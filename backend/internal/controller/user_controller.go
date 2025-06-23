@@ -54,6 +54,8 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.GET("/signup-tokens", authMiddleware.Add(), uc.listSignupTokensHandler)
 	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), uc.deleteSignupTokenHandler)
 	group.POST("/signup-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.signupWithTokenHandler)
+	group.POST("/signup", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.signupWithoutTokenHandler)
+
 }
 
 type UserController struct {
@@ -690,4 +692,41 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// signupWithoutTokenHandler godoc
+// @Summary Sign up without token (open signup)
+// @Description Create a new user account when open signups are enabled
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param user body dto.UserCreateDto true "User information"
+// @Success 201 {object} dto.UserDto
+// @Router /api/signup [post]
+func (uc *UserController) signupWithoutTokenHandler(c *gin.Context) {
+	var input dto.UserCreateDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
+	user, accessToken, err := uc.userService.SignupWithoutToken(c.Request.Context(), input, ipAddress, userAgent)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
+
+	var userDto dto.UserDto
+	if err := dto.MapStruct(user, &userDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, userDto)
 }

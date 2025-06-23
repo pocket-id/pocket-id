@@ -349,3 +349,13 @@ func (e *OidcAuthorizationPendingError) Error() string {
 func (e *OidcAuthorizationPendingError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
+
+type OpenSignupDisabledError struct{}
+
+func (e *OpenSignupDisabledError) Error() string {
+	return "Open user signup is not enabled"
+}
+
+func (e *OpenSignupDisabledError) StatusCode() int {
+	return http.StatusForbidden
+}

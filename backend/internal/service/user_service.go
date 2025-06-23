@@ -707,6 +707,45 @@ func (s *UserService) SignupWithToken(ctx context.Context, token string, userDat
 	return user, accessToken, nil
 }
 
+// Add this method after the SignupWithToken method:
+
+func (s *UserService) SignupWithoutToken(ctx context.Context, userData dto.UserCreateDto, ipAddress, userAgent string) (model.User, string, error) {
+	// Check if open signup is enabled
+	config := s.appConfigService.GetDbConfig()
+	if config.AllowUserSignups.Value != "open" {
+		return model.User{}, "", &common.OpenSignupDisabledError{}
+	}
+
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// Create the user
+	user, err := s.createUserInternal(ctx, userData, false, tx)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	// Generate a JWT access token for the new user
+	accessToken, err := s.jwtService.GenerateAccessToken(user)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	// Create audit log entry for the signup
+	s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
+		"method": "open_signup",
+	}, tx)
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	return user, accessToken, nil
+}
+
 func (s *UserService) ListSignupTokens(ctx context.Context, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.SignupToken, utils.PaginationResponse, error) {
 	var tokens []model.SignupToken
 	query := s.db.WithContext(ctx).Model(&model.SignupToken{})

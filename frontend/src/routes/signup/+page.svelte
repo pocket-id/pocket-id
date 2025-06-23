@@ -19,10 +19,12 @@
 	let error: string | undefined = $state();
 
 	async function handleSignup(userData: any) {
-		if (!data.token) return false;
-
 		isLoading = true;
-		const result = await tryCatch(userService.signupWithToken(data.token, userData));
+
+		const result =
+			$appConfigStore.allowUserSignups === 'open'
+				? await tryCatch(userService.signupWithoutToken(userData))
+				: await tryCatch(userService.signupWithToken(data.token!, userData));
 
 		if (result.error) {
 			error = getAxiosErrorMessage(result.error);
@@ -41,7 +43,8 @@
 			return;
 		}
 
-		if (!data.token) {
+		// For token-based signups, check if we have a valid token
+		if ($appConfigStore.allowUserSignups === 'withtoken' && !data.token) {
 			error = m.signup_requires_valid_token();
 		}
 	});
@@ -67,7 +70,7 @@
 		<div class="mt-10 flex justify-center">
 			<Button href="/login">{m.go_to_login()}</Button>
 		</div>
-	{:else if data.token}
+	{:else if $appConfigStore.allowUserSignups === 'open' || data.token}
 		<p class="text-muted-foreground mt-2" in:fade>
 			{m.create_your_account_to_get_started()}
 		</p>

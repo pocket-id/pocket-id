@@ -15,6 +15,8 @@
 	let isLoading = $state(false);
 	let error: string | undefined = $state(undefined);
 
+	let showSignupButton = $derived($appConfigStore.allowUserSignups === 'open');
+
 	async function authenticate() {
 		error = undefined;
 		isLoading = true;
@@ -36,7 +38,11 @@
 	<title>{m.sign_in()}</title>
 </svelte:head>
 
-<SignInWrapper animate={!$appConfigStore.disableAnimations} showAlternativeSignInMethodButton>
+<SignInWrapper
+	animate={!$appConfigStore.disableAnimations}
+	showAlternativeSignInMethodButton
+	{showSignupButton}
+>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>
