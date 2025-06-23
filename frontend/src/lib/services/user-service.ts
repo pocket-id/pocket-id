@@ -109,18 +109,8 @@ export default class UserService extends APIService {
 		return res.data as User;
 	}
 
-	async signup(userData: UserCreate) {
-		const res = await this.api.post('/signup', userData);
-		return res.data as User;
-	}
-
-	async validateSignupToken(token: string) {
-		const res = await this.api.get(`/signup-token/${token}/validate`);
-		return res.data;
-	}
-
-	async completeSignupWithToken(token: string, userData: UserCreate) {
-		const res = await this.api.post(`/signup-token/${token}/complete`, userData);
+	async signupWithToken(token: string, userData: UserCreate) {
+		const res = await this.api.post(`/signup-token/${token}`, userData);
 		return res.data as User;
 	}
 

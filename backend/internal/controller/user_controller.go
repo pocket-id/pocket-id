@@ -53,8 +53,7 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/signup-tokens", authMiddleware.Add(), uc.createSignupTokenHandler)
 	group.GET("/signup-tokens", authMiddleware.Add(), uc.listSignupTokensHandler)
 	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), uc.deleteSignupTokenHandler)
-	group.GET("/signup-token/:token/validate", uc.validateSignupTokenHandler)
-	group.POST("/signup-token/:token/complete", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.completeSignupWithTokenHandler)
+	group.POST("/signup-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.signupWithTokenHandler)
 }
 
 type UserController struct {
@@ -586,36 +585,17 @@ func (uc *UserController) deleteSignupTokenHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// validateSignupTokenHandler godoc
-// @Summary Validate signup token
-// @Description Check if a signup token is valid
-// @Tags Users
-// @Param token path string true "Signup token"
-// @Success 200 {object} object "{ \"valid\": true }"
-// @Router /api/signup-token/{token}/validate [get]
-func (uc *UserController) validateSignupTokenHandler(c *gin.Context) {
-	token := c.Param("token")
-
-	err := uc.userService.ValidateSignupToken(c.Request.Context(), token)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"valid": true})
-}
-
-// completeSignupWithTokenHandler godoc
-// @Summary Complete signup with token
-// @Description Complete user registration using a signup token
+// signupWithTokenHandler godoc
+// @Summary Sign up with token
+// @Description Create a new user account using a signup token
 // @Tags Users
 // @Accept json
 // @Produce json
 // @Param token path string true "Signup token"
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 201 {object} dto.UserDto
-// @Router /api/signup-token/{token}/complete [post]
-func (uc *UserController) completeSignupWithTokenHandler(c *gin.Context) {
+// @Router /api/signup-token/{token} [post]
+func (uc *UserController) signupWithTokenHandler(c *gin.Context) {
 	token := c.Param("token")
 
 	var input dto.UserCreateDto
@@ -627,7 +607,7 @@ func (uc *UserController) completeSignupWithTokenHandler(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	user, accessToken, err := uc.userService.CompleteSignupWithToken(c.Request.Context(), token, input, ipAddress, userAgent)
+	user, accessToken, err := uc.userService.SignupWithToken(c.Request.Context(), token, input, ipAddress, userAgent)
 	if err != nil {
 		_ = c.Error(err)
 		return

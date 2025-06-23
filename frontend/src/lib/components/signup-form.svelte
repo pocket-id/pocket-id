@@ -10,15 +10,14 @@
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { z } from 'zod/v4';
 	import { goto } from '$app/navigation';
+	import { tryCatch } from '$lib/utils/try-catch-util';
 
 	let {
 		callback,
-		isLoading,
-		hasToken = false
+		isLoading
 	}: {
 		callback: (user: UserCreate) => Promise<boolean>;
 		isLoading: boolean;
-		hasToken?: boolean;
 	} = $props();
 
 	const webauthnService = new WebAuthnService();
@@ -40,7 +39,7 @@
 			.min(2, m.username_must_be_at_least_2_characters())
 			.max(30)
 			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
-		email: z.string().email(m.please_enter_a_valid_email()),
+		email: z.email(m.please_enter_a_valid_email()),
 		isAdmin: z.boolean(),
 		disabled: z.boolean()
 	});
@@ -56,47 +55,48 @@
 		const data = form.validate();
 		if (!data) return;
 
-		// Store form data and proceed to passkey setup
-		userData = data;
-		step = 'passkey';
+		isLoading = true;
+		const result = await tryCatch(callback(data));
+		if (result.data) {
+			userData = data;
+			step = 'passkey';
+			isLoading = false;
+		}
 	}
 
-	async function createPasskeyAndCompleteSignup() {
+	async function createPasskeyAndContinue() {
 		if (!userData) return;
 
 		isLoading = true;
 		signupError = undefined;
 
-		try {
-			// First create the user account (this signs them in)
-			const success = await callback(userData);
-			if (!success) {
-				isLoading = false;
-				return;
-			}
-
-			// Then immediately create a passkey for the new user
-			const opts = await webauthnService.getRegistrationOptions();
-			const attResp = await startRegistration({ optionsJSON: opts });
-			await webauthnService.finishRegistration(attResp);
-
-			// Success! Redirect to settings like the account page does
-			goto('/settings');
-		} catch (e) {
-			signupError = getWebauthnErrorMessage(e);
-		} finally {
+		const optsResult = await tryCatch(webauthnService.getRegistrationOptions());
+		if (optsResult.error) {
+			signupError = getWebauthnErrorMessage(optsResult.error);
 			isLoading = false;
+			return;
 		}
+
+		const attRespResult = await tryCatch(startRegistration({ optionsJSON: optsResult.data }));
+		if (attRespResult.error) {
+			signupError = getWebauthnErrorMessage(attRespResult.error);
+			isLoading = false;
+			return;
+		}
+
+		const finishResult = await tryCatch(webauthnService.finishRegistration(attRespResult.data));
+		if (finishResult.error) {
+			signupError = getWebauthnErrorMessage(finishResult.error);
+			isLoading = false;
+			return;
+		}
+
+		goto('/settings/account');
+		isLoading = false;
 	}
 
-	// Add skip option that goes to settings without passkey
 	function skipPasskeySetup() {
-		goto('/settings');
-	}
-
-	function goBackToForm() {
-		step = 'form';
-		signupError = undefined;
+		goto('/settings/account');
 	}
 </script>
 
@@ -135,7 +135,7 @@
 				{/if}
 
 				<div class="flex flex-col gap-2">
-					<Button onclick={createPasskeyAndCompleteSignup} {isLoading} class="w-full">
+					<Button onclick={createPasskeyAndContinue} {isLoading} class="w-full">
 						{m.add_passkey()}
 					</Button>
 					<Button variant="ghost" onclick={skipPasskeySetup} disabled={isLoading} class="w-full">

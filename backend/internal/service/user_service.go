@@ -648,28 +648,7 @@ func (s *UserService) createSignupTokenInternal(ctx context.Context, expiresAt t
 	return *signupToken, nil
 }
 
-func (s *UserService) ValidateSignupToken(ctx context.Context, token string) error {
-	var signupToken model.SignupToken
-	err := s.db.
-		WithContext(ctx).
-		Where("token = ?", token).
-		First(&signupToken).
-		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &common.TokenInvalidOrExpiredError{}
-		}
-		return err
-	}
-
-	if !signupToken.IsValid() {
-		return &common.TokenInvalidOrExpiredError{}
-	}
-
-	return nil
-}
-
-func (s *UserService) CompleteSignupWithToken(ctx context.Context, token string, userData dto.UserCreateDto, ipAddress, userAgent string) (model.User, string, error) {
+func (s *UserService) SignupWithToken(ctx context.Context, token string, userData dto.UserCreateDto, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -692,24 +671,20 @@ func (s *UserService) CompleteSignupWithToken(ctx context.Context, token string,
 		return model.User{}, "", &common.TokenInvalidOrExpiredError{}
 	}
 
-	// Create the user
 	user, err := s.createUserInternal(ctx, userData, false, tx)
 	if err != nil {
 		return model.User{}, "", err
 	}
 
-	// Generate a JWT access token for the new user
 	accessToken, err := s.jwtService.GenerateAccessToken(user)
 	if err != nil {
 		return model.User{}, "", err
 	}
 
-	// Create audit log entry for the signup
 	s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
 		"signupToken": signupToken.Token,
 	}, tx)
 
-	// Update the token usage count
 	signupToken.UsageCount++
 	err = tx.WithContext(ctx).Save(&signupToken).Error
 	if err != nil {
