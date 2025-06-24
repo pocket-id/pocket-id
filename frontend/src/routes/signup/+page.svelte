@@ -44,7 +44,7 @@
 		}
 
 		// For token-based signups, check if we have a valid token
-		if ($appConfigStore.allowUserSignups === 'withtoken' && !data.token) {
+		if ($appConfigStore.allowUserSignups === 'withToken' && !data.token) {
 			error = m.signup_requires_valid_token();
 		}
 	});

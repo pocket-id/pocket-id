@@ -3,6 +3,7 @@
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import * as Select from '$lib/components/ui/select';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
@@ -11,7 +12,6 @@
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 	import AccentColorPicker from './accent-color-picker.svelte';
-	import * as Select from '$lib/components/ui/select';
 
 	let {
 		callback,
@@ -25,7 +25,7 @@
 
 	const signupOptions = {
 		disabled: 'Disabled',
-		withtoken: 'Signup with token',
+		withToken: 'Signup with token',
 		open: 'Open Signup'
 	};
 
@@ -44,7 +44,7 @@
 		sessionDuration: z.number().min(1).max(43200),
 		emailsVerified: z.boolean(),
 		allowOwnAccountEdit: z.boolean(),
-		allowUserSignups: z.enum(['disabled', 'withtoken', 'open']),
+		allowUserSignups: z.enum(['disabled', 'withToken', 'open']),
 		disableAnimations: z.boolean(),
 		accentColor: z.string()
 	});
@@ -77,6 +77,7 @@
 					{m.enable_user_signups_description()}
 				</p>
 				<Select.Root
+					disabled={$appConfigStore.uiConfigDisabled}
 					type="single"
 					value={$inputs.allowUserSignups.value}
 					onValueChange={(v) =>
@@ -87,7 +88,7 @@
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="disabled">Disabled</Select.Item>
-						<Select.Item value="withtoken">Signup with token</Select.Item>
+						<Select.Item value="withToken">Signup with token</Select.Item>
 						<Select.Item value="open">Open Signup</Select.Item>
 					</Select.Content>
 				</Select.Root>

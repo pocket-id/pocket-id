@@ -17,7 +17,7 @@ type AppConfigUpdateDto struct {
 	EmailsVerified                             string `json:"emailsVerified" binding:"required"`
 	DisableAnimations                          string `json:"disableAnimations" binding:"required"`
 	AllowOwnAccountEdit                        string `json:"allowOwnAccountEdit" binding:"required"`
-	AllowUserSignups                           string `json:"allowUserSignups" binding:"required,oneof=disabled withtoken open"`
+	AllowUserSignups                           string `json:"allowUserSignups" binding:"required,oneof=disabled withToken open"`
 	AccentColor                                string `json:"accentColor"`
 	SmtpHost                                   string `json:"smtpHost"`
 	SmtpPort                                   string `json:"smtpPort"`
