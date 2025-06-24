@@ -83,7 +83,11 @@
 					onValueChange={(v) =>
 						($inputs.allowUserSignups.value = v as typeof $inputs.allowUserSignups.value)}
 				>
-					<Select.Trigger class="w-full" placeholder={m.enable_user_signups()}>
+					<Select.Trigger
+						class="w-full"
+						aria-label="Enable user signups"
+						placeholder={m.enable_user_signups()}
+					>
 						{signupOptions[$inputs.allowUserSignups.value]}
 					</Select.Trigger>
 					<Select.Content>
