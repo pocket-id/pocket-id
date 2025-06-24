@@ -48,7 +48,6 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	}
 
 	r := gin.Default()
-	r.Use(gin.Logger())
 
 	if !common.EnvConfig.TrustProxy {
 		_ = r.SetTrustedProxies(nil)
