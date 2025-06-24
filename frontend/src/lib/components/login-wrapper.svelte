@@ -68,7 +68,7 @@
 		</div>
 
 		<!-- Background image with slide animation -->
-		<div class="{cn(animate && 'animate-slide-bg-container')} absolute bottom-0 right-0 top-0 z-0">
+		<div class="{cn(animate && 'animate-slide-bg-container')} absolute top-0 right-0 bottom-0 z-0">
 			<img
 				src={cachedBackgroundImage.getUrl()}
 				class="h-screen rounded-l-[60px] object-cover {animate
