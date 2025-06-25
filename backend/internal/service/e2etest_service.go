@@ -310,6 +310,50 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
+		signupTokens := []model.SignupToken{
+			{
+				Base: model.Base{
+					ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+				},
+				Token:      "VALID1234567890A",
+				ExpiresAt:  datatype.DateTime(time.Now().Add(24 * time.Hour)),
+				UsageLimit: 1,
+				UsageCount: 0,
+			},
+			{
+				Base: model.Base{
+					ID: "b2c3d4e5-f6g7-8901-bcde-f12345678901",
+				},
+				Token:      "PARTIAL567890ABC",
+				ExpiresAt:  datatype.DateTime(time.Now().Add(7 * 24 * time.Hour)),
+				UsageLimit: 5,
+				UsageCount: 2,
+			},
+			{
+				Base: model.Base{
+					ID: "c3d4e5f6-g7h8-9012-cdef-123456789012",
+				},
+				Token:      "EXPIRED34567890B",
+				ExpiresAt:  datatype.DateTime(time.Now().Add(-24 * time.Hour)), // Expired
+				UsageLimit: 3,
+				UsageCount: 1,
+			},
+			{
+				Base: model.Base{
+					ID: "d4e5f6g7-h8i9-0123-def0-234567890123",
+				},
+				Token:      "FULLYUSED567890C",
+				ExpiresAt:  datatype.DateTime(time.Now().Add(24 * time.Hour)),
+				UsageLimit: 1,
+				UsageCount: 1, // Usage limit reached
+			},
+		}
+		for _, token := range signupTokens {
+			if err := tx.Create(&token).Error; err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 
