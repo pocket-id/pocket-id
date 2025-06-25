@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"strings"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
 
@@ -47,8 +48,12 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 		gin.SetMode(gin.TestMode)
 	}
 
-	r := gin.Default()
-	r.Use(gin.Logger())
+	loggerSkipPaths := []string{
+		"/api/application-configuration/favicon",
+	}
+
+	r := gin.New()
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{Skip:func(c *gin.Context) bool {return strings.Split(c.Request.RemoteAddr, ":")[0] == "127.0.0.1" }, SkipPaths:loggerSkipPaths}))
 
 	if !common.EnvConfig.TrustProxy {
 		_ = r.SetTrustedProxies(nil)
