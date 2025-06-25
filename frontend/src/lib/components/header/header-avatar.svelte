@@ -12,7 +12,7 @@
 
 	async function logout() {
 		await webauthnService.logout();
-		window.location.reload();
+		goto('/login');
 	}
 </script>
 
