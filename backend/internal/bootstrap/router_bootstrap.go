@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 	"strings"
-	"regexp"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
 
@@ -49,23 +48,22 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 		gin.SetMode(gin.TestMode)
 	}
 
-	// do not log these URL's
-	loggerSkipPathsRegExp := []*regexp.Regexp{
-		regexp.MustCompile(`\/api\/application-configuration.*`),
-		regexp.MustCompile(`\/_app\/.*`),
-		regexp.MustCompile(`\/fonts/.*`),
+	// do not log these URLs
+	loggerSkipPathsPrefix := []string{
+		"GET /api/application-configuration",
+		"GET /_app",
+		"GET /fonts",
+		"HEAD /healthz",
 	}
 
 	r := gin.New()
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{Skip:func(c *gin.Context) bool {	
-		for _, path := range loggerSkipPathsRegExp {
-			if path.MatchString(c.Request.URL.String()) {
+		for _, prefix := range loggerSkipPathsPrefix {
+			if strings.HasPrefix(fmt.Sprintf("%s %s", c.Request.Method, c.Request.URL.String()), prefix){
 				return true
 			}
 		}
-	
-		// do not log if client is localhost (health check on /healthz)
-		return strings.Split(c.Request.RemoteAddr, ":")[0] == "127.0.0.1"
+		return false
 	}}))
 
 	if !common.EnvConfig.TrustProxy {
