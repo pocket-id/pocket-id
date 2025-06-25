@@ -375,7 +375,6 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 	}
 
 	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, expiration, tx)
-	// fmt.Println("oneTimeAccessToken", oneTimeAccessToken)
 	if err != nil {
 		return err
 	}
@@ -706,8 +705,6 @@ func (s *UserService) SignupWithToken(ctx context.Context, token string, userDat
 
 	return user, accessToken, nil
 }
-
-// Add this method after the SignupWithToken method:
 
 func (s *UserService) SignupWithoutToken(ctx context.Context, userData dto.UserCreateDto, ipAddress, userAgent string) (model.User, string, error) {
 	// Check if open signup is enabled
