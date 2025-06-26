@@ -398,7 +398,7 @@
 	"skip_for_now": "Skip for now",
 	"account_created": "Account Created",
 	"enable_user_signups": "Enable User Signups",
-	"enable_user_signups_description": "Whether the Signup Token functionality should be enabled. If disabled, admins will need to create users manually.",
+	"enable_user_signups_description": "Whether the User Signup functionality should be enabled.",
 	"user_signups_are_disabled": "User signups are currently disabled",
 	"create_signup_token": "Create Signup Token",
 	"view_active_signup_tokens": "View Active Signup Tokens",
@@ -414,5 +414,11 @@
 	"token": "Token",
 	"loading": "Loading",
 	"delete_signup_token": "Delete Signup Token",
-	"are_you_sure_you_want_to_delete_this_signup_token": "Are you sure you want to delete this signup token? This action cannot be undone."
+	"are_you_sure_you_want_to_delete_this_signup_token": "Are you sure you want to delete this signup token? This action cannot be undone.",
+	"signup_disabled": "Disabled",
+	"signup_disabled_description": "User signups are completely disabled. Only administrators can create new user accounts.",
+	"signup_with_token": "Signup with token",
+	"signup_with_token_description": "Users can only sign up using a valid signup token created by an administrator.",
+	"signup_open": "Open Signup",
+	"signup_open_description": "Anyone can create a new account without restrictions."
 }

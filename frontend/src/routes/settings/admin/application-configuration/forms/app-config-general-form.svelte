@@ -23,10 +23,20 @@
 
 	let isLoading = $state(false);
 
+	// Dynamic signup options with translations
 	const signupOptions = {
-		disabled: 'Disabled',
-		withToken: 'Signup with token',
-		open: 'Open Signup'
+		disabled: {
+			label: m.signup_disabled(),
+			description: m.signup_disabled_description()
+		},
+		withToken: {
+			label: m.signup_with_token(),
+			description: m.signup_with_token_description()
+		},
+		open: {
+			label: m.signup_open(),
+			description: m.signup_open_description()
+		}
 	};
 
 	const updatedAppConfig = {
@@ -88,12 +98,33 @@
 						aria-label="Enable user signups"
 						placeholder={m.enable_user_signups()}
 					>
-						{signupOptions[$inputs.allowUserSignups.value]}
+						{signupOptions[$inputs.allowUserSignups.value]?.label}
 					</Select.Trigger>
 					<Select.Content>
-						<Select.Item value="disabled">Disabled</Select.Item>
-						<Select.Item value="withToken">Signup with token</Select.Item>
-						<Select.Item value="open">Open Signup</Select.Item>
+						<Select.Item value="disabled">
+							<div class="flex flex-col items-start gap-1">
+								<span class="font-medium">{signupOptions.disabled.label}</span>
+								<span class="text-muted-foreground text-xs">
+									{signupOptions.disabled.description}
+								</span>
+							</div>
+						</Select.Item>
+						<Select.Item value="withToken">
+							<div class="flex flex-col items-start gap-1">
+								<span class="font-medium">{signupOptions.withToken.label}</span>
+								<span class="text-muted-foreground text-xs">
+									{signupOptions.withToken.description}
+								</span>
+							</div>
+						</Select.Item>
+						<Select.Item value="open">
+							<div class="flex flex-col items-start gap-1">
+								<span class="font-medium">{signupOptions.open.label}</span>
+								<span class="text-muted-foreground text-xs">
+									{signupOptions.open.description}
+								</span>
+							</div>
+						</Select.Item>
 					</Select.Content>
 				</Select.Root>
 			</div>
