@@ -19,8 +19,3 @@ type SignupTokenDto struct {
 	UsageCount int               `json:"usageCount"`
 	CreatedAt  datatype.DateTime `json:"createdAt"`
 }
-
-type SignupWithTokenDto struct {
-	Token    string        `json:"token" binding:"required"`
-	UserData UserCreateDto `json:"userData" binding:"required"`
-}
