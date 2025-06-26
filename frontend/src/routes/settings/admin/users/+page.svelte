@@ -1,19 +1,19 @@
 <script lang="ts">
+	import SignupTokenListModal from '$lib/components/signup/signup-token-list-modal.svelte';
+	import SignupTokenModal from '$lib/components/signup/signup-token-modal.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import * as DropdownButton from '$lib/components/ui/dropdown-button';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, PlusIcon, UserPen, UserPlus } from '@lucide/svelte';
+	import { LucideMinus, UserPen, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
-	import * as DropdownButton from '$lib/components/ui/dropdown-button';
-	import SignupTokenModal from '$lib/components/signup/signup-token-modal.svelte';
-	import SignupTokenListModal from '$lib/components/signup/signup-token-list-modal.svelte';
 
 	let { data } = $props();
 	let users = $state(data.users);
@@ -72,7 +72,6 @@
 						<DropdownButton.DropdownRoot>
 							<DropdownButton.Root>
 								<DropdownButton.Main disabled={false} onclick={() => (expandAddUser = true)}>
-									<PlusIcon class="size-4" />
 									{selectedCreateOptions}
 								</DropdownButton.Main>
 

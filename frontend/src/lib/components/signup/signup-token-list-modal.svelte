@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import { Badge } from '$lib/components/ui/badge';
+	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -12,7 +12,7 @@
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { SignupTokenDto } from '$lib/types/signup-token.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { Clock, Copy, Ellipsis, Trash2, Users } from '@lucide/svelte';
+	import { Copy, Ellipsis, Trash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -75,8 +75,6 @@
 		if (isTokenUsedUp(token)) return 'used-up';
 		return 'active';
 	}
-
-	type BadgeVariant = 'destructive' | 'secondary' | 'default' | 'outline' | undefined;
 
 	function getStatusBadge(status: string): { variant: BadgeVariant; text: string } {
 		switch (status) {
@@ -143,13 +141,11 @@
 					</Table.Cell>
 					<Table.Cell>
 						<div class="flex items-center gap-1">
-							<Users class="size-3" />
-							{item.usageCount} / {item.usageLimit}
+							{`${item.usageCount} ${m.of()} ${item.usageLimit}`}
 						</div>
 					</Table.Cell>
 					<Table.Cell class="text-sm">
 						<div class="flex items-center gap-1">
-							<Clock class="size-3" />
 							{formatDate(item.expiresAt)}
 						</div>
 					</Table.Cell>
@@ -167,7 +163,6 @@
 									<Copy class="mr-2 size-4" />
 									{m.copy()}
 								</DropdownMenu.Item>
-								<DropdownMenu.Separator />
 								<DropdownMenu.Item
 									class="text-red-500 focus:!text-red-700"
 									onclick={() => deleteToken(item)}

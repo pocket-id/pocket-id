@@ -7,7 +7,6 @@
 	import { Input } from '$lib/components/ui/input';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { axiosErrorToast } from '$lib/utils/error-util';
@@ -91,7 +90,10 @@
 				</div>
 
 				<div>
-					<Label for="usage-limit">{m.usage_limit()}</Label>
+					<Label class="mb-0" for="usage-limit">{m.usage_limit()}</Label>
+					<p class="text-muted-foreground mt-1 mb-2 text-xs">
+						{m.number_of_times_token_can_be_used()}
+					</p>
 					<Input
 						id="usage-limit"
 						type="number"
@@ -100,9 +102,6 @@
 						bind:value={usageLimit}
 						class="h-9"
 					/>
-					<p class="text-muted-foreground mt-1 text-xs">
-						{m.number_of_times_token_can_be_used()}
-					</p>
 				</div>
 			</div>
 
@@ -116,18 +115,6 @@
 			</Dialog.Footer>
 		{:else}
 			<div class="flex flex-col items-center gap-2">
-				<CopyToClipboard value={signupToken!}>
-					<p data-testid="signup-token" class="break-all px-2 text-center text-2xl font-semibold">
-						{signupToken}
-					</p>
-				</CopyToClipboard>
-
-				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
-					<Separator />
-					<p class="text-nowrap text-xs">{m.or_visit()}</p>
-					<Separator />
-				</div>
-
 				<Qrcode
 					class="mb-2"
 					value={signupLink}
@@ -136,7 +123,7 @@
 					backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 				/>
 				<CopyToClipboard value={signupLink!}>
-					<p data-testId="signup-token-link" class="break-all px-2 text-center text-sm">
+					<p data-testId="signup-token-link" class="px-2 text-center text-sm break-all">
 						{signupLink!}
 					</p>
 				</CopyToClipboard>
