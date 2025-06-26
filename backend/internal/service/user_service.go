@@ -685,14 +685,14 @@ func (s *UserService) SignupWithToken(ctx context.Context, token string, userDat
 	}, tx)
 
 	signupToken.UsageCount++
-	err = tx.WithContext(ctx).Save(&signupToken).Error
-	if err != nil {
-		return model.User{}, "", err
-	}
-
 	// If usage limit reached, delete the token
 	if signupToken.IsUsageLimitReached() {
 		err = tx.WithContext(ctx).Delete(&signupToken).Error
+		if err != nil {
+			return model.User{}, "", err
+		}
+	} else {
+		err = tx.WithContext(ctx).Save(&signupToken).Error
 		if err != nil {
 			return model.User{}, "", err
 		}
