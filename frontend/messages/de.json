@@ -320,7 +320,7 @@
 	"all_users": "Alle Benutzer",
 	"all_events": "Alle Ereignisse",
 	"all_clients": "Alle Clients",
-	"all_locations": "All Locations",
+	"all_locations": "Alle Orte",
 	"global_audit_log": "Globaler Aktivitäts-Log",
 	"see_all_account_activities_from_the_last_3_months": "Sieh dir alle Benutzeraktivitäten der letzten 3 Monate an.",
 	"token_sign_in": "Token-Anmeldung",
@@ -357,7 +357,7 @@
 	"show_advanced_options": "Erweiterte Optionen anzeigen",
 	"hide_advanced_options": "Erweiterte Optionen ausblenden",
 	"oidc_data_preview": "OIDC Daten-Vorschau",
-	"preview_the_oidc_data_that_would_be_sent_for_different_users": "Preview the OIDC data that would be sent for different users",
+	"preview_the_oidc_data_that_would_be_sent_for_different_users": "Vorschau der OIDC-Daten, die für verschiedene Nutzer gesendet werden sollen",
 	"id_token": "ID Token",
 	"access_token": "Access Token",
 	"userinfo": "Userinfo",
@@ -375,9 +375,9 @@
 	"select_user": "Benutzer auswählen",
 	"error": "Fehler",
 	"select_an_accent_color_to_customize_the_appearance_of_pocket_id": "Select an accent color to customize the appearance of Pocket ID.",
-	"accent_color": "Accent Color",
-	"custom_accent_color": "Custom Accent Color",
-	"custom_accent_color_description": "Enter a custom color using valid CSS color formats (e.g., hex, rgb, hsl).",
-	"color_value": "Color Value",
-	"apply": "Apply"
+	"accent_color": "Akzentfarbe",
+	"custom_accent_color": "Benutzerdefinierte Akzentfarbe",
+	"custom_accent_color_description": "Geben Sie eine benutzerdefinierte Farbe mit gültigen CSS-Farbformaten ein (z.B. hex, rgb, hsl).",
+	"color_value": "Farbwert",
+	"apply": "Übernehmen"
 }
