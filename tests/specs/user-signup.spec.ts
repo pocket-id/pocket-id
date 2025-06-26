@@ -38,7 +38,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Username').fill('johndoe');
     await page.getByLabel('Email').fill('john.doe@test.com');
 
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await page.waitForURL('/signup/add-passkey');
     await expect(page.getByText('Set up your passkey')).toBeVisible();
@@ -52,7 +52,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Last name').fill('User');
     await page.getByLabel('Username').fill('completeuser');
     await page.getByLabel('Email').fill('complete.user@test.com');
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await expect(page.getByText('Token is invalid or expired.')).toBeVisible();
   });
@@ -77,7 +77,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Username').fill('janesmith');
     await page.getByLabel('Email').fill('jane.smith@test.com');
 
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await page.waitForURL('/signup/add-passkey');
     await expect(page.getByText('Set up your passkey')).toBeVisible();
@@ -88,7 +88,7 @@ test.describe('User Signup', () => {
 
     await page.goto('/signup');
 
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await expect(page.getByText('Invalid input').first()).toBeVisible();
   });
@@ -103,7 +103,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Username').fill('testuser123');
     await page.getByLabel('Email').fill(users.tim.email);
 
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await expect(page.getByText('Email is already in use.')).toBeVisible();
   });
@@ -118,7 +118,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Username').fill(users.tim.username);
     await page.getByLabel('Email').fill('newuser@test.com');
 
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await expect(page.getByText('Username is already in use.')).toBeVisible();
   });
@@ -131,7 +131,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Last name').fill('User');
     await page.getByLabel('Username').fill('completeuser');
     await page.getByLabel('Email').fill('complete.user@test.com');
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await page.waitForURL('/signup/add-passkey');
 
@@ -150,7 +150,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Last name').fill('User');
     await page.getByLabel('Username').fill('skipuser');
     await page.getByLabel('Email').fill('skip.user@test.com');
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await page.waitForURL('/signup/add-passkey');
 
@@ -168,7 +168,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Last name').fill('User');
     await page.getByLabel('Username').fill('completeuser');
     await page.getByLabel('Email').fill('complete.user@test.com');
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Signup' }).click();
 
     await expect(page.getByText('Token is invalid or expired.')).toBeVisible();
   });

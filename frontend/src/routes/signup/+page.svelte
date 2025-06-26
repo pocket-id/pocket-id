@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import SignupForm from '$lib/components/signup-form.svelte';
+	import SignupForm from '$lib/components/signup/signup-form.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
@@ -55,7 +55,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.sign_up()}</title>
+	<title>{m.signup()}</title>
 </svelte:head>
 
 <SignInWrapper animate={!$appConfigStore.disableAnimations}>
@@ -64,7 +64,7 @@
 	</div>
 
 	<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
-		{m.sign_up_to_appname({ appName: $appConfigStore.appName })}
+		{m.signup_to_appname({ appName: $appConfigStore.appName })}
 	</h1>
 
 	{#if !error}
@@ -83,7 +83,7 @@
 				><LucideChevronLeft class="size-5" /> {m.back()}</a
 			>
 			<Button type="submit" form="sign-up-form" onclick={() => (error = undefined)}
-				>{m.sign_up()}</Button
+				>{m.signup()}</Button
 			>
 		</div>
 	{:else}

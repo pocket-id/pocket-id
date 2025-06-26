@@ -12,8 +12,8 @@
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
 	import * as DropdownButton from '$lib/components/ui/dropdown-button';
-	import SignupTokenModal from '$lib/components/signup-token-modal.svelte';
-	import SignupTokenListModal from '$lib/components/signup-token-list-modal.svelte';
+	import SignupTokenModal from '$lib/components/signup/signup-token-modal.svelte';
+	import SignupTokenListModal from '$lib/components/signup/signup-token-list-modal.svelte';
 
 	let { data } = $props();
 	let users = $state(data.users);
