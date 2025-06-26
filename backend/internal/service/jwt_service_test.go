@@ -713,7 +713,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			assert.Equal(t, []string{clientID}, audience, "Audience should contain the client ID")
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
-			assert.Equal(t, service.appUrl, issuer, "Issuer should match app URL")
+			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
 
 		// Check token expiration time is approximately 1 hour from now
 		expectedExp := time.Now().Add(1 * time.Hour)
@@ -740,7 +740,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		// Create a token that's already expired
 		token, err := jwt.NewBuilder().
 			Subject(userClaims["sub"].(string)).
-			Issuer(service.appUrl).
+			Issuer(service.envConfig.AppURL).
 			Audience([]string{clientID}).
 			IssuedAt(time.Now().Add(-2 * time.Hour)).
 			Expiration(time.Now().Add(-1 * time.Hour)). // Expired 1 hour ago
@@ -778,7 +778,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			assert.Equal(t, userClaims["sub"], subject, "Token subject should match user ID")
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
-			assert.Equal(t, service.appUrl, issuer, "Issuer should match app URL")
+			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
 	})
 
 	t.Run("generates and verifies ID token with nonce", func(t *testing.T) {
@@ -826,7 +826,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		require.NoError(t, err, "Failed to generate ID token")
 
 		// Temporarily change the app URL to simulate wrong issuer
-		service.appUrl = "https://wrong-issuer.com"
+		service.envConfig.AppURL = "https://wrong-issuer.com"
 
 		// Verify should fail due to issuer mismatch
 		_, err = service.VerifyIdToken(tokenString, false)
@@ -877,7 +877,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			assert.Equal(t, "eddsauser456", subject, "Token subject should match user ID")
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
-			assert.Equal(t, service.appUrl, issuer, "Issuer should match app URL")
+			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
 
 		// Verify the key type is OKP
 		publicKey, err := service.GetPublicJWK()
@@ -932,7 +932,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			assert.Equal(t, "ecdsauser456", subject, "Token subject should match user ID")
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
-			assert.Equal(t, service.appUrl, issuer, "Issuer should match app URL")
+			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
 
 		// Verify the key type is EC
 		publicKey, err := service.GetPublicJWK()
@@ -988,7 +988,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 			assert.Equal(t, "rsauser456", subject, "Token subject should match user ID")
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
-			assert.Equal(t, service.appUrl, issuer, "Issuer should match app URL")
+			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
 	})
 }
 
@@ -1041,7 +1041,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 			assert.Equal(t, []string{clientID}, audience, "Audience should contain the client ID")
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
-			assert.Equal(t, service.appUrl, issuer, "Issuer should match app URL")
+			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
 
 		// Check token expiration time is approximately 1 hour from now
 		expectedExp := time.Now().Add(1 * time.Hour)
@@ -1071,7 +1071,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 			Expiration(time.Now().Add(-1 * time.Hour)). // Expired 1 hour ago
 			IssuedAt(time.Now().Add(-2 * time.Hour)).
 			Audience([]string{clientID}).
-			Issuer(service.appUrl).
+			Issuer(service.envConfig.AppURL).
 			Build()
 		require.NoError(t, err, "Failed to build token")
 
@@ -1345,7 +1345,7 @@ func TestGenerateVerifyOAuthRefreshToken(t *testing.T) {
 			Expiration(time.Now().Add(-1 * time.Hour)). // Expired 1 hour ago
 			IssuedAt(time.Now().Add(-2 * time.Hour)).
 			Audience([]string{"client123"}).
-			Issuer(service.appUrl).
+			Issuer(service.envConfig.AppURL).
 			Build()
 		require.NoError(t, err, "Failed to build token")
 
