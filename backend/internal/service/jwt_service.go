@@ -64,7 +64,7 @@ const (
 )
 
 type JwtService struct {
-	appUrl           string
+	envConfig        *common.EnvConfigSchema
 	privateKey       jwk.Key
 	keyId            string
 	appConfigService *AppConfigService
@@ -85,22 +85,22 @@ func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) *JwtService 
 
 func (s *JwtService) init(db *gorm.DB, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
 	s.appConfigService = appConfigService
-	s.appUrl = envConfig.AppURL
+	s.envConfig = envConfig
 
 	// Ensure keys are generated or loaded
-	return s.loadOrGenerateKey(db, envConfig)
+	return s.loadOrGenerateKey(db)
 }
 
-func (s *JwtService) loadOrGenerateKey(db *gorm.DB, envConfig *common.EnvConfigSchema) error {
+func (s *JwtService) loadOrGenerateKey(db *gorm.DB) error {
 	// Load the key encryption key (KEK) if present
-	kek, err := jwkutils.LoadKeyEncryptionKey(envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
+	kek, err := jwkutils.LoadKeyEncryptionKey(s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
 	if err != nil {
 		return fmt.Errorf("failed to load key encryption key: %w", err)
 	}
 
 	// Get the key provider
 	var keyProvider jwkutils.KeyProvider
-	switch envConfig.KeysStorage {
+	switch s.envConfig.KeysStorage {
 	case "file", "":
 		keyProvider = &jwkutils.KeyProviderFile{}
 	case "memory":
@@ -109,21 +109,21 @@ func (s *JwtService) loadOrGenerateKey(db *gorm.DB, envConfig *common.EnvConfigS
 	case "database":
 		keyProvider = &jwkutils.KeyProviderDatabase{}
 	default:
-		return fmt.Errorf("invalid key storage '%s'", envConfig.KeysStorage)
+		return fmt.Errorf("invalid key storage '%s'", s.envConfig.KeysStorage)
 	}
 	err = keyProvider.Init(jwkutils.KeyProviderOpts{
 		DB:        db,
-		EnvConfig: envConfig,
+		EnvConfig: s.envConfig,
 		Kek:       kek,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to init key provider of type '%s': %w", envConfig.KeysStorage, err)
+		return fmt.Errorf("failed to init key provider of type '%s': %w", s.envConfig.KeysStorage, err)
 	}
 
 	// Try loading a key
 	key, err := keyProvider.LoadKey()
 	if err != nil {
-		return fmt.Errorf("failed to load key (provider type '%s'): %w", envConfig.KeysStorage, err)
+		return fmt.Errorf("failed to load key (provider type '%s'): %w", s.envConfig.KeysStorage, err)
 	}
 
 	// If we have a key, store it in the object and we're done
@@ -144,7 +144,7 @@ func (s *JwtService) loadOrGenerateKey(db *gorm.DB, envConfig *common.EnvConfigS
 	// Save the newly-generated key
 	err = keyProvider.SaveKey(s.privateKey)
 	if err != nil {
-		return fmt.Errorf("failed to save private key (provider type '%s'): %w", envConfig.KeysStorage, err)
+		return fmt.Errorf("failed to save private key (provider type '%s'): %w", s.envConfig.KeysStorage, err)
 	}
 
 	return nil
@@ -228,13 +228,13 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 		Subject(user.ID).
 		Expiration(now.Add(s.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes())).
 		IssuedAt(now).
-		Issuer(s.appUrl).
+		Issuer(s.envConfig.AppURL).
 		Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build token: %w", err)
 	}
 
-	err = SetAudienceString(token, s.appUrl)
+	err = SetAudienceString(token, s.envConfig.AppURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
@@ -265,8 +265,8 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 		jwt.WithValidate(true),
 		jwt.WithKey(alg, s.privateKey),
 		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithAudience(s.appUrl),
-		jwt.WithIssuer(s.appUrl),
+		jwt.WithAudience(s.envConfig.AppURL),
+		jwt.WithIssuer(s.envConfig.AppURL),
 		jwt.WithValidator(TokenTypeValidator(AccessTokenJWTType)),
 	)
 	if err != nil {
@@ -282,7 +282,7 @@ func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, no
 	token, err := jwt.NewBuilder().
 		Expiration(now.Add(1 * time.Hour)).
 		IssuedAt(now).
-		Issuer(s.appUrl).
+		Issuer(s.envConfig.AppURL).
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build token: %w", err)
@@ -341,7 +341,7 @@ func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool)
 		jwt.WithValidate(true),
 		jwt.WithKey(alg, s.privateKey),
 		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithIssuer(s.appUrl),
+		jwt.WithIssuer(s.envConfig.AppURL),
 		jwt.WithValidator(TokenTypeValidator(IDTokenJWTType)),
 	)
 
@@ -371,7 +371,7 @@ func (s *JwtService) BuildOAuthAccessToken(user model.User, clientID string) (jw
 		Subject(user.ID).
 		Expiration(now.Add(1 * time.Hour)).
 		IssuedAt(now).
-		Issuer(s.appUrl).
+		Issuer(s.envConfig.AppURL).
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build token: %w", err)
@@ -413,7 +413,7 @@ func (s *JwtService) VerifyOAuthAccessToken(tokenString string) (jwt.Token, erro
 		jwt.WithValidate(true),
 		jwt.WithKey(alg, s.privateKey),
 		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithIssuer(s.appUrl),
+		jwt.WithIssuer(s.envConfig.AppURL),
 		jwt.WithValidator(TokenTypeValidator(OAuthAccessTokenJWTType)),
 	)
 	if err != nil {
@@ -429,7 +429,7 @@ func (s *JwtService) GenerateOAuthRefreshToken(userID string, clientID string, r
 		Subject(userID).
 		Expiration(now.Add(RefreshTokenDuration)).
 		IssuedAt(now).
-		Issuer(s.appUrl).
+		Issuer(s.envConfig.AppURL).
 		Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build token: %w", err)
@@ -466,7 +466,7 @@ func (s *JwtService) VerifyOAuthRefreshToken(tokenString string) (userID, client
 		jwt.WithValidate(true),
 		jwt.WithKey(alg, s.privateKey),
 		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithIssuer(s.appUrl),
+		jwt.WithIssuer(s.envConfig.AppURL),
 		jwt.WithValidator(TokenTypeValidator(OAuthRefreshTokenJWTType)),
 	)
 	if err != nil {
