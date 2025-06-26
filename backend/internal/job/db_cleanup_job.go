@@ -22,7 +22,7 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 	return errors.Join(
 		s.registerJob(ctx, "ClearWebauthnSessions", def, jobs.clearWebauthnSessions, true),
 		s.registerJob(ctx, "ClearOneTimeAccessTokens", def, jobs.clearOneTimeAccessTokens, true),
-		s.registerJob(ctx, "ClearSignupTokens", def, jobs.clearSignupTokens, true), // Add this line
+		s.registerJob(ctx, "ClearSignupTokens", def, jobs.clearSignupTokens, true),
 		s.registerJob(ctx, "ClearOidcAuthorizationCodes", def, jobs.clearOidcAuthorizationCodes, true),
 		s.registerJob(ctx, "ClearOidcRefreshTokens", def, jobs.clearOidcRefreshTokens, true),
 		s.registerJob(ctx, "ClearAuditLogs", def, jobs.clearAuditLogs, true),
@@ -61,17 +61,17 @@ func (j *DbCleanupJobs) clearOneTimeAccessTokens(ctx context.Context) error {
 	return nil
 }
 
-// ClearSignupTokens deletes signup tokens that have expired or reached their usage limit
+// ClearSignupTokens deletes signup tokens that have expired
 func (j *DbCleanupJobs) clearSignupTokens(ctx context.Context) error {
 	// Delete tokens that are expired OR have reached their usage limit
 	st := j.db.
 		WithContext(ctx).
-		Delete(&model.SignupToken{}, "expires_at < ? OR usage_count >= usage_limit", datatype.DateTime(time.Now()))
+		Delete(&model.SignupToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
 	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired/used signup tokens: %w", st.Error)
+		return fmt.Errorf("failed to clean expired tokens: %w", st.Error)
 	}
 
-	slog.InfoContext(ctx, "Cleaned expired/used signup tokens", slog.Int64("count", st.RowsAffected))
+	slog.InfoContext(ctx, "Cleaned expired tokens", slog.Int64("count", st.RowsAffected))
 
 	return nil
 }

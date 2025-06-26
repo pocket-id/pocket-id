@@ -702,17 +702,11 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 		}, tx)
 
 		signupToken.UsageCount++
-		// If usage limit reached, delete the token
-		if signupToken.IsUsageLimitReached() {
-			err = tx.WithContext(ctx).Delete(&signupToken).Error
-			if err != nil {
-				return model.User{}, "", err
-			}
-		} else {
-			err = tx.WithContext(ctx).Save(&signupToken).Error
-			if err != nil {
-				return model.User{}, "", err
-			}
+
+		err = tx.WithContext(ctx).Save(&signupToken).Error
+		if err != nil {
+			return model.User{}, "", err
+
 		}
 	} else {
 		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
