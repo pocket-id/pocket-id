@@ -1,20 +1,19 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
+	import { page } from '$app/stores';
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
-	import * as Table from '$lib/components/ui/table';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { buttonVariants } from '$lib/components/ui/button';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
-	import type { SignupTokenDto } from '$lib/types/signup-token.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import type { SignupTokenDto } from '$lib/types/signup-token.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { Copy, Trash2, Clock, Users, Ellipsis } from '@lucide/svelte';
+	import { Clock, Copy, Ellipsis, Trash2, Users } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import { page } from '$app/stores';
 
 	let {
 		open = $bindable(),
@@ -123,9 +122,9 @@
 					return result;
 				}}
 				columns={[
-					{ label: m.token(), sortColumn: 'token' },
+					{ label: m.token() },
 					{ label: m.status() },
-					{ label: m.usage() },
+					{ label: m.usage(), sortColumn: 'usageCount' },
 					{ label: m.expires(), sortColumn: 'expiresAt' },
 					{ label: m.created(), sortColumn: 'createdAt' },
 					{ label: m.actions(), hidden: true }
@@ -133,7 +132,7 @@
 			>
 				{#snippet rows({ item })}
 					<Table.Cell class="font-mono text-xs">
-						{item.token.substring(0, 12)}...
+						{item.token.substring(0, 2)}...{item.token.substring(item.token.length - 4)}
 					</Table.Cell>
 					<Table.Cell>
 						{@const status = getTokenStatus(item)}
@@ -182,9 +181,8 @@
 				{/snippet}
 			</AdvancedTable>
 		</div>
-
-		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (open = false)}>
+		<Dialog.Footer class="mt-3">
+			<Button onclick={() => (open = false)}>
 				{m.close()}
 			</Button>
 		</Dialog.Footer>
