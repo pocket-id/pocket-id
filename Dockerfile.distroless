@@ -1,0 +1,44 @@
+# Stage 1: Build Frontend
+FROM node:22-alpine AS frontend-builder
+WORKDIR /build
+COPY ./frontend/package*.json ./
+RUN npm ci
+COPY ./frontend ./
+RUN BUILD_OUTPUT_PATH=dist npm run build
+
+# Stage 2: Build Backend
+FROM golang:1.24-alpine AS backend-builder
+ARG BUILD_TAGS
+WORKDIR /build
+COPY ./backend/go.mod ./backend/go.sum ./
+RUN go mod download
+
+COPY ./backend ./
+COPY --from=frontend-builder /build/dist ./frontend/dist
+COPY .version .version
+
+WORKDIR /build/cmd
+RUN VERSION=$(cat /build/.version) && \
+  CGO_ENABLED=0 \
+  GOOS=linux \
+  go build \
+    -tags "${BUILD_TAGS}" \
+    -ldflags="-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${VERSION} -buildid=${VERSION} -extldflags=-static -s -w" \
+    -trimpath \
+    -o /build/pocket-id-backend \
+    .
+
+# Stage 3: Production Image (Distroless)
+FROM gcr.io/distroless/base
+WORKDIR /app
+
+COPY --from=backend-builder /build/pocket-id-backend /app/pocket-id
+
+# If you need static assets, copy them here as well:
+# COPY --from=frontend-builder /build/dist /app/frontend/dist
+
+EXPOSE 1411
+ENV APP_ENV=production
+
+USER nonroot:nonroot
+ENTRYPOINT ["/app/pocket-id"]

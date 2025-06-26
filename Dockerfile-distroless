@@ -1,0 +1,99 @@
+# Multi-stage distroless Dockerfile for pocket-id
+#This one is closely mirroed to 11notes
+
+# ╔═════════════════════════════════════════════════════╗
+# ║                       SETUP                         ║
+# ╚═════════════════════════════════════════════════════╝
+ARG APP_UID=1000
+ARG APP_GID=1000
+ARG APP_ROOT=/app
+ARG BUILD_BIN=/app/pocket-id
+ARG BUILD_TAGS=""
+
+# :: FOREIGN IMAGES
+FROM 11notes/distroless AS distroless
+FROM 11notes/distroless:curl AS distroless-curl
+FROM 11notes/util AS util
+
+# ╔═════════════════════════════════════════════════════╗
+# ║                       BUILD                         ║
+# ╚═════════════════════════════════════════════════════╝
+FROM golang:1.24-alpine AS build
+COPY --from=util /usr/local/bin /usr/local/bin
+ARG APP_VERSION
+ARG APP_ROOT
+ARG BUILD_BIN
+ARG BUILD_TAGS
+
+ENV CGO_ENABLED=0
+
+RUN apk --update --no-cache add \
+    build-base \
+    upx \
+    nodejs \
+    npm \
+    yarn \
+    git
+
+WORKDIR ${APP_ROOT}
+COPY . ${APP_ROOT}
+
+RUN set -ex; \
+    cd frontend; \
+    npm ci; \
+    BUILD_OUTPUT_PATH=dist npm run build
+
+RUN set -ex; \
+    cd backend; \
+    go mod tidy
+
+RUN set -ex; \
+    cd backend/cmd; \
+    cp -R ../../frontend/dist ../frontend/dist; \
+    go build -trimpath -ldflags="-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${APP_VERSION} -buildid=${APP_VERSION} -extldflags=-static -s -w" -o ${BUILD_BIN} .; \
+    upx --best --lzma ${BUILD_BIN}
+
+RUN set -ex; \
+    mkdir -p /distroless/usr/local/bin; \
+    cp ${BUILD_BIN} /distroless/usr/local/bin
+
+# ╔═════════════════════════════════════════════════════╗
+# ║                    FILE SYSTEM                      ║
+# ╚═════════════════════════════════════════════════════╝
+FROM alpine AS file-system
+COPY --from=util /usr/local/bin /usr/local/bin
+ARG APP_ROOT
+USER root
+RUN set -ex; \
+    mkdir -p /distroless${APP_ROOT}/var/{uploads,keys,geolite}
+
+# ╔═════════════════════════════════════════════════════╗
+# ║                    FINAL IMAGE                      ║
+# ╚═════════════════════════════════════════════════════╝
+FROM scratch
+
+ARG APP_ROOT
+ARG APP_UID=1000
+ARG APP_GID=1000
+
+# :: default environment
+ENV APP_ROOT=${APP_ROOT}
+ENV APP_ENV=production
+ENV ANALYTICS_DISABLED=true
+ENV UPLOAD_PATH=${APP_ROOT}/var/uploads
+ENV KEYS_PATH=${APP_ROOT}/var/keys
+ENV GEOLITE_DB_PATH=${APP_ROOT}/var/geolite
+
+# :: multi-stage
+COPY --from=distroless / /
+COPY --from=distroless-curl / /
+COPY --from=build /distroless/ /
+COPY --from=file-system --chown=${APP_UID}:${APP_GID} /distroless/ /
+
+VOLUME ["${APP_ROOT}/var"]
+
+EXPOSE 1411
+
+# :: EXECUTE
+USER ${APP_UID}:${APP_GID}
+ENTRYPOINT ["/usr/local/bin/pocket-id"]
