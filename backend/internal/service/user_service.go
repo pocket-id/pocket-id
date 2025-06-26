@@ -647,93 +647,78 @@ func (s *UserService) createSignupTokenInternal(ctx context.Context, expiresAt t
 	return *signupToken, nil
 }
 
-func (s *UserService) SignupWithToken(ctx context.Context, token string, userData dto.UserCreateDto, ipAddress, userAgent string) (model.User, string, error) {
+func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	var signupToken model.SignupToken
-	err := tx.
-		WithContext(ctx).
-		Where("token = ?", token).
-		First(&signupToken).
-		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
-		}
-		return model.User{}, "", err
-	}
+	tokenProvided := signupData.Token != ""
 
-	if !signupToken.IsValid() {
-		return model.User{}, "", &common.TokenInvalidOrExpiredError{}
-	}
-
-	user, err := s.createUserInternal(ctx, userData, false, tx)
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	accessToken, err := s.jwtService.GenerateAccessToken(user)
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
-		"signupToken": signupToken.Token,
-	}, tx)
-
-	signupToken.UsageCount++
-	// If usage limit reached, delete the token
-	if signupToken.IsUsageLimitReached() {
-		err = tx.WithContext(ctx).Delete(&signupToken).Error
-		if err != nil {
-			return model.User{}, "", err
-		}
-	} else {
-		err = tx.WithContext(ctx).Save(&signupToken).Error
-		if err != nil {
-			return model.User{}, "", err
-		}
-	}
-
-	err = tx.Commit().Error
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	return user, accessToken, nil
-}
-
-func (s *UserService) SignupWithoutToken(ctx context.Context, userData dto.UserCreateDto, ipAddress, userAgent string) (model.User, string, error) {
-	// Check if open signup is enabled
 	config := s.appConfigService.GetDbConfig()
-	if config.AllowUserSignups.Value != "open" {
+	if config.AllowUserSignups.Value != "open" && !tokenProvided {
 		return model.User{}, "", &common.OpenSignupDisabledError{}
 	}
 
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
+	var signupToken model.SignupToken
+	if tokenProvided {
+		err := tx.
+			WithContext(ctx).
+			Where("token = ?", signupData.Token).
+			First(&signupToken).
+			Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return model.User{}, "", &common.TokenInvalidOrExpiredError{}
+			}
+			return model.User{}, "", err
+		}
 
-	// Create the user
-	user, err := s.createUserInternal(ctx, userData, false, tx)
+		if !signupToken.IsValid() {
+			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
+		}
+	}
+
+	userToCreate := dto.UserCreateDto{
+		Username:  signupData.Username,
+		Email:     signupData.Email,
+		FirstName: signupData.FirstName,
+		LastName:  signupData.LastName,
+	}
+
+	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
 	if err != nil {
 		return model.User{}, "", err
 	}
 
-	// Generate a JWT access token for the new user
 	accessToken, err := s.jwtService.GenerateAccessToken(user)
 	if err != nil {
 		return model.User{}, "", err
 	}
 
-	// Create audit log entry for the signup
-	s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
-		"method": "open_signup",
-	}, tx)
+	if tokenProvided {
+		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
+			"signupToken": signupToken.Token,
+		}, tx)
+
+		signupToken.UsageCount++
+		// If usage limit reached, delete the token
+		if signupToken.IsUsageLimitReached() {
+			err = tx.WithContext(ctx).Delete(&signupToken).Error
+			if err != nil {
+				return model.User{}, "", err
+			}
+		} else {
+			err = tx.WithContext(ctx).Save(&signupToken).Error
+			if err != nil {
+				return model.User{}, "", err
+			}
+		}
+	} else {
+		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
+			"method": "open_signup",
+		}, tx)
+	}
 
 	err = tx.Commit().Error
 	if err != nil {

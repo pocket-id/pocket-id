@@ -53,8 +53,7 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/signup-tokens", authMiddleware.Add(), uc.createSignupTokenHandler)
 	group.GET("/signup-tokens", authMiddleware.Add(), uc.listSignupTokensHandler)
 	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), uc.deleteSignupTokenHandler)
-	group.POST("/signup-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.signupWithTokenHandler)
-	group.POST("/signup", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.signupWithoutTokenHandler)
+	group.POST("/signup", rateLimitMiddleware.Add(rate.Every(1*time.Minute), 10), uc.signupHandler)
 
 }
 
@@ -588,19 +587,16 @@ func (uc *UserController) deleteSignupTokenHandler(c *gin.Context) {
 }
 
 // signupWithTokenHandler godoc
-// @Summary Sign up with token
-// @Description Create a new user account using a signup token
+// @Summary Sign up
+// @Description Create a new user account
 // @Tags Users
 // @Accept json
 // @Produce json
-// @Param token path string true "Signup token"
-// @Param user body dto.UserCreateDto true "User information"
-// @Success 201 {object} dto.UserDto
-// @Router /api/signup-token/{token} [post]
-func (uc *UserController) signupWithTokenHandler(c *gin.Context) {
-	token := c.Param("token")
-
-	var input dto.UserCreateDto
+// @Param user body dto.SignUpDto true "User information"
+// @Success 201 {object} dto.SignUpDto
+// @Router /api/signup [post]
+func (uc *UserController) signupHandler(c *gin.Context) {
+	var input dto.SignUpDto
 	if err := c.ShouldBindJSON(&input); err != nil {
 		_ = c.Error(err)
 		return
@@ -609,7 +605,7 @@ func (uc *UserController) signupWithTokenHandler(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	user, accessToken, err := uc.userService.SignupWithToken(c.Request.Context(), token, input, ipAddress, userAgent)
+	user, accessToken, err := uc.userService.SignUp(c.Request.Context(), input, ipAddress, userAgent)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -692,41 +688,4 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 	}
 
 	c.Status(http.StatusNoContent)
-}
-
-// signupWithoutTokenHandler godoc
-// @Summary Sign up without token (open signup)
-// @Description Create a new user account when open signups are enabled
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param user body dto.UserCreateDto true "User information"
-// @Success 201 {object} dto.UserDto
-// @Router /api/signup [post]
-func (uc *UserController) signupWithoutTokenHandler(c *gin.Context) {
-	var input dto.UserCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	ipAddress := c.ClientIP()
-	userAgent := c.GetHeader("User-Agent")
-
-	user, accessToken, err := uc.userService.SignupWithoutToken(c.Request.Context(), input, ipAddress, userAgent)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
-
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, userDto)
 }

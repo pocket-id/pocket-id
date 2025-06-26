@@ -1,8 +1,8 @@
 import userStore from '$lib/stores/user-store';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
-import type { UserGroup } from '$lib/types/user-group.type';
-import type { User, UserCreate } from '$lib/types/user.type';
 import type { SignupTokenDto } from '$lib/types/signup-token.type';
+import type { UserGroup } from '$lib/types/user-group.type';
+import type { User, UserCreate, UserSignUp } from '$lib/types/user.type';
 import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 import { get } from 'svelte/store';
 import APIService from './api-service';
@@ -109,13 +109,8 @@ export default class UserService extends APIService {
 		return res.data as User;
 	}
 
-	async signupWithToken(token: string, userData: UserCreate) {
-		const res = await this.api.post(`/signup-token/${token}`, userData);
-		return res.data as User;
-	}
-
-	async signupWithoutToken(userData: UserCreate) {
-		const res = await this.api.post(`/signup`, userData);
+	async signup(data: UserSignUp) {
+		const res = await this.api.post(`/signup`, data);
 		return res.data as User;
 	}
 

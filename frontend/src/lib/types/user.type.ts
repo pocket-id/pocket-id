@@ -18,4 +18,6 @@ export type User = {
 
 export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId' | 'userGroups'>;
 
-export type UserSignUp = Omit<UserCreate, 'isAdmin' | 'disabled'>;
+export type UserSignUp = Omit<UserCreate, 'isAdmin' | 'disabled'> & {
+	token?: string;
+};

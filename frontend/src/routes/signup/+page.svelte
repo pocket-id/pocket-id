@@ -7,6 +7,7 @@
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
+	import type { UserSignUp } from '$lib/types/user.type';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { tryCatch } from '$lib/utils/try-catch-util';
 	import { LucideChevronLeft } from '@lucide/svelte';
@@ -20,13 +21,10 @@
 	let isLoading = $state(false);
 	let error: string | undefined = $state();
 
-	async function handleSignup(userData: any) {
+	async function handleSignup(userData: UserSignUp) {
 		isLoading = true;
 
-		const result =
-			$appConfigStore.allowUserSignups === 'open'
-				? await tryCatch(userService.signupWithoutToken(userData))
-				: await tryCatch(userService.signupWithToken(data.token!, userData));
+		const result = await tryCatch(userService.signup({ ...userData, token: data.token }));
 
 		if (result.error) {
 			error = getAxiosErrorMessage(result.error);

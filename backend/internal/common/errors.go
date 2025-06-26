@@ -356,6 +356,6 @@ func (e *OpenSignupDisabledError) Error() string {
 	return "Open user signup is not enabled"
 }
 
-func (e *OpenSignupDisabledError) StatusCode() int {
+func (e *OpenSignupDisabledError) HttpStatusCode() int {
 	return http.StatusForbidden
 }
