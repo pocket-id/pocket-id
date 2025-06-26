@@ -50,16 +50,19 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// do not log these URLs
 	loggerSkipPathsPrefix := []string{
-		"GET /api/application-configuration",
+		"GET /application-configuration/logo",
+		"GET /application-configuration/background-image",
+		"GET /application-configuration/favicon",
 		"GET /_app",
 		"GET /fonts",
+		"GET /healthz",
 		"HEAD /healthz",
 	}
 
 	r := gin.New()
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{Skip:func(c *gin.Context) bool {	
 		for _, prefix := range loggerSkipPathsPrefix {
-			if strings.HasPrefix(fmt.Sprintf("%s %s", c.Request.Method, c.Request.URL.String()), prefix){
+			if strings.HasPrefix(c.Request.Method + " " + c.Request.URL.String(), prefix){
 				return true
 			}
 		}
