@@ -9,10 +9,10 @@ import (
 type SignupToken struct {
 	Base
 
-	Token      string            `gorm:"uniqueIndex;not null" json:"token" sortable:"true"`
-	ExpiresAt  datatype.DateTime `gorm:"not null" json:"expiresAt" sortable:"true"`
-	UsageLimit int               `gorm:"not null;default:1" json:"usageLimit" sortable:"true"`
-	UsageCount int               `gorm:"not null;default:0" json:"usageCount" sortable:"true"`
+	Token      string            `json:"token"`
+	ExpiresAt  datatype.DateTime `json:"expiresAt" sortable:"true"`
+	UsageLimit int               `json:"usageLimit" sortable:"true"`
+	UsageCount int               `json:"usageCount" sortable:"true"`
 }
 
 func (st *SignupToken) IsExpired() bool {
