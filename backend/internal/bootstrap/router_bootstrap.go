@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
 
@@ -60,9 +60,9 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	}
 
 	r := gin.New()
-	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{Skip:func(c *gin.Context) bool {	
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{Skip: func(c *gin.Context) bool {
 		for _, prefix := range loggerSkipPathsPrefix {
-			if strings.HasPrefix(c.Request.Method + " " + c.Request.URL.String(), prefix){
+			if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
 				return true
 			}
 		}
