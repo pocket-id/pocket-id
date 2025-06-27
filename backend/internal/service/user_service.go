@@ -296,15 +296,21 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	isLdapUser := user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue()
 	allowOwnAccountEdit := s.appConfigService.GetDbConfig().AllowOwnAccountEdit.IsTrue()
 
-	// For LDAP users or if own account editing is not allowed, only allow updating the locale unless it's an LDAP sync
-	if !isLdapSync && (isLdapUser || (!allowOwnAccountEdit && !updateOwnUser)) {
+	if !isLdapSync && (isLdapUser || (!allowOwnAccountEdit && updateOwnUser)) {
+		// Restricted update: Only locale can be changed when:
+		// - User is from LDAP, OR
+		// - User is editing their own account but global setting disallows self-editing
+		// (Exception: LDAP sync operations can update everything)
 		user.Locale = updatedUser.Locale
 	} else {
+		// Full update: Allow updating all personal fields
 		user.FirstName = updatedUser.FirstName
 		user.LastName = updatedUser.LastName
 		user.Email = updatedUser.Email
 		user.Username = updatedUser.Username
 		user.Locale = updatedUser.Locale
+
+		// Admin-only fields: Only allow updates when not updating own account
 		if !updateOwnUser {
 			user.IsAdmin = updatedUser.IsAdmin
 			user.Disabled = updatedUser.Disabled
@@ -630,6 +636,110 @@ func (s *UserService) disableUserInternal(ctx context.Context, userID string, tx
 		Error
 }
 
+func (s *UserService) CreateSignupToken(ctx context.Context, expiresAt time.Time, usageLimit int) (model.SignupToken, error) {
+	return s.createSignupTokenInternal(ctx, expiresAt, usageLimit, s.db)
+}
+
+func (s *UserService) createSignupTokenInternal(ctx context.Context, expiresAt time.Time, usageLimit int, tx *gorm.DB) (model.SignupToken, error) {
+	signupToken, err := NewSignupToken(expiresAt, usageLimit)
+	if err != nil {
+		return model.SignupToken{}, err
+	}
+
+	if err := tx.WithContext(ctx).Create(signupToken).Error; err != nil {
+		return model.SignupToken{}, err
+	}
+
+	return *signupToken, nil
+}
+
+func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAddress, userAgent string) (model.User, string, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	tokenProvided := signupData.Token != ""
+
+	config := s.appConfigService.GetDbConfig()
+	if config.AllowUserSignups.Value != "open" && !tokenProvided {
+		return model.User{}, "", &common.OpenSignupDisabledError{}
+	}
+
+	var signupToken model.SignupToken
+	if tokenProvided {
+		err := tx.
+			WithContext(ctx).
+			Where("token = ?", signupData.Token).
+			First(&signupToken).
+			Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return model.User{}, "", &common.TokenInvalidOrExpiredError{}
+			}
+			return model.User{}, "", err
+		}
+
+		if !signupToken.IsValid() {
+			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
+		}
+	}
+
+	userToCreate := dto.UserCreateDto{
+		Username:  signupData.Username,
+		Email:     signupData.Email,
+		FirstName: signupData.FirstName,
+		LastName:  signupData.LastName,
+	}
+
+	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	accessToken, err := s.jwtService.GenerateAccessToken(user)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	if tokenProvided {
+		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
+			"signupToken": signupToken.Token,
+		}, tx)
+
+		signupToken.UsageCount++
+
+		err = tx.WithContext(ctx).Save(&signupToken).Error
+		if err != nil {
+			return model.User{}, "", err
+
+		}
+	} else {
+		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
+			"method": "open_signup",
+		}, tx)
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.User{}, "", err
+	}
+
+	return user, accessToken, nil
+}
+
+func (s *UserService) ListSignupTokens(ctx context.Context, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.SignupToken, utils.PaginationResponse, error) {
+	var tokens []model.SignupToken
+	query := s.db.WithContext(ctx).Model(&model.SignupToken{})
+
+	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &tokens)
+	return tokens, pagination, err
+}
+
+func (s *UserService) DeleteSignupToken(ctx context.Context, tokenID string) error {
+	return s.db.WithContext(ctx).Delete(&model.SignupToken{}, "id = ?", tokenID).Error
+}
+
 func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAccessToken, error) {
 	// If expires at is less than 15 minutes, use a 6-character token instead of 16
 	tokenLength := 16
@@ -649,4 +759,21 @@ func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAc
 	}
 
 	return o, nil
+}
+
+func NewSignupToken(expiresAt time.Time, usageLimit int) (*model.SignupToken, error) {
+	// Generate a random token
+	randomString, err := utils.GenerateRandomAlphanumericString(16)
+	if err != nil {
+		return nil, err
+	}
+
+	token := &model.SignupToken{
+		Token:      randomString,
+		ExpiresAt:  datatype.DateTime(expiresAt),
+		UsageLimit: usageLimit,
+		UsageCount: 0,
+	}
+
+	return token, nil
 }

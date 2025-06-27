@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
@@ -47,7 +48,26 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 		gin.SetMode(gin.TestMode)
 	}
 
-	r := gin.Default()
+	// do not log these URLs
+	loggerSkipPathsPrefix := []string{
+		"GET /application-configuration/logo",
+		"GET /application-configuration/background-image",
+		"GET /application-configuration/favicon",
+		"GET /_app",
+		"GET /fonts",
+		"GET /healthz",
+		"HEAD /healthz",
+	}
+
+	r := gin.New()
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{Skip: func(c *gin.Context) bool {
+		for _, prefix := range loggerSkipPathsPrefix {
+			if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
+				return true
+			}
+		}
+		return false
+	}}))
 
 	if !common.EnvConfig.TrustProxy {
 		_ = r.SetTrustedProxies(nil)

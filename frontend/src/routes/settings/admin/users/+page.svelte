@@ -1,6 +1,9 @@
 <script lang="ts">
+	import SignupTokenListModal from '$lib/components/signup/signup-token-list-modal.svelte';
+	import SignupTokenModal from '$lib/components/signup/signup-token-modal.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import * as DropdownButton from '$lib/components/ui/dropdown-button';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
@@ -15,8 +18,13 @@
 	let { data } = $props();
 	let users = $state(data.users);
 	let usersRequestOptions = $state(data.usersRequestOptions);
+	let signupTokens = $state(data.signupTokens);
+	let signupTokensRequestOptions = $state(data.signupTokensRequestOptions);
 
+	let selectedCreateOptions = $state('Add User');
 	let expandAddUser = $state(false);
+	let signupTokenModalOpen = $state(false);
+	let signupTokenListModalOpen = $state(false);
 
 	const userService = new UserService();
 
@@ -32,6 +40,10 @@
 
 		users = await userService.list(usersRequestOptions);
 		return success;
+	}
+
+	async function refreshSignupTokens() {
+		signupTokens = await userService.listSignupTokens(signupTokensRequestOptions);
 	}
 </script>
 
@@ -55,7 +67,30 @@
 					>
 				</div>
 				{#if !expandAddUser}
-					<Button onclick={() => (expandAddUser = true)}>{m.add_user()}</Button>
+					{#if $appConfigStore.allowUserSignups !== 'disabled'}
+						<DropdownButton.DropdownRoot>
+							<DropdownButton.Root>
+								<DropdownButton.Main disabled={false} onclick={() => (expandAddUser = true)}>
+									{selectedCreateOptions}
+								</DropdownButton.Main>
+
+								<DropdownButton.DropdownTrigger>
+									<DropdownButton.Trigger class="border-l" />
+								</DropdownButton.DropdownTrigger>
+							</DropdownButton.Root>
+
+							<DropdownButton.Content align="end">
+								<DropdownButton.Item onclick={() => (signupTokenModalOpen = true)}>
+									{m.create_signup_token()}
+								</DropdownButton.Item>
+								<DropdownButton.Item onclick={() => (signupTokenListModalOpen = true)}>
+									{m.view_active_signup_tokens()}
+								</DropdownButton.Item>
+							</DropdownButton.Content>
+						</DropdownButton.DropdownRoot>
+					{:else}
+						<Button onclick={() => (expandAddUser = true)}>{m.add_user()}</Button>
+					{/if}
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUser = false)}>
 						<LucideMinus class="size-5" />
@@ -86,3 +121,11 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<SignupTokenModal bind:open={signupTokenModalOpen} onTokenCreated={refreshSignupTokens} />
+<SignupTokenListModal
+	bind:open={signupTokenListModalOpen}
+	bind:signupTokens
+	{signupTokensRequestOptions}
+	onTokenDeleted={refreshSignupTokens}
+/>

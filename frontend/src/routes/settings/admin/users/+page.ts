@@ -12,6 +12,22 @@ export const load: PageLoad = async () => {
 		}
 	};
 
-	const users = await userService.list(usersRequestOptions);
-	return { users, usersRequestOptions };
+	const signupTokensRequestOptions: SearchPaginationSortRequest = {
+		sort: {
+			column: 'createdAt',
+			direction: 'desc'
+		}
+	};
+
+	const [users, signupTokens] = await Promise.all([
+		userService.list(usersRequestOptions),
+		userService.listSignupTokens(signupTokensRequestOptions)
+	]);
+
+	return {
+		users,
+		usersRequestOptions,
+		signupTokens,
+		signupTokensRequestOptions
+	};
 };

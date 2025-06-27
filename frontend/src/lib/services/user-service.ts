@@ -1,7 +1,8 @@
 import userStore from '$lib/stores/user-store';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+import type { SignupTokenDto } from '$lib/types/signup-token.type';
 import type { UserGroup } from '$lib/types/user-group.type';
-import type { User, UserCreate } from '$lib/types/user.type';
+import type { User, UserCreate, UserSignUp } from '$lib/types/user.type';
 import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 import { get } from 'svelte/store';
 import APIService from './api-service';
@@ -82,6 +83,14 @@ export default class UserService extends APIService {
 		return res.data.token;
 	}
 
+	async createSignupToken(expiresAt: Date, usageLimit: number) {
+		const res = await this.api.post(`/signup-tokens`, {
+			expiresAt,
+			usageLimit
+		});
+		return res.data.token;
+	}
+
 	async exchangeOneTimeAccessToken(token: string) {
 		const res = await this.api.post(`/one-time-access-token/${token}`);
 		return res.data as User;
@@ -98,5 +107,21 @@ export default class UserService extends APIService {
 	async updateUserGroups(id: string, userGroupIds: string[]) {
 		const res = await this.api.put(`/users/${id}/user-groups`, { userGroupIds });
 		return res.data as User;
+	}
+
+	async signup(data: UserSignUp) {
+		const res = await this.api.post(`/signup`, data);
+		return res.data as User;
+	}
+
+	async listSignupTokens(options?: SearchPaginationSortRequest) {
+		const res = await this.api.get('/signup-tokens', {
+			params: options
+		});
+		return res.data as Paginated<SignupTokenDto>;
+	}
+
+	async deleteSignupToken(tokenId: string) {
+		await this.api.delete(`/signup-tokens/${tokenId}`);
 	}
 }

@@ -68,6 +68,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		EmailsVerified:      model.AppConfigVariable{Value: "false"},
 		DisableAnimations:   model.AppConfigVariable{Value: "false"},
 		AllowOwnAccountEdit: model.AppConfigVariable{Value: "true"},
+		AllowUserSignups:    model.AppConfigVariable{Value: "disabled"},
 		AccentColor:         model.AppConfigVariable{Value: "default"},
 		// Internal
 		BackgroundImageType: model.AppConfigVariable{Value: "jpg"},
@@ -233,7 +234,7 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	s.dbConfig.Store(cfg)
 
 	// Return the updated config
-	res := cfg.ToAppConfigVariableSlice(true)
+	res := cfg.ToAppConfigVariableSlice(true, false)
 	return res, nil
 }
 
@@ -318,7 +319,7 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 }
 
 func (s *AppConfigService) ListAppConfig(showAll bool) []model.AppConfigVariable {
-	return s.GetDbConfig().ToAppConfigVariableSlice(showAll)
+	return s.GetDbConfig().ToAppConfigVariableSlice(showAll, true)
 }
 
 func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multipart.FileHeader, imageName string, oldImageType string) (err error) {

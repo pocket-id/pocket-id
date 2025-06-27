@@ -44,3 +44,11 @@ type OneTimeAccessEmailAsAdminDto struct {
 type UserUpdateUserGroupDto struct {
 	UserGroupIds []string `json:"userGroupIds" binding:"required"`
 }
+
+type SignUpDto struct {
+	Username  string `json:"username" binding:"required,username,min=2,max=50"`
+	Email     string `json:"email" binding:"required,email"`
+	FirstName string `json:"firstName" binding:"required,min=1,max=50"`
+	LastName  string `json:"lastName" binding:"max=50"`
+	Token     string `json:"token"`
+}

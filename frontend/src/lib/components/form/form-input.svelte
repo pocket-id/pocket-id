@@ -72,7 +72,7 @@
 			{/if}
 		{/if}
 		{#if input?.error}
-			<p class="text-destructive mt-1 text-xs">{input.error}</p>
+			<p class="text-destructive mt-1 text-xs text-start">{input.error}</p>
 		{/if}
 	</div>
 </div>
