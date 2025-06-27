@@ -52,7 +52,7 @@ test.describe('User Signup', () => {
     await page.getByLabel('Last name').fill('User');
     await page.getByLabel('Username').fill('completeuser');
     await page.getByLabel('Email').fill('complete.user@test.com');
-    await page.getByRole('button', { name: 'Signup' }).click();
+    await page.getByRole('button', { name: 'Sign Up' }).click();
 
     await expect(page.getByText('Token is invalid or expired.')).toBeVisible();
   });
