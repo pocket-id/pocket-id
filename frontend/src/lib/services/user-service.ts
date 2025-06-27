@@ -88,7 +88,7 @@ export default class UserService extends APIService {
 			expiresAt,
 			usageLimit
 		});
-		return res.data.token; // This accesses the token from the SignupTokenDto
+		return res.data.token;
 	}
 
 	async exchangeOneTimeAccessToken(token: string) {

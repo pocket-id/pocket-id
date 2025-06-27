@@ -42,7 +42,6 @@
 		return success;
 	}
 
-	// Function to refresh signup tokens after creation/deletion
 	async function refreshSignupTokens() {
 		signupTokens = await userService.listSignupTokens(signupTokensRequestOptions);
 	}

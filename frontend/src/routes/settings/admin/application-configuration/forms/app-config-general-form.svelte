@@ -23,7 +23,6 @@
 
 	let isLoading = $state(false);
 
-	// Dynamic signup options with translations
 	const signupOptions = {
 		disabled: {
 			label: m.disabled(),
@@ -95,7 +94,7 @@
 				>
 					<Select.Trigger
 						class="w-full"
-						aria-label="Enable user signups"
+						aria-label={m.enable_user_signups()}
 						placeholder={m.enable_user_signups()}
 					>
 						{signupOptions[$inputs.allowUserSignups.value]?.label}
