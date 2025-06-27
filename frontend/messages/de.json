@@ -67,9 +67,7 @@
 	"please_try_to_sign_in_again": "Bitte versuche dich erneut anzumelden.",
 	"authenticate_with_passkey_to_access_account": "Authenticate yourself with your passkey to access your account.",
 	"authenticate": "Authentifizieren",
-	"appname_setup": "{appName} Einrichtung",
 	"please_try_again": "Bitte versuche es noch einmal.",
-	"you_are_about_to_sign_in_to_the_initial_admin_account": "Du bist dabei, dich beim initialen Administratorkonto anzumelden. Jeder, der diesen Link hat, kann auf das Konto zugreifen, bis ein Passkey hinzugefügt wird. Bitte richte so schnell wie möglich einen Passkey ein, um unbefugten Zugriff zu verhindern.",
 	"continue": "Fortsetzen",
 	"alternative_sign_in": "Alternative Anmeldemethoden",
 	"if_you_do_not_have_access_to_your_passkey_you_can_sign_in_using_one_of_the_following_methods": "Wenn du keinen Zugang zu deinem Passkey hast, kannst du dich mit einer der folgenden Methoden anmelden.",
@@ -391,6 +389,7 @@
 	"go_to_login": "Go to login",
 	"signup_to_appname": "Sign Up to {appName}",
 	"create_your_account_to_get_started": "Create your account to get started.",
+	"initial_account_creation_description": "Please create your account to get started. You will be able to set up a passkey later.",
 	"setup_your_passkey": "Set up your passkey",
 	"create_a_passkey_to_securely_access_your_account": "Create a passkey to securely access your account. This will be your primary way to sign in.",
 	"skip_for_now": "Skip for now",
@@ -417,5 +416,7 @@
 	"signup_with_token_description": "Users can only sign up using a valid signup token created by an administrator.",
 	"signup_open": "Open Signup",
 	"signup_open_description": "Anyone can create a new account without restrictions.",
-	"of": "of"
+	"of": "of",
+	"skip_passkey_setup": "Skip Passkey Setup",
+	"skip_passkey_setup_description": "It's highly recommended to set up a passkey because without one, you will be locked out of your account as soon as the session expires."
 }
