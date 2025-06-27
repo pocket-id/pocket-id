@@ -65,7 +65,7 @@
 	"do_you_want_to_sign_out_of_pocketid_with_the_account": "Do you want to sign out of {appName} with the account <b>{username}</b>?",
 	"sign_in_to_appname": "Sign in to {appName}",
 	"please_try_to_sign_in_again": "Please try to sign in again.",
-	"authenticate_yourself_with_your_passkey_to_access_the_admin_panel": "Authenticate yourself with your passkey to access the admin panel.",
+	"authenticate_with_passkey_to_access_account": "Authenticate yourself with your passkey to access your account.",
 	"authenticate": "Authenticate",
 	"appname_setup": "{appName} Setup",
 	"please_try_again": "Please try again.",

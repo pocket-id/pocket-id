@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
@@ -9,13 +10,10 @@
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from './components/login-logo-error-success-indicator.svelte';
-	import { m } from '$lib/paraglide/messages';
 	const webauthnService = new WebAuthnService();
 
 	let isLoading = $state(false);
 	let error: string | undefined = $state(undefined);
-
-	let showSignupButton = $derived($appConfigStore.allowUserSignups === 'open');
 
 	async function authenticate() {
 		error = undefined;
@@ -38,11 +36,7 @@
 	<title>{m.sign_in()}</title>
 </svelte:head>
 
-<SignInWrapper
-	animate={!$appConfigStore.disableAnimations}
-	showAlternativeSignInMethodButton
-	{showSignupButton}
->
+<SignInWrapper animate={!$appConfigStore.disableAnimations} showAlternativeSignInMethodButton>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>
@@ -55,10 +49,17 @@
 		</p>
 	{:else}
 		<p class="text-muted-foreground mt-2" in:fade>
-			{m.authenticate_yourself_with_your_passkey_to_access_the_admin_panel()}
+			{m.authenticate_with_passkey_to_access_account()}
 		</p>
 	{/if}
-	<Button class="mt-10" {isLoading} onclick={authenticate} autofocus={true}>
-		{error ? m.try_again() : m.authenticate()}
-	</Button>
+	<div class="mt-10 flex justify-center gap-3">
+		{#if $appConfigStore.allowUserSignups === 'open'}
+			<Button variant="secondary" href="/signup">
+				{m.signup()}
+			</Button>
+		{/if}
+		<Button {isLoading} onclick={authenticate} autofocus={true}>
+			{error ? m.try_again() : m.authenticate()}
+		</Button>
+	</div>
 </SignInWrapper>

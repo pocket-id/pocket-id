@@ -10,12 +10,10 @@
 	let {
 		children,
 		showAlternativeSignInMethodButton = false,
-		showSignupButton = false,
 		animate = false
 	}: {
 		children: Snippet;
 		showAlternativeSignInMethodButton?: boolean;
-		showSignupButton?: boolean;
 		animate?: boolean;
 	} = $props();
 
@@ -26,7 +24,7 @@
 	<div class="h-screen items-center overflow-hidden text-center">
 		<div
 			class="relative z-10 flex h-full w-[650px] p-16 {cn(
-				(showAlternativeSignInMethodButton || showSignupButton) && 'pb-0',
+				showAlternativeSignInMethodButton && 'pb-0',
 				animate && 'animate-delayed-fade'
 			)}"
 		>
@@ -34,41 +32,28 @@
 				<div class="relative flex flex-grow flex-col items-center justify-center overflow-auto">
 					{@render children()}
 				</div>
-				{#if showAlternativeSignInMethodButton || showSignupButton}
+				{#if showAlternativeSignInMethodButton}
 					<div
-						class="mb-4 flex items-center justify-center gap-4"
+						class="mb-4 flex items-center justify-center"
 						style={animate ? 'animation-delay: 500ms;' : ''}
 					>
-						{#if showAlternativeSignInMethodButton}
-							<a
-								href={page.url.pathname == '/login'
-									? '/login/alternative'
-									: `/login/alternative?redirect=${encodeURIComponent(
-											page.url.pathname + page.url.search
-										)}`}
-								class="text-muted-foreground text-xs transition-colors hover:underline"
-							>
-								{m.dont_have_access_to_your_passkey()}
-							</a>
-						{/if}
-						{#if showSignupButton}
-							{#if showAlternativeSignInMethodButton}
-								<span class="text-muted-foreground text-xs">•</span>
-							{/if}
-							<a
-								href="/signup"
-								class="text-muted-foreground text-xs transition-colors hover:underline"
-							>
-								{m.signup()}
-							</a>
-						{/if}
+						<a
+							href={page.url.pathname == '/login'
+								? '/login/alternative'
+								: `/login/alternative?redirect=${encodeURIComponent(
+										page.url.pathname + page.url.search
+									)}`}
+							class="text-muted-foreground text-xs transition-colors hover:underline"
+						>
+							{m.dont_have_access_to_your_passkey()}
+						</a>
 					</div>
 				{/if}
 			</div>
 		</div>
 
 		<!-- Background image with slide animation -->
-		<div class="{cn(animate && 'animate-slide-bg-container')} absolute bottom-0 right-0 top-0 z-0">
+		<div class="{cn(animate && 'animate-slide-bg-container')} absolute top-0 right-0 bottom-0 z-0">
 			<img
 				src={cachedBackgroundImage.getUrl()}
 				class="h-screen rounded-l-[60px] object-cover {animate
@@ -85,34 +70,20 @@
 	>
 		<Card.Root class="mx-3 w-full max-w-md" style={animate ? 'animation-delay: 200ms;' : ''}>
 			<Card.CardContent
-				class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton || showSignupButton
-					? 'pb-3 sm:pb-3'
-					: ''}"
+				class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton ? 'pb-3 sm:pb-3' : ''}"
 			>
 				{@render children()}
-				{#if showAlternativeSignInMethodButton || showSignupButton}
-					<div class="text-muted-foreground mt-7 flex justify-center gap-4 text-xs">
-						{#if showAlternativeSignInMethodButton}
-							<a
-								href={page.url.pathname == '/login'
-									? '/login/alternative'
-									: `/login/alternative?redirect=${encodeURIComponent(
-											page.url.pathname + page.url.search
-										)}`}
-								class="transition-colors hover:underline"
-							>
-								{m.dont_have_access_to_your_passkey()}
-							</a>
-						{/if}
-						{#if showSignupButton}
-							{#if showAlternativeSignInMethodButton}
-								<span>•</span>
-							{/if}
-							<a href="/signup" class="transition-colors hover:underline">
-								{m.signup()}
-							</a>
-						{/if}
-					</div>
+				{#if showAlternativeSignInMethodButton}
+					<a
+						href={page.url.pathname == '/login'
+							? '/login/alternative'
+							: `/login/alternative?redirect=${encodeURIComponent(
+									page.url.pathname + page.url.search
+								)}`}
+						class="text-muted-foreground mt-7 flex justify-center text-xs transition-colors hover:underline"
+					>
+						{m.dont_have_access_to_your_passkey()}
+					</a>
 				{/if}
 			</Card.CardContent>
 		</Card.Root>
