@@ -33,6 +33,7 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 	}
 
 	skipLdap := c.Query("skip-ldap") == "true"
+	skipSeed := c.Query("skip-seed") == "true"
 
 	if err := tc.TestService.ResetDatabase(); err != nil {
 		_ = c.Error(err)
@@ -44,9 +45,11 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		return
 	}
 
-	if err := tc.TestService.SeedDatabase(baseURL); err != nil {
-		_ = c.Error(err)
-		return
+	if !skipSeed {
+		if err := tc.TestService.SeedDatabase(baseURL); err != nil {
+			_ = c.Error(err)
+			return
+		}
 	}
 
 	if err := tc.TestService.ResetAppConfig(c.Request.Context()); err != nil {

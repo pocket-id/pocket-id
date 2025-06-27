@@ -4,7 +4,7 @@ import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
 
-test.beforeEach(cleanupBackend);
+test.beforeEach(() => cleanupBackend());
 
 test('Update account details', async ({ page }) => {
 	await page.goto('/settings/account');

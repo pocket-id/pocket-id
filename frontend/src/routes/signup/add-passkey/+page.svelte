@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
@@ -44,6 +45,20 @@
 		goto('/settings/account');
 		isLoading = false;
 	}
+
+	function skipForNow() {
+		openConfirmDialog({
+			title: m.skip_passkey_setup(),
+			message: m.skip_passkey_setup_description(),
+			confirm: {
+				label: m.skip_for_now(),
+				destructive: true,
+				action: () => {
+					goto('/settings/account');
+				}
+			}
+		});
+	}
 </script>
 
 <svelte:head>
@@ -66,12 +81,7 @@
 			{/if}
 		</p>
 		<div class="mt-10 flex w-full justify-between gap-2">
-			<Button
-				variant="secondary"
-				onclick={() => goto('/settings/account')}
-				disabled={isLoading}
-				class="flex-1"
-			>
+			<Button variant="secondary" onclick={skipForNow} disabled={isLoading} class="flex-1">
 				{m.skip_for_now()}
 			</Button>
 			<Button onclick={createPasskeyAndContinue} {isLoading} class="flex-1">

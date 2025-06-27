@@ -5,7 +5,7 @@ import { generateIdToken, generateOauthAccessToken } from '../utils/jwt.util';
 import * as oidcUtil from '../utils/oidc.util';
 import passkeyUtil from '../utils/passkey.util';
 
-test.beforeEach(cleanupBackend);
+test.beforeEach(() => cleanupBackend());
 
 test('Authorize existing client', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
@@ -188,19 +188,6 @@ test('Refresh token fails when used for the wrong client', async ({ request }) =
 			}
 		})
 		.then((r) => r.text());
-
-	// Perform the exchange
-	const refreshResponse = await request.post('/api/oidc/token', {
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded'
-		},
-		form: {
-			grant_type: 'refresh_token',
-			client_id: clientId,
-			refresh_token: refreshToken,
-			client_secret: clientSecret
-		}
-	});
 
 	expect(refreshResponse.status()).toBe(400);
 });

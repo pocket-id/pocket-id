@@ -2,7 +2,7 @@ import test, { expect } from '@playwright/test';
 import { userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(cleanupBackend);
+test.beforeEach(() => cleanupBackend());
 
 test('Create user group', async ({ page }) => {
 	await page.goto('/settings/admin/user-groups');

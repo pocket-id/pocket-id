@@ -2,7 +2,7 @@ import test, { expect } from '@playwright/test';
 import { oneTimeAccessTokens } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(cleanupBackend);
+test.beforeEach(() => cleanupBackend());
 
 // Disable authentication for these tests
 test.use({ storageState: { cookies: [], origins: [] } });

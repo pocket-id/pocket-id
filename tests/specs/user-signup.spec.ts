@@ -1,9 +1,9 @@
 import test, { expect } from '@playwright/test';
+import { signupTokens, users } from 'data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
-import { users, signupTokens } from 'data';
 
-test.beforeEach(cleanupBackend);
+test.beforeEach(() => cleanupBackend());
 
 test.describe('User Signup', () => {
 	async function setSignupMode(page: any, mode: 'Disabled' | 'Signup with token' | 'Open Signup') {
@@ -175,5 +175,38 @@ test.describe('User Signup', () => {
 		await page.getByRole('button', { name: 'Sign Up' }).click();
 
 		await expect(page.getByText('Token is invalid or expired.')).toBeVisible();
+	});
+});
+
+test.describe('Initial User Signup', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.context().clearCookies();
+	});
+	test('Initial Signup - success flow', async ({ page }) => {
+		await cleanupBackend(true);
+		await page.goto('/setup');
+
+		await page.getByLabel('First name').fill('Jane');
+		await page.getByLabel('Last name').fill('Smith');
+		await page.getByLabel('Username').fill('janesmith');
+		await page.getByLabel('Email').fill('jane.smith@test.com');
+
+		await page.getByRole('button', { name: 'Sign Up' }).click();
+
+		await page.waitForURL('/signup/add-passkey');
+		await expect(page.getByText('Set up your passkey')).toBeVisible();
+	});
+
+	test('Initial Signup - setup already completed', async ({ page }) => {
+		await page.goto('/setup');
+
+		await page.getByLabel('First name').fill('Test');
+		await page.getByLabel('Last name').fill('User');
+		await page.getByLabel('Username').fill('testuser123');
+		await page.getByLabel('Email').fill(users.tim.email);
+
+		await page.getByRole('button', { name: 'Sign Up' }).click();
+
+		await expect(page.getByText('Setup already completed')).toBeVisible();
 	});
 });

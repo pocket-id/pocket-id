@@ -1,7 +1,7 @@
 import test, { expect } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(cleanupBackend);
+test.beforeEach(() => cleanupBackend());
 
 test.describe('LDAP Integration', () => {
 	test.skip(
