@@ -26,7 +26,7 @@
 	// Dynamic signup options with translations
 	const signupOptions = {
 		disabled: {
-			label: m.signup_disabled(),
+			label: m.disabled(),
 			description: m.signup_disabled_description()
 		},
 		withToken: {
