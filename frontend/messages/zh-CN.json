@@ -67,9 +67,7 @@
 	"please_try_to_sign_in_again": "请尝试重新登录。",
 	"authenticate_with_passkey_to_access_account": "Authenticate yourself with your passkey to access your account.",
 	"authenticate": "登录",
-	"appname_setup": "{appName} 设置",
 	"please_try_again": "请再试一次。",
-	"you_are_about_to_sign_in_to_the_initial_admin_account": "您即将登录到初始管理员账户。在此添加通行密钥之前，任何拥有此链接的人都可以访问该账户。请尽快设置通行密钥以防止未经授权的访问。",
 	"continue": "继续",
 	"alternative_sign_in": "替代登录方式",
 	"if_you_do_not_have_access_to_your_passkey_you_can_sign_in_using_one_of_the_following_methods": "如果您无法使用通行密钥，可以通过以下方式之一登录。",
@@ -391,6 +389,7 @@
 	"go_to_login": "Go to login",
 	"signup_to_appname": "Sign Up to {appName}",
 	"create_your_account_to_get_started": "Create your account to get started.",
+	"initial_account_creation_description": "Please create your account to get started. You will be able to set up a passkey later.",
 	"setup_your_passkey": "Set up your passkey",
 	"create_a_passkey_to_securely_access_your_account": "Create a passkey to securely access your account. This will be your primary way to sign in.",
 	"skip_for_now": "Skip for now",
@@ -417,5 +416,7 @@
 	"signup_with_token_description": "Users can only sign up using a valid signup token created by an administrator.",
 	"signup_open": "Open Signup",
 	"signup_open_description": "Anyone can create a new account without restrictions.",
-	"of": "of"
+	"of": "of",
+	"skip_passkey_setup": "Skip Passkey Setup",
+	"skip_passkey_setup_description": "It's highly recommended to set up a passkey because without one, you will be locked out of your account as soon as the session expires."
 }
