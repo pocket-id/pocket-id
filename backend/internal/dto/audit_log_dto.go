@@ -10,7 +10,7 @@ type AuditLogDto struct {
 	CreatedAt datatype.DateTime `json:"createdAt"`
 
 	Event     model.AuditLogEvent `json:"event"`
-	IpAddress string              `json:"ipAddress"`
+	IpAddress *model.AuditLogIP   `json:"ipAddress,omitempty"`
 	Country   string              `json:"country"`
 	City      string              `json:"city"`
 	Device    string              `json:"device"`

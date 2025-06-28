@@ -1,0 +1,1 @@
+ALTER TABLE audit_logs ALTER COLUMN ip_address DROP NOT NULL;

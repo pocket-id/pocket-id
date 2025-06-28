@@ -1,0 +1,1 @@
+-- This migration has no effect on SQLite
