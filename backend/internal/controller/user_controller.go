@@ -44,7 +44,6 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(), uc.createAdminOneTimeAccessTokenHandler)
 	group.POST("/users/:id/one-time-access-email", authMiddleware.Add(), uc.RequestOneTimeAccessEmailAsAdminHandler)
 	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
-	group.POST("/one-time-access-token/setup", uc.getSetupAccessTokenHandler)
 	group.POST("/one-time-access-email", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), uc.RequestOneTimeAccessEmailAsUnauthenticatedUserHandler)
 
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
@@ -54,6 +53,7 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.GET("/signup-tokens", authMiddleware.Add(), uc.listSignupTokensHandler)
 	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), uc.deleteSignupTokenHandler)
 	group.POST("/signup", rateLimitMiddleware.Add(rate.Every(1*time.Minute), 10), uc.signupHandler)
+	group.POST("/signup/setup", uc.signUpInitialAdmin)
 
 }
 
@@ -446,14 +446,23 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, userDto)
 }
 
-// getSetupAccessTokenHandler godoc
-// @Summary Setup initial admin
-// @Description Generate setup access token for initial admin user configuration
+// signUpInitialAdmin godoc
+// @Summary Sign up initial admin user
+// @Description Sign up and generate setup access token for initial admin user
 // @Tags Users
+// @Accept json
+// @Produce json
+// @Param body body dto.SignUpDto true "User information"
 // @Success 200 {object} dto.UserDto
-// @Router /api/one-time-access-token/setup [post]
-func (uc *UserController) getSetupAccessTokenHandler(c *gin.Context) {
-	user, token, err := uc.userService.SetupInitialAdmin(c.Request.Context())
+// @Router /api/signup/setup [post]
+func (uc *UserController) signUpInitialAdmin(c *gin.Context) {
+	var input dto.SignUpDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	user, token, err := uc.userService.SignUpInitialAdmin(c.Request.Context(), input)
 	if err != nil {
 		_ = c.Error(err)
 		return

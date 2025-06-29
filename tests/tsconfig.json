@@ -1,6 +1,6 @@
 {
-  "compilerOptions": {
-    "baseUrl": ".",
-    "lib": ["ES2022"]
-  }
+	"compilerOptions": {
+		"baseUrl": ".",
+		"lib": ["ES2022"]
+	}
 }

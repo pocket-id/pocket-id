@@ -1,3 +1,23 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.4.1...v) (2025-06-27)
+
+
+### Features
+
+* improve initial admin creation workflow ([287314f](https://github.com/pocket-id/pocket-id/commit/287314f01644e42ddb2ce1b1115bd14f2f0c1768))
+* redact sensitive app config variables if set with env variable ([ba61cdb](https://github.com/pocket-id/pocket-id/commit/ba61cdba4eb3d5659f3ae6b6c21249985c0aa630))
+* self-service user signup ([#672](https://github.com/pocket-id/pocket-id/issues/672)) ([dcd1ae9](https://github.com/pocket-id/pocket-id/commit/dcd1ae96e048115be34b0cce275054e990462ebf))
+
+
+### Bug Fixes
+
+* double double full stops for certain error messages ([d070b9a](https://github.com/pocket-id/pocket-id/commit/d070b9a778d7d1a51f2fa62d003f2331a96d6c91))
+* error page flickering after sign out ([1a77bd9](https://github.com/pocket-id/pocket-id/commit/1a77bd9914ea01e445ff3d6e116c9ed3bcfbf153))
+* improve accent color picker disabled state ([d976bf5](https://github.com/pocket-id/pocket-id/commit/d976bf5965eda10e3ecb71821c23e93e5d712a02))
+* less noisy logging for certain GET requests ([#681](https://github.com/pocket-id/pocket-id/issues/681)) ([043f82a](https://github.com/pocket-id/pocket-id/commit/043f82ad794eb64a5550d8b80703114a055701d9))
+* margin of user sign up description ([052ac00](https://github.com/pocket-id/pocket-id/commit/052ac008c3a8c910d1ce79ee99b2b2f75e4090f4))
+* remove duplicate request logging ([#678](https://github.com/pocket-id/pocket-id/issues/678)) ([988c425](https://github.com/pocket-id/pocket-id/commit/988c425150556b32cff1d341a21fcc9c69d9aaf8))
+* users can't be updated by admin if self account editing is disabled ([29cb551](https://github.com/pocket-id/pocket-id/commit/29cb5513a03d1a9571969c8a42deec9b2bdee037))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.4.0...v) (2025-06-22)
 
 

@@ -7,8 +7,9 @@
 
 	let {
 		selectedColor = $bindable(),
-		previousColor
-	}: { selectedColor: string; previousColor: string } = $props();
+		previousColor,
+		disabled = false
+	}: { selectedColor: string; previousColor: string; disabled?: boolean } = $props();
 	let showCustomColorDialog = $state(false);
 
 	const accentColors = [
@@ -30,10 +31,6 @@
 		selectedColor = accentValue;
 		applyAccentColor(accentValue);
 	}
-
-	function handleCustomColorApply(color: string) {
-		handleAccentColorChange(color);
-	}
 </script>
 
 <RadioGroup.Root
@@ -54,7 +51,7 @@
 	{@render colorOption('Custom', 'custom', false, true)}
 </RadioGroup.Root>
 
-<CustomColorDialog bind:open={showCustomColorDialog} onApply={handleCustomColorApply} />
+<CustomColorDialog bind:open={showCustomColorDialog} onApply={handleAccentColorChange} />
 
 {#snippet colorOption(
 	label: string,
@@ -66,9 +63,13 @@
 		<RadioGroup.Item id={color} value={color} class="sr-only" />
 		<Label
 			for={color}
-			class="cursor-pointer {isCustomColorSelection ? 'group' : ''}"
+			class={{
+				'cursor-pointer': !disabled,
+				'cursor-not-allowed': disabled,
+				group: isCustomColorSelection
+			}}
 			onclick={() => {
-				if (isCustomColorSelection) {
+				if (isCustomColorSelection && !disabled) {
 					showCustomColorDialog = true;
 				}
 			}}
@@ -94,7 +95,7 @@
 				{/if}
 			</div>
 			<div
-				class="text-muted-foreground group-hover/item:text-foreground bg-background absolute top-12 left-1/2 z-20 max-w-0 -translate-x-1/2 transform overflow-hidden rounded-md border px-2 py-1 text-xs whitespace-nowrap opacity-0 shadow-sm transition-all duration-300 ease-out group-hover/item:max-w-[100px] group-hover/item:opacity-100"
+				class="text-muted-foreground group-hover/item:text-foreground bg-background absolute left-1/2 top-12 z-20 max-w-0 -translate-x-1/2 transform overflow-hidden whitespace-nowrap rounded-md border px-2 py-1 text-xs opacity-0 shadow-sm transition-all duration-300 ease-out group-hover/item:max-w-[100px] group-hover/item:opacity-100"
 			>
 				{label}
 			</div>

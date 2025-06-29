@@ -114,6 +114,11 @@ export default class UserService extends APIService {
 		return res.data as User;
 	}
 
+	async signupInitialUser(data: UserSignUp) {
+		const res = await this.api.post(`/signup/setup`, data);
+		return res.data as User;
+	}
+
 	async listSignupTokens(options?: SearchPaginationSortRequest) {
 		const res = await this.api.get('/signup-tokens', {
 			params: options

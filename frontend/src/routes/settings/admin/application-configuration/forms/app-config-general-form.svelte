@@ -58,7 +58,7 @@
 		accentColor: z.string()
 	});
 
-	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, updatedAppConfig);
+	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -81,10 +81,12 @@
 				bind:input={$inputs.sessionDuration}
 			/>
 			<div class="grid gap-2">
-				<Label class="mb-0" for="enable-user-signup">{m.enable_user_signups()}</Label>
-				<p class="text-muted-foreground text-[0.8rem]">
-					{m.enable_user_signups_description()}
-				</p>
+				<div>
+					<Label class="mb-0" for="enable-user-signup">{m.enable_user_signups()}</Label>
+					<p class="text-muted-foreground text-[0.8rem]">
+						{m.enable_user_signups_description()}
+					</p>
+				</div>
 				<Select.Root
 					disabled={$appConfigStore.uiConfigDisabled}
 					type="single"
@@ -159,6 +161,7 @@
 				<AccentColorPicker
 					previousColor={appConfig.accentColor}
 					bind:selectedColor={$inputs.accentColor.value}
+					disabled={$appConfigStore.uiConfigDisabled}
 				/>
 			</div>
 		</div>

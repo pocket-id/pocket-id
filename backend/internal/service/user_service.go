@@ -529,7 +529,7 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 	return user, nil
 }
 
-func (s *UserService) SetupInitialAdmin(ctx context.Context) (model.User, string, error) {
+func (s *UserService) SignUpInitialAdmin(ctx context.Context, signUpData dto.SignUpDto) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -539,24 +539,21 @@ func (s *UserService) SetupInitialAdmin(ctx context.Context) (model.User, string
 	if err := tx.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
 		return model.User{}, "", err
 	}
-	if userCount > 1 {
+	if userCount != 0 {
 		return model.User{}, "", &common.SetupAlreadyCompletedError{}
 	}
 
-	user := model.User{
-		FirstName: "Admin",
-		LastName:  "Admin",
-		Username:  "admin",
-		Email:     "admin@admin.com",
+	userToCreate := dto.UserCreateDto{
+		FirstName: signUpData.FirstName,
+		LastName:  signUpData.LastName,
+		Username:  signUpData.Username,
+		Email:     signUpData.Email,
 		IsAdmin:   true,
 	}
 
-	if err := tx.WithContext(ctx).Model(&model.User{}).Preload("Credentials").FirstOrCreate(&user).Error; err != nil {
+	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
+	if err != nil {
 		return model.User{}, "", err
-	}
-
-	if len(user.Credentials) > 0 {
-		return model.User{}, "", &common.SetupAlreadyCompletedError{}
 	}
 
 	token, err := s.jwtService.GenerateAccessToken(user)

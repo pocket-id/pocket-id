@@ -11,9 +11,9 @@ services:
   pocket-id:
     image: pocket-id:test
     ports:
-      - "1411:1411"
+      - '1411:1411'
     environment:
-      - APP_ENV=test  
+      - APP_ENV=test
     build:
       args:
         - BUILD_TAGS=e2etest

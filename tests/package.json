@@ -1,9 +1,14 @@
 {
-  "type": "module",
-  "devDependencies": {
-    "@playwright/test": "^1.52.0",
-    "@types/node": "^22.15.21",
-    "jose": "^6.0.11",
-    "dotenv": "^16.5.0"
-  }
+	"type": "module",
+	"scripts": {
+		"test": "playwright test",
+		"format": "prettier --write ."
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.52.0",
+		"@types/node": "^22.15.21",
+		"dotenv": "^16.5.0",
+		"jose": "^6.0.11",
+		"prettier": "^3.6.2"
+	}
 }
