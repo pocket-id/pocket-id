@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGeoLiteService_IPv6LocalRanges(t *testing.T) {
@@ -80,15 +82,9 @@ func TestGeoLiteService_IPv6LocalRanges(t *testing.T) {
 					t.Errorf("Expected error or internal network classification for external IP")
 				}
 			} else {
-				if err != nil {
-					t.Errorf("Expected no error for local IP, got: %v", err)
-				}
-				if country != tt.expectedCountry {
-					t.Errorf("Expected country %s, got %s", tt.expectedCountry, country)
-				}
-				if city != tt.expectedCity {
-					t.Errorf("Expected city %s, got %s", tt.expectedCity, city)
-				}
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedCountry, country)
+				assert.Equal(t, tt.expectedCity, city)
 			}
 		})
 	}
@@ -148,9 +144,7 @@ func TestGeoLiteService_isLocalIPv6(t *testing.T) {
 			}
 
 			result := service.isLocalIPv6(ip)
-			if result != tt.expected {
-				t.Errorf("Expected %v, got %v for IP %s", tt.expected, result, tt.testIP)
-			}
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -214,18 +208,13 @@ func TestGeoLiteService_initializeIPv6LocalRanges(t *testing.T) {
 
 			err := service.initializeIPv6LocalRanges()
 
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error but got none")
-			}
-			if !tt.expectError && err != nil {
-				t.Errorf("Expected no error but got: %v", err)
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 
-			rangeCount := len(service.localIPv6Ranges)
-
-			if rangeCount != tt.expectCount {
-				t.Errorf("Expected %d ranges, got %d", tt.expectCount, rangeCount)
-			}
+			assert.Len(t, service.localIPv6Ranges, tt.expectCount)
 		})
 	}
 }

@@ -122,6 +122,10 @@ func (s *GeoLiteService) DisableUpdater() bool {
 
 // GetLocationByIP returns the country and city of the given IP address.
 func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string, err error) {
+	if ipAddress == "" {
+		return "", "", nil
+	}
+
 	// Check the IP address against known private IP ranges
 	if ip := net.ParseIP(ipAddress); ip != nil {
 		// Check IPv6 local ranges first
@@ -147,6 +151,11 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 		}
 	}
 
+	addr, err := netip.ParseAddr(ipAddress)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse IP address: %w", err)
+	}
+
 	// Race condition between reading and writing the database.
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -156,11 +165,6 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 		return "", "", err
 	}
 	defer db.Close()
-
-	addr, err := netip.ParseAddr(ipAddress)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse IP address: %w", err)
-	}
 
 	var record struct {
 		City struct {

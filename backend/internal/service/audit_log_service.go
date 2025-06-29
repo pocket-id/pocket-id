@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 
 	userAgentParser "github.com/mileusna/useragent"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -25,20 +26,25 @@ func NewAuditLogService(db *gorm.DB, appConfigService *AppConfigService, emailSe
 }
 
 // Create creates a new audit log entry in the database
-func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) model.AuditLog {
+func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) (model.AuditLog, bool) {
 	country, city, err := s.geoliteService.GetLocationByIP(ipAddress)
 	if err != nil {
-		log.Printf("Failed to get IP location: %v", err)
+		// Log the error but don't interrupt the operation
+		slog.Warn("Failed to get IP location", "error", err)
 	}
 
 	auditLog := model.AuditLog{
 		Event:     event,
-		IpAddress: ipAddress,
 		Country:   country,
 		City:      city,
 		UserAgent: userAgent,
 		UserID:    userID,
 		Data:      data,
+	}
+
+	if ipAddress != "" {
+		// Only set ipAddress if not empty, because on Postgres we use INET columns that don't allow non-null empty values
+		auditLog.IpAddress = &ipAddress
 	}
 
 	// Save the audit log in the database
@@ -47,16 +53,20 @@ func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent,
 		Create(&auditLog).
 		Error
 	if err != nil {
-		log.Printf("Failed to create audit log: %v", err)
-		return model.AuditLog{}
+		slog.Error("Failed to create audit log", "error", err)
+		return model.AuditLog{}, false
 	}
 
-	return auditLog
+	return auditLog, true
 }
 
 // CreateNewSignInWithEmail creates a new audit log entry in the database and sends an email if the device hasn't been used before
 func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog {
-	createdAuditLog := s.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
+	createdAuditLog, ok := s.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
+	if !ok {
+		// At this point the transaction has been canceled already, and error has been logged
+		return createdAuditLog
+	}
 
 	// Count the number of times the user has logged in from the same device
 	var count int64
@@ -67,7 +77,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 		Count(&count).
 		Error
 	if err != nil {
-		log.Printf("Failed to count audit logs: %v\n", err)
+		log.Printf("Failed to count audit logs: %v", err)
 		return createdAuditLog
 	}
 
