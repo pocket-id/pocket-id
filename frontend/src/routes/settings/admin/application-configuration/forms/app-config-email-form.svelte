@@ -45,7 +45,7 @@
 		emailApiKeyExpirationEnabled: z.boolean()
 	});
 
-	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, appConfig);
+	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
 
 	async function onSubmit() {
 		const data = form.validate();

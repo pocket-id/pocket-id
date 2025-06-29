@@ -552,6 +552,9 @@ func (s *UserService) SignUpInitialAdmin(ctx context.Context, signUpData dto.Sig
 	}
 
 	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
+	if err != nil {
+		return model.User{}, "", err
+	}
 
 	token, err := s.jwtService.GenerateAccessToken(user)
 	if err != nil {

@@ -68,7 +68,7 @@
 		ldapSoftDeleteUsers: z.boolean()
 	});
 
-	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, updatedAppConfig);
+	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
 
 	async function onSubmit() {
 		const data = form.validate();
