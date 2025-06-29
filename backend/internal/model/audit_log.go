@@ -4,15 +4,13 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 type AuditLog struct {
 	Base
 
 	Event     AuditLogEvent `sortable:"true"`
-	IpAddress *AuditLogIP   `sortable:"true"`
+	IpAddress *string       `sortable:"true"`
 	Country   string        `sortable:"true"`
 	City      string        `sortable:"true"`
 	UserAgent string        `sortable:"true"`
@@ -24,8 +22,6 @@ type AuditLog struct {
 }
 
 type AuditLogData map[string]string //nolint:recvcheck
-
-type AuditLogIP string //nolint:recvcheck
 
 type AuditLogEvent string //nolint:recvcheck
 
@@ -40,50 +36,6 @@ const (
 )
 
 // Scan and Value methods for GORM to handle the custom type
-
-func (e *AuditLogIP) Scan(value any) error {
-	switch v := value.(type) {
-	case nil:
-		*e = ""
-		return nil
-	case []byte:
-		if len(v) == 0 {
-			*e = ""
-		} else {
-			*e = AuditLogIP(string(v))
-		}
-		return nil
-	case string:
-		if v == "" {
-			*e = ""
-		} else {
-			*e = AuditLogIP(v)
-		}
-		return nil
-	default:
-		return fmt.Errorf("unsupported type: %T", value)
-	}
-}
-
-func (e AuditLogIP) Value() (driver.Value, error) {
-	// ip_address is stored differently in Postgres and SQLite:
-	// - Postgres: nullable INET column - empty values must be stored as NULL
-	// - SQLite: non-nullable TEXT column (for historic reasons) - empty values are stored as empty strings
-	switch common.EnvConfig.DbProvider {
-	case common.DbProviderSqlite:
-		if e == "" {
-			return "", nil
-		}
-		return string(e), nil
-	case common.DbProviderPostgres:
-		if e == "" {
-			return nil, nil
-		}
-		return string(e), nil
-	default:
-		return nil, fmt.Errorf("unsupported DB provider: %v", common.EnvConfig.DbProvider)
-	}
-}
 
 func (e *AuditLogEvent) Scan(value any) error {
 	*e = AuditLogEvent(value.(string))

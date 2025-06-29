@@ -10,13 +10,13 @@ type AuditLogDto struct {
 	CreatedAt datatype.DateTime `json:"createdAt"`
 
 	Event     model.AuditLogEvent `json:"event"`
-	IpAddress *model.AuditLogIP   `json:"ipAddress,omitempty"`
-	Country   string              `json:"country"`
-	City      string              `json:"city"`
-	Device    string              `json:"device"`
+	IpAddress string              `json:"ipAddress,omitempty"`
+	Country   string              `json:"country,omitempty"`
+	City      string              `json:"city,omitempty"`
+	Device    string              `json:"device,omitempty"`
 	UserID    string              `json:"userID"`
 	Username  string              `json:"username"`
-	Data      model.AuditLogData  `json:"data"`
+	Data      model.AuditLogData  `json:"data,omitempty"`
 }
 
 type AuditLogFilterDto struct {

@@ -43,7 +43,8 @@ func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent,
 	}
 
 	if ipAddress != "" {
-		auditLog.IpAddress = utils.Ptr(model.AuditLogIP(ipAddress))
+		// Only set ipAddress if not empty, because on Postgres we use INET columns that don't allow non-null empty values
+		auditLog.IpAddress = &ipAddress
 	}
 
 	// Save the audit log in the database
