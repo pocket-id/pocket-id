@@ -38,7 +38,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (sv
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
 	svc.auditLogService = service.NewAuditLogService(db, svc.appConfigService, svc.emailService, svc.geoLiteService)
-	svc.jwtService = service.NewJwtService(svc.appConfigService)
+	svc.jwtService = service.NewJwtService(db, svc.appConfigService)
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 	svc.customClaimService = service.NewCustomClaimService(db)
 
