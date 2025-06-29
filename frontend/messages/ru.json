@@ -326,7 +326,7 @@
 	"new_client_authorization": "Новая авторизация в клиенте",
 	"disable_animations": "Отключить анимации",
 	"turn_off_ui_animations": "Выключить анимации по всему интерфейсу.",
-	"user_disabled": "Аккаунт отключен",
+	"user_disabled": "Учетная запись отключена",
 	"disabled_users_cannot_log_in_or_use_services": "Отключенные пользователи не могут войти или использовать сервисы.",
 	"user_disabled_successfully": "Пользователь успешно отключен.",
 	"user_enabled_successfully": "Пользователь успешно включен.",
@@ -415,8 +415,8 @@
 	"signup_with_token": "Регистрация с токеном",
 	"signup_with_token_description": "Пользователи могут зарегистрироваться только с помощью действительного токена регистрации, созданного администратором.",
 	"signup_open": "Открытая регистрация",
-	"signup_open_description": "Anyone can create a new account without restrictions.",
-	"of": "of",
-	"skip_passkey_setup": "Skip Passkey Setup",
-	"skip_passkey_setup_description": "It's highly recommended to set up a passkey because without one, you will be locked out of your account as soon as the session expires."
+	"signup_open_description": "Любой может создать новую учетную запись без ограничений.",
+	"of": "из",
+	"skip_passkey_setup": "Пропустить настройку passkey",
+	"skip_passkey_setup_description": "Настоятельно рекомендуется настроить passkey, так как без него вы более не сможете войти в учетную запись после истечения сессии."
 }
