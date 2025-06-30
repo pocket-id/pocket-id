@@ -10,7 +10,7 @@ type AuditLog struct {
 	Base
 
 	Event     AuditLogEvent `sortable:"true"`
-	IpAddress string        `sortable:"true"`
+	IpAddress *string       `sortable:"true"`
 	Country   string        `sortable:"true"`
 	City      string        `sortable:"true"`
 	UserAgent string        `sortable:"true"`
