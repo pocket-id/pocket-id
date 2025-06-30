@@ -490,6 +490,11 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 }
 
 func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCredentials, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
+	client, err := s.verifyClientCredentialsInternal(ctx, s.db, creds)
+	if err != nil {
+		return introspectDto, err
+	}
+
 	// Get the type of the token and the client ID
 	tokenType, token, err := s.jwtService.GetTokenType(tokenString)
 	if err != nil {
@@ -498,24 +503,16 @@ func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCrede
 		return introspectDto, nil //nolint:nilerr
 	}
 
-	// If we don't have a client ID, get it from the token
-	// Otherwise, we need to make sure that the client ID passed as credential matches
+	// Get the audience from the token
 	tokenAudiences, _ := token.Audience()
 	if len(tokenAudiences) != 1 || tokenAudiences[0] == "" {
-		// We just treat the token as invalid
 		introspectDto.Active = false
 		return introspectDto, nil
 	}
-	if creds.ClientID == "" {
-		creds.ClientID = tokenAudiences[0]
-	} else if creds.ClientID != tokenAudiences[0] {
-		return introspectDto, &common.OidcMissingClientCredentialsError{}
-	}
 
-	// Verify the credentials for the call
-	client, err := s.verifyClientCredentialsInternal(ctx, s.db, creds)
-	if err != nil {
-		return introspectDto, err
+	// Audience must match the client ID
+	if client.ID != tokenAudiences[0] {
+		return introspectDto, &common.OidcMissingClientCredentialsError{}
 	}
 
 	// Introspect the token
