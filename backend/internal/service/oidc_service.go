@@ -1383,11 +1383,12 @@ func clientAuthCredentialsFromCreateTokensDto(d *dto.OidcCreateTokensDto) Client
 }
 
 func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *gorm.DB, input ClientAuthCredentials) (client *model.OidcClient, err error) {
-	var clientID string
+	isClientAssertion := input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != ""
 
 	// Determine the client ID based on the authentication method
+	var clientID string
 	switch {
-	case input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != "":
+	case isClientAssertion:
 		// Extract client ID from the JWT assertion's 'sub' claim
 		clientID, err = s.extractClientIDFromAssertion(input.ClientAssertion)
 		if err != nil {
@@ -1407,6 +1408,9 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 		First(&client, "id = ?", clientID).
 		Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) && isClientAssertion {
+			return nil, &common.OidcClientAssertionInvalidError{}
+		}
 		return nil, err
 	}
 
@@ -1421,7 +1425,7 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 		return client, nil
 
 	// Next, check if we want to use client assertions from federated identities
-	case input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != "":
+	case isClientAssertion:
 		err = s.verifyClientAssertionFromFederatedIdentities(ctx, client, input)
 		if err != nil {
 			log.Printf("Invalid assertion for client '%s': %v", client.ID, err)

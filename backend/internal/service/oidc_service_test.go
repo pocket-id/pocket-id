@@ -134,7 +134,6 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	const (
 		federatedClientIssuer         = "https://external-idp.com"
 		federatedClientAudience       = "https://pocket-id.com"
-		federatedClientSubject        = "123456abcdef"
 		federatedClientIssuerDefaults = "https://external-idp-defaults.com/"
 	)
 
@@ -192,18 +191,24 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	federatedClient, err := s.CreateClient(t.Context(), dto.OidcClientCreateDto{
 		Name:         "Federated Client",
 		CallbackURLs: []string{"https://example.com/callback"},
+	}, "test-user-id")
+	require.NoError(t, err)
+
+	federatedClient, err = s.UpdateClient(t.Context(), federatedClient.ID, dto.OidcClientCreateDto{
+		Name:         federatedClient.Name,
+		CallbackURLs: federatedClient.CallbackURLs,
 		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{
 				{
 					Issuer:   federatedClientIssuer,
 					Audience: federatedClientAudience,
-					Subject:  federatedClientSubject,
+					Subject:  federatedClient.ID,
 					JWKS:     federatedClientIssuer + "/jwks.json",
 				},
 				{Issuer: federatedClientIssuerDefaults},
 			},
 		},
-	}, "test-user-id")
+	})
 	require.NoError(t, err)
 
 	// Test cases for confidential client (using client secret)
@@ -261,7 +266,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			token, err := jwt.NewBuilder().
 				Issuer(federatedClientIssuer).
 				Audience([]string{federatedClientAudience}).
-				Subject(federatedClientSubject).
+				Subject(federatedClient.ID).
 				IssuedAt(time.Now()).
 				Expiration(time.Now().Add(10 * time.Minute)).
 				Build()
@@ -298,7 +303,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				builder := jwt.NewBuilder().
 					Issuer(federatedClientIssuer).
 					Audience([]string{federatedClientAudience}).
-					Subject(federatedClientSubject).
+					Subject(federatedClient.ID).
 					IssuedAt(time.Now()).
 					Expiration(time.Now().Add(10 * time.Minute))
 
