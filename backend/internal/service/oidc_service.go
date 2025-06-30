@@ -1382,24 +1382,35 @@ func clientAuthCredentialsFromCreateTokensDto(d *dto.OidcCreateTokensDto) Client
 	}
 }
 
-func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *gorm.DB, input ClientAuthCredentials) (*model.OidcClient, error) {
-	// First, ensure we have a valid client ID
-	if input.ClientID == "" {
+func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *gorm.DB, input ClientAuthCredentials) (client *model.OidcClient, err error) {
+	var clientID string
+
+	// Determine the client ID based on the authentication method
+	switch {
+	case input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != "":
+		// Extract client ID from the JWT assertion's 'sub' claim
+		clientID, err = s.extractClientIDFromAssertion(input.ClientAssertion)
+		if err != nil {
+			slog.Error("Failed to extract client ID from assertion", "error", err)
+			return nil, &common.OidcClientAssertionInvalidError{}
+		}
+	case input.ClientID != "":
+		// Use the provided client ID for other authentication methods
+		clientID = input.ClientID
+	default:
 		return nil, &common.OidcMissingClientCredentialsError{}
 	}
 
 	// Load the OIDC client's configuration
-	var client model.OidcClient
-	err := tx.
+	err = tx.
 		WithContext(ctx).
-		First(&client, "id = ?", input.ClientID).
+		First(&client, "id = ?", clientID).
 		Error
 	if err != nil {
 		return nil, err
 	}
 
-	// We have 3 options
-	// If credentials are provided, we validate them; otherwise, we can continue without credentials for public clients only
+	// Validate credentials based on the authentication method
 	switch {
 	// First, if we have a client secret, we validate it
 	case input.ClientSecret != "":
@@ -1407,21 +1418,21 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 		if err != nil {
 			return nil, &common.OidcClientSecretInvalidError{}
 		}
-		return &client, nil
+		return client, nil
 
 	// Next, check if we want to use client assertions from federated identities
 	case input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != "":
-		err = s.verifyClientAssertionFromFederatedIdentities(ctx, &client, input)
+		err = s.verifyClientAssertionFromFederatedIdentities(ctx, client, input)
 		if err != nil {
 			log.Printf("Invalid assertion for client '%s': %v", client.ID, err)
 			return nil, &common.OidcClientAssertionInvalidError{}
 		}
-		return &client, nil
+		return client, nil
 
 	// There's no credentials
 	// This is allowed only if the client is public
 	case client.IsPublic:
-		return &client, nil
+		return client, nil
 
 	// If we're here, we have no credentials AND the client is not public, so credentials are required
 	default:
@@ -1518,6 +1529,23 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.C
 
 	// If we're here, the assertion is valid
 	return nil
+}
+
+// extractClientIDFromAssertion extracts the client_id from the JWT assertion's 'sub' claim
+func (s *OidcService) extractClientIDFromAssertion(assertion string) (string, error) {
+	// Parse the JWT without verification first to get the claims
+	insecureToken, err := jwt.ParseInsecure([]byte(assertion))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse JWT assertion: %w", err)
+	}
+
+	// Extract the subject claim which must be the client_id according to RFC 7523
+	sub, ok := insecureToken.Subject()
+	if !ok || sub == "" {
+		return "", fmt.Errorf("missing or invalid 'sub' claim in JWT assertion")
+	}
+
+	return sub, nil
 }
 
 func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes string) (*dto.OidcClientPreviewDto, error) {
