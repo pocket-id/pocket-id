@@ -255,7 +255,7 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		tx.Rollback()
 	}()
 
-	_, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input))
+	_, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input), true)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -336,7 +336,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 		tx.Rollback()
 	}()
 
-	client, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input))
+	client, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input), true)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -420,7 +420,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 		tx.Rollback()
 	}()
 
-	client, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input))
+	client, err := s.verifyClientCredentialsInternal(ctx, tx, clientAuthCredentialsFromCreateTokensDto(&input), true)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -490,7 +490,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 }
 
 func (s *OidcService) IntrospectToken(ctx context.Context, creds ClientAuthCredentials, tokenString string) (introspectDto dto.OidcIntrospectionResponseDto, err error) {
-	client, err := s.verifyClientCredentialsInternal(ctx, s.db, creds)
+	client, err := s.verifyClientCredentialsInternal(ctx, s.db, creds, false)
 	if err != nil {
 		return introspectDto, err
 	}
@@ -1134,7 +1134,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		ClientSecret:        input.ClientSecret,
 		ClientAssertionType: input.ClientAssertionType,
 		ClientAssertion:     input.ClientAssertion,
-	})
+	}, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1382,7 +1382,7 @@ func clientAuthCredentialsFromCreateTokensDto(d *dto.OidcCreateTokensDto) Client
 	}
 }
 
-func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *gorm.DB, input ClientAuthCredentials) (client *model.OidcClient, err error) {
+func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *gorm.DB, input ClientAuthCredentials, allowPublicClientsWithoutAuth bool) (client *model.OidcClient, err error) {
 	isClientAssertion := input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != ""
 
 	// Determine the client ID based on the authentication method
@@ -1435,7 +1435,7 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 
 	// There's no credentials
 	// This is allowed only if the client is public
-	case client.IsPublic:
+	case client.IsPublic && allowPublicClientsWithoutAuth:
 		return client, nil
 
 	// If we're here, we have no credentials AND the client is not public, so credentials are required
