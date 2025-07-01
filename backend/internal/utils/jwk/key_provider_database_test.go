@@ -311,8 +311,8 @@ func (l testLoggerAdapter) Printf(format string, args ...any) {
 func generateTestKEK(t *testing.T) []byte {
 	t.Helper()
 
-	// Generate a 64-byte kek
-	kek := make([]byte, 64)
+	// Generate a 32-byte kek
+	kek := make([]byte, 32)
 	_, err := rand.Read(kek)
 	require.NoError(t, err)
 	return kek

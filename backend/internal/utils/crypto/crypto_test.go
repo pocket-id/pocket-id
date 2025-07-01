@@ -17,32 +17,20 @@ func TestEncryptDecrypt(t *testing.T) {
 		associatedData []byte
 	}{
 		{
-			name:           "AES-128 with empty plaintext",
-			keySize:        32,
-			plaintext:      "",
-			associatedData: nil,
-		},
-		{
 			name:           "AES-128 with short plaintext",
-			keySize:        32,
+			keySize:        16,
 			plaintext:      "Hello, World!",
 			associatedData: []byte("test-aad"),
 		},
 		{
 			name:           "AES-192 with medium plaintext",
-			keySize:        48,
+			keySize:        24,
 			plaintext:      "This is a longer message to test encryption and decryption",
 			associatedData: []byte("associated-data-192"),
 		},
 		{
-			name:           "AES-256-384 with long plaintext",
-			keySize:        56,
-			plaintext:      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-			associatedData: []byte("aad-256-384"),
-		},
-		{
-			name:           "AES-256-512 with unicode",
-			keySize:        64,
+			name:           "AES-256 with unicode",
+			keySize:        32,
 			plaintext:      "Hello 世界! 🌍 Testing unicode characters", //nolint:gosmopolitan
 			associatedData: []byte("unicode-test"),
 		},
@@ -83,7 +71,7 @@ func TestEncryptDecrypt(t *testing.T) {
 }
 
 func TestEncryptWithInvalidKeySize(t *testing.T) {
-	invalidKeySizes := []int{16, 24, 33, 47, 55, 63, 65, 128}
+	invalidKeySizes := []int{8, 12, 33, 47, 55, 128}
 
 	for _, keySize := range invalidKeySizes {
 		t.Run(fmt.Sprintf("Key size %d", keySize), func(t *testing.T) {
@@ -98,7 +86,7 @@ func TestEncryptWithInvalidKeySize(t *testing.T) {
 }
 
 func TestDecryptWithInvalidKeySize(t *testing.T) {
-	invalidKeySizes := []int{16, 24, 33, 47, 55, 63, 65, 128}
+	invalidKeySizes := []int{8, 12, 33, 47, 55, 128}
 
 	for _, keySize := range invalidKeySizes {
 		t.Run(fmt.Sprintf("Key size %d", keySize), func(t *testing.T) {

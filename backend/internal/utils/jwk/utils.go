@@ -48,8 +48,8 @@ func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) 
 		return nil, nil
 	}
 
-	// We need a 512-bit key for encryption with AEAD_AES_256_CBC_HMAC_SHA_512: 256 for the content encryption key, and 256 for the HMAC
-	// We use HMAC with SHA3-512 here to derive the key from the one passed as input
+	// We need a 256-bit key for encryption with AES-GCM-256
+	// We use HMAC with SHA3-256 here to derive the key from the one passed as input
 	// The key is tied to a specific instance of Pocket ID
 	h := hmac.New(func() hash.Hash { return sha3.New256() }, kekInput)
 	fmt.Fprint(h, "pocketid/"+instanceID+"/jwt-kek")

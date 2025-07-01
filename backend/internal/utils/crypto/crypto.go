@@ -12,84 +12,54 @@ import (
 // ErrDecrypt is returned by Decrypt when the operation failed for any reason
 var ErrDecrypt = errors.New("failed to decrypt data")
 
-// Encrypt a byte slice using AES-CBC-HMAC
+// Encrypt a byte slice using AES-GCM and a random nonce
+// Important: do not encrypt more than ~4 billion messages with the same key!
 func Encrypt(key []byte, plaintext []byte, associatedData []byte) (ciphertext []byte, err error) {
-	// Pad the plaintext using PKCS#7
-	plaintext, err = PadPKCS7(plaintext, aes.BlockSize)
+	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create block cipher: %w", err)
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AEAD cipher: %w", err)
 	}
 
-	// Get the correct aead based on the key size
-	var aead cipher.AEAD
-	switch len(key) {
-	case 32:
-		aead, err = NewAESCBC128SHA256(key)
-	case 48:
-		aead, err = NewAESCBC192SHA384(key)
-	case 56:
-		aead, err = NewAESCBC256SHA384(key)
-	case 64:
-		aead, err = NewAESCBC256SHA512(key)
-	default:
-		err = errors.New("invalid key size")
-	}
+	// Generate a random nonce
+	nonce := make([]byte, aead.NonceSize())
+	_, err = io.ReadFull(rand.Reader, nonce)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cipher: %w", err)
+		return nil, fmt.Errorf("failed to generate random nonce: %w", err)
 	}
 
-	// Generate a random IV
-	iv := make([]byte, aead.NonceSize())
-	_, err = io.ReadFull(rand.Reader, iv)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random IV: %w", err)
-	}
-
-	// Allocate the slice for the result, with additional space at the beginning for the iv
+	// Allocate the slice for the result, with additional space for the nonce and overhead
 	ciphertext = make([]byte, 0, len(plaintext)+aead.NonceSize()+aead.Overhead())
-	ciphertext = append(ciphertext, iv...)
+	ciphertext = append(ciphertext, nonce...)
 
 	// Encrypt the plaintext
 	// Tag is automatically added at the end
-	ciphertext = aead.Seal(ciphertext, iv, plaintext, associatedData)
+	ciphertext = aead.Seal(ciphertext, nonce, plaintext, associatedData)
 
 	return ciphertext, nil
 }
 
-// Decrypt a byte slice using AES-CBC-HMAC
+// Decrypt a byte slice using AES-GCM
 func Decrypt(key []byte, ciphertext []byte, associatedData []byte) (plaintext []byte, err error) {
-	// Get the correct aead based on the key size
-	var aead cipher.AEAD
-	switch len(key) {
-	case 32:
-		aead, err = NewAESCBC128SHA256(key)
-	case 48:
-		aead, err = NewAESCBC192SHA384(key)
-	case 56:
-		aead, err = NewAESCBC256SHA384(key)
-	case 64:
-		aead, err = NewAESCBC256SHA512(key)
-	default:
-		err = errors.New("invalid key size")
-	}
+	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cipher: %w", err)
+		return nil, fmt.Errorf("failed to create block cipher: %w", err)
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AEAD cipher: %w", err)
 	}
 
-	// Extract the IV
+	// Extract the nonce
 	if len(ciphertext) < (aead.NonceSize() + aead.Overhead()) {
 		return nil, ErrDecrypt
 	}
 
 	// Decrypt the data
 	plaintext, err = aead.Open(nil, ciphertext[:aead.NonceSize()], ciphertext[aead.NonceSize():], associatedData)
-	if err != nil {
-		// Note: we do not return the exact error here, to avoid disclosing information
-		return nil, ErrDecrypt
-	}
-
-	// Unpad using PKCS#7
-	plaintext, err = UnpadPKCS7(plaintext, aes.BlockSize)
 	if err != nil {
 		// Note: we do not return the exact error here, to avoid disclosing information
 		return nil, ErrDecrypt

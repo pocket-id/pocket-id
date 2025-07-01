@@ -163,7 +163,7 @@ func TestKeyProviderFile_LoadKey(t *testing.T) {
 		assert.True(t, exists, "Expected unencrypted key file to exist")
 
 		// Now create a provider with a kek
-		kek := make([]byte, 64)
+		kek := make([]byte, 32)
 		_, err = rand.Read(kek)
 		require.NoError(t, err)
 
@@ -312,8 +312,8 @@ func TestKeyProviderFile_SaveKey(t *testing.T) {
 func makeKEK(t *testing.T) []byte {
 	t.Helper()
 
-	// Generate a 64-byte kek
-	kek := make([]byte, 64)
+	// Generate a 32-byte kek
+	kek := make([]byte, 32)
 	_, err := rand.Read(kek)
 	require.NoError(t, err)
 	return kek
