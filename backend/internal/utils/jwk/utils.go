@@ -33,13 +33,13 @@ func EncodeJWKBytes(key jwk.Key) ([]byte, error) {
 
 func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) (kek []byte, err error) {
 	// Try getting the key from the env var as string
-	kekInput := []byte(envConfig.KeysEncryptionKey)
+	kekInput := []byte(envConfig.EncryptionKey)
 
 	// If there's nothing in the env, try loading from file
-	if len(kekInput) == 0 && envConfig.KeysEncryptionKeyFile != "" {
-		kekInput, err = os.ReadFile(envConfig.KeysEncryptionKeyFile)
+	if len(kekInput) == 0 && envConfig.EncryptionKeyFile != "" {
+		kekInput, err = os.ReadFile(envConfig.EncryptionKeyFile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read key file '%s': %w", envConfig.KeysEncryptionKeyFile, err)
+			return nil, fmt.Errorf("failed to read key file '%s': %w", envConfig.EncryptionKeyFile, err)
 		}
 	}
 

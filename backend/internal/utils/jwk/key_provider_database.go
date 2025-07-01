@@ -23,7 +23,7 @@ type KeyProviderDatabase struct {
 
 func (f *KeyProviderDatabase) Init(opts KeyProviderOpts) error {
 	if len(opts.Kek) == 0 {
-		return errors.New("a key encryption key is required when using the 'database' key provider")
+		return errors.New("an encryption key is required when using the 'database' key provider")
 	}
 
 	f.db = opts.DB

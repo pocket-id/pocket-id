@@ -29,7 +29,7 @@ func TestKeyProviderDatabase_Init(t *testing.T) {
 			Kek: nil, // No KEK
 		})
 		require.Error(t, err, "Expected error when KEK is not provided")
-		require.ErrorContains(t, err, "key encryption key is required")
+		require.ErrorContains(t, err, "encryption key is required")
 	})
 
 	t.Run("Init succeeds with KEK", func(t *testing.T) {

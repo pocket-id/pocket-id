@@ -27,28 +27,28 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv                string     `env:"APP_ENV"`
-	AppURL                string     `env:"APP_URL"`
-	DbProvider            DbProvider `env:"DB_PROVIDER"`
-	DbConnectionString    string     `env:"DB_CONNECTION_STRING"`
-	UploadPath            string     `env:"UPLOAD_PATH"`
-	KeysPath              string     `env:"KEYS_PATH"`
-	KeysStorage           string     `env:"KEYS_STORAGE"`
-	KeysEncryptionKey     string     `env:"KEYS_ENCRYPTION_KEY"`
-	KeysEncryptionKeyFile string     `env:"KEYS_ENCRYPTION_KEY_FILE"`
-	Port                  string     `env:"PORT"`
-	Host                  string     `env:"HOST"`
-	UnixSocket            string     `env:"UNIX_SOCKET"`
-	UnixSocketMode        string     `env:"UNIX_SOCKET_MODE"`
-	MaxMindLicenseKey     string     `env:"MAXMIND_LICENSE_KEY"`
-	GeoLiteDBPath         string     `env:"GEOLITE_DB_PATH"`
-	GeoLiteDBUrl          string     `env:"GEOLITE_DB_URL"`
-	LocalIPv6Ranges       string     `env:"LOCAL_IPV6_RANGES"`
-	UiConfigDisabled      bool       `env:"UI_CONFIG_DISABLED"`
-	MetricsEnabled        bool       `env:"METRICS_ENABLED"`
-	TracingEnabled        bool       `env:"TRACING_ENABLED"`
-	TrustProxy            bool       `env:"TRUST_PROXY"`
-	AnalyticsDisabled     bool       `env:"ANALYTICS_DISABLED"`
+	AppEnv             string     `env:"APP_ENV"`
+	AppURL             string     `env:"APP_URL"`
+	DbProvider         DbProvider `env:"DB_PROVIDER"`
+	DbConnectionString string     `env:"DB_CONNECTION_STRING"`
+	UploadPath         string     `env:"UPLOAD_PATH"`
+	KeysPath           string     `env:"KEYS_PATH"`
+	KeysStorage        string     `env:"KEYS_STORAGE"`
+	EncryptionKey      string     `env:"ENCRYPTION_KEY"`
+	EncryptionKeyFile  string     `env:"ENCRYPTION_KEY_FILE"`
+	Port               string     `env:"PORT"`
+	Host               string     `env:"HOST"`
+	UnixSocket         string     `env:"UNIX_SOCKET"`
+	UnixSocketMode     string     `env:"UNIX_SOCKET_MODE"`
+	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY"`
+	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
+	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
+	LocalIPv6Ranges    string     `env:"LOCAL_IPV6_RANGES"`
+	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
+	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
+	TracingEnabled     bool       `env:"TRACING_ENABLED"`
+	TrustProxy         bool       `env:"TRUST_PROXY"`
+	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
 }
 
 var EnvConfig = defaultConfig()
@@ -68,7 +68,7 @@ func defaultConfig() EnvConfigSchema {
 		UploadPath:         "data/uploads",
 		KeysPath:           "data/keys",
 		KeysStorage:        "", // "database" or "file" or "memory"
-		KeysEncryptionKey:  "",
+		EncryptionKey:      "",
 		AppURL:             "http://localhost:1411",
 		Port:               "1411",
 		Host:               "0.0.0.0",
@@ -115,18 +115,18 @@ func parseEnvConfig() error {
 	}
 
 	switch EnvConfig.KeysStorage {
-	// KeysStorage defaults to "file" if there's no KeysEncryptionKey
-	// Otherwise, if KeysStorage is empty and there's a KeysEncryptionKey, then it defaults to "database"
+	// KeysStorage defaults to "file" if there's no EncryptionKey
+	// Otherwise, if KeysStorage is empty and there's a EncryptionKey, then it defaults to "database"
 	case "":
-		if EnvConfig.KeysEncryptionKey == "" && EnvConfig.KeysEncryptionKeyFile == "" {
+		if EnvConfig.EncryptionKey == "" && EnvConfig.EncryptionKeyFile == "" {
 			EnvConfig.KeysStorage = "file"
 		} else {
 			EnvConfig.KeysStorage = "database"
 		}
 	case "database":
 		// If KeysStorage is "database", a key must be specified
-		if EnvConfig.KeysEncryptionKey == "" && EnvConfig.KeysEncryptionKeyFile == "" {
-			return errors.New("KEYS_ENCRYPTION_KEY or KEYS_ENCRYPTION_KEY_FILE must be non-empty when KEYS_STORAGE is database")
+		if EnvConfig.EncryptionKey == "" && EnvConfig.EncryptionKeyFile == "" {
+			return errors.New("ENCRYPTION_KEY or ENCRYPTION_KEY_FILE must be non-empty when KEYS_STORAGE is database")
 		}
 	case "file", "memory":
 		// All good, these are valid values

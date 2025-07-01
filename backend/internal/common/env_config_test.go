@@ -106,7 +106,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("KEYS_ENCRYPTION_KEY", "test-key")
+		t.Setenv("ENCRYPTION_KEY", "test-key")
 
 		err := parseEnvConfig()
 		require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("KEYS_ENCRYPTION_KEY_FILE", "/path/to/key")
+		t.Setenv("ENCRYPTION_KEY_FILE", "/path/to/key")
 
 		err := parseEnvConfig()
 		require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 		err := parseEnvConfig()
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "KEYS_ENCRYPTION_KEY or KEYS_ENCRYPTION_KEY_FILE must be non-empty")
+		assert.ErrorContains(t, err, "ENCRYPTION_KEY or ENCRYPTION_KEY_FILE must be non-empty")
 	})
 
 	t.Run("should accept valid KEYS_STORAGE values", func(t *testing.T) {
@@ -147,7 +147,7 @@ func TestParseEnvConfig(t *testing.T) {
 			t.Setenv("APP_URL", "http://localhost:3000")
 			t.Setenv("KEYS_STORAGE", storage)
 			if storage == "database" {
-				t.Setenv("KEYS_ENCRYPTION_KEY", "test-key")
+				t.Setenv("ENCRYPTION_KEY", "test-key")
 			}
 
 			err := parseEnvConfig()

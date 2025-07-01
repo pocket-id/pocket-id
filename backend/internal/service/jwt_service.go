@@ -92,10 +92,10 @@ func (s *JwtService) init(db *gorm.DB, appConfigService *AppConfigService, envCo
 }
 
 func (s *JwtService) loadOrGenerateKey(db *gorm.DB) error {
-	// Load the key encryption key (KEK) if present
+	// Load the encryption key (KEK) if present
 	kek, err := jwkutils.LoadKeyEncryptionKey(s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
 	if err != nil {
-		return fmt.Errorf("failed to load key encryption key: %w", err)
+		return fmt.Errorf("failed to load encryption key: %w", err)
 	}
 
 	// Get the key provider
