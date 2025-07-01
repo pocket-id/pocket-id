@@ -134,7 +134,6 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	const (
 		federatedClientIssuer         = "https://external-idp.com"
 		federatedClientAudience       = "https://pocket-id.com"
-		federatedClientSubject        = "123456abcdef"
 		federatedClientIssuerDefaults = "https://external-idp-defaults.com/"
 	)
 
@@ -192,18 +191,24 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	federatedClient, err := s.CreateClient(t.Context(), dto.OidcClientCreateDto{
 		Name:         "Federated Client",
 		CallbackURLs: []string{"https://example.com/callback"},
+	}, "test-user-id")
+	require.NoError(t, err)
+
+	federatedClient, err = s.UpdateClient(t.Context(), federatedClient.ID, dto.OidcClientCreateDto{
+		Name:         federatedClient.Name,
+		CallbackURLs: federatedClient.CallbackURLs,
 		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{
 				{
 					Issuer:   federatedClientIssuer,
 					Audience: federatedClientAudience,
-					Subject:  federatedClientSubject,
+					Subject:  federatedClient.ID,
 					JWKS:     federatedClientIssuer + "/jwks.json",
 				},
 				{Issuer: federatedClientIssuerDefaults},
 			},
 		},
-	}, "test-user-id")
+	})
 	require.NoError(t, err)
 
 	// Test cases for confidential client (using client secret)
@@ -213,7 +218,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:     confidentialClient.ID,
 				ClientSecret: confidentialSecret,
-			})
+			}, true)
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, confidentialClient.ID, client.ID)
@@ -224,7 +229,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:     confidentialClient.ID,
 				ClientSecret: "invalid-secret",
-			})
+			}, true)
 			require.Error(t, err)
 			require.ErrorIs(t, err, &common.OidcClientSecretInvalidError{})
 			assert.Nil(t, client)
@@ -234,7 +239,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			// Test with missing client secret
 			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID: confidentialClient.ID,
-			})
+			}, true)
 			require.Error(t, err)
 			require.ErrorIs(t, err, &common.OidcMissingClientCredentialsError{})
 			assert.Nil(t, client)
@@ -247,10 +252,20 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			// Public clients don't require client secret
 			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID: publicClient.ID,
-			})
+			}, true)
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, publicClient.ID, client.ID)
+		})
+
+		t.Run("Fails with no credentials if allowPublicClientsWithoutAuth is false", func(t *testing.T) {
+			// Public clients don't require client secret
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
+				ClientID: publicClient.ID,
+			}, false)
+			require.Error(t, err)
+			require.ErrorIs(t, err, &common.OidcMissingClientCredentialsError{})
+			assert.Nil(t, client)
 		})
 	})
 
@@ -261,7 +276,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			token, err := jwt.NewBuilder().
 				Issuer(federatedClientIssuer).
 				Audience([]string{federatedClientAudience}).
-				Subject(federatedClientSubject).
+				Subject(federatedClient.ID).
 				IssuedAt(time.Now()).
 				Expiration(time.Now().Add(10 * time.Minute)).
 				Build()
@@ -274,7 +289,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     string(signedToken),
-			})
+			}, true)
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, federatedClient.ID, client.ID)
@@ -286,7 +301,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     "invalid.jwt.token",
-			})
+			}, true)
 			require.Error(t, err)
 			require.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
 			assert.Nil(t, client)
@@ -298,7 +313,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				builder := jwt.NewBuilder().
 					Issuer(federatedClientIssuer).
 					Audience([]string{federatedClientAudience}).
-					Subject(federatedClientSubject).
+					Subject(federatedClient.ID).
 					IssuedAt(time.Now()).
 					Expiration(time.Now().Add(10 * time.Minute))
 
@@ -315,7 +330,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 					ClientID:            federatedClient.ID,
 					ClientAssertionType: ClientAssertionTypeJWTBearer,
 					ClientAssertion:     string(signedToken),
-				})
+				}, true)
 				require.Error(t, err)
 				require.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
 				require.Nil(t, client)
@@ -356,7 +371,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     string(signedToken),
-			})
+			}, true)
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, federatedClient.ID, client.ID)
