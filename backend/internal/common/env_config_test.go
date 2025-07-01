@@ -138,7 +138,7 @@ func TestParseEnvConfig(t *testing.T) {
 	})
 
 	t.Run("should accept valid KEYS_STORAGE values", func(t *testing.T) {
-		validStorageTypes := []string{"file", "memory", "database"}
+		validStorageTypes := []string{"file", "database"}
 
 		for _, storage := range validStorageTypes {
 			EnvConfig = defaultConfig()

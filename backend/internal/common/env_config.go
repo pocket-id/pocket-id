@@ -67,7 +67,7 @@ func defaultConfig() EnvConfigSchema {
 		DbConnectionString: "",
 		UploadPath:         "data/uploads",
 		KeysPath:           "data/keys",
-		KeysStorage:        "", // "database" or "file" or "memory"
+		KeysStorage:        "", // "database" or "file"
 		EncryptionKey:      "",
 		AppURL:             "http://localhost:1411",
 		Port:               "1411",
@@ -128,7 +128,7 @@ func parseEnvConfig() error {
 		if EnvConfig.EncryptionKey == "" && EnvConfig.EncryptionKeyFile == "" {
 			return errors.New("ENCRYPTION_KEY or ENCRYPTION_KEY_FILE must be non-empty when KEYS_STORAGE is database")
 		}
-	case "file", "memory":
+	case "file":
 		// All good, these are valid values
 	default:
 		return fmt.Errorf("invalid value for KEYS_STORAGE: %s", EnvConfig.KeysStorage)

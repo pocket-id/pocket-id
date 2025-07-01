@@ -165,59 +165,6 @@ func TestJwtService_Init(t *testing.T) {
 		_ = assert.True(t, ok) &&
 			assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 	})
-
-	t.Run("should generate in-memory key when storage is memory", func(t *testing.T) {
-		// Create a temporary directory for the test (should not be used)
-		tempDir := t.TempDir()
-
-		// Setup the environment variable for in-memory storage
-		mockEnvConfig := &common.EnvConfigSchema{
-			AppURL:      "https://test.example.com",
-			KeysStorage: "memory",
-			KeysPath:    tempDir,
-		}
-
-		// Initialize the JWT service
-		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
-		require.NoError(t, err, "Failed to initialize JWT service with memory storage")
-
-		// Verify the private key was set
-		require.NotNil(t, service.privateKey, "Private key should be set")
-
-		// Verify no key file was created on disk
-		jwkPath := filepath.Join(tempDir, PrivateKeyFile)
-		_, err = os.Stat(jwkPath)
-		require.Error(t, err)
-		assert.True(t, os.IsNotExist(err), "JWK file should not exist when using memory storage")
-
-		// Verify the generated key is valid and functional
-		keyID, ok := service.privateKey.KeyID()
-		assert.True(t, ok, "Key should have a key ID")
-		assert.NotEmpty(t, keyID, "Key ID should not be empty")
-
-		keyUsage, ok := service.privateKey.KeyUsage()
-		assert.True(t, ok, "Key should have a key usage")
-		assert.Equal(t, "sig", keyUsage, "Key usage should be for signing")
-
-		// Test that the key works by generating and verifying a token
-		user := model.User{
-			Base: model.Base{
-				ID: "memory-test-user",
-			},
-			Email: "memory@example.com",
-		}
-
-		tokenString, err := service.GenerateAccessToken(user)
-		require.NoError(t, err, "Should be able to generate token with in-memory key")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Should be able to verify token with in-memory key")
-
-		subject, ok := claims.Subject()
-		assert.True(t, ok, "Token should have subject")
-		assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-	})
 }
 
 func TestJwtService_GetPublicJWK(t *testing.T) {

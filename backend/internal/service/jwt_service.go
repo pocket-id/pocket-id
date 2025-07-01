@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"log/slog"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
@@ -103,9 +102,6 @@ func (s *JwtService) loadOrGenerateKey(db *gorm.DB) error {
 	switch s.envConfig.KeysStorage {
 	case "file", "":
 		keyProvider = &jwkutils.KeyProviderFile{}
-	case "memory":
-		slog.Info("Pocket ID is using ephemeral, in-memory keys. Tokens issued won't be valid if Pocket ID is restarted.")
-		keyProvider = &jwkutils.KeyProviderMemory{}
 	case "database":
 		keyProvider = &jwkutils.KeyProviderDatabase{}
 	default:
