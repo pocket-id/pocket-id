@@ -218,7 +218,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:     confidentialClient.ID,
 				ClientSecret: confidentialSecret,
-			})
+			}, true)
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, confidentialClient.ID, client.ID)
@@ -229,7 +229,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID:     confidentialClient.ID,
 				ClientSecret: "invalid-secret",
-			})
+			}, true)
 			require.Error(t, err)
 			require.ErrorIs(t, err, &common.OidcClientSecretInvalidError{})
 			assert.Nil(t, client)
@@ -239,7 +239,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			// Test with missing client secret
 			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID: confidentialClient.ID,
-			})
+			}, true)
 			require.Error(t, err)
 			require.ErrorIs(t, err, &common.OidcMissingClientCredentialsError{})
 			assert.Nil(t, client)
@@ -252,10 +252,20 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			// Public clients don't require client secret
 			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
 				ClientID: publicClient.ID,
-			})
+			}, true)
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, publicClient.ID, client.ID)
+		})
+
+		t.Run("Fails with no credentials if allowPublicClientsWithoutAuth is false", func(t *testing.T) {
+			// Public clients don't require client secret
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
+				ClientID: publicClient.ID,
+			}, false)
+			require.Error(t, err)
+			require.ErrorIs(t, err, &common.OidcMissingClientCredentialsError{})
+			assert.Nil(t, client)
 		})
 	})
 
@@ -279,7 +289,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     string(signedToken),
-			})
+			}, true)
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, federatedClient.ID, client.ID)
@@ -291,7 +301,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     "invalid.jwt.token",
-			})
+			}, true)
 			require.Error(t, err)
 			require.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
 			assert.Nil(t, client)
@@ -320,7 +330,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 					ClientID:            federatedClient.ID,
 					ClientAssertionType: ClientAssertionTypeJWTBearer,
 					ClientAssertion:     string(signedToken),
-				})
+				}, true)
 				require.Error(t, err)
 				require.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
 				require.Nil(t, client)
@@ -361,7 +371,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				ClientID:            federatedClient.ID,
 				ClientAssertionType: ClientAssertionTypeJWTBearer,
 				ClientAssertion:     string(signedToken),
-			})
+			}, true)
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, federatedClient.ID, client.ID)
