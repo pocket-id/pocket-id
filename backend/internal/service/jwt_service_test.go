@@ -1482,7 +1482,7 @@ func TestGetTokenType(t *testing.T) {
 func importKey(t *testing.T, privateKeyRaw any, path string) string {
 	t.Helper()
 
-	privateKey, err := jwkutils.ImportRawKey(privateKeyRaw)
+	privateKey, err := jwkutils.ImportRawKey(privateKeyRaw, "", "")
 	require.NoError(t, err, "Failed to import private key")
 
 	keyProvider := &jwkutils.KeyProviderFile{}

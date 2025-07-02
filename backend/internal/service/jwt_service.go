@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,9 +26,6 @@ const (
 	// PrivateKeyFileEncrypted is the path in the data/keys folder where the encrypted key is stored
 	// This is a encrypted JSON file containing a key encoded as JWK
 	PrivateKeyFileEncrypted = "jwt_private_key.json.enc"
-
-	// RsaKeySize is the size, in bits, of the RSA key to generate if none is found
-	RsaKeySize = 2048
 
 	// KeyUsageSigning is the usage for the private keys, for the "use" property
 	KeyUsageSigning = "sig"
@@ -128,7 +123,8 @@ func (s *JwtService) loadOrGenerateKey(db *gorm.DB) error {
 
 // generateKey generates a new key and stores it in the object
 func (s *JwtService) generateKey() error {
-	key, err := s.generateNewRSAKey()
+	// Default is to generate RS256 (RSA-2048) keys
+	key, err := jwkutils.GenerateKey(jwa.RS256().String(), "")
 	if err != nil {
 		return fmt.Errorf("failed to generate new private key: %w", err)
 	}
@@ -500,7 +496,7 @@ func (s *JwtService) GetPublicJWK() (jwk.Key, error) {
 		return nil, fmt.Errorf("failed to get public key: %w", err)
 	}
 
-	jwkutils.EnsureAlgInKey(pubKey)
+	jwkutils.EnsureAlgInKey(pubKey, "", "")
 
 	return pubKey, nil
 }
@@ -527,17 +523,6 @@ func (s *JwtService) GetKeyAlg() (jwa.KeyAlgorithm, error) {
 	}
 
 	return alg, nil
-}
-
-func (s *JwtService) generateNewRSAKey() (jwk.Key, error) {
-	// We generate RSA keys only
-	rawKey, err := rsa.GenerateKey(rand.Reader, RsaKeySize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate RSA private key: %w", err)
-	}
-
-	// Import the raw key
-	return jwkutils.ImportRawKey(rawKey)
 }
 
 // GetIsAdmin returns the value of the "isAdmin" claim in the token

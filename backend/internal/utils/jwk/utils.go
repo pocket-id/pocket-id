@@ -2,11 +2,16 @@ package jwk
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/hmac"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha3"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -70,7 +75,7 @@ func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) 
 
 // ImportRawKey imports a crypto key in "raw" format (e.g. crypto.PrivateKey) into a jwk.Key.
 // It also populates additional fields such as the key ID, usage, and alg.
-func ImportRawKey(rawKey any) (jwk.Key, error) {
+func ImportRawKey(rawKey any, alg string, crv string) (jwk.Key, error) {
 	key, err := jwk.Import(rawKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to import generated private key: %w", err)
@@ -85,7 +90,7 @@ func ImportRawKey(rawKey any) (jwk.Key, error) {
 
 	// Set other required fields
 	_ = key.Set(jwk.KeyUsageKey, KeyUsageSigning)
-	EnsureAlgInKey(key)
+	EnsureAlgInKey(key, alg, crv)
 
 	return key, nil
 }
@@ -100,14 +105,31 @@ func generateRandomKeyID() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
-// EnsureAlgInKey ensures that the key contains an "alg" parameter, set depending on the key type
-func EnsureAlgInKey(key jwk.Key) {
+// EnsureAlgInKey ensures that the key contains an "alg" parameter (and "crv", if needed), set depending on the key type
+func EnsureAlgInKey(key jwk.Key, alg string, crv string) {
 	_, ok := key.Algorithm()
 	if ok {
 		// Algorithm is already set
 		return
 	}
 
+	if alg != "" {
+		_ = key.Set(jwk.AlgorithmKey, alg)
+		if crv != "" {
+			eca, ok := jwa.LookupEllipticCurveAlgorithm(crv)
+			if ok {
+				switch key.KeyType() {
+				case jwa.EC():
+					_ = key.Set(jwk.ECDSACrvKey, eca)
+				case jwa.OKP():
+					_ = key.Set(jwk.OKPCrvKey, eca)
+				}
+			}
+		}
+		return
+	}
+
+	// If we don't have an algorithm, set the default for the key type
 	switch key.KeyType() {
 	case jwa.RSA():
 		// Default to RS256 for RSA keys
@@ -115,8 +137,44 @@ func EnsureAlgInKey(key jwk.Key) {
 	case jwa.EC():
 		// Default to ES256 for ECDSA keys
 		_ = key.Set(jwk.AlgorithmKey, jwa.ES256())
+		_ = key.Set(jwk.ECDSACrvKey, jwa.P256())
 	case jwa.OKP():
-		// Default to EdDSA for OKP keys
+		// Default to EdDSA and Ed25519 for OKP keys
 		_ = key.Set(jwk.AlgorithmKey, jwa.EdDSA())
+		_ = key.Set(jwk.OKPCrvKey, jwa.Ed25519())
 	}
+}
+
+// GenerateKey generates a new jwk.Key
+func GenerateKey(alg string, crv string) (key jwk.Key, err error) {
+	var rawKey any
+	switch alg {
+	case jwa.RS256().String():
+		rawKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	case jwa.RS384().String():
+		rawKey, err = rsa.GenerateKey(rand.Reader, 3072)
+	case jwa.RS512().String():
+		rawKey, err = rsa.GenerateKey(rand.Reader, 4096)
+	case jwa.ES256().String():
+		rawKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	case jwa.ES384().String():
+		rawKey, err = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	case jwa.ES512().String():
+		rawKey, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	case jwa.EdDSA().String():
+		switch crv {
+		case jwa.Ed25519().String():
+			_, rawKey, err = ed25519.GenerateKey(rand.Reader)
+		default:
+			return nil, errors.New("unsupported curve for EdDSA algorithm")
+		}
+	default:
+		return nil, errors.New("unsupported key algorithm")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	// Import the raw key
+	return ImportRawKey(rawKey, alg, crv)
 }
