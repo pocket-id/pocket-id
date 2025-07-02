@@ -6,23 +6,19 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"testing"
-	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	cryptoutils "github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 func TestKeyProviderDatabase_Init(t *testing.T) {
 	t.Run("Init fails when KEK is not provided", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		provider := &KeyProviderDatabase{}
 		err := provider.Init(KeyProviderOpts{
 			DB:  db,
@@ -33,7 +29,7 @@ func TestKeyProviderDatabase_Init(t *testing.T) {
 	})
 
 	t.Run("Init succeeds with KEK", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		provider := &KeyProviderDatabase{}
 		err := provider.Init(KeyProviderOpts{
 			DB:  db,
@@ -52,7 +48,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("LoadKey with no existing key", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		kek := generateTestKEK(t)
 
 		provider := &KeyProviderDatabase{}
@@ -69,7 +65,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 	})
 
 	t.Run("LoadKey with existing key", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		kek := generateTestKEK(t)
 
 		provider := &KeyProviderDatabase{}
@@ -99,7 +95,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 	})
 
 	t.Run("LoadKey with invalid base64", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		kek := generateTestKEK(t)
 
 		provider := &KeyProviderDatabase{}
@@ -125,7 +121,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 	})
 
 	t.Run("LoadKey with invalid encrypted data", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		kek := generateTestKEK(t)
 
 		provider := &KeyProviderDatabase{}
@@ -151,7 +147,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 	})
 
 	t.Run("LoadKey with valid encrypted data but wrong KEK", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		originalKek := generateTestKEK(t)
 
 		// Save a key with the original KEK
@@ -182,7 +178,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 	})
 
 	t.Run("LoadKey with invalid key data", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		kek := generateTestKEK(t)
 
 		provider := &KeyProviderDatabase{}
@@ -226,7 +222,7 @@ func TestKeyProviderDatabase_SaveKey(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("SaveKey and verify database record", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		kek := generateTestKEK(t)
 
 		provider := &KeyProviderDatabase{}
@@ -266,46 +262,6 @@ func TestKeyProviderDatabase_SaveKey(t *testing.T) {
 
 		assert.Equal(t, keyBytes, parsedKeyBytes, "Expected saved key to match original key")
 	})
-}
-
-func newDatabaseForTest(t *testing.T) *gorm.DB {
-	t.Helper()
-
-	// Get a name for this in-memory database that is specific to the test
-	dbName := utils.CreateSha256Hash(t.Name())
-
-	// Connect to a new in-memory SQL database
-	db, err := gorm.Open(
-		sqlite.Open("file:"+dbName+"?mode=memory&cache=shared"),
-		&gorm.Config{
-			TranslateError: true,
-			Logger: logger.New(
-				testLoggerAdapter{t: t},
-				logger.Config{
-					SlowThreshold:             200 * time.Millisecond,
-					LogLevel:                  logger.Silent, // Silent to reduce test output noise
-					IgnoreRecordNotFoundError: false,
-					ParameterizedQueries:      false,
-					Colorful:                  false,
-				},
-			),
-		})
-	require.NoError(t, err, "Failed to connect to test database")
-
-	// Create the KV table
-	err = db.AutoMigrate(&model.KV{})
-	require.NoError(t, err, "Failed to migrate KV table")
-
-	return db
-}
-
-// Implements gorm's logger.Writer interface
-type testLoggerAdapter struct {
-	t *testing.T
-}
-
-func (l testLoggerAdapter) Printf(format string, args ...any) {
-	l.t.Logf(format, args...)
 }
 
 func generateTestKEK(t *testing.T) []byte {

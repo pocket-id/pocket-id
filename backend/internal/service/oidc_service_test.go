@@ -18,6 +18,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 // generateTestECDSAKey creates an ECDSA key for testing
@@ -62,12 +63,12 @@ func TestOidcService_jwkSetForURL(t *testing.T) {
 	)
 	mockResponses := map[string]*http.Response{
 		//nolint:bodyclose
-		url1: NewMockResponse(http.StatusOK, string(jwkSetJSON1)),
+		url1: testutils.NewMockResponse(http.StatusOK, string(jwkSetJSON1)),
 		//nolint:bodyclose
-		url2: NewMockResponse(http.StatusOK, string(jwkSetJSON2)),
+		url2: testutils.NewMockResponse(http.StatusOK, string(jwkSetJSON2)),
 	}
 	httpClient := &http.Client{
-		Transport: &MockRoundTripper{
+		Transport: &testutils.MockRoundTripper{
 			Responses: mockResponses,
 		},
 	}
@@ -139,7 +140,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 	var err error
 	// Create a test database
-	db := newDatabaseForTest(t)
+	db := testutils.NewDatabaseForTest(t)
 
 	// Create two JWKs for testing
 	privateJWK, jwkSetJSON := generateTestECDSAKey(t)
@@ -149,12 +150,12 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 	// Create a mock HTTP client with custom transport to return the JWKS
 	httpClient := &http.Client{
-		Transport: &MockRoundTripper{
+		Transport: &testutils.MockRoundTripper{
 			Responses: map[string]*http.Response{
 				//nolint:bodyclose
-				federatedClientIssuer + "/jwks.json": NewMockResponse(http.StatusOK, string(jwkSetJSON)),
+				federatedClientIssuer + "/jwks.json": testutils.NewMockResponse(http.StatusOK, string(jwkSetJSON)),
 				//nolint:bodyclose
-				federatedClientIssuerDefaults + ".well-known/jwks.json": NewMockResponse(http.StatusOK, string(jwkSetJSONDefaults)),
+				federatedClientIssuerDefaults + ".well-known/jwks.json": testutils.NewMockResponse(http.StatusOK, string(jwkSetJSONDefaults)),
 			},
 		},
 	}

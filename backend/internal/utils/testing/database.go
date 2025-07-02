@@ -1,9 +1,8 @@
-package service
+// This file is only imported by unit tests
+
+package testing
 
 import (
-	"io"
-	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +20,10 @@ import (
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-func newDatabaseForTest(t *testing.T) *gorm.DB {
+// NewDatabaseForTest returns a new instance of GORM connected to an in-memory SQLite database.
+// Each database connection is unique for the test.
+// All migrations are automatically performed.
+func NewDatabaseForTest(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	// Get a name for this in-memory database that is specific to the test
@@ -67,31 +69,4 @@ type testLoggerAdapter struct {
 
 func (l testLoggerAdapter) Printf(format string, args ...any) {
 	l.t.Logf(format, args...)
-}
-
-// MockRoundTripper is a custom http.RoundTripper that returns responses based on the URL
-type MockRoundTripper struct {
-	Err       error
-	Responses map[string]*http.Response
-}
-
-// RoundTrip implements the http.RoundTripper interface
-func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Check if we have a specific response for this URL
-	for url, resp := range m.Responses {
-		if req.URL.String() == url {
-			return resp, nil
-		}
-	}
-
-	return NewMockResponse(http.StatusNotFound, ""), nil
-}
-
-// NewMockResponse creates an http.Response with the given status code and body
-func NewMockResponse(statusCode int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: statusCode,
-		Body:       io.NopCloser(strings.NewReader(body)),
-		Header:     make(http.Header),
-	}
 }

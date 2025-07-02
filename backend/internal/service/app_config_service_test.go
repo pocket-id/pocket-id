@@ -4,10 +4,12 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/stretchr/testify/require"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 // NewTestAppConfigService is a function used by tests to create AppConfigService objects with pre-defined configuration values
@@ -22,7 +24,7 @@ func NewTestAppConfigService(config *model.AppConfig) *AppConfigService {
 
 func TestLoadDbConfig(t *testing.T) {
 	t.Run("empty config table", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		service := &AppConfigService{
 			db: db,
 		}
@@ -36,7 +38,7 @@ func TestLoadDbConfig(t *testing.T) {
 	})
 
 	t.Run("loads value from config table", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Populate the config table with some initial values
 		err := db.
@@ -66,7 +68,7 @@ func TestLoadDbConfig(t *testing.T) {
 	})
 
 	t.Run("ignores unknown config keys", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Add an entry with a key that doesn't exist in the config struct
 		err := db.Create([]model.AppConfigVariable{
@@ -87,7 +89,7 @@ func TestLoadDbConfig(t *testing.T) {
 	})
 
 	t.Run("loading config multiple times", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Initial state
 		err := db.Create([]model.AppConfigVariable{
@@ -129,7 +131,7 @@ func TestLoadDbConfig(t *testing.T) {
 		common.EnvConfig.UiConfigDisabled = true
 
 		// Create database with config that should be ignored
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		err := db.Create([]model.AppConfigVariable{
 			{Key: "appName", Value: "DB App"},
 			{Key: "sessionDuration", Value: "120"},
@@ -165,7 +167,7 @@ func TestLoadDbConfig(t *testing.T) {
 		common.EnvConfig.UiConfigDisabled = false
 
 		// Create database with config values that should take precedence
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		err := db.Create([]model.AppConfigVariable{
 			{Key: "appName", Value: "DB App"},
 			{Key: "sessionDuration", Value: "120"},
@@ -189,7 +191,7 @@ func TestLoadDbConfig(t *testing.T) {
 
 func TestUpdateAppConfigValues(t *testing.T) {
 	t.Run("update single value", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -214,7 +216,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 	})
 
 	t.Run("update multiple values", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -258,7 +260,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 	})
 
 	t.Run("empty value resets to default", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -279,7 +281,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 	})
 
 	t.Run("error with odd number of arguments", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -295,7 +297,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 	})
 
 	t.Run("error with invalid key", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -313,7 +315,7 @@ func TestUpdateAppConfigValues(t *testing.T) {
 
 func TestUpdateAppConfig(t *testing.T) {
 	t.Run("updates configuration values from DTO", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Create a service with default config
 		service := &AppConfigService{
@@ -386,7 +388,7 @@ func TestUpdateAppConfig(t *testing.T) {
 	})
 
 	t.Run("empty values reset to defaults", func(t *testing.T) {
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 
 		// Create a service with default config and modify some values
 		service := &AppConfigService{
@@ -451,7 +453,7 @@ func TestUpdateAppConfig(t *testing.T) {
 		// Disable UI config
 		common.EnvConfig.UiConfigDisabled = true
 
-		db := newDatabaseForTest(t)
+		db := testutils.NewDatabaseForTest(t)
 		service := &AppConfigService{
 			db: db,
 		}
