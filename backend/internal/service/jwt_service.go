@@ -91,29 +91,10 @@ func (s *JwtService) init(db *gorm.DB, appConfigService *AppConfigService, envCo
 }
 
 func (s *JwtService) loadOrGenerateKey(db *gorm.DB) error {
-	// Load the encryption key (KEK) if present
-	kek, err := jwkutils.LoadKeyEncryptionKey(s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
-	if err != nil {
-		return fmt.Errorf("failed to load encryption key: %w", err)
-	}
-
 	// Get the key provider
-	var keyProvider jwkutils.KeyProvider
-	switch s.envConfig.KeysStorage {
-	case "file", "":
-		keyProvider = &jwkutils.KeyProviderFile{}
-	case "database":
-		keyProvider = &jwkutils.KeyProviderDatabase{}
-	default:
-		return fmt.Errorf("invalid key storage '%s'", s.envConfig.KeysStorage)
-	}
-	err = keyProvider.Init(jwkutils.KeyProviderOpts{
-		DB:        db,
-		EnvConfig: s.envConfig,
-		Kek:       kek,
-	})
+	keyProvider, err := jwkutils.GetKeyProvider(db, s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
 	if err != nil {
-		return fmt.Errorf("failed to init key provider of type '%s': %w", s.envConfig.KeysStorage, err)
+		return fmt.Errorf("failed to get key provider: %w", err)
 	}
 
 	// Try loading a key
