@@ -17,7 +17,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
@@ -501,7 +500,7 @@ func (s *JwtService) GetPublicJWK() (jwk.Key, error) {
 		return nil, fmt.Errorf("failed to get public key: %w", err)
 	}
 
-	utils.EnsureAlgInKey(pubKey)
+	jwkutils.EnsureAlgInKey(pubKey)
 
 	return pubKey, nil
 }
@@ -538,7 +537,7 @@ func (s *JwtService) generateNewRSAKey() (jwk.Key, error) {
 	}
 
 	// Import the raw key
-	return utils.ImportRawKey(rawKey)
+	return jwkutils.ImportRawKey(rawKey)
 }
 
 // GetIsAdmin returns the value of the "isAdmin" claim in the token

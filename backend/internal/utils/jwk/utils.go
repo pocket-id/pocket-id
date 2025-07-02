@@ -3,15 +3,24 @@ package jwk
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha3"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
 	"os"
 
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+)
+
+const (
+	// KeyUsageSigning is the usage for the private keys, for the "use" property
+	KeyUsageSigning = "sig"
 )
 
 // EncodeJWK encodes a jwk.Key to a writable stream.
@@ -31,6 +40,7 @@ func EncodeJWKBytes(key jwk.Key) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+// LoadKeyEncryptionKey loads the key encryption key for JWKs
 func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) (kek []byte, err error) {
 	// Try getting the key from the env var as string
 	kekInput := []byte(envConfig.EncryptionKey)
@@ -52,8 +62,61 @@ func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) 
 	// We use HMAC with SHA3-256 here to derive the key from the one passed as input
 	// The key is tied to a specific instance of Pocket ID
 	h := hmac.New(func() hash.Hash { return sha3.New256() }, kekInput)
-	fmt.Fprint(h, "pocketid/"+instanceID+"/jwt-kek")
+	fmt.Fprint(h, "pocketid/"+instanceID+"/jwk-kek")
 	kek = h.Sum(nil)
 
 	return kek, nil
+}
+
+// ImportRawKey imports a crypto key in "raw" format (e.g. crypto.PrivateKey) into a jwk.Key.
+// It also populates additional fields such as the key ID, usage, and alg.
+func ImportRawKey(rawKey any) (jwk.Key, error) {
+	key, err := jwk.Import(rawKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to import generated private key: %w", err)
+	}
+
+	// Generate the key ID
+	kid, err := generateRandomKeyID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key ID: %w", err)
+	}
+	_ = key.Set(jwk.KeyIDKey, kid)
+
+	// Set other required fields
+	_ = key.Set(jwk.KeyUsageKey, KeyUsageSigning)
+	EnsureAlgInKey(key)
+
+	return key, nil
+}
+
+// generateRandomKeyID generates a random key ID.
+func generateRandomKeyID() (string, error) {
+	buf := make([]byte, 8)
+	_, err := io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		return "", fmt.Errorf("failed to read random bytes: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+// EnsureAlgInKey ensures that the key contains an "alg" parameter, set depending on the key type
+func EnsureAlgInKey(key jwk.Key) {
+	_, ok := key.Algorithm()
+	if ok {
+		// Algorithm is already set
+		return
+	}
+
+	switch key.KeyType() {
+	case jwa.RSA():
+		// Default to RS256 for RSA keys
+		_ = key.Set(jwk.AlgorithmKey, jwa.RS256())
+	case jwa.EC():
+		// Default to ES256 for ECDSA keys
+		_ = key.Set(jwk.AlgorithmKey, jwa.ES256())
+	case jwa.OKP():
+		// Default to EdDSA for OKP keys
+		_ = key.Set(jwk.AlgorithmKey, jwa.EdDSA())
+	}
 }

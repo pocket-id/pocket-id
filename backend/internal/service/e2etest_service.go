@@ -25,6 +25,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
@@ -60,7 +61,7 @@ func (s *TestService) initExternalIdP() error {
 		return fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	s.externalIdPKey, err = utils.ImportRawKey(rawKey)
+	s.externalIdPKey, err = jwkutils.ImportRawKey(rawKey)
 	if err != nil {
 		return fmt.Errorf("failed to import private key: %w", err)
 	}

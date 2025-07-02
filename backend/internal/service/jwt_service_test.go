@@ -21,7 +21,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
 
@@ -1483,7 +1482,7 @@ func TestGetTokenType(t *testing.T) {
 func importKey(t *testing.T, privateKeyRaw any, path string) string {
 	t.Helper()
 
-	privateKey, err := utils.ImportRawKey(privateKeyRaw)
+	privateKey, err := jwkutils.ImportRawKey(privateKeyRaw)
 	require.NoError(t, err, "Failed to import private key")
 
 	keyProvider := &jwkutils.KeyProviderFile{}
