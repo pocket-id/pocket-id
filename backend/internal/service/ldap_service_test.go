@@ -1,7 +1,6 @@
 package service
 
 import (
-	"github.com/google/uuid"
 	"testing"
 )
 
@@ -74,10 +73,6 @@ func TestGetDNProperty(t *testing.T) {
 }
 
 func TestConvertLdapIdToString(t *testing.T) {
-	u := uuid.New()
-	hexStr := u.String()
-	hexStr = hexStr[:8] + hexStr[9:13] + hexStr[14:18] + hexStr[19:23] + hexStr[24:]
-
 	tests := []struct {
 		name     string
 		input    string
@@ -90,8 +85,8 @@ func TestConvertLdapIdToString(t *testing.T) {
 		},
 		{
 			name:     "binary UUID (16 bytes)",
-			input:    string(u[:]),
-			expected: u.String(),
+			input:    string([]byte{0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf1}),
+			expected: "12345678-9abc-def0-1234-56789abcdef1",
 		},
 		{
 			name:     "non-UTF8, non-UUID returns base64",
