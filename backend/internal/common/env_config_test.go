@@ -90,7 +90,7 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "APP_URL must not contain a path")
 	})
 
-	t.Run("should default KEYS_STORAGE to 'file' when no encryption key", func(t *testing.T) {
+	t.Run("should default KEYS_STORAGE to 'file' when empty", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
@@ -99,30 +99,6 @@ func TestParseEnvConfig(t *testing.T) {
 		err := parseEnvConfig()
 		require.NoError(t, err)
 		assert.Equal(t, "file", EnvConfig.KeysStorage)
-	})
-
-	t.Run("should default KEYS_STORAGE to 'database' when encryption key provided", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("ENCRYPTION_KEY", "test-key")
-
-		err := parseEnvConfig()
-		require.NoError(t, err)
-		assert.Equal(t, "database", EnvConfig.KeysStorage)
-	})
-
-	t.Run("should default KEYS_STORAGE to 'database' when encryption key file provided", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("ENCRYPTION_KEY_FILE", "/path/to/key")
-
-		err := parseEnvConfig()
-		require.NoError(t, err)
-		assert.Equal(t, "database", EnvConfig.KeysStorage)
 	})
 
 	t.Run("should fail when KEYS_STORAGE is 'database' but no encryption key", func(t *testing.T) {
