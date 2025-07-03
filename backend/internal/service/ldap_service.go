@@ -196,7 +196,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		syncGroup := dto.UserGroupCreateDto{
 			Name:         value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
 			FriendlyName: value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
-			LdapID:       value.GetAttributeValue(dbConfig.LdapAttributeGroupUniqueIdentifier.Value),
+			LdapID:       ldapId,
 		}
 
 		if databaseGroup.ID == "" {
