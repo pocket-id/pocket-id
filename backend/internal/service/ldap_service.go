@@ -7,12 +7,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -122,7 +124,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 	ldapGroupIDs := make(map[string]struct{}, len(result.Entries))
 
 	for _, value := range result.Entries {
-		ldapId := value.GetAttributeValue(dbConfig.LdapAttributeGroupUniqueIdentifier.Value)
+		ldapId := convertLdapIdToString(value.GetAttributeValue(dbConfig.LdapAttributeGroupUniqueIdentifier.Value))
 
 		// Skip groups without a valid LDAP ID
 		if ldapId == "" {
@@ -286,7 +288,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 	ldapUserIDs := make(map[string]struct{}, len(result.Entries))
 
 	for _, value := range result.Entries {
-		ldapId := value.GetAttributeValue(dbConfig.LdapAttributeUserUniqueIdentifier.Value)
+		ldapId := convertLdapIdToString(value.GetAttributeValue(dbConfig.LdapAttributeUserUniqueIdentifier.Value))
 
 		// Skip users without a valid LDAP ID
 		if ldapId == "" {
@@ -467,4 +469,22 @@ func getDNProperty(property string, str string) string {
 
 	// CN not found, return an empty string
 	return ""
+}
+
+// convertLdapIdToString converts LDAP ID to a string format
+// Some LDAP providers use hexadecimal UUIDs
+func convertLdapIdToString(ldapId string) string {
+	if utf8.ValidString(ldapId) {
+		return ldapId
+	}
+
+	// Try to parse as binary UUID (16 bytes)
+	if len(ldapId) == 16 {
+		if parsedUUID, err := uuid.FromBytes([]byte(ldapId)); err == nil {
+			return parsedUUID.String()
+		}
+	}
+
+	// As a last resort, encode as base64 to make it UTF-8 safe
+	return base64.StdEncoding.EncodeToString([]byte(ldapId))
 }
