@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -9,7 +10,6 @@
 	import type { Passkey } from '$lib/types/passkey.type';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
-	import { startRegistration } from '@simplewebauthn/browser';
 	import {
 		KeyRound,
 		Languages,
@@ -17,6 +17,7 @@
 		RectangleEllipsis,
 		UserCog
 	} from '@lucide/svelte';
+	import { startRegistration } from '@simplewebauthn/browser';
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
@@ -32,6 +33,10 @@
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
+
+	const userInfoInputDisabled = $derived(
+		!$appConfigStore.allowOwnAccountEdit || (!!account.ldapId && $appConfigStore.ldapEnabled)
+	);
 
 	async function updateAccount(user: UserCreate) {
 		let success = true;
@@ -117,31 +122,27 @@
 </div>
 
 <!-- Account details card -->
-<fieldset
-	disabled={!$appConfigStore.allowOwnAccountEdit ||
-		(!!account.ldapId && $appConfigStore.ldapEnabled)}
->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>
-				<UserCog class="text-primary/80 size-5" />
-				{m.account_details()}
-			</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<AccountForm
-				{account}
-				userId={account.id}
-				callback={updateAccount}
-				isLdapUser={!!account.ldapId}
-			/>
-		</Card.Content>
-	</Card.Root>
-</fieldset>
+<Card.Root>
+	<Card.Header>
+		<Card.Title>
+			<UserCog class="text-primary/80 size-5" />
+			{m.account_details()}
+		</Card.Title>
+	</Card.Header>
+	<Card.Content>
+		<AccountForm
+			{account}
+			userId={account.id}
+			callback={updateAccount}
+			isLdapUser={!!account.ldapId}
+			{userInfoInputDisabled}
+		/>
+	</Card.Content>
+</Card.Root>
 
 <!-- Passkey management card -->
 <div>
-	<Card.Root>
+	<Card.Root class="gap-3">
 		<Card.Header>
 			<div class="flex items-center justify-between">
 				<div>
@@ -200,6 +201,8 @@
 					</Card.Title>
 					<Card.Description>
 						{m.select_the_language_you_want_to_use()}
+						<br />
+						<FormattedMessage m={m.contribute_to_translation()} />
 					</Card.Description>
 				</div>
 				<LocalePicker />

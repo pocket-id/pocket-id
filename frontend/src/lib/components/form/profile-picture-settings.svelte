@@ -3,6 +3,7 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 	import { LucideLoader, LucideRefreshCw, LucideUpload } from '@lucide/svelte';
 	import { onMount } from 'svelte';
@@ -54,8 +55,16 @@
 				label: m.reset(),
 				action: async () => {
 					isLoading = true;
-					await resetCallback().catch();
-					isLoading = false;
+					try {
+						await resetCallback();
+						await fetch(cachedProfilePicture.getUrl(userId, { skipCache: true }))
+							.then((response) => response.blob())
+							.then((blob) => {
+								imageDataURL = URL.createObjectURL(blob);
+							});
+					} finally {
+						isLoading = false;
+					}
 				}
 			}
 		});
@@ -64,7 +73,7 @@
 
 <div class="flex flex-col items-center gap-6 sm:flex-row">
 	<div class="shrink-0">
-		{#if isLdapUser}
+		{#if isLdapUser && $appConfigStore.ldapEnabled}
 			<Avatar.Root class="size-24">
 				<Avatar.Image class="object-cover" src={imageDataURL} />
 			</Avatar.Root>
@@ -96,7 +105,7 @@
 
 	<div class="grow">
 		<h3 class="font-medium">{m.profile_picture()}</h3>
-		{#if isLdapUser}
+		{#if isLdapUser && $appConfigStore.ldapEnabled}
 			<p class="text-muted-foreground text-sm">
 				{m.profile_picture_is_managed_by_ldap_server()}
 			</p>
@@ -105,7 +114,12 @@
 				{m.click_profile_picture_to_upload_custom()}
 			</p>
 			<p class="text-muted-foreground mb-2 text-sm">{m.image_should_be_in_format()}</p>
-			<Button variant="outline" size="sm" onclick={onReset} disabled={isLoading || isLdapUser}>
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={onReset}
+				disabled={isLoading || (isLdapUser && $appConfigStore.ldapEnabled)}
+			>
 				<LucideRefreshCw class="mr-2 size-4" />
 				{m.reset_to_default()}
 			</Button>

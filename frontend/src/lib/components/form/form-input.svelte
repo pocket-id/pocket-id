@@ -43,7 +43,7 @@
 			{description}
 			{#if docsLink}
 				<a
-					class="relative text-white after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:translate-y-[-1px] after:bg-white"
+					class="relative text-black after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:translate-y-[-1px] after:bg-white dark:text-white"
 					href={docsLink}
 					target="_blank"
 				>
@@ -72,7 +72,7 @@
 			{/if}
 		{/if}
 		{#if input?.error}
-			<p class="text-destructive mt-1 text-xs text-start">{input.error}</p>
+			<p class="text-destructive mt-1 text-start text-xs">{input.error}</p>
 		{/if}
 	</div>
 </div>
