@@ -115,14 +115,9 @@ func parseEnvConfig() error {
 	}
 
 	switch EnvConfig.KeysStorage {
-	// KeysStorage defaults to "file" if there's no EncryptionKey
-	// Otherwise, if KeysStorage is empty and there's a EncryptionKey, then it defaults to "database"
+	// KeysStorage defaults to "file" if empty
 	case "":
-		if EnvConfig.EncryptionKey == "" && EnvConfig.EncryptionKeyFile == "" {
-			EnvConfig.KeysStorage = "file"
-		} else {
-			EnvConfig.KeysStorage = "database"
-		}
+		EnvConfig.KeysStorage = "file"
 	case "database":
 		// If KeysStorage is "database", a key must be specified
 		if EnvConfig.EncryptionKey == "" && EnvConfig.EncryptionKeyFile == "" {
