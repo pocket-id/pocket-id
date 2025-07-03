@@ -29,14 +29,12 @@ jobs:
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Set DOCKER_IMAGE_NAME
         run: |
           # Lowercase REPO_OWNER which is required for containers
           REPO_OWNER=${{ github.repository_owner }}
           DOCKER_IMAGE_NAME="ghcr.io/${REPO_OWNER,,}/pocket-id"
           echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >>${GITHUB_ENV}
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -53,17 +51,24 @@ jobs:
             type=semver,pattern={{version}},prefix=v
             type=semver,pattern={{major}}.{{minor}},prefix=v
             type=semver,pattern={{major}},prefix=v
-
+      - name: Docker metadata (distroless)
+        id: meta-distroless
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}-distroless,prefix=v
+            type=semver,pattern={{major}}.{{minor}}-distroless,prefix=v
+            type=semver,pattern={{major}}-distroless,prefix=v
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
       - name: Build frontend
         working-directory: frontend
         run: npm run build
-
       - name: Build binaries
         run: sh scripts/development/build-binaries.sh
-
       - name: Build and push container image
         uses: docker/build-push-action@v6
         id: container-build-push
@@ -74,19 +79,32 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           file: Dockerfile-prebuilt
-
+      - name: Build and push container image (distroless)
+        uses: docker/build-push-action@v6
+        id: container-build-push-distroless
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-distroless.outputs.tags }}
+          labels: ${{ steps.meta-distroless.outputs.labels }}
+          file: Dockerfile-distroless
       - name: Binary attestation
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: "backend/.bin/pocket-id-**"
-
       - name: Container image attestation
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
           subject-digest: ${{ steps.container-build-push.outputs.digest }}
           push-to-registry: true
-
+      - name: Container image attestation (distroless)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-digest: ${{ steps.container-build-push-distroless.outputs.digest }}
+          push-to-registry: true
       - name: Upload binaries to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

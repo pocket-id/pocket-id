@@ -11,13 +11,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/signals"
 )
 
-func Bootstrap() error {
-	// Get a context that is canceled when the application is stopping
-	ctx := signals.SignalContext(context.Background())
-
+func Bootstrap(ctx context.Context) error {
 	initApplicationImages()
 
 	// Initialize the tracer and metrics exporter

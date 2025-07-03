@@ -73,10 +73,24 @@ jobs:
           push: true
           tags: ${{ env.DOCKER_IMAGE_NAME }}:next
           file: Dockerfile-prebuilt
-
+      - name: Build and push container image (distroless)
+        uses: docker/build-push-action@v6
+        id: container-build-push-distroless
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.DOCKER_IMAGE_NAME }}:next-distroless
+          file: Dockerfile-distroless
       - name: Container image attestation
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
           subject-digest: ${{ steps.build-push-image.outputs.digest }}
+          push-to-registry: true
+      - name: Container image attestation (distroless)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-digest: ${{ steps.container-build-push-distroless.outputs.digest }}
           push-to-registry: true

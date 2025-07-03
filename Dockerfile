@@ -48,5 +48,7 @@ RUN chmod +x /app/pocket-id && \
 EXPOSE 1411
 ENV APP_ENV=production
 
+HEALTHCHECK --interval=90s --timeout=5s --start-period=10s --retries=3 CMD [ "/app/pocket-id", "healthcheck" ]
+
 ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]
 CMD ["/app/pocket-id"]
