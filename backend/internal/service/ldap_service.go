@@ -472,8 +472,8 @@ func getDNProperty(property string, str string) string {
 	return ""
 }
 
-// convertLdapIdToString converts LDAP ID to a string format
-// Some LDAP providers use hexadecimal UUIDs
+// convertLdapIdToString converts LDAP IDs to valid UTF-8 strings.
+// LDAP servers may return binary UUIDs (16 bytes) or other non-UTF-8 data.
 func convertLdapIdToString(ldapId string) string {
 	if utf8.ValidString(ldapId) {
 		return ldapId
