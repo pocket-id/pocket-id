@@ -55,6 +55,8 @@ func Bootstrap(ctx context.Context) error {
 
 	// Invoke all shutdown functions
 	// We give these a timeout of 5s
+	// Note: we use a background context because the run context has been canceled already
+	// nolint:contextcheck
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	err = utils.
