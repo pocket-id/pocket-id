@@ -57,10 +57,12 @@ jobs:
         with:
           images: |
             ${{ env.DOCKER_IMAGE_NAME }}
+          flavor: |
+            suffix=-distroless
           tags: |
-            type=semver,pattern={{version}}-distroless,prefix=v
-            type=semver,pattern={{major}}.{{minor}}-distroless,prefix=v
-            type=semver,pattern={{major}}-distroless,prefix=v
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},prefix=v
+            type=semver,pattern={{major}},prefix=v            
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
