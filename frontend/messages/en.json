@@ -419,5 +419,10 @@
 	"signup_open_description": "Anyone can create a new account without restrictions.",
 	"of": "of",
 	"skip_passkey_setup": "Skip Passkey Setup",
-	"skip_passkey_setup_description": "It's highly recommended to set up a passkey because without one, you will be locked out of your account as soon as the session expires."
+	"skip_passkey_setup_description": "It's highly recommended to set up a passkey because without one, you will be locked out of your account as soon as the session expires.",
+	"my_apps": "My Apps",
+    "applications_you_have_access_to": "Applications you have access to",
+    "no_apps_available": "No apps available",
+    "contact_your_administrator_for_app_access": "Contact your administrator to get access to applications",
+    "launch": "Launch"
 }
