@@ -69,20 +69,21 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		return nil, fmt.Errorf("failed to get key algorithm: %w", err)
 	}
 	config := map[string]any{
-		"issuer":                                appUrl,
-		"authorization_endpoint":                appUrl + "/authorize",
-		"token_endpoint":                        appUrl + "/api/oidc/token",
-		"userinfo_endpoint":                     appUrl + "/api/oidc/userinfo",
-		"end_session_endpoint":                  appUrl + "/api/oidc/end-session",
-		"introspection_endpoint":                appUrl + "/api/oidc/introspect",
-		"device_authorization_endpoint":         appUrl + "/api/oidc/device/authorize",
-		"jwks_uri":                              appUrl + "/.well-known/jwks.json",
-		"grant_types_supported":                 []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode},
-		"scopes_supported":                      []string{"openid", "profile", "email", "groups"},
-		"claims_supported":                      []string{"sub", "given_name", "family_name", "name", "email", "email_verified", "preferred_username", "picture", "groups"},
-		"response_types_supported":              []string{"code", "id_token"},
-		"subject_types_supported":               []string{"public"},
-		"id_token_signing_alg_values_supported": []string{alg.String()},
+		"issuer":                                         appUrl,
+		"authorization_endpoint":                         appUrl + "/authorize",
+		"token_endpoint":                                 appUrl + "/api/oidc/token",
+		"userinfo_endpoint":                              appUrl + "/api/oidc/userinfo",
+		"end_session_endpoint":                           appUrl + "/api/oidc/end-session",
+		"introspection_endpoint":                         appUrl + "/api/oidc/introspect",
+		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
+		"jwks_uri":                                       appUrl + "/.well-known/jwks.json",
+		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode},
+		"scopes_supported":                               []string{"openid", "profile", "email", "groups"},
+		"claims_supported":                               []string{"sub", "given_name", "family_name", "name", "email", "email_verified", "preferred_username", "picture", "groups"},
+		"response_types_supported":                       []string{"code", "id_token"},
+		"subject_types_supported":                        []string{"public"},
+		"id_token_signing_alg_values_supported":          []string{alg.String()},
+		"authorization_response_iss_parameter_supported": true,
 	}
 	return json.Marshal(config)
 }
