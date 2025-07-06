@@ -32,7 +32,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="pb-4">
+	<div>
 		<h1 class="flex items-center gap-2 text-2xl font-bold">
 			<LayoutDashboard class="text-primary/80 size-6" />
 			{m.my_apps()}

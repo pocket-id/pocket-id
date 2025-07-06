@@ -8,7 +8,7 @@ export const load: PageLoad = async () => {
     const appRequestOptions: SearchPaginationSortRequest = {
         pagination: {
             page: 1,
-            limit: 2
+            limit: 20
         },
         sort: {
             column: 'name',
