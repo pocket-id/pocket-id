@@ -1,11 +1,11 @@
-{{ define "base" -}}
-    <div class="header">
-        <div class="logo">
-            <img src="{{ .LogoURL }}" alt="{{ .AppName }}"/>
-            <h1>{{ .AppName }}</h1>
+{{ define "base" }}
+    <div class="header" style="display: flex; margin-bottom: 24px;">
+        <div class="logo" style="display: flex; align-items: center;">
+            <img src="{{ .LogoURL }}" alt="{{ .AppName }}" style="width: 32px; height: 32px; vertical-align: middle;"/>
+            <h1 style="font-size: 1.5rem; font-weight: bold; display: inline-block; vertical-align: middle; margin-left: 8px; margin: 0 0 0 8px; padding: 0; border: 0; font-family: Arial, sans-serif; line-height: 1.5;">{{ .AppName }}</h1>
         </div>
     </div>
-    <div class="content">
-        <p>This is a test email.</p>
+    <div class="content" style="background-color: #fafafa; padding: 24px; border-radius: 10px;">
+        <p style="margin: 0; padding: 0; border: 0; font-family: Arial, sans-serif; line-height: 1.5;">This is a test email.</p>
     </div>
-{{ end -}}
+{{ end }}
