@@ -5,16 +5,16 @@
 	import ImageBox from '$lib/components/image-box.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
-	import type { OidcClient } from '$lib/types/oidc.type';
+	import type { AccessibleOidcClient } from '$lib/types/oidc.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
-	import { LucideExternalLink, LayoutDashboard, Settings } from '@lucide/svelte';
+	import { LucideExternalLink, LayoutDashboard, Settings, CheckCircle } from '@lucide/svelte';
 	import { cachedApplicationLogo } from '$lib/utils/cached-image-util';
 	import { mode } from 'mode-watcher';
 	import userStore from '$lib/stores/user-store';
 
 	let { data } = $props();
-	let apps: Paginated<OidcClient> = $state(data.apps);
+	let apps = $state(data.apps);
 	let requestOptions: SearchPaginationSortRequest = $state(data.appRequestOptions);
 	let isLoading = $state(false);
 	const isLightMode = $derived(mode.current === 'light');
@@ -24,7 +24,7 @@
 	async function loadApps() {
 		isLoading = true;
 		try {
-			apps = await oidcService.listClients(requestOptions);
+			apps = await oidcService.listAccessibleClients(requestOptions);
 		} catch (e) {
 			console.error('Failed to load apps:', e);
 		} finally {
@@ -37,7 +37,7 @@
 		await loadApps();
 	}
 
-	function getAppUrl(client: OidcClient): string {
+	function getAppUrl(client: AccessibleOidcClient): string {
 		// Try to get the main callback URL as the app URL
 		return client.callbackURLs?.[0]?.replace(/\/callback.*$/, '') || '#';
 	}
@@ -91,9 +91,14 @@
 								</div>
 
 								<div class="min-w-0 flex-1">
-									<h3 class="text-foreground line-clamp-1 text-sm font-medium">
-										{app.name}
-									</h3>
+									<div class="flex items-center gap-2">
+										<h3 class="text-foreground line-clamp-1 text-sm font-medium">
+											{app.name}
+										</h3>
+										{#if app.isAuthorized}
+											<CheckCircle class="size-4 flex-shrink-0 text-green-500" />
+										{/if}
+									</div>
 									<p class="text-muted-foreground line-clamp-1 text-xs">
 										{app.callbackURLs?.[0] ? new URL(app.callbackURLs[0]).hostname : 'Application'}
 									</p>
@@ -129,9 +134,9 @@
 										target="_blank"
 										size="sm"
 										class="w-full"
-										variant="default"
+										variant={app.isAuthorized ? 'default' : 'outline'}
 									>
-										{m.launch()}
+										{app.isAuthorized ? m.launch() : m.authorize()}
 										<LucideExternalLink class="ml-1 size-3" />
 									</Button>
 								{/if}

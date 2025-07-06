@@ -154,3 +154,12 @@ type OidcClientPreviewDto struct {
 	AccessToken map[string]any `json:"accessToken"`
 	UserInfo    map[string]any `json:"userInfo"`
 }
+
+type AccessibleOidcClientDto struct {
+	OidcClientMetaDataDto
+	CallbackURLs       []string `json:"callbackURLs"`
+	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
+	IsPublic           bool     `json:"isPublic"`
+	PkceEnabled        bool     `json:"pkceEnabled"`
+	IsAuthorized       bool     `json:"isAuthorized"` // Whether user has already authorized this client
+}

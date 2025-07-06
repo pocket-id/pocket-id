@@ -50,3 +50,17 @@ export type AuthorizeResponse = {
 	callbackURL: string;
 	issuer: string;
 };
+
+export type AccessibleOidcClient = OidcClientMetaData & {
+    callbackURLs: string[];
+    logoutCallbackURLs: string[];
+    isPublic: boolean;
+    pkceEnabled: boolean;
+    isAuthorized: boolean; // Whether user has already authorized this client
+};
+
+export type AuthorizedOidcClient = OidcClientMetaData & {
+    clientID: string;
+    authorizedAt: string;
+    scopes: string[];
+};

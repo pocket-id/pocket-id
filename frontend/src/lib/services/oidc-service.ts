@@ -5,7 +5,9 @@ import type {
 	OidcClientMetaData,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
-	OidcDeviceCodeInfo
+	OidcDeviceCodeInfo,
+	AccessibleOidcClient,
+	AuthorizedOidcClient
 } from '$lib/types/oidc.type';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
@@ -112,6 +114,34 @@ class OidcService extends APIService {
 			params: { scopes }
 		});
 		return response.data;
+	}
+
+	async listAccessibleClients(options?: SearchPaginationSortRequest) {
+		const res = await this.api.get('/oidc/users/me/accessible-clients', {
+			params: options
+		});
+		return res.data as Paginated<AccessibleOidcClient>;
+	}
+
+	async listAccessibleClientsForUser(userId: string, options?: SearchPaginationSortRequest) {
+		const res = await this.api.get(`/oidc/users/${userId}/accessible-clients`, {
+			params: options
+		});
+		return res.data as Paginated<AccessibleOidcClient>;
+	}
+
+	async listAuthorizedClients(options?: SearchPaginationSortRequest) {
+		const res = await this.api.get('/oidc/users/me/clients', {
+			params: options
+		});
+		return res.data as Paginated<AuthorizedOidcClient>;
+	}
+
+	async listAuthorizedClientsForUser(userId: string, options?: SearchPaginationSortRequest) {
+		const res = await this.api.get(`/oidc/users/${userId}/clients`, {
+			params: options
+		});
+		return res.data as Paginated<AuthorizedOidcClient>;
 	}
 }
 

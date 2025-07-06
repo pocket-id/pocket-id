@@ -1695,3 +1695,65 @@ func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, aut
 
 	return claims, nil
 }
+
+func (s *OidcService) ListAccessibleClients(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.OidcClient, utils.PaginationResponse, error) {
+	// Get user with their groups
+	var user model.User
+	err := s.db.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", userID).Error
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	// Build query for accessible clients
+	query := s.db.WithContext(ctx).
+		Preload("CreatedBy").
+		Model(&model.OidcClient{})
+
+	// If user has groups, filter by allowed user groups or clients with no restrictions
+	if len(user.UserGroups) > 0 {
+		userGroupIDs := make([]string, len(user.UserGroups))
+		for i, group := range user.UserGroups {
+			userGroupIDs[i] = group.ID
+		}
+
+		// Get clients where:
+		// 1. No allowed user groups (accessible to all), OR
+		// 2. User is in one of the allowed groups
+		query = query.Where(`
+            id NOT IN (
+                SELECT DISTINCT oidc_client_id 
+                FROM oidc_clients_allowed_user_groups
+            ) OR id IN (
+                SELECT DISTINCT oidc_client_id 
+                FROM oidc_clients_allowed_user_groups 
+                WHERE user_group_id IN (?)
+            )`, userGroupIDs)
+	} else {
+		// User has no groups, only show clients with no restrictions
+		query = query.Where(`
+            id NOT IN (
+                SELECT DISTINCT oidc_client_id 
+                FROM oidc_clients_allowed_user_groups
+            )`)
+	}
+
+	var clients []model.OidcClient
+	response, err := utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
+	return clients, response, err
+}
+
+func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID string, userID string) (bool, error) {
+	var user model.User
+	err := s.db.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", userID).Error
+	if err != nil {
+		return false, err
+	}
+
+	var client model.OidcClient
+	err = s.db.WithContext(ctx).Preload("AllowedUserGroups").First(&client, "id = ?", clientID).Error
+	if err != nil {
+		return false, err
+	}
+
+	return s.IsUserGroupAllowedToAuthorize(user, client), nil
+}

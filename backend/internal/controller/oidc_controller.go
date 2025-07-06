@@ -57,6 +57,10 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
 	group.GET("/oidc/users/:id/clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
+
+	group.GET("/oidc/users/me/accessible-clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAccessibleClientsHandler)
+	group.GET("/oidc/users/:id/accessible-clients", authMiddleware.Add(), oc.listAccessibleClientsHandler)
+
 }
 
 type OidcController struct {
@@ -778,4 +782,82 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, preview)
+}
+
+// @Summary List accessible OIDC clients for current user
+// @Description Get a paginated list of OIDC clients that the current user can access based on their user groups
+// @Tags OIDC
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
+// @Router /api/oidc/users/me/accessible-clients [get]
+func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+	oc.listAccessibleClients(c, userID)
+}
+
+// @Summary List accessible OIDC clients for a user
+// @Description Get a paginated list of OIDC clients that a specific user can access based on their user groups
+// @Tags OIDC
+// @Param id path string true "User ID"
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
+// @Router /api/oidc/users/{id}/accessible-clients [get]
+func (oc *OidcController) listAccessibleClientsHandler(c *gin.Context) {
+	userID := c.Param("id")
+	oc.listAccessibleClients(c, userID)
+}
+
+func (oc *OidcController) listAccessibleClients(c *gin.Context, userID string) {
+	var sortedPaginationRequest utils.SortedPaginationRequest
+	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	accessibleClients, pagination, err := oc.oidcService.ListAccessibleClients(c.Request.Context(), userID, sortedPaginationRequest)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	// Get user's authorized clients to mark which ones are already authorized
+	authorizedClients, _, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, utils.SortedPaginationRequest{
+		Pagination: struct {
+			Page  int `form:"pagination[page]"`
+			Limit int `form:"pagination[limit]"`
+		}{Page: 1, Limit: 1000}, // Get all authorized clients
+	})
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	// Create a map for quick lookup of authorized clients
+	authorizedClientMap := make(map[string]bool)
+	for _, authClient := range authorizedClients {
+		authorizedClientMap[authClient.ClientID] = true
+	}
+
+	// Map to DTOs and mark authorization status
+	accessibleClientsDto := make([]dto.AccessibleOidcClientDto, len(accessibleClients))
+	for i, client := range accessibleClients {
+		var clientDto dto.AccessibleOidcClientDto
+		if err := dto.MapStruct(client, &clientDto); err != nil {
+			_ = c.Error(err)
+			return
+		}
+		clientDto.IsAuthorized = authorizedClientMap[client.ID]
+		accessibleClientsDto[i] = clientDto
+	}
+
+	c.JSON(http.StatusOK, dto.Paginated[dto.AccessibleOidcClientDto]{
+		Data:       accessibleClientsDto,
+		Pagination: pagination,
+	})
 }
