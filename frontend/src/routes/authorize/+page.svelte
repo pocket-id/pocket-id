@@ -57,8 +57,8 @@
 
 			await oidService
 				.authorize(client!.id, scope, callbackURL, nonce, codeChallenge, codeChallengeMethod)
-				.then(async ({ code, callbackURL }) => {
-					onSuccess(code, callbackURL);
+				.then(async ({ code, callbackURL, issuer }) => {
+					onSuccess(code, callbackURL, issuer);
 				});
 		} catch (e) {
 			errorMessage = getWebauthnErrorMessage(e);
@@ -66,12 +66,13 @@
 		}
 	}
 
-	function onSuccess(code: string, callbackURL: string) {
+	function onSuccess(code: string, callbackURL: string, issuer: string) {
 		success = true;
 		setTimeout(() => {
 			const redirectURL = new URL(callbackURL);
 			redirectURL.searchParams.append('code', code);
 			redirectURL.searchParams.append('state', authorizeState);
+			redirectURL.searchParams.append('iss', issuer);
 
 			window.location.href = redirectURL.toString();
 		}, 1000);

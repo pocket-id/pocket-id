@@ -89,6 +89,7 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	response := dto.AuthorizeOidcClientResponseDto{
 		Code:        code,
 		CallbackURL: callbackURL,
+		Issuer:      common.EnvConfig.AppURL,
 	}
 
 	c.JSON(http.StatusOK, response)
