@@ -64,6 +64,10 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Contex
 		return
 	}
 
+	for _, c := range input {
+		c.Normalize()
+	}
+
 	userId := c.Param("userId")
 	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(c.Request.Context(), userId, input)
 	if err != nil {
@@ -96,6 +100,10 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.C
 	if err := c.ShouldBindJSON(&input); err != nil {
 		_ = c.Error(err)
 		return
+	}
+
+	for _, c := range input {
+		c.Normalize()
 	}
 
 	userGroupId := c.Param("userGroupId")

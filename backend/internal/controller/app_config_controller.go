@@ -113,6 +113,7 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+	input.Normalize()
 
 	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(c.Request.Context(), input)
 	if err != nil {

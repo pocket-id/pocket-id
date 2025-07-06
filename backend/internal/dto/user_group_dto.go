@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"golang.org/x/text/unicode/norm"
+
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
@@ -37,6 +39,11 @@ type UserGroupCreateDto struct {
 	FriendlyName string `json:"friendlyName" binding:"required,min=2,max=50"`
 	Name         string `json:"name" binding:"required,min=2,max=255"`
 	LdapID       string `json:"-"`
+}
+
+func (u *UserGroupCreateDto) Normalize() {
+	u.FriendlyName = norm.NFC.String(u.FriendlyName)
+	u.Name = norm.NFC.String(u.Name)
 }
 
 type UserGroupUpdateUsersDto struct {

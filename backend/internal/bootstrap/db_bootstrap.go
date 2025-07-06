@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"log"
@@ -9,12 +10,14 @@ import (
 	"strings"
 	"time"
 
+	sqlitelib "github.com/glebarez/go-sqlite"
 	"github.com/glebarez/sqlite"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"golang.org/x/text/unicode/norm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -88,6 +91,7 @@ func connectDatabase() (db *gorm.DB, err error) {
 		if !strings.HasPrefix(common.EnvConfig.DbConnectionString, "file:") {
 			return nil, errors.New("invalid value for env var 'DB_CONNECTION_STRING': does not begin with 'file:'")
 		}
+		registerSqliteFunctions()
 		connString, err := parseSqliteConnectionString(common.EnvConfig.DbConnectionString)
 		if err != nil {
 			return nil, err
@@ -182,4 +186,44 @@ func getLogger() logger.Interface {
 			Colorful:                  !isProduction,
 		},
 	)
+}
+
+func registerSqliteFunctions() {
+	// Register the `normalize(text, form)` function, which performs Unicode normalization on the text
+	// This is currently only used in migration functions
+	sqlitelib.MustRegisterDeterministicScalarFunction("normalize", 2, func(ctx *sqlitelib.FunctionContext, args []driver.Value) (driver.Value, error) {
+		if len(args) != 2 {
+			return nil, errors.New("normalize requires 2 arguments")
+		}
+
+		arg0, ok := args[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("first argument for normalize is not a string: %T", args[0])
+		}
+
+		arg1, ok := args[1].(string)
+		if !ok {
+			return nil, fmt.Errorf("second argument for normalize is not a string: %T", args[1])
+		}
+
+		var form norm.Form
+		switch strings.ToLower(arg1) {
+		case "nfc":
+			form = norm.NFC
+		case "nfd":
+			form = norm.NFD
+		case "nfkc":
+			form = norm.NFKC
+		case "nfkd":
+			form = norm.NFKD
+		default:
+			return nil, fmt.Errorf("unsupported form: %s", arg1)
+		}
+
+		if len(arg0) == 0 {
+			return arg0, nil
+		}
+
+		return form.String(arg0), nil
+	})
 }

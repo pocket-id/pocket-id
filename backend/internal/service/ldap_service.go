@@ -15,13 +15,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
-
 	"github.com/go-ldap/ldap/v3"
+	"github.com/google/uuid"
+	"golang.org/x/text/unicode/norm"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"gorm.io/gorm"
 )
 
 type LdapService struct {
@@ -181,7 +182,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			var databaseUser model.User
 			err = tx.
 				WithContext(ctx).
-				Where("username = ? AND ldap_id IS NOT NULL", username).
+				Where("username = ? AND ldap_id IS NOT NULL", norm.NFC.String(username)).
 				First(&databaseUser).
 				Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -199,6 +200,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			FriendlyName: value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
 			LdapID:       ldapId,
 		}
+		syncGroup.Normalize()
 
 		if databaseGroup.ID == "" {
 			newGroup, err := s.groupService.createInternal(ctx, syncGroup, tx)
@@ -309,7 +311,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 
 		// If a user is found (even if disabled), enable them since they're now back in LDAP
 		if databaseUser.ID != "" && databaseUser.Disabled {
-			// Use the transaction instead of the direct context
 			err = tx.
 				WithContext(ctx).
 				Model(&model.User{}).
@@ -318,7 +319,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				Error
 
 			if err != nil {
-				log.Printf("Failed to enable user %s: %v", databaseUser.Username, err)
+				return fmt.Errorf("failed to enable user %s: %w", databaseUser.Username, err)
 			}
 		}
 
@@ -344,6 +345,8 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			IsAdmin:   isAdmin,
 			LdapID:    ldapId,
 		}
+
+		newUser.Normalize()
 
 		if databaseUser.ID == "" {
 			_, err = s.userService.createUserInternal(ctx, newUser, true, tx)
@@ -476,7 +479,7 @@ func getDNProperty(property string, str string) string {
 // LDAP servers may return binary UUIDs (16 bytes) or other non-UTF-8 data.
 func convertLdapIdToString(ldapId string) string {
 	if utf8.ValidString(ldapId) {
-		return ldapId
+		return norm.NFC.String(ldapId)
 	}
 
 	// Try to parse as binary UUID (16 bytes)

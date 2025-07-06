@@ -125,6 +125,8 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 		return
 	}
 
+	input.Normalize()
+
 	group, err := ugc.UserGroupService.Create(c.Request.Context(), input)
 	if err != nil {
 		_ = c.Error(err)
@@ -156,6 +158,8 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+
+	input.Normalize()
 
 	group, err := ugc.UserGroupService.Update(c.Request.Context(), c.Param("id"), input)
 	if err != nil {

@@ -1,5 +1,9 @@
 package dto
 
+import (
+	"golang.org/x/text/unicode/norm"
+)
+
 type OidcClientMetaDataDto struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -32,6 +36,10 @@ type OidcClientCreateDto struct {
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
+}
+
+func (c *OidcClientCreateDto) Normalize() {
+	c.Name = norm.NFC.String(c.Name)
 }
 
 type OidcClientCredentialsDto struct {

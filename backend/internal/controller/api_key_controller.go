@@ -86,6 +86,7 @@ func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {
 		_ = ctx.Error(err)
 		return
 	}
+	input.Normalize()
 
 	apiKey, token, err := c.apiKeyService.CreateApiKey(ctx.Request.Context(), userID, input)
 	if err != nil {

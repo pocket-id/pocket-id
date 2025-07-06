@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	"golang.org/x/text/unicode/norm"
+)
 
 type UserDto struct {
 	ID           string           `json:"id"`
@@ -27,6 +31,13 @@ type UserCreateDto struct {
 	LdapID    string  `json:"-"`
 }
 
+func (u *UserCreateDto) Normalize() {
+	u.Username = norm.NFC.String(u.Username)
+	u.Email = norm.NFC.String(u.Email)
+	u.FirstName = norm.NFC.String(u.FirstName)
+	u.LastName = norm.NFC.String(u.LastName)
+}
+
 type OneTimeAccessTokenCreateDto struct {
 	UserID    string    `json:"userId"`
 	ExpiresAt time.Time `json:"expiresAt" binding:"required"`
@@ -35,6 +46,10 @@ type OneTimeAccessTokenCreateDto struct {
 type OneTimeAccessEmailAsUnauthenticatedUserDto struct {
 	Email        string `json:"email" binding:"required,email"`
 	RedirectPath string `json:"redirectPath"`
+}
+
+func (o *OneTimeAccessEmailAsUnauthenticatedUserDto) Normalize() {
+	o.Email = norm.NFC.String(o.Email)
 }
 
 type OneTimeAccessEmailAsAdminDto struct {
@@ -51,4 +66,11 @@ type SignUpDto struct {
 	FirstName string `json:"firstName" binding:"required,min=1,max=50"`
 	LastName  string `json:"lastName" binding:"max=50"`
 	Token     string `json:"token"`
+}
+
+func (s *SignUpDto) Normalize() {
+	s.Username = norm.NFC.String(s.Username)
+	s.Email = norm.NFC.String(s.Email)
+	s.FirstName = norm.NFC.String(s.FirstName)
+	s.LastName = norm.NFC.String(s.LastName)
 }

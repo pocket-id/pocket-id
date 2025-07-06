@@ -198,6 +198,8 @@ func (uc *UserController) createUserHandler(c *gin.Context) {
 		return
 	}
 
+	input.Normalize()
+
 	user, err := uc.userService.CreateUser(c.Request.Context(), input)
 	if err != nil {
 		_ = c.Error(err)
@@ -383,6 +385,8 @@ func (uc *UserController) RequestOneTimeAccessEmailAsUnauthenticatedUserHandler(
 		return
 	}
 
+	input.Normalize()
+
 	err := uc.userService.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), input.Email, input.RedirectPath)
 	if err != nil {
 		_ = c.Error(err)
@@ -461,6 +465,8 @@ func (uc *UserController) signUpInitialAdmin(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+
+	input.Normalize()
 
 	user, token, err := uc.userService.SignUpInitialAdmin(c.Request.Context(), input)
 	if err != nil {
@@ -611,6 +617,8 @@ func (uc *UserController) signupHandler(c *gin.Context) {
 		return
 	}
 
+	input.Normalize()
+
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
@@ -639,6 +647,8 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 		_ = c.Error(err)
 		return
 	}
+
+	input.Normalize()
 
 	var userID string
 	if updateOwnUser {
