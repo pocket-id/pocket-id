@@ -60,9 +60,9 @@
 							href="/settings/admin/oidc-clients/{app.id}"
 							size="sm"
 							variant="outline"
-							class="h-8 flex-1 px-2 text-xs"
+							class="h-8 flex-1 text-xs"
 						>
-							<Settings class="mr-1 size-3" />
+							<Settings class="size-3" />
 							{m.edit()}
 						</Button>
 						<Button
@@ -70,10 +70,10 @@
 							target="_blank"
 							size="sm"
 							variant="default"
-							class="h-8 flex-1 px-2 text-xs"
+							class="h-8 flex-1 text-xs"
 						>
 							{m.launch()}
-							<LucideExternalLink class="ml-1 size-3" />
+							<LucideExternalLink class="size-3" />
 						</Button>
 					</div>
 				{:else}
