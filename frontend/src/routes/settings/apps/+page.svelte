@@ -82,7 +82,7 @@
 							<div class="mb-4 flex items-center gap-3">
 								<div class="flex-shrink-0">
 									<ImageBox
-										class="ring-border size-10 rounded-lg ring-1"
+										class="size-10"
 										src={app.hasLogo
 											? cachedOidcClientLogo.getUrl(app.id)
 											: cachedApplicationLogo.getUrl(isLightMode)}
