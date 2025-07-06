@@ -58,6 +58,8 @@
 			selectedIndex = -1;
 		}
 	});
+
+	$effect(() => handleOnInput());
 </script>
 
 <div
@@ -84,6 +86,8 @@
 			trapFocus={false}
 			interactOutsideBehavior="ignore"
 			onCloseAutoFocus={(e) => e.preventDefault()}
+			avoidCollisions={false}
+			strategy="absolute"
 		>
 			{#each filteredSuggestions as suggestion, index}
 				<div

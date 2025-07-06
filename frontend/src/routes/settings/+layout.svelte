@@ -44,7 +44,7 @@
 	>
 		<main
 			in:fade={{ duration: 200 }}
-			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 overflow-hidden p-4 md:p-8 lg:flex-row"
+			class="mx-auto flex w-full max-w-[1640px] flex-col gap-x-8 gap-y-8 p-4 md:p-8 lg:flex-row"
 		>
 			<div class="min-w-[200px] xl:min-w-[250px]">
 				<div in:fly={{ x: -15, duration: 200 }} class="sticky top-6">

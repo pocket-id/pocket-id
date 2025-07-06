@@ -40,7 +40,7 @@
 		{selectionDisabled}
 	>
 		{#snippet rows({ item })}
-			<Table.Cell>{item.name}</Table.Cell>
+			<Table.Cell>{item.friendlyName}</Table.Cell>
 		{/snippet}
 	</AdvancedTable>
 {/if}
