@@ -58,7 +58,7 @@ jobs:
           images: |
             ${{ env.DOCKER_IMAGE_NAME }}
           flavor: |
-            suffix=-distroless
+            suffix=-distroless,onlatest=true
           tags: |
             type=semver,pattern={{version}},prefix=v
             type=semver,pattern={{major}}.{{minor}},prefix=v
