@@ -1,3 +1,29 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.5.0...v) (2025-07-06)
+
+
+### Features
+
+* add "key-rotate" command ([#709](https://github.com/pocket-id/pocket-id/issues/709)) ([8c8fc23](https://github.com/pocket-id/pocket-id/commit/8c8fc2304d8f33c1fea54b1138b109f282e78b8b))
+* add support for OAuth 2.0 Authorization Server Issuer Identification ([bf04256](https://github.com/pocket-id/pocket-id/commit/bf042563e997d57bb087705a5789fd72ffbed467))
+* distroless container additional variant + healthcheck command ([#716](https://github.com/pocket-id/pocket-id/issues/716)) ([1a41b05](https://github.com/pocket-id/pocket-id/commit/1a41b05f60d487fff78703bec1d4e832f96fd071))
+* encrypt private keys saved on disk and in database ([#682](https://github.com/pocket-id/pocket-id/issues/682)) ([5550729](https://github.com/pocket-id/pocket-id/commit/5550729120ac9f5e9361c7f9cf25b9075a33a94a))
+* enhance language selection message and add translation contribution link ([be52660](https://github.com/pocket-id/pocket-id/commit/be526602273c1689cb4057ca96d4214e7f817d1d))
+
+
+### Bug Fixes
+
+* actually fix linter issues ([#720](https://github.com/pocket-id/pocket-id/issues/720)) ([7fe83f8](https://github.com/pocket-id/pocket-id/commit/7fe83f8087f033f957bb6e0eee5e0c159417e1cd))
+* add missing error check in initial user setup ([fceb6fa](https://github.com/pocket-id/pocket-id/commit/fceb6fa7b4701a3645c4c2353bcd108b15d69ded))
+* allow profile picture update even if "allow own account edit" enabled ([9872608](https://github.com/pocket-id/pocket-id/commit/9872608d61a486f7b775f314d9392e0620bcd891))
+* app config forms not updating with latest values ([#696](https://github.com/pocket-id/pocket-id/issues/696)) ([92c57ad](https://github.com/pocket-id/pocket-id/commit/92c57ada1a11f76963e36ca0a81bca8f52dbc84e))
+* auth fails when client IP is empty on Postgres ([#695](https://github.com/pocket-id/pocket-id/issues/695)) ([031181a](https://github.com/pocket-id/pocket-id/commit/031181ad2ae8fae94cc5793dd1c614e79476a766))
+* custom claims input suggestions flickering ([49f1ab2](https://github.com/pocket-id/pocket-id/commit/49f1ab2f75df97d551fff5acbadcd55df74af617))
+* keep sidebar in settings sticky ([e46f60a](https://github.com/pocket-id/pocket-id/commit/e46f60ac8d6944bcea54d0708af1950d98f66c3c))
+* linter issues ([#719](https://github.com/pocket-id/pocket-id/issues/719)) ([43f0114](https://github.com/pocket-id/pocket-id/commit/43f0114c579f7b5b32b372e09f46bcb2a9d7796e))
+* show friendly name in user group selection ([5c9e504](https://github.com/pocket-id/pocket-id/commit/5c9e504291b3bffe947bcbe907701806e301d1fe))
+* support non UTF-8 LDAP IDs ([#714](https://github.com/pocket-id/pocket-id/issues/714)) ([8131579](https://github.com/pocket-id/pocket-id/commit/81315790a8aa601a2565a1b54807df1e68f06dc5))
+* token introspection authentication not handled correctly ([#704](https://github.com/pocket-id/pocket-id/issues/704)) ([aefb308](https://github.com/pocket-id/pocket-id/commit/aefb30853677baf7ed29ac8b539e1aadf56e14a4))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.4.1...v) (2025-06-27)
 
 
