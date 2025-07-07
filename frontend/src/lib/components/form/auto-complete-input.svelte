@@ -16,12 +16,12 @@
 
 	let filteredSuggestions: string[] = $state(suggestions.slice(0, suggestionLimit));
 	let selectedIndex = $state(-1);
-
 	let isInputFocused = $state(false);
 
 	function handleSuggestionClick(suggestion: (typeof suggestions)[0]) {
 		value = suggestion;
 		filteredSuggestions = [];
+		isInputFocused = false;
 	}
 
 	function handleOnInput() {
@@ -70,13 +70,7 @@
 	aria-expanded={isOpen}
 	tabindex="-1"
 >
-	<Input
-		{placeholder}
-		bind:value
-		oninput={handleOnInput}
-		onfocus={() => (isInputFocused = true)}
-		onblur={() => (isInputFocused = false)}
-	/>
+	<Input {placeholder} bind:value oninput={handleOnInput} onfocus={() => (isInputFocused = true)} />
 	<Popover.Root open={isOpen}>
 		<Popover.Trigger tabindex={-1} class="h-0 w-full" aria-hidden />
 		<Popover.Content
@@ -84,7 +78,12 @@
 			class="p-0"
 			sideOffset={5}
 			trapFocus={false}
-			interactOutsideBehavior="ignore"
+			onfocusout={(e) => {
+				// Check if focus is moving to a suggestion item
+				if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+					isInputFocused = false;
+				}
+			}}
 			onCloseAutoFocus={(e) => e.preventDefault()}
 			avoidCollisions={false}
 			strategy="absolute"
@@ -93,11 +92,11 @@
 				<div
 					role="button"
 					tabindex="0"
-					onmousedown={() => handleSuggestionClick(suggestion)}
+					onclick={() => handleSuggestionClick(suggestion)}
 					onkeydown={(e) => {
 						if (e.key === 'Enter') handleSuggestionClick(suggestion);
 					}}
-					class="hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 {selectedIndex ===
+					class="hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 {selectedIndex ===
 					index
 						? 'bg-accent text-accent-foreground'
 						: ''}"
