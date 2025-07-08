@@ -5,7 +5,7 @@ import { Button } from './components/button';
 interface OneTimeAccessData {
   code: string;
   loginLink: string;
-  loginLinkWithCode: string;
+  buttonCodeLink: string;
   expirationString: string;
 }
 
@@ -30,7 +30,7 @@ export const OneTimeAccessEmail = ({ logoURL, appName, data }: OneTimeAccessEmai
       This code expires in {data.expirationString}.
     </Text>
 
-    <Button href={data.loginLinkWithCode}>Sign In</Button>
+    <Button href={data.buttonCodeLink}>Sign In</Button>
   </BaseTemplate>
 );
 

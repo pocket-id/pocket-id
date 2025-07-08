@@ -9,6 +9,7 @@ interface BaseTemplateProps {
 export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) => {
   // Fallback to local pocketid.png if no logoURL provided
   const finalLogoURL = logoURL || '/static/pocketid.png';
+  const fallbackLogoPath = '/static/pocketid.png';
 
   return (
     <Html>
@@ -20,7 +21,7 @@ export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) 
               src={finalLogoURL}
               width="32"
               height="32"
-              alt={appName}
+              alt={fallbackLogoPath}
               style={logo}
             />
             <Text style={title}>

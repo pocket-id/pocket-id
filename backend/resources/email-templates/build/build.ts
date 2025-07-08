@@ -1,8 +1,4 @@
 import { render } from '@react-email/components';
-import { NewSignInEmail } from './emails/new-signin-email';
-import { OneTimeAccessEmail } from './emails/one-time-access-email';
-import { ApiKeyExpiringEmail } from './emails/api-key-expiring-email';
-import { TestEmail } from './emails/test-email';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -35,37 +31,83 @@ function cleanupOldTemplates() {
   }
 }
 
-const templates = [
-  {
-    name: 'login-with-new-device',
-    component: NewSignInEmail,
-    sampleProps: {
-      logoURL: "LOGO_URL_PLACEHOLDER",
-      appName: "APP_NAME_PLACEHOLDER",
-      data: {
-        city: "CITY_PLACEHOLDER",
-        country: "COUNTRY_PLACEHOLDER",
-        ipAddress: "IP_ADDRESS_PLACEHOLDER",
-        device: "DEVICE_PLACEHOLDER",
-        dateTime: "DATE_TIME_PLACEHOLDER",
-      }
+// Auto-generate placeholders based on template name
+function getSampleProps(templateName: string) {
+  const baseProps = {
+    logoURL: "LOGOURL_PLACEHOLDER",
+    appName: "APPNAME_PLACEHOLDER",
+  };
+
+  const dataMap: Record<string, any> = {
+    'new-signin': {
+      city: "CITY_PLACEHOLDER",
+      country: "COUNTRY_PLACEHOLDER",
+      ipAddress: "IPADDRESS_PLACEHOLDER",
+      device: "DEVICE_PLACEHOLDER",
+      dateTime: "DATETIME_PLACEHOLDER",
     },
-    replacements: [
-      { search: /LOGO_URL_PLACEHOLDER/g, replace: '{{.LogoURL}}' },
-      { search: /APP_NAME_PLACEHOLDER/g, replace: '{{.AppName}}' },
+    'one-time-access': {
+      code: "CODE_PLACEHOLDER",
+      loginLink: "LOGINLINK_PLACEHOLDER",
+      buttonCodeLink: "BUTTONCODELINK_PLACEHOLDER",
+      expirationString: "EXPIRATIONSTRING_PLACEHOLDER",
+    },
+    'api-key-expiring': {
+      name: "NAME_PLACEHOLDER",
+      apiKeyName: "APIKEYNAME_PLACEHOLDER",
+      expiresAt: "EXPIRESAT_PLACEHOLDER",
+    },
+    'test': {},
+  };
+
+  const data = dataMap[templateName] || {};
+  
+  return Object.keys(data).length > 0 
+    ? { ...baseProps, data } 
+    : baseProps;
+}
+
+// Auto-generate Go template replacements
+function getReplacements(templateName: string) {
+  const baseReplacements = [
+    { search: /LOGOURL_PLACEHOLDER/g, replace: '{{.LogoURL}}' },
+    { search: /APPNAME_PLACEHOLDER/g, replace: '{{.AppName}}' },
+  ];
+
+  const dataReplacements: Record<string, Array<{ search: RegExp; replace: string }>> = {
+    'new-signin': [
       { search: /CITY_PLACEHOLDER/g, replace: '{{.Data.City}}' },
       { search: /COUNTRY_PLACEHOLDER/g, replace: '{{.Data.Country}}' },
-      { search: /IP_ADDRESS_PLACEHOLDER/g, replace: '{{.Data.IPAddress}}' },
+      { search: /IPADDRESS_PLACEHOLDER/g, replace: '{{.Data.IPAddress}}' },
       { search: /DEVICE_PLACEHOLDER/g, replace: '{{.Data.Device}}' },
-      { search: /DATE_TIME_PLACEHOLDER/g, replace: '{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}' },
+      { search: /DATETIME_PLACEHOLDER/g, replace: '{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}' },
     ],
-    conditionals: [
-      {
-        regex: /(<td[^>]*>[\s\S]*?<.*?>Approximate Location<[\s\S]*?{{\.Data\.City}}, {{\.Data\.Country}}[\s\S]*?<\/td>)/,
-        wrapper: '{{if and .Data.City .Data.Country}}$1{{end}}'
-      }
+    'one-time-access': [
+      { search: /CODE_PLACEHOLDER/g, replace: '{{.Data.Code}}' },
+      { search: /LOGINLINK_PLACEHOLDER/g, replace: '{{.Data.LoginLink}}' },
+      { search: /BUTTONCODELINK_PLACEHOLDER/g, replace: '{{.Data.LoginLinkWithCode}}' },
+      { search: /EXPIRATIONSTRING_PLACEHOLDER/g, replace: '{{.Data.ExpirationString}}' },
     ],
-    textTemplate: `{{ define "root" -}}
+    'api-key-expiring': [
+      { search: /NAME_PLACEHOLDER/g, replace: '{{.Data.Name}}' },
+      { search: /APIKEYNAME_PLACEHOLDER/g, replace: '{{.Data.ApiKeyName}}' },
+      { search: /EXPIRESAT_PLACEHOLDER/g, replace: '{{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}' },
+    ],
+    'test': [],
+  };
+
+  return [...baseReplacements, ...(dataReplacements[templateName] || [])];
+}
+
+// Auto-generate text templates
+function getTextTemplate(templateName: string) {
+  const title = templateName
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  const templates: Record<string, string> = {
+    'new-signin': `{{ define "root" -}}
 New Sign-In Detected
 ====================
 
@@ -82,31 +124,9 @@ your account and security settings.
 
 --
 This is automatically sent email from {{.AppName}}.
-{{ end -}}`
-  },
-  {
-    name: 'one-time-access',
-    component: OneTimeAccessEmail,
-    sampleProps: {
-      logoURL: "LOGO_URL_PLACEHOLDER",
-      appName: "APP_NAME_PLACEHOLDER",
-      data: {
-        code: "CODE_PLACEHOLDER",
-        loginLink: "LOGIN_LINK_PLACEHOLDER",
-        loginLinkWithCode: "LOGIN_LINK_WITH_CODE_PLACEHOLDER",
-        expirationString: "EXPIRATION_STRING_PLACEHOLDER",
-      }
-    },
-    replacements: [
-      { search: /LOGO_URL_PLACEHOLDER/g, replace: '{{.LogoURL}}' },
-      { search: /APP_NAME_PLACEHOLDER/g, replace: '{{.AppName}}' },
-      { search: /CODE_PLACEHOLDER/g, replace: '{{.Data.Code}}' },
-      { search: /LOGIN_LINK_PLACEHOLDER/g, replace: '{{.Data.LoginLink}}' },
-      { search: /LOGIN_LINK_WITH_CODE_PLACEHOLDER/g, replace: '{{.Data.LoginLinkWithCode}}' },
-      { search: /EXPIRATION_STRING_PLACEHOLDER/g, replace: '{{.Data.ExpirationString}}' },
-    ],
-    conditionals: [],
-    textTemplate: `{{ define "root" -}}
+{{ end -}}`,
+
+    'one-time-access': `{{ define "root" -}}
 Login Code
 ====================
 
@@ -118,29 +138,9 @@ Or visit {{ .Data.LoginLink }} and enter the the code "{{ .Data.Code }}".
 
 --
 This is automatically sent email from {{.AppName}}.
-{{ end -}}`
-  },
-  {
-    name: 'api-key-expiring-soon',
-    component: ApiKeyExpiringEmail,
-    sampleProps: {
-      logoURL: "LOGO_URL_PLACEHOLDER",
-      appName: "APP_NAME_PLACEHOLDER",
-      data: {
-        name: "NAME_PLACEHOLDER",
-        apiKeyName: "API_KEY_NAME_PLACEHOLDER",
-        expiresAt: "EXPIRES_AT_PLACEHOLDER",
-      }
-    },
-    replacements: [
-      { search: /LOGO_URL_PLACEHOLDER/g, replace: '{{.LogoURL}}' },
-      { search: /APP_NAME_PLACEHOLDER/g, replace: '{{.AppName}}' },
-      { search: /NAME_PLACEHOLDER/g, replace: '{{.Data.Name}}' },
-      { search: /API_KEY_NAME_PLACEHOLDER/g, replace: '{{.Data.ApiKeyName}}' },
-      { search: /EXPIRES_AT_PLACEHOLDER/g, replace: '{{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}' },
-    ],
-    conditionals: [],
-    textTemplate: `{{ define "root" -}}
+{{ end -}}`,
+
+    'api-key-expiring': `{{ define "root" -}}
 API Key Expiring Soon
 ====================
 
@@ -152,83 +152,114 @@ Please generate a new API key if you need continued access.
 
 --
 This is automatically sent email from {{.AppName}}.
-{{ end -}}`
-  },
-  {
-    name: 'test',
-    component: TestEmail,
-    sampleProps: {
-      logoURL: "LOGO_URL_PLACEHOLDER",
-      appName: "APP_NAME_PLACEHOLDER",
-    },
-    replacements: [
-      { search: /LOGO_URL_PLACEHOLDER/g, replace: '{{.LogoURL}}' },
-      { search: /APP_NAME_PLACEHOLDER/g, replace: '{{.AppName}}' },
-    ],
-    conditionals: [],
-    textTemplate: `{{ define "root" -}}
+{{ end -}}`,
+
+    'test': `{{ define "root" -}}
 This is a test email.
 
 --
 This is automatically sent email from {{.AppName}}.
-{{ end -}}`
-  }
-] as const;
+{{ end -}}`,
+  };
 
-async function buildAllTemplates() {
-  console.log('Building all email templates...');
+  return templates[templateName] || `{{ define "root" -}}
+${title}
+${'='.repeat(title.length)}
 
-  for (const template of templates) {
-    console.log(`Building ${template.name}...`);
-    
-    try {
-      const Component = template.component as any;
-      const html = await render(Component(template.sampleProps));
-      
-      let goTemplateHtml = html;
-      
-      // Apply replacements BEFORE cleaning HTML comments
-      for (const replacement of template.replacements) {
-        goTemplateHtml = goTemplateHtml.replace(replacement.search, replacement.replace);
-      }
-      
-      // Apply conditionals
-      for (const conditional of template.conditionals) {
-        const match = goTemplateHtml.match(conditional.regex);
-        if (match) {
-          const wrappedContent = conditional.wrapper.replace('$1', match[1]);
-          goTemplateHtml = goTemplateHtml.replace(conditional.regex, wrappedContent);
-        }
-      }
-      
-      // Clean up React comments but KEEP MSO comments for Outlook compatibility
-      goTemplateHtml = goTemplateHtml
-        .replace(/<!--\$-->/g, '')
-        .replace(/<!--\/\$-->/g, '')
-        .replace(/<!--\d+-->/g, '')
-        // Don't remove MSO comments - they're needed for Outlook
-        .replace(/<!--(?!\[if mso\]|!\[endif\])[^>]*-->/g, '');
-      
-      const goHtmlTemplate = `{{define "root"}}${goTemplateHtml}{{end}}`;
-      
-      const htmlTemplatePath = path.join(outputDir, `${template.name}_html.tmpl`);
-      fs.writeFileSync(htmlTemplatePath, goHtmlTemplate);
-      
-      const textTemplatePath = path.join(outputDir, `${template.name}_text.tmpl`);
-      fs.writeFileSync(textTemplatePath, template.textTemplate);
-      
-      console.log(`✓ Generated ${htmlTemplatePath} and ${textTemplatePath}`);
-    } catch (error) {
-      console.error(`✗ Error building ${template.name}:`, error);
+Email content goes here.
+
+--
+This is automatically sent email from {{.AppName}}.
+{{ end -}}`;
+}
+
+// Apply special conditionals for specific templates
+function applyConditionals(templateName: string, html: string): string {
+  if (templateName === 'new-signin') {
+    // Wrap location data in conditional
+    const locationRegex = /(<div[^>]*>[\s\S]*?<.*?>Approximate Location<[\s\S]*?{{\.Data\.City}}, {{\.Data\.Country}}[\s\S]*?<\/div>)/;
+    const match = html.match(locationRegex);
+    if (match) {
+      return html.replace(locationRegex, `{{if and .Data.City .Data.Country}}${match[1]}{{end}}`);
     }
   }
+  return html;
+}
+
+// Convert template filename to template name
+function getTemplateName(filename: string): string {
+  return filename
+    .replace('.tsx', '')
+    .replace('-email', '');
+}
+
+async function discoverAndBuildTemplates() {
+  console.log('Discovering and building email templates...');
   
-  console.log('All templates built successfully!');
+  const emailsDir = './emails';
+  const files = fs.readdirSync(emailsDir);
+  
+  for (const file of files) {
+    // Skip base template and components
+    if (file.endsWith('.tsx') && 
+        !file.includes('base-template') && 
+        !file.includes('components')) {
+      
+      const templateName = getTemplateName(file);
+      const modulePath = path.join(emailsDir, file);
+      
+      console.log(`Building ${templateName}...`);
+      
+      try {
+        // Dynamic import
+        const module = await import(modulePath);
+        const Component = module.default || module[Object.keys(module)[0]];
+        
+        if (!Component) {
+          console.error(`✗ No component found in ${file}`);
+          continue;
+        }
+        
+        // Get sample props and render
+        const sampleProps = getSampleProps(templateName);
+        const html = await render(Component(sampleProps));
+        
+        // Apply replacements
+        const replacements = getReplacements(templateName);
+        let goTemplateHtml = html;
+        
+        for (const replacement of replacements) {
+          goTemplateHtml = goTemplateHtml.replace(replacement.search, replacement.replace);
+        }
+        
+        // Apply conditionals
+        goTemplateHtml = applyConditionals(templateName, goTemplateHtml);
+        
+        // Convert template name for Go backend
+        const goTemplateName = templateName === 'new-signin' ? 'login-with-new-device' : templateName;
+        
+        // Write HTML template
+        const goHtmlTemplate = `{{define "root"}}${goTemplateHtml}{{end}}`;
+        const htmlTemplatePath = path.join(outputDir, `${goTemplateName}_html.tmpl`);
+        fs.writeFileSync(htmlTemplatePath, goHtmlTemplate);
+        
+        // Write text template
+        const textTemplate = getTextTemplate(templateName);
+        const textTemplatePath = path.join(outputDir, `${goTemplateName}_text.tmpl`);
+        fs.writeFileSync(textTemplatePath, textTemplate);
+        
+        console.log(`✓ Generated ${htmlTemplatePath} and ${textTemplatePath}`);
+      } catch (error) {
+        console.error(`✗ Error building ${templateName}:`, error);
+      }
+    }
+  }
 }
 
 async function main() {
   cleanupOldTemplates();
-  await buildAllTemplates();
+  await discoverAndBuildTemplates();
+  console.log('All templates built successfully!');
 }
 
 main().catch(console.error);
