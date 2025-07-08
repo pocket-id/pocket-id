@@ -83,12 +83,25 @@ const gridSection = {
 const grid = {
   width: '100%',
   borderCollapse: 'collapse' as const,
+  border: 'none',
+  margin: '0',
+  padding: '0',
+  backgroundColor: 'transparent',
+  fontFamily: 'inherit',
+  fontSize: 'inherit',
+  color: 'inherit',
 };
 
 const gridCell = {
   padding: '12px 16px',
   verticalAlign: 'top',
   width: '50%',
+  border: 'none',
+  margin: '0',
+  backgroundColor: 'transparent',
+  fontFamily: 'inherit',
+  fontSize: 'inherit',
+  color: 'inherit',
 };
 
 const label = {
@@ -96,12 +109,18 @@ const label = {
   fontWeight: 'bold',
   color: '#666',
   margin: '0 0 4px 0',
+  padding: '0',
+  display: 'block',
+  fontFamily: 'inherit',
 };
 
 const value = {
   fontSize: '1rem',
   color: '#333',
-  margin: 0,
+  margin: '0',
+  padding: '0',
+  display: 'block',
+  fontFamily: 'inherit',
 };
 
 const message = {
