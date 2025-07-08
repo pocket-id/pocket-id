@@ -19,11 +19,11 @@ interface NewSignInEmailProps {
 export const NewSignInEmail = ({ logoURL, appName, data }: NewSignInEmailProps) => (
   <BaseTemplate logoURL={logoURL} appName={appName}>
     <div style={headerSection}>
-      <Text style={title}>New Sign-In Detected</Text>
+      <Text style={contentTitle}>New Sign-In Detected</Text>
       <WarningBadge>Warning</WarningBadge>
     </div>
 
-    <div style={gridSection}>
+    <div style={grid}>
       <div style={gridRow}>
         {data.city && data.country && (
           <div style={gridCell}>
@@ -65,41 +65,40 @@ const headerSection = {
   marginBottom: '24px',
 };
 
-const title = {
-  fontSize: '1.5rem',
+const contentTitle = {
+  fontSize: '1.25rem',
   fontWeight: 'bold' as const,
+  marginBottom: '16px',
   margin: '0',
   padding: '0',
   color: '#333',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  fontFamily: 'Arial, sans-serif',
 };
 
-const gridSection = {
-  marginBottom: '24px',
+const grid = {
+  width: '100%',
+  marginBottom: '16px',
 };
 
 const gridRow = {
   display: 'flex',
-  marginBottom: '12px',
+  marginBottom: '8px',
 };
 
 const gridCell = {
-  flex: '1',
-  padding: '12px 16px',
-  border: 'none',
-  margin: '0',
-  backgroundColor: 'transparent',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  width: '50%',
+  paddingBottom: '8px',
+  verticalAlign: 'top' as const,
+  paddingRight: '8px',
 };
 
 const label = {
+  color: '#888',
   fontSize: '0.875rem',
-  fontWeight: 'bold' as const,
-  color: '#666',
   margin: '0 0 4px 0',
   padding: '0',
   display: 'block',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  fontFamily: 'Arial, sans-serif',
 };
 
 const value = {
@@ -108,14 +107,15 @@ const value = {
   margin: '0',
   padding: '0',
   display: 'block',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  fontFamily: 'Arial, sans-serif',
 };
 
 const message = {
   fontSize: '1rem',
-  lineHeight: '1.6',
-  color: '#333',
+  lineHeight: '1.5',
+  marginTop: '16px',
   margin: '0',
   padding: '0',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  color: '#333',
+  fontFamily: 'Arial, sans-serif',
 };

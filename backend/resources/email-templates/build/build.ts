@@ -52,7 +52,7 @@ function getSampleProps(templateName: string) {
       buttonCodeLink: "BUTTONCODELINK_PLACEHOLDER",
       expirationString: "EXPIRATIONSTRING_PLACEHOLDER",
     },
-    'api-key-expiring': {
+    'api-key-expiring-soon': {
       name: "NAME_PLACEHOLDER",
       apiKeyName: "APIKEYNAME_PLACEHOLDER",
       expiresAt: "EXPIRESAT_PLACEHOLDER",
@@ -87,8 +87,9 @@ function getReplacements(templateName: string) {
       { search: /LOGINLINK_PLACEHOLDER/g, replace: '{{.Data.LoginLink}}' },
       { search: /BUTTONCODELINK_PLACEHOLDER/g, replace: '{{.Data.LoginLinkWithCode}}' },
       { search: /EXPIRATIONSTRING_PLACEHOLDER/g, replace: '{{.Data.ExpirationString}}' },
+      { search: /BUTTONCODELINK_[A-Za-z0-9]+/g, replace: '{{.Data.LoginLinkWithCode}}' },
     ],
-    'api-key-expiring': [
+    'api-key-expiring-soon': [ 
       { search: /NAME_PLACEHOLDER/g, replace: '{{.Data.Name}}' },
       { search: /APIKEYNAME_PLACEHOLDER/g, replace: '{{.Data.ApiKeyName}}' },
       { search: /EXPIRESAT_PLACEHOLDER/g, replace: '{{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}' },
@@ -140,7 +141,7 @@ Or visit {{ .Data.LoginLink }} and enter the the code "{{ .Data.Code }}".
 This is automatically sent email from {{.AppName}}.
 {{ end -}}`,
 
-    'api-key-expiring': `{{ define "root" -}}
+    'api-key-expiring-soon': `{{ define "root" -}}
 API Key Expiring Soon
 ====================
 
@@ -206,12 +207,12 @@ async function discoverAndBuildTemplates() {
         !file.includes('components')) {
       
       const templateName = getTemplateName(file);
-      const modulePath = path.join(emailsDir, file);
+      const modulePath = `./${emailsDir}/${file}`; // Fix: use relative path with ./
       
       console.log(`Building ${templateName}...`);
       
       try {
-        // Dynamic import
+        // Dynamic import with proper relative path
         const module = await import(modulePath);
         const Component = module.default || module[Object.keys(module)[0]];
         

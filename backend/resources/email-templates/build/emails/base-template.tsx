@@ -7,9 +7,7 @@ interface BaseTemplateProps {
 }
 
 export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) => {
-  // Fallback to local pocketid.png if no logoURL provided
   const finalLogoURL = logoURL || '/static/pocketid.png';
-  const fallbackLogoPath = '/static/pocketid.png';
 
   return (
     <Html>
@@ -21,7 +19,7 @@ export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) 
               src={finalLogoURL}
               width="32"
               height="32"
-              alt={fallbackLogoPath}
+              alt={appName}
               style={logo}
             />
             <Text style={title}>
@@ -29,7 +27,7 @@ export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) 
             </Text>
           </div>
 
-          <div style={section}>
+          <div style={content}>
             {children}
           </div>
         </div>
@@ -39,44 +37,47 @@ export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) 
 };
 
 const main = {
-  backgroundColor: '#ffffff',
-  color: '#24292e',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
   margin: '0',
-  padding: '0',
+  padding: '16px',
+  backgroundColor: '#f0f0f0',
+  color: '#333',
+  fontFamily: 'Arial, sans-serif',
+  lineHeight: '1.5',
 };
 
 const container = {
-  maxWidth: '480px',
-  margin: '0 auto',
-  padding: '20px 0 48px',
+  width: '100%',
+  maxWidth: '600px',
+  margin: '40px auto',
+  backgroundColor: '#fff',
+  borderRadius: '10px',
+  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+  padding: '32px',
 };
 
 const header = {
   display: 'flex',
-  alignItems: 'center',
   marginBottom: '24px',
 };
 
 const logo = {
-  marginRight: '12px',
-  display: 'block',
+  width: '32px',
+  height: '32px',
+  verticalAlign: 'middle',
+  marginRight: '8px',
 };
 
 const title = {
-  fontSize: '24px',
-  lineHeight: 1.25,
+  fontSize: '1.5rem',
+  fontWeight: 'bold',
+  display: 'inline-block',
+  verticalAlign: 'middle',
   margin: '0',
   padding: '0',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };
 
-const section = {
+const content = {
+  backgroundColor: '#fafafa',
   padding: '24px',
-  border: 'solid 1px #dedede',
-  borderRadius: '5px',
-  textAlign: 'left' as const,
-  backgroundColor: '#ffffff',
-  margin: '0',
-  boxSizing: 'border-box' as const,
+  borderRadius: '10px',
 };

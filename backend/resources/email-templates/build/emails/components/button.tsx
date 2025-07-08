@@ -18,14 +18,19 @@ export const Button = ({ href, children, style = {} }: ButtonProps) => {
     display: 'inline-block',
     border: 'none',
     cursor: 'pointer',
+    marginTop: '24px',
     ...style,
   };
 
   return (
-    <div style={{ textAlign: 'center' as const, marginTop: '24px' }}>
+    <div style={buttonContainer}>
       <EmailButton style={buttonStyle} href={href}>
         {children}
       </EmailButton>
     </div>
   );
+};
+
+const buttonContainer = {
+  textAlign: 'center' as const,
 };

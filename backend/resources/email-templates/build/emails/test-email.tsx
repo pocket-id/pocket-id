@@ -8,17 +8,18 @@ interface TestEmailProps {
 
 export const TestEmail = ({ logoURL, appName }: TestEmailProps) => (
   <BaseTemplate logoURL={logoURL} appName={appName}>
-    <Text style={paragraph}>This is a test email.</Text>
+    <Text style={message}>This is a test email.</Text>
   </BaseTemplate>
 );
 
 export default TestEmail;
 
-const paragraph = {
+const message = {
   fontSize: '1rem',
   lineHeight: '1.5',
+  marginTop: '16px',
   margin: '0',
   padding: '0',
   color: '#333',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  fontFamily: 'Arial, sans-serif',
 };

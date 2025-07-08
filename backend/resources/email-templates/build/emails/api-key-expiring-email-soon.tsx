@@ -17,7 +17,7 @@ interface ApiKeyExpiringEmailProps {
 export const ApiKeyExpiringEmail = ({ logoURL, appName, data }: ApiKeyExpiringEmailProps) => (
   <BaseTemplate logoURL={logoURL} appName={appName}>
     <div style={headerSection}>
-      <Text style={title}>API Key Expiring Soon</Text>
+      <Text style={contentTitle}>API Key Expiring Soon</Text>
       <WarningBadge>Warning</WarningBadge>
     </div>
 
@@ -42,20 +42,22 @@ const headerSection = {
   marginBottom: '24px',
 };
 
-const title = {
+const contentTitle = {
   fontSize: '1.25rem',
   fontWeight: 'bold' as const,
+  marginBottom: '16px',
   margin: '0',
   padding: '0',
   color: '#333',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  fontFamily: 'Arial, sans-serif',
 };
 
 const message = {
   fontSize: '1rem',
-  lineHeight: '1.6',
-  color: '#333',
+  lineHeight: '1.5',
+  marginTop: '16px',
   margin: '0',
   padding: '0',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  color: '#333',
+  fontFamily: 'Arial, sans-serif',
 };
