@@ -27,6 +27,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Setup Node.js for email templates
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: backend/resources/email-templates/build/package-lock.json
+      
+      - name: Install email template dependencies
+        working-directory: backend/resources/email-templates/build
+        run: npm ci
+      
+      - name: Build email templates
+        working-directory: backend/resources/email-templates/build
+        run: npm run build
+
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
@@ -223,7 +238,7 @@ jobs:
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: playwright-report-postgres
-          path: frontend/tests/.report
+          path: tests/.report
           include-hidden-files: true
           retention-days: 15
 

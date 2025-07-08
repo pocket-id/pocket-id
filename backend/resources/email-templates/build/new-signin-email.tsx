@@ -1,0 +1,112 @@
+import { Text, Section } from '@react-email/components';
+import { BaseTemplate } from './base-template';
+import { WarningBadge } from './components/warning-badge';
+
+interface SignInData {
+  city?: string;
+  country?: string;
+  ipAddress: string;
+  device: string;
+  dateTime: string;
+}
+
+interface NewSignInEmailProps {
+  logoURL: string;
+  appName: string;
+  data: SignInData;
+}
+
+export const NewSignInEmail = ({ logoURL, appName, data }: NewSignInEmailProps) => (
+  <BaseTemplate logoURL={logoURL} appName={appName}>
+    <Section style={headerSection}>
+      <Text style={title}>New Sign-In Detected</Text>
+      <WarningBadge>Warning</WarningBadge>
+    </Section>
+
+    <Section style={gridSection}>
+      <table style={grid}>
+        <tbody>
+          <tr>
+            {data.city && data.country && (
+              <td style={gridCell}>
+                <Text style={label}>Approximate Location</Text>
+                <Text style={value}>
+                  {data.city}, {data.country}
+                </Text>
+              </td>
+            )}
+            <td style={gridCell}>
+              <Text style={label}>IP Address</Text>
+              <Text style={value}>{data.ipAddress}</Text>
+            </td>
+          </tr>
+          <tr>
+            <td style={gridCell}>
+              <Text style={label}>Device</Text>
+              <Text style={value}>{data.device}</Text>
+            </td>
+            <td style={gridCell}>
+              <Text style={label}>Sign-In Time</Text>
+              <Text style={value}>{data.dateTime}</Text>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </Section>
+
+    <Text style={message}>
+      This sign-in was detected from a new device or location. If you recognize this activity, you can safely ignore this message. If not, please review your account and security settings.
+    </Text>
+  </BaseTemplate>
+);
+
+export default NewSignInEmail;
+
+const headerSection = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '24px',
+};
+
+const title = {
+  fontSize: '1.5rem',
+  fontWeight: 'bold',
+  margin: 0,
+  color: '#333',
+};
+
+const gridSection = {
+  marginBottom: '24px',
+};
+
+const grid = {
+  width: '100%',
+  borderCollapse: 'collapse' as const,
+};
+
+const gridCell = {
+  padding: '12px 16px',
+  verticalAlign: 'top',
+  width: '50%',
+};
+
+const label = {
+  fontSize: '0.875rem',
+  fontWeight: 'bold',
+  color: '#666',
+  margin: '0 0 4px 0',
+};
+
+const value = {
+  fontSize: '1rem',
+  color: '#333',
+  margin: 0,
+};
+
+const message = {
+  fontSize: '1rem',
+  lineHeight: '1.6',
+  color: '#333',
+  margin: 0,
+};
