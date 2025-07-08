@@ -1,4 +1,4 @@
-import { Text, Section } from '@react-email/components';
+import { Text } from '@react-email/components';
 import { BaseTemplate } from './base-template';
 import { Button } from './components/button';
 
@@ -17,9 +17,9 @@ interface OneTimeAccessEmailProps {
 
 export const OneTimeAccessEmail = ({ logoURL, appName, data }: OneTimeAccessEmailProps) => (
   <BaseTemplate logoURL={logoURL} appName={appName}>
-    <Section style={headerSection}>
+    <div style={headerSection}>
       <Text style={title}>Login Code</Text>
-    </Section>
+    </div>
 
     <Text style={message}>
       Click the button below to sign in to {appName} with a login code.

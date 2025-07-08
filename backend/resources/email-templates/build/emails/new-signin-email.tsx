@@ -1,4 +1,4 @@
-import { Text, Section } from '@react-email/components';
+import { Text } from '@react-email/components';
 import { BaseTemplate } from './base-template';
 import { WarningBadge } from './components/warning-badge';
 
@@ -18,41 +18,37 @@ interface NewSignInEmailProps {
 
 export const NewSignInEmail = ({ logoURL, appName, data }: NewSignInEmailProps) => (
   <BaseTemplate logoURL={logoURL} appName={appName}>
-    <Section style={headerSection}>
+    <div style={headerSection}>
       <Text style={title}>New Sign-In Detected</Text>
       <WarningBadge>Warning</WarningBadge>
-    </Section>
+    </div>
 
-    <Section style={gridSection}>
-      <table style={grid}>
-        <tbody>
-          <tr style={gridRow}>
-            {data.city && data.country && (
-              <td style={gridCell}>
-                <Text style={label}>Approximate Location</Text>
-                <Text style={value}>
-                  {data.city}, {data.country}
-                </Text>
-              </td>
-            )}
-            <td style={gridCell}>
-              <Text style={label}>IP Address</Text>
-              <Text style={value}>{data.ipAddress}</Text>
-            </td>
-          </tr>
-          <tr style={gridRow}>
-            <td style={gridCell}>
-              <Text style={label}>Device</Text>
-              <Text style={value}>{data.device}</Text>
-            </td>
-            <td style={gridCell}>
-              <Text style={label}>Sign-In Time</Text>
-              <Text style={value}>{data.dateTime}</Text>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </Section>
+    <div style={gridSection}>
+      <div style={gridRow}>
+        {data.city && data.country && (
+          <div style={gridCell}>
+            <Text style={label}>Approximate Location</Text>
+            <Text style={value}>
+              {data.city}, {data.country}
+            </Text>
+          </div>
+        )}
+        <div style={gridCell}>
+          <Text style={label}>IP Address</Text>
+          <Text style={value}>{data.ipAddress}</Text>
+        </div>
+      </div>
+      <div style={gridRow}>
+        <div style={gridCell}>
+          <Text style={label}>Device</Text>
+          <Text style={value}>{data.device}</Text>
+        </div>
+        <div style={gridCell}>
+          <Text style={label}>Sign-In Time</Text>
+          <Text style={value}>{data.dateTime}</Text>
+        </div>
+      </div>
+    </div>
 
     <Text style={message}>
       This sign-in was detected from a new device or location. If you recognize this activity, you can safely ignore this message. If not, please review your account and security settings.
@@ -71,47 +67,29 @@ const headerSection = {
 
 const title = {
   fontSize: '1.5rem',
-  fontWeight: 'bold',
-  margin: 0,
+  fontWeight: 'bold' as const,
+  margin: '0',
+  padding: '0',
   color: '#333',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };
 
 const gridSection = {
   marginBottom: '24px',
 };
 
-const grid = {
-  width: '100%',
-  borderCollapse: 'collapse' as const,
-  border: 'none',
-  margin: '0',
-  padding: '0',
-  backgroundColor: 'transparent',
-  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-  fontSize: 'inherit',
-  color: '#24292e',
-};
-
 const gridRow = {
-  border: 'none',
-  margin: '0',
-  padding: '0',
-  backgroundColor: 'transparent',
-  fontFamily: 'inherit',
-  fontSize: 'inherit',
-  color: 'inherit',
+  display: 'flex',
+  marginBottom: '12px',
 };
 
 const gridCell = {
+  flex: '1',
   padding: '12px 16px',
-  verticalAlign: 'top' as const,
-  width: '50%',
   border: 'none',
   margin: '0',
   backgroundColor: 'transparent',
   fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-  fontSize: '14px',
-  color: '#24292e',
 };
 
 const label = {
@@ -137,6 +115,7 @@ const message = {
   fontSize: '1rem',
   lineHeight: '1.6',
   color: '#333',
-  margin: 0,
+  margin: '0',
+  padding: '0',
   fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };

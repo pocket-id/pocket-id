@@ -1,4 +1,4 @@
-import { Text, Section } from '@react-email/components';
+import { Text } from '@react-email/components';
 import { BaseTemplate } from './base-template';
 import { WarningBadge } from './components/warning-badge';
 
@@ -16,10 +16,10 @@ interface ApiKeyExpiringEmailProps {
 
 export const ApiKeyExpiringEmail = ({ logoURL, appName, data }: ApiKeyExpiringEmailProps) => (
   <BaseTemplate logoURL={logoURL} appName={appName}>
-    <Section style={headerSection}>
+    <div style={headerSection}>
       <Text style={title}>API Key Expiring Soon</Text>
       <WarningBadge>Warning</WarningBadge>
-    </Section>
+    </div>
 
     <Text style={message}>
       Hello {data.name},

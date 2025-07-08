@@ -1,4 +1,4 @@
-import { Body, Container, Head, Html, Img, Section, Text } from '@react-email/components';
+import { Body, Container, Head, Html, Img, Text } from '@react-email/components';
 
 interface BaseTemplateProps {
   logoURL?: string;
@@ -23,15 +23,14 @@ export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) 
               alt={appName}
               style={logo}
             />
-
             <Text style={title}>
               <strong>{appName}</strong>
             </Text>
           </div>
 
-          <Section style={section}>
+          <div style={section}>
             {children}
-          </Section>
+          </div>
         </Container>
       </Body>
     </Html>
@@ -41,8 +40,7 @@ export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) 
 const main = {
   backgroundColor: '#ffffff',
   color: '#24292e',
-  fontFamily:
-    '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
   margin: '0',
   padding: '0',
 };
@@ -69,6 +67,7 @@ const title = {
   lineHeight: 1.25,
   margin: '0',
   padding: '0',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };
 
 const section = {
