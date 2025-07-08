@@ -1,8 +1,8 @@
 import { render } from '@react-email/components';
-import { NewSignInEmail } from './new-signin-email';
-import { OneTimeAccessEmail } from './one-time-access-email';
-import { ApiKeyExpiringEmail } from './api-key-expiring-email';
-import { TestEmail } from './test-email';
+import { NewSignInEmail } from './emails/new-signin-email';
+import { OneTimeAccessEmail } from './emails/one-time-access-email';
+import { ApiKeyExpiringEmail } from './emails/api-key-expiring-email';
+import { TestEmail } from './emails/test-email';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
