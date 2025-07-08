@@ -44,14 +44,18 @@ const headerSection = {
 
 const title = {
   fontSize: '1.25rem',
-  fontWeight: 'bold',
-  margin: 0,
+  fontWeight: 'bold' as const,
+  margin: '0',
+  padding: '0',
   color: '#333',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };
 
 const message = {
   fontSize: '1rem',
   lineHeight: '1.6',
   color: '#333',
-  margin: 0,
+  margin: '0',
+  padding: '0',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };

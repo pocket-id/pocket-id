@@ -26,7 +26,7 @@ export const NewSignInEmail = ({ logoURL, appName, data }: NewSignInEmailProps) 
     <Section style={gridSection}>
       <table style={grid}>
         <tbody>
-          <tr>
+          <tr style={gridRow}>
             {data.city && data.country && (
               <td style={gridCell}>
                 <Text style={label}>Approximate Location</Text>
@@ -40,7 +40,7 @@ export const NewSignInEmail = ({ logoURL, appName, data }: NewSignInEmailProps) 
               <Text style={value}>{data.ipAddress}</Text>
             </td>
           </tr>
-          <tr>
+          <tr style={gridRow}>
             <td style={gridCell}>
               <Text style={label}>Device</Text>
               <Text style={value}>{data.device}</Text>
@@ -87,6 +87,16 @@ const grid = {
   margin: '0',
   padding: '0',
   backgroundColor: 'transparent',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  fontSize: 'inherit',
+  color: '#24292e',
+};
+
+const gridRow = {
+  border: 'none',
+  margin: '0',
+  padding: '0',
+  backgroundColor: 'transparent',
   fontFamily: 'inherit',
   fontSize: 'inherit',
   color: 'inherit',
@@ -94,24 +104,24 @@ const grid = {
 
 const gridCell = {
   padding: '12px 16px',
-  verticalAlign: 'top',
+  verticalAlign: 'top' as const,
   width: '50%',
   border: 'none',
   margin: '0',
   backgroundColor: 'transparent',
-  fontFamily: 'inherit',
-  fontSize: 'inherit',
-  color: 'inherit',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  fontSize: '14px',
+  color: '#24292e',
 };
 
 const label = {
   fontSize: '0.875rem',
-  fontWeight: 'bold',
+  fontWeight: 'bold' as const,
   color: '#666',
   margin: '0 0 4px 0',
   padding: '0',
   display: 'block',
-  fontFamily: 'inherit',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };
 
 const value = {
@@ -120,7 +130,7 @@ const value = {
   margin: '0',
   padding: '0',
   display: 'block',
-  fontFamily: 'inherit',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };
 
 const message = {
@@ -128,4 +138,5 @@ const message = {
   lineHeight: '1.6',
   color: '#333',
   margin: 0,
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };

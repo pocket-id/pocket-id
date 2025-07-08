@@ -17,5 +17,8 @@ export default TestEmail;
 const paragraph = {
   fontSize: '1rem',
   lineHeight: '1.5',
-  margin: 0,
+  margin: '0',
+  padding: '0',
+  color: '#333',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
 };
