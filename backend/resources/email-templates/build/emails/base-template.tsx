@@ -1,4 +1,4 @@
-import { Body, Container, Head, Html, Img, Text } from '@react-email/components';
+import { Body, Head, Html, Img, Text } from '@react-email/components';
 
 interface BaseTemplateProps {
   logoURL?: string;
@@ -14,7 +14,7 @@ export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) 
     <Html>
       <Head />
       <Body style={main}>
-        <Container style={container}>
+        <div style={container}>
           <div style={header}>
             <Img
               src={finalLogoURL}
@@ -31,7 +31,7 @@ export const BaseTemplate = ({ logoURL, appName, children }: BaseTemplateProps) 
           <div style={section}>
             {children}
           </div>
-        </Container>
+        </div>
       </Body>
     </Html>
   );
