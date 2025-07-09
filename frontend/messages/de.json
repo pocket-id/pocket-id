@@ -276,6 +276,8 @@
 	"public_clients_description": "Öffentliche Clients haben kein Client-Geheimnis und verwenden stattdessen PKCE. Aktiviere dies, wenn dein Client eine SPA oder mobile App ist.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "Der Public Key Code Exchange (öffentlicher Schlüsselaustausch) ist eine Sicherheitsfunktion, um CSRF Angriffe und Angriffe zum Abfangen von Autorisierungscodes zu verhindern.",
+	"requires_reauthentication": "",
+	"requires_reauthentication_enforces_the_user_to_log_in_before_redirecting": "Forces the user to log in again before redirecting",
 	"name_logo": "{name} Logo",
 	"change_logo": "Logo ändern",
 	"upload_logo": "Logo hochladen",

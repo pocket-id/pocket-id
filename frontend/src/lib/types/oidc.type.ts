@@ -22,6 +22,7 @@ export type OidcClient = OidcClientMetaData & {
 	logoutCallbackURLs: string[];
 	isPublic: boolean;
 	pkceEnabled: boolean;
+	requiresReauthentication: boolean;
 	credentials?: OidcClientCredentials;
 };
 
