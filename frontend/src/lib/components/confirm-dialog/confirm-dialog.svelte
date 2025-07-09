@@ -5,7 +5,7 @@
 </script>
 
 <AlertDialog.Root bind:open={$confirmDialogStore.open}>
-	<AlertDialog.Content>
+	<AlertDialog.Content class="z-9999">
 		<AlertDialog.Header>
 			<AlertDialog.Title>{$confirmDialogStore.title}</AlertDialog.Title>
 			<AlertDialog.Description>

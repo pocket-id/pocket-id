@@ -1,3 +1,9 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.6.1...v) (2025-07-09)
+
+### Bug Fixes
+
+* ensure confirmation dialog shows on top of other components ([f103a54](https://github.com/pocket-id/pocket-id/commit/f103a547904070c5b192e519c8b5a8fed9d80e96))
+* login failures on Postgres when IP is null ([#737](https://github.com/pocket-id/pocket-id/issues/737)) ([e1de593](https://github.com/pocket-id/pocket-id/commit/e1de593dcd30b7b04da3b003455134992b702595))
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.5.0...v) (2025-07-06)
 
 
