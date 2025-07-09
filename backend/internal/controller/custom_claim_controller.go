@@ -59,13 +59,9 @@ func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) {
 func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Context) {
 	var input []dto.CustomClaimCreateDto
 
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
-	}
-
-	for _, c := range input {
-		c.Normalize()
 	}
 
 	userId := c.Param("userId")
@@ -97,13 +93,9 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Contex
 func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.Context) {
 	var input []dto.CustomClaimCreateDto
 
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
-	}
-
-	for _, c := range input {
-		c.Normalize()
 	}
 
 	userGroupId := c.Param("userGroupId")

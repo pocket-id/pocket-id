@@ -16,6 +16,20 @@ func Normalize(obj any) {
 		return
 	}
 	v = v.Elem()
+
+	// Handle case where obj is a slice of models
+	if v.Kind() == reflect.Slice {
+		for i := 0; i < v.Len(); i++ {
+			elem := v.Index(i)
+			if elem.Kind() == reflect.Ptr && !elem.IsNil() && elem.Elem().Kind() == reflect.Struct {
+				Normalize(elem.Interface())
+			} else if elem.Kind() == reflect.Struct && elem.CanAddr() {
+				Normalize(elem.Addr().Interface())
+			}
+		}
+		return
+	}
+
 	if v.Kind() != reflect.Struct {
 		return
 	}
