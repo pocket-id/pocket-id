@@ -2,8 +2,6 @@ package dto
 
 import (
 	"time"
-
-	"golang.org/x/text/unicode/norm"
 )
 
 type UserDto struct {
@@ -21,21 +19,14 @@ type UserDto struct {
 }
 
 type UserCreateDto struct {
-	Username  string  `json:"username" binding:"required,username,min=2,max=50"`
-	Email     string  `json:"email" binding:"required,email"`
-	FirstName string  `json:"firstName" binding:"required,min=1,max=50"`
-	LastName  string  `json:"lastName" binding:"max=50"`
+	Username  string  `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
+	Email     string  `json:"email" binding:"required,email" unorm:"nfc"`
+	FirstName string  `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
+	LastName  string  `json:"lastName" binding:"max=50" unorm:"nfc"`
 	IsAdmin   bool    `json:"isAdmin"`
 	Locale    *string `json:"locale"`
 	Disabled  bool    `json:"disabled"`
 	LdapID    string  `json:"-"`
-}
-
-func (u *UserCreateDto) Normalize() {
-	u.Username = norm.NFC.String(u.Username)
-	u.Email = norm.NFC.String(u.Email)
-	u.FirstName = norm.NFC.String(u.FirstName)
-	u.LastName = norm.NFC.String(u.LastName)
 }
 
 type OneTimeAccessTokenCreateDto struct {
@@ -44,12 +35,8 @@ type OneTimeAccessTokenCreateDto struct {
 }
 
 type OneTimeAccessEmailAsUnauthenticatedUserDto struct {
-	Email        string `json:"email" binding:"required,email"`
+	Email        string `json:"email" binding:"required,email" unorm:"nfc"`
 	RedirectPath string `json:"redirectPath"`
-}
-
-func (o *OneTimeAccessEmailAsUnauthenticatedUserDto) Normalize() {
-	o.Email = norm.NFC.String(o.Email)
 }
 
 type OneTimeAccessEmailAsAdminDto struct {
@@ -61,16 +48,9 @@ type UserUpdateUserGroupDto struct {
 }
 
 type SignUpDto struct {
-	Username  string `json:"username" binding:"required,username,min=2,max=50"`
-	Email     string `json:"email" binding:"required,email"`
-	FirstName string `json:"firstName" binding:"required,min=1,max=50"`
-	LastName  string `json:"lastName" binding:"max=50"`
+	Username  string `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
+	Email     string `json:"email" binding:"required,email" unorm:"nfc"`
+	FirstName string `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
+	LastName  string `json:"lastName" binding:"max=50" unorm:"nfc"`
 	Token     string `json:"token"`
-}
-
-func (s *SignUpDto) Normalize() {
-	s.Username = norm.NFC.String(s.Username)
-	s.Email = norm.NFC.String(s.Email)
-	s.FirstName = norm.NFC.String(s.FirstName)
-	s.LastName = norm.NFC.String(s.LastName)
 }

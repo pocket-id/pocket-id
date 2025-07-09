@@ -200,7 +200,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			FriendlyName: value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
 			LdapID:       ldapId,
 		}
-		syncGroup.Normalize()
+		dto.Normalize(syncGroup)
 
 		if databaseGroup.ID == "" {
 			newGroup, err := s.groupService.createInternal(ctx, syncGroup, tx)
@@ -345,8 +345,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			IsAdmin:   isAdmin,
 			LdapID:    ldapId,
 		}
-
-		newUser.Normalize()
+		dto.Normalize(newUser)
 
 		if databaseUser.ID == "" {
 			_, err = s.userService.createUserInternal(ctx, newUser, true, tx)

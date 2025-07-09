@@ -1,9 +1,5 @@
 package dto
 
-import (
-	"golang.org/x/text/unicode/norm"
-)
-
 type PublicAppConfigVariableDto struct {
 	Key   string `json:"key"`
 	Type  string `json:"type"`
@@ -16,7 +12,7 @@ type AppConfigVariableDto struct {
 }
 
 type AppConfigUpdateDto struct {
-	AppName                                    string `json:"appName" binding:"required,min=1,max=30"`
+	AppName                                    string `json:"appName" binding:"required,min=1,max=30" unorm:"nfc"`
 	SessionDuration                            string `json:"sessionDuration" binding:"required"`
 	EmailsVerified                             string `json:"emailsVerified" binding:"required"`
 	DisableAnimations                          string `json:"disableAnimations" binding:"required"`
@@ -53,8 +49,4 @@ type AppConfigUpdateDto struct {
 	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" binding:"required"`
 	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" binding:"required"`
 	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" binding:"required"`
-}
-
-func (u *AppConfigUpdateDto) Normalize() {
-	u.AppName = norm.NFC.String(u.AppName)
 }

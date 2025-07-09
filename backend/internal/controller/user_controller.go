@@ -193,12 +193,10 @@ func (uc *UserController) deleteUserHandler(c *gin.Context) {
 // @Router /api/users [post]
 func (uc *UserController) createUserHandler(c *gin.Context) {
 	var input dto.UserCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
-
-	input.Normalize()
 
 	user, err := uc.userService.CreateUser(c.Request.Context(), input)
 	if err != nil {
@@ -380,12 +378,10 @@ func (uc *UserController) createAdminOneTimeAccessTokenHandler(c *gin.Context) {
 // @Router /api/one-time-access-email [post]
 func (uc *UserController) RequestOneTimeAccessEmailAsUnauthenticatedUserHandler(c *gin.Context) {
 	var input dto.OneTimeAccessEmailAsUnauthenticatedUserDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
-
-	input.Normalize()
 
 	err := uc.userService.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), input.Email, input.RedirectPath)
 	if err != nil {
@@ -461,12 +457,10 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 // @Router /api/signup/setup [post]
 func (uc *UserController) signUpInitialAdmin(c *gin.Context) {
 	var input dto.SignUpDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
-
-	input.Normalize()
 
 	user, token, err := uc.userService.SignUpInitialAdmin(c.Request.Context(), input)
 	if err != nil {
@@ -612,12 +606,10 @@ func (uc *UserController) deleteSignupTokenHandler(c *gin.Context) {
 // @Router /api/signup [post]
 func (uc *UserController) signupHandler(c *gin.Context) {
 	var input dto.SignUpDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
-
-	input.Normalize()
 
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
@@ -643,12 +635,10 @@ func (uc *UserController) signupHandler(c *gin.Context) {
 // updateUser is an internal helper method, not exposed as an API endpoint
 func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 	var input dto.UserCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
-
-	input.Normalize()
 
 	var userID string
 	if updateOwnUser {

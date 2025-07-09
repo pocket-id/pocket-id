@@ -82,11 +82,10 @@ func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {
 	userID := ctx.GetString("userID")
 
 	var input dto.ApiKeyCreateDto
-	if err := ctx.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(ctx, &input); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
-	input.Normalize()
 
 	apiKey, token, err := c.apiKeyService.CreateApiKey(ctx.Request.Context(), userID, input)
 	if err != nil {
