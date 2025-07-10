@@ -838,13 +838,11 @@ func (oc *OidcController) listAccessibleClients(c *gin.Context, userID string) {
 		return
 	}
 
-	// Create a map for quick lookup of authorized clients
-	authorizedClientMap := make(map[string]bool)
+	authorizedClientMap := make(map[string]struct{})
 	for _, authClient := range authorizedClients {
-		authorizedClientMap[authClient.ClientID] = true
+		authorizedClientMap[authClient.ClientID] = struct{}{}
 	}
 
-	// Map to DTOs and mark authorization status
 	accessibleClientsDto := make([]dto.AccessibleOidcClientDto, len(accessibleClients))
 	for i, client := range accessibleClients {
 		var clientDto dto.AccessibleOidcClientDto
@@ -852,7 +850,8 @@ func (oc *OidcController) listAccessibleClients(c *gin.Context, userID string) {
 			_ = c.Error(err)
 			return
 		}
-		clientDto.IsAuthorized = authorizedClientMap[client.ID]
+		_, ok := authorizedClientMap[client.ID]
+		clientDto.IsAuthorized = ok
 		accessibleClientsDto[i] = clientDto
 	}
 
