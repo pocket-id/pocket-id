@@ -13,6 +13,7 @@ type OidcClientDto struct {
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
+	LaunchURL          string                   `json:"launchURL"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -32,6 +33,7 @@ type OidcClientCreateDto struct {
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
+	LaunchURL          string                   `json:"launchURL"`
 }
 
 type OidcClientCredentialsDto struct {
@@ -162,4 +164,5 @@ type AccessibleOidcClientDto struct {
 	IsPublic           bool     `json:"isPublic"`
 	PkceEnabled        bool     `json:"pkceEnabled"`
 	IsAuthorized       bool     `json:"isAuthorized"` // Whether user has already authorized this client
+	LaunchURL          string   `json:"launchURL"`
 }

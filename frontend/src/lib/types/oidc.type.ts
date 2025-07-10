@@ -23,6 +23,7 @@ export type OidcClient = OidcClientMetaData & {
 	isPublic: boolean;
 	pkceEnabled: boolean;
 	credentials?: OidcClientCredentials;
+	launchURL?: string;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {
@@ -57,6 +58,7 @@ export type AccessibleOidcClient = OidcClientMetaData & {
     isPublic: boolean;
     pkceEnabled: boolean;
     isAuthorized: boolean; // Whether user has already authorized this client
+	launchURL?: string;
 };
 
 export type AuthorizedOidcClient = OidcClientMetaData & {

@@ -424,5 +424,8 @@
     "applications_you_have_access_to": "Applications you have access to",
     "no_apps_available": "No apps available",
     "contact_your_administrator_for_app_access": "Contact your administrator to get access to applications",
-    "launch": "Launch"
+    "launch": "Launch",
+	"client_launch_url": "Client Launch URL",
+	"client_launch_url_description": "The URL that will be opened when a user launches the app from the My Apps page.",
+	"client_name_description": "The name of the client that shows in the Pocket ID UI"
 }

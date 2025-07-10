@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import ImageBox from '$lib/components/image-box.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { launch, m } from '$lib/paraglide/messages';
 	import type { AccessibleOidcClient } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { LucideExternalLink, Settings, CheckCircle } from '@lucide/svelte';
@@ -20,7 +20,7 @@
 
 	function getAppUrl(client: AccessibleOidcClient): string {
 		// Try to get the main callback URL as the app URL
-		return client.callbackURLs?.[0]?.replace(/\/callback.*$/, '') || '#';
+		return client.launchURL || client.callbackURLs?.[0]?.replace(/\/callback.*$/, '');
 	}
 </script>
 
@@ -49,7 +49,7 @@
 					{/if}
 				</div>
 				<p class="text-muted-foreground line-clamp-1 text-xs">
-					{app.callbackURLs?.[0] ? new URL(app.callbackURLs[0]).hostname : 'Application'}
+					{app.launchURL || new URL(app.callbackURLs[0]).hostname}
 				</p>
 			</div>
 
