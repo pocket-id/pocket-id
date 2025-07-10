@@ -21,7 +21,6 @@
 	const { versionInformation, user } = data;
 
 	const links = [
-		{ href: '/settings/apps', label: 'My Apps' },
 		{ href: '/settings/account', label: m.my_account() },
 		{ href: '/settings/audit-log', label: m.audit_log() }
 	];
