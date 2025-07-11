@@ -187,6 +187,16 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 // HasAuthorizedClient checks if the user has already authorized the client with the given scope
 func (s *OidcService) HasAuthorizedClient(ctx context.Context, clientID, userID, scope string) (bool, error) {
+	var client model.OidcClient
+	err := s.db.WithContext(ctx).First(&client, "id = ?", clientID).Error
+	if err != nil {
+		return false, err
+	}
+
+	if client.RequiresReauthentication {
+		return false, nil
+	}
+
 	return s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
 }
 
@@ -725,6 +735,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	client.RequiresReauthentication = input.RequiresReauthentication
 
 	// Credentials
 	if len(input.Credentials.FederatedIdentities) > 0 {
