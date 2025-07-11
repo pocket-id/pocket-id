@@ -617,6 +617,4 @@ test('Authorize existing client with federated identity', async ({ page }) => {
           throw e;
         }
       });
-
-
   });
