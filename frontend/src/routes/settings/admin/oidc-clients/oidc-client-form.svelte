@@ -139,7 +139,7 @@
 		<SwitchWithLabel
 			id="requires-reauthentication"
 			label={m.requires_reauthentication()}
-			description={m.requires_reauthentication_enforces_the_user_to_log_in_before_redirecting()}
+			description={m.requires_users_to_authenticate_again_on_each_authorization()}
 			bind:checked={$inputs.requiresReauthentication.value}
 		/>
 	</div>
