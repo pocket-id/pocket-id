@@ -39,7 +39,7 @@
 		isLoading = true;
 		try {
 			// Get access token if not signed in OR if client requires re-authentication
-			if (!$userStore?.id || client?.requiresReauthentication) {
+			if (!$userStore?.id || client?.requiresReauthentication === true) {
 				const loginOptions = await webauthnService.getLoginOptions();
 				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);

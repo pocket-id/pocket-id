@@ -50,7 +50,9 @@
 
 		client.isPublic = updatedClient.isPublic;
 		setupDetails[m.pkce()] = updatedClient.pkceEnabled ? m.enabled() : m.disabled();
-		setupDetails[m.requires_reauthentication()] = updatedClient.requiresReauthentication ? m.enabled() : m.disabled();
+		setupDetails[m.requires_reauthentication()] = updatedClient.requiresReauthentication
+			? m.enabled()
+			: m.disabled();
 
 		await Promise.all([dataPromise, imagePromise])
 			.then(() => {

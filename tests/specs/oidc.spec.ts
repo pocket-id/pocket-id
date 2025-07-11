@@ -594,3 +594,29 @@ test('Authorize existing client with federated identity', async ({ page }) => {
 	expect(res.expires_in).not.toBeNull;
 	expect(res.token_type).toBe('Bearer');
 });
+
+  test('Forces reauthentication when client requires it and user already signed in', async ({ page, request }) => {
+    await request.put(`/api/oidc/clients/${oidcClients.nextcloud.id}`, {
+      data: {
+        ...oidcClients.nextcloud,
+        requiresReauthentication: true  
+      }
+    });
+
+      await (await passkeyUtil.init(page)).addPasskey();
+      const urlParams = createUrlParams(oidcClients.nextcloud);
+      await page.goto(`/authorize?${urlParams.toString()}`);
+
+      await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
+      await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Sign in' }).click();
+
+      await page.waitForURL(oidcClients.nextcloud.callbackUrl).catch((e) => {
+        if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
+          throw e;
+        }
+      });
+
+
+  });
