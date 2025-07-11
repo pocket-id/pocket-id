@@ -22,6 +22,23 @@
 		// Try to get the main callback URL as the app URL
 		return client.launchURL || client.callbackURLs?.[0]?.replace(/\/callback.*$/, '');
 	}
+
+	function getDisplayUrl(client: AccessibleOidcClient): string {
+		if (client.launchURL) {
+			return client.launchURL;
+		}
+
+		const callbackUrl = client.callbackURLs?.[0];
+		if (!callbackUrl || callbackUrl.includes('*')) {
+			return 'Multiple URLs';
+		}
+
+		try {
+			return new URL(callbackUrl).hostname;
+		} catch {
+			return callbackUrl;
+		}
+	}
 </script>
 
 <Card.Root
@@ -30,7 +47,7 @@
 	<Card.Content class="flex h-full">
 		<div class="mr-3 flex-shrink-0">
 			<ImageBox
-				class="h-20 w-20 rounded-lg"
+				class="size-20 rounded-lg object-contain"
 				src={app.hasLogo
 					? cachedOidcClientLogo.getUrl(app.id)
 					: cachedApplicationLogo.getUrl(isLightMode)}
@@ -49,7 +66,7 @@
 					{/if}
 				</div>
 				<p class="text-muted-foreground line-clamp-1 text-xs">
-					{app.launchURL || new URL(app.callbackURLs[0]).hostname}
+					{getDisplayUrl(app)}
 				</p>
 			</div>
 
@@ -71,6 +88,8 @@
 							size="sm"
 							variant="default"
 							class="h-8 flex-1 text-xs"
+							disabled={!app.launchURL &&
+								(!app.callbackURLs?.[0] || app.callbackURLs[0].includes('*'))}
 						>
 							{m.launch()}
 							<LucideExternalLink class="size-3" />
@@ -83,6 +102,8 @@
 						size="sm"
 						class="h-8 w-full text-xs"
 						variant={app.isAuthorized ? 'default' : 'outline'}
+						disabled={!app.launchURL &&
+							(!app.callbackURLs?.[0] || app.callbackURLs[0].includes('*'))}
 					>
 						{app.isAuthorized ? m.launch() : m.authorize()}
 						<LucideExternalLink class="ml-1 size-3" />
