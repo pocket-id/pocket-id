@@ -4,6 +4,7 @@ export type OidcClientMetaData = {
 	id: string;
 	name: string;
 	hasLogo: boolean;
+	requiresReauthentication: boolean;
 };
 
 export type OidcClientFederatedIdentity = {
