@@ -34,8 +34,8 @@ type UserGroupDtoWithUserCount struct {
 }
 
 type UserGroupCreateDto struct {
-	FriendlyName string `json:"friendlyName" binding:"required,min=2,max=50"`
-	Name         string `json:"name" binding:"required,min=2,max=255"`
+	FriendlyName string `json:"friendlyName" binding:"required,min=2,max=50" unorm:"nfc"`
+	Name         string `json:"name" binding:"required,min=2,max=255" unorm:"nfc"`
 	LdapID       string `json:"-"`
 }
 

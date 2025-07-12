@@ -1,6 +1,8 @@
 package dto
 
-import "time"
+import (
+	"time"
+)
 
 type UserDto struct {
 	ID           string           `json:"id"`
@@ -17,10 +19,10 @@ type UserDto struct {
 }
 
 type UserCreateDto struct {
-	Username  string  `json:"username" binding:"required,username,min=2,max=50"`
-	Email     string  `json:"email" binding:"required,email"`
-	FirstName string  `json:"firstName" binding:"required,min=1,max=50"`
-	LastName  string  `json:"lastName" binding:"max=50"`
+	Username  string  `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
+	Email     string  `json:"email" binding:"required,email" unorm:"nfc"`
+	FirstName string  `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
+	LastName  string  `json:"lastName" binding:"max=50" unorm:"nfc"`
 	IsAdmin   bool    `json:"isAdmin"`
 	Locale    *string `json:"locale"`
 	Disabled  bool    `json:"disabled"`
@@ -33,7 +35,7 @@ type OneTimeAccessTokenCreateDto struct {
 }
 
 type OneTimeAccessEmailAsUnauthenticatedUserDto struct {
-	Email        string `json:"email" binding:"required,email"`
+	Email        string `json:"email" binding:"required,email" unorm:"nfc"`
 	RedirectPath string `json:"redirectPath"`
 }
 
@@ -46,9 +48,9 @@ type UserUpdateUserGroupDto struct {
 }
 
 type SignUpDto struct {
-	Username  string `json:"username" binding:"required,username,min=2,max=50"`
-	Email     string `json:"email" binding:"required,email"`
-	FirstName string `json:"firstName" binding:"required,min=1,max=50"`
-	LastName  string `json:"lastName" binding:"max=50"`
+	Username  string `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
+	Email     string `json:"email" binding:"required,email" unorm:"nfc"`
+	FirstName string `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
+	LastName  string `json:"lastName" binding:"max=50" unorm:"nfc"`
 	Token     string `json:"token"`
 }

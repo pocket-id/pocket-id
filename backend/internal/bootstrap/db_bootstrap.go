@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
@@ -88,6 +89,7 @@ func connectDatabase() (db *gorm.DB, err error) {
 		if !strings.HasPrefix(common.EnvConfig.DbConnectionString, "file:") {
 			return nil, errors.New("invalid value for env var 'DB_CONNECTION_STRING': does not begin with 'file:'")
 		}
+		sqliteutil.RegisterSqliteFunctions()
 		connString, err := parseSqliteConnectionString(common.EnvConfig.DbConnectionString)
 		if err != nil {
 			return nil, err
