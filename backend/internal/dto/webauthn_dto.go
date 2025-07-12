@@ -19,5 +19,5 @@ type WebauthnCredentialDto struct {
 }
 
 type WebauthnCredentialUpdateDto struct {
-	Name string `json:"name" binding:"required,min=1,max=30"`
+	Name string `json:"name" binding:"required,min=1,max=50"`
 }
