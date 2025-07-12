@@ -469,9 +469,7 @@ func (s *UserService) ExchangeOneTimeAccessToken(ctx context.Context, token stri
 		return model.User{}, "", err
 	}
 
-	if ipAddress != "" && userAgent != "" {
-		s.auditLogService.Create(ctx, model.AuditLogEventOneTimeAccessTokenSignIn, ipAddress, userAgent, oneTimeAccessToken.User.ID, model.AuditLogData{}, tx)
-	}
+	s.auditLogService.Create(ctx, model.AuditLogEventOneTimeAccessTokenSignIn, ipAddress, userAgent, oneTimeAccessToken.User.ID, model.AuditLogData{}, tx)
 
 	err = tx.Commit().Error
 	if err != nil {

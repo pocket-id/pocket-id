@@ -70,12 +70,17 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 
 	// Count the number of times the user has logged in from the same device
 	var count int64
-	err := tx.
+	stmt := tx.
 		WithContext(ctx).
 		Model(&model.AuditLog{}).
-		Where("user_id = ? AND ip_address = ? AND user_agent = ?", userID, ipAddress, userAgent).
-		Count(&count).
-		Error
+		Where("user_id = ? AND user_agent = ?", userID, ipAddress)
+	if ipAddress == "" {
+		// An empty IP address is stored as NULL in the database
+		stmt = stmt.Where("ip_address IS NULL")
+	} else {
+		stmt = stmt.Where("ip_address = ?", ipAddress)
+	}
+	err := stmt.Count(&count).Error
 	if err != nil {
 		log.Printf("Failed to count audit logs: %v", err)
 		return createdAuditLog
