@@ -28,13 +28,13 @@ type OidcClientWithAllowedGroupsCountDto struct {
 }
 
 type OidcClientCreateDto struct {
-	Name                     string                   `json:"name" binding:"required,max=50"`
-	CallbackURLs             []string                 `json:"callbackURLs"`
-	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs"`
-	IsPublic                 bool                     `json:"isPublic"`
-	PkceEnabled              bool                     `json:"pkceEnabled"`
-	RequiresReauthentication bool                     `json:"requiresReauthentication"`
-	Credentials              OidcClientCredentialsDto `json:"credentials"`
+	Name               string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
+	CallbackURLs       []string                 `json:"callbackURLs"`
+	LogoutCallbackURLs []string                 `json:"logoutCallbackURLs"`
+	IsPublic           bool                     `json:"isPublic"`
+	PkceEnabled        bool                     `json:"pkceEnabled"`
+  RequiresReauthentication bool               `json:"requiresReauthentication"`
+	Credentials        OidcClientCredentialsDto `json:"credentials"`
 }
 
 type OidcClientCredentialsDto struct {
