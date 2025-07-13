@@ -27,7 +27,7 @@ type OidcClientWithAllowedGroupsCountDto struct {
 }
 
 type OidcClientCreateDto struct {
-	Name               string                   `json:"name" binding:"required,max=50"`
+	Name               string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
 	CallbackURLs       []string                 `json:"callbackURLs"`
 	LogoutCallbackURLs []string                 `json:"logoutCallbackURLs"`
 	IsPublic           bool                     `json:"isPublic"`
