@@ -37,9 +37,6 @@
 			<LayoutDashboard class="text-primary/80 size-6" />
 			{m.my_apps()}
 		</h1>
-		<p class="text-muted-foreground mt-2">
-			{m.applications_you_have_access_to()}
-		</p>
 	</div>
 
 	{#if apps.data.length === 0}
