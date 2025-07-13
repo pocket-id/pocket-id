@@ -46,7 +46,7 @@ func PrepareTextTemplates(templates []string) (map[string]*ttemplate.Template, e
 func PrepareHTMLTemplates(templates []string) (map[string]*htemplate.Template, error) {
 	htmlTemplates := make(map[string]*htemplate.Template, len(templates))
 	for _, tmpl := range templates {
-		filename := fmt.Sprintf("%s_html.tmpl", tmpl)
+		filename := tmpl + "_html.tmpl"
 		templatePath := path.Join("email-templates", filename)
 
 		parsedTemplate, err := htemplate.ParseFS(resources.FS, templatePath)
