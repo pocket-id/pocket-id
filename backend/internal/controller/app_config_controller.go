@@ -109,7 +109,7 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 // @Router /api/application-configuration [put]
 func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 	var input dto.AppConfigUpdateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}

@@ -59,7 +59,7 @@
 		<Table.Cell class="w-8 font-medium">
 			{#if item.hasLogo}
 				<ImageBox
-					class="min-h-8 min-w-8"
+					class="min-h-8 min-w-8 object-contain"
 					src={cachedOidcClientLogo.getUrl(item.id)}
 					alt={m.name_logo({ name: item.name })}
 				/>
