@@ -29,7 +29,7 @@ func GetTemplate[U any, V any](templateMap TemplateMap[U], template Template[V])
 func PrepareTextTemplates(templates []string) (map[string]*ttemplate.Template, error) {
 	textTemplates := make(map[string]*ttemplate.Template, len(templates))
 	for _, tmpl := range templates {
-		filename := fmt.Sprintf("%s_text.tmpl", tmpl)
+		filename := tmpl + "_text.tmpl"
 		templatePath := path.Join("email-templates", filename)
 
 		parsedTemplate, err := ttemplate.ParseFS(resources.FS, templatePath)
