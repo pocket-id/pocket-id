@@ -1,1 +1,1 @@
-ALTER TABLE oidc_clients ADD COLUMN requires_reauthentication BOOLEAN DEFAULT FALSE;
+ALTER TABLE oidc_clients ADD COLUMN requires_reauthentication BOOLEAN NOT NULL DEFAULT FALSE;
