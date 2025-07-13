@@ -6,6 +6,6 @@ type CustomClaimDto struct {
 }
 
 type CustomClaimCreateDto struct {
-	Key   string `json:"key" binding:"required"`
-	Value string `json:"value" binding:"required"`
+	Key   string `json:"key" binding:"required" unorm:"nfc"`
+	Value string `json:"value" binding:"required" unorm:"nfc"`
 }

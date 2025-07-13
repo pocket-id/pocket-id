@@ -120,7 +120,7 @@ func (ugc *UserGroupController) get(c *gin.Context) {
 // @Router /api/user-groups [post]
 func (ugc *UserGroupController) create(c *gin.Context) {
 	var input dto.UserGroupCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -152,7 +152,7 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 // @Router /api/user-groups/{id} [put]
 func (ugc *UserGroupController) update(c *gin.Context) {
 	var input dto.UserGroupCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}

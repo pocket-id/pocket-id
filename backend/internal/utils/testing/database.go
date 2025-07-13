@@ -17,8 +17,13 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
+
+func init() {
+	sqliteutil.RegisterSqliteFunctions()
+}
 
 // NewDatabaseForTest returns a new instance of GORM connected to an in-memory SQLite database.
 // Each database connection is unique for the test.

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
@@ -88,7 +88,7 @@
 	}
 
 	function copySignupLink(token: SignupTokenDto) {
-		const signupLink = `${$page.url.origin}/st/${token.token}`;
+		const signupLink = `${page.url.origin}/st/${token.token}`;
 		navigator.clipboard
 			.writeText(signupLink)
 			.then(() => {
