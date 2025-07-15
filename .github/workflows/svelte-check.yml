@@ -39,13 +39,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24 #testing to see if this is the issue 
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm i && npm ci
 
       - name: Build Pocket ID Frontend
         working-directory: frontend
