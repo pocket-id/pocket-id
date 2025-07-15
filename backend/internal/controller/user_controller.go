@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
 	"github.com/gin-gonic/gin"
@@ -124,14 +126,26 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 }
 
 // getUserHandler godoc
-// @Summary Get user by ID
-// @Description Retrieve detailed information about a specific user
+// @Summary Get user by ID or username
+// @Description Retrieve detailed information about a specific user by ID or username
 // @Tags Users
-// @Param id path string true "User ID"
+// @Param id path string true "User ID or username"
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/{id} [get]
 func (uc *UserController) getUserHandler(c *gin.Context) {
-	user, err := uc.userService.GetUser(c.Request.Context(), c.Param("id"))
+	identifier := c.Param("id")
+
+	var user model.User
+	var err error
+
+	// Check if the identifier is a valid UUID (user ID)
+	if uuid.Validate(identifier) == nil {
+		user, err = uc.userService.GetUser(c.Request.Context(), identifier)
+	} else {
+		// Treat as username
+		user, err = uc.userService.GetUserByUsername(c.Request.Context(), identifier)
+	}
+
 	if err != nil {
 		_ = c.Error(err)
 		return

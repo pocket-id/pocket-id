@@ -55,16 +55,20 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPa
 }
 
 func (s *UserService) GetUser(ctx context.Context, userID string) (model.User, error) {
-	return s.getUserInternal(ctx, userID, s.db)
+	return s.getUserInternal(ctx, "id", userID, s.db)
 }
 
-func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *gorm.DB) (model.User, error) {
+func (s *UserService) GetUserByUsername(ctx context.Context, username string) (model.User, error) {
+	return s.getUserInternal(ctx, "username", username, s.db)
+}
+
+func (s *UserService) getUserInternal(ctx context.Context, key string, userID string, tx *gorm.DB) (model.User, error) {
 	var user model.User
 	err := tx.
 		WithContext(ctx).
 		Preload("UserGroups").
 		Preload("CustomClaims").
-		Where("id = ?", userID).
+		Where(key+" = ?", userID).
 		First(&user).
 		Error
 	return user, err
@@ -485,7 +489,7 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		tx.Rollback()
 	}()
 
-	user, err = s.getUserInternal(ctx, id, tx)
+	user, err = s.getUserInternal(ctx, "id", id, tx)
 	if err != nil {
 		return model.User{}, err
 	}
