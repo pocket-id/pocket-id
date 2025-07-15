@@ -38,15 +38,16 @@ type OidcAuthorizationCode struct {
 type OidcClient struct {
 	Base
 
-	Name               string `sortable:"true"`
-	Secret             string
-	CallbackURLs       UrlList
-	LogoutCallbackURLs UrlList
-	ImageType          *string
-	HasLogo            bool `gorm:"-"`
-	IsPublic           bool
-	PkceEnabled        bool
-	Credentials        OidcClientCredentials
+	Name                     string `sortable:"true"`
+	Secret                   string
+	CallbackURLs             UrlList
+	LogoutCallbackURLs       UrlList
+	ImageType                *string
+	HasLogo                  bool `gorm:"-"`
+	IsPublic                 bool
+	PkceEnabled              bool
+	RequiresReauthentication bool
+	Credentials              OidcClientCredentials
 
 	AllowedUserGroups []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID       string
