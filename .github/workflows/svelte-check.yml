@@ -45,7 +45,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm i && npm ci
+        run: npm ci
 
       - name: Build Pocket ID Frontend
         working-directory: frontend
