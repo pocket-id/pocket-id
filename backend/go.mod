@@ -29,6 +29,7 @@ require (
 	github.com/mileusna/useragent v1.3.5
 	github.com/orandin/slog-gorm v1.4.0
 	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.2
+	github.com/samber/slog-gin v1.15.1
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.12.0
