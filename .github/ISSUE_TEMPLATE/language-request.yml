@@ -1,7 +1,6 @@
 name: "🌐 Language request"
 description: "You want to contribute to a language that isn't on Crowdin yet?"
 title: "🌐 Language Request: <language name in english>"
-labels: [language-request]
 type: 'Language Request'
 body:
   - type: input

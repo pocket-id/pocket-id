@@ -40,7 +40,7 @@
 			</div>
 		</div>
 
-		<div class="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+		<div class="flex items-center gap-2">
 			<Tooltip.Provider>
 				<Tooltip.Root>
 					<Tooltip.Trigger>
