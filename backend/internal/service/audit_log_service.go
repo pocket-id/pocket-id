@@ -73,7 +73,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 	stmt := tx.
 		WithContext(ctx).
 		Model(&model.AuditLog{}).
-		Where("user_id = ? AND user_agent = ?", userID, ipAddress)
+		Where("user_id = ? AND user_agent = ?", userID, userAgent)
 	if ipAddress == "" {
 		// An empty IP address is stored as NULL in the database
 		stmt = stmt.Where("ip_address IS NULL")
