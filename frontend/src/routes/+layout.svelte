@@ -1,3 +1,7 @@
+<svelte:head>
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+</svelte:head>
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
