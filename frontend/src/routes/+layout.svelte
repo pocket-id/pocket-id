@@ -1,5 +1,5 @@
 <svelte:head>
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180-180.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/logoDark-180x180.png" />
 </svelte:head>
 
 <script lang="ts">
