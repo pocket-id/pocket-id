@@ -1,6 +1,6 @@
 {
   "name": "pocket-id-frontend",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,7 @@
   "dependencies": {
     "@simplewebauthn/browser": "^13.1.0",
     "@tailwindcss/vite": "^4.1.11",
-    "axios": "^1.10.0",
+    "axios": "^1.11.0",
     "clsx": "^2.1.1",
     "jose": "^5.9.6",
     "qrcode": "^1.5.4",
