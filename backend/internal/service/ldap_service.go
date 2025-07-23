@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -130,7 +131,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 
 		// Skip groups without a valid LDAP ID
 		if ldapId == "" {
-			log.Printf("Skipping LDAP group without a valid unique identifier (attribute: %s)", dbConfig.LdapAttributeGroupUniqueIdentifier.Value)
+			slog.Warn("Skipping LDAP group without a valid unique identifier", slog.String("attribute", dbConfig.LdapAttributeGroupUniqueIdentifier.Value))
 			continue
 		}
 
@@ -250,7 +251,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			return fmt.Errorf("failed to delete group '%s': %w", group.Name, err)
 		}
 
-		log.Printf("Deleted group '%s'", group.Name)
+		slog.Info("Deleted group", slog.String("group", group.Name))
 	}
 
 	return nil
@@ -295,7 +296,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 
 		// Skip users without a valid LDAP ID
 		if ldapId == "" {
-			log.Printf("Skipping LDAP user without a valid unique identifier (attribute: %s)", dbConfig.LdapAttributeUserUniqueIdentifier.Value)
+			slog.Warn("Skipping LDAP user without a valid unique identifier", slog.String("attribute", dbConfig.LdapAttributeUserUniqueIdentifier.Value))
 			continue
 		}
 
@@ -350,7 +351,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		if databaseUser.ID == "" {
 			_, err = s.userService.createUserInternal(ctx, newUser, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
-				log.Printf("Skipping creating LDAP user '%s': %v", newUser.Username, err)
+				slog.Warn("Skipping creating LDAP user", slog.String("username", newUser.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
 				return fmt.Errorf("error creating user '%s': %w", newUser.Username, err)
@@ -358,7 +359,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		} else {
 			_, err = s.userService.updateUserInternal(ctx, databaseUser.ID, newUser, false, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
-				log.Printf("Skipping updating LDAP user '%s': %v", newUser.Username, err)
+				slog.Warn("Skipping updating LDAP user", slog.String("username", newUser.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
 				return fmt.Errorf("error updating user '%s': %w", newUser.Username, err)
@@ -371,7 +372,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			err = s.saveProfilePicture(ctx, databaseUser.ID, pictureString)
 			if err != nil {
 				// This is not a fatal error
-				log.Printf("Error saving profile picture for user %s: %v", newUser.Username, err)
+				slog.Warn("Error saving profile picture for user", slog.String("username", newUser.Username), slog.Any("error", err))
 			}
 		}
 	}
@@ -400,7 +401,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				return fmt.Errorf("failed to disable user %s: %w", user.Username, err)
 			}
 
-			log.Printf("Disabled user '%s'", user.Username)
+			slog.Info("Disabled user", slog.String("username", user.Username))
 		} else {
 			err = s.userService.deleteUserInternal(ctx, user.ID, true, tx)
 			target := &common.LdapUserUpdateError{}
@@ -410,7 +411,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				return fmt.Errorf("failed to delete user %s: %w", user.Username, err)
 			}
 
-			log.Printf("Deleted user '%s'", user.Username)
+			slog.Info("Deleted user", slog.String("username", user.Username))
 		}
 	}
 
