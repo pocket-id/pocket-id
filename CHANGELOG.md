@@ -1,3 +1,8 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.6.3...v) (2025-07-21)
+
+### Bug Fixes
+
+* migration fails on postgres ([#762](https://github.com/pocket-id/pocket-id/issues/762)) ([35d5f88](https://github.com/pocket-id/pocket-id/commit/35d5f887ce7c88933d7e4c2f0acd2aeedd18c214))
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.6.2...v) (2025-07-21)
 
 ### Bug Fixes
