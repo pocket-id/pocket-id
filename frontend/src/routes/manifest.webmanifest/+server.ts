@@ -6,7 +6,8 @@ export const GET: RequestHandler = async () => {
 		name: 'PocketID',
 		icons: [
 			{
-				src: '/api/application-configuration/logo'
+				src: '/api/application-configuration/logo',
+				sizes: 'any'
 			}
 		],
 		display: 'browser',
