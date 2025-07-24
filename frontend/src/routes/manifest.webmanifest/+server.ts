@@ -6,7 +6,7 @@ export const GET: RequestHandler = async () => {
 		name: 'PocketID',
 		icons: [
 			{
-				src: '/api/application-configuration/logo?light=false'
+				src: '/api/application-configuration/logo'
 			}
 		],
 		display: 'browser',
@@ -14,9 +14,9 @@ export const GET: RequestHandler = async () => {
 		theme_color: '#000000'
 	};
 
-	return new Response(JSON.stringify(manifest, null, 2), {
+	return new Response(JSON.stringify(manifest), {
 		headers: {
-			'Content-Type': 'application/json'
+			'Content-Type': 'application/manifest+json'
 		}
 	});
 };
