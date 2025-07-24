@@ -1,6 +1,7 @@
 import { getLogoUrl } from '$lib/utils/logo-util';
+import type { RequestEvent } from '@sveltejs/kit';
 
-export async function GET({ request }) {
+export async function GET({ request }: RequestEvent) {
   const logoUrl = getLogoUrl();
   const manifest = {
     name: "PocketID",
