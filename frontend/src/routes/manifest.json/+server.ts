@@ -1,10 +1,7 @@
-import { getLogoUrl } from '$lib/utils/logo-util';
 import type { RequestHandler } from './$types';
 export const prerender = true; // this should just prerender manifest.json and not treat it as a server route
 
 export const GET: RequestHandler = async () => {
-	const logoUrl = getLogoUrl();
-
 	const manifest = {
 		name: 'PocketID',
 		icons: [
