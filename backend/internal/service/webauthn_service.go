@@ -9,6 +9,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -70,8 +71,7 @@ func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) 
 		Find(&user, "id = ?", userID).
 		Error
 	if err != nil {
-		tx.Rollback()
-		return nil, err
+		return nil, fmt.Errorf("failed to load user: %w", err)
 	}
 
 	options, session, err := s.webAuthn.BeginRegistration(
@@ -80,7 +80,7 @@ func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) 
 		webauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to begin WebAuthn registration: %w", err)
 	}
 
 	sessionToStore := &model.WebauthnSession{
@@ -94,12 +94,12 @@ func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) 
 		Create(&sessionToStore).
 		Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to save WebAuthn session: %w", err)
 	}
 
 	err = tx.Commit().Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return &model.PublicKeyCredentialCreationOptions{
@@ -115,13 +115,15 @@ func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, use
 		tx.Rollback()
 	}()
 
+	// Load & delete the session row
 	var storedSession model.WebauthnSession
 	err := tx.
 		WithContext(ctx).
-		First(&storedSession, "id = ?", sessionID).
+		Clauses(clause.Returning{}).
+		Delete(&storedSession, "id = ?", sessionID).
 		Error
 	if err != nil {
-		return model.WebauthnCredential{}, err
+		return model.WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", err)
 	}
 
 	session := webauthn.SessionData{
@@ -136,12 +138,12 @@ func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, use
 		Find(&user, "id = ?", userID).
 		Error
 	if err != nil {
-		return model.WebauthnCredential{}, err
+		return model.WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
 	}
 
 	credential, err := s.webAuthn.FinishRegistration(&user, session, r)
 	if err != nil {
-		return model.WebauthnCredential{}, err
+		return model.WebauthnCredential{}, fmt.Errorf("failed to finish WebAuthn registration: %w", err)
 	}
 
 	// Determine passkey name using AAGUID and User-Agent
@@ -162,12 +164,12 @@ func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, use
 		Create(&credentialToStore).
 		Error
 	if err != nil {
-		return model.WebauthnCredential{}, err
+		return model.WebauthnCredential{}, fmt.Errorf("failed to store WebAuthn credential: %w", err)
 	}
 
 	err = tx.Commit().Error
 	if err != nil {
-		return model.WebauthnCredential{}, err
+		return model.WebauthnCredential{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return credentialToStore, nil
