@@ -1,18 +1,20 @@
 package dto
 
 type OidcClientMetaDataDto struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	HasLogo bool   `json:"hasLogo"`
+	ID                       string `json:"id"`
+	Name                     string `json:"name"`
+	HasLogo                  bool   `json:"hasLogo"`
+	RequiresReauthentication bool   `json:"requiresReauthentication"`
 }
 
 type OidcClientDto struct {
 	OidcClientMetaDataDto
-	CallbackURLs       []string                 `json:"callbackURLs"`
-	LogoutCallbackURLs []string                 `json:"logoutCallbackURLs"`
-	IsPublic           bool                     `json:"isPublic"`
-	PkceEnabled        bool                     `json:"pkceEnabled"`
-	Credentials        OidcClientCredentialsDto `json:"credentials"`
+	CallbackURLs             []string                 `json:"callbackURLs"`
+	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs"`
+	IsPublic                 bool                     `json:"isPublic"`
+	PkceEnabled              bool                     `json:"pkceEnabled"`
+	RequiresReauthentication bool                     `json:"requiresReauthentication"`
+	Credentials              OidcClientCredentialsDto `json:"credentials"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -31,6 +33,7 @@ type OidcClientCreateDto struct {
 	LogoutCallbackURLs []string                 `json:"logoutCallbackURLs"`
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
+  RequiresReauthentication bool               `json:"requiresReauthentication"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
 }
 
