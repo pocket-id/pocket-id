@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
-	import GlassRowItem from '$lib/components/glass-row-item.svelte';
+	import GlassRowItem from '$lib/components/passkey-row.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import WebauthnService from '$lib/services/webauthn-service';
 	import type { Passkey } from '$lib/types/passkey.type';
