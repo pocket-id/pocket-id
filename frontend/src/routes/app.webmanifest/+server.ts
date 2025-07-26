@@ -1,8 +1,6 @@
 import type { RequestHandler } from './$types';
 import type { AppConfigRawResponse } from '$lib/types/application-configuration';
 
-export const prerender = true;
-
 export const GET: RequestHandler = async ({ fetch }) => {
 	const response = await fetch(`/api/application-configuration`);
 	const data: AppConfigRawResponse = await response.json();
