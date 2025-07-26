@@ -5,13 +5,13 @@
       "src": "/api/application-configuration/pwa-icon",
       "sizes": "1024x1024",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     },
     {
       "src": "/api/application-configuration/pwa-icon",
       "sizes": "1024x1024",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
     }
   ],
   "display": "browser"

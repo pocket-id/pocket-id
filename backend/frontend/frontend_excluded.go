@@ -2,8 +2,12 @@
 
 package frontend
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
 
-func RegisterFrontend(router *gin.Engine) error {
+	"github.com/pocket-id/pocket-id/backend/internal/service"
+)
+
+func RegisterFrontend(router *gin.Engine, appConfigService *service.AppConfigService) error {
 	return ErrFrontendNotIncluded
 }
