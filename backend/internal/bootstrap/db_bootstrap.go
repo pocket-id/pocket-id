@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -15,9 +15,10 @@ import (
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	slogGorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormLogger "gorm.io/gorm/logger"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
@@ -107,13 +108,13 @@ func connectDatabase() (db *gorm.DB, err error) {
 	for i := 1; i <= 3; i++ {
 		db, err = gorm.Open(dialector, &gorm.Config{
 			TranslateError: true,
-			Logger:         getLogger(),
+			Logger:         getGormLogger(),
 		})
 		if err == nil {
 			return db, nil
 		}
 
-		log.Printf("Attempt %d: Failed to initialize database. Retrying...", i)
+		slog.Info("Failed to initialize database", slog.Int("attempt", i))
 		time.Sleep(3 * time.Second)
 	}
 
@@ -164,24 +165,25 @@ func parseSqliteConnectionString(connString string) (string, error) {
 	return connStringUrl.String(), nil
 }
 
-func getLogger() logger.Interface {
-	isProduction := common.EnvConfig.AppEnv == "production"
+func getGormLogger() gormLogger.Interface {
+	loggerOpts := make([]slogGorm.Option, 0, 5)
+	loggerOpts = append(loggerOpts,
+		slogGorm.WithSlowThreshold(200*time.Millisecond),
+		slogGorm.WithErrorField("error"),
+	)
 
-	var logLevel logger.LogLevel
-	if isProduction {
-		logLevel = logger.Error
+	if common.EnvConfig.AppEnv == "production" {
+		loggerOpts = append(loggerOpts,
+			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelWarn),
+			slogGorm.WithIgnoreTrace(),
+		)
 	} else {
-		logLevel = logger.Info
+		loggerOpts = append(loggerOpts,
+			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelDebug),
+			slogGorm.WithRecordNotFoundError(),
+			slogGorm.WithTraceAll(),
+		)
 	}
 
-	return logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             200 * time.Millisecond,
-			LogLevel:                  logLevel,
-			IgnoreRecordNotFoundError: isProduction,
-			ParameterizedQueries:      isProduction,
-			Colorful:                  !isProduction,
-		},
-	)
+	return slogGorm.New(loggerOpts...)
 }

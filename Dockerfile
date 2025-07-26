@@ -30,7 +30,7 @@ RUN VERSION=$(cat /build/.version) \
     -tags "${BUILD_TAGS}" \
     -ldflags="-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${VERSION} -buildid=${VERSION}" \
     -trimpath \
-    -o /build/pocket-id-backend \
+    -o /build/pocket-id \
     .
 
 # Stage 3: Production Image
@@ -39,7 +39,7 @@ WORKDIR /app
 
 RUN apk add --no-cache curl su-exec
 
-COPY --from=backend-builder /build/pocket-id-backend /app/pocket-id
+COPY --from=backend-builder /build/pocket-id /app/pocket-id
 COPY ./scripts/docker /app/docker
 
 RUN chmod +x /app/pocket-id && \

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
@@ -64,16 +63,16 @@ type JwtService struct {
 	jwksEncoded      []byte
 }
 
-func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) *JwtService {
+func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) (*JwtService, error) {
 	service := &JwtService{}
 
 	// Ensure keys are generated or loaded
 	err := service.init(db, appConfigService, &common.EnvConfig)
 	if err != nil {
-		log.Fatalf("Failed to initialize jwt service: %v", err)
+		return nil, err
 	}
 
-	return service
+	return service, nil
 }
 
 func (s *JwtService) init(db *gorm.DB, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {

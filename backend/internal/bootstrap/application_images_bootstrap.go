@@ -1,7 +1,7 @@
 package bootstrap
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -12,17 +12,17 @@ import (
 )
 
 // initApplicationImages copies the images from the images directory to the application-images directory
-func initApplicationImages() {
+func initApplicationImages() error {
 	dirPath := common.EnvConfig.UploadPath + "/application-images"
 
 	sourceFiles, err := resources.FS.ReadDir("images")
 	if err != nil && !os.IsNotExist(err) {
-		log.Fatalf("Error reading directory: %v", err)
+		return fmt.Errorf("failed to read directory: %w", err)
 	}
 
 	destinationFiles, err := os.ReadDir(dirPath)
 	if err != nil && !os.IsNotExist(err) {
-		log.Fatalf("Error reading directory: %v", err)
+		return fmt.Errorf("failed to read directory: %w", err)
 	}
 
 	// Copy images from the images directory to the application-images directory if they don't already exist
@@ -35,9 +35,11 @@ func initApplicationImages() {
 
 		err := utils.CopyEmbeddedFileToDisk(srcFilePath, destFilePath)
 		if err != nil {
-			log.Fatalf("Error copying file: %v", err)
+			return fmt.Errorf("failed to copy file: %w", err)
 		}
 	}
+
+	return nil
 }
 
 func imageAlreadyExists(fileName string, destinationFiles []os.DirEntry) bool {
