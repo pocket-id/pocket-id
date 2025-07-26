@@ -2,7 +2,7 @@
   "name": "{%appname%}",
   "icons": [
     {
-      "src": "/api/application-configuration/AppleIcon",
+      "src": "/api/application-configuration/pwa-icon",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
