@@ -27,8 +27,18 @@ func RegisterFrontend(router *gin.Engine) error {
 	fileServer := NewFileServerWithCaching(http.FS(distFS), int(cacheMaxAge.Seconds()))
 
 	router.NoRoute(func(c *gin.Context) {
-		// Try to serve the requested file
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
+
+		// Block requests to certain files that don't exist, otherwise the SvelteKit frontend will render a page and that breaks certain behaviors (like loading the icon in the app's manifest in Safari)
+		if c.Request.Method == http.MethodGet {
+			switch path {
+			case "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico":
+				c.AbortWithStatus(http.StatusNotFound)
+				return
+			}
+		}
+
+		// Try to serve the requested file
 		if _, err := fs.Stat(distFS, path); os.IsNotExist(err) {
 			// File doesn't exist, serve index.html instead
 			c.Request.URL.Path = "/"
