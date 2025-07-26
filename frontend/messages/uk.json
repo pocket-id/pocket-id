@@ -144,7 +144,7 @@
 	"when_this_api_key_will_expire": "When this API key will expire.",
 	"optional_description_to_help_identify_this_keys_purpose": "Optional description to help identify this key's purpose.",
 	"expiration_date_must_be_in_the_future": "Expiration date must be in the future",
-	"revoke_api_key": "Revoke API Key",
+	"revoke_api_key": "Відкликати API-ключ",
 	"never": "Never",
 	"revoke": "Revoke",
 	"api_key_revoked_successfully": "API key revoked successfully",
