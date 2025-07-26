@@ -35,6 +35,7 @@ func NewAppConfigController(
 	group.PUT("/application-configuration", authMiddleware.Add(), acc.updateAppConfigHandler)
 
 	group.GET("/application-configuration/logo", acc.getLogoHandler)
+	group.GET("/application-configuration/AppleIcon", acc.getAppleIconHandler)
 	group.GET("/application-configuration/background-image", acc.getBackgroundImageHandler)
 	group.GET("/application-configuration/favicon", acc.getFaviconHandler)
 	group.PUT("/application-configuration/logo", authMiddleware.Add(), acc.updateLogoHandler)
@@ -154,6 +155,17 @@ func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
 	}
 
 	acc.getImage(c, imageName, imageType)
+}
+
+// getAppleIconHandler godoc
+// @Summary Get apple touch icon
+// @Description Get the apple touch icon for the application
+// @Tags Application Configuration
+// @Produce image/png
+// @Success 200 {file} binary "Logo image"
+// @Router /api/application-configuration/AppleIcon [get]
+func (acc *AppConfigController) getAppleIconHandler(c *gin.Context) {
+	acc.getImage(c, "AppleTouchIcon", "png")
 }
 
 // getFaviconHandler godoc

@@ -1,0 +1,12 @@
+{
+  "name": "PocketID",
+  "icons": [
+    {
+      "src": "/api/application-configuration/AppleIcon",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "display": "browser"
+}
