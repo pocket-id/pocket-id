@@ -1,0 +1,14 @@
+{
+  "name": "pocket-id-repo",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "tests"
+  ],
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev": "pnpm --filter frontend dev",
+    "build": "pnpm --filter frontend build",
+    "test": "pnpm --filter tests test"
+  }
+}

@@ -1,6 +1,7 @@
 {
 	"type": "module",
 	"scripts": {
+		"preinstall": "npx only-allow pnpm",
 		"test": "playwright test",
 		"format": "prettier --write ."
 	},

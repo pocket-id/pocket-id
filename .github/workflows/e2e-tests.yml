@@ -3,15 +3,15 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - "docs/**"
-      - "**.md"
-      - ".github/**"
+      - 'docs/**'
+      - '**.md'
+      - '.github/**'
   pull_request:
     branches: [main]
     paths-ignore:
-      - "docs/**"
-      - "**.md"
-      - ".github/**"
+      - 'docs/**'
+      - '**.md'
+      - '.github/**'
 
 jobs:
   build:
@@ -54,18 +54,22 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v3
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
 
@@ -96,13 +100,12 @@ jobs:
         run: docker load < /tmp/lldap-image.tar
 
       - name: Install test dependencies
-        working-directory: ./tests
-        run: npm ci
+        run: pnpm --filter tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
         working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: pnpm dlx playwright install --with-deps chromium
 
       - name: Run Docker Container with Sqlite DB and LDAP
         working-directory: ./tests/setup
@@ -112,7 +115,7 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: ./tests
-        run: npx playwright test
+        run: pnpm dlx playwright test
 
       - name: Upload Test Report
         uses: actions/upload-artifact@v4
@@ -141,18 +144,22 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v3
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
 
@@ -200,13 +207,12 @@ jobs:
         run: docker load -i /tmp/docker-image.tar
 
       - name: Install test dependencies
-        working-directory: ./tests
-        run: npm ci
+        run: pnpm --filter tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
         working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: pnpm dlx playwright install --with-deps chromium
 
       - name: Run Docker Container with Postgres DB and LDAP
         working-directory: ./tests/setup
@@ -216,7 +222,7 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: ./tests
-        run: npx playwright test
+        run: pnpm dlx playwright test
 
       - name: Upload Test Report
         uses: actions/upload-artifact@v4
