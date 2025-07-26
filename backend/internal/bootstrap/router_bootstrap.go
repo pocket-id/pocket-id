@@ -50,9 +50,10 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// do not log these URLs
 	loggerSkipPathsPrefix := []string{
-		"GET /application-configuration/logo",
-		"GET /application-configuration/background-image",
-		"GET /application-configuration/favicon",
+		"GET /api/application-configuration/logo",
+		"GET /api/application-configuration/background-image",
+		"GET /api/application-configuration/favicon",
+		"GET /api/application-configuration/pwa-icon",
 		"GET /_app",
 		"GET /fonts",
 		"GET /healthz",

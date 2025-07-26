@@ -32,7 +32,7 @@ func RegisterFrontend(router *gin.Engine) error {
 		// Block requests to certain files that don't exist, otherwise the SvelteKit frontend will render a page and that breaks certain behaviors (like loading the icon in the app's manifest in Safari)
 		if c.Request.Method == http.MethodGet {
 			switch path {
-			case "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico":
+			case "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico", "apple-touch-icon-120x120.png", "apple-touch-icon-120x120-precomposed.png":
 				c.AbortWithStatus(http.StatusNotFound)
 				return
 			}
