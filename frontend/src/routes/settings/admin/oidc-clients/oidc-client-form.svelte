@@ -38,6 +38,7 @@
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false,
+		launchURL: existingClient?.launchURL || '',
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		}
@@ -49,6 +50,7 @@
 		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
+		launchURL: z.url(),
 		credentials: z.object({
 			federatedIdentities: z.array(
 				z.object({
@@ -106,8 +108,18 @@
 
 <form onsubmit={preventDefault(onSubmit)}>
 	<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
-		<FormInput label={m.name()} class="w-full" bind:input={$inputs.name} />
-		<div></div>
+		<FormInput
+			label={m.name()}
+			class="w-full"
+			description={m.client_name_description()}
+			bind:input={$inputs.name}
+		/>
+		<FormInput
+			label={m.client_launch_url()}
+			description={m.client_launch_url_description()}
+			class="w-full"
+			bind:input={$inputs.launchURL}
+		/>
 		<OidcCallbackUrlInput
 			label={m.callback_urls()}
 			description={m.callback_url_description()}
