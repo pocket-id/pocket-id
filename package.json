@@ -9,6 +9,7 @@
     "preinstall": "npx only-allow pnpm",
     "dev": "pnpm --filter pocket-id-frontend dev",
     "build": "pnpm --filter pocket-id-frontend build",
-    "test": "pnpm --filter pocket-id-tests test"
+    "test": "pnpm --filter pocket-id-tests test",
+    "format": "pnpm --filter pocket-id-frontend format"
   }
 }
