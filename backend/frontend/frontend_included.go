@@ -4,6 +4,7 @@ package frontend
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -12,12 +13,16 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 //go:embed all:dist/*
 var frontendFS embed.FS
 
-func RegisterFrontend(router *gin.Engine) error {
+const appManifestFile = "app.webmanifest"
+
+func RegisterFrontend(router *gin.Engine, appConfigService *service.AppConfigService) error {
 	distFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
 		return fmt.Errorf("failed to create sub FS: %w", err)
@@ -26,6 +31,29 @@ func RegisterFrontend(router *gin.Engine) error {
 	cacheMaxAge := time.Hour * 24
 	fileServer := NewFileServerWithCaching(http.FS(distFS), int(cacheMaxAge.Seconds()))
 
+	// The app.webmanifest file needs special handling, as we need to set the app's name in the body
+	// Read the file and parse it as JSON
+	appManifestData, err := fs.ReadFile(distFS, appManifestFile)
+	if err != nil {
+		return fmt.Errorf("failed to read app manifest file '%s' in bundle: %w", appManifestFile, err)
+	}
+	var appManifest map[string]any
+	err = json.Unmarshal(appManifestData, &appManifest)
+	if err != nil {
+		return fmt.Errorf("failed to parse app manifest file '%s' as JSON: %w", appManifestFile, err)
+	}
+
+	// Handle the route for the manifest
+	router.GET("/"+appManifestFile, func(c *gin.Context) {
+		// Replace the name in the manifest
+		dbConfig := appConfigService.GetDbConfig()
+		appManifest["name"] = dbConfig.AppName.Value
+
+		c.Header("Content-Type", "application/manifest+json")
+		c.JSON(http.StatusOK, appManifest)
+	})
+
+	// Register the fallback handler that serves the SvelteKit app for all routes that we can't match
 	router.NoRoute(func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 

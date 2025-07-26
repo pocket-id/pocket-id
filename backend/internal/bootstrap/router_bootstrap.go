@@ -84,7 +84,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 
-	err := frontend.RegisterFrontend(r)
+	err := frontend.RegisterFrontend(r, svc.appConfigService)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
 		log.Println("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
