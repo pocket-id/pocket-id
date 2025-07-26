@@ -114,8 +114,8 @@ jobs:
           docker compose logs -f pocket-id &> /tmp/backend.log &
 
       - name: Run Playwright tests
-        working-directory: ./tests
-        run: pnpm dlx --filter pocket-id-tests playwright test
+        working-directory: tests
+        run: pnpm exec playwright test
 
       - name: Upload Test Report
         uses: actions/upload-artifact@v4
@@ -212,7 +212,7 @@ jobs:
       - name: Install Playwright Browsers
         working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm dlx --filter pocket-id-tests playwright install --with-deps chromium
+        run: pnpm dlx playwright install --with-deps chromium
 
       - name: Run Docker Container with Postgres DB and LDAP
         working-directory: ./tests/setup
@@ -222,7 +222,7 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: ./tests
-        run: pnpm dlx --filter pocket-id-tests playwright test
+        run: pnpm exec playwright test
 
       - name: Upload Test Report
         uses: actions/upload-artifact@v4

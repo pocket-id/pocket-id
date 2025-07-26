@@ -53,9 +53,6 @@ importers:
       '@lucide/svelte':
         specifier: ^0.525.0
         version: 0.525.0(svelte@5.36.17)
-      '@playwright/test':
-        specifier: ^1.54.1
-        version: 1.54.1
       '@sveltejs/adapter-static':
         specifier: ^3.0.8
         version: 3.0.8(@sveltejs/kit@2.26.1(@sveltejs/vite-plugin-svelte@6.1.0(svelte@5.36.17)(vite@7.0.6(@types/node@22.16.5)(jiti@2.5.1)(lightningcss@1.30.1)))(svelte@5.36.17)(vite@7.0.6(@types/node@22.16.5)(jiti@2.5.1)(lightningcss@1.30.1)))
@@ -138,7 +135,7 @@ importers:
   tests:
     devDependencies:
       '@playwright/test':
-        specifier: ^1.52.0
+        specifier: ^1.54.1
         version: 1.54.1
       '@types/node':
         specifier: ^22.15.21
