@@ -262,7 +262,7 @@ func prepareBody[V any](srv *EmailService, template email.Template[V], data *ema
 
 	// prepare text part
 	var textHeader = textproto.MIMEHeader{}
-	textHeader.Add("Content-Type", "text/plain;\n charset=UTF-8")
+	textHeader.Add("Content-Type", "text/plain; charset=UTF-8")
 	textHeader.Add("Content-Transfer-Encoding", "quoted-printable")
 	textPart, err := mpart.CreatePart(textHeader)
 	if err != nil {
@@ -274,18 +274,17 @@ func prepareBody[V any](srv *EmailService, template email.Template[V], data *ema
 	if err != nil {
 		return "", "", fmt.Errorf("execute text template: %w", err)
 	}
+	textQp.Close()
 
-	// prepare html part
 	var htmlHeader = textproto.MIMEHeader{}
-	htmlHeader.Add("Content-Type", "text/html;\n charset=UTF-8")
-	htmlHeader.Add("Content-Transfer-Encoding", "quoted-printable")
+	htmlHeader.Add("Content-Type", "text/html; charset=UTF-8")
+	htmlHeader.Add("Content-Transfer-Encoding", "8bit")
 	htmlPart, err := mpart.CreatePart(htmlHeader)
 	if err != nil {
 		return "", "", fmt.Errorf("create html part: %w", err)
 	}
 
-	htmlQp := quotedprintable.NewWriter(htmlPart)
-	err = email.GetTemplate(srv.htmlTemplates, template).ExecuteTemplate(htmlQp, "root", data)
+	err = email.GetTemplate(srv.htmlTemplates, template).ExecuteTemplate(htmlPart, "root", data)
 	if err != nil {
 		return "", "", fmt.Errorf("execute html template: %w", err)
 	}
