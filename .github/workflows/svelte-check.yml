@@ -49,15 +49,15 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm --filter frontend install --frozen-lockfile
+        run: pnpm --filter pocket-id-frontend install --frozen-lockfile
 
       - name: Build Pocket ID Frontend
         working-directory: frontend
-        run: pnpm build
+        run: pnpm --filter pocket-id-frontend build
 
       - name: Add svelte-check problem matcher
         run: echo "::add-matcher::.github/svelte-check-matcher.json"
 
       - name: Run svelte-check
         working-directory: frontend
-        run: pnpm check
+        run: pnpm --filter pocket-id-frontend check

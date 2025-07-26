@@ -100,7 +100,7 @@ jobs:
         run: docker load < /tmp/lldap-image.tar
 
       - name: Install test dependencies
-        run: pnpm --filter tests install --frozen-lockfile
+        run: pnpm --filter pocket-id-tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
         working-directory: ./tests
@@ -207,7 +207,7 @@ jobs:
         run: docker load -i /tmp/docker-image.tar
 
       - name: Install test dependencies
-        run: pnpm --filter tests install --frozen-lockfile
+        run: pnpm --filter pocket-id-tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
         working-directory: ./tests

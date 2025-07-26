@@ -7,8 +7,8 @@
   ],
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "dev": "pnpm --filter frontend dev",
-    "build": "pnpm --filter frontend build",
-    "test": "pnpm --filter tests test"
+    "dev": "pnpm --filter pocket-id-frontend dev",
+    "build": "pnpm --filter pocket-id-frontend build",
+    "test": "pnpm --filter pocket-id-tests test"
   }
 }

@@ -1,4 +1,5 @@
 {
+	"name": "pocket-id-tests",
 	"type": "module",
 	"scripts": {
 		"preinstall": "npx only-allow pnpm",
