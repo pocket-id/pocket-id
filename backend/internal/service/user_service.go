@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -393,7 +395,8 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 	// We use a background context here as this is running in a goroutine
 	//nolint:contextcheck
 	go func() {
-		innerCtx := context.Background()
+		span := trace.SpanFromContext(ctx)
+		innerCtx := trace.ContextWithSpan(context.Background(), span)
 
 		link := common.EnvConfig.AppURL + "/lc"
 		linkWithCode := link + "/" + oneTimeAccessToken
@@ -414,7 +417,8 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 			ExpirationString:  utils.DurationToString(time.Until(expiration).Round(time.Second)),
 		})
 		if errInternal != nil {
-			log.Printf("Failed to send email to '%s': %v\n", user.Email, errInternal)
+			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", errInternal), slog.String("address", user.Email))
+			return
 		}
 	}()
 
