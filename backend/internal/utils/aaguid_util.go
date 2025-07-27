@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
@@ -57,12 +57,13 @@ func loadAAGUIDsFromFile() {
 	// Read from embedded file system
 	data, err := resources.FS.ReadFile("aaguids.json")
 	if err != nil {
-		log.Printf("Error reading embedded AAGUID file: %v", err)
+		slog.Error("Error reading embedded AAGUID file", slog.Any("error", err))
 		return
 	}
 
-	if err := json.Unmarshal(data, &aaguidMap); err != nil {
-		log.Printf("Error unmarshalling AAGUID data: %v", err)
+	err = json.Unmarshal(data, &aaguidMap)
+	if err != nil {
+		slog.Error("Error unmarshalling AAGUID data", slog.Any("error", err))
 		return
 	}
 }

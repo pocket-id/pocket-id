@@ -24,11 +24,14 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		userArg := args[0]
 
 		// Connect to the database
-		db := bootstrap.NewDatabase()
+		db, err := bootstrap.NewDatabase()
+		if err != nil {
+			return err
+		}
 
 		// Create the access token
 		var oneTimeAccessToken *model.OneTimeAccessToken
-		err := db.Transaction(func(tx *gorm.DB) error {
+		err = db.Transaction(func(tx *gorm.DB) error {
 			// Load the user to retrieve the user ID
 			var user model.User
 			queryCtx, queryCancel := context.WithTimeout(cmd.Context(), 10*time.Second)

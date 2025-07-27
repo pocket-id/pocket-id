@@ -30,7 +30,10 @@ func init() {
 		Use:   "key-rotate",
 		Short: "Generates a new token signing key and replaces the current one",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db := bootstrap.NewDatabase()
+			db, err := bootstrap.NewDatabase()
+			if err != nil {
+				return err
+			}
 
 			return keyRotate(cmd.Context(), flags, db, &common.EnvConfig)
 		},
@@ -80,7 +83,10 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, envConfig
 	}
 
 	// Init the services we need
-	appConfigService := service.NewAppConfigService(ctx, db)
+	appConfigService, err := service.NewAppConfigService(ctx, db)
+	if err != nil {
+		return fmt.Errorf("failed to create app config service: %w", err)
+	}
 
 	// Get the key provider
 	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, appConfigService.GetDbConfig().InstanceID.Value)

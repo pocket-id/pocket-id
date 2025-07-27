@@ -3,7 +3,6 @@ package bootstrap
 import (
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -25,14 +24,14 @@ import (
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-func NewDatabase() (db *gorm.DB) {
-	db, err := connectDatabase()
+func NewDatabase() (db *gorm.DB, err error) {
+	db, err = connectDatabase()
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 	sqlDb, err := db.DB()
 	if err != nil {
-		log.Fatalf("failed to get sql.DB: %v", err)
+		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
 	// Choose the correct driver for the database provider
@@ -44,18 +43,18 @@ func NewDatabase() (db *gorm.DB) {
 		driver, err = postgresMigrate.WithInstance(sqlDb, &postgresMigrate.Config{})
 	default:
 		// Should never happen at this point
-		log.Fatalf("unsupported database provider: %s", common.EnvConfig.DbProvider)
+		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}
 	if err != nil {
-		log.Fatalf("failed to create migration driver: %v", err)
+		return nil, fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
 	// Run migrations
 	if err := migrateDatabase(driver); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	return db
+	return db, nil
 }
 
 func migrateDatabase(driver database.Driver) error {

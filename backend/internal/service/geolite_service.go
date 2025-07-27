@@ -57,7 +57,8 @@ func NewGeoLiteService(httpClient *http.Client) *GeoLiteService {
 	}
 
 	// Initialize IPv6 local ranges
-	if err := service.initializeIPv6LocalRanges(); err != nil {
+	err := service.initializeIPv6LocalRanges()
+	if err != nil {
 		slog.Warn("Failed to initialize IPv6 local ranges", slog.Any("error", err))
 	}
 

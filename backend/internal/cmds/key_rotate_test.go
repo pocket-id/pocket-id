@@ -97,7 +97,8 @@ func testKeyRotateWithFileStorage(t *testing.T, flags keyRotateFlags, wantErr bo
 	db := testingutils.NewDatabaseForTest(t)
 
 	// Initialize app config service and create instance
-	appConfigService := service.NewAppConfigService(t.Context(), db)
+	appConfigService, err := service.NewAppConfigService(t.Context(), db)
+	require.NoError(t, err)
 	instanceID := appConfigService.GetDbConfig().InstanceID.Value
 
 	// Check if key exists before rotation
@@ -147,7 +148,8 @@ func testKeyRotateWithDatabaseStorage(t *testing.T, flags keyRotateFlags, wantEr
 	db := testingutils.NewDatabaseForTest(t)
 
 	// Initialize app config service and create instance
-	appConfigService := service.NewAppConfigService(t.Context(), db)
+	appConfigService, err := service.NewAppConfigService(t.Context(), db)
+	require.NoError(t, err)
 	instanceID := appConfigService.GetDbConfig().InstanceID.Value
 
 	// Get key provider

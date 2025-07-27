@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
@@ -1180,9 +1179,13 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 	}()
 
 	var deviceAuth model.OidcDeviceCode
-	if err := tx.WithContext(ctx).Preload("Client.AllowedUserGroups").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
-		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
-		return err
+	err := tx.
+		WithContext(ctx).
+		Preload("Client.AllowedUserGroups").
+		First(&deviceAuth, "user_code = ?", userCode).
+		Error
+	if err != nil {
+		return fmt.Errorf("error finding device code: %w", err)
 	}
 
 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
@@ -1191,17 +1194,26 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 
 	// Check if the user group is allowed to authorize the client
 	var user model.User
-	if err := tx.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", userID).Error; err != nil {
-		return err
+	err = tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if err != nil {
+		return fmt.Errorf("error finding user groups: %w", err)
 	}
 
 	if !s.IsUserGroupAllowedToAuthorize(user, deviceAuth.Client) {
 		return &common.OidcAccessDeniedError{}
 	}
 
-	if err := tx.WithContext(ctx).Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
-		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
-		return err
+	err = tx.
+		WithContext(ctx).
+		Preload("Client").
+		First(&deviceAuth, "user_code = ?", userCode).
+		Error
+	if err != nil {
+		return fmt.Errorf("error finding device code: %w", err)
 	}
 
 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
@@ -1211,16 +1223,12 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 	deviceAuth.UserID = &userID
 	deviceAuth.IsAuthorized = true
 
-	if err := tx.WithContext(ctx).Save(&deviceAuth).Error; err != nil {
-		log.Printf("Error saving device auth: %v", err)
-		return err
-	}
-
-	// Verify the update was successful
-	var verifiedAuth model.OidcDeviceCode
-	if err := tx.WithContext(ctx).First(&verifiedAuth, "device_code = ?", deviceAuth.DeviceCode).Error; err != nil {
-		log.Printf("Error verifying update: %v", err)
-		return err
+	err = tx.
+		WithContext(ctx).
+		Save(&deviceAuth).
+		Error
+	if err != nil {
+		return fmt.Errorf("error saving device auth: %w", err)
 	}
 
 	// Create user authorization if needed
@@ -1229,15 +1237,16 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		return err
 	}
 
+	auditLogData := model.AuditLogData{"clientName": deviceAuth.Client.Name}
 	if !hasAuthorizedClient {
-		err := s.createAuthorizedClientInternal(ctx, userID, deviceAuth.ClientID, deviceAuth.Scope, tx)
+		err = s.createAuthorizedClientInternal(ctx, userID, deviceAuth.ClientID, deviceAuth.Scope, tx)
 		if err != nil {
 			return err
 		}
 
-		s.auditLogService.Create(ctx, model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name}, tx)
+		s.auditLogService.Create(ctx, model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, auditLogData, tx)
 	} else {
-		s.auditLogService.Create(ctx, model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name}, tx)
+		s.auditLogService.Create(ctx, model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, auditLogData, tx)
 	}
 
 	return tx.Commit().Error
@@ -1428,7 +1437,7 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 	case isClientAssertion:
 		err = s.verifyClientAssertionFromFederatedIdentities(ctx, client, input)
 		if err != nil {
-			log.Printf("Invalid assertion for client '%s': %v", client.ID, err)
+			slog.WarnContext(ctx, "Invalid assertion for client", slog.String("client", client.ID), slog.Any("error", err))
 			return nil, &common.OidcClientAssertionInvalidError{}
 		}
 		return client, nil
