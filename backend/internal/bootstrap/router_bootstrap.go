@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/frontend"
-
 	"github.com/gin-gonic/gin"
+	sloggin "github.com/samber/slog-gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/frontend"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
@@ -32,7 +32,8 @@ var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *
 func initRouter(db *gorm.DB, svc *services) utils.Service {
 	runner, err := initRouterInternal(db, svc)
 	if err != nil {
-		log.Fatalf("failed to init router: %v", err)
+		slog.Error("Failed to init router", "error", err)
+		os.Exit(1)
 	}
 	return runner
 }
@@ -61,21 +62,25 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	}
 
 	r := gin.New()
-	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{Skip: func(c *gin.Context) bool {
-		for _, prefix := range loggerSkipPathsPrefix {
-			if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
+	r.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{
+		Filters: []sloggin.Filter{
+			func(c *gin.Context) bool {
+				for _, prefix := range loggerSkipPathsPrefix {
+					if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
+						return false
+					}
+				}
 				return true
-			}
-		}
-		return false
-	}}))
+			},
+		},
+	}))
 
 	if !common.EnvConfig.TrustProxy {
 		_ = r.SetTrustedProxies(nil)
 	}
 
 	if common.EnvConfig.TracingEnabled {
-		r.Use(otelgin.Middleware("pocket-id-backend"))
+		r.Use(otelgin.Middleware(common.Name))
 	}
 
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 60)
@@ -86,7 +91,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	err := frontend.RegisterFrontend(r, svc.appConfigService)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
-		log.Println("Frontend is not included in the build. Skipping frontend registration.")
+		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to register frontend: %w", err)
 	}
@@ -155,7 +160,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// Service runner function
 	runFn := func(ctx context.Context) error {
-		log.Printf("Server listening on %s", addr)
+		slog.Info("Server listening", slog.String("addr", addr))
 
 		// Start the server in a background goroutine
 		go func() {
@@ -164,7 +169,8 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 			// Next call blocks until the server is shut down
 			srvErr := srv.Serve(listener)
 			if srvErr != http.ErrServerClosed {
-				log.Fatalf("Error starting app server: %v", srvErr)
+				slog.Error("Error starting app server", "error", srvErr)
+				os.Exit(1)
 			}
 		}()
 
@@ -172,7 +178,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 		err = systemd.SdNotifyReady()
 		if err != nil {
 			// Log the error only
-			log.Printf("[WARN] Unable to notify systemd that the service is ready: %v", err)
+			slog.Warn("Unable to notify systemd that the service is ready", "error", err)
 		}
 
 		// Block until the context is canceled
@@ -185,7 +191,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 		shutdownCancel()
 		if shutdownErr != nil {
 			// Log the error only (could be context canceled)
-			log.Printf("[WARN] App server shutdown error: %v", shutdownErr)
+			slog.Warn("App server shutdown error", "error", shutdownErr)
 		}
 
 		return nil
