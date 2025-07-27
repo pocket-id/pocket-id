@@ -1,7 +1,8 @@
 package dto
 
 import (
-	"log"
+	"log/slog"
+	"os"
 	"regexp"
 
 	"github.com/gin-gonic/gin/binding"
@@ -18,9 +19,16 @@ var validateUsername validator.Func = func(fl validator.FieldLevel) bool {
 }
 
 func init() {
-	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		if err := v.RegisterValidation("username", validateUsername); err != nil {
-			log.Fatalf("Failed to register custom validation: %v", err)
-		}
+	v, ok := binding.Validator.Engine().(*validator.Validate)
+	if !ok {
+		// Indicates a development-time error
+		panic("binding.Validator.Engine is not *validator.Validate")
+	}
+
+	err := v.RegisterValidation("username", validateUsername)
+	if err != nil {
+		slog.Error("Failed to register custom validation", slog.Any("error", err))
+		os.Exit(1)
+		return
 	}
 }

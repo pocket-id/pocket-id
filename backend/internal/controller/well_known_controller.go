@@ -3,8 +3,9 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 
@@ -23,7 +24,9 @@ func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtServi
 	var err error
 	wkc.oidcConfig, err = wkc.computeOIDCConfiguration()
 	if err != nil {
-		log.Fatalf("Failed to pre-compute OpenID Connect configuration document: %v", err)
+		slog.Error("Failed to pre-compute OpenID Connect configuration document", slog.Any("error", err))
+		os.Exit(1)
+		return
 	}
 
 	group.GET("/.well-known/jwks.json", wkc.jwksHandler)

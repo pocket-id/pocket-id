@@ -22,7 +22,12 @@ type AuditLogService struct {
 }
 
 func NewAuditLogService(db *gorm.DB, appConfigService *AppConfigService, emailService *EmailService, geoliteService *GeoLiteService) *AuditLogService {
-	return &AuditLogService{db: db, appConfigService: appConfigService, emailService: emailService, geoliteService: geoliteService}
+	return &AuditLogService{
+		db:               db,
+		appConfigService: appConfigService,
+		emailService:     emailService,
+		geoliteService:   geoliteService,
+	}
 }
 
 // Create creates a new audit log entry in the database

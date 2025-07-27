@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -169,13 +168,13 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 
 				userResult, err := client.Search(userSearchReq)
 				if err != nil || len(userResult.Entries) == 0 {
-					log.Printf("Could not resolve group member DN '%s': %v", member, err)
+					slog.WarnContext(ctx, "Could not resolve group member DN", slog.String("member", member), slog.Any("error", err))
 					continue
 				}
 
 				username = userResult.Entries[0].GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value)
 				if username == "" {
-					log.Printf("Could not extract username from group member DN '%s'", member)
+					slog.WarnContext(ctx, "Could not extract username from group member DN", slog.String("member", member))
 					continue
 				}
 			}

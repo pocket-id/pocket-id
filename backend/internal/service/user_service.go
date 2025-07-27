@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/url"
 	"os"
@@ -35,7 +34,13 @@ type UserService struct {
 }
 
 func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService) *UserService {
-	return &UserService{db: db, jwtService: jwtService, auditLogService: auditLogService, emailService: emailService, appConfigService: appConfigService}
+	return &UserService{
+		db:               db,
+		jwtService:       jwtService,
+		auditLogService:  auditLogService,
+		emailService:     emailService,
+		appConfigService: appConfigService,
+	}
 }
 
 func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
@@ -47,7 +52,8 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPa
 
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
-		query = query.Where("email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
+		query = query.Where(
+			"email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
 			searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
@@ -120,13 +126,14 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	defaultPictureBytes := defaultPicture.Bytes()
 	go func() {
 		// Ensure the directory exists
-		err = os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
-		if err != nil {
-			log.Printf("Failed to create directory for default profile picture: %v", err)
+		errInternal := os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
+		if errInternal != nil {
+			slog.Error("Failed to create directory for default profile picture", slog.Any("error", errInternal))
 			return
 		}
-		if err := utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath); err != nil {
-			log.Printf("Failed to cache default profile picture for initials %s: %v", user.Initials(), err)
+		errInternal = utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath)
+		if errInternal != nil {
+			slog.Error("Failed to cache default profile picture for initials", slog.String("initials", user.Initials()), slog.Any("error", errInternal))
 		}
 	}()
 
