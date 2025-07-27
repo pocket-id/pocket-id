@@ -19,12 +19,7 @@ var validateUsername validator.Func = func(fl validator.FieldLevel) bool {
 }
 
 func init() {
-	v, ok := binding.Validator.Engine().(*validator.Validate)
-	if !ok {
-		// Indicates a development-time error
-		panic("binding.Validator.Engine is not *validator.Validate")
-	}
-
+	v, _ := binding.Validator.Engine().(*validator.Validate)
 	err := v.RegisterValidation("username", validateUsername)
 	if err != nil {
 		slog.Error("Failed to register custom validation", slog.Any("error", err))
