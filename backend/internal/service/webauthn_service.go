@@ -25,8 +25,8 @@ type WebAuthnService struct {
 	appConfigService *AppConfigService
 }
 
-func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, appConfigService *AppConfigService) *WebAuthnService {
-	webauthnConfig := &webauthn.Config{
+func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, appConfigService *AppConfigService) (*WebAuthnService, error) {
+	wa, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: appConfigService.GetDbConfig().AppName.Value,
 		RPID:          utils.GetHostnameFromURL(common.EnvConfig.AppURL),
 		RPOrigins:     []string{common.EnvConfig.AppURL},
@@ -45,15 +45,18 @@ func NewWebAuthnService(db *gorm.DB, jwtService *JwtService, auditLogService *Au
 				TimeoutUVD: time.Second * 60,
 			},
 		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to init webauthn object: %w", err)
 	}
-	wa, _ := webauthn.New(webauthnConfig)
+
 	return &WebAuthnService{
 		db:               db,
 		webAuthn:         wa,
 		jwtService:       jwtService,
 		auditLogService:  auditLogService,
 		appConfigService: appConfigService,
-	}
+	}, nil
 }
 
 func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) (*model.PublicKeyCredentialCreationOptions, error) {

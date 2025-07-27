@@ -29,9 +29,9 @@ func CreateProfilePicture(file io.Reader) (io.Reader, error) {
 
 	pr, pw := io.Pipe()
 	go func() {
-		err = imaging.Encode(pw, img, imaging.PNG)
-		if err != nil {
-			_ = pw.CloseWithError(fmt.Errorf("failed to encode image: %w", err))
+		innerErr := imaging.Encode(pw, img, imaging.PNG)
+		if innerErr != nil {
+			_ = pw.CloseWithError(fmt.Errorf("failed to encode image: %w", innerErr))
 			return
 		}
 		pw.Close()

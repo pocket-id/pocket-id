@@ -3,7 +3,8 @@
 package bootstrap
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -18,7 +19,8 @@ func init() {
 		func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services) {
 			testService, err := service.NewTestService(db, svc.appConfigService, svc.jwtService, svc.ldapService)
 			if err != nil {
-				log.Fatalf("failed to initialize test service: %v", err)
+				slog.Error("Failed to initialize test service", slog.Any("error", err))
+				os.Exit(1)
 				return
 			}
 

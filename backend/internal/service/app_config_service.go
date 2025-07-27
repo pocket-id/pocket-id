@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"mime/multipart"
 	"os"
 	"reflect"
@@ -28,22 +27,22 @@ type AppConfigService struct {
 	db       *gorm.DB
 }
 
-func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
+func NewAppConfigService(ctx context.Context, db *gorm.DB) (*AppConfigService, error) {
 	service := &AppConfigService{
 		db: db,
 	}
 
 	err := service.LoadDbConfig(ctx)
 	if err != nil {
-		log.Fatalf("Failed to initialize app config service: %v", err)
+		return nil, fmt.Errorf("failed to initialize app config service: %w", err)
 	}
 
 	err = service.initInstanceID(ctx)
 	if err != nil {
-		log.Fatalf("Failed to initialize instance ID: %v", err)
+		return nil, fmt.Errorf("failed to initialize instance ID: %w", err)
 	}
 
-	return service
+	return service, nil
 }
 
 // GetDbConfig returns the application configuration.
