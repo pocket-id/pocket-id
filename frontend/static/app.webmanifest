@@ -12,6 +12,12 @@
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/api/application-configuration/pwa-icon-svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "display": "browser"

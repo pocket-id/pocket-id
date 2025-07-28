@@ -36,6 +36,7 @@ func NewAppConfigController(
 
 	group.GET("/application-configuration/logo", acc.getLogoHandler)
 	group.GET("/application-configuration/pwa-icon", acc.getPwaIconHandler)
+	group.GET("/application-configuration/pwa-icon-svg", acc.getPwaSvgIconHandler)
 	group.GET("/application-configuration/background-image", acc.getBackgroundImageHandler)
 	group.GET("/application-configuration/favicon", acc.getFaviconHandler)
 	group.PUT("/application-configuration/logo", authMiddleware.Add(), acc.updateLogoHandler)
@@ -158,14 +159,25 @@ func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
 }
 
 // getPwaIconHandler godoc
-// @Summary Get PWA icon
-// @Description Get the PWA icon for the application
+// @Summary Get PWA PNG icon
+// @Description Get the PWA PNG icon for the application
 // @Tags Application Configuration
 // @Produce image/png
 // @Success 200 {file} binary "Logo image"
 // @Router /api/application-configuration/pwa-icon [get]
 func (acc *AppConfigController) getPwaIconHandler(c *gin.Context) {
 	acc.getImage(c, "pwa-icon", "png")
+}
+
+// getPwaIconHandler godoc
+// @Summary Get PWA SVG icon
+// @Description Get the PWA SVG icon for the application
+// @Tags Application Configuration
+// @Produce image/png
+// @Success 200 {file} binary "Logo image"
+// @Router /api/application-configuration/pwa-icon-svg [get]
+func (acc *AppConfigController) getPwaSvgIconHandler(c *gin.Context) {
+	acc.getImage(c, "pwa-icon", "svg")
 }
 
 // getFaviconHandler godoc
