@@ -28,29 +28,31 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv             string     `env:"APP_ENV"`
-	AppURL             string     `env:"APP_URL"`
-	DbProvider         DbProvider `env:"DB_PROVIDER"`
-	DbConnectionString string     `env:"DB_CONNECTION_STRING"`
-	UploadPath         string     `env:"UPLOAD_PATH"`
-	KeysPath           string     `env:"KEYS_PATH"`
-	KeysStorage        string     `env:"KEYS_STORAGE"`
-	EncryptionKey      string     `env:"ENCRYPTION_KEY"`
-	EncryptionKeyFile  string     `env:"ENCRYPTION_KEY_FILE"`
-	Port               string     `env:"PORT"`
-	Host               string     `env:"HOST"`
-	UnixSocket         string     `env:"UNIX_SOCKET"`
-	UnixSocketMode     string     `env:"UNIX_SOCKET_MODE"`
-	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY"`
-	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
-	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
-	LocalIPv6Ranges    string     `env:"LOCAL_IPV6_RANGES"`
-	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
-	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
-	TracingEnabled     bool       `env:"TRACING_ENABLED"`
-	LogJSON            bool       `env:"LOG_JSON"`
-	TrustProxy         bool       `env:"TRUST_PROXY"`
-	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
+	AppEnv                 string     `env:"APP_ENV"`
+	AppURL                 string     `env:"APP_URL"`
+	DbProvider             DbProvider `env:"DB_PROVIDER"`
+	DbConnectionString     string     `env:"DB_CONNECTION_STRING"`
+	DbConnectionStringFile string     `env:"DB_CONNECTION_STRING_FILE"`
+	UploadPath             string     `env:"UPLOAD_PATH"`
+	KeysPath               string     `env:"KEYS_PATH"`
+	KeysStorage            string     `env:"KEYS_STORAGE"`
+	EncryptionKey          string     `env:"ENCRYPTION_KEY"`
+	EncryptionKeyFile      string     `env:"ENCRYPTION_KEY_FILE"`
+	Port                   string     `env:"PORT"`
+	Host                   string     `env:"HOST"`
+	UnixSocket             string     `env:"UNIX_SOCKET"`
+	UnixSocketMode         string     `env:"UNIX_SOCKET_MODE"`
+	MaxMindLicenseKey      string     `env:"MAXMIND_LICENSE_KEY"`
+	MaxMindLicenseKeyFile  string     `env:"MAXMIND_LICENSE_KEY_FILE"`
+	GeoLiteDBPath          string     `env:"GEOLITE_DB_PATH"`
+	GeoLiteDBUrl           string     `env:"GEOLITE_DB_URL"`
+	LocalIPv6Ranges        string     `env:"LOCAL_IPV6_RANGES"`
+	UiConfigDisabled       bool       `env:"UI_CONFIG_DISABLED"`
+	MetricsEnabled         bool       `env:"METRICS_ENABLED"`
+	TracingEnabled         bool       `env:"TRACING_ENABLED"`
+	LogJSON                bool       `env:"LOG_JSON"`
+	TrustProxy             bool       `env:"TRUST_PROXY"`
+	AnalyticsDisabled      bool       `env:"ANALYTICS_DISABLED"`
 }
 
 var EnvConfig = defaultConfig()
@@ -93,6 +95,26 @@ func parseEnvConfig() error {
 	err := env.ParseWithOptions(&EnvConfig, env.Options{})
 	if err != nil {
 		return fmt.Errorf("error parsing env config: %w", err)
+	}
+
+	// Check if DbConnectionString and MaxMindLicenseKey should be read from file
+	// Note: EncryptionKey, which can be read from file too, is handled separately since it requires some extra processing
+	var b []byte
+	if EnvConfig.DbConnectionString == "" && EnvConfig.DbConnectionStringFile != "" {
+		b, err = os.ReadFile(EnvConfig.DbConnectionStringFile)
+		if err != nil {
+			return fmt.Errorf("failed to read secret 'DB_CONNECTION_STRING' from file '%s': %w", EnvConfig.DbConnectionStringFile, err)
+		}
+		EnvConfig.DbConnectionString = string(b)
+		EnvConfig.DbConnectionStringFile = ""
+	}
+	if EnvConfig.MaxMindLicenseKey == "" && EnvConfig.MaxMindLicenseKeyFile != "" {
+		b, err = os.ReadFile(EnvConfig.MaxMindLicenseKeyFile)
+		if err != nil {
+			return fmt.Errorf("failed to read secret 'MAXMIND_LICENSE_KEY' from file '%s': %w", EnvConfig.MaxMindLicenseKeyFile, err)
+		}
+		EnvConfig.MaxMindLicenseKey = string(b)
+		EnvConfig.MaxMindLicenseKeyFile = ""
 	}
 
 	// Validate the environment variables
