@@ -12,7 +12,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-func resolveStringOrFile(directValue, filePath, varName string) (string, error) {
+func resolveStringOrFile(directValue string, filePath string, varName string, trim bool) (string, error) {
 	if directValue != "" {
 		return directValue, nil
 	}
@@ -21,7 +21,11 @@ func resolveStringOrFile(directValue, filePath, varName string) (string, error) 
 		if err != nil {
 			return "", fmt.Errorf("failed to read secret '%s' from file '%s': %w", varName, filePath, err)
 		}
-		return strings.TrimRight(string(content), " \t\n\r"), nil
+
+		if trim {
+			return strings.TrimSpace(string(content)), nil
+		}
+		return string(content), nil
 	}
 	return "", nil
 }
@@ -117,6 +121,7 @@ func parseEnvConfig() error {
 		EnvConfig.DbConnectionString,
 		EnvConfig.DbConnectionStringFile,
 		"DB_CONNECTION_STRING",
+		true,
 	)
 	if err != nil {
 		return err
@@ -127,6 +132,7 @@ func parseEnvConfig() error {
 		EnvConfig.MaxMindLicenseKey,
 		EnvConfig.MaxMindLicenseKeyFile,
 		"MAXMIND_LICENSE_KEY",
+		true,
 	)
 	if err != nil {
 		return err
@@ -165,6 +171,8 @@ func parseEnvConfig() error {
 			EnvConfig.EncryptionKey,
 			EnvConfig.EncryptionKeyFile,
 			"ENCRYPTION_KEY",
+			// Do not trim spaces because the file should be interpreted as binary
+			false,
 		)
 		if err != nil {
 			return err
