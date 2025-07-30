@@ -7,7 +7,6 @@ import (
 	"mime/multipart"
 	"os"
 	"reflect"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -412,12 +411,10 @@ func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB)
 		field := rt.Field(i)
 
 		// Get the key and internal tag values
-		tagValue := strings.Split(field.Tag.Get("key"), ",")
-		key := tagValue[0]
-		isInternal := slices.Contains(tagValue, "internal")
+		key, attrs, _ := strings.Cut(field.Tag.Get("key"), ",")
 
 		// Internal fields are loaded from the database as they can't be set from the environment
-		if isInternal {
+		if attrs == "internal" {
 			var value string
 			err := tx.WithContext(ctx).
 				Model(&model.AppConfigVariable{}).
@@ -436,6 +433,20 @@ func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB)
 		value, ok := os.LookupEnv(envVarName)
 		if ok {
 			rv.Field(i).FieldByName("Value").SetString(value)
+			continue
+		}
+
+		// If it's sensitive, we also allow reading from file
+		if attrs == "sensitive" {
+			fileName := os.Getenv(envVarName + "_FILE")
+			if fileName != "" {
+				b, err := os.ReadFile(fileName)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read secret '%s' from file '%s': %w", envVarName, fileName, err)
+				}
+				rv.Field(i).FieldByName("Value").SetString(string(b))
+				continue
+			}
 		}
 	}
 
