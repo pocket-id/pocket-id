@@ -51,9 +51,10 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// do not log these URLs
 	loggerSkipPathsPrefix := []string{
-		"GET /application-configuration/logo",
-		"GET /application-configuration/background-image",
-		"GET /application-configuration/favicon",
+		"GET /api/application-configuration/logo",
+		"GET /api/application-configuration/background-image",
+		"GET /api/application-configuration/favicon",
+		"GET /api/application-configuration/pwa-icon",
 		"GET /_app",
 		"GET /fonts",
 		"GET /healthz",
@@ -88,7 +89,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 
-	err := frontend.RegisterFrontend(r)
+	err := frontend.RegisterFrontend(r, svc.appConfigService)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
 		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
