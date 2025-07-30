@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/caarlos0/env/v11"
 	_ "github.com/joho/godotenv/autoload"
@@ -105,7 +106,7 @@ func parseEnvConfig() error {
 		if err != nil {
 			return fmt.Errorf("failed to read secret 'DB_CONNECTION_STRING' from file '%s': %w", EnvConfig.DbConnectionStringFile, err)
 		}
-		EnvConfig.DbConnectionString = string(b)
+		EnvConfig.DbConnectionString = strings.TrimSpace(string(b))
 		EnvConfig.DbConnectionStringFile = ""
 	}
 	if EnvConfig.MaxMindLicenseKey == "" && EnvConfig.MaxMindLicenseKeyFile != "" {
@@ -113,7 +114,7 @@ func parseEnvConfig() error {
 		if err != nil {
 			return fmt.Errorf("failed to read secret 'MAXMIND_LICENSE_KEY' from file '%s': %w", EnvConfig.MaxMindLicenseKeyFile, err)
 		}
-		EnvConfig.MaxMindLicenseKey = string(b)
+		EnvConfig.MaxMindLicenseKey = strings.TrimSpace(string(b))
 		EnvConfig.MaxMindLicenseKeyFile = ""
 	}
 
