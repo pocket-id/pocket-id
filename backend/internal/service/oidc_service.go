@@ -186,22 +186,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 // HasAuthorizedClient checks if the user has already authorized the client with the given scope
 func (s *OidcService) HasAuthorizedClient(ctx context.Context, clientID, userID, scope string) (bool, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	var client model.OidcClient
-	err := tx.WithContext(ctx).First(&client, "id = ?", clientID).Error
-	if err != nil {
-		return false, err
-	}
-
-	if client.RequiresReauthentication {
-		return false, nil
-	}
-
-	return s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, tx)
+	return s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
 }
 
 func (s *OidcService) hasAuthorizedClientInternal(ctx context.Context, clientID, userID, scope string, tx *gorm.DB) (bool, error) {
