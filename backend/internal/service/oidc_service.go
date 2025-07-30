@@ -724,6 +724,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	client.RequiresReauthentication = input.RequiresReauthentication
 
 	// Credentials
 	if len(input.Credentials.FederatedIdentities) > 0 {
