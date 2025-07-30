@@ -12,6 +12,20 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+func resolveStringOrFile(directValue, filePath, varName string) (string, error) {
+	if directValue != "" {
+		return directValue, nil
+	}
+	if filePath != "" {
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read secret '%s' from file '%s': %w", varName, filePath, err)
+		}
+		return strings.TrimSpace(string(content)), nil
+	}
+	return "", nil
+}
+
 type DbProvider string
 
 const (
@@ -98,25 +112,26 @@ func parseEnvConfig() error {
 		return fmt.Errorf("error parsing env config: %w", err)
 	}
 
-	// Check if DbConnectionString and MaxMindLicenseKey should be read from file
-	// Note: EncryptionKey, which can be read from file too, is handled separately since it requires some extra processing
-	var b []byte
-	if EnvConfig.DbConnectionString == "" && EnvConfig.DbConnectionStringFile != "" {
-		b, err = os.ReadFile(EnvConfig.DbConnectionStringFile)
-		if err != nil {
-			return fmt.Errorf("failed to read secret 'DB_CONNECTION_STRING' from file '%s': %w", EnvConfig.DbConnectionStringFile, err)
-		}
-		EnvConfig.DbConnectionString = strings.TrimSpace(string(b))
-		EnvConfig.DbConnectionStringFile = ""
+	// Resolve string/file environment variables
+	EnvConfig.DbConnectionString, err = resolveStringOrFile(
+		EnvConfig.DbConnectionString,
+		EnvConfig.DbConnectionStringFile,
+		"DB_CONNECTION_STRING",
+	)
+	if err != nil {
+		return err
 	}
-	if EnvConfig.MaxMindLicenseKey == "" && EnvConfig.MaxMindLicenseKeyFile != "" {
-		b, err = os.ReadFile(EnvConfig.MaxMindLicenseKeyFile)
-		if err != nil {
-			return fmt.Errorf("failed to read secret 'MAXMIND_LICENSE_KEY' from file '%s': %w", EnvConfig.MaxMindLicenseKeyFile, err)
-		}
-		EnvConfig.MaxMindLicenseKey = strings.TrimSpace(string(b))
-		EnvConfig.MaxMindLicenseKeyFile = ""
+	EnvConfig.DbConnectionStringFile = ""
+
+	EnvConfig.MaxMindLicenseKey, err = resolveStringOrFile(
+		EnvConfig.MaxMindLicenseKey,
+		EnvConfig.MaxMindLicenseKeyFile,
+		"MAXMIND_LICENSE_KEY",
+	)
+	if err != nil {
+		return err
 	}
+	EnvConfig.MaxMindLicenseKeyFile = ""
 
 	// Validate the environment variables
 	switch EnvConfig.DbProvider {
@@ -145,10 +160,21 @@ func parseEnvConfig() error {
 	case "":
 		EnvConfig.KeysStorage = "file"
 	case "database":
-		// If KeysStorage is "database", a key must be specified
-		if EnvConfig.EncryptionKey == "" && EnvConfig.EncryptionKeyFile == "" {
+		// Resolve encryption key using the same pattern
+		encryptionKey, err := resolveStringOrFile(
+			EnvConfig.EncryptionKey,
+			EnvConfig.EncryptionKeyFile,
+			"ENCRYPTION_KEY",
+		)
+		if err != nil {
+			return err
+		}
+		if encryptionKey == "" {
 			return errors.New("ENCRYPTION_KEY or ENCRYPTION_KEY_FILE must be non-empty when KEYS_STORAGE is database")
 		}
+		// Update the config with resolved value
+		EnvConfig.EncryptionKey = encryptionKey
+		EnvConfig.EncryptionKeyFile = ""
 	case "file":
 		// All good, these are valid values
 	default:
