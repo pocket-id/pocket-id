@@ -21,7 +21,7 @@ func resolveStringOrFile(directValue, filePath, varName string) (string, error) 
 		if err != nil {
 			return "", fmt.Errorf("failed to read secret '%s' from file '%s': %w", varName, filePath, err)
 		}
-		return strings.TrimSpace(string(content)), nil
+		return strings.TrimRight(string(content), " \t\n\r"), nil
 	}
 	return "", nil
 }
