@@ -611,6 +611,8 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 	const urlParams = createUrlParams(oidcClients.nextcloud);
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
+	await expect(page.getByTestId('scopes')).not.toBeVisible();
+
 	await page.waitForURL(oidcClients.nextcloud.callbackUrl).catch((e) => {
 		if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED')) throw e;
 	});
