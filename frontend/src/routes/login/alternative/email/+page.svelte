@@ -63,7 +63,7 @@
 			<p class="text-muted-foreground mt-2" in:fade>
 				{m.enter_your_email_address_to_receive_an_email_with_a_login_code()}
 			</p>
-			<Input id="Email" class="mt-7" placeholder={m.your_email()} bind:value={email} />
+			<Input id="Email" class="mt-7" placeholder={m.your_email()} bind:value={email} type="email" />
 			<div class="mt-8 flex justify-between gap-2">
 				<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
 					>{m.go_back()}</Button

@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"os"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -47,26 +46,15 @@ func EncodeJWKBytes(key jwk.Key) ([]byte, error) {
 
 // LoadKeyEncryptionKey loads the key encryption key for JWKs
 func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) (kek []byte, err error) {
-	// Try getting the key from the env var as string
-	kekInput := []byte(envConfig.EncryptionKey)
-
-	// If there's nothing in the env, try loading from file
-	if len(kekInput) == 0 && envConfig.EncryptionKeyFile != "" {
-		kekInput, err = os.ReadFile(envConfig.EncryptionKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read key file '%s': %w", envConfig.EncryptionKeyFile, err)
-		}
-	}
-
-	// If there's still no key, return
-	if len(kekInput) == 0 {
+	// If there's no key, return
+	if len(envConfig.EncryptionKey) == 0 {
 		return nil, nil
 	}
 
 	// We need a 256-bit key for encryption with AES-GCM-256
 	// We use HMAC with SHA3-256 here to derive the key from the one passed as input
 	// The key is tied to a specific instance of Pocket ID
-	h := hmac.New(func() hash.Hash { return sha3.New256() }, kekInput)
+	h := hmac.New(func() hash.Hash { return sha3.New256() }, []byte(envConfig.EncryptionKey))
 	fmt.Fprint(h, "pocketid/"+instanceID+"/jwk-kek")
 	kek = h.Sum(nil)
 

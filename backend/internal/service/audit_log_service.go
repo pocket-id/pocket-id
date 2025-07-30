@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 
 	userAgentParser "github.com/mileusna/useragent"
@@ -11,6 +10,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +22,12 @@ type AuditLogService struct {
 }
 
 func NewAuditLogService(db *gorm.DB, appConfigService *AppConfigService, emailService *EmailService, geoliteService *GeoLiteService) *AuditLogService {
-	return &AuditLogService{db: db, appConfigService: appConfigService, emailService: emailService, geoliteService: geoliteService}
+	return &AuditLogService{
+		db:               db,
+		appConfigService: appConfigService,
+		emailService:     emailService,
+		geoliteService:   geoliteService,
+	}
 }
 
 // Create creates a new audit log entry in the database
@@ -73,7 +78,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 	stmt := tx.
 		WithContext(ctx).
 		Model(&model.AuditLog{}).
-		Where("user_id = ? AND user_agent = ?", userID, ipAddress)
+		Where("user_id = ? AND user_agent = ?", userID, userAgent)
 	if ipAddress == "" {
 		// An empty IP address is stored as NULL in the database
 		stmt = stmt.Where("ip_address IS NULL")
@@ -82,7 +87,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 	}
 	err := stmt.Count(&count).Error
 	if err != nil {
-		log.Printf("Failed to count audit logs: %v", err)
+		slog.ErrorContext(ctx, "Failed to count audit logs", slog.Any("error", err))
 		return createdAuditLog
 	}
 
@@ -91,7 +96,8 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 		// We use a background context here as this is running in a goroutine
 		//nolint:contextcheck
 		go func() {
-			innerCtx := context.Background()
+			span := trace.SpanFromContext(ctx)
+			innerCtx := trace.ContextWithSpan(context.Background(), span)
 
 			// Note we don't use the transaction here because this is running in background
 			var user model.User
@@ -101,7 +107,8 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 				First(&user).
 				Error
 			if innerErr != nil {
-				log.Printf("Failed to load user: %v", innerErr)
+				slog.ErrorContext(innerCtx, "Failed to load user from database to send notification email", slog.Any("error", innerErr))
+				return
 			}
 
 			innerErr = SendEmail(innerCtx, s.emailService, email.Address{
@@ -115,7 +122,8 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 				DateTime:  createdAuditLog.CreatedAt.UTC(),
 			})
 			if innerErr != nil {
-				log.Printf("Failed to send email to '%s': %v", user.Email, innerErr)
+				slog.ErrorContext(innerCtx, "Failed to send notification email", slog.Any("error", innerErr), slog.String("address", user.Email))
+				return
 			}
 		}()
 	}

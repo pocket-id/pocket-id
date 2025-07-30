@@ -8,20 +8,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
-
 	"github.com/go-ldap/ldap/v3"
+	"github.com/google/uuid"
+	"golang.org/x/text/unicode/norm"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"gorm.io/gorm"
 )
 
 type LdapService struct {
@@ -129,7 +130,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 
 		// Skip groups without a valid LDAP ID
 		if ldapId == "" {
-			log.Printf("Skipping LDAP group without a valid unique identifier (attribute: %s)", dbConfig.LdapAttributeGroupUniqueIdentifier.Value)
+			slog.Warn("Skipping LDAP group without a valid unique identifier", slog.String("attribute", dbConfig.LdapAttributeGroupUniqueIdentifier.Value))
 			continue
 		}
 
@@ -167,13 +168,13 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 
 				userResult, err := client.Search(userSearchReq)
 				if err != nil || len(userResult.Entries) == 0 {
-					log.Printf("Could not resolve group member DN '%s': %v", member, err)
+					slog.WarnContext(ctx, "Could not resolve group member DN", slog.String("member", member), slog.Any("error", err))
 					continue
 				}
 
 				username = userResult.Entries[0].GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value)
 				if username == "" {
-					log.Printf("Could not extract username from group member DN '%s'", member)
+					slog.WarnContext(ctx, "Could not extract username from group member DN", slog.String("member", member))
 					continue
 				}
 			}
@@ -181,7 +182,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			var databaseUser model.User
 			err = tx.
 				WithContext(ctx).
-				Where("username = ? AND ldap_id IS NOT NULL", username).
+				Where("username = ? AND ldap_id IS NOT NULL", norm.NFC.String(username)).
 				First(&databaseUser).
 				Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -199,6 +200,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			FriendlyName: value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
 			LdapID:       ldapId,
 		}
+		dto.Normalize(syncGroup)
 
 		if databaseGroup.ID == "" {
 			newGroup, err := s.groupService.createInternal(ctx, syncGroup, tx)
@@ -248,7 +250,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			return fmt.Errorf("failed to delete group '%s': %w", group.Name, err)
 		}
 
-		log.Printf("Deleted group '%s'", group.Name)
+		slog.Info("Deleted group", slog.String("group", group.Name))
 	}
 
 	return nil
@@ -293,7 +295,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 
 		// Skip users without a valid LDAP ID
 		if ldapId == "" {
-			log.Printf("Skipping LDAP user without a valid unique identifier (attribute: %s)", dbConfig.LdapAttributeUserUniqueIdentifier.Value)
+			slog.Warn("Skipping LDAP user without a valid unique identifier", slog.String("attribute", dbConfig.LdapAttributeUserUniqueIdentifier.Value))
 			continue
 		}
 
@@ -309,7 +311,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 
 		// If a user is found (even if disabled), enable them since they're now back in LDAP
 		if databaseUser.ID != "" && databaseUser.Disabled {
-			// Use the transaction instead of the direct context
 			err = tx.
 				WithContext(ctx).
 				Model(&model.User{}).
@@ -318,7 +319,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				Error
 
 			if err != nil {
-				log.Printf("Failed to enable user %s: %v", databaseUser.Username, err)
+				return fmt.Errorf("failed to enable user %s: %w", databaseUser.Username, err)
 			}
 		}
 
@@ -344,11 +345,12 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			IsAdmin:   isAdmin,
 			LdapID:    ldapId,
 		}
+		dto.Normalize(newUser)
 
 		if databaseUser.ID == "" {
 			_, err = s.userService.createUserInternal(ctx, newUser, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
-				log.Printf("Skipping creating LDAP user '%s': %v", newUser.Username, err)
+				slog.Warn("Skipping creating LDAP user", slog.String("username", newUser.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
 				return fmt.Errorf("error creating user '%s': %w", newUser.Username, err)
@@ -356,7 +358,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		} else {
 			_, err = s.userService.updateUserInternal(ctx, databaseUser.ID, newUser, false, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
-				log.Printf("Skipping updating LDAP user '%s': %v", newUser.Username, err)
+				slog.Warn("Skipping updating LDAP user", slog.String("username", newUser.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
 				return fmt.Errorf("error updating user '%s': %w", newUser.Username, err)
@@ -369,7 +371,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			err = s.saveProfilePicture(ctx, databaseUser.ID, pictureString)
 			if err != nil {
 				// This is not a fatal error
-				log.Printf("Error saving profile picture for user %s: %v", newUser.Username, err)
+				slog.Warn("Error saving profile picture for user", slog.String("username", newUser.Username), slog.Any("error", err))
 			}
 		}
 	}
@@ -398,7 +400,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				return fmt.Errorf("failed to disable user %s: %w", user.Username, err)
 			}
 
-			log.Printf("Disabled user '%s'", user.Username)
+			slog.Info("Disabled user", slog.String("username", user.Username))
 		} else {
 			err = s.userService.deleteUserInternal(ctx, user.ID, true, tx)
 			target := &common.LdapUserUpdateError{}
@@ -408,7 +410,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				return fmt.Errorf("failed to delete user %s: %w", user.Username, err)
 			}
 
-			log.Printf("Deleted user '%s'", user.Username)
+			slog.Info("Deleted user", slog.String("username", user.Username))
 		}
 	}
 
@@ -476,7 +478,7 @@ func getDNProperty(property string, str string) string {
 // LDAP servers may return binary UUIDs (16 bytes) or other non-UTF-8 data.
 func convertLdapIdToString(ldapId string) string {
 	if utf8.ValidString(ldapId) {
-		return ldapId
+		return norm.NFC.String(ldapId)
 	}
 
 	// Try to parse as binary UUID (16 bytes)

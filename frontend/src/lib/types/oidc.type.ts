@@ -11,7 +11,7 @@ export type OidcClientFederatedIdentity = {
 	issuer: string;
 	subject?: string;
 	audience?: string;
-	jwks: string | undefined;
+	jwks?: string | undefined;
 };
 
 export type OidcClientCredentials = {

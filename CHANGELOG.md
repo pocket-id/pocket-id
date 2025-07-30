@@ -1,3 +1,17 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.6.3...v) (2025-07-21)
+
+### Bug Fixes
+
+* migration fails on postgres ([#762](https://github.com/pocket-id/pocket-id/issues/762)) ([35d5f88](https://github.com/pocket-id/pocket-id/commit/35d5f887ce7c88933d7e4c2f0acd2aeedd18c214))
+## [](https://github.com/pocket-id/pocket-id/compare/v1.6.2...v) (2025-07-21)
+
+### Bug Fixes
+
+* allow passkey names up to 50 characters ([b03e91b](https://github.com/pocket-id/pocket-id/commit/b03e91b6530c2393ad20ac49aa2cb2b4962651b2))
+* ensure user inputs are normalized ([#724](https://github.com/pocket-id/pocket-id/issues/724)) ([7b4ccd1](https://github.com/pocket-id/pocket-id/commit/7b4ccd1f306f4882c52fe30133fcda114ef0d18b))
+* show rename and delete buttons for passkeys without hovering over the row ([2952b15](https://github.com/pocket-id/pocket-id/commit/2952b1575542ecd0062fe740e2d6a3caad05190d))
+* use object-contain for images on oidc-client list ([d3bc179](https://github.com/pocket-id/pocket-id/commit/d3bc1797b65ec8bc9201c55d06f3612093f3a873))
+* use user-agent for identifying known device signins ([ef1d599](https://github.com/pocket-id/pocket-id/commit/ef1d5996624fc534190f80a26f2c48bbad206f49))
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.6.1...v) (2025-07-09)
 
 ### Bug Fixes

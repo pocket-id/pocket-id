@@ -61,7 +61,7 @@
 		<p class="text-muted-foreground mt-2">{m.enter_the_code_you_received_to_sign_in()}</p>
 	{/if}
 	<form onsubmit={preventDefault(authenticate)} class="w-full max-w-[450px]">
-		<Input id="Email" class="mt-7" placeholder={m.code()} bind:value={code} type="text" />
+		<Input id="Code" class="mt-7" placeholder={m.code()} bind:value={code} type="text" />
 		<div class="mt-8 flex justify-between gap-2">
 			<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
 				>{m.go_back()}</Button
