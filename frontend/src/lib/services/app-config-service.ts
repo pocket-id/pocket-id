@@ -14,10 +14,15 @@ export default class AppConfigService extends APIService {
 	}
 
 	async update(appConfig: AllAppConfig) {
-		// Convert all values to string
-		const appConfigConvertedToString = {};
+		// Convert all values to string, stringifying JSON where needed
+		const appConfigConvertedToString: Record<string, string> = {};
 		for (const key in appConfig) {
-			(appConfigConvertedToString as any)[key] = (appConfig as any)[key].toString();
+			const value = (appConfig as any)[key];
+			if (key === 'signupDefaultUserGroupIDs' || key === 'signupDefaultCustomClaims') {
+				appConfigConvertedToString[key] = JSON.stringify(value);
+			} else {
+				appConfigConvertedToString[key] = String(value);
+			}
 		}
 		const res = await this.api.put('/application-configuration', appConfigConvertedToString);
 		return this.parseConfigList(res.data);
@@ -59,13 +64,21 @@ export default class AppConfigService extends APIService {
 	private parseConfigList(data: AppConfigRawResponse) {
 		const appConfig: Partial<AllAppConfig> = {};
 		data.forEach(({ key, value }) => {
-			(appConfig as any)[key] = this.parseValue(value);
+			(appConfig as any)[key] = this.parseValue(key, value);
 		});
 
 		return appConfig as AllAppConfig;
 	}
 
-	private parseValue(value: string) {
+	private parseValue(key: string, value: string) {
+		if (key === 'signupDefaultUserGroupIDs' || key === 'signupDefaultCustomClaims') {
+			try {
+				return JSON.parse(value);
+			} catch (e) {
+				return []; // Default to empty array if JSON is invalid
+			}
+		}
+
 		if (value === 'true') {
 			return true;
 		} else if (value === 'false') {

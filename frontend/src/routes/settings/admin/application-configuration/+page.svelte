@@ -5,11 +5,12 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideImage, Mail, SlidersHorizontal, UserSearch } from '@lucide/svelte';
+	import { LucideImage, Mail, SlidersHorizontal, UserSearch, Users } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import AppConfigEmailForm from './forms/app-config-email-form.svelte';
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
+	import AppConfigSignupDefaultsForm from './forms/app-config-signup-defaults-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
 
 	let { data } = $props();
@@ -65,6 +66,17 @@
 		defaultExpanded
 	>
 		<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
+	</CollapsibleCard>
+</div>
+
+<div>
+	<CollapsibleCard
+		id="application-configuration-signup-defaults"
+		icon={Users}
+		title={m.signup_defaults()}
+		description={m.configure_default_groups_and_claims_for_new_users()}
+	>
+		<AppConfigSignupDefaultsForm {appConfig} userGroups={data.userGroups} callback={updateAppConfig} />
 	</CollapsibleCard>
 </div>
 

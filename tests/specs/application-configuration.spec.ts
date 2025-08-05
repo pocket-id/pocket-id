@@ -1,11 +1,12 @@
-import test, { expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async ({ page }) => {
+	await cleanupBackend();
+	await page.goto('/settings/admin/application-configuration');
+});
 
 test('Update general configuration', async ({ page }) => {
-	await page.goto('/settings/admin/application-configuration');
-
 	await page.getByLabel('Application Name', { exact: true }).fill('Updated Name');
 	await page.getByLabel('Session Duration').fill('30');
 	await page.getByRole('button', { name: 'Save' }).first().click();
@@ -22,9 +23,7 @@ test('Update general configuration', async ({ page }) => {
 });
 
 test('Update email configuration', async ({ page }) => {
-	await page.goto('/settings/admin/application-configuration');
-
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByRole('button', { name: 'Expand card' }).nth(2).click();
 
 	await page.getByLabel('SMTP Host').fill('smtp.gmail.com');
 	await page.getByLabel('SMTP Port').fill('587');
@@ -56,15 +55,13 @@ test('Update email configuration', async ({ page }) => {
 });
 
 test('Update application images', async ({ page }) => {
-	await page.goto('/settings/admin/application-configuration');
-
-	await page.getByRole('button', { name: 'Expand card' }).nth(3).click();
+	await page.getByRole('button', { name: 'Expand card' }).nth(4).click();
 
 	await page.getByLabel('Favicon').setInputFiles('assets/w3-schools-favicon.ico');
 	await page.getByLabel('Light Mode Logo').setInputFiles('assets/pingvin-share-logo.png');
 	await page.getByLabel('Dark Mode Logo').setInputFiles('assets/nextcloud-logo.png');
 	await page.getByLabel('Background Image').setInputFiles('assets/clouds.jpg');
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).last().click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Images updated successfully');
 

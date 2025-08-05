@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -26,20 +27,22 @@ import (
 )
 
 type UserService struct {
-	db               *gorm.DB
-	jwtService       *JwtService
-	auditLogService  *AuditLogService
-	emailService     *EmailService
-	appConfigService *AppConfigService
+	db                 *gorm.DB
+	jwtService         *JwtService
+	auditLogService    *AuditLogService
+	emailService       *EmailService
+	appConfigService   *AppConfigService
+	customClaimService *CustomClaimService
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService) *UserService {
 	return &UserService{
-		db:               db,
-		jwtService:       jwtService,
-		auditLogService:  auditLogService,
-		emailService:     emailService,
-		appConfigService: appConfigService,
+		db:                 db,
+		jwtService:         jwtService,
+		auditLogService:    auditLogService,
+		emailService:       emailService,
+		appConfigService:   appConfigService,
+		customClaimService: customClaimService,
 	}
 }
 
@@ -268,7 +271,48 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 	} else if err != nil {
 		return model.User{}, err
 	}
+
+	// Apply default groups and claims for new non-LDAP users
+	if !isLdapSync {
+		err = s.applySignupDefaults(ctx, &user, tx)
+		if err != nil {
+			// Log the error but don't fail user creation
+			slog.ErrorContext(ctx, "Failed to apply signup defaults for new user", "userID", user.ID, "error", err)
+		}
+	}
+
 	return user, nil
+}
+
+func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User, tx *gorm.DB) error {
+	config := s.appConfigService.GetDbConfig()
+
+	// Apply default user groups
+	var groupIDs []string
+	if config.SignupDefaultUserGroupIDs.Value != "" && config.SignupDefaultUserGroupIDs.Value != "[]" {
+		if err := json.Unmarshal([]byte(config.SignupDefaultUserGroupIDs.Value), &groupIDs); err == nil && len(groupIDs) > 0 {
+			var groups []model.UserGroup
+			if err := tx.WithContext(ctx).Where("id IN (?)", groupIDs).Find(&groups).Error; err != nil {
+				return fmt.Errorf("failed to find default user groups: %w", err)
+			}
+			if err := tx.Model(user).Association("UserGroups").Replace(&groups); err != nil {
+				return fmt.Errorf("failed to associate default user groups: %w", err)
+			}
+		}
+	}
+
+	// Apply default custom claims
+	var claims []dto.CustomClaimCreateDto
+	if config.SignupDefaultCustomClaims.Value != "" && config.SignupDefaultCustomClaims.Value != "[]" {
+		if err := json.Unmarshal([]byte(config.SignupDefaultCustomClaims.Value), &claims); err == nil && len(claims) > 0 {
+			// We need to use the internal method of CustomClaimService to operate within the existing transaction
+			if _, err := s.customClaimService.updateCustomClaimsInternal(ctx, UserID, user.ID, claims, tx); err != nil {
+				return fmt.Errorf("failed to apply default custom claims: %w", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool) (model.User, error) {

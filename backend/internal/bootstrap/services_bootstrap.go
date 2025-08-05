@@ -46,8 +46,8 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (sv
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)
 	}
 
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 	svc.customClaimService = service.NewCustomClaimService(db)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService)
 
 	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService)
 	if err != nil {
