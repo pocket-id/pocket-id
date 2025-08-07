@@ -3,12 +3,13 @@ package common
 import (
 	"errors"
 	"fmt"
-	"github.com/caarlos0/env/v11"
-	_ "github.com/joho/godotenv/autoload"
 	"log/slog"
 	"net/url"
 	"os"
 	"reflect"
+
+	"github.com/caarlos0/env/v11"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 type DbProvider string

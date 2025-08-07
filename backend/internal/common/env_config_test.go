@@ -195,12 +195,12 @@ func TestResolveFileBasedEnvVariables(t *testing.T) {
 	// Create test files
 	encryptionKeyFile := tempDir + "/encryption_key.txt"
 	encryptionKeyContent := "test-encryption-key-123"
-	err := os.WriteFile(encryptionKeyFile, []byte(encryptionKeyContent), 0644)
+	err := os.WriteFile(encryptionKeyFile, []byte(encryptionKeyContent), 0600)
 	require.NoError(t, err)
 
 	dbConnFile := tempDir + "/db_connection.txt"
 	dbConnContent := "postgres://user:pass@localhost/testdb"
-	err = os.WriteFile(dbConnFile, []byte(dbConnContent), 0644)
+	err = os.WriteFile(dbConnFile, []byte(dbConnContent), 0600)
 	require.NoError(t, err)
 
 	t.Run("should read file content for fields with options:file tag", func(t *testing.T) {
