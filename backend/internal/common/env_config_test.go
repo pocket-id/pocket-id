@@ -111,7 +111,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 		err := parseEnvConfig()
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "ENCRYPTION_KEY or ENCRYPTION_KEY_FILE must be non-empty")
+		assert.ErrorContains(t, err, "ENCRYPTION_KEY must be non-empty when KEYS_STORAGE is database")
 	})
 
 	t.Run("should accept valid KEYS_STORAGE values", func(t *testing.T) {
