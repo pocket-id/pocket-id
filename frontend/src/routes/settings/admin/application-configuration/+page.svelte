@@ -73,8 +73,8 @@
 	<CollapsibleCard
 		id="application-configuration-signup-defaults"
 		icon={Users}
-		title={m.signup_defaults()}
-		description={m.configure_default_groups_and_claims_for_new_users()}
+		title={m.signup_settings()}
+		description={m.configure_signup_settings()}
 	>
 		<AppConfigSignupDefaultsForm {appConfig} userGroups={data.userGroups} callback={updateAppConfig} />
 	</CollapsibleCard>
