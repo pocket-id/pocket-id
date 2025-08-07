@@ -1,6 +1,7 @@
 package common
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -184,5 +185,102 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, "/custom/uploads", EnvConfig.UploadPath)
 		assert.Equal(t, "8080", EnvConfig.Port)
 		assert.Equal(t, "127.0.0.1", EnvConfig.Host)
+	})
+}
+
+func TestResolveFileBasedEnvVariables(t *testing.T) {
+	// Create temporary directory for test files
+	tempDir := t.TempDir()
+
+	// Create test files
+	encryptionKeyFile := tempDir + "/encryption_key.txt"
+	encryptionKeyContent := "test-encryption-key-123"
+	err := os.WriteFile(encryptionKeyFile, []byte(encryptionKeyContent), 0644)
+	require.NoError(t, err)
+
+	dbConnFile := tempDir + "/db_connection.txt"
+	dbConnContent := "postgres://user:pass@localhost/testdb"
+	err = os.WriteFile(dbConnFile, []byte(dbConnContent), 0644)
+	require.NoError(t, err)
+
+	t.Run("should read file content for fields with options:file tag", func(t *testing.T) {
+		config := defaultConfig()
+
+		// Set environment variables pointing to files
+		t.Setenv("ENCRYPTION_KEY_FILE", encryptionKeyFile)
+		t.Setenv("DB_CONNECTION_STRING_FILE", dbConnFile)
+
+		err := resolveFileBasedEnvVariables(&config)
+		require.NoError(t, err)
+
+		// Verify file contents were read correctly
+		assert.Equal(t, encryptionKeyContent, config.EncryptionKey)
+		assert.Equal(t, dbConnContent, config.DbConnectionString)
+	})
+
+	t.Run("should skip fields without options:file tag", func(t *testing.T) {
+		config := defaultConfig()
+		originalAppURL := config.AppURL
+
+		// Set a file for a field that doesn't have options:file tag
+		t.Setenv("APP_URL_FILE", "/tmp/nonexistent.txt")
+
+		err := resolveFileBasedEnvVariables(&config)
+		require.NoError(t, err)
+
+		// AppURL should remain unchanged
+		assert.Equal(t, originalAppURL, config.AppURL)
+	})
+
+	t.Run("should skip non-string fields", func(t *testing.T) {
+		// This test verifies that non-string fields are skipped
+		// We test this indirectly by ensuring the function doesn't error
+		// when processing the actual EnvConfigSchema which has bool fields
+		config := defaultConfig()
+
+		err := resolveFileBasedEnvVariables(&config)
+		require.NoError(t, err)
+	})
+
+	t.Run("should skip when _FILE environment variable is not set", func(t *testing.T) {
+		config := defaultConfig()
+		originalEncryptionKey := config.EncryptionKey
+
+		// Don't set ENCRYPTION_KEY_FILE environment variable
+
+		err := resolveFileBasedEnvVariables(&config)
+		require.NoError(t, err)
+
+		// EncryptionKey should remain unchanged
+		assert.Equal(t, originalEncryptionKey, config.EncryptionKey)
+	})
+
+	t.Run("should handle multiple file-based variables simultaneously", func(t *testing.T) {
+		config := defaultConfig()
+
+		// Set multiple file environment variables
+		t.Setenv("ENCRYPTION_KEY_FILE", encryptionKeyFile)
+		t.Setenv("DB_CONNECTION_STRING_FILE", dbConnFile)
+
+		err := resolveFileBasedEnvVariables(&config)
+		require.NoError(t, err)
+
+		// All should be resolved correctly
+		assert.Equal(t, encryptionKeyContent, config.EncryptionKey)
+		assert.Equal(t, dbConnContent, config.DbConnectionString)
+	})
+
+	t.Run("should handle mixed file and non-file environment variables", func(t *testing.T) {
+		config := defaultConfig()
+
+		// Set both file and non-file environment variables
+		t.Setenv("ENCRYPTION_KEY_FILE", encryptionKeyFile)
+
+		err := resolveFileBasedEnvVariables(&config)
+		require.NoError(t, err)
+
+		// File-based should be resolved, others should remain as set by env parser
+		assert.Equal(t, encryptionKeyContent, config.EncryptionKey)
+		assert.Equal(t, "http://localhost:1411", config.AppURL)
 	})
 }
