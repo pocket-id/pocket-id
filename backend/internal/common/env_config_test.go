@@ -203,6 +203,12 @@ func TestResolveFileBasedEnvVariables(t *testing.T) {
 	err = os.WriteFile(dbConnFile, []byte(dbConnContent), 0600)
 	require.NoError(t, err)
 
+	// Create a binary file for testing binary data handling
+	binaryKeyFile := tempDir + "/binary_key.bin"
+	binaryKeyContent := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10}
+	err = os.WriteFile(binaryKeyFile, binaryKeyContent, 0600)
+	require.NoError(t, err)
+
 	t.Run("should read file content for fields with options:file tag", func(t *testing.T) {
 		config := defaultConfig()
 
@@ -214,7 +220,7 @@ func TestResolveFileBasedEnvVariables(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify file contents were read correctly
-		assert.Equal(t, encryptionKeyContent, config.EncryptionKey)
+		assert.Equal(t, []byte(encryptionKeyContent), config.EncryptionKey)
 		assert.Equal(t, dbConnContent, config.DbConnectionString)
 	})
 
@@ -266,7 +272,7 @@ func TestResolveFileBasedEnvVariables(t *testing.T) {
 		require.NoError(t, err)
 
 		// All should be resolved correctly
-		assert.Equal(t, encryptionKeyContent, config.EncryptionKey)
+		assert.Equal(t, []byte(encryptionKeyContent), config.EncryptionKey)
 		assert.Equal(t, dbConnContent, config.DbConnectionString)
 	})
 
@@ -280,7 +286,20 @@ func TestResolveFileBasedEnvVariables(t *testing.T) {
 		require.NoError(t, err)
 
 		// File-based should be resolved, others should remain as set by env parser
-		assert.Equal(t, encryptionKeyContent, config.EncryptionKey)
+		assert.Equal(t, []byte(encryptionKeyContent), config.EncryptionKey)
 		assert.Equal(t, "http://localhost:1411", config.AppURL)
+	})
+
+	t.Run("should handle binary data correctly", func(t *testing.T) {
+		config := defaultConfig()
+
+		// Set environment variable pointing to binary file
+		t.Setenv("ENCRYPTION_KEY_FILE", binaryKeyFile)
+
+		err := resolveFileBasedEnvVariables(&config)
+		require.NoError(t, err)
+
+		// Verify binary data was read correctly without corruption
+		assert.Equal(t, binaryKeyContent, config.EncryptionKey)
 	})
 }

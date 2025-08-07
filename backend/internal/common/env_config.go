@@ -36,7 +36,7 @@ type EnvConfigSchema struct {
 	UploadPath         string     `env:"UPLOAD_PATH"`
 	KeysPath           string     `env:"KEYS_PATH"`
 	KeysStorage        string     `env:"KEYS_STORAGE"`
-	EncryptionKey      string     `env:"ENCRYPTION_KEY" options:"file"`
+	EncryptionKey      []byte     `env:"ENCRYPTION_KEY" options:"file"`
 	Port               string     `env:"PORT"`
 	Host               string     `env:"HOST"`
 	UnixSocket         string     `env:"UNIX_SOCKET"`
@@ -71,7 +71,7 @@ func defaultConfig() EnvConfigSchema {
 		UploadPath:         "data/uploads",
 		KeysPath:           "data/keys",
 		KeysStorage:        "", // "database" or "file"
-		EncryptionKey:      "",
+		EncryptionKey:      nil,
 		AppURL:             "http://localhost:1411",
 		Port:               "1411",
 		Host:               "0.0.0.0",
@@ -90,7 +90,15 @@ func defaultConfig() EnvConfigSchema {
 }
 
 func parseEnvConfig() error {
-	err := env.ParseWithOptions(&EnvConfig, env.Options{})
+	parsers := map[reflect.Type]env.ParserFunc{
+		reflect.TypeOf([]byte{}): func(value string) (interface{}, error) {
+			return []byte(value), nil
+		},
+	}
+
+	err := env.ParseWithOptions(&EnvConfig, env.Options{
+		FuncMap: parsers,
+	})
 	if err != nil {
 		return fmt.Errorf("error parsing env config: %w", err)
 	}
@@ -127,7 +135,7 @@ func parseEnvConfig() error {
 	case "":
 		EnvConfig.KeysStorage = "file"
 	case "database":
-		if EnvConfig.EncryptionKey == "" {
+		if EnvConfig.EncryptionKey == nil {
 			return errors.New("ENCRYPTION_KEY must be non-empty when KEYS_STORAGE is database")
 		}
 	case "file":
@@ -148,8 +156,10 @@ func resolveFileBasedEnvVariables(config *EnvConfigSchema) error {
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 
-		// Only process string fields
-		if field.Kind() != reflect.String {
+		// Only process string and []byte fields
+		isString := field.Kind() == reflect.String
+		isByteSlice := field.Kind() == reflect.Slice && field.Type().Elem().Kind() == reflect.Uint8
+		if !isString && !isByteSlice {
 			continue
 		}
 
@@ -182,7 +192,11 @@ func resolveFileBasedEnvVariables(config *EnvConfigSchema) error {
 			return fmt.Errorf("failed to read file for env var %s: %w", envVarFileName, err)
 		}
 
-		field.SetString(string(fileContent))
+		if isString {
+			field.SetString(string(fileContent))
+		} else {
+			field.SetBytes(fileContent)
+		}
 	}
 
 	return nil
