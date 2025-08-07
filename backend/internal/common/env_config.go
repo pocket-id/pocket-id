@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/caarlos0/env/v11"
 	_ "github.com/joho/godotenv/autoload"
@@ -193,7 +194,7 @@ func resolveFileBasedEnvVariables(config *EnvConfigSchema) error {
 		}
 
 		if isString {
-			field.SetString(string(fileContent))
+			field.SetString(strings.TrimSpace(string(fileContent)))
 		} else {
 			field.SetBytes(fileContent)
 		}
