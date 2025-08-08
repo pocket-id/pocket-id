@@ -28,7 +28,7 @@ Before you submit the pull request for review please ensure that
   - **refactor** - code change that neither fixes a bug nor adds a feature
 
 - Your pull request has a detailed description
-- You run `npm run format` to format the code
+- You run `pnpm format` to format the code
 
 ## Development Environment
 
@@ -69,10 +69,10 @@ The backend is built with [Gin](https://gin-gonic.com) and written in Go. To set
 
 The frontend is built with [SvelteKit](https://kit.svelte.dev) and written in TypeScript. To set it up, follow these steps:
 
-1. Open the `frontend` folder
-2. Copy the `.env.development-example` file to `.env` and edit the variables as needed
-3. Install the dependencies with `npm install`
-4. Start the frontend with `npm run dev`
+1. Open the `pocket-id` project folder
+2. Copy the `frontend/.env.development-example` file to `frontend/.env` and edit the variables as needed
+3. Install the dependencies with `pnpm install`
+4. Start the frontend with `pnpm dev`
 
 You're all set! The application is now listening on `localhost:3000`. The backend gets proxied trough the frontend in development mode.
 
@@ -84,11 +84,13 @@ If you are contributing to a new feature please ensure that you add tests for it
 
 The tests can be run like this:
 
-1. Visit the setup folder by running `cd tests/setup`
+1. Install the dependencies from the root of the project `pnpm install`
 
-2. Start the test environment by running `docker compose up -d --build`
+2. Visit the setup folder by running `cd tests/setup`
 
-3. Go back to the test folder by running `cd ..`
-4. Run the tests with `npx playwright test`
+3. Start the test environment by running `docker compose up -d --build`
+
+4. Go back to the test folder by running `cd ..`
+5. Run the tests with `pnpm dlx playwright test` or from the root project folder `pnpm test`
 
 If you make any changes to the application, you have to rebuild the test environment by running `docker compose up -d --build` again.
