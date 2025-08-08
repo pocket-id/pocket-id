@@ -38,8 +38,8 @@
 	async function authorize() {
 		isLoading = true;
 		try {
-			// Get access token if not signed in
-			if (!$userStore?.id) {
+			// Get access token if not signed in OR if client requires re-authentication
+			if (!$userStore?.id || client?.requiresReauthentication) {
 				const loginOptions = await webauthnService.getLoginOptions();
 				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
