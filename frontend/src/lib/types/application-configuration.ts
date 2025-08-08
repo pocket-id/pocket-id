@@ -1,3 +1,5 @@
+import type { CustomClaim } from './custom-claim.type';
+
 export type AppConfig = {
 	appName: string;
 	allowOwnAccountEdit: boolean;
@@ -14,6 +16,8 @@ export type AllAppConfig = AppConfig & {
 	// General
 	sessionDuration: number;
 	emailsVerified: boolean;
+	signupDefaultUserGroupIDs: string[];
+	signupDefaultCustomClaims: CustomClaim[];
 	// Email
 	smtpHost: string;
 	smtpPort: number;
