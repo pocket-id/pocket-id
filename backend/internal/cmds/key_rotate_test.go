@@ -141,7 +141,7 @@ func testKeyRotateWithDatabaseStorage(t *testing.T, flags keyRotateFlags, wantEr
 	// Set up database storage config
 	envConfig := &common.EnvConfigSchema{
 		KeysStorage:   "database",
-		EncryptionKey: "test-encryption-key-characters-long",
+		EncryptionKey: []byte("test-encryption-key-characters-long"),
 	}
 
 	// Create test database

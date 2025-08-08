@@ -85,7 +85,8 @@
 			sideOffset={5}
 			trapFocus={false}
 			interactOutsideBehavior="ignore"
-			onCloseAutoFocus={(e) => e.preventDefault()}
+			onOpenAutoFocus={(e: Event) => e.preventDefault()}
+			onCloseAutoFocus={(e: Event) => e.preventDefault()}
 			avoidCollisions={false}
 			strategy="absolute"
 		>

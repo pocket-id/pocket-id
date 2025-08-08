@@ -10,6 +10,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
+	import userStore from '$lib/stores/user-store';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
@@ -145,11 +146,15 @@
 					>
 					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
 						{#if item.disabled}
-							<DropdownMenu.Item onclick={() => enableUser(item)}
+							<DropdownMenu.Item
+								disabled={item.id === $userStore?.id}
+								onclick={() => enableUser(item)}
 								><LucideUserCheck class="mr-2 size-4" />{m.enable()}</DropdownMenu.Item
 							>
 						{:else}
-							<DropdownMenu.Item onclick={() => disableUser(item)}
+							<DropdownMenu.Item
+								disabled={item.id === $userStore?.id}
+								onclick={() => disableUser(item)}
 								><LucideUserX class="mr-2 size-4" />{m.disable()}</DropdownMenu.Item
 							>
 						{/if}
@@ -157,6 +162,7 @@
 					{#if !item.ldapId || (item.ldapId && item.disabled)}
 						<DropdownMenu.Item
 							class="text-red-500 focus:!text-red-700"
+							disabled={item.id === $userStore?.id}
 							onclick={() => deleteUser(item)}
 							><LucideTrash class="mr-2 size-4" />{m.delete()}</DropdownMenu.Item
 						>
