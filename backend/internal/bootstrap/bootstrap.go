@@ -3,7 +3,7 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -14,16 +14,23 @@ import (
 )
 
 func Bootstrap(ctx context.Context) error {
-	initApplicationImages()
-
-	// Initialize the tracer and metrics exporter
-	shutdownFns, httpClient, err := initOtel(ctx, common.EnvConfig.MetricsEnabled, common.EnvConfig.TracingEnabled)
+	// Initialize the observability stack, including the logger, distributed tracing, and metrics
+	shutdownFns, httpClient, err := initObservability(ctx, common.EnvConfig.MetricsEnabled, common.EnvConfig.TracingEnabled)
 	if err != nil {
 		return fmt.Errorf("failed to initialize OpenTelemetry: %w", err)
 	}
+	slog.InfoContext(ctx, "Pocket ID is starting")
+
+	err = initApplicationImages()
+	if err != nil {
+		return fmt.Errorf("failed to initialize application images: %w", err)
+	}
 
 	// Connect to the database
-	db := NewDatabase()
+	db, err := NewDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
 
 	// Create all services
 	svc, err := initServices(ctx, db, httpClient)
@@ -62,7 +69,7 @@ func Bootstrap(ctx context.Context) error {
 		NewServiceRunner(shutdownFns...).
 		Run(shutdownCtx) //nolint:contextcheck
 	if err != nil {
-		log.Printf("Error shutting down services: %v", err)
+		slog.Error("Error shutting down services", slog.Any("error", err))
 	}
 
 	return nil

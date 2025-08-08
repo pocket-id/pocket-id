@@ -10,7 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -402,9 +402,9 @@ func (s *TestService) ResetDatabase() error {
 	return err
 }
 
-func (s *TestService) ResetApplicationImages() error {
+func (s *TestService) ResetApplicationImages(ctx context.Context) error {
 	if err := os.RemoveAll(common.EnvConfig.UploadPath); err != nil {
-		log.Printf("Error removing directory: %v", err)
+		slog.ErrorContext(ctx, "Error removing directory", slog.Any("error", err))
 		return err
 	}
 

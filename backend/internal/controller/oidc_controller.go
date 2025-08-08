@@ -2,7 +2,7 @@ package controller
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -257,7 +257,7 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	callbackURL, err := oc.oidcService.ValidateEndSession(c.Request.Context(), input, c.GetString("userID"))
 	if err != nil {
 		// If the validation fails, the user has to confirm the logout manually and doesn't get redirected
-		log.Printf("Error getting logout callback URL, the user has to confirm the logout manually: %v", err)
+		slog.WarnContext(c.Request.Context(), "Error getting logout callback URL, the user has to confirm the logout manually", "error", err)
 		c.Redirect(http.StatusFound, common.EnvConfig.AppURL+"/logout")
 		return
 	}

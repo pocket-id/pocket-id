@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -33,7 +34,13 @@ type UserService struct {
 }
 
 func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService) *UserService {
-	return &UserService{db: db, jwtService: jwtService, auditLogService: auditLogService, emailService: emailService, appConfigService: appConfigService}
+	return &UserService{
+		db:               db,
+		jwtService:       jwtService,
+		auditLogService:  auditLogService,
+		emailService:     emailService,
+		appConfigService: appConfigService,
+	}
 }
 
 func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
@@ -45,7 +52,8 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPa
 
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
-		query = query.Where("email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
+		query = query.Where(
+			"email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
 			searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
@@ -118,13 +126,14 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	defaultPictureBytes := defaultPicture.Bytes()
 	go func() {
 		// Ensure the directory exists
-		err = os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
-		if err != nil {
-			log.Printf("Failed to create directory for default profile picture: %v", err)
+		errInternal := os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
+		if errInternal != nil {
+			slog.Error("Failed to create directory for default profile picture", slog.Any("error", errInternal))
 			return
 		}
-		if err := utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath); err != nil {
-			log.Printf("Failed to cache default profile picture for initials %s: %v", user.Initials(), err)
+		errInternal = utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath)
+		if errInternal != nil {
+			slog.Error("Failed to cache default profile picture for initials", slog.String("initials", user.Initials()), slog.Any("error", errInternal))
 		}
 	}()
 
@@ -393,7 +402,8 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 	// We use a background context here as this is running in a goroutine
 	//nolint:contextcheck
 	go func() {
-		innerCtx := context.Background()
+		span := trace.SpanFromContext(ctx)
+		innerCtx := trace.ContextWithSpan(context.Background(), span)
 
 		link := common.EnvConfig.AppURL + "/lc"
 		linkWithCode := link + "/" + oneTimeAccessToken
@@ -414,7 +424,8 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 			ExpirationString:  utils.DurationToString(time.Until(expiration).Round(time.Second)),
 		})
 		if errInternal != nil {
-			log.Printf("Failed to send email to '%s': %v\n", user.Email, errInternal)
+			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", errInternal), slog.String("address", user.Email))
+			return
 		}
 	}()
 

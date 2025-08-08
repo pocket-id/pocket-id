@@ -3,9 +3,8 @@ package bootstrap
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -15,23 +14,24 @@ import (
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	slogGorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormLogger "gorm.io/gorm/logger"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
-func NewDatabase() (db *gorm.DB) {
-	db, err := connectDatabase()
+func NewDatabase() (db *gorm.DB, err error) {
+	db, err = connectDatabase()
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 	sqlDb, err := db.DB()
 	if err != nil {
-		log.Fatalf("failed to get sql.DB: %v", err)
+		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
 	// Choose the correct driver for the database provider
@@ -43,18 +43,18 @@ func NewDatabase() (db *gorm.DB) {
 		driver, err = postgresMigrate.WithInstance(sqlDb, &postgresMigrate.Config{})
 	default:
 		// Should never happen at this point
-		log.Fatalf("unsupported database provider: %s", common.EnvConfig.DbProvider)
+		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}
 	if err != nil {
-		log.Fatalf("failed to create migration driver: %v", err)
+		return nil, fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
 	// Run migrations
 	if err := migrateDatabase(driver); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	return db
+	return db, nil
 }
 
 func migrateDatabase(driver database.Driver) error {
@@ -107,15 +107,18 @@ func connectDatabase() (db *gorm.DB, err error) {
 	for i := 1; i <= 3; i++ {
 		db, err = gorm.Open(dialector, &gorm.Config{
 			TranslateError: true,
-			Logger:         getLogger(),
+			Logger:         getGormLogger(),
 		})
 		if err == nil {
+			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
 			return db, nil
 		}
 
-		log.Printf("Attempt %d: Failed to initialize database. Retrying...", i)
+		slog.Warn("Failed to connect to database, will retry in 3s", slog.Int("attempt", i), slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 		time.Sleep(3 * time.Second)
 	}
+
+	slog.Error("Failed to connect to database after 3 attempts", slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 
 	return nil, err
 }
@@ -164,24 +167,25 @@ func parseSqliteConnectionString(connString string) (string, error) {
 	return connStringUrl.String(), nil
 }
 
-func getLogger() logger.Interface {
-	isProduction := common.EnvConfig.AppEnv == "production"
+func getGormLogger() gormLogger.Interface {
+	loggerOpts := make([]slogGorm.Option, 0, 5)
+	loggerOpts = append(loggerOpts,
+		slogGorm.WithSlowThreshold(200*time.Millisecond),
+		slogGorm.WithErrorField("error"),
+	)
 
-	var logLevel logger.LogLevel
-	if isProduction {
-		logLevel = logger.Error
+	if common.EnvConfig.AppEnv == "production" {
+		loggerOpts = append(loggerOpts,
+			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelWarn),
+			slogGorm.WithIgnoreTrace(),
+		)
 	} else {
-		logLevel = logger.Info
+		loggerOpts = append(loggerOpts,
+			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelDebug),
+			slogGorm.WithRecordNotFoundError(),
+			slogGorm.WithTraceAll(),
+		)
 	}
 
-	return logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             200 * time.Millisecond,
-			LogLevel:                  logLevel,
-			IgnoreRecordNotFoundError: isProduction,
-			ParameterizedQueries:      isProduction,
-			Colorful:                  !isProduction,
-		},
-	)
+	return slogGorm.New(loggerOpts...)
 }

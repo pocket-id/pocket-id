@@ -178,7 +178,7 @@ type AppConfigKeyNotFoundError struct {
 }
 
 func (e AppConfigKeyNotFoundError) Error() string {
-	return fmt.Sprintf("cannot find config key '%s'", e.field)
+	return "cannot find config key '" + e.field + "'"
 }
 
 func (e AppConfigKeyNotFoundError) Is(target error) bool {
@@ -192,7 +192,7 @@ type AppConfigInternalForbiddenError struct {
 }
 
 func (e AppConfigInternalForbiddenError) Error() string {
-	return fmt.Sprintf("field '%s' is internal and can't be updated", e.field)
+	return "field '" + e.field + "' is internal and can't be updated"
 }
 
 func (e AppConfigInternalForbiddenError) Is(target error) bool {

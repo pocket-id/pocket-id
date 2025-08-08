@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -52,13 +52,14 @@ func NewGeoLiteService(httpClient *http.Client) *GeoLiteService {
 
 	if common.EnvConfig.MaxMindLicenseKey == "" && common.EnvConfig.GeoLiteDBUrl == common.MaxMindGeoLiteCityUrl {
 		// Warn the user, and disable the periodic updater
-		log.Println("MAXMIND_LICENSE_KEY environment variable is empty. The GeoLite2 City database won't be updated.")
+		slog.Warn("MAXMIND_LICENSE_KEY environment variable is empty: the GeoLite2 City database won't be updated")
 		service.disableUpdater = true
 	}
 
 	// Initialize IPv6 local ranges
-	if err := service.initializeIPv6LocalRanges(); err != nil {
-		log.Printf("Warning: Failed to initialize IPv6 local ranges: %v", err)
+	err := service.initializeIPv6LocalRanges()
+	if err != nil {
+		slog.Warn("Failed to initialize IPv6 local ranges", slog.Any("error", err))
 	}
 
 	return service
@@ -96,7 +97,7 @@ func (s *GeoLiteService) initializeIPv6LocalRanges() error {
 	s.localIPv6Ranges = localRanges
 
 	if len(localRanges) > 0 {
-		log.Printf("Initialized %d IPv6 local ranges", len(localRanges))
+		slog.Info("Initialized IPv6 local ranges", slog.Int("count", len(localRanges)))
 	}
 	return nil
 }
@@ -186,11 +187,11 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 // UpdateDatabase checks the age of the database and updates it if it's older than 14 days.
 func (s *GeoLiteService) UpdateDatabase(parentCtx context.Context) error {
 	if s.isDatabaseUpToDate() {
-		log.Println("GeoLite2 City database is up-to-date")
+		slog.Info("GeoLite2 City database is up-to-date")
 		return nil
 	}
 
-	log.Println("Updating GeoLite2 City database")
+	slog.Info("Updating GeoLite2 City database")
 	downloadUrl := fmt.Sprintf(common.EnvConfig.GeoLiteDBUrl, common.EnvConfig.MaxMindLicenseKey)
 
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Minute)
@@ -217,7 +218,7 @@ func (s *GeoLiteService) UpdateDatabase(parentCtx context.Context) error {
 		return fmt.Errorf("failed to extract database: %w", err)
 	}
 
-	log.Println("GeoLite2 City database successfully updated.")
+	slog.Info("GeoLite2 City database successfully updated.")
 	return nil
 }
 

@@ -29,7 +29,10 @@ type services struct {
 func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (svc *services, err error) {
 	svc = &services{}
 
-	svc.appConfigService = service.NewAppConfigService(ctx, db)
+	svc.appConfigService, err = service.NewAppConfigService(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create app config service: %w", err)
+	}
 
 	svc.emailService, err = service.NewEmailService(db, svc.appConfigService)
 	if err != nil {
@@ -38,7 +41,11 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (sv
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
 	svc.auditLogService = service.NewAuditLogService(db, svc.appConfigService, svc.emailService, svc.geoLiteService)
-	svc.jwtService = service.NewJwtService(db, svc.appConfigService)
+	svc.jwtService, err = service.NewJwtService(db, svc.appConfigService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWT service: %w", err)
+	}
+
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 	svc.customClaimService = service.NewCustomClaimService(db)
 
@@ -50,7 +57,11 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (sv
 	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService)
 	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)
-	svc.webauthnService = service.NewWebAuthnService(db, svc.jwtService, svc.auditLogService, svc.appConfigService)
+
+	svc.webauthnService, err = service.NewWebAuthnService(db, svc.jwtService, svc.auditLogService, svc.appConfigService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
+	}
 
 	return svc, nil
 }

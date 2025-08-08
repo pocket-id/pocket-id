@@ -3,8 +3,11 @@ package common
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
+	"os"
+	"reflect"
+	"strings"
 
 	"github.com/caarlos0/env/v11"
 	_ "github.com/joho/godotenv/autoload"
@@ -30,23 +33,23 @@ type EnvConfigSchema struct {
 	AppEnv             string     `env:"APP_ENV"`
 	AppURL             string     `env:"APP_URL"`
 	DbProvider         DbProvider `env:"DB_PROVIDER"`
-	DbConnectionString string     `env:"DB_CONNECTION_STRING"`
+	DbConnectionString string     `env:"DB_CONNECTION_STRING" options:"file"`
 	UploadPath         string     `env:"UPLOAD_PATH"`
 	KeysPath           string     `env:"KEYS_PATH"`
 	KeysStorage        string     `env:"KEYS_STORAGE"`
-	EncryptionKey      string     `env:"ENCRYPTION_KEY"`
-	EncryptionKeyFile  string     `env:"ENCRYPTION_KEY_FILE"`
+	EncryptionKey      []byte     `env:"ENCRYPTION_KEY" options:"file"`
 	Port               string     `env:"PORT"`
 	Host               string     `env:"HOST"`
 	UnixSocket         string     `env:"UNIX_SOCKET"`
 	UnixSocketMode     string     `env:"UNIX_SOCKET_MODE"`
-	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY"`
+	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY" options:"file"`
 	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
 	LocalIPv6Ranges    string     `env:"LOCAL_IPV6_RANGES"`
 	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
 	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
 	TracingEnabled     bool       `env:"TRACING_ENABLED"`
+	LogJSON            bool       `env:"LOG_JSON"`
 	TrustProxy         bool       `env:"TRUST_PROXY"`
 	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
 }
@@ -56,7 +59,8 @@ var EnvConfig = defaultConfig()
 func init() {
 	err := parseEnvConfig()
 	if err != nil {
-		log.Fatalf("Configuration error: %v", err)
+		slog.Error("Configuration error", slog.Any("error", err))
+		os.Exit(1)
 	}
 }
 
@@ -68,7 +72,7 @@ func defaultConfig() EnvConfigSchema {
 		UploadPath:         "data/uploads",
 		KeysPath:           "data/keys",
 		KeysStorage:        "", // "database" or "file"
-		EncryptionKey:      "",
+		EncryptionKey:      nil,
 		AppURL:             "http://localhost:1411",
 		Port:               "1411",
 		Host:               "0.0.0.0",
@@ -87,9 +91,22 @@ func defaultConfig() EnvConfigSchema {
 }
 
 func parseEnvConfig() error {
-	err := env.ParseWithOptions(&EnvConfig, env.Options{})
+	parsers := map[reflect.Type]env.ParserFunc{
+		reflect.TypeOf([]byte{}): func(value string) (interface{}, error) {
+			return []byte(value), nil
+		},
+	}
+
+	err := env.ParseWithOptions(&EnvConfig, env.Options{
+		FuncMap: parsers,
+	})
 	if err != nil {
 		return fmt.Errorf("error parsing env config: %w", err)
+	}
+
+	err = resolveFileBasedEnvVariables(&EnvConfig)
+	if err != nil {
+		return err
 	}
 
 	// Validate the environment variables
@@ -119,14 +136,68 @@ func parseEnvConfig() error {
 	case "":
 		EnvConfig.KeysStorage = "file"
 	case "database":
-		// If KeysStorage is "database", a key must be specified
-		if EnvConfig.EncryptionKey == "" && EnvConfig.EncryptionKeyFile == "" {
-			return errors.New("ENCRYPTION_KEY or ENCRYPTION_KEY_FILE must be non-empty when KEYS_STORAGE is database")
+		if EnvConfig.EncryptionKey == nil {
+			return errors.New("ENCRYPTION_KEY must be non-empty when KEYS_STORAGE is database")
 		}
 	case "file":
 		// All good, these are valid values
 	default:
 		return fmt.Errorf("invalid value for KEYS_STORAGE: %s", EnvConfig.KeysStorage)
+	}
+
+	return nil
+}
+
+// resolveFileBasedEnvVariables uses reflection to automatically resolve file-based secrets
+func resolveFileBasedEnvVariables(config *EnvConfigSchema) error {
+	val := reflect.ValueOf(config).Elem()
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldType := typ.Field(i)
+
+		// Only process string and []byte fields
+		isString := field.Kind() == reflect.String
+		isByteSlice := field.Kind() == reflect.Slice && field.Type().Elem().Kind() == reflect.Uint8
+		if !isString && !isByteSlice {
+			continue
+		}
+
+		// Only process fields with the "options" tag set to "file"
+		optionsTag := fieldType.Tag.Get("options")
+		if optionsTag != "file" {
+			continue
+		}
+
+		// Only process fields with the "env" tag
+		envTag := fieldType.Tag.Get("env")
+		if envTag == "" {
+			continue
+		}
+
+		envVarName := envTag
+		if commaIndex := len(envTag); commaIndex > 0 {
+			envVarName = envTag[:commaIndex]
+		}
+
+		// If the file environment variable is not set, skip
+		envVarFileName := envVarName + "_FILE"
+		envVarFileValue := os.Getenv(envVarFileName)
+		if envVarFileValue == "" {
+			continue
+		}
+
+		fileContent, err := os.ReadFile(envVarFileValue)
+		if err != nil {
+			return fmt.Errorf("failed to read file for env var %s: %w", envVarFileName, err)
+		}
+
+		if isString {
+			field.SetString(strings.TrimSpace(string(fileContent)))
+		} else {
+			field.SetBytes(fileContent)
+		}
 	}
 
 	return nil
