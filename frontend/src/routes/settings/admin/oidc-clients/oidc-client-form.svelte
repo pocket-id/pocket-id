@@ -16,6 +16,7 @@
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
+	import { optionalUrl } from '$lib/utils/zod-util';
 
 	let {
 		callback,
@@ -50,7 +51,7 @@
 		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
-		launchURL: z.url(),
+		launchURL: optionalUrl,
 		credentials: z.object({
 			federatedIdentities: z.array(
 				z.object({

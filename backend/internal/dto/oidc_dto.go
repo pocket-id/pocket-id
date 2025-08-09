@@ -1,9 +1,10 @@
 package dto
 
 type OidcClientMetaDataDto struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	HasLogo bool   `json:"hasLogo"`
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	HasLogo   bool    `json:"hasLogo"`
+	LaunchURL *string `json:"launchURL"`
 }
 
 type OidcClientDto struct {
@@ -13,7 +14,6 @@ type OidcClientDto struct {
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
-	LaunchURL          string                   `json:"launchURL"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -33,7 +33,7 @@ type OidcClientCreateDto struct {
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
-	LaunchURL          string                   `json:"launchURL"`
+	LaunchURL          *string                  `json:"launchURL" binding:"omitempty,url"`
 }
 
 type OidcClientCredentialsDto struct {
@@ -155,14 +155,4 @@ type OidcClientPreviewDto struct {
 	IdToken     map[string]any `json:"idToken"`
 	AccessToken map[string]any `json:"accessToken"`
 	UserInfo    map[string]any `json:"userInfo"`
-}
-
-type AccessibleOidcClientDto struct {
-	OidcClientMetaDataDto
-	CallbackURLs       []string `json:"callbackURLs"`
-	LogoutCallbackURLs []string `json:"logoutCallbackURLs"`
-	IsPublic           bool     `json:"isPublic"`
-	PkceEnabled        bool     `json:"pkceEnabled"`
-	IsAuthorized       bool     `json:"isAuthorized"` // Whether user has already authorized this client
-	LaunchURL          string   `json:"launchURL"`
 }
