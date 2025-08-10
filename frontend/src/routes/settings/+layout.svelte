@@ -25,6 +25,8 @@
 		{ href: '/settings/audit-log', label: m.audit_log() }
 	];
 
+	const nonAdminLinks = [{ href: '/settings/apps', label: m.my_apps() }];
+
 	const adminLinks = [
 		{ href: '/settings/admin/users', label: m.users() },
 		{ href: '/settings/admin/user-groups', label: m.user_groups() },
@@ -35,6 +37,8 @@
 
 	if (user?.isAdmin || $userStore?.isAdmin) {
 		links.push(...adminLinks);
+	} else {
+		links.push(...nonAdminLinks);
 	}
 </script>
 

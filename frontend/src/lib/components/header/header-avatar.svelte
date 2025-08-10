@@ -6,7 +6,7 @@
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import userStore from '$lib/stores/user-store';
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
-	import { LucideLogOut, LucideUser } from '@lucide/svelte';
+	import { LayoutDashboard, LucideLogOut, LucideUser } from '@lucide/svelte';
 
 	const webauthnService = new WebAuthnService();
 
@@ -34,6 +34,9 @@
 		</DropdownMenu.Label>
 		<DropdownMenu.Separator />
 		<DropdownMenu.Group>
+			<DropdownMenu.Item onclick={() => goto('/settings/apps')}
+				><LayoutDashboard class="mr-2 size-4" /> {m.my_apps()}</DropdownMenu.Item
+			>
 			<DropdownMenu.Item onclick={() => goto('/settings/account')}
 				><LucideUser class="mr-2 size-4" /> {m.my_account()}</DropdownMenu.Item
 			>

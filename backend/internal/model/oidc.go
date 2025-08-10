@@ -11,7 +11,9 @@ import (
 )
 
 type UserAuthorizedOidcClient struct {
-	Scope  string
+	Scope      string
+	LastUsedAt datatype.DateTime `sortable:"true"`
+
 	UserID string `gorm:"primary_key;"`
 	User   User
 
@@ -47,6 +49,7 @@ type OidcClient struct {
 	IsPublic           bool
 	PkceEnabled        bool
 	Credentials        OidcClientCredentials
+	LaunchURL          *string
 
 	AllowedUserGroups []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID       string

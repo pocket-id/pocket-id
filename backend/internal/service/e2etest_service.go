@@ -154,6 +154,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				},
 				Name:               "Nextcloud",
+				LaunchURL:          utils.Ptr("https://nextcloud.local"),
 				Secret:             "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
 				CallbackURLs:       model.UrlList{"http://nextcloud/auth/callback"},
 				LogoutCallbackURLs: model.UrlList{"http://nextcloud/auth/logout/callback"},
@@ -171,6 +172,16 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				AllowedUserGroups: []model.UserGroup{
 					userGroups[1],
 				},
+			},
+			{
+				Base: model.Base{
+					ID: "7c21a609-96b5-4011-9900-272b8d31a9d1",
+				},
+				Name:               "Tailscale",
+				Secret:             "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a", // n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo
+				CallbackURLs:       model.UrlList{"http://tailscale/auth/callback"},
+				LogoutCallbackURLs: model.UrlList{"http://tailscale/auth/logout/callback"},
+				CreatedByID:        users[0].ID,
 			},
 			{
 				Base: model.Base{
@@ -245,14 +256,22 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 
 		userAuthorizedClients := []model.UserAuthorizedOidcClient{
 			{
-				Scope:    "openid profile email",
-				UserID:   users[0].ID,
-				ClientID: oidcClients[0].ID,
+				Scope:      "openid profile email",
+				UserID:     users[0].ID,
+				ClientID:   oidcClients[0].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 1, 13, 0, 0, 0, time.UTC)),
 			},
 			{
-				Scope:    "openid profile email",
-				UserID:   users[1].ID,
-				ClientID: oidcClients[2].ID,
+				Scope:      "openid profile email",
+				UserID:     users[0].ID,
+				ClientID:   oidcClients[2].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 10, 14, 0, 0, 0, time.UTC)),
+			},
+			{
+				Scope:      "openid profile email",
+				UserID:     users[1].ID,
+				ClientID:   oidcClients[3].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 12, 12, 0, 0, 0, time.UTC)),
 			},
 		}
 		for _, userAuthorizedClient := range userAuthorizedClients {

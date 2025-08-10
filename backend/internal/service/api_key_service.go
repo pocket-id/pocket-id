@@ -55,8 +55,8 @@ func (s *ApiKeyService) CreateApiKey(ctx context.Context, userID string, input d
 	apiKey := model.ApiKey{
 		Name:        input.Name,
 		Key:         utils.CreateSha256Hash(token), // Hash the token for storage
-		Description: &input.Description,
-		ExpiresAt:   datatype.DateTime(input.ExpiresAt),
+		Description: input.Description,
+		ExpiresAt:   input.ExpiresAt,
 		UserID:      userID,
 	}
 
