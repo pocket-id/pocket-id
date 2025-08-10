@@ -54,7 +54,6 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 					inputs[input as keyof z.infer<T>].error = null;
 				}
 			}
-			console.log('Validation result:', result.data);
 			// Update the input values with the parsed data
 			for (const key in result.data) {
 				if (Object.prototype.hasOwnProperty.call(inputs, key)) {
