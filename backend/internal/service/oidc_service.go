@@ -149,18 +149,9 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", &common.OidcAccessDeniedError{}
 	}
 
-	// Check if the user has already authorized the client with the given scope
-	hasAuthorizedClient, err := s.hasAuthorizedClientInternal(ctx, input.ClientID, userID, input.Scope, tx)
+	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, input.ClientID, input.Scope, tx)
 	if err != nil {
 		return "", "", err
-	}
-
-	// If the user has not authorized the client, create a new authorization in the database
-	if !hasAuthorizedClient {
-		err := s.createAuthorizedClientInternal(ctx, userID, input.ClientID, input.Scope, tx)
-		if err != nil {
-			return "", "", err
-		}
 	}
 
 	// Create the authorization code
@@ -170,7 +161,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	// Log the authorization event
-	if hasAuthorizedClient {
+	if hasAlreadyAuthorizedClient {
 		s.auditLogService.Create(ctx, model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
 	} else {
 		s.auditLogService.Create(ctx, model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
@@ -724,6 +715,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	client.LaunchURL = input.LaunchURL
 
 	// Credentials
 	if len(input.Credentials.FederatedIdentities) > 0 {
@@ -1231,22 +1223,16 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		return fmt.Errorf("error saving device auth: %w", err)
 	}
 
-	// Create user authorization if needed
-	hasAuthorizedClient, err := s.hasAuthorizedClientInternal(ctx, deviceAuth.ClientID, userID, deviceAuth.Scope, tx)
+	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, deviceAuth.ClientID, deviceAuth.Scope, tx)
 	if err != nil {
 		return err
 	}
 
 	auditLogData := model.AuditLogData{"clientName": deviceAuth.Client.Name}
-	if !hasAuthorizedClient {
-		err = s.createAuthorizedClientInternal(ctx, userID, deviceAuth.ClientID, deviceAuth.Scope, tx)
-		if err != nil {
-			return err
-		}
-
-		s.auditLogService.Create(ctx, model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, auditLogData, tx)
-	} else {
+	if hasAlreadyAuthorizedClient {
 		s.auditLogService.Create(ctx, model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, auditLogData, tx)
+	} else {
+		s.auditLogService.Create(ctx, model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, auditLogData, tx)
 	}
 
 	return tx.Commit().Error
@@ -1322,6 +1308,34 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 	return authorizedClients, response, err
 }
 
+func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string, clientID string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var authorizedClient model.UserAuthorizedOidcClient
+	err := tx.
+		WithContext(ctx).
+		Where("user_id = ? AND client_id = ?", userID, clientID).
+		First(&authorizedClient).Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.WithContext(ctx).Delete(&authorizedClient).Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
 	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
 	if err != nil {
@@ -1357,14 +1371,37 @@ func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, u
 	return signed, nil
 }
 
-func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID string, clientID string, scope string, tx *gorm.DB) error {
-	userAuthorizedClient := model.UserAuthorizedOidcClient{
-		UserID:   userID,
-		ClientID: clientID,
-		Scope:    scope,
+func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID string, clientID string, scope string, tx *gorm.DB) (hasAlreadyAuthorizedClient bool, err error) {
+
+	// Check if the user has already authorized the client with the given scope
+	hasAlreadyAuthorizedClient, err = s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, tx)
+	if err != nil {
+		return false, err
 	}
 
-	err := tx.WithContext(ctx).
+	if hasAlreadyAuthorizedClient {
+		err = tx.
+			WithContext(ctx).
+			Model(&model.UserAuthorizedOidcClient{}).
+			Where("user_id = ? AND client_id = ?", userID, clientID).
+			Update("last_used_at", datatype.DateTime(time.Now())).
+			Error
+
+		if err != nil {
+			return hasAlreadyAuthorizedClient, err
+		}
+
+		return hasAlreadyAuthorizedClient, nil
+	}
+
+	userAuthorizedClient := model.UserAuthorizedOidcClient{
+		UserID:     userID,
+		ClientID:   clientID,
+		Scope:      scope,
+		LastUsedAt: datatype.DateTime(time.Now()),
+	}
+
+	err = tx.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "client_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"scope"}),
@@ -1372,7 +1409,7 @@ func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID
 		Create(&userAuthorizedClient).
 		Error
 
-	return err
+	return hasAlreadyAuthorizedClient, err
 }
 
 type ClientAuthCredentials struct {
@@ -1703,4 +1740,20 @@ func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, aut
 	}
 
 	return claims, nil
+}
+
+func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID string, userID string) (bool, error) {
+	var user model.User
+	err := s.db.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", userID).Error
+	if err != nil {
+		return false, err
+	}
+
+	var client model.OidcClient
+	err = s.db.WithContext(ctx).Preload("AllowedUserGroups").First(&client, "id = ?", clientID).Error
+	if err != nil {
+		return false, err
+	}
+
+	return s.IsUserGroupAllowedToAuthorize(user, client), nil
 }

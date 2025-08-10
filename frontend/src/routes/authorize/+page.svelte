@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import ScopeItem from '$lib/components/scope-item.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -98,17 +99,21 @@
 		{/if}
 		{#if !authorizationRequired && !errorMessage}
 			<p class="text-muted-foreground mt-2 mb-10">
-				{@html m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
-					client: client.name,
-					appName: $appConfigStore.appName
-				})}
+				<FormattedMessage
+					m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
+						client: client.name,
+						appName: $appConfigStore.appName
+					})}
+				/>
 			</p>
 		{:else if authorizationRequired}
 			<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
 				<Card.Root class="mt-6 mb-10">
 					<Card.Header>
 						<p class="text-muted-foreground text-start">
-							{@html m.client_wants_to_access_the_following_information({ client: client.name })}
+							<FormattedMessage
+								m={m.client_wants_to_access_the_following_information({ client: client.name })}
+							/>
 						</p>
 					</Card.Header>
 					<Card.Content data-testid="scopes">

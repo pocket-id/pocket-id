@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import Logo from '$lib/components/logo.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -36,10 +37,12 @@
 	<h1 class="font-playfair mt-5 text-4xl font-bold">{m.sign_out()}</h1>
 
 	<p class="text-muted-foreground mt-2">
-		{@html m.do_you_want_to_sign_out_of_pocketid_with_the_account({
-			username: $userStore?.username ?? '',
-			appName: $appConfigStore.appName
-		})}
+		<FormattedMessage
+			m={m.do_you_want_to_sign_out_of_pocketid_with_the_account({
+				username: $userStore?.username ?? '',
+				appName: $appConfigStore.appName
+			})}
+		/>
 	</p>
 	<div class="mt-10 flex w-full justify-stretch gap-2">
 		<Button class="flex-1" variant="secondary" onclick={() => history.back()}>{m.cancel()}</Button>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { confirmDialogStore } from '.';
+	import FormattedMessage from '../formatted-message.svelte';
 	import Button from '../ui/button/button.svelte';
 </script>
 
@@ -9,7 +10,7 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>{$confirmDialogStore.title}</AlertDialog.Title>
 			<AlertDialog.Description>
-				{$confirmDialogStore.message}
+				<FormattedMessage m={$confirmDialogStore.message} />
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
