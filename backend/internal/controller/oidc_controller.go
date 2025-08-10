@@ -58,6 +58,9 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
 	group.GET("/oidc/users/:id/clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
+
+	group.DELETE("/oidc/users/me/clients/:clientId", authMiddleware.WithAdminNotRequired().Add(), oc.revokeOwnClientAuthorizationHandler)
+
 }
 
 type OidcController struct {
@@ -730,6 +733,27 @@ func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) {
 		Data:       authorizedClientsDto,
 		Pagination: pagination,
 	})
+}
+
+// revokeOwnClientAuthorizationHandler godoc
+// @Summary Revoke authorization for an OIDC client
+// @Description Revoke the authorization for a specific OIDC client for the current user
+// @Tags OIDC
+// @Param clientId path string true "Client ID to revoke authorization for"
+// @Success 204 "No Content"
+// @Router /api/oidc/users/me/clients/{clientId} [delete]
+func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) {
+	clientID := c.Param("clientId")
+
+	userID := c.GetString("userID")
+
+	err := oc.oidcService.RevokeAuthorizedClient(c.Request.Context(), userID, clientID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {

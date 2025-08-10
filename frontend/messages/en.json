@@ -421,5 +421,15 @@
 	"signup_open_description": "Anyone can create a new account without restrictions.",
 	"of": "of",
 	"skip_passkey_setup": "Skip Passkey Setup",
-	"skip_passkey_setup_description": "It's highly recommended to set up a passkey because without one, you will be locked out of your account as soon as the session expires."
+	"skip_passkey_setup_description": "It's highly recommended to set up a passkey because without one, you will be locked out of your account as soon as the session expires.",
+	"my_apps": "My Apps",
+	"no_apps_available": "No apps available",
+	"contact_your_administrator_for_app_access": "Contact your administrator to get access to applications.",
+	"launch": "Launch",
+	"client_launch_url": "Client Launch URL",
+	"client_launch_url_description": "The URL that will be opened when a user launches the app from the My Apps page.",
+	"client_name_description": "The name of the client that shows in the Pocket ID UI.",
+	"revoke_access": "Revoke Access",
+	"revoke_access_description": "Revoke access to <b>{clientName}</b>. <b>{clientName}</b> will no longer be able to access your account information.",
+	"revoke_access_successful": "The access to {clientName} has been successfully revoked."
 }

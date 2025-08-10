@@ -1,10 +1,13 @@
 package dto
 
+import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+
 type OidcClientMetaDataDto struct {
-	ID                       string `json:"id"`
-	Name                     string `json:"name"`
-	HasLogo                  bool   `json:"hasLogo"`
-	RequiresReauthentication bool   `json:"requiresReauthentication"`
+	ID                       string  `json:"id"`
+	Name                     string  `json:"name"`
+	HasLogo                  bool    `json:"hasLogo"`
+	LaunchURL                *string `json:"launchURL"`
+	RequiresReauthentication bool    `json:"requiresReauthentication"`
 }
 
 type OidcClientDto struct {
@@ -35,6 +38,7 @@ type OidcClientCreateDto struct {
 	PkceEnabled              bool                     `json:"pkceEnabled"`
 	RequiresReauthentication bool                     `json:"requiresReauthentication"`
 	Credentials              OidcClientCredentialsDto `json:"credentials"`
+	LaunchURL                *string                  `json:"launchURL" binding:"omitempty,url"`
 }
 
 type OidcClientCredentialsDto struct {
@@ -149,8 +153,9 @@ type DeviceCodeInfoDto struct {
 }
 
 type AuthorizedOidcClientDto struct {
-	Scope  string                `json:"scope"`
-	Client OidcClientMetaDataDto `json:"client"`
+	Scope      string                `json:"scope"`
+	Client     OidcClientMetaDataDto `json:"client"`
+	LastUsedAt datatype.DateTime     `json:"lastUsedAt"`
 }
 
 type OidcClientPreviewDto struct {

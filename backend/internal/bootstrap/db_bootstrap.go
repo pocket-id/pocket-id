@@ -110,12 +110,15 @@ func connectDatabase() (db *gorm.DB, err error) {
 			Logger:         getGormLogger(),
 		})
 		if err == nil {
+			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
 			return db, nil
 		}
 
-		slog.Info("Failed to initialize database", slog.Int("attempt", i))
+		slog.Warn("Failed to connect to database, will retry in 3s", slog.Int("attempt", i), slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 		time.Sleep(3 * time.Second)
 	}
+
+	slog.Error("Failed to connect to database after 3 attempts", slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 
 	return nil, err
 }
