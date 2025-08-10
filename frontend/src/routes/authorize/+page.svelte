@@ -54,7 +54,7 @@
 				}
 			}
 
-			const reauthToken = client?.requiresReauthentication 
+			const reauthToken = client?.requiresReauthentication
 				? await oidService.reauthenticate(client.id)
 				: undefined;
 
@@ -67,7 +67,7 @@
 				codeChallengeMethod,
 				reauthToken
 			);
-			
+
 			onSuccess(response.code, response.callbackURL, response.issuer);
 		} catch (e) {
 			errorMessage = getWebauthnErrorMessage(e);
