@@ -57,4 +57,4 @@
 	}}
 />
 <ConfirmDialog />
-<ModeWatcher />
+<ModeWatcher disableTransitions={false} />
