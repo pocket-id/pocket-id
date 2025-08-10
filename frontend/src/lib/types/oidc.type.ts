@@ -54,6 +54,6 @@ export type AuthorizeResponse = {
 };
 
 export type AuthorizedOidcClient = {
-    scope: string;
-	client: OidcClientMetaData
+	scope: string;
+	client: OidcClientMetaData;
 };
