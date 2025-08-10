@@ -270,7 +270,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			{
 				Scope:      "openid profile email",
 				UserID:     users[1].ID,
-				ClientID:   oidcClients[2].ID,
+				ClientID:   oidcClients[3].ID,
 				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 12, 12, 0, 0, 0, time.UTC)),
 			},
 		}
