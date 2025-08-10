@@ -27,7 +27,10 @@
 	const isLightMode = $derived(mode.current === 'light');
 </script>
 
-<Card.Root class="border-muted group h-[140px] p-5 transition-all duration-200 hover:shadow-md">
+<Card.Root
+	class="border-muted group h-[140px] p-5 transition-all duration-200 hover:shadow-md"
+	data-testid="authorized-oidc-client-card"
+>
 	<Card.Content class=" p-0">
 		<div class="flex gap-3">
 			<div class="aspect-square h-[56px]">

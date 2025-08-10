@@ -28,14 +28,13 @@ export const oidcClients = {
 		callbackUrl: 'http://nextcloud/auth/callback',
 		logoutCallbackUrl: 'http://nextcloud/auth/logout/callback',
 		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY',
-		launchURL: 'http://nextcloud.local',
+		launchURL: 'https://nextcloud.local'
 	},
 	immich: {
 		id: '606c7782-f2b1-49e5-8ea9-26eb1b06d018',
 		name: 'Immich',
 		callbackUrl: 'http://immich/auth/callback',
-		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x',
-		launchURL: 'http://immich.local',
+		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x'
 	},
 	federated: {
 		id: 'c48232ff-ff65-45ed-ae96-7afa8a9b443b',
@@ -52,7 +51,7 @@ export const oidcClients = {
 		name: 'Pingvin Share',
 		callbackUrl: 'http://pingvin.share/auth/callback',
 		secondCallbackUrl: 'http://pingvin.share/auth/callback2',
-		launchURL: 'http://pingvin.share',
+		launchURL: 'https://pingvin-share.local'
 	}
 };
 
