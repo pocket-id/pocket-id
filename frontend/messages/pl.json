@@ -419,5 +419,15 @@
 	"signup_open_description": "Każdy może utworzyć nowe konto bez żadnych ograniczeń.",
 	"of": "z",
 	"skip_passkey_setup": "Pomiń konfigurację klucza dostępu",
-	"skip_passkey_setup_description": "Zdecydowanie zalecamy skonfigurowanie klucza dostępu, ponieważ bez niego utracisz dostęp do konta zaraz po wygaśnięciu sesji."
+	"skip_passkey_setup_description": "Zdecydowanie zalecamy skonfigurowanie klucza dostępu, ponieważ bez niego utracisz dostęp do konta zaraz po wygaśnięciu sesji.",
+	"my_apps": "Moje aplikacje",
+	"no_apps_available": "Brak dostępnych aplikacji",
+	"contact_your_administrator_for_app_access": "Skontaktuj się z administratorem, aby uzyskać dostęp do aplikacji.",
+	"launch": "Uruchomienie",
+	"client_launch_url": "Adres URL uruchomienia klienta",
+	"client_launch_url_description": "Adres URL, który zostanie otwarty po uruchomieniu aplikacji przez użytkownika ze strony Moje aplikacje.",
+	"client_name_description": "Nazwa klienta wyświetlana w interfejsie użytkownika Pocket ID.",
+	"revoke_access": "Cofnij dostęp",
+	"revoke_access_description": "Cofnij dostęp do <b>{clientName}</b>. <b>{clientName}</b> nie będzie już mógł uzyskać dostępu do informacji o Twoim koncie.",
+	"revoke_access_successful": "Dostęp do strony {clientName} został pomyślnie cofnięty."
 }
