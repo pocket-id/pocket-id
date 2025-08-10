@@ -419,5 +419,15 @@
 	"signup_open_description": "Alle kan oprette en ny konto uden begrænsninger.",
 	"of": "af",
 	"skip_passkey_setup": "Spring Passkey-opsætning over",
-	"skip_passkey_setup_description": "Det anbefales stærkt at oprette en adgangskode, da du ellers bliver låst ude af din konto, så snart sessionen udløber."
+	"skip_passkey_setup_description": "Det anbefales stærkt at oprette en adgangskode, da du ellers bliver låst ude af din konto, så snart sessionen udløber.",
+	"my_apps": "Mine apps",
+	"no_apps_available": "Ingen apps tilgængelige",
+	"contact_your_administrator_for_app_access": "Kontakt din administrator for at få adgang til applikationer.",
+	"launch": "Start",
+	"client_launch_url": "Kundens lancerings-URL",
+	"client_launch_url_description": "Den URL, der åbnes, når en bruger starter appen fra siden Mine apps.",
+	"client_name_description": "Navnet på den klient, der vises i Pocket ID-brugergrænsefladen.",
+	"revoke_access": "Tilbagekald adgang",
+	"revoke_access_description": "Tilbagekald adgang til <b>{clientName}</b>. <b>{clientName}</b> vil ikke længere kunne få adgang til dine kontooplysninger.",
+	"revoke_access_successful": "Adgangen til {clientName} er blevet ophævet."
 }
