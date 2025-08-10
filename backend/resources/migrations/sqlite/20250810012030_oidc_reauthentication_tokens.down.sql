@@ -1,0 +1,5 @@
+DROP INDEX IF EXISTS idx_oidc_reauthentication_tokens_expires_at;
+DROP INDEX IF EXISTS idx_oidc_reauthentication_tokens_client_id;
+DROP INDEX IF EXISTS idx_oidc_reauthentication_tokens_user_id;
+DROP INDEX IF EXISTS idx_oidc_reauthentication_tokens_token;
+DROP TABLE IF EXISTS oidc_reauthentication_tokens;

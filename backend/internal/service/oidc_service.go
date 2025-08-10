@@ -123,6 +123,16 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", err
 	}
 
+	if client.RequiresReauthentication {
+		if input.ReauthenticationToken == "" {
+			return "", "", &common.OidcReauthenticationRequiredError{}
+		}
+		err = s.ValidateReauthenticationToken(ctx, input.ReauthenticationToken, userID, input.ClientID)
+		if err != nil {
+			return "", "", err
+		}
+	}
+
 	// If the client is not public, the code challenge must be provided
 	if client.IsPublic && input.CodeChallenge == "" {
 		return "", "", &common.OidcMissingCodeChallengeError{}
@@ -1704,4 +1714,43 @@ func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, aut
 	}
 
 	return claims, nil
+}
+
+func (s *OidcService) CreateReauthenticationToken(ctx context.Context, userID string, clientID string) (string, error) {
+	token, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return "", err
+	}
+
+	reauthToken := model.OidcReauthenticationToken{
+		Token:     token,
+		ExpiresAt: datatype.DateTime(time.Now().Add(3 * time.Minute)),
+		Used:      false,
+		UserID:    userID,
+		ClientID:  clientID,
+	}
+
+	err = s.db.WithContext(ctx).Create(&reauthToken).Error
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (s *OidcService) ValidateReauthenticationToken(ctx context.Context, token string, userID string, clientID string) error {
+	result := s.db.WithContext(ctx).
+		Model(&model.OidcReauthenticationToken{}).
+		Where("token = ? AND user_id = ? AND client_id = ? AND used = ? AND expires_at > ?", token, userID, clientID, false, time.Now()).
+		Update("used", true)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return &common.OidcReauthenticationRequiredError{}
+	}
+
+	return nil
 }

@@ -38,7 +38,6 @@
 	async function authorize() {
 		isLoading = true;
 		try {
-			// Get access token if not signed in OR if client requires re-authentication
 			if (!$userStore?.id || client?.requiresReauthentication) {
 				const loginOptions = await webauthnService.getLoginOptions();
 				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
@@ -55,11 +54,21 @@
 				}
 			}
 
-			await oidService
-				.authorize(client!.id, scope, callbackURL, nonce, codeChallenge, codeChallengeMethod)
-				.then(async ({ code, callbackURL, issuer }) => {
-					onSuccess(code, callbackURL, issuer);
-				});
+			const reauthToken = client?.requiresReauthentication 
+				? await oidService.reauthenticate(client.id)
+				: undefined;
+
+			const response = await oidService.authorize(
+				client!.id,
+				scope,
+				callbackURL,
+				nonce,
+				codeChallenge,
+				codeChallengeMethod,
+				reauthToken
+			);
+			
+			onSuccess(response.code, response.callbackURL, response.issuer);
 		} catch (e) {
 			errorMessage = getWebauthnErrorMessage(e);
 			isLoading = false;
