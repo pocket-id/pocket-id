@@ -5,7 +5,7 @@ import { cleanupBackend } from '../utils/cleanup.util';
 test.beforeEach(() => cleanupBackend());
 
 test('Dashboard shows all authorized clients in the correct order', async ({ page }) => {
-	const client1 = oidcClients.immich;
+	const client1 = oidcClients.tailscale;
 	const client2 = oidcClients.nextcloud;
 
 	await page.goto('/settings/apps');
@@ -23,7 +23,7 @@ test('Dashboard shows all authorized clients in the correct order', async ({ pag
 });
 
 test('Revoke authorized client', async ({ page }) => {
-	const client = oidcClients.immich;
+	const client = oidcClients.tailscale;
 
 	await page.goto('/settings/apps');
 

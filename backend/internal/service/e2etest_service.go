@@ -175,6 +175,16 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 			{
 				Base: model.Base{
+					ID: "7c21a609-96b5-4011-9900-272b8d31a9d1",
+				},
+				Name:               "Tailscale",
+				Secret:             "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a", // n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo
+				CallbackURLs:       model.UrlList{"http://tailscale/auth/callback"},
+				LogoutCallbackURLs: model.UrlList{"http://tailscale/auth/logout/callback"},
+				CreatedByID:        users[0].ID,
+			},
+			{
+				Base: model.Base{
 					ID: "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
 				},
 				Name:              "Federated",
@@ -254,7 +264,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			{
 				Scope:      "openid profile email",
 				UserID:     users[0].ID,
-				ClientID:   oidcClients[1].ID,
+				ClientID:   oidcClients[2].ID,
 				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 10, 14, 0, 0, 0, time.UTC)),
 			},
 			{
