@@ -5,16 +5,16 @@ ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
 FROM node:22-alpine AS frontend-builder
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 WORKDIR /build
-COPY pnpm-workspace.yaml ./
-COPY ./frontend/package*.json ./frontend/
-COPY pnpm-lock.yaml ./
-RUN pnpm --filter pocket-id-frontend install
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY frontend/package.json ./frontend/
+RUN pnpm --filter pocket-id-frontend install --frozen-lockfile
+
 COPY ./frontend ./frontend/
+
 RUN BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
 
 # Stage 2: Build Backend
