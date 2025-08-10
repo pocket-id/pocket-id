@@ -25,6 +25,7 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 		s.registerJob(ctx, "ClearSignupTokens", def, jobs.clearSignupTokens, true),
 		s.registerJob(ctx, "ClearOidcAuthorizationCodes", def, jobs.clearOidcAuthorizationCodes, true),
 		s.registerJob(ctx, "ClearOidcRefreshTokens", def, jobs.clearOidcRefreshTokens, true),
+		s.registerJob(ctx, "ClearOidcReauthenticationTokens", def, jobs.clearOidcReauthenticationTokens, true),
 		s.registerJob(ctx, "ClearAuditLogs", def, jobs.clearAuditLogs, true),
 	)
 }
@@ -100,6 +101,20 @@ func (j *DbCleanupJobs) clearOidcRefreshTokens(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "Cleaned expired OIDC refresh tokens", slog.Int64("count", st.RowsAffected))
+
+	return nil
+}
+
+// ClearOidcReauthenticationTokens deletes OIDC reauthentication tokens that have expired
+func (j *DbCleanupJobs) clearOidcReauthenticationTokens(ctx context.Context) error {
+	st := j.db.
+		WithContext(ctx).
+		Delete(&model.OidcReauthenticationToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
+	if st.Error != nil {
+		return fmt.Errorf("failed to clean expired OIDC reauthentication tokens: %w", st.Error)
+	}
+
+	slog.InfoContext(ctx, "Cleaned expired OIDC reauthentication tokens", slog.Int64("count", st.RowsAffected))
 
 	return nil
 }
