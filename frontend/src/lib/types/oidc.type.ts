@@ -4,6 +4,7 @@ export type OidcClientMetaData = {
 	id: string;
 	name: string;
 	hasLogo: boolean;
+	launchURL?: string;
 };
 
 export type OidcClientFederatedIdentity = {
@@ -52,17 +53,7 @@ export type AuthorizeResponse = {
 	issuer: string;
 };
 
-export type AccessibleOidcClient = OidcClientMetaData & {
-    callbackURLs: string[];
-    logoutCallbackURLs: string[];
-    isPublic: boolean;
-    pkceEnabled: boolean;
-    isAuthorized: boolean; // Whether user has already authorized this client
-	launchURL?: string;
-};
-
-export type AuthorizedOidcClient = OidcClientMetaData & {
-    clientID: string;
-    authorizedAt: string;
-    scopes: string[];
+export type AuthorizedOidcClient = {
+    scope: string;
+	client: OidcClientMetaData
 };

@@ -1,13 +1,12 @@
 import type {
+	AuthorizedOidcClient,
 	AuthorizeResponse,
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
-	OidcDeviceCodeInfo,
-	AccessibleOidcClient,
-	AuthorizedOidcClient
+	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
 import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
@@ -116,20 +115,6 @@ class OidcService extends APIService {
 		return response.data;
 	}
 
-	async listAccessibleClients(options?: SearchPaginationSortRequest) {
-		const res = await this.api.get('/oidc/users/me/accessible-clients', {
-			params: options
-		});
-		return res.data as Paginated<AccessibleOidcClient>;
-	}
-
-	async listAccessibleClientsForUser(userId: string, options?: SearchPaginationSortRequest) {
-		const res = await this.api.get(`/oidc/users/${userId}/accessible-clients`, {
-			params: options
-		});
-		return res.data as Paginated<AccessibleOidcClient>;
-	}
-
 	async listAuthorizedClients(options?: SearchPaginationSortRequest) {
 		const res = await this.api.get('/oidc/users/me/clients', {
 			params: options
@@ -142,6 +127,10 @@ class OidcService extends APIService {
 			params: options
 		});
 		return res.data as Paginated<AuthorizedOidcClient>;
+	}
+
+	async revokeOwnAuthorizedClient(clientId: string) {
+		await this.api.delete(`/oidc/users/me/clients/${clientId}`);
 	}
 }
 

@@ -58,8 +58,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
 	group.GET("/oidc/users/:id/clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
 
-	group.GET("/oidc/users/me/accessible-clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAccessibleClientsHandler)
-	group.GET("/oidc/users/:id/accessible-clients", authMiddleware.Add(), oc.listAccessibleClientsHandler)
+	group.DELETE("/oidc/users/me/clients/:clientId", authMiddleware.WithAdminNotRequired().Add(), oc.revokeOwnClientAuthorizationHandler)
 
 }
 
@@ -708,6 +707,27 @@ func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) {
 	})
 }
 
+// revokeOwnClientAuthorizationHandler godoc
+// @Summary Revoke authorization for an OIDC client
+// @Description Revoke the authorization for a specific OIDC client for the current user
+// @Tags OIDC
+// @Param clientId path string true "Client ID to revoke authorization for"
+// @Success 204 "No Content"
+// @Router /api/oidc/users/me/clients/{clientId} [delete]
+func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) {
+	clientID := c.Param("clientId")
+
+	userID := c.GetString("userID")
+
+	err := oc.oidcService.RevokeAuthorizedClient(c.Request.Context(), userID, clientID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 	userCode := c.Query("code")
 	if userCode == "" {
@@ -782,81 +802,4 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, preview)
-}
-
-// @Summary List accessible OIDC clients for current user
-// @Description Get a paginated list of OIDC clients that the current user can access based on their user groups
-// @Tags OIDC
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
-// @Router /api/oidc/users/me/accessible-clients [get]
-func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) {
-	userID := c.GetString("userID")
-	oc.listAccessibleClients(c, userID)
-}
-
-// @Summary List accessible OIDC clients for a user
-// @Description Get a paginated list of OIDC clients that a specific user can access based on their user groups
-// @Tags OIDC
-// @Param id path string true "User ID"
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
-// @Router /api/oidc/users/{id}/accessible-clients [get]
-func (oc *OidcController) listAccessibleClientsHandler(c *gin.Context) {
-	userID := c.Param("id")
-	oc.listAccessibleClients(c, userID)
-}
-
-func (oc *OidcController) listAccessibleClients(c *gin.Context, userID string) {
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	accessibleClients, pagination, err := oc.oidcService.ListAccessibleClients(c.Request.Context(), userID, sortedPaginationRequest)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	// Get user's authorized clients to mark which ones are already authorized
-	authorizedClients, _, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, utils.SortedPaginationRequest{
-		Pagination: struct {
-			Page  int `form:"pagination[page]"`
-			Limit int `form:"pagination[limit]"`
-		}{Page: 1, Limit: 1000}, // Get all authorized clients
-	})
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	authorizedClientMap := make(map[string]struct{})
-	for _, authClient := range authorizedClients {
-		authorizedClientMap[authClient.ClientID] = struct{}{}
-	}
-
-	accessibleClientsDto := make([]dto.AccessibleOidcClientDto, len(accessibleClients))
-	for i, client := range accessibleClients {
-		var clientDto dto.AccessibleOidcClientDto
-		if err := dto.MapStruct(client, &clientDto); err != nil {
-			_ = c.Error(err)
-			return
-		}
-		_, ok := authorizedClientMap[client.ID]
-		clientDto.IsAuthorized = ok
-		accessibleClientsDto[i] = clientDto
-	}
-
-	c.JSON(http.StatusOK, dto.Paginated[dto.AccessibleOidcClientDto]{
-		Data:       accessibleClientsDto,
-		Pagination: pagination,
-	})
 }

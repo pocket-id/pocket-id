@@ -1,31 +1,56 @@
 <script lang="ts">
+	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import * as Pagination from '$lib/components/ui/pagination';
-	import AppClientCard from './app-client-card.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
-	import type { AccessibleOidcClient } from '$lib/types/oidc.type';
+	import type { AuthorizedOidcClient, OidcClientMetaData } from '$lib/types/oidc.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LayoutDashboard } from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
+	import { default as AuthorizedOidcClientCard } from './authorized-oidc-client-card.svelte';
 
 	let { data } = $props();
-	let apps: Paginated<AccessibleOidcClient> = $state(data.apps);
+	let authorizedClients: Paginated<AuthorizedOidcClient> = $state(data.authorizedClients);
 	let requestOptions: SearchPaginationSortRequest = $state(data.appRequestOptions);
 
 	const oidcService = new OIDCService();
 
 	async function onRefresh(options: SearchPaginationSortRequest) {
-		apps = await oidcService.listAccessibleClients(options);
+		authorizedClients = await oidcService.listAuthorizedClients(options);
 	}
 
 	async function onPageChange(page: number) {
-		requestOptions.pagination = { limit: apps.pagination.itemsPerPage, page };
+		requestOptions.pagination = { limit: authorizedClients.pagination.itemsPerPage, page };
 		onRefresh(requestOptions);
 	}
-</script>
 
-{#snippet appCard(app: AccessibleOidcClient)}
-	<AppClientCard {app} />
-{/snippet}
+	async function revokeAuthorizedClient(client: OidcClientMetaData) {
+		openConfirmDialog({
+			title: m.revoke_access(),
+			message: m.revoke_access_description({
+				clientName: client.name
+			}),
+			confirm: {
+				label: m.revoke(),
+				destructive: true,
+				action: async () => {
+					try {
+						await oidcService.revokeOwnAuthorizedClient(client.id);
+						onRefresh(requestOptions);
+						toast.success(
+							m.revoke_access_successful({
+								clientName: client.name
+							})
+						);
+					} catch (e) {
+						axiosErrorToast(e);
+					}
+				}
+			}
+		});
+	}
+</script>
 
 <svelte:head>
 	<title>{m.my_apps()}</title>
@@ -39,7 +64,7 @@
 		</h1>
 	</div>
 
-	{#if apps.data.length === 0}
+	{#if authorizedClients.data.length === 0}
 		<div class="py-16 text-center">
 			<LayoutDashboard class="text-muted-foreground mx-auto mb-4 size-16" />
 			<h3 class="text-muted-foreground mb-2 text-lg font-medium">
@@ -51,20 +76,20 @@
 		</div>
 	{:else}
 		<div class="space-y-8">
-			<div class="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-				{#each apps.data as app}
-					{@render appCard(app)}
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+				{#each authorizedClients.data as authorizedClient}
+					<AuthorizedOidcClientCard {authorizedClient} onRevoke={revokeAuthorizedClient} />
 				{/each}
 			</div>
 
-			{#if apps.pagination.totalPages > 1}
-				<div class="border-border flex items-center justify-center border-t pt-8">
+			{#if authorizedClients.pagination.totalPages > 1}
+				<div class="border-border flex items-center justify-center border-t pt-3">
 					<Pagination.Root
 						class="mx-0 w-auto"
-						count={apps.pagination.totalItems}
-						perPage={apps.pagination.itemsPerPage}
+						count={authorizedClients.pagination.totalItems}
+						perPage={authorizedClients.pagination.itemsPerPage}
 						{onPageChange}
-						page={apps.pagination.currentPage}
+						page={authorizedClients.pagination.currentPage}
 					>
 						{#snippet children({ pages })}
 							<Pagination.Content class="flex justify-center">
@@ -74,7 +99,10 @@
 								{#each pages as page (page.key)}
 									{#if page.type !== 'ellipsis' && page.value != 0}
 										<Pagination.Item>
-											<Pagination.Link {page} isActive={apps.pagination.currentPage === page.value}>
+											<Pagination.Link
+												{page}
+												isActive={authorizedClients.pagination.currentPage === page.value}
+											>
 												{page.value}
 											</Pagination.Link>
 										</Pagination.Item>
