@@ -1,5 +1,7 @@
 package dto
 
+import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+
 type OidcClientMetaDataDto struct {
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`
@@ -147,8 +149,9 @@ type DeviceCodeInfoDto struct {
 }
 
 type AuthorizedOidcClientDto struct {
-	Scope  string                `json:"scope"`
-	Client OidcClientMetaDataDto `json:"client"`
+	Scope      string                `json:"scope"`
+	Client     OidcClientMetaDataDto `json:"client"`
+	LastUsedAt datatype.DateTime     `json:"lastUsedAt"`
 }
 
 type OidcClientPreviewDto struct {

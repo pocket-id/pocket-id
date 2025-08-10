@@ -11,7 +11,9 @@ import (
 )
 
 type UserAuthorizedOidcClient struct {
-	Scope  string
+	Scope      string
+	LastUsedAt datatype.DateTime `sortable:"true"`
+
 	UserID string `gorm:"primary_key;"`
 	User   User
 

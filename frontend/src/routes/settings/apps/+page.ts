@@ -11,8 +11,8 @@ export const load: PageLoad = async () => {
             limit: 20
         },
         sort: {
-            column: 'name',
-            direction: 'asc'
+            column: 'lastUsedAt',
+            direction: 'desc'
         }
     };
 
