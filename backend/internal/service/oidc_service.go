@@ -127,7 +127,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		if input.ReauthenticationToken == "" {
 			return "", "", &common.OidcReauthenticationRequiredError{}
 		}
-		err = s.ValidateReauthenticationToken(ctx, input.ReauthenticationToken, userID, input.ClientID)
+		err = s.ValidateReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID, input.ClientID)
 		if err != nil {
 			return "", "", err
 		}
@@ -1738,10 +1738,10 @@ func (s *OidcService) CreateReauthenticationToken(ctx context.Context, userID st
 	return token, nil
 }
 
-func (s *OidcService) ValidateReauthenticationToken(ctx context.Context, token string, userID string, clientID string) error {
-	result := s.db.WithContext(ctx).
+func (s *OidcService) ValidateReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string, clientID string) error {
+	result := tx.WithContext(ctx).
 		Model(&model.OidcReauthenticationToken{}).
-		Where("token = ? AND user_id = ? AND client_id = ? AND used = ? AND expires_at > ?", token, userID, clientID, false, time.Now()).
+		Where("token = ? AND user_id = ? AND client_id = ? AND used = ? AND expires_at > ?", token, userID, clientID, false, datatype.DateTime(time.Now())).
 		Update("used", true)
 
 	if result.Error != nil {

@@ -49,13 +49,13 @@ type OidcClientFederatedIdentityDto struct {
 }
 
 type AuthorizeOidcClientRequestDto struct {
-	ClientID               string `json:"clientID" binding:"required"`
-	Scope                  string `json:"scope" binding:"required"`
-	CallbackURL            string `json:"callbackURL"`
-	Nonce                  string `json:"nonce"`
-	CodeChallenge          string `json:"codeChallenge"`
-	CodeChallengeMethod    string `json:"codeChallengeMethod"`
-	ReauthenticationToken  string `json:"reauthenticationToken"`
+	ClientID              string `json:"clientID" binding:"required"`
+	Scope                 string `json:"scope" binding:"required"`
+	CallbackURL           string `json:"callbackURL"`
+	Nonce                 string `json:"nonce"`
+	CodeChallenge         string `json:"codeChallenge"`
+	CodeChallengeMethod   string `json:"codeChallengeMethod"`
+	ReauthenticationToken string `json:"reauthenticationToken"`
 }
 
 type AuthorizeOidcClientResponseDto struct {
