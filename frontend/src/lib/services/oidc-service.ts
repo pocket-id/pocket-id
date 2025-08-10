@@ -1,4 +1,5 @@
 import type {
+	AuthorizedOidcClient,
 	AuthorizeResponse,
 	OidcClient,
 	OidcClientCreate,
@@ -112,6 +113,24 @@ class OidcService extends APIService {
 			params: { scopes }
 		});
 		return response.data;
+	}
+
+	async listAuthorizedClients(options?: SearchPaginationSortRequest) {
+		const res = await this.api.get('/oidc/users/me/clients', {
+			params: options
+		});
+		return res.data as Paginated<AuthorizedOidcClient>;
+	}
+
+	async listAuthorizedClientsForUser(userId: string, options?: SearchPaginationSortRequest) {
+		const res = await this.api.get(`/oidc/users/${userId}/clients`, {
+			params: options
+		});
+		return res.data as Paginated<AuthorizedOidcClient>;
+	}
+
+	async revokeOwnAuthorizedClient(clientId: string) {
+		await this.api.delete(`/oidc/users/me/clients/${clientId}`);
 	}
 }
 
