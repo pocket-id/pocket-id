@@ -419,5 +419,15 @@
 	"signup_open_description": "任何人都可以不受限制地建立新帳號。",
 	"of": "的",
 	"skip_passkey_setup": "跳過密碼金鑰設定",
-	"skip_passkey_setup_description": "我們強烈建議您設定密碼金鑰，因為如果沒有密碼金鑰，當工作階段到期時，您就會被鎖住。"
+	"skip_passkey_setup_description": "我們強烈建議您設定密碼金鑰，因為如果沒有密碼金鑰，當工作階段到期時，您就會被鎖住。",
+	"my_apps": "我的應用程式",
+	"no_apps_available": "沒有可用的應用程式",
+	"contact_your_administrator_for_app_access": "聯絡您的管理員以取得應用程式的存取權。",
+	"launch": "啟動",
+	"client_launch_url": "用戶端啟動 URL",
+	"client_launch_url_description": "當使用者從「我的應用程式」頁面啟動應用程式時將會開啟的 URL。",
+	"client_name_description": "顯示在 Pocket ID UI 中的用戶端名稱。",
+	"revoke_access": "撤銷存取權",
+	"revoke_access_description": "撤銷存取 <b>{clientName}</b>. <b>{clientName}</b>將無法再存取您的帳戶資訊。",
+	"revoke_access_successful": "{clientName} 的存取權已成功取消。"
 }
