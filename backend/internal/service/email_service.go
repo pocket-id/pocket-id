@@ -256,6 +256,16 @@ func (srv *EmailService) sendEmailContent(client *smtp.Client, toEmail email.Add
 	return nil
 }
 
+// prepareBody builds a multipart/alternative email body from the provided templates and data.
+// 
+// It creates a multipart writer and adds two parts:
+//  - text/plain (UTF-8) encoded with quoted-printable
+//  - text/html (UTF-8) encoded as 8bit
+//
+// The function obtains templates from the service's template maps, executes them into the
+// respective MIME parts using the supplied data, closes the multipart writer, and returns
+// the serialized body and the multipart boundary. Returns an error if creating parts,
+// executing templates, or closing the multipart writer fails.
 func prepareBody[V any](srv *EmailService, template email.Template[V], data *email.TemplateData[V]) (string, string, error) {
 	body := bytes.NewBuffer(nil)
 	mpart := multipart.NewWriter(body)

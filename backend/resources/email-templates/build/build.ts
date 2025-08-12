@@ -8,6 +8,12 @@ if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
 
+/**
+ * Remove all `.tmpl` files from the configured output directory.
+ *
+ * Scans the module-level `outputDir` for files ending with `.tmpl` and deletes them synchronously.
+ * Logs a summary of removed files and any errors encountered during the cleanup.
+ */
 function cleanupOldTemplates() {
   console.log('Cleaning up old template files...');
   
@@ -31,7 +37,23 @@ function cleanupOldTemplates() {
   }
 }
 
-// Auto-generate placeholders based on template name
+/**
+ * Build sample props (placeholders) used to render email components for each template.
+ *
+ * Returns an object containing base placeholders (logoURL and appName) and, for known
+ * templates, a `data` object with template-specific placeholder fields.
+ *
+ * Recognized `templateName` values and their `data` fields:
+ * - "new-signin": { city, country, ipAddress, device, dateTime }
+ * - "one-time-access": { code, loginLink, buttonCodeLink, expirationString }
+ * - "api-key-expiring-soon": { name, apiKeyName, expiresAt }
+ * - "test": no additional data
+ *
+ * If `templateName` is not recognized the function returns only the base placeholders.
+ *
+ * @param templateName - The template identifier (derived from the filename, e.g. "new-signin").
+ * @returns An object suitable for passing to the email component when rendering sample output.
+ */
 function getSampleProps(templateName: string) {
   const baseProps = {
     logoURL: "LOGOURL_PLACEHOLDER",
@@ -67,7 +89,17 @@ function getSampleProps(templateName: string) {
     : baseProps;
 }
 
-// Auto-generate Go template replacements
+/**
+ * Build the list of placeholder replacements to convert rendered HTML into Go template syntax.
+ *
+ * Uses a base set of replacements (logo and app name) plus template-specific mappings for
+ * common placeholders (e.g., CITY_PLACEHOLDER → {{.Data.City}}). For some templates the list
+ * includes regex patterns that match multiple variants (for example `BUTTONCODELINK_[A-Za-z0-9]+`
+ * is mapped to the single `{{.Data.LoginLinkWithCode}}` replacement).
+ *
+ * @param templateName - The canonical template identifier (e.g., `"new-signin"`, `"one-time-access"`) used to select template-specific replacements.
+ * @returns An array of replacement descriptors; each item has `search` (a RegExp to find placeholders in the HTML) and `replace` (the Go template string to substitute).
+ */
 function getReplacements(templateName: string) {
   const baseReplacements = [
     { search: /LOGOURL_PLACEHOLDER/g, replace: '{{.LogoURL}}' },
@@ -100,7 +132,14 @@ function getReplacements(templateName: string) {
   return [...baseReplacements, ...(dataReplacements[templateName] || [])];
 }
 
-// Auto-generate text templates
+/**
+ * Returns a plain-text Go template for the given email template name.
+ *
+ * Looks up a pre-defined text template keyed by `templateName` (examples: `new-signin`, `one-time-access`, `api-key-expiring-soon`, `test`) and returns it as a string containing a Go `{{define "root"}}...{{end}}` block. If no specific template exists for `templateName`, a generic fallback template is returned where the title is derived from the name (hyphen-separated words are capitalized and joined).
+ *
+ * @param templateName - The canonical template identifier (derived from the TSX filename, e.g. `new-signin`)
+ * @returns A text email template formatted as a Go template string.
+ */
 function getTextTemplate(templateName: string) {
   const title = templateName
     .split('-')
@@ -174,7 +213,18 @@ This is automatically sent email from {{.AppName}}.
 {{ end -}}`;
 }
 
-// Apply special conditionals for specific templates
+/**
+ * Injects template-specific Go conditionals into rendered HTML.
+ *
+ * For the "new-signin" template, wraps the "Approximate Location" HTML block with
+ * a Go `{{if and .Data.City .Data.Country}}...{{end}}` conditional so the block
+ * is only included when both City and Country are present. For other templates
+ * or when no matching block is found, returns the input HTML unchanged.
+ *
+ * @param templateName - Name of the template (e.g., "new-signin") that may require conditionals
+ * @param html - Rendered HTML string to be modified
+ * @returns The potentially modified HTML string with Go conditionals applied where appropriate
+ */
 function applyConditionals(templateName: string, html: string): string {
   if (templateName === 'new-signin') {
     // Wrap location data in conditional
@@ -187,13 +237,33 @@ function applyConditionals(templateName: string, html: string): string {
   return html;
 }
 
-// Convert template filename to template name
+/**
+ * Convert a TSX email filename into the canonical template name used by the build.
+ *
+ * Removes the `.tsx` extension and an optional `-email` suffix from `filename`.
+ *
+ * @param filename - TSX filename from the emails directory (e.g., `new-signin-email.tsx`)
+ * @returns The template name (e.g., `new-signin`)
+ */
 function getTemplateName(filename: string): string {
   return filename
     .replace('.tsx', '')
     .replace('-email', '');
 }
 
+/**
+ * Discover React Email components in ./emails, render them with sample props, convert the output to Go template syntax, and write HTML and text .tmpl files to the output directory.
+ *
+ * Scans the local ./emails directory for .tsx files (skipping files containing "base-template" or "components"), dynamically imports each component, renders it with template-specific sample props, applies placeholder replacements and special conditionals, maps the template name for the Go backend (e.g., "new-signin" -> "login-with-new-device"), and writes two files per template: `<name>_html.tmpl` (wrapped in a `{{define "root"}}...{{end}}` block) and `<name>_text.tmpl`.
+ *
+ * Side effects:
+ * - Reads the ./emails directory.
+ * - Performs dynamic imports of modules within that directory.
+ * - Writes template files into the configured output directory.
+ * - Logs progress and errors to the console.
+ *
+ * @returns A Promise that resolves when discovery and file generation complete.
+ */
 async function discoverAndBuildTemplates() {
   console.log('Discovering and building email templates...');
   
@@ -257,6 +327,14 @@ async function discoverAndBuildTemplates() {
   }
 }
 
+/**
+ * Orchestrates the template build process: removes old templates, builds new ones, and logs completion.
+ *
+ * This async entrypoint first runs cleanupOldTemplates() to delete existing .tmpl files, then awaits
+ * discoverAndBuildTemplates() to discover, render, convert, and write new Go-compatible templates.
+ *
+ * @returns A promise that resolves when the build process finishes.
+ */
 async function main() {
   cleanupOldTemplates();
   await discoverAndBuildTemplates();
