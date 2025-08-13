@@ -39,6 +39,12 @@
 		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled()
 	});
 
+	function refreshClient(newId?: string) {
+		if (newId) {
+			client.id = newId;
+		}
+	}
+
 	async function updateClient(updatedClient: OidcClientCreateWithLogo) {
 		let success = true;
 		const dataPromise = oidcService.updateClient(client.id, updatedClient);
@@ -175,7 +181,7 @@
 </Card.Root>
 <Card.Root>
 	<Card.Content>
-		<OidcForm existingClient={client} callback={updateClient} />
+		<OidcForm existingClient={client} callback={updateClient} onRefresh={refreshClient}/>
 	</Card.Content>
 </Card.Root>
 <CollapsibleCard

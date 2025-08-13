@@ -68,7 +68,19 @@ class OidcService extends APIService {
 	async updateClient(id: string, client: OidcClientCreate) {
 		return (await this.api.put(`/oidc/clients/${id}`, client)).data as OidcClient;
 	}
+	
+	async updateClientId(currentId: string, newId: string) {
+		return (await this.api.put(`/oidc/clients/${currentId}/client-id`, {
+			NewClientId: newId
+			})).data as OidcClient;
+	}
 
+	async updateClientSecret(currentId: string, newSecret: string) {
+		return (await this.api.put(`/oidc/clients/${currentId}/client-secret`, {
+			NewClientSecret: newSecret
+			})).data as OidcClient;
+	}
+	
 	async updateClientLogo(client: OidcClient, image: File | null) {
 		if (client.hasLogo && !image) {
 			await this.removeClientLogo(client.id);

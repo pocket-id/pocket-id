@@ -7,6 +7,8 @@ export type OidcClientMetaData = {
 	launchURL?: string;
 };
 
+export type OidcClientSecretInput = string;
+
 export type OidcClientFederatedIdentity = {
 	issuer: string;
 	subject?: string;

@@ -132,7 +132,16 @@ type ClientIdOrSecretNotProvidedError struct{}
 func (e *ClientIdOrSecretNotProvidedError) Error() string {
 	return "Client id or secret not provided"
 }
+
 func (e *ClientIdOrSecretNotProvidedError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type ClientIdNotUniqueError struct{}
+
+func (e *ClientIdNotUniqueError) Error() string {
+	return "new Client ID already taken"
+}
+
+func (e *ClientIdNotUniqueError) HttpStatusCode() int { return http.StatusConflict }
 
 type WrongFileTypeError struct {
 	ExpectedFileType string

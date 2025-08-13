@@ -15,19 +15,24 @@
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
+	import EditClientCredentials from './replace-client-credentials.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import { optionalUrl } from '$lib/utils/zod-util';
 
 	let {
 		callback,
-		existingClient
+		existingClient,
+		onRefresh
 	}: {
 		existingClient?: OidcClient;
 		callback: (user: OidcClientCreateWithLogo) => Promise<boolean>;
+		onRefresh?: (newId?: string) => void;
 	} = $props();
 
 	let isLoading = $state(false);
 	let showAdvancedOptions = $state(false);
+	let newClientIdInput = $state('');
+	let replaceClientIdMessage: string | null = $state(null);
 	let logo = $state<File | null | undefined>();
 	let logoDataURL: string | null = $state(
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
@@ -105,6 +110,10 @@
 				return e;
 			});
 	}
+
+	function onReplaceClientId() {
+			replaceClientIdMessage = "(API integration TBA).";
+	}
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>
@@ -177,19 +186,27 @@
 	</div>
 
 	{#if showAdvancedOptions}
-		<div class="mt-5 md:col-span-2" transition:slide={{ duration: 200 }}>
-			<FederatedIdentitiesInput
-				client={existingClient}
-				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
-				errors={getFederatedIdentityErrors($errors)}
-			/>
+		<div transition:slide={{ duration: 200 }}>		
+			<div class="mt-5 md:col-span-2">
+				<FederatedIdentitiesInput
+					client={existingClient}
+					bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
+					errors={getFederatedIdentityErrors($errors)}
+				/>
+			</div>
+			<div class="mt-5 md:col-span-2">
+				<EditClientCredentials
+					client={existingClient}
+					onRefresh={onRefresh}
+				/> 
+			</div>
 		</div>
 	{/if}
 
 	<div class="relative mt-5 flex justify-center">
 		<Button
 			variant="ghost"
-			class="text-muted-foregroun"
+			class="text-muted-foreground"
 			onclick={() => (showAdvancedOptions = !showAdvancedOptions)}
 		>
 			{showAdvancedOptions ? m.hide_advanced_options() : m.show_advanced_options()}

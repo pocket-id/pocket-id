@@ -44,7 +44,9 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), oc.updateAllowedUserGroupsHandler)
 	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), oc.createClientSecretHandler)
-
+	group.PUT("/oidc/clients/:id/client-id", authMiddleware.Add(), oc.updateClientIDHandler)
+	group.PUT("/oidc/clients/:id/client-secret", authMiddleware.Add(), oc.updateClientSecretHandler)
+	
 	group.GET("/oidc/clients/:id/logo", oc.getClientLogoHandler)
 	group.DELETE("/oidc/clients/:id/logo", oc.deleteClientLogoHandler)
 	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)
@@ -66,6 +68,65 @@ type OidcController struct {
 	oidcService *service.OidcService
 	jwtService  *service.JwtService
 }
+
+// updateClientSecretHandler godoc
+// @Summary Change client secret
+// @Description Update the client_secret of an existing OIDC client.
+// @Tags OIDC
+// @Accept json
+// @Produce json
+// @Param id path string true "Current Client ID"
+// @Param body body dto.UpdateClienSecretDto true "New client secret"
+// @Success 200
+// @Router /api/oidc/clients/{id}/client-secret [put]
+func (oc *OidcController) updateClientSecretHandler(c *gin.Context) {
+	var input dto.UpdateClientSecretDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	err := oc.oidcService.ReplaceClientSecret(c.Request.Context(), c.Param("id"), input.NewClientSecret)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+// updateClientIDHandler godoc
+// @Summary Change client ID
+// @Description Update the client_id of an existing OIDC client. The new ID must be unique.
+// @Tags OIDC
+// @Accept json
+// @Produce json
+// @Param id path string true "Current Client ID"
+// @Param body body dto.UpdateClientIDDto true "New client ID"
+// @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client with allowed user groups"
+// @Router /api/oidc/clients/{id}/client-id [put]
+func (oc *OidcController) updateClientIDHandler(c *gin.Context) {
+	var input dto.UpdateClientIDDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	client, err := oc.oidcService.UpdateClientID(c.Request.Context(), c.Param("id"), input.NewClientID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var clientDto dto.OidcClientWithAllowedUserGroupsDto
+	if err := dto.MapStruct(client, &clientDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, clientDto)
+}
+
 
 // authorizeHandler godoc
 // @Summary Authorize OIDC client
