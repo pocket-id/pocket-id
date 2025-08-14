@@ -1,2 +1,0 @@
-DROP INDEX IF EXISTS idx_oidc_reauthentication_tokens_token;
-DROP TABLE IF EXISTS oidc_reauthentication_tokens;
