@@ -77,7 +77,7 @@ func (s *OidcService) UpdateClientID(ctx context.Context, currentID string, newI
 	if err != nil {
 		return model.OidcClient{}, err
 	}
-	
+
 	err = tx.WithContext(ctx).
 		Model(&model.OidcClientsAllowedUserGroup{}).
 		Where("oidc_client_id = ?", currentID).
@@ -93,7 +93,7 @@ func (s *OidcService) UpdateClientID(ctx context.Context, currentID string, newI
 	if err != nil {
 		return model.OidcClient{}, err
 	}
-	
+
 	var client model.OidcClient
 	err = tx.WithContext(ctx).First(&client, "id = ?", newID).Error
 	if err != nil {
@@ -861,7 +861,7 @@ func (s *OidcService) ReplaceClientSecret(ctx context.Context, clientID string, 
 	}
 
 	newHash := string(hashedSecret)
-	
+
 	err = tx.WithContext(ctx).
 		Model(&model.OidcClient{}).
 		Where("id = ?", clientID).
