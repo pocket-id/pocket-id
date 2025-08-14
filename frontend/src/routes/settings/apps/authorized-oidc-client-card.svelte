@@ -49,14 +49,14 @@
 				<div>
 					<div class="mb-1 flex items-start gap-2">
 						<h3
-							class="text-foreground line-clamp-2 leading-tight font-semibold break-words break-all text-ellipsis"
+							class="text-foreground line-clamp-2 text-ellipsis break-words break-all font-semibold leading-tight"
 						>
 							{client.name}
 						</h3>
 					</div>
 					{#if client.launchURL}
 						<p
-							class="text-muted-foreground line-clamp-1 text-xs break-words break-all text-ellipsis"
+							class="text-muted-foreground line-clamp-1 text-ellipsis break-words break-all text-xs"
 						>
 							{new URL(client.launchURL).hostname}
 						</p>
@@ -115,6 +115,7 @@
 				target="_blank"
 				size="sm"
 				class="h-8 text-xs"
+				rel="noopener noreferrer"
 				disabled={!client.launchURL}
 			>
 				{m.launch()}
