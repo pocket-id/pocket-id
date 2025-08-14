@@ -14,16 +14,16 @@
 		onRefresh,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
-		client: OidcClient;
+		client?: OidcClient;
 		onRefresh?: (newId?: string) => void;
 	} = $props();
 
-	let newClientIdInput: OidcClientMetaData['id'] = '';
-	let newClientSecretInput: OidcClientSecretInput = '';
+	let newClientIdInput = $state<OidcClientMetaData['id']>('');
+	let newClientSecretInput = $state<OidcClientSecretInput>('');
 	let expandUpdateClientIdentifiers = $state(false);
 
-
 	async function handleUpdateClientId() {
+		if (!client) return;
 		try {
 			const oidcService = new OidcService();
 			await oidcService.updateClientId(client.id, newClientIdInput);	
@@ -35,6 +35,7 @@
 	}
 
 	async function handleUpdateClientSecret() {
+		if (!client) return;
 		try {
 			const oidcService = new OidcService();
 			await oidcService.updateClientSecret(client.id, newClientSecretInput);	
@@ -58,7 +59,7 @@
 				<Input
 					id="newClientIdInput"
 					bind:value={newClientIdInput}
-					placeholder={`${client.id}`}
+					placeholder={client?.id ?? ''}
 					class="flex-grow"
 				/>
 				<Button class="mt-0 whitespace-nowrap" variant="secondary" onclick={handleUpdateClientId}>{m.update()} {m.client_id()}</Button>

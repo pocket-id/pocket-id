@@ -46,7 +46,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), oc.createClientSecretHandler)
 	group.PUT("/oidc/clients/:id/client-id", authMiddleware.Add(), oc.updateClientIDHandler)
 	group.PUT("/oidc/clients/:id/client-secret", authMiddleware.Add(), oc.updateClientSecretHandler)
-	
+
 	group.GET("/oidc/clients/:id/logo", oc.getClientLogoHandler)
 	group.DELETE("/oidc/clients/:id/logo", oc.deleteClientLogoHandler)
 	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)

@@ -56,7 +56,7 @@ type OidcService struct {
 }
 
 func (s *OidcService) UpdateClientID(ctx context.Context, currentID string, newID string) (model.OidcClient, error) {
-    tx := s.db.Begin()
+	tx := s.db.Begin()
     defer func() {
         tx.Rollback()
     }()

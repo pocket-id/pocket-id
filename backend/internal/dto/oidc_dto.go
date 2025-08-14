@@ -3,11 +3,11 @@ package dto
 import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 
 type UpdateClientIDDto struct {
-    NewClientID string `json:"NewClientId" binding:"required"`
+	NewClientID string `json:"NewClientId" binding:"required"`
 }
 
 type UpdateClientSecretDto struct {
-    NewClientSecret string `json:"NewClientSecret" binding:"required"`
+	NewClientSecret string `json:"NewClientSecret" binding:"required"`
 }
 
 type OidcClientMetaDataDto struct {
