@@ -38,7 +38,7 @@
 <div {...restProps}>
 	<Button class="mt-0" variant="secondary" size="sm" onclick={() => (expandUpdateClientIdentifiers = !expandUpdateClientIdentifiers)} type="button">
 	<TextCursorInput class="mr-1 size-4" />
-		{m.update()} {m.client_id()} / {m.client_secret()}
+		{m.update()} {m.client_id()}
 	</Button>
 
 	{#if expandUpdateClientIdentifiers}
