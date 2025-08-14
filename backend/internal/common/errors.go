@@ -350,12 +350,12 @@ func (e *OidcAuthorizationPendingError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
 
-type OidcReauthenticationRequiredError struct{}
+type ReauthenticationRequiredError struct{}
 
-func (e *OidcReauthenticationRequiredError) Error() string {
+func (e *ReauthenticationRequiredError) Error() string {
 	return "reauthentication required"
 }
-func (e *OidcReauthenticationRequiredError) HttpStatusCode() int {
+func (e *ReauthenticationRequiredError) HttpStatusCode() int {
 	return http.StatusUnauthorized
 }
 

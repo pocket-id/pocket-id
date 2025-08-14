@@ -181,7 +181,13 @@ func (wc *WebauthnController) reauthenticateHandler(c *gin.Context) {
 		return
 	}
 
-	token, err := wc.webAuthnService.CreateReauthenticationToken(c.Request.Context(), c.GetString("userID"), sessionID)
+	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	token, err := wc.webAuthnService.VerifyReauthentication(c.Request.Context(), c.GetString("userID"), sessionID, credentialAssertionData)
 	if err != nil {
 		_ = c.Error(err)
 		return

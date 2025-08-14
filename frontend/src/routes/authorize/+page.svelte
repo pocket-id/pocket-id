@@ -11,7 +11,7 @@
 	import userStore from '$lib/stores/user-store';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
-	import { startAuthentication } from '@simplewebauthn/browser';
+	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -38,10 +38,12 @@
 
 	async function authorize() {
 		isLoading = true;
+		let authResponse : AuthenticationResponseJSON | undefined;
+		
 		try {
 			if (!$userStore?.id || client?.requiresReauthentication) {
 				const loginOptions = await webauthnService.getLoginOptions();
-				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
+				authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
 				userStore.setUser(user);
 			}
@@ -55,8 +57,8 @@
 				}
 			}
 
-			const reauthToken = client?.requiresReauthentication 
-				? await oidService.reauthenticate()
+			const reauthToken = client?.requiresReauthentication && authResponse
+				? await webauthnService.reauthenticate(authResponse)
 				: undefined;
 
 			const response = await oidService.authorize(

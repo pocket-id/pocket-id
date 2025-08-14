@@ -128,7 +128,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	if client.RequiresReauthentication {
 		if input.ReauthenticationToken == "" {
-			return "", "", &common.OidcReauthenticationRequiredError{}
+			return "", "", &common.ReauthenticationRequiredError{}
 		}
 		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
 		if err != nil {

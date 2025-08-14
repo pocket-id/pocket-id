@@ -335,7 +335,7 @@ func (s *WebAuthnService) updateWebAuthnConfig() {
 	s.webAuthn.Config.RPDisplayName = s.appConfigService.GetDbConfig().AppName.Value
 }
 
-func (s *WebAuthnService) CreateReauthenticationToken(ctx context.Context, userID, sessionID string) (string, error) {
+func (s *WebAuthnService) VerifyReauthentication(ctx context.Context, userID, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData) (string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -348,21 +348,34 @@ func (s *WebAuthnService) CreateReauthenticationToken(ctx context.Context, userI
 		First(&storedSession).
 		Error
 	if err != nil {
-		return "", &common.OidcReauthenticationRequiredError{}
+		return "", &common.ReauthenticationRequiredError{}
 	}
+	session := webauthn.SessionData{
+		Challenge: storedSession.Challenge,
+		Expires:   storedSession.ExpiresAt.ToTime(),
+	}
+	var user *model.User
+	_, err = s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (webauthn.User, error) {
+		innerErr := tx.
+			WithContext(ctx).
+			Preload("Credentials").
+			First(&user, "id = ?", string(userHandle)).
+			Error
+		if innerErr != nil {
+			return nil, innerErr
+		}
+		return user, nil
+	}, session, credentialAssertionData)
 
-	token, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
 		return "", err
 	}
 
-	reauthToken := model.ReauthenticationToken{
-		Token:     token,
-		ExpiresAt: datatype.DateTime(time.Now().Add(3 * time.Minute)),
-		UserID:    userID,
+	if user.Disabled {
+		return "", &common.UserDisabledError{}
 	}
 
-	err = tx.WithContext(ctx).Create(&reauthToken).Error
+	token, err := s.createReauthenticationToken(ctx, tx, userID)
 	if err != nil {
 		return "", err
 	}
@@ -385,7 +398,27 @@ func (s *WebAuthnService) ConsumeReauthenticationToken(ctx context.Context, tx *
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return &common.OidcReauthenticationRequiredError{}
+		return &common.ReauthenticationRequiredError{}
 	}
 	return nil
+}
+
+func (s *WebAuthnService) createReauthenticationToken(ctx context.Context, tx *gorm.DB, userID string) (string, error) {
+	token, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return "", err
+	}
+
+	reauthToken := model.ReauthenticationToken{
+		Token:     token,
+		ExpiresAt: datatype.DateTime(time.Now().Add(3 * time.Minute)),
+		UserID:    userID,
+	}
+
+	err = tx.WithContext(ctx).Create(&reauthToken).Error
+	if err != nil {
+		return "", err
+	}
+
+	return reauthToken.Token, nil
 }
