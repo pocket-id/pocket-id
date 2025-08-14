@@ -662,7 +662,7 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
-// @Router /api/oidc/users/me/clients [get]
+// @Router /api/oidc/users/me/authorized-clients [get]
 func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 	oc.listAuthorizedClients(c, userID)
@@ -678,7 +678,7 @@ func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) {
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
-// @Router /api/oidc/users/{id}/clients [get]
+// @Router /api/oidc/users/{id}/authorized-clients [get]
 func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) {
 	userID := c.Param("id")
 	oc.listAuthorizedClients(c, userID)
@@ -715,7 +715,7 @@ func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) {
 // @Tags OIDC
 // @Param clientId path string true "Client ID to revoke authorization for"
 // @Success 204 "No Content"
-// @Router /api/oidc/users/me/clients/{clientId} [delete]
+// @Router /api/oidc/users/me/authorized-clients/{clientId} [delete]
 func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) {
 	clientID := c.Param("clientId")
 
