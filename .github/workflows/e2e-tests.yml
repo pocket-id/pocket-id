@@ -31,16 +31,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "npm"
-          cache-dependency-path: backend/resources/email-templates/build/package-lock.json
-      
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
       - name: Install email template dependencies
-        working-directory: backend/resources/email-templates/build
-        run: npm ci
-      
+        run: pnpm --filter pocketid-email-templates install
       - name: Build email templates
-        working-directory: backend/resources/email-templates/build
-        run: npm run build
+        run: pnpm --filter pocketid-email-templates build
 
       - name: Build and export
         uses: docker/build-push-action@v6
