@@ -3,7 +3,7 @@
 	import OidcService from '$lib/services/oidc-service';
 	import { Input } from '$lib/components/ui/input';
 	import { m } from '$lib/paraglide/messages';
-	import type { OidcClient, OidcClientSecretInput, OidcClientMetaData } from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientMetaData } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { toast } from 'svelte-sonner';
 	import type { HTMLAttributes } from 'svelte/elements';
@@ -19,7 +19,6 @@
 	} = $props();
 
 	let newClientIdInput = $state<OidcClientMetaData['id']>('');
-	let newClientSecretInput = $state<OidcClientSecretInput>('');
 	let expandUpdateClientIdentifiers = $state(false);
 
 	async function handleUpdateClientId() {
@@ -33,18 +32,7 @@
 			axiosErrorToast(e);
 		}
 	}
-
-	async function handleUpdateClientSecret() {
-		if (!client) return;
-		try {
-			const oidcService = new OidcService();
-			await oidcService.updateClientSecret(client.id, newClientSecretInput);	
-			toast.success('Client Secret updated successfully');		
-		} catch (e) {
-			axiosErrorToast(e);
-		}
-	}
-
+	
 </script>
 
 <div {...restProps}>
@@ -63,15 +51,6 @@
 					class="flex-grow"
 				/>
 				<Button class="mt-0 whitespace-nowrap" variant="secondary" onclick={handleUpdateClientId}>{m.update()} {m.client_id()}</Button>
-			</div>
-			<div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-				<Input
-					id="newClientSecretInput"
-					bind:value={newClientSecretInput}
-					placeholder={"••••••••••••••••••••••••••••••••"}
-					class="flex-grow"
-				/>
-				<Button class="mt-0 whitespace-nowrap" variant="secondary" onclick={handleUpdateClientSecret}>{m.update()} {m.client_secret()}</Button>
 			</div>
 		</div>
 	{/if}
