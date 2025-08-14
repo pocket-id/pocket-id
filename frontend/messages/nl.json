@@ -419,5 +419,15 @@
 	"signup_open_description": "Iedereen kan zonder beperkingen een nieuw account aanmaken.",
 	"of": "van",
 	"skip_passkey_setup": "Pas de instellingen voor de toegangssleutel over",
-	"skip_passkey_setup_description": "Het is echt een aanrader om een wachtwoord in te stellen, want zonder dat word je uit je account gegooid zodra de sessie afloopt."
+	"skip_passkey_setup_description": "Het is echt een aanrader om een wachtwoord in te stellen, want zonder dat word je uit je account gegooid zodra de sessie afloopt.",
+	"my_apps": "Mijn apps",
+	"no_apps_available": "Geen apps beschikbaar",
+	"contact_your_administrator_for_app_access": "Neem contact op met je beheerder om toegang te krijgen tot applicaties.",
+	"launch": "Lancering",
+	"client_launch_url": "URL voor lancering door klant",
+	"client_launch_url_description": "De URL die wordt geopend als iemand de app start vanaf de pagina Mijn apps.",
+	"client_name_description": "De naam van de klant die je in de Pocket ID-UI ziet.",
+	"revoke_access": "Toegang intrekken",
+	"revoke_access_description": "Toegang intrekken tot <b>{clientName}</b>. <b>{clientName}</b> kan je accountgegevens niet meer bekijken.",
+	"revoke_access_successful": "De toegang tot {clientName} is nu echt geblokkeerd."
 }
