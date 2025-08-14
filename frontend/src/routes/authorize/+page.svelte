@@ -62,17 +62,19 @@
 					? await webauthnService.reauthenticate(authResponse)
 					: undefined;
 
-			const response = await oidService.authorize(
-				client!.id,
-				scope,
-				callbackURL,
-				nonce,
-				codeChallenge,
-				codeChallengeMethod,
-				reauthToken
-			);
-
-			onSuccess(response.code, response.callbackURL, response.issuer);
+			await oidService
+				.authorize(
+					client!.id,
+					scope,
+					callbackURL,
+					nonce,
+					codeChallenge,
+					codeChallengeMethod,
+					reauthToken
+				)
+				.then(async ({ code, callbackURL, issuer }) => {
+					onSuccess(code, callbackURL, issuer);
+				});
 		} catch (e) {
 			errorMessage = getWebauthnErrorMessage(e);
 			isLoading = false;
