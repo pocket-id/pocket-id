@@ -25,7 +25,7 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 		s.registerJob(ctx, "ClearSignupTokens", def, jobs.clearSignupTokens, true),
 		s.registerJob(ctx, "ClearOidcAuthorizationCodes", def, jobs.clearOidcAuthorizationCodes, true),
 		s.registerJob(ctx, "ClearOidcRefreshTokens", def, jobs.clearOidcRefreshTokens, true),
-		s.registerJob(ctx, "ClearOidcReauthenticationTokens", def, jobs.clearReauthenticationTokens, true),
+		s.registerJob(ctx, "ClearReauthenticationTokens", def, jobs.clearReauthenticationTokens, true),
 		s.registerJob(ctx, "ClearAuditLogs", def, jobs.clearAuditLogs, true),
 	)
 }
