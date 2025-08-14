@@ -127,7 +127,6 @@ func (oc *OidcController) updateClientIDHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, clientDto)
 }
 
-
 // authorizeHandler godoc
 // @Summary Authorize OIDC client
 // @Description Start the OIDC authorization process for a client
