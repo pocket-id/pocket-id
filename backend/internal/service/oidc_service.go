@@ -840,7 +840,7 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string) (
 	return clientSecret, nil
 }
 
-func (s *OidcService) ReplaceClientSecret(ctx context.Context, clientID string, newClientSecret string) (error) {
+func (s *OidcService) ReplaceClientSecret(ctx context.Context, clientID string, newClientSecret string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
