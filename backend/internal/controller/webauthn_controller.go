@@ -25,6 +25,8 @@ func NewWebauthnController(group *gin.RouterGroup, authMiddleware *middleware.Au
 
 	group.POST("/webauthn/logout", authMiddleware.WithAdminNotRequired().Add(), wc.logoutHandler)
 
+	group.POST("/webauthn/reauthenticate", authMiddleware.WithAdminNotRequired().Add(), wc.reauthenticateHandler)
+
 	group.GET("/webauthn/credentials", authMiddleware.WithAdminNotRequired().Add(), wc.listCredentialsHandler)
 	group.PATCH("/webauthn/credentials/:id", authMiddleware.WithAdminNotRequired().Add(), wc.updateCredentialHandler)
 	group.DELETE("/webauthn/credentials/:id", authMiddleware.WithAdminNotRequired().Add(), wc.deleteCredentialHandler)
@@ -170,4 +172,20 @@ func (wc *WebauthnController) updateCredentialHandler(c *gin.Context) {
 func (wc *WebauthnController) logoutHandler(c *gin.Context) {
 	cookie.AddAccessTokenCookie(c, 0, "")
 	c.Status(http.StatusNoContent)
+}
+
+func (wc *WebauthnController) reauthenticateHandler(c *gin.Context) {
+	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
+	if err != nil {
+		_ = c.Error(&common.MissingSessionIdError{})
+		return
+	}
+
+	token, err := wc.webAuthnService.CreateReauthenticationToken(c.Request.Context(), c.GetString("userID"), sessionID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"reauthenticationToken": token})
 }

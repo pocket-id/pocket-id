@@ -27,7 +27,6 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.POST("/oidc/authorize", authMiddleware.WithAdminNotRequired().Add(), oc.authorizeHandler)
 	group.POST("/oidc/authorization-required", authMiddleware.WithAdminNotRequired().Add(), oc.authorizationConfirmationRequiredHandler)
-	group.POST("/oidc/reauthenticate", authMiddleware.WithAdminNotRequired().Add(), oc.reauthenticateHandler)
 
 	group.POST("/oidc/token", oc.createTokensHandler)
 	group.GET("/oidc/userinfo", oc.userInfoHandler)
@@ -122,33 +121,6 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 	}
 
 	c.JSON(http.StatusOK, gin.H{"authorizationRequired": !hasAuthorizedClient})
-}
-
-// reauthenticateHandler godoc
-// @Summary Create reauthentication token
-// @Description Generate a short-lived reauthentication token for clients that require fresh authentication before authorization
-// @Tags OIDC
-// @Accept json
-// @Produce json
-// @Param request body object{clientID=string} true "Client ID requiring reauthentication"
-// @Success 200 {object} object "{ \"reauthenticationToken\": \"string\" }"
-// @Router /api/oidc/reauthenticate [post]
-func (oc *OidcController) reauthenticateHandler(c *gin.Context) {
-	var input struct {
-		ClientID string `json:"clientID" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	token, err := oc.oidcService.CreateReauthenticationToken(c.Request.Context(), c.GetString("userID"), input.ClientID)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"reauthenticationToken": token})
 }
 
 // createTokensHandler godoc

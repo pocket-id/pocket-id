@@ -50,6 +50,7 @@ type OidcService struct {
 	appConfigService   *AppConfigService
 	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
+	webAuthnService    *WebAuthnService
 
 	httpClient *http.Client
 	jwkCache   *jwk.Cache
@@ -62,6 +63,7 @@ func NewOidcService(
 	appConfigService *AppConfigService,
 	auditLogService *AuditLogService,
 	customClaimService *CustomClaimService,
+	webAuthnService *WebAuthnService,
 ) (s *OidcService, err error) {
 	s = &OidcService{
 		db:                 db,
@@ -69,6 +71,7 @@ func NewOidcService(
 		appConfigService:   appConfigService,
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
+		webAuthnService:    webAuthnService,
 	}
 
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
@@ -127,7 +130,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		if input.ReauthenticationToken == "" {
 			return "", "", &common.OidcReauthenticationRequiredError{}
 		}
-		err = s.ValidateReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID, input.ClientID)
+		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
 		if err != nil {
 			return "", "", err
 		}
@@ -1767,43 +1770,4 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 	}
 
 	return s.IsUserGroupAllowedToAuthorize(user, client), nil
-}
-
-func (s *OidcService) CreateReauthenticationToken(ctx context.Context, userID string, clientID string) (string, error) {
-	token, err := utils.GenerateRandomAlphanumericString(32)
-	if err != nil {
-		return "", err
-	}
-
-	reauthToken := model.OidcReauthenticationToken{
-		Token:     token,
-		ExpiresAt: datatype.DateTime(time.Now().Add(3 * time.Minute)),
-		Used:      false,
-		UserID:    userID,
-		ClientID:  clientID,
-	}
-
-	err = s.db.WithContext(ctx).Create(&reauthToken).Error
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
-}
-
-func (s *OidcService) ValidateReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string, clientID string) error {
-	result := tx.WithContext(ctx).
-		Model(&model.OidcReauthenticationToken{}).
-		Where("token = ? AND user_id = ? AND client_id = ? AND used = ? AND expires_at > ?", token, userID, clientID, false, datatype.DateTime(time.Now())).
-		Update("used", true)
-
-	if result.Error != nil {
-		return result.Error
-	}
-
-	if result.RowsAffected == 0 {
-		return &common.OidcReauthenticationRequiredError{}
-	}
-
-	return nil
 }

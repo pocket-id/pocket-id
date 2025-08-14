@@ -109,7 +109,7 @@ func (j *DbCleanupJobs) clearOidcRefreshTokens(ctx context.Context) error {
 func (j *DbCleanupJobs) clearOidcReauthenticationTokens(ctx context.Context) error {
 	st := j.db.
 		WithContext(ctx).
-		Delete(&model.OidcReauthenticationToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
+		Delete(&model.ReauthenticationToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
 	if st.Error != nil {
 		return fmt.Errorf("failed to clean expired OIDC reauthentication tokens: %w", st.Error)
 	}

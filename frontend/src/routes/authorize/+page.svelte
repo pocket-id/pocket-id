@@ -55,8 +55,8 @@
 				}
 			}
 
-			const reauthToken = client?.requiresReauthentication
-				? await oidService.reauthenticate(client.id)
+			const reauthToken = client?.requiresReauthentication 
+				? await oidService.reauthenticate()
 				: undefined;
 
 			const response = await oidService.authorize(

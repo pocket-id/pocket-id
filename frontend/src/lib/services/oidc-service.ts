@@ -35,10 +35,8 @@ class OidcService extends APIService {
 		return res.data as AuthorizeResponse;
 	}
 
-	async reauthenticate(clientId: string) {
-		const res = await this.api.post('/oidc/reauthenticate', {
-			clientID: clientId
-		});
+	async reauthenticate() {
+		const res = await this.api.post('/webauthn/reauthenticate');
 		return res.data.reauthenticationToken as string;
 	}
 

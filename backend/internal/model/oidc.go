@@ -147,15 +147,3 @@ type OidcDeviceCode struct {
 	ClientID string
 	Client   OidcClient
 }
-
-type OidcReauthenticationToken struct {
-	Base
-	Token     string
-	ExpiresAt datatype.DateTime
-	Used      bool
-
-	UserID   string
-	User     User
-	ClientID string
-	Client   OidcClient
-}

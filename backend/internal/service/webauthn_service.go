@@ -334,3 +334,58 @@ func (s *WebAuthnService) UpdateCredential(ctx context.Context, userID, credenti
 func (s *WebAuthnService) updateWebAuthnConfig() {
 	s.webAuthn.Config.RPDisplayName = s.appConfigService.GetDbConfig().AppName.Value
 }
+
+func (s *WebAuthnService) CreateReauthenticationToken(ctx context.Context, userID, sessionID string) (string, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var storedSession model.WebauthnSession
+	err := tx.
+		WithContext(ctx).
+		Where("id = ? AND expires_at > ?", sessionID, datatype.DateTime(time.Now())).
+		First(&storedSession).
+		Error
+	if err != nil {
+		return "", &common.OidcReauthenticationRequiredError{}
+	}
+
+	token, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return "", err
+	}
+
+	reauthToken := model.ReauthenticationToken{
+		Token:     token,
+		ExpiresAt: datatype.DateTime(time.Now().Add(3 * time.Minute)),
+		UserID:    userID,
+	}
+
+	err = tx.WithContext(ctx).Create(&reauthToken).Error
+	if err != nil {
+		return "", err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (s *WebAuthnService) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string,
+	userID string) error {
+	result := tx.WithContext(ctx).
+		Where("token = ? AND user_id = ? AND expires_at > ?", token, userID, datatype.DateTime(time.Now())).
+		Delete(&model.ReauthenticationToken{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return &common.OidcReauthenticationRequiredError{}
+	}
+	return nil
+}

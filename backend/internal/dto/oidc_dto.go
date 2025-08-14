@@ -12,12 +12,11 @@ type OidcClientMetaDataDto struct {
 
 type OidcClientDto struct {
 	OidcClientMetaDataDto
-	CallbackURLs             []string                 `json:"callbackURLs"`
-	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs"`
-	IsPublic                 bool                     `json:"isPublic"`
-	PkceEnabled              bool                     `json:"pkceEnabled"`
-	RequiresReauthentication bool                     `json:"requiresReauthentication"`
-	Credentials              OidcClientCredentialsDto `json:"credentials"`
+	CallbackURLs       []string                 `json:"callbackURLs"`
+	LogoutCallbackURLs []string                 `json:"logoutCallbackURLs"`
+	IsPublic           bool                     `json:"isPublic"`
+	PkceEnabled        bool                     `json:"pkceEnabled"`
+	Credentials        OidcClientCredentialsDto `json:"credentials"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
