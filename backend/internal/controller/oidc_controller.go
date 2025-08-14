@@ -55,10 +55,12 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/device/verify", authMiddleware.WithAdminNotRequired().Add(), oc.verifyDeviceCodeHandler)
 	group.GET("/oidc/device/info", authMiddleware.WithAdminNotRequired().Add(), oc.getDeviceCodeInfoHandler)
 
-	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
-	group.GET("/oidc/users/:id/clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
+	group.GET("/oidc/users/me/authorized-clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
+	group.GET("/oidc/users/:id/authorized-clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
 
-	group.DELETE("/oidc/users/me/clients/:clientId", authMiddleware.WithAdminNotRequired().Add(), oc.revokeOwnClientAuthorizationHandler)
+	group.DELETE("/oidc/users/me/authorized-clients/:clientId", authMiddleware.WithAdminNotRequired().Add(), oc.revokeOwnClientAuthorizationHandler)
+
+	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAccessibleClientsHandler)
 
 }
 
@@ -726,6 +728,37 @@ func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// listOwnAccessibleClientsHandler godoc
+// @Summary List accessible OIDC clients for current user
+// @Description Get a list of OIDC clients that the current user can access
+// @Tags OIDC
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
+// @Router /api/oidc/users/me/clients [get]
+func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	var sortedPaginationRequest utils.SortedPaginationRequest
+	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	clients, pagination, err := oc.oidcService.ListAccessibleOidcClients(c.Request.Context(), userID, sortedPaginationRequest)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Paginated[dto.AccessibleOidcClientDto]{
+		Data:       clients,
+		Pagination: pagination,
+	})
 }
 
 func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {

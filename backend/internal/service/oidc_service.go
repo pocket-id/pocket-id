@@ -641,8 +641,7 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 	}
 
 	// As allowedUserGroupsCount is not a column, we need to manually sort it
-	isValidSortDirection := sortedPaginationRequest.Sort.Direction == "asc" || sortedPaginationRequest.Sort.Direction == "desc"
-	if sortedPaginationRequest.Sort.Column == "allowedUserGroupsCount" && isValidSortDirection {
+	if sortedPaginationRequest.Sort.Column == "allowedUserGroupsCount" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
@@ -1334,6 +1333,76 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 	}
 
 	return nil
+}
+
+func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
+	var user model.User
+	err := s.db.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	userGroupIDs := make([]string, len(user.UserGroups))
+	for i, group := range user.UserGroups {
+		userGroupIDs[i] = group.ID
+	}
+
+	// Build the query for accessible clients
+	query := s.db.
+		WithContext(ctx).
+		Model(&model.OidcClient{}).
+		Preload("UserAuthorizedOidcClients", "user_id = ?", userID).
+		Distinct()
+
+	// If user has no groups, only return clients with no allowed user groups
+	if len(userGroupIDs) == 0 {
+		query = query.
+			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
+			Where("oidc_clients_allowed_user_groups.oidc_client_id IS NULL")
+	} else {
+		// Return clients with no allowed user groups OR clients where user is in allowed groups
+		query = query.
+			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
+			Where("oidc_clients_allowed_user_groups.oidc_client_id IS NULL OR oidc_clients_allowed_user_groups.user_group_id IN (?)", userGroupIDs)
+	}
+
+	var clients []model.OidcClient
+
+	// Handle custom sorting for lastUsedAt column
+	var response utils.PaginationResponse
+	if sortedPaginationRequest.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
+		query = query.
+			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
+			Order("user_authorized_oidc_clients.last_used_at " + sortedPaginationRequest.Sort.Direction)
+	}
+
+	response, err = utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	dtos := make([]dto.AccessibleOidcClientDto, len(clients))
+	for i, client := range clients {
+		var lastUsedAt *datatype.DateTime
+		if len(client.UserAuthorizedOidcClients) > 0 {
+			lastUsedAt = &client.UserAuthorizedOidcClients[0].LastUsedAt
+		}
+		dtos[i] = dto.AccessibleOidcClientDto{
+			OidcClientMetaDataDto: dto.OidcClientMetaDataDto{
+				ID:        client.ID,
+				Name:      client.Name,
+				LaunchURL: client.LaunchURL,
+				HasLogo:   client.HasLogo,
+			},
+			LastUsedAt: lastUsedAt,
+		}
+	}
+
+	return dtos, response, err
 }
 
 func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
