@@ -38,8 +38,8 @@
 
 	async function authorize() {
 		isLoading = true;
-		let authResponse : AuthenticationResponseJSON | undefined;
-		
+		let authResponse: AuthenticationResponseJSON | undefined;
+
 		try {
 			if (!$userStore?.id || client?.requiresReauthentication) {
 				const loginOptions = await webauthnService.getLoginOptions();
@@ -57,9 +57,10 @@
 				}
 			}
 
-			const reauthToken = client?.requiresReauthentication && authResponse
-				? await webauthnService.reauthenticate(authResponse)
-				: undefined;
+			const reauthToken =
+				client?.requiresReauthentication && authResponse
+					? await webauthnService.reauthenticate(authResponse)
+					: undefined;
 
 			const response = await oidService.authorize(
 				client!.id,

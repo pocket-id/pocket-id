@@ -35,7 +35,6 @@ class OidcService extends APIService {
 		return res.data as AuthorizeResponse;
 	}
 
-
 	async isAuthorizationRequired(clientId: string, scope: string) {
 		const res = await this.api.post('/oidc/authorization-required', {
 			scope,
