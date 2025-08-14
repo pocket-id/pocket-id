@@ -58,54 +58,54 @@ type OidcService struct {
 func (s *OidcService) UpdateClientID(ctx context.Context, currentID string, newID string) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() {
-        tx.Rollback()
-    }()
+		tx.Rollback()
+	}()
 
-    // Check that the new client ID is not already taken
-    var existing model.OidcClient
-    err := tx.WithContext(ctx).First(&existing, "id = ?", newID).Error
-    if err == nil {
-        return model.OidcClient{}, &common.ClientIdNotUniqueError{}
-    } else if !errors.Is(err, gorm.ErrRecordNotFound) {
-        return model.OidcClient{}, err
-    }
-    
+	// Check that the new client ID is not already taken
+	var existing model.OidcClient
+	err := tx.WithContext(ctx).First(&existing, "id = ?", newID).Error
+	if err == nil {
+		return model.OidcClient{}, &common.ClientIdNotUniqueError{}
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.OidcClient{}, err
+	}
+
 	err = tx.WithContext(ctx).
-        Model(&model.OidcClient{}).
-        Where("id = ?", currentID).
-        Update("id", newID).Error
-    if err != nil {
-        return model.OidcClient{}, err
-    }
+		Model(&model.OidcClient{}).
+		Where("id = ?", currentID).
+		Update("id", newID).Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
 	
 	err = tx.WithContext(ctx).
-        Model(&model.OidcClientsAllowedUserGroup{}).
-        Where("oidc_client_id = ?", currentID).
-        Update("oidc_client_id", newID).Error
-    if err != nil {
-        return model.OidcClient{}, err
-    }
+		Model(&model.OidcClientsAllowedUserGroup{}).
+		Where("oidc_client_id = ?", currentID).
+		Update("oidc_client_id", newID).Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
 
 	err = tx.WithContext(ctx).
-        Model(&model.UserAuthorizedOidcClient{}).
-        Where("client_id = ?", currentID).
-        Update("client_id", newID).Error
-    if err != nil {
-        return model.OidcClient{}, err
-    }
+		Model(&model.UserAuthorizedOidcClient{}).
+		Where("client_id = ?", currentID).
+		Update("client_id", newID).Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
 	
-    var client model.OidcClient
-    err = tx.WithContext(ctx).First(&client, "id = ?", newID).Error
-    if err != nil {
-        return model.OidcClient{}, err
-    }
+	var client model.OidcClient
+	err = tx.WithContext(ctx).First(&client, "id = ?", newID).Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
 
-    err = tx.Commit().Error
-    if err != nil {
-        return model.OidcClient{}, err
-    }
+	err = tx.Commit().Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
 
-    return client, nil
+	return client, nil
 }
 
 func NewOidcService(
@@ -863,12 +863,12 @@ func (s *OidcService) ReplaceClientSecret(ctx context.Context, clientID string, 
 	newHash := string(hashedSecret)
 	
 	err = tx.WithContext(ctx).
-        Model(&model.OidcClient{}).
-        Where("id = ?", clientID).
-        Update("secret", newHash).Error
-    if err != nil {
-        return err
-    }
+		Model(&model.OidcClient{}).
+		Where("id = ?", clientID).
+		Update("secret", newHash).Error
+	if err != nil {
+		return err
+	}
 
 	err = tx.Commit().Error
 	if err != nil {
