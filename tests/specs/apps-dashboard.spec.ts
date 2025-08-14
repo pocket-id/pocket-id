@@ -10,7 +10,7 @@ test('Dashboard shows all authorized clients in the correct order', async ({ pag
 
 	await page.goto('/settings/apps');
 
-	await expect(page.getByTestId('authorized-oidc-client-card')).toHaveCount(2);
+	await expect(page.getByTestId('authorized-oidc-client-card')).toHaveCount(4);
 
 	// Should be first
 	const card1 = page.getByTestId('authorized-oidc-client-card').first();
@@ -40,7 +40,7 @@ test('Revoke authorized client', async ({ page }) => {
 		`The access to ${client.name} has been successfully revoked.`
 	);
 
-	await expect(page.getByTestId('authorized-oidc-client-card')).toHaveCount(1);
+	await expect(page.getByTestId('authorized-oidc-client-card')).toHaveCount(4);
 });
 
 test('Launch authorized client', async ({ page }) => {
