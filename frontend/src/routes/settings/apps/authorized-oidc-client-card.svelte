@@ -66,17 +66,17 @@
 							<span class="sr-only">{m.toggle_menu()}</span>
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="end">
-							<DropdownMenu.Item
-								onclick={() => goto(`/settings/admin/oidc-clients/${authorizedClient.client.id}`)}
-								><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
-							>
 							{#if $userStore?.isAdmin}
 								<DropdownMenu.Item
-									class="text-red-500 focus:!text-red-700"
-									onclick={() => onRevoke(authorizedClient.client)}
-									><LucideBan class="mr-2 size-4" />{m.revoke()}</DropdownMenu.Item
+									onclick={() => goto(`/settings/admin/oidc-clients/${authorizedClient.client.id}`)}
+									><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
 								>
 							{/if}
+							<DropdownMenu.Item
+								class="text-red-500 focus:!text-red-700"
+								onclick={() => onRevoke(authorizedClient.client)}
+								><LucideBan class="mr-2 size-4" />{m.revoke()}</DropdownMenu.Item
+							>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
 				</div>

@@ -419,5 +419,15 @@
 	"signup_open_description": "Chiunque può creare un nuovo account senza restrizioni.",
 	"of": "di",
 	"skip_passkey_setup": "Salta Impostazione Passkey",
-	"skip_passkey_setup_description": "Si consiglia vivamente di impostare una passkey perché senza di essa, sarai tagliato fuori dal tuo account non appena scadrà la sessione."
+	"skip_passkey_setup_description": "Si consiglia vivamente di impostare una passkey perché senza di essa, sarai tagliato fuori dal tuo account non appena scadrà la sessione.",
+	"my_apps": "Le mie app",
+	"no_apps_available": "Non ci sono app disponibili",
+	"contact_your_administrator_for_app_access": "Contatta il tuo amministratore per accedere alle app.",
+	"launch": "Lancio",
+	"client_launch_url": "URL di avvio del cliente",
+	"client_launch_url_description": "L'URL che si aprirà quando qualcuno avvia l'app dalla pagina Le mie app.",
+	"client_name_description": "Il nome del cliente che appare nell'interfaccia utente Pocket ID.",
+	"revoke_access": "Revoca accesso",
+	"revoke_access_description": "Revoca l'accesso a <b>{clientName}</b>. <b>{clientName}</b> non potrà più accedere alle informazioni del tuo account.",
+	"revoke_access_successful": "L'accesso a {clientName} è stato revocato con successo."
 }

@@ -21,17 +21,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: "backend/go.mod"
+          go-version-file: 'backend/go.mod'
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -54,12 +59,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build frontend
         working-directory: frontend
-        run: npm run build
+        run: pnpm run build
 
       - name: Install email template dependencies
         working-directory: backend/resources/email-templates/build
@@ -92,12 +96,12 @@ jobs:
       - name: Container image attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
           subject-digest: ${{ steps.build-push-image.outputs.digest }}
           push-to-registry: true
       - name: Container image attestation (distroless)
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
           subject-digest: ${{ steps.container-build-push-distroless.outputs.digest }}
           push-to-registry: true

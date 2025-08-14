@@ -419,5 +419,15 @@
 	"signup_open_description": "Jeder kann ohne Einschränkungen ein neues Konto erstellen.",
 	"of": "von",
 	"skip_passkey_setup": "Passwort-Einrichtung überspringen",
-	"skip_passkey_setup_description": "Es wird dringend empfohlen, einen Passkey einzurichten, da du sonst nach Ablauf der Sitzung aus deinem Konto ausgesperrt wirst."
+	"skip_passkey_setup_description": "Es wird dringend empfohlen, einen Passkey einzurichten, da du sonst nach Ablauf der Sitzung aus deinem Konto ausgesperrt wirst.",
+	"my_apps": "Meine Apps",
+	"no_apps_available": "Keine Apps verfügbar",
+	"contact_your_administrator_for_app_access": "Frag deinen Administrator, wie du Zugriff auf die Anwendungen bekommst.",
+	"launch": "Start",
+	"client_launch_url": "Client-Start-URL",
+	"client_launch_url_description": "Die URL, die geöffnet wird, wenn jemand die App von der Seite „Meine Apps“ startet.",
+	"client_name_description": "Der Name des Clients, der in der Pocket ID-Benutzeroberfläche angezeigt wird.",
+	"revoke_access": "Zugriff widerrufen",
+	"revoke_access_description": "Zugriff widerrufen <b>{clientName}</b>. <b>{clientName}</b> kann nicht mehr auf deine Kontoinfos zugreifen.",
+	"revoke_access_successful": "Der Zugriff auf „ {clientName} “ wurde erfolgreich gesperrt."
 }

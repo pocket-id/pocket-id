@@ -1,11 +1,13 @@
 {
+	"name": "pocket-id-tests",
 	"type": "module",
 	"scripts": {
+		"preinstall": "npx only-allow pnpm",
 		"test": "playwright test",
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
-		"@playwright/test": "^1.52.0",
+		"@playwright/test": "^1.54.1",
 		"@types/node": "^22.15.21",
 		"dotenv": "^16.5.0",
 		"jose": "^6.0.11",
