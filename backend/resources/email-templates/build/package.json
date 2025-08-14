@@ -2,6 +2,7 @@
   "name": "pocketid-email-templates",
   "version": "1.0.0",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "build": "tsx build.ts",
     "build:watch": "tsx watch build.ts",
     "dev": "email dev",
