@@ -71,16 +71,21 @@
 				? item.allowedUserGroupsCount
 				: m.unrestricted()}</Table.Cell
 		>
-		<Table.Cell class="flex justify-end gap-1">
-			<Button
-				href="/settings/admin/oidc-clients/{item.id}"
-				size="sm"
-				variant="outline"
-				aria-label={m.edit()}><LucidePencil class="size-3 " /></Button
-			>
-			<Button onclick={() => deleteClient(item)} size="sm" variant="outline" aria-label={m.delete()}
-				><LucideTrash class="size-3 text-red-500" /></Button
-			>
+		<Table.Cell class="align-middle">
+			<div class="flex justify-end gap-1">
+				<Button
+					href="/settings/admin/oidc-clients/{item.id}"
+					size="sm"
+					variant="outline"
+					aria-label={m.edit()}><LucidePencil class="size-3 " /></Button
+				>
+				<Button
+					onclick={() => deleteClient(item)}
+					size="sm"
+					variant="outline"
+					aria-label={m.delete()}><LucideTrash class="size-3 text-red-500" /></Button
+				>
+			</div>
 		</Table.Cell>
 	{/snippet}
 </AdvancedTable>

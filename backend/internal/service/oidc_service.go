@@ -675,9 +675,7 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		return model.OidcClient{}, err
 	}
 
-	// Remote/selfhosted icon (after create)
-	appConfig := s.appConfigService.GetDbConfig()
-	if appConfig.SelfhostedIconsEnabled.Value == "true" && input.LogoURL != nil && *input.LogoURL != "" {
+	if input.LogoURL != nil && *input.LogoURL != "" {
 		if err := s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL); err == nil {
 			// Refresh full client (includes ImageType)
 			_ = s.db.WithContext(ctx).
@@ -712,11 +710,8 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		return model.OidcClient{}, err
 	}
 
-	// IMPORTANT: download AFTER commit so we don't overwrite ImageType with stale value
-	appConfig := s.appConfigService.GetDbConfig()
-	if appConfig.SelfhostedIconsEnabled.Value == "true" && input.LogoURL != nil && *input.LogoURL != "" {
+	if input.LogoURL != nil && *input.LogoURL != "" {
 		if err := s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL); err == nil {
-			// Refresh
 			_ = s.db.WithContext(ctx).
 				Preload("CreatedBy").
 				Preload("AllowedUserGroups").

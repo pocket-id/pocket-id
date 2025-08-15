@@ -11,13 +11,12 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
-	import { LucideChevronDown } from '@lucide/svelte';
+	import { LucideChevronDown, LucideX } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import { optionalUrl } from '$lib/utils/zod-util';
-	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { resolveIconUrl } from '$lib/utils/oidc-icon-util';
 
 	let {
@@ -34,6 +33,7 @@
 	let logoDataURL: string | null = $state(
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
 	);
+	let isUsingSelfhostedIcon = $state(false);
 
 	const client = {
 		name: existingClient?.name || '',
@@ -75,19 +75,21 @@
 		isLoading = true;
 
 		let logoUrl: string | undefined = undefined;
-		if ($appConfigStore?.selfhostedIconsEnabled && $inputs.name.value) {
+		if (isUsingSelfhostedIcon && $inputs.name.value) {
 			const iconRef = `sh-${$inputs.name.value.toLowerCase().replace(/\s+/g, '-')}`;
 			logoUrl = resolveIconUrl(iconRef);
 		}
 
 		const success = await callback({
 			...data,
-			logo: $appConfigStore?.selfhostedIconsEnabled ? null : logo,
+			logo: isUsingSelfhostedIcon ? null : logo,
 			logoUrl
 		});
 
-		if (success && $appConfigStore?.selfhostedIconsEnabled && logoUrl) {
-			logoDataURL = logoUrl;
+		if (success && isUsingSelfhostedIcon && existingClient) {
+			// For existing clients, the backend will have downloaded and saved the icon
+			// So we can switch to the cached logo URL
+			logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
 		}
 
 		// Reset form if client was successfully created
@@ -99,6 +101,7 @@
 		const file = (e.target as HTMLInputElement).files?.[0] || null;
 		if (file) {
 			logo = file;
+			isUsingSelfhostedIcon = false;
 			const reader = new FileReader();
 			reader.onload = (event) => {
 				logoDataURL = event.target?.result as string;
@@ -107,9 +110,23 @@
 		}
 	}
 
+	function useSelfhostedIcon() {
+		if (!$inputs.name.value) return;
+
+		const iconRef = `sh-${$inputs.name.value.toLowerCase().replace(/\s+/g, '-')}`;
+		const iconUrl = resolveIconUrl(iconRef);
+
+		if (iconUrl) {
+			logoDataURL = iconUrl;
+			logo = null;
+			isUsingSelfhostedIcon = true;
+		}
+	}
+
 	function resetLogo() {
 		logo = null;
 		logoDataURL = null;
+		isUsingSelfhostedIcon = false;
 	}
 
 	function getFederatedIdentityErrors(errors: z.ZodError<any> | undefined) {
@@ -120,8 +137,6 @@
 				return e;
 			});
 	}
-
-	let fileUploadsDisabled = $derived($appConfigStore?.selfhostedIconsEnabled);
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>
@@ -167,41 +182,69 @@
 	</div>
 	<div class="mt-8">
 		<Label for="logo">{m.logo()}</Label>
-		<div class="mt-2 flex items-end gap-3">
+		<div class="mt-2 space-y-4">
 			{#if logoDataURL}
-				<div class="flex w-fit flex-col items-start gap-2">
-					<ImageBox
-						class="size-24 shrink-0"
-						src={logoDataURL}
-						alt={m.name_logo({ name: $inputs.name.value })}
-					/>
-					{#if fileUploadsDisabled}
-						<span class="text-muted-foreground block text-sm">
-							{m.client_logo_uploads_disabled()}
-						</span>
-					{/if}
+				<div class="flex items-start gap-4">
+					<div class="relative shrink-0">
+						<ImageBox
+							class="size-24"
+							src={logoDataURL}
+							alt={m.name_logo({ name: $inputs.name.value })}
+						/>
+						<Button
+							variant="destructive"
+							size="icon"
+							onclick={resetLogo}
+							class="absolute -right-2 -top-2 size-6 rounded-full shadow-md"
+						>
+							<LucideX class="size-3" />
+						</Button>
+					</div>
+
+					<div class="flex flex-col gap-3">
+						<FileInput
+							id="logo"
+							variant="secondary"
+							accept="image/png, image/jpeg, image/svg+xml"
+							onchange={onLogoChange}
+						>
+							<Button variant="secondary" class="min-w-32">
+								{m.change_logo()}
+							</Button>
+						</FileInput>
+
+						<Button
+							variant="secondary"
+							onclick={useSelfhostedIcon}
+							disabled={!$inputs.name.value}
+							class="min-w-32"
+						>
+							{m.use_selfhost_icons()}
+						</Button>
+					</div>
 				</div>
-			{/if}
-			{#if !fileUploadsDisabled}
-				<div class="flex flex-col gap-2">
+			{:else}
+				<div class="flex flex-wrap gap-3">
 					<FileInput
 						id="logo"
 						variant="secondary"
 						accept="image/png, image/jpeg, image/svg+xml"
 						onchange={onLogoChange}
 					>
-						<Button variant="secondary">
-							{logoDataURL ? m.change_logo() : m.upload_logo()}
+						<Button variant="secondary" class="min-w-32">
+							{m.upload_logo()}
 						</Button>
 					</FileInput>
-					{#if logoDataURL}
-						<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
-					{/if}
+
+					<Button
+						variant="secondary"
+						onclick={useSelfhostedIcon}
+						disabled={!$inputs.name.value}
+						class="min-w-32"
+					>
+						{m.use_selfhost_icons()}
+					</Button>
 				</div>
-			{:else if !logoDataURL}
-				<span class="text-muted-foreground block text-sm">
-					{m.client_logo_uploads_disabled()}
-				</span>
 			{/if}
 		</div>
 	</div>

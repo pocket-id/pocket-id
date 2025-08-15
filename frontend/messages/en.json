@@ -431,6 +431,5 @@
 	"revoke_access_description": "Revoke access to <b>{clientName}</b>. <b>{clientName}</b> will no longer be able to access your account information.",
 	"revoke_access_successful": "The access to {clientName} has been successfully revoked.",
 	"client_logo_uploads_disabled": "Logo uploads are disabled when selfhosted icons are enabled.",
-	"selfhosted_icons_enabled_description": "Use selfhosted icons for OIDC clients when available. Icons will be resolved by the name entered for the client.",
-	"enable_selfhosted_icons": "Enabled Selfhosted Icons"
+	"use_selfhost_icons": "Use selfh.st Icon"
 }
