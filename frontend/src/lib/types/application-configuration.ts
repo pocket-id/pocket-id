@@ -8,6 +8,7 @@ export type AppConfig = {
 	disableAnimations: boolean;
 	uiConfigDisabled: boolean;
 	accentColor: string;
+	selfhostedIconsEnabled: boolean;
 };
 
 export type AllAppConfig = AppConfig & {

@@ -17,6 +17,8 @@
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import { optionalUrl } from '$lib/utils/zod-util';
+	import appConfigStore from '$lib/stores/application-configuration-store';
+	import { resolveIconUrl } from '$lib/utils/oidc-icon-util';
 
 	let {
 		callback,
@@ -73,7 +75,9 @@
 		isLoading = true;
 		const success = await callback({
 			...data,
-			logo
+			logo: $appConfigStore?.selfhostedIconsEnabled ? null : logo,
+			logoUrl:
+				$appConfigStore?.selfhostedIconsEnabled && selfhostedIconUrl ? selfhostedIconUrl : undefined
 		});
 		// Reset form if client was successfully created
 		if (success && !existingClient) form.reset();
@@ -105,6 +109,42 @@
 				return e;
 			});
 	}
+
+	let selfhostedIconUrl = $state<string | undefined>(undefined);
+	let selfhostedIconPreloaded = $state(false);
+
+	$effect(() => {
+		if ($appConfigStore?.selfhostedIconsEnabled && $inputs.name.value) {
+			// Create a selfhosted icon reference from the client name
+			const iconRef = `sh-${$inputs.name.value.toLowerCase().replace(/\s+/g, '-')}`;
+			selfhostedIconUrl = resolveIconUrl(iconRef);
+			selfhostedIconPreloaded = false;
+
+			// Prefetch the image without loading it into the UI yet
+			const img = new Image();
+			img.onload = () => {
+				selfhostedIconPreloaded = true;
+			};
+			img.onerror = () => {
+				selfhostedIconPreloaded = false;
+			};
+			if (selfhostedIconUrl) {
+				img.src = selfhostedIconUrl;
+			}
+		} else {
+			selfhostedIconUrl = undefined;
+			selfhostedIconPreloaded = false;
+		}
+	});
+
+	let displayLogoUrl = $derived(() => {
+		if ($appConfigStore?.selfhostedIconsEnabled && selfhostedIconUrl && selfhostedIconPreloaded) {
+			return selfhostedIconUrl;
+		}
+		return logoDataURL;
+	});
+
+	let fileUploadsDisabled = $derived($appConfigStore?.selfhostedIconsEnabled);
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>
@@ -151,28 +191,37 @@
 	<div class="mt-8">
 		<Label for="logo">{m.logo()}</Label>
 		<div class="mt-2 flex items-end gap-3">
-			{#if logoDataURL}
-				<ImageBox
-					class="size-24"
-					src={logoDataURL}
-					alt={m.name_logo({ name: $inputs.name.value })}
-				/>
+			{#if displayLogoUrl()}
+				<div class="flex w-fit flex-col items-start gap-2">
+					<ImageBox
+						class="size-24 shrink-0"
+						src={displayLogoUrl()}
+						alt={m.name_logo({ name: $inputs.name.value })}
+					/>
+					{#if fileUploadsDisabled}
+						<span class="text-muted-foreground block text-sm">
+							{m.client_logo_uploads_disabled()}
+						</span>
+					{/if}
+				</div>
 			{/if}
-			<div class="flex flex-col gap-2">
-				<FileInput
-					id="logo"
-					variant="secondary"
-					accept="image/png, image/jpeg, image/svg+xml"
-					onchange={onLogoChange}
-				>
-					<Button variant="secondary">
-						{logoDataURL ? m.change_logo() : m.upload_logo()}
-					</Button>
-				</FileInput>
-				{#if logoDataURL}
-					<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
-				{/if}
-			</div>
+			{#if !fileUploadsDisabled}
+				<div class="flex flex-col gap-2">
+					<FileInput
+						id="logo"
+						variant="secondary"
+						accept="image/png, image/jpeg, image/svg+xml"
+						onchange={onLogoChange}
+					>
+						<Button variant="secondary">
+							{displayLogoUrl() ? m.change_logo() : m.upload_logo()}
+						</Button>
+					</FileInput>
+					{#if displayLogoUrl()}
+						<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	</div>
 

@@ -8,10 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -656,54 +659,73 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 	return clients, response, err
 }
 
-func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
-	client := model.OidcClient{
-		CreatedByID: userID,
+// helper (optional) – ensures HasLogo is consistent
+func deriveHasLogo(c *model.OidcClient) {
+	if c == nil {
+		return
 	}
+	c.HasLogo = c.ImageType != nil && *c.ImageType != ""
+}
+
+func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
+	client := model.OidcClient{CreatedByID: userID}
 	updateOIDCClientModelFromDto(&client, &input)
 
-	err := s.db.
-		WithContext(ctx).
-		Create(&client).
-		Error
-	if err != nil {
+	if err := s.db.WithContext(ctx).Create(&client).Error; err != nil {
 		return model.OidcClient{}, err
 	}
 
+	// Remote/selfhosted icon (after create)
+	appConfig := s.appConfigService.GetDbConfig()
+	if appConfig.SelfhostedIconsEnabled.Value == "true" && input.LogoURL != nil && *input.LogoURL != "" {
+		if err := s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL); err == nil {
+			// Refresh full client (includes ImageType)
+			_ = s.db.WithContext(ctx).
+				Preload("CreatedBy").
+				Preload("AllowedUserGroups").
+				First(&client, "id = ?", client.ID).
+				Error
+		}
+	}
+
+	deriveHasLogo(&client)
 	return client, nil
 }
 
 func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
 	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
+	defer func() { tx.Rollback() }()
 
 	var client model.OidcClient
-	err := tx.
-		WithContext(ctx).
+	if err := tx.WithContext(ctx).
 		Preload("CreatedBy").
-		First(&client, "id = ?", clientID).
-		Error
-	if err != nil {
+		First(&client, "id = ?", clientID).Error; err != nil {
 		return model.OidcClient{}, err
 	}
 
 	updateOIDCClientModelFromDto(&client, &input)
 
-	err = tx.
-		WithContext(ctx).
-		Save(&client).
-		Error
-	if err != nil {
+	if err := tx.WithContext(ctx).Save(&client).Error; err != nil {
+		return model.OidcClient{}, err
+	}
+	if err := tx.Commit().Error; err != nil {
 		return model.OidcClient{}, err
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
-		return model.OidcClient{}, err
+	// IMPORTANT: download AFTER commit so we don't overwrite ImageType with stale value
+	appConfig := s.appConfigService.GetDbConfig()
+	if appConfig.SelfhostedIconsEnabled.Value == "true" && input.LogoURL != nil && *input.LogoURL != "" {
+		if err := s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL); err == nil {
+			// Refresh
+			_ = s.db.WithContext(ctx).
+				Preload("CreatedBy").
+				Preload("AllowedUserGroups").
+				First(&client, "id = ?", client.ID).
+				Error
+		}
 	}
 
+	deriveHasLogo(&client)
 	return client, nil
 }
 
@@ -841,6 +863,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 	}
 
 	client.ImageType = &fileType
+	client.HasLogo = true
 	err = tx.
 		WithContext(ctx).
 		Save(&client).
@@ -849,12 +872,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		return err
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return tx.Commit().Error
 }
 
 func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) error {
@@ -878,6 +896,7 @@ func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) err
 
 	oldImageType := *client.ImageType
 	client.ImageType = nil
+	client.HasLogo = false
 	err = tx.
 		WithContext(ctx).
 		Save(&client).
@@ -1756,4 +1775,72 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 	}
 
 	return s.IsUserGroupAllowedToAuthorize(user, client), nil
+}
+
+func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID string, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return err
+	}
+	// Allow only known CDNs
+	allowedHosts := map[string]struct{}{
+		"cdn.jsdelivr.net": {},
+	}
+	if _, ok := allowedHosts[u.Host]; !ok {
+		return fmt.Errorf("remote logo host not allowed")
+	}
+	// Basic path allowlist (selfhst or homarr repos)
+	if !strings.Contains(u.Path, "/selfhst/icons@") && !strings.Contains(u.Path, "/homarr-labs/dashboard-icons/") {
+		return fmt.Errorf("remote logo path not allowed")
+	}
+	resp, err := http.Get(raw)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to fetch logo: %s", resp.Status)
+	}
+	ext := path.Ext(u.Path)
+	if ext == "" {
+		// fallback from content-type
+		ct := resp.Header.Get("Content-Type")
+		switch {
+		case strings.Contains(ct, "svg"):
+			ext = ".svg"
+		case strings.Contains(ct, "png"):
+			ext = ".png"
+		case strings.Contains(ct, "webp"):
+			ext = ".webp"
+		default:
+			return fmt.Errorf("unsupported logo type")
+		}
+	}
+	ext = strings.TrimPrefix(ext, ".")
+	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		return err
+	}
+	imagePath := fmt.Sprintf("%s/%s.%s", uploadsDir, clientID, ext)
+	out, err := os.Create(imagePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		return err
+	}
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var client model.OidcClient
+		if err := tx.First(&client, "id = ?", clientID).Error; err != nil {
+			return err
+		}
+		if client.ImageType != nil && *client.ImageType != ext {
+			old := fmt.Sprintf("%s/%s.%s", uploadsDir, client.ID, *client.ImageType)
+			_ = os.Remove(old)
+		}
+		client.ImageType = &ext
+		client.HasLogo = true
+		return tx.Save(&client).Error
+	})
 }

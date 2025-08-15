@@ -45,7 +45,8 @@
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
 		allowUserSignups: appConfig.allowUserSignups,
 		disableAnimations: appConfig.disableAnimations,
-		accentColor: appConfig.accentColor
+		accentColor: appConfig.accentColor,
+		selfhostedIconsEnabled: appConfig.selfhostedIconsEnabled
 	};
 
 	const formSchema = z.object({
@@ -55,10 +56,11 @@
 		allowOwnAccountEdit: z.boolean(),
 		allowUserSignups: z.enum(['disabled', 'withToken', 'open']),
 		disableAnimations: z.boolean(),
-		accentColor: z.string()
+		accentColor: z.string(),
+		selfhostedIconsEnabled: z.boolean()
 	});
 
-	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
+	let { inputs, ...form } = $derived(createForm(formSchema, updatedAppConfig));
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -136,6 +138,12 @@
 				bind:checked={$inputs.allowOwnAccountEdit.value}
 			/>
 
+			<SwitchWithLabel
+				id="selfhosted-icons"
+				label={m.enable_selfhosted_icons()}
+				description={m.selfhosted_icons_enabled_description()}
+				bind:checked={$inputs.selfhostedIconsEnabled.value}
+			/>
 			<SwitchWithLabel
 				id="emails-verified"
 				label={m.emails_verified()}
