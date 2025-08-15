@@ -73,12 +73,23 @@
 		const data = form.validate();
 		if (!data) return;
 		isLoading = true;
+
+		let logoUrl: string | undefined = undefined;
+		if ($appConfigStore?.selfhostedIconsEnabled && $inputs.name.value) {
+			const iconRef = `sh-${$inputs.name.value.toLowerCase().replace(/\s+/g, '-')}`;
+			logoUrl = resolveIconUrl(iconRef);
+		}
+
 		const success = await callback({
 			...data,
 			logo: $appConfigStore?.selfhostedIconsEnabled ? null : logo,
-			logoUrl:
-				$appConfigStore?.selfhostedIconsEnabled && selfhostedIconUrl ? selfhostedIconUrl : undefined
+			logoUrl
 		});
+
+		if (success && $appConfigStore?.selfhostedIconsEnabled && logoUrl) {
+			logoDataURL = logoUrl;
+		}
+
 		// Reset form if client was successfully created
 		if (success && !existingClient) form.reset();
 		isLoading = false;
@@ -109,40 +120,6 @@
 				return e;
 			});
 	}
-
-	let selfhostedIconUrl = $state<string | undefined>(undefined);
-	let selfhostedIconPreloaded = $state(false);
-
-	$effect(() => {
-		if ($appConfigStore?.selfhostedIconsEnabled && $inputs.name.value) {
-			// Create a selfhosted icon reference from the client name
-			const iconRef = `sh-${$inputs.name.value.toLowerCase().replace(/\s+/g, '-')}`;
-			selfhostedIconUrl = resolveIconUrl(iconRef);
-			selfhostedIconPreloaded = false;
-
-			// Prefetch the image without loading it into the UI yet
-			const img = new Image();
-			img.onload = () => {
-				selfhostedIconPreloaded = true;
-			};
-			img.onerror = () => {
-				selfhostedIconPreloaded = false;
-			};
-			if (selfhostedIconUrl) {
-				img.src = selfhostedIconUrl;
-			}
-		} else {
-			selfhostedIconUrl = undefined;
-			selfhostedIconPreloaded = false;
-		}
-	});
-
-	let displayLogoUrl = $derived(() => {
-		if ($appConfigStore?.selfhostedIconsEnabled && selfhostedIconUrl && selfhostedIconPreloaded) {
-			return selfhostedIconUrl;
-		}
-		return logoDataURL;
-	});
 
 	let fileUploadsDisabled = $derived($appConfigStore?.selfhostedIconsEnabled);
 </script>
@@ -191,11 +168,11 @@
 	<div class="mt-8">
 		<Label for="logo">{m.logo()}</Label>
 		<div class="mt-2 flex items-end gap-3">
-			{#if displayLogoUrl()}
+			{#if logoDataURL}
 				<div class="flex w-fit flex-col items-start gap-2">
 					<ImageBox
 						class="size-24 shrink-0"
-						src={displayLogoUrl()}
+						src={logoDataURL}
 						alt={m.name_logo({ name: $inputs.name.value })}
 					/>
 					{#if fileUploadsDisabled}
@@ -214,13 +191,17 @@
 						onchange={onLogoChange}
 					>
 						<Button variant="secondary">
-							{displayLogoUrl() ? m.change_logo() : m.upload_logo()}
+							{logoDataURL ? m.change_logo() : m.upload_logo()}
 						</Button>
 					</FileInput>
-					{#if displayLogoUrl()}
+					{#if logoDataURL}
 						<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
 					{/if}
 				</div>
+			{:else if !logoDataURL}
+				<span class="text-muted-foreground block text-sm">
+					{m.client_logo_uploads_disabled()}
+				</span>
 			{/if}
 		</div>
 	</div>
