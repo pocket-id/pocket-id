@@ -16,7 +16,7 @@ require (
 	github.com/go-co-op/gocron/v2 v2.16.3
 	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/go-playground/validator/v10 v10.27.0
-	github.com/go-webauthn/webauthn v0.13.4
+	github.com/go-webauthn/webauthn v0.11.2
 	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-uuid v1.0.3
