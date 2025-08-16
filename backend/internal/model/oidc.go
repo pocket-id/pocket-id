@@ -51,9 +51,10 @@ type OidcClient struct {
 	Credentials        OidcClientCredentials
 	LaunchURL          *string
 
-	AllowedUserGroups []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
-	CreatedByID       string
-	CreatedBy         User
+	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
+	CreatedByID               string
+	CreatedBy                 User
+	UserAuthorizedOidcClients []UserAuthorizedOidcClient `gorm:"foreignKey:ClientID;references:ID"`
 }
 
 type OidcRefreshToken struct {

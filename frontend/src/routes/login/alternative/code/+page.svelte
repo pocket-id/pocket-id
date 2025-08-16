@@ -23,7 +23,7 @@
 		isLoading = true;
 		try {
 			const user = await userService.exchangeOneTimeAccessToken(code);
-			userStore.setUser(user);
+			await userStore.setUser(user);
 
 			try {
 				goto(data.redirect);

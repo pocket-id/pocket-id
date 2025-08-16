@@ -31,7 +31,7 @@
 			...$userStore!,
 			locale
 		});
-		setLocale(locale);
+		await setLocale(locale);
 	}
 </script>
 

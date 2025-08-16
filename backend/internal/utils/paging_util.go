@@ -85,3 +85,7 @@ func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (Pagin
 		ItemsPerPage: pageSize,
 	}, nil
 }
+
+func IsValidSortDirection(direction string) bool {
+	return direction == "asc" || direction == "desc"
+}

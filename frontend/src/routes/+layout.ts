@@ -1,5 +1,7 @@
 import AppConfigService from '$lib/services/app-config-service';
 import UserService from '$lib/services/user-service';
+import appConfigStore from '$lib/stores/application-configuration-store';
+import userStore from '$lib/stores/user-store';
 import type { LayoutLoad } from './$types';
 
 export const ssr = false;
@@ -18,6 +20,14 @@ export const load: LayoutLoad = async () => {
 	});
 
 	const [user, appConfig] = await Promise.all([userPromise, appConfigPromise]);
+
+	if (user) {
+		await userStore.setUser(user);
+	}
+
+	if (appConfig) {
+		appConfigStore.set(appConfig);
+	}
 
 	return {
 		user,

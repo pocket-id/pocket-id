@@ -32,7 +32,7 @@
 			return false;
 		}
 
-		userStore.setUser(result.data);
+		await userStore.setUser(result.data);
 		isLoading = false;
 
 		goto('/signup/add-passkey');
