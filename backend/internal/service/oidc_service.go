@@ -1336,8 +1336,13 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 }
 
 func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var user model.User
-	err := s.db.
+	err := tx.
 		WithContext(ctx).
 		Preload("UserGroups").
 		First(&user, "id = ?", userID).
@@ -1352,7 +1357,7 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	}
 
 	// Build the query for accessible clients
-	query := s.db.
+	query := tx.
 		WithContext(ctx).
 		Model(&model.OidcClient{}).
 		Preload("UserAuthorizedOidcClients", "user_id = ?", userID).
