@@ -60,13 +60,15 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 	// Values are the default ones
 	return &model.AppConfig{
 		// General
-		AppName:             model.AppConfigVariable{Value: "Pocket ID"},
-		SessionDuration:     model.AppConfigVariable{Value: "60"},
-		EmailsVerified:      model.AppConfigVariable{Value: "false"},
-		DisableAnimations:   model.AppConfigVariable{Value: "false"},
-		AllowOwnAccountEdit: model.AppConfigVariable{Value: "true"},
-		AllowUserSignups:    model.AppConfigVariable{Value: "disabled"},
-		AccentColor:         model.AppConfigVariable{Value: "default"},
+		AppName:                   model.AppConfigVariable{Value: "Pocket ID"},
+		SessionDuration:           model.AppConfigVariable{Value: "60"},
+		EmailsVerified:            model.AppConfigVariable{Value: "false"},
+		DisableAnimations:         model.AppConfigVariable{Value: "false"},
+		AllowOwnAccountEdit:       model.AppConfigVariable{Value: "true"},
+		AllowUserSignups:          model.AppConfigVariable{Value: "disabled"},
+		SignupDefaultUserGroupIDs: model.AppConfigVariable{Value: "[]"},
+		SignupDefaultCustomClaims: model.AppConfigVariable{Value: "[]"},
+		AccentColor:               model.AppConfigVariable{Value: "default"},
 		// Internal
 		BackgroundImageType: model.AppConfigVariable{Value: "jpg"},
 		LogoLightImageType:  model.AppConfigVariable{Value: "svg"},

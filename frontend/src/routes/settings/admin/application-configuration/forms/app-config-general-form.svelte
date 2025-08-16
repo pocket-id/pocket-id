@@ -23,27 +23,11 @@
 
 	let isLoading = $state(false);
 
-	const signupOptions = {
-		disabled: {
-			label: m.disabled(),
-			description: m.signup_disabled_description()
-		},
-		withToken: {
-			label: m.signup_with_token(),
-			description: m.signup_with_token_description()
-		},
-		open: {
-			label: m.signup_open(),
-			description: m.signup_open_description()
-		}
-	};
-
 	const updatedAppConfig = {
 		appName: appConfig.appName,
 		sessionDuration: appConfig.sessionDuration,
 		emailsVerified: appConfig.emailsVerified,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
-		allowUserSignups: appConfig.allowUserSignups,
 		disableAnimations: appConfig.disableAnimations,
 		accentColor: appConfig.accentColor
 	};
@@ -53,7 +37,6 @@
 		sessionDuration: z.number().min(1).max(43200),
 		emailsVerified: z.boolean(),
 		allowOwnAccountEdit: z.boolean(),
-		allowUserSignups: z.enum(['disabled', 'withToken', 'open']),
 		disableAnimations: z.boolean(),
 		accentColor: z.string()
 	});
@@ -80,55 +63,6 @@
 				description={m.the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again()}
 				bind:input={$inputs.sessionDuration}
 			/>
-			<div class="grid gap-2">
-				<div>
-					<Label class="mb-0" for="enable-user-signup">{m.enable_user_signups()}</Label>
-					<p class="text-muted-foreground text-[0.8rem]">
-						{m.enable_user_signups_description()}
-					</p>
-				</div>
-				<Select.Root
-					disabled={$appConfigStore.uiConfigDisabled}
-					type="single"
-					value={$inputs.allowUserSignups.value}
-					onValueChange={(v) =>
-						($inputs.allowUserSignups.value = v as typeof $inputs.allowUserSignups.value)}
-				>
-					<Select.Trigger
-						class="w-full"
-						aria-label={m.enable_user_signups()}
-						placeholder={m.enable_user_signups()}
-					>
-						{signupOptions[$inputs.allowUserSignups.value]?.label}
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="disabled">
-							<div class="flex flex-col items-start gap-1">
-								<span class="font-medium">{signupOptions.disabled.label}</span>
-								<span class="text-muted-foreground text-xs">
-									{signupOptions.disabled.description}
-								</span>
-							</div>
-						</Select.Item>
-						<Select.Item value="withToken">
-							<div class="flex flex-col items-start gap-1">
-								<span class="font-medium">{signupOptions.withToken.label}</span>
-								<span class="text-muted-foreground text-xs">
-									{signupOptions.withToken.description}
-								</span>
-							</div>
-						</Select.Item>
-						<Select.Item value="open">
-							<div class="flex flex-col items-start gap-1">
-								<span class="font-medium">{signupOptions.open.label}</span>
-								<span class="text-muted-foreground text-xs">
-									{signupOptions.open.description}
-								</span>
-							</div>
-						</Select.Item>
-					</Select.Content>
-				</Select.Root>
-			</div>
 			<SwitchWithLabel
 				id="self-account-editing"
 				label={m.enable_self_account_editing()}
