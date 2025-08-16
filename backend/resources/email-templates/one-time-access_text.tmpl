@@ -1,4 +1,4 @@
-{{ define "base" -}}
+{{ define "root" -}}
 Login Code
 ====================
 
@@ -7,4 +7,7 @@ Click the link below to sign in to {{ .AppName }} with a login code. This code e
 {{ .Data.LoginLinkWithCode }}
 
 Or visit {{ .Data.LoginLink }} and enter the the code "{{ .Data.Code }}".
+
+--
+This is automatically sent email from {{.AppName}}.
 {{ end -}}

@@ -1,3 +1,4 @@
 packages:
   - 'frontend'
   - 'tests'
+  - 'backend/resources/email-templates/build'
