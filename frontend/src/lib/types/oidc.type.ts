@@ -4,6 +4,7 @@ export type OidcClientMetaData = {
 	id: string;
 	name: string;
 	hasLogo: boolean;
+	requiresReauthentication: boolean;
 	launchURL?: string;
 };
 
@@ -23,6 +24,7 @@ export type OidcClient = OidcClientMetaData & {
 	logoutCallbackURLs: string[];
 	isPublic: boolean;
 	pkceEnabled: boolean;
+	requiresReauthentication: boolean;
 	credentials?: OidcClientCredentials;
 	launchURL?: string;
 };

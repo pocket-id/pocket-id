@@ -48,8 +48,12 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (sv
 
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 	svc.customClaimService = service.NewCustomClaimService(db)
+	svc.webauthnService, err = service.NewWebAuthnService(db, svc.jwtService, svc.auditLogService, svc.appConfigService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
+	}
 
-	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService)
+	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
@@ -57,11 +61,6 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (sv
 	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService)
 	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)
-
-	svc.webauthnService, err = service.NewWebAuthnService(db, svc.jwtService, svc.auditLogService, svc.appConfigService)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
-	}
 
 	return svc, nil
 }

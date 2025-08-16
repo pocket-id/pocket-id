@@ -45,6 +45,15 @@ type PublicKeyCredentialRequestOptions struct {
 	Timeout   time.Duration
 }
 
+type ReauthenticationToken struct {
+	Base
+	Token     string
+	ExpiresAt datatype.DateTime
+
+	UserID string
+	User   User
+}
+
 type AuthenticatorTransportList []protocol.AuthenticatorTransport //nolint:recvcheck
 
 // Scan and Value methods for GORM to handle the custom type
