@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
-	import { cachedApplicationLogo } from '$lib/utils/cached-image-util';
-	import { mode } from 'mode-watcher';
+	import { getLogoUrl } from '$lib/utils/logo-util';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	let { ...props }: HTMLAttributes<HTMLImageElement> = $props();
 
-	const isLightMode = $derived(mode.current === 'light');
+	const logoUrl = getLogoUrl();
 </script>
 
-<img {...props} src={cachedApplicationLogo.getUrl(isLightMode)} alt={m.logo()} />
+<img {...props} src={logoUrl} alt={m.logo()} />
