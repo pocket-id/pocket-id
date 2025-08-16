@@ -1462,8 +1462,8 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 
 	// Validate credentials based on the authentication method
 	switch {
-	// First, if we have a client secret, we validate it
-	case input.ClientSecret != "":
+	// First, if we have a client secret, we validate it unless client is marked as public
+	case input.ClientSecret != "" && !client.IsPublic:
 		err = bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(input.ClientSecret))
 		if err != nil {
 			return nil, &common.OidcClientSecretInvalidError{}
