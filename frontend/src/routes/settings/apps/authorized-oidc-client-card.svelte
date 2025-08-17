@@ -27,16 +27,6 @@
 		onRevoke: (client: OidcClientMetaData) => Promise<void>;
 	} = $props();
 
-	//This shouldnt be needed if the frontend is used, but if a client is created via the api it could be a malformed url
-	function getSafeHostname(url?: string | null): string | null {
-		if (!url) return null;
-		try {
-			return new URL(url).hostname;
-		} catch {
-			return url;
-		}
-	}
-
 	const isLightMode = $derived(mode.current === 'light');
 </script>
 
@@ -68,7 +58,7 @@
 						<p
 							class="text-muted-foreground line-clamp-1 text-ellipsis break-words break-all text-xs"
 						>
-							{getSafeHostname(client.launchURL)}
+							{new URL(client.launchURL).hostname}
 						</p>
 					{/if}
 				</div>
