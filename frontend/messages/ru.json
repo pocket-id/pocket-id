@@ -429,5 +429,6 @@
 	"client_name_description": "Имя клиента, которое отображается в интерфейсе Pocket ID.",
 	"revoke_access": "Отозвать доступ",
 	"revoke_access_description": "Отозвать доступ к <b>{clientName}</b>. <b>{clientName}</b> больше не сможет получить доступ к информации вашей учетной записи.",
-	"revoke_access_successful": "Доступ к {clientName} успешно отозван."
+	"revoke_access_successful": "Доступ к {clientName} успешно отозван.",
+	"last_signed_in_ago": "Последний раз заходил на сайт {time} назад"
 }
