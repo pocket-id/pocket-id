@@ -1,10 +1,11 @@
 import test, { expect } from '@playwright/test';
+import authUtil from 'utils/auth.util';
 import { oidcClients } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(() => cleanupBackend());
 
-test('Dashboard shows all authorized clients in the correct order', async ({ page }) => {
+test('Dashboard shows all clients in the correct order', async ({ page }) => {
 	const client1 = oidcClients.tailscale;
 	const client2 = oidcClients.nextcloud;
 
@@ -20,6 +21,20 @@ test('Dashboard shows all authorized clients in the correct order', async ({ pag
 	const card2 = page.getByTestId('authorized-oidc-client-card').nth(1);
 	await expect(card2.getByRole('heading', { name: client2.name })).toBeVisible();
 	await expect(card2.getByText(new URL(client2.launchURL).hostname)).toBeVisible();
+});
+
+test('Dashboard shows only clients where user has access', async ({ page }) => {
+	await authUtil.changeUser(page, 'craig');
+	const notVisibleClient = oidcClients.immich;
+
+	await page.goto('/settings/apps');
+
+	const cards = page.getByTestId('authorized-oidc-client-card');
+
+	await expect(cards).toHaveCount(3);
+
+	const cardTexts = await cards.allTextContents();
+	expect(cardTexts.some((text) => text.includes(notVisibleClient.name))).toBe(false);
 });
 
 test('Revoke authorized client', async ({ page }) => {
