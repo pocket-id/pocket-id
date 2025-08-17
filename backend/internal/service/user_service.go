@@ -274,10 +274,8 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 
 	// Apply default groups and claims for new non-LDAP users
 	if !isLdapSync {
-		err = s.applySignupDefaults(ctx, &user, tx)
-		if err != nil {
-			// Log the error but don't fail user creation
-			slog.ErrorContext(ctx, "Failed to apply signup defaults for new user", "userID", user.ID, "error", err)
+		if err := s.applySignupDefaults(ctx, &user, tx); err != nil {
+			return model.User{}, err
 		}
 	}
 
@@ -289,13 +287,16 @@ func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User,
 
 	// Apply default user groups
 	var groupIDs []string
-	if config.SignupDefaultUserGroupIDs.Value != "" && config.SignupDefaultUserGroupIDs.Value != "[]" {
-		if err := json.Unmarshal([]byte(config.SignupDefaultUserGroupIDs.Value), &groupIDs); err == nil && len(groupIDs) > 0 {
+	if v := config.SignupDefaultUserGroupIDs.Value; v != "" && v != "[]" {
+		if err := json.Unmarshal([]byte(v), &groupIDs); err != nil {
+			return fmt.Errorf("invalid SignupDefaultUserGroupIDs JSON: %w", err)
+		}
+		if len(groupIDs) > 0 {
 			var groups []model.UserGroup
-			if err := tx.WithContext(ctx).Where("id IN (?)", groupIDs).Find(&groups).Error; err != nil {
+			if err := tx.WithContext(ctx).Where("id IN ?", groupIDs).Find(&groups).Error; err != nil {
 				return fmt.Errorf("failed to find default user groups: %w", err)
 			}
-			if err := tx.Model(user).Association("UserGroups").Replace(&groups); err != nil {
+			if err := tx.WithContext(ctx).Model(user).Association("UserGroups").Replace(groups); err != nil {
 				return fmt.Errorf("failed to associate default user groups: %w", err)
 			}
 		}
@@ -303,9 +304,11 @@ func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User,
 
 	// Apply default custom claims
 	var claims []dto.CustomClaimCreateDto
-	if config.SignupDefaultCustomClaims.Value != "" && config.SignupDefaultCustomClaims.Value != "[]" {
-		if err := json.Unmarshal([]byte(config.SignupDefaultCustomClaims.Value), &claims); err == nil && len(claims) > 0 {
-			// We need to use the internal method of CustomClaimService to operate within the existing transaction
+	if v := config.SignupDefaultCustomClaims.Value; v != "" && v != "[]" {
+		if err := json.Unmarshal([]byte(v), &claims); err != nil {
+			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
+		}
+		if len(claims) > 0 {
 			if _, err := s.customClaimService.updateCustomClaimsInternal(ctx, UserID, user.ID, claims, tx); err != nil {
 				return fmt.Errorf("failed to apply default custom claims: %w", err)
 			}
@@ -548,7 +551,7 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 	// Fetch the groups based on userGroupIds
 	var groups []model.UserGroup
 	if len(userGroupIds) > 0 {
-		err = tx.
+		err := tx.
 			WithContext(ctx).
 			Where("id IN (?)", userGroupIds).
 			Find(&groups).
