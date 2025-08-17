@@ -3,6 +3,7 @@ package utils
 import (
 	"reflect"
 	"strconv"
+	"strings"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -35,9 +36,7 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 	sortField, sortFieldFound := reflect.TypeOf(result).Elem().Elem().FieldByName(capitalizedSortColumn)
 	isSortable, _ := strconv.ParseBool(sortField.Tag.Get("sortable"))
 
-	if sort.Direction == "" || (sort.Direction != "asc" && sort.Direction != "desc") {
-		sort.Direction = "asc"
-	}
+	sort.Direction = NormalizeSortDirection(sort.Direction)
 
 	if sortFieldFound && isSortable {
 		columnName := CamelCaseToSnakeCase(sort.Column)
@@ -86,6 +85,15 @@ func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (Pagin
 	}, nil
 }
 
+func NormalizeSortDirection(direction string) string {
+	d := strings.ToLower(strings.TrimSpace(direction))
+	if d != "asc" && d != "desc" {
+		return "asc"
+	}
+	return d
+}
+
 func IsValidSortDirection(direction string) bool {
-	return direction == "asc" || direction == "desc"
+	d := strings.ToLower(strings.TrimSpace(direction))
+	return d == "asc" || d == "desc"
 }

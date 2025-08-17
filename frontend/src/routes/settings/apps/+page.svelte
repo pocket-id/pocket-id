@@ -8,7 +8,7 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LayoutDashboard } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import { default as AuthorizedOidcClientCard } from './authorized-oidc-client-card.svelte';
+	import AuthorizedOidcClientCard from './authorized-oidc-client-card.svelte';
 
 	let { data } = $props();
 	let clients: Paginated<AccessibleOidcClient> = $state(data.clients);
