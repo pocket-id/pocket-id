@@ -429,5 +429,6 @@
 	"client_name_description": "De naam van de client die wordt getoond in de Pocket ID UI.",
 	"revoke_access": "Toegang intrekken",
 	"revoke_access_description": "Toegang intrekken tot <b>{clientName}</b>. <b>{clientName}</b> kun je accountgegevens niet meer gebruiken.",
-	"revoke_access_successful": "De toegang tot {clientName} is nu echt geblokkeerd."
+	"revoke_access_successful": "De toegang tot {clientName} is nu echt geblokkeerd.",
+	"last_signed_in_ago": "Laatst ingelogd {time} geleden"
 }
