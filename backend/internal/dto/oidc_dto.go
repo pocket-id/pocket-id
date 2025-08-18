@@ -162,3 +162,8 @@ type OidcClientPreviewDto struct {
 	AccessToken map[string]any `json:"accessToken"`
 	UserInfo    map[string]any `json:"userInfo"`
 }
+
+type AccessibleOidcClientDto struct {
+	OidcClientMetaDataDto
+	LastUsedAt *datatype.DateTime `json:"lastUsedAt"`
+}

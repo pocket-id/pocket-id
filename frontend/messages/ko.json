@@ -276,8 +276,6 @@
 	"public_clients_description": "Public clients do not have a client secret. They are designed for mobile, web, and native applications where secrets cannot be securely stored.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "Public Key Code Exchange is a security feature to prevent CSRF and authorization code interception attacks.",
-	"requires_reauthentication": "Requires Re-Authentication",
-	"requires_users_to_authenticate_again_on_each_authorization": "Requires users to authenticate again on each authorization, even if already signed in",
 	"name_logo": "{name} logo",
 	"change_logo": "Change Logo",
 	"upload_logo": "Upload Logo",

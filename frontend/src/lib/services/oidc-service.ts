@@ -1,5 +1,5 @@
 import type {
-	AuthorizedOidcClient,
+	AccessibleOidcClient,
 	AuthorizeResponse,
 	OidcClient,
 	OidcClientCreate,
@@ -117,18 +117,12 @@ class OidcService extends APIService {
 		return response.data;
 	}
 
-	async listAuthorizedClients(options?: SearchPaginationSortRequest) {
+	async listOwnAccessibleClients(options?: SearchPaginationSortRequest) {
 		const res = await this.api.get('/oidc/users/me/clients', {
 			params: options
 		});
-		return res.data as Paginated<AuthorizedOidcClient>;
-	}
 
-	async listAuthorizedClientsForUser(userId: string, options?: SearchPaginationSortRequest) {
-		const res = await this.api.get(`/oidc/users/${userId}/clients`, {
-			params: options
-		});
-		return res.data as Paginated<AuthorizedOidcClient>;
+		return res.data as Paginated<AccessibleOidcClient>;
 	}
 
 	async revokeOwnAuthorizedClient(clientId: string) {

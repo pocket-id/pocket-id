@@ -431,5 +431,6 @@
 	"client_name_description": "Der Name des Clients, der in der Pocket ID-Benutzeroberfläche angezeigt wird.",
 	"revoke_access": "Zugriff widerrufen",
 	"revoke_access_description": "Zugriff widerrufen <b>{clientName}</b>. <b>{clientName}</b> kann nicht mehr auf deine Kontoinfos zugreifen.",
-	"revoke_access_successful": "Der Zugriff auf „ {clientName} “ wurde erfolgreich gesperrt."
+	"revoke_access_successful": "Der Zugriff auf „ {clientName} “ wurde erfolgreich gesperrt.",
+	"last_signed_in_ago": "Zuletzt angemeldet vor {time} Stunden"
 }

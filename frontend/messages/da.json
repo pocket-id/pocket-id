@@ -429,5 +429,6 @@
 	"client_name_description": "Navnet på den klient, der vises i Pocket ID-brugergrænsefladen.",
 	"revoke_access": "Tilbagekald adgang",
 	"revoke_access_description": "Tilbagekald adgang til <b>{clientName}</b>. <b>{clientName}</b> vil ikke længere kunne få adgang til dine kontooplysninger.",
-	"revoke_access_successful": "Adgangen til {clientName} er blevet ophævet."
+	"revoke_access_successful": "Adgangen til {clientName} er blevet ophævet.",
+	"last_signed_in_ago": "Sidst logget ind {time} siden"
 }

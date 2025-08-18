@@ -16,7 +16,7 @@ export const load: PageLoad = async () => {
 		}
 	};
 
-	const authorizedClients = await oidcService.listAuthorizedClients(appRequestOptions);
+	const clients = await oidcService.listOwnAccessibleClients(appRequestOptions);
 
-	return { authorizedClients, appRequestOptions };
+	return { clients, appRequestOptions };
 };

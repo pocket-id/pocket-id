@@ -45,7 +45,7 @@
 				const loginOptions = await webauthnService.getLoginOptions();
 				authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
-				userStore.setUser(user);
+				await userStore.setUser(user);
 			}
 
 			if (!authorizationConfirmed) {

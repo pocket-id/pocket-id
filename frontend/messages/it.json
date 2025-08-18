@@ -429,5 +429,6 @@
 	"client_name_description": "Il nome del cliente che appare nell'interfaccia utente Pocket ID.",
 	"revoke_access": "Revoca accesso",
 	"revoke_access_description": "Revoca l'accesso a <b>{clientName}</b>. <b>{clientName}</b> non potrà più accedere alle informazioni del tuo account.",
-	"revoke_access_successful": "L'accesso a {clientName} è stato revocato con successo."
+	"revoke_access_successful": "L'accesso a {clientName} è stato revocato con successo.",
+	"last_signed_in_ago": "Ultimo accesso {time} fa"
 }
