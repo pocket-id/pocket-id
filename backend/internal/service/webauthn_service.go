@@ -347,13 +347,16 @@ func (s *WebAuthnService) VerifyReauthentication(ctx context.Context, userID, se
 		Clauses(clause.Returning{}).
 		Delete(&storedSession, "id = ? AND expires_at > ?", sessionID, datatype.DateTime(time.Now())).
 		Error
+
 	if err != nil {
 		return "", &common.ReauthenticationRequiredError{}
 	}
+
 	session := webauthn.SessionData{
 		Challenge: storedSession.Challenge,
 		Expires:   storedSession.ExpiresAt.ToTime(),
 	}
+
 	var user *model.User
 	_, err = s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (webauthn.User, error) {
 		innerErr := tx.
