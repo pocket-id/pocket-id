@@ -25,7 +25,7 @@ func NewWebauthnController(group *gin.RouterGroup, authMiddleware *middleware.Au
 
 	group.POST("/webauthn/logout", authMiddleware.WithAdminNotRequired().Add(), wc.logoutHandler)
 
-	group.POST("/webauthn/reauthenticate", authMiddleware.WithAdminNotRequired().Add(), wc.reauthenticateHandler)
+	group.POST("/webauthn/reauthenticate", authMiddleware.WithAdminNotRequired().Add(), rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), wc.reauthenticateHandler)
 
 	group.GET("/webauthn/credentials", authMiddleware.WithAdminNotRequired().Add(), wc.listCredentialsHandler)
 	group.PATCH("/webauthn/credentials/:id", authMiddleware.WithAdminNotRequired().Add(), wc.updateCredentialHandler)
