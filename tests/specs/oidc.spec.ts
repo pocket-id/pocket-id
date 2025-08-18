@@ -5,7 +5,7 @@ import { generateIdToken, generateOauthAccessToken } from '../utils/jwt.util';
 import * as oidcUtil from '../utils/oidc.util';
 import passkeyUtil from '../utils/passkey.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
 test('Authorize existing client', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
