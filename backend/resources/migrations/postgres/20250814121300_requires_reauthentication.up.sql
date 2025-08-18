@@ -5,6 +5,7 @@ CREATE TABLE reauthentication_tokens (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     token TEXT NOT NULL UNIQUE,
+    session_id TEXT NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,
     user_id TEXT NOT NULL
 );
