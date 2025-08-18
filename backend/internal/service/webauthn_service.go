@@ -379,7 +379,7 @@ func (s *WebAuthnService) VerifyReauthentication(ctx context.Context, userID, se
 		return "", &common.ReauthenticationRequiredError{}
 	}
 
-	token, err := s.createReauthenticationToken(ctx, tx, userID, sessionID)
+	token, err := s.createReauthenticationToken(ctx, tx, user.ID, sessionID)
 	if err != nil {
 		return "", err
 	}
@@ -392,10 +392,10 @@ func (s *WebAuthnService) VerifyReauthentication(ctx context.Context, userID, se
 	return token, nil
 }
 
-func (s *WebAuthnService) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string, sessionID string) error {
+func (s *WebAuthnService) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) error {
 	result := tx.WithContext(ctx).
 		Clauses(clause.Returning{}).
-		Delete(&model.ReauthenticationToken{}, "token = ? AND user_id = ? AND session_id = ? AND expires_at > ?", token, userID, sessionID, datatype.DateTime(time.Now()))
+		Delete(&model.ReauthenticationToken{}, "token = ? AND user_id = ? AND session_id = ? AND expires_at > ?", token, userID, datatype.DateTime(time.Now()))
 
 	if result.Error != nil {
 		return result.Error
