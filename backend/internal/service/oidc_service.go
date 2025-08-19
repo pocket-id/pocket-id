@@ -1774,21 +1774,63 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 
 func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID string, raw string) error {
 	u, err := url.Parse(raw)
-	if err != nil {
-		return err
+	if err != nil || !u.IsAbs() {
+		return fmt.Errorf("invalid logo url")
 	}
-	// Allow only known CDNs
+	// Enforce HTTPS
+	if strings.ToLower(u.Scheme) != "https" {
+		return fmt.Errorf("only https is allowed")
+	}
+
+	// Allow only known CDNs (host allowlist)
 	allowedHosts := map[string]struct{}{
 		"cdn.jsdelivr.net": {},
 	}
-	if _, ok := allowedHosts[u.Host]; !ok {
+	host := strings.ToLower(u.Host)
+	if _, ok := allowedHosts[host]; !ok {
 		return fmt.Errorf("remote logo host not allowed")
 	}
-	// Basic path allowlist (selfhst or homarr repos)
+
+	// Basic path allowlist
 	if !strings.Contains(u.Path, "/selfhst/icons@") && !strings.Contains(u.Path, "/homarr-labs/dashboard-icons/") {
 		return fmt.Errorf("remote logo path not allowed")
 	}
-	resp, err := http.Get(raw)
+
+	// Secure HTTP client with timeout and strict redirect policy
+	client := &http.Client{
+		Timeout: 20 * time.Second,
+		Transport: &http.Transport{
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Limit redirect chain
+			if len(via) >= 3 {
+				return errors.New("too many redirects")
+			}
+			// Stay on HTTPS and on the allowlisted host
+			if strings.ToLower(req.URL.Scheme) != "https" {
+				return errors.New("insecure redirect")
+			}
+			if _, ok := allowedHosts[strings.ToLower(req.URL.Host)]; !ok {
+				return errors.New("redirected host not allowed")
+			}
+			return nil
+		},
+	}
+
+	// Request with context timeout
+	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "pocket-id/oidc-logo-fetcher")
+	req.Header.Set("Accept", "image/*")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -1796,35 +1838,71 @@ func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID s
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to fetch logo: %s", resp.Status)
 	}
-	ext := path.Ext(u.Path)
-	if ext == "" {
-		// fallback from content-type
-		ct := resp.Header.Get("Content-Type")
+
+	// Enforce size limits
+	const maxLogoSize = 2 * 1024 * 1024 // 2MB
+	if resp.ContentLength > maxLogoSize {
+		return fmt.Errorf("logo is too large")
+	}
+
+	// Determine extension from URL path first, then from Content-Type
+	ext := strings.TrimPrefix(strings.ToLower(path.Ext(u.Path)), ".")
+	allowedExt := map[string]struct{}{"svg": {}, "png": {}, "webp": {}, "jpg": {}, "jpeg": {}}
+
+	if ext == "" || utils.GetImageMimeType(ext) == "" {
+		ct := strings.ToLower(resp.Header.Get("Content-Type"))
 		switch {
 		case strings.Contains(ct, "svg"):
-			ext = ".svg"
+			ext = "svg"
 		case strings.Contains(ct, "png"):
-			ext = ".png"
+			ext = "png"
 		case strings.Contains(ct, "webp"):
-			ext = ".webp"
+			ext = "webp"
+		case strings.Contains(ct, "jpeg"), strings.Contains(ct, "jpg"):
+			ext = "jpg"
 		default:
 			return fmt.Errorf("unsupported logo type")
 		}
 	}
-	ext = strings.TrimPrefix(ext, ".")
+	if _, ok := allowedExt[ext]; !ok {
+		return fmt.Errorf("unsupported logo type")
+	}
+
 	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
-	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
 		return err
 	}
-	imagePath := fmt.Sprintf("%s/%s.%s", uploadsDir, clientID, ext)
-	out, err := os.Create(imagePath)
+
+	finalPath := fmt.Sprintf("%s/%s.%s", uploadsDir, clientID, ext)
+	tmpFile, err := os.CreateTemp(uploadsDir, clientID+".*.tmp")
 	if err != nil {
 		return err
 	}
-	defer out.Close()
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	tmpName := tmpFile.Name()
+
+	// Copy with hard limit (maxLogoSize + 1 to detect overflow)
+	written, copyErr := io.Copy(tmpFile, io.LimitReader(resp.Body, maxLogoSize+1))
+	closeErr := tmpFile.Close()
+	if copyErr != nil {
+		_ = os.Remove(tmpName)
+		return copyErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmpName)
+		return closeErr
+	}
+	if written > maxLogoSize {
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("logo is too large")
+	}
+
+	// Atomic rename into place
+	if err := os.Rename(tmpName, finalPath); err != nil {
+		_ = os.Remove(tmpName)
 		return err
 	}
+
+	// Update DB and clean old variant if needed
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var client model.OidcClient
 		if err := tx.First(&client, "id = ?", clientID).Error; err != nil {
