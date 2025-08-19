@@ -9,4 +9,12 @@ async function authenticate(page: Page) {
 	await page.getByRole('button', { name: 'Authenticate' }).click();
 }
 
-export default { authenticate };
+async function changeUser(page: Page, username: keyof typeof passkeyUtil.passkeys) {
+	await page.context().clearCookies();
+	await page.goto('/login');
+
+	await (await passkeyUtil.init(page)).addPasskey(username);
+	await page.getByRole('button', { name: 'Authenticate' }).click();
+}
+
+export default { authenticate, changeUser };

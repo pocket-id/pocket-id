@@ -67,4 +67,4 @@ async function addPasskey(
 	});
 }
 
-export default { init };
+export default { init, passkeys };
