@@ -429,5 +429,6 @@
 	"client_name_description": "Tên của khách hàng hiển thị trong giao diện Pocket ID.",
 	"revoke_access": "Hủy quyền truy cập",
 	"revoke_access_description": "Hủy quyền truy cập vào <b>{clientName}</b>. <b>{clientName}</b> sẽ không còn có thể truy cập thông tin tài khoản của bạn.",
-	"revoke_access_successful": "Quyền truy cập vào {clientName} đã bị thu hồi thành công."
+	"revoke_access_successful": "Quyền truy cập vào {clientName} đã bị thu hồi thành công.",
+	"last_signed_in_ago": "Lần đăng nhập cuối cùng cách đây {time}"
 }

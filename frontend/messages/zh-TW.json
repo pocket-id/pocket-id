@@ -429,5 +429,6 @@
 	"client_name_description": "顯示在 Pocket ID UI 中的用戶端名稱。",
 	"revoke_access": "撤銷存取權",
 	"revoke_access_description": "撤銷存取 <b>{clientName}</b>. <b>{clientName}</b>將無法再存取您的帳戶資訊。",
-	"revoke_access_successful": "{clientName} 的存取權已成功取消。"
+	"revoke_access_successful": "{clientName} 的存取權已成功取消。",
+	"last_signed_in_ago": "上次登入 {time} 前"
 }
