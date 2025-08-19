@@ -155,6 +155,7 @@
 				{m.signup_settings_groups_description()}
 			</p>
 			<SearchableMultiSelect
+				id="default-groups"
 				items={userGroups}
 				oninput={(e) => onUserGroupSearch(e.currentTarget.value)}
 				selectedItems={selectedGroups.map((g) => g.value)}

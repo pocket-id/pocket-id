@@ -21,7 +21,8 @@
 		placeholder = 'Select items...',
 		searchText = 'Search...',
 		noItemsText = 'No items found.',
-		disableInternalSearch = false
+		disableInternalSearch = false,
+		id
 	}: {
 		items: Item[];
 		selectedItems: string[];
@@ -32,6 +33,7 @@
 		searchText?: string;
 		noItemsText?: string;
 		disableInternalSearch?: boolean;
+		id?: string;
 	} = $props();
 
 	let open = $state(false);
@@ -76,7 +78,7 @@
 </script>
 
 <Popover.Root bind:open>
-	<Popover.Trigger>
+	<Popover.Trigger {id}>
 		{#snippet child({ props })}
 			<Button
 				{...props}
@@ -120,6 +122,7 @@
 			<Command.Group class="max-h-60 overflow-y-auto">
 				{#each filteredItems as item}
 					<Command.Item
+						aria-checked={selectedItems.includes(item.value)}
 						value={item.value}
 						onSelect={() => {
 							handleItemSelect(item.value);

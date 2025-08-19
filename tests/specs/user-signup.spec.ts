@@ -74,10 +74,9 @@ test.describe('User Signup and Configuration', () => {
 		test('should save default user groups for new signups', async ({ page }) => {
 			const signupDefaultsCard = page.locator('div[data-slot="card"]:has-text("Signup")');
 
-			await signupDefaultsCard.locator('[data-slot="dropdown-menu-trigger"]').click();
-			await page.getByRole('menuitemcheckbox', { name: 'Developers' }).click();
-			await page.getByRole('menuitemcheckbox', { name: 'Designers' }).click();
-			await page.keyboard.press('Escape');
+			await page.getByRole('combobox', { name: 'User Groups' }).click();
+			await page.getByRole('option', { name: 'Developers' }).click();
+			await page.getByRole('option', { name: 'Designers' }).click();
 
 			await signupDefaultsCard.locator('form').getByRole('button', { name: 'Save' }).click();
 
@@ -88,11 +87,10 @@ test.describe('User Signup and Configuration', () => {
 			await page.reload();
 			await page.waitForLoadState('networkidle');
 
-			const updatedSignupDefaultsCard = page.locator('div[data-slot="card"]:has-text("Signup")');
-			await updatedSignupDefaultsCard.locator('[data-slot="dropdown-menu-trigger"]').click();
+			await page.getByRole('combobox', { name: 'User Groups' }).click();
 
-			await expect(page.getByRole('menuitemcheckbox', { name: 'Developers' })).toBeChecked();
-			await expect(page.getByRole('menuitemcheckbox', { name: 'Designers' })).toBeChecked();
+			await expect(page.getByRole('option', { name: 'Developers' })).toBeChecked();
+			await expect(page.getByRole('option', { name: 'Designers' })).toBeChecked();
 		});
 
 		test('should save default custom claims for new signups', async ({ page }) => {
@@ -116,10 +114,18 @@ test.describe('User Signup and Configuration', () => {
 
 			const updatedSignupDefaultsCard = page.locator('div[data-slot="card"]:has-text("Signup")');
 
-			await expect(updatedSignupDefaultsCard.getByPlaceholder('Key').first()).toHaveValue('test-claim');
-			await expect(updatedSignupDefaultsCard.getByPlaceholder('Value').first()).toHaveValue('test-value');
-			await expect(updatedSignupDefaultsCard.getByPlaceholder('Key').nth(1)).toHaveValue('another-claim');
-			await expect(updatedSignupDefaultsCard.getByPlaceholder('Value').nth(1)).toHaveValue('another-value');
+			await expect(updatedSignupDefaultsCard.getByPlaceholder('Key').first()).toHaveValue(
+				'test-claim'
+			);
+			await expect(updatedSignupDefaultsCard.getByPlaceholder('Value').first()).toHaveValue(
+				'test-value'
+			);
+			await expect(updatedSignupDefaultsCard.getByPlaceholder('Key').nth(1)).toHaveValue(
+				'another-claim'
+			);
+			await expect(updatedSignupDefaultsCard.getByPlaceholder('Value').nth(1)).toHaveValue(
+				'another-value'
+			);
 		});
 	});
 
