@@ -6,19 +6,14 @@ import passkeyUtil from '../utils/passkey.util';
 async function setSignupMode(page: Page, mode: 'Disabled' | 'Signup with token' | 'Open Signup') {
 	await page.goto('/settings/admin/application-configuration');
 
-	const signupCard = page.locator('div[data-slot="card"]:has-text("Signup")');
-	await signupCard.getByRole('button', { name: 'Expand card' }).click();
-
-	await signupCard.getByLabel('Enable User Signups').click();
+	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByRole('button', { name: 'Enable User Signups' }).click();
 	await page.getByRole('option', { name: mode }).click();
-
-	await signupCard.getByRole('button', { name: 'Save' }).click();
+	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
 	await expect(page.locator('[data-type="success"]').last()).toHaveText(
-		'Signup settings updated successfully.'
+		'User creation settings updated successfully.'
 	);
-
-	await page.waitForLoadState('networkidle');
 
 	await page.context().clearCookies();
 	await page.goto('/login');
