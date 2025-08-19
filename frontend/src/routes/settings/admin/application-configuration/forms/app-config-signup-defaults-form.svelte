@@ -4,7 +4,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
-	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
 	import UserGroupService from '$lib/services/user-group-service';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
@@ -83,7 +82,7 @@
 			signupDefaultUserGroupIDs: selectedGroups.map((g) => g.value),
 			signupDefaultCustomClaims: customClaims
 		});
-		toast.success(m.signup_settings_updated_successfully());
+		toast.success(m.user_creation_updated_successfully());
 		isLoading = false;
 	}
 
@@ -146,34 +145,30 @@
 		</Select.Root>
 	</div>
 
-	{#if allowUserSignups !== 'disabled'}
-		<Separator />
-
-		<div>
-			<Label for="default-groups" class="mb-0">{m.user_groups()}</Label>
-			<p class="text-muted-foreground mt-1 mb-2 text-xs">
-				{m.signup_settings_groups_description()}
-			</p>
-			<SearchableMultiSelect
-				id="default-groups"
-				items={userGroups}
-				oninput={(e) => onUserGroupSearch(e.currentTarget.value)}
-				selectedItems={selectedGroups.map((g) => g.value)}
-				onSelect={(selected) => {
-					selectedGroups = userGroups.filter((g) => selected.includes(g.value));
-				}}
-				isLoading={isUserSearchLoading}
-				disableInternalSearch
-			/>
-		</div>
-		<div>
-			<Label  class="mb-0">{m.custom_claims()}</Label>
-			<p class="text-muted-foreground mt-1 mb-2 text-xs">
-				{m.signup_settings_claims_description()}
-			</p>
-			<CustomClaimsInput bind:customClaims />
-		</div>
-	{/if}
+	<div>
+		<Label for="default-groups" class="mb-0">{m.user_groups()}</Label>
+		<p class="text-muted-foreground mt-1 mb-2 text-xs">
+			{m.user_creation_groups_description()}
+		</p>
+		<SearchableMultiSelect
+			id="default-groups"
+			items={userGroups}
+			oninput={(e) => onUserGroupSearch(e.currentTarget.value)}
+			selectedItems={selectedGroups.map((g) => g.value)}
+			onSelect={(selected) => {
+				selectedGroups = userGroups.filter((g) => selected.includes(g.value));
+			}}
+			isLoading={isUserSearchLoading}
+			disableInternalSearch
+		/>
+	</div>
+	<div>
+		<Label class="mb-0">{m.custom_claims()}</Label>
+		<p class="text-muted-foreground mt-1 mb-2 text-xs">
+			{m.user_creation_claims_description()}
+		</p>
+		<CustomClaimsInput bind:customClaims />
+	</div>
 
 	<div class="flex justify-end pt-2">
 		<Button {isLoading} type="submit">{m.save()}</Button>

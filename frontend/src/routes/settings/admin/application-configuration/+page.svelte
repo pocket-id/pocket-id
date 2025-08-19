@@ -73,8 +73,8 @@
 	<CollapsibleCard
 		id="application-configuration-signup-defaults"
 		icon={Users}
-		title={m.signup_settings()}
-		description={m.configure_signup_settings()}
+		title={m.user_creation()}
+		description={m.configure_user_creation()}
 	>
 		<AppConfigSignupDefaultsForm {appConfig} callback={updateAppConfig} />
 	</CollapsibleCard>

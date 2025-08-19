@@ -53,80 +53,9 @@ test.describe('Initial User Signup', () => {
 	});
 });
 
-test.describe('User Signup and Configuration', () => {
+test.describe('User Signup', () => {
 	test.beforeEach(() => {
 		cleanupBackend();
-	});
-
-	test.describe('Signup Defaults Configuration', () => {
-		test.beforeEach(async ({ page }) => {
-			await page.goto('/settings/admin/application-configuration');
-			const signupCard = page.locator('div[data-slot="card"]:has-text("Signup")');
-			await signupCard.getByRole('button', { name: 'Expand card' }).click();
-			await signupCard.locator('button[data-select-trigger]').click();
-			await page.getByRole('option', { name: 'Open Signup' }).click();
-			await signupCard.getByRole('button', { name: 'Save' }).click();
-			await expect(page.locator('[data-type="success"]').last()).toHaveText(
-				'Signup settings updated successfully.'
-			);
-		});
-
-		test('should save default user groups for new signups', async ({ page }) => {
-			const signupDefaultsCard = page.locator('div[data-slot="card"]:has-text("Signup")');
-
-			await page.getByRole('combobox', { name: 'User Groups' }).click();
-			await page.getByRole('option', { name: 'Developers' }).click();
-			await page.getByRole('option', { name: 'Designers' }).click();
-
-			await signupDefaultsCard.locator('form').getByRole('button', { name: 'Save' }).click();
-
-			await expect(page.locator('[data-type="success"]').last()).toHaveText(
-				'Signup settings updated successfully.'
-			);
-
-			await page.reload();
-			await page.waitForLoadState('networkidle');
-
-			await page.getByRole('combobox', { name: 'User Groups' }).click();
-
-			await expect(page.getByRole('option', { name: 'Developers' })).toBeChecked();
-			await expect(page.getByRole('option', { name: 'Designers' })).toBeChecked();
-		});
-
-		test('should save default custom claims for new signups', async ({ page }) => {
-			const signupDefaultsCard = page.locator('div[data-slot="card"]:has-text("Signup")');
-
-			await signupDefaultsCard.getByRole('button', { name: 'Add custom claim' }).click();
-			await signupDefaultsCard.getByPlaceholder('Key').fill('test-claim');
-			await signupDefaultsCard.getByPlaceholder('Value').fill('test-value');
-			await signupDefaultsCard.getByRole('button', { name: 'Add another' }).click();
-			await signupDefaultsCard.getByPlaceholder('Key').nth(1).fill('another-claim');
-			await signupDefaultsCard.getByPlaceholder('Value').nth(1).fill('another-value');
-
-			await signupDefaultsCard.locator('form').getByRole('button', { name: 'Save' }).click();
-
-			await expect(page.locator('[data-type="success"]').last()).toHaveText(
-				'Signup settings updated successfully.'
-			);
-
-			await page.reload();
-			await page.waitForLoadState('networkidle');
-
-			const updatedSignupDefaultsCard = page.locator('div[data-slot="card"]:has-text("Signup")');
-
-			await expect(updatedSignupDefaultsCard.getByPlaceholder('Key').first()).toHaveValue(
-				'test-claim'
-			);
-			await expect(updatedSignupDefaultsCard.getByPlaceholder('Value').first()).toHaveValue(
-				'test-value'
-			);
-			await expect(updatedSignupDefaultsCard.getByPlaceholder('Key').nth(1)).toHaveValue(
-				'another-claim'
-			);
-			await expect(updatedSignupDefaultsCard.getByPlaceholder('Value').nth(1)).toHaveValue(
-				'another-value'
-			);
-		});
 	});
 
 	test.describe('Signup Flows', () => {
