@@ -18,7 +18,7 @@ export default class AppConfigService extends APIService {
 		const appConfigConvertedToString: Record<string, string> = {};
 		for (const key in appConfig) {
 			const value = (appConfig as any)[key];
-			if (key === 'signupDefaultUserGroupIDs' || key === 'signupDefaultCustomClaims') {
+			if (typeof value === 'object' && value !== null) {
 				appConfigConvertedToString[key] = JSON.stringify(value);
 			} else {
 				appConfigConvertedToString[key] = String(value);
@@ -64,21 +64,23 @@ export default class AppConfigService extends APIService {
 	private parseConfigList(data: AppConfigRawResponse) {
 		const appConfig: Partial<AllAppConfig> = {};
 		data.forEach(({ key, value }) => {
-			(appConfig as any)[key] = this.parseValue(key, value);
+			(appConfig as any)[key] = this.parseValue(value);
 		});
 
 		return appConfig as AllAppConfig;
 	}
 
-	private parseValue(key: string, value: string) {
-		if (key === 'signupDefaultUserGroupIDs' || key === 'signupDefaultCustomClaims') {
-			try {
-				return JSON.parse(value);
-			} catch (e) {
-				return []; // Default to empty array if JSON is invalid
+	private parseValue(value: string) {
+		// Try to parse JSON first
+		try {
+			const parsed = JSON.parse(value);
+			if (typeof parsed === 'object' && parsed !== null) {
+				return parsed;
 			}
-		}
+			value = String(parsed);
+		} catch {}
 
+		// Handle rest of the types
 		if (value === 'true') {
 			return true;
 		} else if (value === 'false') {
