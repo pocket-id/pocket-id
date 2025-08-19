@@ -76,7 +76,7 @@
 		title={m.signup_settings()}
 		description={m.configure_signup_settings()}
 	>
-		<AppConfigSignupDefaultsForm {appConfig} userGroups={data.userGroups} callback={updateAppConfig} />
+		<AppConfigSignupDefaultsForm {appConfig} callback={updateAppConfig} />
 	</CollapsibleCard>
 </div>
 

@@ -1,32 +1,34 @@
 <script lang="ts">
 	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
-	import MultiSelect from '$lib/components/form/multi-select.svelte';
+	import SearchableMultiSelect from '$lib/components/form/searchable-multi-select.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
-	import { Separator } from '$lib/components/ui/separator';
 	import * as Select from '$lib/components/ui/select';
+	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
+	import UserGroupService from '$lib/services/user-group-service';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
-	import type { UserGroup } from '$lib/types/user-group.type';
+	import { debounced } from '$lib/utils/debounce-util';
 	import { preventDefault } from '$lib/utils/event-util';
+	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	let {
 		appConfig,
-		callback,
-		userGroups = []
+		callback
 	}: {
 		appConfig: AllAppConfig;
 		callback: (updatedConfig: Partial<AllAppConfig>) => Promise<void>;
-		userGroups: UserGroup[];
 	} = $props();
 
-	let selectedGroupIds = $state(appConfig.signupDefaultUserGroupIDs || []);
+	const userGroupService = new UserGroupService();
+
+	let userGroups = $state<{ value: string; label: string }[]>([]);
+	let selectedGroups = $state<{ value: string; label: string }[]>([]);
 	let customClaims = $state(appConfig.signupDefaultCustomClaims || []);
 	let allowUserSignups = $state(appConfig.allowUserSignups);
 	let isLoading = $state(false);
-
-	const groupItems = $derived(userGroups.map((g) => ({ value: g.id, label: g.friendlyName })));
+	let isUserSearchLoading = $state(false);
 
 	const signupOptions = {
 		disabled: {
@@ -43,22 +45,55 @@
 		}
 	};
 
-	$effect(() => {
-		selectedGroupIds = appConfig.signupDefaultUserGroupIDs || [];
-		customClaims = appConfig.signupDefaultCustomClaims || [];
-		allowUserSignups = appConfig.allowUserSignups;
-	});
+	async function loadUserGroups(search?: string) {
+		userGroups = (await userGroupService.list({ search })).data.map((group) => ({
+			value: group.id,
+			label: group.name
+		}));
+
+		// Ensure selected groups are still in the list
+		for (const selectedGroup of selectedGroups) {
+			if (!userGroups.some((g) => g.value === selectedGroup.value)) {
+				userGroups.push(selectedGroup);
+			}
+		}
+	}
+
+	async function loadSelectedGroups() {
+		selectedGroups = (
+			await Promise.all(
+				appConfig.signupDefaultUserGroupIDs.map((groupId) => userGroupService.get(groupId))
+			)
+		).map((group) => ({
+			value: group.id,
+			label: group.name
+		}));
+	}
+
+	const onUserGroupSearch = debounced(
+		async (search: string) => await loadUserGroups(search),
+		300,
+		(loading) => (isUserSearchLoading = loading)
+	);
 
 	async function onSubmit() {
 		isLoading = true;
 		await callback({
 			allowUserSignups: allowUserSignups,
-			signupDefaultUserGroupIDs: selectedGroupIds,
+			signupDefaultUserGroupIDs: selectedGroups.map((g) => g.value),
 			signupDefaultCustomClaims: customClaims
 		});
 		toast.success(m.signup_settings_updated_successfully());
 		isLoading = false;
 	}
+
+	$effect(() => {
+		loadSelectedGroups();
+		customClaims = appConfig.signupDefaultCustomClaims || [];
+		allowUserSignups = appConfig.allowUserSignups;
+	});
+
+	onMount(() => loadUserGroups());
 </script>
 
 <form class="space-y-6" onsubmit={preventDefault(onSubmit)}>
@@ -114,26 +149,28 @@
 	{#if allowUserSignups !== 'disabled'}
 		<Separator />
 
-		{#if userGroups.length > 0}
-			<div>
-				<Label for="default-groups">{m.user_groups()}</Label>
-				<p class="text-muted-foreground mt-1 mb-2 text-xs">
-					{m.signup_settings_groups_description()}
-				</p>
-				<MultiSelect
-					items={groupItems}
-					bind:selectedItems={selectedGroupIds}
-					onSelect={() => (selectedGroupIds = selectedGroupIds)}
-				/>
-			</div>
-		{/if}
-
 		<div>
-			<Label>{m.custom_claims()}</Label>
+			<Label for="default-groups" class="mb-0">{m.user_groups()}</Label>
+			<p class="text-muted-foreground mt-1 mb-2 text-xs">
+				{m.signup_settings_groups_description()}
+			</p>
+			<SearchableMultiSelect
+				items={userGroups}
+				oninput={(e) => onUserGroupSearch(e.currentTarget.value)}
+				selectedItems={selectedGroups.map((g) => g.value)}
+				onSelect={(selected) => {
+					selectedGroups = userGroups.filter((g) => selected.includes(g.value));
+				}}
+				isLoading={isUserSearchLoading}
+				disableInternalSearch
+			/>
+		</div>
+		<div>
+			<Label  class="mb-0">{m.custom_claims()}</Label>
 			<p class="text-muted-foreground mt-1 mb-2 text-xs">
 				{m.signup_settings_claims_description()}
 			</p>
-			<CustomClaimsInput bind:customClaims={customClaims} />
+			<CustomClaimsInput bind:customClaims />
 		</div>
 	{/if}
 
