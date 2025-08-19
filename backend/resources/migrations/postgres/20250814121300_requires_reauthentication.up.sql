@@ -3,7 +3,6 @@ ALTER TABLE oidc_clients ADD COLUMN requires_reauthentication BOOLEAN NOT NULL D
 CREATE TABLE reauthentication_tokens (
     id TEXT PRIMARY KEY,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     token TEXT NOT NULL UNIQUE,
     session_id TEXT NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,
