@@ -41,11 +41,14 @@
 		let authResponse: AuthenticationResponseJSON | undefined;
 
 		try {
-			if (!$userStore?.id || client?.requiresReauthentication) {
+			if (!$userStore?.id) {
 				const loginOptions = await webauthnService.getLoginOptions();
 				authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
-				await userStore.setUser(user);
+				userStore.setUser(user);
+			} else if (client?.requiresReauthentication) {
+				const loginOptions = await webauthnService.getLoginOptions();
+				authResponse = await startAuthentication({ optionsJSON: loginOptions });
 			}
 
 			if (!authorizationConfirmed) {
