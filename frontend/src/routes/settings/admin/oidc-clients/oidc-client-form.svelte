@@ -32,7 +32,6 @@
 	let isLoading = $state(false);
 	let showAdvancedOptions = $state(false);
 	let newClientIdInput = $state('');
-	let replaceClientIdMessage: string | null = $state(null);
 	let logo = $state<File | null | undefined>();
 	let logoDataURL: string | null = $state(
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
@@ -111,9 +110,6 @@
 			});
 	}
 
-	function onReplaceClientId() {
-			replaceClientIdMessage = "(API integration TBA).";
-	}
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>
