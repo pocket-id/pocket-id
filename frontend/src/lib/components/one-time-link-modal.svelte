@@ -108,7 +108,7 @@
 		{:else}
 			<div class="flex flex-col items-center gap-2">
 				<CopyToClipboard value={code!}>
-					<p class="text-3xl font-semibold">{code}</p>
+					<p class="text-3xl font-code">{code}</p>
 				</CopyToClipboard>
 
 				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
