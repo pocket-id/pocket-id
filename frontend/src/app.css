@@ -132,7 +132,7 @@
 
 	/* Font */
 	--font-playfair: 'Playfair Display', serif;
-	--font-googleSansCode: 'Google Sans', sans-serif;
+	--font-code: 'Google Sans', sans-serif;
 }
 
 @layer base {
