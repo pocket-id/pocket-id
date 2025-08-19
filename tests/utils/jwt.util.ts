@@ -12,21 +12,9 @@ type User = {
 };
 
 const privateKey = JSON.parse(PRIVATE_KEY_STRING);
-
-let signingKey: webcrypto.CryptoKey | Uint8Array<ArrayBufferLike> | undefined;
-
-async function getSigningKey(): Promise<webcrypto.CryptoKey | Uint8Array<ArrayBufferLike>> {
-	if (!signingKey) {
-		// jose.importJWK returns a KeyLike/Uint8Array; cast to the desired union
-		signingKey = (await jose.importJWK(privateKey, 'RS256')) as unknown as
-			| webcrypto.CryptoKey
-			| Uint8Array<ArrayBufferLike>;
-	}
-	return signingKey;
-}
+const privateKeyImported = await jose.importJWK(privateKey, 'RS256');
 
 export async function generateIdToken(user: User, clientId: string, expired = false) {
-	const key = await getSigningKey();
 	const now = Math.floor(Date.now() / 1000);
 	const expiration = expired ? now + 1 : now + 1000000000; // Either expired or valid for a long time
 
@@ -47,11 +35,10 @@ export async function generateIdToken(user: User, clientId: string, expired = fa
 
 	return await new jose.SignJWT(payload)
 		.setProtectedHeader({ alg: 'RS256', kid: privateKey.kid, typ: 'JWT' })
-		.sign(key);
+		.sign(privateKeyImported);
 }
 
 export async function generateOauthAccessToken(user: User, clientId: string, expired = false) {
-	const key = await getSigningKey();
 	const now = Math.floor(Date.now() / 1000);
 	const expiration = expired ? now - 1000 : now + 1000000000; // Either expired or valid for a long time
 
@@ -66,5 +53,5 @@ export async function generateOauthAccessToken(user: User, clientId: string, exp
 
 	return await new jose.SignJWT(payload)
 		.setProtectedHeader({ alg: 'RS256', kid: privateKey.kid, typ: 'JWT' })
-		.sign(key);
+		.sign(privateKeyImported);
 }
