@@ -3,7 +3,7 @@ import authUtil from 'utils/auth.util';
 import { oidcClients } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
 test('Dashboard shows all clients in the correct order', async ({ page }) => {
 	const client1 = oidcClients.tailscale;

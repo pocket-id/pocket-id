@@ -3,7 +3,7 @@ import { signupTokens, users } from 'data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
 test.describe('User Signup', () => {
 	async function setSignupMode(page: any, mode: 'Disabled' | 'Signup with token' | 'Open Signup') {

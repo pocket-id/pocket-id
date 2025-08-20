@@ -2,7 +2,7 @@ import test, { expect } from '@playwright/test';
 import { oidcClients } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
 test('Create OIDC client', async ({ page }) => {
 	await page.goto('/settings/admin/oidc-clients');

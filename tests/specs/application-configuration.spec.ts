@@ -1,7 +1,7 @@
 import test, { expect } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
 test('Update general configuration', async ({ page }) => {
 	await page.goto('/settings/admin/application-configuration');
