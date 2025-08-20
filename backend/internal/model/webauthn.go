@@ -49,7 +49,6 @@ type ReauthenticationToken struct {
 	Base
 	Token     string
 	ExpiresAt datatype.DateTime
-	SessionID string
 
 	UserID string
 	User   User

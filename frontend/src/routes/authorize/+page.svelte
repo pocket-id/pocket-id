@@ -29,6 +29,7 @@
 	let errorMessage: string | null = $state(null);
 	let authorizationRequired = $state(false);
 	let authorizationConfirmed = $state(false);
+	let userSignedInAt: Date | undefined;
 
 	onMount(() => {
 		if ($userStore) {
@@ -38,6 +39,7 @@
 
 	async function authorize() {
 		isLoading = true;
+
 		let authResponse: AuthenticationResponseJSON | undefined;
 
 		try {
@@ -46,9 +48,7 @@
 				authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
 				userStore.setUser(user);
-			} else if (client?.requiresReauthentication) {
-				const loginOptions = await webauthnService.getLoginOptions();
-				authResponse = await startAuthentication({ optionsJSON: loginOptions });
+				userSignedInAt = new Date();
 			}
 
 			if (!authorizationConfirmed) {
@@ -60,10 +60,17 @@
 				}
 			}
 
-			const reauthToken =
-				client?.requiresReauthentication && authResponse
-					? await webauthnService.reauthenticate(authResponse)
-					: undefined;
+			let reauthToken: string | undefined;
+			if (client?.requiresReauthentication) {
+				let authResponse;
+				const signedInRecently =
+					userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000;
+				if (!signedInRecently) {
+					const loginOptions = await webauthnService.getLoginOptions();
+					authResponse = await startAuthentication({ optionsJSON: loginOptions });
+				}
+				reauthToken = await webauthnService.reauthenticate(authResponse);
+			}
 
 			await oidService
 				.authorize(

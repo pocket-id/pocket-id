@@ -4,7 +4,6 @@ CREATE TABLE reauthentication_tokens (
     id TEXT PRIMARY KEY,
     created_at DATETIME,
     token TEXT NOT NULL UNIQUE,
-    session_id TEXT NOT NULL UNIQUE,
     expires_at INTEGER NOT NULL,
     user_id TEXT NOT NULL
 );

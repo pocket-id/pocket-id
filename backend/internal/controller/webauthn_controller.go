@@ -181,16 +181,24 @@ func (wc *WebauthnController) reauthenticateHandler(c *gin.Context) {
 		return
 	}
 
-	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
+	var token string
 
-	token, err := wc.webAuthnService.VerifyReauthentication(c.Request.Context(), c.GetString("userID"), sessionID, credentialAssertionData)
-	if err != nil {
-		_ = c.Error(err)
-		return
+	// Try to create a reauthentication token with WebAuthn
+	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
+	if err == nil {
+		token, err = wc.webAuthnService.CreateReauthenticationTokenWithWebauthn(c.Request.Context(), sessionID, credentialAssertionData)
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+	} else {
+		// If WebAuthn fails, try to create a reauthentication token with the access token
+		accessToken, _ := c.Cookie(cookie.AccessTokenCookieName)
+		token, err = wc.webAuthnService.CreateReauthenticationTokenWithAccessToken(c.Request.Context(), accessToken)
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"reauthenticationToken": token})
