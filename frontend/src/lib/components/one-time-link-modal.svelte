@@ -36,8 +36,7 @@
 
 	async function createLoginCode() {
 		try {
-			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
-			code = await userService.createOneTimeAccessToken(expiration, userId!);
+			code = await userService.createOneTimeAccessToken(userId!, availableExpirations[selectedExpiration]);
 			oneTimeLink = `${page.url.origin}/lc/${code}`;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -46,8 +45,7 @@
 
 	async function sendLoginCodeEmail() {
 		try {
-			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
-			await userService.requestOneTimeAccessEmailAsAdmin(userId!, expiration);
+			await userService.requestOneTimeAccessEmailAsAdmin(userId!, availableExpirations[selectedExpiration]);
 			toast.success(m.login_code_email_success());
 			onOpenChange(false);
 		} catch (e) {
@@ -81,7 +79,7 @@
 					value={Object.keys(availableExpirations)[0]}
 					onValueChange={(v) => (selectedExpiration = v! as keyof typeof availableExpirations)}
 				>
-					<Select.Trigger id="expiration" class="h-9 w-full">
+					<Select.Trigger id="expiration" class="w-full h-9">
 						{selectedExpiration}
 					</Select.Trigger>
 					<Select.Content>
@@ -111,7 +109,7 @@
 					<p class="text-3xl font-code">{code}</p>
 				</CopyToClipboard>
 
-				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
+				<div class="flex items-center justify-center gap-3 my-2 text-muted-foreground">
 					<Separator />
 					<p class="text-xs text-nowrap">{m.or_visit()}</p>
 					<Separator />

@@ -14,6 +14,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	defaultOneTimeAccessTokenDuration = 15 * time.Minute
+	maxOneTimeAccessTokenDuration     = 31 * 24 * time.Hour
+)
+
 // NewUserController creates a new controller for user management endpoints
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
@@ -331,10 +336,20 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 		return
 	}
 
+	var ttl time.Duration
 	if own {
 		input.UserID = c.GetString("userID")
+		ttl = defaultOneTimeAccessTokenDuration
+	} else {
+		ttl = input.TTL.Duration
+		if ttl <= time.Second || ttl > maxOneTimeAccessTokenDuration {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "invalid_ttl",
+			})
+			return
+		}
 	}
-	token, err := uc.userService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, input.ExpiresAt)
+	token, err := uc.userService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -411,7 +426,15 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 
 	userID := c.Param("id")
 
-	err := uc.userService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), userID, input.ExpiresAt)
+	ttl := input.TTL.Duration
+	if ttl <= time.Second || ttl > maxOneTimeAccessTokenDuration {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_ttl",
+		})
+		return
+	}
+
+	err := uc.userService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), userID, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return

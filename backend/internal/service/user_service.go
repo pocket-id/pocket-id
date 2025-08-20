@@ -348,13 +348,13 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	return user, nil
 }
 
-func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, expiration time.Time) error {
+func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, ttl time.Duration) error {
 	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsAdminEnabled.IsTrue()
 	if isDisabled {
 		return &common.OneTimeAccessDisabledError{}
 	}
 
-	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", expiration)
+	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl)
 }
 
 func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) error {
@@ -374,11 +374,10 @@ func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context
 		}
 	}
 
-	expiration := time.Now().Add(15 * time.Minute)
-	return s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, expiration)
+	return s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute)
 }
 
-func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, expiration time.Time) error {
+func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -389,7 +388,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 		return err
 	}
 
-	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, expiration, tx)
+	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, ttl, tx)
 	if err != nil {
 		return err
 	}
@@ -421,7 +420,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 			Code:              oneTimeAccessToken,
 			LoginLink:         link,
 			LoginLinkWithCode: linkWithCode,
-			ExpirationString:  utils.DurationToString(time.Until(expiration).Round(time.Second)),
+			ExpirationString:  utils.DurationToString(ttl),
 		})
 		if errInternal != nil {
 			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", errInternal), slog.String("address", user.Email))
@@ -432,12 +431,12 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 	return nil
 }
 
-func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID string, expiresAt time.Time) (string, error) {
-	return s.createOneTimeAccessTokenInternal(ctx, userID, expiresAt, s.db)
+func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID string, ttl time.Duration) (string, error) {
+	return s.createOneTimeAccessTokenInternal(ctx, userID, ttl, s.db)
 }
 
-func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, expiresAt time.Time, tx *gorm.DB) (string, error) {
-	oneTimeAccessToken, err := NewOneTimeAccessToken(userID, expiresAt)
+func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, ttl time.Duration, tx *gorm.DB) (string, error) {
+	oneTimeAccessToken, err := NewOneTimeAccessToken(userID, ttl)
 	if err != nil {
 		return "", err
 	}
@@ -746,10 +745,10 @@ func (s *UserService) DeleteSignupToken(ctx context.Context, tokenID string) err
 	return s.db.WithContext(ctx).Delete(&model.SignupToken{}, "id = ?", tokenID).Error
 }
 
-func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAccessToken, error) {
+func NewOneTimeAccessToken(userID string, ttl time.Duration) (*model.OneTimeAccessToken, error) {
 	// If expires at is less than 15 minutes, use a 6-character token instead of 16
 	tokenLength := 16
-	if time.Until(expiresAt) <= 15*time.Minute {
+	if ttl <= 15*time.Minute {
 		tokenLength = 6
 	}
 
@@ -758,9 +757,10 @@ func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAc
 		return nil, err
 	}
 
+	now := time.Now().Round(time.Second)
 	o := &model.OneTimeAccessToken{
 		UserID:    userID,
-		ExpiresAt: datatype.DateTime(expiresAt),
+		ExpiresAt: datatype.DateTime(now.Add(ttl)),
 		Token:     randomString,
 	}
 
