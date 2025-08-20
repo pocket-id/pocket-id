@@ -221,13 +221,15 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		tx.Rollback()
 	}()
 
+	// Load & delete the session row
 	var storedSession model.WebauthnSession
 	err := tx.
 		WithContext(ctx).
-		First(&storedSession, "id = ?", sessionID).
+		Clauses(clause.Returning{}).
+		Delete(&storedSession, "id = ?", sessionID).
 		Error
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, "", fmt.Errorf("failed to load WebAuthn session: %w", err)
 	}
 
 	session := webauthn.SessionData{
@@ -261,12 +263,12 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		return model.User{}, "", err
 	}
 
-	s.auditLogService.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx)
-
 	err = tx.Commit().Error
 	if err != nil {
 		return model.User{}, "", err
 	}
+
+	s.auditLogService.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx)
 
 	return *user, token, nil
 }
