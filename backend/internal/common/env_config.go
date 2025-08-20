@@ -27,6 +27,7 @@ const (
 	DbProviderPostgres      DbProvider = "postgres"
 	MaxMindGeoLiteCityUrl   string     = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
 	defaultSqliteConnString string     = "data/pocket-id.db"
+	AppUrl                  string     = "http://localhost:1411"
 )
 
 type EnvConfigSchema struct {
@@ -53,6 +54,10 @@ type EnvConfigSchema struct {
 	TrustProxy         bool       `env:"TRUST_PROXY"`
 	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
 	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
+	TokenURL           string     `env:"TOKEN_URL"`
+	UserinfoURL        string     `env:"USERINFO_URL"`
+	IntrospectionURL   string     `env:"INTROSPECTION_URL"`
+	JwksURL            string     `env:"JWKS_URL"`
 }
 
 var EnvConfig = defaultConfig()
@@ -74,7 +79,7 @@ func defaultConfig() EnvConfigSchema {
 		KeysPath:           "data/keys",
 		KeysStorage:        "", // "database" or "file"
 		EncryptionKey:      nil,
-		AppURL:             "http://localhost:1411",
+		AppURL:             AppUrl,
 		Port:               "1411",
 		Host:               "0.0.0.0",
 		UnixSocket:         "",
@@ -89,6 +94,10 @@ func defaultConfig() EnvConfigSchema {
 		TrustProxy:         false,
 		AnalyticsDisabled:  false,
 		AllowDowngrade:     false,
+		TokenURL:           AppUrl,
+		UserinfoURL:        AppUrl,
+		IntrospectionURL:   AppUrl,
+		JwksURL:            AppUrl,
 	}
 }
 
