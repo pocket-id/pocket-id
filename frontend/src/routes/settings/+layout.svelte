@@ -21,11 +21,10 @@
 	const { versionInformation, user } = data;
 
 	const links = [
+		{ href: '/settings/apps', label: m.my_apps() },
 		{ href: '/settings/account', label: m.my_account() },
 		{ href: '/settings/audit-log', label: m.audit_log() }
 	];
-
-	const nonAdminLinks = [{ href: '/settings/apps', label: m.my_apps() }];
 
 	const adminLinks = [
 		{ href: '/settings/admin/users', label: m.users() },
@@ -37,8 +36,6 @@
 
 	if (user?.isAdmin || $userStore?.isAdmin) {
 		links.push(...adminLinks);
-	} else {
-		links.push(...nonAdminLinks);
 	}
 </script>
 
