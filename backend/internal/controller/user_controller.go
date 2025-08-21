@@ -14,10 +14,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const (
-	defaultOneTimeAccessTokenDuration = 15 * time.Minute
-	maxOneTimeAccessTokenDuration     = 31 * 24 * time.Hour
-)
+const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 
 // NewUserController creates a new controller for user management endpoints
 // @Summary User management controller
@@ -342,11 +339,8 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 		ttl = defaultOneTimeAccessTokenDuration
 	} else {
 		ttl = input.TTL.Duration
-		if ttl <= time.Second || ttl > maxOneTimeAccessTokenDuration {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "invalid_ttl",
-			})
-			return
+		if ttl <= 0 {
+			ttl = defaultOneTimeAccessTokenDuration
 		}
 	}
 	token, err := uc.userService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, ttl)
@@ -427,13 +421,9 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 	userID := c.Param("id")
 
 	ttl := input.TTL.Duration
-	if ttl <= time.Second || ttl > maxOneTimeAccessTokenDuration {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid_ttl",
-		})
-		return
+	if ttl <= 0 {
+		ttl = defaultOneTimeAccessTokenDuration
 	}
-
 	err := uc.userService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), userID, ttl)
 	if err != nil {
 		_ = c.Error(err)

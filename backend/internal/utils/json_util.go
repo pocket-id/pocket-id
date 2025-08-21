@@ -27,6 +27,9 @@ func (d *JSONDuration) UnmarshalJSON(b []byte) error {
 		d.Duration = time.Duration(value) * time.Second
 		return nil
 	case string:
+		if v == "" {
+			return nil
+		}
 		var err error
 		d.Duration, err = time.ParseDuration(value)
 		if err != nil {

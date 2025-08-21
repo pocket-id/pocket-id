@@ -31,7 +31,7 @@ type UserCreateDto struct {
 
 type OneTimeAccessTokenCreateDto struct {
 	UserID string             `json:"userId"`
-	TTL    utils.JSONDuration `json:"ttl,omitempty"`
+	TTL    utils.JSONDuration `json:"ttl" binding:"ttl"`
 }
 
 type OneTimeAccessEmailAsUnauthenticatedUserDto struct {
@@ -40,7 +40,7 @@ type OneTimeAccessEmailAsUnauthenticatedUserDto struct {
 }
 
 type OneTimeAccessEmailAsAdminDto struct {
-	TTL utils.JSONDuration `json:"ttl"`
+	TTL utils.JSONDuration `json:"ttl" binding:"ttl"`
 }
 
 type UserUpdateUserGroupDto struct {
