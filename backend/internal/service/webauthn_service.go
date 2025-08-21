@@ -263,12 +263,12 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		return model.User{}, "", err
 	}
 
+	s.auditLogService.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx)
+
 	err = tx.Commit().Error
 	if err != nil {
 		return model.User{}, "", err
 	}
-
-	s.auditLogService.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx)
 
 	return *user, token, nil
 }
