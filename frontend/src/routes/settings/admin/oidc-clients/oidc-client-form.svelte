@@ -1,23 +1,27 @@
 <script lang="ts">
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import { Input } from '$lib/components/ui/input';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import ImageBox from '$lib/components/image-box.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { OidcClient, OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import OidcService from '$lib/services/oidc-service';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
 	import { LucideChevronDown } from '@lucide/svelte';
+	import { TextCursorInput } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
-	import EditClientCredentials from './replace-client-credentials.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import { optionalUrl } from '$lib/utils/zod-util';
+	import { toast } from 'svelte-sonner';
+	import { axiosErrorToast } from '$lib/utils/error-util';
 
 	let {
 		callback,
@@ -30,8 +34,8 @@
 	} = $props();
 
 	let isLoading = $state(false);
+	let newClientIdInput: string = $state(null);
 	let showAdvancedOptions = $state(false);
-	let newClientIdInput = $state('');
 	let logo = $state<File | null | undefined>();
 	let logoDataURL: string | null = $state(
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
@@ -84,6 +88,18 @@
 		isLoading = false;
 	}
 
+	async function handleUpdateClientId() {
+		console.log('Button clicked!');
+		if (newClientIdInput == existingClient.id) return;
+		try {
+			const oidcService = new OidcService();
+			await oidcService.updateClientId(existingClient.id, newClientIdInput);
+			toast.success('Client ID updated successfully');
+			onRefresh?.(newClientIdInput);
+		} catch (e) {
+			axiosErrorToast(e);
+		}
+	}
 	function onLogoChange(e: Event) {
 		const file = (e.target as HTMLInputElement).files?.[0] || null;
 		if (file) {
@@ -109,7 +125,6 @@
 				return e;
 			});
 	}
-
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>
@@ -182,19 +197,30 @@
 	</div>
 
 	{#if showAdvancedOptions}
-		<div transition:slide={{ duration: 200 }}>		
+		<div transition:slide={{ duration: 200 }}>
+			<Label for="newClientIdInput" class="mt-8 w-full text-left">
+				{m.update()}
+				{m.client_id()}
+			</Label>
+			<div class="mt-2 flex flex-col items-start justify-between gap-4 sm:flex-row">
+				<Input
+					id="newClientIdInput"
+					bind:value={newClientIdInput}
+					placeholder={existingClient?.id ?? ''}
+					class="flex-grow"
+				/>
+				<Button class="mt-0 whitespace-nowrap" variant="secondary" onclick={handleUpdateClientId}>
+					<TextCursorInput class="mr-1 size-4" />
+					{m.update()}
+					{m.client_id()}
+				</Button>
+			</div>
 			<div class="mt-5 md:col-span-2">
 				<FederatedIdentitiesInput
 					client={existingClient}
 					bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
 					errors={getFederatedIdentityErrors($errors)}
 				/>
-			</div>
-			<div class="mt-5 md:col-span-2">
-				<EditClientCredentials
-					client={existingClient}
-					onRefresh={onRefresh}
-				/> 
 			</div>
 		</div>
 	{/if}
