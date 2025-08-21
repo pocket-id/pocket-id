@@ -30,6 +30,10 @@
 		}
 		isLoading = false;
 	}
+
+	function goToEmailLogin() {
+		goto('/login/alternative/email');
+	}
 </script>
 
 <svelte:head>
@@ -61,5 +65,10 @@
 		<Button {isLoading} onclick={authenticate} autofocus={true}>
 			{error ? m.try_again() : m.authenticate()}
 		</Button>
+		{#if $appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled}
+			<Button variant="outline" onclick={goToEmailLogin}>
+				Inloggen met e-mail
+			</Button>
+		{/if}
 	</div>
 </SignInWrapper>
