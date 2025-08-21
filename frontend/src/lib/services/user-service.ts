@@ -83,9 +83,9 @@ export default class UserService extends APIService {
 		return res.data.token;
 	}
 
-	async createSignupToken(expiresAt: Date, usageLimit: number) {
+	async createSignupToken(ttl: string|number, usageLimit: number) {
 		const res = await this.api.post(`/signup-tokens`, {
-			expiresAt,
+			ttl,
 			usageLimit
 		});
 		return res.data.token;

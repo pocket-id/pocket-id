@@ -14,7 +14,10 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const defaultOneTimeAccessTokenDuration = 15 * time.Minute
+const (
+	defaultOneTimeAccessTokenDuration = 15 * time.Minute
+	defaultSignupTokenDuration        = time.Hour
+)
 
 // NewUserController creates a new controller for user management endpoints
 // @Summary User management controller
@@ -539,14 +542,20 @@ func (uc *UserController) createSignupTokenHandler(c *gin.Context) {
 		return
 	}
 
-	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), input.ExpiresAt, input.UsageLimit)
+	ttl := input.TTL.Duration
+	if ttl <= 0 {
+		ttl = defaultSignupTokenDuration
+	}
+
+	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	var tokenDto dto.SignupTokenDto
-	if err := dto.MapStruct(signupToken, &tokenDto); err != nil {
+	err = dto.MapStruct(signupToken, &tokenDto)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}

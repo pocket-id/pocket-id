@@ -37,8 +37,7 @@
 
 	async function createSignupToken() {
 		try {
-			const expiration = new Date(Date.now() + availableExpirations[selectedExpiration] * 1000);
-			signupToken = await userService.createSignupToken(expiration, usageLimit);
+			signupToken = await userService.createSignupToken(availableExpirations[selectedExpiration], usageLimit);
 			signupLink = `${page.url.origin}/st/${signupToken}`;
 
 			if (onTokenCreated) {

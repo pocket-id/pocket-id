@@ -441,7 +441,8 @@ func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, user
 		return "", err
 	}
 
-	if err := tx.WithContext(ctx).Create(oneTimeAccessToken).Error; err != nil {
+	err = tx.WithContext(ctx).Create(oneTimeAccessToken).Error
+	if err != nil {
 		return "", err
 	}
 
@@ -641,17 +642,14 @@ func (s *UserService) disableUserInternal(ctx context.Context, userID string, tx
 		Error
 }
 
-func (s *UserService) CreateSignupToken(ctx context.Context, expiresAt time.Time, usageLimit int) (model.SignupToken, error) {
-	return s.createSignupTokenInternal(ctx, expiresAt, usageLimit, s.db)
-}
-
-func (s *UserService) createSignupTokenInternal(ctx context.Context, expiresAt time.Time, usageLimit int, tx *gorm.DB) (model.SignupToken, error) {
-	signupToken, err := NewSignupToken(expiresAt, usageLimit)
+func (s *UserService) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int) (model.SignupToken, error) {
+	signupToken, err := NewSignupToken(ttl, usageLimit)
 	if err != nil {
 		return model.SignupToken{}, err
 	}
 
-	if err := tx.WithContext(ctx).Create(signupToken).Error; err != nil {
+	err = s.db.WithContext(ctx).Create(signupToken).Error
+	if err != nil {
 		return model.SignupToken{}, err
 	}
 
@@ -767,16 +765,17 @@ func NewOneTimeAccessToken(userID string, ttl time.Duration) (*model.OneTimeAcce
 	return o, nil
 }
 
-func NewSignupToken(expiresAt time.Time, usageLimit int) (*model.SignupToken, error) {
+func NewSignupToken(ttl time.Duration, usageLimit int) (*model.SignupToken, error) {
 	// Generate a random token
 	randomString, err := utils.GenerateRandomAlphanumericString(16)
 	if err != nil {
 		return nil, err
 	}
 
+	now := time.Now().Round(time.Second)
 	token := &model.SignupToken{
 		Token:      randomString,
-		ExpiresAt:  datatype.DateTime(expiresAt),
+		ExpiresAt:  datatype.DateTime(now.Add(ttl)),
 		UsageLimit: usageLimit,
 		UsageCount: 0,
 	}
