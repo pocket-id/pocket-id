@@ -419,5 +419,16 @@
 	"signup_open_description": "任何人都可以无限制地注册新账户。",
 	"of": "中的",
 	"skip_passkey_setup": "跳过设置通行密钥",
-	"skip_passkey_setup_description": "强烈建议设置一个通行密钥，否则您在此会话结束后将无法访问您的账户。"
+	"skip_passkey_setup_description": "强烈建议设置一个通行密钥，否则您在此会话结束后将无法访问您的账户。",
+	"my_apps": "我的应用程序",
+	"no_apps_available": "没有可用应用程序",
+	"contact_your_administrator_for_app_access": "请联系您的管理员以获取应用程序的访问权限。",
+	"launch": "启动",
+	"client_launch_url": "客户发布链接",
+	"client_launch_url_description": "当用户从“我的应用”页面启动应用时将打开的 URL。",
+	"client_name_description": "在Pocket ID用户界面中显示的客户端名称。",
+	"revoke_access": "撤销访问权限",
+	"revoke_access_description": "撤销对 <b>{clientName}</b>. <b>{clientName}</b>将无法再访问您的账户信息。",
+	"revoke_access_successful": "对 {clientName} 的访问权限已成功撤销。",
+	"last_signed_in_ago": "最后一次登录 {time} 前"
 }

@@ -1,3 +1,23 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.6.4...v) (2025-08-10)
+
+
+### Features
+
+* add robots.txt to block indexing ([#806](https://github.com/pocket-id/pocket-id/issues/806)) ([06e1656](https://github.com/pocket-id/pocket-id/commit/06e1656923eb2f4531be497716f9147c09d60b65))
+* add support for `code_challenge_methods_supported` ([#794](https://github.com/pocket-id/pocket-id/issues/794)) ([d479817](https://github.com/pocket-id/pocket-id/commit/d479817b6a7ca4807b5de500b3ba713d436b0770))
+* Support OTel and JSON for logs (via log/slog) ([#760](https://github.com/pocket-id/pocket-id/issues/760)) ([78266e3](https://github.com/pocket-id/pocket-id/commit/78266e3e4cab2b23249c3baf20f4387d00eebd9e))
+* support reading secret env vars from _FILE ([#799](https://github.com/pocket-id/pocket-id/issues/799)) ([0a3b1c6](https://github.com/pocket-id/pocket-id/commit/0a3b1c653050f2237d30ec437c5de88baa704a25))
+* user application dashboard ([#727](https://github.com/pocket-id/pocket-id/issues/727)) ([484c2f6](https://github.com/pocket-id/pocket-id/commit/484c2f6ef20efc1fade1a41e2aeace54c7bb4f1b))
+
+
+### Bug Fixes
+
+* admins can not delete or disable their own account ([f0c144c](https://github.com/pocket-id/pocket-id/commit/f0c144c51c635bc348222a00d3bc88bc4e0711ef))
+* authorization animation not working ([9ac5d51](https://github.com/pocket-id/pocket-id/commit/9ac5d5118710cad59c8c4ce7cef7ab09be3de664))
+* custom claims input suggestions instantly close after opening ([4d59e72](https://github.com/pocket-id/pocket-id/commit/4d59e7286666480e20c728787a95e82513509240))
+* delete WebAuthn registration session after use ([#783](https://github.com/pocket-id/pocket-id/issues/783)) ([c8478d7](https://github.com/pocket-id/pocket-id/commit/c8478d75bed7295625cd3cf62ef46fcd95902410))
+* set input type 'email' for email-based login ([#776](https://github.com/pocket-id/pocket-id/issues/776)) ([d541c9a](https://github.com/pocket-id/pocket-id/commit/d541c9ab4af8d7283891a80f886dd5d4ebc52f53))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.6.3...v) (2025-07-21)
 
 ### Bug Fixes

@@ -14,6 +14,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const (
+	defaultOneTimeAccessTokenDuration = 15 * time.Minute
+	defaultSignupTokenDuration        = time.Hour
+)
+
 // NewUserController creates a new controller for user management endpoints
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
@@ -331,10 +336,17 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 		return
 	}
 
+	var ttl time.Duration
 	if own {
 		input.UserID = c.GetString("userID")
+		ttl = defaultOneTimeAccessTokenDuration
+	} else {
+		ttl = input.TTL.Duration
+		if ttl <= 0 {
+			ttl = defaultOneTimeAccessTokenDuration
+		}
 	}
-	token, err := uc.userService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, input.ExpiresAt)
+	token, err := uc.userService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -411,7 +423,11 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 
 	userID := c.Param("id")
 
-	err := uc.userService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), userID, input.ExpiresAt)
+	ttl := input.TTL.Duration
+	if ttl <= 0 {
+		ttl = defaultOneTimeAccessTokenDuration
+	}
+	err := uc.userService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), userID, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -526,14 +542,20 @@ func (uc *UserController) createSignupTokenHandler(c *gin.Context) {
 		return
 	}
 
-	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), input.ExpiresAt, input.UsageLimit)
+	ttl := input.TTL.Duration
+	if ttl <= 0 {
+		ttl = defaultSignupTokenDuration
+	}
+
+	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	var tokenDto dto.SignupTokenDto
-	if err := dto.MapStruct(signupToken, &tokenDto); err != nil {
+	err = dto.MapStruct(signupToken, &tokenDto)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}

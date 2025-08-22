@@ -49,9 +49,7 @@ test.describe('Initial User Signup', () => {
 });
 
 test.describe('User Signup', () => {
-	test.beforeEach(() => {
-		cleanupBackend();
-	});
+	test.beforeEach(async () => await cleanupBackend());
 
 	test.describe('Signup Flows', () => {
 		test('Signup is disabled - shows error message', async ({ page }) => {

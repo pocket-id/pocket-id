@@ -419,5 +419,16 @@
 	"signup_open_description": "Bất kỳ ai cũng có thể tạo tài khoản mới mà không có bất kỳ hạn chế nào.",
 	"of": "của",
 	"skip_passkey_setup": "Bỏ qua thiết lập Passkey",
-	"skip_passkey_setup_description": "Bạn nên thiết lập khóa truy cập (passkey) vì nếu không có, bạn sẽ bị khóa khỏi tài khoản ngay khi phiên làm việc hết hạn."
+	"skip_passkey_setup_description": "Bạn nên thiết lập khóa truy cập (passkey) vì nếu không có, bạn sẽ bị khóa khỏi tài khoản ngay khi phiên làm việc hết hạn.",
+	"my_apps": "Ứng dụng của tôi",
+	"no_apps_available": "Không có ứng dụng nào có sẵn.",
+	"contact_your_administrator_for_app_access": "Liên hệ với quản trị viên của bạn để được cấp quyền truy cập vào các ứng dụng.",
+	"launch": "Ra mắt",
+	"client_launch_url": "URL khởi chạy của khách hàng",
+	"client_launch_url_description": "Đường dẫn URL sẽ được mở khi người dùng khởi chạy ứng dụng từ trang Ứng dụng của tôi.",
+	"client_name_description": "Tên của khách hàng hiển thị trong giao diện Pocket ID.",
+	"revoke_access": "Hủy quyền truy cập",
+	"revoke_access_description": "Hủy quyền truy cập vào <b>{clientName}</b>. <b>{clientName}</b> sẽ không còn có thể truy cập thông tin tài khoản của bạn.",
+	"revoke_access_successful": "Quyền truy cập vào {clientName} đã bị thu hồi thành công.",
+	"last_signed_in_ago": "Lần đăng nhập cuối cùng cách đây {time}"
 }
