@@ -23,7 +23,7 @@
 	"click_to_copy": "Нажмите, чтобы скопировать",
 	"something_went_wrong": "Что-то пошло не так",
 	"go_back_to_home": "Вернуться на главную",
-	"dont_have_access_to_your_passkey": "Нет доступа к вашему пасскею?",
+	"alternative_sign_in_methods": "Другие способы входа",
 	"login_background": "Фон страницы входа",
 	"logo": "Логотип",
 	"login_code": "Код входа",
