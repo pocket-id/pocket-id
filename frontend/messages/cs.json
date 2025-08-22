@@ -276,6 +276,8 @@
 	"public_clients_description": "Veřejní klienti nemají client secret a místo toho používají PKCE. Povolte to, pokud je váš klient SPA nebo mobilní aplikace.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "Public Key Exchange je bezpečnostní funkce, která zabraňuje útokům CSRF a narušení autorizačních kódů.",
+	"requires_reauthentication": "Vyžaduje opětovné ověření",
+	"requires_users_to_authenticate_again_on_each_authorization": "Vyžaduje, aby se uživatelé při každém autorizačním pokusu znovu ověřili, i když jsou již přihlášeni.",
 	"name_logo": "Logo {name}",
 	"change_logo": "Změnit logo",
 	"upload_logo": "Nahrát logo",
