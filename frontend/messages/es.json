@@ -276,6 +276,8 @@
 	"public_clients_description": "Public clients do not have a client secret and use PKCE instead. Enable this if your client is a SPA or mobile app.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "El intercambio de claves públicas es una función de seguridad que evita los ataques CSRF y la interceptación de códigos de autorización.",
+	"requires_reauthentication": "Requiere reautenticación",
+	"requires_users_to_authenticate_again_on_each_authorization": "Requiere que los usuarios se autentiquen de nuevo en cada autorización, incluso si ya han iniciado sesión.",
 	"name_logo": "{name} logotipo",
 	"change_logo": "Cambiar logotipo",
 	"upload_logo": "Subir Logo",
