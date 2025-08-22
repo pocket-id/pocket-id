@@ -30,9 +30,14 @@ func init() {
 	if err != nil {
 		panic("Failed to register custom validation for username: " + err.Error())
 	}
+
 	err = v.RegisterValidation("client_id", func(fl validator.FieldLevel) bool {
 		return validateClientIDRegex.MatchString(fl.Field().String())
 	})
+	if err != nil {
+		panic("Failed to register custom validation for client_id: " + err.Error())
+	}
+
 	err = v.RegisterValidation("ttl", func(fl validator.FieldLevel) bool {
 		ttl, ok := fl.Field().Interface().(utils.JSONDuration)
 		if !ok {
