@@ -276,6 +276,8 @@
 	"public_clients_description": "Public-klienter har ikke en klienthemmelighed. De er designet til mobil-, web- og native-apps, hvor hemmeligheder ikke kan opbevares sikkert.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "Public Key Code Exchange er en sikkerhedsfunktion, der beskytter mod CSRF- og authorization code-angreb.",
+	"requires_reauthentication": "Kræver genbekræftelse",
+	"requires_users_to_authenticate_again_on_each_authorization": "Kræver, at brugerne skal godkende igen ved hver autorisation, selvom de allerede er logget ind.",
 	"name_logo": "Logo for {name}",
 	"change_logo": "Skift logo",
 	"upload_logo": "Upload logo",
