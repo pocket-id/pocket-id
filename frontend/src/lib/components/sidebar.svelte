@@ -5,6 +5,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { LucideChevronDown, LucideExternalLink, type Icon as IconType } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
+	import { PersistedState } from 'runed';
 
 	type NavItem = {
 		label: string;
@@ -13,6 +14,7 @@
 		icon?: typeof IconType;
 		children?: NavItem[];
 		id?: string;
+		defaultOpen?: boolean;
 	};
 
 	let {
@@ -23,7 +25,14 @@
 		updateUrl = 'https://github.com/pocket-id/pocket-id/releases/latest'
 	} = $props();
 
-	let open = $state<Record<string, boolean>>({});
+	const openState = new PersistedState<Record<string, boolean>>(
+		storageKey,
+		{},
+		{
+			storage: 'local',
+			syncTabs: true
+		}
+	);
 
 	function groupId(item: NavItem, idx: number) {
 		return item.id ?? `${item.label}-${idx}`;
@@ -34,57 +43,24 @@
 		return page.url.pathname.startsWith(href);
 	}
 
-	function readPersisted(): Record<string, boolean> {
-		try {
-			if (typeof localStorage === 'undefined') return {};
-			const raw = localStorage.getItem(storageKey);
-			return raw ? JSON.parse(raw) : {};
-		} catch {
-			return {};
-		}
-	}
-
-	function writePersisted() {
-		try {
-			if (typeof localStorage === 'undefined') return;
-			localStorage.setItem(storageKey, JSON.stringify(open));
-		} catch {
-			// ignore write errors
-		}
-	}
-
 	$effect(() => {
-		if (typeof window === 'undefined') return;
-
-		const saved = readPersisted();
-		let changed = false;
+		const state = openState.current;
 
 		items.forEach((item, idx) => {
 			if (!item.children?.length) return;
-
 			const id = groupId(item, idx);
-
-			if (saved[id] !== undefined) {
-				if (open[id] !== saved[id]) {
-					open[id] = saved[id];
-					changed = true;
-				}
-				return;
-			}
-
-			// First-time init (auto-open if a child is active)
-			if (open[id] === undefined) {
-				open[id] = item.children.some((c) => isActive(c.href));
-				changed = true;
+			if (state[id] === undefined) {
+				state[id] = item.children.some((c) => isActive(c.href)) || !!item.defaultOpen;
 			}
 		});
-
-		if (changed) writePersisted();
 	});
 
+	function isOpen(id: string) {
+		return !!openState.current[id];
+	}
+
 	function toggle(id: string) {
-		open[id] = !open[id];
-		writePersisted();
+		openState.current[id] = !openState.current[id];
 	}
 
 	const activeClasses =
@@ -97,6 +73,7 @@
 	{#each items as item, i}
 		{#if item.children?.length}
 			{@const Icon = item.icon}
+			{@const id = groupId(item, i)}
 			<div class="group">
 				<button
 					type="button"
@@ -105,9 +82,9 @@
 						!$appConfigStore.disableAnimations && 'animate-fade-in'
 					)}
 					style={`animation-delay: ${150 + i * 50}ms;`}
-					aria-expanded={!!open[groupId(item, i)]}
-					aria-controls={`submenu-${groupId(item, i)}`}
-					onclick={() => toggle(groupId(item, i))}
+					aria-expanded={isOpen(id)}
+					aria-controls={`submenu-${id}`}
+					onclick={() => toggle(id)}
 				>
 					<span class="flex items-center gap-2">
 						{#if item.icon}
@@ -116,13 +93,13 @@
 						{item.label}
 					</span>
 					<LucideChevronDown
-						class={cn('size-4 transition-transform', open[groupId(item, i)] ? 'rotate-180' : '')}
+						class={cn('size-4 transition-transform', isOpen(id) ? 'rotate-180' : '')}
 					/>
 				</button>
 
-				{#if open[groupId(item, i)]}
+				{#if isOpen(id)}
 					<ul
-						id={`submenu-${groupId(item, i)}`}
+						id={`submenu-${id}`}
 						class="border-border/50 ml-2 border-l pl-2"
 						transition:slide|local={{ duration: 120 }}
 					>
