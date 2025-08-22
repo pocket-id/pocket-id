@@ -670,7 +670,7 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
-		CreatedByID: userID,
+		CreatedByID: utils.Ptr(userID),
 	}
 	updateOIDCClientModelFromDto(&client, &input)
 
