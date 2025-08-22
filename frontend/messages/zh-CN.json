@@ -276,6 +276,8 @@
 	"public_clients_description": "公共客户端没有客户端密钥。它们用于无法安全存储密钥的移动端、Web端和原生应用程序。",
 	"pkce": "公钥代码交换",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "公钥代码交换是一种安全功能，可防止 CSRF 和授权代码拦截攻击。",
+	"requires_reauthentication": "需要重新验证",
+	"requires_users_to_authenticate_again_on_each_authorization": "要求用户在每次授权时重新进行身份验证，即使用户已登录。",
 	"name_logo": "{name} Logo",
 	"change_logo": "更改 Logo",
 	"upload_logo": "上传 Logo",
