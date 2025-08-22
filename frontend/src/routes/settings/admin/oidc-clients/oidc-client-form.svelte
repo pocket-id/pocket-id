@@ -39,6 +39,7 @@
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false,
+		requiresReauthentication: existingClient?.requiresReauthentication || false,
 		launchURL: existingClient?.launchURL || '',
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
@@ -51,6 +52,7 @@
 		logoutCallbackURLs: z.array(z.string().nonempty()),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
+		requiresReauthentication: z.boolean(),
 		launchURL: optionalUrl,
 		credentials: z.object({
 			federatedIdentities: z.array(
@@ -146,6 +148,12 @@
 			label={m.pkce()}
 			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
 			bind:checked={$inputs.pkceEnabled.value}
+		/>
+		<SwitchWithLabel
+			id="requires-reauthentication"
+			label={m.requires_reauthentication()}
+			description={m.requires_users_to_authenticate_again_on_each_authorization()}
+			bind:checked={$inputs.requiresReauthentication.value}
 		/>
 	</div>
 	<div class="mt-8">

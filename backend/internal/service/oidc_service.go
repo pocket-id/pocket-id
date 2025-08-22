@@ -50,6 +50,7 @@ type OidcService struct {
 	appConfigService   *AppConfigService
 	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
+	webAuthnService    *WebAuthnService
 
 	httpClient *http.Client
 	jwkCache   *jwk.Cache
@@ -62,6 +63,7 @@ func NewOidcService(
 	appConfigService *AppConfigService,
 	auditLogService *AuditLogService,
 	customClaimService *CustomClaimService,
+	webAuthnService *WebAuthnService,
 ) (s *OidcService, err error) {
 	s = &OidcService{
 		db:                 db,
@@ -69,6 +71,7 @@ func NewOidcService(
 		appConfigService:   appConfigService,
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
+		webAuthnService:    webAuthnService,
 	}
 
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
@@ -121,6 +124,16 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		Error
 	if err != nil {
 		return "", "", err
+	}
+
+	if client.RequiresReauthentication {
+		if input.ReauthenticationToken == "" {
+			return "", "", &common.ReauthenticationRequiredError{}
+		}
+		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	// If the client is not public, the code challenge must be provided
@@ -714,6 +727,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	client.RequiresReauthentication = input.RequiresReauthentication
 	client.LaunchURL = input.LaunchURL
 
 	// Credentials
