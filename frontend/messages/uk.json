@@ -276,6 +276,8 @@
 	"public_clients_description": "Публічні клієнти не мають секретного ключа. Вони призначені для мобільних, веб та нативних додатків, де секретний ключ не може надійно зберігатись.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "Public Key Code Exchange — це функція безпеки, що запобігає атакам типу CSRF та перехопленню коду авторизації.",
+	"requires_reauthentication": "Потрібна повторна автентифікація",
+	"requires_users_to_authenticate_again_on_each_authorization": "Вимагає від користувачів повторної автентифікації при кожній авторизації, навіть якщо вони вже ввійшли в систему.",
 	"name_logo": "Логотип {name}",
 	"change_logo": "Змінити логотип",
 	"upload_logo": "Вивантажити логотип",
