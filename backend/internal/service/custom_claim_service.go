@@ -55,29 +55,41 @@ const (
 
 // UpdateCustomClaimsForUser updates the custom claims for a user
 func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
-	var updatedClaims []model.CustomClaim
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var txErr error
-		updatedClaims, txErr = s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
-		return txErr
-	})
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
 	if err != nil {
 		return nil, err
 	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
+
 	return updatedClaims, nil
 }
 
 // UpdateCustomClaimsForUserGroup updates the custom claims for a user group
 func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context, userGroupID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
-	var updatedClaims []model.CustomClaim
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var txErr error
-		updatedClaims, txErr = s.updateCustomClaimsInternal(ctx, UserGroupID, userGroupID, claims, tx)
-		return txErr
-	})
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserGroupID, userGroupID, claims, tx)
 	if err != nil {
 		return nil, err
 	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
+
 	return updatedClaims, nil
 }
 
