@@ -23,7 +23,7 @@
 	"click_to_copy": "点击复制",
 	"something_went_wrong": "出了点问题",
 	"go_back_to_home": "返回首页",
-	"dont_have_access_to_your_passkey": "无法使用您的通行密钥？试试其他登录方式。",
+	"alternative_sign_in_methods": "替代登录方式",
 	"login_background": "登录页背景图",
 	"logo": "图标",
 	"login_code": "临时登录码",
