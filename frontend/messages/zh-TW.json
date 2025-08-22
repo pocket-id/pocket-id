@@ -276,6 +276,8 @@
 	"public_clients_description": "公開客戶端 (Public Client) 不包含 client secret。這類客戶端是為了行動裝置、網頁以及無法安全儲存 secret 的原生應用程式所設計。",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "PKCE（公開金鑰碼交換）是一項安全機制，用於防止 CSRF 與授權碼攔截攻擊。",
+	"requires_reauthentication": "需要重新驗證",
+	"requires_users_to_authenticate_again_on_each_authorization": "要求使用者在每次授權時再次驗證，即使已經登入也是如此",
 	"name_logo": "{name} 標誌",
 	"change_logo": "更改標誌",
 	"upload_logo": "上傳標誌",
