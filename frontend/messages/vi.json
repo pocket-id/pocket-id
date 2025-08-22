@@ -276,6 +276,8 @@
 	"public_clients_description": "Public client không có client secret. Chúng được thiết kế cho các ứng dụng di động, web và ứng dụng gốc, nơi các khóa bí mật không thể được lưu trữ một cách an toàn.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "Public Key Code Exchange là một tính năng bảo mật nhằm ngăn chặn các cuộc tấn công CSRF và đánh cắp mã xác thực.",
+	"requires_reauthentication": "Yêu cầu xác thực lại",
+	"requires_users_to_authenticate_again_on_each_authorization": "Yêu cầu người dùng xác thực lại mỗi lần ủy quyền, ngay cả khi đã đăng nhập.",
 	"name_logo": "{name} logo",
 	"change_logo": "Đổi Logo",
 	"upload_logo": "Tải logo",
