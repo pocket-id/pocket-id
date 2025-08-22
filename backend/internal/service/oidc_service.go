@@ -682,6 +682,9 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		Create(&client).
 		Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return model.OidcClient{}, &common.ClientIdAlreadyExistsError{}
+		}
 		return model.OidcClient{}, err
 	}
 
