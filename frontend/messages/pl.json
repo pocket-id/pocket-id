@@ -276,6 +276,8 @@
 	"public_clients_description": "Klienci publiczni nie mają tajnego klucza. Są zaprojektowane dla aplikacji mobilnych, webowych i natywnych, gdzie tajne klucze nie mogą być bezpiecznie przechowywane.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "Wymiana kodu publicznego klucza to funkcja zabezpieczająca, która zapobiega atakom CSRF i przechwytywaniu kodu autoryzacyjnego.",
+	"requires_reauthentication": "Wymagane ponowne uwierzytelnienie",
+	"requires_users_to_authenticate_again_on_each_authorization": "Wymaga od użytkowników ponownego uwierzytelniania przy każdej autoryzacji, nawet jeśli są już zalogowani.",
 	"name_logo": "Logo {name}",
 	"change_logo": "Zmień logo",
 	"upload_logo": "Prześlij logo",
