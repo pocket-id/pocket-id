@@ -4,37 +4,37 @@
       <img src="{{ .LogoURL }}" alt="{{ .AppName }}" width="32" height="32" style="width: 32px; height: 32px; max-width: 32px;"/>
       <h1>{{ .AppName }}</h1>
    </div>
-   <div class="warning">Warning</div>
+   <div class="warning">Waarschuwing</div>
 </div>
 <div class="content">
-   <h2>New Sign-In Detected</h2>
+   <h2>Nieuwe aanmelding gedetecteerd</h2>
    <table class="grid">
       <tr>
          {{ if and .Data.City .Data.Country }}
          <td>
-            <p class="label">Approximate Location</p>
+            <p class="label">Geschatte locatie</p>
             <p>{{ .Data.City }}, {{ .Data.Country }}</p>
          </td>
          {{ end }}
          <td>
-            <p class="label">IP Address</p>
+            <p class="label">IP-adres</p>
             <p>{{ .Data.IPAddress }}</p>
          </td>
       </tr>
       <tr>
          <td>
-            <p class="label">Device</p>
+            <p class="label">Apparaat</p>
             <p>{{ .Data.Device }}</p>
          </td>
          <td>
-            <p class="label">Sign-In Time</p>
+            <p class="label">Aanmeldtijd</p>
             <p>{{ .Data.DateTime.Format "2006-01-02 15:04:05 UTC" }}</p>
          </td>
       </tr>
    </table>
    <p class="message">
-      This sign-in was detected from a new device or location. If you recognize this activity, you can
-      safely ignore this message. If not, please review your account and security settings.
+      Deze aanmelding is gedetecteerd vanaf een nieuw apparaat of locatie. Als je deze activiteit herkent, kun je
+      dit bericht veilig negeren. Zo niet, controleer dan je account en beveiligingsinstellingen.
    </p>
 </div>
 {{ end -}}

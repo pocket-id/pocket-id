@@ -1,10 +1,10 @@
 {{ define "base" -}}
-Login Code
-====================
+Aanmeldcode
+===========
 
-Click the link below to sign in to {{ .AppName }} with a login code. This code expires in {{.Data.ExpirationString}}.
+Klik op de link hieronder om in te loggen bij {{ .AppName }} met een aanmeldcode. Deze code verloopt over {{.Data.ExpirationString}}.
 
 {{ .Data.LoginLinkWithCode }}
 
-Or visit {{ .Data.LoginLink }} and enter the the code "{{ .Data.Code }}".
+Of ga naar {{ .Data.LoginLink }} en voer de code "{{ .Data.Code }}" in.
 {{ end -}}

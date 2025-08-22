@@ -1,10 +1,10 @@
 {{ define "base" -}}
-API Key Expiring Soon
-====================
+API-sleutel verloopt binnenkort
+=============================
 
-Hello {{ .Data.Name }},
+Hallo {{ .Data.Name }},
 
-This is a reminder that your API key "{{ .Data.ApiKeyName }}" will expire on {{ .Data.ExpiresAt.Format "2006-01-02 15:04:05 MST" }}.
+Dit is een herinnering dat je API-sleutel "{{ .Data.ApiKeyName }}" verloopt op {{ .Data.ExpiresAt.Format "2006-01-02 15:04:05 MST" }}.
 
-Please generate a new API key if you need continued access.
+Genereer een nieuwe API-sleutel als je toegang wilt behouden.
 {{ end -}}

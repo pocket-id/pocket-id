@@ -63,7 +63,7 @@
 			</Button>
 		{/if}
 		<Button {isLoading} onclick={authenticate} autofocus={true}>
-			{error ? m.try_again() : m.authenticate()}
+			{error ? m.try_again() : "Inloggen met een passkey"}
 		</Button>
 		{#if $appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled}
 			<Button variant="outline" onclick={goToEmailLogin}>

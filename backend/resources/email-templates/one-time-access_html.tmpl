@@ -6,12 +6,12 @@
         </div>
     </div>
     <div class="content">
-        <h2>Login Code</h2>
+        <h2>Aanmeldcode</h2>
         <p class="message">
-            Click the button below to sign in to {{ .AppName }} with a login code.</br>Or visit <a href="{{ .Data.LoginLink }}">{{ .Data.LoginLink }}</a> and enter the code <strong>{{ .Data.Code }}</strong>.</br></br>This code expires in {{.Data.ExpirationString}}.
+            Klik op de knop hieronder om in te loggen bij {{ .AppName }} met een aanmeldcode.</br>Of ga naar <a href="{{ .Data.LoginLink }}">{{ .Data.LoginLink }}</a> en voer de code <strong>{{ .Data.Code }}</strong> in.</br></br>Deze code verloopt over {{.Data.ExpirationString}}.
         </p>
         <div class="button-container">
-            <a class="button" href="{{ .Data.LoginLinkWithCode }}" class="button">Sign In</a>
+            <a class="button" href="{{ .Data.LoginLinkWithCode }}" class="button">Inloggen</a>
         </div>
     </div>
 {{ end -}}

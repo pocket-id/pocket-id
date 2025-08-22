@@ -4,14 +4,14 @@
             <img src="{{ .LogoURL }}" alt="{{ .AppName }}" width="32" height="32" style="width: 32px; height: 32px; max-width: 32px;"/>
             <h1>{{ .AppName }}</h1>
         </div>
-        <div class="warning">Warning</div>
+        <div class="warning">Waarschuwing</div>
     </div>
     <div class="content">
-        <h2>API Key Expiring Soon</h2>
+        <h2>API-sleutel verloopt binnenkort</h2>
         <p>
-            Hello {{ .Data.Name }},<br/><br/>
-            This is a reminder that your API key <strong>{{ .Data.ApiKeyName }}</strong> will expire on <strong>{{ .Data.ExpiresAt.Format "2006-01-02 15:04:05 MST" }}</strong>.<br/><br/>
-            Please generate a new API key if you need continued access.
+            Hallo {{ .Data.Name }},<br/><br/>
+            Dit is een herinnering dat je API-sleutel <strong>{{ .Data.ApiKeyName }}</strong> verloopt op <strong>{{ .Data.ExpiresAt.Format "2006-01-02 15:04:05 MST" }}</strong>.<br/><br/>
+            Genereer een nieuwe API-sleutel als je toegang wilt behouden.
         </p>
     </div>
 {{ end }}

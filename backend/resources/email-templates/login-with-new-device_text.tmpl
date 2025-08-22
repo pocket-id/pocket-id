@@ -1,15 +1,15 @@
 {{ define "base" -}}
-New Sign-In Detected
-====================
+Nieuwe aanmelding gedetecteerd
+============================
 
 {{ if and .Data.City .Data.Country }}
-Approximate Location: {{ .Data.City }}, {{ .Data.Country }}
+Geschatte locatie: {{ .Data.City }}, {{ .Data.Country }}
 {{ end }}
-IP Address: {{ .Data.IPAddress }}
-Device:     {{ .Data.Device }}
-Time:       {{ .Data.DateTime.Format "2006-01-02 15:04:05 UTC"}}
+IP-adres: {{ .Data.IPAddress }}
+Apparaat:  {{ .Data.Device }}
+Tijd:      {{ .Data.DateTime.Format "2006-01-02 15:04:05 UTC"}}
 
-This sign-in was detected from a new device or location. If you recognize
-this activity, you can safely ignore this message. If not, please review
-your account and security settings.
+Deze aanmelding is gedetecteerd vanaf een nieuw apparaat of locatie. Als je deze
+activiteit herkent, kun je dit bericht veilig negeren. Zo niet, controleer dan
+je account en beveiligingsinstellingen.
 {{ end -}}
