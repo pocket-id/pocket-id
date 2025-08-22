@@ -179,7 +179,7 @@
 </Card.Root>
 <Card.Root>
 	<Card.Content>
-		<OidcForm existingClient={client} callback={updateClient} />
+		<OidcForm mode="update" existingClient={client} callback={updateClient} />
 	</Card.Content>
 </Card.Root>
 <CollapsibleCard

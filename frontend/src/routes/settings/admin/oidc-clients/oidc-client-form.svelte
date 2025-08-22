@@ -6,24 +6,30 @@
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type { OidcClient, OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import type {
+		OidcClient,
+		OidcClientCreateWithLogo,
+		OidcClientUpdateWithLogo
+	} from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
+	import { emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
-	import { optionalUrl } from '$lib/utils/zod-util';
 
 	let {
 		callback,
-		existingClient
+		existingClient,
+		mode
 	}: {
 		existingClient?: OidcClient;
-		callback: (user: OidcClientCreateWithLogo) => Promise<boolean>;
+		callback: (client: OidcClientCreateWithLogo | OidcClientUpdateWithLogo) => Promise<boolean>;
+		mode: 'create' | 'update';
 	} = $props();
 
 	let isLoading = $state(false);
@@ -34,6 +40,7 @@
 	);
 
 	const client = {
+		id: '',
 		name: existingClient?.name || '',
 		callbackURLs: existingClient?.callbackURLs || [],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
@@ -47,6 +54,16 @@
 	};
 
 	const formSchema = z.object({
+		id: emptyToUndefined(
+			z
+				.string()
+				.min(2)
+				.max(128)
+				.regex(/^[a-zA-Z0-9_-]+$/, {
+					message: m.invalid_client_id()
+				})
+				.optional()
+		),
 		name: z.string().min(2).max(50),
 		callbackURLs: z.array(z.string().nonempty()).default([]),
 		logoutCallbackURLs: z.array(z.string().nonempty()),
@@ -185,7 +202,16 @@
 	</div>
 
 	{#if showAdvancedOptions}
-		<div class="mt-5 md:col-span-2" transition:slide={{ duration: 200 }}>
+		<div class="mt-7 flex flex-col gap-y-7 md:col-span-2" transition:slide={{ duration: 200 }}>
+			{#if mode == 'create'}
+				<FormInput
+					label={m.client_id()}
+					placeholder={m.generated()}
+					class="w-full md:w-1/2"
+					description={m.custom_client_id_description()}
+					bind:input={$inputs.id}
+				/>
+			{/if}
 			<FederatedIdentitiesInput
 				client={existingClient}
 				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}

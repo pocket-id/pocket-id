@@ -4,6 +4,7 @@ import type {
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
+	OidcClientUpdate,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
 	OidcDeviceCodeInfo
@@ -67,7 +68,7 @@ class OidcService extends APIService {
 		return (await this.api.get(`/oidc/clients/${id}/meta`)).data as OidcClientMetaData;
 	}
 
-	async updateClient(id: string, client: OidcClientCreate) {
+	async updateClient(id: string, client: OidcClientUpdate) {
 		return (await this.api.put(`/oidc/clients/${id}`, client)).data as OidcClient;
 	}
 

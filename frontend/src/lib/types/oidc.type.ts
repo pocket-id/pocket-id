@@ -37,7 +37,13 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientCreate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo'>;
+export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo'>;
+export type OidcClientCreate = OidcClientUpdate & {
+	id?: string;
+};
+export type OidcClientUpdateWithLogo = OidcClientUpdate & {
+	logo: File | null | undefined;
+};
 
 export type OidcClientCreateWithLogo = OidcClientCreate & {
 	logo: File | null | undefined;

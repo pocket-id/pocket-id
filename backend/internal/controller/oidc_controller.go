@@ -492,11 +492,11 @@ func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Client ID"
-// @Param client body dto.OidcClientCreateDto true "Client information"
+// @Param client body dto.OidcClientUpdateDto true "Client information"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client"
 // @Router /api/oidc/clients/{id} [put]
 func (oc *OidcController) updateClientHandler(c *gin.Context) {
-	var input dto.OidcClientCreateDto
+	var input dto.OidcClientUpdateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
 		_ = c.Error(err)
 		return
