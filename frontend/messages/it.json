@@ -438,7 +438,7 @@
 	"revoke_access_description": "Revoca l'accesso a <b>{clientName}</b>. <b>{clientName}</b> non potrà più accedere alle informazioni del tuo account.",
 	"revoke_access_successful": "L'accesso a {clientName} è stato revocato con successo.",
 	"last_signed_in_ago": "Ultimo accesso {time} fa",
-	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"invalid_client_id": "L'ID cliente può contenere solo lettere, numeri, trattini bassi e trattini.",
 	"custom_client_id_description": "Imposta un ID cliente personalizzato se la tua app lo richiede. Altrimenti, lascia vuoto per generarne uno casuale.",
 	"generated": "Generato"
 }
