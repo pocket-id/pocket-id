@@ -437,5 +437,8 @@
 	"revoke_access": "Cofnij dostęp",
 	"revoke_access_description": "Cofnij dostęp do <b>{clientName}</b>. <b>{clientName}</b> nie będzie już mógł uzyskać dostępu do informacji o Twoim koncie.",
 	"revoke_access_successful": "Dostęp do strony {clientName} został pomyślnie cofnięty.",
-	"last_signed_in_ago": "Ostatnio zalogowany {time} temu"
+	"last_signed_in_ago": "Ostatnio zalogowany {time} temu",
+	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"custom_client_id_description": "Ustaw niestandardowy identyfikator klienta, jeśli jest to wymagane przez twoją aplikację. W przeciwnym razie pozostaw to pole puste, aby wygenerować losowy identyfikator.",
+	"generated": "Wygenerowano"
 }
