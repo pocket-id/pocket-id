@@ -437,5 +437,8 @@
 	"revoke_access": "Revogar acesso",
 	"revoke_access_description": "Revogar acesso a <b>{clientName}</b>. <b>{clientName}</b> não vai mais conseguir acessar as informações da sua conta.",
 	"revoke_access_successful": "O acesso a {clientName} foi revogado com sucesso.",
-	"last_signed_in_ago": "Último login em {time} atrás"
+	"last_signed_in_ago": "Último login em {time} atrás",
+	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"custom_client_id_description": "Defina um ID de cliente personalizado se for necessário para o seu aplicativo. Caso contrário, deixe em branco para gerar um aleatório.",
+	"generated": "Gerado"
 }
