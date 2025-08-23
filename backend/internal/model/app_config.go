@@ -34,13 +34,15 @@ func (a *AppConfigVariable) AsDurationMinutes() time.Duration {
 
 type AppConfig struct {
 	// General
-	AppName             AppConfigVariable `key:"appName,public"` // Public
-	SessionDuration     AppConfigVariable `key:"sessionDuration"`
-	EmailsVerified      AppConfigVariable `key:"emailsVerified"`
-	AccentColor         AppConfigVariable `key:"accentColor,public"`         // Public
-	DisableAnimations   AppConfigVariable `key:"disableAnimations,public"`   // Public
-	AllowOwnAccountEdit AppConfigVariable `key:"allowOwnAccountEdit,public"` // Public
-	AllowUserSignups    AppConfigVariable `key:"allowUserSignups,public"`    // Public
+	AppName                   AppConfigVariable `key:"appName,public"` // Public
+	SessionDuration           AppConfigVariable `key:"sessionDuration"`
+	EmailsVerified            AppConfigVariable `key:"emailsVerified"`
+	AccentColor               AppConfigVariable `key:"accentColor,public"`         // Public
+	DisableAnimations         AppConfigVariable `key:"disableAnimations,public"`   // Public
+	AllowOwnAccountEdit       AppConfigVariable `key:"allowOwnAccountEdit,public"` // Public
+	AllowUserSignups          AppConfigVariable `key:"allowUserSignups,public"`    // Public
+	SignupDefaultUserGroupIDs AppConfigVariable `key:"signupDefaultUserGroupIDs"`
+	SignupDefaultCustomClaims AppConfigVariable `key:"signupDefaultCustomClaims"`
 	// Internal
 	BackgroundImageType AppConfigVariable `key:"backgroundImageType,internal"` // Internal
 	LogoLightImageType  AppConfigVariable `key:"logoLightImageType,internal"`  // Internal
