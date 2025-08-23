@@ -438,7 +438,7 @@
 	"revoke_access_description": "Toegang intrekken tot <b>{clientName}</b>. <b>{clientName}</b> kun je accountgegevens niet meer gebruiken.",
 	"revoke_access_successful": "De toegang tot {clientName} is nu succesvol geblokkeerd.",
 	"last_signed_in_ago": "Laatst ingelogd {time} geleden",
-	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"invalid_client_id": "De klant-ID mag alleen letters, cijfers, onderstrepingstekens en koppeltekens bevatten.",
 	"custom_client_id_description": "Stel een aangepaste client-ID in als je app dit nodig heeft. Anders laat je het gewoon leeg en wordt er een willekeurige ID gegenereerd.",
 	"generated": "Gemaakt"
 }
