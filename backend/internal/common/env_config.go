@@ -26,7 +26,7 @@ const (
 	DbProviderSqlite        DbProvider = "sqlite"
 	DbProviderPostgres      DbProvider = "postgres"
 	MaxMindGeoLiteCityUrl   string     = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
-	defaultSqliteConnString string     = "file:data/pocket-id.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate&_pragma=foreign_keys(ON)"
+	defaultSqliteConnString string     = "data/pocket-id.db"
 )
 
 type EnvConfigSchema struct {
