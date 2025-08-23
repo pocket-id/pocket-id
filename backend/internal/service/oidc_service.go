@@ -737,17 +737,16 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.LaunchURL = input.LaunchURL
 
 	// Credentials
-	if len(input.Credentials.FederatedIdentities) > 0 {
-		client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
-		for i, fi := range input.Credentials.FederatedIdentities {
-			client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
-				Issuer:   fi.Issuer,
-				Audience: fi.Audience,
-				Subject:  fi.Subject,
-				JWKS:     fi.JWKS,
-			}
+	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
+	for i, fi := range input.Credentials.FederatedIdentities {
+		client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
+			Issuer:   fi.Issuer,
+			Audience: fi.Audience,
+			Subject:  fi.Subject,
+			JWKS:     fi.JWKS,
 		}
 	}
+
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {

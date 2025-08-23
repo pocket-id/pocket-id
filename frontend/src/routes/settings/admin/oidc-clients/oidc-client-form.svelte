@@ -223,7 +223,7 @@
 	<div class="relative mt-5 flex justify-center">
 		<Button
 			variant="ghost"
-			class="text-muted-foregroun"
+			class="text-muted-foreground"
 			onclick={() => (showAdvancedOptions = !showAdvancedOptions)}
 		>
 			{showAdvancedOptions ? m.hide_advanced_options() : m.show_advanced_options()}
