@@ -126,7 +126,7 @@ class OidcService extends APIService {
 	}
 
 	async revokeOwnAuthorizedClient(clientId: string) {
-		await this.api.delete(`/oidc/users/me/clients/${clientId}`);
+		await this.api.delete(`/oidc/users/me/authorized-clients/${clientId}`);
 	}
 }
 

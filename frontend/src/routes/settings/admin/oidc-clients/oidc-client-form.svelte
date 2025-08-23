@@ -11,12 +11,12 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
+	import { optionalUrl } from '$lib/utils/zod-util';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
-	import { optionalUrl } from '$lib/utils/zod-util';
 
 	let {
 		callback,
@@ -197,7 +197,7 @@
 	<div class="relative mt-5 flex justify-center">
 		<Button
 			variant="ghost"
-			class="text-muted-foregroun"
+			class="text-muted-foreground"
 			onclick={() => (showAdvancedOptions = !showAdvancedOptions)}
 		>
 			{showAdvancedOptions ? m.hide_advanced_options() : m.show_advanced_options()}
