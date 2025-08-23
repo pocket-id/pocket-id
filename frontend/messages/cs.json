@@ -438,7 +438,7 @@
 	"revoke_access_description": "Zrušit přístup k <b>{clientName}</b>. <b>{clientName}</b> už nebude mít přístup k informacím o vašem účtu.",
 	"revoke_access_successful": "Přístup k {clientName} byl úspěšně zrušen.",
 	"last_signed_in_ago": "Naposledy přihlášen {time} před",
-	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"invalid_client_id": "ID klienta může obsahovat pouze písmena, číslice, podtržítka a pomlčky.",
 	"custom_client_id_description": "Nastavte vlastní ID klienta, pokud to vyžaduje vaše aplikace. V opačném případě pole nechte prázdné, aby bylo vygenerováno náhodné ID.",
 	"generated": "Vygenerováno"
 }
