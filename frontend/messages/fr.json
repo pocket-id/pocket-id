@@ -437,5 +437,8 @@
 	"revoke_access": "Supprimer l'accès",
 	"revoke_access_description": "Supprimer l'accès à <b>{clientName}</b>. <b>{clientName}</b> ne pourra plus accéder aux infos de ton compte.",
 	"revoke_access_successful": "L'accès à {clientName} a été supprimé.",
-	"last_signed_in_ago": "Dernière connexion il y a {time} il y a"
+	"last_signed_in_ago": "Dernière connexion il y a {time} il y a",
+	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"custom_client_id_description": "Définissez un identifiant client personnalisé si votre application l'exige. Sinon, laissez ce champ vide pour qu'un identifiant aléatoire soit généré.",
+	"generated": "Généré"
 }
