@@ -437,5 +437,8 @@
 	"revoke_access": "Скасувати доступ",
 	"revoke_access_description": "Скасувати доступ для <b>{clientName}</b>. <b>{clientName}</b> більше не зможе отримати доступ до інформації вашого облікового запису.",
 	"revoke_access_successful": "Доступ для {clientName} було успішно скасовано.",
-	"last_signed_in_ago": "Останній вхід {time} тому"
+	"last_signed_in_ago": "Останній вхід {time} тому",
+	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"custom_client_id_description": "Встановіть власний ідентифікатор клієнта, якщо це потрібно для вашої програми. В іншому випадку залиште поле порожнім, щоб створити випадковий ідентифікатор.",
+	"generated": "Створено"
 }
