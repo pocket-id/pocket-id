@@ -438,7 +438,7 @@
 	"revoke_access_description": "撤銷存取 <b>{clientName}</b>. <b>{clientName}</b>將無法再存取您的帳戶資訊。",
 	"revoke_access_successful": "{clientName} 的存取權已成功取消。",
 	"last_signed_in_ago": "上次登入 {time} 前",
-	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"invalid_client_id": "用戶端 ID 只能包含字母、數字、底線和連字符",
 	"custom_client_id_description": "如果您的應用程式需要，請設定自訂用戶端 ID。否則，請留空以產生隨機 ID。",
 	"generated": "產生"
 }
