@@ -437,5 +437,8 @@
 	"revoke_access": "Отозвать доступ",
 	"revoke_access_description": "Отозвать доступ к <b>{clientName}</b>. <b>{clientName}</b> больше не сможет получить доступ к информации вашей учетной записи.",
 	"revoke_access_successful": "Доступ к {clientName} успешно отозван.",
-	"last_signed_in_ago": "Последний вход {time} назад"
+	"last_signed_in_ago": "Последний вход {time} назад",
+	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"custom_client_id_description": "Установите индивидуальный идентификатор клиента, если это нужно для вашего приложения. Если нет, оставьте поле пустым, чтобы он был сгенерирован случайным образом.",
+	"generated": "Создано"
 }
