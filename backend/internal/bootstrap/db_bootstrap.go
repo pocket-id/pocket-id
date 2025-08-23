@@ -88,7 +88,6 @@ func connectDatabase() (db *gorm.DB, err error) {
 		}
 		sqliteutil.RegisterSqliteFunctions()
 		connString, err := parseSqliteConnectionString(common.EnvConfig.DbConnectionString)
-		fmt.Println("CONNSTRING", connString)
 		if err != nil {
 			return nil, err
 		}
