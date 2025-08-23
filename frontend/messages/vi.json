@@ -438,7 +438,7 @@
 	"revoke_access_description": "Hủy quyền truy cập vào <b>{clientName}</b>. <b>{clientName}</b> sẽ không còn có thể truy cập thông tin tài khoản của bạn.",
 	"revoke_access_successful": "Quyền truy cập vào {clientName} đã bị thu hồi thành công.",
 	"last_signed_in_ago": "Lần đăng nhập cuối cùng cách đây {time}",
-	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"invalid_client_id": "ID khách hàng chỉ có thể chứa các ký tự chữ cái, số, dấu gạch dưới và dấu gạch ngang.",
 	"custom_client_id_description": "Đặt ID khách hàng tùy chỉnh nếu ứng dụng của bạn yêu cầu. Nếu không, hãy để trống để hệ thống tự động tạo một ID ngẫu nhiên.",
 	"generated": "Được tạo ra"
 }
