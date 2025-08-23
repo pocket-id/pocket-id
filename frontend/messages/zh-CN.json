@@ -438,7 +438,7 @@
 	"revoke_access_description": "撤销对 <b>{clientName}</b>. <b>{clientName}</b>将无法再访问您的账户信息。",
 	"revoke_access_successful": "对 {clientName} 的访问权限已成功撤销。",
 	"last_signed_in_ago": "最后一次登录 {time} 前",
-	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
+	"invalid_client_id": "客户 ID 只能包含字母、数字、下划线和连字符。",
 	"custom_client_id_description": "如果您的应用程序需要自定义客户端 ID，请在此处设置。否则，请留空以生成一个随机生成的客户端 ID。",
 	"generated": "生成"
 }
