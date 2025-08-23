@@ -18,7 +18,7 @@ func init() {
 	// [a-zA-Z0-9]$     : The username must end with an alphanumeric character
 	var validateUsernameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.@-]*[a-zA-Z0-9]$")
 
-	var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
+	var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9._-]+$")
 
 	// Maximum allowed value for TTLs
 	const maxTTL = 31 * 24 * time.Hour
