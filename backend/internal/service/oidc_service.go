@@ -673,7 +673,7 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		Base: model.Base{
 			ID: input.ID,
 		},
-		CreatedByID: userID,
+		CreatedByID: utils.Ptr(userID),
 	}
 	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
