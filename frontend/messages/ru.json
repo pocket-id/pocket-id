@@ -277,7 +277,7 @@
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "Public Key Code Exchange — это функция безопасности для предотвращения атак CSRF и перехвата кода авторизации.",
 	"requires_reauthentication": "Требуется повторная аутентификация",
-	"requires_users_to_authenticate_again_on_each_authorization": "Требует от пользователей повторной аутентификации при каждом авторизации, даже если они уже вошли в систему",
+	"requires_users_to_authenticate_again_on_each_authorization": "Требует от пользователей повторной аутентификации при каждой авторизации, даже если они уже вошли в систему",
 	"name_logo": "Логотип {name}",
 	"change_logo": "Изменить логотип",
 	"upload_logo": "Загрузить логотип",
