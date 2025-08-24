@@ -52,6 +52,7 @@ type EnvConfigSchema struct {
 	LogJSON            bool       `env:"LOG_JSON"`
 	TrustProxy         bool       `env:"TRUST_PROXY"`
 	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
 }
 
 var EnvConfig = defaultConfig()
@@ -87,6 +88,7 @@ func defaultConfig() EnvConfigSchema {
 		TracingEnabled:     false,
 		TrustProxy:         false,
 		AnalyticsDisabled:  false,
+		AllowDowngrade:     false,
 	}
 }
 
