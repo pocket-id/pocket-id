@@ -78,7 +78,7 @@ func migrateDatabase(driver database.Driver) error {
 
 	currentVersion, _, _ := m.Version()
 	if currentVersion > requiredVersion {
-		slog.Warn("Database version is newer than the application supports, possible downgrade detected", slog.Int("db_version", int(currentVersion)), slog.Int("app_version", int(requiredVersion)))
+		slog.Warn("Database version is newer than the application supports, possible downgrade detected", slog.Uint64("db_version", uint64(currentVersion)), slog.Uint64("app_version", uint64(requiredVersion)))
 		slog.Info("Fetching migrations from GitHub to handle possible downgrades")
 		return migrateDatabaseFromGitHub(driver, requiredVersion)
 	}
