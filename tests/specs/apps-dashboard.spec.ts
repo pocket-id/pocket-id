@@ -23,18 +23,25 @@ test('Dashboard shows all clients in the correct order', async ({ page }) => {
 	await expect(card2.getByText(new URL(client2.launchURL).hostname)).toBeVisible();
 });
 
-test('Dashboard shows only clients where user has access', async ({ page }) => {
-	await authUtil.changeUser(page, 'craig');
-	const notVisibleClient = oidcClients.immich;
+test.describe('Dashboard shows only clients where user has access', () => {
+	test("User can't see one client", async ({ page }) => {
+		await authUtil.changeUser(page, 'craig');
+		const notVisibleClient = oidcClients.immich;
 
-	await page.goto('/settings/apps');
+		await page.goto('/settings/apps');
 
-	const cards = page.getByTestId('authorized-oidc-client-card');
+		const cards = page.getByTestId('authorized-oidc-client-card');
 
-	await expect(cards).toHaveCount(3);
+		await expect(cards).toHaveCount(3);
 
-	const cardTexts = await cards.allTextContents();
-	expect(cardTexts.some((text) => text.includes(notVisibleClient.name))).toBe(false);
+		const cardTexts = await cards.allTextContents();
+		expect(cardTexts.some((text) => text.includes(notVisibleClient.name))).toBe(false);
+	});
+	test('User can see all clients', async ({ page }) => {
+		await page.goto('/settings/apps');
+		const cards = page.getByTestId('authorized-oidc-client-card');
+		await expect(cards).toHaveCount(4);
+	});
 });
 
 test('Revoke authorized client', async ({ page }) => {
@@ -42,11 +49,9 @@ test('Revoke authorized client', async ({ page }) => {
 
 	await page.goto('/settings/apps');
 
-	page
-		.getByTestId('authorized-oidc-client-card')
-		.first()
-		.getByRole('button', { name: 'Toggle menu' })
-		.click();
+	const card = page.getByTestId('authorized-oidc-client-card').filter({ hasText: client.name });
+
+	card.getByRole('button', { name: 'Toggle menu' }).click();
 
 	await page.getByRole('menuitem', { name: 'Revoke' }).click();
 	await page.getByRole('button', { name: 'Revoke' }).click();
@@ -55,7 +60,8 @@ test('Revoke authorized client', async ({ page }) => {
 		`The access to ${client.name} has been successfully revoked.`
 	);
 
-	await expect(page.getByTestId('authorized-oidc-client-card')).toHaveCount(4);
+	// The ... ago text should be gone as there is no last access anymore
+	await expect(card).not.toContainText('ago');
 });
 
 test('Launch authorized client', async ({ page }) => {

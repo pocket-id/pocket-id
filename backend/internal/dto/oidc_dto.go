@@ -29,7 +29,7 @@ type OidcClientWithAllowedGroupsCountDto struct {
 	AllowedUserGroupsCount int64 `json:"allowedUserGroupsCount"`
 }
 
-type OidcClientCreateDto struct {
+type OidcClientUpdateDto struct {
 	Name                     string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
 	CallbackURLs             []string                 `json:"callbackURLs"`
 	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs"`
@@ -38,6 +38,11 @@ type OidcClientCreateDto struct {
 	RequiresReauthentication bool                     `json:"requiresReauthentication"`
 	Credentials              OidcClientCredentialsDto `json:"credentials"`
 	LaunchURL                *string                  `json:"launchURL" binding:"omitempty,url"`
+}
+
+type OidcClientCreateDto struct {
+	OidcClientUpdateDto
+	ID string `json:"id" binding:"omitempty,client_id,min=2,max=128"`
 }
 
 type OidcClientCredentialsDto struct {

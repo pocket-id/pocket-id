@@ -368,3 +368,13 @@ func (e *OpenSignupDisabledError) Error() string {
 func (e *OpenSignupDisabledError) HttpStatusCode() int {
 	return http.StatusForbidden
 }
+
+type ClientIdAlreadyExistsError struct{}
+
+func (e *ClientIdAlreadyExistsError) Error() string {
+	return "Client ID already in use"
+}
+
+func (e *ClientIdAlreadyExistsError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}

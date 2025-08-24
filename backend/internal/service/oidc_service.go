@@ -670,22 +670,28 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
-		CreatedByID: userID,
+		Base: model.Base{
+			ID: input.ID,
+		},
+		CreatedByID: utils.Ptr(userID),
 	}
-	updateOIDCClientModelFromDto(&client, &input)
+	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
 	err := s.db.
 		WithContext(ctx).
 		Create(&client).
 		Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return model.OidcClient{}, &common.ClientIdAlreadyExistsError{}
+		}
 		return model.OidcClient{}, err
 	}
 
 	return client, nil
 }
 
-func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
+func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -719,7 +725,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	return client, nil
 }
 
-func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientCreateDto) {
+func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
 	// Base fields
 	client.Name = input.Name
 	client.CallbackURLs = input.CallbackURLs
@@ -731,17 +737,16 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.LaunchURL = input.LaunchURL
 
 	// Credentials
-	if len(input.Credentials.FederatedIdentities) > 0 {
-		client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
-		for i, fi := range input.Credentials.FederatedIdentities {
-			client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
-				Issuer:   fi.Issuer,
-				Audience: fi.Audience,
-				Subject:  fi.Subject,
-				JWKS:     fi.JWKS,
-			}
+	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
+	for i, fi := range input.Credentials.FederatedIdentities {
+		client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
+			Issuer:   fi.Issuer,
+			Audience: fi.Audience,
+			Subject:  fi.Subject,
+			JWKS:     fi.JWKS,
 		}
 	}
+
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {

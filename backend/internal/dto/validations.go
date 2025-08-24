@@ -18,6 +18,8 @@ func init() {
 	// [a-zA-Z0-9]$     : The username must end with an alphanumeric character
 	var validateUsernameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.@-]*[a-zA-Z0-9]$")
 
+	var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9._-]+$")
+
 	// Maximum allowed value for TTLs
 	const maxTTL = 31 * 24 * time.Hour
 
@@ -28,6 +30,14 @@ func init() {
 	if err != nil {
 		panic("Failed to register custom validation for username: " + err.Error())
 	}
+
+	err = v.RegisterValidation("client_id", func(fl validator.FieldLevel) bool {
+		return validateClientIDRegex.MatchString(fl.Field().String())
+	})
+	if err != nil {
+		panic("Failed to register custom validation for client_id: " + err.Error())
+	}
+
 	err = v.RegisterValidation("ttl", func(fl validator.FieldLevel) bool {
 		ttl, ok := fl.Field().Interface().(utils.JSONDuration)
 		if !ok {

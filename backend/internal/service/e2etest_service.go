@@ -159,7 +159,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				CallbackURLs:       model.UrlList{"http://nextcloud/auth/callback"},
 				LogoutCallbackURLs: model.UrlList{"http://nextcloud/auth/logout/callback"},
 				ImageType:          utils.StringPointer("png"),
-				CreatedByID:        users[0].ID,
+				CreatedByID:        utils.Ptr(users[0].ID),
 			},
 			{
 				Base: model.Base{
@@ -168,7 +168,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Name:         "Immich",
 				Secret:       "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
 				CallbackURLs: model.UrlList{"http://immich/auth/callback"},
-				CreatedByID:  users[1].ID,
+				CreatedByID:  utils.Ptr(users[1].ID),
 				AllowedUserGroups: []model.UserGroup{
 					userGroups[1],
 				},
@@ -181,7 +181,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Secret:             "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a", // n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo
 				CallbackURLs:       model.UrlList{"http://tailscale/auth/callback"},
 				LogoutCallbackURLs: model.UrlList{"http://tailscale/auth/logout/callback"},
-				CreatedByID:        users[0].ID,
+				CreatedByID:        utils.Ptr(users[0].ID),
 			},
 			{
 				Base: model.Base{
@@ -190,7 +190,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Name:              "Federated",
 				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
 				CallbackURLs:      model.UrlList{"http://federated/auth/callback"},
-				CreatedByID:       users[1].ID,
+				CreatedByID:       utils.Ptr(users[1].ID),
 				AllowedUserGroups: []model.UserGroup{},
 				Credentials: model.OidcClientCredentials{
 					FederatedIdentities: []model.OidcClientFederatedIdentity{

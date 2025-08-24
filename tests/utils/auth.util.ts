@@ -15,6 +15,7 @@ async function changeUser(page: Page, username: keyof typeof passkeyUtil.passkey
 
 	await (await passkeyUtil.init(page)).addPasskey(username);
 	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.waitForURL('/settings/**');
 }
 
 export default { authenticate, changeUser };

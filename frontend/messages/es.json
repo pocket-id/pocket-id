@@ -23,7 +23,7 @@
 	"click_to_copy": "Haz clic para copiar",
 	"something_went_wrong": "Algo ha salido mal",
 	"go_back_to_home": "Volver al Inicio",
-	"dont_have_access_to_your_passkey": "¿No tiene acceso a su Passkey?",
+	"alternative_sign_in_methods": "Métodos alternativos de inicio de sesión",
 	"login_background": "Fondo de página de acceso",
 	"logo": "Logotipo",
 	"login_code": "Código de inicio de sesión",
@@ -276,6 +276,8 @@
 	"public_clients_description": "Public clients do not have a client secret and use PKCE instead. Enable this if your client is a SPA or mobile app.",
 	"pkce": "PKCE",
 	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "El intercambio de claves públicas es una función de seguridad que evita los ataques CSRF y la interceptación de códigos de autorización.",
+	"requires_reauthentication": "Requiere reautenticación",
+	"requires_users_to_authenticate_again_on_each_authorization": "Requiere que los usuarios se autentiquen de nuevo en cada autorización, incluso si ya han iniciado sesión.",
 	"name_logo": "{name} logotipo",
 	"change_logo": "Cambiar logotipo",
 	"upload_logo": "Subir Logo",
@@ -435,5 +437,8 @@
 	"revoke_access": "Revocar acceso",
 	"revoke_access_description": "Revocar el acceso a <b>{clientName}</b>. <b>{clientName}</b> ya no podrás acceder a la información de tu cuenta.",
 	"revoke_access_successful": "El acceso a {clientName} ha sido revocado correctamente.",
-	"last_signed_in_ago": "Último inicio de sesión en {time} hace"
+	"last_signed_in_ago": "Último inicio de sesión en {time} hace",
+	"invalid_client_id": "El ID de cliente solo puede contener letras, números, guiones bajos y guiones.",
+	"custom_client_id_description": "Establece un ID de cliente personalizado si tu aplicación lo requiere. De lo contrario, déjalo en blanco para generar uno aleatorio.",
+	"generated": "Generado"
 }

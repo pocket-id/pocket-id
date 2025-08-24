@@ -5,7 +5,7 @@
 	import type { ApiKeyCreate } from '$lib/types/api-key.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
-	import { optionalString } from '$lib/utils/zod-util';
+	import { emptyToUndefined } from '$lib/utils/zod-util';
 	import { z } from 'zod/v4';
 
 	let {
@@ -28,7 +28,7 @@
 
 	const formSchema = z.object({
 		name: z.string().min(3).max(50),
-		description: optionalString,
+		description: emptyToUndefined(z.string().optional()),
 		expiresAt: z.date().min(new Date(), m.expiration_date_must_be_in_the_future())
 	});
 
