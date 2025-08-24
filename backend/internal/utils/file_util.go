@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -152,12 +153,13 @@ func IsWritableDir(dir string) (bool, error) {
 
 	// Generate a random suffix for the test file to avoid conflicts
 	randomBytes := make([]byte, 8)
+	_, err = io.ReadFull(rand.Reader, randomBytes)
 	if err != nil {
 		return false, fmt.Errorf("failed to generate random bytes: %w", err)
 	}
 
 	// Check if directory is writable by trying to create a temporary file
-	testFile := dir + "/.pocketid_test_write_" + hex.EncodeToString(randomBytes)
+	testFile := filepath.Join(dir, ".pocketid_test_write_"+hex.EncodeToString(randomBytes))
 	defer os.Remove(testFile)
 
 	file, err := os.Create(testFile)
@@ -169,7 +171,7 @@ func IsWritableDir(dir string) (bool, error) {
 		return false, fmt.Errorf("failed to create test file: %w", err)
 	}
 
-	file.Close()
+	_ = file.Close()
 
 	return true, nil
 }
