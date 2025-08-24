@@ -5,7 +5,7 @@ import { generateIdToken, generateOauthAccessToken } from '../utils/jwt.util';
 import * as oidcUtil from '../utils/oidc.util';
 import passkeyUtil from '../utils/passkey.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
 test('Authorize existing client', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
@@ -215,7 +215,7 @@ test('Refresh token fails when used for the wrong user', async ({ request }) => 
 			data: {
 				rt: token,
 				client: clientId,
-				user: 'bad-user'
+				user: '44cb5d71-db31-4555-9a1b-5484650f6002'
 			}
 		})
 		.then((r) => r.text());
@@ -593,4 +593,31 @@ test('Authorize existing client with federated identity', async ({ page }) => {
 	expect(res.access_token).not.toBeNull;
 	expect(res.expires_in).not.toBeNull;
 	expect(res.token_type).toBe('Bearer');
+});
+
+test('Forces reauthentication when client requires it', async ({ page, request }) => {
+	let webauthnStartCalled = false;
+	await page.route('/api/webauthn/login/start', async (route) => {
+		webauthnStartCalled = true;
+		await route.continue();
+	});
+
+	await request.put(`/api/oidc/clients/${oidcClients.nextcloud.id}`, {
+		data: { ...oidcClients.nextcloud, requiresReauthentication: true }
+	});
+
+	await (await passkeyUtil.init(page)).addPasskey();
+
+	const urlParams = createUrlParams(oidcClients.nextcloud);
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await expect(page.getByTestId('scopes')).not.toBeVisible();
+
+	await page.waitForURL(oidcClients.nextcloud.callbackUrl).catch((e) => {
+		if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
+			throw e;
+		}
+	});
+
+	expect(webauthnStartCalled).toBe(true);
 });

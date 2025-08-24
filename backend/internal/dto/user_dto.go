@@ -1,7 +1,7 @@
 package dto
 
 import (
-	"time"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type UserDto struct {
@@ -30,8 +30,8 @@ type UserCreateDto struct {
 }
 
 type OneTimeAccessTokenCreateDto struct {
-	UserID    string    `json:"userId"`
-	ExpiresAt time.Time `json:"expiresAt" binding:"required"`
+	UserID string             `json:"userId"`
+	TTL    utils.JSONDuration `json:"ttl" binding:"ttl"`
 }
 
 type OneTimeAccessEmailAsUnauthenticatedUserDto struct {
@@ -40,7 +40,7 @@ type OneTimeAccessEmailAsUnauthenticatedUserDto struct {
 }
 
 type OneTimeAccessEmailAsAdminDto struct {
-	ExpiresAt time.Time `json:"expiresAt" binding:"required"`
+	TTL utils.JSONDuration `json:"ttl" binding:"ttl"`
 }
 
 type UserUpdateUserGroupDto struct {

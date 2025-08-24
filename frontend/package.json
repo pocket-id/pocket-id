@@ -1,6 +1,6 @@
 {
   "name": "pocket-id-frontend",
-  "version": "1.7.0",
+  "version": "1.8.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,6 +18,7 @@
     "@tailwindcss/vite": "^4.1.11",
     "axios": "^1.11.0",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "jose": "^5.10.0",
     "qrcode": "^1.5.4",
     "sveltekit-superforms": "^2.27.1",
@@ -46,6 +47,7 @@
     "prettier": "^3.6.2",
     "prettier-plugin-svelte": "^3.4.0",
     "prettier-plugin-tailwindcss": "^0.6.14",
+    "rollup": "^4.46.3",
     "svelte": "^5.36.16",
     "svelte-check": "^4.3.0",
     "svelte-sonner": "^1.0.5",

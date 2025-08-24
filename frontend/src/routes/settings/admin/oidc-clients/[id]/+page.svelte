@@ -36,7 +36,8 @@
 		[m.userinfo_url()]: `https://${page.url.hostname}/api/oidc/userinfo`,
 		[m.logout_url()]: `https://${page.url.hostname}/api/oidc/end-session`,
 		[m.certificate_url()]: `https://${page.url.hostname}/.well-known/jwks.json`,
-		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled()
+		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled(),
+		[m.requires_reauthentication()]: client.requiresReauthentication ? m.enabled() : m.disabled()
 	});
 
 	async function updateClient(updatedClient: OidcClientCreateWithLogo) {
@@ -49,6 +50,9 @@
 
 		client.isPublic = updatedClient.isPublic;
 		setupDetails[m.pkce()] = updatedClient.pkceEnabled ? m.enabled() : m.disabled();
+		setupDetails[m.requires_reauthentication()] = updatedClient.requiresReauthentication
+			? m.enabled()
+			: m.disabled();
 
 		await Promise.all([dataPromise, imagePromise])
 			.then(() => {
@@ -120,14 +124,14 @@
 	<Card.Content>
 		<div class="flex flex-col">
 			<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
-				<Label class="mb-0 w-44">{m.client_id()}</Label>
+				<Label class="mb-0 w-50">{m.client_id()}</Label>
 				<CopyToClipboard value={client.id}>
 					<span class="text-muted-foreground text-sm" data-testid="client-id"> {client.id}</span>
 				</CopyToClipboard>
 			</div>
 			{#if !client.isPublic}
 				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
-					<Label class="mb-0 w-44">{m.client_secret()}</Label>
+					<Label class="mb-0 w-50">{m.client_secret()}</Label>
 					{#if $clientSecretStore}
 						<CopyToClipboard value={$clientSecretStore}>
 							<span class="text-muted-foreground text-sm" data-testid="client-secret">
@@ -154,7 +158,7 @@
 				<div transition:slide>
 					{#each Object.entries(setupDetails) as [key, value]}
 						<div class="mb-5 flex flex-col sm:flex-row sm:items-center">
-							<Label class="mb-0 w-44">{key}</Label>
+							<Label class="mb-0 w-50">{key}</Label>
 							<CopyToClipboard {value}>
 								<span class="text-muted-foreground text-sm">{value}</span>
 							</CopyToClipboard>
@@ -175,7 +179,7 @@
 </Card.Root>
 <Card.Root>
 	<Card.Content>
-		<OidcForm existingClient={client} callback={updateClient} />
+		<OidcForm mode="update" existingClient={client} callback={updateClient} />
 	</Card.Content>
 </Card.Root>
 <CollapsibleCard

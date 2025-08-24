@@ -171,8 +171,10 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	// Create the test clients
 	// 1. Confidential client
 	confidentialClient, err := s.CreateClient(t.Context(), dto.OidcClientCreateDto{
-		Name:         "Confidential Client",
-		CallbackURLs: []string{"https://example.com/callback"},
+		OidcClientUpdateDto: dto.OidcClientUpdateDto{
+			Name:         "Confidential Client",
+			CallbackURLs: []string{"https://example.com/callback"},
+		},
 	}, "test-user-id")
 	require.NoError(t, err)
 
@@ -182,20 +184,24 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 	// 2. Public client
 	publicClient, err := s.CreateClient(t.Context(), dto.OidcClientCreateDto{
-		Name:         "Public Client",
-		CallbackURLs: []string{"https://example.com/callback"},
-		IsPublic:     true,
+		OidcClientUpdateDto: dto.OidcClientUpdateDto{
+			Name:         "Public Client",
+			CallbackURLs: []string{"https://example.com/callback"},
+			IsPublic:     true,
+		},
 	}, "test-user-id")
 	require.NoError(t, err)
 
 	// 3. Confidential client with federated identity
 	federatedClient, err := s.CreateClient(t.Context(), dto.OidcClientCreateDto{
-		Name:         "Federated Client",
-		CallbackURLs: []string{"https://example.com/callback"},
+		OidcClientUpdateDto: dto.OidcClientUpdateDto{
+			Name:         "Federated Client",
+			CallbackURLs: []string{"https://example.com/callback"},
+		},
 	}, "test-user-id")
 	require.NoError(t, err)
 
-	federatedClient, err = s.UpdateClient(t.Context(), federatedClient.ID, dto.OidcClientCreateDto{
+	federatedClient, err = s.UpdateClient(t.Context(), federatedClient.ID, dto.OidcClientUpdateDto{
 		Name:         federatedClient.Name,
 		CallbackURLs: federatedClient.CallbackURLs,
 		Credentials: dto.OidcClientCredentialsDto{

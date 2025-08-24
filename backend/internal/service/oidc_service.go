@@ -50,6 +50,7 @@ type OidcService struct {
 	appConfigService   *AppConfigService
 	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
+	webAuthnService    *WebAuthnService
 
 	httpClient *http.Client
 	jwkCache   *jwk.Cache
@@ -62,6 +63,7 @@ func NewOidcService(
 	appConfigService *AppConfigService,
 	auditLogService *AuditLogService,
 	customClaimService *CustomClaimService,
+	webAuthnService *WebAuthnService,
 ) (s *OidcService, err error) {
 	s = &OidcService{
 		db:                 db,
@@ -69,6 +71,7 @@ func NewOidcService(
 		appConfigService:   appConfigService,
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
+		webAuthnService:    webAuthnService,
 	}
 
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
@@ -121,6 +124,16 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		Error
 	if err != nil {
 		return "", "", err
+	}
+
+	if client.RequiresReauthentication {
+		if input.ReauthenticationToken == "" {
+			return "", "", &common.ReauthenticationRequiredError{}
+		}
+		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	// If the client is not public, the code challenge must be provided
@@ -641,8 +654,7 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 	}
 
 	// As allowedUserGroupsCount is not a column, we need to manually sort it
-	isValidSortDirection := sortedPaginationRequest.Sort.Direction == "asc" || sortedPaginationRequest.Sort.Direction == "desc"
-	if sortedPaginationRequest.Sort.Column == "allowedUserGroupsCount" && isValidSortDirection {
+	if sortedPaginationRequest.Sort.Column == "allowedUserGroupsCount" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
@@ -658,22 +670,28 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
-		CreatedByID: userID,
+		Base: model.Base{
+			ID: input.ID,
+		},
+		CreatedByID: utils.Ptr(userID),
 	}
-	updateOIDCClientModelFromDto(&client, &input)
+	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
 	err := s.db.
 		WithContext(ctx).
 		Create(&client).
 		Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return model.OidcClient{}, &common.ClientIdAlreadyExistsError{}
+		}
 		return model.OidcClient{}, err
 	}
 
 	return client, nil
 }
 
-func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
+func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -707,7 +725,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	return client, nil
 }
 
-func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientCreateDto) {
+func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
 	// Base fields
 	client.Name = input.Name
 	client.CallbackURLs = input.CallbackURLs
@@ -715,20 +733,20 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	client.RequiresReauthentication = input.RequiresReauthentication
 	client.LaunchURL = input.LaunchURL
 
 	// Credentials
-	if len(input.Credentials.FederatedIdentities) > 0 {
-		client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
-		for i, fi := range input.Credentials.FederatedIdentities {
-			client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
-				Issuer:   fi.Issuer,
-				Audience: fi.Audience,
-				Subject:  fi.Subject,
-				JWKS:     fi.JWKS,
-			}
+	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
+	for i, fi := range input.Credentials.FederatedIdentities {
+		client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
+			Issuer:   fi.Issuer,
+			Audience: fi.Audience,
+			Subject:  fi.Subject,
+			JWKS:     fi.JWKS,
 		}
 	}
+
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
@@ -1336,6 +1354,80 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 	return nil
 }
 
+func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var user model.User
+	err := tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	userGroupIDs := make([]string, len(user.UserGroups))
+	for i, group := range user.UserGroups {
+		userGroupIDs[i] = group.ID
+	}
+
+	// Build the query for accessible clients
+	query := tx.
+		WithContext(ctx).
+		Model(&model.OidcClient{}).
+		Preload("UserAuthorizedOidcClients", "user_id = ?", userID)
+
+	// If user has no groups, only return clients with no allowed user groups
+	if len(userGroupIDs) == 0 {
+		query = query.
+			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
+			Where("oidc_clients_allowed_user_groups.oidc_client_id IS NULL")
+	} else {
+		// Return clients with no allowed user groups OR clients where user is in allowed groups
+		query = query.
+			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
+			Where("oidc_clients_allowed_user_groups.oidc_client_id IS NULL OR oidc_clients_allowed_user_groups.user_group_id IN (?)", userGroupIDs)
+	}
+
+	var clients []model.OidcClient
+
+	// Handle custom sorting for lastUsedAt column
+	var response utils.PaginationResponse
+	if sortedPaginationRequest.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
+		query = query.
+			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
+			Order("user_authorized_oidc_clients.last_used_at " + sortedPaginationRequest.Sort.Direction + " NULLS LAST")
+	}
+
+	response, err = utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	dtos := make([]dto.AccessibleOidcClientDto, len(clients))
+	for i, client := range clients {
+		var lastUsedAt *datatype.DateTime
+		if len(client.UserAuthorizedOidcClients) > 0 {
+			lastUsedAt = &client.UserAuthorizedOidcClients[0].LastUsedAt
+		}
+		dtos[i] = dto.AccessibleOidcClientDto{
+			OidcClientMetaDataDto: dto.OidcClientMetaDataDto{
+				ID:        client.ID,
+				Name:      client.Name,
+				LaunchURL: client.LaunchURL,
+				HasLogo:   client.HasLogo,
+			},
+			LastUsedAt: lastUsedAt,
+		}
+	}
+
+	return dtos, response, err
+}
+
 func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
 	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
 	if err != nil {
@@ -1462,8 +1554,8 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 
 	// Validate credentials based on the authentication method
 	switch {
-	// First, if we have a client secret, we validate it
-	case input.ClientSecret != "":
+	// First, if we have a client secret, we validate it unless client is marked as public
+	case input.ClientSecret != "" && !client.IsPublic:
 		err = bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(input.ClientSecret))
 		if err != nil {
 			return nil, &common.OidcClientSecretInvalidError{}

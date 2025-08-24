@@ -11,7 +11,7 @@
 	import userStore from '$lib/stores/user-store';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
-	import { startAuthentication } from '@simplewebauthn/browser';
+	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -29,6 +29,7 @@
 	let errorMessage: string | null = $state(null);
 	let authorizationRequired = $state(false);
 	let authorizationConfirmed = $state(false);
+	let userSignedInAt: Date | undefined;
 
 	onMount(() => {
 		if ($userStore) {
@@ -38,13 +39,16 @@
 
 	async function authorize() {
 		isLoading = true;
+
+		let authResponse: AuthenticationResponseJSON | undefined;
+
 		try {
-			// Get access token if not signed in
 			if (!$userStore?.id) {
 				const loginOptions = await webauthnService.getLoginOptions();
-				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
+				authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
 				userStore.setUser(user);
+				userSignedInAt = new Date();
 			}
 
 			if (!authorizationConfirmed) {
@@ -56,8 +60,28 @@
 				}
 			}
 
+			let reauthToken: string | undefined;
+			if (client?.requiresReauthentication) {
+				let authResponse;
+				const signedInRecently =
+					userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000;
+				if (!signedInRecently) {
+					const loginOptions = await webauthnService.getLoginOptions();
+					authResponse = await startAuthentication({ optionsJSON: loginOptions });
+				}
+				reauthToken = await webauthnService.reauthenticate(authResponse);
+			}
+
 			await oidService
-				.authorize(client!.id, scope, callbackURL, nonce, codeChallenge, codeChallengeMethod)
+				.authorize(
+					client!.id,
+					scope,
+					callbackURL,
+					nonce,
+					codeChallenge,
+					codeChallengeMethod,
+					reauthToken
+				)
 				.then(async ({ code, callbackURL, issuer }) => {
 					onSuccess(code, callbackURL, issuer);
 				});
