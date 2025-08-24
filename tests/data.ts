@@ -124,7 +124,7 @@ export const signupTokens = {
 		createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
 	},
 	expired: {
-		id: 'c3d4e5f6-g7h8-9012-cdef-123456789012',
+		id: '44de1863-ffa5-4db1-9507-4887cd7a1e3f',
 		token: 'EXPIRED34567890B',
 		expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
 		usageLimit: 3,
@@ -132,7 +132,7 @@ export const signupTokens = {
 		createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
 	},
 	fullyUsed: {
-		id: 'd4e5f6g7-h8i9-0123-def0-234567890123',
+		id: 'f1b1678b-7720-4d8b-8f91-1dbff1e2d02b',
 		token: 'FULLYUSED567890C',
 		expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
 		usageLimit: 1,

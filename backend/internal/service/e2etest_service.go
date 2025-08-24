@@ -352,7 +352,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 			{
 				Base: model.Base{
-					ID: "c3d4e5f6-g7h8-9012-cdef-123456789012",
+					ID: "44de1863-ffa5-4db1-9507-4887cd7a1e3f",
 				},
 				Token:      "EXPIRED34567890B",
 				ExpiresAt:  datatype.DateTime(time.Now().Add(-24 * time.Hour)), // Expired
@@ -361,7 +361,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 			{
 				Base: model.Base{
-					ID: "d4e5f6g7-h8i9-0123-def0-234567890123",
+					ID: "f1b1678b-7720-4d8b-8f91-1dbff1e2d02b",
 				},
 				Token:      "FULLYUSED567890C",
 				ExpiresAt:  datatype.DateTime(time.Now().Add(24 * time.Hour)),
