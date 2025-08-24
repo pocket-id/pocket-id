@@ -343,7 +343,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 			{
 				Base: model.Base{
-					ID: "b2c3d4e5-f6g7-8901-bcde-f12345678901",
+					ID: "dc3c9c96-714e-48eb-926e-2d7c7858e6cf",
 				},
 				Token:      "PARTIAL567890ABC",
 				ExpiresAt:  datatype.DateTime(time.Now().Add(7 * 24 * time.Hour)),

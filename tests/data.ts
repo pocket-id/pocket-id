@@ -40,7 +40,7 @@ export const oidcClients = {
 		id: '7c21a609-96b5-4011-9900-272b8d31a9d1',
 		name: 'Tailscale',
 		callbackUrl: 'http://tailscale/auth/callback',
-		secret: 'n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo',
+		secret: 'n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo'
 	},
 	federated: {
 		id: 'c48232ff-ff65-45ed-ae96-7afa8a9b443b',
@@ -116,7 +116,7 @@ export const signupTokens = {
 		createdAt: new Date().toISOString()
 	},
 	partiallyUsed: {
-		id: 'b2c3d4e5-f6g7-8901-bcde-f12345678901',
+		id: 'dc3c9c96-714e-48eb-926e-2d7c7858e6cf',
 		token: 'PARTIAL567890ABC',
 		expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
 		usageLimit: 5,
