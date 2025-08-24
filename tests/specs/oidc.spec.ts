@@ -215,7 +215,7 @@ test('Refresh token fails when used for the wrong user', async ({ request }) => 
 			data: {
 				rt: token,
 				client: clientId,
-				user: 'bad-user'
+				user: '44cb5d71-db31-4555-9a1b-5484650f6002'
 			}
 		})
 		.then((r) => r.text());
