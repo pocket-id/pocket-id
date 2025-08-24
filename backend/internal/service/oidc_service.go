@@ -1379,8 +1379,7 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	query := tx.
 		WithContext(ctx).
 		Model(&model.OidcClient{}).
-		Preload("UserAuthorizedOidcClients", "user_id = ?", userID).
-		Distinct()
+		Preload("UserAuthorizedOidcClients", "user_id = ?", userID)
 
 	// If user has no groups, only return clients with no allowed user groups
 	if len(userGroupIDs) == 0 {
@@ -1401,7 +1400,7 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	if sortedPaginationRequest.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
 		query = query.
 			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
-			Order("user_authorized_oidc_clients.last_used_at " + sortedPaginationRequest.Sort.Direction)
+			Order("user_authorized_oidc_clients.last_used_at " + sortedPaginationRequest.Sort.Direction + " NULLS LAST")
 	}
 
 	response, err = utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
