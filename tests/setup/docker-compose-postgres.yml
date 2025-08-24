@@ -19,6 +19,9 @@ services:
     extends:
       file: docker-compose.yml
       service: pocket-id
+    environment:
+      - DB_PROVIDER=postgres
+      - DB_CONNECTION_STRING=postgres://postgres:postgres@postgres:5432/pocket-id
     depends_on:
       postgres:
         condition: service_healthy
