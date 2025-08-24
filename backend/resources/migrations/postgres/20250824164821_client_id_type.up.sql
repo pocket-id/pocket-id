@@ -10,30 +10,30 @@ ALTER TABLE oidc_device_codes
 ALTER TABLE oidc_clients_allowed_user_groups
     DROP CONSTRAINT IF EXISTS oidc_clients_allowed_user_groups_oidc_client_id_fkey;
 
--- Alter child columns to varchar(128)
+-- Alter child columns to TEXT
 ALTER TABLE oidc_authorization_codes
-    ALTER COLUMN client_id TYPE varchar(128) USING client_id::text;
+    ALTER COLUMN client_id TYPE TEXT USING client_id::text;
 
 ALTER TABLE user_authorized_oidc_clients
     ALTER
-        COLUMN client_id TYPE varchar(128) USING client_id::text;
+        COLUMN client_id TYPE TEXT USING client_id::text;
 
 ALTER TABLE oidc_refresh_tokens
     ALTER
-        COLUMN client_id TYPE varchar(128) USING client_id::text;
+        COLUMN client_id TYPE TEXT USING client_id::text;
 
 ALTER TABLE oidc_device_codes
     ALTER
-        COLUMN client_id TYPE varchar(128) USING client_id::text;
+        COLUMN client_id TYPE TEXT USING client_id::text;
 
 ALTER TABLE oidc_clients_allowed_user_groups
     ALTER
-        COLUMN oidc_client_id TYPE varchar(128) USING oidc_client_id::text;
+        COLUMN oidc_client_id TYPE TEXT USING oidc_client_id::text;
 
--- Alter parent primary key column to varchar(128)
+-- Alter parent primary key column to TEXT
 ALTER TABLE oidc_clients
     ALTER
-        COLUMN id TYPE varchar(128) USING id::text;
+        COLUMN id TYPE TEXT USING id::text;
 
 -- Recreate foreign keys with the new type
 ALTER TABLE oidc_authorization_codes
