@@ -13,6 +13,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database"
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/github"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	slogGorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
@@ -58,8 +59,9 @@ func NewDatabase() (db *gorm.DB, err error) {
 }
 
 func migrateDatabase(driver database.Driver) error {
-	// Use the embedded migrations
-	source, err := iofs.New(resources.FS, "migrations/"+string(common.EnvConfig.DbProvider))
+	// Embedded migrations via iofs
+	path := "migrations/" + string(common.EnvConfig.DbProvider)
+	source, err := iofs.New(resources.FS, path)
 	if err != nil {
 		return fmt.Errorf("failed to create embedded migration source: %w", err)
 	}
@@ -69,12 +71,64 @@ func migrateDatabase(driver database.Driver) error {
 		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
 
-	err = m.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to apply migrations: %w", err)
+	requiredVersion, err := getRequiredMigrationVersion(path)
+	if err != nil {
+		return fmt.Errorf("failed to get last migration version: %w", err)
 	}
 
+	currentVersion, _, _ := m.Version()
+	if currentVersion > requiredVersion {
+		slog.Warn("Database version is newer than the application supports, possible downgrade detected", slog.Uint64("db_version", uint64(currentVersion)), slog.Uint64("app_version", uint64(requiredVersion)))
+		if !common.EnvConfig.AllowDowngrade {
+			return fmt.Errorf("database version (%d) is newer than application version (%d), downgrades are not allowed (set ALLOW_DOWNGRADE=true to enable)", currentVersion, requiredVersion)
+		}
+		slog.Info("Fetching migrations from GitHub to handle possible downgrades")
+		return migrateDatabaseFromGitHub(driver, requiredVersion)
+	}
+
+	if err := m.Migrate(requiredVersion); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to apply embedded migrations: %w", err)
+	}
 	return nil
+}
+
+func migrateDatabaseFromGitHub(driver database.Driver, version uint) error {
+	srcURL := "github://pocket-id/pocket-id/backend/resources/migrations/" + string(common.EnvConfig.DbProvider)
+
+	m, err := migrate.NewWithDatabaseInstance(srcURL, "pocket-id", driver)
+	if err != nil {
+		return fmt.Errorf("failed to create GitHub migration instance: %w", err)
+	}
+
+	if err := m.Migrate(version); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to apply GitHub migrations: %w", err)
+	}
+	return nil
+}
+
+// getRequiredMigrationVersion reads the embedded migration files and returns the highest version number found.
+func getRequiredMigrationVersion(path string) (uint, error) {
+	entries, err := resources.FS.ReadDir(path)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read migration directory: %w", err)
+	}
+
+	var maxVersion uint
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		var version uint
+		n, err := fmt.Sscanf(name, "%d_", &version)
+		if err == nil && n == 1 {
+			if version > maxVersion {
+				maxVersion = version
+			}
+		}
+	}
+
+	return maxVersion, nil
 }
 
 func connectDatabase() (db *gorm.DB, err error) {
