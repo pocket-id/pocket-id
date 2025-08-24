@@ -144,8 +144,10 @@ func FileExists(path string) (bool, error) {
 func IsWritableDir(dir string) (bool, error) {
 	// Check if directory exists and it's actually a directory
 	info, err := os.Stat(dir)
-	if err != nil {
+	if os.IsNotExist(err) {
 		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("failed to stat '%s': %w", dir, err)
 	}
 	if !info.IsDir() {
 		return false, nil
