@@ -64,17 +64,14 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Resolve Playwright version
-        id: pwv
-        run: |
-          echo 'version=$(pnpm --filter pocket-id-tests exec playwright --version | awk '{print $2}')' >> $GITHUB_OUTPUT
-
       - name: Cache Playwright Browsers
         uses: actions/cache@v3
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.pwv.outputs.version }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
@@ -108,7 +105,7 @@ jobs:
       - name: Install Playwright Browsers
         working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm dlx playwright install --with-deps chromium
 
       - name: Run Docker Container with Sqlite DB and LDAP
         working-directory: ./tests/setup
@@ -157,17 +154,14 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Resolve Playwright version
-        id: pwv
-        run: |
-          echo 'version=$(pnpm --filter pocket-id-tests exec playwright --version | awk '{print $2}')' >> $GITHUB_OUTPUT
-
       - name: Cache Playwright Browsers
         uses: actions/cache@v3
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.pwv.outputs.version }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
       - name: Cache PostgreSQL Docker image
         uses: actions/cache@v3
@@ -218,7 +212,7 @@ jobs:
       - name: Install Playwright Browsers
         working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm dlx playwright install --with-deps chromium
 
       - name: Run Docker Container with Postgres DB and LDAP
         working-directory: ./tests/setup
@@ -235,7 +229,7 @@ jobs:
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
           name: playwright-report-postgres
-          path: tests/.report
+          path: frontend/tests/.report
           include-hidden-files: true
           retention-days: 15
 
