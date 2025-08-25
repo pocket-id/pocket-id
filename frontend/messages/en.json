@@ -440,5 +440,7 @@
 	"last_signed_in_ago": "Last signed in {time} ago",
 	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
 	"custom_client_id_description": "Set a custom client ID if this is required by your application. Otherwise, leave it blank to generate a random one.",
-	"generated": "Generated"
+	"generated": "Generated",
+  "administration": "Administration"
+
 }
