@@ -45,7 +45,6 @@
 
 	$effect(() => {
 		const state = openState.current;
-
 		items.forEach((item, idx) => {
 			if (!item.children?.length) return;
 			const id = groupId(item, idx);
@@ -58,7 +57,6 @@
 	function isOpen(id: string) {
 		return !!openState.current[id];
 	}
-
 	function toggle(id: string) {
 		openState.current[id] = !openState.current[id];
 	}
@@ -67,6 +65,31 @@
 		'text-primary bg-card rounded-md px-3 py-1.5 font-medium shadow-sm transition-all';
 	const inactiveClasses =
 		'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm';
+
+	// Animation flow: one linear stagger for all visible rows
+	const BASE_DELAY = 150;
+	const ROW_STAGGER = 50;
+
+	// Derive the offset (row index) for each top-level item,
+	// counting expanded children of previous items.
+	const layout = $derived(() => {
+		const offsets: number[] = [];
+		let total = 0;
+		items.forEach((it, idx) => {
+			offsets[idx] = total; // row index for this top-level item
+			total += 1; // this item itself
+			const id = groupId(it, idx);
+			if (it.children?.length && openState.current[id]) {
+				total += it.children.length; // rows for visible children
+			}
+		});
+		return { offsets, total };
+	});
+
+	const delayTop = (i: number) => `${BASE_DELAY + layout().offsets[i] * ROW_STAGGER}ms`;
+	const delayChild = (i: number, j: number) =>
+		`${BASE_DELAY + (layout().offsets[i] + 1 + j) * ROW_STAGGER}ms`;
+	const delayUpdateLink = () => `${BASE_DELAY + layout().total * ROW_STAGGER}ms`;
 </script>
 
 <nav class="text-muted-foreground grid gap-2 text-sm">
@@ -81,7 +104,7 @@
 						'hover:bg-muted/70 hover:text-foreground flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left transition-all',
 						!$appConfigStore.disableAnimations && 'animate-fade-in'
 					)}
-					style={`animation-delay: ${150 + i * 50}ms;`}
+					style={`animation-delay: ${delayTop(i)};`}
 					aria-expanded={isOpen(id)}
 					aria-controls={`submenu-${id}`}
 					onclick={() => toggle(id)}
@@ -115,7 +138,7 @@
 										'my-1 block',
 										!$appConfigStore.disableAnimations && 'animate-fade-in'
 									)}
-									style={`animation-delay: ${j * 30}ms;`}
+									style={`animation-delay: ${delayChild(i, j)};`}
 								>
 									<span class="flex items-center gap-2">
 										{#if child.icon}
@@ -139,7 +162,7 @@
 					isActive(item.href) ? activeClasses : inactiveClasses,
 					!$appConfigStore.disableAnimations && 'animate-fade-in'
 				)}
-				style={`animation-delay: ${150 + i * 50}ms;`}
+				style={`animation-delay: ${delayTop(i)};`}
 			>
 				<span class="flex items-center gap-2">
 					{#if item.icon}
@@ -161,7 +184,7 @@
 				'flex items-center gap-2 text-orange-500 hover:text-orange-500/90',
 				!$appConfigStore.disableAnimations && 'animate-fade-in'
 			)}
-			style="animation-delay: 200ms;"
+			style={`animation-delay: ${delayUpdateLink()};`}
 		>
 			{m.update_pocket_id()}
 			<LucideExternalLink class="my-auto inline-block size-3" />
