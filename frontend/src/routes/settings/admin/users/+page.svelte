@@ -21,7 +21,7 @@
 	let signupTokens = $state(data.signupTokens);
 	let signupTokensRequestOptions = $state(data.signupTokensRequestOptions);
 
-	let selectedCreateOptions = $state('Add User');
+	let selectedCreateOptions = $state(m.add_user());
 	let expandAddUser = $state(false);
 	let signupTokenModalOpen = $state(false);
 	let signupTokenListModalOpen = $state(false);

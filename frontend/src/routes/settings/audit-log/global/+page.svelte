@@ -7,6 +7,7 @@
 	import AuditLogService from '$lib/services/audit-log-service';
 	import type { AuditLogFilter } from '$lib/types/audit-log.type';
 	import AuditLogSwitcher from '../audit-log-switcher.svelte';
+	import {eventTypes as eventTranslations} from "$lib/utils/audit-log-translator";
 
 	let { data } = $props();
 
@@ -27,13 +28,7 @@
 		internal: 'Internal Networks'
 	});
 
-	const eventTypes = $state({
-		SIGN_IN: m.sign_in(),
-		TOKEN_SIGN_IN: m.token_sign_in(),
-		CLIENT_AUTHORIZATION: m.client_authorization(),
-		NEW_CLIENT_AUTHORIZATION: m.new_client_authorization(),
-		ACCOUNT_CREATED: m.account_created()
-	});
+	const eventTypes = $state(eventTranslations);
 
 	$effect(() => {
 		auditLogService.listAllLogs(requestOptions, filters).then((response) => (auditLogs = response));

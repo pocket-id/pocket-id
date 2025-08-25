@@ -4,6 +4,7 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 	import { cn } from '$lib/utils/style';
+    import { m } from '$lib/paraglide/messages';
 	import { LoaderCircle, LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import type { FormEventHandler } from 'svelte/elements';
 
@@ -18,9 +19,6 @@
 		onSelect,
 		oninput,
 		isLoading = false,
-		placeholder = 'Select items...',
-		searchText = 'Search...',
-		noItemsText = 'No items found.',
 		disableInternalSearch = false,
 		id
 	}: {
@@ -29,9 +27,6 @@
 		onSelect?: (value: string[]) => void;
 		oninput?: FormEventHandler<HTMLInputElement>;
 		isLoading?: boolean;
-		placeholder?: string;
-		searchText?: string;
-		noItemsText?: string;
 		disableInternalSearch?: boolean;
 		id?: string;
 	} = $props();
@@ -93,7 +88,7 @@
 							<Badge variant="secondary">{label}</Badge>
 						{/each}
 					{:else}
-						<span class="text-muted-foreground font-normal">{placeholder}</span>
+						<span class="text-muted-foreground font-normal">{m.select_items()}</span>
 					{/if}
 				</div>
 				<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
@@ -103,7 +98,7 @@
 	<Popover.Content class="p-0" sameWidth>
 		<Command.Root shouldFilter={false}>
 			<Command.Input
-				placeholder={searchText}
+				placeholder={m.search()}
 				value={searchValue}
 				oninput={(e) => {
 					filterItems(e.currentTarget.value);
@@ -116,7 +111,7 @@
 						<LoaderCircle class="size-4 animate-spin" />
 					</div>
 				{:else}
-					{noItemsText}
+					{m.no_items_found()}
 				{/if}
 			</Command.Empty>
 			<Command.Group class="max-h-60 overflow-y-auto">

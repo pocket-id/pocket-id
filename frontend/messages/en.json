@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "The image should be in PNG or JPEG format.",
 	"items_per_page": "Items per page",
 	"no_items_found": "No items found",
+	"select_items": "Select items...",
 	"search": "Search...",
 	"expand_card": "Expand card",
 	"copied": "Copied",
