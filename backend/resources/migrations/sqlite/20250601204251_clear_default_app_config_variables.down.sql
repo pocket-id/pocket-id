@@ -1,1 +1,1 @@
--- No rollback is needed for this migration.
+-- No-op

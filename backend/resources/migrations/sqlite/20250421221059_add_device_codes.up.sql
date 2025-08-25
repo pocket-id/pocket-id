@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 CREATE TABLE oidc_device_codes
 (
     id             TEXT     NOT NULL PRIMARY KEY,
@@ -10,3 +12,5 @@ CREATE TABLE oidc_device_codes
     user_id        TEXT REFERENCES users ON DELETE CASCADE,
     client_id      TEXT     NOT NULL REFERENCES oidc_clients ON DELETE CASCADE
 );
+COMMIT;
+PRAGMA foreign_keys=ON;

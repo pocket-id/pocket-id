@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 ALTER TABLE oidc_clients ADD COLUMN requires_reauthentication BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE reauthentication_tokens (
@@ -9,3 +11,5 @@ CREATE TABLE reauthentication_tokens (
 );
 
 CREATE INDEX idx_reauthentication_tokens_token ON reauthentication_tokens(token);
+COMMIT;
+PRAGMA foreign_keys=ON;

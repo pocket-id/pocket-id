@@ -1,3 +1,10 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.9.0...v) (2025-08-24)
+
+
+### Bug Fixes
+
+* sqlite migration drops allowed user groups ([d6d1a4c](https://github.com/pocket-id/pocket-id/commit/d6d1a4ced23886f255a9c2048d19ad3599a17f26))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.8.1...v) (2025-08-24)
 
 

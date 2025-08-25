@@ -1,4 +1,6 @@
 PRAGMA foreign_keys=OFF;
+BEGIN;
+PRAGMA foreign_keys=OFF;
 ---------------------------
 -- Delete all orphaned rows
 ---------------------------
@@ -175,3 +177,5 @@ ALTER TABLE webauthn_credentials_new RENAME TO webauthn_credentials;
 
 PRAGMA foreign_keys=ON;
 PRAGMA foreign_key_check;
+COMMIT;
+PRAGMA foreign_keys=ON;

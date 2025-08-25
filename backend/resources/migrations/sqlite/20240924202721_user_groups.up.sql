@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 CREATE TABLE user_groups
 (
     id           TEXT NOT NULL PRIMARY KEY,
@@ -14,3 +16,5 @@ CREATE TABLE user_groups_users
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     FOREIGN KEY (user_group_id) REFERENCES user_groups (id) ON DELETE CASCADE
 );
+COMMIT;
+PRAGMA foreign_keys=ON;

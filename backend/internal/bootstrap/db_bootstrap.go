@@ -42,7 +42,9 @@ func NewDatabase() (db *gorm.DB, err error) {
 	var driver database.Driver
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
-		driver, err = sqliteMigrate.WithInstance(sqlDb, &sqliteMigrate.Config{})
+		driver, err = sqliteMigrate.WithInstance(sqlDb, &sqliteMigrate.Config{
+			NoTxWrap: true,
+		})
 	case common.DbProviderPostgres:
 		driver, err = postgresMigrate.WithInstance(sqlDb, &postgresMigrate.Config{})
 	default:

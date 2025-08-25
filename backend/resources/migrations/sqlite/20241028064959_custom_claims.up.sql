@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 CREATE TABLE custom_claims
 (
     id            TEXT NOT NULL PRIMARY KEY,
@@ -13,3 +15,5 @@ CREATE TABLE custom_claims
     CONSTRAINT custom_claims_unique UNIQUE (key, user_id, user_group_id),
     CHECK (user_id IS NOT NULL OR user_group_id IS NOT NULL)
 );
+COMMIT;
+PRAGMA foreign_keys=ON;
