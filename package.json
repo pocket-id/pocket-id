@@ -11,10 +11,5 @@
     "build": "pnpm --filter pocket-id-frontend build",
     "test": "pnpm --filter pocket-id-tests test",
     "format": "pnpm --filter pocket-id-frontend format"
-  },
-  "pnpm": {
-    "overrides": {
-      "devalue": "5.3.2"
-    }
   }
 }

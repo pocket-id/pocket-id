@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  devalue: 5.3.2
+  devalue: ^5.3.2
 
 importers:
 
