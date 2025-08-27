@@ -35,6 +35,10 @@ func NewAppConfigController(
 	group.PUT("/application-configuration", authMiddleware.Add(), acc.updateAppConfigHandler)
 
 	group.GET("/application-configuration/logo", acc.getLogoHandler)
+	group.GET("/application-configuration/pwa-icon", acc.getPwaIconHandler)
+	group.GET("/application-configuration/pwa-icon-svg", acc.getPwaSvgIconHandler)
+	group.GET("/application-configuration/web-manifest", acc.getWebAppManifestHandler)
+
 	group.GET("/application-configuration/background-image", acc.getBackgroundImageHandler)
 	group.GET("/application-configuration/favicon", acc.getFaviconHandler)
 	group.PUT("/application-configuration/logo", authMiddleware.Add(), acc.updateLogoHandler)
@@ -154,6 +158,67 @@ func (acc *AppConfigController) getLogoHandler(c *gin.Context) {
 	}
 
 	acc.getImage(c, imageName, imageType)
+}
+
+// getPwaIconHandler godoc
+// @Summary Get PWA PNG icon
+// @Description Get the PWA PNG icon for the application
+// @Tags Application Configuration
+// @Produce image/png
+// @Success 200 {file} binary "Logo image"
+// @Router /api/application-configuration/pwa-icon [get]
+func (acc *AppConfigController) getPwaIconHandler(c *gin.Context) {
+	acc.getImage(c, "pwa-icon", "png")
+}
+
+// getPwaIconHandler godoc
+// @Summary Get PWA SVG icon
+// @Description Get the PWA SVG icon for the application
+// @Tags Application Configuration
+// @Produce image/png
+// @Success 200 {file} binary "Logo image"
+// @Router /api/application-configuration/pwa-icon-svg [get]
+func (acc *AppConfigController) getPwaSvgIconHandler(c *gin.Context) {
+	acc.getImage(c, "pwa-icon", "svg")
+}
+
+// getWebAppManifestHandler godoc
+// @Summary Get web app manifest
+// @Description Returns the web app manifest with dynamic app name
+// @Tags Application Configuration
+// @Produce json
+// @Success 200 {object} dto.WebAppManifestDto
+// @Router /api/application-configuration/web-app-manifest [get]
+func (acc *AppConfigController) getWebAppManifestHandler(c *gin.Context) {
+	dbConfig := acc.appConfigService.GetDbConfig()
+
+	manifest := dto.WebAppManifestDto{
+		Name: dbConfig.AppName.Value,
+		Icons: []dto.WebAppManifestIconDto{
+			{
+				Src:     "/api/application-configuration/pwa-icon",
+				Sizes:   "1024x1024",
+				Type:    "image/png",
+				Purpose: "any",
+			},
+			{
+				Src:     "/api/application-configuration/pwa-icon",
+				Sizes:   "1024x1024",
+				Type:    "image/png",
+				Purpose: "maskable",
+			},
+			{
+				Src:     "/api/application-configuration/pwa-icon-svg",
+				Sizes:   "any",
+				Type:    "image/svg+xml",
+				Purpose: "maskable monochrome",
+			},
+		},
+		Display: "browser",
+	}
+
+	c.Header("Content-Type", "application/manifest+json")
+	c.JSON(http.StatusOK, manifest)
 }
 
 // getFaviconHandler godoc

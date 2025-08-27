@@ -12,12 +12,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 //go:embed all:dist/*
 var frontendFS embed.FS
 
-func RegisterFrontend(router *gin.Engine) error {
+func RegisterFrontend(router *gin.Engine, appConfigService *service.AppConfigService) error {
 	distFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
 		return fmt.Errorf("failed to create sub FS: %w", err)
@@ -26,9 +28,25 @@ func RegisterFrontend(router *gin.Engine) error {
 	cacheMaxAge := time.Hour * 24
 	fileServer := NewFileServerWithCaching(http.FS(distFS), int(cacheMaxAge.Seconds()))
 
+	// Handle the route for the manifest - redirect to API endpoint
+	router.GET("/app.webmanifest", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/api/application-configuration/web-manifest")
+	})
+
+	// Register the fallback handler that serves the SvelteKit app for all routes that we can't match
 	router.NoRoute(func(c *gin.Context) {
-		// Try to serve the requested file
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
+
+		// Block requests to certain files that don't exist, otherwise the SvelteKit frontend will render a page and that breaks certain behaviors (like loading the icon in the app's manifest in Safari)
+		if c.Request.Method == http.MethodGet {
+			switch path {
+			case "apple-touch-icon.png", "apple-touch-icon-precomposed.png", "favicon.ico", "apple-touch-icon-120x120.png", "apple-touch-icon-120x120-precomposed.png":
+				c.AbortWithStatus(http.StatusNotFound)
+				return
+			}
+		}
+
+		// Try to serve the requested file
 		if _, err := fs.Stat(distFS, path); os.IsNotExist(err) {
 			// File doesn't exist, serve index.html instead
 			c.Request.URL.Path = "/"
