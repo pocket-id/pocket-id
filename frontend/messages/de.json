@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "Das Bild sollte im PNG- oder JPEG-Format vorliegen.",
 	"items_per_page": "Einträge pro Seite",
 	"no_items_found": "Keine Einträge gefunden",
+	"select_items": "Wähle Artikel aus...",
 	"search": "Suchen...",
 	"expand_card": "Karte erweitern",
 	"copied": "Kopiert",
@@ -440,5 +441,6 @@
 	"last_signed_in_ago": "Zuletzt angemeldet vor {time} Stunden",
 	"invalid_client_id": "Die Kunden-ID darf nur Buchstaben, Zahlen, Unterstriche und Bindestriche haben.",
 	"custom_client_id_description": "Gib eine eigene Client-ID ein, wenn deine App das braucht. Ansonsten lass das Feld leer, damit eine zufällige ID generiert wird.",
-	"generated": "Generiert"
+	"generated": "Generiert",
+	"administration": "Verwaltung"
 }
