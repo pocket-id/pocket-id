@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "Hình ảnh phải ở định dạng PNG hoặc JPEG.",
 	"items_per_page": "Số kết quả mỗi trang",
 	"no_items_found": "Không tìm thấy kết quả nào",
+	"select_items": "Chọn các mục...",
 	"search": "Tìm kiếm...",
 	"expand_card": "Mở rộng thẻ",
 	"copied": "Đã sao chép",
@@ -440,5 +441,6 @@
 	"last_signed_in_ago": "Lần đăng nhập cuối cùng cách đây {time}",
 	"invalid_client_id": "ID khách hàng chỉ có thể chứa các ký tự chữ cái, số, dấu gạch dưới và dấu gạch ngang.",
 	"custom_client_id_description": "Đặt ID khách hàng tùy chỉnh nếu ứng dụng của bạn yêu cầu. Nếu không, hãy để trống để hệ thống tự động tạo một ID ngẫu nhiên.",
-	"generated": "Được tạo ra"
+	"generated": "Được tạo ra",
+	"administration": "Quản lý"
 }
