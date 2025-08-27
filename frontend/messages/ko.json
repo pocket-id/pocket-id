@@ -215,7 +215,7 @@
 	"group_members_attribute": "그룹 멤버 속성",
 	"the_attribute_to_use_for_querying_members_of_a_group": "그룹의 멤버를 질의할 때 사용할 속성.",
 	"group_unique_identifier_attribute": "그룹 고유 식별자 속성",
-	"group_name_attribute": "그룹 멤버 속성",
+	"group_rdn_attribute": "그룹 RDN 속성 (DN 내)",
 	"admin_group_name": "관리자 그룹 이름",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "이 그룹의 멤버들은 Pocket ID에서 관리자 권한을 갖게 됩니다.",
 	"disable": "비활성화",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "클라이언트 ID는 영문자, 숫자, 밑줄, 하이픈만 포함될 수 있습니다",
 	"custom_client_id_description": "애플리케이션에서 사용자 정의 클라이언트 ID가 요구되는 경우 설정하세요. 그렇지 않으면 빈 상태로 두어서 무작위로 생성할 수 있습니다.",
 	"generated": "생성됨",
-	"administration": "행정"
+	"administration": "행정",
+	"group_rdn_attribute_description": "그룹의 고유 식별자(DN)에 사용되는 속성. 권장 값: `cn`"
 }
