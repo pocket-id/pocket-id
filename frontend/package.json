@@ -1,6 +1,6 @@
 {
   "name": "pocket-id-frontend",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,6 +21,7 @@
     "date-fns": "^4.1.0",
     "jose": "^5.10.0",
     "qrcode": "^1.5.4",
+    "runed": "^0.31.1",
     "sveltekit-superforms": "^2.27.1",
     "tailwind-merge": "^3.3.1",
     "zod": "^4.0.9"
@@ -32,7 +33,7 @@
     "@internationalized/date": "^3.8.2",
     "@lucide/svelte": "^0.525.0",
     "@sveltejs/adapter-static": "^3.0.8",
-    "@sveltejs/kit": "^2.26.0",
+    "@sveltejs/kit": "^2.36.3",
     "@sveltejs/vite-plugin-svelte": "^6.1.0",
     "@types/eslint": "^9.6.1",
     "@types/node": "^22.16.5",

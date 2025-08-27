@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "The image should be in PNG or JPEG format.",
 	"items_per_page": "Items per page",
 	"no_items_found": "No items found",
+	"select_items": "Select items...",
 	"search": "Search...",
 	"expand_card": "Expand card",
 	"copied": "Copied",
@@ -214,7 +215,7 @@
 	"group_members_attribute": "Group Members Attribute",
 	"the_attribute_to_use_for_querying_members_of_a_group": "The attribute to use for querying members of a group.",
 	"group_unique_identifier_attribute": "Group Unique Identifier Attribute",
-	"group_name_attribute": "Group Name Attribute",
+	"group_rdn_attribute": "Group RDN Attribute (in DN)",
 	"admin_group_name": "Admin Group Name",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "Members of this group will have Admin Privileges in Pocket ID.",
 	"disable": "Disable",
@@ -440,5 +441,7 @@
 	"last_signed_in_ago": "Last signed in {time} ago",
 	"invalid_client_id": "Client ID can only contain letters, numbers, underscores, and hyphens",
 	"custom_client_id_description": "Set a custom client ID if this is required by your application. Otherwise, leave it blank to generate a random one.",
-	"generated": "Generated"
+	"generated": "Generated",
+	"administration": "Administration",
+	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN). Recommended value: `cn`"
 }

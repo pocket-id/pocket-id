@@ -1383,14 +1383,18 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 
 	// If user has no groups, only return clients with no allowed user groups
 	if len(userGroupIDs) == 0 {
-		query = query.
-			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
-			Where("oidc_clients_allowed_user_groups.oidc_client_id IS NULL")
+		query = query.Where(`NOT EXISTS (
+        SELECT 1 FROM oidc_clients_allowed_user_groups 
+        WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id)`)
 	} else {
-		// Return clients with no allowed user groups OR clients where user is in allowed groups
-		query = query.
-			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
-			Where("oidc_clients_allowed_user_groups.oidc_client_id IS NULL OR oidc_clients_allowed_user_groups.user_group_id IN (?)", userGroupIDs)
+		query = query.Where(`
+        NOT EXISTS (
+            SELECT 1 FROM oidc_clients_allowed_user_groups 
+            WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
+        ) OR EXISTS (
+            SELECT 1 FROM oidc_clients_allowed_user_groups 
+            WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id 
+            AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, userGroupIDs)
 	}
 
 	var clients []model.OidcClient

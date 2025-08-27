@@ -1,3 +1,12 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.9.1...v) (2025-08-27)
+
+### Features
+
+* redesigned sidebar with administrative dropdown ([#881](https://github.com/pocket-id/pocket-id/issues/881)) ([096d214](https://github.com/pocket-id/pocket-id/commit/096d214a88808848dae726b0ef4c9a9987185836))
+
+### Bug Fixes
+
+* apps showed multiple times if user is in multiple groups ([641bbc9](https://github.com/pocket-id/pocket-id/commit/641bbc935191bad8afbfec90943fc3e9de7a0cb6))
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.9.0...v) (2025-08-24)
 
 
