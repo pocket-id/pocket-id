@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "A imagem deve estar no formato PNG ou JPEG.",
 	"items_per_page": "Itens por página",
 	"no_items_found": "Nenhum item encontrado",
+	"select_items": "Selecione os itens...",
 	"search": "Pesquisar...",
 	"expand_card": "Expandir cartão",
 	"copied": "Copiado",
@@ -440,5 +441,6 @@
 	"last_signed_in_ago": "Último login em {time} atrás",
 	"invalid_client_id": "A ID do cliente só pode ter letras, números, sublinhados e hífens.",
 	"custom_client_id_description": "Defina um ID de cliente personalizado se for necessário para o seu aplicativo. Caso contrário, deixe em branco para gerar um aleatório.",
-	"generated": "Gerado"
+	"generated": "Gerado",
+	"administration": "Administração"
 }
