@@ -215,7 +215,7 @@
 	"group_members_attribute": "群組成員屬性",
 	"the_attribute_to_use_for_querying_members_of_a_group": "用於查詢群組成員的屬性。",
 	"group_unique_identifier_attribute": "群組唯一識別屬性",
-	"group_name_attribute": "群組名稱屬性",
+	"group_rdn_attribute": "群組 RDN 屬性 (以 DN 表示)",
 	"admin_group_name": "管理員群組名稱",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "此群組的成員將擁有 Pocket ID 的管理權限。",
 	"disable": "停用",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "用戶端 ID 只能包含字母、數字、底線和連字符",
 	"custom_client_id_description": "如果您的應用程式需要，請設定自訂用戶端 ID。否則，請留空以產生隨機 ID。",
 	"generated": "產生",
-	"administration": "行政管理"
+	"administration": "行政管理",
+	"group_rdn_attribute_description": "群組識別名 (DN) 中使用的屬性。建議值： `cn`"
 }
