@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "Obrázek by měl být ve formátu PNG nebo JPEG.",
 	"items_per_page": "Položek na stránku",
 	"no_items_found": "Nenalezeny žádné položky",
+	"select_items": "Vyberte položky...",
 	"search": "Hledat...",
 	"expand_card": "Rozbalit kartu",
 	"copied": "Zkopírováno",
@@ -440,5 +441,6 @@
 	"last_signed_in_ago": "Naposledy přihlášen {time} před",
 	"invalid_client_id": "ID klienta může obsahovat pouze písmena, číslice, podtržítka a pomlčky.",
 	"custom_client_id_description": "Nastavte vlastní ID klienta, pokud to vyžaduje vaše aplikace. V opačném případě pole nechte prázdné, aby bylo vygenerováno náhodné ID.",
-	"generated": "Vygenerováno"
+	"generated": "Vygenerováno",
+	"administration": "Správa"
 }
