@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "이미지는 PNG 또는 JPEG 형식이어야 합니다.",
 	"items_per_page": "페이지당 항목",
 	"no_items_found": "항목 없음",
+	"select_items": "항목을 선택하세요...",
 	"search": "검색...",
 	"expand_card": "카드 확장",
 	"copied": "복사됨",
@@ -440,5 +441,6 @@
 	"last_signed_in_ago": "{time} 전에 로그인함",
 	"invalid_client_id": "클라이언트 ID는 영문자, 숫자, 밑줄, 하이픈만 포함될 수 있습니다",
 	"custom_client_id_description": "애플리케이션에서 사용자 정의 클라이언트 ID가 요구되는 경우 설정하세요. 그렇지 않으면 빈 상태로 두어서 무작위로 생성할 수 있습니다.",
-	"generated": "생성됨"
+	"generated": "생성됨",
+	"administration": "행정"
 }
