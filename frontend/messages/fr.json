@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "L'image doit être au format PNG ou JPEG.",
 	"items_per_page": "Éléments par page",
 	"no_items_found": "Aucune donnée trouvée",
+	"select_items": "Choisis des trucs...",
 	"search": "Rechercher...",
 	"expand_card": "Carte d'expansion",
 	"copied": "Copié",
@@ -440,5 +441,6 @@
 	"last_signed_in_ago": "Dernière connexion il y a {time} il y a",
 	"invalid_client_id": "L'ID client ne peut contenir que des lettres, des chiffres, des traits de soulignement et des tirets.",
 	"custom_client_id_description": "Définissez un identifiant client personnalisé si votre application l'exige. Sinon, laissez ce champ vide pour qu'un identifiant aléatoire soit généré.",
-	"generated": "Généré"
+	"generated": "Généré",
+	"administration": "Administration"
 }
