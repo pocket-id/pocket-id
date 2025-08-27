@@ -21,7 +21,7 @@ test.describe('LDAP Integration', () => {
 		await expect(page.getByLabel('User Unique Identifier Attribute')).not.toBeEmpty();
 		await expect(page.getByLabel('Username Attribute')).not.toBeEmpty();
 		await expect(page.getByLabel('User Mail Attribute')).not.toBeEmpty();
-		await expect(page.getByLabel('Group Name Attribute')).not.toBeEmpty();
+		await expect(page.getByLabel('Group RDN Attribute (in DN)')).not.toBeEmpty();
 
 		const syncButton = page.getByRole('button', { name: 'Sync now' });
 		await syncButton.click();
