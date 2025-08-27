@@ -1,41 +1,29 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { cn } from '$lib/utils/style';
-	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideChevronDown, LucideExternalLink, type Icon as IconType } from '@lucide/svelte';
-	import { slide } from 'svelte/transition';
+	import appConfigStore from '$lib/stores/application-configuration-store';
+	import { cn } from '$lib/utils/style';
+	import { LucideChevronDown, LucideExternalLink } from '@lucide/svelte';
 	import { PersistedState } from 'runed';
+	import { slide } from 'svelte/transition';
 
 	type NavItem = {
-		label: string;
 		href?: string;
-		external?: boolean;
-		icon?: typeof IconType;
+		label: string;
 		children?: NavItem[];
-		id?: string;
-		defaultOpen?: boolean;
 	};
 
 	let {
 		items = [] as NavItem[],
 		storageKey = 'sidebar-open:settings',
 		isAdmin = false,
-		isUpToDate = undefined,
-		updateUrl = 'https://github.com/pocket-id/pocket-id/releases/latest'
+		isUpToDate = undefined
 	} = $props();
 
-	const openState = new PersistedState<Record<string, boolean>>(
-		storageKey,
-		{},
-		{
-			storage: 'local',
-			syncTabs: true
-		}
-	);
+	const openState = new PersistedState<Record<string, boolean>>(storageKey, {});
 
 	function groupId(item: NavItem, idx: number) {
-		return item.id ?? `${item.label}-${idx}`;
+		return `${item.label}-${idx}`;
 	}
 
 	function isActive(href?: string) {
@@ -49,7 +37,7 @@
 			if (!item.children?.length) return;
 			const id = groupId(item, idx);
 			if (state[id] === undefined) {
-				state[id] = item.children.some((c) => isActive(c.href)) || !!item.defaultOpen;
+				state[id] = item.children.some((c) => isActive(c.href));
 			}
 		});
 	});
@@ -66,8 +54,6 @@
 	const inactiveClasses =
 		'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm';
 
-	// Animation flow: one linear stagger for all visible rows
-	const BASE_DELAY = 150;
 	const ROW_STAGGER = 50;
 
 	// Derive the offset (row index) for each top-level item,
@@ -86,16 +72,14 @@
 		return { offsets, total };
 	});
 
-	const delayTop = (i: number) => `${BASE_DELAY + layout().offsets[i] * ROW_STAGGER}ms`;
-	const delayChild = (i: number, j: number) =>
-		`${BASE_DELAY + (layout().offsets[i] + 1 + j) * ROW_STAGGER}ms`;
-	const delayUpdateLink = () => `${BASE_DELAY + layout().total * ROW_STAGGER}ms`;
+	const delayTop = (i: number) => `${layout().offsets[i] * ROW_STAGGER}ms`;
+	const delayChild = (i: number, j: number) => `${(layout().offsets[i] + 1 + j) * ROW_STAGGER}ms`;
+	const delayUpdateLink = () => `${layout().total * ROW_STAGGER}ms`;
 </script>
 
 <nav class="text-muted-foreground grid gap-2 text-sm">
 	{#each items as item, i}
 		{#if item.children?.length}
-			{@const Icon = item.icon}
 			{@const id = groupId(item, i)}
 			<div class="group">
 				<button
@@ -109,12 +93,8 @@
 					aria-controls={`submenu-${id}`}
 					onclick={() => toggle(id)}
 				>
-					<span class="flex items-center gap-2">
-						{#if item.icon}
-							<Icon class="size-4" />
-						{/if}
-						{item.label}
-					</span>
+					{item.label}
+
 					<LucideChevronDown
 						class={cn('size-4 transition-transform', isOpen(id) ? 'rotate-180' : '')}
 					/>
@@ -127,12 +107,9 @@
 						transition:slide|local={{ duration: 120 }}
 					>
 						{#each item.children as child, j}
-							{@const Icon = child.icon}
 							<li>
 								<a
 									href={child.href}
-									target={child.external ? '_blank' : undefined}
-									rel={child.external ? 'noopener noreferrer' : undefined}
 									class={cn(
 										isActive(child.href) ? activeClasses : inactiveClasses,
 										'my-1 block',
@@ -140,12 +117,7 @@
 									)}
 									style={`animation-delay: ${delayChild(i, j)};`}
 								>
-									<span class="flex items-center gap-2">
-										{#if child.icon}
-											<Icon class="size-4" />
-										{/if}
-										{child.label}
-									</span>
+									{child.label}
 								</a>
 							</li>
 						{/each}
@@ -153,30 +125,22 @@
 				{/if}
 			</div>
 		{:else}
-			{@const Icon = item.icon}
 			<a
 				href={item.href}
-				target={item.external ? '_blank' : undefined}
-				rel={item.external ? 'noopener noreferrer' : undefined}
 				class={cn(
 					isActive(item.href) ? activeClasses : inactiveClasses,
 					!$appConfigStore.disableAnimations && 'animate-fade-in'
 				)}
 				style={`animation-delay: ${delayTop(i)};`}
 			>
-				<span class="flex items-center gap-2">
-					{#if item.icon}
-						<Icon class="size-4" />
-					{/if}
-					{item.label}
-				</span>
+				{item.label}
 			</a>
 		{/if}
 	{/each}
 
 	{#if isAdmin && isUpToDate === false}
 		<a
-			href={updateUrl}
+			href="https://github.com/pocket-id/pocket-id/releases/latest"
 			target="_blank"
 			rel="noopener noreferrer"
 			class={cn(
