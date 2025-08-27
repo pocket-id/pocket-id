@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "Obraz powinien być w formacie PNG lub JPEG.",
 	"items_per_page": "Elementów na stronę",
 	"no_items_found": "Nie znaleziono żadnych elementów",
+	"select_items": "Wybierz elementy...",
 	"search": "Szukaj...",
 	"expand_card": "Rozwiń kartę",
 	"copied": "Skopiowano",
@@ -440,5 +441,6 @@
 	"last_signed_in_ago": "Ostatnio zalogowany {time} temu",
 	"invalid_client_id": "Identyfikator klienta może zawierać wyłącznie litery, cyfry, znaki podkreślenia i łączniki.",
 	"custom_client_id_description": "Ustaw niestandardowy identyfikator klienta, jeśli jest to wymagane przez twoją aplikację. W przeciwnym razie pozostaw to pole puste, aby wygenerować losowy identyfikator.",
-	"generated": "Wygenerowano"
+	"generated": "Wygenerowano",
+	"administration": "Administracja"
 }
