@@ -24,7 +24,7 @@
 	"click_to_copy": "点击复制",
 	"something_went_wrong": "出了点问题",
 	"go_back_to_home": "返回首页",
-	"alternative_sign_in_methods": "替代登录方式",
+	"alternative_sign_in_methods": "备用登录方式",
 	"login_background": "登录页背景图",
 	"logo": "图标",
 	"login_code": "临时登录码",
@@ -215,7 +215,7 @@
 	"group_members_attribute": "群组成员属性",
 	"the_attribute_to_use_for_querying_members_of_a_group": "用于查询群组成员的属性。",
 	"group_unique_identifier_attribute": "群组唯一标识属性",
-	"group_name_attribute": "群组名称属性",
+	"group_rdn_attribute": "组 RDN 属性（在 DN 中）",
 	"admin_group_name": "管理员组名称",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "此群组的成员将在 Pocket ID 中拥有管理员权限。",
 	"disable": "禁用",
@@ -440,7 +440,8 @@
 	"revoke_access_successful": "对 {clientName} 的访问权限已成功撤销。",
 	"last_signed_in_ago": "最后一次登录 {time} 前",
 	"invalid_client_id": "客户 ID 只能包含字母、数字、下划线和连字符。",
-	"custom_client_id_description": "如果您的应用程序需要自定义客户端 ID，请在此处设置。否则，请留空以生成一个随机生成的客户端 ID。",
-	"generated": "生成",
-	"administration": "行政"
+	"custom_client_id_description": "此处可根据应用需要设置自定义客户端 ID。留空随机生成。",
+	"generated": "已生成",
+	"administration": "管理员选项",
+	"group_rdn_attribute_description": "在组的区分名称（DN）中使用的属性。推荐值：`cn`"
 }
