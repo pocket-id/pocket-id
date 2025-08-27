@@ -215,7 +215,7 @@
 	"group_members_attribute": "Thuộc tính thành viên nhóm",
 	"the_attribute_to_use_for_querying_members_of_a_group": "Thuộc tính được sử dụng để truy vấn các thành viên của một nhóm.",
 	"group_unique_identifier_attribute": "Thuộc tính định danh duy nhất của người dùng",
-	"group_name_attribute": "Thuộc tính tên nhóm",
+	"group_rdn_attribute": "Thuộc tính RDN của nhóm (trong DN)",
 	"admin_group_name": "Tên nhóm quản trị",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "Các thành viên của nhóm này sẽ có quyền quản trị trong Pocket ID.",
 	"disable": "Tắt",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "ID khách hàng chỉ có thể chứa các ký tự chữ cái, số, dấu gạch dưới và dấu gạch ngang.",
 	"custom_client_id_description": "Đặt ID khách hàng tùy chỉnh nếu ứng dụng của bạn yêu cầu. Nếu không, hãy để trống để hệ thống tự động tạo một ID ngẫu nhiên.",
 	"generated": "Được tạo ra",
-	"administration": "Quản lý"
+	"administration": "Quản lý",
+	"group_rdn_attribute_description": "Thuộc tính được sử dụng trong tên phân biệt (DN) của nhóm. Giá trị được khuyến nghị: `cn`"
 }
