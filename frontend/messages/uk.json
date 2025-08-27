@@ -215,7 +215,7 @@
 	"group_members_attribute": "Атрибут \"Учасник груп\"",
 	"the_attribute_to_use_for_querying_members_of_a_group": "Атрибут, який використовується для запиту учасників групи.",
 	"group_unique_identifier_attribute": "Атрибут \"Унікальний ідентифікатор групи\"",
-	"group_name_attribute": "Атрибут \"Назва групи\"",
+	"group_rdn_attribute": "Атрибут групи RDN (у DN)",
 	"admin_group_name": "Атрибут \"Назва групи адміністратора\"",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "Учасники цієї групи матимуть адміністративні права в Pocket ID.",
 	"disable": "Вимкнути",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "Ідентифікатор клієнта може містити тільки літери, цифри, підкреслення та дефіси.",
 	"custom_client_id_description": "Встановіть власний ідентифікатор клієнта, якщо це потрібно для вашої програми. В іншому випадку залиште поле порожнім, щоб створити випадковий ідентифікатор.",
 	"generated": "Створено",
-	"administration": "Адміністрація"
+	"administration": "Адміністрація",
+	"group_rdn_attribute_description": "Атрибут, що використовується в розпізнавальному імені групи (DN). Рекомендоване значення: `cn`"
 }
