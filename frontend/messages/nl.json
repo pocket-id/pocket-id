@@ -17,6 +17,7 @@
 	"image_should_be_in_format": "De afbeelding moet in PNG- of JPEG-formaat zijn.",
 	"items_per_page": "Aantal per pagina",
 	"no_items_found": "Geen items gevonden",
+	"select_items": "Kies items...",
 	"search": "Zoek...",
 	"expand_card": "Kaart uitbreiden",
 	"copied": "Gekopieerd",
@@ -440,5 +441,6 @@
 	"last_signed_in_ago": "Laatst ingelogd {time} geleden",
 	"invalid_client_id": "De klant-ID mag alleen letters, cijfers, onderstrepingstekens en koppeltekens bevatten.",
 	"custom_client_id_description": "Stel een aangepaste client-ID in als je app dit nodig heeft. Anders laat je het gewoon leeg en wordt er een willekeurige ID gegenereerd.",
-	"generated": "Gemaakt"
+	"generated": "Gemaakt",
+	"administration": "Administratie"
 }
