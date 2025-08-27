@@ -215,7 +215,7 @@
 	"group_members_attribute": "Groepsleden attribuut",
 	"the_attribute_to_use_for_querying_members_of_a_group": "Het attribuut dat gebruikt moet worden om leden van een groep te bevragen.",
 	"group_unique_identifier_attribute": "Uniek groepsidentificatie attribuut",
-	"group_name_attribute": "Groepsnaam attribuut",
+	"group_rdn_attribute": "Groeps-RDN-kenmerk (in DN)",
 	"admin_group_name": "Naam van beheerdersgroep",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "Leden van deze groep hebben beheerdersrechten in Pocket ID.",
 	"disable": "Uitschakelen",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "De klant-ID mag alleen letters, cijfers, onderstrepingstekens en koppeltekens bevatten.",
 	"custom_client_id_description": "Stel een aangepaste client-ID in als je app dit nodig heeft. Anders laat je het gewoon leeg en wordt er een willekeurige ID gegenereerd.",
 	"generated": "Gemaakt",
-	"administration": "Administratie"
+	"administration": "Administratie",
+	"group_rdn_attribute_description": "Het kenmerk dat je gebruikt in de onderscheidende naam (DN) van de groepen. Aanbevolen waarde: `cn`"
 }
