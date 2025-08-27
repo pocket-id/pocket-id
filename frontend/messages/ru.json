@@ -215,7 +215,7 @@
 	"group_members_attribute": "Атрибут членов группы",
 	"the_attribute_to_use_for_querying_members_of_a_group": "Атрибут, используемый для запроса членов группы.",
 	"group_unique_identifier_attribute": "Атрибут уникального идентификатора группы",
-	"group_name_attribute": "Атрибут имени группы",
+	"group_rdn_attribute": "Групповой атрибут RDN (в DN)",
 	"admin_group_name": "Имя группы администраторов",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "Члены этой группы будут иметь права администратора в Pocket ID.",
 	"disable": "Отключить",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "ID клиента может содержать только буквы, цифры, подчеркивания и дефисы",
 	"custom_client_id_description": "Установите пользовательский ID клиента, если это нужно для вашего приложения. Если нет, оставьте поле пустым, чтобы он был сгенерирован случайным образом.",
 	"generated": "Сгенерированный",
-	"administration": "Администрация"
+	"administration": "Администрация",
+	"group_rdn_attribute_description": "Атрибут, который используется в отличительном имени (DN) групп. Рекомендуемое значение: `cn`"
 }
