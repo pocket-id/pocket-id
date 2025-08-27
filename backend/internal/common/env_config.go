@@ -136,6 +136,18 @@ func parseEnvConfig() error {
 		return errors.New("APP_URL must not contain a path")
 	}
 
+	// only check if internal app url is not default value
+	if EnvConfig.InternalAppURL != EnvConfig.AppURL {
+		parsedInternalAppUrl, err := url.Parse(EnvConfig.InternalAppURL)
+
+		if err != nil {
+			return errors.New("INTERNAL_APP_URL is not a valid URL")
+		}
+		if parsedInternalAppUrl.Path != "" {
+			return errors.New("INTERNAL_APP_URL must not contain a path")
+		}
+	}
+
 	switch EnvConfig.KeysStorage {
 	// KeysStorage defaults to "file" if empty
 	case "":
