@@ -215,7 +215,7 @@
 	"group_members_attribute": "Atribut členů skupiny",
 	"the_attribute_to_use_for_querying_members_of_a_group": "Atribut použitý pro dotazování členů skupiny.",
 	"group_unique_identifier_attribute": "Atribut unikátního identifikátoru skupiny",
-	"group_name_attribute": "Atribut názvu skupiny",
+	"group_rdn_attribute": "Atribut skupiny RDN (v DN)",
 	"admin_group_name": "Název skupiny administrátorů",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "Členové této skupiny budou mít práva administrátora v Pocket ID.",
 	"disable": "Zakázat",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "ID klienta může obsahovat pouze písmena, číslice, podtržítka a pomlčky.",
 	"custom_client_id_description": "Nastavte vlastní ID klienta, pokud to vyžaduje vaše aplikace. V opačném případě pole nechte prázdné, aby bylo vygenerováno náhodné ID.",
 	"generated": "Vygenerováno",
-	"administration": "Správa"
+	"administration": "Správa",
+	"group_rdn_attribute_description": "Atribut použitý v rozlišovacím jménu skupiny (DN). Doporučená hodnota: `cn`"
 }
