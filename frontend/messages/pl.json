@@ -215,7 +215,7 @@
 	"group_members_attribute": "Atrybut członków grupy",
 	"the_attribute_to_use_for_querying_members_of_a_group": "Atrybut do użycia w zapytaniach o członków grupy.",
 	"group_unique_identifier_attribute": "Atrybut unikalnego identyfikatora grupy",
-	"group_name_attribute": "Atrybut nazwy grupy",
+	"group_rdn_attribute": "Atrybut grupy RDN (w DN)",
 	"admin_group_name": "Nazwa grupy administratorów",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "Członkowie tej grupy będą mieli uprawnienia administratora w Pocket ID.",
 	"disable": "Wyłącz",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "Identyfikator klienta może zawierać wyłącznie litery, cyfry, znaki podkreślenia i łączniki.",
 	"custom_client_id_description": "Ustaw niestandardowy identyfikator klienta, jeśli jest to wymagane przez twoją aplikację. W przeciwnym razie pozostaw to pole puste, aby wygenerować losowy identyfikator.",
 	"generated": "Wygenerowano",
-	"administration": "Administracja"
+	"administration": "Administracja",
+	"group_rdn_attribute_description": "Atrybut używany w nazwie wyróżniającej grupy (DN). Zalecana wartość: `cn`"
 }
