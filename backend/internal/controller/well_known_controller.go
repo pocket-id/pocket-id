@@ -67,6 +67,9 @@ func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
 
 func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 	appUrl := common.EnvConfig.AppURL
+
+	internalAppUrl := common.EnvConfig.InternalAppURL
+
 	alg, err := wkc.jwtService.GetKeyAlg()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key algorithm: %w", err)
@@ -74,12 +77,12 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 	config := map[string]any{
 		"issuer":                                         appUrl,
 		"authorization_endpoint":                         appUrl + "/authorize",
-		"token_endpoint":                                 common.EnvConfig.TokenURL + "/api/oidc/token",
-		"userinfo_endpoint":                              common.EnvConfig.UserinfoURL + "/api/oidc/userinfo",
+		"token_endpoint":                                 internalAppUrl + "/api/oidc/token",
+		"userinfo_endpoint":                              internalAppUrl + "/api/oidc/userinfo",
 		"end_session_endpoint":                           appUrl + "/api/oidc/end-session",
-		"introspection_endpoint":                         common.EnvConfig.IntrospectionURL + "/api/oidc/introspect",
+		"introspection_endpoint":                         internalAppUrl + "/api/oidc/introspect",
 		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
-		"jwks_uri":                                       common.EnvConfig.JwksURL + "/.well-known/jwks.json",
+		"jwks_uri":                                       internalAppUrl + "/.well-known/jwks.json",
 		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode},
 		"scopes_supported":                               []string{"openid", "profile", "email", "groups"},
 		"claims_supported":                               []string{"sub", "given_name", "family_name", "name", "email", "email_verified", "preferred_username", "picture", "groups"},

@@ -54,10 +54,7 @@ type EnvConfigSchema struct {
 	TrustProxy         bool       `env:"TRUST_PROXY"`
 	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
 	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
-	TokenURL           string     `env:"TOKEN_URL"`
-	UserinfoURL        string     `env:"USERINFO_URL"`
-	IntrospectionURL   string     `env:"INTROSPECTION_URL"`
-	JwksURL            string     `env:"JWKS_URL"`
+	InternalAppURL     string     `env:"INTERNAL_APP_URL"`
 }
 
 var EnvConfig = defaultConfig()
@@ -94,10 +91,7 @@ func defaultConfig() EnvConfigSchema {
 		TrustProxy:         false,
 		AnalyticsDisabled:  false,
 		AllowDowngrade:     false,
-		TokenURL:           AppUrl,
-		UserinfoURL:        AppUrl,
-		IntrospectionURL:   AppUrl,
-		JwksURL:            AppUrl,
+		InternalAppURL:     AppUrl,
 	}
 }
 
