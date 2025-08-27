@@ -91,6 +91,28 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "APP_URL must not contain a path")
 	})
 
+	t.Run("should fail with invalid INTERNAL_APP_URL", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("INTERNAL_APP_URL", "€://not-a-valid-url")
+
+		err := parseEnvConfig()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "INTERNAL_APP_URL is not a valid URL")
+	})
+
+	t.Run("should fail when INTERNAL_APP_URL contains path", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("INTERNAL_APP_URL", "http://localhost:3000/path")
+
+		err := parseEnvConfig()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "INTERNAL_APP_URL must not contain a path")
+	})
+
 	t.Run("should default KEYS_STORAGE to 'file' when empty", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "sqlite")
