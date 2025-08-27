@@ -215,7 +215,7 @@
 	"group_members_attribute": "Gruppenmitglieder Attribut",
 	"the_attribute_to_use_for_querying_members_of_a_group": "Das zu verwendende Attribut zur Abfrage von Mitgliedern einer Gruppe.",
 	"group_unique_identifier_attribute": "Eindeutiges Gruppenkennungs-Attribut",
-	"group_name_attribute": "Gruppennamen Attribut",
+	"group_rdn_attribute": "Gruppen-RDN-Attribut (im DN)",
 	"admin_group_name": "Name der Admingruppe",
 	"members_of_this_group_will_have_admin_privileges_in_pocketid": "Mitglieder dieser Gruppe werden Admin-Privilegien in Pocket ID haben.",
 	"disable": "Deaktivieren",
@@ -442,5 +442,6 @@
 	"invalid_client_id": "Die Kunden-ID darf nur Buchstaben, Zahlen, Unterstriche und Bindestriche haben.",
 	"custom_client_id_description": "Gib eine eigene Client-ID ein, wenn deine App das braucht. Ansonsten lass das Feld leer, damit eine zufällige ID generiert wird.",
 	"generated": "Generiert",
-	"administration": "Verwaltung"
+	"administration": "Verwaltung",
+	"group_rdn_attribute_description": "Das Attribut, das im Distinguished Name (DN) der Gruppen benutzt wird. Empfohlener Wert: `cn`"
 }
