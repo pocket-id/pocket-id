@@ -27,23 +27,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node.js for email templates
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
-
-      - name: Install email template dependencies
-        run: pnpm --filter pocketid-email-templates install
-      - name: Build email templates
-        run: pnpm --filter pocketid-email-templates build
-
       - name: Build and export
         uses: docker/build-push-action@v6
         with:

@@ -72,11 +72,6 @@ jobs:
       - name: Build frontend
         run: pnpm --filter pocket-id-frontend build
 
-      - name: Install email template dependencies
-        run: pnpm --filter pocketid-email-templates install
-      - name: Build email templates
-        run: pnpm --filter pocketid-email-templates build
-
       - name: Build binaries
         run: sh scripts/development/build-binaries.sh
       - name: Build and push container image

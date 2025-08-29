@@ -65,13 +65,6 @@ jobs:
         working-directory: frontend
         run: pnpm run build
 
-      - name: Install email template dependencies
-        working-directory: backend/resources/email-templates/build
-        run: npm ci
-      - name: Build email templates
-        working-directory: backend/resources/email-templates/build
-        run: npm run build
-
       - name: Build binaries
         run: sh scripts/development/build-binaries.sh --docker-only
 
