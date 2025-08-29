@@ -25,6 +25,7 @@ func isReservedClaim(key string) bool {
 		"name",
 		"email",
 		"preferred_username",
+		"display_name",
 		"groups",
 		TokenTypeClaim,
 		"sub",

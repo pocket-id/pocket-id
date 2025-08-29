@@ -103,7 +103,12 @@
 </div>
 
 <div>
-	<CollapsibleCard id="application-configuration-images" icon={LucideImage} title={m.images()}>
+	<CollapsibleCard
+		id="application-configuration-images"
+		icon={LucideImage}
+		title={m.images()}
+		description={m.configure_application_images()}
+	>
 		<UpdateApplicationImages callback={updateImages} />
 	</CollapsibleCard>
 </div>

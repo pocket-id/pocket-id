@@ -443,5 +443,8 @@
 	"custom_client_id_description": "Set a custom client ID if this is required by your application. Otherwise, leave it blank to generate a random one.",
 	"generated": "Generated",
 	"administration": "Administration",
-	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN). Recommended value: `cn`"
+	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN). Recommended value: `cn`",
+	"display_name_attribute": "Display Name Attribute",
+	"display_name": "Display Name",
+	"configure_application_images": "Configure Application Images"
 }
