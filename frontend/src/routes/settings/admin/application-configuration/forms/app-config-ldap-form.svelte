@@ -2,7 +2,7 @@
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages';
+	import { ldap, m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
@@ -25,27 +25,27 @@
 	let ldapEnabled = $state(appConfig.ldapEnabled);
 	let ldapSyncing = $state(false);
 
-	const updatedAppConfig = {
-		ldapEnabled: appConfig.ldapEnabled,
-		ldapUrl: appConfig.ldapUrl,
-		ldapBindDn: appConfig.ldapBindDn,
-		ldapBindPassword: appConfig.ldapBindPassword,
-		ldapBase: appConfig.ldapBase,
-		ldapUserSearchFilter: appConfig.ldapUserSearchFilter,
-		ldapUserGroupSearchFilter: appConfig.ldapUserGroupSearchFilter,
-		ldapSkipCertVerify: appConfig.ldapSkipCertVerify,
-		ldapAttributeUserUniqueIdentifier: appConfig.ldapAttributeUserUniqueIdentifier,
-		ldapAttributeUserUsername: appConfig.ldapAttributeUserUsername,
-		ldapAttributeUserEmail: appConfig.ldapAttributeUserEmail,
-		ldapAttributeUserFirstName: appConfig.ldapAttributeUserFirstName,
-		ldapAttributeUserLastName: appConfig.ldapAttributeUserLastName,
-		ldapAttributeUserProfilePicture: appConfig.ldapAttributeUserProfilePicture,
-		ldapAttributeGroupMember: appConfig.ldapAttributeGroupMember,
-		ldapAttributeGroupUniqueIdentifier: appConfig.ldapAttributeGroupUniqueIdentifier,
-		ldapAttributeGroupName: appConfig.ldapAttributeGroupName,
-		ldapAttributeAdminGroup: appConfig.ldapAttributeAdminGroup,
-		ldapSoftDeleteUsers: appConfig.ldapSoftDeleteUsers || true
-	};
+	// const updatedAppConfig = {
+	// 	ldapEnabled: appConfig.ldapEnabled,
+	// 	ldapUrl: appConfig.ldapUrl,
+	// 	ldapBindDn: appConfig.ldapBindDn,
+	// 	ldapBindPassword: appConfig.ldapBindPassword,
+	// 	ldapBase: appConfig.ldapBase,
+	// 	ldapUserSearchFilter: appConfig.ldapUserSearchFilter,
+	// 	ldapUserGroupSearchFilter: appConfig.ldapUserGroupSearchFilter,
+	// 	ldapSkipCertVerify: appConfig.ldapSkipCertVerify,
+	// 	ldapAttributeUserUniqueIdentifier: appConfig.ldapAttributeUserUniqueIdentifier,
+	// 	ldapAttributeUserUsername: appConfig.ldapAttributeUserUsername,
+	// 	ldapAttributeUserEmail: appConfig.ldapAttributeUserEmail,
+	// 	ldapAttributeUserFirstName: appConfig.ldapAttributeUserFirstName,
+	// 	ldapAttributeUserLastName: appConfig.ldapAttributeUserLastName,
+	// 	ldapAttributeUserProfilePicture: appConfig.ldapAttributeUserProfilePicture,
+	// 	ldapAttributeGroupMember: appConfig.ldapAttributeGroupMember,
+	// 	ldapAttributeGroupUniqueIdentifier: appConfig.ldapAttributeGroupUniqueIdentifier,
+	// 	ldapAttributeGroupName: appConfig.ldapAttributeGroupName,
+	// 	ldapAttributeAdminGroup: appConfig.ldapAttributeAdminGroup,
+	// 	ldapSoftDeleteUsers: appConfig.ldapSoftDeleteUsers || true
+	// };
 
 	const formSchema = z.object({
 		ldapUrl: z.url(),
@@ -60,6 +60,7 @@
 		ldapAttributeUserEmail: z.string().min(1),
 		ldapAttributeUserFirstName: z.string().min(1),
 		ldapAttributeUserLastName: z.string().min(1),
+		ldapAttributeUserDisplayName: z.string().min(1),
 		ldapAttributeUserProfilePicture: z.string(),
 		ldapAttributeGroupMember: z.string(),
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
@@ -180,6 +181,11 @@
 				label={m.user_last_name_attribute()}
 				placeholder="sn"
 				bind:input={$inputs.ldapAttributeUserLastName}
+			/>
+			<FormInput
+				label={m.display_name_attribute()}
+				placeholder="displayName"
+				bind:input={$inputs.ldapAttributeUserDisplayName}
 			/>
 			<FormInput
 				label={m.user_profile_picture_attribute()}

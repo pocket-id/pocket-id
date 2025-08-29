@@ -74,6 +74,7 @@ type AppConfig struct {
 	LdapAttributeUserEmail             AppConfigVariable `key:"ldapAttributeUserEmail"`
 	LdapAttributeUserFirstName         AppConfigVariable `key:"ldapAttributeUserFirstName"`
 	LdapAttributeUserLastName          AppConfigVariable `key:"ldapAttributeUserLastName"`
+	LdapAttributeUserDisplayName       AppConfigVariable `key:"ldapAttributeUserDisplayName"`
 	LdapAttributeUserProfilePicture    AppConfigVariable `key:"ldapAttributeUserProfilePicture"`
 	LdapAttributeGroupMember           AppConfigVariable `key:"ldapAttributeGroupMember"`
 	LdapAttributeGroupUniqueIdentifier AppConfigVariable `key:"ldapAttributeGroupUniqueIdentifier"`

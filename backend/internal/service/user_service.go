@@ -245,12 +245,13 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 
 func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
 	user := model.User{
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
-		Email:     input.Email,
-		Username:  input.Username,
-		IsAdmin:   input.IsAdmin,
-		Locale:    input.Locale,
+		FirstName:   input.FirstName,
+		LastName:    input.LastName,
+		DisplayName: input.DisplayName,
+		Email:       input.Email,
+		Username:    input.Username,
+		IsAdmin:     input.IsAdmin,
+		Locale:      input.Locale,
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
@@ -362,6 +363,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		// Full update: Allow updating all personal fields
 		user.FirstName = updatedUser.FirstName
 		user.LastName = updatedUser.LastName
+		user.DisplayName = updatedUser.DisplayName
 		user.Email = updatedUser.Email
 		user.Username = updatedUser.Username
 		user.Locale = updatedUser.Locale
