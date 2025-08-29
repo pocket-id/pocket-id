@@ -9,6 +9,7 @@ test.beforeEach(async () => await cleanupBackend());
 test('Update account details', async ({ page }) => {
 	await page.goto('/settings/account');
 
+	await page.getByLabel('Display Name').fill('Tim Apple');
 	await page.getByLabel('First name').fill('Timothy');
 	await page.getByLabel('Last name').fill('Apple');
 	await page.getByLabel('Email').fill('timothy.apple@test.com');
