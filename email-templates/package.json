@@ -5,7 +5,7 @@
     "preinstall": "npx only-allow pnpm",
     "build": "tsx build.ts",
     "build:watch": "tsx watch build.ts",
-    "dev": "email dev",
+    "dev": "email dev --port 3030",
     "export": "email export"
   },
   "dependencies": {
@@ -15,10 +15,11 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@react-email/preview-server": "4.2.8",
     "@types/node": "^24.0.10",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.1",
-    "react-email": "4.0.17",
+    "react-email": "4.2.8",
     "tsx": "^4.0.0"
   }
 }

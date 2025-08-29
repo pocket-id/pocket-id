@@ -1,7 +1,7 @@
 packages:
   - 'frontend'
   - 'tests'
-  - 'backend/resources/email-templates/build'
+  - 'email-templates'
 
 overrides:
   'devalue': '^5.3.2'
