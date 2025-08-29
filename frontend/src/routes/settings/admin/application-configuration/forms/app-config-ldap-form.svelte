@@ -25,28 +25,6 @@
 	let ldapEnabled = $state(appConfig.ldapEnabled);
 	let ldapSyncing = $state(false);
 
-	// const updatedAppConfig = {
-	// 	ldapEnabled: appConfig.ldapEnabled,
-	// 	ldapUrl: appConfig.ldapUrl,
-	// 	ldapBindDn: appConfig.ldapBindDn,
-	// 	ldapBindPassword: appConfig.ldapBindPassword,
-	// 	ldapBase: appConfig.ldapBase,
-	// 	ldapUserSearchFilter: appConfig.ldapUserSearchFilter,
-	// 	ldapUserGroupSearchFilter: appConfig.ldapUserGroupSearchFilter,
-	// 	ldapSkipCertVerify: appConfig.ldapSkipCertVerify,
-	// 	ldapAttributeUserUniqueIdentifier: appConfig.ldapAttributeUserUniqueIdentifier,
-	// 	ldapAttributeUserUsername: appConfig.ldapAttributeUserUsername,
-	// 	ldapAttributeUserEmail: appConfig.ldapAttributeUserEmail,
-	// 	ldapAttributeUserFirstName: appConfig.ldapAttributeUserFirstName,
-	// 	ldapAttributeUserLastName: appConfig.ldapAttributeUserLastName,
-	// 	ldapAttributeUserProfilePicture: appConfig.ldapAttributeUserProfilePicture,
-	// 	ldapAttributeGroupMember: appConfig.ldapAttributeGroupMember,
-	// 	ldapAttributeGroupUniqueIdentifier: appConfig.ldapAttributeGroupUniqueIdentifier,
-	// 	ldapAttributeGroupName: appConfig.ldapAttributeGroupName,
-	// 	ldapAttributeAdminGroup: appConfig.ldapAttributeAdminGroup,
-	// 	ldapSoftDeleteUsers: appConfig.ldapSoftDeleteUsers || true
-	// };
-
 	const formSchema = z.object({
 		ldapUrl: z.url(),
 		ldapBindDn: z.string().min(1),
