@@ -1,10 +1,12 @@
-{{ define "base" -}}
-API Key Expiring Soon
-====================
+{{define "root"}}{{.AppName}}
 
-Hello {{ .Data.Name }},
 
-This is a reminder that your API key "{{ .Data.ApiKeyName }}" will expire on {{ .Data.ExpiresAt.Format "2006-01-02 15:04:05 MST" }}.
+API KEY EXPIRING SOON
 
-Please generate a new API key if you need continued access.
-{{ end -}}
+Warning
+
+Hello {{.Data.Name}},
+This is a reminder that your API key {{.Data.APIKeyName}} will expire on
+{{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}.
+
+Please generate a new API key if you need continued access.{{end}}

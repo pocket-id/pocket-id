@@ -1,15 +1,27 @@
-{{ define "base" -}}
-New Sign-In Detected
-====================
+{{define "root"}}{{.AppName}}
 
-{{ if and .Data.City .Data.Country }}
-Approximate Location: {{ .Data.City }}, {{ .Data.Country }}
-{{ end }}
-IP Address: {{ .Data.IPAddress }}
-Device:     {{ .Data.Device }}
-Time:       {{ .Data.DateTime.Format "2006-01-02 15:04:05 UTC"}}
 
-This sign-in was detected from a new device or location. If you recognize
-this activity, you can safely ignore this message. If not, please review
-your account and security settings.
-{{ end -}}
+NEW SIGN-IN DETECTED
+
+Warning
+
+Your {{.AppName}} account was recently accessed from a new IP address or
+browser. If you recognize this activity, no further action is required.
+
+DETAILS
+
+Approximate Location
+
+{{.Data.City}}, {{.Data.Country}}
+
+IP Address
+
+{{.Data.IPAddress}}
+
+Device
+
+{{.Data.Device}}
+
+Sign-In Time
+
+{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}{{end}}

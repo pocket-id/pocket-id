@@ -1,10 +1,12 @@
-{{ define "base" -}}
-Login Code
-====================
+{{define "root"}}{{.AppName}}
 
-Click the link below to sign in to {{ .AppName }} with a login code. This code expires in {{.Data.ExpirationString}}.
 
-{{ .Data.LoginLinkWithCode }}
+YOUR LOGIN CODE
 
-Or visit {{ .Data.LoginLink }} and enter the the code "{{ .Data.Code }}".
-{{ end -}}
+Click the button below to sign in to {{.AppName}} with a login code.
+Or visit {{.Data.LoginLink}} {{.Data.LoginLink}} and enter the code
+{{.Data.Code}}.
+
+This code expires in {{.Data.ExpirationString}}.
+
+Sign In {{.Data.LoginLinkWithCode}}{{end}}
