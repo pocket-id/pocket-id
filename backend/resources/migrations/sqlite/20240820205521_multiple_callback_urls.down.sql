@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 create table oidc_clients
 (
     id            TEXT not null primary key,
@@ -21,3 +23,5 @@ select id,
 from oidc_clients_dg_tmp;
 
 drop table oidc_clients_dg_tmp;
+COMMIT;
+PRAGMA foreign_keys=ON;

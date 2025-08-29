@@ -3,25 +3,25 @@
 	import * as Pagination from '$lib/components/ui/pagination';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
-	import type { AuthorizedOidcClient, OidcClientMetaData } from '$lib/types/oidc.type';
+	import type { AccessibleOidcClient, OidcClientMetaData } from '$lib/types/oidc.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LayoutDashboard } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import { default as AuthorizedOidcClientCard } from './authorized-oidc-client-card.svelte';
+	import AuthorizedOidcClientCard from './authorized-oidc-client-card.svelte';
 
 	let { data } = $props();
-	let authorizedClients: Paginated<AuthorizedOidcClient> = $state(data.authorizedClients);
+	let clients: Paginated<AccessibleOidcClient> = $state(data.clients);
 	let requestOptions: SearchPaginationSortRequest = $state(data.appRequestOptions);
 
 	const oidcService = new OIDCService();
 
 	async function onRefresh(options: SearchPaginationSortRequest) {
-		authorizedClients = await oidcService.listAuthorizedClients(options);
+		clients = await oidcService.listOwnAccessibleClients(options);
 	}
 
 	async function onPageChange(page: number) {
-		requestOptions.pagination = { limit: authorizedClients.pagination.itemsPerPage, page };
+		requestOptions.pagination = { limit: clients.pagination.itemsPerPage, page };
 		onRefresh(requestOptions);
 	}
 
@@ -64,7 +64,7 @@
 		</h1>
 	</div>
 
-	{#if authorizedClients.data.length === 0}
+	{#if clients.data.length === 0}
 		<div class="py-16 text-center">
 			<LayoutDashboard class="text-muted-foreground mx-auto mb-4 size-16" />
 			<h3 class="text-muted-foreground mb-2 text-lg font-medium">
@@ -76,20 +76,23 @@
 		</div>
 	{:else}
 		<div class="space-y-8">
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-				{#each authorizedClients.data as authorizedClient}
-					<AuthorizedOidcClientCard {authorizedClient} onRevoke={revokeAuthorizedClient} />
+			<div
+				class="grid gap-3"
+				style="grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));"
+			>
+				{#each clients.data as client}
+					<AuthorizedOidcClientCard {client} onRevoke={revokeAuthorizedClient} />
 				{/each}
 			</div>
 
-			{#if authorizedClients.pagination.totalPages > 1}
+			{#if clients.pagination.totalPages > 1}
 				<div class="border-border flex items-center justify-center border-t pt-3">
 					<Pagination.Root
 						class="mx-0 w-auto"
-						count={authorizedClients.pagination.totalItems}
-						perPage={authorizedClients.pagination.itemsPerPage}
+						count={clients.pagination.totalItems}
+						perPage={clients.pagination.itemsPerPage}
 						{onPageChange}
-						page={authorizedClients.pagination.currentPage}
+						page={clients.pagination.currentPage}
 					>
 						{#snippet children({ pages })}
 							<Pagination.Content class="flex justify-center">
@@ -101,7 +104,7 @@
 										<Pagination.Item>
 											<Pagination.Link
 												{page}
-												isActive={authorizedClients.pagination.currentPage === page.value}
+												isActive={clients.pagination.currentPage === page.value}
 											>
 												{page.value}
 											</Pagination.Link>

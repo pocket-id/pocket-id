@@ -36,13 +36,29 @@ body:
       value: |
         ### Additional Information
   - type: textarea
-    id: extra-information
+    id: version
     validations:
       required: true
     attributes:
-      label: "Version and Environment"
-      description: "Please specify the version of Pocket ID, along with any environment-specific configurations, such your reverse proxy, that might be relevant."
+      label: "Pocket ID Version"
+      description: "Please specify the version of Pocket ID."
       placeholder: "e.g., v0.24.1"
+  - type: textarea
+    id: database
+    validations:
+      required: true
+    attributes:
+      label: "Database"
+      description: "Please specify the database in use: SQLite or Postgres (including version)."
+      placeholder: "e.g., SQLite or Postgres 17"
+  - type: textarea
+    id: environment
+    validations:
+      required: true
+    attributes:
+      label: "OS and Environment"
+      description: "Please include the OS, whether you're using containers (Docker, Podman, etc) along with any environment-specific configurations, such your reverse proxy, that might be relevant."
+      placeholder: "e.g., Docker on Ubuntu 24.04, served using Traefik"
   - type: textarea
     id: log-files
     validations:

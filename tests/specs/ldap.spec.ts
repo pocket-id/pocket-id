@@ -1,7 +1,7 @@
 import test, { expect } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
 test.describe('LDAP Integration', () => {
 	test.skip(
@@ -12,7 +12,7 @@ test.describe('LDAP Integration', () => {
 	test('LDAP configuration is working properly', async ({ page }) => {
 		await page.goto('/settings/admin/application-configuration');
 
-		await page.getByRole('button', { name: 'Expand card' }).nth(2).click();
+		await page.getByRole('button', { name: 'Expand card' }).nth(3).click();
 
 		await expect(page.getByRole('button', { name: 'Disable', exact: true })).toBeVisible();
 		await expect(page.getByLabel('LDAP URL')).toHaveValue(/ldap:\/\/.*/);
@@ -21,7 +21,7 @@ test.describe('LDAP Integration', () => {
 		await expect(page.getByLabel('User Unique Identifier Attribute')).not.toBeEmpty();
 		await expect(page.getByLabel('Username Attribute')).not.toBeEmpty();
 		await expect(page.getByLabel('User Mail Attribute')).not.toBeEmpty();
-		await expect(page.getByLabel('Group Name Attribute')).not.toBeEmpty();
+		await expect(page.getByLabel('Group RDN Attribute (in DN)')).not.toBeEmpty();
 
 		const syncButton = page.getByRole('button', { name: 'Sync now' });
 		await syncButton.click();

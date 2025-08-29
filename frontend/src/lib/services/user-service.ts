@@ -75,17 +75,17 @@ export default class UserService extends APIService {
 		cachedProfilePicture.bustCache(userId);
 	}
 
-	async createOneTimeAccessToken(expiresAt: Date, userId: string) {
+	async createOneTimeAccessToken(userId: string = 'me', ttl?: string|number) {
 		const res = await this.api.post(`/users/${userId}/one-time-access-token`, {
 			userId,
-			expiresAt
+			ttl,
 		});
 		return res.data.token;
 	}
 
-	async createSignupToken(expiresAt: Date, usageLimit: number) {
+	async createSignupToken(ttl: string|number, usageLimit: number) {
 		const res = await this.api.post(`/signup-tokens`, {
-			expiresAt,
+			ttl,
 			usageLimit
 		});
 		return res.data.token;
@@ -100,8 +100,8 @@ export default class UserService extends APIService {
 		await this.api.post('/one-time-access-email', { email, redirectPath });
 	}
 
-	async requestOneTimeAccessEmailAsAdmin(userId: string, expiresAt: Date) {
-		await this.api.post(`/users/${userId}/one-time-access-email`, { expiresAt });
+	async requestOneTimeAccessEmailAsAdmin(userId: string, ttl: string|number) {
+		await this.api.post(`/users/${userId}/one-time-access-email`, { ttl });
 	}
 
 	async updateUserGroups(id: string, userGroupIds: string[]) {

@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 CREATE TABLE users
 (
     id         TEXT                  NOT NULL PRIMARY KEY,
@@ -78,3 +80,5 @@ CREATE TABLE application_configuration_variables
     is_public   NUMERIC DEFAULT FALSE NOT NULL,
     is_internal NUMERIC DEFAULT FALSE NOT NULL
 );
+COMMIT;
+PRAGMA foreign_keys=ON;

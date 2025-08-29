@@ -3,15 +3,15 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - '.github/**'
+      - "docs/**"
+      - "**.md"
+      - ".github/**"
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - '.github/**'
+      - "docs/**"
+      - "**.md"
+      - ".github/**"
 
 jobs:
   build:
@@ -62,23 +62,29 @@ jobs:
           path: /tmp/docker-image.tar
           retention-days: 1
 
-  test-sqlite:
+  test:
     if: github.event.pull_request.head.ref != 'i18n_crowdin'
     permissions:
       contents: read
       actions: write
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgres]
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
+          cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Cache Playwright Browsers
@@ -87,100 +93,8 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load -i /tmp/docker-image.tar
-
-      - name: Cache LLDAP Docker image
-        uses: actions/cache@v3
-        id: lldap-cache
-        with:
-          path: /tmp/lldap-image.tar
-          key: lldap-stable-${{ runner.os }}
-
-      - name: Pull and save LLDAP image
-        if: steps.lldap-cache.outputs.cache-hit != 'true'
-        run: |
-          docker pull nitnelave/lldap:stable
-          docker save nitnelave/lldap:stable > /tmp/lldap-image.tar
-
-      - name: Load LLDAP image from cache
-        if: steps.lldap-cache.outputs.cache-hit == 'true'
-        run: docker load < /tmp/lldap-image.tar
-
-      - name: Install test dependencies
-        run: pnpm --filter pocket-id-tests install --frozen-lockfile
-
-      - name: Install Playwright Browsers
-        working-directory: ./tests
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm dlx playwright install --with-deps chromium
-
-      - name: Run Docker Container with Sqlite DB and LDAP
-        working-directory: ./tests/setup
-        run: |
-          docker compose up -d
-          docker compose logs -f pocket-id &> /tmp/backend.log &
-
-      - name: Run Playwright tests
-        working-directory: tests
-        run: pnpm exec playwright test
-
-      - name: Upload Test Report
-        uses: actions/upload-artifact@v4
-        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
-        with:
-          name: playwright-report-sqlite
-          path: tests/.report
-          include-hidden-files: true
-          retention-days: 15
-
-      - name: Upload Backend Test Report
-        uses: actions/upload-artifact@v4
-        if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
-        with:
-          name: backend-sqlite
-          path: /tmp/backend.log
-          include-hidden-files: true
-          retention-days: 15
-
-  test-postgres:
-    if: github.event.pull_request.head.ref != 'i18n_crowdin'
-    permissions:
-      contents: read
-      actions: write
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Cache Playwright Browsers
-        uses: actions/cache@v3
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
       - name: Cache PostgreSQL Docker image
+        if: matrix.db == 'postgres'
         uses: actions/cache@v3
         id: postgres-cache
         with:
@@ -188,15 +102,14 @@ jobs:
           key: postgres-17-${{ runner.os }}
 
       - name: Pull and save PostgreSQL image
-        if: steps.postgres-cache.outputs.cache-hit != 'true'
+        if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit != 'true'
         run: |
           docker pull postgres:17
           docker save postgres:17 > /tmp/postgres-image.tar
 
       - name: Load PostgreSQL image from cache
-        if: steps.postgres-cache.outputs.cache-hit == 'true'
+        if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
-
       - name: Cache LLDAP Docker image
         uses: actions/cache@v3
         id: lldap-cache
@@ -213,7 +126,6 @@ jobs:
       - name: Load LLDAP image from cache
         if: steps.lldap-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/lldap-image.tar
-
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -224,14 +136,21 @@ jobs:
         run: docker load -i /tmp/docker-image.tar
 
       - name: Install test dependencies
-        run: pnpm --filter pocket-id-tests install
+        run: pnpm --filter pocket-id-tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
         working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm dlx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run Docker Container (sqlite) with LDAP
+        if: matrix.db == 'sqlite'
+        working-directory: ./tests/setup
+        run: |
+          docker compose up -d
+          docker compose logs -f pocket-id &> /tmp/backend.log &
 
-      - name: Run Docker Container with Postgres DB and LDAP
+      - name: Run Docker Container (postgres) with LDAP
+        if: matrix.db == 'postgres'
         working-directory: ./tests/setup
         run: |
           docker compose -f docker-compose-postgres.yml up -d
@@ -245,7 +164,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
-          name: playwright-report-postgres
+          name: playwright-report-${{ matrix.db }}
           path: tests/.report
           include-hidden-files: true
           retention-days: 15
@@ -254,7 +173,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
-          name: backend-postgres
+          name: backend-${{ matrix.db }}
           path: /tmp/backend.log
           include-hidden-files: true
           retention-days: 15

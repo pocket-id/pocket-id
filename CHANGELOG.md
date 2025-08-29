@@ -1,3 +1,66 @@
+## [](https://github.com/pocket-id/pocket-id/compare/v1.9.1...v) (2025-08-27)
+
+### Features
+
+* redesigned sidebar with administrative dropdown ([#881](https://github.com/pocket-id/pocket-id/issues/881)) ([096d214](https://github.com/pocket-id/pocket-id/commit/096d214a88808848dae726b0ef4c9a9987185836))
+
+### Bug Fixes
+
+* apps showed multiple times if user is in multiple groups ([641bbc9](https://github.com/pocket-id/pocket-id/commit/641bbc935191bad8afbfec90943fc3e9de7a0cb6))
+## [](https://github.com/pocket-id/pocket-id/compare/v1.9.0...v) (2025-08-24)
+
+
+### Bug Fixes
+
+* sqlite migration drops allowed user groups ([d6d1a4c](https://github.com/pocket-id/pocket-id/commit/d6d1a4ced23886f255a9c2048d19ad3599a17f26))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v1.8.1...v) (2025-08-24)
+
+
+### Features
+
+* support automatic db migration rollbacks ([#874](https://github.com/pocket-id/pocket-id/issues/874)) ([c114a2e](https://github.com/pocket-id/pocket-id/commit/c114a2edaae4c007c75c34c02e8b0bb011845cae))
+
+
+### Bug Fixes
+
+* don't force uuid for client id in postgres ([2ffc6ba](https://github.com/pocket-id/pocket-id/commit/2ffc6ba42af4742a13b77543142b66b3e826ab88))
+* ensure SQLite has a writable temporary directory ([#876](https://github.com/pocket-id/pocket-id/issues/876)) ([1f3550c](https://github.com/pocket-id/pocket-id/commit/1f3550c9bd3aafd3bd2272ef47f3ed8736037d81))
+* sort order incorrect for apps when using postgres ([d0392d2](https://github.com/pocket-id/pocket-id/commit/d0392d25edcaa5f3c7da2aad70febf63b47763fa))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v1.8.0...v) (2025-08-24)
+
+
+### Bug Fixes
+
+* migration clears allowed users groups ([5971bfb](https://github.com/pocket-id/pocket-id/commit/5971bfbfa66ecfebf2b1c08d34fcbd8c18cdc046))
+* wrong column type for reauthentication tokens in Postgres ([#869](https://github.com/pocket-id/pocket-id/issues/869)) ([1283314](https://github.com/pocket-id/pocket-id/commit/1283314f776a0ba43be7d796e7e2243e31f860de))
+
+## [](https://github.com/pocket-id/pocket-id/compare/v1.7.0...v) (2025-08-23)
+
+
+### Features
+
+* add option to OIDC client to require re-authentication ([#747](https://github.com/pocket-id/pocket-id/issues/747)) ([0cb039d](https://github.com/pocket-id/pocket-id/commit/0cb039d35d49206011064e622f3bfd3d8f88720f))
+* allow custom client IDs ([#864](https://github.com/pocket-id/pocket-id/issues/864)) ([a5efb95](https://github.com/pocket-id/pocket-id/commit/a5efb9506582884c70b9b1fd737ebdd44b101b47))
+* display all accessible oidc clients in the dashboard ([#832](https://github.com/pocket-id/pocket-id/issues/832)) ([3188e92](https://github.com/pocket-id/pocket-id/commit/3188e92257afcaf7a16dd418e4c40626d7e1d034))
+* login code font change ([#851](https://github.com/pocket-id/pocket-id/issues/851)) ([d28bfac](https://github.com/pocket-id/pocket-id/commit/d28bfac81fc24ee79e4896538a616f0a89ab30a5))
+* **signup:** add default user groups and claims for new users ([#812](https://github.com/pocket-id/pocket-id/issues/812)) ([182d809](https://github.com/pocket-id/pocket-id/commit/182d8090286f9953171c6c410283be679889aca7))
+
+
+### Bug Fixes
+
+* authorization can't be revoked ([0aab3f3](https://github.com/pocket-id/pocket-id/commit/0aab3f3c7ad8c1b14939de3ded60c9f201eab8fc))
+* delete webauthn session after login to prevent replay attacks ([fe003b9](https://github.com/pocket-id/pocket-id/commit/fe003b927ce7772692439992860c804de89ce424))
+* **deps:** bump rollup from 4.45.3 to 4.46.3 ([#845](https://github.com/pocket-id/pocket-id/issues/845)) ([b5e6371](https://github.com/pocket-id/pocket-id/commit/b5e6371eaaf3d9e85d8b05c457487c4425fa8381))
+* enable foreign key check for sqlite ([#863](https://github.com/pocket-id/pocket-id/issues/863)) ([625f235](https://github.com/pocket-id/pocket-id/commit/625f23574001ebd7074b8d98d448a2811847be16))
+* ferated identities can't be cleared ([24e2742](https://github.com/pocket-id/pocket-id/commit/24e274200fe4002d01c58cc3fa74094b598d7599))
+* for one-time access tokens and signup tokens, pass TTLs instead of absolute expiration date ([#855](https://github.com/pocket-id/pocket-id/issues/855)) ([7ab0fd3](https://github.com/pocket-id/pocket-id/commit/7ab0fd30286e6b67b5ce586484d82a20c42b471d))
+* ignore client secret if client is public ([#836](https://github.com/pocket-id/pocket-id/issues/836)) ([7b1f6b8](https://github.com/pocket-id/pocket-id/commit/7b1f6b88572bac1f3e838a9e904917fbd5fbdf61))
+* move audit log call before TX is committed ([#854](https://github.com/pocket-id/pocket-id/issues/854)) ([9339e88](https://github.com/pocket-id/pocket-id/commit/9339e88a5a26ff77a5e40149cbb1a5b339b7ec6a))
+* non admin users can't revoke oidc client but see edit link ([0e44f24](https://github.com/pocket-id/pocket-id/commit/0e44f245afcdf8179bf619613ca9ef4bffa176ca))
+* oidc client advanced options color ([fc0c99a](https://github.com/pocket-id/pocket-id/commit/fc0c99a232b0efb1a5b5d2c551102418b1080293))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.6.4...v) (2025-08-10)
 
 

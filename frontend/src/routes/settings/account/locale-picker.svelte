@@ -16,6 +16,7 @@
 		es: 'Español',
 		fr: 'Français',
 		it: 'Italiano',
+		ko: '한국어',
 		nl: 'Nederlands',
 		pl: 'Polski',
 		'pt-BR': 'Português brasileiro',
@@ -31,7 +32,7 @@
 			...$userStore!,
 			locale
 		});
-		setLocale(locale);
+		await setLocale(locale);
 	}
 </script>
 

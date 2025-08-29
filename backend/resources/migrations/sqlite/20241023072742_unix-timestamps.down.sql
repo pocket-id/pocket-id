@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 -- Convert the Unix timestamps back to DATETIME format
 
 UPDATE user_groups
@@ -26,3 +28,5 @@ SET created_at = datetime(created_at, 'unixepoch');
 UPDATE webauthn_sessions
 SET created_at = datetime(created_at, 'unixepoch'),
     expires_at = datetime(expires_at, 'unixepoch');
+COMMIT;
+PRAGMA foreign_keys=ON;

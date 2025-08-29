@@ -40,20 +40,22 @@ type OidcAuthorizationCode struct {
 type OidcClient struct {
 	Base
 
-	Name               string `sortable:"true"`
-	Secret             string
-	CallbackURLs       UrlList
-	LogoutCallbackURLs UrlList
-	ImageType          *string
-	HasLogo            bool `gorm:"-"`
-	IsPublic           bool
-	PkceEnabled        bool
-	Credentials        OidcClientCredentials
-	LaunchURL          *string
+	Name                     string `sortable:"true"`
+	Secret                   string
+	CallbackURLs             UrlList
+	LogoutCallbackURLs       UrlList
+	ImageType                *string
+	HasLogo                  bool `gorm:"-"`
+	IsPublic                 bool
+	PkceEnabled              bool
+	RequiresReauthentication bool
+	Credentials              OidcClientCredentials
+	LaunchURL                *string
 
-	AllowedUserGroups []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
-	CreatedByID       string
-	CreatedBy         User
+	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
+	CreatedByID               *string
+	CreatedBy                 *User
+	UserAuthorizedOidcClients []UserAuthorizedOidcClient `gorm:"foreignKey:ClientID;references:ID"`
 }
 
 type OidcRefreshToken struct {
