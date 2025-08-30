@@ -442,6 +442,6 @@
 	"invalid_client_id": "De klant-ID mag alleen letters, cijfers, onderstrepingstekens en koppeltekens bevatten.",
 	"custom_client_id_description": "Stel een aangepaste client-ID in als je app dit nodig heeft. Anders laat je het gewoon leeg en wordt er een willekeurige ID gegenereerd.",
 	"generated": "Gemaakt",
-	"administration": "Administratie",
+	"administration": "Beheer",
 	"group_rdn_attribute_description": "Het kenmerk dat je gebruikt in de onderscheidende naam (DN) van de groepen. Aanbevolen waarde: `cn`"
 }

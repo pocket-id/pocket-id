@@ -442,6 +442,6 @@
 	"invalid_client_id": "클라이언트 ID는 영문자, 숫자, 밑줄, 하이픈만 포함될 수 있습니다",
 	"custom_client_id_description": "애플리케이션에서 사용자 정의 클라이언트 ID가 요구되는 경우 설정하세요. 그렇지 않으면 빈 상태로 두어서 무작위로 생성할 수 있습니다.",
 	"generated": "생성됨",
-	"administration": "행정",
+	"administration": "관리",
 	"group_rdn_attribute_description": "그룹의 고유 식별자(DN)에 사용되는 속성. 권장 값: `cn`"
 }
