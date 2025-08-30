@@ -33,7 +33,7 @@ func (u User) WebAuthnID() []byte { return []byte(u.ID) }
 func (u User) WebAuthnName() string { return u.Username }
 
 func (u User) WebAuthnDisplayName() string {
-	if strings.TrimSpace(u.DisplayName) != "" {
+	if u.DisplayName != "" {
 		return u.DisplayName
 	}
 	return u.FirstName + " " + u.LastName
