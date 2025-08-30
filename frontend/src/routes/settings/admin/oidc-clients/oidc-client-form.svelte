@@ -21,7 +21,6 @@
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
-	import { optionalUrl } from '$lib/utils/zod-util';
 	import { resolveIconUrl } from '$lib/utils/oidc-icon-util';
 
 	let {
