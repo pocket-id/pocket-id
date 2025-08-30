@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 CREATE TABLE api_keys (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -10,3 +12,5 @@ CREATE TABLE api_keys (
 );
 
 CREATE INDEX idx_api_keys_key ON api_keys(key);
+COMMIT;
+PRAGMA foreign_keys=ON;

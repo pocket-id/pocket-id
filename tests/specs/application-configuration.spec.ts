@@ -1,11 +1,12 @@
-import test, { expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async ({ page }) => {
+	await cleanupBackend();
+	await page.goto('/settings/admin/application-configuration');
+});
 
 test('Update general configuration', async ({ page }) => {
-	await page.goto('/settings/admin/application-configuration');
-
 	await page.getByLabel('Application Name', { exact: true }).fill('Updated Name');
 	await page.getByLabel('Session Duration').fill('30');
 	await page.getByRole('button', { name: 'Save' }).first().click();
@@ -21,10 +22,70 @@ test('Update general configuration', async ({ page }) => {
 	await expect(page.getByLabel('Session Duration')).toHaveValue('30');
 });
 
-test('Update email configuration', async ({ page }) => {
-	await page.goto('/settings/admin/application-configuration');
+test.describe('Update user creation configuration', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	});
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	test('should save sign up mode', async ({ page }) => {
+		await page.getByRole('button', { name: 'Enable User Signups' }).click();
+		await page.getByRole('option', { name: 'Open Signup' }).click();
+
+		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+
+		await expect(page.locator('[data-type="success"]').last()).toHaveText(
+			'User creation settings updated successfully.'
+		);
+
+		await page.reload();
+
+		await expect(page.getByRole('button', { name: 'Enable User Signups' })).toBeVisible();
+	});
+
+	test('should save default user groups for new signups', async ({ page }) => {
+		await page.getByRole('combobox', { name: 'User Groups' }).click();
+		await page.getByRole('option', { name: 'Developers' }).click();
+		await page.getByRole('option', { name: 'Designers' }).click();
+
+		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+
+		await expect(page.locator('[data-type="success"]').last()).toHaveText(
+			'User creation settings updated successfully.'
+		);
+
+		await page.reload();
+
+		await page.getByRole('combobox', { name: 'User Groups' }).click();
+
+		await expect(page.getByRole('option', { name: 'Developers' })).toBeChecked();
+		await expect(page.getByRole('option', { name: 'Designers' })).toBeChecked();
+	});
+
+	test('should save default custom claims for new signups', async ({ page }) => {
+		await page.getByRole('button', { name: 'Add custom claim' }).click();
+		await page.getByPlaceholder('Key').fill('test-claim');
+		await page.getByPlaceholder('Value').fill('test-value');
+		await page.getByRole('button', { name: 'Add another' }).click();
+		await page.getByPlaceholder('Key').nth(1).fill('another-claim');
+		await page.getByPlaceholder('Value').nth(1).fill('another-value');
+
+		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+
+		await expect(page.locator('[data-type="success"]').last()).toHaveText(
+			'User creation settings updated successfully.'
+		);
+
+		await page.reload();
+
+		await expect(page.getByPlaceholder('Key').first()).toHaveValue('test-claim');
+		await expect(page.getByPlaceholder('Value').first()).toHaveValue('test-value');
+		await expect(page.getByPlaceholder('Key').nth(1)).toHaveValue('another-claim');
+		await expect(page.getByPlaceholder('Value').nth(1)).toHaveValue('another-value');
+	});
+});
+
+test('Update email configuration', async ({ page }) => {
+	await page.getByRole('button', { name: 'Expand card' }).nth(2).click();
 
 	await page.getByLabel('SMTP Host').fill('smtp.gmail.com');
 	await page.getByLabel('SMTP Port').fill('587');
@@ -56,15 +117,13 @@ test('Update email configuration', async ({ page }) => {
 });
 
 test('Update application images', async ({ page }) => {
-	await page.goto('/settings/admin/application-configuration');
-
-	await page.getByRole('button', { name: 'Expand card' }).nth(3).click();
+	await page.getByRole('button', { name: 'Expand card' }).nth(4).click();
 
 	await page.getByLabel('Favicon').setInputFiles('assets/w3-schools-favicon.ico');
 	await page.getByLabel('Light Mode Logo').setInputFiles('assets/pingvin-share-logo.png');
 	await page.getByLabel('Dark Mode Logo').setInputFiles('assets/nextcloud-logo.png');
 	await page.getByLabel('Background Image').setInputFiles('assets/clouds.jpg');
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).last().click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Images updated successfully');
 

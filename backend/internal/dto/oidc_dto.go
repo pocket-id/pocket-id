@@ -3,10 +3,11 @@ package dto
 import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 
 type OidcClientMetaDataDto struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	HasLogo   bool    `json:"hasLogo"`
-	LaunchURL *string `json:"launchURL"`
+	ID                       string  `json:"id"`
+	Name                     string  `json:"name"`
+	HasLogo                  bool    `json:"hasLogo"`
+	LaunchURL                *string `json:"launchURL"`
+	RequiresReauthentication bool    `json:"requiresReauthentication"`
 }
 
 type OidcClientDto struct {
@@ -28,16 +29,22 @@ type OidcClientWithAllowedGroupsCountDto struct {
 	AllowedUserGroupsCount int64 `json:"allowedUserGroupsCount"`
 }
 
-type OidcClientCreateDto struct {
-	Name               string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
-	CallbackURLs       []string                 `json:"callbackURLs"`
-	LogoutCallbackURLs []string                 `json:"logoutCallbackURLs"`
-	IsPublic           bool                     `json:"isPublic"`
-	PkceEnabled        bool                     `json:"pkceEnabled"`
-	Credentials        OidcClientCredentialsDto `json:"credentials"`
-	LaunchURL          *string                  `json:"launchURL" binding:"omitempty,url"`
-	HasLogo            bool                     `json:"hasLogo"`
+type OidcClientUpdateDto struct {
+	Name                     string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
+	CallbackURLs             []string                 `json:"callbackURLs"`
+	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs"`
+	IsPublic                 bool                     `json:"isPublic"`
+	PkceEnabled              bool                     `json:"pkceEnabled"`
+	RequiresReauthentication bool                     `json:"requiresReauthentication"`
+	Credentials              OidcClientCredentialsDto `json:"credentials"`
+	LaunchURL                *string                  `json:"launchURL" binding:"omitempty,url"`
+  HasLogo            bool                     `json:"hasLogo"`
 	LogoURL            *string                  `json:"logoUrl"`
+}
+
+type OidcClientCreateDto struct {
+	OidcClientUpdateDto
+	ID string `json:"id" binding:"omitempty,client_id,min=2,max=128"`
 }
 
 type OidcClientCredentialsDto struct {
@@ -52,12 +59,13 @@ type OidcClientFederatedIdentityDto struct {
 }
 
 type AuthorizeOidcClientRequestDto struct {
-	ClientID            string `json:"clientID" binding:"required"`
-	Scope               string `json:"scope" binding:"required"`
-	CallbackURL         string `json:"callbackURL"`
-	Nonce               string `json:"nonce"`
-	CodeChallenge       string `json:"codeChallenge"`
-	CodeChallengeMethod string `json:"codeChallengeMethod"`
+	ClientID              string `json:"clientID" binding:"required"`
+	Scope                 string `json:"scope" binding:"required"`
+	CallbackURL           string `json:"callbackURL"`
+	Nonce                 string `json:"nonce"`
+	CodeChallenge         string `json:"codeChallenge"`
+	CodeChallengeMethod   string `json:"codeChallengeMethod"`
+	ReauthenticationToken string `json:"reauthenticationToken"`
 }
 
 type AuthorizeOidcClientResponseDto struct {

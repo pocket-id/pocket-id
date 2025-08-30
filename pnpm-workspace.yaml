@@ -1,3 +1,6 @@
 packages:
   - 'frontend'
   - 'tests'
+
+overrides:
+  'devalue': '^5.3.2'

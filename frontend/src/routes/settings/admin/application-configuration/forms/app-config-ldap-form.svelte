@@ -200,7 +200,8 @@
 				bind:input={$inputs.ldapAttributeGroupUniqueIdentifier}
 			/>
 			<FormInput
-				label={m.group_name_attribute()}
+				label={m.group_rdn_attribute()}
+				description={m.group_rdn_attribute_description()}
 				placeholder="cn"
 				bind:input={$inputs.ldapAttributeGroupName}
 			/>

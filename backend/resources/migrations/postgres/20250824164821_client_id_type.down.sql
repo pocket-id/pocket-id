@@ -1,0 +1,1 @@
+-- No-op because strings can't be converted to UUIDs

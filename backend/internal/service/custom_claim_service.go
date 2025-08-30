@@ -55,16 +55,46 @@ const (
 
 // UpdateCustomClaimsForUser updates the custom claims for a user
 func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
-	return s.updateCustomClaims(ctx, UserID, userID, claims)
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedClaims, nil
 }
 
 // UpdateCustomClaimsForUserGroup updates the custom claims for a user group
 func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context, userGroupID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
-	return s.updateCustomClaims(ctx, UserGroupID, userGroupID, claims)
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserGroupID, userGroupID, claims, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedClaims, nil
 }
 
-// updateCustomClaims updates the custom claims for a user or user group
-func (s *CustomClaimService) updateCustomClaims(ctx context.Context, idType idType, value string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
+// updateCustomClaimsInternal updates the custom claims for a user or user group within a transaction
+func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idType idType, value string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
 	// Check for duplicate keys in the claims slice
 	seenKeys := make(map[string]struct{})
 	for _, claim := range claims {
@@ -73,11 +103,6 @@ func (s *CustomClaimService) updateCustomClaims(ctx context.Context, idType idTy
 		}
 		seenKeys[claim.Key] = struct{}{}
 	}
-
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
 
 	var existingClaims []model.CustomClaim
 	err := tx.
@@ -146,11 +171,6 @@ func (s *CustomClaimService) updateCustomClaims(ctx context.Context, idType idTy
 		Where(string(idType)+" = ?", value).
 		Find(&updatedClaims).
 		Error
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit().Error
 	if err != nil {
 		return nil, err
 	}

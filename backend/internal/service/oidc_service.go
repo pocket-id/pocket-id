@@ -53,6 +53,7 @@ type OidcService struct {
 	appConfigService   *AppConfigService
 	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
+	webAuthnService    *WebAuthnService
 
 	httpClient *http.Client
 	jwkCache   *jwk.Cache
@@ -65,6 +66,7 @@ func NewOidcService(
 	appConfigService *AppConfigService,
 	auditLogService *AuditLogService,
 	customClaimService *CustomClaimService,
+	webAuthnService *WebAuthnService,
 ) (s *OidcService, err error) {
 	s = &OidcService{
 		db:                 db,
@@ -72,6 +74,7 @@ func NewOidcService(
 		appConfigService:   appConfigService,
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
+		webAuthnService:    webAuthnService,
 	}
 
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
@@ -124,6 +127,16 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		Error
 	if err != nil {
 		return "", "", err
+	}
+
+	if client.RequiresReauthentication {
+		if input.ReauthenticationToken == "" {
+			return "", "", &common.ReauthenticationRequiredError{}
+		}
+		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	// If the client is not public, the code challenge must be provided
@@ -667,10 +680,22 @@ func deriveHasLogo(c *model.OidcClient) {
 }
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
-	client := model.OidcClient{CreatedByID: userID}
-	updateOIDCClientModelFromDto(&client, &input)
+	client := model.OidcClient{
+		Base: model.Base{
+			ID: input.ID,
+		},
+		CreatedByID: utils.Ptr(userID),
+	}
+	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
-	if err := s.db.WithContext(ctx).Create(&client).Error; err != nil {
+	err := s.db.
+		WithContext(ctx).
+		Create(&client).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return model.OidcClient{}, &common.ClientIdAlreadyExistsError{}
+		}
 		return model.OidcClient{}, err
 	}
 
@@ -689,7 +714,7 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 	return client, nil
 }
 
-func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
+func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() { tx.Rollback() }()
 
@@ -723,7 +748,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	return client, nil
 }
 
-func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientCreateDto) {
+func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
 	// Base fields
 	client.Name = input.Name
 	client.CallbackURLs = input.CallbackURLs
@@ -731,20 +756,20 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	client.RequiresReauthentication = input.RequiresReauthentication
 	client.LaunchURL = input.LaunchURL
 
 	// Credentials
-	if len(input.Credentials.FederatedIdentities) > 0 {
-		client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
-		for i, fi := range input.Credentials.FederatedIdentities {
-			client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
-				Issuer:   fi.Issuer,
-				Audience: fi.Audience,
-				Subject:  fi.Subject,
-				JWKS:     fi.JWKS,
-			}
+	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
+	for i, fi := range input.Credentials.FederatedIdentities {
+		client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
+			Issuer:   fi.Issuer,
+			Audience: fi.Audience,
+			Subject:  fi.Subject,
+			JWKS:     fi.JWKS,
 		}
 	}
+
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
@@ -1374,19 +1399,22 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	query := tx.
 		WithContext(ctx).
 		Model(&model.OidcClient{}).
-		Preload("UserAuthorizedOidcClients", "user_id = ?", userID).
-		Distinct()
+		Preload("UserAuthorizedOidcClients", "user_id = ?", userID)
 
 	// If user has no groups, only return clients with no allowed user groups
 	if len(userGroupIDs) == 0 {
-		query = query.
-			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
-			Where("oidc_clients_allowed_user_groups.oidc_client_id IS NULL")
+		query = query.Where(`NOT EXISTS (
+        SELECT 1 FROM oidc_clients_allowed_user_groups 
+        WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id)`)
 	} else {
-		// Return clients with no allowed user groups OR clients where user is in allowed groups
-		query = query.
-			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
-			Where("oidc_clients_allowed_user_groups.oidc_client_id IS NULL OR oidc_clients_allowed_user_groups.user_group_id IN (?)", userGroupIDs)
+		query = query.Where(`
+        NOT EXISTS (
+            SELECT 1 FROM oidc_clients_allowed_user_groups 
+            WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
+        ) OR EXISTS (
+            SELECT 1 FROM oidc_clients_allowed_user_groups 
+            WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id 
+            AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, userGroupIDs)
 	}
 
 	var clients []model.OidcClient
@@ -1396,7 +1424,7 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	if sortedPaginationRequest.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
 		query = query.
 			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
-			Order("user_authorized_oidc_clients.last_used_at " + sortedPaginationRequest.Sort.Direction)
+			Order("user_authorized_oidc_clients.last_used_at " + sortedPaginationRequest.Sort.Direction + " NULLS LAST")
 	}
 
 	response, err = utils.PaginateAndSort(sortedPaginationRequest, query, &clients)

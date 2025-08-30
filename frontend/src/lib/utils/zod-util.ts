@@ -1,9 +1,7 @@
 import z from 'zod/v4';
 
-export const optionalString = z
-	.string()
-	.transform((v) => (v === '' ? undefined : v))
-	.optional();
+export const emptyToUndefined = <T>(validation: z.ZodType<T>) =>
+	z.preprocess((v) => (v === '' ? undefined : v), validation);
 
 export const optionalUrl = z
 	.url()

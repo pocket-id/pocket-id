@@ -45,7 +45,7 @@
 									)}`}
 							class="text-muted-foreground text-xs transition-colors hover:underline"
 						>
-							{m.dont_have_access_to_your_passkey()}
+							{m.alternative_sign_in_methods()}
 						</a>
 					</div>
 				{/if}
@@ -82,7 +82,7 @@
 								)}`}
 						class="text-muted-foreground mt-7 flex justify-center text-xs transition-colors hover:underline"
 					>
-						{m.dont_have_access_to_your_passkey()}
+						{m.alternative_sign_in_methods()}
 					</a>
 				{/if}
 			</Card.CardContent>
