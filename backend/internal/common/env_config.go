@@ -91,7 +91,7 @@ func defaultConfig() EnvConfigSchema {
 		TrustProxy:         false,
 		AnalyticsDisabled:  false,
 		AllowDowngrade:     false,
-		InternalAppURL:     AppUrl,
+		InternalAppURL:     "",
 	}
 }
 
@@ -136,10 +136,11 @@ func parseEnvConfig() error {
 		return errors.New("APP_URL must not contain a path")
 	}
 
-	// only check if internal app url is not default value
-	if EnvConfig.InternalAppURL != EnvConfig.AppURL {
+	// Derive INTERNAL_APP_URL from APP_URL if not set; validate only when provided
+	if EnvConfig.InternalAppURL == "" {
+		EnvConfig.InternalAppURL = EnvConfig.AppURL
+	} else {
 		parsedInternalAppUrl, err := url.Parse(EnvConfig.InternalAppURL)
-
 		if err != nil {
 			return errors.New("INTERNAL_APP_URL is not a valid URL")
 		}
