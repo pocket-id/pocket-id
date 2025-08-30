@@ -1808,9 +1808,8 @@ func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, aut
 		claims["given_name"] = user.FirstName
 		claims["family_name"] = user.LastName
 		claims["name"] = user.FullName()
-		if strings.TrimSpace(user.DisplayName) != "" {
-			claims["display_name"] = user.DisplayName
-		}
+		claims["display_name"] = user.DisplayName
+
 		claims["preferred_username"] = user.Username
 		claims["picture"] = common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png"
 
