@@ -37,6 +37,7 @@ const (
 	GrantTypeAuthorizationCode = "authorization_code"
 	GrantTypeRefreshToken      = "refresh_token"
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
+	GrantTypeClientCredentials = "client_credentials"
 
 	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" //nolint:gosec
 
@@ -247,6 +248,8 @@ func (s *OidcService) CreateTokens(ctx context.Context, input dto.OidcCreateToke
 		return s.createTokenFromRefreshToken(ctx, input)
 	case GrantTypeDeviceCode:
 		return s.createTokenFromDeviceCode(ctx, input)
+	case GrantTypeClientCredentials:
+		return s.createTokenFromClientCredentials(ctx, input)
 	default:
 		return CreatedTokens{}, &common.OidcGrantTypeNotSupportedError{}
 	}
@@ -330,6 +333,32 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    time.Hour,
+	}, nil
+}
+
+func (s *OidcService) createTokenFromClientCredentials(ctx context.Context, input dto.OidcCreateTokensDto) (CreatedTokens, error) {
+	client, err := s.verifyClientCredentialsInternal(ctx, s.db, clientAuthCredentialsFromCreateTokensDto(&input), false)
+	if err != nil {
+		return CreatedTokens{}, err
+	}
+
+	dummyUser := model.User{
+		Base: model.Base{ID: client.ID},
+	}
+
+	audClaim := input.ClientID
+	if input.Resource != "" {
+		audClaim = input.Resource
+	}
+
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(dummyUser, audClaim)
+	if err != nil {
+		return CreatedTokens{}, err
+	}
+
+	return CreatedTokens{
+		AccessToken: accessToken,
+		ExpiresIn:   time.Hour,
 	}, nil
 }
 
