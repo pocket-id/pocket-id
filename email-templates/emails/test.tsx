@@ -11,7 +11,7 @@ interface TestEmailProps {
 export const TestEmail = ({ logoURL, appName }: TestEmailProps) => (
   <BaseTemplate logoURL={logoURL} appName={appName}>
     <CardHeader title="Test Email" />
-    <Text>Look at this, it actually works!</Text>
+    <Text>Your email setup is working correctly!</Text>
   </BaseTemplate>
 );
 

@@ -1,4 +1,4 @@
-import { Button as EmailButton } from '@react-email/components';
+import { Button as EmailButton } from "@react-email/components";
 
 interface ButtonProps {
   href: string;
@@ -8,17 +8,14 @@ interface ButtonProps {
 
 export const Button = ({ href, children, style = {} }: ButtonProps) => {
   const buttonStyle = {
-    backgroundColor: '#000000',
-    color: '#ffffff',
-    padding: '0.7rem 1.5rem',
-    textDecoration: 'none',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    fontWeight: '500',
-    display: 'inline-block',
-    border: 'none',
-    cursor: 'pointer',
-    marginTop: '24px',
+    backgroundColor: "#000000",
+    color: "#ffffff",
+    padding: "12px 24px",
+    borderRadius: "4px",
+    fontSize: "15px",
+    fontWeight: "500",
+    cursor: "pointer",
+    marginTop: "10px",
     ...style,
   };
 
@@ -32,5 +29,5 @@ export const Button = ({ href, children, style = {} }: ButtonProps) => {
 };
 
 const buttonContainer = {
-  textAlign: 'center' as const,
+  textAlign: "center" as const,
 };

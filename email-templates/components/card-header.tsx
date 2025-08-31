@@ -34,4 +34,5 @@ const warningStyle = {
   borderRadius: "50px",
   fontSize: "12px",
   display: "inline-block",
+  margin: 0,
 };

@@ -30,7 +30,8 @@ export const BaseTemplate = ({
       <Head />
       <Body style={mainStyle}>
         <Container style={{ width: "500px", margin: "0 auto" }}>
-          <Row
+          <Section>
+            <Row
             align="left"
             style={{
               width: "210px",
@@ -50,7 +51,8 @@ export const BaseTemplate = ({
               <Text style={titleStyle}>{appName}</Text>
             </Column>
           </Row>
-          <Section style={content}>{children}</Section>
+          </Section>
+          <div style={content}>{children}</div>
         </Container>
       </Body>
     </Html>
