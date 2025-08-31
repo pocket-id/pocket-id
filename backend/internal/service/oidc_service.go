@@ -348,7 +348,7 @@ func (s *OidcService) createTokenFromClientCredentials(ctx context.Context, inpu
 		Base: model.Base{ID: "client-" + client.ID},
 	}
 
-	audClaim := input.ClientID
+	audClaim := client.ID
 	if input.Resource != "" {
 		audClaim = input.Resource
 	}
