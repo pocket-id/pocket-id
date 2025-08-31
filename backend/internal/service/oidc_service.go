@@ -342,8 +342,10 @@ func (s *OidcService) createTokenFromClientCredentials(ctx context.Context, inpu
 		return CreatedTokens{}, err
 	}
 
+	// GenerateOAuthAccessToken uses user.ID as a "sub" claim. Prefix is used to take those security considerations
+	// into account: https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations
 	dummyUser := model.User{
-		Base: model.Base{ID: client.ID},
+		Base: model.Base{ID: "client-" + client.ID},
 	}
 
 	audClaim := input.ClientID
