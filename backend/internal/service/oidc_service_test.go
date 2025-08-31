@@ -398,7 +398,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	t.Run("Complete token creation flow", func(t *testing.T) {
 		t.Run("Client Credentials flow", func(t *testing.T) {
 			t.Run("Succeeds with valid secret", func(t *testing.T) {
-				// Generate token
+				// Generate a token
 				input := dto.OidcCreateTokensDto{
 					ClientID:     confidentialClient.ID,
 					ClientSecret: confidentialSecret,
@@ -414,10 +414,10 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				// Check the claims
 				subject, ok := claims.Subject()
 				_ = assert.True(t, ok, "User ID not found in token") &&
-					assert.Equal(t, "client-"+confidentialClient.ID, subject, "Token subject should match client ID with prefix")
+					assert.Equal(t, "client-"+confidentialClient.ID, subject, "Token subject should match confidential client ID with prefix")
 				audience, ok := claims.Audience()
 				_ = assert.True(t, ok, "Audience not found in token") &&
-					assert.Equal(t, []string{confidentialClient.ID}, audience, "Audience should contain the app URL")
+					assert.Equal(t, []string{confidentialClient.ID}, audience, "Audience should contain confidential client ID")
 			})
 
 			t.Run("Fails with invalid secret", func(t *testing.T) {
@@ -428,6 +428,15 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				_, err := s.createTokenFromClientCredentials(t.Context(), input)
 				require.Error(t, err)
 				require.ErrorIs(t, err, &common.OidcClientSecretInvalidError{})
+			})
+
+			t.Run("Fails with public client", func(t *testing.T) {
+				input := dto.OidcCreateTokensDto{
+					ClientID: publicClient.ID,
+				}
+				_, err := s.createTokenFromClientCredentials(t.Context(), input)
+				require.Error(t, err)
+				require.ErrorIs(t, err, &common.OidcMissingClientCredentialsError{})
 			})
 
 			t.Run("Succeeds with valid assertion", func(t *testing.T) {
@@ -443,7 +452,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256(), privateJWK))
 				require.NoError(t, err)
 
-				// Generate token
+				// Generate a token
 				input := dto.OidcCreateTokensDto{
 					ClientAssertion:     string(signedToken),
 					ClientAssertionType: ClientAssertionTypeJWTBearer,
@@ -459,10 +468,10 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				// Check the claims
 				subject, ok := claims.Subject()
 				_ = assert.True(t, ok, "User ID not found in token") &&
-					assert.Equal(t, "client-"+federatedClient.ID, subject, "Token subject should match client ID with prefix")
+					assert.Equal(t, "client-"+federatedClient.ID, subject, "Token subject should match federated client ID with prefix")
 				audience, ok := claims.Audience()
 				_ = assert.True(t, ok, "Audience not found in token") &&
-					assert.Equal(t, []string{federatedClient.ID}, audience, "Audience should contain the app URL")
+					assert.Equal(t, []string{federatedClient.ID}, audience, "Audience should contain the federated client ID")
 			})
 
 			t.Run("Fails with invalid assertion", func(t *testing.T) {
@@ -476,7 +485,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			})
 
 			t.Run("Succeeds with custom resource", func(t *testing.T) {
-				// Generate token
+				// Generate a token
 				input := dto.OidcCreateTokensDto{
 					ClientID:     confidentialClient.ID,
 					ClientSecret: confidentialSecret,
@@ -493,10 +502,10 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				// Check the claims
 				subject, ok := claims.Subject()
 				_ = assert.True(t, ok, "User ID not found in token") &&
-					assert.Equal(t, "client-"+confidentialClient.ID, subject, "Token subject should match client ID with prefix")
+					assert.Equal(t, "client-"+confidentialClient.ID, subject, "Token subject should match confidential client ID with prefix")
 				audience, ok := claims.Audience()
 				_ = assert.True(t, ok, "Audience not found in token") &&
-					assert.Equal(t, []string{input.Resource}, audience, "Audience should contain the app URL")
+					assert.Equal(t, []string{input.Resource}, audience, "Audience should contain the resource provided in request")
 			})
 		})
 	})
