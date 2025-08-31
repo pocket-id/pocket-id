@@ -149,6 +149,13 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	privateJWKDefaults, jwkSetJSONDefaults := generateTestECDSAKey(t)
 	require.NoError(t, err)
 
+	// Create a mock config and JwtService to test complete a token creation process
+	mockConfig := NewTestAppConfigService(&model.AppConfig{
+		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
+	})
+	mockJwtService, err := NewJwtService(db, mockConfig)
+	require.NoError(t, err)
+
 	// Create a mock HTTP client with custom transport to return the JWKS
 	httpClient := &http.Client{
 		Transport: &testutils.MockRoundTripper{
@@ -160,13 +167,6 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			},
 		},
 	}
-
-	mockConfig := NewTestAppConfigService(&model.AppConfig{
-		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
-	})
-
-	mockJwtService, err := NewJwtService(db, mockConfig)
-	require.NoError(t, err)
 
 	// Init the OidcService
 	s := &OidcService{
