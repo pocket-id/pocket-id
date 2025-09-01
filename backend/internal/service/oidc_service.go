@@ -1565,32 +1565,63 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 	isClientAssertion := input.ClientAssertionType == ClientAssertionTypeJWTBearer && input.ClientAssertion != ""
 
 	// Determine the client ID based on the authentication method
-	var clientID string
 	switch {
 	case isClientAssertion:
 		// Extract client ID from the JWT assertion's 'sub' claim
-		clientID, err = s.extractClientIDFromAssertion(input.ClientAssertion)
+		iss, sub, err := s.extractClientIDFromAssertion(input.ClientAssertion)
 		if err != nil {
 			slog.Error("Failed to extract client ID from assertion", "error", err)
 			return nil, &common.OidcClientAssertionInvalidError{}
 		}
-	case input.ClientID != "":
-		// Use the provided client ID for other authentication methods
-		clientID = input.ClientID
-	default:
-		return nil, &common.OidcMissingClientCredentialsError{}
-	}
 
-	// Load the OIDC client's configuration
-	err = tx.
-		WithContext(ctx).
-		First(&client, "id = ?", clientID).
-		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) && isClientAssertion {
+		if input.ClientID != "" && input.ClientID != sub {
 			return nil, &common.OidcClientAssertionInvalidError{}
 		}
-		return nil, err
+
+		// Load the OIDC client's configuration
+		var whereClause string
+		switch common.EnvConfig.DbProvider {
+		case common.DbProviderSqlite:
+			whereClause = `EXISTS (
+                SELECT 1 FROM json_each(json_extract(credentials, '$.federatedIdentities'))
+                WHERE json_extract(value, '$.issuer') = ?
+                  AND (json_extract(value, '$.subject') = ? OR oidc_clients.id = ?)
+            )`
+		case common.DbProviderPostgres:
+			whereClause = `EXISTS (
+                SELECT 1 FROM jsonb_array_elements(credentials->'federatedIdentities') AS elem
+                WHERE elem->>'issuer' = ?
+                  AND (elem->>'subject' = ? OR oidc_clients.id = ?)
+            )`
+		}
+		err = tx.
+			WithContext(ctx).
+			Where(whereClause, iss, sub, sub).First(&client).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) && isClientAssertion {
+				return nil, &common.OidcClientAssertionInvalidError{}
+			}
+			return nil, err
+		}
+
+	case input.ClientID != "":
+		// Use the provided client ID for other authentication methods
+		clientID := input.ClientID
+
+		// Load the OIDC client's configuration
+		err = tx.
+			WithContext(ctx).
+			First(&client, "id = ?", clientID).
+			Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) && isClientAssertion {
+				return nil, &common.OidcClientAssertionInvalidError{}
+			}
+			return nil, err
+		}
+
+	default:
+		return nil, &common.OidcMissingClientCredentialsError{}
 	}
 
 	// Validate credentials based on the authentication method
@@ -1715,20 +1746,25 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.C
 }
 
 // extractClientIDFromAssertion extracts the client_id from the JWT assertion's 'sub' claim
-func (s *OidcService) extractClientIDFromAssertion(assertion string) (string, error) {
+func (s *OidcService) extractClientIDFromAssertion(assertion string) (iss string, sub string, err error) {
 	// Parse the JWT without verification first to get the claims
 	insecureToken, err := jwt.ParseInsecure([]byte(assertion))
 	if err != nil {
-		return "", fmt.Errorf("failed to parse JWT assertion: %w", err)
+		return "", "", fmt.Errorf("failed to parse JWT assertion: %w", err)
 	}
 
 	// Extract the subject claim which must be the client_id according to RFC 7523
 	sub, ok := insecureToken.Subject()
 	if !ok || sub == "" {
-		return "", fmt.Errorf("missing or invalid 'sub' claim in JWT assertion")
+		return "", "", fmt.Errorf("missing or invalid 'sub' claim in JWT assertion")
 	}
 
-	return sub, nil
+	iss, ok = insecureToken.Issuer()
+	if !ok || iss == "" {
+		return "", "", fmt.Errorf("missing or invalid 'iss' claim in JWT assertion")
+	}
+
+	return iss, sub, nil
 }
 
 func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes []string) (*dto.OidcClientPreviewDto, error) {
