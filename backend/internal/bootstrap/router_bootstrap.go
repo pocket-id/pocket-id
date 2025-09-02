@@ -86,6 +86,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// Setup global middleware
 	r.Use(middleware.NewCorsMiddleware().Add())
+	r.Use(middleware.NewCspMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 
 	err := frontend.RegisterFrontend(r)
