@@ -41,6 +41,7 @@ const (
 
 	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" //nolint:gosec
 
+	AccessTokenDuration  = time.Hour
 	RefreshTokenDuration = 30 * 24 * time.Hour // 30 days
 	DeviceCodeDuration   = 15 * time.Minute
 )
@@ -332,7 +333,7 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		IdToken:      idToken,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    time.Hour,
+		ExpiresIn:    AccessTokenDuration,
 	}, nil
 }
 
@@ -360,7 +361,7 @@ func (s *OidcService) createTokenFromClientCredentials(ctx context.Context, inpu
 
 	return CreatedTokens{
 		AccessToken: accessToken,
-		ExpiresIn:   time.Hour,
+		ExpiresIn:   AccessTokenDuration,
 	}, nil
 }
 
@@ -434,7 +435,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 		IdToken:      idToken,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    time.Hour,
+		ExpiresIn:    AccessTokenDuration,
 	}, nil
 }
 
@@ -519,7 +520,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	return CreatedTokens{
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshToken,
-		ExpiresIn:    time.Hour,
+		ExpiresIn:    AccessTokenDuration,
 	}, nil
 }
 
