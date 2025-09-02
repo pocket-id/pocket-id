@@ -13,12 +13,12 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -430,7 +430,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 				require.ErrorIs(t, err, &common.OidcClientSecretInvalidError{})
 			})
 
-			t.Run("Fails with public client", func(t *testing.T) {
+			t.Run("Fails without client secret for public clients", func(t *testing.T) {
 				input := dto.OidcCreateTokensDto{
 					ClientID: publicClient.ID,
 				}
