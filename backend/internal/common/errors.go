@@ -350,6 +350,15 @@ func (e *OidcAuthorizationPendingError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
 
+type ReauthenticationRequiredError struct{}
+
+func (e *ReauthenticationRequiredError) Error() string {
+	return "reauthentication required"
+}
+func (e *ReauthenticationRequiredError) HttpStatusCode() int {
+	return http.StatusUnauthorized
+}
+
 type OpenSignupDisabledError struct{}
 
 func (e *OpenSignupDisabledError) Error() string {
@@ -358,4 +367,14 @@ func (e *OpenSignupDisabledError) Error() string {
 
 func (e *OpenSignupDisabledError) HttpStatusCode() int {
 	return http.StatusForbidden
+}
+
+type ClientIdAlreadyExistsError struct{}
+
+func (e *ClientIdAlreadyExistsError) Error() string {
+	return "Client ID already in use"
+}
+
+func (e *ClientIdAlreadyExistsError) HttpStatusCode() int {
+	return http.StatusBadRequest
 }

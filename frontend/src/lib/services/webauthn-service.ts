@@ -37,6 +37,11 @@ class WebAuthnService extends APIService {
 	async updateCredentialName(id: string, name: string) {
 		await this.api.patch(`/webauthn/credentials/${id}`, { name });
 	}
+
+	async reauthenticate(body?: AuthenticationResponseJSON) {
+		const res = await this.api.post('/webauthn/reauthenticate', body);
+		return res.data.reauthenticationToken as string;
+	}
 }
 
 export default WebAuthnService;

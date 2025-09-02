@@ -2,7 +2,7 @@ import test, { expect } from '@playwright/test';
 import { userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
 test('Create user group', async ({ page }) => {
 	await page.goto('/settings/admin/user-groups');
@@ -96,6 +96,7 @@ test('Update user group custom claims', async ({ page }) => {
 	);
 
 	await page.reload();
+	await page.waitForLoadState('networkidle');
 
 	// Check if custom claims are saved
 	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim1');
@@ -107,7 +108,12 @@ test('Update user group custom claims', async ({ page }) => {
 	await page.getByLabel('Remove custom claim').first().click();
 	await page.getByRole('button', { name: 'Save' }).nth(2).click();
 
+  await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Custom claims updated successfully'
+	);
+
 	await page.reload();
+  await page.waitForLoadState('networkidle');
 
 	// Check if custom claim is removed
 	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim2');

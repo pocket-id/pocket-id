@@ -27,13 +27,20 @@ export const oidcClients = {
 		name: 'Nextcloud',
 		callbackUrl: 'http://nextcloud/auth/callback',
 		logoutCallbackUrl: 'http://nextcloud/auth/logout/callback',
-		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
+		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY',
+		launchURL: 'https://nextcloud.local'
 	},
 	immich: {
 		id: '606c7782-f2b1-49e5-8ea9-26eb1b06d018',
 		name: 'Immich',
 		callbackUrl: 'http://immich/auth/callback',
 		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x'
+	},
+	tailscale: {
+		id: '7c21a609-96b5-4011-9900-272b8d31a9d1',
+		name: 'Tailscale',
+		callbackUrl: 'http://tailscale/auth/callback',
+		secret: 'n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo'
 	},
 	federated: {
 		id: 'c48232ff-ff65-45ed-ae96-7afa8a9b443b',
@@ -49,7 +56,8 @@ export const oidcClients = {
 	pingvinShare: {
 		name: 'Pingvin Share',
 		callbackUrl: 'http://pingvin.share/auth/callback',
-		secondCallbackUrl: 'http://pingvin.share/auth/callback2'
+		secondCallbackUrl: 'http://pingvin.share/auth/callback2',
+		launchURL: 'https://pingvin-share.local'
 	}
 };
 
@@ -108,7 +116,7 @@ export const signupTokens = {
 		createdAt: new Date().toISOString()
 	},
 	partiallyUsed: {
-		id: 'b2c3d4e5-f6g7-8901-bcde-f12345678901',
+		id: 'dc3c9c96-714e-48eb-926e-2d7c7858e6cf',
 		token: 'PARTIAL567890ABC',
 		expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
 		usageLimit: 5,
@@ -116,7 +124,7 @@ export const signupTokens = {
 		createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
 	},
 	expired: {
-		id: 'c3d4e5f6-g7h8-9012-cdef-123456789012',
+		id: '44de1863-ffa5-4db1-9507-4887cd7a1e3f',
 		token: 'EXPIRED34567890B',
 		expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
 		usageLimit: 3,
@@ -124,7 +132,7 @@ export const signupTokens = {
 		createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
 	},
 	fullyUsed: {
-		id: 'd4e5f6g7-h8i9-0123-def0-234567890123',
+		id: 'f1b1678b-7720-4d8b-8f91-1dbff1e2d02b',
 		token: 'FULLYUSED567890C',
 		expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
 		usageLimit: 1,

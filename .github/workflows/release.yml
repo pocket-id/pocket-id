@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - 'v*.*.*'
 
 jobs:
   build:
@@ -16,15 +16,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
       - uses: actions/setup-go@v5
         with:
-          go-version-file: "backend/go.mod"
+          go-version-file: 'backend/go.mod'
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -62,13 +64,12 @@ jobs:
           tags: |
             type=semver,pattern={{version}},prefix=v
             type=semver,pattern={{major}}.{{minor}},prefix=v
-            type=semver,pattern={{major}},prefix=v            
+            type=semver,pattern={{major}},prefix=v
       - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
+        run: pnpm --filter pocket-id-frontend install --frozen-lockfile
       - name: Build frontend
-        working-directory: frontend
-        run: npm run build
+        run: pnpm --filter pocket-id-frontend build
+
       - name: Build binaries
         run: sh scripts/development/build-binaries.sh
       - name: Build and push container image
@@ -94,17 +95,17 @@ jobs:
       - name: Binary attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: "backend/.bin/pocket-id-**"
+          subject-path: 'backend/.bin/pocket-id-**'
       - name: Container image attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
           subject-digest: ${{ steps.container-build-push.outputs.digest }}
           push-to-registry: true
       - name: Container image attestation (distroless)
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
           subject-digest: ${{ steps.container-build-push-distroless.outputs.digest }}
           push-to-registry: true
       - name: Upload binaries to release
@@ -121,6 +122,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Mark release as published
         run: gh release edit ${{ github.ref_name }} --draft=false

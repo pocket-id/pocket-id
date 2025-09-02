@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import ScopeItem from '$lib/components/scope-item.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -10,7 +11,7 @@
 	import userStore from '$lib/stores/user-store';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
-	import { startAuthentication } from '@simplewebauthn/browser';
+	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -28,6 +29,7 @@
 	let errorMessage: string | null = $state(null);
 	let authorizationRequired = $state(false);
 	let authorizationConfirmed = $state(false);
+	let userSignedInAt: Date | undefined;
 
 	onMount(() => {
 		if ($userStore) {
@@ -37,13 +39,16 @@
 
 	async function authorize() {
 		isLoading = true;
+
+		let authResponse: AuthenticationResponseJSON | undefined;
+
 		try {
-			// Get access token if not signed in
 			if (!$userStore?.id) {
 				const loginOptions = await webauthnService.getLoginOptions();
-				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
+				authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
 				userStore.setUser(user);
+				userSignedInAt = new Date();
 			}
 
 			if (!authorizationConfirmed) {
@@ -55,8 +60,28 @@
 				}
 			}
 
+			let reauthToken: string | undefined;
+			if (client?.requiresReauthentication) {
+				let authResponse;
+				const signedInRecently =
+					userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000;
+				if (!signedInRecently) {
+					const loginOptions = await webauthnService.getLoginOptions();
+					authResponse = await startAuthentication({ optionsJSON: loginOptions });
+				}
+				reauthToken = await webauthnService.reauthenticate(authResponse);
+			}
+
 			await oidService
-				.authorize(client!.id, scope, callbackURL, nonce, codeChallenge, codeChallengeMethod)
+				.authorize(
+					client!.id,
+					scope,
+					callbackURL,
+					nonce,
+					codeChallenge,
+					codeChallengeMethod,
+					reauthToken
+				)
 				.then(async ({ code, callbackURL, issuer }) => {
 					onSuccess(code, callbackURL, issuer);
 				});
@@ -98,17 +123,21 @@
 		{/if}
 		{#if !authorizationRequired && !errorMessage}
 			<p class="text-muted-foreground mt-2 mb-10">
-				{@html m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
-					client: client.name,
-					appName: $appConfigStore.appName
-				})}
+				<FormattedMessage
+					m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
+						client: client.name,
+						appName: $appConfigStore.appName
+					})}
+				/>
 			</p>
 		{:else if authorizationRequired}
 			<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
 				<Card.Root class="mt-6 mb-10">
 					<Card.Header>
 						<p class="text-muted-foreground text-start">
-							{@html m.client_wants_to_access_the_following_information({ client: client.name })}
+							<FormattedMessage
+								m={m.client_wants_to_access_the_following_information({ client: client.name })}
+							/>
 						</p>
 					</Card.Header>
 					<Card.Content data-testid="scopes">

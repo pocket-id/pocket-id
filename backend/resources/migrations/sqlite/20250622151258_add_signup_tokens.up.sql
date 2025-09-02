@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 CREATE TABLE signup_tokens (
     id TEXT NOT NULL PRIMARY KEY,
     created_at DATETIME NOT NULL,
@@ -9,3 +11,5 @@ CREATE TABLE signup_tokens (
 
 CREATE INDEX idx_signup_tokens_token ON signup_tokens(token);
 CREATE INDEX idx_signup_tokens_expires_at ON signup_tokens(expires_at);
+COMMIT;
+PRAGMA foreign_keys=ON;

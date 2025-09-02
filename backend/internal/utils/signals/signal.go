@@ -2,7 +2,7 @@ package signals
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,11 +28,11 @@ func SignalContext(parentCtx context.Context) context.Context {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		log.Println("Received interrupt signal. Shutting down…")
+		slog.Info("Received interrupt signal. Shutting down…")
 		cancel()
 
 		<-sigCh
-		log.Println("Received a second interrupt signal. Forcing an immediate shutdown.")
+		slog.Warn("Received a second interrupt signal. Forcing an immediate shutdown.")
 		os.Exit(1)
 	}()
 

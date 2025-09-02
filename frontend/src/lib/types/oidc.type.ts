@@ -4,6 +4,8 @@ export type OidcClientMetaData = {
 	id: string;
 	name: string;
 	hasLogo: boolean;
+	requiresReauthentication: boolean;
+	launchURL?: string;
 };
 
 export type OidcClientFederatedIdentity = {
@@ -22,7 +24,9 @@ export type OidcClient = OidcClientMetaData & {
 	logoutCallbackURLs: string[];
 	isPublic: boolean;
 	pkceEnabled: boolean;
+	requiresReauthentication: boolean;
 	credentials?: OidcClientCredentials;
+	launchURL?: string;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {
@@ -33,7 +37,13 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientCreate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo'>;
+export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo'>;
+export type OidcClientCreate = OidcClientUpdate & {
+	id?: string;
+};
+export type OidcClientUpdateWithLogo = OidcClientUpdate & {
+	logo: File | null | undefined;
+};
 
 export type OidcClientCreateWithLogo = OidcClientCreate & {
 	logo: File | null | undefined;
@@ -49,4 +59,8 @@ export type AuthorizeResponse = {
 	code: string;
 	callbackURL: string;
 	issuer: string;
+};
+
+export type AccessibleOidcClient = OidcClientMetaData & {
+	lastUsedAt: Date | null;
 };

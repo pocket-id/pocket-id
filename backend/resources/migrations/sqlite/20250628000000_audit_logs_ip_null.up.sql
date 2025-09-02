@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 -- Re-create the table with nullable ip_address
 -- We then move the data and rename the table
 CREATE TABLE audit_logs_new
@@ -28,3 +30,6 @@ CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX idx_audit_logs_user_agent ON audit_logs(user_agent);
 CREATE INDEX idx_audit_logs_client_name ON audit_logs((json_extract(data, '$.clientName')));
 CREATE INDEX idx_audit_logs_country ON audit_logs(country);
+
+COMMIT;
+PRAGMA foreign_keys=ON;

@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"mime/multipart"
 	"os"
 	"reflect"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -28,22 +26,22 @@ type AppConfigService struct {
 	db       *gorm.DB
 }
 
-func NewAppConfigService(ctx context.Context, db *gorm.DB) *AppConfigService {
+func NewAppConfigService(ctx context.Context, db *gorm.DB) (*AppConfigService, error) {
 	service := &AppConfigService{
 		db: db,
 	}
 
 	err := service.LoadDbConfig(ctx)
 	if err != nil {
-		log.Fatalf("Failed to initialize app config service: %v", err)
+		return nil, fmt.Errorf("failed to initialize app config service: %w", err)
 	}
 
 	err = service.initInstanceID(ctx)
 	if err != nil {
-		log.Fatalf("Failed to initialize instance ID: %v", err)
+		return nil, fmt.Errorf("failed to initialize instance ID: %w", err)
 	}
 
-	return service
+	return service, nil
 }
 
 // GetDbConfig returns the application configuration.
@@ -62,13 +60,15 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 	// Values are the default ones
 	return &model.AppConfig{
 		// General
-		AppName:             model.AppConfigVariable{Value: "Pocket ID"},
-		SessionDuration:     model.AppConfigVariable{Value: "60"},
-		EmailsVerified:      model.AppConfigVariable{Value: "false"},
-		DisableAnimations:   model.AppConfigVariable{Value: "false"},
-		AllowOwnAccountEdit: model.AppConfigVariable{Value: "true"},
-		AllowUserSignups:    model.AppConfigVariable{Value: "disabled"},
-		AccentColor:         model.AppConfigVariable{Value: "default"},
+		AppName:                   model.AppConfigVariable{Value: "Pocket ID"},
+		SessionDuration:           model.AppConfigVariable{Value: "60"},
+		EmailsVerified:            model.AppConfigVariable{Value: "false"},
+		DisableAnimations:         model.AppConfigVariable{Value: "false"},
+		AllowOwnAccountEdit:       model.AppConfigVariable{Value: "true"},
+		AllowUserSignups:          model.AppConfigVariable{Value: "disabled"},
+		SignupDefaultUserGroupIDs: model.AppConfigVariable{Value: "[]"},
+		SignupDefaultCustomClaims: model.AppConfigVariable{Value: "[]"},
+		AccentColor:               model.AppConfigVariable{Value: "default"},
 		// Internal
 		BackgroundImageType: model.AppConfigVariable{Value: "jpg"},
 		LogoLightImageType:  model.AppConfigVariable{Value: "svg"},
@@ -413,12 +413,10 @@ func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB)
 		field := rt.Field(i)
 
 		// Get the key and internal tag values
-		tagValue := strings.Split(field.Tag.Get("key"), ",")
-		key := tagValue[0]
-		isInternal := slices.Contains(tagValue, "internal")
+		key, attrs, _ := strings.Cut(field.Tag.Get("key"), ",")
 
 		// Internal fields are loaded from the database as they can't be set from the environment
-		if isInternal {
+		if attrs == "internal" {
 			var value string
 			err := tx.WithContext(ctx).
 				Model(&model.AppConfigVariable{}).
@@ -437,6 +435,20 @@ func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB)
 		value, ok := os.LookupEnv(envVarName)
 		if ok {
 			rv.Field(i).FieldByName("Value").SetString(value)
+			continue
+		}
+
+		// If it's sensitive, we also allow reading from file
+		if attrs == "sensitive" {
+			fileName := os.Getenv(envVarName + "_FILE")
+			if fileName != "" {
+				b, err := os.ReadFile(fileName)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read secret '%s' from file '%s': %w", envVarName, fileName, err)
+				}
+				rv.Field(i).FieldByName("Value").SetString(string(b))
+				continue
+			}
 		}
 	}
 

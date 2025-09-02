@@ -1,14 +1,13 @@
 package dto
 
 import (
-	"time"
-
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type SignupTokenCreateDto struct {
-	ExpiresAt  time.Time `json:"expiresAt" binding:"required"`
-	UsageLimit int       `json:"usageLimit" binding:"required,min=1,max=100"`
+	TTL        utils.JSONDuration `json:"ttl" binding:"required,ttl"`
+	UsageLimit int                `json:"usageLimit" binding:"required,min=1,max=100"`
 }
 
 type SignupTokenDto struct {

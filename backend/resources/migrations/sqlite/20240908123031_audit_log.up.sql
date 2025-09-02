@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 CREATE TABLE audit_logs
 (
     id               TEXT NOT NULL PRIMARY KEY,
@@ -8,3 +10,5 @@ CREATE TABLE audit_logs
     data             BLOB NOT NULL,
     user_id          TEXT REFERENCES users
 );
+COMMIT;
+PRAGMA foreign_keys=ON;

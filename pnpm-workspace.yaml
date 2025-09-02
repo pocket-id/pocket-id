@@ -1,0 +1,7 @@
+packages:
+  - 'frontend'
+  - 'tests'
+  - 'email-templates'
+
+overrides:
+  'devalue': '^5.3.2'

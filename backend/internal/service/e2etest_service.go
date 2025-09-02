@@ -10,7 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -154,11 +154,12 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				},
 				Name:               "Nextcloud",
+				LaunchURL:          utils.Ptr("https://nextcloud.local"),
 				Secret:             "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
 				CallbackURLs:       model.UrlList{"http://nextcloud/auth/callback"},
 				LogoutCallbackURLs: model.UrlList{"http://nextcloud/auth/logout/callback"},
 				ImageType:          utils.StringPointer("png"),
-				CreatedByID:        users[0].ID,
+				CreatedByID:        utils.Ptr(users[0].ID),
 			},
 			{
 				Base: model.Base{
@@ -167,10 +168,20 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Name:         "Immich",
 				Secret:       "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
 				CallbackURLs: model.UrlList{"http://immich/auth/callback"},
-				CreatedByID:  users[1].ID,
+				CreatedByID:  utils.Ptr(users[1].ID),
 				AllowedUserGroups: []model.UserGroup{
 					userGroups[1],
 				},
+			},
+			{
+				Base: model.Base{
+					ID: "7c21a609-96b5-4011-9900-272b8d31a9d1",
+				},
+				Name:               "Tailscale",
+				Secret:             "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a", // n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo
+				CallbackURLs:       model.UrlList{"http://tailscale/auth/callback"},
+				LogoutCallbackURLs: model.UrlList{"http://tailscale/auth/logout/callback"},
+				CreatedByID:        utils.Ptr(users[0].ID),
 			},
 			{
 				Base: model.Base{
@@ -179,7 +190,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Name:              "Federated",
 				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
 				CallbackURLs:      model.UrlList{"http://federated/auth/callback"},
-				CreatedByID:       users[1].ID,
+				CreatedByID:       utils.Ptr(users[1].ID),
 				AllowedUserGroups: []model.UserGroup{},
 				Credentials: model.OidcClientCredentials{
 					FederatedIdentities: []model.OidcClientFederatedIdentity{
@@ -245,14 +256,22 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 
 		userAuthorizedClients := []model.UserAuthorizedOidcClient{
 			{
-				Scope:    "openid profile email",
-				UserID:   users[0].ID,
-				ClientID: oidcClients[0].ID,
+				Scope:      "openid profile email",
+				UserID:     users[0].ID,
+				ClientID:   oidcClients[0].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 1, 13, 0, 0, 0, time.UTC)),
 			},
 			{
-				Scope:    "openid profile email",
-				UserID:   users[1].ID,
-				ClientID: oidcClients[2].ID,
+				Scope:      "openid profile email",
+				UserID:     users[0].ID,
+				ClientID:   oidcClients[2].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 10, 14, 0, 0, 0, time.UTC)),
+			},
+			{
+				Scope:      "openid profile email",
+				UserID:     users[1].ID,
+				ClientID:   oidcClients[3].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 12, 12, 0, 0, 0, time.UTC)),
 			},
 		}
 		for _, userAuthorizedClient := range userAuthorizedClients {
@@ -324,7 +343,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 			{
 				Base: model.Base{
-					ID: "b2c3d4e5-f6g7-8901-bcde-f12345678901",
+					ID: "dc3c9c96-714e-48eb-926e-2d7c7858e6cf",
 				},
 				Token:      "PARTIAL567890ABC",
 				ExpiresAt:  datatype.DateTime(time.Now().Add(7 * 24 * time.Hour)),
@@ -333,7 +352,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 			{
 				Base: model.Base{
-					ID: "c3d4e5f6-g7h8-9012-cdef-123456789012",
+					ID: "44de1863-ffa5-4db1-9507-4887cd7a1e3f",
 				},
 				Token:      "EXPIRED34567890B",
 				ExpiresAt:  datatype.DateTime(time.Now().Add(-24 * time.Hour)), // Expired
@@ -342,7 +361,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 			{
 				Base: model.Base{
-					ID: "d4e5f6g7-h8i9-0123-def0-234567890123",
+					ID: "f1b1678b-7720-4d8b-8f91-1dbff1e2d02b",
 				},
 				Token:      "FULLYUSED567890C",
 				ExpiresAt:  datatype.DateTime(time.Now().Add(24 * time.Hour)),
@@ -402,9 +421,9 @@ func (s *TestService) ResetDatabase() error {
 	return err
 }
 
-func (s *TestService) ResetApplicationImages() error {
+func (s *TestService) ResetApplicationImages(ctx context.Context) error {
 	if err := os.RemoveAll(common.EnvConfig.UploadPath); err != nil {
-		log.Printf("Error removing directory: %v", err)
+		slog.ErrorContext(ctx, "Error removing directory", slog.Any("error", err))
 		return err
 	}
 

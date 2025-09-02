@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
@@ -51,6 +50,7 @@ type OidcService struct {
 	appConfigService   *AppConfigService
 	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
+	webAuthnService    *WebAuthnService
 
 	httpClient *http.Client
 	jwkCache   *jwk.Cache
@@ -63,6 +63,7 @@ func NewOidcService(
 	appConfigService *AppConfigService,
 	auditLogService *AuditLogService,
 	customClaimService *CustomClaimService,
+	webAuthnService *WebAuthnService,
 ) (s *OidcService, err error) {
 	s = &OidcService{
 		db:                 db,
@@ -70,6 +71,7 @@ func NewOidcService(
 		appConfigService:   appConfigService,
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
+		webAuthnService:    webAuthnService,
 	}
 
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
@@ -124,6 +126,16 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", err
 	}
 
+	if client.RequiresReauthentication {
+		if input.ReauthenticationToken == "" {
+			return "", "", &common.ReauthenticationRequiredError{}
+		}
+		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
+		if err != nil {
+			return "", "", err
+		}
+	}
+
 	// If the client is not public, the code challenge must be provided
 	if client.IsPublic && input.CodeChallenge == "" {
 		return "", "", &common.OidcMissingCodeChallengeError{}
@@ -150,18 +162,9 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", &common.OidcAccessDeniedError{}
 	}
 
-	// Check if the user has already authorized the client with the given scope
-	hasAuthorizedClient, err := s.hasAuthorizedClientInternal(ctx, input.ClientID, userID, input.Scope, tx)
+	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, input.ClientID, input.Scope, tx)
 	if err != nil {
 		return "", "", err
-	}
-
-	// If the user has not authorized the client, create a new authorization in the database
-	if !hasAuthorizedClient {
-		err := s.createAuthorizedClientInternal(ctx, userID, input.ClientID, input.Scope, tx)
-		if err != nil {
-			return "", "", err
-		}
 	}
 
 	// Create the authorization code
@@ -171,7 +174,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	// Log the authorization event
-	if hasAuthorizedClient {
+	if hasAlreadyAuthorizedClient {
 		s.auditLogService.Create(ctx, model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
 	} else {
 		s.auditLogService.Create(ctx, model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
@@ -651,8 +654,7 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 	}
 
 	// As allowedUserGroupsCount is not a column, we need to manually sort it
-	isValidSortDirection := sortedPaginationRequest.Sort.Direction == "asc" || sortedPaginationRequest.Sort.Direction == "desc"
-	if sortedPaginationRequest.Sort.Column == "allowedUserGroupsCount" && isValidSortDirection {
+	if sortedPaginationRequest.Sort.Column == "allowedUserGroupsCount" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
@@ -668,22 +670,28 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
-		CreatedByID: userID,
+		Base: model.Base{
+			ID: input.ID,
+		},
+		CreatedByID: utils.Ptr(userID),
 	}
-	updateOIDCClientModelFromDto(&client, &input)
+	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
 	err := s.db.
 		WithContext(ctx).
 		Create(&client).
 		Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return model.OidcClient{}, &common.ClientIdAlreadyExistsError{}
+		}
 		return model.OidcClient{}, err
 	}
 
 	return client, nil
 }
 
-func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientCreateDto) (model.OidcClient, error) {
+func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -717,7 +725,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	return client, nil
 }
 
-func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientCreateDto) {
+func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
 	// Base fields
 	client.Name = input.Name
 	client.CallbackURLs = input.CallbackURLs
@@ -725,19 +733,20 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	client.RequiresReauthentication = input.RequiresReauthentication
+	client.LaunchURL = input.LaunchURL
 
 	// Credentials
-	if len(input.Credentials.FederatedIdentities) > 0 {
-		client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
-		for i, fi := range input.Credentials.FederatedIdentities {
-			client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
-				Issuer:   fi.Issuer,
-				Audience: fi.Audience,
-				Subject:  fi.Subject,
-				JWKS:     fi.JWKS,
-			}
+	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
+	for i, fi := range input.Credentials.FederatedIdentities {
+		client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
+			Issuer:   fi.Issuer,
+			Audience: fi.Audience,
+			Subject:  fi.Subject,
+			JWKS:     fi.JWKS,
 		}
 	}
+
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
@@ -1180,9 +1189,13 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 	}()
 
 	var deviceAuth model.OidcDeviceCode
-	if err := tx.WithContext(ctx).Preload("Client.AllowedUserGroups").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
-		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
-		return err
+	err := tx.
+		WithContext(ctx).
+		Preload("Client.AllowedUserGroups").
+		First(&deviceAuth, "user_code = ?", userCode).
+		Error
+	if err != nil {
+		return fmt.Errorf("error finding device code: %w", err)
 	}
 
 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
@@ -1191,17 +1204,26 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 
 	// Check if the user group is allowed to authorize the client
 	var user model.User
-	if err := tx.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", userID).Error; err != nil {
-		return err
+	err = tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if err != nil {
+		return fmt.Errorf("error finding user groups: %w", err)
 	}
 
 	if !s.IsUserGroupAllowedToAuthorize(user, deviceAuth.Client) {
 		return &common.OidcAccessDeniedError{}
 	}
 
-	if err := tx.WithContext(ctx).Preload("Client").First(&deviceAuth, "user_code = ?", userCode).Error; err != nil {
-		log.Printf("Error finding device code with user_code %s: %v", userCode, err)
-		return err
+	err = tx.
+		WithContext(ctx).
+		Preload("Client").
+		First(&deviceAuth, "user_code = ?", userCode).
+		Error
+	if err != nil {
+		return fmt.Errorf("error finding device code: %w", err)
 	}
 
 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
@@ -1211,33 +1233,24 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 	deviceAuth.UserID = &userID
 	deviceAuth.IsAuthorized = true
 
-	if err := tx.WithContext(ctx).Save(&deviceAuth).Error; err != nil {
-		log.Printf("Error saving device auth: %v", err)
-		return err
+	err = tx.
+		WithContext(ctx).
+		Save(&deviceAuth).
+		Error
+	if err != nil {
+		return fmt.Errorf("error saving device auth: %w", err)
 	}
 
-	// Verify the update was successful
-	var verifiedAuth model.OidcDeviceCode
-	if err := tx.WithContext(ctx).First(&verifiedAuth, "device_code = ?", deviceAuth.DeviceCode).Error; err != nil {
-		log.Printf("Error verifying update: %v", err)
-		return err
-	}
-
-	// Create user authorization if needed
-	hasAuthorizedClient, err := s.hasAuthorizedClientInternal(ctx, deviceAuth.ClientID, userID, deviceAuth.Scope, tx)
+	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, deviceAuth.ClientID, deviceAuth.Scope, tx)
 	if err != nil {
 		return err
 	}
 
-	if !hasAuthorizedClient {
-		err := s.createAuthorizedClientInternal(ctx, userID, deviceAuth.ClientID, deviceAuth.Scope, tx)
-		if err != nil {
-			return err
-		}
-
-		s.auditLogService.Create(ctx, model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name}, tx)
+	auditLogData := model.AuditLogData{"clientName": deviceAuth.Client.Name}
+	if hasAlreadyAuthorizedClient {
+		s.auditLogService.Create(ctx, model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, auditLogData, tx)
 	} else {
-		s.auditLogService.Create(ctx, model.AuditLogEventDeviceCodeAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": deviceAuth.Client.Name}, tx)
+		s.auditLogService.Create(ctx, model.AuditLogEventNewDeviceCodeAuthorization, ipAddress, userAgent, userID, auditLogData, tx)
 	}
 
 	return tx.Commit().Error
@@ -1313,6 +1326,112 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 	return authorizedClients, response, err
 }
 
+func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string, clientID string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var authorizedClient model.UserAuthorizedOidcClient
+	err := tx.
+		WithContext(ctx).
+		Where("user_id = ? AND client_id = ?", userID, clientID).
+		First(&authorizedClient).Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.WithContext(ctx).Delete(&authorizedClient).Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var user model.User
+	err := tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	userGroupIDs := make([]string, len(user.UserGroups))
+	for i, group := range user.UserGroups {
+		userGroupIDs[i] = group.ID
+	}
+
+	// Build the query for accessible clients
+	query := tx.
+		WithContext(ctx).
+		Model(&model.OidcClient{}).
+		Preload("UserAuthorizedOidcClients", "user_id = ?", userID)
+
+	// If user has no groups, only return clients with no allowed user groups
+	if len(userGroupIDs) == 0 {
+		query = query.Where(`NOT EXISTS (
+        SELECT 1 FROM oidc_clients_allowed_user_groups 
+        WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id)`)
+	} else {
+		query = query.Where(`
+        NOT EXISTS (
+            SELECT 1 FROM oidc_clients_allowed_user_groups 
+            WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
+        ) OR EXISTS (
+            SELECT 1 FROM oidc_clients_allowed_user_groups 
+            WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id 
+            AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, userGroupIDs)
+	}
+
+	var clients []model.OidcClient
+
+	// Handle custom sorting for lastUsedAt column
+	var response utils.PaginationResponse
+	if sortedPaginationRequest.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
+		query = query.
+			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
+			Order("user_authorized_oidc_clients.last_used_at " + sortedPaginationRequest.Sort.Direction + " NULLS LAST")
+	}
+
+	response, err = utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	dtos := make([]dto.AccessibleOidcClientDto, len(clients))
+	for i, client := range clients {
+		var lastUsedAt *datatype.DateTime
+		if len(client.UserAuthorizedOidcClients) > 0 {
+			lastUsedAt = &client.UserAuthorizedOidcClients[0].LastUsedAt
+		}
+		dtos[i] = dto.AccessibleOidcClientDto{
+			OidcClientMetaDataDto: dto.OidcClientMetaDataDto{
+				ID:        client.ID,
+				Name:      client.Name,
+				LaunchURL: client.LaunchURL,
+				HasLogo:   client.HasLogo,
+			},
+			LastUsedAt: lastUsedAt,
+		}
+	}
+
+	return dtos, response, err
+}
+
 func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
 	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
 	if err != nil {
@@ -1348,14 +1467,37 @@ func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, u
 	return signed, nil
 }
 
-func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID string, clientID string, scope string, tx *gorm.DB) error {
-	userAuthorizedClient := model.UserAuthorizedOidcClient{
-		UserID:   userID,
-		ClientID: clientID,
-		Scope:    scope,
+func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID string, clientID string, scope string, tx *gorm.DB) (hasAlreadyAuthorizedClient bool, err error) {
+
+	// Check if the user has already authorized the client with the given scope
+	hasAlreadyAuthorizedClient, err = s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, tx)
+	if err != nil {
+		return false, err
 	}
 
-	err := tx.WithContext(ctx).
+	if hasAlreadyAuthorizedClient {
+		err = tx.
+			WithContext(ctx).
+			Model(&model.UserAuthorizedOidcClient{}).
+			Where("user_id = ? AND client_id = ?", userID, clientID).
+			Update("last_used_at", datatype.DateTime(time.Now())).
+			Error
+
+		if err != nil {
+			return hasAlreadyAuthorizedClient, err
+		}
+
+		return hasAlreadyAuthorizedClient, nil
+	}
+
+	userAuthorizedClient := model.UserAuthorizedOidcClient{
+		UserID:     userID,
+		ClientID:   clientID,
+		Scope:      scope,
+		LastUsedAt: datatype.DateTime(time.Now()),
+	}
+
+	err = tx.WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "client_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"scope"}),
@@ -1363,7 +1505,7 @@ func (s *OidcService) createAuthorizedClientInternal(ctx context.Context, userID
 		Create(&userAuthorizedClient).
 		Error
 
-	return err
+	return hasAlreadyAuthorizedClient, err
 }
 
 type ClientAuthCredentials struct {
@@ -1416,8 +1558,8 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 
 	// Validate credentials based on the authentication method
 	switch {
-	// First, if we have a client secret, we validate it
-	case input.ClientSecret != "":
+	// First, if we have a client secret, we validate it unless client is marked as public
+	case input.ClientSecret != "" && !client.IsPublic:
 		err = bcrypt.CompareHashAndPassword([]byte(client.Secret), []byte(input.ClientSecret))
 		if err != nil {
 			return nil, &common.OidcClientSecretInvalidError{}
@@ -1428,7 +1570,7 @@ func (s *OidcService) verifyClientCredentialsInternal(ctx context.Context, tx *g
 	case isClientAssertion:
 		err = s.verifyClientAssertionFromFederatedIdentities(ctx, client, input)
 		if err != nil {
-			log.Printf("Invalid assertion for client '%s': %v", client.ID, err)
+			slog.WarnContext(ctx, "Invalid assertion for client", slog.String("client", client.ID), slog.Any("error", err))
 			return nil, &common.OidcClientAssertionInvalidError{}
 		}
 		return client, nil
@@ -1694,4 +1836,20 @@ func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, aut
 	}
 
 	return claims, nil
+}
+
+func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID string, userID string) (bool, error) {
+	var user model.User
+	err := s.db.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", userID).Error
+	if err != nil {
+		return false, err
+	}
+
+	var client model.OidcClient
+	err = s.db.WithContext(ctx).Preload("AllowedUserGroups").First(&client, "id = ?", clientID).Error
+	if err != nil {
+		return false, err
+	}
+
+	return s.IsUserGroupAllowedToAuthorize(user, client), nil
 }

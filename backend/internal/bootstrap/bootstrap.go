@@ -27,7 +27,10 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	// Connect to the database
-	db := NewDatabase()
+	db, err := NewDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
 
 	// Create all services
 	svc, err := initServices(ctx, db, httpClient)

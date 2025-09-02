@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import ScopeList from '$lib/components/scope-list.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -44,7 +45,7 @@
 				const loginOptions = await webauthnService.getLoginOptions();
 				const authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				const user = await webauthnService.finishLogin(authResponse);
-				userStore.setUser(user);
+				await userStore.setUser(user);
 			}
 
 			const info = await oidcService.getDeviceCodeInfo(userCode);
@@ -94,9 +95,11 @@
 			<Card.Root class="mt-6">
 				<Card.Header class="pb-5">
 					<p class="text-muted-foreground text-start">
-						{@html m.client_wants_to_access_the_following_information({
-							client: deviceInfo!.client.name
-						})}
+						<FormattedMessage
+							m={m.client_wants_to_access_the_following_information({
+								client: deviceInfo!.client.name
+							})}
+						/>
 					</p>
 				</Card.Header>
 				<Card.Content data-testid="scopes">

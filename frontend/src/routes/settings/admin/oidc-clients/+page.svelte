@@ -70,7 +70,7 @@
 		{#if expandAddClient}
 			<div transition:slide>
 				<Card.Content>
-					<OIDCClientForm callback={createOIDCClient} />
+					<OIDCClientForm mode="create" callback={createOIDCClient} />
 				</Card.Content>
 			</div>
 		{/if}

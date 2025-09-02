@@ -55,7 +55,9 @@ func NewDatabaseForTest(t *testing.T) *gorm.DB {
 	// Perform migrations with the embedded migrations
 	sqlDB, err := db.DB()
 	require.NoError(t, err, "Failed to get sql.DB")
-	driver, err := sqliteMigrate.WithInstance(sqlDB, &sqliteMigrate.Config{})
+	driver, err := sqliteMigrate.WithInstance(sqlDB, &sqliteMigrate.Config{
+		NoTxWrap: true,
+	})
 	require.NoError(t, err, "Failed to create migration driver")
 	source, err := iofs.New(resources.FS, "migrations/sqlite")
 	require.NoError(t, err, "Failed to create embedded migration source")
@@ -63,6 +65,8 @@ func NewDatabaseForTest(t *testing.T) *gorm.DB {
 	require.NoError(t, err, "Failed to create migration instance")
 	err = m.Up()
 	require.NoError(t, err, "Failed to perform migrations")
+	_, err = sqlDB.Exec("PRAGMA foreign_keys = OFF;")
+	require.NoError(t, err, "Failed to disable foreign keys")
 
 	return db
 }

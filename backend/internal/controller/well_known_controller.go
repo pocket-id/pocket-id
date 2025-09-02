@@ -3,8 +3,9 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 
@@ -23,7 +24,9 @@ func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtServi
 	var err error
 	wkc.oidcConfig, err = wkc.computeOIDCConfiguration()
 	if err != nil {
-		log.Fatalf("Failed to pre-compute OpenID Connect configuration document: %v", err)
+		slog.Error("Failed to pre-compute OpenID Connect configuration document", slog.Any("error", err))
+		os.Exit(1)
+		return
 	}
 
 	group.GET("/.well-known/jwks.json", wkc.jwksHandler)
@@ -64,6 +67,9 @@ func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
 
 func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 	appUrl := common.EnvConfig.AppURL
+
+	internalAppUrl := common.EnvConfig.InternalAppURL
+
 	alg, err := wkc.jwtService.GetKeyAlg()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key algorithm: %w", err)
@@ -71,12 +77,12 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 	config := map[string]any{
 		"issuer":                                         appUrl,
 		"authorization_endpoint":                         appUrl + "/authorize",
-		"token_endpoint":                                 appUrl + "/api/oidc/token",
-		"userinfo_endpoint":                              appUrl + "/api/oidc/userinfo",
+		"token_endpoint":                                 internalAppUrl + "/api/oidc/token",
+		"userinfo_endpoint":                              internalAppUrl + "/api/oidc/userinfo",
 		"end_session_endpoint":                           appUrl + "/api/oidc/end-session",
-		"introspection_endpoint":                         appUrl + "/api/oidc/introspect",
+		"introspection_endpoint":                         internalAppUrl + "/api/oidc/introspect",
 		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
-		"jwks_uri":                                       appUrl + "/.well-known/jwks.json",
+		"jwks_uri":                                       internalAppUrl + "/.well-known/jwks.json",
 		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode},
 		"scopes_supported":                               []string{"openid", "profile", "email", "groups"},
 		"claims_supported":                               []string{"sub", "given_name", "family_name", "name", "email", "email_verified", "preferred_username", "picture", "groups"},
@@ -84,6 +90,7 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		"subject_types_supported":                        []string{"public"},
 		"id_token_signing_alg_values_supported":          []string{alg.String()},
 		"authorization_response_iss_parameter_supported": true,
+		"code_challenge_methods_supported":               []string{"plain", "S256"},
 	}
 	return json.Marshal(config)
 }

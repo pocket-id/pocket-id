@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
-	import { cn } from '$lib/utils/style';
-	import { LucideExternalLink, LucideSettings } from '@lucide/svelte';
+	import Sidebar from '$lib/components/sidebar.svelte';
+	import { LucideSettings } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import type { LayoutData } from './$types';
@@ -20,12 +18,19 @@
 
 	const { versionInformation, user } = data;
 
-	const links = [
+	type NavItem = {
+		href?: string;
+		label: string;
+		children?: NavItem[];
+	};
+
+	const items: NavItem[] = [
 		{ href: '/settings/account', label: m.my_account() },
+		{ href: '/settings/apps', label: m.my_apps() },
 		{ href: '/settings/audit-log', label: m.audit_log() }
 	];
 
-	const adminLinks = [
+	const adminChildren: NavItem[] = [
 		{ href: '/settings/admin/users', label: m.users() },
 		{ href: '/settings/admin/user-groups', label: m.user_groups() },
 		{ href: '/settings/admin/oidc-clients', label: m.oidc_clients() },
@@ -34,7 +39,7 @@
 	];
 
 	if (user?.isAdmin || $userStore?.isAdmin) {
-		links.push(...adminLinks);
+		items.push({ label: m.administration(), children: adminChildren });
 	}
 </script>
 
@@ -54,35 +59,16 @@
 							{m.settings()}
 						</h1>
 					</div>
-					<nav class="text-muted-foreground grid gap-2 text-sm">
-						{#each links as { href, label }, i}
-							<a
-								{href}
-								class={cn(
-									!$appConfigStore.disableAnimations && 'animate-fade-in',
-									page.url.pathname.startsWith(href)
-										? 'text-primary bg-card rounded-md px-3 py-1.5 font-medium shadow-sm transition-all'
-										: 'hover:text-foreground hover:bg-muted/70 rounded-md px-3 py-1.5 transition-all hover:-translate-y-[2px] hover:shadow-sm'
-								)}
-								style={`animation-delay: ${150 + i * 50}ms;`}
-							>
-								{label}
-							</a>
-						{/each}
-						{#if $userStore?.isAdmin && versionInformation.isUpToDate === false}
-							<a
-								href="https://github.com/pocket-id/pocket-id/releases/latest"
-								target="_blank"
-								class="animate-fade-in hover:text-foreground hover:bg-muted/70 mt-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-orange-500 transition-all hover:-translate-y-[2px] hover:shadow-sm"
-								style={`animation-delay: ${150 + links.length * 75}ms;`}
-							>
-								{m.update_pocket_id()}
-								<LucideExternalLink class="my-auto inline-block size-3" />
-							</a>
-						{/if}
-					</nav>
+
+					<Sidebar
+						{items}
+						storageKey="sidebar-open:settings"
+						isAdmin={$userStore?.isAdmin || user?.isAdmin}
+						isUpToDate={versionInformation?.isUpToDate}
+					/>
 				</div>
 			</div>
+
 			<div class="flex w-full flex-col gap-4 overflow-hidden">
 				<FadeWrapper>
 					{@render children()}

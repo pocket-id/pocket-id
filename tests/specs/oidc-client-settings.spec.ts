@@ -1,38 +1,64 @@
-import test, { expect } from '@playwright/test';
+import test, { expect, Page } from '@playwright/test';
 import { oidcClients } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-test.beforeEach(() => cleanupBackend());
+test.beforeEach(async () => await cleanupBackend());
 
-test('Create OIDC client', async ({ page }) => {
-	await page.goto('/settings/admin/oidc-clients');
-	const oidcClient = oidcClients.pingvinShare;
+test.describe('Create OIDC client', () => {
+	async function createClientTest(page: Page, clientId?: string) {
+		const oidcClient = oidcClients.pingvinShare;
+		await page.goto('/settings/admin/oidc-clients');
+		await page.getByRole('button', { name: 'Add OIDC Client' }).click();
 
-	await page.getByRole('button', { name: 'Add OIDC Client' }).click();
-	await page.getByLabel('Name').fill(oidcClient.name);
+		await page.getByLabel('Name').fill(oidcClient.name);
+		await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 
-	await page.getByRole('button', { name: 'Add' }).nth(1).click();
-	await page.getByTestId('callback-url-1').fill(oidcClient.callbackUrl);
-	await page.getByRole('button', { name: 'Add another' }).click();
-	await page.getByTestId('callback-url-2').fill(oidcClient.secondCallbackUrl!);
+		await page.getByRole('button', { name: 'Add' }).first().click();
+		await page.getByTestId('callback-url-1').fill(oidcClient.callbackUrl);
 
-	await page.getByLabel('logo').setInputFiles('assets/pingvin-share-logo.png');
-	await page.getByRole('button', { name: 'Save' }).click();
+		await page.getByRole('button', { name: 'Add another' }).click();
+		await page.getByTestId('callback-url-2').fill(oidcClient.secondCallbackUrl);
 
-	const clientId = await page.getByTestId('client-id').textContent();
+		await page.getByLabel('logo').setInputFiles('assets/pingvin-share-logo.png');
 
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'OIDC client created successfully'
-	);
-	expect(clientId?.length).toBe(36);
-	expect((await page.getByTestId('client-secret').textContent())?.length).toBe(32);
-	await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
-	await expect(page.getByTestId('callback-url-1')).toHaveValue(oidcClient.callbackUrl);
-	await expect(page.getByTestId('callback-url-2')).toHaveValue(oidcClient.secondCallbackUrl!);
-	await expect(page.getByRole('img', { name: `${oidcClient.name} logo` })).toBeVisible();
-	await page.request
-		.get(`/api/oidc/clients/${clientId}/logo`)
-		.then((res) => expect.soft(res.status()).toBe(200));
+		if (clientId) {
+			await page.getByRole('button', { name: 'Show Advanced Options' }).click();
+			await page.getByLabel('Client ID').fill(clientId);
+		}
+
+		await page.getByRole('button', { name: 'Save' }).click();
+
+		await expect(page.locator('[data-type="success"]')).toHaveText(
+			'OIDC client created successfully'
+		);
+
+		const resolvedClientId = (await page.getByTestId('client-id').innerText()).trim();
+		const clientSecret = (await page.getByTestId('client-secret').innerText()).trim();
+
+		if (clientId) {
+			expect(resolvedClientId).toBe(clientId);
+		} else {
+			expect(resolvedClientId).toMatch(/^[\w-]{36}$/);
+		}
+
+		expect(clientSecret).toMatch(/^\w{32}$/);
+
+		await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
+		await expect(page.getByTestId('callback-url-1')).toHaveValue(oidcClient.callbackUrl);
+		await expect(page.getByTestId('callback-url-2')).toHaveValue(oidcClient.secondCallbackUrl);
+		await expect(page.getByRole('img', { name: `${oidcClient.name} logo` })).toBeVisible();
+
+		const res = await page.request.get(`/api/oidc/clients/${resolvedClientId}/logo`);
+		expect(res.ok()).toBeTruthy();
+	}
+
+	test('with auto-generated client ID', async ({ page }) => {
+		await createClientTest(page);
+	});
+
+	test('with custom client ID', async ({ page }) => {
+		await createClientTest(page, '123e4567-e89b-12d3-a456-426614174000');
+	});
 });
 
 test('Edit OIDC client', async ({ page }) => {
@@ -42,6 +68,7 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.getByLabel('Name').fill('Nextcloud updated');
 	await page.getByTestId('callback-url-1').first().fill('http://nextcloud-updated/auth/callback');
 	await page.getByLabel('logo').setInputFiles('assets/nextcloud-logo.png');
+	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(

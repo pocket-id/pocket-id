@@ -1,0 +1,16 @@
+{
+  "name": "pocket-id-repo",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "tests"
+  ],
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev": "pnpm --filter pocket-id-frontend dev",
+    "build": "pnpm --filter pocket-id-frontend build",
+    "test": "pnpm --filter pocket-id-tests test",
+    "format": "pnpm --filter pocket-id-frontend format"
+  },
+  "packageManager": "pnpm@10.15.0+sha512.486ebc259d3e999a4e8691ce03b5cac4a71cbeca39372a9b762cb500cfdf0873e2cb16abe3d951b1ee2cf012503f027b98b6584e4df22524e0c7450d9ec7aa7b"
+}

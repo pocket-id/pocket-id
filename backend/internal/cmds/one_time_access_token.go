@@ -24,11 +24,14 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		userArg := args[0]
 
 		// Connect to the database
-		db := bootstrap.NewDatabase()
+		db, err := bootstrap.NewDatabase()
+		if err != nil {
+			return err
+		}
 
 		// Create the access token
 		var oneTimeAccessToken *model.OneTimeAccessToken
-		err := db.Transaction(func(tx *gorm.DB) error {
+		err = db.Transaction(func(tx *gorm.DB) error {
 			// Load the user to retrieve the user ID
 			var user model.User
 			queryCtx, queryCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
@@ -48,7 +51,7 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 			}
 
 			// Create a new access token that expires in 1 hour
-			oneTimeAccessToken, txErr = service.NewOneTimeAccessToken(user.ID, time.Now().Add(time.Hour))
+			oneTimeAccessToken, txErr = service.NewOneTimeAccessToken(user.ID, time.Hour)
 			if txErr != nil {
 				return fmt.Errorf("failed to generate access token: %w", txErr)
 			}

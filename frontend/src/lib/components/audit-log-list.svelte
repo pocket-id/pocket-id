@@ -3,6 +3,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
+	import {translateAuditLogEvent} from "$lib/utils/audit-log-translator";
 	import AuditLogService from '$lib/services/audit-log-service';
 	import type { AuditLog } from '$lib/types/audit-log.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
@@ -18,14 +19,6 @@
 	} = $props();
 
 	const auditLogService = new AuditLogService();
-
-	function toFriendlyEventString(event: string) {
-		const words = event.split('_');
-		const capitalizedWords = words.map((word) => {
-			return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-		});
-		return capitalizedWords.join(' ');
-	}
 </script>
 
 <AdvancedTable
@@ -58,7 +51,7 @@
 			</Table.Cell>
 		{/if}
 		<Table.Cell>
-			<Badge class="rounded-full" variant="outline">{toFriendlyEventString(item.event)}</Badge>
+			<Badge class="rounded-full" variant="outline">{translateAuditLogEvent(item.event)}</Badge>
 		</Table.Cell>
 		<Table.Cell
 			>{item.city && item.country ? `${item.city}, ${item.country}` : m.unknown()}</Table.Cell

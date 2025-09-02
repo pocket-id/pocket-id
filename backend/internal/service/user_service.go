@@ -3,10 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/url"
 	"os"
@@ -27,15 +27,23 @@ import (
 )
 
 type UserService struct {
-	db               *gorm.DB
-	jwtService       *JwtService
-	auditLogService  *AuditLogService
-	emailService     *EmailService
-	appConfigService *AppConfigService
+	db                 *gorm.DB
+	jwtService         *JwtService
+	auditLogService    *AuditLogService
+	emailService       *EmailService
+	appConfigService   *AppConfigService
+	customClaimService *CustomClaimService
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService) *UserService {
-	return &UserService{db: db, jwtService: jwtService, auditLogService: auditLogService, emailService: emailService, appConfigService: appConfigService}
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService) *UserService {
+	return &UserService{
+		db:                 db,
+		jwtService:         jwtService,
+		auditLogService:    auditLogService,
+		emailService:       emailService,
+		appConfigService:   appConfigService,
+		customClaimService: customClaimService,
+	}
 }
 
 func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
@@ -47,7 +55,8 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPa
 
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
-		query = query.Where("email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
+		query = query.Where(
+			"email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR username LIKE ?",
 			searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
@@ -120,13 +129,14 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	defaultPictureBytes := defaultPicture.Bytes()
 	go func() {
 		// Ensure the directory exists
-		err = os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
-		if err != nil {
-			log.Printf("Failed to create directory for default profile picture: %v", err)
+		errInternal := os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
+		if errInternal != nil {
+			slog.Error("Failed to create directory for default profile picture", slog.Any("error", errInternal))
 			return
 		}
-		if err := utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath); err != nil {
-			log.Printf("Failed to cache default profile picture for initials %s: %v", user.Initials(), err)
+		errInternal = utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath)
+		if errInternal != nil {
+			slog.Error("Failed to cache default profile picture for initials", slog.String("initials", user.Initials()), slog.Any("error", errInternal))
 		}
 	}()
 
@@ -261,7 +271,51 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 	} else if err != nil {
 		return model.User{}, err
 	}
+
+	// Apply default groups and claims for new non-LDAP users
+	if !isLdapSync {
+		if err := s.applySignupDefaults(ctx, &user, tx); err != nil {
+			return model.User{}, err
+		}
+	}
+
 	return user, nil
+}
+
+func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User, tx *gorm.DB) error {
+	config := s.appConfigService.GetDbConfig()
+
+	// Apply default user groups
+	var groupIDs []string
+	if v := config.SignupDefaultUserGroupIDs.Value; v != "" && v != "[]" {
+		if err := json.Unmarshal([]byte(v), &groupIDs); err != nil {
+			return fmt.Errorf("invalid SignupDefaultUserGroupIDs JSON: %w", err)
+		}
+		if len(groupIDs) > 0 {
+			var groups []model.UserGroup
+			if err := tx.WithContext(ctx).Where("id IN ?", groupIDs).Find(&groups).Error; err != nil {
+				return fmt.Errorf("failed to find default user groups: %w", err)
+			}
+			if err := tx.WithContext(ctx).Model(user).Association("UserGroups").Replace(groups); err != nil {
+				return fmt.Errorf("failed to associate default user groups: %w", err)
+			}
+		}
+	}
+
+	// Apply default custom claims
+	var claims []dto.CustomClaimCreateDto
+	if v := config.SignupDefaultCustomClaims.Value; v != "" && v != "[]" {
+		if err := json.Unmarshal([]byte(v), &claims); err != nil {
+			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
+		}
+		if len(claims) > 0 {
+			if _, err := s.customClaimService.updateCustomClaimsInternal(ctx, UserID, user.ID, claims, tx); err != nil {
+				return fmt.Errorf("failed to apply default custom claims: %w", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool) (model.User, error) {
@@ -341,13 +395,13 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	return user, nil
 }
 
-func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, expiration time.Time) error {
+func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, ttl time.Duration) error {
 	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsAdminEnabled.IsTrue()
 	if isDisabled {
 		return &common.OneTimeAccessDisabledError{}
 	}
 
-	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", expiration)
+	return s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl)
 }
 
 func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) error {
@@ -367,11 +421,10 @@ func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context
 		}
 	}
 
-	expiration := time.Now().Add(15 * time.Minute)
-	return s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, expiration)
+	return s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute)
 }
 
-func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, expiration time.Time) error {
+func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -382,7 +435,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 		return err
 	}
 
-	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, expiration, tx)
+	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, ttl, tx)
 	if err != nil {
 		return err
 	}
@@ -414,7 +467,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 			Code:              oneTimeAccessToken,
 			LoginLink:         link,
 			LoginLinkWithCode: linkWithCode,
-			ExpirationString:  utils.DurationToString(time.Until(expiration).Round(time.Second)),
+			ExpirationString:  utils.DurationToString(ttl),
 		})
 		if errInternal != nil {
 			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", errInternal), slog.String("address", user.Email))
@@ -425,17 +478,18 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 	return nil
 }
 
-func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID string, expiresAt time.Time) (string, error) {
-	return s.createOneTimeAccessTokenInternal(ctx, userID, expiresAt, s.db)
+func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID string, ttl time.Duration) (string, error) {
+	return s.createOneTimeAccessTokenInternal(ctx, userID, ttl, s.db)
 }
 
-func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, expiresAt time.Time, tx *gorm.DB) (string, error) {
-	oneTimeAccessToken, err := NewOneTimeAccessToken(userID, expiresAt)
+func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, ttl time.Duration, tx *gorm.DB) (string, error) {
+	oneTimeAccessToken, err := NewOneTimeAccessToken(userID, ttl)
 	if err != nil {
 		return "", err
 	}
 
-	if err := tx.WithContext(ctx).Create(oneTimeAccessToken).Error; err != nil {
+	err = tx.WithContext(ctx).Create(oneTimeAccessToken).Error
+	if err != nil {
 		return "", err
 	}
 
@@ -497,7 +551,7 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 	// Fetch the groups based on userGroupIds
 	var groups []model.UserGroup
 	if len(userGroupIds) > 0 {
-		err = tx.
+		err := tx.
 			WithContext(ctx).
 			Where("id IN (?)", userGroupIds).
 			Find(&groups).
@@ -635,17 +689,14 @@ func (s *UserService) disableUserInternal(ctx context.Context, userID string, tx
 		Error
 }
 
-func (s *UserService) CreateSignupToken(ctx context.Context, expiresAt time.Time, usageLimit int) (model.SignupToken, error) {
-	return s.createSignupTokenInternal(ctx, expiresAt, usageLimit, s.db)
-}
-
-func (s *UserService) createSignupTokenInternal(ctx context.Context, expiresAt time.Time, usageLimit int, tx *gorm.DB) (model.SignupToken, error) {
-	signupToken, err := NewSignupToken(expiresAt, usageLimit)
+func (s *UserService) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int) (model.SignupToken, error) {
+	signupToken, err := NewSignupToken(ttl, usageLimit)
 	if err != nil {
 		return model.SignupToken{}, err
 	}
 
-	if err := tx.WithContext(ctx).Create(signupToken).Error; err != nil {
+	err = s.db.WithContext(ctx).Create(signupToken).Error
+	if err != nil {
 		return model.SignupToken{}, err
 	}
 
@@ -739,10 +790,10 @@ func (s *UserService) DeleteSignupToken(ctx context.Context, tokenID string) err
 	return s.db.WithContext(ctx).Delete(&model.SignupToken{}, "id = ?", tokenID).Error
 }
 
-func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAccessToken, error) {
+func NewOneTimeAccessToken(userID string, ttl time.Duration) (*model.OneTimeAccessToken, error) {
 	// If expires at is less than 15 minutes, use a 6-character token instead of 16
 	tokenLength := 16
-	if time.Until(expiresAt) <= 15*time.Minute {
+	if ttl <= 15*time.Minute {
 		tokenLength = 6
 	}
 
@@ -751,25 +802,27 @@ func NewOneTimeAccessToken(userID string, expiresAt time.Time) (*model.OneTimeAc
 		return nil, err
 	}
 
+	now := time.Now().Round(time.Second)
 	o := &model.OneTimeAccessToken{
 		UserID:    userID,
-		ExpiresAt: datatype.DateTime(expiresAt),
+		ExpiresAt: datatype.DateTime(now.Add(ttl)),
 		Token:     randomString,
 	}
 
 	return o, nil
 }
 
-func NewSignupToken(expiresAt time.Time, usageLimit int) (*model.SignupToken, error) {
+func NewSignupToken(ttl time.Duration, usageLimit int) (*model.SignupToken, error) {
 	// Generate a random token
 	randomString, err := utils.GenerateRandomAlphanumericString(16)
 	if err != nil {
 		return nil, err
 	}
 
+	now := time.Now().Round(time.Second)
 	token := &model.SignupToken{
 		Token:      randomString,
-		ExpiresAt:  datatype.DateTime(expiresAt),
+		ExpiresAt:  datatype.DateTime(now.Add(ttl)),
 		UsageLimit: usageLimit,
 		UsageCount: 0,
 	}

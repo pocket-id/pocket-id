@@ -6,14 +6,14 @@ import (
 
 type ApiKeyCreateDto struct {
 	Name        string            `json:"name" binding:"required,min=3,max=50" unorm:"nfc"`
-	Description string            `json:"description" unorm:"nfc"`
+	Description *string           `json:"description" unorm:"nfc"`
 	ExpiresAt   datatype.DateTime `json:"expiresAt" binding:"required"`
 }
 
 type ApiKeyDto struct {
 	ID                  string             `json:"id"`
 	Name                string             `json:"name"`
-	Description         string             `json:"description"`
+	Description         *string            `json:"description"`
 	ExpiresAt           datatype.DateTime  `json:"expiresAt"`
 	LastUsedAt          *datatype.DateTime `json:"lastUsedAt"`
 	CreatedAt           datatype.DateTime  `json:"createdAt"`

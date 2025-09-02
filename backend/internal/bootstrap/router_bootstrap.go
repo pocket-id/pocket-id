@@ -141,7 +141,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 		addr = common.EnvConfig.UnixSocket
 	}
 
-	listener, err := net.Listen(network, addr)
+	listener, err := net.Listen(network, addr) //nolint:noctx
 	if err != nil {
 		return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
 	}

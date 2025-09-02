@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 CREATE TABLE oidc_refresh_tokens (
     id TEXT NOT NULL PRIMARY KEY,
     created_at DATETIME,
@@ -9,3 +11,5 @@ CREATE TABLE oidc_refresh_tokens (
 );
 
 CREATE INDEX idx_oidc_refresh_tokens_token ON oidc_refresh_tokens(token);
+COMMIT;
+PRAGMA foreign_keys=ON;

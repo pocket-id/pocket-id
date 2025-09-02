@@ -38,7 +38,7 @@ build_platform() {
 
     # Build the binary
     eval "${env_vars} go build \
-        -ldflags='-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${pocket_id_version} -buildid ${pocket_id_version}' \
+        -ldflags='-X github.com/pocket-id/pocket-id/backend/internal/common.Version=${pocket_id_version} -buildid ${pocket_id_version} -s' \
         -o \"${output_dir}\" \
         -trimpath \
         ./cmd"

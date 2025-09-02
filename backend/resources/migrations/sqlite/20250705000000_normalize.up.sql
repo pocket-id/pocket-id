@@ -1,3 +1,5 @@
+PRAGMA foreign_keys=OFF;
+BEGIN;
 -- Normalize (form NFC) all existing values in the database
 UPDATE api_keys SET
     name = normalize(name, 'nfc'),
@@ -23,3 +25,6 @@ UPDATE users SET
 UPDATE user_groups SET
     friendly_name = normalize(friendly_name, 'nfc'),
     "name" = normalize("name", 'nfc');
+
+COMMIT;
+PRAGMA foreign_keys=ON;

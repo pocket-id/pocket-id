@@ -6,8 +6,6 @@
 	import Header from '$lib/components/header/header.svelte';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
-	import userStore from '$lib/stores/user-store';
 	import { getAuthRedirectPath } from '$lib/utils/redirection-util';
 	import { ModeWatcher } from 'mode-watcher';
 	import type { Snippet } from 'svelte';
@@ -27,14 +25,6 @@
 	const redirectPath = getAuthRedirectPath(page.url.pathname, user);
 	if (redirectPath) {
 		goto(redirectPath);
-	}
-
-	if (user) {
-		userStore.setUser(user);
-	}
-
-	if (appConfig) {
-		appConfigStore.set(appConfig);
 	}
 </script>
 
@@ -57,4 +47,4 @@
 	}}
 />
 <ConfirmDialog />
-<ModeWatcher />
+<ModeWatcher disableTransitions={false} />

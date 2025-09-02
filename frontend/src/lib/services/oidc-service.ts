@@ -1,8 +1,10 @@
 import type {
+	AccessibleOidcClient,
 	AuthorizeResponse,
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
+	OidcClientUpdate,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
 	OidcDeviceCodeInfo
@@ -18,7 +20,8 @@ class OidcService extends APIService {
 		callbackURL: string,
 		nonce?: string,
 		codeChallenge?: string,
-		codeChallengeMethod?: string
+		codeChallengeMethod?: string,
+		reauthenticationToken?: string
 	) {
 		const res = await this.api.post('/oidc/authorize', {
 			scope,
@@ -26,7 +29,8 @@ class OidcService extends APIService {
 			callbackURL,
 			clientId,
 			codeChallenge,
-			codeChallengeMethod
+			codeChallengeMethod,
+			reauthenticationToken
 		});
 
 		return res.data as AuthorizeResponse;
@@ -64,7 +68,7 @@ class OidcService extends APIService {
 		return (await this.api.get(`/oidc/clients/${id}/meta`)).data as OidcClientMetaData;
 	}
 
-	async updateClient(id: string, client: OidcClientCreate) {
+	async updateClient(id: string, client: OidcClientUpdate) {
 		return (await this.api.put(`/oidc/clients/${id}`, client)).data as OidcClient;
 	}
 
@@ -112,6 +116,18 @@ class OidcService extends APIService {
 			params: { scopes }
 		});
 		return response.data;
+	}
+
+	async listOwnAccessibleClients(options?: SearchPaginationSortRequest) {
+		const res = await this.api.get('/oidc/users/me/clients', {
+			params: options
+		});
+
+		return res.data as Paginated<AccessibleOidcClient>;
+	}
+
+	async revokeOwnAuthorizedClient(clientId: string) {
+		await this.api.delete(`/oidc/users/me/authorized-clients/${clientId}`);
 	}
 }
 
