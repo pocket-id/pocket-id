@@ -86,8 +86,8 @@
 			/>
 			<SwitchWithLabel
 				id="allow-uppercase-usernames"
-				label="Allow uppercase usernames"
-				description="When enabled, usernames may include uppercase letters. When disabled, usernames are normalized to lowercase."
+				label={m.allow_uppercase_usernames()}
+				description={m.allow_uppercase_usernames_description()}
 				bind:checked={$inputs.allowUppercaseUsernames.value}
 			/>
 	

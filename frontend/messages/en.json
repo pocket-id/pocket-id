@@ -329,6 +329,8 @@
 	"client_authorization": "Client Authorization",
 	"new_client_authorization": "New Client Authorization",
 	"disable_animations": "Disable Animations",
+		"allow_uppercase_usernames": "Allow Uppercase Usernames",
+		"allow_uppercase_usernames_description": "When enabled, usernames may include uppercase letters. When disabled, usernames are normalized to lowercase.",
 	"turn_off_ui_animations": "Turn off animations throughout the UI.",
 	"user_disabled": "Account Disabled",
 	"disabled_users_cannot_log_in_or_use_services": "Disabled users cannot log in or use services.",
