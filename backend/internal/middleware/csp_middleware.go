@@ -50,5 +50,5 @@ func generateNonce() string {
 	if _, err := rand.Read(b); err != nil {
 		return "" // if generation fails, return empty; policy will omit nonce
 	}
-	return base64.StdEncoding.EncodeToString(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }
