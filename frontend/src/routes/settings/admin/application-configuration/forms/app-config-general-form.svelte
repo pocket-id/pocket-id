@@ -29,6 +29,7 @@
 		emailsVerified: appConfig.emailsVerified,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
 		disableAnimations: appConfig.disableAnimations,
+		allowUppercaseUsernames: appConfig.allowUppercaseUsernames,
 		accentColor: appConfig.accentColor
 	};
 
@@ -38,6 +39,7 @@
 		emailsVerified: z.boolean(),
 		allowOwnAccountEdit: z.boolean(),
 		disableAnimations: z.boolean(),
+		allowUppercaseUsernames: z.boolean(),
 		accentColor: z.string()
 	});
 
@@ -82,7 +84,13 @@
 				description={m.turn_off_ui_animations()}
 				bind:checked={$inputs.disableAnimations.value}
 			/>
-
+			<SwitchWithLabel
+				id="allow-uppercase-usernames"
+				label={m.allow_uppercase_usernames()}
+				description={m.allow_uppercase_usernames_description()}
+				bind:checked={$inputs.allowUppercaseUsernames.value}
+			/>
+	
 			<div class="space-y-5">
 				<div>
 					<Label class="mb-0 text-sm font-medium">

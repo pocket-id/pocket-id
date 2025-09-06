@@ -29,21 +29,22 @@
 		disabled: existingUser?.disabled || false
 	};
 
-	const formSchema = z.object({
-		firstName: z.string().min(1).max(50),
-		lastName: z.string().max(50),
-		username: z
-			.string()
-			.min(2)
-			.max(30)
-			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
-		email: z.email(),
-		isAdmin: z.boolean(),
-		disabled: z.boolean()
-	});
+	const usernameRegex = $derived(
+		$appConfigStore.allowUppercaseUsernames ? /^[a-zA-Z0-9_@.-]+$/ : /^[a-z0-9_@.-]+$/
+	);
+	const formSchema = $derived(
+		z.object({
+			firstName: z.string().min(1).max(50),
+			lastName: z.string().max(50),
+			username: z.string().min(2).max(30).regex(usernameRegex, m.username_can_only_contain()),
+			email: z.email(),
+			isAdmin: z.boolean(),
+			disabled: z.boolean()
+		})
+	);
 	type FormSchema = typeof formSchema;
-
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, user);
+	
+	const { inputs, ...form } = $derived(createForm<FormSchema>(formSchema, user));
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;

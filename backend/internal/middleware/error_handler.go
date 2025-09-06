@@ -77,7 +77,7 @@ func handleValidationError(validationErrors validator.ValidationErrors) string {
 		case "email":
 			errorMessage = fmt.Sprintf("%s must be a valid email address", fieldName)
 		case "username":
-			errorMessage = fmt.Sprintf("%s must only contain lowercase letters, numbers, underscores, dots, hyphens, and '@' symbols and not start or end with a special character", fieldName)
+			errorMessage = fmt.Sprintf("%s must only contain letters, numbers, underscores, dots, hyphens, and '@' symbols and not start or end with a special character", fieldName)
 		case "url":
 			errorMessage = fmt.Sprintf("%s must be a valid URL", fieldName)
 		case "min":

@@ -211,3 +211,57 @@ test.describe('User Signup', () => {
 		});
 	});
 });
+
+// Tests for "Allow Uppercase Usernames" toggle impact on user signup flows
+test.describe('Uppercase username policy on signup', () => {
+	test('Open signup - uppercase username rejected when disabled', async ({ page }) => {
+		// Ensure the setting is disabled in General config
+		await page.goto('/settings/admin/application-configuration');
+		const toggle = page.getByLabel('Allow Uppercase Usernames');
+		if (await toggle.isChecked()) {
+			await toggle.click();
+		}
+		await page.getByRole('button', { name: 'Save' }).first().click();
+		await expect(page.locator('[data-type="success"]')).toHaveText('Application configuration updated successfully');
+
+		// Ensure signup is open
+		await setSignupMode(page, 'Open Signup');
+
+		// Attempt signup with uppercase username and expect client-side validation error
+		await page.goto('/signup');
+		await page.getByLabel('First name').fill('Upper');
+		await page.getByLabel('Last name').fill('Case');
+		await page.getByLabel('Email').fill('upper.case@test.com');
+		await page.getByLabel('Username').fill('UpperUser');
+		await page.getByRole('button', { name: 'Sign Up' }).click();
+
+		await expect(
+			page.getByText("Username can only contain letters, numbers, underscores, dots, hyphens, and '@' symbols")
+		).toBeVisible();
+	});
+
+	test('Open signup - uppercase username accepted when enabled', async ({ page }) => {
+		// Enable the setting in General config
+		await page.goto('/settings/admin/application-configuration');
+		const toggle = page.getByLabel('Allow Uppercase Usernames');
+		if (!(await toggle.isChecked())) {
+			await toggle.click();
+		}
+		await page.getByRole('button', { name: 'Save' }).first().click();
+		await expect(page.locator('[data-type="success"]')).toHaveText('Application configuration updated successfully');
+
+		// Ensure signup is open
+		await setSignupMode(page, 'Open Signup');
+
+		// Signup with uppercase username should succeed
+		await page.goto('/signup');
+		await page.getByLabel('First name').fill('Upper');
+		await page.getByLabel('Last name').fill('Allowed');
+		await page.getByLabel('Email').fill('upper.allowed@test.com');
+		await page.getByLabel('Username').fill('UpperUser');
+		await page.getByRole('button', { name: 'Sign Up' }).click();
+
+		await page.waitForURL('/signup/add-passkey');
+		await expect(page.getByText('Set up your passkey')).toBeVisible();
+	});
+});

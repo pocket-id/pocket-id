@@ -41,6 +41,7 @@ type AppConfig struct {
 	DisableAnimations         AppConfigVariable `key:"disableAnimations,public"`   // Public
 	AllowOwnAccountEdit       AppConfigVariable `key:"allowOwnAccountEdit,public"` // Public
 	AllowUserSignups          AppConfigVariable `key:"allowUserSignups,public"`    // Public
+	AllowUppercaseUsernames   AppConfigVariable `key:"allowUppercaseUsernames,public"` // Public
 	SignupDefaultUserGroupIDs AppConfigVariable `key:"signupDefaultUserGroupIDs"`
 	SignupDefaultCustomClaims AppConfigVariable `key:"signupDefaultCustomClaims"`
 	// Internal

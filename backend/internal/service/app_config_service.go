@@ -66,6 +66,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		DisableAnimations:         model.AppConfigVariable{Value: "false"},
 		AllowOwnAccountEdit:       model.AppConfigVariable{Value: "true"},
 		AllowUserSignups:          model.AppConfigVariable{Value: "disabled"},
+		AllowUppercaseUsernames:   model.AppConfigVariable{Value: "false"},
 		SignupDefaultUserGroupIDs: model.AppConfigVariable{Value: "[]"},
 		SignupDefaultCustomClaims: model.AppConfigVariable{Value: "[]"},
 		AccentColor:               model.AppConfigVariable{Value: "default"},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -32,15 +33,35 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		// Create the access token
 		var oneTimeAccessToken *model.OneTimeAccessToken
 		err = db.Transaction(func(tx *gorm.DB) error {
+			// Initialize app config to determine case sensitivity for usernames
+			appConfigService, svcErr := service.NewAppConfigService(cmd.Context(), tx)
+			if svcErr != nil {
+				return fmt.Errorf("failed to initialize app config service: %w", svcErr)
+			}
+			allowUpper := appConfigService.GetDbConfig().AllowUppercaseUsernames.IsTrue()
+
 			// Load the user to retrieve the user ID
 			var user model.User
 			queryCtx, queryCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 			defer queryCancel()
+
+			// First, try exact match with provided argument
 			txErr := tx.
 				WithContext(queryCtx).
 				Where("username = ? OR email = ?", userArg, userArg).
 				First(&user).
 				Error
+
+			// If not found and uppercase usernames are not allowed, try lowercasing the username
+			if errors.Is(txErr, gorm.ErrRecordNotFound) && !allowUpper {
+				lc := strings.ToLower(userArg)
+				txErr = tx.
+					WithContext(queryCtx).
+					Where("username = ? OR email = ?", lc, userArg).
+					First(&user).
+					Error
+			}
+
 			switch {
 			case errors.Is(txErr, gorm.ErrRecordNotFound):
 				return errors.New("user not found")

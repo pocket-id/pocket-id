@@ -178,11 +178,17 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 					continue
 				}
 			}
-
+	
+			// Match username respecting admin setting (lowercase by default)
+			lookupUsername := norm.NFC.String(username)
+			if !s.appConfigService.GetDbConfig().AllowUppercaseUsernames.IsTrue() {
+				lookupUsername = strings.ToLower(lookupUsername)
+			}
+	
 			var databaseUser model.User
 			err = tx.
 				WithContext(ctx).
-				Where("username = ? AND ldap_id IS NOT NULL", norm.NFC.String(username)).
+				Where("username = ? AND ldap_id IS NOT NULL", lookupUsername).
 				First(&databaseUser).
 				Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
