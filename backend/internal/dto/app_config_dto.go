@@ -41,6 +41,7 @@ type AppConfigUpdateDto struct {
 	LdapAttributeUserEmail                     string `json:"ldapAttributeUserEmail"`
 	LdapAttributeUserFirstName                 string `json:"ldapAttributeUserFirstName"`
 	LdapAttributeUserLastName                  string `json:"ldapAttributeUserLastName"`
+	LdapAttributeUserDisplayName               string `json:"ldapAttributeUserDisplayName"`
 	LdapAttributeUserProfilePicture            string `json:"ldapAttributeUserProfilePicture"`
 	LdapAttributeGroupMember                   string `json:"ldapAttributeGroupMember"`
 	LdapAttributeGroupUniqueIdentifier         string `json:"ldapAttributeGroupUniqueIdentifier"`
