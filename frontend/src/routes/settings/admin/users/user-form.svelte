@@ -7,6 +7,7 @@
 	import type { User, UserCreate } from '$lib/types/user.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { emptyToUndefined } from '$lib/utils/zod-util';
 	import { z } from 'zod/v4';
 
 	let {
@@ -33,7 +34,7 @@
 
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
-		lastName: z.string().max(50).optional(),
+		lastName: emptyToUndefined(z.string().max(50).optional()),
 		displayName: z.string().max(100),
 		username: z
 			.string()
