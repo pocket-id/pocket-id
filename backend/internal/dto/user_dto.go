@@ -9,7 +9,7 @@ type UserDto struct {
 	Username     string           `json:"username"`
 	Email        string           `json:"email" `
 	FirstName    string           `json:"firstName"`
-	LastName     string           `json:"lastName"`
+	LastName     *string          `json:"lastName"`
 	DisplayName  string           `json:"displayName"`
 	IsAdmin      bool             `json:"isAdmin"`
 	Locale       *string          `json:"locale"`
@@ -23,7 +23,7 @@ type UserCreateDto struct {
 	Username    string  `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
 	Email       string  `json:"email" binding:"required,email" unorm:"nfc"`
 	FirstName   string  `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
-	LastName    string  `json:"lastName" binding:"max=50" unorm:"nfc"`
+	LastName    *string `json:"lastName" binding:"max=50" unorm:"nfc"`
 	DisplayName string  `json:"displayName" binding:"max=100" unorm:"nfc"`
 	IsAdmin     bool    `json:"isAdmin"`
 	Locale      *string `json:"locale"`
@@ -50,9 +50,9 @@ type UserUpdateUserGroupDto struct {
 }
 
 type SignUpDto struct {
-	Username  string `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
-	Email     string `json:"email" binding:"required,email" unorm:"nfc"`
-	FirstName string `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
-	LastName  string `json:"lastName" binding:"max=50" unorm:"nfc"`
-	Token     string `json:"token"`
+	Username  string  `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
+	Email     string  `json:"email" binding:"required,email" unorm:"nfc"`
+	FirstName string  `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
+	LastName  *string `json:"lastName" binding:"max=50" unorm:"nfc"`
+	Token     string  `json:"token"`
 }

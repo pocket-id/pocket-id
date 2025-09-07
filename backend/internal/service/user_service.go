@@ -737,11 +737,17 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 		}
 	}
 
+	displayName := signupData.FirstName
+	if signupData.LastName != nil {
+		displayName = displayName + " " + *signupData.LastName
+	}
+
 	userToCreate := dto.UserCreateDto{
-		Username:  signupData.Username,
-		Email:     signupData.Email,
-		FirstName: signupData.FirstName,
-		LastName:  signupData.LastName,
+		Username:    signupData.Username,
+		Email:       signupData.Email,
+		FirstName:   signupData.FirstName,
+		LastName:    signupData.LastName,
+		DisplayName: displayName,
 	}
 
 	user, err := s.createUserInternal(ctx, userToCreate, false, tx)

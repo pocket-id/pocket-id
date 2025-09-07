@@ -26,13 +26,14 @@
 	} = $props();
 
 	let isLoading = $state(false);
+	let hasManualDisplayNameEdit = $state(!!account.displayName);
 
 	const userService = new UserService();
 
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
 		lastName: z.string().max(50).optional(),
-		displayName: z.string().max(100).optional(),
+		displayName: z.string().max(100),
 		username: z
 			.string()
 			.min(2)
@@ -44,6 +45,14 @@
 	type FormSchema = typeof formSchema;
 
 	const { inputs, ...form } = createForm<FormSchema>(formSchema, account);
+
+	function onNameInput() {
+		if (!hasManualDisplayNameEdit) {
+			$inputs.displayName.value = `${$inputs.firstName.value}${
+				$inputs.lastName?.value ? ' ' + $inputs.lastName.value : ''
+			}`;
+		}
+	}
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -80,20 +89,24 @@
 
 	<fieldset disabled={userInfoInputDisabled}>
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-			<div class="sm:col-span-2">
-				<FormInput label={m.display_name()} bind:input={$inputs.displayName} />
+			<div>
+				<FormInput label={m.first_name()} bind:input={$inputs.firstName} onInput={onNameInput} />
 			</div>
 			<div>
-				<FormInput label={m.first_name()} bind:input={$inputs.firstName} />
+				<FormInput label={m.last_name()} bind:input={$inputs.lastName} onInput={onNameInput} />
 			</div>
 			<div>
-				<FormInput label={m.last_name()} bind:input={$inputs.lastName} />
-			</div>
-			<div>
-				<FormInput label={m.email()} bind:input={$inputs.email} />
+				<FormInput
+					label={m.display_name()}
+					bind:input={$inputs.displayName}
+					onInput={() => (hasManualDisplayNameEdit = true)}
+				/>
 			</div>
 			<div>
 				<FormInput label={m.username()} bind:input={$inputs.username} />
+			</div>
+			<div>
+				<FormInput label={m.email()} bind:input={$inputs.email} />
 			</div>
 		</div>
 
