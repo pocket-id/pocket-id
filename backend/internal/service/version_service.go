@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const versionCacheTTL = 15 * time.Minute
+const (
+	versionCacheTTL = 15 * time.Minute
+	versionCheckURL = "https://api.github.com/repos/pocket-id/pocket-id/releases/latest"
+)
 
 type cacheEntry struct {
 	version     string
