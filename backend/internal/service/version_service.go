@@ -42,16 +42,14 @@ func (s *VersionService) GetLatestVersion(ctx context.Context) (string, error) {
 	}
 
 	// Fetch from GitHub
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		"https://api.github.com/repos/pocket-id/pocket-id/releases/latest", nil)
+	reqCtx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, versionCheckURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("create GitHub request: %w", err)
 	}
 
-	httpClient := *s.httpClient
-	httpClient.Timeout = 2 * time.Second
-
-	resp, err := httpClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("get latest tag: %w", err)
 	}
