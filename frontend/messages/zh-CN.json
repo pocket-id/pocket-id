@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"my_account": "账户",
+	"my_account": "我的账户",
 	"logout": "登出",
 	"confirm": "确认",
 	"docs": "文档",
@@ -10,14 +10,14 @@
 	"add_custom_claim": "添加自定义声明",
 	"add_another": "再添加一个",
 	"select_a_date": "选择日期",
-	"select_file": "选择上传文件",
+	"select_file": "选择文件",
 	"profile_picture": "头像",
 	"profile_picture_is_managed_by_ldap_server": "头像由 LDAP 服务器管理，无法在此处更改。",
-	"click_profile_picture_to_upload_custom": "点击头像，从文件中上传自定义头像。",
+	"click_profile_picture_to_upload_custom": "点击头像来从文件中上传您的自定义头像。",
 	"image_should_be_in_format": "图片应为 PNG 或 JPEG 格式。",
 	"items_per_page": "每页条数",
-	"no_items_found": "🌱 这里暂时空空如也",
-	"select_items": "选择项目...",
+	"no_items_found": "这里暂时空空如也",
+	"select_items": "选择项目……",
 	"search": "搜索……",
 	"expand_card": "展开卡片",
 	"copied": "已复制",
@@ -443,5 +443,7 @@
 	"custom_client_id_description": "此处可根据应用需要设置自定义客户端 ID。留空随机生成。",
 	"generated": "已生成",
 	"administration": "管理员选项",
-	"group_rdn_attribute_description": "在组的区分名称（DN）中使用的属性。推荐值：`cn`"
+	"group_rdn_attribute_description": "在组的区分名称（DN）中使用的属性。推荐值：`cn`",
+	"ui_config_disabled_info_title": "UI Configuration Disabled",
+	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
 }

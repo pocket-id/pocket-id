@@ -443,5 +443,7 @@
 	"custom_client_id_description": "Set a custom client ID if this is required by your application. Otherwise, leave it blank to generate a random one.",
 	"generated": "Generated",
 	"administration": "Administration",
-	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN). Recommended value: `cn`"
+	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN). Recommended value: `cn`",
+	"ui_config_disabled_info_title": "UI Configuration Disabled",
+	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
 }

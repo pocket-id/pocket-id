@@ -86,6 +86,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// Setup global middleware
 	r.Use(middleware.NewCorsMiddleware().Add())
+	r.Use(middleware.NewCspMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 
 	err := frontend.RegisterFrontend(r)
@@ -109,6 +110,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
 	controller.NewUserGroupController(apiGroup, authMiddleware, svc.userGroupService)
 	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
+	controller.NewVersionController(apiGroup, svc.versionService)
 
 	// Add test controller in non-production environments
 	if common.EnvConfig.AppEnv != "production" {
