@@ -167,6 +167,7 @@ test('Successfully refresh tokens with valid refresh token', async ({ request })
 	const tokenData = await refreshResponse.json();
 	expect(tokenData.access_token).toBeDefined();
 	expect(tokenData.refresh_token).toBeDefined();
+	expect(tokenData.id_token).toBeDefined();
 	expect(tokenData.token_type).toBe('Bearer');
 	expect(tokenData.expires_in).toBe(3600);
 
