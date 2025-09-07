@@ -78,21 +78,23 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Base: model.Base{
 					ID: "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				},
-				Username:  "tim",
-				Email:     "tim.cook@test.com",
-				FirstName: "Tim",
-				LastName:  utils.Ptr("Cook"),
-				IsAdmin:   true,
+				Username:    "tim",
+				Email:       "tim.cook@test.com",
+				FirstName:   "Tim",
+				LastName:    utils.Ptr("Cook"),
+				DisplayName: "Tim Cook",
+				IsAdmin:     true,
 			},
 			{
 				Base: model.Base{
 					ID: "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
 				},
-				Username:  "craig",
-				Email:     "craig.federighi@test.com",
-				FirstName: "Craig",
-				LastName:  utils.Ptr("Federighi"),
-				IsAdmin:   false,
+				Username:    "craig",
+				Email:       "craig.federighi@test.com",
+				FirstName:   "Craig",
+				LastName:    utils.Ptr("Federighi"),
+				DisplayName: "Craig Federighi",
+				IsAdmin:     false,
 			},
 		}
 		for _, user := range users {
