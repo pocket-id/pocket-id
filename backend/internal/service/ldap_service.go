@@ -204,6 +204,12 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		}
 		dto.Normalize(syncGroup)
 
+		err = syncGroup.Validate()
+		if err != nil {
+			slog.WarnContext(ctx, "LDAP user group object is not valid", slog.Any("error", err))
+			continue
+		}
+
 		if databaseGroup.ID == "" {
 			newGroup, err := s.groupService.createInternal(ctx, syncGroup, tx)
 			if err != nil {
