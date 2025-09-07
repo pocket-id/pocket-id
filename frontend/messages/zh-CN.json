@@ -443,5 +443,7 @@
 	"custom_client_id_description": "此处可根据应用需要设置自定义客户端 ID。留空随机生成。",
 	"generated": "已生成",
 	"administration": "管理员选项",
-	"group_rdn_attribute_description": "在组的区分名称（DN）中使用的属性。推荐值：`cn`"
+	"group_rdn_attribute_description": "在组的区分名称（DN）中使用的属性。推荐值：`cn`",
+	"ui_config_disabled_info_title": "UI Configuration Disabled",
+	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
 }
