@@ -81,7 +81,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Username:  "tim",
 				Email:     "tim.cook@test.com",
 				FirstName: "Tim",
-				LastName:  "Cook",
+				LastName:  utils.Ptr("Cook"),
 				IsAdmin:   true,
 			},
 			{
@@ -91,7 +91,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Username:  "craig",
 				Email:     "craig.federighi@test.com",
 				FirstName: "Craig",
-				LastName:  "Federighi",
+				LastName:  utils.Ptr("Federighi"),
 				IsAdmin:   false,
 			},
 		}
