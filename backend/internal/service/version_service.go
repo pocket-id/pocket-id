@@ -3,79 +3,72 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
-	"sync/atomic"
 	"time"
+
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 const (
-	versionCacheTTL = 15 * time.Minute
+	versionTTL      = 15 * time.Minute
 	versionCheckURL = "https://api.github.com/repos/pocket-id/pocket-id/releases/latest"
 )
 
-type cacheEntry struct {
-	version     string
-	lastFetched time.Time
-}
-
 type VersionService struct {
 	httpClient *http.Client
-	cache      atomic.Pointer[cacheEntry]
+	cache      *utils.Cache[string]
 }
 
 func NewVersionService(httpClient *http.Client) *VersionService {
-	s := &VersionService{httpClient: httpClient}
-	s.cache.Store(nil)
-	return s
+	return &VersionService{
+		httpClient: httpClient,
+		cache:      utils.New[string](versionTTL),
+	}
 }
 
-// GetLatestVersion returns the latest available version from GitHub.
-// It caches the result for a short duration to avoid excessive API calls.
 func (s *VersionService) GetLatestVersion(ctx context.Context) (string, error) {
-	// Serve from cache if fresh
-	if entry := s.cache.Load(); entry != nil {
-		if time.Since(entry.lastFetched) < versionCacheTTL {
-			return entry.version, nil
+	version, err := s.cache.GetOrFetch(ctx, func(ctx context.Context) (string, error) {
+		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, versionCheckURL, nil)
+		if err != nil {
+			return "", fmt.Errorf("create GitHub request: %w", err)
 		}
-	}
 
-	// Fetch from GitHub
-	reqCtx, cancel := context.WithTimeout(ctx, 5 * time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, versionCheckURL, nil)
-	if err != nil {
-		return "", fmt.Errorf("create GitHub request: %w", err)
-	}
+		resp, err := s.httpClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("get latest tag: %w", err)
+		}
+		defer resp.Body.Close()
 
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("get latest tag: %w", err)
-	}
-	defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+		}
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
-	}
+		var payload struct {
+			TagName string `json:"tag_name"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return "", fmt.Errorf("decode payload: %w", err)
+		}
 
-	var payload struct {
-		TagName string `json:"tag_name"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return "", err
-	}
+		if payload.TagName == "" {
+			return "", fmt.Errorf("GitHub API returned empty tag name")
+		}
 
-	if payload.TagName == "" {
-		return "", fmt.Errorf("GitHub API returned empty tag name")
-	}
-
-	version := strings.TrimPrefix(payload.TagName, "v")
-
-	s.cache.Store(&cacheEntry{
-		version:     version,
-		lastFetched: time.Now(),
+		return strings.TrimPrefix(payload.TagName, "v"), nil
 	})
 
-	return version, nil
+	var staleErr *utils.ErrStale
+	if errors.As(err, &staleErr) {
+		slog.Warn("Failed to fetch latest version, returning stale cache", "error", staleErr.Err)
+		return version, nil
+	}
+
+	return version, err
 }
