@@ -100,7 +100,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		LdapAttributeUserEmail:             model.AppConfigVariable{},
 		LdapAttributeUserFirstName:         model.AppConfigVariable{},
 		LdapAttributeUserLastName:          model.AppConfigVariable{},
-		LdapAttributeUserDisplayName:       model.AppConfigVariable{},
+		LdapAttributeUserDisplayName:       model.AppConfigVariable{Value: "cn"},
 		LdapAttributeUserProfilePicture:    model.AppConfigVariable{},
 		LdapAttributeGroupMember:           model.AppConfigVariable{Value: "member"},
 		LdapAttributeGroupUniqueIdentifier: model.AppConfigVariable{},
