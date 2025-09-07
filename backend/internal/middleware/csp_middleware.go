@@ -37,8 +37,7 @@ func (m *CspMiddleware) Add() gin.HandlerFunc {
 			"img-src 'self' data: blob:; " +
 			"font-src 'self'; " +
 			"style-src 'self' 'unsafe-inline'; " +
-			"script-src 'self' 'nonce-" + nonce + "'; " +
-			"connect-src 'self' https://api.github.com"
+			"script-src 'self' 'nonce-" + nonce + "'"
 
 		c.Writer.Header().Set("Content-Security-Policy", csp)
 		c.Next()

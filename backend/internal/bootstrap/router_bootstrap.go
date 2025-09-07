@@ -110,6 +110,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
 	controller.NewUserGroupController(apiGroup, authMiddleware, svc.userGroupService)
 	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
+	controller.NewVersionController(apiGroup, svc.versionService)
 
 	// Add test controller in non-production environments
 	if common.EnvConfig.AppEnv != "production" {
