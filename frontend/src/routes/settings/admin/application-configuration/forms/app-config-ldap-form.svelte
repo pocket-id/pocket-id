@@ -1,6 +1,6 @@
 <script lang="ts">
-	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { ldap, m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';

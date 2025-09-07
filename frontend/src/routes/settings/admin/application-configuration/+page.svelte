@@ -1,11 +1,19 @@
 <script lang="ts">
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
+	import * as Alert from '$lib/components/ui/alert';
 	import { m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideImage, Mail, SlidersHorizontal, UserSearch, Users } from '@lucide/svelte';
+	import {
+		LucideImage,
+		LucideInfo,
+		Mail,
+		SlidersHorizontal,
+		UserSearch,
+		Users
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import AppConfigEmailForm from './forms/app-config-email-form.svelte';
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
@@ -58,6 +66,15 @@
 	<title>{m.application_configuration()}</title>
 </svelte:head>
 
+{#if $appConfigStore.uiConfigDisabled}
+	<Alert.Root variant="info">
+		<LucideInfo class="size-4" />
+		<Alert.Title>{m.ui_config_disabled_info_title()}</Alert.Title>
+		<Alert.Description>
+			{m.ui_config_disabled_info_description()}
+		</Alert.Description>
+	</Alert.Root>
+{/if}
 <div>
 	<CollapsibleCard
 		id="application-configuration-general"

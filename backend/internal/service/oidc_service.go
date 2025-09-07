@@ -37,9 +37,11 @@ const (
 	GrantTypeAuthorizationCode = "authorization_code"
 	GrantTypeRefreshToken      = "refresh_token"
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
+	GrantTypeClientCredentials = "client_credentials"
 
 	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" //nolint:gosec
 
+	AccessTokenDuration  = time.Hour
 	RefreshTokenDuration = 30 * 24 * time.Hour // 30 days
 	DeviceCodeDuration   = 15 * time.Minute
 )
@@ -247,6 +249,8 @@ func (s *OidcService) CreateTokens(ctx context.Context, input dto.OidcCreateToke
 		return s.createTokenFromRefreshToken(ctx, input)
 	case GrantTypeDeviceCode:
 		return s.createTokenFromDeviceCode(ctx, input)
+	case GrantTypeClientCredentials:
+		return s.createTokenFromClientCredentials(ctx, input)
 	default:
 		return CreatedTokens{}, &common.OidcGrantTypeNotSupportedError{}
 	}
@@ -329,7 +333,35 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		IdToken:      idToken,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    time.Hour,
+		ExpiresIn:    AccessTokenDuration,
+	}, nil
+}
+
+func (s *OidcService) createTokenFromClientCredentials(ctx context.Context, input dto.OidcCreateTokensDto) (CreatedTokens, error) {
+	client, err := s.verifyClientCredentialsInternal(ctx, s.db, clientAuthCredentialsFromCreateTokensDto(&input), false)
+	if err != nil {
+		return CreatedTokens{}, err
+	}
+
+	// GenerateOAuthAccessToken uses user.ID as a "sub" claim. Prefix is used to take those security considerations
+	// into account: https://datatracker.ietf.org/doc/html/rfc9068#name-security-considerations
+	dummyUser := model.User{
+		Base: model.Base{ID: "client-" + client.ID},
+	}
+
+	audClaim := client.ID
+	if input.Resource != "" {
+		audClaim = input.Resource
+	}
+
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(dummyUser, audClaim)
+	if err != nil {
+		return CreatedTokens{}, err
+	}
+
+	return CreatedTokens{
+		AccessToken: accessToken,
+		ExpiresIn:   AccessTokenDuration,
 	}, nil
 }
 
@@ -403,7 +435,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 		IdToken:      idToken,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    time.Hour,
+		ExpiresIn:    AccessTokenDuration,
 	}, nil
 }
 
@@ -488,7 +520,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	return CreatedTokens{
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshToken,
-		ExpiresIn:    time.Hour,
+		ExpiresIn:    AccessTokenDuration,
 	}, nil
 }
 

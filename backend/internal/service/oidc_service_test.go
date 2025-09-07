@@ -18,6 +18,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -148,6 +149,13 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	privateJWKDefaults, jwkSetJSONDefaults := generateTestECDSAKey(t)
 	require.NoError(t, err)
 
+	// Create a mock config and JwtService to test complete a token creation process
+	mockConfig := NewTestAppConfigService(&model.AppConfig{
+		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
+	})
+	mockJwtService, err := NewJwtService(db, mockConfig)
+	require.NoError(t, err)
+
 	// Create a mock HTTP client with custom transport to return the JWKS
 	httpClient := &http.Client{
 		Transport: &testutils.MockRoundTripper{
@@ -162,8 +170,10 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 	// Init the OidcService
 	s := &OidcService{
-		db:         db,
-		httpClient: httpClient,
+		db:               db,
+		jwtService:       mockJwtService,
+		appConfigService: mockConfig,
+		httpClient:       httpClient,
 	}
 	s.jwkCache, err = s.getJWKCache(t.Context())
 	require.NoError(t, err)
@@ -382,6 +392,121 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, federatedClient.ID, client.ID)
+		})
+	})
+
+	t.Run("Complete token creation flow", func(t *testing.T) {
+		t.Run("Client Credentials flow", func(t *testing.T) {
+			t.Run("Succeeds with valid secret", func(t *testing.T) {
+				// Generate a token
+				input := dto.OidcCreateTokensDto{
+					ClientID:     confidentialClient.ID,
+					ClientSecret: confidentialSecret,
+				}
+				token, err := s.createTokenFromClientCredentials(t.Context(), input)
+				require.NoError(t, err)
+				require.NotNil(t, token)
+
+				// Verify the token
+				claims, err := s.jwtService.VerifyOAuthAccessToken(token.AccessToken)
+				require.NoError(t, err, "Failed to verify generated token")
+
+				// Check the claims
+				subject, ok := claims.Subject()
+				_ = assert.True(t, ok, "User ID not found in token") &&
+					assert.Equal(t, "client-"+confidentialClient.ID, subject, "Token subject should match confidential client ID with prefix")
+				audience, ok := claims.Audience()
+				_ = assert.True(t, ok, "Audience not found in token") &&
+					assert.Equal(t, []string{confidentialClient.ID}, audience, "Audience should contain confidential client ID")
+			})
+
+			t.Run("Fails with invalid secret", func(t *testing.T) {
+				input := dto.OidcCreateTokensDto{
+					ClientID:     confidentialClient.ID,
+					ClientSecret: "invalid-secret",
+				}
+				_, err := s.createTokenFromClientCredentials(t.Context(), input)
+				require.Error(t, err)
+				require.ErrorIs(t, err, &common.OidcClientSecretInvalidError{})
+			})
+
+			t.Run("Fails without client secret for public clients", func(t *testing.T) {
+				input := dto.OidcCreateTokensDto{
+					ClientID: publicClient.ID,
+				}
+				_, err := s.createTokenFromClientCredentials(t.Context(), input)
+				require.Error(t, err)
+				require.ErrorIs(t, err, &common.OidcMissingClientCredentialsError{})
+			})
+
+			t.Run("Succeeds with valid assertion", func(t *testing.T) {
+				// Create JWT for federated identity
+				token, err := jwt.NewBuilder().
+					Issuer(federatedClientIssuer).
+					Audience([]string{federatedClientAudience}).
+					Subject(federatedClient.ID).
+					IssuedAt(time.Now()).
+					Expiration(time.Now().Add(10 * time.Minute)).
+					Build()
+				require.NoError(t, err)
+				signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256(), privateJWK))
+				require.NoError(t, err)
+
+				// Generate a token
+				input := dto.OidcCreateTokensDto{
+					ClientAssertion:     string(signedToken),
+					ClientAssertionType: ClientAssertionTypeJWTBearer,
+				}
+				createdToken, err := s.createTokenFromClientCredentials(t.Context(), input)
+				require.NoError(t, err)
+				require.NotNil(t, token)
+
+				// Verify the token
+				claims, err := s.jwtService.VerifyOAuthAccessToken(createdToken.AccessToken)
+				require.NoError(t, err, "Failed to verify generated token")
+
+				// Check the claims
+				subject, ok := claims.Subject()
+				_ = assert.True(t, ok, "User ID not found in token") &&
+					assert.Equal(t, "client-"+federatedClient.ID, subject, "Token subject should match federated client ID with prefix")
+				audience, ok := claims.Audience()
+				_ = assert.True(t, ok, "Audience not found in token") &&
+					assert.Equal(t, []string{federatedClient.ID}, audience, "Audience should contain the federated client ID")
+			})
+
+			t.Run("Fails with invalid assertion", func(t *testing.T) {
+				input := dto.OidcCreateTokensDto{
+					ClientAssertion:     "invalid.jwt.token",
+					ClientAssertionType: ClientAssertionTypeJWTBearer,
+				}
+				_, err := s.createTokenFromClientCredentials(t.Context(), input)
+				require.Error(t, err)
+				require.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
+			})
+
+			t.Run("Succeeds with custom resource", func(t *testing.T) {
+				// Generate a token
+				input := dto.OidcCreateTokensDto{
+					ClientID:     confidentialClient.ID,
+					ClientSecret: confidentialSecret,
+					Resource:     "https://example.com/",
+				}
+				token, err := s.createTokenFromClientCredentials(t.Context(), input)
+				require.NoError(t, err)
+				require.NotNil(t, token)
+
+				// Verify the token
+				claims, err := s.jwtService.VerifyOAuthAccessToken(token.AccessToken)
+				require.NoError(t, err, "Failed to verify generated token")
+
+				// Check the claims
+				subject, ok := claims.Subject()
+				_ = assert.True(t, ok, "User ID not found in token") &&
+					assert.Equal(t, "client-"+confidentialClient.ID, subject, "Token subject should match confidential client ID with prefix")
+				audience, ok := claims.Audience()
+				_ = assert.True(t, ok, "Audience not found in token") &&
+					assert.Equal(t, []string{input.Resource}, audience, "Audience should contain the resource provided in request")
+			})
 		})
 	})
 }

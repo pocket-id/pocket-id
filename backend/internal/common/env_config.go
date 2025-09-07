@@ -27,6 +27,7 @@ const (
 	DbProviderPostgres      DbProvider = "postgres"
 	MaxMindGeoLiteCityUrl   string     = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
 	defaultSqliteConnString string     = "data/pocket-id.db"
+	AppUrl                  string     = "http://localhost:1411"
 )
 
 type EnvConfigSchema struct {
@@ -53,6 +54,7 @@ type EnvConfigSchema struct {
 	TrustProxy         bool       `env:"TRUST_PROXY"`
 	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
 	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
+	InternalAppURL     string     `env:"INTERNAL_APP_URL"`
 }
 
 var EnvConfig = defaultConfig()
@@ -74,7 +76,7 @@ func defaultConfig() EnvConfigSchema {
 		KeysPath:           "data/keys",
 		KeysStorage:        "", // "database" or "file"
 		EncryptionKey:      nil,
-		AppURL:             "http://localhost:1411",
+		AppURL:             AppUrl,
 		Port:               "1411",
 		Host:               "0.0.0.0",
 		UnixSocket:         "",
@@ -89,6 +91,7 @@ func defaultConfig() EnvConfigSchema {
 		TrustProxy:         false,
 		AnalyticsDisabled:  false,
 		AllowDowngrade:     false,
+		InternalAppURL:     "",
 	}
 }
 
@@ -131,6 +134,19 @@ func parseEnvConfig() error {
 	}
 	if parsedAppUrl.Path != "" {
 		return errors.New("APP_URL must not contain a path")
+	}
+
+	// Derive INTERNAL_APP_URL from APP_URL if not set; validate only when provided
+	if EnvConfig.InternalAppURL == "" {
+		EnvConfig.InternalAppURL = EnvConfig.AppURL
+	} else {
+		parsedInternalAppUrl, err := url.Parse(EnvConfig.InternalAppURL)
+		if err != nil {
+			return errors.New("INTERNAL_APP_URL is not a valid URL")
+		}
+		if parsedInternalAppUrl.Path != "" {
+			return errors.New("INTERNAL_APP_URL must not contain a path")
+		}
 	}
 
 	switch EnvConfig.KeysStorage {
