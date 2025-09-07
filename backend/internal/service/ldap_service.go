@@ -179,10 +179,16 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 				}
 			}
 
+			username = norm.NFC.String(username)
+			if !dto.ValidateUsername(username) {
+				slog.WarnContext(ctx, "Username is not valid", slog.String("username", username))
+				continue
+			}
+
 			var databaseUser model.User
 			err = tx.
 				WithContext(ctx).
-				Where("username = ? AND ldap_id IS NOT NULL", norm.NFC.String(username)).
+				Where("username = ? AND ldap_id IS NOT NULL", username).
 				First(&databaseUser).
 				Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -346,6 +352,12 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			LdapID:    ldapId,
 		}
 		dto.Normalize(newUser)
+
+		err = newUser.Validate()
+		if err != nil {
+			slog.WarnContext(ctx, "LDAP user object is not valid", slog.Any("error", err))
+			continue
+		}
 
 		if databaseUser.ID == "" {
 			_, err = s.userService.createUserInternal(ctx, newUser, true, tx)
