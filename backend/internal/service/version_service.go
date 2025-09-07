@@ -19,12 +19,12 @@ type cacheEntry struct {
 
 type VersionService struct {
 	httpClient *http.Client
-	cache      atomic.Value
+	cache      atomic.Pointer[cacheEntry]
 }
 
 func NewVersionService(httpClient *http.Client) *VersionService {
 	s := &VersionService{httpClient: httpClient}
-	s.cache.Store((*cacheEntry)(nil))
+	s.cache.Store(nil)
 	return s
 }
 
@@ -32,7 +32,7 @@ func NewVersionService(httpClient *http.Client) *VersionService {
 // It caches the result for a short duration to avoid excessive API calls.
 func (s *VersionService) GetLatestVersion(ctx context.Context) (string, error) {
 	// Serve from cache if fresh
-	if entry, ok := s.cache.Load().(*cacheEntry); ok && entry != nil {
+	if entry := s.cache.Load(); entry != nil {
 		if time.Since(entry.lastFetched) < versionCacheTTL {
 			return entry.version, nil
 		}
