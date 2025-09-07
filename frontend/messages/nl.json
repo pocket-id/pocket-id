@@ -443,5 +443,7 @@
 	"custom_client_id_description": "Stel een aangepaste client-ID in als je app dit nodig heeft. Anders laat je het gewoon leeg en wordt er een willekeurige ID gegenereerd.",
 	"generated": "Gemaakt",
 	"administration": "Beheer",
-	"group_rdn_attribute_description": "Het kenmerk dat je gebruikt in de onderscheidende naam (DN) van de groepen. Aanbevolen waarde: `cn`"
+	"group_rdn_attribute_description": "Het kenmerk dat je gebruikt in de onderscheidende naam (DN) van de groepen. Aanbevolen waarde: `cn`",
+	"ui_config_disabled_info_title": "UI Configuration Disabled",
+	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
 }
