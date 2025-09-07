@@ -180,10 +180,6 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			}
 
 			username = norm.NFC.String(username)
-			if !dto.ValidateUsername(username) {
-				slog.WarnContext(ctx, "Username is not valid", slog.String("username", username))
-				continue
-			}
 
 			var databaseUser model.User
 			err = tx.
