@@ -21,6 +21,7 @@
 		pl: 'Polski',
 		'pt-BR': 'Português brasileiro',
 		ru: 'Русский',
+		sv: 'Svenska',
 		uk: 'Українська',
 		vi: 'Tiếng Việt',
 		'zh-CN': '简体中文',

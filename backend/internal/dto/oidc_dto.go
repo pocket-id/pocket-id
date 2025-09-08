@@ -89,6 +89,7 @@ type OidcCreateTokensDto struct {
 	RefreshToken        string `form:"refresh_token"`
 	ClientAssertion     string `form:"client_assertion"`
 	ClientAssertionType string `form:"client_assertion_type"`
+	Resource            string `form:"resource"`
 }
 
 type OidcIntrospectDto struct {
