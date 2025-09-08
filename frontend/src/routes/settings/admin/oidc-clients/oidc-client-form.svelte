@@ -21,7 +21,6 @@
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as DropdownButton from '$lib/components/ui/dropdown-button';
 
 	let {
@@ -97,7 +96,6 @@
 		if (!data) return;
 		isLoading = true;
 
-		// Pull from form input instead of a local var
 		const logoUrl = isUsingUrl ? ($inputs.logoUrl?.value as string | undefined)?.trim() : undefined;
 
 		const success = await callback({
@@ -120,8 +118,8 @@
 			logo = file;
 			isUsingUrl = false;
 			isUsingSelfhostedIcon = false;
-			$inputs.logoUrl && ($inputs.logoUrl.value = ''); // NEW: clear URL field
-			clientLogoCleared = false; // user explicitly selected a file
+			$inputs.logoUrl && ($inputs.logoUrl.value = '');
+			clientLogoCleared = false;
 			const reader = new FileReader();
 			reader.onload = (event) => (logoDataURL = event.target?.result as string);
 			reader.readAsDataURL(file);
@@ -131,9 +129,8 @@
 	function resetLogo() {
 		logo = null;
 		logoDataURL = null;
-		// mark that the user removed the remote logo so the init-effect won't reapply it
 		isUsingUrl = false;
-		$inputs.logoUrl && ($inputs.logoUrl.value = ''); // NEW
+		$inputs.logoUrl && ($inputs.logoUrl.value = '');
 		clientLogoCleared = true;
 		isUsingSelfhostedIcon = false;
 	}
