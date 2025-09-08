@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
-
+	
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
-
+	
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -38,22 +37,13 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 			queryCtx, queryCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 			defer queryCancel()
 
-			// Try exact match first
+			// Perform a case-insensitive lookup for username independent of DB collation/citext,
+			// and keep email exact (as before). This works on both SQLite and Postgres.
 			txErr := tx.
 				WithContext(queryCtx).
-				Where("username = ? OR email = ?", userArg, userArg).
+				Where("(LOWER(username) = LOWER(?) OR email = ?)", userArg, userArg).
 				First(&user).
 				Error
-
-			// If not found, try lowercasing the username (case-insensitive behavior)
-			if errors.Is(txErr, gorm.ErrRecordNotFound) {
-				lc := strings.ToLower(userArg)
-				txErr = tx.
-					WithContext(queryCtx).
-					Where("username = ? OR email = ?", lc, userArg).
-					First(&user).
-					Error
-			}
 
 			switch {
 			case errors.Is(txErr, gorm.ErrRecordNotFound):
