@@ -329,8 +329,6 @@
 	"client_authorization": "Авторизація клієнта",
 	"new_client_authorization": "Нова авторизація клієнта",
 	"disable_animations": "Вимкнути анімації",
-		"allow_uppercase_usernames": "Дозволити великі літери в іменах користувачів",
-		"allow_uppercase_usernames_description": "Якщо ввімкнено, імена користувачів можуть містити великі літери. Якщо вимкнено, імена користувачів нормалізуються до нижнього регістру.",
 	"turn_off_ui_animations": "Вимкнути анімації у всьому інтерфейсі.",
 	"user_disabled": "Обліковий запис вимкнено",
 	"disabled_users_cannot_log_in_or_use_services": "Вимкнені користувачі не можуть увійти в систему або користуватися послугами.",

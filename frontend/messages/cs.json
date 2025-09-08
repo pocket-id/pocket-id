@@ -329,8 +329,6 @@
 	"client_authorization": "Autorizace klienta",
 	"new_client_authorization": "Nová autorizace klienta",
 	"disable_animations": "Zakázat animace",
-		"allow_uppercase_usernames": "Povolit velká písmena v uživatelských jménech",
-		"allow_uppercase_usernames_description": "Je-li povoleno, uživatelská jména mohou obsahovat velká písmena. Je-li zakázáno, uživatelská jména se normalizují na malá písmena.",
 	"turn_off_ui_animations": "Vypnout animace v celém uživatelském rozhraní.",
 	"user_disabled": "Účet deaktivován",
 	"disabled_users_cannot_log_in_or_use_services": "Zakázaní uživatelé se nemohou přihlásit nebo používat služby.",

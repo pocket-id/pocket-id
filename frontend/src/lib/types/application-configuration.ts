@@ -4,7 +4,6 @@ export type AppConfig = {
 	appName: string;
 	allowOwnAccountEdit: boolean;
 	allowUserSignups: 'disabled' | 'withToken' | 'open';
-	allowUppercaseUsernames: boolean;
 	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
 	emailOneTimeAccessAsAdminEnabled: boolean;
 	ldapEnabled: boolean;
@@ -19,7 +18,6 @@ export type AllAppConfig = AppConfig & {
 	emailsVerified: boolean;
 	signupDefaultUserGroupIDs: string[];
 	signupDefaultCustomClaims: CustomClaim[];
-	allowUppercaseUsernames: boolean;
 	// Email
 	smtpHost: string;
 	smtpPort: number;

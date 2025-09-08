@@ -10,7 +10,6 @@
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
-	import appConfigStore from '$lib/stores/application-configuration-store';
 
 	let {
 		callback,
@@ -30,9 +29,7 @@
 
 	const userService = new UserService();
 
-	const usernameRegex = $derived(
-		$appConfigStore.allowUppercaseUsernames ? /^[a-zA-Z0-9_@.-]+$/ : /^[a-z0-9_@.-]+$/
-	);
+	const usernameRegex = /^[a-zA-Z0-9_@.-]+$/;
 	const formSchema = $derived(
 		z.object({
 			firstName: z.string().min(1).max(50),
@@ -49,6 +46,8 @@
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;
+		// Normalize username to lowercase before submitting
+		data.username = data.username.toLowerCase();
 		isLoading = true;
 		await callback(data);
 		isLoading = false;

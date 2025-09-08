@@ -329,8 +329,6 @@
 	"client_authorization": "客戶端授權",
 	"new_client_authorization": "新客戶端授權",
 	"disable_animations": "停用動畫",
-		"allow_uppercase_usernames": "允許使用者名稱包含大寫字母",
-		"allow_uppercase_usernames_description": "啟用後，使用者名稱可以包含大寫字母。停用後，使用者名稱將被正規化為小寫。",
 	"turn_off_ui_animations": "關閉整個 UI 的動畫。",
 	"user_disabled": "帳號已停用",
 	"disabled_users_cannot_log_in_or_use_services": "已停用的使用者不能登入或使用服務。",

@@ -329,8 +329,6 @@
 	"client_authorization": "客户端授权",
 	"new_client_authorization": "首次客户端授权",
 	"disable_animations": "关闭动画",
-		"allow_uppercase_usernames": "允许用户名包含大写字母",
-		"allow_uppercase_usernames_description": "启用后，用户名可以包含大写字母。禁用后，用户名将被规范化为小写。",
 	"turn_off_ui_animations": "关闭界面中的所有动画效果。",
 	"user_disabled": "账户已禁用",
 	"disabled_users_cannot_log_in_or_use_services": "禁用的用户无法登录或使用服务。",

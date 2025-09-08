@@ -329,8 +329,6 @@
 	"client_authorization": "Client-Autorisierung",
 	"new_client_authorization": "Neue Client-Autorisierung",
 	"disable_animations": "Animationen deaktivieren",
-		"allow_uppercase_usernames": "Großbuchstaben in Benutzernamen erlauben",
-		"allow_uppercase_usernames_description": "Wenn aktiviert, dürfen Benutzernamen Großbuchstaben enthalten. Wenn deaktiviert, werden Benutzernamen in Kleinbuchstaben normalisiert.",
 	"turn_off_ui_animations": "Deaktiviert alle Animationen in der Benutzeroberfläche.",
 	"user_disabled": "Account deaktiviert",
 	"disabled_users_cannot_log_in_or_use_services": "Deaktivierte Benutzer können sich nicht anmelden oder Dienste nutzen.",

@@ -329,8 +329,6 @@
 	"client_authorization": "Autorisation client",
 	"new_client_authorization": "Nouvelle autorisation client",
 	"disable_animations": "Désactiver les animations",
-		"allow_uppercase_usernames": "Autoriser les majuscules dans les noms d’utilisateur",
-		"allow_uppercase_usernames_description": "Lorsque cette option est activée, les noms d’utilisateur peuvent contenir des lettres majuscules. Lorsque désactivée, les noms d’utilisateur sont normalisés en minuscules.",
 	"turn_off_ui_animations": "Désactiver les animations dans toute l'interface.",
 	"user_disabled": "Compte désactivé",
 	"disabled_users_cannot_log_in_or_use_services": "Les utilisateurs désactivés ne peuvent pas se connecter ni utiliser les services.",

@@ -329,8 +329,6 @@
 	"client_authorization": "Autorizzazione client",
 	"new_client_authorization": "Nuova autorizzazione client",
 	"disable_animations": "Disattiva animazioni",
-		"allow_uppercase_usernames": "Consenti lettere maiuscole nei nomi utente",
-		"allow_uppercase_usernames_description": "Se abilitato, i nomi utente possono includere lettere maiuscole. Se disabilitato, i nomi utente vengono normalizzati in minuscolo.",
 	"turn_off_ui_animations": "Disattiva tutte le animazioni della UI.",
 	"user_disabled": "Account disabilitato",
 	"disabled_users_cannot_log_in_or_use_services": "Gli utenti disabilitati non possono accedere o utilizzare i servizi.",

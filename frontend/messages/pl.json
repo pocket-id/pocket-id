@@ -329,8 +329,6 @@
 	"client_authorization": "Autoryzacja klienta",
 	"new_client_authorization": "Nowa autoryzacja klienta",
 	"disable_animations": "Wyłącz animacje",
-		"allow_uppercase_usernames": "Zezwól na wielkie litery w nazwach użytkowników",
-		"allow_uppercase_usernames_description": "Gdy włączone, nazwy użytkowników mogą zawierać wielkie litery. Gdy wyłączone, nazwy użytkowników są normalizowane do małych liter.",
 	"turn_off_ui_animations": "Wyłącz animacje w całym interfejsie użytkownika.",
 	"user_disabled": "Konto wyłączone",
 	"disabled_users_cannot_log_in_or_use_services": "Wyłączone konta użytkowników nie mogą się logować ani korzystać z usług.",

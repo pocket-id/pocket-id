@@ -329,8 +329,6 @@
 	"client_authorization": "Client autorisatie",
 	"new_client_authorization": "Nieuwe clientautorisatie",
 	"disable_animations": "Animaties uitschakelen",
-		"allow_uppercase_usernames": "Hoofdletters in gebruikersnamen toestaan",
-		"allow_uppercase_usernames_description": "Indien ingeschakeld, mogen gebruikersnamen hoofdletters bevatten. Indien uitgeschakeld, worden gebruikersnamen naar kleine letters genormaliseerd.",
 	"turn_off_ui_animations": "Zet alle animaties in de gebruikersinterface uit.",
 	"user_disabled": "Account uitgeschakeld",
 	"disabled_users_cannot_log_in_or_use_services": "Uitgeschakelde gebruikers kunnen niet inloggen of diensten gebruiken.",

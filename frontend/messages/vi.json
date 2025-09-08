@@ -329,8 +329,6 @@
 	"client_authorization": "Xác thực client",
 	"new_client_authorization": "Xác thực client mới",
 	"disable_animations": "Tắt hiệu ứng",
-		"allow_uppercase_usernames": "Cho phép chữ hoa trong tên người dùng",
-		"allow_uppercase_usernames_description": "Khi bật, tên người dùng có thể chứa chữ hoa. Khi tắt, tên người dùng sẽ được chuẩn hóa về chữ thường.",
 	"turn_off_ui_animations": "Tắt các hiệu ứng động trong giao diện người dùng.",
 	"user_disabled": "Tài khoản bị vô hiệu hóa",
 	"disabled_users_cannot_log_in_or_use_services": "Người dùng bị vô hiệu hóa không thể đăng nhập hoặc sử dụng dịch vụ.",
