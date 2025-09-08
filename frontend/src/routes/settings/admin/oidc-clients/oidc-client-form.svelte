@@ -22,6 +22,7 @@
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as DropdownButton from '$lib/components/ui/dropdown-button';
 
 	let {
 		callback,
@@ -40,23 +41,7 @@
 	);
 	let isUsingSelfhostedIcon = $state(false);
 	let isUsingUrl = $state(false);
-
-	$effect(() => {
-		const v = $inputs.logoUrl?.value as string | undefined;
-		if (isUsingUrl && v && logoDataURL !== v) {
-			logoDataURL = v;
-		}
-	});
-
-	$effect(() => {
-		if (existingClient?.logoUrl && !isUsingUrl) {
-			isUsingUrl = true;
-			if ($inputs.logoUrl) {
-				$inputs.logoUrl.value = existingClient.logoUrl;
-			}
-			logoDataURL = existingClient.logoUrl;
-		}
-	});
+	let clientLogoCleared = $state(false);
 
 	const client = {
 		id: '',
@@ -136,6 +121,7 @@
 			isUsingUrl = false;
 			isUsingSelfhostedIcon = false;
 			$inputs.logoUrl && ($inputs.logoUrl.value = ''); // NEW: clear URL field
+			clientLogoCleared = false; // user explicitly selected a file
 			const reader = new FileReader();
 			reader.onload = (event) => (logoDataURL = event.target?.result as string);
 			reader.readAsDataURL(file);
@@ -145,8 +131,10 @@
 	function resetLogo() {
 		logo = null;
 		logoDataURL = null;
+		// mark that the user removed the remote logo so the init-effect won't reapply it
 		isUsingUrl = false;
 		$inputs.logoUrl && ($inputs.logoUrl.value = ''); // NEW
+		clientLogoCleared = true;
 		isUsingSelfhostedIcon = false;
 	}
 
@@ -219,6 +207,7 @@
 							src={logoDataURL}
 							alt={m.name_logo({ name: $inputs.name.value })}
 						/>
+
 						<Button
 							variant="destructive"
 							size="icon"
@@ -266,35 +255,32 @@
 								</Button>
 							</div>
 						{:else}
-							<!-- Upload mode + DropdownMenu -->
+							<!-- Upload mode + DropdownButton -->
 							<div class="flex items-center gap-2">
-								<FileInput
-									id="logo"
-									variant="secondary"
-									accept="image/png, image/jpeg, image/svg+xml"
-									onchange={onLogoChange}
-								>
-									<Button variant="secondary" class="min-w-32">
-										{m.change_logo()}
-									</Button>
-								</FileInput>
-
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger>
-										<Button variant="secondary" size="icon" aria-haspopup="menu">
-											<LucideChevronDown class="size-4" />
-										</Button>
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="start">
-										<DropdownMenu.Item
-											onclick={() => {
-												isUsingUrl = true;
-											}}
+								<DropdownButton.DropdownRoot>
+									<DropdownButton.Root>
+										<FileInput
+											id="logo"
+											variant="secondary"
+											accept="image/png, image/jpeg, image/svg+xml"
+											onchange={onLogoChange}
 										>
+											<DropdownButton.Main class="min-w-32">
+												{m.change_logo()}
+											</DropdownButton.Main>
+										</FileInput>
+
+										<DropdownButton.DropdownTrigger>
+											<DropdownButton.Trigger class="border-l" />
+										</DropdownButton.DropdownTrigger>
+									</DropdownButton.Root>
+
+									<DropdownButton.Content align="end">
+										<DropdownButton.Item onclick={() => (isUsingUrl = true)}>
 											Use URL
-										</DropdownMenu.Item>
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
+										</DropdownButton.Item>
+									</DropdownButton.Content>
+								</DropdownButton.DropdownRoot>
 							</div>
 						{/if}
 					</div>
@@ -338,33 +324,30 @@
 						</div>
 					{:else}
 						<div class="flex flex-wrap items-center gap-2">
-							<FileInput
-								id="logo"
-								variant="secondary"
-								accept="image/png, image/jpeg, image/svg+xml"
-								onchange={onLogoChange}
-							>
-								<Button variant="secondary" class="min-w-32">
-									{m.upload_logo()}
-								</Button>
-							</FileInput>
-
-							<DropdownMenu.Root>
-								<DropdownMenu.Trigger>
-									<Button variant="secondary" size="icon" aria-haspopup="menu">
-										<LucideChevronDown class="size-4" />
-									</Button>
-								</DropdownMenu.Trigger>
-								<DropdownMenu.Content align="start">
-									<DropdownMenu.Item
-										onclick={() => {
-											isUsingUrl = true;
-										}}
+							<DropdownButton.DropdownRoot>
+								<DropdownButton.Root>
+									<FileInput
+										id="logo"
+										variant="secondary"
+										accept="image/png, image/jpeg, image/svg+xml"
+										onchange={onLogoChange}
 									>
+										<DropdownButton.Main class="min-w-32">
+											{m.upload_logo()}
+										</DropdownButton.Main>
+									</FileInput>
+
+									<DropdownButton.DropdownTrigger>
+										<DropdownButton.Trigger class="border-l" />
+									</DropdownButton.DropdownTrigger>
+								</DropdownButton.Root>
+
+								<DropdownButton.Content align="end">
+									<DropdownButton.Item onclick={() => (isUsingUrl = true)}>
 										Use URL
-									</DropdownMenu.Item>
-								</DropdownMenu.Content>
-							</DropdownMenu.Root>
+									</DropdownButton.Item>
+								</DropdownButton.Content>
+							</DropdownButton.DropdownRoot>
 						</div>
 					{/if}
 				</div>
