@@ -27,6 +27,7 @@ export type OidcClient = OidcClientMetaData & {
 	requiresReauthentication: boolean;
 	credentials?: OidcClientCredentials;
 	launchURL?: string;
+	logoUrl?: string;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {

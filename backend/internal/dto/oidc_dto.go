@@ -17,6 +17,7 @@ type OidcClientDto struct {
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
+	LogoURL            *string                  `json:"logoUrl,omitempty"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {

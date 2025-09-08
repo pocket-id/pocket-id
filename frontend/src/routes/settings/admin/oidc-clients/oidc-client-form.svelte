@@ -21,7 +21,7 @@
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
-	import { resolveIconUrl } from '$lib/utils/oidc-icon-util';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	let {
 		callback,
@@ -32,7 +32,6 @@
 		callback: (client: OidcClientCreateWithLogo | OidcClientUpdateWithLogo) => Promise<boolean>;
 		mode: 'create' | 'update';
 	} = $props();
-
 	let isLoading = $state(false);
 	let showAdvancedOptions = $state(false);
 	let logo = $state<File | null | undefined>();
@@ -40,6 +39,24 @@
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
 	);
 	let isUsingSelfhostedIcon = $state(false);
+	let isUsingUrl = $state(false);
+
+	$effect(() => {
+		const v = $inputs.logoUrl?.value as string | undefined;
+		if (isUsingUrl && v && logoDataURL !== v) {
+			logoDataURL = v;
+		}
+	});
+
+	$effect(() => {
+		if (existingClient?.logoUrl && !isUsingUrl) {
+			isUsingUrl = true;
+			if ($inputs.logoUrl) {
+				$inputs.logoUrl.value = existingClient.logoUrl;
+			}
+			logoDataURL = existingClient.logoUrl;
+		}
+	});
 
 	const client = {
 		id: '',
@@ -50,6 +67,7 @@
 		pkceEnabled: existingClient?.pkceEnabled || false,
 		requiresReauthentication: existingClient?.requiresReauthentication || false,
 		launchURL: existingClient?.launchURL || '',
+		logoUrl: existingClient?.logoUrl || '',
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		}
@@ -73,6 +91,7 @@
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
 		launchURL: optionalUrl,
+		logoUrl: optionalUrl,
 		credentials: z.object({
 			federatedIdentities: z.array(
 				z.object({
@@ -93,25 +112,19 @@
 		if (!data) return;
 		isLoading = true;
 
-		let logoUrl: string | undefined = undefined;
-		if (isUsingSelfhostedIcon && $inputs.name.value) {
-			const iconRef = `sh-${$inputs.name.value.toLowerCase().replace(/\s+/g, '-')}`;
-			logoUrl = resolveIconUrl(iconRef);
-		}
+		// Pull from form input instead of a local var
+		const logoUrl = isUsingUrl ? ($inputs.logoUrl?.value as string | undefined)?.trim() : undefined;
 
 		const success = await callback({
 			...data,
-			logo: isUsingSelfhostedIcon ? null : logo,
+			logo: isUsingUrl ? null : logo,
 			logoUrl
 		});
 
-		if (success && isUsingSelfhostedIcon && existingClient) {
-			// For existing clients, the backend will have downloaded and saved the icon
-			// So we can switch to the cached logo URL
+		if (success && isUsingUrl && existingClient) {
 			logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
 		}
 
-		// Reset form if client was successfully created
 		if (success && !existingClient) form.reset();
 		isLoading = false;
 	}
@@ -120,31 +133,20 @@
 		const file = (e.target as HTMLInputElement).files?.[0] || null;
 		if (file) {
 			logo = file;
+			isUsingUrl = false;
 			isUsingSelfhostedIcon = false;
+			$inputs.logoUrl && ($inputs.logoUrl.value = ''); // NEW: clear URL field
 			const reader = new FileReader();
-			reader.onload = (event) => {
-				logoDataURL = event.target?.result as string;
-			};
+			reader.onload = (event) => (logoDataURL = event.target?.result as string);
 			reader.readAsDataURL(file);
-		}
-	}
-
-	function useSelfhostedIcon() {
-		if (!$inputs.name.value) return;
-
-		const iconRef = `sh-${$inputs.name.value.toLowerCase().replace(/\s+/g, '-')}`;
-		const iconUrl = resolveIconUrl(iconRef);
-
-		if (iconUrl) {
-			logoDataURL = iconUrl;
-			logo = null;
-			isUsingSelfhostedIcon = true;
 		}
 	}
 
 	function resetLogo() {
 		logo = null;
 		logoDataURL = null;
+		isUsingUrl = false;
+		$inputs.logoUrl && ($inputs.logoUrl.value = ''); // NEW
 		isUsingSelfhostedIcon = false;
 	}
 
@@ -207,6 +209,7 @@
 	</div>
 	<div class="mt-8">
 		<Label for="logo">{m.logo()}</Label>
+
 		<div class="mt-2 space-y-4">
 			{#if logoDataURL}
 				<div class="flex items-start gap-4">
@@ -226,49 +229,144 @@
 						</Button>
 					</div>
 
-					<div class="flex flex-col gap-3">
-						<FileInput
-							id="logo"
-							variant="secondary"
-							accept="image/png, image/jpeg, image/svg+xml"
-							onchange={onLogoChange}
-						>
-							<Button variant="secondary" class="min-w-32">
-								{m.change_logo()}
-							</Button>
-						</FileInput>
+					<div class="flex w-full max-w-xl flex-col gap-3">
+						{#if isUsingUrl}
+							<FormInput
+								label="Logo URL"
+								placeholder="https://example.com/icon.svg"
+								class="w-full"
+								bind:input={$inputs.logoUrl}
+							/>
+							<p class="text-muted-foreground text-[0.8rem]">
+								Paste a direct image URL (svg, png, webp). Find icons at
+								<a
+									class="underline"
+									rel="noreferrer"
+									target="_blank"
+									href="https://github.com/selfhst/icons">Selfh.st Icons</a
+								>
+								or
+								<a
+									class="underline"
+									rel="noreferrer"
+									target="_blank"
+									href="https://github.com/homarr-labs/dashboard-icons">Dashboard Icons</a
+								>.
+							</p>
 
-						<Button
-							variant="secondary"
-							onclick={useSelfhostedIcon}
-							disabled={!$inputs.name.value}
-							class="min-w-32"
-						>
-							{m.use_selfhost_icons()}
-						</Button>
+							<div class="flex gap-2">
+								<Button
+									variant="secondary"
+									onclick={() => {
+										isUsingUrl = false;
+										$inputs.logoUrl && ($inputs.logoUrl.value = '');
+									}}
+								>
+									Switch to upload
+								</Button>
+							</div>
+						{:else}
+							<!-- Upload mode + DropdownMenu -->
+							<div class="flex items-center gap-2">
+								<FileInput
+									id="logo"
+									variant="secondary"
+									accept="image/png, image/jpeg, image/svg+xml"
+									onchange={onLogoChange}
+								>
+									<Button variant="secondary" class="min-w-32">
+										{m.change_logo()}
+									</Button>
+								</FileInput>
+
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger>
+										<Button variant="secondary" size="icon" aria-haspopup="menu">
+											<LucideChevronDown class="size-4" />
+										</Button>
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="start">
+										<DropdownMenu.Item
+											onclick={() => {
+												isUsingUrl = true;
+											}}
+										>
+											Use URL
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							</div>
+						{/if}
 					</div>
 				</div>
 			{:else}
-				<div class="flex flex-wrap gap-3">
-					<FileInput
-						id="logo"
-						variant="secondary"
-						accept="image/png, image/jpeg, image/svg+xml"
-						onchange={onLogoChange}
-					>
-						<Button variant="secondary" class="min-w-32">
-							{m.upload_logo()}
-						</Button>
-					</FileInput>
+				<div class="flex flex-col gap-3">
+					{#if isUsingUrl}
+						<FormInput
+							label="Logo URL"
+							placeholder="https://example.com/icon.svg"
+							class="w-full"
+							bind:input={$inputs.logoUrl}
+						/>
+						<p class="text-muted-foreground text-[0.8rem]">
+							Paste a direct image URL (svg, png, webp). Find icons at
+							<a
+								class="underline"
+								rel="noreferrer"
+								target="_blank"
+								href="https://github.com/selfhst/icons">Selfh.st Icons</a
+							>
+							or
+							<a
+								class="underline"
+								rel="noreferrer"
+								target="_blank"
+								href="https://github.com/homarr-labs/dashboard-icons">Dashboard Icons</a
+							>.
+						</p>
 
-					<Button
-						variant="secondary"
-						onclick={useSelfhostedIcon}
-						disabled={!$inputs.name.value}
-						class="min-w-32"
-					>
-						{m.use_selfhost_icons()}
-					</Button>
+						<div class="flex gap-2">
+							<Button
+								variant="secondary"
+								onclick={() => {
+									isUsingUrl = false;
+									$inputs.logoUrl && ($inputs.logoUrl.value = '');
+								}}
+							>
+								Switch to upload
+							</Button>
+						</div>
+					{:else}
+						<div class="flex flex-wrap items-center gap-2">
+							<FileInput
+								id="logo"
+								variant="secondary"
+								accept="image/png, image/jpeg, image/svg+xml"
+								onchange={onLogoChange}
+							>
+								<Button variant="secondary" class="min-w-32">
+									{m.upload_logo()}
+								</Button>
+							</FileInput>
+
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									<Button variant="secondary" size="icon" aria-haspopup="menu">
+										<LucideChevronDown class="size-4" />
+									</Button>
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="start">
+									<DropdownMenu.Item
+										onclick={() => {
+											isUsingUrl = true;
+										}}
+									>
+										Use URL
+									</DropdownMenu.Item>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>

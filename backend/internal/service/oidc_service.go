@@ -732,6 +732,10 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 	}
 
 	if input.LogoURL != nil && *input.LogoURL != "" {
+		slog.InfoContext(ctx, "OIDC: downloading logo after create",
+			slog.String("clientID", client.ID),
+			slog.String("logoURL", *input.LogoURL),
+		)
 		if err := s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL); err == nil {
 			// Refresh full client (includes ImageType)
 			_ = s.db.WithContext(ctx).
@@ -739,6 +743,12 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 				Preload("AllowedUserGroups").
 				First(&client, "id = ?", client.ID).
 				Error
+		} else {
+			slog.WarnContext(ctx, "OIDC: download logo failed (create)",
+				slog.String("clientID", client.ID),
+				slog.String("logoURL", *input.LogoURL),
+				slog.Any("error", err),
+			)
 		}
 	}
 
@@ -767,12 +777,22 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	}
 
 	if input.LogoURL != nil && *input.LogoURL != "" {
+		slog.InfoContext(ctx, "OIDC: downloading logo after update",
+			slog.String("clientID", client.ID),
+			slog.String("logoURL", *input.LogoURL),
+		)
 		if err := s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL); err == nil {
 			_ = s.db.WithContext(ctx).
 				Preload("CreatedBy").
 				Preload("AllowedUserGroups").
 				First(&client, "id = ?", client.ID).
 				Error
+		} else {
+			slog.WarnContext(ctx, "OIDC: download logo failed (update)",
+				slog.String("clientID", client.ID),
+				slog.String("logoURL", *input.LogoURL),
+				slog.Any("error", err),
+			)
 		}
 	}
 
@@ -790,6 +810,8 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.LaunchURL = input.LaunchURL
+
+	client.LogoURL = input.LogoURL
 
 	// Credentials
 	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
@@ -1907,15 +1929,31 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 }
 
 func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID string, raw string) error {
+	slog.InfoContext(ctx, "OIDC: validating remote logo URL",
+		slog.String("clientID", clientID),
+		slog.String("logoURL", raw),
+	)
 	u, err := validateLogoURL(raw)
 	if err != nil {
+		slog.DebugContext(ctx, "OIDC: logo URL rejected",
+			slog.String("clientID", clientID),
+			slog.String("logoURL", raw),
+			slog.Any("error", err),
+		)
 		return err
 	}
 
 	client := newSafeLogoHTTPClient()
 
-	resp, err := doLogoGET(ctx, client, u)
+	fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer fetchCancel()
+	resp, err := doLogoGET(fetchCtx, client, u)
 	if err != nil {
+		slog.DebugContext(ctx, "OIDC: logo GET failed",
+			slog.String("clientID", clientID),
+			slog.String("url", u.String()),
+			slog.Any("error", err),
+		)
 		return err
 	}
 	defer resp.Body.Close()
@@ -1927,8 +1965,17 @@ func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID s
 
 	ext, err := detectLogoExt(u, resp)
 	if err != nil {
+		slog.DebugContext(ctx, "OIDC: cannot determine logo type",
+			slog.String("clientID", clientID),
+			slog.String("url", u.String()),
+			slog.Any("error", err),
+		)
 		return err
 	}
+	slog.InfoContext(ctx, "OIDC: determined logo type",
+		slog.String("clientID", clientID),
+		slog.String("ext", ext),
+	)
 
 	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
 	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
@@ -1939,7 +1986,16 @@ func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID s
 		return err
 	}
 
-	return s.setClientLogoType(ctx, clientID, ext, uploadsDir)
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer dbCancel()
+	if err := s.setClientLogoType(dbCtx, clientID, ext, uploadsDir); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "OIDC: logo saved",
+		slog.String("clientID", clientID),
+		slog.String("path", fmt.Sprintf("%s/%s.%s", uploadsDir, clientID, ext)),
+	)
+	return nil
 }
 
 // Helpers
@@ -1996,7 +2052,9 @@ func newSafeLogoHTTPClient() *http.Client {
 }
 
 func doLogoGET(ctx context.Context, client *http.Client, u *url.URL) (*http.Response, error) {
-	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	// Ensure the fetch is bounded but not canceled by upstream request context.
+	detached := context.WithoutCancel(ctx)
+	reqCtx, cancel := context.WithTimeout(detached, 20*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, u.String(), nil)
