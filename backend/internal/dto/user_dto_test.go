@@ -3,6 +3,7 @@ package dto
 import (
 	"testing"
 
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				Username:  "testuser",
 				Email:     "test@example.com",
 				FirstName: "John",
-				LastName:  "Doe",
+				LastName:  utils.Ptr("Doe"),
 			},
 			wantErr: "",
 		},
@@ -27,7 +28,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			input: UserCreateDto{
 				Email:     "test@example.com",
 				FirstName: "John",
-				LastName:  "Doe",
+				LastName:  utils.Ptr("Doe"),
 			},
 			wantErr: "Field validation for 'Username' failed on the 'required' tag",
 		},
@@ -37,7 +38,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				Username:  "test/ser",
 				Email:     "test@example.com",
 				FirstName: "John",
-				LastName:  "Doe",
+				LastName:  utils.Ptr("Doe"),
 			},
 			wantErr: "Field validation for 'Username' failed on the 'username' tag",
 		},
@@ -47,7 +48,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				Username:  "testuser",
 				Email:     "not-an-email",
 				FirstName: "John",
-				LastName:  "Doe",
+				LastName:  utils.Ptr("Doe"),
 			},
 			wantErr: "Field validation for 'Email' failed on the 'email' tag",
 		},
@@ -57,7 +58,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				Username:  "testuser",
 				Email:     "test@example.com",
 				FirstName: "",
-				LastName:  "Doe",
+				LastName:  utils.Ptr("Doe"),
 			},
 			wantErr: "Field validation for 'FirstName' failed on the 'required' tag",
 		},
@@ -67,7 +68,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				Username:  "testuser",
 				Email:     "test@example.com",
 				FirstName: "John",
-				LastName:  "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
+				LastName:  utils.Ptr("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"),
 			},
 			wantErr: "Field validation for 'LastName' failed on the 'max' tag",
 		},
