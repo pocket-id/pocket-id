@@ -10,29 +10,29 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+// [a-zA-Z0-9]      : The username must start with an alphanumeric character
+// [a-zA-Z0-9_.@-]* : The rest of the username can contain alphanumeric characters, dots, underscores, hyphens, and "@" symbols
+// [a-zA-Z0-9]$     : The username must end with an alphanumeric character
+var validateUsernameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.@-]*[a-zA-Z0-9]$")
+
+var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9._-]+$")
+
 func init() {
 	v := binding.Validator.Engine().(*validator.Validate)
-
-	// [a-zA-Z0-9]      : The username must start with an alphanumeric character
-	// [a-zA-Z0-9_.@-]* : The rest of the username can contain alphanumeric characters, dots, underscores, hyphens, and "@" symbols
-	// [a-zA-Z0-9]$     : The username must end with an alphanumeric character
-	var validateUsernameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.@-]*[a-zA-Z0-9]$")
-
-	var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9._-]+$")
 
 	// Maximum allowed value for TTLs
 	const maxTTL = 31 * 24 * time.Hour
 
 	// Errors here are development-time ones
 	err := v.RegisterValidation("username", func(fl validator.FieldLevel) bool {
-		return validateUsernameRegex.MatchString(fl.Field().String())
+		return ValidateUsername(fl.Field().String())
 	})
 	if err != nil {
 		panic("Failed to register custom validation for username: " + err.Error())
 	}
 
 	err = v.RegisterValidation("client_id", func(fl validator.FieldLevel) bool {
-		return validateClientIDRegex.MatchString(fl.Field().String())
+		return ValidateClientID(fl.Field().String())
 	})
 	if err != nil {
 		panic("Failed to register custom validation for client_id: " + err.Error())
@@ -49,4 +49,14 @@ func init() {
 	if err != nil {
 		panic("Failed to register custom validation for ttl: " + err.Error())
 	}
+}
+
+// ValidateUsername validates username inputs
+func ValidateUsername(username string) bool {
+	return validateUsernameRegex.MatchString(username)
+}
+
+// ValidateClientID validates client ID inputs
+func ValidateClientID(clientID string) bool {
+	return validateClientIDRegex.MatchString(clientID)
 }
