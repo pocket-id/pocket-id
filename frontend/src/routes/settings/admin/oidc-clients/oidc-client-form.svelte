@@ -15,7 +15,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
-	import { emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
+	import { callbackUrlSchema, emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
 	import { LucideChevronDown } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
@@ -65,8 +65,8 @@
 				.optional()
 		),
 		name: z.string().min(2).max(50),
-		callbackURLs: z.array(z.string().nonempty()).default([]),
-		logoutCallbackURLs: z.array(z.string().nonempty()),
+		callbackURLs: z.array(callbackUrlSchema).default([]),
+		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
