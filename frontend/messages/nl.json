@@ -444,6 +444,6 @@
 	"generated": "Gemaakt",
 	"administration": "Beheer",
 	"group_rdn_attribute_description": "Het kenmerk dat je gebruikt in de onderscheidende naam (DN) van de groepen. Aanbevolen waarde: `cn`",
-	"ui_config_disabled_info_title": "UI Configuration Disabled",
-	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
+	"ui_config_disabled_info_title": "UI-configuratie uitgeschakeld",
+	"ui_config_disabled_info_description": "De UI-configuratie is uitgeschakeld omdat de configuratie-instellingen van de app via omgevingsvariabelen worden beheerd. Sommige instellingen kun je misschien niet aanpassen."
 }

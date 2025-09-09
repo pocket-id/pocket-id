@@ -444,6 +444,6 @@
 	"generated": "已生成",
 	"administration": "管理员选项",
 	"group_rdn_attribute_description": "在组的区分名称（DN）中使用的属性。推荐值：`cn`",
-	"ui_config_disabled_info_title": "UI Configuration Disabled",
-	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
+	"ui_config_disabled_info_title": "用户界面配置已禁用",
+	"ui_config_disabled_info_description": "用户界面配置已禁用，因为应用程序配置设置通过环境变量进行管理。某些设置可能无法编辑。"
 }

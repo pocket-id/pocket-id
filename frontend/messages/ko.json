@@ -444,6 +444,6 @@
 	"generated": "생성됨",
 	"administration": "관리",
 	"group_rdn_attribute_description": "그룹의 고유 식별자(DN)에 사용되는 속성. 권장 값: `cn`",
-	"ui_config_disabled_info_title": "UI Configuration Disabled",
-	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
+	"ui_config_disabled_info_title": "UI 구성 비활성화됨",
+	"ui_config_disabled_info_description": "UI 구성이 비활성화되었습니다. 애플리케이션 구성 설정은 환경 변수를 통해 관리되기 때문입니다. 일부 설정은 편집할 수 없을 수 있습니다."
 }

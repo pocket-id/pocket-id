@@ -444,6 +444,6 @@
 	"generated": "Сгенерированный",
 	"administration": "Администрирование",
 	"group_rdn_attribute_description": "Атрибут, который используется в distinguished name (DN) групп. Рекомендуемое значение: `cn`",
-	"ui_config_disabled_info_title": "UI Configuration Disabled",
-	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
+	"ui_config_disabled_info_title": "Настройка пользовательского интерфейса отключена",
+	"ui_config_disabled_info_description": "Настройка пользовательского интерфейса отключена, потому что настройки приложения управляются через переменные среды. Некоторые настройки могут быть недоступны для редактирования."
 }
