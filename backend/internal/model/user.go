@@ -13,14 +13,15 @@ import (
 type User struct {
 	Base
 
-	Username  string `sortable:"true"`
-	Email     string `sortable:"true"`
-	FirstName string `sortable:"true"`
-	LastName  string `sortable:"true"`
-	IsAdmin   bool   `sortable:"true"`
-	Locale    *string
-	LdapID    *string
-	Disabled  bool `sortable:"true"`
+	Username    string  `sortable:"true"`
+	Email       string  `sortable:"true"`
+	FirstName   string  `sortable:"true"`
+	LastName    *string `sortable:"true"`
+	DisplayName string  `sortable:"true"`
+	IsAdmin     bool    `sortable:"true"`
+	Locale      *string
+	LdapID      *string
+	Disabled    bool `sortable:"true"`
 
 	CustomClaims []CustomClaim
 	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`
@@ -31,7 +32,12 @@ func (u User) WebAuthnID() []byte { return []byte(u.ID) }
 
 func (u User) WebAuthnName() string { return u.Username }
 
-func (u User) WebAuthnDisplayName() string { return u.FirstName + " " + u.LastName }
+func (u User) WebAuthnDisplayName() string {
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+	return u.FirstName + " " + utils.PtrValueOrZero(u.LastName)
+}
 
 func (u User) WebAuthnIcon() string { return "" }
 
@@ -66,11 +72,13 @@ func (u User) WebAuthnCredentialDescriptors() (descriptors []protocol.Credential
 	return descriptors
 }
 
-func (u User) FullName() string { return u.FirstName + " " + u.LastName }
+func (u User) FullName() string {
+	return u.FirstName + " " + utils.PtrValueOrZero(u.LastName)
+}
 
 func (u User) Initials() string {
 	first := utils.GetFirstCharacter(u.FirstName)
-	last := utils.GetFirstCharacter(u.LastName)
+	last := utils.GetFirstCharacter(utils.PtrValueOrZero(u.LastName))
 	if first == "" && last == "" && len(u.Username) >= 2 {
 		return strings.ToUpper(u.Username[:2])
 	}

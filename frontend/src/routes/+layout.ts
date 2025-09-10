@@ -2,6 +2,7 @@ import AppConfigService from '$lib/services/app-config-service';
 import UserService from '$lib/services/user-service';
 import appConfigStore from '$lib/stores/application-configuration-store';
 import userStore from '$lib/stores/user-store';
+import { setLocaleForLibraries } from '$lib/utils/locale.util';
 import type { LayoutLoad } from './$types';
 
 export const ssr = false;
@@ -28,6 +29,8 @@ export const load: LayoutLoad = async () => {
 	if (appConfig) {
 		appConfigStore.set(appConfig);
 	}
+
+	await setLocaleForLibraries();
 
 	return {
 		user,

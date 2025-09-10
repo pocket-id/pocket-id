@@ -38,6 +38,7 @@
 		ldapAttributeUserEmail: z.string().min(1),
 		ldapAttributeUserFirstName: z.string().min(1),
 		ldapAttributeUserLastName: z.string().min(1),
+		ldapAttributeUserDisplayName: z.string().min(1),
 		ldapAttributeUserProfilePicture: z.string(),
 		ldapAttributeGroupMember: z.string(),
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
@@ -158,6 +159,11 @@
 				label={m.user_last_name_attribute()}
 				placeholder="sn"
 				bind:input={$inputs.ldapAttributeUserLastName}
+			/>
+			<FormInput
+				label={m.display_name_attribute()}
+				placeholder="displayName"
+				bind:input={$inputs.ldapAttributeUserDisplayName}
 			/>
 			<FormInput
 				label={m.user_profile_picture_attribute()}

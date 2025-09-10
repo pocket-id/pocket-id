@@ -3,6 +3,7 @@ export const users = {
 		id: 'f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e',
 		firstname: 'Tim',
 		lastname: 'Cook',
+		displayName: 'Tim Cook',
 		email: 'tim.cook@test.com',
 		username: 'tim'
 	},
@@ -10,12 +11,14 @@ export const users = {
 		id: '1cd19686-f9a6-43f4-a41f-14a0bf5b4036',
 		firstname: 'Craig',
 		lastname: 'Federighi',
+		displayName: 'Craig Federighi',
 		email: 'craig.federighi@test.com',
 		username: 'craig'
 	},
 	steve: {
 		firstname: 'Steve',
 		lastname: 'Jobs',
+		displayName: 'Steve Jobs',
 		email: 'steve.jobs@test.com',
 		username: 'steve'
 	}

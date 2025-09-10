@@ -8,6 +8,7 @@ export type User = {
 	email: string;
 	firstName: string;
 	lastName?: string;
+	displayName: string;
 	isAdmin: boolean;
 	userGroups: UserGroup[];
 	customClaims: CustomClaim[];
@@ -18,6 +19,6 @@ export type User = {
 
 export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId' | 'userGroups'>;
 
-export type UserSignUp = Omit<UserCreate, 'isAdmin' | 'disabled'> & {
+export type UserSignUp = Omit<UserCreate, 'isAdmin' | 'disabled' | 'displayName'> & {
 	token?: string;
 };

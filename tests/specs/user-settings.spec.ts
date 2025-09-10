@@ -14,6 +14,9 @@ test('Create user', async ({ page }) => {
 	await page.getByLabel('Last name').fill(user.lastname);
 	await page.getByLabel('Email').fill(user.email);
 	await page.getByLabel('Username').fill(user.username);
+
+	await expect(page.getByLabel('Display Name')).toHaveValue(`${user.firstname} ${user.lastname}`);
+
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.getByRole('row', { name: `${user.firstname} ${user.lastname}` })).toBeVisible();
@@ -106,6 +109,7 @@ test('Update user', async ({ page }) => {
 
 	await page.getByLabel('First name').fill('Crack');
 	await page.getByLabel('Last name').fill('Apple');
+	await page.getByLabel('Display Name').fill('Crack Apple');
 	await page.getByLabel('Email').fill('crack.apple@test.com');
 	await page.getByLabel('Username').fill('crack');
 	await page.getByRole('button', { name: 'Save' }).first().click();

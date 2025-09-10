@@ -103,6 +103,7 @@
 	columns={[
 		{ label: m.first_name(), sortColumn: 'firstName' },
 		{ label: m.last_name(), sortColumn: 'lastName' },
+		{ label: m.display_name(), sortColumn: 'displayName' },
 		{ label: m.email(), sortColumn: 'email' },
 		{ label: m.username(), sortColumn: 'username' },
 		{ label: m.role(), sortColumn: 'isAdmin' },
@@ -114,6 +115,7 @@
 	{#snippet rows({ item })}
 		<Table.Cell>{item.firstName}</Table.Cell>
 		<Table.Cell>{item.lastName}</Table.Cell>
+		<Table.Cell>{item.displayName}</Table.Cell>
 		<Table.Cell>{item.email}</Table.Cell>
 		<Table.Cell>{item.username}</Table.Cell>
 		<Table.Cell>
