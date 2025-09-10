@@ -67,8 +67,8 @@ func ValidateClientID(clientID string) bool {
 
 // ValidateCallbackURL validates callback URLs with support for wildcards
 func ValidateCallbackURL(raw string) bool {
-	if raw == "" {
-		return false
+	if raw == "*" {
+		return true
 	}
 
 	// Replace all '*' with 'x' to check if the rest is still a valid URI
