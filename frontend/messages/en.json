@@ -445,5 +445,7 @@
 	"administration": "Administration",
 	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN). Recommended value: `cn`",
 	"ui_config_disabled_info_title": "UI Configuration Disabled",
-	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
+	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable.",
+  "client_logo_uploads_disabled": "Logo uploads are disabled when selfhosted icons are enabled.",
+	"use_selfhost_icons": "Use selfh.st Icon"
 }

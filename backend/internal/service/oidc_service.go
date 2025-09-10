@@ -8,10 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -713,6 +716,14 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 	return clients, response, err
 }
 
+// helper (optional) – ensures HasLogo is consistent
+func deriveHasLogo(c *model.OidcClient) {
+	if c == nil {
+		return
+	}
+	c.HasLogo = c.ImageType != nil && *c.ImageType != ""
+}
+
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
 		Base: model.Base{
@@ -733,40 +744,72 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		return model.OidcClient{}, err
 	}
 
+	if input.LogoURL != nil && *input.LogoURL != "" {
+		slog.InfoContext(ctx, "OIDC: downloading logo after create",
+			slog.String("clientID", client.ID),
+			slog.String("logoURL", *input.LogoURL),
+		)
+		if err := s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL); err == nil {
+			// Refresh full client (includes ImageType)
+			_ = s.db.WithContext(ctx).
+				Preload("CreatedBy").
+				Preload("AllowedUserGroups").
+				First(&client, "id = ?", client.ID).
+				Error
+		} else {
+			slog.WarnContext(ctx, "OIDC: download logo failed (create)",
+				slog.String("clientID", client.ID),
+				slog.String("logoURL", *input.LogoURL),
+				slog.Any("error", err),
+			)
+		}
+	}
+
+	deriveHasLogo(&client)
 	return client, nil
 }
 
 func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
 	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
+	defer func() { tx.Rollback() }()
 
 	var client model.OidcClient
-	err := tx.
-		WithContext(ctx).
+	if err := tx.WithContext(ctx).
 		Preload("CreatedBy").
-		First(&client, "id = ?", clientID).
-		Error
-	if err != nil {
+		First(&client, "id = ?", clientID).Error; err != nil {
 		return model.OidcClient{}, err
 	}
 
 	updateOIDCClientModelFromDto(&client, &input)
 
-	err = tx.
-		WithContext(ctx).
-		Save(&client).
-		Error
-	if err != nil {
+	if err := tx.WithContext(ctx).Save(&client).Error; err != nil {
+		return model.OidcClient{}, err
+	}
+	if err := tx.Commit().Error; err != nil {
 		return model.OidcClient{}, err
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
-		return model.OidcClient{}, err
+	if input.LogoURL != nil && *input.LogoURL != "" {
+		slog.InfoContext(ctx, "OIDC: downloading logo after update",
+			slog.String("clientID", client.ID),
+			slog.String("logoURL", *input.LogoURL),
+		)
+		if err := s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL); err == nil {
+			_ = s.db.WithContext(ctx).
+				Preload("CreatedBy").
+				Preload("AllowedUserGroups").
+				First(&client, "id = ?", client.ID).
+				Error
+		} else {
+			slog.WarnContext(ctx, "OIDC: download logo failed (update)",
+				slog.String("clientID", client.ID),
+				slog.String("logoURL", *input.LogoURL),
+				slog.Any("error", err),
+			)
+		}
 	}
 
+	deriveHasLogo(&client)
 	return client, nil
 }
 
@@ -780,6 +823,8 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.LaunchURL = input.LaunchURL
+
+	client.LogoURL = input.LogoURL
 
 	// Credentials
 	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
@@ -904,6 +949,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 	}
 
 	client.ImageType = &fileType
+	client.HasLogo = true
 	err = tx.
 		WithContext(ctx).
 		Save(&client).
@@ -912,12 +958,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		return err
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return tx.Commit().Error
 }
 
 func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) error {
@@ -941,6 +982,7 @@ func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) err
 
 	oldImageType := *client.ImageType
 	client.ImageType = nil
+	client.HasLogo = false
 	err = tx.
 		WithContext(ctx).
 		Save(&client).
@@ -1886,4 +1928,140 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 	}
 
 	return s.IsUserGroupAllowedToAuthorize(user, client), nil
+}
+
+func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID string, raw string) error {
+	u, _ := url.Parse(raw)
+
+	httpClient := &http.Client{
+		Timeout: 20 * time.Second,
+		Transport: &http.Transport{
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+		},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "pocket-id/oidc-logo-fetcher")
+	req.Header.Set("Accept", "image/*")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to fetch logo: %s", resp.Status)
+	}
+
+	const maxLogoSize int64 = 2 * 1024 * 1024 // 2MB
+	if resp.ContentLength > maxLogoSize {
+		return fmt.Errorf("logo is too large")
+	}
+
+	ext, err := detectLogoExt(u, resp)
+	if err != nil {
+		return err
+	}
+
+	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
+	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
+		return err
+	}
+
+	if err := saveLogoBody(resp.Body, uploadsDir, clientID, ext, maxLogoSize); err != nil {
+		return err
+	}
+
+	// Persist image type using a background timeout context
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer dbCancel()
+	if err := s.setClientLogoType(dbCtx, clientID, ext, uploadsDir); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Helpers
+
+func detectLogoExt(u *url.URL, resp *http.Response) (string, error) {
+	// Prefer extension in path if supported
+	ext := strings.TrimPrefix(strings.ToLower(path.Ext(u.Path)), ".")
+	if ext != "" && utils.GetImageMimeType(ext) != "" {
+		return ext, nil
+	}
+
+	// Fallback to Content-Type
+	ct := strings.ToLower(resp.Header.Get("Content-Type"))
+	switch {
+	case strings.Contains(ct, "svg"):
+		ext = "svg"
+	case strings.Contains(ct, "png"):
+		ext = "png"
+	case strings.Contains(ct, "jpeg"), strings.Contains(ct, "jpg"):
+		ext = "jpg"
+	case strings.Contains(ct, "x-icon"), strings.Contains(ct, "ico"):
+		ext = "ico"
+	case strings.Contains(ct, "gif"):
+		ext = "gif"
+	default:
+		return "", fmt.Errorf("unsupported logo type")
+	}
+
+	// Final check against supported types
+	if utils.GetImageMimeType(ext) == "" {
+		return "", fmt.Errorf("unsupported logo type")
+	}
+	return ext, nil
+}
+
+func saveLogoBody(r io.Reader, dir, clientID, ext string, max int64) error {
+	tmpFile, err := os.CreateTemp(dir, clientID+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmpFile.Name()
+
+	written, copyErr := io.Copy(tmpFile, io.LimitReader(r, max+1))
+	closeErr := tmpFile.Close()
+	if copyErr != nil {
+		_ = os.Remove(tmpName)
+		return copyErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmpName)
+		return closeErr
+	}
+	if written > max {
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("logo is too large")
+	}
+
+	finalPath := fmt.Sprintf("%s/%s.%s", dir, clientID, ext)
+	if err := os.Rename(tmpName, finalPath); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	return nil
+}
+
+func (s *OidcService) setClientLogoType(ctx context.Context, clientID, ext, uploadsDir string) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var client model.OidcClient
+		if err := tx.First(&client, "id = ?", clientID).Error; err != nil {
+			return err
+		}
+		if client.ImageType != nil && *client.ImageType != ext {
+			old := fmt.Sprintf("%s/%s.%s", uploadsDir, client.ID, *client.ImageType)
+			_ = os.Remove(old)
+		}
+		client.ImageType = &ext
+		client.HasLogo = true
+		return tx.Save(&client).Error
+	})
 }
