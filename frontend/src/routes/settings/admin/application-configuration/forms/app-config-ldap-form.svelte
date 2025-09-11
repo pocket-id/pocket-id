@@ -1,6 +1,6 @@
 <script lang="ts">
-	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
@@ -24,28 +24,6 @@
 
 	let ldapEnabled = $state(appConfig.ldapEnabled);
 	let ldapSyncing = $state(false);
-
-	const updatedAppConfig = {
-		ldapEnabled: appConfig.ldapEnabled,
-		ldapUrl: appConfig.ldapUrl,
-		ldapBindDn: appConfig.ldapBindDn,
-		ldapBindPassword: appConfig.ldapBindPassword,
-		ldapBase: appConfig.ldapBase,
-		ldapUserSearchFilter: appConfig.ldapUserSearchFilter,
-		ldapUserGroupSearchFilter: appConfig.ldapUserGroupSearchFilter,
-		ldapSkipCertVerify: appConfig.ldapSkipCertVerify,
-		ldapAttributeUserUniqueIdentifier: appConfig.ldapAttributeUserUniqueIdentifier,
-		ldapAttributeUserUsername: appConfig.ldapAttributeUserUsername,
-		ldapAttributeUserEmail: appConfig.ldapAttributeUserEmail,
-		ldapAttributeUserFirstName: appConfig.ldapAttributeUserFirstName,
-		ldapAttributeUserLastName: appConfig.ldapAttributeUserLastName,
-		ldapAttributeUserProfilePicture: appConfig.ldapAttributeUserProfilePicture,
-		ldapAttributeGroupMember: appConfig.ldapAttributeGroupMember,
-		ldapAttributeGroupUniqueIdentifier: appConfig.ldapAttributeGroupUniqueIdentifier,
-		ldapAttributeGroupName: appConfig.ldapAttributeGroupName,
-		ldapAttributeAdminGroup: appConfig.ldapAttributeAdminGroup,
-		ldapSoftDeleteUsers: appConfig.ldapSoftDeleteUsers || true
-	};
 
 	const formSchema = z.object({
 		ldapUrl: z.url(),

@@ -443,5 +443,7 @@
 	"custom_client_id_description": "Nastavte vlastní ID klienta, pokud to vyžaduje vaše aplikace. V opačném případě pole nechte prázdné, aby bylo vygenerováno náhodné ID.",
 	"generated": "Vygenerováno",
 	"administration": "Správa",
-	"group_rdn_attribute_description": "Atribut použitý v rozlišovacím jménu skupiny (DN). Doporučená hodnota: `cn`"
+	"group_rdn_attribute_description": "Atribut použitý v rozlišovacím jménu skupiny (DN). Doporučená hodnota: `cn`",
+	"ui_config_disabled_info_title": "Konfigurace uživatelského rozhraní je deaktivována",
+	"ui_config_disabled_info_description": "Konfigurace uživatelského rozhraní je deaktivována, protože nastavení konfigurace aplikace se spravuje prostřednictvím proměnných prostředí. Některá nastavení nemusí být editovatelná."
 }

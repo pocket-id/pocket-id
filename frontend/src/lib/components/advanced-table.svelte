@@ -5,13 +5,13 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import Empty from '$lib/icons/empty.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { debounced } from '$lib/utils/debounce-util';
 	import { cn } from '$lib/utils/style';
 	import { ChevronDown } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import Button from './ui/button/button.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let {
 		items,
@@ -53,19 +53,22 @@
 	}, 300);
 
 	async function onAllCheck(checked: boolean) {
+		const pageIds = items.data.map((item) => item.id);
+		const current = selectedIds ?? [];
+
 		if (checked) {
-			selectedIds = items.data.map((item) => item.id);
+			selectedIds = Array.from(new Set([...current, ...pageIds]));
 		} else {
-			selectedIds = [];
+			selectedIds = current.filter((id) => !pageIds.includes(id));
 		}
 	}
 
 	async function onCheck(checked: boolean, id: string) {
-		if (!selectedIds) return;
+		const current = selectedIds ?? [];
 		if (checked) {
-			selectedIds = [...selectedIds, id];
+			selectedIds = Array.from(new Set([...current, id]));
 		} else {
-			selectedIds = selectedIds.filter((selectedId) => selectedId !== id);
+			selectedIds = current.filter((selectedId) => selectedId !== id);
 		}
 	}
 

@@ -178,14 +178,13 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 					continue
 				}
 			}
-	
-			// Match username in a case-insensitive, ASCII-only way by sanitizing
-			lookupUsername := sanitizeUsernameASCII(username)
-	
+
+			username = norm.NFC.String(username)
+
 			var databaseUser model.User
 			err = tx.
 				WithContext(ctx).
-				Where("username = ? AND ldap_id IS NOT NULL", lookupUsername).
+				Where("username = ? AND ldap_id IS NOT NULL", username).
 				First(&databaseUser).
 				Error
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -204,6 +203,12 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			LdapID:       ldapId,
 		}
 		dto.Normalize(syncGroup)
+
+		err = syncGroup.Validate()
+		if err != nil {
+			slog.WarnContext(ctx, "LDAP user group object is not valid", slog.Any("error", err))
+			continue
+		}
 
 		if databaseGroup.ID == "" {
 			newGroup, err := s.groupService.createInternal(ctx, syncGroup, tx)
@@ -349,6 +354,12 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			LdapID:    ldapId,
 		}
 		dto.Normalize(newUser)
+
+		err = newUser.Validate()
+		if err != nil {
+			slog.WarnContext(ctx, "LDAP user object is not valid", slog.Any("error", err))
+			continue
+		}
 
 		if databaseUser.ID == "" {
 			_, err = s.userService.createUserInternal(ctx, newUser, true, tx)

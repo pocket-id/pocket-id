@@ -1,6 +1,9 @@
 package dto
 
 import (
+	"errors"
+
+	"github.com/gin-gonic/gin/binding"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -27,6 +30,17 @@ type UserCreateDto struct {
 	Locale    *string `json:"locale"`
 	Disabled  bool    `json:"disabled"`
 	LdapID    string  `json:"-"`
+}
+
+func (u UserCreateDto) Validate() error {
+	e, ok := binding.Validator.Engine().(interface {
+		Struct(s any) error
+	})
+	if !ok {
+		return errors.New("validator does not implement the expected interface")
+	}
+
+	return e.Struct(u)
 }
 
 type OneTimeAccessTokenCreateDto struct {

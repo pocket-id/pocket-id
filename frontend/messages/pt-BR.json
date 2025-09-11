@@ -443,5 +443,7 @@
 	"custom_client_id_description": "Defina um ID de cliente personalizado se for necessário para o seu aplicativo. Caso contrário, deixe em branco para gerar um aleatório.",
 	"generated": "Gerado",
 	"administration": "Administração",
-	"group_rdn_attribute_description": "O atributo usado no nome distinto (DN) dos grupos. Valor recomendado: `cn`"
+	"group_rdn_attribute_description": "O atributo usado no nome distinto (DN) dos grupos. Valor recomendado: `cn`",
+	"ui_config_disabled_info_title": "Configuração da interface do usuário desativada",
+	"ui_config_disabled_info_description": "A configuração da interface do usuário está desativada porque as configurações do aplicativo são gerenciadas por meio de variáveis de ambiente. Algumas configurações podem não ser editáveis."
 }
