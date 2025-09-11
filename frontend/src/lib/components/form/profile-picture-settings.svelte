@@ -81,7 +81,7 @@
 			<FileInput
 				id="profile-picture-input"
 				variant="secondary"
-				accept="image/png, image/jpeg"
+				accept="image/png, image/jpeg, image/webp, image/avif, image/heic"
 				onchange={onImageChange}
 			>
 				<div class="group relative size-24 rounded-full">
