@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -43,27 +44,43 @@ func GetImageMimeType(ext string) string {
 func CopyEmbeddedFileToDisk(srcFilePath, destFilePath string) error {
 	srcFile, err := resources.FS.Open(srcFilePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open embedded file: %w", err)
 	}
 	defer srcFile.Close()
 
 	err = os.MkdirAll(filepath.Dir(destFilePath), os.ModePerm)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
 	destFile, err := os.Create(destFilePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open destination file: %w", err)
 	}
 	defer destFile.Close()
 
 	_, err = io.Copy(destFile, srcFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write to destination file: %w", err)
 	}
 
 	return nil
+}
+
+func EmbeddedFileSha256(filePath string) ([]byte, error) {
+	f, err := resources.FS.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open embedded file: %w", err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read embedded file: %w", err)
+	}
+
+	return h.Sum(nil), nil
 }
 
 func SaveFile(file *multipart.FileHeader, dst string) error {
