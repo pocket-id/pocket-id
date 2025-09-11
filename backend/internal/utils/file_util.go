@@ -36,6 +36,12 @@ func GetImageMimeType(ext string) string {
 		return "image/x-icon"
 	case "gif":
 		return "image/gif"
+	case "webp":
+		return "image/webp"
+	case "avif":
+		return "image/avif"
+	case "heic":
+		return "image/heic"
 	default:
 		return ""
 	}
