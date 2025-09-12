@@ -29,24 +29,25 @@
 
 	const userService = new UserService();
 
-	const formSchema = z.object({
-		firstName: z.string().min(1).max(50),
-		lastName: z.string().max(50).optional(),
-		username: z
-			.string()
-			.min(2)
-			.max(30)
-			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
-		email: z.email(),
-		isAdmin: z.boolean()
-	});
+	const usernameRegex = /^[a-zA-Z0-9_@.-]+$/;
+	const formSchema = $derived(
+		z.object({
+			firstName: z.string().min(1).max(50),
+			lastName: z.string().max(50).optional(),
+			username: z.string().min(2).max(30).regex(usernameRegex, m.username_can_only_contain()),
+			email: z.email(),
+			isAdmin: z.boolean()
+		})
+	);
 	type FormSchema = typeof formSchema;
-
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, account);
+	
+	const { inputs, ...form } = $derived(createForm<FormSchema>(formSchema, account));
 
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;
+		// Normalize username to lowercase before submitting
+		data.username = data.username.toLowerCase();
 		isLoading = true;
 		await callback(data);
 		isLoading = false;

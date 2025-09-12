@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
+	
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
-
+	
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -32,15 +32,19 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		// Create the access token
 		var oneTimeAccessToken *model.OneTimeAccessToken
 		err = db.Transaction(func(tx *gorm.DB) error {
-			// Load the user to retrieve the user ID
+			// Load the user to retrieve the user ID (case-insensitive on username)
 			var user model.User
 			queryCtx, queryCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 			defer queryCancel()
+
+			// Perform a case-insensitive lookup for username independent of DB collation/citext,
+			// and keep email exact (as before). This works on both SQLite and Postgres.
 			txErr := tx.
 				WithContext(queryCtx).
-				Where("username = ? OR email = ?", userArg, userArg).
+				Where("(LOWER(username) = LOWER(?) OR email = ?)", userArg, userArg).
 				First(&user).
 				Error
+
 			switch {
 			case errors.Is(txErr, gorm.ErrRecordNotFound):
 				return errors.New("user not found")

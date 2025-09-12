@@ -252,6 +252,10 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		IsAdmin:   input.IsAdmin,
 		Locale:    input.Locale,
 	}
+
+	// Normalize usernames to lowercase to enforce case-insensitive behavior
+	user.Username = strings.ToLower(user.Username)
+
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
 	}
@@ -364,6 +368,8 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		user.LastName = updatedUser.LastName
 		user.Email = updatedUser.Email
 		user.Username = updatedUser.Username
+		// Normalize usernames to lowercase to enforce case-insensitive behavior
+		user.Username = strings.ToLower(user.Username)
 		user.Locale = updatedUser.Locale
 
 		// Admin-only fields: Only allow updates when not updating own account

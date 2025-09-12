@@ -3,7 +3,6 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
-	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { User, UserCreate } from '$lib/types/user.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
@@ -29,24 +28,25 @@
 		disabled: existingUser?.disabled || false
 	};
 
-	const formSchema = z.object({
-		firstName: z.string().min(1).max(50),
-		lastName: z.string().max(50),
-		username: z
-			.string()
-			.min(2)
-			.max(30)
-			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
-		email: z.email(),
-		isAdmin: z.boolean(),
-		disabled: z.boolean()
-	});
+	const usernameRegex = /^[a-zA-Z0-9_@.-]+$/;
+	const formSchema = $derived(
+		z.object({
+			firstName: z.string().min(1).max(50),
+			lastName: z.string().max(50),
+			username: z.string().min(2).max(30).regex(usernameRegex, m.username_can_only_contain()),
+			email: z.email(),
+			isAdmin: z.boolean(),
+			disabled: z.boolean()
+		})
+	);
 	type FormSchema = typeof formSchema;
-
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, user);
+	
+	const { inputs, ...form } = $derived(createForm<FormSchema>(formSchema, user));
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;
+		// Normalize username to lowercase before submitting to backend
+		data.username = data.username.toLowerCase();
 		isLoading = true;
 		const success = await callback(data);
 		// Reset form if user was successfully created

@@ -55,3 +55,4 @@ yarn-error.log*
 
 #Debug
 backend/cmd/__debug_*
+/.pnpm-store
