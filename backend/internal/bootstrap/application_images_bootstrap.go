@@ -18,28 +18,7 @@ import (
 // initApplicationImages copies the images from the images directory to the application-images directory
 func initApplicationImages() error {
 	// Images that are built into the Pocket ID binary
-	builtInImages := builtinImageDataMap{
-		"background.webp": imageData{
-			Size:   298224,
-			SHA256: mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
-		},
-		"favicon.ico": imageData{
-			Size:   15406,
-			SHA256: mustDecodeHex("70f9c4b6bd4781ade5fc96958b1267511751e91957f83c2354fb880b35ec890a"),
-		},
-		"logo.svg": imageData{
-			Size:   539,
-			SHA256: mustDecodeHex("f1e60707df9784152ce0847e3eb59cb68b9015f918ff160376c27ebff1eda796"),
-		},
-		"logoDark.svg": imageData{
-			Size:   427,
-			SHA256: mustDecodeHex("0421a8d93714bacf54c78430f1db378fd0d29565f6de59b6a89090d44a82eb16"),
-		},
-		"logoLight.svg": imageData{
-			Size:   427,
-			SHA256: mustDecodeHex("6d42c88cf6668f7e57c4f2a505e71ecc8a1e0a27534632aa6adec87b812d0bb0"),
-		},
-	}
+	builtInImages := getBuiltInImageData()
 
 	// Previous versions of images
 	// If these are found, they are deleted
@@ -120,6 +99,31 @@ func initApplicationImages() error {
 	}
 
 	return nil
+}
+
+func getBuiltInImageData() builtinImageDataMap {
+	return builtinImageDataMap{
+		"background.webp": imageData{
+			Size:   298224,
+			SHA256: mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
+		},
+		"favicon.ico": imageData{
+			Size:   15406,
+			SHA256: mustDecodeHex("70f9c4b6bd4781ade5fc96958b1267511751e91957f83c2354fb880b35ec890a"),
+		},
+		"logo.svg": imageData{
+			Size:   539,
+			SHA256: mustDecodeHex("f1e60707df9784152ce0847e3eb59cb68b9015f918ff160376c27ebff1eda796"),
+		},
+		"logoDark.svg": imageData{
+			Size:   427,
+			SHA256: mustDecodeHex("0421a8d93714bacf54c78430f1db378fd0d29565f6de59b6a89090d44a82eb16"),
+		},
+		"logoLight.svg": imageData{
+			Size:   427,
+			SHA256: mustDecodeHex("6d42c88cf6668f7e57c4f2a505e71ecc8a1e0a27534632aa6adec87b812d0bb0"),
+		},
+	}
 }
 
 type imageData struct {
