@@ -20,8 +20,8 @@ func initApplicationImages() error {
 	// Images that are built into the Pocket ID binary
 	builtInImages := builtinImageDataMap{
 		"background.webp": imageData{
-			Size:   104812,
-			SHA256: mustDecodeHex("90133592b4d5fdf270729f2b7350f671f005250b921bd9e2e3b51b4a2356bcd9"),
+			Size:   298224,
+			SHA256: mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
 		},
 		"favicon.ico": imageData{
 			Size:   15406,
