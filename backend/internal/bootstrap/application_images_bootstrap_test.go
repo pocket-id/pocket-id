@@ -24,7 +24,7 @@ func TestGetBuiltInImageData(t *testing.T) {
 	// Create a map of actual files for comparison
 	actualFilesMap := make(map[string]struct{})
 
-	// Validate each actual file exists in the built-in data with correct size and hash
+	// Validate each actual file exists in the built-in data with correct hash
 	for _, file := range actualFiles {
 		fileName := file.Name()
 		if file.IsDir() || strings.HasPrefix(fileName, ".") {
@@ -41,13 +41,7 @@ func TestGetBuiltInImageData(t *testing.T) {
 			continue
 		}
 
-		// Get file info
 		filePath := filepath.Join(imagesDir, fileName)
-		fileInfo, err := file.Info()
-		require.NoError(t, err, "Failed to get file info for %s", fileName)
-
-		// Validate size
-		assert.Equal(t, fileInfo.Size(), builtInData.Size, "Size mismatch for file %s: expected %d, got %d", fileName, fileInfo.Size(), builtInData.Size)
 
 		// Validate SHA256 hash
 		actualHash, err := utils.CreateSha256FileHash(filePath)

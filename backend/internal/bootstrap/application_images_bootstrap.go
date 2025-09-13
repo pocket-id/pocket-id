@@ -24,7 +24,6 @@ func initApplicationImages() error {
 	// If these are found, they are deleted
 	legacyImages := builtinImageDataMap{
 		"background.jpg": imageData{
-			Size:   3920809,
 			SHA256: mustDecodeHex("138d510030ed845d1d74de34658acabff562d306476454369a60ab8ade31933f"),
 		},
 	}
@@ -45,10 +44,6 @@ func initApplicationImages() error {
 		name := f.Name()
 		destFilePath := filepath.Join(dirPath, name)
 
-		info, err := f.Info()
-		if err != nil {
-			return fmt.Errorf("failed to get info for file '%s': %w", name, err)
-		}
 		h, err := utils.CreateSha256FileHash(destFilePath)
 		if err != nil {
 			return fmt.Errorf("failed to get hash for file '%s': %w", name, err)
@@ -56,7 +51,6 @@ func initApplicationImages() error {
 
 		// Check if the file is a legacy one - if so, delete it
 		data := imageData{
-			Size:   info.Size(),
 			SHA256: h,
 		}
 		if legacyImages.Contains(data) {
@@ -104,41 +98,36 @@ func initApplicationImages() error {
 func getBuiltInImageData() builtinImageDataMap {
 	return builtinImageDataMap{
 		"background.webp": imageData{
-			Size:   298224,
 			SHA256: mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
 		},
 		"favicon.ico": imageData{
-			Size:   15406,
 			SHA256: mustDecodeHex("70f9c4b6bd4781ade5fc96958b1267511751e91957f83c2354fb880b35ec890a"),
 		},
 		"logo.svg": imageData{
-			Size:   539,
 			SHA256: mustDecodeHex("f1e60707df9784152ce0847e3eb59cb68b9015f918ff160376c27ebff1eda796"),
 		},
 		"logoDark.svg": imageData{
-			Size:   427,
 			SHA256: mustDecodeHex("0421a8d93714bacf54c78430f1db378fd0d29565f6de59b6a89090d44a82eb16"),
 		},
 		"logoLight.svg": imageData{
-			Size:   427,
 			SHA256: mustDecodeHex("6d42c88cf6668f7e57c4f2a505e71ecc8a1e0a27534632aa6adec87b812d0bb0"),
 		},
 	}
 }
 
 type imageData struct {
-	Size   int64
 	SHA256 []byte
 }
 
 type builtinImageDataMap map[string]imageData
 
 func (b builtinImageDataMap) Contains(target imageData) bool {
-	if target.Size == 0 {
+	if len(target.SHA256) == 0 {
 		return false
 	}
+
 	for _, e := range b {
-		if e.Size == target.Size && bytes.Equal(e.SHA256, target.SHA256) {
+		if bytes.Equal(e.SHA256, target.SHA256) {
 			return true
 		}
 	}
