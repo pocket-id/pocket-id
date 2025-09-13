@@ -70,7 +70,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		SignupDefaultCustomClaims: model.AppConfigVariable{Value: "[]"},
 		AccentColor:               model.AppConfigVariable{Value: "default"},
 		// Internal
-		BackgroundImageType: model.AppConfigVariable{Value: "jpg"},
+		BackgroundImageType: model.AppConfigVariable{Value: "webp"},
 		LogoLightImageType:  model.AppConfigVariable{Value: "svg"},
 		LogoDarkImageType:   model.AppConfigVariable{Value: "svg"},
 		InstanceID:          model.AppConfigVariable{Value: ""},

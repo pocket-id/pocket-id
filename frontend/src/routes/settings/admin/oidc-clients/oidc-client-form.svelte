@@ -187,7 +187,7 @@
 				<FileInput
 					id="logo"
 					variant="secondary"
-					accept="image/png, image/jpeg, image/svg+xml"
+					accept="image/png, image/jpeg, image/svg+xml, image/webp, image/avif, image/heic"
 					onchange={onLogoChange}
 				>
 					<Button variant="secondary">
