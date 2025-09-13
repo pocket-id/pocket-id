@@ -17,7 +17,6 @@ import (
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	slogGorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
@@ -416,25 +415,17 @@ func ensureSqliteTempDir(dbPath string) error {
 }
 
 func getGormLogger() gormLogger.Interface {
-	loggerOpts := make([]slogGorm.Option, 0, 5)
-	loggerOpts = append(loggerOpts,
-		slogGorm.WithSlowThreshold(200*time.Millisecond),
-		slogGorm.WithErrorField("error"),
-	)
-
-	if common.EnvConfig.LogLevel == "debug" {
-		loggerOpts = append(loggerOpts,
-			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelDebug),
-			slogGorm.WithRecordNotFoundError(),
-			slogGorm.WithTraceAll(),
-		)
-
-	} else {
-		loggerOpts = append(loggerOpts,
-			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelWarn),
-			slogGorm.WithIgnoreTrace(),
-		)
+	loggerCfg := gormLogger.Config{
+		SlowThreshold:             200 * time.Millisecond,
+		IgnoreRecordNotFoundError: true,
+		LogLevel:                  gormLogger.Warn,
+		ParameterizedQueries:      true,
 	}
 
-	return slogGorm.New(loggerOpts...)
+	if common.EnvConfig.AppEnv == "debug" {
+		loggerCfg.IgnoreRecordNotFoundError = false
+		loggerCfg.LogLevel = gormLogger.Info
+	}
+
+	return gormLogger.NewSlogLogger(slog.Default(), loggerCfg)
 }
