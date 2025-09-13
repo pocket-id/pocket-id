@@ -62,6 +62,6 @@ func TestGetBuiltInImageData(t *testing.T) {
 	}
 
 	// Ensure we have at least some files (sanity check)
-	assert.Greater(t, len(actualFilesMap), 0, "Images directory should contain at least one file")
-	assert.Equal(t, len(actualFilesMap), len(builtInImages), "Number of files in directory should match number in built-in data map")
+	assert.NotEmpty(t, actualFilesMap, "Images directory should contain at least one file")
+	assert.Len(t, actualFilesMap, len(builtInImages), "Number of files in directory should match number in built-in data map")
 }
