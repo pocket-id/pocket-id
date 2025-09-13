@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	sloggin "github.com/gin-contrib/slog"
+
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
@@ -89,28 +91,26 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 		return fmt.Errorf("failed to initialize OpenTelemetry log exporter: %w", err)
 	}
 
-	level := slog.LevelDebug
-	if common.EnvConfig.AppEnv == "production" {
-		level = slog.LevelInfo
+	level, err := sloggin.ParseLevel(common.EnvConfig.LogLevel)
+	if err != nil {
+		if common.EnvConfig.AppEnv == "development" {
+			level = slog.LevelDebug
+		} else {
+			level = slog.LevelInfo
+		}
 	}
 
 	// Create the handler
 	var handler slog.Handler
-	switch {
-	case common.EnvConfig.LogJSON:
-		// Log as JSON if configured
+	if common.EnvConfig.LogJSON {
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level: level,
 		})
-	case isatty.IsTerminal(os.Stdout.Fd()):
-		// Enable colors if we have a TTY
+	} else {
 		handler = tint.NewHandler(os.Stdout, &tint.Options{
-			TimeFormat: time.StampMilli,
+			TimeFormat: time.Stamp,
 			Level:      level,
-		})
-	default:
-		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: level,
+			NoColor:    !isatty.IsTerminal(os.Stdout.Fd()),
 		})
 	}
 

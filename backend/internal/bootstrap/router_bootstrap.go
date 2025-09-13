@@ -9,11 +9,10 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
+	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
-	sloggin "github.com/samber/slog-gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
@@ -49,30 +48,8 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 		gin.SetMode(gin.TestMode)
 	}
 
-	// do not log these URLs
-	loggerSkipPathsPrefix := []string{
-		"GET /application-configuration/logo",
-		"GET /application-configuration/background-image",
-		"GET /application-configuration/favicon",
-		"GET /_app",
-		"GET /fonts",
-		"GET /healthz",
-		"HEAD /healthz",
-	}
-
 	r := gin.New()
-	r.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{
-		Filters: []sloggin.Filter{
-			func(c *gin.Context) bool {
-				for _, prefix := range loggerSkipPathsPrefix {
-					if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
-						return false
-					}
-				}
-				return true
-			},
-		},
-	}))
+	initLogger(r)
 
 	if !common.EnvConfig.TrustProxy {
 		_ = r.SetTrustedProxies(nil)
@@ -199,4 +176,34 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	}
 
 	return runFn, nil
+}
+
+func initLogger(r *gin.Engine) {
+	type skippedPath struct {
+		Path   string
+		Method string
+	}
+
+	loggerSkipPaths := [...]skippedPath{
+		{Method: "GET", Path: "/application-configuration/logo"},
+		{Method: "GET", Path: "/application-configuration/background-image"},
+		{Method: "GET", Path: "/application-configuration/favicon"},
+		{Method: "GET", Path: "/_app"},
+		{Method: "GET", Path: "/fonts"},
+		{Method: "GET", Path: "/healthz"},
+		{Method: "HEAD", Path: "/healthz"},
+	}
+
+	r.Use(sloggin.SetLogger(
+		sloggin.WithLogger(func(_ *gin.Context, _ *slog.Logger) *slog.Logger {
+			return slog.Default()
+		}),
+		sloggin.WithSkipper(func(c *gin.Context) bool {
+			for _, p := range loggerSkipPaths {
+				if p.Method == c.Request.Method && p.Path == c.Request.URL.Path {
+					return true
+				}
+			}
+			return false
+		})))
 }
