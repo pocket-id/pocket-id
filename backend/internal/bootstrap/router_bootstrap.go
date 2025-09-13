@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -185,13 +186,13 @@ func initLogger(r *gin.Engine) {
 	}
 
 	loggerSkipPaths := [...]skippedPath{
-		{Method: "GET", Path: "/application-configuration/logo"},
-		{Method: "GET", Path: "/application-configuration/background-image"},
-		{Method: "GET", Path: "/application-configuration/favicon"},
-		{Method: "GET", Path: "/_app"},
-		{Method: "GET", Path: "/fonts"},
-		{Method: "GET", Path: "/healthz"},
-		{Method: "HEAD", Path: "/healthz"},
+		{Method: "GET", Path: `^/api/application-configuration/logo$`},
+		{Method: "GET", Path: `^/api/application-configuration/background-image$`},
+		{Method: "GET", Path: `^/api/application-configuration/favicon$`},
+		{Method: "GET", Path: `^/_app/.*`},
+		{Method: "GET", Path: `^/fonts/.*`},
+		{Method: "GET", Path: `^/healthz$`},
+		{Method: "HEAD", Path: `^/healthz$`},
 	}
 
 	r.Use(sloggin.SetLogger(
@@ -200,10 +201,14 @@ func initLogger(r *gin.Engine) {
 		}),
 		sloggin.WithSkipper(func(c *gin.Context) bool {
 			for _, p := range loggerSkipPaths {
-				if p.Method == c.Request.Method && p.Path == c.Request.URL.Path {
+				if p.Method != c.Request.Method {
+					continue
+				}
+				if ok, _ := regexp.MatchString(p.Path, c.Request.URL.Path); ok {
 					return true
 				}
 			}
 			return false
-		})))
+		}),
+	))
 }
