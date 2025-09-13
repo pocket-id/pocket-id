@@ -1,0 +1,27 @@
+{
+	"name": "Pocket ID",
+	"orientation": "any",
+	"display": "minimal-ui",
+	"dir": "auto",
+	"start_url": "/",
+	"icons": [
+		{
+			"src": "img/static-logo-rounded-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "img/static-logo-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		},
+		{
+			"src": "img/static-logo.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "maskable monochrome"
+		}
+	]
+}
