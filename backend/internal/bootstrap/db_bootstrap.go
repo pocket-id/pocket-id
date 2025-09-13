@@ -422,16 +422,17 @@ func getGormLogger() gormLogger.Interface {
 		slogGorm.WithErrorField("error"),
 	)
 
-	if common.EnvConfig.AppEnv == "production" {
-		loggerOpts = append(loggerOpts,
-			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelWarn),
-			slogGorm.WithIgnoreTrace(),
-		)
-	} else {
+	if common.EnvConfig.LogLevel == "debug" {
 		loggerOpts = append(loggerOpts,
 			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelDebug),
 			slogGorm.WithRecordNotFoundError(),
 			slogGorm.WithTraceAll(),
+		)
+
+	} else {
+		loggerOpts = append(loggerOpts,
+			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelWarn),
+			slogGorm.WithIgnoreTrace(),
 		)
 	}
 

@@ -32,6 +32,7 @@ const (
 
 type EnvConfigSchema struct {
 	AppEnv             string     `env:"APP_ENV"`
+	LogLevel           string     `env:"LOG_LEVEL"`
 	AppURL             string     `env:"APP_URL"`
 	DbProvider         DbProvider `env:"DB_PROVIDER"`
 	DbConnectionString string     `env:"DB_CONNECTION_STRING" options:"file"`
