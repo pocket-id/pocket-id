@@ -828,7 +828,7 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 		return
 	}
 
-	preview, err := oc.oidcService.GetClientPreview(c.Request.Context(), clientID, userID, scopes)
+	preview, err := oc.oidcService.GetClientPreview(c.Request.Context(), clientID, userID, strings.Split(scopes, " "))
 	if err != nil {
 		_ = c.Error(err)
 		return

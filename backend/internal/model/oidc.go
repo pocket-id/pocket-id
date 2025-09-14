@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -19,6 +20,14 @@ type UserAuthorizedOidcClient struct {
 
 	ClientID string `gorm:"primary_key;"`
 	Client   OidcClient
+}
+
+func (c UserAuthorizedOidcClient) Scopes() []string {
+	if len(c.Scope) == 0 {
+		return []string{}
+	}
+
+	return strings.Split(c.Scope, " ")
 }
 
 type OidcAuthorizationCode struct {
@@ -71,6 +80,14 @@ type OidcRefreshToken struct {
 
 	ClientID string
 	Client   OidcClient
+}
+
+func (c OidcRefreshToken) Scopes() []string {
+	if len(c.Scope) == 0 {
+		return []string{}
+	}
+
+	return strings.Split(c.Scope, " ")
 }
 
 func (c *OidcClient) AfterFind(_ *gorm.DB) (err error) {

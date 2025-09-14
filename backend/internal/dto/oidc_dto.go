@@ -32,8 +32,8 @@ type OidcClientWithAllowedGroupsCountDto struct {
 
 type OidcClientUpdateDto struct {
 	Name                     string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
-	CallbackURLs             []string                 `json:"callbackURLs"`
-	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs"`
+	CallbackURLs             []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url"`
+	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url"`
 	IsPublic                 bool                     `json:"isPublic"`
 	PkceEnabled              bool                     `json:"pkceEnabled"`
 	RequiresReauthentication bool                     `json:"requiresReauthentication"`

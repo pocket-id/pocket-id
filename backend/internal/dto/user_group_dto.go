@@ -1,6 +1,9 @@
 package dto
 
 import (
+	"errors"
+
+	"github.com/gin-gonic/gin/binding"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
@@ -37,6 +40,17 @@ type UserGroupCreateDto struct {
 	FriendlyName string `json:"friendlyName" binding:"required,min=2,max=50" unorm:"nfc"`
 	Name         string `json:"name" binding:"required,min=2,max=255" unorm:"nfc"`
 	LdapID       string `json:"-"`
+}
+
+func (g UserGroupCreateDto) Validate() error {
+	e, ok := binding.Validator.Engine().(interface {
+		Struct(s any) error
+	})
+	if !ok {
+		return errors.New("validator does not implement the expected interface")
+	}
+
+	return e.Struct(g)
 }
 
 type UserGroupUpdateUsersDto struct {
