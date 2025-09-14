@@ -8,8 +8,8 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	sloggin "github.com/gin-contrib/slog"
@@ -180,19 +180,14 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 }
 
 func initLogger(r *gin.Engine) {
-	type skippedPath struct {
-		Path   string
-		Method string
-	}
-
-	loggerSkipPaths := [...]skippedPath{
-		{Method: "GET", Path: `^/api/application-configuration/logo$`},
-		{Method: "GET", Path: `^/api/application-configuration/background-image$`},
-		{Method: "GET", Path: `^/api/application-configuration/favicon$`},
-		{Method: "GET", Path: `^/_app/.*`},
-		{Method: "GET", Path: `^/fonts/.*`},
-		{Method: "GET", Path: `^/healthz$`},
-		{Method: "HEAD", Path: `^/healthz$`},
+	loggerSkipPathsPrefix := []string{
+		"GET /api/application-configuration/logo",
+		"GET /api/application-configuration/background-image",
+		"GET /api/application-configuration/favicon",
+		"GET /_app",
+		"GET /fonts",
+		"GET /healthz",
+		"HEAD /healthz",
 	}
 
 	r.Use(sloggin.SetLogger(
@@ -200,11 +195,8 @@ func initLogger(r *gin.Engine) {
 			return slog.Default()
 		}),
 		sloggin.WithSkipper(func(c *gin.Context) bool {
-			for _, p := range loggerSkipPaths {
-				if p.Method != c.Request.Method {
-					continue
-				}
-				if ok, _ := regexp.MatchString(p.Path, c.Request.URL.Path); ok {
+			for _, prefix := range loggerSkipPathsPrefix {
+				if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
 					return true
 				}
 			}
