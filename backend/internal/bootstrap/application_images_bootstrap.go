@@ -18,14 +18,12 @@ import (
 // initApplicationImages copies the images from the images directory to the application-images directory
 func initApplicationImages() error {
 	// Images that are built into the Pocket ID binary
-	builtInImages := getBuiltInImageData()
+	builtInImageHashes := getBuiltInImageHashes()
 
 	// Previous versions of images
 	// If these are found, they are deleted
-	legacyImages := builtinImageDataMap{
-		"background.jpg": imageData{
-			SHA256: mustDecodeHex("138d510030ed845d1d74de34658acabff562d306476454369a60ab8ade31933f"),
-		},
+	legacyImageHashes := imageHashMap{
+		"background.jpg": mustDecodeHex("138d510030ed845d1d74de34658acabff562d306476454369a60ab8ade31933f"),
 	}
 
 	dirPath := common.EnvConfig.UploadPath + "/application-images"
@@ -50,22 +48,17 @@ func initApplicationImages() error {
 		}
 
 		// Check if the file is a legacy one - if so, delete it
-		data := imageData{
-			SHA256: h,
-		}
-		if legacyImages.Contains(data) {
+		if legacyImageHashes.Contains(h) {
 			slog.Info("Found legacy application image that will be removed", slog.String("name", name))
 			err = os.Remove(destFilePath)
 			if err != nil {
 				return fmt.Errorf("failed to remove legacy file '%s': %w", name, err)
 			}
-
-			// Continue
 			continue
 		}
 
 		// Check if the file is a built-in one and save it in the map
-		destinationFilesMap[getImageNameWithoutExtension(name)] = builtInImages.Contains(data)
+		destinationFilesMap[getImageNameWithoutExtension(name)] = builtInImageHashes.Contains(h)
 	}
 
 	// Copy images from the images directory to the application-images directory if they don't already exist
@@ -95,39 +88,24 @@ func initApplicationImages() error {
 	return nil
 }
 
-func getBuiltInImageData() builtinImageDataMap {
-	return builtinImageDataMap{
-		"background.webp": imageData{
-			SHA256: mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
-		},
-		"favicon.ico": imageData{
-			SHA256: mustDecodeHex("70f9c4b6bd4781ade5fc96958b1267511751e91957f83c2354fb880b35ec890a"),
-		},
-		"logo.svg": imageData{
-			SHA256: mustDecodeHex("f1e60707df9784152ce0847e3eb59cb68b9015f918ff160376c27ebff1eda796"),
-		},
-		"logoDark.svg": imageData{
-			SHA256: mustDecodeHex("0421a8d93714bacf54c78430f1db378fd0d29565f6de59b6a89090d44a82eb16"),
-		},
-		"logoLight.svg": imageData{
-			SHA256: mustDecodeHex("6d42c88cf6668f7e57c4f2a505e71ecc8a1e0a27534632aa6adec87b812d0bb0"),
-		},
+func getBuiltInImageHashes() imageHashMap {
+	return imageHashMap{
+		"background.webp": mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
+		"favicon.ico":     mustDecodeHex("70f9c4b6bd4781ade5fc96958b1267511751e91957f83c2354fb880b35ec890a"),
+		"logo.svg":        mustDecodeHex("f1e60707df9784152ce0847e3eb59cb68b9015f918ff160376c27ebff1eda796"),
+		"logoDark.svg":    mustDecodeHex("0421a8d93714bacf54c78430f1db378fd0d29565f6de59b6a89090d44a82eb16"),
+		"logoLight.svg":   mustDecodeHex("6d42c88cf6668f7e57c4f2a505e71ecc8a1e0a27534632aa6adec87b812d0bb0"),
 	}
 }
 
-type imageData struct {
-	SHA256 []byte
-}
+type imageHashMap map[string][]byte
 
-type builtinImageDataMap map[string]imageData
-
-func (b builtinImageDataMap) Contains(target imageData) bool {
-	if len(target.SHA256) == 0 {
+func (m imageHashMap) Contains(target []byte) bool {
+	if len(target) == 0 {
 		return false
 	}
-
-	for _, e := range b {
-		if bytes.Equal(e.SHA256, target.SHA256) {
+	for _, h := range m {
+		if bytes.Equal(h, target) {
 			return true
 		}
 	}
@@ -146,7 +124,6 @@ func getImageNameWithoutExtension(fileName string) string {
 		// No dot found, or fileName starts with a dot
 		return fileName
 	}
-
 	return fileName[:idx]
 }
 
