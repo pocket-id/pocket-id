@@ -479,10 +479,9 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 		).
 		First(&storedRefreshToken).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
-		}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
+	} else if err != nil {
 		return CreatedTokens{}, err
 	}
 
@@ -493,6 +492,19 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 
 	// Generate a new access token
 	accessToken, err := s.jwtService.GenerateOAuthAccessToken(storedRefreshToken.User, input.ClientID)
+	if err != nil {
+		return CreatedTokens{}, err
+	}
+
+	// Load the profile, which we need for the ID token
+	userClaims, err := s.getUserClaims(ctx, &storedRefreshToken.User, storedRefreshToken.Scopes(), tx)
+	if err != nil {
+		return CreatedTokens{}, err
+	}
+
+	// Generate a new ID token
+	// There's no nonce here because we don't have one with the refresh token, but that's not required
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, "")
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -520,6 +532,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	return CreatedTokens{
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshToken,
+		IdToken:      idToken,
 		ExpiresIn:    AccessTokenDuration,
 	}, nil
 }
@@ -1726,7 +1739,7 @@ func (s *OidcService) extractClientIDFromAssertion(assertion string) (string, er
 	return sub, nil
 }
 
-func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes string) (*dto.OidcClientPreviewDto, error) {
+func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes []string) (*dto.OidcClientPreviewDto, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -1751,14 +1764,7 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		return nil, &common.OidcAccessDeniedError{}
 	}
 
-	dummyAuthorizedClient := model.UserAuthorizedOidcClient{
-		UserID:   userID,
-		ClientID: clientID,
-		Scope:    scopes,
-		User:     user,
-	}
-
-	userClaims, err := s.getUserClaimsFromAuthorizedClient(ctx, &dummyAuthorizedClient, tx)
+	userClaims, err := s.getUserClaims(ctx, &user, scopes, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -1811,14 +1817,10 @@ func (s *OidcService) getUserClaimsForClientInternal(ctx context.Context, userID
 		return nil, err
 	}
 
-	return s.getUserClaimsFromAuthorizedClient(ctx, &authorizedOidcClient, tx)
-
+	return s.getUserClaims(ctx, &authorizedOidcClient.User, authorizedOidcClient.Scopes(), tx)
 }
 
-func (s *OidcService) getUserClaimsFromAuthorizedClient(ctx context.Context, authorizedClient *model.UserAuthorizedOidcClient, tx *gorm.DB) (map[string]any, error) {
-	user := authorizedClient.User
-	scopes := strings.Split(authorizedClient.Scope, " ")
-
+func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scopes []string, tx *gorm.DB) (map[string]any, error) {
 	claims := make(map[string]any, 10)
 
 	claims["sub"] = user.ID
