@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env/v11"
+	sloggin "github.com/gin-contrib/slog"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -71,6 +72,7 @@ func init() {
 func defaultConfig() EnvConfigSchema {
 	return EnvConfigSchema{
 		AppEnv:             "production",
+		LogLevel:           "info",
 		DbProvider:         "sqlite",
 		DbConnectionString: "",
 		UploadPath:         "data/uploads",
@@ -116,6 +118,11 @@ func parseEnvConfig() error {
 	}
 
 	// Validate the environment variables
+	EnvConfig.LogLevel = strings.ToLower(EnvConfig.LogLevel)
+	if _, err := sloggin.ParseLevel(EnvConfig.LogLevel); err != nil {
+		return errors.New("invalid LOG_LEVEL value. Must be 'debug', 'info', 'warn' or 'error'")
+	}
+
 	switch EnvConfig.DbProvider {
 	case DbProviderSqlite:
 		if EnvConfig.DbConnectionString == "" {

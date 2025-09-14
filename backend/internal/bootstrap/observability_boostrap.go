@@ -91,14 +91,7 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 		return fmt.Errorf("failed to initialize OpenTelemetry log exporter: %w", err)
 	}
 
-	level, err := sloggin.ParseLevel(common.EnvConfig.LogLevel)
-	if err != nil {
-		if common.EnvConfig.AppEnv == "development" {
-			level = slog.LevelDebug
-		} else {
-			level = slog.LevelInfo
-		}
-	}
+	level, _ := sloggin.ParseLevel(common.EnvConfig.LogLevel)
 
 	// Create the handler
 	var handler slog.Handler
