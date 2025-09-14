@@ -14,7 +14,7 @@ import (
 
 func TestGetBuiltInImageData(t *testing.T) {
 	// Get the built-in image data map
-	builtInImages := getBuiltInImageData()
+	builtInImages := getBuiltInImageHashes()
 
 	// Read the actual images directory from disk
 	imagesDir := filepath.Join("..", "..", "resources", "images")
@@ -34,7 +34,7 @@ func TestGetBuiltInImageData(t *testing.T) {
 		actualFilesMap[fileName] = struct{}{}
 
 		// Check if the file exists in the built-in data
-		builtInData, exists := builtInImages[fileName]
+		builtInHash, exists := builtInImages[fileName]
 		assert.True(t, exists, "File %s exists in images directory but not in getBuiltInImageData map", fileName)
 
 		if !exists {
@@ -46,7 +46,7 @@ func TestGetBuiltInImageData(t *testing.T) {
 		// Validate SHA256 hash
 		actualHash, err := utils.CreateSha256FileHash(filePath)
 		require.NoError(t, err, "Failed to compute hash for %s", fileName)
-		assert.Equal(t, actualHash, builtInData.SHA256, "SHA256 hash mismatch for file %s", fileName)
+		assert.Equal(t, actualHash, builtInHash, "SHA256 hash mismatch for file %s", fileName)
 	}
 
 	// Ensure the built-in data doesn't have extra files that don't exist in the directory
