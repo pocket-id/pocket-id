@@ -9,6 +9,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	cryptoutils "github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
@@ -95,7 +96,14 @@ func (f *KeyProviderDatabase) SaveKey(key jwk.Key) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	err = f.db.WithContext(ctx).Create(&row).Error
+	err = f.db.
+		WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "key"}},
+			DoUpdates: clause.AssignmentColumns([]string{"value"}),
+		}).
+		Create(&row).
+		Error
 	if err != nil {
 		// There's one scenario where if Pocket ID is started fresh with more than 1 replica, they both could be trying to create the private key in the database at the same time
 		// In this case, only one of the replicas will succeed; the other one(s) will return an error here, which will cascade down and cause the replica(s) to crash and be restarted (at that point they'll load the then-existing key from the database)
