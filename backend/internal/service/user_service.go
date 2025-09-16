@@ -602,11 +602,12 @@ func (s *UserService) SignUpInitialAdmin(ctx context.Context, signUpData dto.Sig
 	}
 
 	userToCreate := dto.UserCreateDto{
-		FirstName: signUpData.FirstName,
-		LastName:  signUpData.LastName,
-		Username:  signUpData.Username,
-		Email:     signUpData.Email,
-		IsAdmin:   true,
+		FirstName:   signUpData.FirstName,
+		LastName:    signUpData.LastName,
+		DisplayName: strings.TrimSpace(signUpData.FirstName + " " + signUpData.LastName),
+		Username:    signUpData.Username,
+		Email:       signUpData.Email,
+		IsAdmin:     true,
 	}
 
 	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
@@ -737,17 +738,12 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 		}
 	}
 
-	displayName := signupData.FirstName
-	if signupData.LastName != "" {
-		displayName = displayName + " " + signupData.LastName
-	}
-
 	userToCreate := dto.UserCreateDto{
 		Username:    signupData.Username,
 		Email:       signupData.Email,
 		FirstName:   signupData.FirstName,
 		LastName:    signupData.LastName,
-		DisplayName: displayName,
+		DisplayName: strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
 	}
 
 	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
