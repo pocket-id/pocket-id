@@ -13,12 +13,12 @@ import (
 type User struct {
 	Base
 
-	Username    string  `sortable:"true"`
-	Email       string  `sortable:"true"`
-	FirstName   string  `sortable:"true"`
-	LastName    *string `sortable:"true"`
-	DisplayName string  `sortable:"true"`
-	IsAdmin     bool    `sortable:"true"`
+	Username    string `sortable:"true"`
+	Email       string `sortable:"true"`
+	FirstName   string `sortable:"true"`
+	LastName    string `sortable:"true"`
+	DisplayName string `sortable:"true"`
+	IsAdmin     bool   `sortable:"true"`
 	Locale      *string
 	LdapID      *string
 	Disabled    bool `sortable:"true"`
@@ -36,7 +36,7 @@ func (u User) WebAuthnDisplayName() string {
 	if u.DisplayName != "" {
 		return u.DisplayName
 	}
-	return u.FirstName + " " + utils.PtrValueOrZero(u.LastName)
+	return u.FirstName + " " + u.LastName
 }
 
 func (u User) WebAuthnIcon() string { return "" }
@@ -73,12 +73,12 @@ func (u User) WebAuthnCredentialDescriptors() (descriptors []protocol.Credential
 }
 
 func (u User) FullName() string {
-	return u.FirstName + " " + utils.PtrValueOrZero(u.LastName)
+	return u.FirstName + " " + u.LastName
 }
 
 func (u User) Initials() string {
 	first := utils.GetFirstCharacter(u.FirstName)
-	last := utils.GetFirstCharacter(utils.PtrValueOrZero(u.LastName))
+	last := utils.GetFirstCharacter(u.LastName)
 	if first == "" && last == "" && len(u.Username) >= 2 {
 		return strings.ToUpper(u.Username[:2])
 	}

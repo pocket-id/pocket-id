@@ -738,8 +738,8 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 	}
 
 	displayName := signupData.FirstName
-	if signupData.LastName != nil {
-		displayName = displayName + " " + *signupData.LastName
+	if signupData.LastName != "" {
+		displayName = displayName + " " + signupData.LastName
 	}
 
 	userToCreate := dto.UserCreateDto{
