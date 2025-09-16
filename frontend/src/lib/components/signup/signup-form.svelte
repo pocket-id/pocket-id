@@ -32,7 +32,7 @@
 		})
 	);
 	type FormSchema = typeof formSchema;
-	
+
 	const { inputs, ...form } = $derived(createForm<FormSchema>(formSchema, initialData));
 
 	let userData: UserSignUp | null = $state(null);

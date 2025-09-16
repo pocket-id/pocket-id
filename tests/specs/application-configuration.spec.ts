@@ -140,4 +140,3 @@ test('Update application images', async ({ page }) => {
 		.get('/api/application-configuration/background-image')
 		.then((res) => expect.soft(res.status()).toBe(200));
 });
-

@@ -82,7 +82,6 @@
 				description={m.turn_off_ui_animations()}
 				bind:checked={$inputs.disableAnimations.value}
 			/>
-	
 			<div class="space-y-5">
 				<div>
 					<Label class="mb-0 text-sm font-medium">

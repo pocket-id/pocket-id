@@ -346,7 +346,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		}
 
 		newUser := dto.UserCreateDto{
-			Username:  sanitizeUsernameASCII(value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value)),
+			Username: value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
 			Email:     value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value),
 			FirstName: value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
 			LastName:  value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
@@ -504,39 +504,4 @@ func convertLdapIdToString(ldapId string) string {
 
 	// As a last resort, encode as base64 to make it UTF-8 safe
 	return base64.StdEncoding.EncodeToString([]byte(ldapId))
-}
-
-/*
-sanitizeUsernameASCII normalizes a username to:
-- NFC form
-- lowercase
-- ASCII-only allowed charset: [a-z0-9_.@-]
-- trims leading/trailing non-alphanumeric characters to satisfy validator semantics
-If the resulting username becomes empty after sanitization, the caller should decide how to handle it.
-*/
-func sanitizeUsernameASCII(in string) string {
-s := strings.ToLower(norm.NFC.String(in))
-// keep allowed runes only
-buf := make([]rune, 0, len(s))
-for _, r := range s {
-	if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '.' || r == '@' || r == '-' {
-		buf = append(buf, r)
-	}
-}
-s2 := string(buf)
-// trim non-alphanumeric at both ends
-trim := func(r rune) bool {
-	return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-}
-// manual trim since strings.TrimFunc works on runes
-start := 0
-end := len([]rune(s2))
-runes := []rune(s2)
-for start < end && trim(runes[start]) {
-	start++
-}
-for end > start && trim(runes[end-1]) {
-	end--
-}
-return string(runes[start:end])
 }

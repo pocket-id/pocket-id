@@ -40,7 +40,7 @@
 		})
 	);
 	type FormSchema = typeof formSchema;
-	
+
 	const { inputs, ...form } = $derived(createForm<FormSchema>(formSchema, user));
 	async function onSubmit() {
 		const data = form.validate();
