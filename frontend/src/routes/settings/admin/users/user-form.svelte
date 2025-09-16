@@ -71,7 +71,11 @@
 		<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<FormInput label={m.first_name()} oninput={onNameInput} bind:input={$inputs.firstName} />
 			<FormInput label={m.last_name()} oninput={onNameInput} bind:input={$inputs.lastName} />
-			<FormInput label={m.display_name()} bind:input={$inputs.displayName} />
+			<FormInput
+				label={m.display_name()}
+				oninput={() => (hasManualDisplayNameEdit = true)}
+				bind:input={$inputs.displayName}
+			/>
 			<FormInput label={m.username()} bind:input={$inputs.username} />
 			<FormInput label={m.email()} bind:input={$inputs.email} />
 		</div>
