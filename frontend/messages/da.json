@@ -443,7 +443,10 @@
 	"custom_client_id_description": "Indstil et brugerdefineret klient-id, hvis dette kræves af din applikation. Ellers skal du lade feltet være tomt for at generere et tilfældigt id.",
 	"generated": "Genereret",
 	"administration": "Administration",
-	"group_rdn_attribute_description": "Den attribut, der bruges i gruppernes skelnenavn (DN). Anbefalet værdi: `cn`",
+	"group_rdn_attribute_description": "Den attribut, der bruges i gruppernes skelnenavn (DN).",
+	"display_name_attribute": "Visningsnavn-attribut",
+	"display_name": "Visningsnavn",
+	"configure_application_images": "Konfigurer applikationsbilleder",
 	"ui_config_disabled_info_title": "UI-konfiguration deaktiveret",
 	"ui_config_disabled_info_description": "UI-konfigurationen er deaktiveret, fordi applikationskonfigurationsindstillingerne administreres via miljøvariabler. Nogle indstillinger kan muligvis ikke redigeres."
 }
