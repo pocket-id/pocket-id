@@ -5,7 +5,7 @@ CREATE TABLE users_new
 (
     id           TEXT    NOT NULL PRIMARY KEY,
     created_at   DATETIME,
-    username     TEXT    NOT NULL UNIQUE,
+    username     TEXT    NOT NULL COLLATE NOCASE UNIQUE,
     email        TEXT    NOT NULL UNIQUE,
     first_name   TEXT,
     last_name    TEXT    NOT NULL,

@@ -5,7 +5,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { tryCatch } from '$lib/utils/try-catch-util';
-	import { emptyToUndefined } from '$lib/utils/zod-util';
+	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
 	import { z } from 'zod/v4';
 
 	let {
@@ -26,11 +26,7 @@
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
-		username: z
-			.string()
-			.min(2)
-			.max(30)
-			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
+		username: usernameSchema,
 		email: z.email()
 	});
 	type FormSchema = typeof formSchema;

@@ -8,7 +8,7 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
-	import { emptyToUndefined } from '$lib/utils/zod-util';
+	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 
@@ -35,11 +35,7 @@
 		firstName: z.string().min(1).max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
 		displayName: z.string().max(100),
-		username: z
-			.string()
-			.min(2)
-			.max(30)
-			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
+		username: usernameSchema,
 		email: z.email(),
 		isAdmin: z.boolean()
 	});

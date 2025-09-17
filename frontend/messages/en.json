@@ -120,6 +120,8 @@
 	"username": "Username",
 	"save": "Save",
 	"username_can_only_contain": "Username can only contain lowercase letters, numbers, underscores, dots, hyphens, and '@' symbols",
+	"username_must_start_with": "Username must start with an alphanumeric character",
+	"username_must_end_with": "Username must end with an alphanumeric character",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Sign in using the following code. The code will expire in 15 minutes.",
 	"or_visit": "or visit",
 	"added_on": "Added on",
