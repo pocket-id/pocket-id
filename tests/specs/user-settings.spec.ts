@@ -53,6 +53,21 @@ test('Create user fails with already taken username', async ({ page }) => {
 	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
 });
 
+test('Create user fails with already taken username in different casing', async ({ page }) => {
+	const user = users.steve;
+
+	await page.goto('/settings/admin/users');
+
+	await page.getByRole('button', { name: 'Add User' }).click();
+	await page.getByLabel('First name').fill(user.firstname);
+	await page.getByLabel('Last name').fill(user.lastname);
+	await page.getByLabel('Email').fill(user.email);
+	await page.getByLabel('Username').fill(users.tim.username.toUpperCase());
+	await page.getByRole('button', { name: 'Save' }).click();
+
+	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+});
+
 test('Create one time access token', async ({ page, context }) => {
 	await page.goto('/settings/admin/users');
 
@@ -146,6 +161,23 @@ test('Update user fails with already taken username', async ({ page }) => {
 	await page.getByRole('menuitem', { name: 'Edit' }).click();
 
 	await page.getByLabel('Username').fill(users.tim.username);
+	await page.getByRole('button', { name: 'Save' }).first().click();
+
+	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+});
+
+test('Update user fails with already taken username in different casing', async ({ page }) => {
+	const user = users.craig;
+
+	await page.goto('/settings/admin/users');
+
+	await page
+		.getByRole('row', { name: `${user.firstname} ${user.lastname}` })
+		.getByRole('button')
+		.click();
+	await page.getByRole('menuitem', { name: 'Edit' }).click();
+
+	await page.getByLabel('Username').fill(users.tim.username.toUpperCase());
 	await page.getByRole('button', { name: 'Save' }).first().click();
 
 	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');

@@ -42,6 +42,18 @@ test('Update account details fails with already taken username', async ({ page }
 	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
 });
 
+test('Update account details fails with already taken username in different casing', async ({
+	page
+}) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Username').fill(users.craig.username.toUpperCase());
+
+	await page.getByRole('button', { name: 'Save' }).click();
+
+	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+});
+
 test('Change Locale', async ({ page }) => {
 	await page.goto('/settings/account');
 
