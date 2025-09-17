@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env/v11"
+	sloggin "github.com/gin-contrib/slog"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -32,6 +33,7 @@ const (
 
 type EnvConfigSchema struct {
 	AppEnv             string     `env:"APP_ENV"`
+	LogLevel           string     `env:"LOG_LEVEL"`
 	AppURL             string     `env:"APP_URL"`
 	DbProvider         DbProvider `env:"DB_PROVIDER"`
 	DbConnectionString string     `env:"DB_CONNECTION_STRING" options:"file"`
@@ -70,6 +72,7 @@ func init() {
 func defaultConfig() EnvConfigSchema {
 	return EnvConfigSchema{
 		AppEnv:             "production",
+		LogLevel:           "info",
 		DbProvider:         "sqlite",
 		DbConnectionString: "",
 		UploadPath:         "data/uploads",
@@ -115,6 +118,11 @@ func parseEnvConfig() error {
 	}
 
 	// Validate the environment variables
+	EnvConfig.LogLevel = strings.ToLower(EnvConfig.LogLevel)
+	if _, err := sloggin.ParseLevel(EnvConfig.LogLevel); err != nil {
+		return errors.New("invalid LOG_LEVEL value. Must be 'debug', 'info', 'warn' or 'error'")
+	}
+
 	switch EnvConfig.DbProvider {
 	case DbProviderSqlite:
 		if EnvConfig.DbConnectionString == "" {

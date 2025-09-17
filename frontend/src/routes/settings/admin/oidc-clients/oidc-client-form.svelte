@@ -349,6 +349,23 @@
 					{/if}
 				</div>
 			{/if}
+      
+			<div class="flex flex-col gap-2">
+				<FileInput
+					id="logo"
+					variant="secondary"
+					accept="image/png, image/jpeg, image/svg+xml, image/webp, image/avif, image/heic"
+					onchange={onLogoChange}
+				>
+					<Button variant="secondary">
+						{logoDataURL ? m.change_logo() : m.upload_logo()}
+					</Button>
+				</FileInput>
+				{#if logoDataURL}
+					<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
+				{/if}
+			</div>
+
 		</div>
 	</div>
 
