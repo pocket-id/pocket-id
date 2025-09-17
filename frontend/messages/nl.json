@@ -443,7 +443,10 @@
 	"custom_client_id_description": "Stel een aangepaste client-ID in als je app dit nodig heeft. Anders laat je het gewoon leeg en wordt er een willekeurige ID gegenereerd.",
 	"generated": "Gemaakt",
 	"administration": "Beheer",
-	"group_rdn_attribute_description": "Het kenmerk dat je gebruikt in de onderscheidende naam (DN) van de groepen. Aanbevolen waarde: `cn`",
+	"group_rdn_attribute_description": "Het kenmerk dat wordt gebruikt in de onderscheidende naam (DN) van de groepen.",
+	"display_name_attribute": "Weergavenaam-attribuut",
+	"display_name": "Weergavenaam",
+	"configure_application_images": "Configureer applicatie-images",
 	"ui_config_disabled_info_title": "UI-configuratie uitgeschakeld",
 	"ui_config_disabled_info_description": "De UI-configuratie is uitgeschakeld omdat de configuratie-instellingen van de app via omgevingsvariabelen worden beheerd. Sommige instellingen kun je misschien niet aanpassen."
 }
