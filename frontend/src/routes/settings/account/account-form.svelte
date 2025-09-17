@@ -8,6 +8,7 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
 	import { toast } from 'svelte-sonner';
 	import { z } from 'zod/v4';
 
@@ -26,23 +27,29 @@
 	} = $props();
 
 	let isLoading = $state(false);
+	let hasManualDisplayNameEdit = $state(!!account.displayName);
 
 	const userService = new UserService();
 
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
-		lastName: z.string().max(50).optional(),
-		username: z
-			.string()
-			.min(2)
-			.max(30)
-			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
+		lastName: emptyToUndefined(z.string().max(50).optional()),
+		displayName: z.string().max(100),
+		username: usernameSchema,
 		email: z.email(),
 		isAdmin: z.boolean()
 	});
 	type FormSchema = typeof formSchema;
 
 	const { inputs, ...form } = createForm<FormSchema>(formSchema, account);
+
+	function onNameInput() {
+		if (!hasManualDisplayNameEdit) {
+			$inputs.displayName.value = `${$inputs.firstName.value}${
+				$inputs.lastName?.value ? ' ' + $inputs.lastName.value : ''
+			}`;
+		}
+	}
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -68,7 +75,6 @@
 </script>
 
 <form onsubmit={preventDefault(onSubmit)} class="space-y-6">
-	<!-- Profile Picture Section -->
 	<ProfilePictureSettings
 		{userId}
 		{isLdapUser}
@@ -76,31 +82,32 @@
 		resetCallback={resetProfilePicture}
 	/>
 
-	<!-- Divider -->
 	<hr class="border-border" />
 
-	<!-- User Information -->
 	<fieldset disabled={userInfoInputDisabled}>
-		<div>
-			<div class="flex flex-col gap-3 sm:flex-row">
-				<div class="w-full">
-					<FormInput label={m.first_name()} bind:input={$inputs.firstName} />
-				</div>
-				<div class="w-full">
-					<FormInput label={m.last_name()} bind:input={$inputs.lastName} />
-				</div>
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+			<div>
+				<FormInput label={m.first_name()} bind:input={$inputs.firstName} onInput={onNameInput} />
 			</div>
-			<div class="mt-3 flex flex-col gap-3 sm:flex-row">
-				<div class="w-full">
-					<FormInput label={m.email()} bind:input={$inputs.email} />
-				</div>
-				<div class="w-full">
-					<FormInput label={m.username()} bind:input={$inputs.username} />
-				</div>
+			<div>
+				<FormInput label={m.last_name()} bind:input={$inputs.lastName} onInput={onNameInput} />
+			</div>
+			<div>
+				<FormInput
+					label={m.display_name()}
+					bind:input={$inputs.displayName}
+					onInput={() => (hasManualDisplayNameEdit = true)}
+				/>
+			</div>
+			<div>
+				<FormInput label={m.username()} bind:input={$inputs.username} />
+			</div>
+			<div>
+				<FormInput label={m.email()} bind:input={$inputs.email} />
 			</div>
 		</div>
 
-		<div class="flex justify-end pt-2">
+		<div class="flex justify-end pt-4">
 			<Button {isLoading} type="submit">{m.save()}</Button>
 		</div>
 	</fieldset>

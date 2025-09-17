@@ -9,8 +9,10 @@ test.beforeEach(async () => await cleanupBackend());
 test('Update account details', async ({ page }) => {
 	await page.goto('/settings/account');
 
+	await page.getByLabel('Display Name').fill('Tim Apple');
 	await page.getByLabel('First name').fill('Timothy');
 	await page.getByLabel('Last name').fill('Apple');
+	await page.getByLabel('Display Name').fill('Timothy Apple');
 	await page.getByLabel('Email').fill('timothy.apple@test.com');
 	await page.getByLabel('Username').fill('timothy');
 	await page.getByRole('button', { name: 'Save' }).click();
@@ -34,6 +36,18 @@ test('Update account details fails with already taken username', async ({ page }
 	await page.goto('/settings/account');
 
 	await page.getByLabel('Username').fill(users.craig.username);
+
+	await page.getByRole('button', { name: 'Save' }).click();
+
+	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
+});
+
+test('Update account details fails with already taken username in different casing', async ({
+	page
+}) => {
+	await page.goto('/settings/account');
+
+	await page.getByLabel('Username').fill(users.craig.username.toUpperCase());
 
 	await page.getByRole('button', { name: 'Save' }).click();
 

@@ -1,12 +1,13 @@
 <script lang="ts">
-	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { User, UserCreate } from '$lib/types/user.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
+	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
 	import { z } from 'zod/v4';
 
 	let {
@@ -19,10 +20,12 @@
 
 	let isLoading = $state(false);
 	let inputDisabled = $derived(!!existingUser?.ldapId && $appConfigStore.ldapEnabled);
+	let hasManualDisplayNameEdit = $state(!!existingUser?.displayName);
 
 	const user = {
 		firstName: existingUser?.firstName || '',
 		lastName: existingUser?.lastName || '',
+		displayName: existingUser?.displayName || '',
 		email: existingUser?.email || '',
 		username: existingUser?.username || '',
 		isAdmin: existingUser?.isAdmin || false,
@@ -31,12 +34,9 @@
 
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
-		lastName: z.string().max(50),
-		username: z
-			.string()
-			.min(2)
-			.max(30)
-			.regex(/^[a-z0-9_@.-]+$/, m.username_can_only_contain()),
+		lastName: emptyToUndefined(z.string().max(50).optional()),
+		displayName: z.string().max(100),
+		username: usernameSchema,
 		email: z.email(),
 		isAdmin: z.boolean(),
 		disabled: z.boolean()
@@ -53,15 +53,29 @@
 		if (success && !existingUser) form.reset();
 		isLoading = false;
 	}
+	function onNameInput() {
+		if (!hasManualDisplayNameEdit) {
+			$inputs.displayName.value = `${$inputs.firstName.value}${
+				$inputs.lastName?.value ? ' ' + $inputs.lastName.value : ''
+			}`;
+		}
+	}
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>
 	<fieldset disabled={inputDisabled}>
 		<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
-			<FormInput label={m.first_name()} bind:input={$inputs.firstName} />
-			<FormInput label={m.last_name()} bind:input={$inputs.lastName} />
+			<FormInput label={m.first_name()} oninput={onNameInput} bind:input={$inputs.firstName} />
+			<FormInput label={m.last_name()} oninput={onNameInput} bind:input={$inputs.lastName} />
+			<FormInput
+				label={m.display_name()}
+				oninput={() => (hasManualDisplayNameEdit = true)}
+				bind:input={$inputs.displayName}
+			/>
 			<FormInput label={m.username()} bind:input={$inputs.username} />
 			<FormInput label={m.email()} bind:input={$inputs.email} />
+		</div>
+		<div class="mt-5 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<SwitchWithLabel
 				id="admin-privileges"
 				label={m.admin_privileges()}

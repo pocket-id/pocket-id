@@ -113,7 +113,7 @@ git add frontend/package.json
 
 # Generate changelog
 echo "Generating changelog..."
-conventional-changelog -p conventionalcommits -i CHANGELOG.md -s
+conventional-changelog -p conventionalcommits -i CHANGELOG.md -s --pkg frontend/package.json
 git add CHANGELOG.md
 
 # Commit the changes with the new version
