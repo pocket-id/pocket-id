@@ -120,6 +120,8 @@
 	"username": "使用者名稱",
 	"save": "儲存",
 	"username_can_only_contain": "使用者名稱僅能包含小寫英文字母、數字、底線（_）、句點（.）、連字號（-）與 @ 符號",
+	"username_must_start_with": "使用者名稱必須以英數字元開頭",
+	"username_must_end_with": "使用者名稱必須以英數字元結尾",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "使用以下代碼登入。 這個代碼將於 15 分鐘後到期。",
 	"or_visit": "或造訪",
 	"added_on": "新增於",
