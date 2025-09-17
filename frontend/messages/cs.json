@@ -120,6 +120,8 @@
 	"username": "Uživatelské jméno",
 	"save": "Uložit",
 	"username_can_only_contain": "Uživatelské jméno může obsahovat pouze malá písmena, číslice, podtržítka, tečky, pomlčky a symbol '@'",
+	"username_must_start_with": "Uživatelské jméno musí začínat alfanumerickým znakem.",
+	"username_must_end_with": "Uživatelské jméno musí končit alfanumerickým znakem.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Přihlaste se pomocí následujícího kódu. Platnost kódu vyprší za 15 minut.",
 	"or_visit": "nebo navštívit",
 	"added_on": "Přidáno",
