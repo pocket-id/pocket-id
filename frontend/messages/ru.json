@@ -120,6 +120,8 @@
 	"username": "Имя пользователя",
 	"save": "Сохранить",
 	"username_can_only_contain": "Имя пользователя может содержать только строчные буквы, цифры, знак подчеркивания, точки, дефиса и символ '@'",
+	"username_must_start_with": "Username must start with an alphanumeric character",
+	"username_must_end_with": "Username must end with an alphanumeric character",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Войдите, используя следующий код. Код истечет через 15 минут.",
 	"or_visit": "или посетите",
 	"added_on": "Добавлен",
