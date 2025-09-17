@@ -443,7 +443,10 @@
 	"custom_client_id_description": "Ange ett anpassat Client ID om detta krävs av din applikation. Annars lämnar du fältet tomt för att generera ett slumpmässigt ID.",
 	"generated": "Genererad",
 	"administration": "Administration",
-	"group_rdn_attribute_description": "Attributet som används i gruppens distinguished name (DN). Rekommenderat värde: `cn`",
+	"group_rdn_attribute_description": "Attributet som används i gruppernas distinkta namn (DN).",
+	"display_name_attribute": "Visningsnamnattribut",
+	"display_name": "Visningsnamn",
+	"configure_application_images": "Konfigurera applikationsbilder",
 	"ui_config_disabled_info_title": "UI-konfiguration inaktiverad",
 	"ui_config_disabled_info_description": "UI-konfigurationen är inaktiverad eftersom applikationens konfigurationsinställningar hanteras via miljövariabler. Vissa inställningar kan inte redigeras."
 }
