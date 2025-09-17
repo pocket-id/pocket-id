@@ -120,6 +120,8 @@
 	"username": "用户名",
 	"save": "保存",
 	"username_can_only_contain": "用户名只能包含小写字母、数字、下划线、点、连字符和 '@' 符号",
+	"username_must_start_with": "Username must start with an alphanumeric character",
+	"username_must_end_with": "Username must end with an alphanumeric character",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "使用以下代码登录。该代码将在 15 分钟后失效。",
 	"or_visit": "或访问",
 	"added_on": "添加于",
