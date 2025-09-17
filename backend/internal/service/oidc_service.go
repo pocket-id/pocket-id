@@ -1978,7 +1978,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID s
 	}
 
 	// Persist image type using a background timeout context
-	dbCtx, dbCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	dbCtx, dbCancel := context.WithTimeout(ctx, 15*time.Second)
 	defer dbCancel()
 	if err := s.setClientLogoType(dbCtx, clientID, ext, uploadsDir); err != nil {
 		return err
