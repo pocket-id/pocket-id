@@ -145,6 +145,48 @@
 	}
 </script>
 
+{#snippet logoUrlInput()}
+	<FormInput
+		label="Logo URL"
+		placeholder="https://example.com/icon.svg"
+		class="w-full"
+		bind:input={$inputs.logoUrl}
+	/>
+	<p class="text-muted-foreground text-[0.8rem]">
+		Paste a direct image URL (svg, png, webp). Find icons at
+		<a class="underline" rel="noreferrer" target="_blank" href="https://github.com/selfhst/icons"
+			>Selfh.st Icons</a
+		>
+		or
+		<a
+			class="underline"
+			rel="noreferrer"
+			target="_blank"
+			href="https://github.com/homarr-labs/dashboard-icons">Dashboard Icons</a
+		>.
+	</p>
+{/snippet}
+
+{#snippet uploadDropdown(label: string, accept: string)}
+	<DropdownButton.DropdownRoot>
+		<DropdownButton.Root>
+			<FileInput id="logo" variant="secondary" {accept} onchange={onLogoChange}>
+				<DropdownButton.Main class="min-w-32">
+					{label}
+				</DropdownButton.Main>
+			</FileInput>
+
+			<DropdownButton.DropdownTrigger>
+				<DropdownButton.Trigger class="border-l" />
+			</DropdownButton.DropdownTrigger>
+		</DropdownButton.Root>
+
+		<DropdownButton.Content align="end">
+			<DropdownButton.Item onclick={() => (isUsingUrl = true)}>Use URL</DropdownButton.Item>
+		</DropdownButton.Content>
+	</DropdownButton.DropdownRoot>
+{/snippet}
+
 <form onsubmit={preventDefault(onSubmit)}>
 	<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
 		<FormInput
@@ -217,67 +259,26 @@
 
 					<div class="flex w-full max-w-xl flex-col gap-3">
 						{#if isUsingUrl}
-							<FormInput
-								label="Logo URL"
-								placeholder="https://example.com/icon.svg"
-								class="w-full"
-								bind:input={$inputs.logoUrl}
-							/>
-							<p class="text-muted-foreground text-[0.8rem]">
-								Paste a direct image URL (svg, png, webp). Find icons at
-								<a
-									class="underline"
-									rel="noreferrer"
-									target="_blank"
-									href="https://github.com/selfhst/icons">Selfh.st Icons</a
-								>
-								or
-								<a
-									class="underline"
-									rel="noreferrer"
-									target="_blank"
-									href="https://github.com/homarr-labs/dashboard-icons">Dashboard Icons</a
-								>.
-							</p>
-
+							{@render logoUrlInput()}
 							<div class="flex gap-2">
 								<Button
 									variant="secondary"
 									onclick={() => {
 										isUsingUrl = false;
-										$inputs.logoUrl && ($inputs.logoUrl.value = '');
+										if ($inputs.logoUrl) {
+											$inputs.logoUrl.value = '';
+										}
 									}}
 								>
 									Switch to upload
 								</Button>
 							</div>
 						{:else}
-							<!-- Upload mode + DropdownButton -->
 							<div class="flex items-center gap-2">
-								<DropdownButton.DropdownRoot>
-									<DropdownButton.Root>
-										<FileInput
-											id="logo"
-											variant="secondary"
-											accept="image/png, image/jpeg, image/svg+xml, image/webp"
-											onchange={onLogoChange}
-										>
-											<DropdownButton.Main class="min-w-32">
-												{m.change_logo()}
-											</DropdownButton.Main>
-										</FileInput>
-
-										<DropdownButton.DropdownTrigger>
-											<DropdownButton.Trigger class="border-l" />
-										</DropdownButton.DropdownTrigger>
-									</DropdownButton.Root>
-
-									<DropdownButton.Content align="end">
-										<DropdownButton.Item onclick={() => (isUsingUrl = true)}>
-											Use URL
-										</DropdownButton.Item>
-									</DropdownButton.Content>
-								</DropdownButton.DropdownRoot>
+								{@render uploadDropdown(
+									m.change_logo(),
+									'image/png, image/jpeg, image/svg+xml, image/webp'
+								)}
 							</div>
 						{/if}
 					</div>
@@ -285,35 +286,15 @@
 			{:else}
 				<div class="flex flex-col gap-3">
 					{#if isUsingUrl}
-						<FormInput
-							label="Logo URL"
-							placeholder="https://example.com/icon.svg"
-							class="w-full"
-							bind:input={$inputs.logoUrl}
-						/>
-						<p class="text-muted-foreground text-[0.8rem]">
-							Paste a direct image URL (svg, png, webp). Find icons at
-							<a
-								class="underline"
-								rel="noreferrer"
-								target="_blank"
-								href="https://github.com/selfhst/icons">Selfh.st Icons</a
-							>
-							or
-							<a
-								class="underline"
-								rel="noreferrer"
-								target="_blank"
-								href="https://github.com/homarr-labs/dashboard-icons">Dashboard Icons</a
-							>.
-						</p>
-
+						{@render logoUrlInput()}
 						<div class="flex gap-2">
 							<Button
 								variant="secondary"
 								onclick={() => {
 									isUsingUrl = false;
-									$inputs.logoUrl && ($inputs.logoUrl.value = '');
+									if ($inputs.logoUrl) {
+										$inputs.logoUrl.value = '';
+									}
 								}}
 							>
 								Switch to upload
@@ -321,50 +302,11 @@
 						</div>
 					{:else}
 						<div class="flex flex-wrap items-center gap-2">
-							<DropdownButton.DropdownRoot>
-								<DropdownButton.Root>
-									<FileInput
-										id="logo"
-										variant="secondary"
-										accept="image/png, image/jpeg, image/svg+xml"
-										onchange={onLogoChange}
-									>
-										<DropdownButton.Main class="min-w-32">
-											{m.upload_logo()}
-										</DropdownButton.Main>
-									</FileInput>
-
-									<DropdownButton.DropdownTrigger>
-										<DropdownButton.Trigger class="border-l" />
-									</DropdownButton.DropdownTrigger>
-								</DropdownButton.Root>
-
-								<DropdownButton.Content align="end">
-									<DropdownButton.Item onclick={() => (isUsingUrl = true)}>
-										Use URL
-									</DropdownButton.Item>
-								</DropdownButton.Content>
-							</DropdownButton.DropdownRoot>
+							{@render uploadDropdown(m.upload_logo(), 'image/png, image/jpeg, image/svg+xml')}
 						</div>
 					{/if}
 				</div>
 			{/if}
-
-			<div class="flex flex-col gap-2">
-				<FileInput
-					id="logo"
-					variant="secondary"
-					accept="image/png, image/jpeg, image/svg+xml, image/webp, image/avif, image/heic"
-					onchange={onLogoChange}
-				>
-					<Button variant="secondary">
-						{logoDataURL ? m.change_logo() : m.upload_logo()}
-					</Button>
-				</FileInput>
-				{#if logoDataURL}
-					<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
-				{/if}
-			</div>
 		</div>
 	</div>
 
