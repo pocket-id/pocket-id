@@ -120,6 +120,8 @@
 	"username": "사용자 이름",
 	"save": "저장",
 	"username_can_only_contain": "사용자 이름은 영어 소문자, 숫자, 밑줄, 점, 하이픈, '@' 기호만 포함할 수 있습니다",
+	"username_must_start_with": "Username must start with an alphanumeric character",
+	"username_must_end_with": "Username must end with an alphanumeric character",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "다음 코드를 사용하여 로그인하세요. 이 코드는 15분 후에 만료됩니다.",
 	"or_visit": "또는",
 	"added_on": "추가:",
