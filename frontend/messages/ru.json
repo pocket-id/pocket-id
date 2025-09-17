@@ -443,10 +443,10 @@
 	"custom_client_id_description": "Установите пользовательский ID клиента, если это нужно для вашего приложения. Если нет, оставьте поле пустым, чтобы он был сгенерирован случайным образом.",
 	"generated": "Сгенерированный",
 	"administration": "Администрирование",
-	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN).",
-	"display_name_attribute": "Display Name Attribute",
-	"display_name": "Display Name",
-	"configure_application_images": "Configure Application Images",
+	"group_rdn_attribute_description": "Атрибут, который используется в полном имени группы (DN).",
+	"display_name_attribute": "Атрибут отображаемого имени",
+	"display_name": "Отображаемое имя",
+	"configure_application_images": "Настройка образов приложений",
 	"ui_config_disabled_info_title": "Конфигурация пользовательского интерфейса отключена",
 	"ui_config_disabled_info_description": "Конфигурация пользовательского интерфейса отключена, потому что настройки приложения управляются через переменные среды. Некоторые настройки могут быть недоступны для редактирования."
 }
