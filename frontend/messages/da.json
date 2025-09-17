@@ -120,6 +120,8 @@
 	"username": "Brugernavn",
 	"save": "Gem",
 	"username_can_only_contain": "Brugernavn må kun indeholde små bogstaver, tal, understregninger (_), punktummer (.), bindestreger (-) og @-tegn",
+	"username_must_start_with": "Brugernavnet skal begynde med et alfanumerisk tegn",
+	"username_must_end_with": "Brugernavnet skal slutte med et alfanumerisk tegn",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Log ind med nedenstående kode. Koden udløber om 15 minutter.",
 	"or_visit": "eller besøg",
 	"added_on": "Tilføjet den",
