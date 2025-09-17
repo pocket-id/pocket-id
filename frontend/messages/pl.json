@@ -120,6 +120,8 @@
 	"username": "Nazwa użytkownika",
 	"save": "Zapisz",
 	"username_can_only_contain": "Nazwa użytkownika może zawierać tylko małe litery, cyfry, podkreślenia, kropki, myślniki i symbole '@'",
+	"username_must_start_with": "Nazwa użytkownika musi zaczynać się od znaku alfanumerycznego.",
+	"username_must_end_with": "Nazwa użytkownika musi kończyć się znakiem alfanumerycznym.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Zaloguj się, używając następującego kodu. Kod wygaśnie za 15 minut.",
 	"or_visit": "lub odwiedź",
 	"added_on": "Dodano",
