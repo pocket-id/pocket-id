@@ -1959,7 +1959,11 @@ func (s *OidcService) downloadAndSaveLogoFromURL(ctx context.Context, clientID s
 	}
 
 	const maxLogoSize int64 = 2 * 1024 * 1024 // 2MB
-	if resp.ContentLength > maxLogoSize {
+	// Handle missing/unknown Content-Length explicitly and guard against oversized responses.
+	if resp.ContentLength == -1 {
+		return fmt.Errorf("missing Content-Length header")
+	}
+	if resp.ContentLength < 0 || resp.ContentLength > maxLogoSize {
 		return fmt.Errorf("logo is too large")
 	}
 
