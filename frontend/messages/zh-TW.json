@@ -443,7 +443,10 @@
 	"custom_client_id_description": "如果您的應用程式需要，請設定自訂用戶端 ID。否則，請留空以產生隨機 ID。",
 	"generated": "產生",
 	"administration": "行政管理",
-	"group_rdn_attribute_description": "群組識別名 (DN) 中使用的屬性。建議值： `cn`",
+	"group_rdn_attribute_description": "用於群組區別名稱（DN）的屬性。",
+	"display_name_attribute": "顯示名稱屬性",
+	"display_name": "顯示名稱",
+	"configure_application_images": "設定應用程式映像檔",
 	"ui_config_disabled_info_title": "使用者介面設定已停用",
 	"ui_config_disabled_info_description": "使用者介面設定已停用，因為應用程式的設定參數是透過環境變數進行管理。部分設定可能無法編輯。"
 }
