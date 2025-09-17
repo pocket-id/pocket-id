@@ -120,6 +120,8 @@
 	"username": "Nombre de usuario",
 	"save": "Guardar",
 	"username_can_only_contain": "El nombre de usuario solo puede contener letras minúsculas, números, guiones bajos, puntos, guiones y símbolos '@'",
+	"username_must_start_with": "El nombre de usuario debe comenzar con un carácter alfanumérico.",
+	"username_must_end_with": "El nombre de usuario debe terminar con un carácter alfanumérico.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Inicia sesión usando el siguiente código. El código caducará en 15 minutos.",
 	"or_visit": "o visita",
 	"added_on": "Añadido el",
