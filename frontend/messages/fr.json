@@ -120,6 +120,8 @@
 	"username": "Nom d'utilisateur",
 	"save": "Enregistrer",
 	"username_can_only_contain": "Le nom d'utilisateur ne peut contenir que des lettres minuscules, des chiffres, des tirets, des tirets bas et le symbole '@'",
+	"username_must_start_with": "Le nom d'utilisateur doit commencer par un caractère alphanumérique.",
+	"username_must_end_with": "Le nom d'utilisateur doit finir par un caractère alphanumérique.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Connectez-vous avec le code suivant. Le code expirera dans 15 minutes.",
 	"or_visit": "ou visiter",
 	"added_on": "Ajoutée le",
