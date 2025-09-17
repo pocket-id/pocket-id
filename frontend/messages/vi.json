@@ -120,6 +120,8 @@
 	"username": "Tên đăng nhập",
 	"save": "Lưu",
 	"username_can_only_contain": "Tên người dùng chỉ có thể chứa các ký tự chữ thường, số, dấu gạch dưới, dấu chấm, dấu gạch ngang và ký hiệu '@'.",
+	"username_must_start_with": "Tên người dùng phải bắt đầu bằng một ký tự alphanumeric.",
+	"username_must_end_with": "Tên người dùng phải kết thúc bằng một ký tự alphanumeric.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Đăng nhập bằng mã sau. Mã này sẽ hết hạn trong 15 phút.",
 	"or_visit": "hoặc truy cập",
 	"added_on": "Đã được thêm vào",
