@@ -259,7 +259,7 @@
 										<FileInput
 											id="logo"
 											variant="secondary"
-											accept="image/png, image/jpeg, image/svg+xml"
+											accept="image/png, image/jpeg, image/svg+xml, image/webp"
 											onchange={onLogoChange}
 										>
 											<DropdownButton.Main class="min-w-32">
@@ -349,7 +349,7 @@
 					{/if}
 				</div>
 			{/if}
-      
+
 			<div class="flex flex-col gap-2">
 				<FileInput
 					id="logo"
@@ -365,7 +365,6 @@
 					<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
 				{/if}
 			</div>
-
 		</div>
 	</div>
 
