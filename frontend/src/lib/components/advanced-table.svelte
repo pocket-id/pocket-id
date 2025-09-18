@@ -16,6 +16,7 @@
 	import { ChevronDown } from '@lucide/svelte';
 	import { PersistedState } from 'runed';
 	import { onMount, type Snippet } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import Button from './ui/button/button.svelte';
 	import { Skeleton } from './ui/skeleton';
 
@@ -42,6 +43,7 @@
 	let items: Paginated<T> | undefined = $state();
 
 	const paginationLimits = new PersistedState<Record<string, number>>('pagination-limits', {});
+	const listLenghts = new PersistedState<Record<string, number>>('list-lengths', {});
 
 	const requestOptions = $state<SearchPaginationSortRequest>({
 		sort: defaultSort,
@@ -124,9 +126,19 @@
 		requestOptions.pagination!.page = page;
 	}
 
+	function updateListLength(totalItems: number) {
+		const paginationLimit = paginationLimits.current[id] || 20;
+		if (totalItems > paginationLimit) {
+			listLenghts.current[id] = paginationLimit;
+		} else {
+			listLenghts.current[id] = totalItems;
+		}
+	}
+
 	export async function refresh() {
 		items = await fetchCallback(requestOptions);
 		changePageState(items.pagination.currentPage);
+		updateListLength(items.pagination.totalItems);
 	}
 </script>
 
@@ -143,83 +155,83 @@
 	/>
 {/if}
 
-{#if items?.pagination.totalItems === 0 && searchValue === ''}
+{#if (items?.pagination.totalItems === 0 && searchValue === '') || listLenghts.current[id] === 0}
 	<div class="my-5 flex flex-col items-center">
 		<Empty class="text-muted-foreground h-20" />
 		<p class="text-muted-foreground mt-3 text-sm">{m.no_items_found()}</p>
 	</div>
 {:else}
-	<Table.Root
-		class="min-w-full overflow-x-auto {items?.data?.length != 0 ? 'table-auto' : 'table-fixed'}"
-	>
-		<Table.Header>
-			<Table.Row>
-				{#if selectedIds}
-					<Table.Head class="w-12">
-						<Checkbox
-							disabled={selectionDisabled}
-							checked={allChecked}
-							onCheckedChange={(c: boolean) => onAllCheck(c as boolean)}
-						/>
-					</Table.Head>
-				{/if}
-
-				{#each columns as column}
-					<Table.Head class={cn(column.hidden && 'sr-only', column.sortColumn && 'px-0')}>
-						{#if column.sortColumn}
-							<Button
-								variant="ghost"
-								class="flex items-center"
-								onclick={() =>
-									onSort(
-										column.sortColumn,
-										requestOptions.sort?.direction === 'desc' ? 'asc' : 'desc'
-									)}
-							>
-								{column.label}
-								{#if requestOptions.sort?.column === column.sortColumn}
-									<ChevronDown
-										class={cn(
-											'ml-2 size-4',
-											requestOptions.sort?.direction === 'asc' ? 'rotate-180' : ''
-										)}
-									/>
-								{/if}
-							</Button>
-						{:else}
-							{column.label}
-						{/if}
-					</Table.Head>
-				{/each}
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#if !items}
-				{#each Array(10) as _}
-					<tr>
-						<td colspan={columns.length + (selectedIds ? 1 : 0)}>
-							<Skeleton class="mt-3 h-[40px] w-full rounded-lg" />
-						</td>
-					</tr>
-				{/each}
-			{:else}
-				{#each items.data as item}
-					<Table.Row class={selectedIds?.includes(item.id) ? 'bg-muted/20' : ''}>
+	{#if !items}
+		<div>
+			{#each Array((listLenghts.current[id] || 10) + 1) as _, i}
+				<div>
+					<Skeleton class="mt-3 h-[41px] w-full rounded-lg" />
+				</div>
+			{/each}
+		</div>
+	{:else}
+		<div in:fade>
+			<Table.Root class="min-w-full table-auto overflow-x-auto">
+				<Table.Header>
+					<Table.Row>
 						{#if selectedIds}
-							<Table.Cell class="w-12">
+							<Table.Head class="w-12">
 								<Checkbox
 									disabled={selectionDisabled}
-									checked={selectedIds.includes(item.id)}
-									onCheckedChange={(c: boolean) => onCheck(c, item.id)}
+									checked={allChecked}
+									onCheckedChange={(c: boolean) => onAllCheck(c as boolean)}
 								/>
-							</Table.Cell>
+							</Table.Head>
 						{/if}
-						{@render rows({ item })}
+
+						{#each columns as column}
+							<Table.Head class={cn(column.hidden && 'sr-only', column.sortColumn && 'px-0')}>
+								{#if column.sortColumn}
+									<Button
+										variant="ghost"
+										class="flex items-center"
+										onclick={() =>
+											onSort(
+												column.sortColumn,
+												requestOptions.sort?.direction === 'desc' ? 'asc' : 'desc'
+											)}
+									>
+										{column.label}
+										{#if requestOptions.sort?.column === column.sortColumn}
+											<ChevronDown
+												class={cn(
+													'ml-2 size-4',
+													requestOptions.sort?.direction === 'asc' ? 'rotate-180' : ''
+												)}
+											/>
+										{/if}
+									</Button>
+								{:else}
+									{column.label}
+								{/if}
+							</Table.Head>
+						{/each}
 					</Table.Row>
-				{/each}
-			{/if}
-		</Table.Body>
-	</Table.Root>
+				</Table.Header>
+				<Table.Body>
+					{#each items.data as item}
+						<Table.Row class={selectedIds?.includes(item.id) ? 'bg-muted/20' : ''}>
+							{#if selectedIds}
+								<Table.Cell class="w-12">
+									<Checkbox
+										disabled={selectionDisabled}
+										checked={selectedIds.includes(item.id)}
+										onCheckedChange={(c: boolean) => onCheck(c, item.id)}
+									/>
+								</Table.Cell>
+							{/if}
+							{@render rows({ item })}
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</div>
+	{/if}
 
 	<div class="mt-5 flex flex-col-reverse items-center justify-between gap-3 sm:flex-row">
 		<div class="flex items-center space-x-2">
