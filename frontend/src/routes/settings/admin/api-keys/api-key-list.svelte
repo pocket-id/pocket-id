@@ -6,20 +6,15 @@
 	import { m } from '$lib/paraglide/messages';
 	import ApiKeyService from '$lib/services/api-key-service';
 	import type { ApiKey } from '$lib/types/api-key.type';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideBan } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
-	let {
-		apiKeys,
-		requestOptions
-	}: {
-		apiKeys: Paginated<ApiKey>;
-		requestOptions: SearchPaginationSortRequest;
-	} = $props();
-
 	const apiKeyService = new ApiKeyService();
+
+	let tableRef: AdvancedTable<ApiKey>;
+
+	export const refresh = () => tableRef.refresh();
 
 	function formatDate(dateStr: string | undefined) {
 		if (!dateStr) return m.never();
@@ -38,7 +33,7 @@
 				action: async () => {
 					try {
 						await apiKeyService.revoke(apiKey.id);
-						apiKeys = await apiKeyService.list(requestOptions);
+						await tableRef.refresh();
 						toast.success(m.api_key_revoked_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
@@ -50,9 +45,10 @@
 </script>
 
 <AdvancedTable
-	items={apiKeys}
-	{requestOptions}
-	onRefresh={async (o) => (apiKeys = await apiKeyService.list(o))}
+	id="api-key-list"
+	bind:this={tableRef}
+	fetchCallback={apiKeyService.list}
+	defaultSort={{ column: 'lastUsedAt', direction: 'desc' }}
 	withoutSearch
 	columns={[
 		{ label: m.name(), sortColumn: 'name' },

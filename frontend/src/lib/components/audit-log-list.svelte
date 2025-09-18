@@ -3,31 +3,34 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
-	import {translateAuditLogEvent} from "$lib/utils/audit-log-translator";
 	import AuditLogService from '$lib/services/audit-log-service';
-	import type { AuditLog } from '$lib/types/audit-log.type';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import type { AuditLog, AuditLogFilter } from '$lib/types/audit-log.type';
+	import { translateAuditLogEvent } from '$lib/utils/audit-log-translator';
 
 	let {
-		auditLogs,
 		isAdmin = false,
-		requestOptions
+		filters
 	}: {
-		auditLogs: Paginated<AuditLog>;
 		isAdmin?: boolean;
-		requestOptions: SearchPaginationSortRequest;
+		filters?: AuditLogFilter;
 	} = $props();
 
 	const auditLogService = new AuditLogService();
+	let tableRef: AdvancedTable<AuditLog>;
+
+	export async function refresh() {
+		await tableRef.refresh();
+	}
 </script>
 
 <AdvancedTable
-	items={auditLogs}
-	{requestOptions}
-	onRefresh={async (options) =>
+	id="audit-log-list"
+	bind:this={tableRef}
+	fetchCallback={async (options) =>
 		isAdmin
-			? (auditLogs = await auditLogService.listAllLogs(options))
-			: (auditLogs = await auditLogService.list(options))}
+			? await auditLogService.listAllLogs(options, filters)
+			: await auditLogService.list(options)}
+	defaultSort={{ column: 'createdAt', direction: 'desc' }}
 	columns={[
 		{ label: m.time(), sortColumn: 'createdAt' },
 		...(isAdmin ? [{ label: 'Username' }] : []),

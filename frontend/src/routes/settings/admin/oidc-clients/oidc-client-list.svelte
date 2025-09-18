@@ -7,21 +7,13 @@
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
-	let {
-		clients = $bindable(),
-		requestOptions
-	}: {
-		clients: Paginated<OidcClientWithAllowedUserGroupsCount>;
-		requestOptions: SearchPaginationSortRequest;
-	} = $props();
-
 	const oidcService = new OIDCService();
+	let tableRef : AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
 
 	async function deleteClient(client: OidcClient) {
 		openConfirmDialog({
@@ -33,7 +25,7 @@
 				action: async () => {
 					try {
 						await oidcService.removeClient(client.id);
-						clients = await oidcService.listClients(requestOptions!);
+						await tableRef.refresh();
 						toast.success(m.oidc_client_deleted_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
@@ -45,9 +37,10 @@
 </script>
 
 <AdvancedTable
-	items={clients}
-	{requestOptions}
-	onRefresh={async (o) => (clients = await oidcService.listClients(o))}
+	id="oidc-client-list"
+	bind:this={tableRef}
+	fetchCallback={oidcService.listClients}
+	defaultSort={{ column: 'name', direction: 'asc' }}
 	columns={[
 		{ label: m.logo() },
 		{ label: m.name(), sortColumn: 'name' },

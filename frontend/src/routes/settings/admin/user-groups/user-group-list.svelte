@@ -8,22 +8,14 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserGroupService from '$lib/services/user-group-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { UserGroup, UserGroupWithUserCount } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 
-	let {
-		userGroups,
-		requestOptions
-	}: {
-		userGroups: Paginated<UserGroupWithUserCount>;
-		requestOptions: SearchPaginationSortRequest;
-	} = $props();
-
 	const userGroupService = new UserGroupService();
+	let tableRef: AdvancedTable<UserGroupWithUserCount>;
 
 	async function deleteUserGroup(userGroup: UserGroup) {
 		openConfirmDialog({
@@ -35,7 +27,7 @@
 				action: async () => {
 					try {
 						await userGroupService.remove(userGroup.id);
-						userGroups = await userGroupService.list(requestOptions!);
+						await tableRef.refresh();
 						toast.success(m.user_group_deleted_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
@@ -47,9 +39,10 @@
 </script>
 
 <AdvancedTable
-	items={userGroups}
-	onRefresh={async (o) => (userGroups = await userGroupService.list(o))}
-	{requestOptions}
+	id="user-group-list"
+	bind:this={tableRef}
+	fetchCallback={userGroupService.list}
+	defaultSort={{ column: 'friendlyName', direction: 'asc' }}
 	columns={[
 		{ label: m.friendly_name(), sortColumn: 'friendlyName' },
 		{ label: m.name(), sortColumn: 'name' },

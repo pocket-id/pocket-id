@@ -11,7 +11,6 @@
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { User } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import {
@@ -24,14 +23,12 @@
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 
-	let {
-		users = $bindable(),
-		requestOptions
-	}: { users: Paginated<User>; requestOptions: SearchPaginationSortRequest } = $props();
-
 	let userIdToCreateOneTimeLink: string | null = $state(null);
+	let tableRef: AdvancedTable<User>;
 
 	const userService = new UserService();
+
+	export const refresh = () => tableRef.refresh();
 
 	async function deleteUser(user: User) {
 		openConfirmDialog({
@@ -46,7 +43,7 @@
 				action: async () => {
 					try {
 						await userService.remove(user.id);
-						users = await userService.list(requestOptions!);
+						await refresh();
 					} catch (e) {
 						axiosErrorToast(e);
 					}
@@ -62,9 +59,9 @@
 				...user,
 				disabled: false
 			})
-			.then(() => {
+			.then(async () => {
 				toast.success(m.user_enabled_successfully());
-				userService.list(requestOptions!).then((updatedUsers) => (users = updatedUsers));
+				await refresh();
 			})
 			.catch(axiosErrorToast);
 	}
@@ -85,7 +82,7 @@
 							...user,
 							disabled: true
 						});
-						users = await userService.list(requestOptions!);
+						await refresh();
 						toast.success(m.user_disabled_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
@@ -97,9 +94,9 @@
 </script>
 
 <AdvancedTable
-	items={users}
-	{requestOptions}
-	onRefresh={async (options) => (users = await userService.list(options))}
+	id="user-list"
+	bind:this={tableRef}
+	fetchCallback={userService.list}
 	columns={[
 		{ label: m.first_name(), sortColumn: 'firstName' },
 		{ label: m.last_name(), sortColumn: 'lastName' },

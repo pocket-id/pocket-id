@@ -11,22 +11,16 @@
 	import ApiKeyForm from './api-key-form.svelte';
 	import ApiKeyList from './api-key-list.svelte';
 
-	let { data } = $props();
-	let apiKeys = $state(data.apiKeys);
-	let apiKeysRequestOptions = $state(data.apiKeysRequestOptions);
-
 	const apiKeyService = new ApiKeyService();
 	let expandAddApiKey = $state(false);
 	let apiKeyResponse = $state<ApiKeyResponse | null>(null);
+	let listRef: ApiKeyList;
 
 	async function createApiKey(apiKeyData: ApiKeyCreate) {
 		try {
 			const response = await apiKeyService.create(apiKeyData);
 			apiKeyResponse = response;
-
-			// After creation, reload the list of API keys
-			apiKeys = await apiKeyService.list(apiKeysRequestOptions);
-
+			listRef.refresh();
 			return true;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -78,7 +72,7 @@
 			</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<ApiKeyList {apiKeys} requestOptions={apiKeysRequestOptions} />
+			<ApiKeyList bind:this={listRef} />
 		</Card.Content>
 	</Card.Root>
 </div>

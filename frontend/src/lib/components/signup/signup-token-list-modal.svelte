@@ -9,22 +9,15 @@
 	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import type { SignupTokenDto } from '$lib/types/signup-token.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { Copy, Ellipsis, Trash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	let {
-		open = $bindable(),
-		signupTokens = $bindable(),
-		signupTokensRequestOptions,
-		onTokenDeleted
+		open = $bindable()
 	}: {
 		open: boolean;
-		signupTokens: Paginated<SignupTokenDto>;
-		signupTokensRequestOptions: SearchPaginationSortRequest;
-		onTokenDeleted?: () => Promise<void>;
 	} = $props();
 
 	const userService = new UserService();
@@ -45,11 +38,6 @@
 					try {
 						await userService.deleteSignupToken(token.id);
 						toast.success(m.signup_token_deleted_successfully());
-
-						// Refresh the tokens
-						if (onTokenDeleted) {
-							await onTokenDeleted();
-						}
 					} catch (e) {
 						axiosErrorToast(e);
 					}
@@ -111,14 +99,9 @@
 
 		<div class="flex-1 overflow-hidden">
 			<AdvancedTable
-				items={signupTokens}
-				requestOptions={signupTokensRequestOptions}
+				id="signup-token-list"
 				withoutSearch={true}
-				onRefresh={async (options) => {
-					const result = await userService.listSignupTokens(options);
-					signupTokens = result;
-					return result;
-				}}
+				fetchCallback={userService.listSignupTokens}
 				columns={[
 					{ label: m.token() },
 					{ label: m.status() },
