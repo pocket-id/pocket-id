@@ -120,7 +120,7 @@
 	function changePageState(page: number) {
 		const url = new URL(window.location.href);
 		url.searchParams.set(`${id}-page`, page.toString());
-		history.replaceState({}, '', url.toString());
+		history.replaceState(history.state, '', url.toString());
 		requestOptions.pagination!.page = page;
 	}
 
