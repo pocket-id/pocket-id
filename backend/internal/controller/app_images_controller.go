@@ -22,13 +22,13 @@ func NewAppImagesController(
 		appImagesService: appImagesService,
 	}
 
-	group.GET("/application-configuration/logo", controller.getLogoHandler)
-	group.GET("/application-configuration/background-image", controller.getBackgroundImageHandler)
-	group.GET("/application-configuration/favicon", controller.getFaviconHandler)
+	group.GET("/application-images/logo", controller.getLogoHandler)
+	group.GET("/application-images/background", controller.getBackgroundImageHandler)
+	group.GET("/application-images/favicon", controller.getFaviconHandler)
 
-	group.PUT("/application-configuration/logo", authMiddleware.Add(), controller.updateLogoHandler)
-	group.PUT("/application-configuration/background-image", authMiddleware.Add(), controller.updateBackgroundImageHandler)
-	group.PUT("/application-configuration/favicon", authMiddleware.Add(), controller.updateFaviconHandler)
+	group.PUT("/application-images/logo", authMiddleware.Add(), controller.updateLogoHandler)
+	group.PUT("/application-images/background", authMiddleware.Add(), controller.updateBackgroundImageHandler)
+	group.PUT("/application-images/favicon", authMiddleware.Add(), controller.updateFaviconHandler)
 }
 
 type AppImagesController struct {
@@ -44,7 +44,7 @@ type AppImagesController struct {
 // @Produce image/jpeg
 // @Produce image/svg+xml
 // @Success 200 {file} binary "Logo image"
-// @Router /api/application-configuration/logo [get]
+// @Router /api/application-images/logo [get]
 func (c *AppImagesController) getLogoHandler(ctx *gin.Context) {
 	lightLogo, _ := strconv.ParseBool(ctx.DefaultQuery("light", "true"))
 	imageName := "logoLight"
@@ -62,7 +62,7 @@ func (c *AppImagesController) getLogoHandler(ctx *gin.Context) {
 // @Produce image/png
 // @Produce image/jpeg
 // @Success 200 {file} binary "Background image"
-// @Router /api/application-configuration/background-image [get]
+// @Router /api/application-images/background [get]
 func (c *AppImagesController) getBackgroundImageHandler(ctx *gin.Context) {
 	c.getImage(ctx, "background")
 }
@@ -73,7 +73,7 @@ func (c *AppImagesController) getBackgroundImageHandler(ctx *gin.Context) {
 // @Tags Application Images
 // @Produce image/x-icon
 // @Success 200 {file} binary "Favicon image"
-// @Router /api/application-configuration/favicon [get]
+// @Router /api/application-images/favicon [get]
 func (c *AppImagesController) getFaviconHandler(ctx *gin.Context) {
 	c.getImage(ctx, "favicon")
 }
@@ -86,7 +86,7 @@ func (c *AppImagesController) getFaviconHandler(ctx *gin.Context) {
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Param file formData file true "Logo image file"
 // @Success 204 "No Content"
-// @Router /api/application-configuration/logo [put]
+// @Router /api/application-images/logo [put]
 func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) {
 	file, err := ctx.FormFile("file")
 	if err != nil {
@@ -115,7 +115,7 @@ func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) {
 // @Accept multipart/form-data
 // @Param file formData file true "Background image file"
 // @Success 204 "No Content"
-// @Router /api/application-configuration/background-image [put]
+// @Router /api/application-images/background [put]
 func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) {
 	file, err := ctx.FormFile("file")
 	if err != nil {
@@ -138,7 +138,7 @@ func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) {
 // @Accept multipart/form-data
 // @Param file formData file true "Favicon file (.ico)"
 // @Success 204 "No Content"
-// @Router /api/application-configuration/favicon [put]
+// @Router /api/application-images/favicon [put]
 func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
 	file, err := ctx.FormFile("file")
 	if err != nil {
