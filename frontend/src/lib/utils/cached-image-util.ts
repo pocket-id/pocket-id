@@ -9,14 +9,14 @@ type CachableImage = {
 
 export const cachedApplicationLogo: CachableImage = {
 	getUrl: (light = true) => {
-		let url = '/api/application-configuration/logo';
+		let url = '/api/application-images/logo';
 		if (!light) {
 			url += '?light=false';
 		}
 		return getCachedImageUrl(url);
 	},
 	bustCache: (light = true) => {
-		let url = '/api/application-configuration/logo';
+		let url = '/api/application-images/logo';
 		if (!light) {
 			url += '?light=false';
 		}
@@ -25,8 +25,8 @@ export const cachedApplicationLogo: CachableImage = {
 };
 
 export const cachedBackgroundImage: CachableImage = {
-	getUrl: () => getCachedImageUrl('/api/application-configuration/background-image'),
-	bustCache: () => bustImageCache('/api/application-configuration/background-image')
+	getUrl: () => getCachedImageUrl('/api/application-images/background'),
+	bustCache: () => bustImageCache('/api/application-images/background')
 };
 
 export const cachedProfilePicture: CachableImage = {

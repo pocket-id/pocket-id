@@ -85,6 +85,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService, svc.jwtService)
 	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.appConfigService)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
+	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
 	controller.NewUserGroupController(apiGroup, authMiddleware, svc.userGroupService)
 	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
@@ -181,9 +182,9 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 
 func initLogger(r *gin.Engine) {
 	loggerSkipPathsPrefix := []string{
-		"GET /api/application-configuration/logo",
-		"GET /api/application-configuration/background-image",
-		"GET /api/application-configuration/favicon",
+		"GET /api/application-images/logo",
+		"GET /api/application-images/background",
+		"GET /api/application-images/favicon",
 		"GET /_app",
 		"GET /fonts",
 		"GET /healthz",

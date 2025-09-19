@@ -2,7 +2,35 @@ package utils
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
+
+func TestSplitFileName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		fullName string
+		wantName string
+		wantExt  string
+	}{
+		{"background.jpg", "background", "jpg"},
+		{"archive.tar.gz", "archive.tar", "gz"},
+		{".gitignore", ".gitignore", ""},
+		{"noext", "noext", ""},
+		{"a.b.c", "a.b", "c"},
+		{".hidden.ext", ".hidden", "ext"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.fullName, func(t *testing.T) {
+			t.Parallel()
+			name, ext := SplitFileName(tc.fullName)
+			assert.Equal(t, tc.wantName, name)
+			assert.Equal(t, tc.wantExt, ext)
+		})
+	}
+}
 
 func TestGetFileExtension(t *testing.T) {
 	tests := []struct {

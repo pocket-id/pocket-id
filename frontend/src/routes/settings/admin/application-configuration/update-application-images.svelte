@@ -27,7 +27,7 @@
 		imageClass="size-14 p-2"
 		label={m.favicon()}
 		bind:image={favicon}
-		imageURL="/api/application-configuration/favicon"
+		imageURL="/api/application-images/favicon"
 		accept="image/x-icon"
 	/>
 	<ApplicationImage

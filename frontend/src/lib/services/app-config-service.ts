@@ -32,14 +32,14 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', favicon!);
 
-		await this.api.put(`/application-configuration/favicon`, formData);
+		await this.api.put(`/application-images/favicon`, formData);
 	}
 
 	async updateLogo(logo: File, light = true) {
 		const formData = new FormData();
 		formData.append('file', logo!);
 
-		await this.api.put(`/application-configuration/logo`, formData, {
+		await this.api.put(`/application-images/logo`, formData, {
 			params: { light }
 		});
 		cachedApplicationLogo.bustCache(light);
@@ -49,7 +49,7 @@ export default class AppConfigService extends APIService {
 		const formData = new FormData();
 		formData.append('file', backgroundImage!);
 
-		await this.api.put(`/application-configuration/background-image`, formData);
+		await this.api.put(`/application-images/background`, formData);
 		cachedBackgroundImage.bustCache();
 	}
 
