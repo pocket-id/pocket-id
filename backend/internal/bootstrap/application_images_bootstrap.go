@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -40,7 +40,7 @@ func initApplicationImages() error {
 	destinationFilesMap := make(map[string]bool, len(destinationFiles))
 	for _, f := range destinationFiles {
 		name := f.Name()
-		destFilePath := filepath.Join(dirPath, name)
+		destFilePath := path.Join(dirPath, name)
 
 		h, err := utils.CreateSha256FileHash(destFilePath)
 		if err != nil {
@@ -69,8 +69,8 @@ func initApplicationImages() error {
 		}
 
 		name := sourceFile.Name()
-		srcFilePath := filepath.Join("images", name)
-		destFilePath := filepath.Join(dirPath, name)
+		srcFilePath := path.Join("images", name)
+		destFilePath := path.Join(dirPath, name)
 
 		// Skip if there's already an image at the path
 		// We do not check the extension because users could have uploaded a different one

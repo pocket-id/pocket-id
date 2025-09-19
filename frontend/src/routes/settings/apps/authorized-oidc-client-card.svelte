@@ -31,7 +31,7 @@
 </script>
 
 <Card.Root
-	class="border-muted group relative h-[140px] p-5 transition-all duration-200 hover:shadow-md"
+	class="border-muted group relative h-[140px] p-5 transition-all duration-200 hover:shadow-md sm:max-w-[50vw] md:max-w-[400px]"
 	data-testid="authorized-oidc-client-card"
 >
 	<Card.Content class=" p-0">
@@ -49,14 +49,14 @@
 				<div>
 					<div class="mb-1 flex items-start gap-2">
 						<h3
-							class="text-foreground line-clamp-2 text-ellipsis break-words break-all font-semibold leading-tight"
+							class="text-foreground line-clamp-2 leading-tight font-semibold break-words break-all text-ellipsis"
 						>
 							{client.name}
 						</h3>
 					</div>
 					{#if client.launchURL}
 						<p
-							class="text-muted-foreground line-clamp-1 text-ellipsis break-words break-all text-xs"
+							class="text-muted-foreground line-clamp-1 text-xs break-words break-all text-ellipsis"
 						>
 							{new URL(client.launchURL).hostname}
 						</p>

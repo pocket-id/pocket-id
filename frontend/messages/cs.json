@@ -120,6 +120,8 @@
 	"username": "Uživatelské jméno",
 	"save": "Uložit",
 	"username_can_only_contain": "Uživatelské jméno může obsahovat pouze malá písmena, číslice, podtržítka, tečky, pomlčky a symbol '@'",
+	"username_must_start_with": "Uživatelské jméno musí začínat alfanumerickým znakem.",
+	"username_must_end_with": "Uživatelské jméno musí končit alfanumerickým znakem.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Přihlaste se pomocí následujícího kódu. Platnost kódu vyprší za 15 minut.",
 	"or_visit": "nebo navštívit",
 	"added_on": "Přidáno",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Nastavte vlastní ID klienta, pokud to vyžaduje vaše aplikace. V opačném případě pole nechte prázdné, aby bylo vygenerováno náhodné ID.",
 	"generated": "Vygenerováno",
 	"administration": "Správa",
-	"group_rdn_attribute_description": "Atribut použitý v rozlišovacím jménu skupiny (DN). Doporučená hodnota: `cn`",
+	"group_rdn_attribute_description": "Atribut použitý v rozlišovacím jménu (DN) skupiny.",
+	"display_name_attribute": "Atribut zobrazovaného jména",
+	"display_name": "Zobrazované jméno",
+	"configure_application_images": "Konfigurace obrazů aplikací",
 	"ui_config_disabled_info_title": "Konfigurace uživatelského rozhraní je deaktivována",
 	"ui_config_disabled_info_description": "Konfigurace uživatelského rozhraní je deaktivována, protože nastavení konfigurace aplikace se spravuje prostřednictvím proměnných prostředí. Některá nastavení nemusí být editovatelná."
 }

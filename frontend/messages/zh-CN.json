@@ -120,6 +120,8 @@
 	"username": "用户名",
 	"save": "保存",
 	"username_can_only_contain": "用户名只能包含小写字母、数字、下划线、点、连字符和 '@' 符号",
+	"username_must_start_with": "用户名必须以字母数字字符开头",
+	"username_must_end_with": "用户名必须以字母数字字符结尾",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "使用以下代码登录。该代码将在 15 分钟后失效。",
 	"or_visit": "或访问",
 	"added_on": "添加于",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "此处可根据应用需要设置自定义客户端 ID。留空随机生成。",
 	"generated": "已生成",
 	"administration": "管理员选项",
-	"group_rdn_attribute_description": "在组的区分名称（DN）中使用的属性。推荐值：`cn`",
+	"group_rdn_attribute_description": "在组的区分名称（DN）中使用的属性。",
+	"display_name_attribute": "显示名称属性",
+	"display_name": "显示名称",
+	"configure_application_images": "配置应用程序映像",
 	"ui_config_disabled_info_title": "用户界面配置已禁用",
 	"ui_config_disabled_info_description": "用户界面配置已禁用，因为应用程序配置设置通过环境变量进行管理。某些设置可能无法编辑。"
 }

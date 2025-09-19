@@ -120,6 +120,8 @@
 	"username": "Nome de usuário",
 	"save": "Salvar",
 	"username_can_only_contain": "O nome de usuário só pode conter letras minúsculas, números, underscores, pontos, hífens e símbolos '@'",
+	"username_must_start_with": "O nome de usuário precisa começar com um caractere alfanumérico.",
+	"username_must_end_with": "O nome de usuário precisa terminar com um caractere alfanumérico.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Faça o login usando o código a seguir. O código irá expirar em 15 minutos.",
 	"or_visit": "ou visite",
 	"added_on": "Adicionado em",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Defina um ID de cliente personalizado se for necessário para o seu aplicativo. Caso contrário, deixe em branco para gerar um aleatório.",
 	"generated": "Gerado",
 	"administration": "Administração",
-	"group_rdn_attribute_description": "O atributo usado no nome distinto (DN) dos grupos. Valor recomendado: `cn`",
+	"group_rdn_attribute_description": "O atributo usado no nome distinto (DN) dos grupos.",
+	"display_name_attribute": "Atributo Nome de exibição",
+	"display_name": "Nome de exibição",
+	"configure_application_images": "Configurar imagens de aplicativos",
 	"ui_config_disabled_info_title": "Configuração da interface do usuário desativada",
 	"ui_config_disabled_info_description": "A configuração da interface do usuário está desativada porque as configurações do aplicativo são gerenciadas por meio de variáveis de ambiente. Algumas configurações podem não ser editáveis."
 }

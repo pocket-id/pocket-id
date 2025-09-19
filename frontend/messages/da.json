@@ -120,6 +120,8 @@
 	"username": "Brugernavn",
 	"save": "Gem",
 	"username_can_only_contain": "Brugernavn må kun indeholde små bogstaver, tal, understregninger (_), punktummer (.), bindestreger (-) og @-tegn",
+	"username_must_start_with": "Brugernavnet skal begynde med et alfanumerisk tegn",
+	"username_must_end_with": "Brugernavnet skal slutte med et alfanumerisk tegn",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Log ind med nedenstående kode. Koden udløber om 15 minutter.",
 	"or_visit": "eller besøg",
 	"added_on": "Tilføjet den",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Indstil et brugerdefineret klient-id, hvis dette kræves af din applikation. Ellers skal du lade feltet være tomt for at generere et tilfældigt id.",
 	"generated": "Genereret",
 	"administration": "Administration",
-	"group_rdn_attribute_description": "Den attribut, der bruges i gruppernes skelnenavn (DN). Anbefalet værdi: `cn`",
+	"group_rdn_attribute_description": "Den attribut, der bruges i gruppernes skelnenavn (DN).",
+	"display_name_attribute": "Visningsnavn-attribut",
+	"display_name": "Visningsnavn",
+	"configure_application_images": "Konfigurer applikationsbilleder",
 	"ui_config_disabled_info_title": "UI-konfiguration deaktiveret",
 	"ui_config_disabled_info_description": "UI-konfigurationen er deaktiveret, fordi applikationskonfigurationsindstillingerne administreres via miljøvariabler. Nogle indstillinger kan muligvis ikke redigeres."
 }

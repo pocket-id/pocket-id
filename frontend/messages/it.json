@@ -120,6 +120,8 @@
 	"username": "Nome utente",
 	"save": "Salva",
 	"username_can_only_contain": "Il nome utente può contenere solo lettere minuscole, numeri, underscore, punti, trattini e simboli '@'",
+	"username_must_start_with": "Il nome utente deve iniziare con un carattere alfanumerico.",
+	"username_must_end_with": "Il nome utente deve finire con un carattere alfanumerico",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Accedi utilizzando il seguente codice. Il codice scadrà tra 15 minuti.",
 	"or_visit": "o visita",
 	"added_on": "Aggiunto il",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Imposta un ID cliente personalizzato se la tua app lo richiede. Altrimenti, lascia vuoto per generarne uno casuale.",
 	"generated": "Generato",
 	"administration": "Amministrazione",
-	"group_rdn_attribute_description": "L'attributo usato nel nome distinto (DN) dei gruppi. Valore consigliato: `cn`",
+	"group_rdn_attribute_description": "L'attributo usato nel nome distinto (DN) dei gruppi.",
+	"display_name_attribute": "Attributo del nome visualizzato",
+	"display_name": "Nome visualizzato",
+	"configure_application_images": "Configurare le immagini dell'applicazione",
 	"ui_config_disabled_info_title": "Configurazione dell'interfaccia utente disattivata",
 	"ui_config_disabled_info_description": "La configurazione dell'interfaccia utente è disattivata perché le impostazioni di configurazione dell'applicazione sono gestite tramite variabili di ambiente. Alcune impostazioni potrebbero non essere modificabili."
 }

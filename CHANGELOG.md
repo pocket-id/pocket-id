@@ -1,3 +1,36 @@
+## [1.11.1](https://github.com/pocket-id/pocket-id/compare/v1.10.0...v1.11.1) (2025-09-18)
+
+### Bug Fixes
+
+- add missing translations ([8c9cac2](https://github.com/pocket-id/pocket-id/commit/8c9cac2655ddbe4872234a1b55fdd51d2f3ac31c))
+
+## [1.11.0](https://github.com/pocket-id/pocket-id/compare/v1.10.0...v1.11.0) (2025-09-18)
+
+
+### Features
+
+* add CSP header ([#908](https://github.com/pocket-id/pocket-id/issues/908)) ([6215e1a](https://github.com/pocket-id/pocket-id/commit/6215e1ac01c03866f8b2e89ac084ddd6a3c3ac9e))
+* add custom base url ([#858](https://github.com/pocket-id/pocket-id/issues/858)) ([a3979f6](https://github.com/pocket-id/pocket-id/commit/a3979f63e07d418ee9eb1cb1abc37aede5799fc8))
+* add info box to app settings if UI config is disabled ([a1d8538](https://github.com/pocket-id/pocket-id/commit/a1d8538c64beb4d7e8559934985772fba27623ca))
+* add PWA support ([#938](https://github.com/pocket-id/pocket-id/issues/938)) ([5367463](https://github.com/pocket-id/pocket-id/commit/5367463239b354640fd65390bc409e4a0ac13fd1))
+* add support for `LOG_LEVEL` env variable ([#942](https://github.com/pocket-id/pocket-id/issues/942)) ([2d6d5df](https://github.com/pocket-id/pocket-id/commit/2d6d5df0e7f104a148fb4eeac89a2fbb7db8047a))
+* add user display name field ([#898](https://github.com/pocket-id/pocket-id/issues/898)) ([6837360](https://github.com/pocket-id/pocket-id/commit/68373604dd30065947226922233bc1e19e778b01))
+* allow uppercase usernames ([#958](https://github.com/pocket-id/pocket-id/issues/958)) ([0224949](https://github.com/pocket-id/pocket-id/commit/02249491f86c289adf596d9d9922dfa04779edee))
+* client_credentials flow support ([#901](https://github.com/pocket-id/pocket-id/issues/901)) ([901333f](https://github.com/pocket-id/pocket-id/commit/901333f7e43b4e925ed6dfd890dee2caa1947934))
+* return new id_token when using refresh token ([#925](https://github.com/pocket-id/pocket-id/issues/925)) ([307caaa](https://github.com/pocket-id/pocket-id/commit/307caaa3efbc966341b95ee4b5ff18c81ed98e54))
+
+
+### Bug Fixes
+
+* add validation for callback URLs ([#929](https://github.com/pocket-id/pocket-id/issues/929)) ([6c91474](https://github.com/pocket-id/pocket-id/commit/6c9147483c0a370e2b5011d13898279d2acc445d))
+* disable sign up options in UI if `UI_CONFIG_DISABLED` ([1d7cbc2](https://github.com/pocket-id/pocket-id/commit/1d7cbc2a4ecf352d46087f30b477f6bbaa23adf5))
+* ensure users imported from LDAP have fields validated ([#923](https://github.com/pocket-id/pocket-id/issues/923)) ([4215523](https://github.com/pocket-id/pocket-id/commit/42155238b750b015b0547294f397e1e285594e3e))
+* key-rotate doesn't work with database storage ([#940](https://github.com/pocket-id/pocket-id/issues/940)) ([c018f29](https://github.com/pocket-id/pocket-id/commit/c018f29ad7c61a3ef1b235b0d404a3a2024a26ca))
+* list items on previous page get unselected if other items selected on next page ([6c696b4](https://github.com/pocket-id/pocket-id/commit/6c696b46c8b60b3dc4af35c9c6cf1b8e1322f4cd))
+* make environment variables case insensitive where necessary ([#954](https://github.com/pocket-id/pocket-id/issues/954)) ([99f31a7](https://github.com/pocket-id/pocket-id/commit/99f31a7c26c63dec76682ddf450d88e6ee40876f)), closes [#935](https://github.com/pocket-id/pocket-id/issues/935)
+* my apps card shouldn't take full width if only one item exists ([e7e53a8](https://github.com/pocket-id/pocket-id/commit/e7e53a8b8c87bee922167d24556aef3ea219b1a2))
+* update localized name and description of ldap group name attribute ([#892](https://github.com/pocket-id/pocket-id/issues/892)) ([e88be7e](https://github.com/pocket-id/pocket-id/commit/e88be7e61a8aafabcae70adf9265023c50626705))
+
 ## [](https://github.com/pocket-id/pocket-id/compare/v1.9.1...v) (2025-08-27)
 
 ### Features
