@@ -14,9 +14,6 @@
 	import OIDCClientForm from './oidc-client-form.svelte';
 	import OIDCClientList from './oidc-client-list.svelte';
 
-	let { data } = $props();
-	let clients = $state(data.clients);
-	let clientsRequestOptions = $state(data.clientsRequestOptions);
 	let expandAddClient = $state(false);
 
 	const oidcService = new OIDCService();
@@ -86,7 +83,7 @@
 			</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<OIDCClientList {clients} requestOptions={clientsRequestOptions} />
+			<OIDCClientList />
 		</Card.Content>
 	</Card.Root>
 </div>
