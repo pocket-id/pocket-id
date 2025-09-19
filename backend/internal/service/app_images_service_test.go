@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/fs"
 	"mime/multipart"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -77,7 +78,7 @@ func newFileHeader(t *testing.T, filename string, content []byte) *multipart.Fil
 
 	require.NoError(t, writer.Close())
 
-	req := httptest.NewRequest("POST", "/", body)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	_, fileHeader, err := req.FormFile("file")
