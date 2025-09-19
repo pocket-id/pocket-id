@@ -27,6 +27,7 @@ export type OidcClient = OidcClientMetaData & {
 	requiresReauthentication: boolean;
 	credentials?: OidcClientCredentials;
 	launchURL?: string;
+	logoUrl?: string;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {
@@ -46,7 +47,8 @@ export type OidcClientUpdateWithLogo = OidcClientUpdate & {
 };
 
 export type OidcClientCreateWithLogo = OidcClientCreate & {
-	logo: File | null | undefined;
+	logo?: File | null;
+	logoUrl?: string;
 };
 
 export type OidcDeviceCodeInfo = {

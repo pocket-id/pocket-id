@@ -17,6 +17,7 @@ type OidcClientDto struct {
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
+	LogoURL            *string                  `json:"logoUrl,omitempty"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -38,6 +39,8 @@ type OidcClientUpdateDto struct {
 	RequiresReauthentication bool                     `json:"requiresReauthentication"`
 	Credentials              OidcClientCredentialsDto `json:"credentials"`
 	LaunchURL                *string                  `json:"launchURL" binding:"omitempty,url"`
+	HasLogo                  bool                     `json:"hasLogo"`
+	LogoURL                  *string                  `json:"logoUrl"`
 }
 
 type OidcClientCreateDto struct {

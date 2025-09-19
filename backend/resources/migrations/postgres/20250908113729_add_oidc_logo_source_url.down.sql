@@ -1,0 +1,1 @@
+ALTER TABLE oidc_clients DROP COLUMN logo_url;
