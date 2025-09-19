@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/google/uuid"
@@ -22,6 +23,15 @@ func GetFileExtension(filename string) string {
 		return ext[1:]
 	}
 	return filename
+}
+
+// SplitFileName splits a full file name into name and extension.
+func SplitFileName(fullName string) (name, ext string) {
+	dot := strings.LastIndexByte(fullName, '.')
+	if dot == -1 || dot == 0 {
+		return fullName, "" // no extension or hidden file like .gitignore
+	}
+	return fullName[:dot], fullName[dot+1:]
 }
 
 func GetImageMimeType(ext string) string {
