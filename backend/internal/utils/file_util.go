@@ -27,7 +27,7 @@ func GetFileExtension(filename string) string {
 
 // SplitFileName splits a full file name into name and extension.
 func SplitFileName(fullName string) (name, ext string) {
-	dot := strings.LastIndexByte(fullName, '.')
+	dot := strings.LastIndex(fullName, ".")
 	if dot == -1 || dot == 0 {
 		return fullName, "" // no extension or hidden file like .gitignore
 	}
