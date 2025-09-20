@@ -42,9 +42,15 @@ func initApplicationImages() (map[string]string, error) {
 		nameWithoutExt, ext := utils.SplitFileName(name)
 		destFilePath := path.Join(dirPath, name)
 
+		// Skip directories
+		if f.IsDir() {
+			continue
+		}
+
 		h, err := utils.CreateSha256FileHash(destFilePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get hash for file '%s': %w", name, err)
+			slog.Warn("Failed to get hash for file", slog.String("name", name), slog.Any("error", err))
+			continue
 		}
 
 		// Check if the file is a legacy one - if so, delete it
