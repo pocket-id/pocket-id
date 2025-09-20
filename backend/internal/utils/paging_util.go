@@ -61,20 +61,24 @@ func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (Pagin
 		pageSize = 100
 	}
 
-	offset := (page - 1) * pageSize
-
 	var totalItems int64
 	if err := query.Count(&totalItems).Error; err != nil {
-		return PaginationResponse{}, err
-	}
-
-	if err := query.Offset(offset).Limit(pageSize).Find(result).Error; err != nil {
 		return PaginationResponse{}, err
 	}
 
 	totalPages := (totalItems + int64(pageSize) - 1) / int64(pageSize)
 	if totalItems == 0 {
 		totalPages = 1
+	}
+
+	if int64(page) > totalPages {
+		page = int(totalPages)
+	}
+
+	offset := (page - 1) * pageSize
+
+	if err := query.Offset(offset).Limit(pageSize).Find(result).Error; err != nil {
+		return PaginationResponse{}, err
 	}
 
 	return PaginationResponse{

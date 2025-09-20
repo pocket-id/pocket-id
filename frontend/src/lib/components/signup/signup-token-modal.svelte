@@ -13,11 +13,9 @@
 	import { mode } from 'mode-watcher';
 
 	let {
-		open = $bindable(),
-		onTokenCreated
+		open = $bindable()
 	}: {
 		open: boolean;
-		onTokenCreated?: () => Promise<void>;
 	} = $props();
 
 	const userService = new UserService();
@@ -37,12 +35,11 @@
 
 	async function createSignupToken() {
 		try {
-			signupToken = await userService.createSignupToken(availableExpirations[selectedExpiration], usageLimit);
+			signupToken = await userService.createSignupToken(
+				availableExpirations[selectedExpiration],
+				usageLimit
+			);
 			signupLink = `${page.url.origin}/st/${signupToken}`;
-
-			if (onTokenCreated) {
-				await onTokenCreated();
-			}
 		} catch (e) {
 			axiosErrorToast(e);
 		}

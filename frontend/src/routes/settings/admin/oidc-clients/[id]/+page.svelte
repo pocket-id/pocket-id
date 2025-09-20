@@ -13,9 +13,10 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft, LucideRefreshCcw, RectangleEllipsis } from '@lucide/svelte';
+	import { LucideChevronLeft, LucideRefreshCcw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
+	import { backNavigate } from '../../users/navigate-back-util';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
 
@@ -28,6 +29,7 @@
 	let showPreview = $state(false);
 
 	const oidcService = new OidcService();
+	const backNavigation = backNavigate('/settings/admin/oidc-clients');
 
 	const setupDetails = $state({
 		[m.authorization_url()]: `https://${page.url.hostname}/authorize`,
@@ -113,8 +115,8 @@
 </svelte:head>
 
 <div>
-	<a class="text-muted-foreground flex text-sm" href="/settings/admin/oidc-clients"
-		><LucideChevronLeft class="size-5" /> {m.back()}</a
+	<button class="text-muted-foreground flex text-sm" onclick={backNavigation.go}
+		><LucideChevronLeft class="size-5" /> {m.back()}</button
 	>
 </div>
 <Card.Root>

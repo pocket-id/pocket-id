@@ -1,21 +1,13 @@
 import { version as currentVersion } from '$app/environment';
-import axios from 'axios';
+import APIService from './api-service';
 
-async function getNewestVersion() {
-	const response = await axios
-		.get('/api/version/latest', {
-			timeout: 2000
-		})
-		.then((res) => res.data);
+export default class VersionService extends APIService {
+	getNewestVersion = async () => {
+		const response = await this.api
+			.get('/version/latest', { timeout: 2000 })
+			.then((res) => res.data);
+		return response.latestVersion;
+	};
 
-	return response.latestVersion;
+	getCurrentVersion = () => currentVersion;
 }
-
-function getCurrentVersion() {
-	return currentVersion;
-}
-
-export default {
-	getNewestVersion,
-	getCurrentVersion,
-};

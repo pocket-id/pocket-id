@@ -12,9 +12,6 @@
 	import UserGroupForm from './user-group-form.svelte';
 	import UserGroupList from './user-group-list.svelte';
 
-	let { data } = $props();
-	let userGroups = $state(data.userGroups);
-	let userGroupsRequestOptions = $state(data.userGroupsRequestOptions);
 	let expandAddUserGroup = $state(false);
 
 	const userGroupService = new UserGroupService();
@@ -79,7 +76,7 @@
 			</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<UserGroupList {userGroups} requestOptions={userGroupsRequestOptions} />
+			<UserGroupList />
 		</Card.Content>
 	</Card.Root>
 </div>
