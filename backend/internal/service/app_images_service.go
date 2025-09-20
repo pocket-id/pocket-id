@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -32,7 +32,7 @@ func (s *AppImagesService) GetImage(name string) (string, string, error) {
 		return "", "", fmt.Errorf("unsupported image type '%s'", ext)
 	}
 
-	imagePath := path.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", name, ext))
+	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", name, ext))
 	return imagePath, mimeType, nil
 }
 
@@ -51,14 +51,14 @@ func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName str
 		return fmt.Errorf("unknown application image '%s'", imageName)
 	}
 
-	imagePath := path.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", imageName, fileType))
+	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", imageName, fileType))
 
 	if err := utils.SaveFile(file, imagePath); err != nil {
 		return err
 	}
 
 	if currentExt != "" && currentExt != fileType {
-		oldImagePath := path.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", imageName, currentExt))
+		oldImagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", imageName, currentExt))
 		if err := os.Remove(oldImagePath); err != nil && !os.IsNotExist(err) {
 			return err
 		}
