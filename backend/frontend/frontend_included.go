@@ -5,6 +5,7 @@ package frontend
 import (
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -63,6 +64,8 @@ func init() {
 	}
 }
 
+const appManifestFile = "app.webmanifest"
+
 func RegisterFrontend(router *gin.Engine) error {
 	distFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
@@ -72,6 +75,28 @@ func RegisterFrontend(router *gin.Engine) error {
 	cacheMaxAge := time.Hour * 24
 	fileServer := NewFileServerWithCaching(http.FS(distFS), int(cacheMaxAge.Seconds()))
 
+	// The app.webmanifest file needs special handling, as we need to set the app's display type in the body
+	// Read the file and parse it as JSON
+	appManifestData, err := fs.ReadFile(distFS, appManifestFile)
+	if err != nil {
+		return fmt.Errorf("failed to read app manifest file '%s' in bundle: %w", appManifestFile, err)
+	}
+	var appManifest map[string]any
+	err = json.Unmarshal(appManifestData, &appManifest)
+	if err != nil {
+		return fmt.Errorf("failed to parse app manifest file '%s' as JSON: %w", appManifestFile, err)
+	}
+
+	// Handle the route for the manifest
+	router.GET("/"+appManifestFile, func(c *gin.Context) {
+		// Replace the display type in the manifest with env variable
+		PwaDisplayType := os.Getenv("PWA_DISPLAY_TYPE")
+		appManifest["display"] = PwaDisplayType
+		c.Header("Content-Type", "application/manifest+json")
+		c.JSON(http.StatusOK, appManifest)
+	})
+
+	// Register the fallback handler that serves the SvelteKit app for all routes that we can't match
 	router.NoRoute(func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 

@@ -57,6 +57,7 @@ type EnvConfigSchema struct {
 	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
 	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
 	InternalAppURL     string     `env:"INTERNAL_APP_URL"`
+	PwaDisplayType	   string	  `env:"PWA_DISPLAY_TYPE"`
 }
 
 var EnvConfig = defaultConfig()
@@ -95,6 +96,7 @@ func defaultConfig() EnvConfigSchema {
 		AnalyticsDisabled:  false,
 		AllowDowngrade:     false,
 		InternalAppURL:     "",
+		PwaDisplayType:     "minimal-ui",
 	}
 }
 

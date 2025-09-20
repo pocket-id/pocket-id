@@ -1,7 +1,7 @@
 {
 	"name": "Pocket ID",
 	"orientation": "any",
-	"display": "minimal-ui",
+	"display": "{%display%}",
 	"dir": "auto",
 	"start_url": "/",
 	"icons": [
