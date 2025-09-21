@@ -4,7 +4,7 @@
 	import { DataTableFacetedFilter, DataTableViewOptions } from './index.js';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { imageUpdateFilters, usageFilters } from './data.js';
+	import { imageUpdateFilters, disabledFilters } from './data.js';
 	import { debounced } from '$lib/utils/debounce-util.js';
 	import { m } from '$lib/paraglide/messages';
 
@@ -23,8 +23,8 @@
 	const isFiltered = $derived(
 		table.getState().columnFilters.length > 0 || !!table.getState().globalFilter
 	);
-	const usageColumn = $derived(table.getColumn('inUse'));
-	const updatesColumn = $derived(table.getColumn('updates'));
+	const disabledUserColumn = $derived(table.getColumn('disabled'));
+	const ldapUserColumn = $derived(table.getColumn('ldapId'));
 
 	const debouncedSetGlobal = debounced((v: string) => table.setGlobalFilter(v), 300);
 	const hasSelection = $derived(!selectionDisabled && (selectedIds?.length ?? 0) > 0);
@@ -43,11 +43,19 @@
 			class="h-8 w-[150px] lg:w-[250px]"
 		/>
 
-		{#if usageColumn}
-			<DataTableFacetedFilter column={usageColumn} title={m.usage()} options={usageFilters} />
+		{#if disabledUserColumn}
+			<DataTableFacetedFilter
+				column={disabledUserColumn}
+				title={m.status()}
+				options={disabledFilters}
+			/>
 		{/if}
-		{#if updatesColumn}
-			<DataTableFacetedFilter column={updatesColumn} title="Updates" options={imageUpdateFilters} />
+		{#if ldapUserColumn}
+			<DataTableFacetedFilter
+				column={ldapUserColumn}
+				title={m.source()}
+				options={imageUpdateFilters}
+			/>
 		{/if}
 
 		{#if isFiltered}
@@ -68,7 +76,7 @@
 	<div class="flex items-center gap-2">
 		{#if hasSelection && onRemoveSelected}
 			<Button size="sm" onclick={() => onRemoveSelected?.(selectedIds!)}>
-				{`Remove selected (${selectedIds?.length ?? 0})`}
+				{m.table_remove_selected({ count: selectedIds?.length ?? 0 })}
 			</Button>
 		{/if}
 		<DataTableViewOptions {table} />

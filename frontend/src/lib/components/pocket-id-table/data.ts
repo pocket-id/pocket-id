@@ -2,18 +2,18 @@ import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
 import BadgeXIcon from '@lucide/svelte/icons/badge-x';
 import CircleFadingArrowUp from '@lucide/svelte/icons/circle-fading-arrow-up';
 import CircleCheck from '@lucide/svelte/icons/circle-check';
+import { m } from '$lib/paraglide/messages';
 
-// Replaced missing translation keys with plain strings
-export const usageFilters = [
-	{
-		value: true,
-		label: 'In use',
-		icon: BadgeCheckIcon
-	},
+export const disabledFilters = [
 	{
 		value: false,
-		label: 'Unused',
+		label: m.enabled(),
 		icon: CircleCheck
+	},
+	{
+		value: true,
+		label: m.disabled(),
+		icon: BadgeCheckIcon
 	}
 ];
 

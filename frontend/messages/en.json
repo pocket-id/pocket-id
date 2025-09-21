@@ -450,5 +450,16 @@
 	"display_name": "Display Name",
 	"configure_application_images": "Configure Application Images",
 	"ui_config_disabled_info_title": "UI Configuration Disabled",
-	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
+	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable.",
+	"table_showing_of": "Showing {visible} of {total}",
+	"table_page_of": "Page {page} of {totalPages}",
+	"asc": "Asc",
+	"desc": "Desc",
+	"hide": "Hide",
+	"select_all": "Select all",
+	"select_row": "Select row",
+	"filter_updates": "Updates",
+	"view": "View",
+	"toggle_columns": "Toggle columns",
+	"table_remove_selected": "Remove selected ({count})"
 }
