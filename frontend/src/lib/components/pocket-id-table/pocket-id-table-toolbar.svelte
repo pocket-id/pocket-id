@@ -4,7 +4,7 @@
 	import { DataTableFacetedFilter, DataTableViewOptions } from './index.js';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { imageUpdateFilters, disabledFilters } from './data.js';
+	import { userRoleFilters, disabledFilters } from './data.js';
 	import { debounced } from '$lib/utils/debounce-util.js';
 	import { m } from '$lib/paraglide/messages';
 
@@ -24,7 +24,7 @@
 		table.getState().columnFilters.length > 0 || !!table.getState().globalFilter
 	);
 	const disabledUserColumn = $derived(table.getColumn('disabled'));
-	const ldapUserColumn = $derived(table.getColumn('ldapId'));
+	const userRoleColumn = $derived(table.getColumn('isAdmin'));
 
 	const debouncedSetGlobal = debounced((v: string) => table.setGlobalFilter(v), 300);
 	const hasSelection = $derived(!selectionDisabled && (selectedIds?.length ?? 0) > 0);
@@ -50,12 +50,8 @@
 				options={disabledFilters}
 			/>
 		{/if}
-		{#if ldapUserColumn}
-			<DataTableFacetedFilter
-				column={ldapUserColumn}
-				title={m.source()}
-				options={imageUpdateFilters}
-			/>
+		{#if userRoleColumn}
+			<DataTableFacetedFilter column={userRoleColumn} title={m.role()} options={userRoleFilters} />
 		{/if}
 
 		{#if isFiltered}

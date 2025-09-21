@@ -461,5 +461,7 @@
 	"filter_updates": "Updates",
 	"view": "View",
 	"toggle_columns": "Toggle columns",
-	"table_remove_selected": "Remove selected ({count})"
+	"table_remove_selected": "Remove selected ({count})",
+	"clear_filters": "Clear filters",
+	"count_selected": "{count} selected"
 }

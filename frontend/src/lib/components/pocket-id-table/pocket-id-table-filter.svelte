@@ -52,7 +52,7 @@
 					<div class="hidden space-x-1 lg:flex">
 						{#if selectedValues.size > 2}
 							<Badge variant="secondary" class="rounded-sm px-1 font-normal">
-								{selectedValues.size} selected
+								{m.count_selected({ count: selectedValues.size })}
 							</Badge>
 						{:else}
 							{#each options.filter((opt) => selectedValues.has(opt.value)) as option (option)}
@@ -120,7 +120,7 @@
 							onSelect={() => column?.setFilterValue(undefined)}
 							class="justify-center text-center"
 						>
-							Clear filters
+							{m.clear_filters()}
 						</Command.Item>
 					</Command.Group>
 				{/if}

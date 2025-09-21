@@ -1,6 +1,4 @@
 import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
-import BadgeXIcon from '@lucide/svelte/icons/badge-x';
-import CircleFadingArrowUp from '@lucide/svelte/icons/circle-fading-arrow-up';
 import CircleCheck from '@lucide/svelte/icons/circle-check';
 import { m } from '$lib/paraglide/messages';
 
@@ -17,15 +15,15 @@ export const disabledFilters = [
 	}
 ];
 
-export const imageUpdateFilters = [
-	{
-		value: true,
-		label: 'Has updates',
-		icon: CircleFadingArrowUp
-	},
+export const userRoleFilters = [
 	{
 		value: false,
-		label: 'No updates',
-		icon: BadgeXIcon
+		label: m.admin(),
+		icon: CircleCheck
+	},
+	{
+		value: true,
+		label: m.user(),
+		icon: BadgeCheckIcon
 	}
 ];
