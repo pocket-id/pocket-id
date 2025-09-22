@@ -1,12 +1,12 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
-	import {translateAuditLogEvent} from "$lib/utils/audit-log-translator";
+	import { translateAuditLogEvent } from '$lib/utils/audit-log-translator';
 	import AuditLogService from '$lib/services/audit-log-service';
 	import type { AuditLog } from '$lib/types/audit-log.type';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+	import PocketIdTable from '$lib/components/pocket-id-table/pocket-id-table.svelte';
+	import type { ColumnSpec } from '$lib/components/pocket-id-table';
 
 	let {
 		auditLogs,
@@ -19,45 +19,59 @@
 	} = $props();
 
 	const auditLogService = new AuditLogService();
+
+	const columns = [
+		{ title: m.time(), accessorKey: 'createdAt', sortable: true, cell: TimeCell },
+		...(isAdmin ? [{ title: 'Username', cell: UsernameCell }] : []),
+		{ title: m.event(), accessorKey: 'event', sortable: true, cell: EventCell },
+		{ title: m.approximate_location(), accessorKey: 'city', sortable: true, cell: LocationCell },
+		{ title: m.ip_address(), accessorKey: 'ipAddress', sortable: true, cell: IpCell },
+		{ title: m.device(), accessorKey: 'device', sortable: true, cell: DeviceCell },
+		{ title: m.client(), cell: ClientCell }
+	] satisfies ColumnSpec<AuditLog>[];
 </script>
 
-<AdvancedTable
+{#snippet TimeCell({ value }: { value: unknown })}
+	{new Date(Number(value)).toLocaleString()}
+{/snippet}
+
+{#snippet UsernameCell({ item }: { item: AuditLog })}
+	{#if item.username}
+		{item.username}
+	{:else}
+		{m.unknown()}
+	{/if}
+{/snippet}
+
+{#snippet EventCell({ item }: { item: AuditLog })}
+	<Badge class="rounded-full" variant="outline">{translateAuditLogEvent(item.event)}</Badge>
+{/snippet}
+
+{#snippet LocationCell({ item }: { item: AuditLog })}
+	{item.city && item.country ? `${item.city}, ${item.country}` : m.unknown()}
+{/snippet}
+
+{#snippet IpCell({ item }: { item: AuditLog })}
+	{item.ipAddress}
+{/snippet}
+
+{#snippet DeviceCell({ item }: { item: AuditLog })}
+	{item.device}
+{/snippet}
+
+{#snippet ClientCell({ item }: { item: AuditLog })}
+	{item.data?.clientName}
+{/snippet}
+
+<PocketIdTable
 	items={auditLogs}
-	{requestOptions}
+	bind:requestOptions
 	onRefresh={async (options) =>
 		isAdmin
 			? (auditLogs = await auditLogService.listAllLogs(options))
 			: (auditLogs = await auditLogService.list(options))}
-	columns={[
-		{ label: m.time(), sortColumn: 'createdAt' },
-		...(isAdmin ? [{ label: 'Username' }] : []),
-		{ label: m.event(), sortColumn: 'event' },
-		{ label: m.approximate_location(), sortColumn: 'city' },
-		{ label: m.ip_address(), sortColumn: 'ipAddress' },
-		{ label: m.device(), sortColumn: 'device' },
-		{ label: m.client() }
-	]}
+	{columns}
+	persistKey="pocket-id-audit-logs"
 	withoutSearch
->
-	{#snippet rows({ item })}
-		<Table.Cell>{new Date(item.createdAt).toLocaleString()}</Table.Cell>
-		{#if isAdmin}
-			<Table.Cell>
-				{#if item.username}
-					{item.username}
-				{:else}
-					Unknown User
-				{/if}
-			</Table.Cell>
-		{/if}
-		<Table.Cell>
-			<Badge class="rounded-full" variant="outline">{translateAuditLogEvent(item.event)}</Badge>
-		</Table.Cell>
-		<Table.Cell
-			>{item.city && item.country ? `${item.city}, ${item.country}` : m.unknown()}</Table.Cell
-		>
-		<Table.Cell>{item.ipAddress}</Table.Cell>
-		<Table.Cell>{item.device}</Table.Cell>
-		<Table.Cell>{item.data.clientName}</Table.Cell>
-	{/snippet}
-</AdvancedTable>
+	selectionDisabled={true}
+/>
