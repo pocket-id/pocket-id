@@ -57,7 +57,7 @@ type EnvConfigSchema struct {
 	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
 	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
 	InternalAppURL     string     `env:"INTERNAL_APP_URL"`
-	PwaDisplayType	   string	  `env:"PWA_DISPLAY_TYPE"`
+	PwaDisplayType     string     `env:"PWA_DISPLAY_TYPE"`
 }
 
 var EnvConfig = defaultConfig()
