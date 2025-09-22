@@ -251,7 +251,7 @@
 		return cols;
 	}
 
-	const columnsDef: ColumnDef<TData>[] = buildColumns(columns);
+	const columnsDef: ColumnDef<TData>[] = buildColumns(columns ?? []);
 
 	const table = createSvelteTable({
 		get data() {
