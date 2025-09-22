@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -140,6 +141,7 @@ func connectDatabase() (db *gorm.DB, err error) {
 	var dialector gorm.Dialector
 
 	// Choose the correct database provider
+	var onConnFn func(conn *sql.DB)
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
 		if common.EnvConfig.DbConnectionString == "" {
@@ -148,7 +150,7 @@ func connectDatabase() (db *gorm.DB, err error) {
 
 		sqliteutil.RegisterSqliteFunctions()
 
-		connString, dbPath, err := parseSqliteConnectionString(common.EnvConfig.DbConnectionString)
+		connString, dbPath, isMemoryDB, err := parseSqliteConnectionString(common.EnvConfig.DbConnectionString)
 		if err != nil {
 			return nil, err
 		}
@@ -157,6 +159,14 @@ func connectDatabase() (db *gorm.DB, err error) {
 		err = ensureSqliteTempDir(filepath.Dir(dbPath))
 		if err != nil {
 			return nil, err
+		}
+
+		if isMemoryDB {
+			// For in-memory SQLite databases, we must limit to 1 open connection at the same time, or they won't see the whole data
+			// The other workaround, of using shared caches, doesn't work well with multiple write transactions trying to happen at once
+			onConnFn = func(conn *sql.DB) {
+				conn.SetMaxOpenConns(1)
+			}
 		}
 
 		dialector = sqlite.Open(connString)
@@ -176,6 +186,16 @@ func connectDatabase() (db *gorm.DB, err error) {
 		})
 		if err == nil {
 			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
+
+			if onConnFn != nil {
+				conn, err := db.DB()
+				if err != nil {
+					slog.Warn("Failed to get database connection, will retry in 3s", slog.Int("attempt", i), slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
+					time.Sleep(3 * time.Second)
+				}
+				onConnFn(conn)
+			}
+
 			return db, nil
 		}
 
@@ -188,18 +208,18 @@ func connectDatabase() (db *gorm.DB, err error) {
 	return nil, err
 }
 
-func parseSqliteConnectionString(connString string) (parsedConnString string, dbPath string, err error) {
+func parseSqliteConnectionString(connString string) (parsedConnString string, dbPath string, isMemoryDB bool, err error) {
 	if !strings.HasPrefix(connString, "file:") {
 		connString = "file:" + connString
 	}
 
 	// Check if we're using an in-memory database
-	isMemoryDB := isSqliteInMemory(connString)
+	isMemoryDB = isSqliteInMemory(connString)
 
 	// Parse the connection string
 	connStringUrl, err := url.Parse(connString)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse SQLite connection string: %w", err)
+		return "", "", false, fmt.Errorf("failed to parse SQLite connection string: %w", err)
 	}
 
 	// Convert options for the old SQLite driver to the new one
@@ -208,7 +228,7 @@ func parseSqliteConnectionString(connString string) (parsedConnString string, db
 	// Add the default and required params
 	err = addSqliteDefaultParameters(connStringUrl, isMemoryDB)
 	if err != nil {
-		return "", "", fmt.Errorf("invalid SQLite connection string: %w", err)
+		return "", "", false, fmt.Errorf("invalid SQLite connection string: %w", err)
 	}
 
 	// Get the absolute path to the database
@@ -217,10 +237,10 @@ func parseSqliteConnectionString(connString string) (parsedConnString string, db
 	idx := strings.IndexRune(parsedConnString, '?')
 	dbPath, err = filepath.Abs(parsedConnString[len("file:"):idx])
 	if err != nil {
-		return "", "", fmt.Errorf("failed to determine absolute path to the database: %w", err)
+		return "", "", false, fmt.Errorf("failed to determine absolute path to the database: %w", err)
 	}
 
-	return parsedConnString, dbPath, nil
+	return parsedConnString, dbPath, isMemoryDB, nil
 }
 
 // The official C implementation of SQLite allows some additional properties in the connection string
@@ -270,11 +290,6 @@ func addSqliteDefaultParameters(connStringUrl *url.URL, isMemoryDB bool) error {
 	qs := connStringUrl.Query()
 	if len(qs) == 0 {
 		qs = make(url.Values, 2)
-	}
-
-	// If the database is in-memory, we must ensure that cache=shared is set
-	if isMemoryDB {
-		qs["cache"] = []string{"shared"}
 	}
 
 	// Check if the database is read-only or immutable

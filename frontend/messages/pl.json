@@ -120,6 +120,8 @@
 	"username": "Nazwa użytkownika",
 	"save": "Zapisz",
 	"username_can_only_contain": "Nazwa użytkownika może zawierać tylko małe litery, cyfry, podkreślenia, kropki, myślniki i symbole '@'",
+	"username_must_start_with": "Nazwa użytkownika musi zaczynać się od znaku alfanumerycznego.",
+	"username_must_end_with": "Nazwa użytkownika musi kończyć się znakiem alfanumerycznym.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Zaloguj się, używając następującego kodu. Kod wygaśnie za 15 minut.",
 	"or_visit": "lub odwiedź",
 	"added_on": "Dodano",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Ustaw niestandardowy identyfikator klienta, jeśli jest to wymagane przez twoją aplikację. W przeciwnym razie pozostaw to pole puste, aby wygenerować losowy identyfikator.",
 	"generated": "Wygenerowano",
 	"administration": "Administracja",
-	"group_rdn_attribute_description": "Atrybut używany w nazwie wyróżniającej grupy (DN). Zalecana wartość: `cn`",
+	"group_rdn_attribute_description": "Atrybut używany w nazwie wyróżniającej grupy (DN).",
+	"display_name_attribute": "Atrybut nazwy wyświetlanej",
+	"display_name": "Wyświetlana nazwa",
+	"configure_application_images": "Konfigurowanie obrazów aplikacji",
 	"ui_config_disabled_info_title": "Konfiguracja interfejsu użytkownika wyłączona",
 	"ui_config_disabled_info_description": "Konfiguracja interfejsu użytkownika jest wyłączona, ponieważ ustawienia konfiguracyjne aplikacji są zarządzane za pomocą zmiennych środowiskowych. Niektóre ustawienia mogą nie być edytowalne."
 }

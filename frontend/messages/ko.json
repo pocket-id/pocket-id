@@ -120,6 +120,8 @@
 	"username": "사용자 이름",
 	"save": "저장",
 	"username_can_only_contain": "사용자 이름은 영어 소문자, 숫자, 밑줄, 점, 하이픈, '@' 기호만 포함할 수 있습니다",
+	"username_must_start_with": "사용자 이름은 영숫자로 시작해야 합니다",
+	"username_must_end_with": "사용자 이름은 영숫자로 끝나야 합니다",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "다음 코드를 사용하여 로그인하세요. 이 코드는 15분 후에 만료됩니다.",
 	"or_visit": "또는",
 	"added_on": "추가:",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "애플리케이션에서 사용자 정의 클라이언트 ID가 요구되는 경우 설정하세요. 그렇지 않으면 빈 상태로 두어서 무작위로 생성할 수 있습니다.",
 	"generated": "생성됨",
 	"administration": "관리",
-	"group_rdn_attribute_description": "그룹의 고유 식별자(DN)에 사용되는 속성. 권장 값: `cn`",
+	"group_rdn_attribute_description": "그룹의 고유 식별자(DN)에 사용되는 속성.",
+	"display_name_attribute": "표시 이름 속성",
+	"display_name": "표시 이름",
+	"configure_application_images": "애플리케이션 이미지 구성",
 	"ui_config_disabled_info_title": "UI 구성 비활성화됨",
 	"ui_config_disabled_info_description": "UI 구성이 비활성화되었습니다. 애플리케이션 구성 설정은 환경 변수를 통해 관리되기 때문입니다. 일부 설정은 편집할 수 없을 수 있습니다."
 }

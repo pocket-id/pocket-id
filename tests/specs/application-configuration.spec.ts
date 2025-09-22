@@ -128,15 +128,15 @@ test('Update application images', async ({ page }) => {
 	await expect(page.locator('[data-type="success"]')).toHaveText('Images updated successfully');
 
 	await page.request
-		.get('/api/application-configuration/favicon')
+		.get('/api/application-images/favicon')
 		.then((res) => expect.soft(res.status()).toBe(200));
 	await page.request
-		.get('/api/application-configuration/logo?light=true')
+		.get('/api/application-images/logo?light=true')
 		.then((res) => expect.soft(res.status()).toBe(200));
 	await page.request
-		.get('/api/application-configuration/logo?light=false')
+		.get('/api/application-images/logo?light=false')
 		.then((res) => expect.soft(res.status()).toBe(200));
 	await page.request
-		.get('/api/application-configuration/background-image')
+		.get('/api/application-images/background')
 		.then((res) => expect.soft(res.status()).toBe(200));
 });

@@ -44,10 +44,7 @@ type AppConfig struct {
 	SignupDefaultUserGroupIDs AppConfigVariable `key:"signupDefaultUserGroupIDs"`
 	SignupDefaultCustomClaims AppConfigVariable `key:"signupDefaultCustomClaims"`
 	// Internal
-	BackgroundImageType AppConfigVariable `key:"backgroundImageType,internal"` // Internal
-	LogoLightImageType  AppConfigVariable `key:"logoLightImageType,internal"`  // Internal
-	LogoDarkImageType   AppConfigVariable `key:"logoDarkImageType,internal"`   // Internal
-	InstanceID          AppConfigVariable `key:"instanceId,internal"`          // Internal
+	InstanceID AppConfigVariable `key:"instanceId,internal"` // Internal
 	// Email
 	SmtpHost                                   AppConfigVariable `key:"smtpHost"`
 	SmtpPort                                   AppConfigVariable `key:"smtpPort"`
@@ -74,6 +71,7 @@ type AppConfig struct {
 	LdapAttributeUserEmail             AppConfigVariable `key:"ldapAttributeUserEmail"`
 	LdapAttributeUserFirstName         AppConfigVariable `key:"ldapAttributeUserFirstName"`
 	LdapAttributeUserLastName          AppConfigVariable `key:"ldapAttributeUserLastName"`
+	LdapAttributeUserDisplayName       AppConfigVariable `key:"ldapAttributeUserDisplayName"`
 	LdapAttributeUserProfilePicture    AppConfigVariable `key:"ldapAttributeUserProfilePicture"`
 	LdapAttributeGroupMember           AppConfigVariable `key:"ldapAttributeGroupMember"`
 	LdapAttributeGroupUniqueIdentifier AppConfigVariable `key:"ldapAttributeGroupUniqueIdentifier"`

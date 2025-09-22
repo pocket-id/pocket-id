@@ -36,7 +36,7 @@ func NewDatabaseForTest(t *testing.T) *gorm.DB {
 
 	// Connect to a new in-memory SQL database
 	db, err := gorm.Open(
-		sqlite.Open("file:"+dbName+"?mode=memory&cache=shared"),
+		sqlite.Open("file:"+dbName+"?mode=memory"),
 		&gorm.Config{
 			TranslateError: true,
 			Logger: logger.New(
@@ -52,9 +52,14 @@ func NewDatabaseForTest(t *testing.T) *gorm.DB {
 		})
 	require.NoError(t, err, "Failed to connect to test database")
 
-	// Perform migrations with the embedded migrations
 	sqlDB, err := db.DB()
 	require.NoError(t, err, "Failed to get sql.DB")
+
+	// For in-memory SQLite databases, we must limit to 1 open connection at the same time, or they won't see the whole data
+	// The other workaround, of using shared caches, doesn't work well with multiple write transactions trying to happen at once
+	sqlDB.SetMaxOpenConns(1)
+
+	// Perform migrations with the embedded migrations
 	driver, err := sqliteMigrate.WithInstance(sqlDB, &sqliteMigrate.Config{
 		NoTxWrap: true,
 	})

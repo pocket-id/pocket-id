@@ -1838,13 +1838,6 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 	}
 
 	if slices.Contains(scopes, "profile") {
-		// Add profile claims
-		claims["given_name"] = user.FirstName
-		claims["family_name"] = user.LastName
-		claims["name"] = user.FullName()
-		claims["preferred_username"] = user.Username
-		claims["picture"] = common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png"
-
 		// Add custom claims
 		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, tx)
 		if err != nil {
@@ -1863,6 +1856,15 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 				claims[customClaim.Key] = customClaim.Value
 			}
 		}
+
+		// Add profile claims
+		claims["given_name"] = user.FirstName
+		claims["family_name"] = user.LastName
+		claims["name"] = user.FullName()
+		claims["display_name"] = user.DisplayName
+
+		claims["preferred_username"] = user.Username
+		claims["picture"] = common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png"
 	}
 
 	if slices.Contains(scopes, "email") {

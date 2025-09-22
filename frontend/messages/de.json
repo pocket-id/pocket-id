@@ -120,6 +120,8 @@
 	"username": "Benutzername",
 	"save": "Speichern",
 	"username_can_only_contain": "Der Benutzername darf nur Kleinbuchstaben, Ziffern, Unterstriche, Punkte, Bindestriche und das Symbol „@“ enthalten",
+	"username_must_start_with": "Der Benutzername muss mit einem Buchstaben oder einer Zahl anfangen.",
+	"username_must_end_with": "Der Benutzername muss mit einem Buchstaben oder einer Zahl enden.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Melde dich mit dem folgenden Code an. Der Code läuft in 15 Minuten ab.",
 	"or_visit": "oder besuche",
 	"added_on": "Hinzugefügt am",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Gib eine eigene Client-ID ein, wenn deine App das braucht. Ansonsten lass das Feld leer, damit eine zufällige ID generiert wird.",
 	"generated": "Generiert",
 	"administration": "Verwaltung",
-	"group_rdn_attribute_description": "Das Attribut, das im Distinguished Name (DN) der Gruppen benutzt wird. Empfohlener Wert: `cn`",
+	"group_rdn_attribute_description": "Das Attribut, das im Distinguished Name (DN) der Gruppen benutzt wird.",
+	"display_name_attribute": "Anzeigename-Attribut",
+	"display_name": "Anzeigename",
+	"configure_application_images": "Anwendungsimages einrichten",
 	"ui_config_disabled_info_title": "UI-Konfiguration deaktiviert",
 	"ui_config_disabled_info_description": "Die UI-Konfiguration ist deaktiviert, weil die Anwendungseinstellungen über Umgebungsvariablen verwaltet werden. Manche Einstellungen können vielleicht nicht geändert werden."
 }

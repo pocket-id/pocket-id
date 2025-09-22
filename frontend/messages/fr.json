@@ -120,6 +120,8 @@
 	"username": "Nom d'utilisateur",
 	"save": "Enregistrer",
 	"username_can_only_contain": "Le nom d'utilisateur ne peut contenir que des lettres minuscules, des chiffres, des tirets, des tirets bas et le symbole '@'",
+	"username_must_start_with": "Le nom d'utilisateur doit commencer par un caractère alphanumérique.",
+	"username_must_end_with": "Le nom d'utilisateur doit finir par un caractère alphanumérique.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Connectez-vous avec le code suivant. Le code expirera dans 15 minutes.",
 	"or_visit": "ou visiter",
 	"added_on": "Ajoutée le",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Définissez un identifiant client personnalisé si votre application l'exige. Sinon, laissez ce champ vide pour qu'un identifiant aléatoire soit généré.",
 	"generated": "Généré",
 	"administration": "Administration",
-	"group_rdn_attribute_description": "L'attribut utilisé dans le nom distinctif (DN) des groupes. Valeur recommandée : `cn`",
+	"group_rdn_attribute_description": "L'attribut utilisé dans le nom distinctif (DN) des groupes.",
+	"display_name_attribute": "Attribut du nom d'affichage",
+	"display_name": "Nom d'affichage",
+	"configure_application_images": "Configurer les images d'application",
 	"ui_config_disabled_info_title": "Configuration de l'interface utilisateur désactivée",
 	"ui_config_disabled_info_description": "La configuration de l'interface utilisateur est désactivée parce que les paramètres de configuration de l'application sont gérés par des variables d'environnement. Certains paramètres peuvent ne pas être modifiables."
 }

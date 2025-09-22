@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mime/multipart"
 	"os"
 	"reflect"
 	"strings"
@@ -70,10 +69,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		SignupDefaultCustomClaims: model.AppConfigVariable{Value: "[]"},
 		AccentColor:               model.AppConfigVariable{Value: "default"},
 		// Internal
-		BackgroundImageType: model.AppConfigVariable{Value: "webp"},
-		LogoLightImageType:  model.AppConfigVariable{Value: "svg"},
-		LogoDarkImageType:   model.AppConfigVariable{Value: "svg"},
-		InstanceID:          model.AppConfigVariable{Value: ""},
+		InstanceID: model.AppConfigVariable{Value: ""},
 		// Email
 		SmtpHost:                      model.AppConfigVariable{},
 		SmtpPort:                      model.AppConfigVariable{},
@@ -100,6 +96,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		LdapAttributeUserEmail:             model.AppConfigVariable{},
 		LdapAttributeUserFirstName:         model.AppConfigVariable{},
 		LdapAttributeUserLastName:          model.AppConfigVariable{},
+		LdapAttributeUserDisplayName:       model.AppConfigVariable{Value: "cn"},
 		LdapAttributeUserProfilePicture:    model.AppConfigVariable{},
 		LdapAttributeGroupMember:           model.AppConfigVariable{Value: "member"},
 		LdapAttributeGroupUniqueIdentifier: model.AppConfigVariable{},
@@ -319,39 +316,6 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 
 func (s *AppConfigService) ListAppConfig(showAll bool) []model.AppConfigVariable {
 	return s.GetDbConfig().ToAppConfigVariableSlice(showAll, true)
-}
-
-func (s *AppConfigService) UpdateImage(ctx context.Context, uploadedFile *multipart.FileHeader, imageName string, oldImageType string) (err error) {
-	fileType := strings.ToLower(utils.GetFileExtension(uploadedFile.Filename))
-	mimeType := utils.GetImageMimeType(fileType)
-	if mimeType == "" {
-		return &common.FileTypeNotSupportedError{}
-	}
-
-	// Save the updated image
-	imagePath := common.EnvConfig.UploadPath + "/application-images/" + imageName + "." + fileType
-	err = utils.SaveFile(uploadedFile, imagePath)
-	if err != nil {
-		return err
-	}
-
-	// Delete the old image if it has a different file type, then update the type in the database
-	if fileType != oldImageType {
-		oldImagePath := common.EnvConfig.UploadPath + "/application-images/" + imageName + "." + oldImageType
-		err = os.Remove(oldImagePath)
-		if err != nil {
-			return err
-		}
-
-		// Update the file type in the database
-		err = s.UpdateAppConfigValues(ctx, imageName+"ImageType", fileType)
-		if err != nil {
-			return err
-		}
-
-	}
-
-	return nil
 }
 
 // LoadDbConfig loads the configuration values from the database into the DbConfig struct.

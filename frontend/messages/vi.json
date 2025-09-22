@@ -120,6 +120,8 @@
 	"username": "Tên đăng nhập",
 	"save": "Lưu",
 	"username_can_only_contain": "Tên người dùng chỉ có thể chứa các ký tự chữ thường, số, dấu gạch dưới, dấu chấm, dấu gạch ngang và ký hiệu '@'.",
+	"username_must_start_with": "Tên người dùng phải bắt đầu bằng một ký tự alphanumeric.",
+	"username_must_end_with": "Tên người dùng phải kết thúc bằng một ký tự alphanumeric.",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Đăng nhập bằng mã sau. Mã này sẽ hết hạn trong 15 phút.",
 	"or_visit": "hoặc truy cập",
 	"added_on": "Đã được thêm vào",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Đặt ID khách hàng tùy chỉnh nếu ứng dụng của bạn yêu cầu. Nếu không, hãy để trống để hệ thống tự động tạo một ID ngẫu nhiên.",
 	"generated": "Được tạo ra",
 	"administration": "Quản lý",
-	"group_rdn_attribute_description": "Thuộc tính được sử dụng trong tên phân biệt (DN) của nhóm. Giá trị được khuyến nghị: `cn`",
+	"group_rdn_attribute_description": "Thuộc tính được sử dụng trong tên phân biệt (DN) của nhóm.",
+	"display_name_attribute": "Thuộc tính Tên hiển thị",
+	"display_name": "Tên hiển thị",
+	"configure_application_images": "Cấu hình hình ảnh ứng dụng",
 	"ui_config_disabled_info_title": "Cấu hình giao diện người dùng đã bị vô hiệu hóa",
 	"ui_config_disabled_info_description": "Cấu hình giao diện người dùng (UI) đã bị vô hiệu hóa vì các thiết lập cấu hình ứng dụng được quản lý thông qua biến môi trường. Một số thiết lập có thể không thể chỉnh sửa."
 }

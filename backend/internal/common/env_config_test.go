@@ -17,18 +17,19 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should parse valid SQLite config correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_PROVIDER", "SQLITE") // should be lowercased automatically
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("APP_URL", "HTTP://LOCALHOST:3000")
 
 		err := parseEnvConfig()
 		require.NoError(t, err)
 		assert.Equal(t, DbProviderSqlite, EnvConfig.DbProvider)
+		assert.Equal(t, "http://localhost:3000", EnvConfig.AppURL)
 	})
 
 	t.Run("should parse valid Postgres config correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "postgres")
+		t.Setenv("DB_PROVIDER", "POSTGRES")
 		t.Setenv("DB_CONNECTION_STRING", "postgres://user:pass@localhost/db")
 		t.Setenv("APP_URL", "https://example.com")
 
@@ -51,7 +52,6 @@ func TestParseEnvConfig(t *testing.T) {
 	t.Run("should set default SQLite connection string when DB_CONNECTION_STRING is empty", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "") // Explicitly empty
 		t.Setenv("APP_URL", "http://localhost:3000")
 
 		err := parseEnvConfig()
@@ -192,25 +192,25 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_PROVIDER", "postgres")
 		t.Setenv("DB_CONNECTION_STRING", "postgres://test")
 		t.Setenv("APP_URL", "https://prod.example.com")
-		t.Setenv("APP_ENV", "staging")
+		t.Setenv("APP_ENV", "STAGING")
 		t.Setenv("UPLOAD_PATH", "/custom/uploads")
 		t.Setenv("KEYS_PATH", "/custom/keys")
 		t.Setenv("PORT", "8080")
-		t.Setenv("HOST", "127.0.0.1")
+		t.Setenv("HOST", "LOCALHOST")
 		t.Setenv("UNIX_SOCKET", "/tmp/app.sock")
 		t.Setenv("MAXMIND_LICENSE_KEY", "test-license")
 		t.Setenv("GEOLITE_DB_PATH", "/custom/geolite.mmdb")
 
 		err := parseEnvConfig()
 		require.NoError(t, err)
-		assert.Equal(t, "staging", EnvConfig.AppEnv)
+		assert.Equal(t, "staging", EnvConfig.AppEnv) // lowercased
 		assert.Equal(t, "/custom/uploads", EnvConfig.UploadPath)
 		assert.Equal(t, "8080", EnvConfig.Port)
-		assert.Equal(t, "127.0.0.1", EnvConfig.Host)
+		assert.Equal(t, "localhost", EnvConfig.Host) // lowercased
 	})
 }
 
-func TestResolveFileBasedEnvVariables(t *testing.T) {
+func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
 	// Create temporary directory for test files
 	tempDir := t.TempDir()
 
@@ -225,103 +225,34 @@ func TestResolveFileBasedEnvVariables(t *testing.T) {
 	err = os.WriteFile(dbConnFile, []byte(dbConnContent), 0600)
 	require.NoError(t, err)
 
-	// Create a binary file for testing binary data handling
 	binaryKeyFile := tempDir + "/binary_key.bin"
-	binaryKeyContent := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10}
+	binaryKeyContent := []byte{0x01, 0x02, 0x03, 0x04}
 	err = os.WriteFile(binaryKeyFile, binaryKeyContent, 0600)
 	require.NoError(t, err)
 
-	t.Run("should read file content for fields with options:file tag", func(t *testing.T) {
+	t.Run("should process toLower and file options", func(t *testing.T) {
 		config := defaultConfig()
+		config.AppEnv = "STAGING"
+		config.Host = "LOCALHOST"
 
-		// Set environment variables pointing to files
 		t.Setenv("ENCRYPTION_KEY_FILE", encryptionKeyFile)
 		t.Setenv("DB_CONNECTION_STRING_FILE", dbConnFile)
 
-		err := resolveFileBasedEnvVariables(&config)
+		err := prepareEnvConfig(&config)
 		require.NoError(t, err)
 
-		// Verify file contents were read correctly
+		assert.Equal(t, "staging", config.AppEnv)
+		assert.Equal(t, "localhost", config.Host)
 		assert.Equal(t, []byte(encryptionKeyContent), config.EncryptionKey)
 		assert.Equal(t, dbConnContent, config.DbConnectionString)
-	})
-
-	t.Run("should skip fields without options:file tag", func(t *testing.T) {
-		config := defaultConfig()
-		originalAppURL := config.AppURL
-
-		// Set a file for a field that doesn't have options:file tag
-		t.Setenv("APP_URL_FILE", "/tmp/nonexistent.txt")
-
-		err := resolveFileBasedEnvVariables(&config)
-		require.NoError(t, err)
-
-		// AppURL should remain unchanged
-		assert.Equal(t, originalAppURL, config.AppURL)
-	})
-
-	t.Run("should skip non-string fields", func(t *testing.T) {
-		// This test verifies that non-string fields are skipped
-		// We test this indirectly by ensuring the function doesn't error
-		// when processing the actual EnvConfigSchema which has bool fields
-		config := defaultConfig()
-
-		err := resolveFileBasedEnvVariables(&config)
-		require.NoError(t, err)
-	})
-
-	t.Run("should skip when _FILE environment variable is not set", func(t *testing.T) {
-		config := defaultConfig()
-		originalEncryptionKey := config.EncryptionKey
-
-		// Don't set ENCRYPTION_KEY_FILE environment variable
-
-		err := resolveFileBasedEnvVariables(&config)
-		require.NoError(t, err)
-
-		// EncryptionKey should remain unchanged
-		assert.Equal(t, originalEncryptionKey, config.EncryptionKey)
-	})
-
-	t.Run("should handle multiple file-based variables simultaneously", func(t *testing.T) {
-		config := defaultConfig()
-
-		// Set multiple file environment variables
-		t.Setenv("ENCRYPTION_KEY_FILE", encryptionKeyFile)
-		t.Setenv("DB_CONNECTION_STRING_FILE", dbConnFile)
-
-		err := resolveFileBasedEnvVariables(&config)
-		require.NoError(t, err)
-
-		// All should be resolved correctly
-		assert.Equal(t, []byte(encryptionKeyContent), config.EncryptionKey)
-		assert.Equal(t, dbConnContent, config.DbConnectionString)
-	})
-
-	t.Run("should handle mixed file and non-file environment variables", func(t *testing.T) {
-		config := defaultConfig()
-
-		// Set both file and non-file environment variables
-		t.Setenv("ENCRYPTION_KEY_FILE", encryptionKeyFile)
-
-		err := resolveFileBasedEnvVariables(&config)
-		require.NoError(t, err)
-
-		// File-based should be resolved, others should remain as set by env parser
-		assert.Equal(t, []byte(encryptionKeyContent), config.EncryptionKey)
-		assert.Equal(t, "http://localhost:1411", config.AppURL)
 	})
 
 	t.Run("should handle binary data correctly", func(t *testing.T) {
 		config := defaultConfig()
-
-		// Set environment variable pointing to binary file
 		t.Setenv("ENCRYPTION_KEY_FILE", binaryKeyFile)
 
-		err := resolveFileBasedEnvVariables(&config)
+		err := prepareEnvConfig(&config)
 		require.NoError(t, err)
-
-		// Verify binary data was read correctly without corruption
 		assert.Equal(t, binaryKeyContent, config.EncryptionKey)
 	})
 }

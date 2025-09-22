@@ -120,6 +120,8 @@
 	"username": "Username",
 	"save": "Save",
 	"username_can_only_contain": "Username can only contain lowercase letters, numbers, underscores, dots, hyphens, and '@' symbols",
+	"username_must_start_with": "Username must start with an alphanumeric character",
+	"username_must_end_with": "Username must end with an alphanumeric character",
 	"sign_in_using_the_following_code_the_code_will_expire_in_minutes": "Sign in using the following code. The code will expire in 15 minutes.",
 	"or_visit": "or visit",
 	"added_on": "Added on",
@@ -443,7 +445,10 @@
 	"custom_client_id_description": "Set a custom client ID if this is required by your application. Otherwise, leave it blank to generate a random one.",
 	"generated": "Generated",
 	"administration": "Administration",
-	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN). Recommended value: `cn`",
+	"group_rdn_attribute_description": "The attribute used in the groups distinguished name (DN).",
+	"display_name_attribute": "Display Name Attribute",
+	"display_name": "Display Name",
+	"configure_application_images": "Configure Application Images",
 	"ui_config_disabled_info_title": "UI Configuration Disabled",
 	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable."
 }

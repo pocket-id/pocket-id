@@ -3,7 +3,7 @@ package email
 import (
 	"fmt"
 	htemplate "html/template"
-	"path/filepath"
+	"path"
 	ttemplate "text/template"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
@@ -30,7 +30,7 @@ func PrepareTextTemplates(templates []string) (map[string]*ttemplate.Template, e
 	textTemplates := make(map[string]*ttemplate.Template, len(templates))
 	for _, tmpl := range templates {
 		filename := tmpl + "_text.tmpl"
-		templatePath := filepath.Join("email-templates", filename)
+		templatePath := path.Join("email-templates", filename)
 
 		parsedTemplate, err := ttemplate.ParseFS(resources.FS, templatePath)
 		if err != nil {
@@ -47,7 +47,7 @@ func PrepareHTMLTemplates(templates []string) (map[string]*htemplate.Template, e
 	htmlTemplates := make(map[string]*htemplate.Template, len(templates))
 	for _, tmpl := range templates {
 		filename := tmpl + "_html.tmpl"
-		templatePath := filepath.Join("email-templates", filename)
+		templatePath := path.Join("email-templates", filename)
 
 		parsedTemplate, err := htemplate.ParseFS(resources.FS, templatePath)
 		if err != nil {

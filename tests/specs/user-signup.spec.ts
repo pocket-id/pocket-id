@@ -124,7 +124,7 @@ test.describe('User Signup', () => {
 
 			await page.getByRole('button', { name: 'Sign Up' }).click();
 
-			await expect(page.getByText('Invalid input').first()).toBeVisible();
+			await expect(page.getByText('Invalid email address').first()).toBeVisible();
 		});
 
 		test('Open signup - duplicate email shows error', async ({ page }) => {

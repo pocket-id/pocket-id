@@ -41,6 +41,7 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeUserEmail: string;
 	ldapAttributeUserFirstName: string;
 	ldapAttributeUserLastName: string;
+	ldapAttributeUserDisplayName: string;
 	ldapAttributeUserProfilePicture: string;
 	ldapAttributeGroupMember: string;
 	ldapAttributeGroupUniqueIdentifier: string;

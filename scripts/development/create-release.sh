@@ -4,15 +4,10 @@ if [ ! -f .version ] || [ ! -f frontend/package.json ] || [ ! -f CHANGELOG.md ];
     exit 1
 fi
 
-# Check if conventional-changelog is installed, if not install it
-if ! command -v conventional-changelog &>/dev/null; then
-    echo "conventional-changelog not found, installing..."
-    npm install -g conventional-changelog-cli
-    # Verify installation was successful
-    if ! command -v conventional-changelog &>/dev/null; then
-        echo "Error: Failed to install conventional-changelog-cli."
-        exit 1
-    fi
+# Check if git cliff is installed
+if ! command -v git cliff &>/dev/null; then
+    echo "Error: git cliff is not installed. Please install it from https://git-cliff.org/docs/installation."
+    exit 1
 fi
 
 # Check if GitHub CLI is installed
@@ -113,7 +108,7 @@ git add frontend/package.json
 
 # Generate changelog
 echo "Generating changelog..."
-conventional-changelog -p conventionalcommits -i CHANGELOG.md -s
+git cliff --github-token=$(gh auth token) --prepend CHANGELOG.md --tag "v$NEW_VERSION" --unreleased
 git add CHANGELOG.md
 
 # Commit the changes with the new version
@@ -128,7 +123,7 @@ git push --tags
 
 # Extract the changelog content for the latest release
 echo "Extracting changelog content for version $NEW_VERSION..."
-CHANGELOG=$(awk '/^## / {if (NR > 1) exit} NR > 1 {print}' CHANGELOG.md | awk 'NR > 2 || NF {print}')
+CHANGELOG=$(awk '/^## v[0-9]/ { if (found) exit; found=1; next } found' CHANGELOG.md)
 
 if [ -z "$CHANGELOG" ]; then
     echo "Error: Could not extract changelog for version $NEW_VERSION."

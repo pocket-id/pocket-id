@@ -245,12 +245,13 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 
 func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
 	user := model.User{
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
-		Email:     input.Email,
-		Username:  input.Username,
-		IsAdmin:   input.IsAdmin,
-		Locale:    input.Locale,
+		FirstName:   input.FirstName,
+		LastName:    input.LastName,
+		DisplayName: input.DisplayName,
+		Email:       input.Email,
+		Username:    input.Username,
+		IsAdmin:     input.IsAdmin,
+		Locale:      input.Locale,
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
@@ -362,6 +363,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		// Full update: Allow updating all personal fields
 		user.FirstName = updatedUser.FirstName
 		user.LastName = updatedUser.LastName
+		user.DisplayName = updatedUser.DisplayName
 		user.Email = updatedUser.Email
 		user.Username = updatedUser.Username
 		user.Locale = updatedUser.Locale
@@ -600,11 +602,12 @@ func (s *UserService) SignUpInitialAdmin(ctx context.Context, signUpData dto.Sig
 	}
 
 	userToCreate := dto.UserCreateDto{
-		FirstName: signUpData.FirstName,
-		LastName:  signUpData.LastName,
-		Username:  signUpData.Username,
-		Email:     signUpData.Email,
-		IsAdmin:   true,
+		FirstName:   signUpData.FirstName,
+		LastName:    signUpData.LastName,
+		DisplayName: strings.TrimSpace(signUpData.FirstName + " " + signUpData.LastName),
+		Username:    signUpData.Username,
+		Email:       signUpData.Email,
+		IsAdmin:     true,
 	}
 
 	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
@@ -736,10 +739,11 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 	}
 
 	userToCreate := dto.UserCreateDto{
-		Username:  signupData.Username,
-		Email:     signupData.Email,
-		FirstName: signupData.FirstName,
-		LastName:  signupData.LastName,
+		Username:    signupData.Username,
+		Email:       signupData.Email,
+		FirstName:   signupData.FirstName,
+		LastName:    signupData.LastName,
+		DisplayName: strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
 	}
 
 	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
