@@ -53,9 +53,15 @@
 		<Table.Cell>
 			<Badge class="rounded-full" variant="outline">{translateAuditLogEvent(item.event)}</Badge>
 		</Table.Cell>
-		<Table.Cell
-			>{item.city && item.country ? `${item.city}, ${item.country}` : m.unknown()}</Table.Cell
-		>
+		<Table.Cell>
+			{#if item.city && item.country}
+				{item.city}, {item.country}
+			{:else if item.country}
+				{item.country}
+			{:else}
+				m.unknown()
+			{/if}
+		</Table.Cell>
 		<Table.Cell>{item.ipAddress}</Table.Cell>
 		<Table.Cell>{item.device}</Table.Cell>
 		<Table.Cell>{item.data.clientName}</Table.Cell>
