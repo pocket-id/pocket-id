@@ -59,7 +59,7 @@
 			{:else if item.country}
 				{item.country}
 			{:else}
-				m.unknown()
+				{m.unknown()}
 			{/if}
 		</Table.Cell>
 		<Table.Cell>{item.ipAddress}</Table.Cell>
