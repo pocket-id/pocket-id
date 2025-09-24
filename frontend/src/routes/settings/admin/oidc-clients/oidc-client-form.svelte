@@ -51,7 +51,6 @@
 		pkceEnabled: existingClient?.pkceEnabled || false,
 		requiresReauthentication: existingClient?.requiresReauthentication || false,
 		launchURL: existingClient?.launchURL || '',
-		logoUrl: existingClient?.logoUrl || '',
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		}
@@ -154,7 +153,7 @@
 	/>
 	<p class="text-muted-foreground text-[0.8rem]">
 		Paste a direct image URL (svg, png, webp). Find icons at
-		<a class="underline" rel="noreferrer" target="_blank" href="https://github.com/selfhst/icons"
+		<a class="underline" rel="noreferrer" target="_blank" href="https://selfh.st/icons"
 			>Selfh.st Icons</a
 		>
 		or
@@ -162,7 +161,7 @@
 			class="underline"
 			rel="noreferrer"
 			target="_blank"
-			href="https://github.com/homarr-labs/dashboard-icons">Dashboard Icons</a
+			href="https://dashboardicons.com">Dashboard Icons</a
 		>.
 	</p>
 {/snippet}
