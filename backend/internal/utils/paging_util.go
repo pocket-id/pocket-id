@@ -53,65 +53,9 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 		})
 	}
 
-	// Apply backend facet filters BEFORE paginating
+	// Apply backend facet filters BEFORE paginating (delegated to helper to reduce complexity)
 	if len(filters) > 0 && result != nil {
-		// Derive model type from *[]T or *[]*T
-		t := reflect.TypeOf(result)
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
-		}
-		if t.Kind() == reflect.Slice {
-			t = t.Elem()
-		}
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
-		}
-		modelType := t
-
-		for col, vals := range filters {
-			field, ok := modelType.FieldByName(CapitalizeFirstLetter(col))
-			if !ok {
-				continue
-			}
-			isFilterable, _ := strconv.ParseBool(field.Tag.Get("filterable"))
-			if !isFilterable {
-				continue
-			}
-			columnName := CamelCaseToSnakeCase(col)
-
-			// Unwrap pointer fields
-			ft := field.Type
-			if ft.Kind() == reflect.Ptr {
-				ft = ft.Elem()
-			}
-
-			switch ft.Kind() {
-			case reflect.Bool:
-				var arr []bool
-				for _, s := range vals {
-					if b, err := strconv.ParseBool(strings.ToLower(strings.TrimSpace(s))); err == nil {
-						arr = append(arr, b)
-					}
-				}
-				if len(arr) > 0 {
-					query = query.Where(columnName+" IN ?", arr)
-				}
-			default:
-				var arr []string
-				for _, s := range vals {
-					if v := strings.TrimSpace(s); v != "" {
-						arr = append(arr, v)
-					}
-				}
-				if len(arr) > 0 {
-					valsIface := make([]interface{}, len(arr))
-					for i, v := range arr {
-						valsIface[i] = v
-					}
-					query = query.Where(clause.IN{Column: clause.Column{Name: columnName}, Values: valsIface})
-				}
-			}
-		}
+		query = applyFilters(filters, query, result)
 	}
 
 	return Paginate(pagination.Page, pagination.Limit, query, result)
@@ -163,4 +107,114 @@ func NormalizeSortDirection(direction string) string {
 func IsValidSortDirection(direction string) bool {
 	d := strings.ToLower(strings.TrimSpace(direction))
 	return d == "asc" || d == "desc"
+}
+
+// applyFilters applies the provided filter map to the GORM query.
+// It mirrors the sortable allowlist logic using the model's `filterable:"true"` tag.
+// Only supports bool, signed ints, unsigned ints, and string-like fallthrough.
+//
+//nolint:gocognit
+func applyFilters(filters map[string][]string, query *gorm.DB, result interface{}) *gorm.DB {
+	if len(filters) == 0 || result == nil {
+		return query
+	}
+
+	// Derive model type from *[]T or *[]*T
+	t := reflect.TypeOf(result)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() == reflect.Slice {
+		t = t.Elem()
+	}
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	modelType := t
+
+	for col, vals := range filters {
+		field, ok := modelType.FieldByName(CapitalizeFirstLetter(col))
+		if !ok {
+			continue
+		}
+		isFilterable, _ := strconv.ParseBool(field.Tag.Get("filterable"))
+		if !isFilterable {
+			continue
+		}
+		columnName := CamelCaseToSnakeCase(col)
+
+		// Unwrap pointer fields
+		ft := field.Type
+		if ft.Kind() == reflect.Ptr {
+			ft = ft.Elem()
+		}
+		kind := ft.Kind()
+
+		// Bool handling
+		if kind == reflect.Bool {
+			var arr []bool
+			for _, s := range vals {
+				if b, err := strconv.ParseBool(strings.ToLower(strings.TrimSpace(s))); err == nil {
+					arr = append(arr, b)
+				}
+			}
+			if len(arr) > 0 {
+				query = query.Where(columnName+" IN ?", arr)
+			}
+			continue
+		}
+
+		// Signed integers
+		if isSignedIntKind(kind) {
+			var arr []int64
+			for _, s := range vals {
+				if n, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64); err == nil {
+					arr = append(arr, n)
+				}
+			}
+			if len(arr) > 0 {
+				query = query.Where(columnName+" IN ?", arr)
+			}
+			continue
+		}
+
+		// Unsigned integers
+		if isUnsignedIntKind(kind) {
+			var arr []uint64
+			for _, s := range vals {
+				if n, err := strconv.ParseUint(strings.TrimSpace(s), 10, 64); err == nil {
+					arr = append(arr, n)
+				}
+			}
+			if len(arr) > 0 {
+				query = query.Where(columnName+" IN ?", arr)
+			}
+			continue
+		}
+
+		// Fallback: treat as string values
+		var arr []string
+		for _, s := range vals {
+			if v := strings.TrimSpace(s); v != "" {
+				arr = append(arr, v)
+			}
+		}
+		if len(arr) > 0 {
+			valsIface := make([]interface{}, len(arr))
+			for i, v := range arr {
+				valsIface[i] = v
+			}
+			query = query.Where(clause.IN{Column: clause.Column{Name: columnName}, Values: valsIface})
+		}
+	}
+
+	return query
+}
+
+func isSignedIntKind(k reflect.Kind) bool {
+	return k == reflect.Int || k == reflect.Int8 || k == reflect.Int16 || k == reflect.Int32 || k == reflect.Int64
+}
+
+func isUnsignedIntKind(k reflect.Kind) bool {
+	return k == reflect.Uint || k == reflect.Uint8 || k == reflect.Uint16 || k == reflect.Uint32 || k == reflect.Uint64 || k == reflect.Uintptr
 }
