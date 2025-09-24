@@ -49,7 +49,7 @@
 	}
 
 	const columns = [
-		{ title: m.name(), accessorKey: 'name', sortable: true, cell: NameCell },
+		{ title: m.name(), accessorKey: 'name', sortable: true },
 		{ title: m.description(), cell: DescriptionCell },
 		{ title: m.expires_at(), accessorKey: 'expiresAt', sortable: true, cell: ExpiresAtCell },
 		{ title: m.last_used(), accessorKey: 'lastUsedAt', sortable: true, cell: LastUsedAtCell },
@@ -57,20 +57,16 @@
 	] satisfies ColumnSpec<ApiKey>[];
 </script>
 
-{#snippet NameCell({ item }: { item: ApiKey })}
-	{item.name}
-{/snippet}
-
 {#snippet DescriptionCell({ item }: { item: ApiKey })}
 	<span class="text-muted-foreground">{item.description}</span>
 {/snippet}
 
 {#snippet ExpiresAtCell({ item }: { item: ApiKey })}
-	<span class="text-muted-foreground">{formatDate(item.expiresAt)}</span>
+	{formatDate(item.expiresAt)}
 {/snippet}
 
 {#snippet LastUsedAtCell({ item }: { item: ApiKey })}
-	<span class="text-muted-foreground">{formatDate(item.lastUsedAt)}</span>
+	{formatDate(item.lastUsedAt)}
 {/snippet}
 
 {#snippet RowActions({ item }: { item: ApiKey })}

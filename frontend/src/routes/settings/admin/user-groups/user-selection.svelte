@@ -1,6 +1,5 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
-	import * as Table from '$lib/components/ui/table';
+	import PocketIdTable from '$lib/components/pocket-id-table/pocket-id-table.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
@@ -30,21 +29,21 @@
 	});
 </script>
 
+{#snippet FullNameCell({ item }: { item: User })}
+	{item.firstName} {item.lastName}
+{/snippet}
+
 {#if users}
-	<AdvancedTable
+	<PocketIdTable
 		items={users}
-		onRefresh={async (o) => (users = await userService.list(o))}
-		{requestOptions}
-		columns={[
-			{ label: m.name(), sortColumn: 'firstName' },
-			{ label: m.email(), sortColumn: 'email' }
-		]}
+		bind:requestOptions
 		bind:selectedIds={selectedUserIds}
+		onRefresh={async (o) => (users = await userService.list(o))}
+		columns={[
+			{ title: m.name(), accessorKey: 'firstName', sortable: true, cell: FullNameCell },
+			{ title: m.email(), accessorKey: 'email', sortable: true }
+		]}
+		persistKey="pocket-id-group-selection"
 		{selectionDisabled}
-	>
-		{#snippet rows({ item })}
-			<Table.Cell>{item.firstName} {item.lastName}</Table.Cell>
-			<Table.Cell>{item.email}</Table.Cell>
-		{/snippet}
-	</AdvancedTable>
+	/>
 {/if}
