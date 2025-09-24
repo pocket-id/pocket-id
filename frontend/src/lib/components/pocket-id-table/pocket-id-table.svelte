@@ -181,13 +181,20 @@
 		const out: FilterMap = {};
 		for (const f of filters ?? []) {
 			const id = f.id;
-			const v: unknown = (f as any).value;
-			// Pass through as-is (string | number | boolean | array)
+			let v: unknown = (f as any).value;
+
+			// If the UI stores arrays/Sets, take the first selected value only
 			if (Array.isArray(v)) {
 				if (v.length === 0) continue;
-				out[id] = v as any;
-			} else if (v !== undefined && v !== null && String(v).trim() !== '') {
-				out[id] = v as any;
+				v = v[0];
+			} else if (v && typeof v === 'object' && v instanceof Set) {
+				const first = (v as Set<unknown>).values().next().value;
+				if (first === undefined) continue;
+				v = first;
+			}
+
+			if (v !== undefined && v !== null && String(v).trim() !== '') {
+				out[id] = v as any; // scalar only
 			}
 		}
 		return out;

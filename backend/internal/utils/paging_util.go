@@ -28,17 +28,22 @@ type SortedPaginationRequest struct {
 	Filters map[string][]string `form:"filters"`
 }
 
-func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gorm.DB, result interface{}) (PaginationResponse, error) {
+func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gorm.DB, result interface{}, filtersOpt ...map[string][]string) (PaginationResponse, error) {
+	var filters map[string][]string
+	if len(filtersOpt) > 0 && filtersOpt[0] != nil {
+		filters = filtersOpt[0]
+	} else {
+		filters = sortedPaginationRequest.Filters
+	}
+
 	pagination := sortedPaginationRequest.Pagination
 	sort := sortedPaginationRequest.Sort
 
 	capitalizedSortColumn := CapitalizeFirstLetter(sort.Column)
-
 	sortField, sortFieldFound := reflect.TypeOf(result).Elem().Elem().FieldByName(capitalizedSortColumn)
 	isSortable, _ := strconv.ParseBool(sortField.Tag.Get("sortable"))
 
 	sort.Direction = NormalizeSortDirection(sort.Direction)
-
 	if sortFieldFound && isSortable {
 		columnName := CamelCaseToSnakeCase(sort.Column)
 		query = query.Clauses(clause.OrderBy{
@@ -49,79 +54,67 @@ func PaginateAndSort(sortedPaginationRequest SortedPaginationRequest, query *gor
 	}
 
 	// Apply backend facet filters BEFORE paginating
-	if len(sortedPaginationRequest.Filters) > 0 {
-		query = applyFilters(sortedPaginationRequest.Filters, query, result)
+	if len(filters) > 0 && result != nil {
+		// Derive model type from *[]T or *[]*T
+		t := reflect.TypeOf(result)
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+		}
+		if t.Kind() == reflect.Slice {
+			t = t.Elem()
+		}
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+		}
+		modelType := t
+
+		for col, vals := range filters {
+			field, ok := modelType.FieldByName(CapitalizeFirstLetter(col))
+			if !ok {
+				continue
+			}
+			isFilterable, _ := strconv.ParseBool(field.Tag.Get("filterable"))
+			if !isFilterable {
+				continue
+			}
+			columnName := CamelCaseToSnakeCase(col)
+
+			// Unwrap pointer fields
+			ft := field.Type
+			if ft.Kind() == reflect.Ptr {
+				ft = ft.Elem()
+			}
+
+			switch ft.Kind() {
+			case reflect.Bool:
+				var arr []bool
+				for _, s := range vals {
+					if b, err := strconv.ParseBool(strings.ToLower(strings.TrimSpace(s))); err == nil {
+						arr = append(arr, b)
+					}
+				}
+				if len(arr) > 0 {
+					query = query.Where(columnName+" IN ?", arr)
+				}
+			default:
+				var arr []string
+				for _, s := range vals {
+					if v := strings.TrimSpace(s); v != "" {
+						arr = append(arr, v)
+					}
+				}
+				if len(arr) > 0 {
+					valsIface := make([]interface{}, len(arr))
+					for i, v := range arr {
+						valsIface[i] = v
+					}
+					query = query.Where(clause.IN{Column: clause.Column{Name: columnName}, Values: valsIface})
+				}
+			}
+		}
 	}
 
 	return Paginate(pagination.Page, pagination.Limit, query, result)
-}
-
-// applyFilters mirrors sorting's reflect-based allowlist, using filterable:"true"
-func applyFilters(raw map[string][]string, query *gorm.DB, result interface{}) *gorm.DB {
-	if len(raw) == 0 || result == nil {
-		return query
-	}
-
-	// Derive model type from *[]T or *[]*T
-	t := reflect.TypeOf(result)
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	if t.Kind() == reflect.Slice {
-		t = t.Elem()
-	}
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	modelType := t
-
-	for col, vals := range raw {
-		field, ok := modelType.FieldByName(CapitalizeFirstLetter(col))
-		if !ok {
-			continue
-		}
-		isFilterable, _ := strconv.ParseBool(field.Tag.Get("filterable"))
-		if !isFilterable {
-			continue
-		}
-		columnName := CamelCaseToSnakeCase(col)
-
-		// Unwrap pointer fields
-		ft := field.Type
-		if ft.Kind() == reflect.Ptr {
-			ft = ft.Elem()
-		}
-
-		switch ft.Kind() {
-		case reflect.Bool:
-			var arr []bool
-			for _, s := range vals {
-				if b, err := strconv.ParseBool(strings.ToLower(strings.TrimSpace(s))); err == nil {
-					arr = append(arr, b)
-				}
-			}
-			if len(arr) > 0 {
-				query = query.Where(columnName+" IN ?", arr)
-			}
-		default:
-			var arr []string
-			for _, s := range vals {
-				s = strings.TrimSpace(s)
-				if s != "" {
-					arr = append(arr, s)
-				}
-			}
-			if len(arr) > 0 {
-				valsIface := make([]interface{}, len(arr))
-				for i, v := range arr {
-					valsIface[i] = v
-				}
-				query = query.Where(clause.IN{Column: clause.Column{Name: columnName}, Values: valsIface})
-			}
-		}
-	}
-
-	return query
 }
 
 func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (PaginationResponse, error) {

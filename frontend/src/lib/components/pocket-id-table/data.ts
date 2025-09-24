@@ -17,12 +17,12 @@ export const disabledFilters = [
 
 export const userRoleFilters = [
 	{
-		value: false,
+		value: true,
 		label: m.admin(),
 		icon: CircleCheck
 	},
 	{
-		value: true,
+		value: false,
 		label: m.user(),
 		icon: BadgeCheckIcon
 	}

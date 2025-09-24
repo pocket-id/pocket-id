@@ -46,7 +46,26 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 	}
 }
 
-func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
+func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest, rawQuery url.Values) ([]model.User, utils.PaginationResponse, error) {
+	if sortedPaginationRequest.Filters == nil {
+		sortedPaginationRequest.Filters = make(map[string][]string)
+	}
+	for k, vals := range rawQuery {
+		if !strings.HasPrefix(k, "filters[") {
+			continue
+		}
+		rest := k[len("filters["):]
+		i := strings.IndexByte(rest, ']')
+		if i <= 0 {
+			continue
+		}
+		name := rest[:i]
+		if name == "" || len(vals) == 0 {
+			continue
+		}
+		sortedPaginationRequest.Filters[name] = append(sortedPaginationRequest.Filters[name], vals...)
+	}
+
 	var users []model.User
 	query := s.db.WithContext(ctx).
 		Model(&model.User{}).
@@ -60,7 +79,7 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPa
 			searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &users)
+	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &users, sortedPaginationRequest.Filters)
 
 	return users, pagination, err
 }
