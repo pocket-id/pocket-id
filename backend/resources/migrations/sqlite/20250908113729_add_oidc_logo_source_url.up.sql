@@ -1,1 +1,0 @@
-ALTER TABLE oidc_clients ADD COLUMN logo_url TEXT;
