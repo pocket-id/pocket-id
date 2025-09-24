@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -69,6 +68,7 @@ func NewOidcService(
 	auditLogService *AuditLogService,
 	customClaimService *CustomClaimService,
 	webAuthnService *WebAuthnService,
+	httpClient *http.Client,
 ) (s *OidcService, err error) {
 	s = &OidcService{
 		db:                 db,
@@ -77,6 +77,7 @@ func NewOidcService(
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
 		webAuthnService:    webAuthnService,
+		httpClient:         httpClient,
 	}
 
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
@@ -752,7 +753,7 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 	if input.LogoURL != nil {
 		err = s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL)
 		if err != nil {
-			return model.OidcClient{}, fmt.Errorf("failed to download logo after create: %w", err)
+			return model.OidcClient{}, fmt.Errorf("failed to download logo: %w", err)
 		}
 	}
 
@@ -783,23 +784,10 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		return model.OidcClient{}, err
 	}
 
-	if input.LogoURL != nil && *input.LogoURL != "" {
-		slog.InfoContext(ctx, "OIDC: downloading logo after update",
-			slog.String("clientID", client.ID),
-			slog.String("logoURL", *input.LogoURL),
-		)
-		if err := s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL); err == nil {
-			_ = s.db.WithContext(ctx).
-				Preload("CreatedBy").
-				Preload("AllowedUserGroups").
-				First(&client, "id = ?", client.ID).
-				Error
-		} else {
-			slog.WarnContext(ctx, "OIDC: download logo failed (update)",
-				slog.String("clientID", client.ID),
-				slog.String("logoURL", *input.LogoURL),
-				slog.Any("error", err),
-			)
+	if input.LogoURL != nil {
+		err := s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL)
+		if err != nil {
+			return model.OidcClient{}, fmt.Errorf("failed to download logo: %w", err)
 		}
 	}
 
@@ -924,33 +912,10 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 	}
 
 	tx := s.db.Begin()
-	defer func() {
+
+	err = s.updateClientLogoType(ctx, tx, clientID, fileType)
+	if err != nil {
 		tx.Rollback()
-	}()
-
-	var client model.OidcClient
-	err = tx.
-		WithContext(ctx).
-		First(&client, "id = ?", clientID).
-		Error
-	if err != nil {
-		return err
-	}
-
-	if client.ImageType != nil && fileType != *client.ImageType {
-		oldImagePath := fmt.Sprintf("%s/oidc-client-images/%s.%s", common.EnvConfig.UploadPath, client.ID, *client.ImageType)
-		if err := os.Remove(oldImagePath); err != nil {
-			return err
-		}
-	}
-
-	client.ImageType = &fileType
-	client.HasLogo = true
-	err = tx.
-		WithContext(ctx).
-		Save(&client).
-		Error
-	if err != nil {
 		return err
 	}
 
@@ -1956,21 +1921,24 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 		return fmt.Errorf("logo is too large")
 	}
 
-	ext, err := detectLogoExt(u, resp)
+	// Prefer extension in path if supported
+	ext := utils.GetFileExtension(u.Path)
+	if ext == "" || utils.GetImageMimeType(ext) == "" {
+		// Otherwise, try to detect from content type
+		ext = utils.GetImageExtensionFromMimeType(resp.Header.Get("Content-Type"))
+	}
+
+	if ext == "" {
+		return &common.FileTypeNotSupportedError{}
+	}
+
+	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + "." + ext
+	err = utils.SaveFileStream(io.LimitReader(resp.Body, maxLogoSize+1), imagePath)
 	if err != nil {
 		return err
 	}
 
-	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
-	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
-		return err
-	}
-
-	if err := saveLogoBody(resp.Body, uploadsDir, clientID, ext, maxLogoSize); err != nil {
-		return err
-	}
-
-	if err := s.setClientLogoType(ctx, tx, clientID, ext, uploadsDir); err != nil {
+	if err := s.updateClientLogoType(ctx, tx, clientID, ext); err != nil {
 		return err
 	}
 
@@ -1979,68 +1947,8 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 
 // Helpers
 
-func detectLogoExt(u *url.URL, resp *http.Response) (string, error) {
-	// Prefer extension in path if supported
-	ext := strings.TrimPrefix(strings.ToLower(path.Ext(u.Path)), ".")
-	if ext != "" && utils.GetImageMimeType(ext) != "" {
-		return ext, nil
-	}
-
-	// Fallback to Content-Type
-	ct := strings.ToLower(resp.Header.Get("Content-Type"))
-	switch {
-	case strings.Contains(ct, "svg"):
-		ext = "svg"
-	case strings.Contains(ct, "png"):
-		ext = "png"
-	case strings.Contains(ct, "jpeg"), strings.Contains(ct, "jpg"):
-		ext = "jpg"
-	case strings.Contains(ct, "x-icon"), strings.Contains(ct, "ico"):
-		ext = "ico"
-	case strings.Contains(ct, "gif"):
-		ext = "gif"
-	default:
-		return "", fmt.Errorf("unsupported logo type")
-	}
-
-	// Final check against supported types
-	if utils.GetImageMimeType(ext) == "" {
-		return "", fmt.Errorf("unsupported logo type")
-	}
-	return ext, nil
-}
-
-func saveLogoBody(r io.Reader, dir, clientID, ext string, max int64) error {
-	tmpFile, err := os.CreateTemp(dir, clientID+".*.tmp")
-	if err != nil {
-		return err
-	}
-	tmpName := tmpFile.Name()
-
-	written, copyErr := io.Copy(tmpFile, io.LimitReader(r, max+1))
-	closeErr := tmpFile.Close()
-	if copyErr != nil {
-		_ = os.Remove(tmpName)
-		return copyErr
-	}
-	if closeErr != nil {
-		_ = os.Remove(tmpName)
-		return closeErr
-	}
-	if written > max {
-		_ = os.Remove(tmpName)
-		return fmt.Errorf("logo is too large")
-	}
-
-	finalPath := fmt.Sprintf("%s/%s.%s", dir, clientID, ext)
-	if err := os.Rename(tmpName, finalPath); err != nil {
-		_ = os.Remove(tmpName)
-		return err
-	}
-	return nil
-}
-
-func (s *OidcService) setClientLogoType(ctx context.Context, tx *gorm.DB, clientID, ext, uploadsDir string) error {
+func (s *OidcService) updateClientLogoType(ctx context.Context, tx *gorm.DB, clientID, ext string) error {
+	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
 
 	var client model.OidcClient
 	if err := tx.WithContext(ctx).First(&client, "id = ?", clientID).Error; err != nil {

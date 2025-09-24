@@ -4,6 +4,7 @@
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import ImageBox from '$lib/components/image-box.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as DropdownButton from '$lib/components/ui/dropdown-button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type {
@@ -21,7 +22,6 @@
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
-	import * as DropdownButton from '$lib/components/ui/dropdown-button';
 
 	let {
 		callback,
@@ -53,7 +53,8 @@
 		launchURL: existingClient?.launchURL || '',
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
-		}
+		},
+		logoUrl: ''
 	};
 
 	const formSchema = z.object({
@@ -157,11 +158,8 @@
 			>Selfh.st Icons</a
 		>
 		or
-		<a
-			class="underline"
-			rel="noreferrer"
-			target="_blank"
-			href="https://dashboardicons.com">Dashboard Icons</a
+		<a class="underline" rel="noreferrer" target="_blank" href="https://dashboardicons.com"
+			>Dashboard Icons</a
 		>.
 	</p>
 {/snippet}
@@ -250,7 +248,7 @@
 							variant="destructive"
 							size="icon"
 							onclick={resetLogo}
-							class="absolute -right-2 -top-2 size-6 rounded-full shadow-md"
+							class="absolute -top-2 -right-2 size-6 rounded-full shadow-md"
 						>
 							<LucideX class="size-3" />
 						</Button>

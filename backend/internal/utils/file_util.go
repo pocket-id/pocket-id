@@ -57,6 +57,29 @@ func GetImageMimeType(ext string) string {
 	}
 }
 
+func GetImageExtensionFromMimeType(mimeType string) string {
+	switch mimeType {
+	case "image/jpeg":
+		return "jpg"
+	case "image/png":
+		return "png"
+	case "image/svg+xml":
+		return "svg"
+	case "image/x-icon":
+		return "ico"
+	case "image/gif":
+		return "gif"
+	case "image/webp":
+		return "webp"
+	case "image/avif":
+		return "avif"
+	case "image/heic":
+		return "heic"
+	default:
+		return ""
+	}
+}
+
 func CopyEmbeddedFileToDisk(srcFilePath, destFilePath string) error {
 	srcFile, err := resources.FS.Open(srcFilePath)
 	if err != nil {
