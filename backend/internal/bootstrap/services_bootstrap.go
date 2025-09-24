@@ -56,7 +56,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService)
+	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
