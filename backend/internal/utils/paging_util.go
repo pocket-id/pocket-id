@@ -111,7 +111,6 @@ func IsValidSortDirection(direction string) bool {
 
 // applyFilters applies the provided filter map to the GORM query.
 // It mirrors the sortable allowlist logic using the model's `filterable:"true"` tag.
-// Only supports bool, signed ints, unsigned ints, and string-like fallthrough.
 //
 //nolint:gocognit
 func applyFilters(filters map[string][]string, query *gorm.DB, result interface{}) *gorm.DB {
