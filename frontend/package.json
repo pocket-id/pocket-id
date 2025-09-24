@@ -16,6 +16,7 @@
   "dependencies": {
     "@simplewebauthn/browser": "^13.1.2",
     "@tailwindcss/vite": "^4.1.11",
+    "@tanstack/table-core": "^8.21.3",
     "axios": "^1.12.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

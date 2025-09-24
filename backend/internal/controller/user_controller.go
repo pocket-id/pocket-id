@@ -110,7 +110,7 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 		return
 	}
 
-	users, pagination, err := uc.userService.ListUsers(c.Request.Context(), searchTerm, sortedPaginationRequest)
+	users, pagination, err := uc.userService.ListUsers(c.Request.Context(), searchTerm, sortedPaginationRequest, c.Request.URL.Query())
 	if err != nil {
 		_ = c.Error(err)
 		return
