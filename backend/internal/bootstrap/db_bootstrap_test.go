@@ -205,7 +205,7 @@ func TestAddSqliteDefaultParameters(t *testing.T) {
 			name:       "in-memory database",
 			input:      "file::memory:",
 			isMemoryDB: true,
-			expected:   "file::memory:?_pragma=busy_timeout%282500%29&_pragma=foreign_keys%281%29&_pragma=journal_mode%28MEMORY%29&_txlock=immediate&cache=shared",
+			expected:   "file::memory:?_pragma=busy_timeout%282500%29&_pragma=foreign_keys%281%29&_pragma=journal_mode%28MEMORY%29&_txlock=immediate",
 		},
 		{
 			name:       "read-only database with mode=ro",
@@ -248,12 +248,6 @@ func TestAddSqliteDefaultParameters(t *testing.T) {
 			input:      "file:test.db?_pragma=busy_timeout%283000%29&_pragma=journal_mode%28TRUNCATE%29&_pragma=synchronous%28NORMAL%29",
 			isMemoryDB: false,
 			expected:   "file:test.db?_pragma=busy_timeout%283000%29&_pragma=foreign_keys%281%29&_pragma=journal_mode%28TRUNCATE%29&_pragma=synchronous%28NORMAL%29&_txlock=immediate",
-		},
-		{
-			name:       "in-memory database with cache already set",
-			input:      "file::memory:?cache=private",
-			isMemoryDB: true,
-			expected:   "file::memory:?_pragma=busy_timeout%282500%29&_pragma=foreign_keys%281%29&_pragma=journal_mode%28MEMORY%29&_txlock=immediate&cache=shared",
 		},
 		{
 			name:       "database with mode=rw (not read-only)",

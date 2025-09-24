@@ -12,6 +12,7 @@ import (
 
 type services struct {
 	appConfigService   *service.AppConfigService
+	appImagesService   *service.AppImagesService
 	emailService       *service.EmailService
 	geoLiteService     *service.GeoLiteService
 	auditLogService    *service.AuditLogService
@@ -27,13 +28,15 @@ type services struct {
 }
 
 // Initializes all services
-func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client) (svc *services, err error) {
+func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, imageExtensions map[string]string) (svc *services, err error) {
 	svc = &services{}
 
 	svc.appConfigService, err = service.NewAppConfigService(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create app config service: %w", err)
 	}
+
+	svc.appImagesService = service.NewAppImagesService(imageExtensions)
 
 	svc.emailService, err = service.NewEmailService(db, svc.appConfigService)
 	if err != nil {
