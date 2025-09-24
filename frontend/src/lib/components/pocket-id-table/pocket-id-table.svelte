@@ -37,6 +37,7 @@
 	import TableCheckbox from './pocket-id-table-checkbox.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { PersistedState } from 'runed';
+	import type { FilterMap } from '$lib/types/pagination.type';
 	import {
 		type CompactTablePrefs,
 		encodeHidden,
@@ -114,7 +115,16 @@
 		// Filters
 		let shouldRefresh = false;
 		const restoredFilters = decodeFilters(cur.f);
-		if (restoredFilters.length) columnFilters = restoredFilters;
+		if (restoredFilters.length) {
+			columnFilters = restoredFilters;
+			// Send restored filters to backend
+			requestOptions = {
+				...requestOptions,
+				filters: toFilterMap(restoredFilters),
+				pagination: { page: 1, limit: requestOptions?.pagination?.limit ?? getDefaultLimit() }
+			};
+			shouldRefresh = true;
+		}
 		if (cur.g && cur.g !== globalFilter) {
 			globalFilter = cur.g;
 			requestOptions = {
@@ -165,6 +175,22 @@
 			const pageSet = new Set(pageIds);
 			selectedIds = (selectedIds ?? []).filter((id) => !pageSet.has(id));
 		}
+	}
+
+	function toFilterMap(filters: ColumnFiltersState): FilterMap {
+		const out: FilterMap = {};
+		for (const f of filters ?? []) {
+			const id = f.id;
+			const v: unknown = (f as any).value;
+			// Pass through as-is (string | number | boolean | array)
+			if (Array.isArray(v)) {
+				if (v.length === 0) continue;
+				out[id] = v as any;
+			} else if (v !== undefined && v !== null && String(v).trim() !== '') {
+				out[id] = v as any;
+			}
+		}
+		return out;
 	}
 
 	function onToggleRow(checked: boolean, id: string) {
@@ -307,10 +333,22 @@
 		},
 		onColumnFiltersChange: (updater) => {
 			columnFilters = typeof updater === 'function' ? updater(columnFilters) : updater;
+
 			// Persist column filters
 			if (enablePersist && prefs) {
 				prefs.current = { ...prefs.current, f: encodeFilters(columnFilters) };
 			}
+
+			// Send to backend and refresh
+			requestOptions = {
+				...requestOptions,
+				filters: toFilterMap(columnFilters),
+				pagination: {
+					page: 1,
+					limit: requestOptions?.pagination?.limit ?? items?.pagination?.itemsPerPage ?? 10
+				}
+			};
+			onRefresh(requestOptions);
 		},
 		onColumnVisibilityChange: (updater) => {
 			columnVisibility = typeof updater === 'function' ? updater(columnVisibility) : updater;

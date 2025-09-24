@@ -8,7 +8,8 @@ export type SortRequest = {
 	direction: 'asc' | 'desc';
 };
 
-export type FilterMap = Record<string, string>;
+export type FilterValue = string | number | boolean | (string | number | boolean)[];
+export type FilterMap = Record<string, FilterValue>;
 
 export type SearchPaginationSortRequest = {
 	search?: string;

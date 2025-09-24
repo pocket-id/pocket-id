@@ -1,7 +1,10 @@
 packages:
-  - 'frontend'
-  - 'tests'
-  - 'email-templates'
+  - frontend
+  - tests
+  - email-templates
+
+ignoredBuiltDependencies:
+  - esbuild
 
 overrides:
-  'devalue': '^5.3.2'
+  devalue: ^5.3.2
