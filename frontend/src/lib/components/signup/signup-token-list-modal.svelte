@@ -1,12 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
@@ -14,6 +12,8 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { Copy, Ellipsis, Trash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import PocketIdTable from '$lib/components/pocket-id-table/pocket-id-table.svelte';
+	import type { ColumnSpec } from '$lib/components/pocket-id-table';
 
 	let {
 		open = $bindable(),
@@ -98,7 +98,65 @@
 				axiosErrorToast(err);
 			});
 	}
+
+	const columns = [
+		{ title: m.token(), cell: TokenCell },
+		{ title: m.status(), cell: StatusBadgeCell },
+		{ title: m.usage(), accessorKey: 'usageCount', sortable: true, cell: UsageCountCell },
+		{ title: m.expires(), accessorKey: 'expiresAt', sortable: true, cell: ExpiresAtCell },
+		{ title: m.created(), accessorKey: 'createdAt', sortable: true, cell: CreatedAtCell },
+		{ title: m.actions(), hidden: true }
+	] satisfies ColumnSpec<SignupTokenDto>[];
 </script>
+
+{#snippet TokenCell({ item }: { item: SignupTokenDto })}
+	{item.token.substring(0, 2)}...{item.token.substring(item.token.length - 4)}
+{/snippet}
+
+{#snippet StatusBadgeCell({ item }: { item: SignupTokenDto })}
+	{@const status = getTokenStatus(item)}
+	{@const statusBadge = getStatusBadge(status)}
+	<Badge class="rounded-full" variant={statusBadge.variant}>
+		{statusBadge.text}
+	</Badge>
+{/snippet}
+
+{#snippet UsageCountCell({ item }: { item: SignupTokenDto })}
+	<div class="flex items-center gap-1">
+		{`${item.usageCount} ${m.of()} ${item.usageLimit}`}
+	</div>
+{/snippet}
+
+{#snippet ExpiresAtCell({ item }: { item: SignupTokenDto })}
+	<div class="flex items-center gap-1">
+		{formatDate(item.expiresAt)}
+	</div>
+{/snippet}
+
+{#snippet CreatedAtCell({ item }: { item: SignupTokenDto })}
+	<div class="flex items-center gap-1">
+		{formatDate(item.createdAt)}
+	</div>
+{/snippet}
+
+{#snippet RowActions({ item }: { item: SignupTokenDto })}
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+			<Ellipsis class="size-4" />
+			<span class="sr-only">{m.toggle_menu()}</span>
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Content align="end">
+			<DropdownMenu.Item onclick={() => copySignupLink(item)}>
+				<Copy class="mr-2 size-4" />
+				{m.copy()}
+			</DropdownMenu.Item>
+			<DropdownMenu.Item class="text-red-500 focus:!text-red-700" onclick={() => deleteToken(item)}>
+				<Trash2 class="mr-2 size-4" />
+				{m.delete()}
+			</DropdownMenu.Item>
+		</DropdownMenu.Content>
+	</DropdownMenu.Root>
+{/snippet}
 
 <Dialog.Root {open} {onOpenChange}>
 	<Dialog.Content class="sm-min-w[500px] max-h-[90vh] min-w-[90vw] overflow-auto lg:min-w-[1000px]">
@@ -110,71 +168,15 @@
 		</Dialog.Header>
 
 		<div class="flex-1 overflow-hidden">
-			<AdvancedTable
+			<PocketIdTable
 				items={signupTokens}
-				requestOptions={signupTokensRequestOptions}
-				withoutSearch={true}
-				onRefresh={async (options) => {
-					const result = await userService.listSignupTokens(options);
-					signupTokens = result;
-					return result;
-				}}
-				columns={[
-					{ label: m.token() },
-					{ label: m.status() },
-					{ label: m.usage(), sortColumn: 'usageCount' },
-					{ label: m.expires(), sortColumn: 'expiresAt' },
-					{ label: m.created(), sortColumn: 'createdAt' },
-					{ label: m.actions(), hidden: true }
-				]}
-			>
-				{#snippet rows({ item })}
-					<Table.Cell class="font-mono text-xs">
-						{item.token.substring(0, 2)}...{item.token.substring(item.token.length - 4)}
-					</Table.Cell>
-					<Table.Cell>
-						{@const status = getTokenStatus(item)}
-						{@const statusBadge = getStatusBadge(status)}
-						<Badge class="rounded-full" variant={statusBadge.variant}>
-							{statusBadge.text}
-						</Badge>
-					</Table.Cell>
-					<Table.Cell>
-						<div class="flex items-center gap-1">
-							{`${item.usageCount} ${m.of()} ${item.usageLimit}`}
-						</div>
-					</Table.Cell>
-					<Table.Cell class="text-sm">
-						<div class="flex items-center gap-1">
-							{formatDate(item.expiresAt)}
-						</div>
-					</Table.Cell>
-					<Table.Cell class="text-sm">
-						{formatDate(item.createdAt)}
-					</Table.Cell>
-					<Table.Cell>
-						<DropdownMenu.Root>
-							<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
-								<Ellipsis class="size-4" />
-								<span class="sr-only">{m.toggle_menu()}</span>
-							</DropdownMenu.Trigger>
-							<DropdownMenu.Content align="end">
-								<DropdownMenu.Item onclick={() => copySignupLink(item)}>
-									<Copy class="mr-2 size-4" />
-									{m.copy()}
-								</DropdownMenu.Item>
-								<DropdownMenu.Item
-									class="text-red-500 focus:!text-red-700"
-									onclick={() => deleteToken(item)}
-								>
-									<Trash2 class="mr-2 size-4" />
-									{m.delete()}
-								</DropdownMenu.Item>
-							</DropdownMenu.Content>
-						</DropdownMenu.Root>
-					</Table.Cell>
-				{/snippet}
-			</AdvancedTable>
+				bind:requestOptions={signupTokensRequestOptions}
+				onRefresh={async (opts) => (signupTokens = await userService.listSignupTokens(opts))}
+				{columns}
+				persistKey="pocket-id-signup-tokens"
+				rowActions={RowActions}
+				withoutSearch
+			/>
 		</div>
 		<Dialog.Footer class="mt-3">
 			<Button onclick={() => (open = false)}>

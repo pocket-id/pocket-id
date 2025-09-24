@@ -43,7 +43,7 @@
 			{ title: m.name(), accessorKey: 'firstName', sortable: true, cell: FullNameCell },
 			{ title: m.email(), accessorKey: 'email', sortable: true }
 		]}
-		persistKey="pocket-id-group-selection"
+		persistKey="pocket-id-user-selection"
 		{selectionDisabled}
 	/>
 {/if}
