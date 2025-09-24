@@ -12,7 +12,8 @@ DETAILS
 
 Approximate Location
 
-{{.Data.City}}, {{.Data.Country}}
+{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if
+.Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}
 
 IP Address
 

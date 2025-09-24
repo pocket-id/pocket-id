@@ -48,7 +48,13 @@
 {/snippet}
 
 {#snippet LocationCell({ item }: { item: AuditLog })}
-	{item.city && item.country ? `${item.city}, ${item.country}` : m.unknown()}
+			{#if item.city && item.country}
+				{item.city}, {item.country}
+			{:else if item.country}
+				{item.country}
+			{:else}
+				{m.unknown()}
+			{/if}
 {/snippet}
 
 {#snippet IpCell({ item }: { item: AuditLog })}

@@ -4,8 +4,7 @@ import CardHeader from "../components/card-header";
 import { sharedPreviewProps, sharedTemplateProps } from "../props";
 
 interface SignInData {
-  city?: string;
-  country?: string;
+  location: string;
   ipAddress: string;
   device: string;
   dateTime: string;
@@ -42,9 +41,7 @@ export const NewSignInEmail = ({
     <Row>
       <Column style={detailsBoxStyle}>
         <Text style={detailsLabelStyle}>Approximate Location</Text>
-        <Text style={detailsBoxValueStyle}>
-          {data.city}, {data.country}
-        </Text>
+        <Text style={detailsBoxValueStyle}>{data.location}</Text>
       </Column>
       <Column style={detailsBoxStyle}>
         <Text style={detailsLabelStyle}>IP Address</Text>
@@ -84,8 +81,7 @@ const detailsBoxValueStyle = {
 NewSignInEmail.TemplateProps = {
   ...sharedTemplateProps,
   data: {
-    city: "{{.Data.City}}",
-    country: "{{.Data.Country}}",
+    location: "{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}",
     ipAddress: "{{.Data.IPAddress}}",
     device: "{{.Data.Device}}",
     dateTime: '{{.Data.DateTime.Format "January 2, 2006 at 3:04 PM MST"}}',
@@ -95,8 +91,7 @@ NewSignInEmail.TemplateProps = {
 NewSignInEmail.PreviewProps = {
   ...sharedPreviewProps,
   data: {
-    city: "San Francisco",
-    country: "USA",
+    location: "San Francisco, USA",
     ipAddress: "127.0.0.1",
     device: "Chrome on macOS",
     dateTime: "2024-01-01 12:00 PM UTC",
