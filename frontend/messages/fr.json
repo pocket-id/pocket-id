@@ -318,7 +318,7 @@
 	"reset_to_default": "Valeurs par défaut",
 	"profile_picture_has_been_reset": "La photo de profil a été réinitialisée. La mise à jour peut prendre quelques minutes.",
 	"select_the_language_you_want_to_use": "Choisis la langue que tu veux utiliser. Attention, certains textes peuvent être traduits automatiquement et ne pas être tout à fait exacts.",
-	"contribute_to_translation": "Si tu trouves un problème, n'hésite pas à contribuer à la traduction sur <link href='https://crowdin.com/project/pocket-id'>Crowdin</link>.",
+	"contribute_to_translation": "Si vous trouvez un problème, n'hésitez pas à contribuer à la traduction sur <link href='https://crowdin.com/project/pocket-id'>Crowdin</link>.",
 	"personal": "Personnel",
 	"global": "Mondial",
 	"all_users": "Tous les utilisateurs",
