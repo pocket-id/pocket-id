@@ -469,7 +469,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	var storedRefreshToken model.OidcRefreshToken
 	err = tx.
 		WithContext(ctx).
-		Preload("User").
+		Preload("User.UserGroups").
 		Where(
 			"token = ? AND expires_at > ? AND user_id = ? AND client_id = ?",
 			utils.CreateSha256Hash(rt),
@@ -1829,7 +1829,7 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 		claims["email_verified"] = s.appConfigService.GetDbConfig().EmailsVerified.IsTrue()
 	}
 
-	if slices.Contains(scopes, "groups") {
+	if slices.Contains(scopes, "groups") && len(user.UserGroups) > 0 {
 		userGroups := make([]string, len(user.UserGroups))
 		for i, group := range user.UserGroups {
 			userGroups[i] = group.Name
