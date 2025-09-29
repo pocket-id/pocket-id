@@ -450,5 +450,7 @@
 	"display_name": "Visningsnamn",
 	"configure_application_images": "Konfigurera applikationsbilder",
 	"ui_config_disabled_info_title": "UI-konfiguration inaktiverad",
-	"ui_config_disabled_info_description": "UI-konfigurationen är inaktiverad eftersom applikationens konfigurationsinställningar hanteras via miljövariabler. Vissa inställningar kan inte redigeras."
+	"ui_config_disabled_info_description": "UI-konfigurationen är inaktiverad eftersom applikationens konfigurationsinställningar hanteras via miljövariabler. Vissa inställningar kan inte redigeras.",
+	"logo_from_url_description": "Klistra in en direkt bild-URL (svg, png, webp). Hitta ikoner på <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> eller <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "Ogiltig URL"
 }
