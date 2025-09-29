@@ -1888,20 +1888,21 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 		return err
 	}
 
-	ip, err := net.LookupIP(u.Hostname())
-	if err != nil || len(ip) == 0 {
+	ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)
+	defer cancel()
+
+	r := net.Resolver{}
+	ips, err := r.LookupIPAddr(ctx, u.Hostname())
+	if err != nil || len(ips) == 0 {
 		return fmt.Errorf("cannot resolve hostname")
 	}
 
 	// Prevents SSRF by allowing only public IPs
-	for _, addr := range ip {
-		if utils.IsPrivateIP(addr) {
+	for _, addr := range ips {
+		if utils.IsPrivateIP(addr.IP) {
 			return fmt.Errorf("private IP addresses are not allowed")
 		}
 	}
-
-	ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)
-	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
@@ -1948,8 +1949,6 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 
 	return nil
 }
-
-// Helpers
 
 func (s *OidcService) updateClientLogoType(ctx context.Context, tx *gorm.DB, clientID, ext string) error {
 	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"

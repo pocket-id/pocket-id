@@ -193,7 +193,7 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		if err != nil {
 			return fmt.Errorf("invalid LOCAL_IPV6_RANGES '%s': %w", rangeStr, err)
 		}
-		
+
 		if ipNet.IP.To4() != nil {
 			return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
 		}
