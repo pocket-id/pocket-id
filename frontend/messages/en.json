@@ -451,6 +451,6 @@
 	"configure_application_images": "Configure Application Images",
 	"ui_config_disabled_info_title": "UI Configuration Disabled",
 	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable.",
-  "client_logo_uploads_disabled": "Logo uploads are disabled when selfhosted icons are enabled.",
-	"use_selfhost_icons": "Use selfh.st Icon"
+	"logo_from_url_description": "Paste a direct image URL (svg, png, webp). Find icons at <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> or <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "Invalid URL"
 }

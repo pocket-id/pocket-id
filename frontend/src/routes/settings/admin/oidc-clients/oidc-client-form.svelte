@@ -1,11 +1,7 @@
 <script lang="ts">
-	import FileInput from '$lib/components/form/file-input.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
-	import ImageBox from '$lib/components/image-box.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as DropdownButton from '$lib/components/ui/dropdown-button';
-	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type {
 		OidcClient,
@@ -17,11 +13,12 @@
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
 	import { callbackUrlSchema, emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
-	import { LucideChevronDown, LucideX } from '@lucide/svelte';
+	import { LucideChevronDown } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
+	import OidcClientImageInput from './oidc-client-image-input.svelte';
 
 	let {
 		callback,
@@ -38,9 +35,6 @@
 	let logoDataURL: string | null = $state(
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
 	);
-	let isUsingSelfhostedIcon = $state(false);
-	let isUsingUrl = $state(false);
-	let clientLogoCleared = $state(false);
 
 	const client = {
 		id: '',
@@ -96,15 +90,14 @@
 		if (!data) return;
 		isLoading = true;
 
-		const logoUrl = isUsingUrl ? ($inputs.logoUrl?.value as string | undefined)?.trim() : undefined;
-
 		const success = await callback({
 			...data,
-			logo: isUsingUrl ? null : logo,
-			logoUrl
+			logo: $inputs.logoUrl?.value ? null : logo,
+			logoUrl: $inputs.logoUrl?.value
 		});
 
-		if (success && isUsingUrl && existingClient) {
+		const hasLogo = logo != null || !!$inputs.logoUrl?.value;
+		if (success && existingClient && hasLogo) {
 			logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
 		}
 
@@ -112,27 +105,26 @@
 		isLoading = false;
 	}
 
-	function onLogoChange(e: Event) {
-		const file = (e.target as HTMLInputElement).files?.[0] || null;
-		if (file) {
-			logo = file;
-			isUsingUrl = false;
-			isUsingSelfhostedIcon = false;
+	function onLogoChange(input: File | string | null) {
+		if (input == null) return;
+
+		if (typeof input === 'string') {
+			logo = null;
+			logoDataURL = input || null;
+			$inputs.logoUrl!.value = input;
+		} else {
+			logo = input;
 			$inputs.logoUrl && ($inputs.logoUrl.value = '');
-			clientLogoCleared = false;
 			const reader = new FileReader();
 			reader.onload = (event) => (logoDataURL = event.target?.result as string);
-			reader.readAsDataURL(file);
+			reader.readAsDataURL(input);
 		}
 	}
 
 	function resetLogo() {
 		logo = null;
 		logoDataURL = null;
-		isUsingUrl = false;
 		$inputs.logoUrl && ($inputs.logoUrl.value = '');
-		clientLogoCleared = true;
-		isUsingSelfhostedIcon = false;
 	}
 
 	function getFederatedIdentityErrors(errors: z.ZodError<any> | undefined) {
@@ -144,45 +136,6 @@
 			});
 	}
 </script>
-
-{#snippet logoUrlInput()}
-	<FormInput
-		label="Logo URL"
-		placeholder="https://example.com/icon.svg"
-		class="w-full"
-		bind:input={$inputs.logoUrl}
-	/>
-	<p class="text-muted-foreground text-[0.8rem]">
-		Paste a direct image URL (svg, png, webp). Find icons at
-		<a class="underline" rel="noreferrer" target="_blank" href="https://selfh.st/icons"
-			>Selfh.st Icons</a
-		>
-		or
-		<a class="underline" rel="noreferrer" target="_blank" href="https://dashboardicons.com"
-			>Dashboard Icons</a
-		>.
-	</p>
-{/snippet}
-
-{#snippet uploadDropdown(label: string, accept: string)}
-	<DropdownButton.DropdownRoot>
-		<DropdownButton.Root>
-			<FileInput id="logo" variant="secondary" {accept} onchange={onLogoChange}>
-				<DropdownButton.Main class="min-w-32">
-					{label}
-				</DropdownButton.Main>
-			</FileInput>
-
-			<DropdownButton.DropdownTrigger>
-				<DropdownButton.Trigger class="border-l" />
-			</DropdownButton.DropdownTrigger>
-		</DropdownButton.Root>
-
-		<DropdownButton.Content align="end">
-			<DropdownButton.Item onclick={() => (isUsingUrl = true)}>Use URL</DropdownButton.Item>
-		</DropdownButton.Content>
-	</DropdownButton.DropdownRoot>
-{/snippet}
 
 <form onsubmit={preventDefault(onSubmit)}>
 	<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
@@ -231,80 +184,13 @@
 			bind:checked={$inputs.requiresReauthentication.value}
 		/>
 	</div>
-	<div class="mt-8">
-		<Label for="logo">{m.logo()}</Label>
-
-		<div class="mt-2 space-y-4">
-			{#if logoDataURL}
-				<div class="flex items-start gap-4">
-					<div class="relative shrink-0">
-						<ImageBox
-							class="size-24"
-							src={logoDataURL}
-							alt={m.name_logo({ name: $inputs.name.value })}
-						/>
-
-						<Button
-							variant="destructive"
-							size="icon"
-							onclick={resetLogo}
-							class="absolute -top-2 -right-2 size-6 rounded-full shadow-md"
-						>
-							<LucideX class="size-3" />
-						</Button>
-					</div>
-
-					<div class="flex w-full max-w-xl flex-col gap-3">
-						{#if isUsingUrl}
-							{@render logoUrlInput()}
-							<div class="flex gap-2">
-								<Button
-									variant="secondary"
-									onclick={() => {
-										isUsingUrl = false;
-										if ($inputs.logoUrl) {
-											$inputs.logoUrl.value = '';
-										}
-									}}
-								>
-									Switch to upload
-								</Button>
-							</div>
-						{:else}
-							<div class="flex items-center gap-2">
-								{@render uploadDropdown(
-									m.change_logo(),
-									'image/png, image/jpeg, image/svg+xml, image/webp'
-								)}
-							</div>
-						{/if}
-					</div>
-				</div>
-			{:else}
-				<div class="flex flex-col gap-3">
-					{#if isUsingUrl}
-						{@render logoUrlInput()}
-						<div class="flex gap-2">
-							<Button
-								variant="secondary"
-								onclick={() => {
-									isUsingUrl = false;
-									if ($inputs.logoUrl) {
-										$inputs.logoUrl.value = '';
-									}
-								}}
-							>
-								Switch to upload
-							</Button>
-						</div>
-					{:else}
-						<div class="flex flex-wrap items-center gap-2">
-							{@render uploadDropdown(m.upload_logo(), 'image/png, image/jpeg, image/svg+xml')}
-						</div>
-					{/if}
-				</div>
-			{/if}
-		</div>
+	<div class="mt-7">
+		<OidcClientImageInput
+			{logoDataURL}
+			{resetLogo}
+			clientName={$inputs.name.value}
+			{onLogoChange}
+		/>
 	</div>
 
 	{#if showAdvancedOptions}
