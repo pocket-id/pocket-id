@@ -717,14 +717,6 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 	return clients, response, err
 }
 
-// helper (optional) – ensures HasLogo is consistent
-func deriveHasLogo(c *model.OidcClient) {
-	if c == nil {
-		return
-	}
-	c.HasLogo = c.ImageType != nil && *c.ImageType != ""
-}
-
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	tx := s.db.Begin()
 	defer func() {
@@ -757,8 +749,6 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		}
 	}
 
-	deriveHasLogo(&client)
-
 	err = tx.Commit().Error
 	if err != nil {
 		return model.OidcClient{}, err
@@ -790,8 +780,6 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 			return model.OidcClient{}, fmt.Errorf("failed to download logo: %w", err)
 		}
 	}
-
-	deriveHasLogo(&client)
 
 	if err := tx.Commit().Error; err != nil {
 		return model.OidcClient{}, err
@@ -943,7 +931,7 @@ func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) err
 
 	oldImageType := *client.ImageType
 	client.ImageType = nil
-	client.HasLogo = false
+
 	err = tx.
 		WithContext(ctx).
 		Save(&client).
@@ -1336,7 +1324,7 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 		Client: dto.OidcClientMetaDataDto{
 			ID:      deviceAuth.Client.ID,
 			Name:    deviceAuth.Client.Name,
-			HasLogo: deviceAuth.Client.HasLogo,
+			HasLogo: deviceAuth.Client.HasLogo(),
 		},
 		Scope:                 deviceAuth.Scope,
 		AuthorizationRequired: !hasAuthorizedClient,
@@ -1471,7 +1459,7 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 				ID:        client.ID,
 				Name:      client.Name,
 				LaunchURL: client.LaunchURL,
-				HasLogo:   client.HasLogo,
+				HasLogo:   client.HasLogo(),
 			},
 			LastUsedAt: lastUsedAt,
 		}
@@ -1959,7 +1947,6 @@ func (s *OidcService) updateClientLogoType(ctx context.Context, tx *gorm.DB, cli
 		_ = os.Remove(old)
 	}
 	client.ImageType = &ext
-	client.HasLogo = true
 	return tx.WithContext(ctx).Save(&client).Error
 
 }
