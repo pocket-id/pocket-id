@@ -450,5 +450,7 @@
 	"display_name": "顯示名稱",
 	"configure_application_images": "設定應用程式映像檔",
 	"ui_config_disabled_info_title": "使用者介面設定已停用",
-	"ui_config_disabled_info_description": "使用者介面設定已停用，因為應用程式的設定參數是透過環境變數進行管理。部分設定可能無法編輯。"
+	"ui_config_disabled_info_description": "使用者介面設定已停用，因為應用程式的設定參數是透過環境變數進行管理。部分設定可能無法編輯。",
+	"logo_from_url_description": "貼上直接圖片網址（svg、png、webp）。在<link  href=\"https://selfh.st/icons\">Selfh.st 圖示庫或</link> <link href=\"https://dashboardicons.com\">儀表板圖示庫中</link>尋找圖示。",
+	"invalid_url": "無效網址"
 }
