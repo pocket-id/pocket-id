@@ -65,8 +65,8 @@ func listContainsIP(ipNets []*net.IPNet, ip net.IP) bool {
 	return false
 }
 
-func init() {
-	// Initialize localIPv6Ranges from environment variable
+func loadLocalIPv6Ranges() {
+	localIPv6Ranges = nil
 	ranges := strings.Split(common.EnvConfig.LocalIPv6Ranges, ",")
 
 	for _, rangeStr := range ranges {
@@ -75,7 +75,13 @@ func init() {
 			continue
 		}
 
-		_, ipNet, _ := net.ParseCIDR(rangeStr)
-		localIPv6Ranges = append(localIPv6Ranges, ipNet)
+		_, ipNet, err := net.ParseCIDR(rangeStr)
+		if err == nil {
+			localIPv6Ranges = append(localIPv6Ranges, ipNet)
+		}
 	}
+}
+
+func init() {
+	loadLocalIPv6Ranges()
 }
