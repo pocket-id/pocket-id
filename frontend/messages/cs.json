@@ -450,5 +450,7 @@
 	"display_name": "Zobrazované jméno",
 	"configure_application_images": "Konfigurace obrazů aplikací",
 	"ui_config_disabled_info_title": "Konfigurace uživatelského rozhraní je deaktivována",
-	"ui_config_disabled_info_description": "Konfigurace uživatelského rozhraní je deaktivována, protože nastavení konfigurace aplikace se spravuje prostřednictvím proměnných prostředí. Některá nastavení nemusí být editovatelná."
+	"ui_config_disabled_info_description": "Konfigurace uživatelského rozhraní je deaktivována, protože nastavení konfigurace aplikace se spravuje prostřednictvím proměnných prostředí. Některá nastavení nemusí být editovatelná.",
+	"logo_from_url_description": "Vložte přímou URL adresu obrázku (svg, png, webp). Ikony najdete na <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> nebo <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "Neplatná adresa URL"
 }
