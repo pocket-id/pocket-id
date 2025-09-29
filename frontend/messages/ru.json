@@ -450,5 +450,7 @@
 	"display_name": "Отображаемое имя",
 	"configure_application_images": "Настройка изображений приложения",
 	"ui_config_disabled_info_title": "Конфигурация пользовательского интерфейса отключена",
-	"ui_config_disabled_info_description": "Конфигурация пользовательского интерфейса отключена, потому что настройки приложения управляются через переменные среды. Некоторые настройки могут быть недоступны для редактирования."
+	"ui_config_disabled_info_description": "Конфигурация пользовательского интерфейса отключена, потому что настройки приложения управляются через переменные среды. Некоторые настройки могут быть недоступны для редактирования.",
+	"logo_from_url_description": "Вставь прямой URL-адрес изображения (svg, png, webp). Найди иконки на <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> или <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "Неправильный URL"
 }
