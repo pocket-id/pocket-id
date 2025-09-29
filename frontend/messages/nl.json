@@ -450,5 +450,7 @@
 	"display_name": "Weergavenaam",
 	"configure_application_images": "Configureer applicatieafbeeldingen",
 	"ui_config_disabled_info_title": "UI-configuratie uitgeschakeld",
-	"ui_config_disabled_info_description": "De UI-configuratie is uitgeschakeld omdat de configuratie-instellingen van de app via omgevingsvariabelen worden beheerd. Sommige instellingen kun je misschien niet aanpassen."
+	"ui_config_disabled_info_description": "De UI-configuratie is uitgeschakeld omdat de configuratie-instellingen van de app via omgevingsvariabelen worden beheerd. Sommige instellingen kun je misschien niet aanpassen.",
+	"logo_from_url_description": "Plak een directe afbeeldings-URL (svg, png, webp). Zoek pictogrammen op <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> of <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "Ongeldige URL"
 }
