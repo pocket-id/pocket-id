@@ -14,11 +14,11 @@
 
 <div class={'bg-muted flex items-center justify-center rounded-2xl p-3'}>
 	{#if error}
-		<LucideImageOff class={cn('text-muted-foreground size-24 p-5', props.class)} />
+		<LucideImageOff class={cn('text-muted-foreground p-5', props.class)} />
 	{:else}
 		<img
-			class={cn('size-24 object-contain', props.class)}
 			{...props}
+			class={cn('object-contain', props.class)}
 			onerror={() => (error = true)}
 		/>
 	{/if}

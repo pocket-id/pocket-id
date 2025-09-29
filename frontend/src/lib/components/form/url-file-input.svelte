@@ -23,7 +23,6 @@
 	let hasError = $state(false);
 
 	async function handleFileChange(e: Event) {
-		console.log(e);
 		const file = (e.target as HTMLInputElement).files?.[0] || null;
 		url = '';
 		hasError = false;

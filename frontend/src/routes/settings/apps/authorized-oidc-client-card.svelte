@@ -38,7 +38,7 @@
 		<div class="flex gap-3">
 			<div class="aspect-square h-[56px]">
 				<ImageBox
-					class="grow rounded-lg object-contain"
+					class="h-8 w-8 grow rounded-lg object-contain"
 					src={client.hasLogo
 						? cachedOidcClientLogo.getUrl(client.id)
 						: cachedApplicationLogo.getUrl(isLightMode)}
