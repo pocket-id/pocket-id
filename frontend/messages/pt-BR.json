@@ -450,5 +450,7 @@
 	"display_name": "Nome de exibição",
 	"configure_application_images": "Configurar imagens de aplicativos",
 	"ui_config_disabled_info_title": "Configuração da interface do usuário desativada",
-	"ui_config_disabled_info_description": "A configuração da interface do usuário está desativada porque as configurações do aplicativo são gerenciadas por meio de variáveis de ambiente. Algumas configurações podem não ser editáveis."
+	"ui_config_disabled_info_description": "A configuração da interface do usuário está desativada porque as configurações do aplicativo são gerenciadas por meio de variáveis de ambiente. Algumas configurações podem não ser editáveis.",
+	"logo_from_url_description": "Cole uma URL direta da imagem (svg, png, webp). Encontre ícones em <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> ou <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "URL inválido"
 }
