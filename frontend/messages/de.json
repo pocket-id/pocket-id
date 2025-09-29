@@ -450,5 +450,7 @@
 	"display_name": "Anzeigename",
 	"configure_application_images": "Anwendungsimages einrichten",
 	"ui_config_disabled_info_title": "UI-Konfiguration deaktiviert",
-	"ui_config_disabled_info_description": "Die UI-Konfiguration ist deaktiviert, weil die Anwendungseinstellungen über Umgebungsvariablen verwaltet werden. Manche Einstellungen können vielleicht nicht geändert werden."
+	"ui_config_disabled_info_description": "Die UI-Konfiguration ist deaktiviert, weil die Anwendungseinstellungen über Umgebungsvariablen verwaltet werden. Manche Einstellungen können vielleicht nicht geändert werden.",
+	"logo_from_url_description": "Füge eine direkte Bild-URL ein (svg, png, webp). Finde Symbole bei <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> oder <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "Ungültige URL"
 }
