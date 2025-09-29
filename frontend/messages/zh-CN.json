@@ -450,5 +450,7 @@
 	"display_name": "显示名称",
 	"configure_application_images": "配置应用程序图标",
 	"ui_config_disabled_info_title": "用户界面配置已禁用",
-	"ui_config_disabled_info_description": "用户界面配置已禁用，因为应用程序配置设置通过环境变量进行管理。某些设置可能无法编辑。"
+	"ui_config_disabled_info_description": "用户界面配置已禁用，因为应用程序配置设置通过环境变量进行管理。某些设置可能无法编辑。",
+	"logo_from_url_description": "粘贴直接图片URL（svg、png、webp格式）。<link  href=\"https://selfh.st/icons\">可在Selfh.st图标库</link>或<link href=\"https://dashboardicons.com\">仪表盘图标库</link>中查找图标。",
+	"invalid_url": "无效网址"
 }
