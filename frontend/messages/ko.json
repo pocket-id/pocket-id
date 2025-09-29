@@ -450,5 +450,7 @@
 	"display_name": "표시 이름",
 	"configure_application_images": "애플리케이션 이미지 구성",
 	"ui_config_disabled_info_title": "UI 구성 비활성화됨",
-	"ui_config_disabled_info_description": "UI 구성이 비활성화되었습니다. 애플리케이션 구성 설정은 환경 변수를 통해 관리되기 때문입니다. 일부 설정은 편집할 수 없을 수 있습니다."
+	"ui_config_disabled_info_description": "UI 구성이 비활성화되었습니다. 애플리케이션 구성 설정은 환경 변수를 통해 관리되기 때문입니다. 일부 설정은 편집할 수 없을 수 있습니다.",
+	"logo_from_url_description": "이미지 직접 URL(svg, png, webp)을 붙여넣으세요. <link  href=\"https://selfh.st/icons\">Selfh.st 아이콘</link> 또는 <link href=\"https://dashboardicons.com\">대시보드 아이콘</link>에서 아이콘을 찾으세요.",
+	"invalid_url": "잘못된 URL"
 }
