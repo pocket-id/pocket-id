@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -58,14 +59,19 @@ func GetImageMimeType(ext string) string {
 }
 
 func GetImageExtensionFromMimeType(mimeType string) string {
-	switch mimeType {
-	case "image/jpeg":
+	// Normalize and strip parameters like `; charset=utf-8`
+	mt := strings.TrimSpace(strings.ToLower(mimeType))
+	if v, _, err := mime.ParseMediaType(mt); err == nil {
+		mt = v
+	}
+	switch mt {
+	case "image/jpeg", "image/jpg":
 		return "jpg"
 	case "image/png":
 		return "png"
 	case "image/svg+xml":
 		return "svg"
-	case "image/x-icon":
+	case "image/x-icon", "image/vnd.microsoft.icon":
 		return "ico"
 	case "image/gif":
 		return "gif"
@@ -73,7 +79,7 @@ func GetImageExtensionFromMimeType(mimeType string) string {
 		return "webp"
 	case "image/avif":
 		return "avif"
-	case "image/heic":
+	case "image/heic", "image/heif":
 		return "heic"
 	default:
 		return ""
