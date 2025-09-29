@@ -450,5 +450,7 @@
 	"display_name": "Tên hiển thị",
 	"configure_application_images": "Cấu hình hình ảnh ứng dụng",
 	"ui_config_disabled_info_title": "Cấu hình giao diện người dùng đã bị vô hiệu hóa",
-	"ui_config_disabled_info_description": "Cấu hình giao diện người dùng (UI) đã bị vô hiệu hóa vì các thiết lập cấu hình ứng dụng được quản lý thông qua biến môi trường. Một số thiết lập có thể không thể chỉnh sửa."
+	"ui_config_disabled_info_description": "Cấu hình giao diện người dùng (UI) đã bị vô hiệu hóa vì các thiết lập cấu hình ứng dụng được quản lý thông qua biến môi trường. Một số thiết lập có thể không thể chỉnh sửa.",
+	"logo_from_url_description": "Dán URL hình ảnh trực tiếp (svg, png, webp). Tìm biểu tượng tại <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> hoặc <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "URL không hợp lệ"
 }
