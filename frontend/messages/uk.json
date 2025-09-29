@@ -450,5 +450,7 @@
 	"display_name": "Ім'я для відображення",
 	"configure_application_images": "Налаштування зображень додатків",
 	"ui_config_disabled_info_title": "Конфігурація інтерфейсу користувача вимкнена",
-	"ui_config_disabled_info_description": "Конфігурація інтерфейсу користувача вимкнена, оскільки налаштування конфігурації програми керуються через змінні середовища. Деякі налаштування можуть бути недоступними для редагування."
+	"ui_config_disabled_info_description": "Конфігурація інтерфейсу користувача вимкнена, оскільки налаштування конфігурації програми керуються через змінні середовища. Деякі налаштування можуть бути недоступними для редагування.",
+	"logo_from_url_description": "Вставте прямий URL-адресу зображення (svg, png, webp). Знайдіть іконки на <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> або <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
+	"invalid_url": "Недійсний URL-адреса"
 }
