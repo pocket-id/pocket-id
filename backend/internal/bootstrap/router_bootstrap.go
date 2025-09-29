@@ -119,6 +119,7 @@ func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	if common.EnvConfig.UnixSocket != "" {
 		network = "unix"
 		addr = common.EnvConfig.UnixSocket
+		os.Remove(addr) // remove dangling the socket file to avoid file-exist error
 	}
 
 	listener, err := net.Listen(network, addr) //nolint:noctx
