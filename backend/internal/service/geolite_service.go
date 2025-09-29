@@ -13,35 +13,19 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/oschwald/maxminddb-golang/v2"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 type GeoLiteService struct {
-	httpClient      *http.Client
-	disableUpdater  bool
-	mutex           sync.RWMutex
-	localIPv6Ranges []*net.IPNet
-}
-
-var localhostIPNets = []*net.IPNet{
-	{IP: net.IPv4(127, 0, 0, 0), Mask: net.CIDRMask(8, 32)}, // 127.0.0.0/8
-	{IP: net.IPv6loopback, Mask: net.CIDRMask(128, 128)},    // ::1/128
-}
-
-var privateLanIPNets = []*net.IPNet{
-	{IP: net.IPv4(10, 0, 0, 0), Mask: net.CIDRMask(8, 32)},     // 10.0.0.0/8
-	{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)},  // 172.16.0.0/12
-	{IP: net.IPv4(192, 168, 0, 0), Mask: net.CIDRMask(16, 32)}, // 192.168.0.0/16
-}
-
-var tailscaleIPNets = []*net.IPNet{
-	{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}, // 100.64.0.0/10
+	httpClient     *http.Client
+	disableUpdater bool
+	mutex          sync.RWMutex
 }
 
 // NewGeoLiteService initializes a new GeoLiteService instance and starts a goroutine to update the GeoLite2 City database.
@@ -56,65 +40,7 @@ func NewGeoLiteService(httpClient *http.Client) *GeoLiteService {
 		service.disableUpdater = true
 	}
 
-	// Initialize IPv6 local ranges
-	err := service.initializeIPv6LocalRanges()
-	if err != nil {
-		slog.Warn("Failed to initialize IPv6 local ranges", slog.Any("error", err))
-	}
-
 	return service
-}
-
-// initializeIPv6LocalRanges parses the LOCAL_IPV6_RANGES environment variable
-func (s *GeoLiteService) initializeIPv6LocalRanges() error {
-	rangesEnv := common.EnvConfig.LocalIPv6Ranges
-	if rangesEnv == "" {
-		return nil // No local IPv6 ranges configured
-	}
-
-	ranges := strings.Split(rangesEnv, ",")
-	localRanges := make([]*net.IPNet, 0, len(ranges))
-
-	for _, rangeStr := range ranges {
-		rangeStr = strings.TrimSpace(rangeStr)
-		if rangeStr == "" {
-			continue
-		}
-
-		_, ipNet, err := net.ParseCIDR(rangeStr)
-		if err != nil {
-			return fmt.Errorf("invalid IPv6 range '%s': %w", rangeStr, err)
-		}
-
-		// Ensure it's an IPv6 range
-		if ipNet.IP.To4() != nil {
-			return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
-		}
-
-		localRanges = append(localRanges, ipNet)
-	}
-
-	s.localIPv6Ranges = localRanges
-
-	if len(localRanges) > 0 {
-		slog.Info("Initialized IPv6 local ranges", slog.Int("count", len(localRanges)))
-	}
-	return nil
-}
-
-// isLocalIPv6 checks if the given IPv6 address is within any of the configured local ranges
-func (s *GeoLiteService) isLocalIPv6(ip net.IP) bool {
-	if ip.To4() != nil {
-		return false // Not an IPv6 address
-	}
-
-	for _, localRange := range s.localIPv6Ranges {
-		if localRange.Contains(ip) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (s *GeoLiteService) DisableUpdater() bool {
@@ -129,26 +55,17 @@ func (s *GeoLiteService) GetLocationByIP(ipAddress string) (country, city string
 
 	// Check the IP address against known private IP ranges
 	if ip := net.ParseIP(ipAddress); ip != nil {
-		// Check IPv6 local ranges first
-		if s.isLocalIPv6(ip) {
+		if utils.IsLocalIPv6(ip) {
 			return "Internal Network", "LAN", nil
 		}
-
-		// Check existing IPv4 ranges
-		for _, ipNet := range tailscaleIPNets {
-			if ipNet.Contains(ip) {
-				return "Internal Network", "Tailscale", nil
-			}
+		if utils.IsTailscaleIP(ip) {
+			return "Internal Network", "Tailscale", nil
 		}
-		for _, ipNet := range privateLanIPNets {
-			if ipNet.Contains(ip) {
-				return "Internal Network", "LAN", nil
-			}
+		if utils.IsPrivateIP(ip) {
+			return "Internal Network", "LAN", nil
 		}
-		for _, ipNet := range localhostIPNets {
-			if ipNet.Contains(ip) {
-				return "Internal Network", "localhost", nil
-			}
+		if utils.IsLocalhostIP(ip) {
+			return "Internal Network", "localhost", nil
 		}
 	}
 

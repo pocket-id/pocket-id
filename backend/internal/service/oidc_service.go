@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -1882,7 +1883,22 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 }
 
 func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *gorm.DB, clientID string, raw string) error {
-	u, _ := url.Parse(raw)
+	u, err := url.Parse(raw)
+	if err != nil {
+		return err
+	}
+
+	ip, err := net.LookupIP(u.Hostname())
+	if err != nil || len(ip) == 0 {
+		return fmt.Errorf("cannot resolve hostname")
+	}
+
+	// Prevents SSRF by allowing only public IPs
+	for _, addr := range ip {
+		if utils.IsPrivateIP(addr) {
+			return fmt.Errorf("private IP addresses are not allowed")
+		}
+	}
 
 	ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)
 	defer cancel()

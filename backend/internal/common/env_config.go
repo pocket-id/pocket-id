@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"os"
 	"reflect"
@@ -178,6 +179,25 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		// All good, these are valid values
 	default:
 		return fmt.Errorf("invalid value for KEYS_STORAGE: %s", config.KeysStorage)
+	}
+
+	// Validate LOCAL_IPV6_RANGES
+	ranges := strings.Split(config.LocalIPv6Ranges, ",")
+	for _, rangeStr := range ranges {
+		rangeStr = strings.TrimSpace(rangeStr)
+		if rangeStr == "" {
+			continue
+		}
+
+		_, ipNet, err := net.ParseCIDR(rangeStr)
+		if err != nil {
+			return fmt.Errorf("invalid LOCAL_IPV6_RANGES '%s': %w", rangeStr, err)
+		}
+		
+		if ipNet.IP.To4() != nil {
+			return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
+		}
+
 	}
 
 	return nil
