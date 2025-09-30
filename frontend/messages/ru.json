@@ -75,7 +75,7 @@
 	"use_your_passkey_instead": "Воспользоваться пасскеем вместо этого?",
 	"email_login": "Вход через электронную почту",
 	"enter_a_login_code_to_sign_in": "Введите предварительно созданный код входа.",
-	"sign_in_with_login_code": "Sign in with login code",
+	"sign_in_with_login_code": "Заходи с кодом для входа",
 	"request_a_login_code_via_email": "Запросить код входа на электронную почту.",
 	"go_back": "Назад",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "Письмо было отправлено на указанный адрес электронной почты, если он существует в системе.",
