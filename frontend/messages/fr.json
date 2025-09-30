@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Utiliser votre clé d'accès à la place ?",
 	"email_login": "Connexion par e-mail",
 	"enter_a_login_code_to_sign_in": "Entrez un code de connexion pour vous connecter.",
+	"sign_in_with_login_code": "Connecte-toi avec ton code d'accès",
 	"request_a_login_code_via_email": "Demander un code de connexion par e-mail.",
 	"go_back": "Retour",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "Un e-mail a été envoyé à l'e-mail mentionné, si elle existe dans le système.",
