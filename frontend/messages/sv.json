@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Använd din passkey istället?",
 	"email_login": "E-postinloggning",
 	"enter_a_login_code_to_sign_in": "Ange en inloggningskod för att logga in.",
+	"sign_in_with_login_code": "Logga in med inloggningskod",
 	"request_a_login_code_via_email": "Begär en inloggningskod via e-post.",
 	"go_back": "Gå tillbaka",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "Om adressen finns i systemet har ett e-postmeddelande skickats dit.",
