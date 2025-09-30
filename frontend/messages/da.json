@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Vil du i stedet bruge din adgangsnøgle?",
 	"email_login": "E-mail Login",
 	"enter_a_login_code_to_sign_in": "Indtast en loginkode for at logge ind.",
+	"sign_in_with_login_code": "Log ind med login-kode",
 	"request_a_login_code_via_email": "Anmod om en loginkode via e-mail.",
 	"go_back": "Gå tilbage",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "En e-mail er blevet sendt til den angivne e-mailadresse, hvis den findes i systemet.",
