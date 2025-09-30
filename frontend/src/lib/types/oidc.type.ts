@@ -46,7 +46,8 @@ export type OidcClientUpdateWithLogo = OidcClientUpdate & {
 };
 
 export type OidcClientCreateWithLogo = OidcClientCreate & {
-	logo: File | null | undefined;
+	logo?: File | null;
+	logoUrl?: string;
 };
 
 export type OidcDeviceCodeInfo = {
