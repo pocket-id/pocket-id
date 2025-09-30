@@ -1829,7 +1829,7 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 		claims["email_verified"] = s.appConfigService.GetDbConfig().EmailsVerified.IsTrue()
 	}
 
-	if slices.Contains(scopes, "groups") && len(user.UserGroups) > 0 {
+	if slices.Contains(scopes, "groups") {
 		userGroups := make([]string, len(user.UserGroups))
 		for i, group := range user.UserGroups {
 			userGroups[i] = group.Name
