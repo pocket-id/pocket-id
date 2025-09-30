@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Wil je in plaats daarvan je passkey gebruiken?",
 	"email_login": "Inloggen met e-mail",
 	"enter_a_login_code_to_sign_in": "Voer een inlogcode in om in te loggen.",
+	"sign_in_with_login_code": "Log in met je inlogcode",
 	"request_a_login_code_via_email": "Vraag een inlogcode aan via e-mail.",
 	"go_back": "Terug",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "Er is een e-mail verzonden naar het opgegeven e-mailadres, indien dit in het systeem voorkomt.",
