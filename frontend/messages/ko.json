@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "대신 패스키 이용하기",
 	"email_login": "이메일 로그인",
 	"enter_a_login_code_to_sign_in": "로그인 코드를 입력하여 로그인하세요.",
+	"sign_in_with_login_code": "로그인 코드로 로그인",
 	"request_a_login_code_via_email": "이메일로 로그인 코드를 요청합니다.",
 	"go_back": "뒤로 가기",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "입력한 이메일 주소가 시스템에 존재하는 경우 이메일이 발송됩니다.",
