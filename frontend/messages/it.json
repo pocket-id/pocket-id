@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Usare invece la tua passkey?",
 	"email_login": "Accesso Email",
 	"enter_a_login_code_to_sign_in": "Inserisci un codice di accesso per accedere.",
+	"sign_in_with_login_code": "Accedi con il codice di accesso",
 	"request_a_login_code_via_email": "Richiedi un codice di accesso via email.",
 	"go_back": "Torna indietro",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "È stata inviata un'email all'indirizzo fornito, se esiste nel sistema.",
