@@ -75,7 +75,7 @@
 	"use_your_passkey_instead": "改用您的通行密钥？",
 	"email_login": "电子邮件登录",
 	"enter_a_login_code_to_sign_in": "输入一次性登录码以登录。",
-	"sign_in_with_login_code": "Sign in with login code",
+	"sign_in_with_login_code": "使用登录码登录",
 	"request_a_login_code_via_email": "通过电子邮件请求登录代码。",
 	"go_back": "返回",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "如果系统中存在提供的电子邮件地址，则已发送一封电子邮件。",
