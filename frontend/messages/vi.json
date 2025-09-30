@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Sử dụng passkey?",
 	"email_login": "Đăng nhập bằng email",
 	"enter_a_login_code_to_sign_in": "Nhập mã đăng nhập để đăng nhập.",
+	"sign_in_with_login_code": "Đăng nhập bằng mã đăng nhập",
 	"request_a_login_code_via_email": "Yêu cầu mã đăng nhập qua email.",
 	"go_back": "Quay lại",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "Một email đã được gửi đến địa chỉ email đã cung cấp, nếu địa chỉ đó tồn tại trong hệ thống.",
