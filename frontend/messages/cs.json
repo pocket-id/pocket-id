@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Namísto toho použít svůj přístupový klíč?",
 	"email_login": "Přihlášení e-mailem",
 	"enter_a_login_code_to_sign_in": "Pro přihlášení zadejte přihlašovací kód.",
+	"sign_in_with_login_code": "Přihlaste se pomocí přihlašovacího kódu",
 	"request_a_login_code_via_email": "Požádat o přihlášení pomocí e-mailu.",
 	"go_back": "Jít zpět",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "Na zadaný e-mail byl zaslán e-mail, pokud existuje v systému.",
