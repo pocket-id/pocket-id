@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Użyj swojego klucza zamiast tego?",
 	"email_login": "Logowanie przez e-mail",
 	"enter_a_login_code_to_sign_in": "Wprowadź kod logowania, aby się zalogować.",
+	"sign_in_with_login_code": "Zaloguj się za pomocą kodu logowania",
 	"request_a_login_code_via_email": "Poproś o kod logowania przez e-mail.",
 	"go_back": "Wróć",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "E-mail został wysłany na podany adres, jeśli istnieje w systemie.",
