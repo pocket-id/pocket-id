@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "Використати ключ доступу натомість?",
 	"email_login": "Вхід за електронною поштою",
 	"enter_a_login_code_to_sign_in": "Введіть код для входу, щоб увійти.",
+	"sign_in_with_login_code": "Увійдіть за допомогою коду для входу",
 	"request_a_login_code_via_email": "Запросити код для входу електронною поштою.",
 	"go_back": "Назад",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "Електронний лист було надіслано на вказану електронну адресу, якщо вона існує в системі.",
