@@ -75,6 +75,7 @@
 	"use_your_passkey_instead": "改為使用您的密碼金鑰？",
 	"email_login": "電子郵件登入",
 	"enter_a_login_code_to_sign_in": "輸入登入代碼以登入。",
+	"sign_in_with_login_code": "使用登入代碼登入",
 	"request_a_login_code_via_email": "透過電子郵件取得登入代碼。",
 	"go_back": "返回",
 	"an_email_has_been_sent_to_the_provided_email_if_it_exists_in_the_system": "如果該電子郵件地址存在於系統中，我們會發送信件至您所提供的電子信箱。",
