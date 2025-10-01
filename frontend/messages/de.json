@@ -373,7 +373,7 @@
 	"no_preview_data_available": "Keine Vorschaudaten verfügbar",
 	"copy_all": "Alles kopieren",
 	"preview": "Vorschau",
-	"preview_for_user": "Vorschau für {name} ({email})",
+	"preview_for_user": "Vorschau für {name}",
 	"preview_the_oidc_data_that_would_be_sent_for_this_user": "Vorschau der OIDC-Daten, für diesen Benutzer",
 	"show": "Anzeigen",
 	"select_an_option": "Wähle eine Option",

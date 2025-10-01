@@ -373,7 +373,7 @@
 	"no_preview_data_available": "Nejsou k dispozici žádná náhledová data",
 	"copy_all": "Kopírovat vše",
 	"preview": "Náhled",
-	"preview_for_user": "Náhled pro {name} ({email})",
+	"preview_for_user": "Náhled pro {name}",
 	"preview_the_oidc_data_that_would_be_sent_for_this_user": "Náhled OIDC dat, která by byla odeslána pro uživatele",
 	"show": "Zobrazit",
 	"select_an_option": "Vyberte možnost",

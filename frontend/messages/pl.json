@@ -373,7 +373,7 @@
 	"no_preview_data_available": "Brak dostępnych danych podglądu",
 	"copy_all": "Skopiuj wszystko",
 	"preview": "Podgląd",
-	"preview_for_user": "Zapowiedź książki „ {name} ” ({email})",
+	"preview_for_user": "Zapowiedź książki „ {name} ”",
 	"preview_the_oidc_data_that_would_be_sent_for_this_user": "Wyświetl podgląd danych OIDC, które zostaną wysłane dla tego użytkownika.",
 	"show": "Pokaż",
 	"select_an_option": "Wybierz opcję",
