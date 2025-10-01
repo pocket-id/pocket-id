@@ -355,6 +355,11 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			IsAdmin:     isAdmin,
 			LdapID:      ldapId,
 		}
+
+		if newUser.DisplayName == "" {
+			newUser.DisplayName = strings.TrimSpace(newUser.FirstName + " " + newUser.LastName)
+		}
+
 		dto.Normalize(newUser)
 
 		err = newUser.Validate()
