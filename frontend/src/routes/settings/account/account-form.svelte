@@ -34,7 +34,7 @@
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
-		displayName: z.string().max(100),
+		displayName: z.string().min(1).max(100),
 		username: usernameSchema,
 		email: z.email(),
 		isAdmin: z.boolean()
