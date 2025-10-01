@@ -5,8 +5,12 @@
 	let {
 		ref = $bindable(null),
 		class: className,
+		required = false,
+		children,
 		...restProps
-	}: LabelPrimitive.RootProps = $props();
+	}: LabelPrimitive.RootProps & {
+		required?: boolean;
+	} = $props();
 </script>
 
 <LabelPrimitive.Root
@@ -17,4 +21,11 @@
 		className
 	)}
 	{...restProps}
-/>
+>
+	{#if children}
+		{@render children()}
+	{/if}
+	{#if required}
+		<span class="text-[14px] text-red-500">*</span>
+	{/if}
+</LabelPrimitive.Root>

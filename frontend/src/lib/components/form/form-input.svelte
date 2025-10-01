@@ -36,12 +36,7 @@
 
 <div {...restProps}>
 	{#if label}
-		<Label class="mb-0" for={id}
-			>{label}
-			{#if input?.required}
-				<span class="text-[14px] text-red-500">*</span>
-			{/if}
-		</Label>
+		<Label required={input?.required} class="mb-0" for={id}>{label}</Label>
 	{/if}
 	{#if description}
 		<p class="text-muted-foreground mt-1 text-xs">
