@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/google/uuid"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"golang.org/x/text/unicode/norm"
 	"gorm.io/gorm"
 
@@ -348,7 +349,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 
 		newUser := dto.UserCreateDto{
 			Username:    value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
-			Email:       value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value),
+			Email:       utils.PtrOrNil(value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value)),
 			FirstName:   value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
 			LastName:    value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
 			DisplayName: value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.Value),

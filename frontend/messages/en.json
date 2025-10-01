@@ -453,5 +453,7 @@
 	"ui_config_disabled_info_title": "UI Configuration Disabled",
 	"ui_config_disabled_info_description": "The UI configuration is disabled because the application configuration settings are managed through environment variables. Some settings may not be editable.",
 	"logo_from_url_description": "Paste a direct image URL (svg, png, webp). Find icons at <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> or <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "Invalid URL"
+	"invalid_url": "Invalid URL",
+	"require_user_email": "Require Email address",
+	"require_user_email_description": "Requires users to have an email address. If disabled, the users without an email address won't be able to use features that require an email address."
 }

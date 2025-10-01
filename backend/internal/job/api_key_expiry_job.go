@@ -37,7 +37,7 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 	}
 
 	for _, key := range apiKeys {
-		if key.User.Email == "" {
+		if key.User.Email == nil {
 			continue
 		}
 		err = j.apiKeyService.SendApiKeyExpiringSoonEmail(ctx, key)

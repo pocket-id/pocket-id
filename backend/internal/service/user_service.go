@@ -437,6 +437,10 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 		return err
 	}
 
+	if user.Email == nil {
+		return &common.UserEmailNotSetError{}
+	}
+
 	oneTimeAccessToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, ttl, tx)
 	if err != nil {
 		return err
@@ -464,7 +468,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 
 		errInternal := SendEmail(innerCtx, s.emailService, email.Address{
 			Name:  user.FullName(),
-			Email: user.Email,
+			Email: *user.Email,
 		}, OneTimeAccessTemplate, &OneTimeAccessTemplateData{
 			Code:              oneTimeAccessToken,
 			LoginLink:         link,
@@ -472,7 +476,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 			ExpirationString:  utils.DurationToString(ttl),
 		})
 		if errInternal != nil {
-			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", errInternal), slog.String("address", user.Email))
+			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", errInternal), slog.String("address", *user.Email))
 			return
 		}
 	}()
