@@ -244,6 +244,10 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 }
 
 func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
+	if s.appConfigService.GetDbConfig().RequireUserEmail.IsTrue() && input.Email == nil {
+		return model.User{}, &common.UserEmailNotSetError{}
+	}
+
 	user := model.User{
 		FirstName:   input.FirstName,
 		LastName:    input.LastName,
@@ -339,6 +343,10 @@ func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser
 }
 
 func (s *UserService) updateUserInternal(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB) (model.User, error) {
+	if s.appConfigService.GetDbConfig().RequireUserEmail.IsTrue() && updatedUser.Email == nil {
+		return model.User{}, &common.UserEmailNotSetError{}
+	}
+
 	var user model.User
 	err := tx.
 		WithContext(ctx).
