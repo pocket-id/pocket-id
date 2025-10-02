@@ -370,7 +370,7 @@ func addSqliteDefaultParameters(connStringUrl *url.URL, isMemoryDB bool) error {
 	}
 
 	// Forcefully enable foreign keys
-	qs["_pragma"] = append(qs["_pragma"], "foreign_keys(0)")
+	qs["_pragma"] = append(qs["_pragma"], "foreign_keys(1)")
 
 	// Update the connStringUrl object
 	connStringUrl.RawQuery = qs.Encode()
