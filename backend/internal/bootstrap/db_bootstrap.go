@@ -30,7 +30,7 @@ import (
 )
 
 func NewDatabase() (db *gorm.DB, err error) {
-	db, err = connectDatabase()
+	db, err = ConnectDatabase()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -39,8 +39,22 @@ func NewDatabase() (db *gorm.DB, err error) {
 		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
+	driver, err := NewMigrationDriver(sqlDb)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create migration driver: %w", err)
+	}
+
+	// Run migrations
+	if err := migrateDatabase(driver); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return db, nil
+}
+
+func NewMigrationDriver(sqlDb *sql.DB) (driver database.Driver, err error) {
 	// Choose the correct driver for the database provider
-	var driver database.Driver
+
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
 		driver, err = sqliteMigrate.WithInstance(sqlDb, &sqliteMigrate.Config{
@@ -56,12 +70,7 @@ func NewDatabase() (db *gorm.DB, err error) {
 		return nil, fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
-	// Run migrations
-	if err := migrateDatabase(driver); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
-	}
-
-	return db, nil
+	return driver, nil
 }
 
 func migrateDatabase(driver database.Driver) error {
@@ -137,7 +146,7 @@ func getRequiredMigrationVersion(path string) (uint, error) {
 	return maxVersion, nil
 }
 
-func connectDatabase() (db *gorm.DB, err error) {
+func ConnectDatabase() (db *gorm.DB, err error) {
 	var dialector gorm.Dialector
 
 	// Choose the correct database provider
@@ -361,7 +370,7 @@ func addSqliteDefaultParameters(connStringUrl *url.URL, isMemoryDB bool) error {
 	}
 
 	// Forcefully enable foreign keys
-	qs["_pragma"] = append(qs["_pragma"], "foreign_keys(1)")
+	qs["_pragma"] = append(qs["_pragma"], "foreign_keys(0)")
 
 	// Update the connStringUrl object
 	connStringUrl.RawQuery = qs.Encode()
