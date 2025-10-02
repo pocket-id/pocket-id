@@ -274,6 +274,8 @@ func normalizeRow(row map[string]any) {
 
 // extractIntoBase writes a file entry from the ZIP under baseDir, removing the given prefix.
 func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
+	const maxPerFile int64 = 50 << 20 // 50 MB is a very generous limit
+
 	name := strings.TrimPrefix(f.Name, stripPrefix)
 	if strings.HasSuffix(f.Name, "/") || name == "" {
 		return nil // skip directories
@@ -299,7 +301,7 @@ func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, rc)
+	_, err = io.CopyN(out, rc, maxPerFile+1)
 	return err
 }
 
