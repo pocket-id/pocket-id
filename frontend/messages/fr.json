@@ -453,5 +453,7 @@
 	"ui_config_disabled_info_title": "Configuration de l'interface utilisateur désactivée",
 	"ui_config_disabled_info_description": "La configuration de l'interface utilisateur est désactivée parce que les paramètres de configuration de l'application sont gérés par des variables d'environnement. Certains paramètres peuvent ne pas être modifiables.",
 	"logo_from_url_description": "Colle une URL d'image directe (svg, png, webp). Trouve des icônes sur <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> ou <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "URL pas valide"
+	"invalid_url": "URL pas valide",
+	"require_user_email": "Besoin d'une adresse e-mail",
+	"require_user_email_description": "Les utilisateurs doivent avoir une adresse e-mail. Si cette option est désactivée, ceux qui n'ont pas d'adresse e-mail ne pourront pas utiliser les fonctionnalités qui en ont besoin."
 }
