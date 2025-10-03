@@ -203,7 +203,7 @@ func runMigrations(db *gorm.DB, targetVersion uint) error {
 	}
 
 	if err := m.Migrate(targetVersion); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		if errors.As(err, &migrate.ErrInvalidVersion) {
+		if strings.HasPrefix(err.Error(), "no migration found") {
 			return fmt.Errorf("database version is newer than the latest supported version (%d) by the current Pocket ID version", targetVersion)
 		}
 		return fmt.Errorf("migration failed: %w", err)
