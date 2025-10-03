@@ -227,20 +227,16 @@ func insertData(db *gorm.DB, dbData databaseJson) error {
 	}
 
 	return db.Transaction(func(tx *gorm.DB) error {
-		var tables []string
-
-		// Disable triggers if Postgres. Re-enabling is not necessary because it's on transaction level
+		// Disable foreign key checks for Postgres
 		if common.EnvConfig.DbProvider == common.DbProviderPostgres {
-			if err := tx.Raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`).
-				Scan(&tables).Error; err != nil {
-				return fmt.Errorf("failed to fetch postgres tables: %w", err)
+			if err := togglePostgresForeignKeyChecks(tx, false); err != nil {
+				return fmt.Errorf("failed to disable foreign keys: %w", err)
 			}
-
-			for _, t := range tables {
-				if err := tx.Exec(fmt.Sprintf(`ALTER TABLE "%s" DISABLE TRIGGER ALL;`, t)).Error; err != nil {
-					return fmt.Errorf("failed to disable triggers on %s: %w", t, err)
+			defer func() {
+				if err := togglePostgresForeignKeyChecks(tx, true); err != nil {
+					fmt.Printf("Warning: failed to re-enable foreign keys: %v\n", err)
 				}
-			}
+			}()
 		}
 
 		// Insert rows
@@ -329,6 +325,31 @@ func absolutePathOrOriginal(path string) string {
 	return absPath
 }
 
+// togglePostgresForeignKeyChecks enables or disables foreign key checks in Postgres
+// Must be called within a transaction
+func togglePostgresForeignKeyChecks(tx *gorm.DB, enable bool) error {
+	var tables []string
+	if err := tx.Raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`).
+		Scan(&tables).Error; err != nil {
+		return fmt.Errorf("failed to fetch postgres tables: %w", err)
+	}
+
+	action := "DISABLE"
+	if enable {
+		action = "ENABLE"
+	}
+
+	for _, t := range tables {
+		if err := tx.Exec(fmt.Sprintf(`ALTER TABLE "%s" %s TRIGGER ALL;`, t, action)).Error; err != nil {
+			return fmt.Errorf("failed to %s triggers on %s: %w", strings.ToLower(action), t, err)
+		}
+	}
+
+	return nil
+}
+
+// toggleSqliteForeignKeyChecks enables or disables foreign key checks in SQLite
+// Must be called outside a transaction
 func toggleSqliteForeignKeyChecks(db *gorm.DB, enable bool) error {
 	value := "OFF"
 	if enable {
