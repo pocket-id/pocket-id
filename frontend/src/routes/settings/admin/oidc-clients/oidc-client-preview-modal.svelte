@@ -100,7 +100,7 @@
 			<Dialog.Title>{m.oidc_data_preview()}</Dialog.Title>
 			<Dialog.Description>
 				{#if user}
-					{m.preview_for_user({ name: user.firstName + ' ' + user.lastName })}
+					{m.preview_for_user({ name: user.displayName })}
 				{:else}
 					{m.preview_the_oidc_data_that_would_be_sent_for_this_user()}
 				{/if}

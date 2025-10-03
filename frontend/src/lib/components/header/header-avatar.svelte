@@ -26,8 +26,7 @@
 		<DropdownMenu.Label class="font-normal">
 			<div class="flex flex-col space-y-1">
 				<p class="text-sm leading-none font-medium">
-					{$userStore?.firstName}
-					{$userStore?.lastName}
+					{$userStore?.displayName}
 				</p>
 				<p class="text-muted-foreground text-xs leading-none">{$userStore?.email}</p>
 			</div>

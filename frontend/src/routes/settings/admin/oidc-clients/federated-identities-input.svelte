@@ -82,7 +82,7 @@
 
 					<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
 						<div>
-							<Label for="issuer-{i}" class="text-xs">Issuer (Required)</Label>
+							<Label required for="issuer-{i}" class="text-xs">Issuer</Label>
 							<Input
 								id="issuer-{i}"
 								placeholder="https://example.com/"
@@ -96,10 +96,10 @@
 						</div>
 
 						<div>
-							<Label for="subject-{i}" class="text-xs">Subject (Optional)</Label>
+							<Label for="subject-{i}" class="text-xs">Subject</Label>
 							<Input
 								id="subject-{i}"
-								placeholder="Defaults to the client ID: {client?.id}"
+								placeholder="Defaults to the client ID"
 								value={identity.subject || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'subject', e.currentTarget.value)}
 								aria-invalid={!!getFieldError(i, 'subject')}
@@ -110,7 +110,7 @@
 						</div>
 
 						<div>
-							<Label for="audience-{i}" class="text-xs">Audience (Optional)</Label>
+							<Label for="audience-{i}" class="text-xs">Audience</Label>
 							<Input
 								id="audience-{i}"
 								placeholder="Defaults to the Pocket ID URL"
@@ -124,7 +124,7 @@
 						</div>
 
 						<div>
-							<Label for="jwks-{i}" class="text-xs">JWKS URL (Optional)</Label>
+							<Label for="jwks-{i}" class="text-xs">JWKS URL</Label>
 							<Input
 								id="jwks-{i}"
 								placeholder="Defaults to {identity.issuer || '<issuer>'}/.well-known/jwks.json"

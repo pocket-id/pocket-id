@@ -43,7 +43,7 @@
 		{selectionDisabled}
 	>
 		{#snippet rows({ item })}
-			<Table.Cell>{item.firstName} {item.lastName}</Table.Cell>
+			<Table.Cell>{item.displayName}</Table.Cell>
 			<Table.Cell>{item.email}</Table.Cell>
 		{/snippet}
 	</AdvancedTable>
