@@ -35,12 +35,7 @@
 
 		isLoading = true;
 
-		const reader = new FileReader();
-		reader.onload = (event) => {
-			imageDataURL = event.target?.result as string;
-		};
-		reader.readAsDataURL(file);
-
+		imageDataURL = URL.createObjectURL(file);
 		await updateCallback(file).catch(() => {
 			imageDataURL = cachedProfilePicture.getUrl(userId);
 		});

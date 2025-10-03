@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select';
@@ -32,6 +32,7 @@
 	let isSendingTestEmail = $state(false);
 
 	const formSchema = z.object({
+		requireUserEmail: z.boolean(),
 		smtpHost: z.string().min(1),
 		smtpPort: z.number().min(1),
 		smtpUser: z.string(),
@@ -97,7 +98,14 @@
 
 <form onsubmit={preventDefault(onSubmit)}>
 	<fieldset disabled={$appConfigStore.uiConfigDisabled}>
-		<h4 class="text-lg font-semibold">{m.smtp_configuration()}</h4>
+		<h4 class="mb-4 text-lg font-semibold">{m.general()}</h4>
+		<SwitchWithLabel
+			id="require-user-email"
+			label={m.require_user_email()}
+			description={m.require_user_email_description()}
+			bind:checked={$inputs.requireUserEmail.value}
+		/>
+		<h4 class="mt-10 text-lg font-semibold">{m.smtp_configuration()}</h4>
 		<div class="mt-4 grid grid-cols-1 items-end gap-5 md:grid-cols-2">
 			<FormInput label={m.smtp_host()} bind:input={$inputs.smtpHost} />
 			<FormInput label={m.smtp_port()} type="number" bind:input={$inputs.smtpPort} />

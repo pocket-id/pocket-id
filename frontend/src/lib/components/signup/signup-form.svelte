@@ -1,11 +1,13 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserSignUp } from '$lib/types/user.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { tryCatch } from '$lib/utils/try-catch-util';
 	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
+	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
 
 	let {
@@ -27,7 +29,7 @@
 		firstName: z.string().min(1).max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
 		username: usernameSchema,
-		email: z.email()
+		email: get(appConfigStore).requireUserEmail ? z.email() : emptyToUndefined(z.email().optional())
 	});
 	type FormSchema = typeof formSchema;
 

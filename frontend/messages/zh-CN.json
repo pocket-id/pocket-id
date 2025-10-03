@@ -373,7 +373,7 @@
 	"no_preview_data_available": "暂无可用的预览数据",
 	"copy_all": "全部复制",
 	"preview": "预览",
-	"preview_for_user": "为 {name} ({email}) 预览",
+	"preview_for_user": "为 {name} 预览",
 	"preview_the_oidc_data_that_would_be_sent_for_this_user": "预览将为此用户发送的 OIDC 数据",
 	"show": "显示",
 	"select_an_option": "请选择",

@@ -8,6 +8,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
+	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
 
 	let {
@@ -37,7 +38,9 @@
 		lastName: emptyToUndefined(z.string().max(50).optional()),
 		displayName: z.string().min(1).max(100),
 		username: usernameSchema,
-		email: z.email(),
+		email: get(appConfigStore).requireUserEmail
+			? z.email()
+			: emptyToUndefined(z.email().optional()),
 		isAdmin: z.boolean(),
 		disabled: z.boolean()
 	});

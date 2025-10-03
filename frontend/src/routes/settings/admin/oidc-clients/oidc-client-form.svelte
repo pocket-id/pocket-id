@@ -115,9 +115,7 @@
 		} else {
 			logo = input;
 			$inputs.logoUrl && ($inputs.logoUrl.value = '');
-			const reader = new FileReader();
-			reader.onload = (event) => (logoDataURL = event.target?.result as string);
-			reader.readAsDataURL(input);
+			logoDataURL = URL.createObjectURL(input);
 		}
 	}
 

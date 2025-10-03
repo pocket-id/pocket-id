@@ -1,3 +1,34 @@
+## v1.12.0
+
+### Bug Fixes
+
+- do not use cache=shared for in-memory SQLite ([#971](https://github.com/pocket-id/pocket-id/pull/971) by @ItalyPaleAle)
+- show only country in audit log location if no city instead of Unknown ([#977](https://github.com/pocket-id/pocket-id/pull/977) by @vilisseranen)
+- display login location correctly if country or city is not present ([79989fb](https://github.com/pocket-id/pocket-id/commit/79989fb176273cef070dc52c338004b443364db8) by @stonith404)
+- remove previous socket file to prevent bind error ([#979](https://github.com/pocket-id/pocket-id/pull/979) by @Caian)
+- tokens issued with refresh token flow don't contain groups ([#989](https://github.com/pocket-id/pocket-id/pull/989) by @ItalyPaleAle)
+- make logo and oidc client images sizes consistent ([01db8c0](https://github.com/pocket-id/pocket-id/commit/01db8c0a46b69a15a40951ba863e6bc08fa8e1f8) by @stonith404)
+- include port in OIDC client details ([2c1c67b](https://github.com/pocket-id/pocket-id/commit/2c1c67b5e403b365204854c5eb222a68236f3ce0) by @stonith404)
+- prevent endless effect loop in login wrapper ([fc9939d](https://github.com/pocket-id/pocket-id/commit/fc9939d1f1817c0b014cc54e6525b98762835295) by @stonith404)
+- improve back button handling on auth pages ([d47b203](https://github.com/pocket-id/pocket-id/commit/d47b20326f96b6fff405fcc211719bf3068085ee) by @stonith404)
+- allow any image source but disallow base64 ([22f4254](https://github.com/pocket-id/pocket-id/commit/22f42549323fde8b9eaeff682bfa4c7f27e05526) by @stonith404)
+- date locale can't be loaded if locale is `en` ([b81de45](https://github.com/pocket-id/pocket-id/commit/b81de451668c425bfc5ca7cd6071fe2756b31594) by @stonith404)
+
+### Features
+
+- support for url based icons ([#840](https://github.com/pocket-id/pocket-id/pull/840) by @kmendell)
+- hide alternative sign in methods page if email login disabled ([d010be4](https://github.com/pocket-id/pocket-id/commit/d010be4c8804153b4a7f55bd4ea1cedb0df471df) by @stonith404)
+- add required indicator for required inputs ([#993](https://github.com/pocket-id/pocket-id/pull/993) by @stonith404)
+- add the ability to make email optional ([#994](https://github.com/pocket-id/pocket-id/pull/994) by @stonith404)
+
+### Other
+
+- fix whitespace after commit message ([e8b172f](https://github.com/pocket-id/pocket-id/commit/e8b172f1c3df8eca8f463d7fa25a483b90a7e66c) by @stonith404)
+- update AAGUIDs ([#972](https://github.com/pocket-id/pocket-id/pull/972) by @github-actions[bot])
+- remove unnecessary logo fallback ([b746ac0](https://github.com/pocket-id/pocket-id/commit/b746ac0835da059e747a829df3a74e1eae79e107) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.11.2...v1.12.0
+
 ## v1.11.2
 
 ### Bug Fixes

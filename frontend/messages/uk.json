@@ -373,7 +373,7 @@
 	"no_preview_data_available": "Попередній перегляд даних недоступний",
 	"copy_all": "Скопіювати все",
 	"preview": "Попередній перегляд",
-	"preview_for_user": "Попередній перегляд для {name} ({email})",
+	"preview_for_user": "Попередній перегляд для {name}",
 	"preview_the_oidc_data_that_would_be_sent_for_this_user": "Попередній перегляд OIDC-даних для цього користувача",
 	"show": "Показати",
 	"select_an_option": "Обрати варіант",
