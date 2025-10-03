@@ -453,5 +453,7 @@
 	"ui_config_disabled_info_title": "使用者介面設定已停用",
 	"ui_config_disabled_info_description": "使用者介面設定已停用，因為應用程式的設定參數是透過環境變數進行管理。部分設定可能無法編輯。",
 	"logo_from_url_description": "貼上直接圖片網址（svg、png、webp）。在<link  href=\"https://selfh.st/icons\">Selfh.st 圖示庫或</link> <link href=\"https://dashboardicons.com\">儀表板圖示庫中</link>尋找圖示。",
-	"invalid_url": "無效網址"
+	"invalid_url": "無效網址",
+	"require_user_email": "需要電子郵件地址",
+	"require_user_email_description": "要求使用者必須擁有電子郵件地址。若此功能被停用，沒有電子郵件地址的使用者將無法使用需要電子郵件地址的功能。"
 }
