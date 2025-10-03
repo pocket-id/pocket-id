@@ -453,5 +453,7 @@
 	"ui_config_disabled_info_title": "Configurazione dell'interfaccia utente disattivata",
 	"ui_config_disabled_info_description": "La configurazione dell'interfaccia utente è disattivata perché le impostazioni di configurazione dell'applicazione sono gestite tramite variabili di ambiente. Alcune impostazioni potrebbero non essere modificabili.",
 	"logo_from_url_description": "Incolla l'URL diretto dell'immagine (svg, png, webp). Trova le icone su <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> o <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "URL non valido"
+	"invalid_url": "URL non valido",
+	"require_user_email": "Richiesta indirizzo e-mail",
+	"require_user_email_description": "Chiede agli utenti di avere un indirizzo email. Se disattivato, chi non ha un indirizzo email non potrà usare le funzioni che lo richiedono."
 }
