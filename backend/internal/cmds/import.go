@@ -54,8 +54,7 @@ func runImport(flags importFlags) error {
 	}
 	defer r.Close()
 
-	// Extract metadata and files
-	dbData, err := processZipFiles(r.File)
+	dbData, err := processZipDatabaseJson(r.File)
 	if err != nil {
 		return err
 	}
@@ -85,6 +84,10 @@ func runImport(flags importFlags) error {
 		return err
 	}
 
+	if err := processZipFiles(r.File); err != nil {
+		return err
+	}
+
 	fmt.Println("Import completed successfully.")
 	return nil
 }
@@ -106,30 +109,38 @@ func askForConfirmation() bool {
 
 }
 
-// processZipFiles extracts database.json and file contents from the ZIP archive
-func processZipFiles(files []*zip.File) (databaseJson, error) {
+// processZipDatabaseJson extracts database.json from the ZIP archive
+func processZipDatabaseJson(files []*zip.File) (databaseJson, error) {
 	var dbData databaseJson
 
 	for _, f := range files {
-		switch {
-		case f.Name == "database.json":
+		if f.Name == "database.json" {
 			if err := readDatabaseJSON(f, &dbData); err != nil {
 				return dbData, err
 			}
+			return dbData, nil
+		}
+	}
+	return dbData, errors.New("database.json not found in the ZIP file")
+}
 
+// processZipFiles extracts uploads/ and keys/ from the ZIP archive
+func processZipFiles(files []*zip.File) error {
+	for _, f := range files {
+		switch {
 		case strings.HasPrefix(f.Name, "uploads/"):
 			if err := extractIntoBase(f, common.EnvConfig.UploadPath, "uploads/"); err != nil {
-				return dbData, err
+				return fmt.Errorf("failed to extract uploads: %w", err)
 			}
 
 		case strings.HasPrefix(f.Name, "keys/"):
 			if err := extractIntoBase(f, common.EnvConfig.KeysPath, "keys/"); err != nil {
-				return dbData, err
+				return fmt.Errorf("failed to extract keys: %w", err)
 			}
 		}
 	}
 
-	return dbData, nil
+	return nil
 }
 
 // readDatabaseJSON parses database.json from the ZIP file
@@ -192,6 +203,9 @@ func runMigrations(db *gorm.DB, targetVersion uint) error {
 	}
 
 	if err := m.Migrate(targetVersion); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		if errors.As(err, &migrate.ErrInvalidVersion) {
+			return fmt.Errorf("database version is newer than the latest supported version (%d) by the current Pocket ID version", targetVersion)
+		}
 		return fmt.Errorf("migration failed: %w", err)
 	}
 
@@ -247,7 +261,7 @@ func insertData(db *gorm.DB, dbData databaseJson) error {
 	})
 }
 
-// normalizeRow mutates a row so it round-trips correctly for SQLite.
+// normalizeRow mutates a row so it round-trips correctly for SQLite
 func normalizeRow(row map[string]any) {
 	for k, v := range row {
 		switch val := v.(type) {
@@ -272,7 +286,7 @@ func normalizeRow(row map[string]any) {
 	}
 }
 
-// extractIntoBase writes a file entry from the ZIP under baseDir, removing the given prefix.
+// extractIntoBase writes a file entry from the ZIP under baseDir, removing the given prefix
 func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 	const maxPerFile int64 = 50 << 20 // 50 MB is a very generous limit
 
@@ -286,7 +300,7 @@ func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 	// Clean up any existing file or directory at the target path
 	_ = os.RemoveAll(targetPath)
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-		return err
+		return fmt.Errorf("failed to create directories for %s: %w", targetPath, err)
 	}
 
 	rc, err := f.Open()
@@ -306,7 +320,7 @@ func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 }
 
 // absolutePathOrOriginal returns the absolute path of the given path,
-// or the original path if it cannot be resolved.
+// or the original path if it cannot be resolved
 func absolutePathOrOriginal(path string) string {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
