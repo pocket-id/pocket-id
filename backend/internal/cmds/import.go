@@ -284,14 +284,22 @@ func normalizeRow(row map[string]any) {
 
 // extractIntoBase writes a file entry from the ZIP under baseDir, removing the given prefix
 func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
-	const maxPerFile int64 = 50 << 20 // 50 MB is a very generous limit
+	const maxFileSize = 50 << 20 // 50 MiB is a very generous limit
+
+	if f.UncompressedSize64 > maxFileSize {
+		return fmt.Errorf("file %s too large (%d bytes)", f.Name, f.UncompressedSize64)
+	}
 
 	name := strings.TrimPrefix(f.Name, stripPrefix)
 	if strings.HasSuffix(f.Name, "/") || name == "" {
 		return nil // skip directories
 	}
 
+	// Validate path to prevent Zip Slip
 	targetPath := filepath.Join(baseDir, filepath.FromSlash(name))
+	if !strings.HasPrefix(targetPath, filepath.Clean(baseDir)+string(os.PathSeparator)) {
+		return fmt.Errorf("invalid file path: %s", f.Name)
+	}
 
 	// Clean up any existing file or directory at the target path
 	_ = os.RemoveAll(targetPath)
@@ -311,8 +319,11 @@ func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 	}
 	defer out.Close()
 
-	_, err = io.CopyN(out, rc, maxPerFile+1)
-	return err
+	if _, err := io.CopyN(out, rc, int64(f.UncompressedSize64)); err != nil {
+		return fmt.Errorf("copy failed for %s: %w", f.Name, err)
+	}
+
+	return nil
 }
 
 // absolutePathOrOriginal returns the absolute path of the given path,
