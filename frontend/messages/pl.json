@@ -453,5 +453,7 @@
 	"ui_config_disabled_info_title": "Konfiguracja interfejsu użytkownika wyłączona",
 	"ui_config_disabled_info_description": "Konfiguracja interfejsu użytkownika jest wyłączona, ponieważ ustawienia konfiguracyjne aplikacji są zarządzane za pomocą zmiennych środowiskowych. Niektóre ustawienia mogą nie być edytowalne.",
 	"logo_from_url_description": "Wklej bezpośredni adres URL obrazu (svg, png, webp). Znajdź ikony na stronie <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> lub <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "Nieprawidłowy adres URL"
+	"invalid_url": "Nieprawidłowy adres URL",
+	"require_user_email": "Wymagany adres e-mail",
+	"require_user_email_description": "Wymaga od was posiadania adresu e-mail. Jeśli opcja zostanie wyłączona, wy bez adresu e-mail nie będziecie mogli korzystać z funkcji wymagających adresu e-mail."
 }
