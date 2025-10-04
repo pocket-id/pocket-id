@@ -135,7 +135,7 @@
 	"name_passkey": "Имя пасскея",
 	"name_your_passkey_to_easily_identify_it_later": "Назовите ваш пасскей, чтобы легко идентифицировать его позже.",
 	"create_api_key": "Создать API ключ",
-	"add_a_new_api_key_for_programmatic_access": "Добавить новый API ключ для программного доступа.",
+	"add_a_new_api_key_for_programmatic_access": "Add a new API key for programmatic access to the <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "Добавить API ключ",
 	"manage_api_keys": "Управление API ключами",
 	"api_key_created": "API ключ создан",
