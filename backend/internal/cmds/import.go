@@ -267,13 +267,10 @@ func insertData(db *gorm.DB, dbData databaseJson) error {
 // normalizeRow mutates a row so it round-trips correctly for SQLite
 func normalizeRow(row map[string]any) {
 	for k, v := range row {
-		switch val := v.(type) {
-		case map[string]any:
-			// Handle binary wrapper
-			if b64, ok := val["__binary__"].(string); ok {
+		if m, ok := v.(map[string]any); ok {
+			if b64, ok := m["__binary__"].(string); ok {
 				if data, err := base64.StdEncoding.DecodeString(b64); err == nil {
 					row[k] = data
-					continue
 				}
 			}
 		}
@@ -317,6 +314,7 @@ func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 	}
 	defer out.Close()
 
+	//nolint:gosec // f.UncompressedSize64 is capped above
 	if _, err := io.CopyN(out, rc, int64(f.UncompressedSize64)); err != nil {
 		return fmt.Errorf("copy failed for %s: %w", f.Name, err)
 	}
