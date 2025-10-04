@@ -135,7 +135,7 @@
 	"name_passkey": "Tên Passkey",
 	"name_your_passkey_to_easily_identify_it_later": "Đặt tên cho passkey để dễ dàng nhận diện sau này.",
 	"create_api_key": "Tạo API Key",
-	"add_a_new_api_key_for_programmatic_access": "Thêm API Key mới cho truy cập lập trình.",
+	"add_a_new_api_key_for_programmatic_access": "Thêm một khóa API mới để truy cập chương trình vào <link href='https://pocket-id.org/docs/api'>API Pocket ID</link>.",
 	"add_api_key": "Thêm API Key",
 	"manage_api_keys": "Quản lý API keys",
 	"api_key_created": "API Key đã được tạo",
