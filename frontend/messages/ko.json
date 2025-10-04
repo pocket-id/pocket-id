@@ -135,7 +135,7 @@
 	"name_passkey": "패스키 이름",
 	"name_your_passkey_to_easily_identify_it_later": "패스키의 이름을 지정하여 나중에 쉽게 구분할 수 있도록 합니다.",
 	"create_api_key": "API 키 생성",
-	"add_a_new_api_key_for_programmatic_access": "프로그램 접근을 위해 새로운 API 키를 추가합니다.",
+	"add_a_new_api_key_for_programmatic_access": "Add a new API key for programmatic access to the <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "API 키 추가",
 	"manage_api_keys": "API 키 관리",
 	"api_key_created": "API 키 생성됨",
