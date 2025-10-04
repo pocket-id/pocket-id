@@ -135,7 +135,7 @@
 	"name_passkey": "Назва ключа доступу",
 	"name_your_passkey_to_easily_identify_it_later": "Назвіть свій ключ доступу, щоб легко пізнати його пізніше.",
 	"create_api_key": "Створити API-ключ",
-	"add_a_new_api_key_for_programmatic_access": "Додайте новий API-ключ для програмного доступу.",
+	"add_a_new_api_key_for_programmatic_access": "Додайте новий ключ API для програмного доступу до <link href='https://pocket-id.org/docs/api'>API Pocket ID</link>.",
 	"add_api_key": "Додати API-ключ",
 	"manage_api_keys": "Керувати ключами API",
 	"api_key_created": "Створено API-ключ",
