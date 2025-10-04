@@ -135,7 +135,7 @@
 	"name_passkey": "Navngiv adgangsnøgle",
 	"name_your_passkey_to_easily_identify_it_later": "Giv din adgangsnøgle et navn, så du nemt kan genkende den senere.",
 	"create_api_key": "Opret API-nøgle",
-	"add_a_new_api_key_for_programmatic_access": "Tilføj en ny API-nøgle til programmatisk adgang.",
+	"add_a_new_api_key_for_programmatic_access": "Tilføj en ny API-nøgle for programmatisk adgang til <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "Tilføj API-nøgle",
 	"manage_api_keys": "Administrér API-nøgler",
 	"api_key_created": "API-nøgle oprettet",
