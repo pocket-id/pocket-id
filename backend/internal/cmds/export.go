@@ -159,7 +159,11 @@ func writeDatabaseJSON(zipWriter *zip.Writer, dbData databaseJson) error {
 	if err != nil {
 		return fmt.Errorf("failed to create database.json in zip: %w", err)
 	}
-	if err := json.NewEncoder(jsonWriter).Encode(dbData); err != nil {
+
+	jsonEncoder := json.NewEncoder(jsonWriter)
+	jsonEncoder.SetEscapeHTML(false)
+
+	if err := jsonEncoder.Encode(dbData); err != nil {
 		return fmt.Errorf("failed to encode database.json: %w", err)
 	}
 	return nil
