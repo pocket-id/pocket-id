@@ -135,7 +135,7 @@
 	"name_passkey": "Passkey benennen",
 	"name_your_passkey_to_easily_identify_it_later": "Benenne deinen Passkey, um ihn später leicht identifizieren zu können.",
 	"create_api_key": "API-Schlüssel erstellen",
-	"add_a_new_api_key_for_programmatic_access": "Füge einen neuen API-Schlüssel für programmatischen Zugriff hinzu.",
+	"add_a_new_api_key_for_programmatic_access": "Füge einen neuen API-Schlüssel für den programmgesteuerten Zugriff auf die <link href='https://pocket-id.org/docs/api'>Pocket ID API</link> hinzu.",
 	"add_api_key": "API-Schlüssel hinzufügen",
 	"manage_api_keys": "API-Schlüssel verwalten",
 	"api_key_created": "API-Schlüssel erstellt",
