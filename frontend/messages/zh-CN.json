@@ -135,7 +135,7 @@
 	"name_passkey": "重命名通行密钥",
 	"name_your_passkey_to_easily_identify_it_later": "为您的通行密钥命名，以便以后轻松识别。",
 	"create_api_key": "创建 API 密钥",
-	"add_a_new_api_key_for_programmatic_access": "添加一个新的 API 密钥用于编程访问。",
+	"add_a_new_api_key_for_programmatic_access": "Add a new API key for programmatic access to the <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "添加 API 密钥",
 	"manage_api_keys": "管理 API 密钥",
 	"api_key_created": "API 密钥已创建",
