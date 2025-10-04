@@ -269,15 +269,6 @@ func normalizeRow(row map[string]any) {
 					continue
 				}
 			}
-			// Otherwise encode as JSON string.
-			if b, err := json.Marshal(val); err == nil {
-				row[k] = string(b)
-			}
-
-		case []any:
-			if b, err := json.Marshal(val); err == nil {
-				row[k] = string(b)
-			}
 		}
 	}
 }

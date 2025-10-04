@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -215,13 +214,6 @@ func normalizeForJSON(v any) any {
 		return nil
 	case []byte:
 		s := string(t)
-		// Try JSON
-		if isJSONObjectOrArray(s) {
-			var j any
-			if err := json.Unmarshal(t, &j); err == nil {
-				return j
-			}
-		}
 		// Try UTF-8 text
 		if utf8.Valid(t) {
 			return s
@@ -235,14 +227,4 @@ func normalizeForJSON(v any) any {
 	default:
 		return t
 	}
-}
-
-// isJSONObjectOrArray checks if a string looks like a JSON object or array
-func isJSONObjectOrArray(s string) bool {
-	s = strings.TrimSpace(s)
-	if len(s) < 2 {
-		return false
-	}
-	return (s[0] == '{' && s[len(s)-1] == '}') ||
-		(s[0] == '[' && s[len(s)-1] == ']')
 }
