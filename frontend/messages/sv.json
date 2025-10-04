@@ -135,7 +135,7 @@
 	"name_passkey": "Namn på Passkey",
 	"name_your_passkey_to_easily_identify_it_later": "Namnge din passkey för att enkelt kunna identifiera den senare.",
 	"create_api_key": "Skapa API-nyckel",
-	"add_a_new_api_key_for_programmatic_access": "Lägg till en ny API-nyckel för programmatisk åtkomst.",
+	"add_a_new_api_key_for_programmatic_access": "Lägg till en ny API-nyckel för programmatisk åtkomst till <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "Lägg till API-nyckel",
 	"manage_api_keys": "Hantera API-nycklar",
 	"api_key_created": "API-nyckel skapad",
