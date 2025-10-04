@@ -161,7 +161,14 @@ func readDatabaseJSON(f *zip.File, dbData *databaseJson) error {
 func resetSchema(db *gorm.DB) error {
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderPostgres:
-		return db.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`).Error
+		var currentSchema string
+		if err := db.Raw(`SELECT current_schema();`).Scan(&currentSchema).Error; err != nil {
+			return fmt.Errorf("failed to get current schema: %w", err)
+		}
+
+		if err := db.Exec(fmt.Sprintf(`DROP SCHEMA IF EXISTS "%s" CASCADE; CREATE SCHEMA "%s";`, currentSchema, currentSchema)).Error; err != nil {
+			return fmt.Errorf("failed to reset schema %s: %w", currentSchema, err)
+		}
 
 	case common.DbProviderSqlite:
 		var tables []string
