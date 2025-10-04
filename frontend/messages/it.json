@@ -135,7 +135,7 @@
 	"name_passkey": "Nome Passkey",
 	"name_your_passkey_to_easily_identify_it_later": "Dai un nome alla tua passkey per identificarla facilmente in seguito.",
 	"create_api_key": "Crea Chiave API",
-	"add_a_new_api_key_for_programmatic_access": "Aggiungi una nuova chiave API per l'accesso programmatico.",
+	"add_a_new_api_key_for_programmatic_access": "Aggiungi una nuova chiave API per accedere in modo programmatico <link href='https://pocket-id.org/docs/api'>all'API Pocket ID</link>.",
 	"add_api_key": "Aggiungi Chiave API",
 	"manage_api_keys": "Gestisci Chiavi API",
 	"api_key_created": "Chiave API Creata",
