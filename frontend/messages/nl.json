@@ -135,7 +135,7 @@
 	"name_passkey": "Naam passkey",
 	"name_your_passkey_to_easily_identify_it_later": "Geef je passkey een naam, zodat je deze later gemakkelijk kunt terugvinden.",
 	"create_api_key": "API-sleutel aanmaken",
-	"add_a_new_api_key_for_programmatic_access": "Voeg een nieuwe API-sleutel toe voor programmatische toegang.",
+	"add_a_new_api_key_for_programmatic_access": "Voeg een nieuwe API-sleutel toe voor toegang tot de <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "API-sleutel toevoegen",
 	"manage_api_keys": "API-sleutels beheren",
 	"api_key_created": "API-sleutel gemaakt",
