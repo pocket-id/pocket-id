@@ -388,3 +388,56 @@ func (e *UserEmailNotSetError) Error() string {
 func (e *UserEmailNotSetError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
+
+type ScimResourceNotFoundError struct {
+	ResourceType string
+	ID           string
+}
+
+func (e *ScimResourceNotFoundError) Error() string {
+	if e.ID != "" {
+		return fmt.Sprintf("%s with id %s not found", e.ResourceType, e.ID)
+	}
+	return fmt.Sprintf("%s not found", e.ResourceType)
+}
+
+func (e *ScimResourceNotFoundError) HttpStatusCode() int {
+	return http.StatusNotFound
+}
+
+type ScimInvalidFilterError struct{}
+
+func (e *ScimInvalidFilterError) Error() string {
+	return "Invalid SCIM filter expression"
+}
+
+func (e *ScimInvalidFilterError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type ScimInvalidValueError struct {
+	Field string
+}
+
+func (e *ScimInvalidValueError) Error() string {
+	return fmt.Sprintf("Invalid value for field: %s", e.Field)
+}
+
+func (e *ScimInvalidValueError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type ScimConflictError struct {
+	Detail string
+}
+
+func (e *ScimConflictError) Error() string {
+	if e.Detail != "" {
+		return e.Detail
+	}
+	return "Resource conflict"
+}
+
+func (e *ScimConflictError) HttpStatusCode() int {
+	return http.StatusConflict
+}

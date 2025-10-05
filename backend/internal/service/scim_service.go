@@ -16,16 +16,16 @@ import (
 )
 
 type ScimService struct {
-	db              *gorm.DB
-	userService     *UserService
+	db               *gorm.DB
+	userService      *UserService
 	userGroupService *UserGroupService
 	appConfigService *AppConfigService
 }
 
 func NewScimService(db *gorm.DB, userService *UserService, userGroupService *UserGroupService, appConfigService *AppConfigService) *ScimService {
 	return &ScimService{
-		db:              db,
-		userService:     userService,
+		db:               db,
+		userService:      userService,
 		userGroupService: userGroupService,
 		appConfigService: appConfigService,
 	}
@@ -85,7 +85,7 @@ func (s *ScimService) GetUser(ctx context.Context, id string) (*dto.ScimUser, er
 	var user model.User
 	if err := s.db.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, &common.NotFoundError{}
+			return nil, &common.ScimResourceNotFoundError{ResourceType: "User", ID: id}
 		}
 		return nil, err
 	}
@@ -98,9 +98,9 @@ func (s *ScimService) GetUser(ctx context.Context, id string) (*dto.ScimUser, er
 func (s *ScimService) CreateUser(ctx context.Context, scimUser *dto.ScimUser) (*dto.ScimUser, error) {
 	// Convert SCIM user to internal user model
 	user := model.User{
-		Username:    scimUser.UserName,
-		Disabled:    !scimUser.Active,
-		IsAdmin:     false,
+		Username: scimUser.UserName,
+		Disabled: !scimUser.Active,
+		IsAdmin:  false,
 	}
 
 	if scimUser.Name != nil {
@@ -137,7 +137,7 @@ func (s *ScimService) UpdateUser(ctx context.Context, id string, scimUser *dto.S
 	var user model.User
 	if err := s.db.WithContext(ctx).First(&user, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, &common.NotFoundError{}
+			return nil, &common.ScimResourceNotFoundError{ResourceType: "User", ID: id}
 		}
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (s *ScimService) PatchUser(ctx context.Context, id string, patchOp *dto.Sci
 	var user model.User
 	if err := s.db.WithContext(ctx).First(&user, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, &common.NotFoundError{}
+			return nil, &common.ScimResourceNotFoundError{ResourceType: "User", ID: id}
 		}
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (s *ScimService) DeleteUser(ctx context.Context, id string) error {
 	var user model.User
 	if err := s.db.WithContext(ctx).First(&user, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &common.NotFoundError{}
+			return &common.ScimResourceNotFoundError{ResourceType: "User", ID: id}
 		}
 		return err
 	}
@@ -287,7 +287,7 @@ func (s *ScimService) GetGroup(ctx context.Context, id string) (*dto.ScimGroup, 
 	var group model.UserGroup
 	if err := s.db.WithContext(ctx).Preload("Users").First(&group, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, &common.NotFoundError{}
+			return nil, &common.ScimResourceNotFoundError{ResourceType: "Group", ID: id}
 		}
 		return nil, err
 	}
@@ -352,7 +352,7 @@ func (s *ScimService) UpdateGroup(ctx context.Context, id string, scimGroup *dto
 	var group model.UserGroup
 	if err := s.db.WithContext(ctx).Preload("Users").First(&group, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, &common.NotFoundError{}
+			return nil, &common.ScimResourceNotFoundError{ResourceType: "Group", ID: id}
 		}
 		return nil, err
 	}
@@ -414,7 +414,7 @@ func (s *ScimService) PatchGroup(ctx context.Context, id string, patchOp *dto.Sc
 	var group model.UserGroup
 	if err := s.db.WithContext(ctx).Preload("Users").First(&group, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, &common.NotFoundError{}
+			return nil, &common.ScimResourceNotFoundError{ResourceType: "Group", ID: id}
 		}
 		return nil, err
 	}
@@ -476,7 +476,7 @@ func (s *ScimService) DeleteGroup(ctx context.Context, id string) error {
 	var group model.UserGroup
 	if err := s.db.WithContext(ctx).First(&group, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &common.NotFoundError{}
+			return &common.ScimResourceNotFoundError{ResourceType: "Group", ID: id}
 		}
 		return err
 	}
@@ -595,8 +595,7 @@ func (s *ScimService) userToScim(user *model.User) dto.ScimUser {
 		},
 		Meta: &dto.ScimMeta{
 			ResourceType: "User",
-			Created:      user.CreatedAt.Format(time.RFC3339),
-			LastModified: user.UpdatedAt.Format(time.RFC3339),
+			Created:      user.CreatedAt.ToTime().Format(time.RFC3339),
 			Location:     fmt.Sprintf("/scim/v2/Users/%s", user.ID),
 		},
 	}
@@ -636,8 +635,7 @@ func (s *ScimService) groupToScim(group *model.UserGroup) dto.ScimGroup {
 		DisplayName: group.FriendlyName,
 		Meta: &dto.ScimMeta{
 			ResourceType: "Group",
-			Created:      group.CreatedAt.Format(time.RFC3339),
-			LastModified: group.UpdatedAt.Format(time.RFC3339),
+			Created:      group.CreatedAt.ToTime().Format(time.RFC3339),
 			Location:     fmt.Sprintf("/scim/v2/Groups/%s", group.ID),
 		},
 	}

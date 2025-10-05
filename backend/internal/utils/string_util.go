@@ -115,3 +115,22 @@ func GetFirstCharacter(str string) string {
 	// Empty string case
 	return ""
 }
+
+// NormalizeGroupName converts a friendly name to a normalized group name
+// by converting to lowercase and replacing non-alphanumeric characters with underscores
+func NormalizeGroupName(friendlyName string) string {
+	var result strings.Builder
+	result.Grow(len(friendlyName))
+
+	for _, r := range friendlyName {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
+			result.WriteRune(r)
+		} else if r >= 'A' && r <= 'Z' {
+			result.WriteRune(unicode.ToLower(r))
+		} else {
+			result.WriteRune('_')
+		}
+	}
+
+	return result.String()
+}
