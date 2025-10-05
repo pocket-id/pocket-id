@@ -141,6 +141,14 @@
 			requestOptions = { ...requestOptions, pagination: { page: 1, limit: persistedLimit } };
 			shouldRefresh = true;
 		}
+
+		const urlParams = new URLSearchParams(window.location.search);
+		const page = parseInt(urlParams.get(`${persistKey}-page`) ?? '') || undefined;
+		if (page) {
+			requestOptions.pagination!.page = page;
+			shouldRefresh = true;
+		}
+
 		if (shouldRefresh) onRefresh(requestOptions);
 	});
 
@@ -152,12 +160,19 @@
 		const next = { ...prev, ...patch };
 		requestOptions = { ...requestOptions, pagination: next };
 		onRefresh(requestOptions);
+		changePageUrlState(next.page);
 	}
 
 	function setPage(page: number) {
 		if (page < 1) page = 1;
 		if (totalPages > 0 && page > totalPages) page = totalPages;
 		updatePagination({ page });
+	}
+
+	function changePageUrlState(page: number) {
+		const url = new URL(window.location.href);
+		url.searchParams.set(`${persistKey}-page`, page.toString());
+		history.replaceState(history.state, '', url.toString());
 	}
 
 	function setPageSize(limit: number) {
