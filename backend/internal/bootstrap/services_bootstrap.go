@@ -25,6 +25,7 @@ type services struct {
 	ldapService        *service.LdapService
 	apiKeyService      *service.ApiKeyService
 	versionService     *service.VersionService
+	scimService        *service.ScimService
 }
 
 // Initializes all services
@@ -67,6 +68,8 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)
 
 	svc.versionService = service.NewVersionService(httpClient)
+
+	svc.scimService = service.NewScimService(db, svc.userService, svc.userGroupService, svc.appConfigService)
 
 	return svc, nil
 }
