@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -1937,12 +1938,13 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 		return &common.FileTypeNotSupportedError{}
 	}
 
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + "." + ext
-	err = os.MkdirAll(imagePath, os.ModePerm)
+	folderPath := filepath.Join(common.EnvConfig.UploadPath, "oidc-client-images")
+	err = os.MkdirAll(folderPath, os.ModePerm)
 	if err != nil {
 		return err
 	}
 
+	imagePath := filepath.Join(folderPath, clientID + "." + ext)
 	err = utils.SaveFileStream(io.LimitReader(resp.Body, maxLogoSize+1), imagePath)
 	if err != nil {
 		return err
