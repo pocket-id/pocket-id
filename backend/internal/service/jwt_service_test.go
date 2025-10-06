@@ -16,6 +16,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -342,7 +343,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "user123",
 			},
-			Email:   "user@example.com",
+			Email:   utils.Ptr("user@example.com"),
 			IsAdmin: false,
 		}
 
@@ -385,7 +386,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "admin123",
 			},
-			Email:   "admin@example.com",
+			Email:   utils.Ptr("admin@example.com"),
 			IsAdmin: true,
 		}
 
@@ -464,7 +465,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "eddsauser123",
 			},
-			Email:   "eddsauser@example.com",
+			Email:   utils.Ptr("eddsauser@example.com"),
 			IsAdmin: true,
 		}
 
@@ -521,7 +522,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "ecdsauser123",
 			},
-			Email:   "ecdsauser@example.com",
+			Email:   utils.Ptr("ecdsauser@example.com"),
 			IsAdmin: true,
 		}
 
@@ -578,7 +579,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "rsauser123",
 			},
-			Email:   "rsauser@example.com",
+			Email:   utils.Ptr("rsauser@example.com"),
 			IsAdmin: true,
 		}
 
@@ -965,7 +966,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "user123",
 			},
-			Email: "user@example.com",
+			Email: utils.Ptr("user@example.com"),
 		}
 		const clientID = "test-client-123"
 
@@ -1092,7 +1093,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "eddsauser789",
 			},
-			Email: "eddsaoauth@example.com",
+			Email: utils.Ptr("eddsaoauth@example.com"),
 		}
 		const clientID = "eddsa-oauth-client"
 
@@ -1149,7 +1150,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "ecdsauser789",
 			},
-			Email: "ecdsaoauth@example.com",
+			Email: utils.Ptr("ecdsaoauth@example.com"),
 		}
 		const clientID = "ecdsa-oauth-client"
 
@@ -1206,7 +1207,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 			Base: model.Base{
 				ID: "rsauser789",
 			},
-			Email: "rsaoauth@example.com",
+			Email: utils.Ptr("rsaoauth@example.com"),
 		}
 		const clientID = "rsa-oauth-client"
 

@@ -144,9 +144,13 @@ func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey 
 		}
 	}
 
+	if user.Email == nil {
+		return &common.UserEmailNotSetError{}
+	}
+
 	err := SendEmail(ctx, s.emailService, email.Address{
 		Name:  user.FullName(),
-		Email: user.Email,
+		Email: *user.Email,
 	}, ApiKeyExpiringSoonTemplate, &ApiKeyExpiringSoonTemplateData{
 		ApiKeyName: apiKey.Name,
 		ExpiresAt:  apiKey.ExpiresAt.ToTime(),

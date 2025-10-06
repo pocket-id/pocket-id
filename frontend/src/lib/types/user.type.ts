@@ -5,7 +5,7 @@ import type { UserGroup } from './user-group.type';
 export type User = {
 	id: string;
 	username: string;
-	email: string;
+	email: string | undefined;
 	firstName: string;
 	lastName?: string;
 	displayName: string;

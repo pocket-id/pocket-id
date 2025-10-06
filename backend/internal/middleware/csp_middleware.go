@@ -34,7 +34,7 @@ func (m *CspMiddleware) Add() gin.HandlerFunc {
 			"object-src 'none'; " +
 			"frame-ancestors 'none'; " +
 			"form-action 'self'; " +
-			"img-src 'self' data: blob:; " +
+			"img-src * blob:;" +
 			"font-src 'self'; " +
 			"style-src 'self' 'unsafe-inline'; " +
 			"script-src 'self' 'nonce-" + nonce + "'"

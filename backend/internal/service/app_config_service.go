@@ -71,6 +71,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		// Internal
 		InstanceID: model.AppConfigVariable{Value: ""},
 		// Email
+		RequireUserEmail:              model.AppConfigVariable{Value: "true"},
 		SmtpHost:                      model.AppConfigVariable{},
 		SmtpPort:                      model.AppConfigVariable{},
 		SmtpFrom:                      model.AppConfigVariable{},

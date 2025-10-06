@@ -4,21 +4,21 @@ on:
   push:
     branches: [main]
     paths:
-      - 'frontend/src/**'
-      - '.github/svelte-check-matcher.json'
-      - 'frontend/package.json'
-      - 'frontend/package-lock.json'
-      - 'frontend/tsconfig.json'
-      - 'frontend/svelte.config.js'
+      - "frontend/src/**"
+      - ".github/svelte-check-matcher.json"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "frontend/tsconfig.json"
+      - "frontend/svelte.config.js"
   pull_request:
     branches: [main]
     paths:
-      - 'frontend/src/**'
-      - '.github/svelte-check-matcher.json'
-      - 'frontend/package.json'
-      - 'frontend/package-lock.json'
-      - 'frontend/tsconfig.json'
-      - 'frontend/svelte.config.js'
+      - "frontend/src/**"
+      - ".github/svelte-check-matcher.json"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "frontend/tsconfig.json"
+      - "frontend/svelte.config.js"
   workflow_dispatch:
 
 jobs:
@@ -34,17 +34,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm --filter pocket-id-frontend install --frozen-lockfile

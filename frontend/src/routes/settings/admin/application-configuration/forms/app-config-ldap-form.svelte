@@ -37,13 +37,13 @@
 		ldapAttributeUserUsername: z.string().min(1),
 		ldapAttributeUserEmail: z.string().min(1),
 		ldapAttributeUserFirstName: z.string().min(1),
-		ldapAttributeUserLastName: z.string().min(1),
-		ldapAttributeUserDisplayName: z.string().min(1),
-		ldapAttributeUserProfilePicture: z.string(),
-		ldapAttributeGroupMember: z.string(),
+		ldapAttributeUserLastName: z.string().optional(),
+		ldapAttributeUserDisplayName: z.string().optional(),
+		ldapAttributeUserProfilePicture: z.string().optional(),
+		ldapAttributeGroupMember: z.string().optional(),
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
-		ldapAttributeAdminGroup: z.string(),
+		ldapAttributeAdminGroup: z.string().optional(),
 		ldapSoftDeleteUsers: z.boolean()
 	});
 

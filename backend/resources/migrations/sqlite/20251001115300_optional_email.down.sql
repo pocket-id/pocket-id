@@ -1,0 +1,1 @@
+-- No-op because email was optional before the migration

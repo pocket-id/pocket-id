@@ -62,9 +62,13 @@ func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId stri
 		return err
 	}
 
+	if user.Email == nil {
+		return &common.UserEmailNotSetError{}
+	}
+
 	return SendEmail(ctx, srv,
 		email.Address{
-			Email: user.Email,
+			Email: *user.Email,
 			Name:  user.FullName(),
 		}, TestTemplate, nil)
 }

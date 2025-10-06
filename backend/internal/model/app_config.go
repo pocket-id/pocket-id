@@ -46,6 +46,7 @@ type AppConfig struct {
 	// Internal
 	InstanceID AppConfigVariable `key:"instanceId,internal"` // Internal
 	// Email
+	RequireUserEmail                           AppConfigVariable `key:"requireUserEmail,public"` // Public
 	SmtpHost                                   AppConfigVariable `key:"smtpHost"`
 	SmtpPort                                   AppConfigVariable `key:"smtpPort"`
 	SmtpFrom                                   AppConfigVariable `key:"smtpFrom"`

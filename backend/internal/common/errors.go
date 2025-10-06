@@ -378,3 +378,13 @@ func (e *ClientIdAlreadyExistsError) Error() string {
 func (e *ClientIdAlreadyExistsError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
+
+type UserEmailNotSetError struct{}
+
+func (e *UserEmailNotSetError) Error() string {
+	return "The user does not have an email address set"
+}
+
+func (e *UserEmailNotSetError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}

@@ -1,10 +1,7 @@
 <script lang="ts">
-	import FileInput from '$lib/components/form/file-input.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
-	import ImageBox from '$lib/components/image-box.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type {
 		OidcClient,
@@ -21,6 +18,7 @@
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
+	import OidcClientImageInput from './oidc-client-image-input.svelte';
 
 	let {
 		callback,
@@ -31,7 +29,6 @@
 		callback: (client: OidcClientCreateWithLogo | OidcClientUpdateWithLogo) => Promise<boolean>;
 		mode: 'create' | 'update';
 	} = $props();
-
 	let isLoading = $state(false);
 	let showAdvancedOptions = $state(false);
 	let logo = $state<File | null | undefined>();
@@ -50,7 +47,8 @@
 		launchURL: existingClient?.launchURL || '',
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
-		}
+		},
+		logoUrl: ''
 	};
 
 	const formSchema = z.object({
@@ -71,6 +69,7 @@
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
 		launchURL: optionalUrl,
+		logoUrl: optionalUrl,
 		credentials: z.object({
 			federatedIdentities: z.array(
 				z.object({
@@ -90,30 +89,40 @@
 		const data = form.validate();
 		if (!data) return;
 		isLoading = true;
+
 		const success = await callback({
 			...data,
-			logo
+			logo: $inputs.logoUrl?.value ? null : logo,
+			logoUrl: $inputs.logoUrl?.value
 		});
-		// Reset form if client was successfully created
+
+		const hasLogo = logo != null || !!$inputs.logoUrl?.value;
+		if (success && existingClient && hasLogo) {
+			logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
+		}
+
 		if (success && !existingClient) form.reset();
 		isLoading = false;
 	}
 
-	function onLogoChange(e: Event) {
-		const file = (e.target as HTMLInputElement).files?.[0] || null;
-		if (file) {
-			logo = file;
-			const reader = new FileReader();
-			reader.onload = (event) => {
-				logoDataURL = event.target?.result as string;
-			};
-			reader.readAsDataURL(file);
+	function onLogoChange(input: File | string | null) {
+		if (input == null) return;
+
+		if (typeof input === 'string') {
+			logo = null;
+			logoDataURL = input || null;
+			$inputs.logoUrl!.value = input;
+		} else {
+			logo = input;
+			$inputs.logoUrl && ($inputs.logoUrl.value = '');
+			logoDataURL = URL.createObjectURL(input);
 		}
 	}
 
 	function resetLogo() {
 		logo = null;
 		logoDataURL = null;
+		$inputs.logoUrl && ($inputs.logoUrl.value = '');
 	}
 
 	function getFederatedIdentityErrors(errors: z.ZodError<any> | undefined) {
@@ -173,32 +182,13 @@
 			bind:checked={$inputs.requiresReauthentication.value}
 		/>
 	</div>
-	<div class="mt-8">
-		<Label for="logo">{m.logo()}</Label>
-		<div class="mt-2 flex items-end gap-3">
-			{#if logoDataURL}
-				<ImageBox
-					class="size-24"
-					src={logoDataURL}
-					alt={m.name_logo({ name: $inputs.name.value })}
-				/>
-			{/if}
-			<div class="flex flex-col gap-2">
-				<FileInput
-					id="logo"
-					variant="secondary"
-					accept="image/png, image/jpeg, image/svg+xml, image/webp, image/avif, image/heic"
-					onchange={onLogoChange}
-				>
-					<Button variant="secondary">
-						{logoDataURL ? m.change_logo() : m.upload_logo()}
-					</Button>
-				</FileInput>
-				{#if logoDataURL}
-					<Button variant="outline" onclick={resetLogo}>{m.remove_logo()}</Button>
-				{/if}
-			</div>
-		</div>
+	<div class="mt-7">
+		<OidcClientImageInput
+			{logoDataURL}
+			{resetLogo}
+			clientName={$inputs.name.value}
+			{onLogoChange}
+		/>
 	</div>
 
 	{#if showAdvancedOptions}

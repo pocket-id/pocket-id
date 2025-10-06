@@ -60,7 +60,7 @@
 			</div>
 		{:else if client.hasLogo}
 			<img
-				class="size-10"
+				class="size-10 aspect-square object-contain"
 				src={cachedOidcClientLogo.getUrl(client.id)}
 				draggable={false}
 				alt={m.client_logo()}

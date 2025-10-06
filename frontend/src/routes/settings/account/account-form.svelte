@@ -4,12 +4,14 @@
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
 	import { toast } from 'svelte-sonner';
+	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
 
 	let {
@@ -34,9 +36,11 @@
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
-		displayName: z.string().max(100),
+		displayName: z.string().min(1).max(100),
 		username: usernameSchema,
-		email: z.email(),
+		email: get(appConfigStore).requireUserEmail
+			? z.email()
+			: emptyToUndefined(z.email().optional()),
 		isAdmin: z.boolean()
 	});
 	type FormSchema = typeof formSchema;

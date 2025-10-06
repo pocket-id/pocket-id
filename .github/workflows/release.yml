@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 jobs:
   build:
@@ -19,14 +19,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
-          go-version-file: 'backend/go.mod'
+          go-version-file: "backend/go.mod"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -81,7 +79,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          file: Dockerfile-prebuilt
+          file: docker/Dockerfile-prebuilt
       - name: Build and push container image (distroless)
         uses: docker/build-push-action@v6
         id: container-build-push-distroless
@@ -91,21 +89,21 @@ jobs:
           push: true
           tags: ${{ steps.meta-distroless.outputs.tags }}
           labels: ${{ steps.meta-distroless.outputs.labels }}
-          file: Dockerfile-distroless
+          file: docker/Dockerfile-distroless
       - name: Binary attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: 'backend/.bin/pocket-id-**'
+          subject-path: "backend/.bin/pocket-id-**"
       - name: Container image attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
+          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
           subject-digest: ${{ steps.container-build-push.outputs.digest }}
           push-to-registry: true
       - name: Container image attestation (distroless)
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: '${{ env.DOCKER_IMAGE_NAME }}'
+          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
           subject-digest: ${{ steps.container-build-push-distroless.outputs.digest }}
           push-to-registry: true
       - name: Upload binaries to release
@@ -122,6 +120,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Mark release as published
         run: gh release edit ${{ github.ref_name }} --draft=false

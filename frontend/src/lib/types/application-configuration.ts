@@ -10,6 +10,7 @@ export type AppConfig = {
 	disableAnimations: boolean;
 	uiConfigDisabled: boolean;
 	accentColor: string;
+	requireUserEmail: boolean;
 };
 
 export type AllAppConfig = AppConfig & {
