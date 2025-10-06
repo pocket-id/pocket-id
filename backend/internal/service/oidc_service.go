@@ -1944,7 +1944,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 		return err
 	}
 
-	imagePath := filepath.Join(folderPath, clientID + "." + ext)
+	imagePath := filepath.Join(folderPath, clientID+"."+ext)
 	err = utils.SaveFileStream(io.LimitReader(resp.Body, maxLogoSize+1), imagePath)
 	if err != nil {
 		return err
