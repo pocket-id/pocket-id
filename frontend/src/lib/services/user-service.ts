@@ -1,5 +1,5 @@
 import userStore from '$lib/stores/user-store';
-import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type { SignupTokenDto } from '$lib/types/signup-token.type';
 import type { UserGroup } from '$lib/types/user-group.type';
 import type { User, UserCreate, UserSignUp } from '$lib/types/user.type';
@@ -8,7 +8,7 @@ import { get } from 'svelte/store';
 import APIService from './api-service';
 
 export default class UserService extends APIService {
-	list = async (options?: SearchPaginationSortRequest) => {
+	list = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/users', { params: options });
 		return res.data as Paginated<User>;
 	};
@@ -109,7 +109,7 @@ export default class UserService extends APIService {
 		return res.data as User;
 	};
 
-	listSignupTokens = async (options?: SearchPaginationSortRequest) => {
+	listSignupTokens = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/signup-tokens', { params: options });
 		return res.data as Paginated<SignupTokenDto>;
 	};

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
+	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import ImageBox from '$lib/components/image-box.svelte';
 	import { Button } from '$lib/components/ui/button';

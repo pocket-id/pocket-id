@@ -1,3 +1,4 @@
+import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type {
 	AccessibleOidcClient,
 	AuthorizeResponse,
@@ -9,12 +10,11 @@ import type {
 	OidcClientWithAllowedUserGroupsCount,
 	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
-import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 import APIService from './api-service';
 
 class OidcService extends APIService {
-  authorize = async (
+	authorize = async (
 		clientId: string,
 		scope: string,
 		callbackURL: string,
@@ -22,7 +22,7 @@ class OidcService extends APIService {
 		codeChallenge?: string,
 		codeChallengeMethod?: string,
 		reauthenticationToken?: string
-  ) => {
+	) => {
 		const res = await this.api.post('/oidc/authorize', {
 			scope,
 			nonce,
@@ -34,7 +34,7 @@ class OidcService extends APIService {
 		});
 
 		return res.data as AuthorizeResponse;
-  };
+	};
 
 	isAuthorizationRequired = async (clientId: string, scope: string) => {
 		const res = await this.api.post('/oidc/authorization-required', {
@@ -45,7 +45,7 @@ class OidcService extends APIService {
 		return res.data.authorizationRequired as boolean;
 	};
 
-	listClients = async (options?: SearchPaginationSortRequest) => {
+	listClients = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/oidc/clients', {
 			params: options
 		});
@@ -113,7 +113,7 @@ class OidcService extends APIService {
 		return response.data;
 	};
 
-	listOwnAccessibleClients = async (options?: SearchPaginationSortRequest) => {
+	listOwnAccessibleClients = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/oidc/users/me/clients', { params: options });
 		return res.data as Paginated<AccessibleOidcClient>;
 	};

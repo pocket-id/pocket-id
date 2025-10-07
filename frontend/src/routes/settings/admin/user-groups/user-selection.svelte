@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
+	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';

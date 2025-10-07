@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
+	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import { Badge } from '$lib/components/ui/badge/index';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
