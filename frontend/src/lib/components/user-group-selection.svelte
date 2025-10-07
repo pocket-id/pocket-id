@@ -1,6 +1,5 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
-	import * as Table from '$lib/components/ui/table';
+	import PocketIdTable from '$lib/components/pocket-id-table/pocket-id-table.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import UserGroupService from '$lib/services/user-group-service';
 	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
@@ -31,16 +30,13 @@
 </script>
 
 {#if groups}
-	<AdvancedTable
+	<PocketIdTable
 		items={groups}
-		{requestOptions}
-		onRefresh={async (o) => (groups = await userGroupService.list(o))}
-		columns={[{ label: m.name(), sortColumn: 'friendlyName' }]}
+		bind:requestOptions
 		bind:selectedIds={selectedGroupIds}
+		onRefresh={async (opts) => (groups = await userGroupService.list(opts))}
+		columns={[{ title: m.name(), accessorKey: 'friendlyName', sortable: true }]}
+		persistKey="pocket-id-group-selection"
 		{selectionDisabled}
-	>
-		{#snippet rows({ item })}
-			<Table.Cell>{item.friendlyName}</Table.Cell>
-		{/snippet}
-	</AdvancedTable>
+	/>
 {/if}

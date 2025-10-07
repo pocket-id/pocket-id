@@ -455,5 +455,18 @@
 	"logo_from_url_description": "Paste a direct image URL (svg, png, webp). Find icons at <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> or <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
 	"invalid_url": "Invalid URL",
 	"require_user_email": "Require Email Address",
-	"require_user_email_description": "Requires users to have an email address. If disabled, the users without an email address won't be able to use features that require an email address."
+	"require_user_email_description": "Requires users to have an email address. If disabled, the users without an email address won't be able to use features that require an email address.",
+	"table_showing_of": "Showing {visible} of {total}",
+	"table_page_of": "Page {page} of {totalPages}",
+	"asc": "Asc",
+	"desc": "Desc",
+	"hide": "Hide",
+	"select_all": "Select all",
+	"select_row": "Select row",
+	"filter_updates": "Updates",
+	"view": "View",
+	"toggle_columns": "Toggle columns",
+	"table_remove_selected": "Remove selected ({count})",
+	"clear_filters": "Clear filters",
+	"count_selected": "{count} selected"
 }

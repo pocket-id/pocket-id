@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import { Badge } from '$lib/components/ui/badge/index';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
 	import UserGroupService from '$lib/services/user-group-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
@@ -14,6 +12,8 @@
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
+	import PocketIdTable from '$lib/components/pocket-id-table/pocket-id-table.svelte';
+	import type { ColumnSpec } from '$lib/components/pocket-id-table';
 
 	let {
 		userGroups,
@@ -44,50 +44,52 @@
 			}
 		});
 	}
+
+	const columns = [
+		{ title: m.friendly_name(), accessorKey: 'friendlyName', sortable: true },
+		{ title: m.name(), accessorKey: 'name', sortable: true },
+		{ title: m.user_count(), accessorKey: 'userCount', sortable: true },
+		...($appConfigStore.ldapEnabled
+			? [{ title: m.source(), accessorKey: 'ldapId' as const, sortable: true, cell: SourceCell }]
+			: []),
+		{ title: m.actions(), hidden: true }
+	] satisfies ColumnSpec<UserGroupWithUserCount>[];
 </script>
 
-<AdvancedTable
-	items={userGroups}
-	onRefresh={async (o) => (userGroups = await userGroupService.list(o))}
-	{requestOptions}
-	columns={[
-		{ label: m.friendly_name(), sortColumn: 'friendlyName' },
-		{ label: m.name(), sortColumn: 'name' },
-		{ label: m.user_count(), sortColumn: 'userCount' },
-		...($appConfigStore.ldapEnabled ? [{ label: m.source() }] : []),
-		{ label: m.actions(), hidden: true }
-	]}
->
-	{#snippet rows({ item })}
-		<Table.Cell>{item.friendlyName}</Table.Cell>
-		<Table.Cell>{item.name}</Table.Cell>
-		<Table.Cell>{item.userCount}</Table.Cell>
-		{#if $appConfigStore.ldapEnabled}
-			<Table.Cell>
-				<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}
-					>{item.ldapId ? m.ldap() : m.local()}</Badge
+{#snippet SourceCell({ item }: { item: UserGroupWithUserCount })}
+	<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}>
+		{item.ldapId ? m.ldap() : m.local()}
+	</Badge>
+{/snippet}
+
+{#snippet RowActions({ item }: { item: UserGroupWithUserCount })}
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger>
+			<Ellipsis class="size-4" />
+			<span class="sr-only">{m.toggle_menu()}</span>
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Content align="end">
+			<DropdownMenu.Item onclick={() => goto(`/settings/admin/user-groups/${item.id}`)}>
+				<LucidePencil class="mr-2 size-4" />
+				{m.edit()}
+			</DropdownMenu.Item>
+			{#if !item.ldapId || !$appConfigStore.ldapEnabled}
+				<DropdownMenu.Item
+					class="text-red-500 focus:!text-red-700"
+					onclick={() => deleteUserGroup(item)}
 				>
-			</Table.Cell>
-		{/if}
-		<Table.Cell class="flex justify-end">
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger>
-					<Ellipsis class="size-4" />
-					<span class="sr-only">{m.toggle_menu()}</span>
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end">
-					<DropdownMenu.Item onclick={() => goto(`/settings/admin/user-groups/${item.id}`)}
-						><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
-					>
-					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
-						<DropdownMenu.Item
-							class="text-red-500 focus:!text-red-700"
-							onclick={() => deleteUserGroup(item)}
-							><LucideTrash class="mr-2 size-4" />{m.delete()}</DropdownMenu.Item
-						>
-					{/if}
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-		</Table.Cell>
-	{/snippet}
-</AdvancedTable>
+					<LucideTrash class="mr-2 size-4" />{m.delete()}
+				</DropdownMenu.Item>
+			{/if}
+		</DropdownMenu.Content>
+	</DropdownMenu.Root>
+{/snippet}
+
+<PocketIdTable
+	items={userGroups}
+	bind:requestOptions
+	onRefresh={async (opts) => (userGroups = await userGroupService.list(opts))}
+	{columns}
+	persistKey="pocket-id-user-groups"
+	rowActions={RowActions}
+/>
