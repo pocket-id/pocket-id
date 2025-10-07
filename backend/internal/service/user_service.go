@@ -46,7 +46,7 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 	}
 }
 
-func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.User, utils.PaginationResponse, error) {
+func (s *UserService) ListUsers(ctx context.Context, searchTerm string, listRequestOptions utils.ListRequestOptions) ([]model.User, utils.PaginationResponse, error) {
 	var users []model.User
 	query := s.db.WithContext(ctx).
 		Model(&model.User{}).
@@ -60,7 +60,7 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, sortedPa
 			searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &users)
+	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &users)
 
 	return users, pagination, err
 }
@@ -782,11 +782,11 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 	return user, accessToken, nil
 }
 
-func (s *UserService) ListSignupTokens(ctx context.Context, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.SignupToken, utils.PaginationResponse, error) {
+func (s *UserService) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]model.SignupToken, utils.PaginationResponse, error) {
 	var tokens []model.SignupToken
 	query := s.db.WithContext(ctx).Model(&model.SignupToken{})
 
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &tokens)
+	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &tokens)
 	return tokens, pagination, err
 }
 

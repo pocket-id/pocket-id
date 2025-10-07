@@ -47,16 +47,10 @@ type UserGroupController struct {
 // @Success 200 {object} dto.Paginated[dto.UserGroupDtoWithUserCount]
 // @Router /api/user-groups [get]
 func (ugc *UserGroupController) list(c *gin.Context) {
-	ctx := c.Request.Context()
-
 	searchTerm := c.Query("search")
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = c.Error(err)
-		return
-	}
+	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	groups, pagination, err := ugc.UserGroupService.List(ctx, searchTerm, sortedPaginationRequest)
+	groups, pagination, err := ugc.UserGroupService.List(c, searchTerm, listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -25,14 +25,14 @@ func NewApiKeyService(db *gorm.DB, emailService *EmailService) *ApiKeyService {
 	return &ApiKeyService{db: db, emailService: emailService}
 }
 
-func (s *ApiKeyService) ListApiKeys(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.ApiKey, utils.PaginationResponse, error) {
+func (s *ApiKeyService) ListApiKeys(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.ApiKey, utils.PaginationResponse, error) {
 	query := s.db.
 		WithContext(ctx).
 		Where("user_id = ?", userID).
 		Model(&model.ApiKey{})
 
 	var apiKeys []model.ApiKey
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &apiKeys)
+	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &apiKeys)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}

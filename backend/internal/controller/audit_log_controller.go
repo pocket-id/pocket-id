@@ -41,18 +41,12 @@ type AuditLogController struct {
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /api/audit-logs [get]
 func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
-	var sortedPaginationRequest utils.SortedPaginationRequest
-
-	err := c.ShouldBindQuery(&sortedPaginationRequest)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
+	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	userID := c.GetString("userID")
 
 	// Fetch audit logs for the user
-	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(c.Request.Context(), userID, sortedPaginationRequest)
+	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(c.Request.Context(), userID, listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -93,11 +87,7 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /api/audit-logs/all [get]
 func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = c.Error(err)
-		return
-	}
+	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	var filters dto.AuditLogFilterDto
 	if err := c.ShouldBindQuery(&filters); err != nil {
@@ -105,7 +95,7 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 		return
 	}
 
-	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(c.Request.Context(), sortedPaginationRequest, filters)
+	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(c.Request.Context(), listRequestOptions, filters)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -132,14 +132,14 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 }
 
 // ListAuditLogsForUser retrieves all audit logs for a given user ID
-func (s *AuditLogService) ListAuditLogsForUser(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.AuditLog, utils.PaginationResponse, error) {
+func (s *AuditLogService) ListAuditLogsForUser(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.AuditLog, utils.PaginationResponse, error) {
 	var logs []model.AuditLog
 	query := s.db.
 		WithContext(ctx).
 		Model(&model.AuditLog{}).
 		Where("user_id = ?", userID)
 
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
+	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &logs)
 	return logs, pagination, err
 }
 
@@ -148,7 +148,7 @@ func (s *AuditLogService) DeviceStringFromUserAgent(userAgent string) string {
 	return ua.Name + " on " + ua.OS + " " + ua.OSVersion
 }
 
-func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, sortedPaginationRequest utils.SortedPaginationRequest, filters dto.AuditLogFilterDto) ([]model.AuditLog, utils.PaginationResponse, error) {
+func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, listRequestOptions utils.ListRequestOptions, filters dto.AuditLogFilterDto) ([]model.AuditLog, utils.PaginationResponse, error) {
 	var logs []model.AuditLog
 
 	query := s.db.
@@ -182,7 +182,7 @@ func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, sortedPagination
 		}
 	}
 
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
+	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &logs)
 	if err != nil {
 		return nil, pagination, err
 	}

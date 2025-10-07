@@ -45,15 +45,11 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 // @Success 200 {object} dto.Paginated[dto.ApiKeyDto]
 // @Router /api/api-keys [get]
 func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
+	listRequestOptions := utils.ParseListRequestOptions(c)
+
 	userID := ctx.GetString("userID")
 
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := ctx.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	apiKeys, pagination, err := c.apiKeyService.ListApiKeys(ctx.Request.Context(), userID, sortedPaginationRequest)
+	apiKeys, pagination, err := c.apiKeyService.ListApiKeys(ctx.Request.Context(), userID, listRequestOptions)
 	if err != nil {
 		_ = ctx.Error(err)
 		return

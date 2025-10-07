@@ -403,13 +403,9 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 // @Router /api/oidc/clients [get]
 func (oc *OidcController) listClientsHandler(c *gin.Context) {
 	searchTerm := c.Query("search")
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = c.Error(err)
-		return
-	}
+	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	clients, pagination, err := oc.oidcService.ListClients(c.Request.Context(), searchTerm, sortedPaginationRequest)
+	clients, pagination, err := oc.oidcService.ListClients(c.Request.Context(), searchTerm, listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -685,12 +681,9 @@ func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) {
 }
 
 func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) {
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = c.Error(err)
-		return
-	}
-	authorizedClients, pagination, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, sortedPaginationRequest)
+	listRequestOptions := utils.ParseListRequestOptions(c)
+
+	authorizedClients, pagination, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -741,15 +734,11 @@ func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) {
 // @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
 // @Router /api/oidc/users/me/clients [get]
 func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) {
+	listRequestOptions := utils.ParseListRequestOptions(c)
+
 	userID := c.GetString("userID")
 
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	clients, pagination, err := oc.oidcService.ListAccessibleOidcClients(c.Request.Context(), userID, sortedPaginationRequest)
+	clients, pagination, err := oc.oidcService.ListAccessibleOidcClients(c.Request.Context(), userID, listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return
