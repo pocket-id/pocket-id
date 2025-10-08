@@ -23,6 +23,8 @@
 	} from '@lucide/svelte';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
+	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
+	import * as Avatar from '$lib/components/ui/avatar';
 
 	let {
 		users = $bindable(),
@@ -101,6 +103,7 @@
 	{requestOptions}
 	onRefresh={async (options) => (users = await userService.list(options))}
 	columns={[
+		{ label: m.profile_picture()},
 		{ label: m.first_name(), sortColumn: 'firstName' },
 		{ label: m.last_name(), sortColumn: 'lastName' },
 		{ label: m.display_name(), sortColumn: 'displayName' },
@@ -113,6 +116,11 @@
 	]}
 >
 	{#snippet rows({ item })}
+		<Table.Cell>
+			<Avatar.Root class="size-10">
+				<Avatar.Image class="object-cover" src={cachedProfilePicture.getUrl(item.id)} />
+			</Avatar.Root>
+		</Table.Cell>
 		<Table.Cell>{item.firstName}</Table.Cell>
 		<Table.Cell>{item.lastName}</Table.Cell>
 		<Table.Cell>{item.displayName}</Table.Cell>
