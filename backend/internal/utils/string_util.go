@@ -115,3 +115,51 @@ func GetFirstCharacter(str string) string {
 	// Empty string case
 	return ""
 }
+
+// GetCallbackURLFromList returns the first callback URL that matches the input callback URL
+func GetCallbackURLFromList(urls []string, inputCallbackURL string) (callbackURL string, err error) {
+	// Special case for Loopback Interface Redirection. Quoting from RFC 8252 section 7.3:
+	// https://datatracker.ietf.org/doc/html/rfc8252#section-7.3
+	//
+	//	 The authorization server MUST allow any port to be specified at the
+	//   time of the request for loopback IP redirect URIs, to accommodate
+	//   clients that obtain an available ephemeral port from the operating
+	//   system at the time of the request.
+	//
+	// Another important quote is from section 8.3:
+	// https://datatracker.ietf.org/doc/html/rfc8252#section-8.3
+	//
+	//   While redirect URIs using localhost (i.e.,
+	//   "http://localhost:{port}/{path}") function similarly to loopback IP
+	//   redirects described in Section 7.3, the use of localhost is NOT
+	//   RECOMMENDED.
+	//
+	// So we allow only literal 127.0.0.1 and [::1] in the callback URLs instead of vague localhost.
+	var loopbackRedirect string
+	u, _ := url.Parse(inputCallbackURL)
+	if u != nil && u.Scheme == "http" && (u.Hostname() == "127.0.0.1" || u.Hostname() == "::1") {
+		loopbackRedirect = u.String()
+		hostname := u.Hostname()
+		if hostname == "::1" {
+			hostname = "[::1]"
+		}
+		u.Host = hostname
+		inputCallbackURL = u.String()
+	}
+
+	for _, callbackPattern := range urls {
+		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
+		matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
+		if err != nil {
+			return "", err
+		}
+		if matched {
+			if loopbackRedirect != "" {
+				return loopbackRedirect, nil
+			}
+			return inputCallbackURL, nil
+		}
+	}
+
+	return "", nil
+}

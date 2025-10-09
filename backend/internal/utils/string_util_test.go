@@ -128,3 +128,71 @@ func TestGetFirstCharacter(t *testing.T) {
 		})
 	}
 }
+
+func TestGetCallbackURLFromList(t *testing.T) {
+	tests := []struct {
+		name         string
+		callbackURLs []string
+		input        string
+		expected     string
+	}{
+		{
+			"classic callback",
+			[]string{"https://example.com/callback"},
+			"https://example.com/callback",
+			"https://example.com/callback",
+		},
+		{
+			"not match",
+			[]string{"https://example.org/callback"},
+			"https://example.com/callback",
+			"",
+		},
+		{
+			"valid localhost",
+			[]string{"http://localhost:8080/callback"},
+			"http://localhost:8080/callback",
+			"http://localhost:8080/callback",
+		},
+		{
+			"invalid localhost",
+			[]string{"http://localhost:8080/callback"},
+			"http://localhost:8081/callback",
+			"",
+		},
+		{
+			"valid ipv4 loopback redirect",
+			[]string{"http://127.0.0.1/callback"},
+			"http://127.0.0.1:12345/callback",
+			"http://127.0.0.1:12345/callback",
+		},
+		{
+			"valid ipv6 loopback redirect",
+			[]string{"http://[::1]/callback"},
+			"http://[::1]:12345/callback",
+			"http://[::1]:12345/callback",
+		},
+		{
+			"invalid https ipv4 loopback redirect",
+			[]string{"https://127.0.0.1/callback"},
+			"https://127.0.0.1:12345/callback",
+			"",
+		},
+		{
+			"invalid localhost loopback redirect",
+			[]string{"http://localhost/callback"},
+			"http://localhost:12345/callback",
+			"",
+		},
+	}
+
+	for _, tt := range tests {
+		result, err := GetCallbackURLFromList(tt.callbackURLs, tt.input)
+		if err != nil {
+			t.Errorf("GetCallbackURLFromList(%q, %q) failed: %v", tt.callbackURLs, tt.input, err)
+		}
+		if result != tt.expected {
+			t.Errorf("GetCallbackURLFromList(%q, %q) = %q, want %q", tt.callbackURLs, tt.input, result, tt.expected)
+		}
+	}
+}
