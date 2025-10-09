@@ -71,7 +71,13 @@
 	}
 
 	function formatLocation(log: AuditLog) {
-		return log.city && log.country ? `${log.city}, ${log.country}` : m.unknown();
+		if (log.city && log.country) {
+			return `${log.city}, ${log.country}`;
+		} else if (log.country) {
+			return log.country;
+		} else {
+			return m.unknown();
+		}
 	}
 
 	function wrapFilters(filters?: Record<string, any>) {
