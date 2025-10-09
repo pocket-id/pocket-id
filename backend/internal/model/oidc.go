@@ -56,8 +56,8 @@ type OidcClient struct {
 	ImageType                *string
 	HasLogo                  bool `gorm:"-"`
 	IsPublic                 bool
-	PkceEnabled              bool
-	RequiresReauthentication bool
+	PkceEnabled              bool `filterable:"true"`
+	RequiresReauthentication bool `filterable:"true"`
 	Credentials              OidcClientCredentials
 	LaunchURL                *string
 

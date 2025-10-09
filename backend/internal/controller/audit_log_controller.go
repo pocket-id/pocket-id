@@ -80,22 +80,12 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Param filters[userId] query string false "Filter by user ID"
-// @Param filters[event] query string false "Filter by event type"
-// @Param filters[clientName] query string false "Filter by client name"
-// @Param filters[location] query string false "Filter by location type (external or internal)"
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /api/audit-logs/all [get]
 func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	var filters dto.AuditLogFilterDto
-	if err := c.ShouldBindQuery(&filters); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(c.Request.Context(), listRequestOptions, filters)
+	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(c.Request.Context(), listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return

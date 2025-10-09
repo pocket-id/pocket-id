@@ -166,18 +166,38 @@ func applySorting(sortColumn string, sortDirection string, query *gorm.DB, meta 
 func extractModelMetadata(model interface{}) map[string]FieldMeta {
 	meta := make(map[string]FieldMeta)
 
-	modelType := reflect.TypeOf(model).Elem().Elem()
-
-	for i := 0; i < modelType.NumField(); i++ {
-		field := modelType.Field(i)
-		name := field.Name
-
-		meta[name] = FieldMeta{
-			ColumnName:   CamelCaseToSnakeCase(name),
-			IsSortable:   field.Tag.Get("sortable") == "true",
-			IsFilterable: field.Tag.Get("filterable") == "true",
+	// Unwrap pointers and slices to get the element struct type
+	t := reflect.TypeOf(model)
+	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
+		t = t.Elem()
+		if t == nil {
+			return meta
 		}
 	}
 
+	// recursive parser that merges fields from embedded structs
+	var parseStruct func(reflect.Type)
+	parseStruct = func(st reflect.Type) {
+		for i := 0; i < st.NumField(); i++ {
+			field := st.Field(i)
+			ft := field.Type
+
+			// If the field is an embedded/anonymous struct, recurse into it
+			if field.Anonymous && ft.Kind() == reflect.Struct {
+				parseStruct(ft)
+				continue
+			}
+
+			// Normal field: record metadata
+			name := field.Name
+			meta[name] = FieldMeta{
+				ColumnName:   CamelCaseToSnakeCase(name),
+				IsSortable:   field.Tag.Get("sortable") == "true",
+				IsFilterable: field.Tag.Get("filterable") == "true",
+			}
+		}
+	}
+
+	parseStruct(t)
 	return meta
 }

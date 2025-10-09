@@ -5,6 +5,6 @@
 	let props: HTMLImgAttributes & {} = $props();
 </script>
 
-<div class={'bg-muted flex items-center justify-center rounded-2xl p-3'}>
-	<img class={cn('size-24 object-contain', props.class)} {...props} />
+<div class={cn('bg-muted flex size-24 items-center justify-center rounded-2xl p-3', props.class)}>
+	<img class='object-contain' {...props} />
 </div>

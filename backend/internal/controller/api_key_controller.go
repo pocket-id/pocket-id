@@ -45,7 +45,7 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 // @Success 200 {object} dto.Paginated[dto.ApiKeyDto]
 // @Router /api/api-keys [get]
 func (c *ApiKeyController) listApiKeysHandler(ctx *gin.Context) {
-	listRequestOptions := utils.ParseListRequestOptions(c)
+	listRequestOptions := utils.ParseListRequestOptions(ctx)
 
 	userID := ctx.GetString("userID")
 

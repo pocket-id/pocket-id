@@ -1,9 +1,9 @@
 <script lang="ts">
 	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
 	import AuditLogService from '$lib/services/audit-log-service';
+	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
 	import type { AuditLog, AuditLogFilter } from '$lib/types/audit-log.type';
 	import { translateAuditLogEvent } from '$lib/utils/audit-log-translator';
 
@@ -18,49 +18,89 @@
 	const auditLogService = new AuditLogService();
 	let tableRef: AdvancedTable<AuditLog>;
 
+	const columns: AdvancedTableColumn<AuditLog>[] = [
+		{
+			label: m.time(),
+			column: 'createdAt',
+			sortable: true,
+			value: (item) => new Date(item.createdAt).toLocaleString()
+		},
+		{
+			label: m.username(),
+			column: 'username',
+			hidden: !isAdmin,
+			value: (item) => item.username ?? m.unknown()
+		},
+		{
+			label: m.event(),
+			column: 'event',
+			sortable: true,
+			cell: EventCell
+		},
+		{
+			label: m.approximate_location(),
+			key: 'location',
+			sortable: true,
+			value: (item) => formatLocation(item)
+		},
+		{
+			label: m.ip_address(),
+			column: 'ipAddress',
+			sortable: true
+		},
+		{
+			label: m.device(),
+			column: 'device',
+			sortable: true
+		},
+		{
+			label: m.client(),
+			key: 'client',
+			value: (item) => item.data?.clientName
+		}
+	];
+
+	$effect(() => {
+		if (filters) {
+			tableRef?.refresh();
+		}
+	});
+
 	export async function refresh() {
 		await tableRef.refresh();
 	}
+
+	function formatLocation(log: AuditLog) {
+		return log.city && log.country ? `${log.city}, ${log.country}` : m.unknown();
+	}
+
+	function wrapFilters(filters?: Record<string, any>) {
+		if (!filters) return undefined;
+		return Object.fromEntries(
+			Object.entries(filters)
+				.filter(([_, value]) => value)
+				.map(([key, value]) => [key, [value]])
+		);
+	}
 </script>
 
+{#snippet EventCell({ item }: { item: AuditLog })}
+	<Badge class="rounded-full" variant="outline">
+		{translateAuditLogEvent(item.event)}
+	</Badge>
+{/snippet}
+
 <AdvancedTable
-	id="audit-log-list"
+	id="audit-log-list-{isAdmin ? 'admin' : 'user'}"
 	bind:this={tableRef}
 	fetchCallback={async (options) =>
 		isAdmin
-			? await auditLogService.listAllLogs(options, filters)
+			? await auditLogService.listAllLogs({
+					...options,
+					filters: wrapFilters(filters)
+				})
 			: await auditLogService.list(options)}
 	defaultSort={{ column: 'createdAt', direction: 'desc' }}
-	columns={[
-		{ label: m.time(), sortColumn: 'createdAt' },
-		...(isAdmin ? [{ label: 'Username' }] : []),
-		{ label: m.event(), sortColumn: 'event' },
-		{ label: m.approximate_location(), sortColumn: 'city' },
-		{ label: m.ip_address(), sortColumn: 'ipAddress' },
-		{ label: m.device(), sortColumn: 'device' },
-		{ label: m.client() }
-	]}
 	withoutSearch
->
-	{#snippet rows({ item })}
-		<Table.Cell>{new Date(item.createdAt).toLocaleString()}</Table.Cell>
-		{#if isAdmin}
-			<Table.Cell>
-				{#if item.username}
-					{item.username}
-				{:else}
-					Unknown User
-				{/if}
-			</Table.Cell>
-		{/if}
-		<Table.Cell>
-			<Badge class="rounded-full" variant="outline">{translateAuditLogEvent(item.event)}</Badge>
-		</Table.Cell>
-		<Table.Cell
-			>{item.city && item.country ? `${item.city}, ${item.country}` : m.unknown()}</Table.Cell
-		>
-		<Table.Cell>{item.ipAddress}</Table.Cell>
-		<Table.Cell>{item.device}</Table.Cell>
-		<Table.Cell>{item.data.clientName}</Table.Cell>
-	{/snippet}
-</AdvancedTable>
+	{columns}
+/>

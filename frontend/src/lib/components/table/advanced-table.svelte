@@ -1,24 +1,24 @@
 <script lang="ts" generics="T extends {id:string}">
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Pagination from '$lib/components/ui/pagination';
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import Empty from '$lib/icons/empty.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type {
-		Paginated,
-		SearchPaginationSortRequest,
-		SortRequest
-	} from '$lib/types/pagination.type';
-	import { debounced } from '$lib/utils/debounce-util';
+		AdvancedTableColumn,
+		CreateAdvancedTableActions
+	} from '$lib/types/advanced-table.type';
+	import type { ListRequestOptions, Paginated, SortRequest } from '$lib/types/list-request.type';
 	import { cn } from '$lib/utils/style';
-	import { ChevronDown } from '@lucide/svelte';
+	import { ChevronDown, LucideEllipsis } from '@lucide/svelte';
 	import { PersistedState } from 'runed';
-	import { onMount, type Snippet } from 'svelte';
+	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import Button from './ui/button/button.svelte';
-	import { Skeleton } from './ui/skeleton';
+	import Button, { buttonVariants } from '../ui/button/button.svelte';
+	import * as DropdownMenu from '../ui/dropdown-menu/index.js';
+	import { Skeleton } from '../ui/skeleton';
+	import AdvancedTableToolbar from './advanced-table-toolbar.svelte';
 
 	let {
 		id,
@@ -28,29 +28,41 @@
 		fetchCallback,
 		defaultSort,
 		columns,
-		rows
+		actions
 	}: {
 		id: string;
 		selectedIds?: string[];
 		withoutSearch?: boolean;
 		selectionDisabled?: boolean;
-		fetchCallback: (requestOptions: SearchPaginationSortRequest) => Promise<Paginated<T>>;
+		fetchCallback: (requestOptions: ListRequestOptions) => Promise<Paginated<T>>;
 		defaultSort?: SortRequest;
-		columns: { label: string; hidden?: boolean; sortColumn?: string }[];
-		rows: Snippet<[{ item: T }]>;
+		columns: AdvancedTableColumn<T>[];
+		actions?: CreateAdvancedTableActions<T>;
 	} = $props();
 
 	let items: Paginated<T> | undefined = $state();
-
-	const paginationLimits = new PersistedState<Record<string, number>>('pagination-limits', {});
-	const listLenghts = new PersistedState<Record<string, number>>('list-lengths', {});
-
-	const requestOptions = $state<SearchPaginationSortRequest>({
+	let searchValue = $state('');
+	const requestOptions = $state<ListRequestOptions>({
 		sort: defaultSort,
-		pagination: { limit: 20, page: 1 }
+		pagination: { limit: 20, page: 1 },
+		filters: initializeFilters()
 	});
 
+	let availablePageSizes: number[] = [20, 50, 100];
+
+	const paginationLimits = new PersistedState<Record<string, number>>('pagination-limits', {});
+	const listColumns = new PersistedState<Record<string, string[]>>('list-columns', {});
+	const listLenghts = new PersistedState<Record<string, number>>('list-lengths', {});
+
+	let visibleColumns = $derived(
+		columns.filter((c) => listColumns.current[id]?.includes(c.column ?? c.key!) ?? [])
+	);
+
 	onMount(async () => {
+		if (!listColumns.current[id]) {
+			listColumns.current[id] = columns.filter((c) => !c.hidden).map((c) => c.column ?? c.key!);
+		}
+
 		if (paginationLimits.current[id]) {
 			requestOptions.pagination!.limit = paginationLimits.current[id];
 		}
@@ -62,9 +74,6 @@
 		await refresh();
 	});
 
-	let searchValue = $state('');
-	let availablePageSizes: number[] = [20, 50, 100];
-
 	let allChecked = $derived.by(() => {
 		if (!selectedIds || !items || items.data.length === 0) return false;
 		for (const item of items!.data) {
@@ -74,12 +83,6 @@
 		}
 		return true;
 	});
-
-	const onSearch = debounced(async (search: string) => {
-		requestOptions.search = search;
-		await refresh();
-		searchValue = search;
-	}, 300);
 
 	async function onAllCheck(checked: boolean) {
 		const pageIds = items!.data.map((item) => item.id);
@@ -135,6 +138,16 @@
 		}
 	}
 
+	function initializeFilters() {
+		const filters: Record<string, (string | boolean)[]> = {};
+		columns.forEach((c) => {
+			if (c.filterableValues) {
+				filters[c.column!] = [];
+			}
+		});
+		return filters;
+	}
+
 	export async function refresh() {
 		items = await fetchCallback(requestOptions);
 		changePageState(items.pagination.currentPage);
@@ -142,18 +155,14 @@
 	}
 </script>
 
-{#if !withoutSearch}
-	<Input
-		value={searchValue}
-		class={cn(
-			'relative z-50 mb-4 max-w-sm',
-			items?.data.length == 0 && searchValue == '' && 'hidden'
-		)}
-		placeholder={m.search()}
-		type="text"
-		oninput={(e: Event) => onSearch((e.currentTarget as HTMLInputElement).value)}
-	/>
-{/if}
+<AdvancedTableToolbar
+	{columns}
+	bind:visibleColumns={listColumns.current[id]}
+	{requestOptions}
+	{searchValue}
+	{withoutSearch}
+	{refresh}
+/>
 
 {#if (items?.pagination.totalItems === 0 && searchValue === '') || listLenghts.current[id] === 0}
 	<div class="my-5 flex flex-col items-center">
@@ -184,20 +193,20 @@
 							</Table.Head>
 						{/if}
 
-						{#each columns as column}
-							<Table.Head class={cn(column.hidden && 'sr-only', column.sortColumn && 'px-0')}>
-								{#if column.sortColumn}
+						{#each visibleColumns as column}
+							<Table.Head class={cn(column.sortable && 'px-0')}>
+								{#if column.sortable}
 									<Button
 										variant="ghost"
 										class="flex items-center"
 										onclick={() =>
 											onSort(
-												column.sortColumn,
+												column.column,
 												requestOptions.sort?.direction === 'desc' ? 'asc' : 'desc'
 											)}
 									>
 										{column.label}
-										{#if requestOptions.sort?.column === column.sortColumn}
+										{#if requestOptions.sort?.column === column.column}
 											<ChevronDown
 												class={cn(
 													'ml-2 size-4',
@@ -225,7 +234,48 @@
 									/>
 								</Table.Cell>
 							{/if}
-							{@render rows({ item })}
+							{#each visibleColumns as column}
+								<Table.Cell>
+									{#if column.value}
+										{column.value(item)}
+									{:else if column.cell}
+										{@render column.cell({ item })}
+									{:else if column.column && typeof item[column.column] === 'boolean'}
+										{item[column.column] ? m.enabled() : m.disabled()}
+									{:else if column.column}
+										{item[column.column]}
+									{/if}
+								</Table.Cell>
+							{/each}
+							{#if actions}
+								<Table.Cell align="right">
+									<DropdownMenu.Root>
+										<DropdownMenu.Trigger
+											class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+										>
+											<LucideEllipsis class="size-4" />
+											<span class="sr-only">{m.toggle_menu()}</span>
+										</DropdownMenu.Trigger>
+										<DropdownMenu.Content align="end">
+											{#each actions(item).filter((a) => !a.visible || a.visible) as action}
+												<DropdownMenu.Item
+													onclick={() => action.onClick(item)}
+													disabled={action.disabled}
+													class={action.variant === 'danger'
+														? 'text-red-500 focus:!text-red-700'
+														: ''}
+												>
+													{#if action.icon}
+														{@const Icon = action.icon}
+														<Icon class="mr-2 size-4" />
+													{/if}
+													{action.label}
+												</DropdownMenu.Item>
+											{/each}
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
+								</Table.Cell>
+							{/if}
 						</Table.Row>
 					{/each}
 				</Table.Body>

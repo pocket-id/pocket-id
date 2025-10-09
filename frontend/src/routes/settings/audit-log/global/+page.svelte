@@ -25,10 +25,6 @@
 	});
 
 	const eventTypes = $state(eventTranslations);
-
-	$effect(() => {
-		auditLogListRef?.refresh();
-	});
 </script>
 
 <svelte:head>
@@ -120,7 +116,6 @@
 				{/await}
 			</div>
 		</div>
-
-		<AuditLogList bind:this={auditLogListRef} isAdmin={true} {filters} />
+		<AuditLogList bind:this={auditLogListRef} isAdmin {filters} />
 	</Card.Content>
 </Card.Root>

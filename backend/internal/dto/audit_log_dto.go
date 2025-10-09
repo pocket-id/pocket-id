@@ -17,10 +17,3 @@ type AuditLogDto struct {
 	Username  string            `json:"username"`
 	Data      map[string]string `json:"data"`
 }
-
-type AuditLogFilterDto struct {
-	UserID     string `form:"filters[userId]"`
-	Event      string `form:"filters[event]"`
-	ClientName string `form:"filters[clientName]"`
-	Location   string `form:"filters[location]"`
-}

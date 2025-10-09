@@ -1,17 +1,20 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import OneTimeLinkModal from '$lib/components/one-time-link-modal.svelte';
+	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
+	import * as Avatar from '$lib/components/ui/avatar/index';
 	import { Badge } from '$lib/components/ui/badge/index';
-	import { buttonVariants } from '$lib/components/ui/button';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Table from '$lib/components/ui/table';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
+	import type {
+		AdvancedTableColumn,
+		CreateAdvancedTableActions
+	} from '$lib/types/advanced-table.type';
 	import type { User } from '$lib/types/user.type';
+	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import {
 		LucideLink,
@@ -20,7 +23,6 @@
 		LucideUserCheck,
 		LucideUserX
 	} from '@lucide/svelte';
-	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 
 	let userIdToCreateOneTimeLink: string | null = $state(null);
@@ -91,85 +93,99 @@
 			}
 		});
 	}
+
+	const columns: AdvancedTableColumn<User>[] = [
+		{ label: 'ID', column: 'id', hidden: true },
+		{ label: m.profile_picture(), key: 'profilePicture', cell: ProfilePictureCell },
+		{ label: m.first_name(), column: 'firstName', sortable: true },
+		{ label: m.last_name(), column: 'lastName', sortable: true },
+		{ label: m.display_name(), column: 'displayName', sortable: true },
+		{ label: m.email(), column: 'email', sortable: true },
+		{ label: m.username(), column: 'username', sortable: true },
+		{
+			label: m.role(),
+			column: 'isAdmin',
+			sortable: true,
+			filterableValues: [
+				{ label: m.admin(), value: true },
+				{ label: m.user(), value: false }
+			],
+			value: (item) => (item.isAdmin ? m.admin() : m.user())
+		},
+		{
+			label: m.status(),
+			column: 'disabled',
+			cell: StatusCell,
+			sortable: true,
+			filterableValues: [
+				{
+					label: m.enabled(),
+					value: false
+				},
+				{
+					label: m.disabled(),
+					value: true
+				}
+			]
+		},
+		{ label: m.ldap_id(), column: 'ldapId', hidden: true },
+		{ label: m.locale(), column: 'locale', hidden: true },
+		{ label: m.source(), key: 'source', hidden: !$appConfigStore.ldapEnabled, cell: SourceCell }
+	];
+
+	const actions: CreateAdvancedTableActions<User> = (u) => [
+		{
+			label: m.login_code(),
+			icon: LucideLink,
+			onClick: (u) => (userIdToCreateOneTimeLink = u.id)
+		},
+		{
+			label: m.edit(),
+			icon: LucidePencil,
+			onClick: (u) => goto(`/settings/admin/users/${u.id}`)
+		},
+		{
+			label: u.disabled ? m.enable() : m.disable(),
+			icon: u.disabled ? LucideUserCheck : LucideUserX,
+			onClick: (u) => (u.disabled ? enableUser(u) : disableUser(u)),
+			visible: !u.ldapId || !$appConfigStore.ldapEnabled,
+			disabled: u.id === $userStore?.id
+		},
+		{
+			label: m.delete(),
+			icon: LucideTrash,
+			variant: 'danger',
+			onClick: (u) => deleteUser(u),
+			visible: !!(!u.ldapId || (u.ldapId && u.disabled)),
+			disabled: u.id === $userStore?.id
+		}
+	];
 </script>
+
+{#snippet ProfilePictureCell({ item }: { item: User })}
+	<Avatar.Root class="size-8">
+		<Avatar.Image class="object-cover" src={cachedProfilePicture.getUrl(item.id)} />
+	</Avatar.Root>
+{/snippet}
+
+{#snippet StatusCell({ item }: { item: User })}
+	<Badge class="rounded-full" variant={item.disabled ? 'destructive' : 'default'}>
+		{item.disabled ? m.disabled() : m.enabled()}
+	</Badge>
+{/snippet}
+
+{#snippet SourceCell({ item }: { item: User })}
+	<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}>
+		{item.ldapId ? m.ldap() : m.local()}
+	</Badge>
+{/snippet}
 
 <AdvancedTable
 	id="user-list"
 	bind:this={tableRef}
 	fetchCallback={userService.list}
-	columns={[
-		{ label: m.first_name(), sortColumn: 'firstName' },
-		{ label: m.last_name(), sortColumn: 'lastName' },
-		{ label: m.display_name(), sortColumn: 'displayName' },
-		{ label: m.email(), sortColumn: 'email' },
-		{ label: m.username(), sortColumn: 'username' },
-		{ label: m.role(), sortColumn: 'isAdmin' },
-		{ label: m.status(), sortColumn: 'disabled' },
-		...($appConfigStore.ldapEnabled ? [{ label: m.source() }] : []),
-		{ label: m.actions(), hidden: true }
-	]}
->
-	{#snippet rows({ item })}
-		<Table.Cell>{item.firstName}</Table.Cell>
-		<Table.Cell>{item.lastName}</Table.Cell>
-		<Table.Cell>{item.displayName}</Table.Cell>
-		<Table.Cell>{item.email}</Table.Cell>
-		<Table.Cell>{item.username}</Table.Cell>
-		<Table.Cell>
-			<Badge class="rounded-full" variant="outline">{item.isAdmin ? m.admin() : m.user()}</Badge>
-		</Table.Cell>
-		<Table.Cell>
-			<Badge class="rounded-full" variant={item.disabled ? 'destructive' : 'default'}>
-				{item.disabled ? m.disabled() : m.enabled()}
-			</Badge>
-		</Table.Cell>
-		{#if $appConfigStore.ldapEnabled}
-			<Table.Cell>
-				<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}
-					>{item.ldapId ? m.ldap() : m.local()}</Badge
-				>
-			</Table.Cell>
-		{/if}
-		<Table.Cell>
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
-					<Ellipsis class="size-4" />
-					<span class="sr-only">{m.toggle_menu()}</span>
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end">
-					<DropdownMenu.Item onclick={() => (userIdToCreateOneTimeLink = item.id)}
-						><LucideLink class="mr-2 size-4" />{m.login_code()}</DropdownMenu.Item
-					>
-					<DropdownMenu.Item onclick={() => goto(`/settings/admin/users/${item.id}`)}
-						><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
-					>
-					{#if !item.ldapId || !$appConfigStore.ldapEnabled}
-						{#if item.disabled}
-							<DropdownMenu.Item
-								disabled={item.id === $userStore?.id}
-								onclick={() => enableUser(item)}
-								><LucideUserCheck class="mr-2 size-4" />{m.enable()}</DropdownMenu.Item
-							>
-						{:else}
-							<DropdownMenu.Item
-								disabled={item.id === $userStore?.id}
-								onclick={() => disableUser(item)}
-								><LucideUserX class="mr-2 size-4" />{m.disable()}</DropdownMenu.Item
-							>
-						{/if}
-					{/if}
-					{#if !item.ldapId || (item.ldapId && item.disabled)}
-						<DropdownMenu.Item
-							class="text-red-500 focus:!text-red-700"
-							disabled={item.id === $userStore?.id}
-							onclick={() => deleteUser(item)}
-							><LucideTrash class="mr-2 size-4" />{m.delete()}</DropdownMenu.Item
-						>
-					{/if}
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-		</Table.Cell>
-	{/snippet}
-</AdvancedTable>
+	{actions}
+	{columns}
+/>
 
 <OneTimeLinkModal bind:userId={userIdToCreateOneTimeLink} />

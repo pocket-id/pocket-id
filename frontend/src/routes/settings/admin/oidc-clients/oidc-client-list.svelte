@@ -1,11 +1,14 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
+	import { goto } from '$app/navigation';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import ImageBox from '$lib/components/image-box.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Table from '$lib/components/ui/table';
+	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
+	import type {
+		AdvancedTableColumn,
+		CreateAdvancedTableActions
+	} from '$lib/types/advanced-table.type';
 	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
@@ -13,7 +16,65 @@
 	import { toast } from 'svelte-sonner';
 
 	const oidcService = new OIDCService();
-	let tableRef : AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
+	let tableRef: AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
+
+	export const refresh = () => tableRef.refresh();
+
+	const booleanFilterValues = [
+		{ label: m.enabled(), value: true },
+		{ label: m.disabled(), value: false }
+	];
+
+	const columns: AdvancedTableColumn<OidcClientWithAllowedUserGroupsCount>[] = [
+		{ label: 'ID', column: 'id', hidden: true },
+		{ label: m.logo(), key: 'logo', cell: LogoCell },
+		{ label: m.name(), column: 'name', sortable: true },
+		{
+			label: m.oidc_allowed_group_count(),
+			column: 'allowedUserGroupsCount',
+			sortable: true,
+			value: (item) =>
+				item.allowedUserGroupsCount > 0 ? item.allowedUserGroupsCount : m.unrestricted()
+		},
+		{
+			label: m.pkce(),
+			column: 'pkceEnabled',
+			sortable: true,
+			hidden: true,
+			filterableValues: booleanFilterValues
+		},
+		{
+			label: m.requires_reauthentication(),
+			column: 'requiresReauthentication',
+			sortable: true,
+			filterableValues: booleanFilterValues
+		},
+		{
+			label: m.client_launch_url(),
+			column: 'launchURL',
+			hidden: true
+		},
+		{
+			label: m.public_client(),
+			column: 'isPublic',
+			sortable: true,
+			hidden: true
+		}
+	];
+
+	const actions: CreateAdvancedTableActions<OidcClientWithAllowedUserGroupsCount> = (_) => [
+		{
+			label: m.edit(),
+			icon: LucidePencil,
+			onClick: (client) => goto(`/settings/admin/oidc-clients/${client.id}`)
+		},
+		{
+			label: m.delete(),
+			icon: LucideTrash,
+			variant: 'danger',
+			onClick: (client) => deleteClient(client)
+		}
+	];
 
 	async function deleteClient(client: OidcClient) {
 		openConfirmDialog({
@@ -25,7 +86,7 @@
 				action: async () => {
 					try {
 						await oidcService.removeClient(client.id);
-						await tableRef.refresh();
+						await refresh();
 						toast.success(m.oidc_client_deleted_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
@@ -36,44 +97,21 @@
 	}
 </script>
 
+{#snippet LogoCell({ item }: { item: OidcClientWithAllowedUserGroupsCount })}
+	{#if item.hasLogo}
+		<ImageBox
+			class="size-12 rounded-lg"
+			src={cachedOidcClientLogo.getUrl(item.id)}
+			alt={m.name_logo({ name: item.name })}
+		/>
+	{/if}
+{/snippet}
+
 <AdvancedTable
 	id="oidc-client-list"
 	bind:this={tableRef}
 	fetchCallback={oidcService.listClients}
 	defaultSort={{ column: 'name', direction: 'asc' }}
-	columns={[
-		{ label: m.logo() },
-		{ label: m.name(), sortColumn: 'name' },
-		{ label: m.oidc_allowed_group_count(), sortColumn: 'allowedUserGroupsCount' },
-		{ label: m.actions(), hidden: true }
-	]}
->
-	{#snippet rows({ item })}
-		<Table.Cell class="w-8 font-medium">
-			{#if item.hasLogo}
-				<ImageBox
-					class="min-h-8 min-w-8 object-contain"
-					src={cachedOidcClientLogo.getUrl(item.id)}
-					alt={m.name_logo({ name: item.name })}
-				/>
-			{/if}
-		</Table.Cell>
-		<Table.Cell class="font-medium">{item.name}</Table.Cell>
-		<Table.Cell class="font-medium"
-			>{item.allowedUserGroupsCount > 0
-				? item.allowedUserGroupsCount
-				: m.unrestricted()}</Table.Cell
-		>
-		<Table.Cell class="flex justify-end gap-1">
-			<Button
-				href="/settings/admin/oidc-clients/{item.id}"
-				size="sm"
-				variant="outline"
-				aria-label={m.edit()}><LucidePencil class="size-3 " /></Button
-			>
-			<Button onclick={() => deleteClient(item)} size="sm" variant="outline" aria-label={m.delete()}
-				><LucideTrash class="size-3 text-red-500" /></Button
-			>
-		</Table.Cell>
-	{/snippet}
-</AdvancedTable>
+	{columns}
+	{actions}
+/>
