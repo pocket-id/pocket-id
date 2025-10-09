@@ -176,9 +176,10 @@ func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, listRequestOptio
 
 		for i, v := range locations {
 			if s, ok := v.(string); ok {
-				if s == "internal" {
+				switch s {
+				case "internal":
 					filters[i] = "Internal Network"
-				} else if s == "external" {
+				case "external":
 					filters[i] = "External Network"
 				}
 			}
