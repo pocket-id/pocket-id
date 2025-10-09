@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"gorm.io/gorm"
-
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
@@ -54,7 +52,6 @@ type OidcClient struct {
 	CallbackURLs             UrlList
 	LogoutCallbackURLs       UrlList
 	ImageType                *string
-	HasLogo                  bool `gorm:"-"`
 	IsPublic                 bool
 	PkceEnabled              bool `filterable:"true"`
 	RequiresReauthentication bool `filterable:"true"`
@@ -65,6 +62,10 @@ type OidcClient struct {
 	CreatedByID               *string
 	CreatedBy                 *User
 	UserAuthorizedOidcClients []UserAuthorizedOidcClient `gorm:"foreignKey:ClientID;references:ID"`
+}
+
+func (c OidcClient) HasLogo() bool {
+	return c.ImageType != nil && *c.ImageType != ""
 }
 
 type OidcRefreshToken struct {
@@ -87,12 +88,6 @@ func (c OidcRefreshToken) Scopes() []string {
 	}
 
 	return strings.Split(c.Scope, " ")
-}
-
-func (c *OidcClient) AfterFind(_ *gorm.DB) (err error) {
-	// Compute HasLogo field
-	c.HasLogo = c.ImageType != nil && *c.ImageType != ""
-	return nil
 }
 
 type OidcClientCredentials struct { //nolint:recvcheck

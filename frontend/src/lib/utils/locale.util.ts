@@ -14,9 +14,14 @@ export async function setLocale(locale: Locale, reload = true) {
 export async function setLocaleForLibraries(
 	locale: Locale = (extractLocaleFromCookie() as Locale) || 'en'
 ) {
+	let dateFnsLocale: string = locale;
+	if (dateFnsLocale === 'en') {
+		dateFnsLocale = 'en-US'; // datefns doesn't have 'en'
+	}
+
 	const [zodResult, dateFnsResult] = await Promise.allSettled([
 		import(`../../../node_modules/zod/v4/locales/${locale}.js`),
-		import(`../../../node_modules/date-fns/locale/${locale}.js`)
+		import(`../../../node_modules/date-fns/locale/${dateFnsLocale}.js`)
 	]);
 
 	if (zodResult.status === 'fulfilled') {

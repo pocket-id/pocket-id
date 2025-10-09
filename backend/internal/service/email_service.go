@@ -62,9 +62,13 @@ func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId stri
 		return err
 	}
 
+	if user.Email == nil {
+		return &common.UserEmailNotSetError{}
+	}
+
 	return SendEmail(ctx, srv,
 		email.Address{
-			Email: user.Email,
+			Email: *user.Email,
 			Name:  user.FullName(),
 		}, TestTemplate, nil)
 }
@@ -74,7 +78,7 @@ func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Addr
 
 	data := &email.TemplateData[V]{
 		AppName: dbConfig.AppName.Value,
-		LogoURL: common.EnvConfig.AppURL + "/api/application-configuration/logo",
+		LogoURL: common.EnvConfig.AppURL + "/api/application-images/logo",
 		Data:    tData,
 	}
 

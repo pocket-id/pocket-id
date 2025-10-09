@@ -4,6 +4,7 @@ import { z } from 'zod/v4';
 export type FormInput<T> = {
 	value: T;
 	error: string | null;
+	required: boolean;
 };
 
 type FormInputs<T> = {
@@ -17,11 +18,18 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 
 	function initializeInputs(initialValues: z.infer<T>): FormInputs<z.infer<T>> {
 		const inputs: FormInputs<z.infer<T>> = {} as FormInputs<z.infer<T>>;
+
+		const shape =
+			schema instanceof z.ZodObject ? (schema.shape as Record<string, z.ZodTypeAny>) : {};
+
 		for (const key in initialValues) {
 			if (Object.prototype.hasOwnProperty.call(initialValues, key)) {
+				const fieldSchema = shape[key];
+
 				inputs[key as keyof z.infer<T>] = {
 					value: initialValues[key as keyof z.infer<T>],
-					error: null
+					error: null,
+					required: fieldSchema ? isRequired(fieldSchema) : false
 				};
 			}
 		}
@@ -31,7 +39,6 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 	function validate() {
 		let success = true;
 		inputsStore.update((inputs) => {
-			// Extract values from inputs to validate against the schema
 			const values = Object.fromEntries(
 				Object.entries(inputs).map(([key, input]) => [key, input.value])
 			);
@@ -54,7 +61,7 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 					inputs[input as keyof z.infer<T>].error = null;
 				}
 			}
-			// Update the input values with the parsed data
+
 			for (const key in result.data) {
 				if (Object.prototype.hasOwnProperty.call(inputs, key)) {
 					inputs[key as keyof z.infer<T>].value = result.data[key];
@@ -82,7 +89,9 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 	function reset() {
 		inputsStore.update((inputs) => {
 			for (const input of Object.keys(inputs)) {
+				const current = inputs[input as keyof z.infer<T>];
 				inputs[input as keyof z.infer<T>] = {
+					...current,
 					value: initialValues[input as keyof z.infer<T>],
 					error: null
 				};
@@ -98,7 +107,6 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 		});
 	}
 
-	// Trims whitespace from string values and arrays of strings
 	function trimValue(value: any) {
 		if (typeof value === 'string') {
 			value = value.trim();
@@ -111,6 +119,26 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 			});
 		}
 		return value;
+	}
+
+	function isRequired(fieldSchema: z.ZodTypeAny): boolean {
+		// Handle unions like callbackUrlSchema
+		if (fieldSchema instanceof z.ZodUnion) {
+			return !fieldSchema.def.options.some((o: any) => {
+				return o.def.type == 'optional';
+			});
+		}
+
+		// Handle pipes like emptyToUndefined
+		if (fieldSchema instanceof z.ZodPipe) {
+			return isRequired(fieldSchema.def.out as z.ZodTypeAny);
+		}
+
+		// Handle the normal cases
+		if (fieldSchema instanceof z.ZodOptional || fieldSchema instanceof z.ZodDefault) {
+			return false;
+		}
+		return true;
 	}
 
 	return {

@@ -44,11 +44,9 @@ type AppConfig struct {
 	SignupDefaultUserGroupIDs AppConfigVariable `key:"signupDefaultUserGroupIDs"`
 	SignupDefaultCustomClaims AppConfigVariable `key:"signupDefaultCustomClaims"`
 	// Internal
-	BackgroundImageType AppConfigVariable `key:"backgroundImageType,internal"` // Internal
-	LogoLightImageType  AppConfigVariable `key:"logoLightImageType,internal"`  // Internal
-	LogoDarkImageType   AppConfigVariable `key:"logoDarkImageType,internal"`   // Internal
-	InstanceID          AppConfigVariable `key:"instanceId,internal"`          // Internal
+	InstanceID AppConfigVariable `key:"instanceId,internal"` // Internal
 	// Email
+	RequireUserEmail                           AppConfigVariable `key:"requireUserEmail,public"` // Public
 	SmtpHost                                   AppConfigVariable `key:"smtpHost"`
 	SmtpPort                                   AppConfigVariable `key:"smtpPort"`
 	SmtpFrom                                   AppConfigVariable `key:"smtpFrom"`

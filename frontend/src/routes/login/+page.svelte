@@ -10,6 +10,9 @@
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from './components/login-logo-error-success-indicator.svelte';
+
+	let { data } = $props();
+
 	const webauthnService = new WebAuthnService();
 
 	let isLoading = $state(false);
@@ -24,7 +27,7 @@
 			const user = await webauthnService.finishLogin(authResponse);
 
 			await userStore.setUser(user);
-			goto('/settings');
+			goto(data.redirect || '/settings');
 		} catch (e) {
 			error = getWebauthnErrorMessage(e);
 		}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { m } from '$lib/paraglide/messages';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { cachedBackgroundImage } from '$lib/utils/cached-image-util';
 	import { cn } from '$lib/utils/style';
 	import type { Snippet } from 'svelte';
@@ -18,6 +19,24 @@
 	} = $props();
 
 	const isDesktop = new MediaQuery('min-width: 1024px');
+	let alternativeSignInButton = $state({
+		href: '/login/alternative',
+		label: m.alternative_sign_in_methods()
+	});
+
+	appConfigStore.subscribe((config) => {
+		if (config.emailOneTimeAccessAsUnauthenticatedEnabled) {
+			alternativeSignInButton.href = '/login/alternative';
+			alternativeSignInButton.label = m.alternative_sign_in_methods();
+		} else {
+			alternativeSignInButton.href = '/login/alternative/code';
+			alternativeSignInButton.label = m.sign_in_with_login_code();
+		}
+
+		if (page.url.pathname != '/login') {
+			alternativeSignInButton.href = `${alternativeSignInButton.href}?redirect=${encodeURIComponent(page.url.pathname + page.url.search)}`;
+		}
+	});
 </script>
 
 {#if isDesktop.current}
@@ -38,14 +57,10 @@
 						style={animate ? 'animation-delay: 500ms;' : ''}
 					>
 						<a
-							href={page.url.pathname == '/login'
-								? '/login/alternative'
-								: `/login/alternative?redirect=${encodeURIComponent(
-										page.url.pathname + page.url.search
-									)}`}
+							href={alternativeSignInButton.href}
 							class="text-muted-foreground text-xs transition-colors hover:underline"
 						>
-							{m.alternative_sign_in_methods()}
+							{alternativeSignInButton.label}
 						</a>
 					</div>
 				{/if}
@@ -75,14 +90,10 @@
 				{@render children()}
 				{#if showAlternativeSignInMethodButton}
 					<a
-						href={page.url.pathname == '/login'
-							? '/login/alternative'
-							: `/login/alternative?redirect=${encodeURIComponent(
-									page.url.pathname + page.url.search
-								)}`}
+						href={alternativeSignInButton.href}
 						class="text-muted-foreground mt-7 flex justify-center text-xs transition-colors hover:underline"
 					>
-						{m.alternative_sign_in_methods()}
+						{alternativeSignInButton.label}
 					</a>
 				{/if}
 			</Card.CardContent>

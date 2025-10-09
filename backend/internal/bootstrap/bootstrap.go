@@ -21,7 +21,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 	slog.InfoContext(ctx, "Pocket ID is starting")
 
-	err = initApplicationImages()
+	imageExtensions, err := initApplicationImages()
 	if err != nil {
 		return fmt.Errorf("failed to initialize application images: %w", err)
 	}
@@ -33,7 +33,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	// Create all services
-	svc, err := initServices(ctx, db, httpClient)
+	svc, err := initServices(ctx, db, httpClient, imageExtensions)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}

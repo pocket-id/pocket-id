@@ -110,9 +110,13 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 				return
 			}
 
+			if user.Email == nil {
+				return
+			}
+
 			innerErr = SendEmail(innerCtx, s.emailService, email.Address{
 				Name:  user.FullName(),
-				Email: user.Email,
+				Email: *user.Email,
 			}, NewLoginTemplate, &NewLoginTemplateData{
 				IPAddress: ipAddress,
 				Country:   createdAuditLog.Country,
@@ -121,7 +125,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 				DateTime:  createdAuditLog.CreatedAt.UTC(),
 			})
 			if innerErr != nil {
-				slog.ErrorContext(innerCtx, "Failed to send notification email", slog.Any("error", innerErr), slog.String("address", user.Email))
+				slog.ErrorContext(innerCtx, "Failed to send notification email", slog.Any("error", innerErr), slog.String("address", *user.Email))
 				return
 			}
 		}()

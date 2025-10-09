@@ -179,7 +179,7 @@
 					{m.try_again()}
 				</Button>
 			{/if}
-			<Button onclick={() => history.back()} class="flex-1" variant="secondary">
+			<Button href={document.referrer || '/'} class="flex-1" variant="secondary">
 				{m.cancel()}
 			</Button>
 		</div>

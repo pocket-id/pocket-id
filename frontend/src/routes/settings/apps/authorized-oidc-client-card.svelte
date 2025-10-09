@@ -38,7 +38,7 @@
 		<div class="flex gap-3">
 			<div class="aspect-square h-[56px]">
 				<ImageBox
-					class="grow rounded-lg object-contain"
+					class="size-8"
 					src={client.hasLogo
 						? cachedOidcClientLogo.getUrl(client.id)
 						: cachedApplicationLogo.getUrl(isLightMode)}
@@ -124,6 +124,3 @@
 		</div>
 	</Card.Content>
 </Card.Root>
-
-<style>
-</style>

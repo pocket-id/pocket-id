@@ -41,7 +41,7 @@
 		accentColor: z.string()
 	});
 
-	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
+	let { inputs, ...form } = $derived(createForm(formSchema, updatedAppConfig));
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -69,7 +69,6 @@
 				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
 				bind:checked={$inputs.allowOwnAccountEdit.value}
 			/>
-
 			<SwitchWithLabel
 				id="emails-verified"
 				label={m.emails_verified()}

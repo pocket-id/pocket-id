@@ -38,6 +38,8 @@ type OidcClientUpdateDto struct {
 	RequiresReauthentication bool                     `json:"requiresReauthentication"`
 	Credentials              OidcClientCredentialsDto `json:"credentials"`
 	LaunchURL                *string                  `json:"launchURL" binding:"omitempty,url"`
+	HasLogo                  bool                     `json:"hasLogo"`
+	LogoURL                  *string                  `json:"logoUrl"`
 }
 
 type OidcClientCreateDto struct {

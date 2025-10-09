@@ -25,20 +25,25 @@ export default class AppConfigService extends APIService {
 	updateFavicon = async (favicon: File) => {
 		const formData = new FormData();
 		formData.append('file', favicon!);
-		await this.api.put(`/application-configuration/favicon`, formData);
-	};
+
+		await this.api.put(`/application-images/favicon`, formData);
+	}
 
 	updateLogo = async (logo: File, light = true) => {
 		const formData = new FormData();
 		formData.append('file', logo!);
-		await this.api.put(`/application-configuration/logo`, formData, { params: { light } });
+
+		await this.api.put(`/application-images/logo`, formData, {
+			params: { light }
+		});
 		cachedApplicationLogo.bustCache(light);
 	};
 
 	updateBackgroundImage = async (backgroundImage: File) => {
 		const formData = new FormData();
 		formData.append('file', backgroundImage!);
-		await this.api.put(`/application-configuration/background-image`, formData);
+
+		await this.api.put(`/application-images/background`, formData);
 		cachedBackgroundImage.bustCache();
 	};
 

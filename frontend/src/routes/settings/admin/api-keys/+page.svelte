@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
@@ -42,7 +43,11 @@
 						<ShieldPlus class="text-primary/80 size-5" />
 						{m.create_api_key()}
 					</Card.Title>
-					<Card.Description>{m.add_a_new_api_key_for_programmatic_access()}</Card.Description>
+					<Card.Description
+						><FormattedMessage
+							m={m.add_a_new_api_key_for_programmatic_access()}
+						/></Card.Description
+					>
 				</div>
 				{#if !expandAddApiKey}
 					<Button onclick={() => (expandAddApiKey = true)}>{m.add_api_key()}</Button>

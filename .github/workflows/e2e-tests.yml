@@ -3,15 +3,15 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - '.github/**'
+      - "docs/**"
+      - "**.md"
+      - ".github/**"
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - '.github/**'
+      - "docs/**"
+      - "**.md"
+      - ".github/**"
 
 jobs:
   build:
@@ -22,7 +22,7 @@ jobs:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -30,6 +30,8 @@ jobs:
       - name: Build and export
         uses: docker/build-push-action@v6
         with:
+          context: .
+          file: docker/Dockerfile
           push: false
           load: false
           tags: pocket-id:test
@@ -57,16 +59,15 @@ jobs:
       matrix:
         db: [sqlite, postgres]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v3

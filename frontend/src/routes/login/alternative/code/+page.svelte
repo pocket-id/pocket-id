@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
+	import { afterNavigate, goto } from '$app/navigation';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
@@ -16,8 +15,16 @@
 	let code = $state(data.code ?? '');
 	let isLoading = $state(false);
 	let error: string | undefined = $state();
+	let backHref = $state('/login/alternative');
 
 	const userService = new UserService();
+
+	// If the previous page is a Pocket ID page, go back there instead of the generic alternative login page
+	afterNavigate((e) => {
+		if (e.from?.url.pathname) {
+			backHref = e.from.url.pathname + e.from.url.search;
+		}
+	});
 
 	async function authenticate() {
 		isLoading = true;
@@ -63,9 +70,7 @@
 	<form onsubmit={preventDefault(authenticate)} class="w-full max-w-[450px]">
 		<Input id="Code" class="mt-7" placeholder={m.code()} bind:value={code} type="text" />
 		<div class="mt-8 flex justify-between gap-2">
-			<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
-				>{m.go_back()}</Button
-			>
+			<Button variant="secondary" class="flex-1" href={backHref}>{m.go_back()}</Button>
 			<Button class="flex-1" type="submit" {isLoading}>{m.submit()}</Button>
 		</div>
 	</form>
