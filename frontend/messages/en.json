@@ -459,5 +459,7 @@
 	"view": "View",
 	"toggle_columns": "Toggle columns",
 	"locale": "Locale",
-	"ldap_id" : "LDAP ID"
+	"ldap_id" : "LDAP ID",
+	"reauthentication": "Re-authentication",
+	"clear_filters" : "Clear Filters"
 }

@@ -44,7 +44,7 @@
 			filterableValues: booleanFilterValues
 		},
 		{
-			label: m.requires_reauthentication(),
+			label: m.reauthentication(),
 			column: 'requiresReauthentication',
 			sortable: true,
 			filterableValues: booleanFilterValues

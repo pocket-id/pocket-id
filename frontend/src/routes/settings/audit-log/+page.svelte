@@ -16,7 +16,7 @@
 {/if}
 
 <div>
-	<Card.Root>
+	<Card.Root class="gap-0">
 		<Card.Header>
 			<Card.Title>
 				<LogsIcon class="text-primary/80 size-5" />

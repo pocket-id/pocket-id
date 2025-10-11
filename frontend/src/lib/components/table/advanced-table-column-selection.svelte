@@ -16,11 +16,11 @@
 		class={buttonVariants({
 			variant: 'outline',
 			size: 'sm',
-			class: 'ml-auto hidden h-8 lg:flex'
+			class: 'ml-auto h-8'
 		})}
 	>
 		<Settings2Icon />
-		{m.view()}
+		<span class="hidden md:flex">{m.view()}</span>
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content>
 		<DropdownMenu.Group>

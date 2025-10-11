@@ -27,9 +27,11 @@
 		showCheckboxes?: boolean;
 		onChanged?: (selected: Set<string | boolean>) => void;
 	} = $props();
+
+	let open = $state(false);
 </script>
 
-<Popover.Root>
+<Popover.Root bind:open>
 	<Popover.Trigger>
 		{#snippet child({ props })}
 			<Button
@@ -69,7 +71,6 @@
 		data-testid={`facet-${title.toLowerCase()}-content`}
 	>
 		<Command.Root>
-			<Command.Input placeholder={title} />
 			<Command.List>
 				<Command.Empty>{m.no_items_found()}</Command.Empty>
 				<Command.Group>
@@ -110,8 +111,14 @@
 				{#if selectedValues.size > 0}
 					<Command.Separator />
 					<Command.Group>
-						<Command.Item onSelect={() => {}} class="justify-center text-center">
-							Clear filters
+						<Command.Item
+							onSelect={() => {
+								selectedValues = new Set();
+								onChanged(selectedValues);
+								open = false;
+							}}
+						>
+							{m.clear_filters()}
 						</Command.Item>
 					</Command.Group>
 				{/if}
