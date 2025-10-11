@@ -1,11 +1,9 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
-	import * as Table from '$lib/components/ui/table';
+	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import UserGroupService from '$lib/services/user-group-service';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
-	import type { UserGroup } from '$lib/types/user-group.type';
-	import { onMount } from 'svelte';
+	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
+	import type { UserGroupWithUserCount } from '$lib/types/user-group.type';
 
 	let {
 		selectionDisabled = false,
@@ -17,30 +15,27 @@
 
 	const userGroupService = new UserGroupService();
 
-	let groups: Paginated<UserGroup> | undefined = $state();
-	let requestOptions: SearchPaginationSortRequest = $state({
-		sort: {
-			column: 'friendlyName',
-			direction: 'asc'
-		}
-	});
-
-	onMount(async () => {
-		groups = await userGroupService.list(requestOptions);
-	});
+	const columns: AdvancedTableColumn<UserGroupWithUserCount>[] = [
+		{ label: 'ID', column: 'id', hidden: true },
+		{ label: m.friendly_name(), column: 'friendlyName', sortable: true },
+		{ label: m.name(), column: 'name', sortable: true },
+		{ label: m.user_count(), column: 'userCount', sortable: true },
+		{
+			label: m.created(),
+			column: 'createdAt',
+			sortable: true,
+			hidden: true,
+			value: (item) => new Date(item.createdAt).toLocaleString()
+		},
+		{ label: m.ldap_id(), column: 'ldapId', hidden: true }
+	];
 </script>
 
-{#if groups}
-	<AdvancedTable
-		items={groups}
-		{requestOptions}
-		onRefresh={async (o) => (groups = await userGroupService.list(o))}
-		columns={[{ label: m.name(), sortColumn: 'friendlyName' }]}
-		bind:selectedIds={selectedGroupIds}
-		{selectionDisabled}
-	>
-		{#snippet rows({ item })}
-			<Table.Cell>{item.friendlyName}</Table.Cell>
-		{/snippet}
-	</AdvancedTable>
-{/if}
+<AdvancedTable
+	id="user-group-selection"
+	fetchCallback={userGroupService.list}
+	defaultSort={{ column: 'friendlyName', direction: 'asc' }}
+	bind:selectedIds={selectedGroupIds}
+	{selectionDisabled}
+	{columns}
+/>

@@ -53,8 +53,8 @@ type OidcClient struct {
 	LogoutCallbackURLs       UrlList
 	ImageType                *string
 	IsPublic                 bool
-	PkceEnabled              bool
-	RequiresReauthentication bool
+	PkceEnabled              bool `filterable:"true"`
+	RequiresReauthentication bool `filterable:"true"`
 	Credentials              OidcClientCredentials
 	LaunchURL                *string
 

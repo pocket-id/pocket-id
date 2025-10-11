@@ -5,9 +5,6 @@
 	import userStore from '$lib/stores/user-store';
 	import { LogsIcon } from '@lucide/svelte';
 	import AuditLogSwitcher from './audit-log-switcher.svelte';
-
-	let { data } = $props();
-	let auditLogsRequestOptions = $state(data.auditLogsRequestOptions);
 </script>
 
 <svelte:head>
@@ -19,7 +16,7 @@
 {/if}
 
 <div>
-	<Card.Root>
+	<Card.Root class="gap-0">
 		<Card.Header>
 			<Card.Title>
 				<LogsIcon class="text-primary/80 size-5" />
@@ -28,7 +25,7 @@
 			<Card.Description>{m.see_your_account_activities_from_the_last_3_months()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<AuditLogList auditLogs={data.auditLogs} requestOptions={auditLogsRequestOptions} />
+			<AuditLogList />
 		</Card.Content>
 	</Card.Root>
 </div>

@@ -104,13 +104,9 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 // @Router /api/users [get]
 func (uc *UserController) listUsersHandler(c *gin.Context) {
 	searchTerm := c.Query("search")
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = c.Error(err)
-		return
-	}
+	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	users, pagination, err := uc.userService.ListUsers(c.Request.Context(), searchTerm, sortedPaginationRequest)
+	users, pagination, err := uc.userService.ListUsers(c.Request.Context(), searchTerm, listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -574,13 +570,9 @@ func (uc *UserController) createSignupTokenHandler(c *gin.Context) {
 // @Success 200 {object} dto.Paginated[dto.SignupTokenDto]
 // @Router /api/signup-tokens [get]
 func (uc *UserController) listSignupTokensHandler(c *gin.Context) {
-	var sortedPaginationRequest utils.SortedPaginationRequest
-	if err := c.ShouldBindQuery(&sortedPaginationRequest); err != nil {
-		_ = c.Error(err)
-		return
-	}
+	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	tokens, pagination, err := uc.userService.ListSignupTokens(c.Request.Context(), sortedPaginationRequest)
+	tokens, pagination, err := uc.userService.ListSignupTokens(c.Request.Context(), listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return

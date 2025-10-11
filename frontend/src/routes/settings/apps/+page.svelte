@@ -3,8 +3,8 @@
 	import * as Pagination from '$lib/components/ui/pagination';
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
+	import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 	import type { AccessibleOidcClient, OidcClientMetaData } from '$lib/types/oidc.type';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LayoutDashboard } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -12,11 +12,11 @@
 
 	let { data } = $props();
 	let clients: Paginated<AccessibleOidcClient> = $state(data.clients);
-	let requestOptions: SearchPaginationSortRequest = $state(data.appRequestOptions);
+	let requestOptions: ListRequestOptions = $state(data.appRequestOptions);
 
 	const oidcService = new OIDCService();
 
-	async function onRefresh(options: SearchPaginationSortRequest) {
+	async function onRefresh(options: ListRequestOptions) {
 		clients = await oidcService.listOwnAccessibleClients(options);
 	}
 
@@ -83,6 +83,10 @@
 				{#each clients.data as client}
 					<AuthorizedOidcClientCard {client} onRevoke={revokeAuthorizedClient} />
 				{/each}
+				<!-- Gap fix if two elements are present-->
+				{#if clients.data.length == 2}
+					<div></div>
+				{/if}
 			</div>
 
 			{#if clients.pagination.totalPages > 1}
