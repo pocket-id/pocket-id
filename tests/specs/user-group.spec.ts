@@ -45,8 +45,8 @@ test('Update user group users', async ({ page }) => {
 	const group = userGroups.designers;
 	await page.goto(`/settings/admin/user-groups/${group.id}`);
 
-	await page.getByRole('row', { name: users.tim.email }).getByRole('checkbox').click();
-	await page.getByRole('row', { name: users.craig.email }).getByRole('checkbox').click();
+	await page.getByRole('row', { name: users.tim.username }).getByRole('checkbox').click();
+	await page.getByRole('row', { name: users.craig.username }).getByRole('checkbox').click();
 
 	await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
@@ -55,10 +55,10 @@ test('Update user group users', async ({ page }) => {
 	await page.reload();
 
 	await expect(
-		page.getByRole('row', { name: users.tim.email }).getByRole('checkbox')
+		page.getByRole('row', { name: users.tim.username }).getByRole('checkbox')
 	).toHaveAttribute('data-state', 'unchecked');
 	await expect(
-		page.getByRole('row', { name: users.craig.email }).getByRole('checkbox')
+		page.getByRole('row', { name: users.craig.username }).getByRole('checkbox')
 	).toHaveAttribute('data-state', 'checked');
 });
 
@@ -108,12 +108,12 @@ test('Update user group custom claims', async ({ page }) => {
 	await page.getByLabel('Remove custom claim').first().click();
 	await page.getByRole('button', { name: 'Save' }).nth(2).click();
 
-  await expect(page.locator('[data-type="success"]')).toHaveText(
+	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Custom claims updated successfully'
 	);
 
 	await page.reload();
-  await page.waitForLoadState('networkidle');
+	await page.waitForLoadState('networkidle');
 
 	// Check if custom claim is removed
 	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim2');

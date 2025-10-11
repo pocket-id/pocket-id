@@ -56,11 +56,13 @@ test.describe('API Key Management', () => {
 
 		await page
 			.getByRole('row', { name: apiKey.name })
-			.getByRole('button', { name: 'Revoke' })
+			.getByRole('button', { name: 'Toggle menu' })
 			.click();
 
-		await page.getByText('Revoke', { exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Revoke' }).click();
 
+		await page.getByRole('button', { name: 'Revoke' }).click();
+		
 		// Verify success message
 		await expect(page.locator('[data-type="success"]')).toHaveText('API key revoked successfully');
 
