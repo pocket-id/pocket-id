@@ -50,7 +50,7 @@
 		paginationLimit: number;
 		sort?: SortRequest;
 		filters?: Record<string, (string | boolean)[]>;
-		lenght?: number;
+		length?: number;
 	};
 
 	const tablePreferences = new PersistedState<TablePreferences>(`table-${id}-preferences`, {
@@ -146,7 +146,7 @@
 	}
 
 	function updateListLength(totalItems: number) {
-		tablePreferences.current.lenght =
+		tablePreferences.current.length =
 			totalItems > tablePreferences.current.paginationLimit
 				? tablePreferences.current.paginationLimit
 				: totalItems;
@@ -179,7 +179,7 @@
 	{onFilterChange}
 />
 
-{#if (items?.pagination.totalItems === 0 && searchValue === '') || tablePreferences.current.lenght === 0}
+{#if (items?.pagination.totalItems === 0 && searchValue === '') || tablePreferences.current.length === 0}
 	<div class="my-5 flex flex-col items-center">
 		<Empty class="text-muted-foreground h-20" />
 		<p class="text-muted-foreground mt-3 text-sm">{m.no_items_found()}</p>
@@ -187,7 +187,7 @@
 {:else}
 	{#if !items}
 		<div>
-			{#each Array((tablePreferences.current.lenght || 10) + 1) as _}
+			{#each Array((tablePreferences.current.length || 10) + 1) as _}
 				<div>
 					<Skeleton class="mt-3 h-[45px] w-full rounded-lg" />
 				</div>
