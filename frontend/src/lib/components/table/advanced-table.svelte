@@ -272,7 +272,7 @@
 								</Table.Cell>
 							{/each}
 							{#if actions}
-								<Table.Cell align="right" class="w-12">
+								<Table.Cell align="right" class="w-12 py-0">
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger
 											class={buttonVariants({ variant: 'ghost', size: 'icon' })}

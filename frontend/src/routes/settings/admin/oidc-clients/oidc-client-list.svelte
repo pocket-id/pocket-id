@@ -104,6 +104,10 @@
 			src={cachedOidcClientLogo.getUrl(item.id)}
 			alt={m.name_logo({ name: item.name })}
 		/>
+	{:else}
+		<div class="bg-muted flex size-12 items-center justify-center rounded-lg text-lg font-bold">
+			{item.name.charAt(0).toUpperCase()}
+		</div>
 	{/if}
 {/snippet}
 
