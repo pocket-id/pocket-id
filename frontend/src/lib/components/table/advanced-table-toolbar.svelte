@@ -10,9 +10,10 @@
 	let {
 		columns,
 		visibleColumns = $bindable(),
-		requestOptions = $bindable(),
+		requestOptions,
 		searchValue = $bindable(),
 		withoutSearch = false,
+		onFilterChange,
 		refresh
 	}: {
 		columns: AdvancedTableColumn<TData>[];
@@ -20,6 +21,7 @@
 		requestOptions: ListRequestOptions;
 		searchValue?: string;
 		withoutSearch?: boolean;
+		onFilterChange?: (selected: Set<string | boolean>, column: string) => void;
 		refresh: () => Promise<void>;
 	} = $props();
 
@@ -38,19 +40,6 @@
 		await refresh();
 		searchValue = search;
 	}, 300);
-
-	async function onFilterChange(selected: Set<string | boolean>, column: string) {
-		requestOptions.filters = {
-			...requestOptions.filters,
-			[column]: Array.from(selected)
-		};
-		await refresh();
-	}
-
-	async function onFiltersReset() {
-		requestOptions.filters = {};
-		await refresh();
-	}
 </script>
 
 <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -70,7 +59,7 @@
 				title={col.name}
 				options={col.options}
 				selectedValues={new Set(requestOptions.filters![col.column] || [])}
-				onChanged={(selected) => onFilterChange(selected, col.column)}
+				onChanged={(selected) => onFilterChange?.(selected, col.column)}
 			/>
 		{/each}
 		<AdvancedTableColumnSelection {columns} bind:selectedColumns={visibleColumns} />

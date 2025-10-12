@@ -42,30 +42,36 @@
 
 	let items: Paginated<T> | undefined = $state();
 	let searchValue = $state('');
-	const requestOptions = $state<ListRequestOptions>({
-		sort: defaultSort,
-		pagination: { limit: 20, page: 1 },
+
+	const availablePageSizes: number[] = [20, 50, 100];
+
+	type TablePreferences = {
+		visibleColumns: string[];
+		paginationLimit: number;
+		sort?: SortRequest;
+		filters?: Record<string, (string | boolean)[]>;
+		lenght?: number;
+	};
+
+	const tablePreferences = new PersistedState<TablePreferences>(`table-${id}-preferences`, {
+		visibleColumns: columns.filter((c) => !c.hidden).map((c) => c.column ?? c.key!),
+		paginationLimit: 20,
 		filters: initializeFilters()
 	});
 
-	let availablePageSizes: number[] = [20, 50, 100];
-
-	const paginationLimits = new PersistedState<Record<string, number>>('pagination-limits', {});
-	const listColumns = new PersistedState<Record<string, string[]>>('list-columns', {});
-	const listLenghts = new PersistedState<Record<string, number>>('list-lengths', {});
+	const requestOptions = $state<ListRequestOptions>({
+		sort: tablePreferences.current.sort ?? defaultSort,
+		pagination: { limit: tablePreferences.current.paginationLimit, page: 1 },
+		filters: tablePreferences.current.filters
+	});
 
 	let visibleColumns = $derived(
-		columns.filter((c) => listColumns.current[id]?.includes(c.column ?? c.key!) ?? [])
+		columns.filter(
+			(c) => tablePreferences.current.visibleColumns?.includes(c.column ?? c.key!) ?? []
+		)
 	);
 
 	onMount(async () => {
-		if (!listColumns.current[id]) {
-			listColumns.current[id] = columns.filter((c) => !c.hidden).map((c) => c.column ?? c.key!);
-		}
-
-		if (paginationLimits.current[id]) {
-			requestOptions.pagination!.limit = paginationLimits.current[id];
-		}
 		const urlParams = new URLSearchParams(window.location.search);
 		const page = parseInt(urlParams.get(`${id}-page`) ?? '') || undefined;
 		if (page) {
@@ -111,7 +117,16 @@
 
 	async function onPageSizeChange(size: number) {
 		requestOptions.pagination = { limit: size, page: 1 };
-		paginationLimits.current[id] = size;
+		tablePreferences.current.paginationLimit = size;
+		await refresh();
+	}
+
+	async function onFilterChange(selected: Set<string | boolean>, column: string) {
+		requestOptions.filters = {
+			...requestOptions.filters,
+			[column]: Array.from(selected)
+		};
+		tablePreferences.current.filters = requestOptions.filters;
 		await refresh();
 	}
 
@@ -119,6 +134,7 @@
 		if (!column) return;
 
 		requestOptions.sort = { column, direction };
+		tablePreferences.current.sort = requestOptions.sort;
 		await refresh();
 	}
 
@@ -130,12 +146,10 @@
 	}
 
 	function updateListLength(totalItems: number) {
-		const paginationLimit = paginationLimits.current[id] || 20;
-		if (totalItems > paginationLimit) {
-			listLenghts.current[id] = paginationLimit;
-		} else {
-			listLenghts.current[id] = totalItems;
-		}
+		tablePreferences.current.lenght =
+			totalItems > tablePreferences.current.paginationLimit
+				? tablePreferences.current.paginationLimit
+				: totalItems;
 	}
 
 	function initializeFilters() {
@@ -157,14 +171,15 @@
 
 <AdvancedTableToolbar
 	{columns}
-	bind:visibleColumns={listColumns.current[id]}
+	bind:visibleColumns={tablePreferences.current.visibleColumns}
 	{requestOptions}
 	{searchValue}
 	{withoutSearch}
 	{refresh}
+	{onFilterChange}
 />
 
-{#if (items?.pagination.totalItems === 0 && searchValue === '') || listLenghts.current[id] === 0}
+{#if (items?.pagination.totalItems === 0 && searchValue === '') || tablePreferences.current.lenght === 0}
 	<div class="my-5 flex flex-col items-center">
 		<Empty class="text-muted-foreground h-20" />
 		<p class="text-muted-foreground mt-3 text-sm">{m.no_items_found()}</p>
@@ -172,9 +187,9 @@
 {:else}
 	{#if !items}
 		<div>
-			{#each Array((listLenghts.current[id] || 10) + 1) as _, i}
+			{#each Array((tablePreferences.current.lenght || 10) + 1) as _}
 				<div>
-					<Skeleton class="mt-3 h-[41px] w-full rounded-lg" />
+					<Skeleton class="mt-3 h-[45px] w-full rounded-lg" />
 				</div>
 			{/each}
 		</div>
