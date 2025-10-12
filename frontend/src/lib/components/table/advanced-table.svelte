@@ -194,26 +194,30 @@
 						{/if}
 
 						{#each visibleColumns as column}
-							<Table.Head class={cn(column.sortable && 'px-0')}>
+							<Table.Head class={cn(column.sortable && 'p-0')}>
 								{#if column.sortable}
 									<Button
 										variant="ghost"
-										class="flex items-center"
+										class="h-12 w-full justify-start px-4 font-medium hover:bg-transparent"
 										onclick={() =>
 											onSort(
 												column.column,
 												requestOptions.sort?.direction === 'desc' ? 'asc' : 'desc'
 											)}
 									>
-										{column.label}
-										{#if requestOptions.sort?.column === column.column}
+										<span class="flex items-center">
+											{column.label}
 											<ChevronDown
 												class={cn(
-													'ml-2 size-4',
-													requestOptions.sort?.direction === 'asc' ? 'rotate-180' : ''
+													'ml-2 size-4 transition-all',
+													requestOptions.sort?.column === column.column
+														? requestOptions.sort?.direction === 'asc'
+															? 'rotate-180 opacity-100'
+															: 'opacity-100'
+														: 'opacity-0'
 												)}
 											/>
-										{/if}
+										</span>
 									</Button>
 								{:else}
 									{column.label}
