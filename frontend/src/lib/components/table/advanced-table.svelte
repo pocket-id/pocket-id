@@ -224,6 +224,11 @@
 								{/if}
 							</Table.Head>
 						{/each}
+						{#if actions}
+							<Table.Head align="right" class="w-12">
+								<span class="sr-only">{m.actions()}</span>
+							</Table.Head>
+						{/if}
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -252,7 +257,7 @@
 								</Table.Cell>
 							{/each}
 							{#if actions}
-								<Table.Cell align="right">
+								<Table.Cell align="right" class="w-12">
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger
 											class={buttonVariants({ variant: 'ghost', size: 'icon' })}
