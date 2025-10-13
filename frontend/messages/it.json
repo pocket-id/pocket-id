@@ -455,5 +455,11 @@
 	"logo_from_url_description": "Incolla l'URL diretto dell'immagine (svg, png, webp). Trova le icone su <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> o <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
 	"invalid_url": "URL non valido",
 	"require_user_email": "Richiesta indirizzo e-mail",
-	"require_user_email_description": "Chiede agli utenti di avere un indirizzo email. Se disattivato, chi non ha un indirizzo email non potrà usare le funzioni che lo richiedono."
+	"require_user_email_description": "Chiede agli utenti di avere un indirizzo email. Se disattivato, chi non ha un indirizzo email non potrà usare le funzioni che lo richiedono.",
+	"view": "Visualizza",
+	"toggle_columns": "Attiva/disattiva colonne",
+	"locale": "Locale",
+	"ldap_id": "ID LDAP",
+	"reauthentication": "Riautenticazione",
+	"clear_filters": "Cancella filtri"
 }
