@@ -4,6 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { m } from '$lib/paraglide/messages';
 	import CustomClaimService from '$lib/services/custom-claim-service';
 	import UserGroupService from '$lib/services/user-group-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
@@ -11,9 +12,9 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import { backNavigate } from '../../users/navigate-back-util';
 	import UserGroupForm from '../user-group-form.svelte';
 	import UserSelection from '../user-selection.svelte';
-	import { m } from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let userGroup = $state({
@@ -23,6 +24,7 @@
 
 	const userGroupService = new UserGroupService();
 	const customClaimService = new CustomClaimService();
+	const backNavigation = backNavigate('/settings/admin/user-groups');
 
 	async function updateUserGroup(updatedUserGroup: UserGroupCreate) {
 		let success = true;
@@ -61,8 +63,8 @@
 </svelte:head>
 
 <div class="flex items-center justify-between">
-	<a class="text-muted-foreground flex text-sm" href="/settings/admin/user-groups"
-		><LucideChevronLeft class="size-5" /> {m.back()}</a
+	<button type="button" class="text-muted-foreground flex text-sm" onclick={backNavigation.go}
+		><LucideChevronLeft class="size-5" /> {m.back()}</button
 	>
 	{#if !!userGroup.ldapId}
 		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>

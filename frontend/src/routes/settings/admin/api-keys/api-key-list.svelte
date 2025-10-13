@@ -1,30 +1,65 @@
 <script lang="ts">
-	import AdvancedTable from '$lib/components/advanced-table.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
-	import { Button } from '$lib/components/ui/button';
-	import * as Table from '$lib/components/ui/table';
+	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import ApiKeyService from '$lib/services/api-key-service';
+	import type {
+		AdvancedTableColumn,
+		CreateAdvancedTableActions
+	} from '$lib/types/advanced-table.type';
 	import type { ApiKey } from '$lib/types/api-key.type';
-	import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideBan } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
-	let {
-		apiKeys,
-		requestOptions
-	}: {
-		apiKeys: Paginated<ApiKey>;
-		requestOptions: SearchPaginationSortRequest;
-	} = $props();
-
 	const apiKeyService = new ApiKeyService();
+
+	let tableRef: AdvancedTable<ApiKey>;
+
+	export function refresh() {
+		return tableRef?.refresh();
+	}
 
 	function formatDate(dateStr: string | undefined) {
 		if (!dateStr) return m.never();
 		return new Date(dateStr).toLocaleString();
 	}
+
+	const columns: AdvancedTableColumn<ApiKey>[] = [
+		{ label: m.name(), column: 'name', sortable: true },
+		{
+			label: m.description(),
+			column: 'description'
+		},
+		{
+			label: m.expires_at(),
+			column: 'expiresAt',
+			sortable: true,
+			value: (item) => formatDate(item.expiresAt)
+		},
+		{
+			label: m.last_used(),
+			column: 'lastUsedAt',
+			sortable: true,
+			value: (item) => formatDate(item.lastUsedAt)
+		},
+		{
+			label: m.created(),
+			column: 'createdAt',
+			sortable: true,
+			hidden: true,
+			value: (item) => formatDate(item.createdAt)
+		}
+	];
+
+	const actions: CreateAdvancedTableActions<ApiKey> = (apiKey) => [
+		{
+			label: m.revoke(),
+			icon: LucideBan,
+			variant: 'danger',
+			onClick: (apiKey) => revokeApiKey(apiKey)
+		}
+	];
 
 	function revokeApiKey(apiKey: ApiKey) {
 		openConfirmDialog({
@@ -38,7 +73,7 @@
 				action: async () => {
 					try {
 						await apiKeyService.revoke(apiKey.id);
-						apiKeys = await apiKeyService.list(requestOptions);
+						await refresh();
 						toast.success(m.api_key_revoked_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
@@ -50,27 +85,11 @@
 </script>
 
 <AdvancedTable
-	items={apiKeys}
-	{requestOptions}
-	onRefresh={async (o) => (apiKeys = await apiKeyService.list(o))}
+	id="api-key-list"
+	bind:this={tableRef}
+	fetchCallback={apiKeyService.list}
+	defaultSort={{ column: 'lastUsedAt', direction: 'desc' }}
 	withoutSearch
-	columns={[
-		{ label: m.name(), sortColumn: 'name' },
-		{ label: m.description() },
-		{ label: m.expires_at(), sortColumn: 'expiresAt' },
-		{ label: m.last_used(), sortColumn: 'lastUsedAt' },
-		{ label: m.actions(), hidden: true }
-	]}
->
-	{#snippet rows({ item })}
-		<Table.Cell>{item.name}</Table.Cell>
-		<Table.Cell class="text-muted-foreground">{item.description || '-'}</Table.Cell>
-		<Table.Cell>{formatDate(item.expiresAt)}</Table.Cell>
-		<Table.Cell>{formatDate(item.lastUsedAt)}</Table.Cell>
-		<Table.Cell class="flex justify-end">
-			<Button onclick={() => revokeApiKey(item)} size="sm" variant="outline" aria-label={m.revoke()}
-				><LucideBan class="size-3 text-red-500" /></Button
-			>
-		</Table.Cell>
-	{/snippet}
-</AdvancedTable>
+	{columns}
+	{actions}
+/>

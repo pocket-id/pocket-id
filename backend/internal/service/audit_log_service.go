@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	userAgentParser "github.com/mileusna/useragent"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
@@ -136,14 +135,14 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 }
 
 // ListAuditLogsForUser retrieves all audit logs for a given user ID
-func (s *AuditLogService) ListAuditLogsForUser(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.AuditLog, utils.PaginationResponse, error) {
+func (s *AuditLogService) ListAuditLogsForUser(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.AuditLog, utils.PaginationResponse, error) {
 	var logs []model.AuditLog
 	query := s.db.
 		WithContext(ctx).
 		Model(&model.AuditLog{}).
 		Where("user_id = ?", userID)
 
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
+	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &logs)
 	return logs, pagination, err
 }
 
@@ -152,7 +151,7 @@ func (s *AuditLogService) DeviceStringFromUserAgent(userAgent string) string {
 	return ua.Name + " on " + ua.OS + " " + ua.OSVersion
 }
 
-func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, sortedPaginationRequest utils.SortedPaginationRequest, filters dto.AuditLogFilterDto) ([]model.AuditLog, utils.PaginationResponse, error) {
+func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]model.AuditLog, utils.PaginationResponse, error) {
 	var logs []model.AuditLog
 
 	query := s.db.
@@ -160,33 +159,36 @@ func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, sortedPagination
 		Preload("User").
 		Model(&model.AuditLog{})
 
-	if filters.UserID != "" {
-		query = query.Where("user_id = ?", filters.UserID)
-	}
-	if filters.Event != "" {
-		query = query.Where("event = ?", filters.Event)
-	}
-	if filters.ClientName != "" {
+	if clientName, ok := listRequestOptions.Filters["clientName"]; ok {
 		dialect := s.db.Name()
 		switch dialect {
 		case "sqlite":
-			query = query.Where("json_extract(data, '$.clientName') = ?", filters.ClientName)
+			query = query.Where("json_extract(data, '$.clientName') IN ?", clientName)
 		case "postgres":
-			query = query.Where("data->>'clientName' = ?", filters.ClientName)
+			query = query.Where("data->>'clientName' IN ?", clientName)
 		default:
 			return nil, utils.PaginationResponse{}, fmt.Errorf("unsupported database dialect: %s", dialect)
 		}
 	}
-	if filters.Location != "" {
-		switch filters.Location {
-		case "external":
-			query = query.Where("country != 'Internal Network'")
-		case "internal":
-			query = query.Where("country = 'Internal Network'")
+
+	if locations, ok := listRequestOptions.Filters["location"]; ok {
+		mapped := make([]string, 0, len(locations))
+		for _, v := range locations {
+			if s, ok := v.(string); ok {
+				switch s {
+				case "internal":
+					mapped = append(mapped, "Internal Network")
+				case "external":
+					mapped = append(mapped, "External Network")
+				}
+			}
+		}
+		if len(mapped) > 0 {
+			query = query.Where("country IN ?", mapped)
 		}
 	}
 
-	pagination, err := utils.PaginateAndSort(sortedPaginationRequest, query, &logs)
+	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &logs)
 	if err != nil {
 		return nil, pagination, err
 	}

@@ -18,4 +18,4 @@ services:
       args:
         - BUILD_TAGS=e2etest
       context: ../..
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile

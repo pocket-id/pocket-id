@@ -97,8 +97,14 @@ test('Delete OIDC client', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	await page.goto('/settings/admin/oidc-clients');
 
-	await page.getByRole('row', { name: oidcClient.name }).getByLabel('Delete').click();
-	await page.getByText('Delete', { exact: true }).click();
+	await page
+		.getByRole('row', { name: oidcClient.name })
+		.getByRole('button', { name: 'Toggle menu' })
+		.click();
+
+	await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+	await page.getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'OIDC client deleted successfully'

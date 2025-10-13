@@ -15,17 +15,12 @@
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
 
-	let { data } = $props();
-	let users = $state(data.users);
-	let usersRequestOptions = $state(data.usersRequestOptions);
-	let signupTokens = $state(data.signupTokens);
-	let signupTokensRequestOptions = $state(data.signupTokensRequestOptions);
-
 	let selectedCreateOptions = $state(m.add_user());
 	let expandAddUser = $state(false);
 	let signupTokenModalOpen = $state(false);
 	let signupTokenListModalOpen = $state(false);
 
+	let userListRef: UserList;
 	const userService = new UserService();
 
 	async function createUser(user: UserCreate) {
@@ -38,12 +33,8 @@
 				success = false;
 			});
 
-		users = await userService.list(usersRequestOptions);
+		await userListRef.refresh();
 		return success;
-	}
-
-	async function refreshSignupTokens() {
-		signupTokens = await userService.listSignupTokens(signupTokensRequestOptions);
 	}
 </script>
 
@@ -117,15 +108,10 @@
 			</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<UserList {users} requestOptions={usersRequestOptions} />
+			<UserList bind:this={userListRef} />
 		</Card.Content>
 	</Card.Root>
 </div>
 
-<SignupTokenModal bind:open={signupTokenModalOpen} onTokenCreated={refreshSignupTokens} />
-<SignupTokenListModal
-	bind:open={signupTokenListModalOpen}
-	bind:signupTokens
-	{signupTokensRequestOptions}
-	onTokenDeleted={refreshSignupTokens}
-/>
+<SignupTokenModal bind:open={signupTokenModalOpen}  />
+<SignupTokenListModal bind:open={signupTokenListModalOpen} />

@@ -6,15 +6,11 @@
 	import { m } from '$lib/paraglide/messages';
 	import AuditLogService from '$lib/services/audit-log-service';
 	import type { AuditLogFilter } from '$lib/types/audit-log.type';
+	import { eventTypes as eventTranslations } from '$lib/utils/audit-log-translator';
 	import AuditLogSwitcher from '../audit-log-switcher.svelte';
-	import {eventTypes as eventTranslations} from "$lib/utils/audit-log-translator";
-
-	let { data } = $props();
 
 	const auditLogService = new AuditLogService();
-
-	let auditLogs = $state(data.auditLogs);
-	let requestOptions = $state(data.requestOptions);
+	let auditLogListRef: AuditLogList;
 
 	let filters: AuditLogFilter = $state({
 		userId: '',
@@ -29,10 +25,6 @@
 	});
 
 	const eventTypes = $state(eventTranslations);
-
-	$effect(() => {
-		auditLogService.listAllLogs(requestOptions, filters).then((response) => (auditLogs = response));
-	});
 </script>
 
 <svelte:head>
@@ -124,7 +116,6 @@
 				{/await}
 			</div>
 		</div>
-
-		<AuditLogList isAdmin={true} {auditLogs} {requestOptions} />
+		<AuditLogList bind:this={auditLogListRef} isAdmin {filters} />
 	</Card.Content>
 </Card.Root>

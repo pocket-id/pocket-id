@@ -12,14 +12,10 @@
 	});
 </script>
 
-<div class={'bg-muted flex items-center justify-center rounded-2xl p-3'}>
+<div class={cn('bg-muted flex items-center justify-center rounded-2xl p-3', props.class)}>
 	{#if error}
-		<LucideImageOff class={cn('text-muted-foreground p-5', props.class)} />
+		<LucideImageOff class="text-muted-foreground p-5" />
 	{:else}
-		<img
-			{...props}
-			class={cn('object-contain aspect-square', props.class)}
-			onerror={() => (error = true)}
-		/>
+		<img {...props} class="aspect-square object-contain" onerror={() => (error = true)} />
 	{/if}
 </div>
