@@ -172,20 +172,20 @@ func (s *AuditLogService) ListAllAuditLogs(ctx context.Context, listRequestOptio
 	}
 
 	if locations, ok := listRequestOptions.Filters["location"]; ok {
-		filters := make([]string, len(locations))
-
-		for i, v := range locations {
+		mapped := make([]string, 0, len(locations))
+		for _, v := range locations {
 			if s, ok := v.(string); ok {
 				switch s {
 				case "internal":
-					filters[i] = "Internal Network"
+					mapped = append(mapped, "Internal Network")
 				case "external":
-					filters[i] = "External Network"
+					mapped = append(mapped, "External Network")
 				}
 			}
 		}
-
-		query = query.Where("country IN ?", filters)
+		if len(mapped) > 0 {
+			query = query.Where("country IN ?", mapped)
+		}
 	}
 
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &logs)

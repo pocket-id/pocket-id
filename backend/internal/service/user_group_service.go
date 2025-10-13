@@ -37,9 +37,6 @@ func (s *UserGroupService) List(ctx context.Context, name string, listRequestOpt
 			Joins("LEFT JOIN user_groups_users ON user_groups.id = user_groups_users.user_group_id").
 			Group("user_groups.id").
 			Order("COUNT(user_groups_users.user_id) " + listRequestOptions.Sort.Direction)
-
-		response, err := utils.Paginate(listRequestOptions.Pagination.Page, listRequestOptions.Pagination.Limit, query, &groups)
-		return groups, response, err
 	}
 
 	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &groups)

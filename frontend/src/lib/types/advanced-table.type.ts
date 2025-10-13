@@ -21,6 +21,6 @@ export type AdvancedTableAction<T> = {
 	icon?: Component;
 	variant?: 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost';
 	onClick: (item: T) => void;
-	visible?: boolean;
+	hidden?: boolean;
 	disabled?: boolean;
 };

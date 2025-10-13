@@ -130,10 +130,14 @@
 		await refresh();
 	}
 
-	async function onSort(column?: string, direction: 'asc' | 'desc' = 'asc') {
+	async function onSort(column?: string) {
 		if (!column) return;
 
-		requestOptions.sort = { column, direction };
+		const isSameColumn = requestOptions.sort?.column === column;
+		const nextDirection: 'asc' | 'desc' =
+			isSameColumn && requestOptions.sort?.direction === 'asc' ? 'desc' : 'asc';
+
+		requestOptions.sort = { column, direction: nextDirection };
 		tablePreferences.current.sort = requestOptions.sort;
 		await refresh();
 	}
@@ -214,11 +218,7 @@
 									<Button
 										variant="ghost"
 										class="h-12 w-full justify-start px-4 font-medium hover:bg-transparent"
-										onclick={() =>
-											onSort(
-												column.column,
-												requestOptions.sort?.direction === 'desc' ? 'asc' : 'desc'
-											)}
+										onclick={() => onSort(column.column)}
 									>
 										<span class="flex items-center">
 											{column.label}
@@ -281,7 +281,7 @@
 											<span class="sr-only">{m.toggle_menu()}</span>
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
-											{#each actions(item).filter((a) => !a.visible || a.visible) as action}
+											{#each actions(item).filter((a) => !a.hidden) as action}
 												<DropdownMenu.Item
 													onclick={() => action.onClick(item)}
 													disabled={action.disabled}

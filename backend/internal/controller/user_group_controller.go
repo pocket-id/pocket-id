@@ -64,7 +64,7 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 			_ = c.Error(err)
 			return
 		}
-		groupDto.UserCount, err = ugc.UserGroupService.GetUserCountOfGroup(c, group.ID)
+		groupDto.UserCount, err = ugc.UserGroupService.GetUserCountOfGroup(c.Request.Context(), group.ID)
 		if err != nil {
 			_ = c.Error(err)
 			return

@@ -18,7 +18,9 @@
 	const userGroupService = new UserGroupService();
 	let tableRef: AdvancedTable<UserGroupWithUserCount>;
 
-	export const refresh = () => tableRef.refresh();
+	export function refresh() {
+		return tableRef?.refresh();
+	}
 
 	const columns: AdvancedTableColumn<UserGroupWithUserCount>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
@@ -48,7 +50,7 @@
 			icon: LucideTrash,
 			variant: 'danger',
 			onClick: (group) => deleteUserGroup(group),
-			visible: !group.ldapId || !$appConfigStore.ldapEnabled
+			visible: group.ldapId || $appConfigStore.ldapEnabled
 		}
 	];
 

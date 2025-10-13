@@ -114,12 +114,14 @@ func parseNestedFilters(ctx *gin.Context) map[string][]any {
 			continue
 		}
 
-		// Example key: "filters[disabled][0]"
-		field := strings.TrimPrefix(key, "filters[")
-		field = strings.SplitN(field, "][", 2)[0]
-
-		for _, v := range values {
-			result[field] = append(result[field], ConvertStringToType(v))
+		// Keys can be "filters[field]" or "filters[field][0]"
+		raw := strings.TrimPrefix(key, "filters[")
+		// Take everything up to the first closing bracket
+		if idx := strings.IndexByte(raw, ']'); idx != -1 {
+			field := raw[:idx]
+			for _, v := range values {
+				result[field] = append(result[field], ConvertStringToType(v))
+			}
 		}
 	}
 

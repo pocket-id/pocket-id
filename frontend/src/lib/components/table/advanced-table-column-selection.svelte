@@ -7,7 +7,7 @@
 
 	let {
 		columns,
-		selectedColumns = $bindable()
+		selectedColumns = $bindable([])
 	}: { columns: AdvancedTableColumn<TData>[]; selectedColumns: string[] } = $props();
 </script>
 

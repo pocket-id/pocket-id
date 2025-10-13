@@ -16,7 +16,9 @@
 
 	let tableRef: AdvancedTable<ApiKey>;
 
-	export const refresh = () => tableRef.refresh();
+	export function refresh() {
+		return tableRef?.refresh();
+	}
 
 	function formatDate(dateStr: string | undefined) {
 		if (!dateStr) return m.never();

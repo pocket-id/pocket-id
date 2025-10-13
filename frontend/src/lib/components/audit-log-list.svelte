@@ -40,7 +40,6 @@
 		{
 			label: m.approximate_location(),
 			key: 'location',
-			sortable: true,
 			value: (item) => formatLocation(item)
 		},
 		{

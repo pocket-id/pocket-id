@@ -30,7 +30,9 @@
 
 	const userService = new UserService();
 
-	export const refresh = () => tableRef.refresh();
+	export function refresh() {
+		return tableRef?.refresh();
+	}
 
 	async function deleteUser(user: User) {
 		openConfirmDialog({
@@ -148,7 +150,7 @@
 			label: u.disabled ? m.enable() : m.disable(),
 			icon: u.disabled ? LucideUserCheck : LucideUserX,
 			onClick: (u) => (u.disabled ? enableUser(u) : disableUser(u)),
-			visible: !u.ldapId || !$appConfigStore.ldapEnabled,
+			hidden: !!u.ldapId || $appConfigStore.ldapEnabled,
 			disabled: u.id === $userStore?.id
 		},
 		{
@@ -156,7 +158,7 @@
 			icon: LucideTrash,
 			variant: 'danger',
 			onClick: (u) => deleteUser(u),
-			visible: !!(!u.ldapId || (u.ldapId && u.disabled)),
+			hidden: !!u.ldapId && !u.disabled,
 			disabled: u.id === $userStore?.id
 		}
 	];

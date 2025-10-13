@@ -58,7 +58,7 @@
 			<AdvancedTableFilter
 				title={col.name}
 				options={col.options}
-				selectedValues={new Set(requestOptions.filters![col.column] || [])}
+				selectedValues={new Set(requestOptions.filters?.[col.column] || [])}
 				onChanged={(selected) => onFilterChange?.(selected, col.column)}
 			/>
 		{/each}

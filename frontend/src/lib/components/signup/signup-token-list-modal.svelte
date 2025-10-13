@@ -125,6 +125,7 @@
 		{
 			label: m.delete(),
 			icon: Trash2,
+			variant: 'danger',
 			onClick: (token) => deleteToken(token)
 		}
 	];

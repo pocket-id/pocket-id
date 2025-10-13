@@ -109,7 +109,7 @@
 </svelte:head>
 
 <div>
-	<button class="text-muted-foreground flex text-sm" onclick={backNavigation.go}
+	<button type="button" class="text-muted-foreground flex text-sm" onclick={backNavigation.go}
 		><LucideChevronLeft class="size-5" /> {m.back()}</button
 	>
 </div>

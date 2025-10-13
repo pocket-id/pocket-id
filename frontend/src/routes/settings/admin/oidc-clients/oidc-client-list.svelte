@@ -18,7 +18,9 @@
 	const oidcService = new OIDCService();
 	let tableRef: AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
 
-	export const refresh = () => tableRef.refresh();
+	export function refresh() {
+		return tableRef?.refresh();
+	}
 
 	const booleanFilterValues = [
 		{ label: m.enabled(), value: true },
