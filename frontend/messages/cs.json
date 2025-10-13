@@ -455,5 +455,11 @@
 	"logo_from_url_description": "Vložte přímou URL adresu obrázku (svg, png, webp). Ikony najdete na <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> nebo <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
 	"invalid_url": "Neplatná adresa URL",
 	"require_user_email": "Vyžadovat e-mailovou adresu",
-	"require_user_email_description": "Vyžaduje, aby uživatelé měli e-mailovou adresu. Pokud je tato možnost deaktivována, uživatelé bez e-mailové adresy nebudou moci používat funkce, které e-mailovou adresu vyžadují."
+	"require_user_email_description": "Vyžaduje, aby uživatelé měli e-mailovou adresu. Pokud je tato možnost deaktivována, uživatelé bez e-mailové adresy nebudou moci používat funkce, které e-mailovou adresu vyžadují.",
+	"view": "Zobrazit",
+	"toggle_columns": "Přepínat sloupce",
+	"locale": "Místní nastavení",
+	"ldap_id": "LDAP ID",
+	"reauthentication": "Opětovné ověření",
+	"clear_filters": "Vymazat filtry"
 }
