@@ -455,5 +455,11 @@
 	"logo_from_url_description": "Indsæt en direkte billed-URL (svg, png, webp). Find ikoner på <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> eller <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
 	"invalid_url": "Ugyldig URL",
 	"require_user_email": "Kræver e-mailadresse",
-	"require_user_email_description": "Kræver, at brugerne har en e-mailadresse. Hvis denne funktion er deaktiveret, kan brugere uden en e-mailadresse ikke bruge funktioner, der kræver en e-mailadresse."
+	"require_user_email_description": "Kræver, at brugerne har en e-mailadresse. Hvis denne funktion er deaktiveret, kan brugere uden en e-mailadresse ikke bruge funktioner, der kræver en e-mailadresse.",
+	"view": "Vis",
+	"toggle_columns": "Skift kolonner",
+	"locale": "Lokale",
+	"ldap_id": "LDAP-id",
+	"reauthentication": "Genbekræftelse",
+	"clear_filters": "Ryd filtre"
 }
