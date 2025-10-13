@@ -456,10 +456,10 @@
 	"invalid_url": "Ongeldige URL",
 	"require_user_email": "E-mailadres vereist",
 	"require_user_email_description": "Je moet een e-mailadres hebben. Als je dit uitschakelt, kunnen mensen zonder e-mailadres geen functies gebruiken waarvoor een e-mailadres nodig is.",
-	"view": "View",
-	"toggle_columns": "Toggle columns",
-	"locale": "Locale",
-	"ldap_id": "LDAP ID",
-	"reauthentication": "Re-authentication",
-	"clear_filters": "Clear Filters"
+	"view": "Bekijken",
+	"toggle_columns": "Kolommen wisselen",
+	"locale": "Locatie",
+	"ldap_id": "LDAP-ID",
+	"reauthentication": "Opnieuw inloggen",
+	"clear_filters": "Filters wissen"
 }
