@@ -456,10 +456,10 @@
 	"invalid_url": "Недопустимый URL",
 	"require_user_email": "Требовать адрес электронной почты",
 	"require_user_email_description": "Требует, чтобы у пользователей был адрес электронной почты. Если эта функция отключена, пользователи без адреса электронной почты не смогут пользоваться функциями, для которых нужен адрес электронной почты.",
-	"view": "View",
-	"toggle_columns": "Toggle columns",
-	"locale": "Locale",
-	"ldap_id": "LDAP ID",
-	"reauthentication": "Re-authentication",
-	"clear_filters": "Clear Filters"
+	"view": "Посмотреть",
+	"toggle_columns": "Переключать столбцы",
+	"locale": "Локаль",
+	"ldap_id": "LDAP-идентификатор",
+	"reauthentication": "Повторная аутентификация",
+	"clear_filters": "Очистить фильтры"
 }
