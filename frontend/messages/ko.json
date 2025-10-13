@@ -455,5 +455,11 @@
 	"logo_from_url_description": "이미지 다이렉트 URL (svg, png, webp)을 붙여넣으세요. <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> 또는 <link href=\"https://dashboardicons.com\">Dashboard Icons</link>에서 아이콘을 찾으세요.",
 	"invalid_url": "잘못된 URL",
 	"require_user_email": "이메일 주소 필수",
-	"require_user_email_description": "사용자에게 이메일 주소가 있어야 합니다. 이 설정이 비활성화되면 이메일 주소가 없는 사용자는 이메일 주소가 필요한 기능을 사용할 수 없습니다."
+	"require_user_email_description": "사용자에게 이메일 주소가 있어야 합니다. 이 설정이 비활성화되면 이메일 주소가 없는 사용자는 이메일 주소가 필요한 기능을 사용할 수 없습니다.",
+	"view": "View",
+	"toggle_columns": "Toggle columns",
+	"locale": "Locale",
+	"ldap_id": "LDAP ID",
+	"reauthentication": "Re-authentication",
+	"clear_filters": "Clear Filters"
 }
