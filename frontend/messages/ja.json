@@ -455,5 +455,11 @@
 	"logo_from_url_description": "画像の直接のURL (svg, png, webp) を貼り付けます。アイコンは <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> か <link href=\"https://dashboardicons.com\">Dashboard Icons</link> で探せます。",
 	"invalid_url": "無効な URL",
 	"require_user_email": "Require Email Address",
-	"require_user_email_description": "ユーザーにメールアドレスの登録を必須とします。無効にした場合、メールアドレスを持たないユーザーはメールアドレスが必要な機能を利用できなくなります。"
+	"require_user_email_description": "ユーザーにメールアドレスの登録を必須とします。無効にした場合、メールアドレスを持たないユーザーはメールアドレスが必要な機能を利用できなくなります。",
+	"view": "表示",
+	"toggle_columns": "列の表示/非表示を切り替える",
+	"locale": "ロケール",
+	"ldap_id": "LDAP ID",
+	"reauthentication": "再認証",
+	"clear_filters": "フィルターをクリア"
 }
