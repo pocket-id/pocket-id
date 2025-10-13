@@ -42,7 +42,7 @@ func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent,
 		Country:   country,
 		City:      city,
 		UserAgent: userAgent,
-		UserId:    userID,
+		UserID:    userID,
 		Data:      data,
 	}
 

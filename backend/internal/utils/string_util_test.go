@@ -86,9 +86,9 @@ func TestCamelCaseToSnakeCase(t *testing.T) {
 		{"simple camelCase", "camelCase", "camel_case"},
 		{"PascalCase", "PascalCase", "pascal_case"},
 		{"multipleWordsInCamelCase", "multipleWordsInCamelCase", "multiple_words_in_camel_case"},
-		{"consecutive uppercase", "HTTPRequest", "h_t_t_p_request"},
+		{"consecutive uppercase", "HTTPRequest", "http_request"},
 		{"single lowercase word", "word", "word"},
-		{"single uppercase word", "WORD", "w_o_r_d"},
+		{"single uppercase word", "WORD", "word"},
 		{"with numbers", "camel123Case", "camel123_case"},
 		{"with numbers in middle", "model2Name", "model2_name"},
 		{"mixed case", "iPhone6sPlus", "i_phone6s_plus"},
@@ -99,6 +99,34 @@ func TestCamelCaseToSnakeCase(t *testing.T) {
 			result := CamelCaseToSnakeCase(tt.input)
 			if result != tt.expected {
 				t.Errorf("CamelCaseToSnakeCase(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCamelCaseToScreamingSnakeCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"empty string", "", ""},
+		{"simple camelCase", "camelCase", "CAMEL_CASE"},
+		{"PascalCase", "PascalCase", "PASCAL_CASE"},
+		{"multipleWordsInCamelCase", "multipleWordsInCamelCase", "MULTIPLE_WORDS_IN_CAMEL_CASE"},
+		{"consecutive uppercase", "HTTPRequest", "HTTP_REQUEST"},
+		{"single lowercase word", "word", "WORD"},
+		{"single uppercase word", "WORD", "WORD"},
+		{"with numbers", "camel123Case", "CAMEL123_CASE"},
+		{"with numbers in middle", "model2Name", "MODEL2_NAME"},
+		{"mixed case", "iPhone6sPlus", "I_PHONE6S_PLUS"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CamelCaseToScreamingSnakeCase(tt.input)
+			if result != tt.expected {
+				t.Errorf("CamelCaseToScreamingSnakeCase(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}

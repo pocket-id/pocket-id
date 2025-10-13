@@ -17,7 +17,7 @@ type AuditLog struct {
 	Username  string        `gorm:"-"`
 	Data      AuditLogData
 
-	UserId string `filterable:"true"`
+	UserID string `filterable:"true"`
 	User   User
 }
 
