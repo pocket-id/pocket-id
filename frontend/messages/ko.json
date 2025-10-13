@@ -456,10 +456,10 @@
 	"invalid_url": "잘못된 URL",
 	"require_user_email": "이메일 주소 필수",
 	"require_user_email_description": "사용자에게 이메일 주소가 있어야 합니다. 이 설정이 비활성화되면 이메일 주소가 없는 사용자는 이메일 주소가 필요한 기능을 사용할 수 없습니다.",
-	"view": "View",
-	"toggle_columns": "Toggle columns",
-	"locale": "Locale",
+	"view": "보기",
+	"toggle_columns": "열 표시/숨기기",
+	"locale": "로케일",
 	"ldap_id": "LDAP ID",
-	"reauthentication": "Re-authentication",
-	"clear_filters": "Clear Filters"
+	"reauthentication": "재인증",
+	"clear_filters": "필터 지우기"
 }
