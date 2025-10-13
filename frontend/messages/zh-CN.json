@@ -456,10 +456,10 @@
 	"invalid_url": "无效网址",
 	"require_user_email": "需要电子邮件地址",
 	"require_user_email_description": "要求用户拥有电子邮件地址。若禁用此功能，没有电子邮件地址的用户将无法使用需要电子邮件地址的功能。",
-	"view": "View",
-	"toggle_columns": "Toggle columns",
-	"locale": "Locale",
-	"ldap_id": "LDAP ID",
-	"reauthentication": "Re-authentication",
-	"clear_filters": "Clear Filters"
+	"view": "查看",
+	"toggle_columns": "切换列",
+	"locale": "区域设置",
+	"ldap_id": "LDAP标识符",
+	"reauthentication": "重新认证",
+	"clear_filters": "清除筛选条件"
 }
