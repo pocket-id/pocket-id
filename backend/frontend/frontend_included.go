@@ -75,6 +75,11 @@ func RegisterFrontend(router *gin.Engine) error {
 	router.NoRoute(func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 
+		if strings.HasSuffix(path, "/") {
+			c.Redirect(http.StatusMovedPermanently, strings.TrimRight(c.Request.URL.String(), "/"))
+			return
+		}
+
 		if strings.HasPrefix(path, "api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
 			return
@@ -94,13 +99,9 @@ func RegisterFrontend(router *gin.Engine) error {
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.Header("Cache-Control", "no-store")
 			c.Status(http.StatusOK)
-
-			err = writeIndexFn(c.Writer, nonce)
-			if err != nil {
+			if err := writeIndexFn(c.Writer, nonce); err != nil {
 				_ = c.Error(fmt.Errorf("failed to write index.html file: %w", err))
-				return
 			}
-
 			return
 		}
 

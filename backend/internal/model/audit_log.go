@@ -9,7 +9,7 @@ import (
 type AuditLog struct {
 	Base
 
-	Event     AuditLogEvent `sortable:"true"`
+	Event     AuditLogEvent `sortable:"true" filterable:"true"`
 	IpAddress *string       `sortable:"true"`
 	Country   string        `sortable:"true"`
 	City      string        `sortable:"true"`
@@ -17,7 +17,7 @@ type AuditLog struct {
 	Username  string        `gorm:"-"`
 	Data      AuditLogData
 
-	UserID string
+	UserID string `filterable:"true"`
 	User   User
 }
 

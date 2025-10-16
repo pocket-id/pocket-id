@@ -135,7 +135,7 @@
 	"name_passkey": "Name Passkey",
 	"name_your_passkey_to_easily_identify_it_later": "Name your passkey to easily identify it later.",
 	"create_api_key": "Create API Key",
-	"add_a_new_api_key_for_programmatic_access": "Add a new API key for programmatic access.",
+	"add_a_new_api_key_for_programmatic_access": "Add a new API key for programmatic access to the <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "Add API Key",
 	"manage_api_keys": "Manage API Keys",
 	"api_key_created": "API Key Created",
@@ -455,5 +455,11 @@
 	"logo_from_url_description": "Paste a direct image URL (svg, png, webp). Find icons at <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> or <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
 	"invalid_url": "Invalid URL",
 	"require_user_email": "Require Email Address",
-	"require_user_email_description": "Requires users to have an email address. If disabled, the users without an email address won't be able to use features that require an email address."
+	"require_user_email_description": "Requires users to have an email address. If disabled, the users without an email address won't be able to use features that require an email address.",
+	"view": "View",
+	"toggle_columns": "Toggle columns",
+	"locale": "Locale",
+	"ldap_id" : "LDAP ID",
+	"reauthentication": "Re-authentication",
+	"clear_filters" : "Clear Filters"
 }

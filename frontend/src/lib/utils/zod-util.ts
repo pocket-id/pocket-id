@@ -14,9 +14,11 @@ export const callbackUrlSchema = z
 	.nonempty()
 	.refine(
 		(val) => {
-			if (val === '*') return true;
+			if (val.includes('*')) {
+				return true;
+			}
 			try {
-				new URL(val.replace(/\*/g, 'x'));
+				new URL(val);
 				return true;
 			} catch {
 				return false;

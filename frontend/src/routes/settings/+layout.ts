@@ -1,8 +1,9 @@
-import versionService from '$lib/services/version-service';
+import VersionService from '$lib/services/version-service';
 import type { AppVersionInformation } from '$lib/types/application-configuration';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async () => {
+	const versionService = new VersionService();
 	const currentVersion = versionService.getCurrentVersion();
 
 	let newestVersion = null;

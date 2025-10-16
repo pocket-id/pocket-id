@@ -81,26 +81,21 @@ func CapitalizeFirstLetter(str string) string {
 	return result.String()
 }
 
-func CamelCaseToSnakeCase(str string) string {
-	result := strings.Builder{}
-	result.Grow(int(float32(len(str)) * 1.1))
-	for i, r := range str {
-		if unicode.IsUpper(r) && i > 0 {
-			result.WriteByte('_')
-		}
-		result.WriteRune(unicode.ToLower(r))
-	}
-	return result.String()
+var (
+	reAcronymBoundary = regexp.MustCompile(`([A-Z]+)([A-Z][a-z])`) // ABCd -> AB_Cd
+	reLowerToUpper    = regexp.MustCompile(`([a-z0-9])([A-Z])`)    // aB -> a_B
+)
+
+func CamelCaseToSnakeCase(s string) string {
+	s = reAcronymBoundary.ReplaceAllString(s, "${1}_${2}")
+	s = reLowerToUpper.ReplaceAllString(s, "${1}_${2}")
+	return strings.ToLower(s)
 }
 
-var camelCaseToScreamingSnakeCaseRe = regexp.MustCompile(`([a-z0-9])([A-Z])`)
-
 func CamelCaseToScreamingSnakeCase(s string) string {
-	// Insert underscores before uppercase letters (except the first one)
-	snake := camelCaseToScreamingSnakeCaseRe.ReplaceAllString(s, `${1}_${2}`)
-
-	// Convert to uppercase
-	return strings.ToUpper(snake)
+	s = reAcronymBoundary.ReplaceAllString(s, "${1}_${2}")
+	s = reLowerToUpper.ReplaceAllString(s, "${1}_${2}")
+	return strings.ToUpper(s)
 }
 
 // GetFirstCharacter returns the first non-whitespace character of the string, correctly handling Unicode

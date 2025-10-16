@@ -135,7 +135,7 @@
 	"name_passkey": "Jméno přístupového klíče",
 	"name_your_passkey_to_easily_identify_it_later": "Pojmenujte Váš přístupový klíč, abyste ho snadno identifikovali později.",
 	"create_api_key": "Vytvořit API klíč",
-	"add_a_new_api_key_for_programmatic_access": "Přidejte nový API klíč pro programový přístup.",
+	"add_a_new_api_key_for_programmatic_access": "Přidejte nový klíč API pro programový přístup k <link href='https://pocket-id.org/docs/api'>API Pocket ID</link>.",
 	"add_api_key": "Přidat API klíč",
 	"manage_api_keys": "Spravovat API klíče",
 	"api_key_created": "API klíč vytvořen",
@@ -453,5 +453,13 @@
 	"ui_config_disabled_info_title": "Konfigurace uživatelského rozhraní je deaktivována",
 	"ui_config_disabled_info_description": "Konfigurace uživatelského rozhraní je deaktivována, protože nastavení konfigurace aplikace se spravuje prostřednictvím proměnných prostředí. Některá nastavení nemusí být editovatelná.",
 	"logo_from_url_description": "Vložte přímou URL adresu obrázku (svg, png, webp). Ikony najdete na <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> nebo <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "Neplatná adresa URL"
+	"invalid_url": "Neplatná adresa URL",
+	"require_user_email": "Vyžadovat e-mailovou adresu",
+	"require_user_email_description": "Vyžaduje, aby uživatelé měli e-mailovou adresu. Pokud je tato možnost deaktivována, uživatelé bez e-mailové adresy nebudou moci používat funkce, které e-mailovou adresu vyžadují.",
+	"view": "Zobrazit",
+	"toggle_columns": "Přepínat sloupce",
+	"locale": "Místní nastavení",
+	"ldap_id": "LDAP ID",
+	"reauthentication": "Opětovné ověření",
+	"clear_filters": "Vymazat filtry"
 }

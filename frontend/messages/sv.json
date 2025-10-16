@@ -135,7 +135,7 @@
 	"name_passkey": "Namn på Passkey",
 	"name_your_passkey_to_easily_identify_it_later": "Namnge din passkey för att enkelt kunna identifiera den senare.",
 	"create_api_key": "Skapa API-nyckel",
-	"add_a_new_api_key_for_programmatic_access": "Lägg till en ny API-nyckel för programmatisk åtkomst.",
+	"add_a_new_api_key_for_programmatic_access": "Lägg till en ny API-nyckel för programmatisk åtkomst till <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "Lägg till API-nyckel",
 	"manage_api_keys": "Hantera API-nycklar",
 	"api_key_created": "API-nyckel skapad",
@@ -453,5 +453,13 @@
 	"ui_config_disabled_info_title": "UI-konfiguration inaktiverad",
 	"ui_config_disabled_info_description": "UI-konfigurationen är inaktiverad eftersom applikationens konfigurationsinställningar hanteras via miljövariabler. Vissa inställningar kan inte redigeras.",
 	"logo_from_url_description": "Klistra in en direkt bild-URL (svg, png, webp). Hitta ikoner på <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> eller <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "Ogiltig URL"
+	"invalid_url": "Ogiltig URL",
+	"require_user_email": "Kräver e-postadress",
+	"require_user_email_description": "Kräver att användarna har en e-postadress. Om funktionen är inaktiverad kan användare utan e-postadress inte använda funktioner som kräver en e-postadress.",
+	"view": "Visa",
+	"toggle_columns": "Växla kolumner",
+	"locale": "Lokalisering",
+	"ldap_id": "LDAP-ID",
+	"reauthentication": "Omverifiering",
+	"clear_filters": "Rensa filter"
 }

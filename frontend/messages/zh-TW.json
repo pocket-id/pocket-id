@@ -135,7 +135,7 @@
 	"name_passkey": "命名密碼金鑰",
 	"name_your_passkey_to_easily_identify_it_later": "命名您的密碼金鑰以便日後辨識。",
 	"create_api_key": "建立 API 金鑰",
-	"add_a_new_api_key_for_programmatic_access": "新增 API 金鑰以供程式化存取。",
+	"add_a_new_api_key_for_programmatic_access": "新增一個 API 金鑰，以程式化方式存取<link href='https://pocket-id.org/docs/api'>Pocket ID API</link>。",
 	"add_api_key": "新增 API 金鑰",
 	"manage_api_keys": "管理 API 金鑰",
 	"api_key_created": "已建立 API 金鑰",
@@ -453,5 +453,13 @@
 	"ui_config_disabled_info_title": "使用者介面設定已停用",
 	"ui_config_disabled_info_description": "使用者介面設定已停用，因為應用程式的設定參數是透過環境變數進行管理。部分設定可能無法編輯。",
 	"logo_from_url_description": "貼上直接圖片網址（svg、png、webp）。在<link  href=\"https://selfh.st/icons\">Selfh.st 圖示庫或</link> <link href=\"https://dashboardicons.com\">儀表板圖示庫中</link>尋找圖示。",
-	"invalid_url": "無效網址"
+	"invalid_url": "無效網址",
+	"require_user_email": "需要電子郵件地址",
+	"require_user_email_description": "要求使用者必須擁有電子郵件地址。若此功能被停用，沒有電子郵件地址的使用者將無法使用需要電子郵件地址的功能。",
+	"view": "檢視",
+	"toggle_columns": "切換欄位",
+	"locale": "地區",
+	"ldap_id": "LDAP 識別碼",
+	"reauthentication": "重新驗證",
+	"clear_filters": "清除篩選條件"
 }

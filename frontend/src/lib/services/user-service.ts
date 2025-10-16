@@ -1,5 +1,5 @@
 import userStore from '$lib/stores/user-store';
-import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type { SignupTokenDto } from '$lib/types/signup-token.type';
 import type { UserGroup } from '$lib/types/user-group.type';
 import type { User, UserCreate, UserSignUp } from '$lib/types/user.type';
@@ -8,125 +8,113 @@ import { get } from 'svelte/store';
 import APIService from './api-service';
 
 export default class UserService extends APIService {
-	async list(options?: SearchPaginationSortRequest) {
-		const res = await this.api.get('/users', {
-			params: options
-		});
+	list = async (options?: ListRequestOptions) => {
+		const res = await this.api.get('/users', { params: options });
 		return res.data as Paginated<User>;
-	}
+	};
 
-	async get(id: string) {
+	get = async (id: string) => {
 		const res = await this.api.get(`/users/${id}`);
 		return res.data as User;
-	}
+	};
 
-	async getCurrent() {
+	getCurrent = async () => {
 		const res = await this.api.get('/users/me');
 		return res.data as User;
-	}
+	};
 
-	async create(user: UserCreate) {
+	create = async (user: UserCreate) => {
 		const res = await this.api.post('/users', user);
 		return res.data as User;
-	}
+	};
 
-	async getUserGroups(userId: string) {
+	getUserGroups = async (userId: string) => {
 		const res = await this.api.get(`/users/${userId}/groups`);
 		return res.data as UserGroup[];
-	}
+	};
 
-	async update(id: string, user: UserCreate) {
+	update = async (id: string, user: UserCreate) => {
 		const res = await this.api.put(`/users/${id}`, user);
 		return res.data as User;
-	}
+	};
 
-	async updateCurrent(user: UserCreate) {
+	updateCurrent = async (user: UserCreate) => {
 		const res = await this.api.put('/users/me', user);
 		return res.data as User;
-	}
+	};
 
-	async remove(id: string) {
+	remove = async (id: string) => {
 		await this.api.delete(`/users/${id}`);
-	}
+	};
 
-	async updateProfilePicture(userId: string, image: File) {
+	updateProfilePicture = async (userId: string, image: File) => {
 		const formData = new FormData();
 		formData.append('file', image!);
-
 		await this.api.put(`/users/${userId}/profile-picture`, formData);
 		cachedProfilePicture.bustCache(userId);
-	}
+	};
 
-	async updateCurrentUsersProfilePicture(image: File) {
+	updateCurrentUsersProfilePicture = async (image: File) => {
 		const formData = new FormData();
 		formData.append('file', image!);
-
 		await this.api.put('/users/me/profile-picture', formData);
 		cachedProfilePicture.bustCache(get(userStore)!.id);
-	}
+	};
 
-	async resetCurrentUserProfilePicture() {
+	resetCurrentUserProfilePicture = async () => {
 		await this.api.delete(`/users/me/profile-picture`);
 		cachedProfilePicture.bustCache(get(userStore)!.id);
-	}
+	};
 
-	async resetProfilePicture(userId: string) {
+	resetProfilePicture = async (userId: string) => {
 		await this.api.delete(`/users/${userId}/profile-picture`);
 		cachedProfilePicture.bustCache(userId);
-	}
+	};
 
-	async createOneTimeAccessToken(userId: string = 'me', ttl?: string|number) {
-		const res = await this.api.post(`/users/${userId}/one-time-access-token`, {
-			userId,
-			ttl,
-		});
+	createOneTimeAccessToken = async (userId: string = 'me', ttl?: string | number) => {
+		const res = await this.api.post(`/users/${userId}/one-time-access-token`, { userId, ttl });
 		return res.data.token;
-	}
+	};
 
-	async createSignupToken(ttl: string|number, usageLimit: number) {
-		const res = await this.api.post(`/signup-tokens`, {
-			ttl,
-			usageLimit
-		});
+	createSignupToken = async (ttl: string | number, usageLimit: number) => {
+		const res = await this.api.post(`/signup-tokens`, { ttl, usageLimit });
 		return res.data.token;
-	}
+	};
 
-	async exchangeOneTimeAccessToken(token: string) {
+	exchangeOneTimeAccessToken = async (token: string) => {
 		const res = await this.api.post(`/one-time-access-token/${token}`);
 		return res.data as User;
-	}
+	};
 
-	async requestOneTimeAccessEmailAsUnauthenticatedUser(email: string, redirectPath?: string) {
+	requestOneTimeAccessEmailAsUnauthenticatedUser = async (email: string, redirectPath?: string) => {
 		await this.api.post('/one-time-access-email', { email, redirectPath });
-	}
+	};
 
-	async requestOneTimeAccessEmailAsAdmin(userId: string, ttl: string|number) {
+	requestOneTimeAccessEmailAsAdmin = async (userId: string, ttl: string | number) => {
 		await this.api.post(`/users/${userId}/one-time-access-email`, { ttl });
-	}
+	};
 
-	async updateUserGroups(id: string, userGroupIds: string[]) {
+	updateUserGroups = async (id: string, userGroupIds: string[]) => {
 		const res = await this.api.put(`/users/${id}/user-groups`, { userGroupIds });
 		return res.data as User;
-	}
+	};
 
-	async signup(data: UserSignUp) {
+	signup = async (data: UserSignUp) => {
 		const res = await this.api.post(`/signup`, data);
 		return res.data as User;
-	}
+	};
 
-	async signupInitialUser(data: UserSignUp) {
+	signupInitialUser = async (data: UserSignUp) => {
 		const res = await this.api.post(`/signup/setup`, data);
 		return res.data as User;
-	}
+	};
 
-	async listSignupTokens(options?: SearchPaginationSortRequest) {
-		const res = await this.api.get('/signup-tokens', {
-			params: options
-		});
+	listSignupTokens = async (options?: ListRequestOptions) => {
+		const res = await this.api.get('/signup-tokens', { params: options });
 		return res.data as Paginated<SignupTokenDto>;
-	}
+	};
 
-	async deleteSignupToken(tokenId: string) {
+	deleteSignupToken = async (tokenId: string) => {
 		await this.api.delete(`/signup-tokens/${tokenId}`);
-	}
+	};
 }

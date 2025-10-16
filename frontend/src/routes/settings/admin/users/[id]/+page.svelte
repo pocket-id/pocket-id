@@ -14,6 +14,7 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import { backNavigate } from '../navigate-back-util';
 	import UserForm from '../user-form.svelte';
 
 	let { data } = $props();
@@ -24,6 +25,7 @@
 
 	const userService = new UserService();
 	const customClaimService = new CustomClaimService();
+	const backNavigation = backNavigate('/settings/admin/users');
 
 	async function updateUserGroups(userIds: string[]) {
 		await userService
@@ -81,8 +83,8 @@
 </svelte:head>
 
 <div class="flex items-center justify-between">
-	<a class="text-muted-foreground flex text-sm" href="/settings/admin/users"
-		><LucideChevronLeft class="size-5" /> {m.back()}</a
+	<button class="text-muted-foreground flex text-sm" onclick={() => backNavigation.go()}
+		><LucideChevronLeft class="size-5" /> {m.back()}</button
 	>
 	{#if !!user.ldapId}
 		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>

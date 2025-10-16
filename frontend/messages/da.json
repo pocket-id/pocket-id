@@ -135,7 +135,7 @@
 	"name_passkey": "Navngiv adgangsnøgle",
 	"name_your_passkey_to_easily_identify_it_later": "Giv din adgangsnøgle et navn, så du nemt kan genkende den senere.",
 	"create_api_key": "Opret API-nøgle",
-	"add_a_new_api_key_for_programmatic_access": "Tilføj en ny API-nøgle til programmatisk adgang.",
+	"add_a_new_api_key_for_programmatic_access": "Tilføj en ny API-nøgle for programmatisk adgang til <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
 	"add_api_key": "Tilføj API-nøgle",
 	"manage_api_keys": "Administrér API-nøgler",
 	"api_key_created": "API-nøgle oprettet",
@@ -453,5 +453,13 @@
 	"ui_config_disabled_info_title": "UI-konfiguration deaktiveret",
 	"ui_config_disabled_info_description": "UI-konfigurationen er deaktiveret, fordi applikationskonfigurationsindstillingerne administreres via miljøvariabler. Nogle indstillinger kan muligvis ikke redigeres.",
 	"logo_from_url_description": "Indsæt en direkte billed-URL (svg, png, webp). Find ikoner på <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> eller <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "Ugyldig URL"
+	"invalid_url": "Ugyldig URL",
+	"require_user_email": "Kræver e-mailadresse",
+	"require_user_email_description": "Kræver, at brugerne har en e-mailadresse. Hvis denne funktion er deaktiveret, kan brugere uden en e-mailadresse ikke bruge funktioner, der kræver en e-mailadresse.",
+	"view": "Vis",
+	"toggle_columns": "Skift kolonner",
+	"locale": "Lokale",
+	"ldap_id": "LDAP-id",
+	"reauthentication": "Genbekræftelse",
+	"clear_filters": "Ryd filtre"
 }

@@ -1,34 +1,25 @@
-import type { AuditLog, AuditLogFilter } from '$lib/types/audit-log.type';
-import type { Paginated, SearchPaginationSortRequest } from '$lib/types/pagination.type';
+import type { AuditLog } from '$lib/types/audit-log.type';
+import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import APIService from './api-service';
 
-class AuditLogService extends APIService {
-	async list(options?: SearchPaginationSortRequest) {
-		const res = await this.api.get('/audit-logs', {
-			params: options
-		});
+export default class AuditLogService extends APIService {
+	list = async (options?: ListRequestOptions) => {
+		const res = await this.api.get('/audit-logs', { params: options });
 		return res.data as Paginated<AuditLog>;
-	}
+	};
 
-	async listAllLogs(options?: SearchPaginationSortRequest, filters?: AuditLogFilter) {
-		const res = await this.api.get('/audit-logs/all', {
-			params: {
-				...options,
-				filters
-			}
-		});
+	listAllLogs = async (options?: ListRequestOptions) => {
+		const res = await this.api.get('/audit-logs/all', { params: options });
 		return res.data as Paginated<AuditLog>;
-	}
+	};
 
-	async listClientNames() {
+	listClientNames = async () => {
 		const res = await this.api.get<string[]>('/audit-logs/filters/client-names');
 		return res.data;
-	}
+	};
 
-	async listUsers() {
+	listUsers = async () => {
 		const res = await this.api.get<Record<string, string>>('/audit-logs/filters/users');
 		return res.data;
-	}
+	};
 }
-
-export default AuditLogService;

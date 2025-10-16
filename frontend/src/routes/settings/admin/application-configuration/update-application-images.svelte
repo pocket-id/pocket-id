@@ -32,7 +32,7 @@
 	/>
 	<ApplicationImage
 		id="logo-light"
-		imageClass="size-32"
+		imageClass="size-24"
 		label={m.light_mode_logo()}
 		bind:image={logoLight}
 		imageURL={cachedApplicationLogo.getUrl(true)}
@@ -40,7 +40,7 @@
 	/>
 	<ApplicationImage
 		id="logo-dark"
-		imageClass="size-32"
+		imageClass="size-24"
 		label={m.dark_mode_logo()}
 		bind:image={logoDark}
 		imageURL={cachedApplicationLogo.getUrl(false)}

@@ -135,7 +135,7 @@
 	"name_passkey": "Nom de la clé d'accès",
 	"name_your_passkey_to_easily_identify_it_later": "Nommez votre clé d'accès pour l'identifier plus tard.",
 	"create_api_key": "Créer une clé API",
-	"add_a_new_api_key_for_programmatic_access": "Ajouter une nouvelle clé API pour l'accès par des programmes tiers.",
+	"add_a_new_api_key_for_programmatic_access": "Ajoute une nouvelle clé API pour accéder de manière programmatique à <link href='https://pocket-id.org/docs/api'>l'API Pocket ID</link>.",
 	"add_api_key": "Crée une clé API",
 	"manage_api_keys": "Gérer les clés API",
 	"api_key_created": "Clé API créée",
@@ -453,5 +453,13 @@
 	"ui_config_disabled_info_title": "Configuration de l'interface utilisateur désactivée",
 	"ui_config_disabled_info_description": "La configuration de l'interface utilisateur est désactivée parce que les paramètres de configuration de l'application sont gérés par des variables d'environnement. Certains paramètres peuvent ne pas être modifiables.",
 	"logo_from_url_description": "Colle une URL d'image directe (svg, png, webp). Trouve des icônes sur <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> ou <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "URL pas valide"
+	"invalid_url": "URL pas valide",
+	"require_user_email": "Besoin d'une adresse e-mail",
+	"require_user_email_description": "Les utilisateurs doivent avoir une adresse e-mail. Si cette option est désactivée, ceux qui n'ont pas d'adresse e-mail ne pourront pas utiliser les fonctionnalités qui en ont besoin.",
+	"view": "Voir",
+	"toggle_columns": "Basculer les colonnes",
+	"locale": "Paramètres régionaux",
+	"ldap_id": "ID LDAP",
+	"reauthentication": "Réauthentification",
+	"clear_filters": "Effacer les filtres"
 }

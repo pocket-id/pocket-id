@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -691,7 +692,7 @@ func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx
 	return client, nil
 }
 
-func (s *OidcService) ListClients(ctx context.Context, name string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.OidcClient, utils.PaginationResponse, error) {
+func (s *OidcService) ListClients(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) ([]model.OidcClient, utils.PaginationResponse, error) {
 	var clients []model.OidcClient
 
 	query := s.db.
@@ -704,17 +705,17 @@ func (s *OidcService) ListClients(ctx context.Context, name string, sortedPagina
 	}
 
 	// As allowedUserGroupsCount is not a column, we need to manually sort it
-	if sortedPaginationRequest.Sort.Column == "allowedUserGroupsCount" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "allowedUserGroupsCount" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
-			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + sortedPaginationRequest.Sort.Direction)
+			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + listRequestOptions.Sort.Direction)
 
-		response, err := utils.Paginate(sortedPaginationRequest.Pagination.Page, sortedPaginationRequest.Pagination.Limit, query, &clients)
+		response, err := utils.Paginate(listRequestOptions.Pagination.Page, listRequestOptions.Pagination.Limit, query, &clients)
 		return clients, response, err
 	}
 
-	response, err := utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
+	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &clients)
 	return clients, response, err
 }
 
@@ -1349,7 +1350,7 @@ func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id stri
 	return count, nil
 }
 
-func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
+func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
 
 	query := s.db.
 		WithContext(ctx).
@@ -1358,7 +1359,7 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 		Where("user_id = ?", userID)
 
 	var authorizedClients []model.UserAuthorizedOidcClient
-	response, err := utils.PaginateAndSort(sortedPaginationRequest, query, &authorizedClients)
+	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &authorizedClients)
 
 	return authorizedClients, response, err
 }
@@ -1391,7 +1392,7 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 	return nil
 }
 
-func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, sortedPaginationRequest utils.SortedPaginationRequest) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
+func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]dto.AccessibleOidcClientDto, utils.PaginationResponse, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -1438,13 +1439,13 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 
 	// Handle custom sorting for lastUsedAt column
 	var response utils.PaginationResponse
-	if sortedPaginationRequest.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
 		query = query.
 			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
-			Order("user_authorized_oidc_clients.last_used_at " + sortedPaginationRequest.Sort.Direction + " NULLS LAST")
+			Order("user_authorized_oidc_clients.last_used_at " + listRequestOptions.Sort.Direction + " NULLS LAST")
 	}
 
-	response, err = utils.PaginateAndSort(sortedPaginationRequest, query, &clients)
+	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &clients)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}
@@ -1937,7 +1938,13 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 		return &common.FileTypeNotSupportedError{}
 	}
 
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + "." + ext
+	folderPath := filepath.Join(common.EnvConfig.UploadPath, "oidc-client-images")
+	err = os.MkdirAll(folderPath, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	imagePath := filepath.Join(folderPath, clientID+"."+ext)
 	err = utils.SaveFileStream(io.LimitReader(resp.Body, maxLogoSize+1), imagePath)
 	if err != nil {
 		return err

@@ -21,7 +21,7 @@ func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService) *UserG
 	return &UserGroupService{db: db, appConfigService: appConfigService}
 }
 
-func (s *UserGroupService) List(ctx context.Context, name string, sortedPaginationRequest utils.SortedPaginationRequest) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
+func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
 	query := s.db.
 		WithContext(ctx).
 		Preload("CustomClaims").
@@ -32,17 +32,14 @@ func (s *UserGroupService) List(ctx context.Context, name string, sortedPaginati
 	}
 
 	// As userCount is not a column we need to manually sort it
-	if sortedPaginationRequest.Sort.Column == "userCount" && utils.IsValidSortDirection(sortedPaginationRequest.Sort.Direction) {
+	if listRequestOptions.Sort.Column == "userCount" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
 		query = query.Select("user_groups.*, COUNT(user_groups_users.user_id)").
 			Joins("LEFT JOIN user_groups_users ON user_groups.id = user_groups_users.user_group_id").
 			Group("user_groups.id").
-			Order("COUNT(user_groups_users.user_id) " + sortedPaginationRequest.Sort.Direction)
-
-		response, err := utils.Paginate(sortedPaginationRequest.Pagination.Page, sortedPaginationRequest.Pagination.Limit, query, &groups)
-		return groups, response, err
+			Order("COUNT(user_groups_users.user_id) " + listRequestOptions.Sort.Direction)
 	}
 
-	response, err = utils.PaginateAndSort(sortedPaginationRequest, query, &groups)
+	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &groups)
 	return groups, response, err
 }
 

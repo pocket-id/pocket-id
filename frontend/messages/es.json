@@ -135,7 +135,7 @@
 	"name_passkey": "Nombre para la clave de acceso",
 	"name_your_passkey_to_easily_identify_it_later": "Nombra tu clave de acceso para poder identificarla fácilmente más tarde.",
 	"create_api_key": "Crear API Key",
-	"add_a_new_api_key_for_programmatic_access": "Añade una nueva API key para el acceso programático.",
+	"add_a_new_api_key_for_programmatic_access": "Añade una nueva clave API para acceder de forma programática a la <link href='https://pocket-id.org/docs/api'>API de Pocket ID</link>.",
 	"add_api_key": "Añade una API Key",
 	"manage_api_keys": "Gestiona las API Keys",
 	"api_key_created": "API Key creada",
@@ -453,5 +453,13 @@
 	"ui_config_disabled_info_title": "Configuración de la interfaz de usuario desactivada",
 	"ui_config_disabled_info_description": "La configuración de la interfaz de usuario está desactivada porque los ajustes de configuración de la aplicación se gestionan a través de variables de entorno. Es posible que algunos ajustes no se puedan editar.",
 	"logo_from_url_description": "Pega una URL de imagen directa (svg, png, webp). Encuentra iconos en <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> o <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
-	"invalid_url": "URL no válida"
+	"invalid_url": "URL no válida",
+	"require_user_email": "Requerir dirección de correo electrónico",
+	"require_user_email_description": "Requiere que los usuarios tengan una dirección de correo electrónico. Si se desactiva, los usuarios que no tengan una dirección de correo electrónico no podrán utilizar las funciones que la requieran.",
+	"view": "Ver",
+	"toggle_columns": "Alternar columnas",
+	"locale": "Configuración regional",
+	"ldap_id": "Identificador LDAP",
+	"reauthentication": "Reautenticación",
+	"clear_filters": "Borrar filtros"
 }
