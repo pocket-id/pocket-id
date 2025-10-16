@@ -455,5 +455,11 @@
 	"logo_from_url_description": "Klistra in en direkt bild-URL (svg, png, webp). Hitta ikoner på <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> eller <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
 	"invalid_url": "Ogiltig URL",
 	"require_user_email": "Kräver e-postadress",
-	"require_user_email_description": "Kräver att användarna har en e-postadress. Om funktionen är inaktiverad kan användare utan e-postadress inte använda funktioner som kräver en e-postadress."
+	"require_user_email_description": "Kräver att användarna har en e-postadress. Om funktionen är inaktiverad kan användare utan e-postadress inte använda funktioner som kräver en e-postadress.",
+	"view": "Visa",
+	"toggle_columns": "Växla kolumner",
+	"locale": "Lokalisering",
+	"ldap_id": "LDAP-ID",
+	"reauthentication": "Omverifiering",
+	"clear_filters": "Rensa filter"
 }

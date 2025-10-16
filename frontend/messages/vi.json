@@ -455,5 +455,11 @@
 	"logo_from_url_description": "Dán URL hình ảnh trực tiếp (svg, png, webp). Tìm biểu tượng tại <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> hoặc <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
 	"invalid_url": "URL không hợp lệ",
 	"require_user_email": "Yêu cầu địa chỉ email",
-	"require_user_email_description": "Yêu cầu người dùng phải có địa chỉ email. Nếu tính năng này bị vô hiệu hóa, những người dùng không có địa chỉ email sẽ không thể sử dụng các tính năng yêu cầu địa chỉ email."
+	"require_user_email_description": "Yêu cầu người dùng phải có địa chỉ email. Nếu tính năng này bị vô hiệu hóa, những người dùng không có địa chỉ email sẽ không thể sử dụng các tính năng yêu cầu địa chỉ email.",
+	"view": "Xem",
+	"toggle_columns": "Bật/tắt cột",
+	"locale": "Vùng",
+	"ldap_id": "ID LDAP",
+	"reauthentication": "Xác thực lại",
+	"clear_filters": "Xóa bộ lọc"
 }
