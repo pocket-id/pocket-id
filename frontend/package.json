@@ -22,7 +22,7 @@
     "jose": "^5.10.0",
     "qrcode": "^1.5.4",
     "runed": "^0.31.1",
-    "sveltekit-superforms": "^2.27.1",
+    "sveltekit-superforms": "^2.27.4",
     "tailwind-merge": "^3.3.1",
     "zod": "^4.0.9"
   },
