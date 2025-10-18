@@ -12,11 +12,13 @@
 	let {
 		label,
 		accept,
-		onchange
+		onchange,
+		id = 'file-input'
 	}: {
 		label: string;
 		accept?: string;
 		onchange: (file: File | string | null) => void;
+		id?: string;
 	} = $props();
 
 	let url = $state('');
@@ -47,7 +49,7 @@
 
 <div class="flex">
 	<FileInput
-		id="logo"
+		{id}
 		variant="secondary"
 		{accept}
 		onchange={handleFileChange}
@@ -64,9 +66,9 @@
 			<LucideChevronDown class="size-4" /></Popover.Trigger
 		>
 		<Popover.Content class="w-80">
-			<Label for="file-url" class="text-xs">URL</Label>
+			<Label for="{id}-url" class="text-xs">URL</Label>
 			<Input
-				id="file-url"
+				id="{id}-url"
 				placeholder=""
 				value={url}
 				oninput={(e) => (url = e.currentTarget.value)}

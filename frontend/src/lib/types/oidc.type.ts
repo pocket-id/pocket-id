@@ -4,6 +4,7 @@ export type OidcClientMetaData = {
 	id: string;
 	name: string;
 	hasLogo: boolean;
+	hasDarkLogo: boolean;
 	requiresReauthentication: boolean;
 	launchURL?: string;
 };
@@ -37,17 +38,20 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo'>;
+export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo'>;
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };
 export type OidcClientUpdateWithLogo = OidcClientUpdate & {
 	logo: File | null | undefined;
+	darkLogo: File | null | undefined;
 };
 
 export type OidcClientCreateWithLogo = OidcClientCreate & {
 	logo?: File | null;
 	logoUrl?: string;
+	darkLogo?: File | null;
+	darkLogoUrl?: string;
 };
 
 export type OidcDeviceCodeInfo = {

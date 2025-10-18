@@ -49,6 +49,10 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.DELETE("/oidc/clients/:id/logo", oc.deleteClientLogoHandler)
 	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)
 
+	group.GET("/oidc/clients/:id/logo-dark", oc.getClientDarkLogoHandler)
+	group.DELETE("/oidc/clients/:id/logo-dark", oc.deleteClientDarkLogoHandler)
+	group.POST("/oidc/clients/:id/logo-dark", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientDarkLogoHandler)
+
 	group.GET("/oidc/clients/:id/preview/:userId", authMiddleware.Add(), oc.getClientPreviewHandler)
 
 	group.POST("/oidc/device/authorize", oc.deviceAuthorizationHandler)
@@ -357,6 +361,7 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	clientDto := dto.OidcClientMetaDataDto{}
 	err = dto.MapStruct(client, &clientDto)
 	if err == nil {
+		clientDto.HasDarkLogo = client.HasDarkLogo()
 		c.JSON(http.StatusOK, clientDto)
 		return
 	}
@@ -419,6 +424,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 			_ = c.Error(err)
 			return
 		}
+		clientDto.HasDarkLogo = client.HasDarkLogo()
 		clientDto.AllowedUserGroupsCount, err = oc.oidcService.GetAllowedGroupsCountOfClient(c, client.ID)
 		if err != nil {
 			_ = c.Error(err)
@@ -596,6 +602,71 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// getClientDarkLogoHandler godoc
+// @Summary Get client dark mode logo
+// @Description Get the dark mode logo image for an OIDC client
+// @Tags OIDC
+// @Produce image/png
+// @Produce image/jpeg
+// @Produce image/svg+xml
+// @Param id path string true "Client ID"
+// @Success 200 {file} binary "Dark logo image"
+// @Router /api/oidc/clients/{id}/logo-dark [get]
+func (oc *OidcController) getClientDarkLogoHandler(c *gin.Context) {
+	imagePath, mimeType, err := oc.oidcService.GetClientDarkLogo(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	utils.SetCacheControlHeader(c, 15*time.Minute, 12*time.Hour)
+
+	c.Header("Content-Type", mimeType)
+	c.File(imagePath)
+}
+
+// updateClientDarkLogoHandler godoc
+// @Summary Update client dark mode logo
+// @Description Upload or update the dark mode logo for an OIDC client
+// @Tags OIDC
+// @Accept multipart/form-data
+// @Param id path string true "Client ID"
+// @Param file formData file true "Dark logo image file (PNG, JPG, or SVG)"
+// @Success 204 "No Content"
+// @Router /api/oidc/clients/{id}/logo-dark [post]
+func (oc *OidcController) updateClientDarkLogoHandler(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	err = oc.oidcService.UpdateClientDarkLogo(c.Request.Context(), c.Param("id"), file)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// deleteClientDarkLogoHandler godoc
+// @Summary Delete client dark mode logo
+// @Description Delete the dark mode logo for an OIDC client
+// @Tags OIDC
+// @Param id path string true "Client ID"
+// @Success 204 "No Content"
+// @Router /api/oidc/clients/{id}/logo-dark [delete]
+func (oc *OidcController) deleteClientDarkLogoHandler(c *gin.Context) {
+	err := oc.oidcService.DeleteClientDarkLogo(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // updateAllowedUserGroupsHandler godoc
 // @Summary Update allowed user groups
 // @Description Update the user groups allowed to access an OIDC client
@@ -624,6 +695,7 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+	oidcClientDto.HasDarkLogo = oidcClient.HasDarkLogo()
 
 	c.JSON(http.StatusOK, oidcClientDto)
 }

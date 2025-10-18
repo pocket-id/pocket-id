@@ -8,7 +8,11 @@
 	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
 	import type { AccessibleOidcClient, OidcClientMetaData } from '$lib/types/oidc.type';
-	import { cachedApplicationLogo, cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+	import {
+		cachedApplicationLogo,
+		cachedOidcClientLogo,
+		cachedOidcClientDarkLogo
+	} from '$lib/utils/cached-image-util';
 	import {
 		LucideBan,
 		LucideEllipsisVertical,
@@ -28,6 +32,19 @@
 	} = $props();
 
 	const isLightMode = $derived(mode.current === 'light');
+	const logoUrl = $derived.by(() => {
+		if (isLightMode) {
+			return client.hasLogo
+				? cachedOidcClientLogo.getUrl(client.id)
+				: cachedApplicationLogo.getUrl(true);
+		} else {
+			return client.hasDarkLogo
+				? cachedOidcClientDarkLogo.getUrl(client.id)
+				: client.hasLogo
+					? cachedOidcClientLogo.getUrl(client.id)
+					: cachedApplicationLogo.getUrl(false);
+		}
+	});
 </script>
 
 <Card.Root
@@ -37,26 +54,20 @@
 	<Card.Content class=" p-0">
 		<div class="flex gap-3">
 			<div class="aspect-square h-[56px]">
-				<ImageBox
-					class="size-14"
-					src={client.hasLogo
-						? cachedOidcClientLogo.getUrl(client.id)
-						: cachedApplicationLogo.getUrl(isLightMode)}
-					alt={m.name_logo({ name: client.name })}
-				/>
+				<ImageBox class="size-14" src={logoUrl} alt={m.name_logo({ name: client.name })} />
 			</div>
 			<div class="flex w-full justify-between gap-3">
 				<div>
 					<div class="mb-1 flex items-start gap-2">
 						<h3
-							class="text-foreground line-clamp-2 leading-tight font-semibold break-words break-all text-ellipsis"
+							class="text-foreground line-clamp-2 text-ellipsis break-words break-all font-semibold leading-tight"
 						>
 							{client.name}
 						</h3>
 					</div>
 					{#if client.launchURL}
 						<p
-							class="text-muted-foreground line-clamp-1 text-xs break-words break-all text-ellipsis"
+							class="text-muted-foreground line-clamp-1 text-ellipsis break-words break-all text-xs"
 						>
 							{new URL(client.launchURL).hostname}
 						</p>

@@ -6,6 +6,7 @@ type OidcClientMetaDataDto struct {
 	ID                       string  `json:"id"`
 	Name                     string  `json:"name"`
 	HasLogo                  bool    `json:"hasLogo"`
+	HasDarkLogo              bool    `json:"hasDarkLogo"`
 	LaunchURL                *string `json:"launchURL"`
 	RequiresReauthentication bool    `json:"requiresReauthentication"`
 }
@@ -39,7 +40,9 @@ type OidcClientUpdateDto struct {
 	Credentials              OidcClientCredentialsDto `json:"credentials"`
 	LaunchURL                *string                  `json:"launchURL" binding:"omitempty,url"`
 	HasLogo                  bool                     `json:"hasLogo"`
+	HasDarkLogo              bool                     `json:"hasDarkLogo"`
 	LogoURL                  *string                  `json:"logoUrl"`
+	DarkLogoURL              *string                  `json:"darkLogoUrl"`
 }
 
 type OidcClientCreateDto struct {

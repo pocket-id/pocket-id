@@ -10,16 +10,20 @@
 		logoDataURL,
 		clientName,
 		resetLogo,
-		onLogoChange
+		onLogoChange,
+		label,
+		id = 'logo'
 	}: {
 		logoDataURL: string | null;
 		clientName: string;
 		resetLogo: () => void;
 		onLogoChange: (file: File | string | null) => void;
+		label?: string;
+		id?: string;
 	} = $props();
 </script>
 
-<Label for="logo">{m.logo()}</Label>
+<Label for={id}>{label || m.logo()}</Label>
 <div class="flex items-end gap-4">
 	{#if logoDataURL}
 		<div class="flex items-start gap-4">
@@ -29,7 +33,7 @@
 					variant="destructive"
 					size="icon"
 					onclick={resetLogo}
-					class="absolute -top-2 -right-2 size-6 rounded-full shadow-md"
+					class="absolute -right-2 -top-2 size-6 rounded-full shadow-md"
 				>
 					<LucideX class="size-3" />
 				</Button>
@@ -38,7 +42,7 @@
 	{/if}
 	<div class="flex flex-col gap-3">
 		<div class="flex flex-wrap items-center gap-2">
-			<UrlFileInput label={m.upload_logo()} accept="image/*" onchange={onLogoChange} />
+			<UrlFileInput {id} label={m.upload_logo()} accept="image/*" onchange={onLogoChange} />
 		</div>
 	</div>
 </div>
