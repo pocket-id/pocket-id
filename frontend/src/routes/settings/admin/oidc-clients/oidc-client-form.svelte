@@ -8,7 +8,7 @@
 		OidcClientCreateWithLogo,
 		OidcClientUpdateWithLogo
 	} from '$lib/types/oidc.type';
-	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+	import { cachedOidcClientLogo, cachedOidcClientDarkLogo } from '$lib/utils/cached-image-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
@@ -32,8 +32,12 @@
 	let isLoading = $state(false);
 	let showAdvancedOptions = $state(false);
 	let logo = $state<File | null | undefined>();
+	let darkLogo = $state<File | null | undefined>();
 	let logoDataURL: string | null = $state(
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
+	);
+	let darkLogoDataURL: string | null = $state(
+		existingClient?.hasDarkLogo ? cachedOidcClientDarkLogo.getUrl(existingClient!.id) : null
 	);
 
 	const client = {
@@ -48,7 +52,8 @@
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		},
-		logoUrl: ''
+		logoUrl: '',
+		darkLogoUrl: ''
 	};
 
 	const formSchema = z.object({
@@ -70,6 +75,7 @@
 		requiresReauthentication: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
+		darkLogoUrl: optionalUrl,
 		credentials: z.object({
 			federatedIdentities: z.array(
 				z.object({
@@ -93,12 +99,20 @@
 		const success = await callback({
 			...data,
 			logo: $inputs.logoUrl?.value ? null : logo,
-			logoUrl: $inputs.logoUrl?.value
+			logoUrl: $inputs.logoUrl?.value,
+			darkLogo: $inputs.darkLogoUrl?.value ? null : darkLogo,
+			darkLogoUrl: $inputs.darkLogoUrl?.value
 		});
 
 		const hasLogo = logo != null || !!$inputs.logoUrl?.value;
-		if (success && existingClient && hasLogo) {
-			logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
+		const hasDarkLogo = darkLogo != null || !!$inputs.darkLogoUrl?.value;
+		if (success && existingClient) {
+			if (hasLogo) {
+				logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
+			}
+			if (hasDarkLogo) {
+				darkLogoDataURL = cachedOidcClientDarkLogo.getUrl(existingClient.id);
+			}
 		}
 
 		if (success && !existingClient) form.reset();
@@ -119,10 +133,30 @@
 		}
 	}
 
+	function onDarkLogoChange(input: File | string | null) {
+		if (input == null) return;
+
+		if (typeof input === 'string') {
+			darkLogo = null;
+			darkLogoDataURL = input || null;
+			$inputs.darkLogoUrl!.value = input;
+		} else {
+			darkLogo = input;
+			$inputs.darkLogoUrl && ($inputs.darkLogoUrl.value = '');
+			darkLogoDataURL = URL.createObjectURL(input);
+		}
+	}
+
 	function resetLogo() {
 		logo = null;
 		logoDataURL = null;
 		$inputs.logoUrl && ($inputs.logoUrl.value = '');
+	}
+
+	function resetDarkLogo() {
+		darkLogo = null;
+		darkLogoDataURL = null;
+		$inputs.darkLogoUrl && ($inputs.darkLogoUrl.value = '');
 	}
 
 	function getFederatedIdentityErrors(errors: z.ZodError<any> | undefined) {
@@ -182,13 +216,27 @@
 			bind:checked={$inputs.requiresReauthentication.value}
 		/>
 	</div>
-	<div class="mt-7">
-		<OidcClientImageInput
-			{logoDataURL}
-			{resetLogo}
-			clientName={$inputs.name.value}
-			{onLogoChange}
-		/>
+	<div class="mt-7 grid grid-cols-1 gap-x-3 gap-y-7 md:grid-cols-2">
+		<div>
+			<OidcClientImageInput
+				id="light-logo"
+				{logoDataURL}
+				{resetLogo}
+				clientName={$inputs.name.value}
+				{onLogoChange}
+				label={m.logo()}
+			/>
+		</div>
+		<div>
+			<OidcClientImageInput
+				id="dark-logo"
+				logoDataURL={darkLogoDataURL}
+				resetLogo={resetDarkLogo}
+				clientName={$inputs.name.value}
+				onLogoChange={onDarkLogoChange}
+				label={m.dark_mode_logo()}
+			/>
+		</div>
 	</div>
 
 	{#if showAdvancedOptions}

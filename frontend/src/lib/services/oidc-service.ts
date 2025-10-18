@@ -10,7 +10,7 @@ import type {
 	OidcClientWithAllowedUserGroupsCount,
 	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
-import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+import { cachedOidcClientLogo, cachedOidcClientDarkLogo } from '$lib/utils/cached-image-util';
 import APIService from './api-service';
 
 class OidcService extends APIService {
@@ -87,6 +87,27 @@ class OidcService extends APIService {
 	removeClientLogo = async (id: string) => {
 		await this.api.delete(`/oidc/clients/${id}/logo`);
 		cachedOidcClientLogo.bustCache(id);
+	};
+
+	updateClientDarkLogo = async (client: OidcClient, image: File | null) => {
+		if (client.hasDarkLogo && !image) {
+			await this.removeClientDarkLogo(client.id);
+			return;
+		}
+		if (!client.hasDarkLogo && !image) {
+			return;
+		}
+
+		const formData = new FormData();
+		formData.append('file', image!);
+
+		await this.api.post(`/oidc/clients/${client.id}/logo-dark`, formData);
+		cachedOidcClientDarkLogo.bustCache(client.id);
+	};
+
+	removeClientDarkLogo = async (id: string) => {
+		await this.api.delete(`/oidc/clients/${id}/logo-dark`);
+		cachedOidcClientDarkLogo.bustCache(id);
 	};
 
 	createClientSecret = async (id: string) =>

@@ -51,6 +51,17 @@ export const cachedOidcClientLogo: CachableImage = {
 	}
 };
 
+export const cachedOidcClientDarkLogo: CachableImage = {
+	getUrl: (clientId: string) => {
+		const url = `/api/oidc/clients/${clientId}/logo-dark`;
+		return getCachedImageUrl(url);
+	},
+	bustCache: (clientId: string) => {
+		const url = `/api/oidc/clients/${clientId}/logo-dark`;
+		bustImageCache(url);
+	}
+};
+
 function getCachedImageUrl(url: string) {
 	const skipCacheUntil = getSkipCacheUntil(url);
 	const skipCache = skipCacheUntil > Date.now();
