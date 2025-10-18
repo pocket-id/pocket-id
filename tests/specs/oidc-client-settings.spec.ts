@@ -72,7 +72,12 @@ test('Edit OIDC client', async ({ page }) => {
 
 	await page.getByLabel('Name').fill('Nextcloud updated');
 	await page.getByTestId('callback-url-1').first().fill('http://nextcloud-updated/auth/callback');
-	await page.getByLabel('light-logo').setInputFiles('assets/nextcloud-logo.png');
+	await page
+		.getByLabel('Light Mode Logo', { exact: true })
+		.setInputFiles('assets/nextcloud-logo.png');
+	await page
+		.getByLabel('Dark Mode Logo', { exact: true })
+		.setInputFiles('assets/nextcloud-logo.png');
 	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 	await page.getByRole('button', { name: 'Save' }).click();
 
