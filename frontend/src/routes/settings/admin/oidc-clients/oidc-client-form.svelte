@@ -224,7 +224,7 @@
 				{resetLogo}
 				clientName={$inputs.name.value}
 				{onLogoChange}
-				label={m.logo()}
+				label={m.light_mode_logo()}
 			/>
 		</div>
 		<div>
