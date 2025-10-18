@@ -51,7 +51,7 @@ test.describe('Create OIDC client', () => {
 		await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
 		await expect(page.getByTestId('callback-url-1')).toHaveValue(oidcClient.callbackUrl);
 		await expect(page.getByTestId('callback-url-2')).toHaveValue(oidcClient.secondCallbackUrl);
-		await expect(page.getByRole('img', { name: `${oidcClient.name} light-logo` })).toBeVisible();
+		await expect(page.getByRole('img', { name: `${oidcClient.name} logo` }).first()).toBeVisible();
 
 		const res = await page.request.get(`/api/oidc/clients/${resolvedClientId}/logo`);
 		expect(res.ok()).toBeTruthy();
@@ -84,7 +84,7 @@ test('Edit OIDC client', async ({ page }) => {
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'OIDC client updated successfully'
 	);
-	await expect(page.getByRole('img', { name: 'Nextcloud updated logo' })).toBeVisible();
+	await expect(page.getByRole('img', { name: 'Nextcloud updated logo' }).first()).toBeVisible();
 	await page.request
 		.get(`/api/oidc/clients/${oidcClient.id}/logo`)
 		.then((res) => expect.soft(res.status()).toBe(200));
