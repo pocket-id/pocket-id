@@ -5,6 +5,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { m } from '$lib/paraglide/messages';
 	import { LucideX } from '@lucide/svelte';
+	import type { Snippet } from 'svelte';
 
 	let {
 		logoDataURL,
@@ -12,7 +13,8 @@
 		resetLogo,
 		onLogoChange,
 		label,
-		id = 'logo'
+		id = 'logo',
+		tabTriggers
 	}: {
 		logoDataURL: string | null;
 		clientName: string;
@@ -20,10 +22,13 @@
 		onLogoChange: (file: File | string | null) => void;
 		label?: string;
 		id?: string;
+		tabTriggers?: Snippet;
 	} = $props();
 </script>
 
-<Label for={id}>{label || m.logo()}</Label>
+{#if label}
+	<Label for={id}>{label}</Label>
+{/if}
 <div class="flex items-end gap-4">
 	{#if logoDataURL}
 		<div class="flex items-start gap-4">
@@ -40,7 +45,10 @@
 			</div>
 		</div>
 	{/if}
-	<div class="flex flex-col gap-3">
+	<div class="flex flex-col gap-2">
+		{#if tabTriggers}
+			{@render tabTriggers()}
+		{/if}
 		<div class="flex flex-wrap items-center gap-2">
 			<UrlFileInput {id} label={m.upload_logo()} accept="image/*" onchange={onLogoChange} />
 		</div>

@@ -2,6 +2,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
 	import type {
 		OidcClient,
@@ -13,7 +14,7 @@
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
 	import { callbackUrlSchema, emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
-	import { LucideChevronDown } from '@lucide/svelte';
+	import { LucideChevronDown, LucideMoon, LucideSun } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
@@ -119,44 +120,42 @@
 		isLoading = false;
 	}
 
-	function onLogoChange(input: File | string | null) {
+	function onLogoChange(input: File | string | null, dark: boolean = false) {
 		if (input == null) return;
 
+		const logoUrlInput = dark ? $inputs.darkLogoUrl : $inputs.logoUrl;
+
 		if (typeof input === 'string') {
-			logo = null;
-			logoDataURL = input || null;
-			$inputs.logoUrl!.value = input;
+			if (dark) {
+				darkLogo = null;
+				darkLogoDataURL = input || null;
+			} else {
+				logo = null;
+				logoDataURL = input || null;
+			}
+			logoUrlInput!.value = input;
 		} else {
-			logo = input;
-			$inputs.logoUrl && ($inputs.logoUrl.value = '');
-			logoDataURL = URL.createObjectURL(input);
+			if (dark) {
+				darkLogo = input;
+				darkLogoDataURL = URL.createObjectURL(input);
+			} else {
+				logo = input;
+				logoDataURL = URL.createObjectURL(input);
+			}
+			logoUrlInput && (logoUrlInput.value = '');
 		}
 	}
 
-	function onDarkLogoChange(input: File | string | null) {
-		if (input == null) return;
-
-		if (typeof input === 'string') {
+	function resetLogo(dark: boolean = false) {
+		if (dark) {
 			darkLogo = null;
-			darkLogoDataURL = input || null;
-			$inputs.darkLogoUrl!.value = input;
-		} else {
-			darkLogo = input;
+			darkLogoDataURL = null;
 			$inputs.darkLogoUrl && ($inputs.darkLogoUrl.value = '');
-			darkLogoDataURL = URL.createObjectURL(input);
+		} else {
+			logo = null;
+			logoDataURL = null;
+			$inputs.logoUrl && ($inputs.logoUrl.value = '');
 		}
-	}
-
-	function resetLogo() {
-		logo = null;
-		logoDataURL = null;
-		$inputs.logoUrl && ($inputs.logoUrl.value = '');
-	}
-
-	function resetDarkLogo() {
-		darkLogo = null;
-		darkLogoDataURL = null;
-		$inputs.darkLogoUrl && ($inputs.darkLogoUrl.value = '');
 	}
 
 	function getFederatedIdentityErrors(errors: z.ZodError<any> | undefined) {
@@ -216,27 +215,49 @@
 			bind:checked={$inputs.requiresReauthentication.value}
 		/>
 	</div>
-	<div class="mt-7 grid grid-cols-1 gap-x-3 gap-y-7 md:grid-cols-2">
-		<div>
-			<OidcClientImageInput
-				id="light-logo"
-				{logoDataURL}
-				{resetLogo}
-				clientName={$inputs.name.value}
-				{onLogoChange}
-				label={m.light_mode_logo()}
-			/>
-		</div>
-		<div>
-			<OidcClientImageInput
-				id="dark-logo"
-				logoDataURL={darkLogoDataURL}
-				resetLogo={resetDarkLogo}
-				clientName={$inputs.name.value}
-				onLogoChange={onDarkLogoChange}
-				label={m.dark_mode_logo()}
-			/>
-		</div>
+	<div class="mt-7 w-full md:w-1/2">
+		<Tabs.Root value="light-logo">
+			<Tabs.Content value="light-logo">
+				<OidcClientImageInput
+					id="light-logo"
+					{logoDataURL}
+					resetLogo={() => resetLogo(false)}
+					clientName={$inputs.name.value}
+					onLogoChange={(input) => onLogoChange(input, false)}
+				>
+					{#snippet tabTriggers()}
+						<Tabs.List class="grid h-9 w-full grid-cols-2">
+							<Tabs.Trigger value="light-logo" class="px-3">
+								<LucideSun class="size-4" />
+							</Tabs.Trigger>
+							<Tabs.Trigger value="dark-logo" class="px-3">
+								<LucideMoon class="size-4" />
+							</Tabs.Trigger>
+						</Tabs.List>
+					{/snippet}
+				</OidcClientImageInput>
+			</Tabs.Content>
+			<Tabs.Content value="dark-logo">
+				<OidcClientImageInput
+					id="dark-logo"
+					logoDataURL={darkLogoDataURL}
+					resetLogo={() => resetLogo(true)}
+					clientName={$inputs.name.value}
+					onLogoChange={(input) => onLogoChange(input, true)}
+				>
+					{#snippet tabTriggers()}
+						<Tabs.List class="grid h-9 w-full grid-cols-2">
+							<Tabs.Trigger value="light-logo" class="px-3">
+								<LucideSun class="size-4" />
+							</Tabs.Trigger>
+							<Tabs.Trigger value="dark-logo" class="px-3">
+								<LucideMoon class="size-4" />
+							</Tabs.Trigger>
+						</Tabs.List>
+					{/snippet}
+				</OidcClientImageInput>
+			</Tabs.Content>
+		</Tabs.Root>
 	</div>
 
 	{#if showAdvancedOptions}
