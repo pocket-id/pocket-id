@@ -45,13 +45,13 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), oc.updateAllowedUserGroupsHandler)
 	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), oc.createClientSecretHandler)
 
-	group.GET("/oidc/clients/:id/logo", oc.getClientLogoHandler)
-	group.DELETE("/oidc/clients/:id/logo", oc.deleteClientLogoHandler)
-	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)
+	group.GET("/oidc/clients/:id/logo", oc.getClientLogoHandler(false))
+	group.DELETE("/oidc/clients/:id/logo", oc.deleteClientLogoHandler(false))
+	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler(false))
 
-	group.GET("/oidc/clients/:id/logo-dark", oc.getClientDarkLogoHandler)
-	group.DELETE("/oidc/clients/:id/logo-dark", oc.deleteClientDarkLogoHandler)
-	group.POST("/oidc/clients/:id/logo-dark", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientDarkLogoHandler)
+	group.GET("/oidc/clients/:id/logo-dark", oc.getClientLogoHandler(true))
+	group.DELETE("/oidc/clients/:id/logo-dark", oc.deleteClientLogoHandler(true))
+	group.POST("/oidc/clients/:id/logo-dark", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler(true))
 
 	group.GET("/oidc/clients/:id/preview/:userId", authMiddleware.Add(), oc.getClientPreviewHandler)
 
@@ -547,17 +547,27 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 200 {file} binary "Logo image"
 // @Router /api/oidc/clients/{id}/logo [get]
-func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
-	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"))
-	if err != nil {
-		_ = c.Error(err)
-		return
+func (oc *OidcController) getClientLogoHandler(dark bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var imagePath, mimeType string
+		var err error
+
+		if dark {
+			imagePath, mimeType, err = oc.oidcService.GetClientDarkLogo(c.Request.Context(), c.Param("id"))
+		} else {
+			imagePath, mimeType, err = oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"))
+		}
+
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+
+		utils.SetCacheControlHeader(c, 15*time.Minute, 12*time.Hour)
+
+		c.Header("Content-Type", mimeType)
+		c.File(imagePath)
 	}
-
-	utils.SetCacheControlHeader(c, 15*time.Minute, 12*time.Hour)
-
-	c.Header("Content-Type", mimeType)
-	c.File(imagePath)
 }
 
 // updateClientLogoHandler godoc
@@ -569,20 +579,27 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 // @Param file formData file true "Logo image file (PNG, JPG, or SVG)"
 // @Success 204 "No Content"
 // @Router /api/oidc/clients/{id}/logo [post]
-func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
-	file, err := c.FormFile("file")
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
+func (oc *OidcController) updateClientLogoHandler(dark bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file, err := c.FormFile("file")
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
 
-	err = oc.oidcService.UpdateClientLogo(c.Request.Context(), c.Param("id"), file)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
+		if dark {
+			err = oc.oidcService.UpdateClientDarkLogo(c.Request.Context(), c.Param("id"), file)
+		} else {
+			err = oc.oidcService.UpdateClientLogo(c.Request.Context(), c.Param("id"), file)
+		}
 
-	c.Status(http.StatusNoContent)
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+
+		c.Status(http.StatusNoContent)
+	}
 }
 
 // deleteClientLogoHandler godoc
@@ -592,79 +609,23 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
 // @Router /api/oidc/clients/{id}/logo [delete]
-func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
-	err := oc.oidcService.DeleteClientLogo(c.Request.Context(), c.Param("id"))
-	if err != nil {
-		_ = c.Error(err)
-		return
+func (oc *OidcController) deleteClientLogoHandler(dark bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var err error
+
+		if dark {
+			err = oc.oidcService.DeleteClientDarkLogo(c.Request.Context(), c.Param("id"))
+		} else {
+			err = oc.oidcService.DeleteClientLogo(c.Request.Context(), c.Param("id"))
+		}
+
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+
+		c.Status(http.StatusNoContent)
 	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// getClientDarkLogoHandler godoc
-// @Summary Get client dark mode logo
-// @Description Get the dark mode logo image for an OIDC client
-// @Tags OIDC
-// @Produce image/png
-// @Produce image/jpeg
-// @Produce image/svg+xml
-// @Param id path string true "Client ID"
-// @Success 200 {file} binary "Dark logo image"
-// @Router /api/oidc/clients/{id}/logo-dark [get]
-func (oc *OidcController) getClientDarkLogoHandler(c *gin.Context) {
-	imagePath, mimeType, err := oc.oidcService.GetClientDarkLogo(c.Request.Context(), c.Param("id"))
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	utils.SetCacheControlHeader(c, 15*time.Minute, 12*time.Hour)
-
-	c.Header("Content-Type", mimeType)
-	c.File(imagePath)
-}
-
-// updateClientDarkLogoHandler godoc
-// @Summary Update client dark mode logo
-// @Description Upload or update the dark mode logo for an OIDC client
-// @Tags OIDC
-// @Accept multipart/form-data
-// @Param id path string true "Client ID"
-// @Param file formData file true "Dark logo image file (PNG, JPG, or SVG)"
-// @Success 204 "No Content"
-// @Router /api/oidc/clients/{id}/logo-dark [post]
-func (oc *OidcController) updateClientDarkLogoHandler(c *gin.Context) {
-	file, err := c.FormFile("file")
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	err = oc.oidcService.UpdateClientDarkLogo(c.Request.Context(), c.Param("id"), file)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// deleteClientDarkLogoHandler godoc
-// @Summary Delete client dark mode logo
-// @Description Delete the dark mode logo for an OIDC client
-// @Tags OIDC
-// @Param id path string true "Client ID"
-// @Success 204 "No Content"
-// @Router /api/oidc/clients/{id}/logo-dark [delete]
-func (oc *OidcController) deleteClientDarkLogoHandler(c *gin.Context) {
-	err := oc.oidcService.DeleteClientDarkLogo(c.Request.Context(), c.Param("id"))
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
 }
 
 // updateAllowedUserGroupsHandler godoc

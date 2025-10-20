@@ -68,46 +68,32 @@ class OidcService extends APIService {
 	updateClient = async (id: string, client: OidcClientUpdate) =>
 		(await this.api.put(`/oidc/clients/${id}`, client)).data as OidcClient;
 
-	updateClientLogo = async (client: OidcClient, image: File | null) => {
-		if (client.hasLogo && !image) {
-			await this.removeClientLogo(client.id);
+	updateClientLogo = async (client: OidcClient, image: File | null, dark: boolean = false) => {
+		const hasLogo = dark ? client.hasDarkLogo : client.hasLogo;
+		const endpoint = dark ? 'logo-dark' : 'logo';
+		const cache = dark ? cachedOidcClientDarkLogo : cachedOidcClientLogo;
+
+		if (hasLogo && !image) {
+			await this.removeClientLogo(client.id, dark);
 			return;
 		}
-		if (!client.hasLogo && !image) {
-			return;
-		}
-
-		const formData = new FormData();
-		formData.append('file', image!);
-
-		await this.api.post(`/oidc/clients/${client.id}/logo`, formData);
-		cachedOidcClientLogo.bustCache(client.id);
-	};
-
-	removeClientLogo = async (id: string) => {
-		await this.api.delete(`/oidc/clients/${id}/logo`);
-		cachedOidcClientLogo.bustCache(id);
-	};
-
-	updateClientDarkLogo = async (client: OidcClient, image: File | null) => {
-		if (client.hasDarkLogo && !image) {
-			await this.removeClientDarkLogo(client.id);
-			return;
-		}
-		if (!client.hasDarkLogo && !image) {
+		if (!hasLogo && !image) {
 			return;
 		}
 
 		const formData = new FormData();
 		formData.append('file', image!);
 
-		await this.api.post(`/oidc/clients/${client.id}/logo-dark`, formData);
-		cachedOidcClientDarkLogo.bustCache(client.id);
+		await this.api.post(`/oidc/clients/${client.id}/${endpoint}`, formData);
+		cache.bustCache(client.id);
 	};
 
-	removeClientDarkLogo = async (id: string) => {
-		await this.api.delete(`/oidc/clients/${id}/logo-dark`);
-		cachedOidcClientDarkLogo.bustCache(id);
+	removeClientLogo = async (id: string, dark: boolean = false) => {
+		const endpoint = dark ? 'logo-dark' : 'logo';
+		const cache = dark ? cachedOidcClientDarkLogo : cachedOidcClientLogo;
+
+		await this.api.delete(`/oidc/clients/${id}/${endpoint}`);
+		cache.bustCache(id);
 	};
 
 	createClientSecret = async (id: string) =>

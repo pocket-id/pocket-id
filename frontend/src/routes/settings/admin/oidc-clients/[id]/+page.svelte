@@ -47,11 +47,11 @@
 		const dataPromise = oidcService.updateClient(client.id, updatedClient);
 		const imagePromise =
 			updatedClient.logo !== undefined
-				? oidcService.updateClientLogo(client, updatedClient.logo)
+				? oidcService.updateClientLogo(client, updatedClient.logo, false)
 				: Promise.resolve();
 		const darkImagePromise =
 			updatedClient.darkLogo !== undefined
-				? oidcService.updateClientDarkLogo(client, updatedClient.darkLogo)
+				? oidcService.updateClientLogo(client, updatedClient.darkLogo, true)
 				: Promise.resolve();
 
 		client.isPublic = updatedClient.isPublic;
