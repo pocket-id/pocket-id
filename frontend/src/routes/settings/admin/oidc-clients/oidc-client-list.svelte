@@ -10,11 +10,11 @@
 		CreateAdvancedTableActions
 	} from '$lib/types/advanced-table.type';
 	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
-	import { cachedOidcClientLogo, cachedOidcClientDarkLogo } from '$lib/utils/cached-image-util';
+	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
 	import { mode } from 'mode-watcher';
+	import { toast } from 'svelte-sonner';
 
 	const oidcService = new OIDCService();
 	let tableRef: AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
@@ -24,14 +24,6 @@
 	}
 
 	const isLightMode = $derived(mode.current === 'light');
-
-	function getClientLogoUrl(client: OidcClientWithAllowedUserGroupsCount): string | null {
-		if (isLightMode || !client.hasDarkLogo) {
-			return client.hasLogo ? cachedOidcClientLogo.getUrl(client.id) : null;
-		} else {
-			return cachedOidcClientDarkLogo.getUrl(client.id);
-		}
-	}
 
 	const booleanFilterValues = [
 		{ label: m.enabled(), value: true },
@@ -111,9 +103,12 @@
 </script>
 
 {#snippet LogoCell({ item }: { item: OidcClientWithAllowedUserGroupsCount })}
-	{@const logoUrl = getClientLogoUrl(item)}
-	{#if logoUrl}
-		<ImageBox class="size-12 rounded-lg" src={logoUrl} alt={m.name_logo({ name: item.name })} />
+	{#if item.hasLogo}
+		<ImageBox
+			class="size-12 rounded-lg"
+			src={cachedOidcClientLogo.getUrl(item.id, isLightMode)}
+			alt={m.name_logo({ name: item.name })}
+		/>
 	{:else}
 		<div class="bg-muted flex size-12 items-center justify-center rounded-lg text-lg font-bold">
 			{item.name.charAt(0).toUpperCase()}

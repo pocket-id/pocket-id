@@ -9,7 +9,7 @@
 		OidcClientCreateWithLogo,
 		OidcClientUpdateWithLogo
 	} from '$lib/types/oidc.type';
-	import { cachedOidcClientLogo, cachedOidcClientDarkLogo } from '$lib/utils/cached-image-util';
+	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
@@ -38,7 +38,7 @@
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
 	);
 	let darkLogoDataURL: string | null = $state(
-		existingClient?.hasDarkLogo ? cachedOidcClientDarkLogo.getUrl(existingClient!.id) : null
+		existingClient?.hasDarkLogo ? cachedOidcClientLogo.getUrl(existingClient!.id, false) : null
 	);
 
 	const client = {
@@ -99,9 +99,9 @@
 
 		const success = await callback({
 			...data,
-			logo: $inputs.logoUrl?.value ? null : logo,
+			logo: $inputs.logoUrl?.value ? undefined : logo,
 			logoUrl: $inputs.logoUrl?.value,
-			darkLogo: $inputs.darkLogoUrl?.value ? null : darkLogo,
+			darkLogo: $inputs.darkLogoUrl?.value ? undefined : darkLogo,
 			darkLogoUrl: $inputs.darkLogoUrl?.value
 		});
 
@@ -112,7 +112,7 @@
 				logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
 			}
 			if (hasDarkLogo) {
-				darkLogoDataURL = cachedOidcClientDarkLogo.getUrl(existingClient.id);
+				darkLogoDataURL = cachedOidcClientLogo.getUrl(existingClient.id, false);
 			}
 		}
 

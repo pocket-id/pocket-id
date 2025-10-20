@@ -10,7 +10,7 @@ import type {
 	OidcClientWithAllowedUserGroupsCount,
 	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
-import { cachedOidcClientLogo, cachedOidcClientDarkLogo } from '$lib/utils/cached-image-util';
+import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 import APIService from './api-service';
 
 class OidcService extends APIService {
@@ -68,13 +68,11 @@ class OidcService extends APIService {
 	updateClient = async (id: string, client: OidcClientUpdate) =>
 		(await this.api.put(`/oidc/clients/${id}`, client)).data as OidcClient;
 
-	updateClientLogo = async (client: OidcClient, image: File | null, dark: boolean = false) => {
-		const hasLogo = dark ? client.hasDarkLogo : client.hasLogo;
-		const endpoint = dark ? 'logo-dark' : 'logo';
-		const cache = dark ? cachedOidcClientDarkLogo : cachedOidcClientLogo;
+	updateClientLogo = async (client: OidcClient, image: File | null, light: boolean = true) => {
+		const hasLogo = light ? client.hasLogo : client.hasDarkLogo;
 
 		if (hasLogo && !image) {
-			await this.removeClientLogo(client.id, dark);
+			await this.removeClientLogo(client.id, light);
 			return;
 		}
 		if (!hasLogo && !image) {
@@ -84,16 +82,17 @@ class OidcService extends APIService {
 		const formData = new FormData();
 		formData.append('file', image!);
 
-		await this.api.post(`/oidc/clients/${client.id}/${endpoint}`, formData);
-		cache.bustCache(client.id);
+		await this.api.post(`/oidc/clients/${client.id}/logo`, formData, {
+			params: { light }
+		});
+		cachedOidcClientLogo.bustCache(client.id, light);
 	};
 
-	removeClientLogo = async (id: string, dark: boolean = false) => {
-		const endpoint = dark ? 'logo-dark' : 'logo';
-		const cache = dark ? cachedOidcClientDarkLogo : cachedOidcClientLogo;
-
-		await this.api.delete(`/oidc/clients/${id}/${endpoint}`);
-		cache.bustCache(id);
+	removeClientLogo = async (id: string, light: boolean = true) => {
+		await this.api.delete(`/oidc/clients/${id}/logo`, {
+			params: { light }
+		});
+		cachedOidcClientLogo.bustCache(id, light);
 	};
 
 	createClientSecret = async (id: string) =>

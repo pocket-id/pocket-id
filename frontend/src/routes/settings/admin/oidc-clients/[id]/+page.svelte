@@ -47,11 +47,12 @@
 		const dataPromise = oidcService.updateClient(client.id, updatedClient);
 		const imagePromise =
 			updatedClient.logo !== undefined
-				? oidcService.updateClientLogo(client, updatedClient.logo, false)
+				? oidcService.updateClientLogo(client, updatedClient.logo, true)
 				: Promise.resolve();
+
 		const darkImagePromise =
 			updatedClient.darkLogo !== undefined
-				? oidcService.updateClientLogo(client, updatedClient.darkLogo, true)
+				? oidcService.updateClientLogo(client, updatedClient.darkLogo, false)
 				: Promise.resolve();
 
 		client.isPublic = updatedClient.isPublic;
@@ -131,14 +132,14 @@
 	<Card.Content>
 		<div class="flex flex-col">
 			<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
-				<Label class="w-50 mb-0">{m.client_id()}</Label>
+				<Label class="mb-0 w-50">{m.client_id()}</Label>
 				<CopyToClipboard value={client.id}>
 					<span class="text-muted-foreground text-sm" data-testid="client-id"> {client.id}</span>
 				</CopyToClipboard>
 			</div>
 			{#if !client.isPublic}
-				<div class="mb-2 mt-1 flex flex-col sm:flex-row sm:items-center">
-					<Label class="w-50 mb-0">{m.client_secret()}</Label>
+				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
+					<Label class="mb-0 w-50">{m.client_secret()}</Label>
 					{#if $clientSecretStore}
 						<CopyToClipboard value={$clientSecretStore}>
 							<span class="text-muted-foreground text-sm" data-testid="client-secret">
@@ -165,7 +166,7 @@
 				<div transition:slide>
 					{#each Object.entries(setupDetails) as [key, value]}
 						<div class="mb-5 flex flex-col sm:flex-row sm:items-center">
-							<Label class="w-50 mb-0">{key}</Label>
+							<Label class="mb-0 w-50">{key}</Label>
 							<CopyToClipboard {value}>
 								<span class="text-muted-foreground text-sm">{value}</span>
 							</CopyToClipboard>

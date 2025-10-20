@@ -745,14 +745,14 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 	}
 
 	if input.LogoURL != nil {
-		err = s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL)
+		err = s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL, true)
 		if err != nil {
 			return model.OidcClient{}, fmt.Errorf("failed to download logo: %w", err)
 		}
 	}
 
 	if input.DarkLogoURL != nil {
-		err = s.downloadAndSaveDarkLogoFromURL(ctx, tx, client.ID, *input.DarkLogoURL)
+		err = s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.DarkLogoURL, false)
 		if err != nil {
 			return model.OidcClient{}, fmt.Errorf("failed to download dark logo: %w", err)
 		}
@@ -784,14 +784,14 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	}
 
 	if input.LogoURL != nil {
-		err := s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL)
+		err := s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL, true)
 		if err != nil {
 			return model.OidcClient{}, fmt.Errorf("failed to download logo: %w", err)
 		}
 	}
 
 	if input.DarkLogoURL != nil {
-		err := s.downloadAndSaveDarkLogoFromURL(ctx, tx, client.ID, *input.DarkLogoURL)
+		err := s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.DarkLogoURL, false)
 		if err != nil {
 			return model.OidcClient{}, fmt.Errorf("failed to download dark logo: %w", err)
 		}
@@ -883,7 +883,7 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string) (
 	return clientSecret, nil
 }
 
-func (s *OidcService) GetClientLogo(ctx context.Context, clientID string) (string, string, error) {
+func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light bool) (string, string, error) {
 	var client model.OidcClient
 	err := s.db.
 		WithContext(ctx).
@@ -893,23 +893,37 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string) (strin
 		return "", "", err
 	}
 
-	if client.ImageType == nil {
+	var imagePath, mimeType string
+
+	if !light && client.DarkImageType != nil {
+		// Dark logo if requested and exists
+		imagePath = common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "-dark." + *client.DarkImageType
+		mimeType = utils.GetImageMimeType(*client.DarkImageType)
+
+	} else if client.ImageType != nil {
+		// Light logo if requested or no dark logo is available
+		imagePath = common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + *client.ImageType
+		mimeType = utils.GetImageMimeType(*client.ImageType)
+
+	} else {
 		return "", "", errors.New("image not found")
 	}
-
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + *client.ImageType
-	mimeType := utils.GetImageMimeType(*client.ImageType)
 
 	return imagePath, mimeType, nil
 }
 
-func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, file *multipart.FileHeader) error {
+func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, file *multipart.FileHeader, light bool) error {
 	fileType := strings.ToLower(utils.GetFileExtension(file.Filename))
 	if mimeType := utils.GetImageMimeType(fileType); mimeType == "" {
 		return &common.FileTypeNotSupportedError{}
 	}
 
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + "." + fileType
+	var darkSuffix string
+	if !light {
+		darkSuffix = "-dark"
+	}
+
+	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + darkSuffix + "." + fileType
 	err := utils.SaveFile(file, imagePath)
 	if err != nil {
 		return err
@@ -917,7 +931,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 
 	tx := s.db.Begin()
 
-	err = s.updateClientLogoType(ctx, tx, clientID, fileType)
+	err = s.updateClientLogoType(ctx, tx, clientID, fileType, light)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -967,49 +981,6 @@ func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) err
 	}
 
 	return nil
-}
-
-func (s *OidcService) GetClientDarkLogo(ctx context.Context, clientID string) (string, string, error) {
-	var client model.OidcClient
-	err := s.db.
-		WithContext(ctx).
-		First(&client, "id = ?", clientID).
-		Error
-	if err != nil {
-		return "", "", err
-	}
-
-	if client.DarkImageType == nil {
-		return "", "", errors.New("image not found")
-	}
-
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "-dark." + *client.DarkImageType
-	mimeType := utils.GetImageMimeType(*client.DarkImageType)
-
-	return imagePath, mimeType, nil
-}
-
-func (s *OidcService) UpdateClientDarkLogo(ctx context.Context, clientID string, file *multipart.FileHeader) error {
-	fileType := strings.ToLower(utils.GetFileExtension(file.Filename))
-	if mimeType := utils.GetImageMimeType(fileType); mimeType == "" {
-		return &common.FileTypeNotSupportedError{}
-	}
-
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + "-dark." + fileType
-	err := utils.SaveFile(file, imagePath)
-	if err != nil {
-		return err
-	}
-
-	tx := s.db.Begin()
-
-	err = s.updateClientDarkLogoType(ctx, tx, clientID, fileType)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit().Error
 }
 
 func (s *OidcService) DeleteClientDarkLogo(ctx context.Context, clientID string) error {
@@ -1985,7 +1956,7 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 	return s.IsUserGroupAllowedToAuthorize(user, client), nil
 }
 
-func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *gorm.DB, clientID string, raw string) error {
+func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *gorm.DB, clientID string, raw string, light bool) error {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return err
@@ -2046,121 +2017,51 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 		return err
 	}
 
-	imagePath := filepath.Join(folderPath, clientID+"."+ext)
+	var darkSuffix string
+	if !light {
+		darkSuffix = "-dark"
+	}
+
+	imagePath := filepath.Join(folderPath, clientID+darkSuffix+"."+ext)
 	err = utils.SaveFileStream(io.LimitReader(resp.Body, maxLogoSize+1), imagePath)
 	if err != nil {
 		return err
 	}
 
-	if err := s.updateClientLogoType(ctx, tx, clientID, ext); err != nil {
+	if err := s.updateClientLogoType(ctx, tx, clientID, ext, light); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *OidcService) downloadAndSaveDarkLogoFromURL(parentCtx context.Context, tx *gorm.DB, clientID string, raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)
-	defer cancel()
-
-	r := net.Resolver{}
-	ips, err := r.LookupIPAddr(ctx, u.Hostname())
-	if err != nil || len(ips) == 0 {
-		return fmt.Errorf("cannot resolve hostname")
-	}
-
-	// Prevents SSRF by allowing only public IPs
-	for _, addr := range ips {
-		if utils.IsPrivateIP(addr.IP) {
-			return fmt.Errorf("private IP addresses are not allowed")
-		}
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("User-Agent", "pocket-id/oidc-logo-fetcher")
-	req.Header.Set("Accept", "image/*")
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to fetch logo: %s", resp.Status)
-	}
-
-	const maxLogoSize int64 = 2 * 1024 * 1024 // 2MB
-	if resp.ContentLength > maxLogoSize {
-		return fmt.Errorf("logo is too large")
-	}
-
-	// Prefer extension in path if supported
-	ext := utils.GetFileExtension(u.Path)
-	if ext == "" || utils.GetImageMimeType(ext) == "" {
-		// Otherwise, try to detect from content type
-		ext = utils.GetImageExtensionFromMimeType(resp.Header.Get("Content-Type"))
-	}
-
-	if ext == "" {
-		return &common.FileTypeNotSupportedError{}
-	}
-
-	folderPath := filepath.Join(common.EnvConfig.UploadPath, "oidc-client-images")
-	err = os.MkdirAll(folderPath, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	imagePath := filepath.Join(folderPath, clientID+"-dark."+ext)
-	err = utils.SaveFileStream(io.LimitReader(resp.Body, maxLogoSize+1), imagePath)
-	if err != nil {
-		return err
-	}
-
-	if err := s.updateClientDarkLogoType(ctx, tx, clientID, ext); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *OidcService) updateClientLogoType(ctx context.Context, tx *gorm.DB, clientID, ext string) error {
+func (s *OidcService) updateClientLogoType(ctx context.Context, tx *gorm.DB, clientID, ext string, light bool) error {
 	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
+
+	var darkSuffix string
+	if !light {
+		darkSuffix = "-dark"
+	}
 
 	var client model.OidcClient
 	if err := tx.WithContext(ctx).First(&client, "id = ?", clientID).Error; err != nil {
 		return err
 	}
 	if client.ImageType != nil && *client.ImageType != ext {
-		old := fmt.Sprintf("%s/%s.%s", uploadsDir, client.ID, *client.ImageType)
+		old := fmt.Sprintf("%s/%s%s.%s", uploadsDir, client.ID, darkSuffix, *client.ImageType)
 		_ = os.Remove(old)
 	}
-	client.ImageType = &ext
-	return tx.WithContext(ctx).Save(&client).Error
 
-}
-
-func (s *OidcService) updateClientDarkLogoType(ctx context.Context, tx *gorm.DB, clientID, ext string) error {
-	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
-
-	var client model.OidcClient
-	if err := tx.WithContext(ctx).First(&client, "id = ?", clientID).Error; err != nil {
-		return err
+	var column string
+	if light {
+		column = "image_type"
+	} else {
+		column = "dark_image_type"
 	}
-	if client.DarkImageType != nil && *client.DarkImageType != ext {
-		old := fmt.Sprintf("%s/%s-dark.%s", uploadsDir, client.ID, *client.DarkImageType)
-		_ = os.Remove(old)
-	}
-	client.DarkImageType = &ext
-	return tx.WithContext(ctx).Save(&client).Error
 
+	return tx.WithContext(ctx).
+		Model(&model.OidcClient{}).
+		Where("id = ?", clientID).
+		Update(column, ext).
+		Error
 }
