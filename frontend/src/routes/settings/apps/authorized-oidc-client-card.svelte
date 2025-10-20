@@ -33,16 +33,12 @@
 
 	const isLightMode = $derived(mode.current === 'light');
 	const logoUrl = $derived.by(() => {
-		if (isLightMode) {
+		if (isLightMode || !client.hasDarkLogo) {
 			return client.hasLogo
 				? cachedOidcClientLogo.getUrl(client.id)
-				: cachedApplicationLogo.getUrl(true);
+				: cachedApplicationLogo.getUrl(isLightMode);
 		} else {
-			return client.hasDarkLogo
-				? cachedOidcClientDarkLogo.getUrl(client.id)
-				: client.hasLogo
-					? cachedOidcClientLogo.getUrl(client.id)
-					: cachedApplicationLogo.getUrl(false);
+			return cachedOidcClientDarkLogo.getUrl(client.id);
 		}
 	});
 </script>

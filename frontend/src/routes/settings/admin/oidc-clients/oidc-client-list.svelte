@@ -26,14 +26,10 @@
 	const isLightMode = $derived(mode.current === 'light');
 
 	function getClientLogoUrl(client: OidcClientWithAllowedUserGroupsCount): string | null {
-		if (isLightMode) {
+		if (isLightMode || !client.hasDarkLogo) {
 			return client.hasLogo ? cachedOidcClientLogo.getUrl(client.id) : null;
 		} else {
-			return client.hasDarkLogo
-				? cachedOidcClientDarkLogo.getUrl(client.id)
-				: client.hasLogo
-					? cachedOidcClientLogo.getUrl(client.id)
-					: null;
+			return cachedOidcClientDarkLogo.getUrl(client.id);
 		}
 	}
 
