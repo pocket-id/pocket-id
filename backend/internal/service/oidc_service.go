@@ -895,17 +895,18 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light 
 
 	var imagePath, mimeType string
 
-	if !light && client.DarkImageType != nil {
+	switch {
+	case !light && client.DarkImageType != nil:
 		// Dark logo if requested and exists
 		imagePath = common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "-dark." + *client.DarkImageType
 		mimeType = utils.GetImageMimeType(*client.DarkImageType)
 
-	} else if client.ImageType != nil {
+	case client.ImageType != nil:
 		// Light logo if requested or no dark logo is available
 		imagePath = common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + *client.ImageType
 		mimeType = utils.GetImageMimeType(*client.ImageType)
 
-	} else {
+	default:
 		return "", "", errors.New("image not found")
 	}
 
