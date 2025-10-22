@@ -19,12 +19,10 @@ test.describe('Create OIDC client', () => {
 		await page.getByRole('button', { name: 'Add another' }).click();
 		await page.getByTestId('callback-url-2').fill(oidcClient.secondCallbackUrl);
 
-		await page
-			.getByLabel('Light Mode Logo', { exact: true })
-			.setInputFiles('assets/pingvin-share-logo.png');
-		await page
-			.getByLabel('Dark Mode Logo', { exact: true })
-			.setInputFiles('assets/pingvin-share-logo.png');
+		await page.locator('[role="tab"][data-value="light-logo"]').first().click();
+		await page.setInputFiles('#light-logo', 'assets/pingvin-share-logo.png');
+		await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
+		await page.setInputFiles('#dark-logo', 'assets/pingvin-share-logo.png');
 
 		if (clientId) {
 			await page.getByRole('button', { name: 'Show Advanced Options' }).click();
@@ -72,12 +70,10 @@ test('Edit OIDC client', async ({ page }) => {
 
 	await page.getByLabel('Name').fill('Nextcloud updated');
 	await page.getByTestId('callback-url-1').first().fill('http://nextcloud-updated/auth/callback');
-	await page
-		.getByLabel('Light Mode Logo', { exact: true })
-		.setInputFiles('assets/nextcloud-logo.png');
-	await page
-		.getByLabel('Dark Mode Logo', { exact: true })
-		.setInputFiles('assets/nextcloud-logo.png');
+	await page.locator('[role="tab"][data-value="light-logo"]').first().click();
+	await page.setInputFiles('#light-logo', 'assets/nextcloud-logo.png');
+	await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
+	await page.setInputFiles('#dark-logo', 'assets/nextcloud-logo.png');
 	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 	await page.getByRole('button', { name: 'Save' }).click();
 
