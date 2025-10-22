@@ -11,6 +11,7 @@ node_modules
 /backend/bin
 pocket-id
 /tests/test-results/*.json
+.tmp/
 
 # OS
 .DS_Store

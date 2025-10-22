@@ -21,11 +21,14 @@ export default defineConfig({
 		trace: 'on-first-retry'
 	},
 	projects: [
-		{ name: 'setup', testMatch: /.*\.setup\.ts/ },
+		{ name: 'cli', testMatch: /cli\.spec\.ts/ },
+		{ name: 'auth-setup', testMatch: /auth\.setup\.ts/ },
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'], storageState: '.auth/user.json' },
-			dependencies: ['setup']
+			use: { ...devices['Desktop Chrome'], storageState: '.tmp/auth/user.json' },
+			dependencies: ['auth-setup']
 		}
-	]
+	],
+	globalSetup: './specs/fixtures/global.setup.ts',
+	globalTeardown: './specs/fixtures/global.teardown.ts'
 });

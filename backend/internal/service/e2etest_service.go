@@ -7,7 +7,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -15,7 +14,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fxamacker/cbor/v2"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -286,8 +284,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		// openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 | \
 		// openssl pkcs8 -topk8 -nocrypt | tee >(openssl pkey -pubout)
 
-		publicKeyPasskey1, _ := s.getCborPublicKey("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwcOo5KV169KR67QEHrcYkeXE3CCxv2BgwnSq4VYTQxyLtdmKxegexa8JdwFKhKXa2BMI9xaN15BoL6wSCRFJhg==")
-		publicKeyPasskey2, _ := s.getCborPublicKey("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbL5nPhZRAdJ3hEaqrHMSnJBhfMqtQGKwDYpaLIQFAKLhw==")
+		publicKeyPasskey1, _ := base64.StdEncoding.DecodeString("pQMmIAEhWCDBw6jkpXXr0pHrtAQetxiR5cTcILG/YGDCdKrhVhNDHCJYIIu12YrF6B7Frwl3AUqEpdrYEwj3Fo3XkGgvrBIJEUmGAQI=")
+		publicKeyPasskey2, _ := base64.StdEncoding.DecodeString("pSJYIPmc+FlEB0neERqqscxKckGF8yq1AYrANiloshAUAouHAQIDJiABIVggj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbI=")
 		webauthnCredentials := []model.WebauthnCredential{
 			{
 				Name:            "Passkey 1",
@@ -325,9 +323,10 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			Base: model.Base{
 				ID: "5f1fa856-c164-4295-961e-175a0d22d725",
 			},
-			Name:   "Test API Key",
-			Key:    "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
-			UserID: users[0].ID,
+			Name:      "Test API Key",
+			Key:       "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
+			UserID:    users[0].ID,
+			ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)),
 		}
 		if err := tx.Create(&apiKey).Error; err != nil {
 			return err
@@ -463,38 +462,6 @@ func (s *TestService) SetJWTKeys() {
 
 	privateKey, _ := jwk.ParseKey([]byte(privateKeyString))
 	_ = s.jwtService.SetKey(privateKey)
-}
-
-// getCborPublicKey decodes a Base64 encoded public key and returns the CBOR encoded COSE key
-func (s *TestService) getCborPublicKey(base64PublicKey string) ([]byte, error) {
-	decodedKey, err := base64.StdEncoding.DecodeString(base64PublicKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64 key: %w", err)
-	}
-	pubKey, err := x509.ParsePKIXPublicKey(decodedKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse public key: %w", err)
-	}
-
-	ecdsaPubKey, ok := pubKey.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("not an ECDSA public key")
-	}
-
-	coseKey := map[int]interface{}{
-		1:  2,                     // Key type: EC2
-		3:  -7,                    // Algorithm: ECDSA with SHA-256
-		-1: 1,                     // Curve: P-256
-		-2: ecdsaPubKey.X.Bytes(), // X coordinate
-		-3: ecdsaPubKey.Y.Bytes(), // Y coordinate
-	}
-
-	cborPublicKey, err := cbor.Marshal(coseKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal COSE key: %w", err)
-	}
-
-	return cborPublicKey, nil
 }
 
 // SyncLdap triggers an LDAP synchronization

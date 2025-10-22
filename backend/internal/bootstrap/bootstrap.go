@@ -53,9 +53,13 @@ func Bootstrap(ctx context.Context) error {
 
 	// Run all background services
 	// This call blocks until the context is canceled
-	err = utils.
-		NewServiceRunner(router, scheduler.Run).
-		Run(ctx)
+	services := []utils.Service{router}
+
+	if common.EnvConfig.AppEnv != "test" {
+		services = append(services, scheduler.Run)
+	}
+
+	err = utils.NewServiceRunner(services...).Run(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to run services: %w", err)
 	}
