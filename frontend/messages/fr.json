@@ -461,5 +461,8 @@
 	"locale": "Paramètres régionaux",
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Réauthentification",
-	"clear_filters": "Effacer les filtres"
+	"clear_filters": "Effacer les filtres",
+	"passkey": "Clé d'accès",
+	"all_methods_enabled": "Toutes les méthodes d'authentification activées",
+	"enable_all_methods_for_sign_in": "Active toutes les méthodes d'authentification pour la connexion."
 }

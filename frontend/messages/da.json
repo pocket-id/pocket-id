@@ -461,5 +461,8 @@
 	"locale": "Lokale",
 	"ldap_id": "LDAP-id",
 	"reauthentication": "Genbekræftelse",
-	"clear_filters": "Ryd filtre"
+	"clear_filters": "Ryd filtre",
+	"passkey": "Adgangsnøgle",
+	"all_methods_enabled": "Alle godkendelsesmetoder aktiveret",
+	"enable_all_methods_for_sign_in": "Aktivér alle godkendelsesmetoder til login."
 }

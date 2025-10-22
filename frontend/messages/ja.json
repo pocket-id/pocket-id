@@ -461,5 +461,8 @@
 	"locale": "ロケール",
 	"ldap_id": "LDAP ID",
 	"reauthentication": "再認証",
-	"clear_filters": "フィルターをクリア"
+	"clear_filters": "フィルターをクリア",
+	"passkey": "パスキー",
+	"all_methods_enabled": "すべての認証方法が有効",
+	"enable_all_methods_for_sign_in": "サインインにすべての認証方法を有効にします。"
 }

@@ -461,5 +461,8 @@
 	"locale": "Ort",
 	"ldap_id": "LDAP-ID",
 	"reauthentication": "Erneute Authentifizierung",
-	"clear_filters": "Filter löschen"
+	"clear_filters": "Filter löschen",
+	"passkey": "Zugangsschlüssel",
+	"all_methods_enabled": "Alle Authentifizierungsmethoden aktiviert",
+	"enable_all_methods_for_sign_in": "Alle Authentifizierungsmethoden für die Anmeldung aktivieren."
 }

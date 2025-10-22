@@ -461,5 +461,8 @@
 	"locale": "Místní nastavení",
 	"ldap_id": "LDAP ID",
 	"reauthentication": "Opětovné ověření",
-	"clear_filters": "Vymazat filtry"
+	"clear_filters": "Vymazat filtry",
+	"passkey": "Přístupový klíč",
+	"all_methods_enabled": "Všechny metody ověřování povoleny",
+	"enable_all_methods_for_sign_in": "Povolit všechny metody ověřování pro přihlášení."
 }

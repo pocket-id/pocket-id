@@ -461,5 +461,8 @@
 	"locale": "로케일",
 	"ldap_id": "LDAP ID",
 	"reauthentication": "재인증",
-	"clear_filters": "필터 지우기"
+	"clear_filters": "필터 지우기",
+	"passkey": "패스키",
+	"all_methods_enabled": "모든 인증 방법 활성화됨",
+	"enable_all_methods_for_sign_in": "로그인에 모든 인증 방법을 활성화합니다."
 }

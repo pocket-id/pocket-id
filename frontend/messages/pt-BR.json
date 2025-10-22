@@ -461,5 +461,8 @@
 	"locale": "Localidade",
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Reautenticação",
-	"clear_filters": "Limpar filtros"
+	"clear_filters": "Limpar filtros",
+	"passkey": "Chave de acesso",
+	"all_methods_enabled": "Todos os métodos de autenticação habilitados",
+	"enable_all_methods_for_sign_in": "Habilitar todos os métodos de autenticação para entrar."
 }

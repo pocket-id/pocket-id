@@ -58,6 +58,7 @@ type AppConfig struct {
 	EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigVariable `key:"emailOneTimeAccessAsUnauthenticatedEnabled,public"` // Public
 	EmailOneTimeAccessAsAdminEnabled           AppConfigVariable `key:"emailOneTimeAccessAsAdminEnabled,public"`           // Public
 	EmailApiKeyExpirationEnabled               AppConfigVariable `key:"emailApiKeyExpirationEnabled"`
+	AllMethodsEnabled                          AppConfigVariable `key:"allMethodsEnabled,public"` // Public
 	// LDAP
 	LdapEnabled                        AppConfigVariable `key:"ldapEnabled,public"` // Public
 	LdapUrl                            AppConfigVariable `key:"ldapUrl"`

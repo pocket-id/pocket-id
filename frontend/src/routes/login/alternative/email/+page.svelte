@@ -8,6 +8,7 @@
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
 	import { preventDefault } from '$lib/utils/event-util';
+	import { afterNavigate } from '$app/navigation';
 
 	const { data } = $props();
 
@@ -17,6 +18,14 @@
 	let isLoading = $state(false);
 	let error: string | undefined = $state(undefined);
 	let success = $state(false);
+	let backHref = $state('/login/alternative');
+
+	// If the previous page is a Pocket ID page, go back there instead of the generic alternative login page
+	afterNavigate((e) => {
+		if (e.from?.url.pathname) {
+			backHref = e.from.url.pathname + e.from.url.search;
+		}
+	});
 
 	async function requestEmail() {
 		isLoading = true;
@@ -65,9 +74,7 @@
 			</p>
 			<Input id="Email" class="mt-7" placeholder={m.your_email()} bind:value={email} type="email" />
 			<div class="mt-8 flex justify-between gap-2">
-				<Button variant="secondary" class="flex-1" href={'/login/alternative' + page.url.search}
-					>{m.go_back()}</Button
-				>
+				<Button variant="secondary" class="flex-1" href={backHref}>{m.go_back()}</Button>
 				<Button class="flex-1" type="submit" {isLoading}>{m.submit()}</Button>
 			</div>
 		</form>

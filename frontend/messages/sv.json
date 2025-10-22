@@ -461,5 +461,8 @@
 	"locale": "Lokalisering",
 	"ldap_id": "LDAP-ID",
 	"reauthentication": "Omverifiering",
-	"clear_filters": "Rensa filter"
+	"clear_filters": "Rensa filter",
+	"passkey": "Åtkomstnyckel",
+	"all_methods_enabled": "Alla autentiseringsmetoder aktiverade",
+	"enable_all_methods_for_sign_in": "Aktivera alla autentiseringsmetoder för inloggning."
 }

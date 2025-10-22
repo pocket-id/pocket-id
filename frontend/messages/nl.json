@@ -461,5 +461,8 @@
 	"locale": "Locatie",
 	"ldap_id": "LDAP-ID",
 	"reauthentication": "Opnieuw inloggen",
-	"clear_filters": "Filters wissen"
+	"clear_filters": "Filters wissen",
+	"passkey": "Toegangssleutel",
+	"all_methods_enabled": "Alle authenticatiemethoden ingeschakeld",
+	"enable_all_methods_for_sign_in": "Schakel alle authenticatiemethoden in voor aanmelden."
 }

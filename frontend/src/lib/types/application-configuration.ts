@@ -6,6 +6,7 @@ export type AppConfig = {
 	allowUserSignups: 'disabled' | 'withToken' | 'open';
 	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
 	emailOneTimeAccessAsAdminEnabled: boolean;
+	allMethodsEnabled: boolean;
 	ldapEnabled: boolean;
 	disableAnimations: boolean;
 	uiConfigDisabled: boolean;

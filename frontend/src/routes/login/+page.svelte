@@ -10,6 +10,10 @@
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from './components/login-logo-error-success-indicator.svelte';
+	import { LucideKey, LucideMail, LucideRectangleEllipsis } from '@lucide/svelte';
+	import { page } from '$app/state';
+	import type { Component } from 'svelte';
+	import LoginMethodCard from './components/login-method-card.svelte';
 
 	let { data } = $props();
 
@@ -17,6 +21,45 @@
 
 	let isLoading = $state(false);
 	let error: string | undefined = $state(undefined);
+
+	// Reactive computed methods based on configuration
+	const methods = $derived.by(() => {
+		const baseMethods: {
+			icon: Component;
+			title: string;
+			description: string;
+			href?: string;
+			onclick?: () => void | Promise<void>;
+		}[] = [
+			{
+				icon: LucideKey,
+				title: m.passkey(),
+				description: m.authenticate_with_passkey_to_access_account(),
+				onclick: authenticate
+			},
+			{
+				icon: LucideRectangleEllipsis,
+				title: m.login_code(),
+				description: m.enter_a_login_code_to_sign_in(),
+				href: '/login/alternative/code'
+			}
+		];
+
+		if ($appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled) {
+			baseMethods.push({
+				icon: LucideMail,
+				title: m.email_login(),
+				description: m.request_a_login_code_via_email(),
+				href: '/login/alternative/email'
+			});
+		}
+
+		return baseMethods;
+	});
+
+	const isAllMethodsEnabled = $derived($appConfigStore.allMethodsEnabled);
+	const isSignupOpen = $derived($appConfigStore.allowUserSignups === 'open');
+	const showAlternativeButton = $derived(!isAllMethodsEnabled);
 
 	async function authenticate() {
 		error = undefined;
@@ -39,10 +82,14 @@
 	<title>{m.sign_in()}</title>
 </svelte:head>
 
-<SignInWrapper animate={!$appConfigStore.disableAnimations} showAlternativeSignInMethodButton>
+<SignInWrapper
+	animate={!$appConfigStore.disableAnimations}
+	showAlternativeSignInMethodButton={showAlternativeButton}
+>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>
+
 	<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
 		{m.sign_in_to_appname({ appName: $appConfigStore.appName })}
 	</h1>
@@ -55,14 +102,33 @@
 			{m.authenticate_with_passkey_to_access_account()}
 		</p>
 	{/if}
+
+	{#if isAllMethodsEnabled}
+		<div class="mt-5 flex flex-col gap-3">
+			{#each methods as method}
+				<LoginMethodCard
+					icon={method.icon}
+					title={method.title}
+					description={method.description}
+					href={method.href}
+					onclick={method.onclick}
+					searchParams={page.url.search}
+				/>
+			{/each}
+		</div>
+	{/if}
+
 	<div class="mt-10 flex justify-center gap-3">
-		{#if $appConfigStore.allowUserSignups === 'open'}
+		{#if isSignupOpen}
 			<Button variant="secondary" href="/signup">
 				{m.signup()}
 			</Button>
 		{/if}
-		<Button {isLoading} onclick={authenticate} autofocus={true}>
-			{error ? m.try_again() : m.authenticate()}
-		</Button>
+
+		{#if showAlternativeButton}
+			<Button {isLoading} onclick={authenticate} autofocus={true}>
+				{error ? m.try_again() : m.authenticate()}
+			</Button>
+		{/if}
 	</div>
 </SignInWrapper>

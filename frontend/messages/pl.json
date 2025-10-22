@@ -461,5 +461,8 @@
 	"locale": "Ustawienia regionalne",
 	"ldap_id": "Identyfikator LDAP",
 	"reauthentication": "Ponowne uwierzytelnianie",
-	"clear_filters": "Wyczyść filtry"
+	"clear_filters": "Wyczyść filtry",
+	"passkey": "Klucz dostępu",
+	"all_methods_enabled": "Wszystkie metody uwierzytelniania włączone",
+	"enable_all_methods_for_sign_in": "Włącz wszystkie metody uwierzytelniania do logowania."
 }

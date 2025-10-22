@@ -461,5 +461,8 @@
 	"locale": "地區",
 	"ldap_id": "LDAP 識別碼",
 	"reauthentication": "重新驗證",
-	"clear_filters": "清除篩選條件"
+	"clear_filters": "清除篩選條件",
+	"passkey": "通行金鑰",
+	"all_methods_enabled": "所有身份驗證方法已啟用",
+	"enable_all_methods_for_sign_in": "啟用所有身份驗證方法進行登入。"
 }

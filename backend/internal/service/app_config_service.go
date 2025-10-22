@@ -83,6 +83,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		EmailOneTimeAccessAsUnauthenticatedEnabled: model.AppConfigVariable{Value: "false"},
 		EmailOneTimeAccessAsAdminEnabled:           model.AppConfigVariable{Value: "false"},
 		EmailApiKeyExpirationEnabled:               model.AppConfigVariable{Value: "false"},
+		AllMethodsEnabled:                          model.AppConfigVariable{Value: "false"},
 		// LDAP
 		LdapEnabled:                        model.AppConfigVariable{Value: "false"},
 		LdapUrl:                            model.AppConfigVariable{},

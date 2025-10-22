@@ -2,11 +2,10 @@
 	import { page } from '$app/state';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import Logo from '$lib/components/logo.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
-	import { LucideChevronRight, LucideMail, LucideRectangleEllipsis } from '@lucide/svelte';
+	import { LucideMail, LucideRectangleEllipsis } from '@lucide/svelte';
+	import LoginMethodCard from '../components/login-method-card.svelte';
 
 	const methods = [
 		{
@@ -42,20 +41,13 @@
 		</p>
 		<div class="mt-5 flex flex-col gap-3">
 			{#each methods as method}
-				<a href={method.href + page.url.search}>
-					<Card.Root>
-						<Card.Content class="flex items-center justify-between px-4">
-							<div class="flex gap-3">
-								<method.icon class="text-primary size-7" />
-								<div class="text-start">
-									<h3 class="text-lg font-semibold">{method.title}</h3>
-									<p class="text-muted-foreground text-sm">{method.description}</p>
-								</div>
-							</div>
-							<Button variant="ghost"><LucideChevronRight class="size-5" /></Button>
-						</Card.Content>
-					</Card.Root>
-				</a>
+				<LoginMethodCard
+					icon={method.icon}
+					title={method.title}
+					description={method.description}
+					href={method.href}
+					searchParams={page.url.search}
+				/>
 			{/each}
 		</div>
 

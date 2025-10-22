@@ -51,6 +51,7 @@ type AppConfigUpdateDto struct {
 	LdapSoftDeleteUsers                        string `json:"ldapSoftDeleteUsers"`
 	EmailOneTimeAccessAsAdminEnabled           string `json:"emailOneTimeAccessAsAdminEnabled" binding:"required"`
 	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" binding:"required"`
+	AllMethodsEnabled                          string `json:"allMethodsEnabled" binding:"required"`
 	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" binding:"required"`
 	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" binding:"required"`
 }

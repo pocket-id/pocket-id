@@ -461,5 +461,8 @@
 	"locale": "Локаль",
 	"ldap_id": "LDAP-идентификатор",
 	"reauthentication": "Повторная аутентификация",
-	"clear_filters": "Очистить фильтры"
+	"clear_filters": "Очистить фильтры",
+	"passkey": "Ключ доступа",
+	"all_methods_enabled": "Все методы аутентификации включены",
+	"enable_all_methods_for_sign_in": "Включить все методы аутентификации для входа."
 }

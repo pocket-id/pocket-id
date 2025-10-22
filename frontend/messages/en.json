@@ -461,5 +461,8 @@
 	"locale": "Locale",
 	"ldap_id" : "LDAP ID",
 	"reauthentication": "Re-authentication",
-	"clear_filters" : "Clear Filters"
+	"clear_filters" : "Clear Filters",
+	"passkey": "Passkey",
+	"all_methods_enabled": "All authentication methods enabled",
+	"enable_all_methods_for_sign_in": "Enable all authentication methods for sign in."
 }

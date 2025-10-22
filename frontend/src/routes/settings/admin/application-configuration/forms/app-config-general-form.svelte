@@ -29,7 +29,8 @@
 		emailsVerified: appConfig.emailsVerified,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
 		disableAnimations: appConfig.disableAnimations,
-		accentColor: appConfig.accentColor
+		accentColor: appConfig.accentColor,
+		allMethodsEnabled: appConfig.allMethodsEnabled
 	};
 
 	const formSchema = z.object({
@@ -38,7 +39,8 @@
 		emailsVerified: z.boolean(),
 		allowOwnAccountEdit: z.boolean(),
 		disableAnimations: z.boolean(),
-		accentColor: z.string()
+		accentColor: z.string(),
+		allMethodsEnabled: z.boolean()
 	});
 
 	let { inputs, ...form } = $derived(createForm(formSchema, updatedAppConfig));
@@ -80,6 +82,12 @@
 				label={m.disable_animations()}
 				description={m.turn_off_ui_animations()}
 				bind:checked={$inputs.disableAnimations.value}
+			/>
+			<SwitchWithLabel
+				id="all-methods-enabled"
+				label={m.all_methods_enabled()}
+				description={m.enable_all_methods_for_sign_in()}
+				bind:checked={$inputs.allMethodsEnabled.value}
 			/>
 
 			<div class="space-y-5">

@@ -461,5 +461,8 @@
 	"locale": "区域设置",
 	"ldap_id": "LDAP标识符",
 	"reauthentication": "重新认证",
-	"clear_filters": "清除筛选条件"
+	"clear_filters": "清除筛选条件",
+	"passkey": "通行密钥",
+	"all_methods_enabled": "所有身份验证方法已启用",
+	"enable_all_methods_for_sign_in": "启用所有身份验证方法进行登录。"
 }

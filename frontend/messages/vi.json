@@ -461,5 +461,8 @@
 	"locale": "Vùng",
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Xác thực lại",
-	"clear_filters": "Xóa bộ lọc"
+	"clear_filters": "Xóa bộ lọc",
+	"passkey": "Khóa truy cập",
+	"all_methods_enabled": "Tất cả các phương thức xác thực đã được bật",
+	"enable_all_methods_for_sign_in": "Bật tất cả các phương thức xác thực để đăng nhập."
 }
