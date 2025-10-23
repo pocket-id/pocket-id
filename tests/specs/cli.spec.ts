@@ -16,15 +16,15 @@ test('Export', async ({ baseURL }) => {
 	// Reset the backend but with LDAP setup because the example export has no LDAP data
 	await cleanupBackend({ skipLdapSetup: true });
 
-	// Export the data from the seeded container
-	const exportPath = path.join(tmpDir, 'export.zip');
-	const extractPath = path.join(tmpDir, 'export-extracted');
-
 	// Fetch the profile pictures because they get generated on demand
 	await Promise.all([
 		fetch(`${baseURL}/api/users/${users.craig.id}/profile-picture.png`),
 		fetch(`${baseURL}/api/users/${users.tim.id}/profile-picture.png`)
 	]);
+
+	// Export the data from the seeded container
+	const exportPath = path.join(tmpDir, 'export.zip');
+	const extractPath = path.join(tmpDir, 'export-extracted');
 
 	runExport(exportPath);
 	unzipExport(exportPath, extractPath);
@@ -163,8 +163,7 @@ function isUnixTimestamp(value: any): boolean {
 }
 
 function runImport(pathToFile: string) {
-	const importContainerId = runDockerCommand([
-		'compose',
+	const importContainerId = runDockerComposeCommand([
 		'run',
 		'-d',
 		'-v',
@@ -182,8 +181,7 @@ function runImport(pathToFile: string) {
 }
 
 function runExport(outputFile: string): void {
-	const containerId = runDockerCommand([
-		'compose',
+	const containerId = runDockerComposeCommand([
 		'run',
 		'-d',
 		containerName,
@@ -235,4 +233,12 @@ function hashAllFiles(dir: string): Record<string, string> {
 
 function runDockerCommand(args: string[]): string {
 	return execFileSync('docker', args, { cwd: setupDir, stdio: 'pipe' }).toString().trim();
+}
+
+function runDockerComposeCommand(args: string[]): string {
+	let dockerComposeFile = 'docker-compose.yml';
+	if (runDockerCommand(['compose', 'ls', '--format', 'json']).includes('postgres')) {
+		dockerComposeFile = 'docker-compose-postgres.yml';
+	}
+	return runDockerCommand(['compose', '-f', dockerComposeFile, ...args]);
 }
