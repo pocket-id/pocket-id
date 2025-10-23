@@ -37,8 +37,12 @@ func init() {
 // runImport handles the high-level orchestration of the import process
 func runImport(flags importFlags) error {
 	if !flags.Yes {
-		if !askForConfirmation() {
-			fmt.Println("Import aborted.")
+		ok, err := askForConfirmation()
+		if err != nil {
+			return fmt.Errorf("failed to get confirmation: %w", err)
+		}
+		if !ok {
+			fmt.Println("Aborted")
 			return nil
 		}
 	}
@@ -63,7 +67,7 @@ func runImport(flags importFlags) error {
 	return nil
 }
 
-func askForConfirmation() bool {
+func askForConfirmation() (bool, error) {
 	fmt.Println("WARNING: This feature is experimental and may not work correctly. Please create a backup before proceeding and report any issues you encounter.")
 	fmt.Println()
 	fmt.Println("WARNING: Import will erase all existing data at the following locations:")
@@ -73,10 +77,10 @@ func askForConfirmation() bool {
 
 	ok, err := utils.PromptForConfirmation("Do you want to continue?")
 	if err != nil {
-		panic(err)
+		return false, err
 	}
 
-	return ok
+	return ok, nil
 }
 
 // absolutePathOrOriginal returns the absolute path of the given path, or the original if it fails

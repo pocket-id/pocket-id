@@ -74,6 +74,7 @@ func processZipDatabaseJson(files []*zip.File) (dbData DatabaseExport, err error
 			}
 
 			if err := json.NewDecoder(rc).Decode(&dbData); err != nil {
+				_ = rc.Close()
 				return dbData, fmt.Errorf("failed to decode database.json: %w", err)
 			}
 
@@ -132,6 +133,7 @@ func (s *ImportService) resetSchema(targetVersion uint, exportDbProvider string)
 			if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 				return fmt.Errorf("migration failed: %w", err)
 			}
+			return nil
 		}
 		return fmt.Errorf("migration failed: %w", err)
 	}

@@ -121,7 +121,6 @@ func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
 
 func writeExportZipStream(w io.Writer, dbData DatabaseExport) error {
 	zipWriter := zip.NewWriter(w)
-	defer zipWriter.Close()
 
 	// Add database.json
 	jsonWriter, err := zipWriter.Create("database.json")
@@ -143,7 +142,7 @@ func writeExportZipStream(w io.Writer, dbData DatabaseExport) error {
 		}
 	}
 
-	return nil
+	return zipWriter.Close()
 }
 
 // addDirectoryToZip recursively adds all files from basePath into the zip under the correct prefix
