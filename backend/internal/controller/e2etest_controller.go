@@ -69,7 +69,10 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		}
 	}
 
-	tc.TestService.SetJWTKeys()
+	if err := tc.TestService.SetJWTKeys(); err != nil {
+		_ = c.Error(err)
+		return
+	}
 
 	c.Status(http.StatusNoContent)
 }
