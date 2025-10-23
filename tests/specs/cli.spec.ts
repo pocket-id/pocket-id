@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import AdmZip from 'adm-zip';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import crypto from 'crypto';
 import { users } from 'data';
 import fs from 'fs';
@@ -163,27 +163,42 @@ function isUnixTimestamp(value: any): boolean {
 }
 
 function runImport(pathToFile: string) {
-	const importContainerId = runDockerCommand(
-		`docker compose run -d -v ${pathToFile}:/app/pocket-id-export.zip ${containerName} /app/pocket-id import --yes`
-	);
+	const importContainerId = runDockerCommand([
+		'compose',
+		'run',
+		'-d',
+		'-v',
+		`${pathToFile}:/app/pocket-id-export.zip`,
+		containerName,
+		'/app/pocket-id',
+		'import',
+		'--yes'
+	]);
 	try {
-		runDockerCommand(`docker wait ${importContainerId}`);
+		runDockerCommand(['wait', importContainerId]);
 	} finally {
-		runDockerCommand(`docker rm -f ${importContainerId}`);
+		runDockerCommand(['rm', '-f', importContainerId]);
 	}
 }
 
 function runExport(outputFile: string): void {
-	const containerId = runDockerCommand(
-		`docker compose run -d ${containerName} /app/pocket-id export`
-	);
+	const containerId = runDockerCommand([
+		'compose',
+		'run',
+		'-d',
+		containerName,
+		'/app/pocket-id',
+		'export'
+	]);
+
 	try {
 		// Wait until export finishes
-		runDockerCommand(`docker wait ${containerId}`);
-		runDockerCommand(`docker cp ${containerId}:/app/pocket-id-export.zip ${outputFile}`);
+		runDockerCommand(['wait', containerId]);
+		runDockerCommand(['cp', `${containerId}:/app/pocket-id-export.zip`, outputFile]);
 	} finally {
-		runDockerCommand(`docker rm -f ${containerId}`);
+		runDockerCommand(['rm', '-f', containerId]);
 	}
+
 	expect(fs.existsSync(outputFile)).toBe(true);
 }
 
@@ -218,6 +233,6 @@ function hashAllFiles(dir: string): Record<string, string> {
 	return hashes;
 }
 
-function runDockerCommand(cmd: string): string {
-	return execSync(cmd, { cwd: setupDir, stdio: 'pipe' }).toString().trim();
+function runDockerCommand(args: string[]): string {
+	return execFileSync('docker', args, { cwd: setupDir, stdio: 'pipe' }).toString().trim();
 }
