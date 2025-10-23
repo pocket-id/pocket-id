@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
@@ -21,8 +20,7 @@ import (
 
 // ImportService handles importing Pocket ID data from an exported ZIP archive.
 type ImportService struct {
-	db              *gorm.DB
-	migrationDriver database.Driver
+	db *gorm.DB
 }
 
 type DatabaseExport struct {
@@ -298,12 +296,14 @@ func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 		return err
 	}
 	defer rc.Close()
+
 	out, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, f.Mode())
 	if err != nil {
 		return err
 	}
-
 	defer out.Close()
+
+	//nolint:gosec // f.UncompressedSize64 is capped above
 	if _, err := io.CopyN(out, rc, int64(f.UncompressedSize64)); err != nil {
 		return fmt.Errorf("copy failed for %s: %w", f.Name, err)
 	}
