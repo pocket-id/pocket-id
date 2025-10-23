@@ -91,8 +91,7 @@ function archiveExampleExport(outputPath: string) {
 		}
 	}
 
-	fs.mkdirSync(tmpDir, { recursive: true });
-	zip.writeZip(outputPath);
+	fs.writeFileSync(outputPath, zip.toBuffer());
 }
 
 // Helper to load JSON files
@@ -167,7 +166,9 @@ function runImport(pathToFile: string) {
 }
 
 function runExport(outputFile: string): void {
-	const containerId = runDockerCommand(`docker compose run -d ${containerName} /app/pocket-id export`);
+	const containerId = runDockerCommand(
+		`docker compose run -d ${containerName} /app/pocket-id export`
+	);
 	try {
 		// Wait until export finishes
 		runDockerCommand(`docker wait ${containerId}`);
