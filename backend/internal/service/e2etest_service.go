@@ -9,7 +9,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -422,10 +421,9 @@ func (s *TestService) ResetDatabase() error {
 	return err
 }
 
-func (s *TestService) ResetApplicationImages(ctx context.Context) error {
+func (s *TestService) ResetApplicationImages() error {
 	if err := os.RemoveAll(common.EnvConfig.UploadPath); err != nil {
-		slog.ErrorContext(ctx, "Error removing directory", slog.Any("error", err))
-		return err
+		return fmt.Errorf("failed to remove upload path: %w", err)
 	}
 
 	files, err := resources.FS.ReadDir("images")
