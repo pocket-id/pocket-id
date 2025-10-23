@@ -157,7 +157,7 @@ function isUnixTimestamp(value: any): boolean {
 
 function runImport(pathToFile: string) {
 	const importContainerId = runDockerCommand(
-		`docker compose run -d --entrypoint /app/pocket-id -v ${pathToFile}:/app/pocket-id-export.zip ${containerName} import --yes`
+		`docker compose run -d -v ${pathToFile}:/app/pocket-id-export.zip ${containerName} /app/pocket-id import --yes`
 	);
 	try {
 		runDockerCommand(`docker wait ${importContainerId}`);
@@ -167,9 +167,7 @@ function runImport(pathToFile: string) {
 }
 
 function runExport(outputFile: string): void {
-	const containerId = runDockerCommand(
-		`docker compose run -d --entrypoint /app/pocket-id ${containerName} export`
-	);
+	const containerId = runDockerCommand(`docker compose run -d ${containerName} /app/pocket-id export`);
 	try {
 		// Wait until export finishes
 		runDockerCommand(`docker wait ${containerId}`);

@@ -15,9 +15,12 @@ services:
     environment:
       - APP_ENV=test
     volumes:
-      - ./data:/app/data
+      - pocket-id-test-data:/app/data
     build:
       args:
         - BUILD_TAGS=e2etest
       context: ../..
       dockerfile: docker/Dockerfile
+
+volumes:
+  pocket-id-test-data:
