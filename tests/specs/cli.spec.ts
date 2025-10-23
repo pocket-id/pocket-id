@@ -40,7 +40,9 @@ test('Import', async () => {
 	const exampleExportArchivePath = path.join(tmpDir, 'example-export.zip');
 	archiveExampleExport(exampleExportArchivePath);
 
+	runDockerCommand(`docker compose down`);
 	runImport(exampleExportArchivePath);
+	runDockerCommand(`docker compose up -d`);
 
 	// Export again from the imported instance
 	const exportPath = path.join(tmpDir, 'export.zip');
@@ -57,10 +59,10 @@ function compareExports(dir1: string, dir2: string): void {
 
 	const files1 = Object.keys(hashes1).sort();
 	const files2 = Object.keys(hashes2).sort();
-	expect(files1).toEqual(files2);
+	expect(files2).toEqual(files1);
 
 	for (const file of files1) {
-		expect(hashes1[file], `${file} hash should match`).toEqual(hashes2[file]);
+		expect(hashes2[file], `${file} hash should match`).toEqual(hashes1[file]);
 	}
 
 	// Compare database.json contents
@@ -71,13 +73,14 @@ function compareExports(dir1: string, dir2: string): void {
 	validateSpecialFields(actualData);
 
 	// Normalize and compare
-	const normalized1 = normalizeJSON(expectedData);
-	const normalized2 = normalizeJSON(actualData);
-	expect(normalized1).toEqual(normalized2);
+	const normalizedExpected = normalizeJSON(expectedData);
+	const normalizedActual = normalizeJSON(actualData);
+	expect(normalizedActual).toEqual(normalizedExpected);
 }
 
 function archiveExampleExport(outputPath: string) {
 	fs.rmSync(outputPath, { force: true });
+
 	const zip = new AdmZip();
 	const files = fs.readdirSync(exampleExportPath);
 	for (const file of files) {
