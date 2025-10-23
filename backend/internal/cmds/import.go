@@ -53,7 +53,7 @@ func runImport(flags importFlags) error {
 	}
 	defer r.Close()
 
-	db, err := bootstrap.NewDatabase()
+	db, err := bootstrap.ConnectDatabase()
 	if err != nil {
 		return err
 	}

@@ -193,7 +193,7 @@ func (s *JwtService) SetKey(privateKey jwk.Key) error {
 	return nil
 }
 
-func (s* JwtService) SaveKey(privateKey jwk.Key) error {
+func (s *JwtService) SaveKey(privateKey jwk.Key) error {
 	keyProvider, err := jwkutils.GetKeyProvider(nil, s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
 	if err != nil {
 		return fmt.Errorf("failed to get key provider: %w", err)
@@ -201,7 +201,6 @@ func (s* JwtService) SaveKey(privateKey jwk.Key) error {
 
 	return keyProvider.SaveKey(privateKey)
 }
-
 
 func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 	now := time.Now()
