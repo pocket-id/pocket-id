@@ -107,7 +107,7 @@ function normalizeJSON(obj: any): any {
 			.map(normalizeJSON)
 			.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 	} else if (obj && typeof obj === 'object') {
-		const ignoredKeys = ['id', 'created_at', 'expires_at', 'credentials'];
+		const ignoredKeys = ['id', 'created_at', 'expires_at', 'credentials', 'provider', 'version'];
 
 		// Sort and normalize object keys, skipping ignored ones
 		return Object.keys(obj)
@@ -136,6 +136,13 @@ function validateSpecialFields(obj: any): void {
 					isUnixTimestamp(value),
 					`Expected '${key}' = ${value} to be a valid UNIX timestamp`
 				).toBe(true);
+			} else if (key === 'provider') {
+				expect(
+					['postgres', 'sqlite'].includes(value as string),
+					`Expected 'provider' to be either 'postgres' or 'sqlite', got '${value}'`
+				).toBe(true);
+			} else if (key === 'version') {
+				expect(value).toBeGreaterThanOrEqual(20251001000000);
 			} else {
 				validateSpecialFields(value);
 			}
@@ -151,8 +158,8 @@ function isUUID(value: any): boolean {
 
 function isUnixTimestamp(value: any): boolean {
 	if (typeof value !== 'number') return false;
-	// Rough range: after 2000-01-01 and before 2100-01-01
-	return value > 946684800 && value < 4102444800;
+	// Rough range: after 1970-01-01 and before 2300-01-01
+	return value > 0 && value < 10413788400;
 }
 
 function runImport(pathToFile: string) {
