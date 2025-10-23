@@ -21,3 +21,6 @@ services:
         - BUILD_TAGS=e2etest
       context: ../..
       dockerfile: docker/Dockerfile
+
+volumes:
+  pocket-id-test-data:
