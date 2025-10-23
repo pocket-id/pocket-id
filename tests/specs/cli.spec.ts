@@ -77,6 +77,7 @@ function compareExports(dir1: string, dir2: string): void {
 }
 
 function archiveExampleExport(outputPath: string) {
+	fs.rmSync(outputPath, { force: true });
 	const zip = new AdmZip();
 	const files = fs.readdirSync(exampleExportPath);
 	for (const file of files) {
