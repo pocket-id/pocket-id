@@ -1,9 +1,8 @@
 import fs from 'fs';
-import { pathFromRoot } from 'utils/fs.util';
+import { tmpDir } from 'utils/fs.util';
 
 async function globalTeardown() {
-	const tmpPath = pathFromRoot('.tmp');
-	await fs.promises.rm(tmpPath, { recursive: true, force: true });
+	await fs.promises.rm(tmpDir, { recursive: true, force: true });
 }
 
 export default globalTeardown;

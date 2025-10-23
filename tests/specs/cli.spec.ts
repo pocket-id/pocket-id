@@ -6,11 +6,10 @@ import { users } from 'data';
 import fs from 'fs';
 import path from 'path';
 import { cleanupBackend } from 'utils/cleanup.util';
-import { pathFromRoot } from 'utils/fs.util';
+import { pathFromRoot, tmpDir } from 'utils/fs.util';
 
 const containerName = 'pocket-id';
 const setupDir = pathFromRoot('setup');
-const tmpDir = pathFromRoot('.tmp');
 const exampleExportPath = pathFromRoot('resources/export');
 
 test('Export', async ({ baseURL }) => {

@@ -1,9 +1,8 @@
 import fs from 'fs';
-import { pathFromRoot } from 'utils/fs.util';
+import { tmpDir } from 'utils/fs.util';
 
 async function globalSetup() {
-	const tmpPath = pathFromRoot('.tmp');
-	await fs.promises.mkdir(tmpPath, { recursive: true });
+	await fs.promises.mkdir(tmpDir, { recursive: true });
 }
 
 export default globalSetup;
