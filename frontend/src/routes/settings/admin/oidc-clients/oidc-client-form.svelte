@@ -200,12 +200,18 @@
 			id="public-client"
 			label={m.public_client()}
 			description={m.public_clients_description()}
+			onCheckedChange={(v) => {
+				if (v) {
+					$inputs.pkceEnabled.value = true;
+				}
+			}}
 			bind:checked={$inputs.isPublic.value}
 		/>
 		<SwitchWithLabel
 			id="pkce"
 			label={m.pkce()}
 			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
+			disabled={$inputs.isPublic.value}
 			bind:checked={$inputs.pkceEnabled.value}
 		/>
 		<SwitchWithLabel
