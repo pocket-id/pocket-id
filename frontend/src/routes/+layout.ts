@@ -3,11 +3,13 @@ import UserService from '$lib/services/user-service';
 import appConfigStore from '$lib/stores/application-configuration-store';
 import userStore from '$lib/stores/user-store';
 import { setLocaleForLibraries } from '$lib/utils/locale.util';
+import { getAuthRedirectPath } from '$lib/utils/redirection-util';
+import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
 export const ssr = false;
 
-export const load: LayoutLoad = async () => {
+export const load: LayoutLoad = async ({ url }) => {
 	const userService = new UserService();
 	const appConfigService = new AppConfigService();
 
@@ -21,6 +23,11 @@ export const load: LayoutLoad = async () => {
 	});
 
 	const [user, appConfig] = await Promise.all([userPromise, appConfigPromise]);
+
+	const redirectPath = getAuthRedirectPath(url.pathname, user);
+	if (redirectPath) {
+		redirect(302, redirectPath);
+	}
 
 	if (user) {
 		await userStore.setUser(user);
