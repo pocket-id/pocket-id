@@ -11,7 +11,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=pocket-id
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,3 +25,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+volumes:
+  pocket-id-test-data:
