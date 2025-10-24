@@ -89,6 +89,7 @@ func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) 
 	sessionToStore := &model.WebauthnSession{
 		ExpiresAt:        datatype.DateTime(session.Expires),
 		Challenge:        session.Challenge,
+		CredentialParams: session.CredParams,
 		UserVerification: string(session.UserVerification),
 	}
 
@@ -130,9 +131,10 @@ func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, use
 	}
 
 	session := webauthn.SessionData{
-		Challenge: storedSession.Challenge,
-		Expires:   storedSession.ExpiresAt.ToTime(),
-		UserID:    []byte(userID),
+		Challenge:  storedSession.Challenge,
+		Expires:    storedSession.ExpiresAt.ToTime(),
+		CredParams: storedSession.CredentialParams,
+		UserID:     []byte(userID),
 	}
 
 	var user model.User
