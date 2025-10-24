@@ -1,3 +1,28 @@
+## v1.14.0
+
+### Bug Fixes
+
+- ignore trailing slash in URL ([9f0aa55](https://github.com/pocket-id/pocket-id/commit/9f0aa55be67b7a09810569250563bb388b40590a) by @stonith404)
+- use constant time comparisons when validating PKCE challenges ([#1047](https://github.com/pocket-id/pocket-id/pull/1047) by @ItalyPaleAle)
+- only animate login background on initial page load ([b356cef](https://github.com/pocket-id/pocket-id/commit/b356cef766697c621157235ae1d2743f3fe6720d) by @stonith404)
+- make pkce requirement visible in the oidc form if client is public ([47927d1](https://github.com/pocket-id/pocket-id/commit/47927d157470daa5b5a5b30e61a2ba69110eeff9) by @stonith404)
+- prevent page flickering on redirection based on auth state ([10d6403](https://github.com/pocket-id/pocket-id/commit/10d640385ff2078299a07f05e5ca3f0d392eecf7) by @stonith404)
+
+### Features
+
+- add various improvements to the table component ([#961](https://github.com/pocket-id/pocket-id/pull/961) by @stonith404)
+- add support for dark mode oidc client icons ([#1039](https://github.com/pocket-id/pocket-id/pull/1039) by @kmendell)
+
+### Other
+
+- add Japanese files ([068fcc6](https://github.com/pocket-id/pocket-id/commit/068fcc65a62c76f55c9636f830fc769bd59220c4) by @kmendell)
+- bump sveltekit-superforms from 2.27.1 to 2.27.4 in the npm_and_yarn group across 1 directory ([#1031](https://github.com/pocket-id/pocket-id/pull/1031) by @dependabot[bot])
+- update AAGUIDs ([#1041](https://github.com/pocket-id/pocket-id/pull/1041) by @github-actions[bot])
+- bump vite from 7.0.7 to 7.0.8 in the npm_and_yarn group across 1 directory ([#1042](https://github.com/pocket-id/pocket-id/pull/1042) by @dependabot[bot])
+- upgrade dependencies ([6362ff9](https://github.com/pocket-id/pocket-id/commit/6362ff986124d056cc07d214855f198eab9cb97d) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.13.1...v1.14.0
+
 ## v1.13.1
 
 ### Bug Fixes
