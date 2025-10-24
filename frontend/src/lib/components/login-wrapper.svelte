@@ -1,22 +1,28 @@
 <script lang="ts">
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { cachedBackgroundImage } from '$lib/utils/cached-image-util';
 	import { cn } from '$lib/utils/style';
-	import type { Snippet } from 'svelte';
+	import { type Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import * as Card from './ui/card';
 
 	let {
 		children,
-		showAlternativeSignInMethodButton = false,
-		animate = false
+		showAlternativeSignInMethodButton = false
 	}: {
 		children: Snippet;
 		showAlternativeSignInMethodButton?: boolean;
-		animate?: boolean;
 	} = $props();
+
+	let isInitialLoad = $state(false);
+	let animate = $derived(isInitialLoad && !$appConfigStore.disableAnimations);
+
+	afterNavigate((e) => {
+		isInitialLoad = !e?.from?.url;
+	});
 
 	const isDesktop = new MediaQuery('min-width: 1024px');
 	let alternativeSignInButton = $state({

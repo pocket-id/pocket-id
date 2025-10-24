@@ -5,7 +5,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { tryCatch } from '$lib/utils/try-catch-util';
 	import { startRegistration } from '@simplewebauthn/browser';
@@ -65,7 +64,7 @@
 	<title>{m.add_passkey()}</title>
 </svelte:head>
 
-<SignInWrapper animate={!$appConfigStore.disableAnimations}>
+<SignInWrapper>
 	<div class="w-full text-center">
 		<div class="flex justify-center">
 			<LoginLogoErrorSuccessIndicator error={!!error} />

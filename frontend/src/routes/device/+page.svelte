@@ -8,7 +8,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
-	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import type { OidcDeviceCodeInfo } from '$lib/types/oidc.type';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
@@ -72,10 +71,7 @@
 	<title>{m.authorize_device()}</title>
 </svelte:head>
 
-<SignInWrapper
-	animate={!$appConfigStore.disableAnimations}
-	showAlternativeSignInMethodButton={$userStore == null}
->
+<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
 	<div class="flex justify-center">
 		{#if deviceInfo?.client}
 			<ClientProviderImages client={deviceInfo.client} {success} error={!!errorMessage} />
