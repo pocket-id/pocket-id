@@ -120,41 +120,41 @@
 		isLoading = false;
 	}
 
-	function onLogoChange(input: File | string | null, dark: boolean = false) {
+	function onLogoChange(input: File | string | null, light: boolean = true) {
 		if (input == null) return;
 
-		const logoUrlInput = dark ? $inputs.darkLogoUrl : $inputs.logoUrl;
+		const logoUrlInput = light ? $inputs.logoUrl : $inputs.darkLogoUrl;
 
 		if (typeof input === 'string') {
-			if (dark) {
-				darkLogo = null;
-				darkLogoDataURL = input || null;
-			} else {
+			if (light) {
 				logo = null;
 				logoDataURL = input || null;
+			} else {
+				darkLogo = null;
+				darkLogoDataURL = input || null;
 			}
 			logoUrlInput!.value = input;
 		} else {
-			if (dark) {
-				darkLogo = input;
-				darkLogoDataURL = URL.createObjectURL(input);
-			} else {
+			if (light) {
 				logo = input;
 				logoDataURL = URL.createObjectURL(input);
+			} else {
+				darkLogo = input;
+				darkLogoDataURL = URL.createObjectURL(input);
 			}
 			logoUrlInput && (logoUrlInput.value = '');
 		}
 	}
 
-	function resetLogo(dark: boolean = false) {
-		if (dark) {
-			darkLogo = null;
-			darkLogoDataURL = null;
-			$inputs.darkLogoUrl && ($inputs.darkLogoUrl.value = '');
-		} else {
+	function resetLogo(light: boolean = true) {
+		if (light) {
 			logo = null;
 			logoDataURL = null;
 			$inputs.logoUrl && ($inputs.logoUrl.value = '');
+		} else {
+			darkLogo = null;
+			darkLogoDataURL = null;
+			$inputs.darkLogoUrl && ($inputs.darkLogoUrl.value = '');
 		}
 	}
 
@@ -219,11 +219,11 @@
 		<Tabs.Root value="light-logo">
 			<Tabs.Content value="light-logo">
 				<OidcClientImageInput
-					id="light-logo"
 					{logoDataURL}
-					resetLogo={() => resetLogo(false)}
+					resetLogo={() => resetLogo(true)}
 					clientName={$inputs.name.value}
-					onLogoChange={(input) => onLogoChange(input, false)}
+					light={true}
+					onLogoChange={(input) => onLogoChange(input, true)}
 				>
 					{#snippet tabTriggers()}
 						<Tabs.List class="grid h-9 w-full grid-cols-2">
@@ -239,11 +239,11 @@
 			</Tabs.Content>
 			<Tabs.Content value="dark-logo">
 				<OidcClientImageInput
-					id="dark-logo"
+					light={false}
 					logoDataURL={darkLogoDataURL}
-					resetLogo={() => resetLogo(true)}
+					resetLogo={() => resetLogo(false)}
 					clientName={$inputs.name.value}
-					onLogoChange={(input) => onLogoChange(input, true)}
+					onLogoChange={(input) => onLogoChange(input, false)}
 				>
 					{#snippet tabTriggers()}
 						<Tabs.List class="grid h-9 w-full grid-cols-2">
