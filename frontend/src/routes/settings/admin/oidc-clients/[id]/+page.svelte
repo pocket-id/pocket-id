@@ -47,7 +47,12 @@
 		const dataPromise = oidcService.updateClient(client.id, updatedClient);
 		const imagePromise =
 			updatedClient.logo !== undefined
-				? oidcService.updateClientLogo(client, updatedClient.logo)
+				? oidcService.updateClientLogo(client, updatedClient.logo, true)
+				: Promise.resolve();
+
+		const darkImagePromise =
+			updatedClient.darkLogo !== undefined
+				? oidcService.updateClientLogo(client, updatedClient.darkLogo, false)
 				: Promise.resolve();
 
 		client.isPublic = updatedClient.isPublic;
@@ -56,8 +61,15 @@
 			? m.enabled()
 			: m.disabled();
 
-		await Promise.all([dataPromise, imagePromise])
+		await Promise.all([dataPromise, imagePromise, darkImagePromise])
 			.then(() => {
+				// Update the hasLogo and hasDarkLogo flags after successful upload
+				if (updatedClient.logo !== undefined) {
+					client.hasLogo = updatedClient.logo !== null || !!updatedClient.logoUrl;
+				}
+				if (updatedClient.darkLogo !== undefined) {
+					client.hasDarkLogo = updatedClient.darkLogo !== null || !!updatedClient.darkLogoUrl;
+				}
 				toast.success(m.oidc_client_updated_successfully());
 			})
 			.catch((e) => {

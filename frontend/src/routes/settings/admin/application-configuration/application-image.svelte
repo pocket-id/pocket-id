@@ -41,8 +41,8 @@
 		<div
 			class={{
 				'group relative flex items-center rounded': true,
-				'bg-[#F1F1F5]': forceColorScheme === 'light',
-				'bg-[#27272A]': forceColorScheme === 'dark',
+				'bg-[#F5F5F5]': forceColorScheme === 'light',
+				'bg-[#262626]': forceColorScheme === 'dark',
 				'bg-muted': !forceColorScheme
 			}}
 		>

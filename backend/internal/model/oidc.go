@@ -52,6 +52,7 @@ type OidcClient struct {
 	CallbackURLs             UrlList
 	LogoutCallbackURLs       UrlList
 	ImageType                *string
+	DarkImageType            *string
 	IsPublic                 bool
 	PkceEnabled              bool `filterable:"true"`
 	RequiresReauthentication bool `filterable:"true"`
@@ -66,6 +67,10 @@ type OidcClient struct {
 
 func (c OidcClient) HasLogo() bool {
 	return c.ImageType != nil && *c.ImageType != ""
+}
+
+func (c OidcClient) HasDarkLogo() bool {
+	return c.DarkImageType != nil && *c.DarkImageType != ""
 }
 
 type OidcRefreshToken struct {
