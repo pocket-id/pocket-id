@@ -71,7 +71,7 @@ func (s *ExportService) listTables() ([]string, error) {
 		}
 
 	case common.DbProviderPostgres:
-		if err := s.db.Raw(`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename != 'schema_migrations';`).Scan(&tables).Error; err != nil {
+		if err := s.db.Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public' AND tablename != 'schema_migrations';`).Scan(&tables).Error; err != nil {
 			return nil, fmt.Errorf("failed to query postgres tables: %w", err)
 		}
 	}
