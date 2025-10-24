@@ -20,7 +20,7 @@ test.describe('Create OIDC client', () => {
 		await page.getByTestId('callback-url-2').fill(oidcClient.secondCallbackUrl);
 
 		await page.locator('[role="tab"][data-value="light-logo"]').first().click();
-		await page.setInputFiles('#oidc-client-logo-logo', 'assets/pingvin-share-logo.png');
+		await page.setInputFiles('#oidc-client-logo-light', 'assets/pingvin-share-logo.png');
 		await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
 		await page.setInputFiles('#oidc-client-logo-dark', 'assets/pingvin-share-logo.png');
 
@@ -73,7 +73,7 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.locator('[role="tab"][data-value="light-logo"]').first().click();
 	await page.setInputFiles('#oidc-client-logo-light', 'assets/nextcloud-logo.png');
 	await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
-	await page.setInputFiles('#dark-logo', 'assets/nextcloud-logo.png');
+	await page.setInputFiles('#oidc-client-logo-dark', 'assets/nextcloud-logo.png');
 	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 	await page.getByRole('button', { name: 'Save' }).click();
 
