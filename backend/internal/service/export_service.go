@@ -202,7 +202,6 @@ func normalizeForJSON(value any, columnType string) any {
 		return map[string]any{"__binary__": base64.StdEncoding.EncodeToString(t)}
 
 	case time.Time:
-		println("time")
 		return t.Unix()
 
 	case int64:

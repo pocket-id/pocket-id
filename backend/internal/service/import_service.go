@@ -255,17 +255,8 @@ func normalizeRowWithSchema(row map[string]any, table string, schema map[string]
 		}
 
 		if strings.Contains(colType, "timestamp") || strings.Contains(colType, "datetime") {
-			switch v := val.(type) {
-			case float64:
-				if v > 1e9 && v < 1e12 {
-					row[col] = time.Unix(int64(v), 0).UTC()
-				} else if v >= 1e12 {
-					row[col] = time.UnixMilli(int64(v)).UTC()
-				}
-			case string:
-				if t, err := time.Parse(time.RFC3339Nano, v); err == nil {
-					row[col] = t.UTC()
-				}
+			if v, ok := val.(float64); ok {
+				row[col] = time.Unix(int64(v), 0).UTC()
 			}
 		}
 	}
