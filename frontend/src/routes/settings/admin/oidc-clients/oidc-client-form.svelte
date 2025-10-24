@@ -2,6 +2,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
 	import type {
 		OidcClient,
@@ -13,7 +14,7 @@
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
 	import { callbackUrlSchema, emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
-	import { LucideChevronDown } from '@lucide/svelte';
+	import { LucideChevronDown, LucideMoon, LucideSun } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
@@ -32,8 +33,12 @@
 	let isLoading = $state(false);
 	let showAdvancedOptions = $state(false);
 	let logo = $state<File | null | undefined>();
+	let darkLogo = $state<File | null | undefined>();
 	let logoDataURL: string | null = $state(
 		existingClient?.hasLogo ? cachedOidcClientLogo.getUrl(existingClient!.id) : null
+	);
+	let darkLogoDataURL: string | null = $state(
+		existingClient?.hasDarkLogo ? cachedOidcClientLogo.getUrl(existingClient!.id, false) : null
 	);
 
 	const client = {
@@ -48,7 +53,8 @@
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		},
-		logoUrl: ''
+		logoUrl: '',
+		darkLogoUrl: ''
 	};
 
 	const formSchema = z.object({
@@ -70,6 +76,7 @@
 		requiresReauthentication: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
+		darkLogoUrl: optionalUrl,
 		credentials: z.object({
 			federatedIdentities: z.array(
 				z.object({
@@ -92,37 +99,63 @@
 
 		const success = await callback({
 			...data,
-			logo: $inputs.logoUrl?.value ? null : logo,
-			logoUrl: $inputs.logoUrl?.value
+			logo: $inputs.logoUrl?.value ? undefined : logo,
+			logoUrl: $inputs.logoUrl?.value,
+			darkLogo: $inputs.darkLogoUrl?.value ? undefined : darkLogo,
+			darkLogoUrl: $inputs.darkLogoUrl?.value
 		});
 
 		const hasLogo = logo != null || !!$inputs.logoUrl?.value;
-		if (success && existingClient && hasLogo) {
-			logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
+		const hasDarkLogo = darkLogo != null || !!$inputs.darkLogoUrl?.value;
+		if (success && existingClient) {
+			if (hasLogo) {
+				logoDataURL = cachedOidcClientLogo.getUrl(existingClient.id);
+			}
+			if (hasDarkLogo) {
+				darkLogoDataURL = cachedOidcClientLogo.getUrl(existingClient.id, false);
+			}
 		}
 
 		if (success && !existingClient) form.reset();
 		isLoading = false;
 	}
 
-	function onLogoChange(input: File | string | null) {
+	function onLogoChange(input: File | string | null, light: boolean = true) {
 		if (input == null) return;
 
+		const logoUrlInput = light ? $inputs.logoUrl : $inputs.darkLogoUrl;
+
 		if (typeof input === 'string') {
-			logo = null;
-			logoDataURL = input || null;
-			$inputs.logoUrl!.value = input;
+			if (light) {
+				logo = null;
+				logoDataURL = input || null;
+			} else {
+				darkLogo = null;
+				darkLogoDataURL = input || null;
+			}
+			logoUrlInput!.value = input;
 		} else {
-			logo = input;
-			$inputs.logoUrl && ($inputs.logoUrl.value = '');
-			logoDataURL = URL.createObjectURL(input);
+			if (light) {
+				logo = input;
+				logoDataURL = URL.createObjectURL(input);
+			} else {
+				darkLogo = input;
+				darkLogoDataURL = URL.createObjectURL(input);
+			}
+			logoUrlInput && (logoUrlInput.value = '');
 		}
 	}
 
-	function resetLogo() {
-		logo = null;
-		logoDataURL = null;
-		$inputs.logoUrl && ($inputs.logoUrl.value = '');
+	function resetLogo(light: boolean = true) {
+		if (light) {
+			logo = null;
+			logoDataURL = null;
+			$inputs.logoUrl && ($inputs.logoUrl.value = '');
+		} else {
+			darkLogo = null;
+			darkLogoDataURL = null;
+			$inputs.darkLogoUrl && ($inputs.darkLogoUrl.value = '');
+		}
 	}
 
 	function getFederatedIdentityErrors(errors: z.ZodError<any> | undefined) {
@@ -167,12 +200,18 @@
 			id="public-client"
 			label={m.public_client()}
 			description={m.public_clients_description()}
+			onCheckedChange={(v) => {
+				if (v) {
+					$inputs.pkceEnabled.value = true;
+				}
+			}}
 			bind:checked={$inputs.isPublic.value}
 		/>
 		<SwitchWithLabel
 			id="pkce"
 			label={m.pkce()}
 			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
+			disabled={$inputs.isPublic.value}
 			bind:checked={$inputs.pkceEnabled.value}
 		/>
 		<SwitchWithLabel
@@ -182,13 +221,49 @@
 			bind:checked={$inputs.requiresReauthentication.value}
 		/>
 	</div>
-	<div class="mt-7">
-		<OidcClientImageInput
-			{logoDataURL}
-			{resetLogo}
-			clientName={$inputs.name.value}
-			{onLogoChange}
-		/>
+	<div class="mt-7 w-full md:w-1/2">
+		<Tabs.Root value="light-logo">
+			<Tabs.Content value="light-logo">
+				<OidcClientImageInput
+					{logoDataURL}
+					resetLogo={() => resetLogo(true)}
+					clientName={$inputs.name.value}
+					light={true}
+					onLogoChange={(input) => onLogoChange(input, true)}
+				>
+					{#snippet tabTriggers()}
+						<Tabs.List class="grid h-9 w-full grid-cols-2">
+							<Tabs.Trigger value="light-logo" class="px-3">
+								<LucideSun class="size-4" />
+							</Tabs.Trigger>
+							<Tabs.Trigger value="dark-logo" class="px-3">
+								<LucideMoon class="size-4" />
+							</Tabs.Trigger>
+						</Tabs.List>
+					{/snippet}
+				</OidcClientImageInput>
+			</Tabs.Content>
+			<Tabs.Content value="dark-logo">
+				<OidcClientImageInput
+					light={false}
+					logoDataURL={darkLogoDataURL}
+					resetLogo={() => resetLogo(false)}
+					clientName={$inputs.name.value}
+					onLogoChange={(input) => onLogoChange(input, false)}
+				>
+					{#snippet tabTriggers()}
+						<Tabs.List class="grid h-9 w-full grid-cols-2">
+							<Tabs.Trigger value="light-logo" class="px-3">
+								<LucideSun class="size-4" />
+							</Tabs.Trigger>
+							<Tabs.Trigger value="dark-logo" class="px-3">
+								<LucideMoon class="size-4" />
+							</Tabs.Trigger>
+						</Tabs.List>
+					{/snippet}
+				</OidcClientImageInput>
+			</Tabs.Content>
+		</Tabs.Root>
 	</div>
 
 	{#if showAdvancedOptions}

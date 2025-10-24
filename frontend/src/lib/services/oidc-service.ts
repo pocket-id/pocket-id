@@ -68,25 +68,31 @@ class OidcService extends APIService {
 	updateClient = async (id: string, client: OidcClientUpdate) =>
 		(await this.api.put(`/oidc/clients/${id}`, client)).data as OidcClient;
 
-	updateClientLogo = async (client: OidcClient, image: File | null) => {
-		if (client.hasLogo && !image) {
-			await this.removeClientLogo(client.id);
+	updateClientLogo = async (client: OidcClient, image: File | null, light: boolean = true) => {
+		const hasLogo = light ? client.hasLogo : client.hasDarkLogo;
+
+		if (hasLogo && !image) {
+			await this.removeClientLogo(client.id, light);
 			return;
 		}
-		if (!client.hasLogo && !image) {
+		if (!hasLogo && !image) {
 			return;
 		}
 
 		const formData = new FormData();
 		formData.append('file', image!);
 
-		await this.api.post(`/oidc/clients/${client.id}/logo`, formData);
-		cachedOidcClientLogo.bustCache(client.id);
+		await this.api.post(`/oidc/clients/${client.id}/logo`, formData, {
+			params: { light }
+		});
+		cachedOidcClientLogo.bustCache(client.id, light);
 	};
 
-	removeClientLogo = async (id: string) => {
-		await this.api.delete(`/oidc/clients/${id}/logo`);
-		cachedOidcClientLogo.bustCache(id);
+	removeClientLogo = async (id: string, light: boolean = true) => {
+		await this.api.delete(`/oidc/clients/${id}/logo`, {
+			params: { light }
+		});
+		cachedOidcClientLogo.bustCache(id, light);
 	};
 
 	createClientSecret = async (id: string) =>

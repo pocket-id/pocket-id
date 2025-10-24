@@ -19,7 +19,10 @@ test.describe('Create OIDC client', () => {
 		await page.getByRole('button', { name: 'Add another' }).click();
 		await page.getByTestId('callback-url-2').fill(oidcClient.secondCallbackUrl);
 
-		await page.getByLabel('logo').setInputFiles('resources/images/pingvin-share-logo.png');
+		await page.locator('[role="tab"][data-value="light-logo"]').first().click();
+		await page.setInputFiles('#oidc-client-logo-light', 'resources/images/pingvin-share-logo.png');
+		await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
+		await page.setInputFiles('#oidc-client-logo-dark', 'resources/images/pingvin-share-logo.png');
 
 		if (clientId) {
 			await page.getByRole('button', { name: 'Show Advanced Options' }).click();
@@ -46,7 +49,7 @@ test.describe('Create OIDC client', () => {
 		await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
 		await expect(page.getByTestId('callback-url-1')).toHaveValue(oidcClient.callbackUrl);
 		await expect(page.getByTestId('callback-url-2')).toHaveValue(oidcClient.secondCallbackUrl);
-		await expect(page.getByRole('img', { name: `${oidcClient.name} logo` })).toBeVisible();
+		await expect(page.getByRole('img', { name: `${oidcClient.name} logo` }).first()).toBeVisible();
 
 		const res = await page.request.get(`/api/oidc/clients/${resolvedClientId}/logo`);
 		expect(res.ok()).toBeTruthy();
@@ -67,14 +70,17 @@ test('Edit OIDC client', async ({ page }) => {
 
 	await page.getByLabel('Name').fill('Nextcloud updated');
 	await page.getByTestId('callback-url-1').first().fill('http://nextcloud-updated/auth/callback');
-	await page.getByLabel('logo').setInputFiles('resources/images/nextcloud-logo.png');
+	await page.locator('[role="tab"][data-value="light-logo"]').first().click();
+	await page.setInputFiles('#oidc-client-logo-light', 'resources/images/nextcloud-logo.png');
+	await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
+	await page.setInputFiles('#oidc-client-logo-dark', 'resources/images/nextcloud-logo.png');
 	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'OIDC client updated successfully'
 	);
-	await expect(page.getByRole('img', { name: 'Nextcloud updated logo' })).toBeVisible();
+	await expect(page.getByRole('img', { name: 'Nextcloud updated logo' }).first()).toBeVisible();
 	await page.request
 		.get(`/api/oidc/clients/${oidcClient.id}/logo`)
 		.then((res) => expect.soft(res.status()).toBe(200));

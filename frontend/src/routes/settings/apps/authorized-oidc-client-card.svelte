@@ -40,7 +40,7 @@
 				<ImageBox
 					class="size-14"
 					src={client.hasLogo
-						? cachedOidcClientLogo.getUrl(client.id)
+						? cachedOidcClientLogo.getUrl(client.id, isLightMode)
 						: cachedApplicationLogo.getUrl(isLightMode)}
 					alt={m.name_logo({ name: client.name })}
 				/>

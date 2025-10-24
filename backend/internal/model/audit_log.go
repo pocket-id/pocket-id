@@ -3,7 +3,8 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
+
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type AuditLog struct {
@@ -47,14 +48,7 @@ func (e AuditLogEvent) Value() (driver.Value, error) {
 }
 
 func (d *AuditLogData) Scan(value any) error {
-	switch v := value.(type) {
-	case []byte:
-		return json.Unmarshal(v, d)
-	case string:
-		return json.Unmarshal([]byte(v), d)
-	default:
-		return fmt.Errorf("unsupported type: %T", value)
-	}
+	return utils.UnmarshalJSONFromDatabase(d, value)
 }
 
 func (d AuditLogData) Value() (driver.Value, error) {

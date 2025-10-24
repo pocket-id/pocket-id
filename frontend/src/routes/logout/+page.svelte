@@ -28,7 +28,7 @@
 	<title>{m.logout()}</title>
 </svelte:head>
 
-<SignInWrapper animate={!$appConfigStore.disableAnimations}>
+<SignInWrapper>
 	<div class="flex justify-center">
 		<div class="bg-muted rounded-2xl p-3">
 			<Logo class="size-10" />

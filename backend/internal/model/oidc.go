@@ -3,10 +3,10 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type UserAuthorizedOidcClient struct {
@@ -52,6 +52,7 @@ type OidcClient struct {
 	CallbackURLs             UrlList
 	LogoutCallbackURLs       UrlList
 	ImageType                *string
+	DarkImageType            *string
 	IsPublic                 bool
 	PkceEnabled              bool `filterable:"true"`
 	RequiresReauthentication bool `filterable:"true"`
@@ -66,6 +67,10 @@ type OidcClient struct {
 
 func (c OidcClient) HasLogo() bool {
 	return c.ImageType != nil && *c.ImageType != ""
+}
+
+func (c OidcClient) HasDarkLogo() bool {
+	return c.DarkImageType != nil && *c.DarkImageType != ""
 }
 
 type OidcRefreshToken struct {
@@ -116,14 +121,7 @@ func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (Oidc
 }
 
 func (occ *OidcClientCredentials) Scan(value any) error {
-	switch v := value.(type) {
-	case []byte:
-		return json.Unmarshal(v, occ)
-	case string:
-		return json.Unmarshal([]byte(v), occ)
-	default:
-		return fmt.Errorf("unsupported type: %T", value)
-	}
+	return utils.UnmarshalJSONFromDatabase(occ, value)
 }
 
 func (occ OidcClientCredentials) Value() (driver.Value, error) {
@@ -133,14 +131,7 @@ func (occ OidcClientCredentials) Value() (driver.Value, error) {
 type UrlList []string //nolint:recvcheck
 
 func (cu *UrlList) Scan(value any) error {
-	switch v := value.(type) {
-	case []byte:
-		return json.Unmarshal(v, cu)
-	case string:
-		return json.Unmarshal([]byte(v), cu)
-	default:
-		return fmt.Errorf("unsupported type: %T", value)
-	}
+	return utils.UnmarshalJSONFromDatabase(cu, value)
 }
 
 func (cu UrlList) Value() (driver.Value, error) {

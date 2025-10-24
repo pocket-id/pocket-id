@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -38,5 +39,16 @@ func (d *JSONDuration) UnmarshalJSON(b []byte) error {
 		return nil
 	default:
 		return errors.New("invalid duration")
+	}
+}
+
+func UnmarshalJSONFromDatabase(data interface{}, value any) error {
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, data)
+	case string:
+		return json.Unmarshal([]byte(v), data)
+	default:
+		return fmt.Errorf("unsupported type: %T", value)
 	}
 }

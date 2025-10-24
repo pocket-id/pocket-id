@@ -56,7 +56,7 @@
 	<title>{m.signup()}</title>
 </svelte:head>
 
-<SignInWrapper animate={!$appConfigStore.disableAnimations}>
+<SignInWrapper>
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>

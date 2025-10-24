@@ -13,6 +13,7 @@
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
+	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	const oidcService = new OIDCService();
@@ -21,6 +22,8 @@
 	export function refresh() {
 		return tableRef?.refresh();
 	}
+
+	const isLightMode = $derived(mode.current === 'light');
 
 	const booleanFilterValues = [
 		{ label: m.enabled(), value: true },
@@ -103,7 +106,7 @@
 	{#if item.hasLogo}
 		<ImageBox
 			class="size-12 rounded-lg"
-			src={cachedOidcClientLogo.getUrl(item.id)}
+			src={cachedOidcClientLogo.getUrl(item.id, isLightMode)}
 			alt={m.name_logo({ name: item.name })}
 		/>
 	{:else}

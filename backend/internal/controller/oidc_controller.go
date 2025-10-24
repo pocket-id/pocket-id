@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -357,6 +358,7 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	clientDto := dto.OidcClientMetaDataDto{}
 	err = dto.MapStruct(client, &clientDto)
 	if err == nil {
+		clientDto.HasDarkLogo = client.HasDarkLogo()
 		c.JSON(http.StatusOK, clientDto)
 		return
 	}
@@ -419,6 +421,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 			_ = c.Error(err)
 			return
 		}
+		clientDto.HasDarkLogo = client.HasDarkLogo()
 		clientDto.AllowedUserGroupsCount, err = oc.oidcService.GetAllowedGroupsCountOfClient(c, client.ID)
 		if err != nil {
 			_ = c.Error(err)
@@ -539,10 +542,13 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 // @Produce image/jpeg
 // @Produce image/svg+xml
 // @Param id path string true "Client ID"
+// @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 200 {file} binary "Logo image"
 // @Router /api/oidc/clients/{id}/logo [get]
 func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
-	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"))
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
+
+	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"), lightLogo)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -561,6 +567,7 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 // @Accept multipart/form-data
 // @Param id path string true "Client ID"
 // @Param file formData file true "Logo image file (PNG, JPG, or SVG)"
+// @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 204 "No Content"
 // @Router /api/oidc/clients/{id}/logo [post]
 func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
@@ -570,13 +577,16 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 		return
 	}
 
-	err = oc.oidcService.UpdateClientLogo(c.Request.Context(), c.Param("id"), file)
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
+
+	err = oc.oidcService.UpdateClientLogo(c.Request.Context(), c.Param("id"), file, lightLogo)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	c.Status(http.StatusNoContent)
+
 }
 
 // deleteClientLogoHandler godoc
@@ -584,16 +594,26 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 // @Description Delete the logo for an OIDC client
 // @Tags OIDC
 // @Param id path string true "Client ID"
+// @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 204 "No Content"
 // @Router /api/oidc/clients/{id}/logo [delete]
 func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
-	err := oc.oidcService.DeleteClientLogo(c.Request.Context(), c.Param("id"))
+	var err error
+
+	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
+	if lightLogo {
+		err = oc.oidcService.DeleteClientLogo(c.Request.Context(), c.Param("id"))
+	} else {
+		err = oc.oidcService.DeleteClientDarkLogo(c.Request.Context(), c.Param("id"))
+	}
+
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	c.Status(http.StatusNoContent)
+
 }
 
 // updateAllowedUserGroupsHandler godoc
@@ -624,6 +644,7 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+	oidcClientDto.HasDarkLogo = oidcClient.HasDarkLogo()
 
 	c.JSON(http.StatusOK, oidcClientDto)
 }
