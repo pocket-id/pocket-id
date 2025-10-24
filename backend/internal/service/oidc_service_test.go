@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -508,5 +510,30 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 					assert.Equal(t, []string{input.Resource}, audience, "Audience should contain the resource provided in request")
 			})
 		})
+	})
+}
+
+func TestValidateCodeVerifier_Plain(t *testing.T) {
+	require.False(t, validateCodeVerifier("", "", false))
+	require.False(t, validateCodeVerifier("", "", true))
+
+	t.Run("plain", func(t *testing.T) {
+		require.False(t, validateCodeVerifier("", "challenge", false))
+		require.False(t, validateCodeVerifier("verifier", "", false))
+		require.True(t, validateCodeVerifier("plainVerifier", "plainVerifier", false))
+		require.False(t, validateCodeVerifier("plainVerifier", "otherVerifier", false))
+	})
+
+	t.Run("SHA 256", func(t *testing.T) {
+		codeVerifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+		hash := sha256.Sum256([]byte(codeVerifier))
+		codeChallenge := base64.RawURLEncoding.EncodeToString(hash[:])
+
+		require.True(t, validateCodeVerifier(codeVerifier, codeChallenge, true))
+		require.False(t, validateCodeVerifier("wrongVerifier", codeChallenge, true))
+		require.False(t, validateCodeVerifier(codeVerifier, "!", true))
+
+		// Invalid base64
+		require.False(t, validateCodeVerifier("NOT!VALID", codeChallenge, true))
 	})
 }
