@@ -315,7 +315,7 @@ func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 // togglePostgresForeignKeyChecks enables/disables FK checks in Postgres
 func togglePostgresForeignKeyChecks(tx *gorm.DB, enable bool) error {
 	var tables []string
-	if err := tx.Raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`).
+	if err := tx.Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'`).
 		Scan(&tables).Error; err != nil {
 		return fmt.Errorf("failed to fetch postgres tables: %w", err)
 	}
