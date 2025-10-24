@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -394,7 +395,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 
 	// If the client is public or PKCE is enabled, the code verifier must match the code challenge
 	if client.IsPublic || client.PkceEnabled {
-		if !s.validateCodeVerifier(input.CodeVerifier, *authorizationCodeMetaData.CodeChallenge, *authorizationCodeMetaData.CodeChallengeMethodSha256) {
+		if !validateCodeVerifier(input.CodeVerifier, *authorizationCodeMetaData.CodeChallenge, *authorizationCodeMetaData.CodeChallengeMethodSha256) {
 			return CreatedTokens{}, &common.OidcInvalidCodeVerifierError{}
 		}
 	}
@@ -1155,13 +1156,20 @@ func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID stri
 	return randomString, nil
 }
 
-func (s *OidcService) validateCodeVerifier(codeVerifier, codeChallenge string, codeChallengeMethodSha256 bool) bool {
+func validateCodeVerifier(codeVerifier, codeChallenge string, codeChallengeMethodSha256 bool) bool {
 	if codeVerifier == "" || codeChallenge == "" {
 		return false
 	}
 
 	if !codeChallengeMethodSha256 {
-		return codeVerifier == codeChallenge
+		return subtle.ConstantTimeCompare([]byte(codeVerifier), []byte(codeChallenge)) == 1
+	}
+
+	// Base64 URL decode the challenge
+	// If it's not valid base64url, fail the operation
+	codeChallengeBytes, err := base64.RawURLEncoding.DecodeString(codeChallenge)
+	if err != nil {
+		return false
 	}
 
 	// Compute SHA-256 hash of the codeVerifier
@@ -1169,10 +1177,7 @@ func (s *OidcService) validateCodeVerifier(codeVerifier, codeChallenge string, c
 	h.Write([]byte(codeVerifier))
 	codeVerifierHash := h.Sum(nil)
 
-	// Base64 URL encode the verifier hash
-	encodedVerifierHash := base64.RawURLEncoding.EncodeToString(codeVerifierHash)
-
-	return encodedVerifierHash == codeChallenge
+	return subtle.ConstantTimeCompare(codeVerifierHash, codeChallengeBytes) == 1
 }
 
 func (s *OidcService) getCallbackURL(client *model.OidcClient, inputCallbackURL string, tx *gorm.DB, ctx context.Context) (callbackURL string, err error) {
