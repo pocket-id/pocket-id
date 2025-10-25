@@ -1,7 +1,11 @@
 # JetBrains
 **/.idea
 
+# Node
 node_modules
+
+# PNPM
+.pnpm-store/
 
 # Output
 .output
