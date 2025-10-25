@@ -6,7 +6,20 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="robots" content="noindex" />
 		<link rel="manifest" href="/app.webmanifest" />
-		<link rel="apple-touch-icon" href="/img/static-logo-512.png">
+		<link rel="apple-touch-icon" href="/img/static-logo-512.png" />
+		<script>
+			try {
+				const mode = localStorage.getItem('mode-watcher-mode') || 'system';
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				const isDark = mode === 'dark' || (mode === 'system' && prefersDark);
+
+				document.documentElement.classList.toggle('dark', isDark);
+				document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+			} catch (e) {
+				// Ignore errors
+				// Failing to set theme is not critical
+			}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
