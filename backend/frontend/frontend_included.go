@@ -32,10 +32,6 @@ func init() {
 		panic(fmt.Errorf("failed to read index.html: %w", iErr))
 	}
 
-	// Get the position of the first <script> tag
-	idx := bytes.Index(index, []byte(scriptTag))
-
-	// Create writeIndexFn, which adds the CSP tag to the script tag if needed
 	writeIndexFn = func(w io.Writer, nonce string) (err error) {
 		// If there's no nonce, write the index as-is
 		if nonce == "" {
@@ -43,23 +39,16 @@ func init() {
 			return err
 		}
 
-		// We have a nonce, so first write the index until the <script> tag
-		// Then we write the modified script tag
-		// Finally, the rest of the index
-		_, err = w.Write(index[0:idx])
-		if err != nil {
-			return err
-		}
-		_, err = w.Write([]byte(`<script nonce="` + nonce + `">`))
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(index[(idx + len(scriptTag)):])
-		if err != nil {
-			return err
-		}
+		// Add nonce to all <script> tags
+		// We replace "<script" with `<script nonce="..."` everywhere it appears
+		modified := bytes.ReplaceAll(
+			index,
+			[]byte(scriptTag),
+			[]byte(`<script nonce="`+nonce+`">`),
+		)
 
-		return nil
+		_, err = w.Write(modified)
+		return err
 	}
 }
 
