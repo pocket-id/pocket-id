@@ -113,5 +113,5 @@
 	</Card.Root>
 </div>
 
-<SignupTokenModal bind:open={signupTokenModalOpen}  />
+<SignupTokenModal bind:open={signupTokenModalOpen} />
 <SignupTokenListModal bind:open={signupTokenListModalOpen} />
