@@ -1,3 +1,13 @@
+## v1.14.1
+
+### Bug Fixes
+
+- Prevent blinding FOUC in dark mode ([#1054](https://github.com/pocket-id/pocket-id/pull/1054) by @mufeedali)
+- use credProps to save passkey on firefox android ([#1055](https://github.com/pocket-id/pocket-id/pull/1055) by @lhoursquentin)
+- ignore trailing slashes in `APP_URL` ([65616f6](https://github.com/pocket-id/pocket-id/commit/65616f65e53f3e62d18a8209929e68ddc8d2b9b8) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.14.0...v1.14.1
+
 ## v1.14.0
 
 ### Bug Fixes
