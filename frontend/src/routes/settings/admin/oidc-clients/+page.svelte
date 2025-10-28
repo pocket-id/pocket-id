@@ -21,9 +21,15 @@
 	async function createOIDCClient(client: OidcClientCreateWithLogo) {
 		try {
 			const createdClient = await oidcService.createClient(client);
-			if (client.logo) {
-				await oidcService.updateClientLogo(createdClient, client.logo);
-			}
+
+			const logoPromise = client.logo
+				? oidcService.updateClientLogo(createdClient, client.logo, true)
+				: Promise.resolve();
+			const darkLogoPromise = client.darkLogo
+				? oidcService.updateClientLogo(createdClient, client.darkLogo, false)
+				: Promise.resolve();
+			await Promise.all([logoPromise, darkLogoPromise]);
+
 			const clientSecret = await oidcService.createClientSecret(createdClient.id);
 			clientSecretStore.set(clientSecret);
 			goto(`/settings/admin/oidc-clients/${createdClient.id}`);
