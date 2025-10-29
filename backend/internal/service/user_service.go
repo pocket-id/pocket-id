@@ -33,9 +33,10 @@ type UserService struct {
 	emailService       *EmailService
 	appConfigService   *AppConfigService
 	customClaimService *CustomClaimService
+	appImagesService   *AppImagesService
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
@@ -43,6 +44,7 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 		emailService:       emailService,
 		appConfigService:   appConfigService,
 		customClaimService: customClaimService,
+		appImagesService:   appImagesService,
 	}
 }
 
@@ -87,29 +89,43 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 		return nil, 0, &common.InvalidUUIDError{}
 	}
 
-	// First check for a custom uploaded profile picture (userID.png)
-	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
-	file, err := os.Open(profilePicturePath)
-	if err == nil {
-		// Get the file size
-		fileInfo, err := file.Stat()
-		if err != nil {
-			file.Close()
-			return nil, 0, err
-		}
-		return file, fileInfo.Size(), nil
-	}
-
-	// If no custom picture exists, get the user's data for creating initials
 	user, err := s.GetUser(ctx, userID)
 	if err != nil {
 		return nil, 0, err
 	}
 
+	var profilePicturePath string
+	if user.HasCustomProfilePicture {
+		// Return user's custom profile picture
+		profilePicturePath = common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
+	} else if s.appImagesService.IsDefaultProfilePictureSet() {
+		// Return custom default profile picture if set
+		path, _, err := s.appImagesService.GetImage("default-profile-picture")
+		if err != nil {
+			return nil, 0, err
+		}
+		profilePicturePath = path
+	}
+
+	if profilePicturePath != "" {
+		file, err := os.Open(profilePicturePath)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		fileInfo, err := file.Stat()
+		if err != nil {
+			file.Close()
+			return nil, 0, err
+		}
+
+		return file, fileInfo.Size(), nil
+	}
+
 	// Check if we have a cached default picture for these initials
 	defaultProfilePicturesDir := common.EnvConfig.UploadPath + "/profile-pictures/defaults/"
 	defaultPicturePath := defaultProfilePicturesDir + user.Initials() + ".png"
-	file, err = os.Open(defaultPicturePath)
+	file, err := os.Open(defaultPicturePath)
 	if err == nil {
 		fileInfo, err := file.Stat()
 		if err != nil {
@@ -179,6 +195,14 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 
 	// Create the profile picture file
 	err = utils.SaveFileStream(profilePicture, profilePictureDir+"/"+userID+".png")
+	if err != nil {
+		return err
+	}
+
+	err = s.db.Model(&model.User{}).
+		Where("id = ?", userID).
+		Update("has_custom_profile_picture", true).Error
+
 	if err != nil {
 		return err
 	}

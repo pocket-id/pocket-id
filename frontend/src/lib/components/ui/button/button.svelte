@@ -55,9 +55,13 @@
 		disabled,
 		isLoading = false,
 		autofocus = false,
+		onclick,
+		usePromiseLoading = false,
 		children,
 		...restProps
-	}: ButtonProps = $props();
+	}: ButtonProps & {
+		usePromiseLoading?: boolean;
+	} = $props();
 
 	onMount(async () => {
 		// Using autofocus can be bad for a11y, but in the case of Pocket ID is only used responsibly in places where there are not many choices, and on buttons only where there's descriptive text
@@ -66,6 +70,19 @@
 			setTimeout(() => ref?.focus(), 100);
 		}
 	});
+
+	async function handleOnClick(event: any) {
+		if (usePromiseLoading && onclick) {
+			isLoading = true;
+			try {
+				await onclick(event);
+			} finally {
+				isLoading = false;
+			}
+		} else {
+			onclick?.(event);
+		}
+	}
 </script>
 
 {#if href}
@@ -91,6 +108,7 @@
 		class={cn(buttonVariants({ variant, size }), className)}
 		{type}
 		disabled={disabled || isLoading}
+		onclick={handleOnClick}
 		{...restProps}
 	>
 		{#if isLoading}

@@ -48,7 +48,7 @@ func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName str
 
 	currentExt, ok := s.extensions[imageName]
 	if !ok {
-		return fmt.Errorf("unknown application image '%s'", imageName)
+		s.extensions[imageName] = fileType
 	}
 
 	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", imageName, fileType))
@@ -69,13 +69,36 @@ func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName str
 	return nil
 }
 
+func (s *AppImagesService) DeleteImage(imageName string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	ext, ok := s.extensions[imageName]
+	if !ok || ext == "" {
+		return &common.ImageNotFoundError{}
+	}
+
+	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", imageName, ext))
+	if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	delete(s.extensions, imageName)
+	return nil
+}
+
+func (s *AppImagesService) IsDefaultProfilePictureSet() bool {
+	_, ok := s.extensions["default-profile-picture"]
+	return ok
+}
+
 func (s *AppImagesService) getExtension(name string) (string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	ext, ok := s.extensions[name]
 	if !ok || ext == "" {
-		return "", fmt.Errorf("unknown application image '%s'", name)
+		return "", &common.ImageNotFoundError{}
 	}
 
 	return strings.ToLower(ext), nil

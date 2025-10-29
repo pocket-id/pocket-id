@@ -25,10 +25,14 @@ func NewAppImagesController(
 	group.GET("/application-images/logo", controller.getLogoHandler)
 	group.GET("/application-images/background", controller.getBackgroundImageHandler)
 	group.GET("/application-images/favicon", controller.getFaviconHandler)
+	group.GET("/application-images/default-profile-picture", authMiddleware.Add(), controller.getDefaultProfilePicture)
 
 	group.PUT("/application-images/logo", authMiddleware.Add(), controller.updateLogoHandler)
 	group.PUT("/application-images/background", authMiddleware.Add(), controller.updateBackgroundImageHandler)
 	group.PUT("/application-images/favicon", authMiddleware.Add(), controller.updateFaviconHandler)
+	group.PUT("/application-images/default-profile-picture", authMiddleware.Add(), controller.updateDefaultProfilePicture)
+
+	group.DELETE("/application-images/default-profile-picture", authMiddleware.Add(), controller.deleteDefaultProfilePicture)
 }
 
 type AppImagesController struct {
@@ -76,6 +80,18 @@ func (c *AppImagesController) getBackgroundImageHandler(ctx *gin.Context) {
 // @Router /api/application-images/favicon [get]
 func (c *AppImagesController) getFaviconHandler(ctx *gin.Context) {
 	c.getImage(ctx, "favicon")
+}
+
+// getDefaultProfilePicture godoc
+// @Summary Get default profile picture image
+// @Description Get the default profile picture image for the application
+// @Tags Application Images
+// @Produce image/png
+// @Produce image/jpeg
+// @Success 200 {file} binary "Default profile picture image"
+// @Router /api/application-images/default-profile-picture [get]
+func (c *AppImagesController) getDefaultProfilePicture(ctx *gin.Context) {
+	c.getImage(ctx, "default-profile-picture")
 }
 
 // updateLogoHandler godoc
@@ -170,4 +186,43 @@ func (c *AppImagesController) getImage(ctx *gin.Context, name string) {
 	ctx.Header("Content-Type", mimeType)
 	utils.SetCacheControlHeader(ctx, 15*time.Minute, 24*time.Hour)
 	ctx.File(imagePath)
+}
+
+// updateBackgroundImageHandler godoc
+// @Summary Update default profile picture image
+// @Description Update the default profile picture image
+// @Tags Application Images
+// @Accept multipart/form-data
+// @Param file formData file true "Profile picture image file"
+// @Success 204 "No Content"
+// @Router /api/application-images/default-profile-picture [put]
+func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) {
+	file, err := ctx.FormFile("file")
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	if err := c.appImagesService.UpdateImage(file, "default-profile-picture"); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+
+/// deleteDefaultProfilePicture godoc
+// @Summary Delete default profile picture image
+// @Description Delete the default profile picture image
+// @Tags Application Images
+// @Success 204 "No Content"
+// @Router /api/application-images/default-profile-picture [delete]
+func (c *AppImagesController) deleteDefaultProfilePicture(ctx *gin.Context) {
+	if err := c.appImagesService.DeleteImage("default-profile-picture"); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
 }

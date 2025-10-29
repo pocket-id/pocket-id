@@ -1,0 +1,1 @@
+ALTER TABLE users DROP COLUMN has_custom_profile_picture;

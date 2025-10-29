@@ -1,5 +1,9 @@
 import type { AllAppConfig, AppConfigRawResponse } from '$lib/types/application-configuration';
-import { cachedApplicationLogo, cachedBackgroundImage } from '$lib/utils/cached-image-util';
+import {
+	cachedApplicationLogo,
+	cachedBackgroundImage,
+	cachedDefaultProfilePicture
+} from '$lib/utils/cached-image-util';
 import APIService from './api-service';
 
 export default class AppConfigService extends APIService {
@@ -24,19 +28,27 @@ export default class AppConfigService extends APIService {
 
 	updateFavicon = async (favicon: File) => {
 		const formData = new FormData();
-		formData.append('file', favicon!);
+		formData.append('file', favicon);
 
 		await this.api.put(`/application-images/favicon`, formData);
-	}
+	};
 
 	updateLogo = async (logo: File, light = true) => {
 		const formData = new FormData();
-		formData.append('file', logo!);
+		formData.append('file', logo);
 
 		await this.api.put(`/application-images/logo`, formData, {
 			params: { light }
 		});
 		cachedApplicationLogo.bustCache(light);
+	};
+
+	updateDefaultProfilePicture = async (defaultProfilePicture: File) => {
+		const formData = new FormData();
+		formData.append('file', defaultProfilePicture);
+
+		await this.api.put(`/application-images/default-profile-picture`, formData);
+		cachedDefaultProfilePicture.bustCache();
 	};
 
 	updateBackgroundImage = async (backgroundImage: File) => {
@@ -46,6 +58,11 @@ export default class AppConfigService extends APIService {
 		await this.api.put(`/application-images/background`, formData);
 		cachedBackgroundImage.bustCache();
 	};
+
+	deleteDefaultProfilePicture = async () => {
+		await this.api.delete('/application-images/default-profile-picture');
+		cachedDefaultProfilePicture.bustCache();
+	}
 
 	sendTestEmail = async () => {
 		await this.api.post('/application-configuration/test-email');
