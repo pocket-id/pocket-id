@@ -122,6 +122,7 @@ test('Update application images', async ({ page }) => {
 	await page.getByLabel('Favicon').setInputFiles('assets/w3-schools-favicon.ico');
 	await page.getByLabel('Light Mode Logo').setInputFiles('assets/pingvin-share-logo.png');
 	await page.getByLabel('Dark Mode Logo').setInputFiles('assets/nextcloud-logo.png');
+	await page.getByLabel('Default Profile Picture').setInputFiles('assets/pingvin-share-logo.png');
 	await page.getByLabel('Background Image').setInputFiles('assets/clouds.jpg');
 	await page.getByRole('button', { name: 'Save' }).last().click();
 
