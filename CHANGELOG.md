@@ -1,3 +1,15 @@
+## v1.14.2
+
+### Bug Fixes
+
+- dark oidc client icons not saved on client creation ([#1057](https://github.com/pocket-id/pocket-id/pull/1057) by @mufeedali)
+
+### Other
+
+- add Turkish language files ([a190529](https://github.com/pocket-id/pocket-id/commit/a190529117fe20b5b836d452b382da69abba9458) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.14.1...v1.14.2
+
 ## v1.14.1
 
 ### Bug Fixes
