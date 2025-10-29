@@ -70,6 +70,7 @@
 	const actions: CreateAdvancedTableActions<OidcClientWithAllowedUserGroupsCount> = (_) => [
 		{
 			label: m.edit(),
+			primary: true,
 			icon: LucidePencil,
 			onClick: (client) => goto(`/settings/admin/oidc-clients/${client.id}`)
 		},

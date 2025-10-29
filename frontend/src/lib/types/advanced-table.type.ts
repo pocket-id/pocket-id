@@ -22,5 +22,6 @@ export type AdvancedTableAction<T> = {
 	variant?: 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost';
 	onClick: (item: T) => void;
 	hidden?: boolean;
+	primary?: boolean;
 	disabled?: boolean;
 };

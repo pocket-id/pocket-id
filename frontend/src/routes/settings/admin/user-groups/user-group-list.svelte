@@ -41,6 +41,7 @@
 	const actions: CreateAdvancedTableActions<UserGroupWithUserCount> = (group) => [
 		{
 			label: m.edit(),
+			primary: true,
 			icon: LucidePencil,
 			variant: 'ghost',
 			onClick: (group) => goto(`/settings/admin/user-groups/${group.id}`)
