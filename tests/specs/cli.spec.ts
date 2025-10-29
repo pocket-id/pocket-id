@@ -106,6 +106,16 @@ function loadJSON(path: string) {
 }
 
 function normalizeJSON(obj: any): any {
+	if (typeof obj === 'string') {
+		try {
+			// Normalize JSON strings
+			const parsed = JSON.parse(obj);
+			return JSON.stringify(normalizeJSON(parsed));
+		} catch {
+			return obj;
+		}
+	}
+
 	if (Array.isArray(obj)) {
 		// Sort arrays to make order irrelevant
 		return obj
@@ -126,6 +136,7 @@ function normalizeJSON(obj: any): any {
 				{} as Record<string, any>
 			);
 	}
+
 	return obj;
 }
 
