@@ -24,8 +24,9 @@ export default defineConfig({
 		{ name: 'cli', testMatch: /cli\.spec\.ts/ },
 		{ name: 'auth-setup', testMatch: /auth\.setup\.ts/ },
 		{
-			name: 'chromium',
+			name: 'browser-chrome',
 			use: { ...devices['Desktop Chrome'], storageState: '.tmp/auth/user.json' },
+			testIgnore: /cli\.spec\.ts/,
 			dependencies: ['auth-setup']
 		}
 	],

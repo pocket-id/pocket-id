@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20251016141000,
+	"version": 20251024141000,
 	"tables": {
 		"api_keys": [
 			{
@@ -13,6 +13,12 @@
 				"last_used_at": null,
 				"name": "Test API Key",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
+			}
+		],
+		"app_config_variables": [
+			{
+				"key": "instanceId",
+				"value": "1ac0692c-32c4-4c17-b363-28569c231787"
 			}
 		],
 		"oidc_authorization_codes": [
@@ -49,6 +55,7 @@
 				"credentials": "{}",
 				"id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				"image_type": "png",
+				"dark_image_type": null,
 				"is_public": false,
 				"launch_url": "https://nextcloud.local",
 				"logout_callback_urls": "[\"http://nextcloud/auth/logout/callback\"]",
@@ -64,6 +71,7 @@
 				"credentials": "{}",
 				"id": "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
 				"image_type": null,
+				"dark_image_type": null,
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "null",
@@ -79,6 +87,7 @@
 				"credentials": "{}",
 				"id": "7c21a609-96b5-4011-9900-272b8d31a9d1",
 				"image_type": null,
+				"dark_image_type": null,
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "[\"http://tailscale/auth/logout/callback\"]",
@@ -94,6 +103,7 @@
 				"credentials": "{\"federatedIdentities\":[{\"issuer\":\"https://external-idp.local\",\"subject\":\"c48232ff-ff65-45ed-ae96-7afa8a9b443b\",\"audience\":\"api://PocketID\",\"jwks\":\"http://pocket-id-sqlite:1411/api/externalidp/jwks.json\"}]}",
 				"id": "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
 				"image_type": null,
+				"dark_image_type": null,
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "null",
@@ -291,6 +301,7 @@
 				"created_at": 1760963799,
 				"expires_at": 1760967399,
 				"id": "ebb10ef3-a7a8-4fee-afc8-853b06cbe9f7",
+				"credential_params": "[{\"type\":\"public-key\",\"alg\":-7},{\"type\":\"public-key\",\"alg\":-257}]",
 				"user_verification": "preferred"
 			}
 		]

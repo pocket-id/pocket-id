@@ -32,15 +32,17 @@ type TestService struct {
 	jwtService       *JwtService
 	appConfigService *AppConfigService
 	ldapService      *LdapService
+	appLockService *AppLockService
 	externalIdPKey   jwk.Key
 }
 
-func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService) (*TestService, error) {
+func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		appConfigService: appConfigService,
 		jwtService:       jwtService,
 		ldapService:      ldapService,
+		appLockService: appLockService,
 	}
 	err := s.initExternalIdP()
 	if err != nil {
@@ -313,6 +315,10 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			Challenge:        "challenge",
 			ExpiresAt:        datatype.DateTime(time.Now().Add(1 * time.Hour)),
 			UserVerification: "preferred",
+			CredentialParams: model.CredentialParameters{
+				{Type: "public-key", Algorithm: -7},
+				{Type: "public-key", Algorithm: -257},
+			},
 		}
 		if err := tx.Create(&webauthnSession).Error; err != nil {
 			return err
@@ -451,8 +457,18 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 		return err
 	}
 
+	// Manually set instance ID
+	err = s.appConfigService.UpdateAppConfigValues(ctx, "instanceId", "1ac0692c-32c4-4c17-b363-28569c231787")
+	if err != nil {
+		return err
+	}
+
 	// Reload the app config from the database after resetting the values
 	return s.appConfigService.LoadDbConfig(ctx)
+}
+
+func (s *TestService) ResetLock(ctx context.Context) error {
+	return s.appLockService.Acquire(ctx, true)
 }
 
 func (s *TestService) SetJWTKeys() error {

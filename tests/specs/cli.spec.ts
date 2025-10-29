@@ -40,9 +40,14 @@ test('Import', async () => {
 	const exampleExportArchivePath = path.join(tmpDir, 'example-export.zip');
 	archiveExampleExport(exampleExportArchivePath);
 
-	// runDockerCommand(`docker compose down`);
-	runImport(exampleExportArchivePath);
-	// runDockerCommand(`docker compose up -d`);
+	try {
+		runDockerComposeCommand(['stop', containerName]);
+		runImport(exampleExportArchivePath);
+	} catch (error) {
+		throw error;
+	} finally {
+		runDockerComposeCommand(['up', '-d', containerName]);
+	}
 
 	// Export again from the imported instance
 	const exportPath = path.join(tmpDir, 'export.zip');

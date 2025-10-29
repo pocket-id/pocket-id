@@ -113,6 +113,14 @@ func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
 			sqlType := colTypes[i].DatabaseTypeName()
 			rowMap[col] = normalizeForJSON(vals[i], sqlType)
 		}
+
+		// Skip the app lock row in the kv table
+		if table == "kv" {
+			if keyVal, ok := rowMap["key"]; ok && keyVal == lockKey {
+				continue
+			}
+		}
+
 		out.Tables[table] = append(out.Tables[table], rowMap)
 	}
 
