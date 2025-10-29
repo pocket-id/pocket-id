@@ -35,7 +35,7 @@ const (
 type EnvConfigSchema struct {
 	AppEnv                string     `env:"APP_ENV" options:"toLower"`
 	LogLevel              string     `env:"LOG_LEVEL" options:"toLower"`
-	AppURL                string     `env:"APP_URL" options:"toLower"`
+	AppURL                string     `env:"APP_URL" options:"toLower,trimTrailingSlash"`
 	DbProvider            DbProvider `env:"DB_PROVIDER" options:"toLower"`
 	DbConnectionString    string     `env:"DB_CONNECTION_STRING" options:"file"`
 	UploadPath            string     `env:"UPLOAD_PATH"`
@@ -228,6 +228,10 @@ func prepareEnvConfig(config *EnvConfigSchema) error {
 				err := resolveFileBasedEnvVariable(field, fieldType)
 				if err != nil {
 					return err
+				}
+			case "trimTrailingSlash":
+				if field.Kind() == reflect.String {
+					field.SetString(strings.TrimRight(field.String(), "/"))
 				}
 			}
 		}

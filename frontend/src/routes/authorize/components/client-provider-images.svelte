@@ -6,6 +6,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { OidcClientMetaData } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+	import { mode } from 'mode-watcher';
 
 	const {
 		success,
@@ -28,6 +29,8 @@
 			animationDone = false;
 		}
 	});
+
+	const isLightMode = $derived(mode.current === 'light');
 </script>
 
 <div class="flex justify-center gap-3">
@@ -60,8 +63,8 @@
 			</div>
 		{:else if client.hasLogo}
 			<img
-				class="size-10 aspect-square object-contain"
-				src={cachedOidcClientLogo.getUrl(client.id)}
+				class="aspect-square size-10 object-contain"
+				src={cachedOidcClientLogo.getUrl(client.id, isLightMode)}
 				draggable={false}
 				alt={m.client_logo()}
 			/>

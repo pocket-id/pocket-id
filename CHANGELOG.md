@@ -1,3 +1,25 @@
+## v1.14.2
+
+### Bug Fixes
+
+- dark oidc client icons not saved on client creation ([#1057](https://github.com/pocket-id/pocket-id/pull/1057) by @mufeedali)
+
+### Other
+
+- add Turkish language files ([a190529](https://github.com/pocket-id/pocket-id/commit/a190529117fe20b5b836d452b382da69abba9458) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.14.1...v1.14.2
+
+## v1.14.1
+
+### Bug Fixes
+
+- Prevent blinding FOUC in dark mode ([#1054](https://github.com/pocket-id/pocket-id/pull/1054) by @mufeedali)
+- use credProps to save passkey on firefox android ([#1055](https://github.com/pocket-id/pocket-id/pull/1055) by @lhoursquentin)
+- ignore trailing slashes in `APP_URL` ([65616f6](https://github.com/pocket-id/pocket-id/commit/65616f65e53f3e62d18a8209929e68ddc8d2b9b8) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.14.0...v1.14.1
+
 ## v1.14.0
 
 ### Bug Fixes
