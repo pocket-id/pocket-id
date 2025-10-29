@@ -2,11 +2,13 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
@@ -14,6 +16,16 @@ import (
 )
 
 func Bootstrap(ctx context.Context) error {
+	var shutdownFns []utils.Service
+	defer func() { //nolint:contextcheck
+		// Invoke all shutdown functions on exit
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := utils.NewServiceRunner(shutdownFns...).Run(shutdownCtx); err != nil {
+			slog.Error("Error during graceful shutdown", "error", err)
+		}
+	}()
+
 	// Initialize the observability stack, including the logger, distributed tracing, and metrics
 	shutdownFns, httpClient, err := initObservability(ctx, common.EnvConfig.MetricsEnabled, common.EnvConfig.TracingEnabled)
 	if err != nil {
@@ -38,6 +50,24 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
 
+	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if err := svc.appLockService.Acquire(opCtx, common.EnvConfig.ForcefullyAcquireLock); err != nil {
+		if errors.Is(err, service.ErrLockUnavailable) {
+			return fmt.Errorf("only one Pocket ID instance can run at the same time. Set FORCEFULLY_ACQUIRE_LOCK=true to kill the other instance and proceed")
+		}
+		return fmt.Errorf("failed to acquire application lock: %w", err)
+	}
+
+	shutdownFn := func(shutdownCtx context.Context) error {
+		if err := svc.appLockService.Release(shutdownCtx); err != nil {
+			return fmt.Errorf("failed to release application lock: %w", err)
+		}
+		return nil
+	}
+	shutdownFns = append(shutdownFns, shutdownFn)
+
 	// Init the job scheduler
 	scheduler, err := job.NewScheduler()
 	if err != nil {
@@ -53,7 +83,7 @@ func Bootstrap(ctx context.Context) error {
 
 	// Run all background services
 	// This call blocks until the context is canceled
-	services := []utils.Service{router}
+	services := []utils.Service{svc.appLockService.RunRenewal, router}
 
 	if common.EnvConfig.AppEnv != "test" {
 		services = append(services, scheduler.Run)
@@ -62,18 +92,6 @@ func Bootstrap(ctx context.Context) error {
 	err = utils.NewServiceRunner(services...).Run(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to run services: %w", err)
-	}
-
-	// Invoke all shutdown functions
-	// We give these a timeout of 5s
-	// Note: we use a background context because the run context has been canceled already
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdownCancel()
-	err = utils.
-		NewServiceRunner(shutdownFns...).
-		Run(shutdownCtx) //nolint:contextcheck
-	if err != nil {
-		slog.Error("Error shutting down services", slog.Any("error", err))
 	}
 
 	return nil

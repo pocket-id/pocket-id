@@ -33,31 +33,32 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv             string     `env:"APP_ENV" options:"toLower"`
-	LogLevel           string     `env:"LOG_LEVEL" options:"toLower"`
-	AppURL             string     `env:"APP_URL" options:"toLower"`
-	DbProvider         DbProvider `env:"DB_PROVIDER" options:"toLower"`
-	DbConnectionString string     `env:"DB_CONNECTION_STRING" options:"file"`
-	UploadPath         string     `env:"UPLOAD_PATH"`
-	KeysPath           string     `env:"KEYS_PATH"`
-	KeysStorage        string     `env:"KEYS_STORAGE"`
-	EncryptionKey      []byte     `env:"ENCRYPTION_KEY" options:"file"`
-	Port               string     `env:"PORT"`
-	Host               string     `env:"HOST" options:"toLower"`
-	UnixSocket         string     `env:"UNIX_SOCKET"`
-	UnixSocketMode     string     `env:"UNIX_SOCKET_MODE"`
-	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY" options:"file"`
-	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
-	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
-	LocalIPv6Ranges    string     `env:"LOCAL_IPV6_RANGES"`
-	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
-	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
-	TracingEnabled     bool       `env:"TRACING_ENABLED"`
-	LogJSON            bool       `env:"LOG_JSON"`
-	TrustProxy         bool       `env:"TRUST_PROXY"`
-	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
-	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
-	InternalAppURL     string     `env:"INTERNAL_APP_URL"`
+	AppEnv                string     `env:"APP_ENV" options:"toLower"`
+	LogLevel              string     `env:"LOG_LEVEL" options:"toLower"`
+	AppURL                string     `env:"APP_URL" options:"toLower"`
+	DbProvider            DbProvider `env:"DB_PROVIDER" options:"toLower"`
+	DbConnectionString    string     `env:"DB_CONNECTION_STRING" options:"file"`
+	UploadPath            string     `env:"UPLOAD_PATH"`
+	KeysPath              string     `env:"KEYS_PATH"`
+	KeysStorage           string     `env:"KEYS_STORAGE"`
+	EncryptionKey         []byte     `env:"ENCRYPTION_KEY" options:"file"`
+	Port                  string     `env:"PORT"`
+	Host                  string     `env:"HOST" options:"toLower"`
+	UnixSocket            string     `env:"UNIX_SOCKET"`
+	UnixSocketMode        string     `env:"UNIX_SOCKET_MODE"`
+	MaxMindLicenseKey     string     `env:"MAXMIND_LICENSE_KEY" options:"file"`
+	GeoLiteDBPath         string     `env:"GEOLITE_DB_PATH"`
+	GeoLiteDBUrl          string     `env:"GEOLITE_DB_URL"`
+	LocalIPv6Ranges       string     `env:"LOCAL_IPV6_RANGES"`
+	UiConfigDisabled      bool       `env:"UI_CONFIG_DISABLED"`
+	MetricsEnabled        bool       `env:"METRICS_ENABLED"`
+	TracingEnabled        bool       `env:"TRACING_ENABLED"`
+	LogJSON               bool       `env:"LOG_JSON"`
+	TrustProxy            bool       `env:"TRUST_PROXY"`
+	AnalyticsDisabled     bool       `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade        bool       `env:"ALLOW_DOWNGRADE"`
+	InternalAppURL        string     `env:"INTERNAL_APP_URL"`
+	ForcefullyAcquireLock bool       `env:"FORCEFULLY_ACQUIRE_LOCK"`
 }
 
 var EnvConfig = defaultConfig()
@@ -72,30 +73,31 @@ func init() {
 
 func defaultConfig() EnvConfigSchema {
 	return EnvConfigSchema{
-		AppEnv:             "production",
-		LogLevel:           "info",
-		DbProvider:         "sqlite",
-		DbConnectionString: "",
-		UploadPath:         "data/uploads",
-		KeysPath:           "data/keys",
-		KeysStorage:        "", // "database" or "file"
-		EncryptionKey:      nil,
-		AppURL:             AppUrl,
-		Port:               "1411",
-		Host:               "0.0.0.0",
-		UnixSocket:         "",
-		UnixSocketMode:     "",
-		MaxMindLicenseKey:  "",
-		GeoLiteDBPath:      "data/GeoLite2-City.mmdb",
-		GeoLiteDBUrl:       MaxMindGeoLiteCityUrl,
-		LocalIPv6Ranges:    "",
-		UiConfigDisabled:   false,
-		MetricsEnabled:     false,
-		TracingEnabled:     false,
-		TrustProxy:         false,
-		AnalyticsDisabled:  false,
-		AllowDowngrade:     false,
-		InternalAppURL:     "",
+		AppEnv:                "production",
+		LogLevel:              "info",
+		DbProvider:            "sqlite",
+		DbConnectionString:    "",
+		UploadPath:            "data/uploads",
+		KeysPath:              "data/keys",
+		KeysStorage:           "", // "database" or "file"
+		EncryptionKey:         nil,
+		AppURL:                AppUrl,
+		Port:                  "1411",
+		Host:                  "0.0.0.0",
+		UnixSocket:            "",
+		UnixSocketMode:        "",
+		MaxMindLicenseKey:     "",
+		GeoLiteDBPath:         "data/GeoLite2-City.mmdb",
+		GeoLiteDBUrl:          MaxMindGeoLiteCityUrl,
+		LocalIPv6Ranges:       "",
+		UiConfigDisabled:      false,
+		MetricsEnabled:        false,
+		TracingEnabled:        false,
+		TrustProxy:            false,
+		AnalyticsDisabled:     false,
+		AllowDowngrade:        false,
+		InternalAppURL:        "",
+		ForcefullyAcquireLock: false,
 	}
 }
 

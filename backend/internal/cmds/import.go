@@ -2,8 +2,11 @@ package cmds
 
 import (
 	"archive/zip"
+	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -13,8 +16,9 @@ import (
 )
 
 type importFlags struct {
-	Path string
-	Yes  bool
+	Path                  string
+	Yes                   bool
+	ForcefullyAcquireLock bool
 }
 
 func init() {
@@ -24,18 +28,19 @@ func init() {
 		Use:   "import",
 		Short: "Imports all data of Pocket ID from a ZIP file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runImport(flags)
+			return runImport(cmd.Context(), flags)
 		},
 	}
 
 	importCmd.Flags().StringVarP(&flags.Path, "path", "p", "./pocket-id-export.zip", "Path to the ZIP file to import the data from")
 	importCmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "Skip confirmation prompts")
+	importCmd.Flags().BoolVarP(&flags.ForcefullyAcquireLock, "forcefully-acquire-lock", "", false, "Forcefully acquire the application lock by terminating the Pocket ID instance")
 
 	rootCmd.AddCommand(importCmd)
 }
 
 // runImport handles the high-level orchestration of the import process
-func runImport(flags importFlags) error {
+func runImport(ctx context.Context, flags importFlags) error {
 	if !flags.Yes {
 		ok, err := askForConfirmation()
 		if err != nil {
@@ -58,9 +63,27 @@ func runImport(flags importFlags) error {
 		return err
 	}
 
+	appLockService := service.NewAppLockService(db)
+	defer func() { //nolint:contextcheck
+		if releaseErr := appLockService.Release(context.Background()); releaseErr != nil {
+			fmt.Printf("Warning: failed to release lock: %v\n", releaseErr)
+		}
+	}()
+
+	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	err = appLockService.Acquire(opCtx, flags.ForcefullyAcquireLock || common.EnvConfig.ForcefullyAcquireLock)
+	if err != nil {
+		if errors.Is(err, service.ErrLockUnavailable) {
+			return fmt.Errorf("pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
+		}
+		return fmt.Errorf("failed to acquire application lock: %w", err)
+	}
+
 	importService := service.NewImportService(db)
 	if err := importService.ImportFromZip(&r.Reader); err != nil {
-		return err
+		return fmt.Errorf("failed to import data from zip: %w", err)
 	}
 
 	fmt.Println("Import completed successfully.")
