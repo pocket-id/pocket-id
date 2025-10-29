@@ -211,8 +211,7 @@ func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) {
 	ctx.Status(http.StatusNoContent)
 }
 
-
-/// deleteDefaultProfilePicture godoc
+// / deleteDefaultProfilePicture godoc
 // @Summary Delete default profile picture image
 // @Description Delete the default profile picture image
 // @Tags Application Images
