@@ -1,9 +1,12 @@
+import userStore from '$lib/stores/user-store';
 import type { AllAppConfig, AppConfigRawResponse } from '$lib/types/application-configuration';
 import {
 	cachedApplicationLogo,
 	cachedBackgroundImage,
-	cachedDefaultProfilePicture
+	cachedDefaultProfilePicture,
+	cachedProfilePicture
 } from '$lib/utils/cached-image-util';
+import { get } from 'svelte/store';
 import APIService from './api-service';
 
 export default class AppConfigService extends APIService {
@@ -62,7 +65,8 @@ export default class AppConfigService extends APIService {
 	deleteDefaultProfilePicture = async () => {
 		await this.api.delete('/application-images/default-profile-picture');
 		cachedDefaultProfilePicture.bustCache();
-	}
+		cachedProfilePicture.bustCache(get(userStore)!.id);
+	};
 
 	sendTestEmail = async () => {
 		await this.api.post('/application-configuration/test-email');

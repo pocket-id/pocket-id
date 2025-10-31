@@ -13,16 +13,15 @@ import (
 type User struct {
 	Base
 
-	Username                string  `sortable:"true"`
-	Email                   *string `sortable:"true"`
-	FirstName               string  `sortable:"true"`
-	LastName                string  `sortable:"true"`
-	DisplayName             string  `sortable:"true"`
-	IsAdmin                 bool    `sortable:"true" filterable:"true"`
-	Locale                  *string
-	LdapID                  *string
-	Disabled                bool `sortable:"true" filterable:"true"`
-	HasCustomProfilePicture bool
+	Username    string  `sortable:"true"`
+	Email       *string `sortable:"true"`
+	FirstName   string  `sortable:"true"`
+	LastName    string  `sortable:"true"`
+	DisplayName string  `sortable:"true"`
+	IsAdmin     bool    `sortable:"true" filterable:"true"`
+	Locale      *string
+	LdapID      *string
+	Disabled    bool `sortable:"true" filterable:"true"`
 
 	CustomClaims []CustomClaim
 	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`

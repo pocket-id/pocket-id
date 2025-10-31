@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -94,48 +95,37 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 		return nil, 0, err
 	}
 
-	var profilePicturePath string
-	if user.HasCustomProfilePicture {
-		// Return user's custom profile picture
-		profilePicturePath = common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
-	} else if s.appImagesService.IsDefaultProfilePictureSet() {
-		// Return custom default profile picture if set
+	profilePicturePath := filepath.Join(common.EnvConfig.UploadPath, "profile-pictures", userID+".png")
+
+	// Try custom profile picture
+	if file, size, err := utils.OpenFileWithSize(profilePicturePath); err == nil {
+		return file, size, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, 0, err
+	}
+
+	// Try default global profile picture
+	if s.appImagesService.IsDefaultProfilePictureSet() {
 		path, _, err := s.appImagesService.GetImage("default-profile-picture")
 		if err != nil {
 			return nil, 0, err
 		}
-		profilePicturePath = path
-	}
-
-	if profilePicturePath != "" {
-		file, err := os.Open(profilePicturePath)
-		if err != nil {
+		if file, size, err := utils.OpenFileWithSize(path); err == nil {
+			return file, size, nil
+		} else if !errors.Is(err, os.ErrNotExist) {
 			return nil, 0, err
 		}
-
-		fileInfo, err := file.Stat()
-		if err != nil {
-			file.Close()
-			return nil, 0, err
-		}
-
-		return file, fileInfo.Size(), nil
 	}
 
-	// Check if we have a cached default picture for these initials
-	defaultProfilePicturesDir := common.EnvConfig.UploadPath + "/profile-pictures/defaults/"
-	defaultPicturePath := defaultProfilePicturesDir + user.Initials() + ".png"
-	file, err := os.Open(defaultPicturePath)
-	if err == nil {
-		fileInfo, err := file.Stat()
-		if err != nil {
-			file.Close()
-			return nil, 0, err
-		}
-		return file, fileInfo.Size(), nil
+	// Try cached default for initials
+	defaultProfilePicturesDir := filepath.Join(common.EnvConfig.UploadPath, "profile-pictures", "defaults")
+	defaultPicturePath := filepath.Join(defaultProfilePicturesDir, user.Initials()+".png")
+
+	if file, size, err := utils.OpenFileWithSize(defaultPicturePath); err == nil {
+		return file, size, nil
 	}
 
-	// If no cached default picture exists, create one and save it for future use
+	// Create and return generated default with initials
 	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(user.Initials())
 	if err != nil {
 		return nil, 0, err
@@ -144,19 +134,16 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	// Save the default picture for future use (in a goroutine to avoid blocking)
 	defaultPictureBytes := defaultPicture.Bytes()
 	go func() {
-		// Ensure the directory exists
-		errInternal := os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
-		if errInternal != nil {
-			slog.Error("Failed to create directory for default profile picture", slog.Any("error", errInternal))
+		if err := os.MkdirAll(defaultProfilePicturesDir, os.ModePerm); err != nil {
+			slog.Error("Failed to create directory for default profile picture", slog.Any("error", err))
 			return
 		}
-		errInternal = utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath)
-		if errInternal != nil {
-			slog.Error("Failed to cache default profile picture for initials", slog.String("initials", user.Initials()), slog.Any("error", errInternal))
+		if err := utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath); err != nil {
+			slog.Error("Failed to cache default profile picture", slog.String("initials", user.Initials()), slog.Any("error", err))
 		}
 	}()
 
-	return io.NopCloser(bytes.NewReader(defaultPictureBytes)), int64(defaultPicture.Len()), nil
+	return io.NopCloser(bytes.NewReader(defaultPictureBytes)), int64(len(defaultPictureBytes)), nil
 }
 
 func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model.UserGroup, error) {
@@ -195,14 +182,6 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 
 	// Create the profile picture file
 	err = utils.SaveFileStream(profilePicture, profilePictureDir+"/"+userID+".png")
-	if err != nil {
-		return err
-	}
-
-	err = s.db.Model(&model.User{}).
-		Where("id = ?", userID).
-		Update("has_custom_profile_picture", true).Error
-
 	if err != nil {
 		return err
 	}

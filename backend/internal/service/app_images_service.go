@@ -78,7 +78,7 @@ func (s *AppImagesService) DeleteImage(imageName string) error {
 		return &common.ImageNotFoundError{}
 	}
 
-	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", imageName + "." + ext)
+	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", imageName+"."+ext)
 	if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
 		return err
 	}

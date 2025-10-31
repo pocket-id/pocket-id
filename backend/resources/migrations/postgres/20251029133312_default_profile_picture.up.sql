@@ -1,1 +1,0 @@
-ALTER TABLE users ADD COLUMN has_custom_profile_picture BOOLEAN NOT NULL DEFAULT FALSE;
