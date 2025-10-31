@@ -126,7 +126,9 @@ test('Update application images', async ({ page }) => {
 	await page.getByLabel('Background Image').setInputFiles('assets/clouds.jpg');
 	await page.getByRole('button', { name: 'Save' }).last().click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('Images updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Images updated successfully. It may take a few minutes to update.'
+	);
 
 	await page.request
 		.get('/api/application-images/favicon')
