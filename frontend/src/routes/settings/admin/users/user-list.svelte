@@ -143,6 +143,7 @@
 		},
 		{
 			label: m.edit(),
+			primary: true,
 			icon: LucidePencil,
 			onClick: (u) => goto(`/settings/admin/users/${u.id}`)
 		},

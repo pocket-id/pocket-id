@@ -166,6 +166,12 @@
 		return filters;
 	}
 
+	function getPrimaryAction(item: T) {
+		if (!actions) return null;
+		const availableActions = actions(item).filter((a) => a.primary);
+		return availableActions.length > 0 ? () => availableActions[0].onClick(item) : null;
+	}
+
 	export async function refresh() {
 		items = await fetchCallback(requestOptions);
 		changePageState(items.pagination.currentPage);
@@ -248,7 +254,13 @@
 				</Table.Header>
 				<Table.Body>
 					{#each items.data as item}
-						<Table.Row class={selectedIds?.includes(item.id) ? 'bg-muted/20' : ''}>
+						<Table.Row
+							class={{
+								'bg-muted/20': selectedIds?.includes(item.id),
+								'cursor-pointer': getPrimaryAction(item)
+							}}
+							onclick={getPrimaryAction(item)}
+						>
 							{#if selectedIds}
 								<Table.Cell class="w-12">
 									<Checkbox

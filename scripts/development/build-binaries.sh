@@ -69,6 +69,10 @@ else
     # FreeBSD builds
     build_platform "freebsd-amd64" "freebsd" "amd64" ""
     build_platform "freebsd-arm64" "freebsd" "arm64" ""
+
+    # OpenBSD builds
+    build_platform "openbsd-amd64" "openbsd" "amd64" ""
+    build_platform "openbsd-arm64" "openbsd" "arm64" ""
 fi
 
 echo "Compilation done"
