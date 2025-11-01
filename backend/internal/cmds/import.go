@@ -73,7 +73,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	err = appLockService.Acquire(opCtx, flags.ForcefullyAcquireLock || common.EnvConfig.ForcefullyAcquireLock)
+	err = appLockService.Acquire(opCtx, flags.ForcefullyAcquireLock)
 	if err != nil {
 		if errors.Is(err, service.ErrLockUnavailable) {
 			return fmt.Errorf("pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")

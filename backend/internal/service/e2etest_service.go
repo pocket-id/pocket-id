@@ -32,7 +32,7 @@ type TestService struct {
 	jwtService       *JwtService
 	appConfigService *AppConfigService
 	ldapService      *LdapService
-	appLockService *AppLockService
+	appLockService   *AppLockService
 	externalIdPKey   jwk.Key
 }
 
@@ -42,7 +42,7 @@ func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService 
 		appConfigService: appConfigService,
 		jwtService:       jwtService,
 		ldapService:      ldapService,
-		appLockService: appLockService,
+		appLockService:   appLockService,
 	}
 	err := s.initExternalIdP()
 	if err != nil {

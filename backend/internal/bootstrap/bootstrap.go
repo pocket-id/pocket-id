@@ -2,13 +2,11 @@ package bootstrap
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
@@ -53,10 +51,7 @@ func Bootstrap(ctx context.Context) error {
 	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	if err := svc.appLockService.Acquire(opCtx, common.EnvConfig.ForcefullyAcquireLock); err != nil {
-		if errors.Is(err, service.ErrLockUnavailable) {
-			return fmt.Errorf("only one Pocket ID instance can run at the same time. Set FORCEFULLY_ACQUIRE_LOCK=true to kill the other instance and proceed")
-		}
+	if err := svc.appLockService.Acquire(opCtx, false); err != nil {
 		return fmt.Errorf("failed to acquire application lock: %w", err)
 	}
 
