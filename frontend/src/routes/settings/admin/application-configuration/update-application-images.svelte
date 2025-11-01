@@ -1,24 +1,32 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { cachedApplicationLogo, cachedBackgroundImage } from '$lib/utils/cached-image-util';
+	import {
+		cachedApplicationLogo,
+		cachedBackgroundImage,
+		cachedDefaultProfilePicture
+	} from '$lib/utils/cached-image-util';
 	import ApplicationImage from './application-image.svelte';
 
 	let {
 		callback
 	}: {
 		callback: (
-			logoLight: File | null,
-			logoDark: File | null,
-			backgroundImage: File | null,
-			favicon: File | null
+			logoLight: File | undefined,
+			logoDark: File | undefined,
+			defaultProfilePicture: File | null | undefined,
+			backgroundImage: File | undefined,
+			favicon: File | undefined
 		) => void;
 	} = $props();
 
-	let logoLight = $state<File | null>(null);
-	let logoDark = $state<File | null>(null);
-	let backgroundImage = $state<File | null>(null);
-	let favicon = $state<File | null>(null);
+	let logoLight = $state<File | undefined>();
+	let logoDark = $state<File | undefined>();
+	let defaultProfilePicture = $state<File | null | undefined>();
+	let backgroundImage = $state<File | undefined>();
+	let favicon = $state<File | undefined>();
+
+	let defaultProfilePictureSet = $state(true);
 </script>
 
 <div class="flex flex-col gap-8">
@@ -47,6 +55,15 @@
 		forceColorScheme="dark"
 	/>
 	<ApplicationImage
+		id="default-profile-picture"
+		imageClass="size-24"
+		label={m.default_profile_picture()}
+		isResetable
+		bind:image={defaultProfilePicture}
+		imageURL={cachedDefaultProfilePicture.getUrl()}
+		isImageSet={defaultProfilePictureSet}
+	/>
+	<ApplicationImage
 		id="background-image"
 		imageClass="h-[350px] max-w-[500px]"
 		label={m.background_image()}
@@ -55,7 +72,10 @@
 	/>
 </div>
 <div class="flex justify-end">
-	<Button class="mt-5" onclick={() => callback(logoLight, logoDark, backgroundImage, favicon)}
+	<Button
+		class="mt-5"
+		usePromiseLoading
+		onclick={() => callback(logoLight, logoDark, defaultProfilePicture, backgroundImage, favicon)}
 		>{m.save()}</Button
 	>
 </div>

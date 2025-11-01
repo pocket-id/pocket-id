@@ -388,3 +388,13 @@ func (e *UserEmailNotSetError) Error() string {
 func (e *UserEmailNotSetError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
+
+type ImageNotFoundError struct{}
+
+func (e *ImageNotFoundError) Error() string {
+	return "Image not found"
+}
+
+func (e *ImageNotFoundError) HttpStatusCode() int {
+	return http.StatusNotFound
+}

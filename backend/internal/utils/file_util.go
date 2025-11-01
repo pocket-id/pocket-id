@@ -239,3 +239,17 @@ func IsWritableDir(dir string) (bool, error) {
 
 	return true, nil
 }
+
+// OpenFileWithSize opens a file and returns its size
+func OpenFileWithSize(path string) (io.ReadCloser, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, 0, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, 0, err
+	}
+	return f, info.Size(), nil
+}
