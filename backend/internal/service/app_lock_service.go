@@ -195,7 +195,7 @@ func (s *AppLockService) renew(ctx context.Context) error {
 		nowMillis := now.UnixMilli()
 		expiresAt := now.Add(ttl).UnixMilli()
 
-		opCtx, cancel := context.WithTimeout(ctx, 31*time.Second)
+		opCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 
 		err := s.db.WithContext(opCtx).Transaction(func(tx *gorm.DB) error {
 			current, err := s.loadLockForUpdate(tx)
