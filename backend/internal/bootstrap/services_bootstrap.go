@@ -25,6 +25,7 @@ type services struct {
 	ldapService        *service.LdapService
 	apiKeyService      *service.ApiKeyService
 	versionService     *service.VersionService
+	appLockService     *service.AppLockService
 }
 
 // Initializes all services
@@ -36,6 +37,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		return nil, fmt.Errorf("failed to create app config service: %w", err)
 	}
 
+	svc.appLockService = service.NewAppLockService(db)
 	svc.appImagesService = service.NewAppImagesService(imageExtensions)
 
 	svc.emailService, err = service.NewEmailService(db, svc.appConfigService)

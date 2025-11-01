@@ -40,7 +40,12 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		return
 	}
 
-	if err := tc.TestService.ResetApplicationImages(c.Request.Context()); err != nil {
+	if err := tc.TestService.ResetLock(c.Request.Context()); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	if err := tc.TestService.ResetApplicationImages(); err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -69,7 +74,10 @@ func (tc *TestController) resetAndSeedHandler(c *gin.Context) {
 		}
 	}
 
-	tc.TestService.SetJWTKeys()
+	if err := tc.TestService.SetJWTKeys(); err != nil {
+		_ = c.Error(err)
+		return
+	}
 
 	c.Status(http.StatusNoContent)
 }

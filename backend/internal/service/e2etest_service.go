@@ -7,15 +7,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/fxamacker/cbor/v2"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -35,15 +32,17 @@ type TestService struct {
 	jwtService       *JwtService
 	appConfigService *AppConfigService
 	ldapService      *LdapService
+	appLockService   *AppLockService
 	externalIdPKey   jwk.Key
 }
 
-func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService) (*TestService, error) {
+func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		appConfigService: appConfigService,
 		jwtService:       jwtService,
 		ldapService:      ldapService,
+		appLockService:   appLockService,
 	}
 	err := s.initExternalIdP()
 	if err != nil {
@@ -286,8 +285,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		// openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 | \
 		// openssl pkcs8 -topk8 -nocrypt | tee >(openssl pkey -pubout)
 
-		publicKeyPasskey1, _ := s.getCborPublicKey("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwcOo5KV169KR67QEHrcYkeXE3CCxv2BgwnSq4VYTQxyLtdmKxegexa8JdwFKhKXa2BMI9xaN15BoL6wSCRFJhg==")
-		publicKeyPasskey2, _ := s.getCborPublicKey("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbL5nPhZRAdJ3hEaqrHMSnJBhfMqtQGKwDYpaLIQFAKLhw==")
+		publicKeyPasskey1, _ := base64.StdEncoding.DecodeString("pQMmIAEhWCDBw6jkpXXr0pHrtAQetxiR5cTcILG/YGDCdKrhVhNDHCJYIIu12YrF6B7Frwl3AUqEpdrYEwj3Fo3XkGgvrBIJEUmGAQI=")
+		publicKeyPasskey2, _ := base64.StdEncoding.DecodeString("pSJYIPmc+FlEB0neERqqscxKckGF8yq1AYrANiloshAUAouHAQIDJiABIVggj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbI=")
 		webauthnCredentials := []model.WebauthnCredential{
 			{
 				Name:            "Passkey 1",
@@ -316,6 +315,10 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			Challenge:        "challenge",
 			ExpiresAt:        datatype.DateTime(time.Now().Add(1 * time.Hour)),
 			UserVerification: "preferred",
+			CredentialParams: model.CredentialParameters{
+				{Type: "public-key", Algorithm: -7},
+				{Type: "public-key", Algorithm: -257},
+			},
 		}
 		if err := tx.Create(&webauthnSession).Error; err != nil {
 			return err
@@ -325,9 +328,10 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			Base: model.Base{
 				ID: "5f1fa856-c164-4295-961e-175a0d22d725",
 			},
-			Name:   "Test API Key",
-			Key:    "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
-			UserID: users[0].ID,
+			Name:      "Test API Key",
+			Key:       "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
+			UserID:    users[0].ID,
+			ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)),
 		}
 		if err := tx.Create(&apiKey).Error; err != nil {
 			return err
@@ -423,10 +427,9 @@ func (s *TestService) ResetDatabase() error {
 	return err
 }
 
-func (s *TestService) ResetApplicationImages(ctx context.Context) error {
+func (s *TestService) ResetApplicationImages() error {
 	if err := os.RemoveAll(common.EnvConfig.UploadPath); err != nil {
-		slog.ErrorContext(ctx, "Error removing directory", slog.Any("error", err))
-		return err
+		return fmt.Errorf("failed to remove upload path: %w", err)
 	}
 
 	files, err := resources.FS.ReadDir("images")
@@ -454,47 +457,32 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 		return err
 	}
 
+	// Manually set instance ID
+	err = s.appConfigService.UpdateAppConfigValues(ctx, "instanceId", "1ac0692c-32c4-4c17-b363-28569c231787")
+	if err != nil {
+		return err
+	}
+
 	// Reload the app config from the database after resetting the values
 	return s.appConfigService.LoadDbConfig(ctx)
 }
 
-func (s *TestService) SetJWTKeys() {
+func (s *TestService) ResetLock(ctx context.Context) error {
+	return s.appLockService.Acquire(ctx, true)
+}
+
+func (s *TestService) SetJWTKeys() error {
 	const privateKeyString = `{"alg":"RS256","d":"mvMDWSdPPvcum0c0iEHE2gbqtV2NKMmLwrl9E6K7g8lTV95SePLnW_bwyMPV7EGp7PQk3l17I5XRhFjze7GqTnFIOgKzMianPs7jv2ELtBMGK0xOPATgu1iGb70xZ6vcvuEfRyY3dJ0zr4jpUdVuXwKmx9rK4IdZn2dFCKfvSuspqIpz11RhF1ALrqDLkxGVv7ZwNh0_VhJZU9hcjG5l6xc7rQEKpPRkZp0IdjkGS8Z0FskoVaiRIWAbZuiVFB9WCW8k1czC4HQTPLpII01bUQx2ludbm0UlXRgVU9ptUUbU7GAImQqTOW8LfPGklEvcgzlIlR_oqw4P9yBxLi-yMQ","dp":"pvNCSnnhbo8Igw9psPR-DicxFnkXlu_ix4gpy6efTrxA-z1VDFDioJ814vKQNioYDzpyAP1gfMPhRkvG_q0hRZsJah3Sb9dfA-WkhSWY7lURQP4yIBTMU0PF_rEATuS7lRciYk1SOx5fqXZd3m_LP0vpBC4Ujlq6NAq6CIjCnms","dq":"TtUVGCCkPNgfOLmkYXu7dxxUCV5kB01-xAEK2OY0n0pG8vfDophH4_D_ZC7nvJ8J9uDhs_3JStexq1lIvaWtG99RNTChIEDzpdn6GH9yaVcb_eB4uJjrNm64FhF8PGCCwxA-xMCZMaARKwhMB2_IOMkxUbWboL3gnhJ2rDO_QO0","e":"AQAB","kid":"8uHDw3M6rf8","kty":"RSA","n":"yaeEL0VKoPBXIAaWXsUgmu05lAvEIIdJn0FX9lHh4JE5UY9B83C5sCNdhs9iSWzpeP11EVjWp8i3Yv2CF7c7u50BXnVBGtxpZpFC-585UXacoJ0chUmarL9GRFJcM1nPHBTFu68aRrn1rIKNHUkNaaxFo0NFGl_4EDDTO8HwawTjwkPoQlRzeByhlvGPVvwgB3Fn93B8QJ_cZhXKxJvjjrC_8Pk76heC_ntEMru71Ix77BoC3j2TuyiN7m9RNBW8BU5q6lKoIdvIeZfTFLzi37iufyfvMrJTixp9zhNB1NxlLCeOZl2MXegtiGqd2H3cbAyqoOiv9ihUWTfXj7SxJw","p":"_Yylc9e07CKdqNRD2EosMC2mrhrEa9j5oY_l00Qyy4-jmCA59Q9viyqvveRo0U7cRvFA5BWgWN6GGLh1DG3X-QBqVr0dnk3uzbobb55RYUXyPLuBZI2q6w2oasbiDwPdY7KpkVv_H-bpITQlyDvO8hhucA6rUV7F6KTQVz8M3Ms","q":"y5p3hch-7jJ21TkAhp_Vk1fLCAuD4tbErwQs2of9ja8sB4iJOs5Wn6HD3P7Mc8Plye7qaLHvzc8I5g0tPKWvC0DPd_FLPXiWwMVAzee3NUX_oGeJNOQp11y1w_KqdO9qZqHSEPZ3NcFL_SZMFgggxhM1uzRiPzsVN0lnD_6prZU","qi":"2Grt6uXHm61ji3xSdkBWNtUnj19vS1-7rFJp5SoYztVQVThf_W52BAiXKBdYZDRVoItC_VS2NvAOjeJjhYO_xQ_q3hK7MdtuXfEPpLnyXKkmWo3lrJ26wbeF6l05LexCkI7ShsOuSt-dsyaTJTszuKDIA6YOfWvfo3aVZmlWRaI","use":"sig"}`
 
 	privateKey, _ := jwk.ParseKey([]byte(privateKeyString))
 	_ = s.jwtService.SetKey(privateKey)
-}
 
-// getCborPublicKey decodes a Base64 encoded public key and returns the CBOR encoded COSE key
-func (s *TestService) getCborPublicKey(base64PublicKey string) ([]byte, error) {
-	decodedKey, err := base64.StdEncoding.DecodeString(base64PublicKey)
+	err := s.jwtService.SaveKey(privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64 key: %w", err)
-	}
-	pubKey, err := x509.ParsePKIXPublicKey(decodedKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse public key: %w", err)
+		return fmt.Errorf("failed to save JWT key: %w", err)
 	}
 
-	ecdsaPubKey, ok := pubKey.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("not an ECDSA public key")
-	}
-
-	coseKey := map[int]interface{}{
-		1:  2,                     // Key type: EC2
-		3:  -7,                    // Algorithm: ECDSA with SHA-256
-		-1: 1,                     // Curve: P-256
-		-2: ecdsaPubKey.X.Bytes(), // X coordinate
-		-3: ecdsaPubKey.Y.Bytes(), // Y coordinate
-	}
-
-	cborPublicKey, err := cbor.Marshal(coseKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal COSE key: %w", err)
-	}
-
-	return cborPublicKey, nil
+	return nil
 }
 
 // SyncLdap triggers an LDAP synchronization

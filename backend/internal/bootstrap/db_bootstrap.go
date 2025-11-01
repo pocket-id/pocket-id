@@ -12,12 +12,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database"
-	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
-	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	slogGorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -26,11 +21,10 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
-	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 func NewDatabase() (db *gorm.DB, err error) {
-	db, err = connectDatabase()
+	db, err = ConnectDatabase()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -39,105 +33,15 @@ func NewDatabase() (db *gorm.DB, err error) {
 		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
-	// Choose the correct driver for the database provider
-	var driver database.Driver
-	switch common.EnvConfig.DbProvider {
-	case common.DbProviderSqlite:
-		driver, err = sqliteMigrate.WithInstance(sqlDb, &sqliteMigrate.Config{
-			NoTxWrap: true,
-		})
-	case common.DbProviderPostgres:
-		driver, err = postgresMigrate.WithInstance(sqlDb, &postgresMigrate.Config{})
-	default:
-		// Should never happen at this point
-		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to create migration driver: %w", err)
-	}
-
 	// Run migrations
-	if err := migrateDatabase(driver); err != nil {
+	if err := utils.MigrateDatabase(sqlDb); err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return db, nil
 }
 
-func migrateDatabase(driver database.Driver) error {
-	// Embedded migrations via iofs
-	path := "migrations/" + string(common.EnvConfig.DbProvider)
-	source, err := iofs.New(resources.FS, path)
-	if err != nil {
-		return fmt.Errorf("failed to create embedded migration source: %w", err)
-	}
-
-	m, err := migrate.NewWithInstance("iofs", source, "pocket-id", driver)
-	if err != nil {
-		return fmt.Errorf("failed to create migration instance: %w", err)
-	}
-
-	requiredVersion, err := getRequiredMigrationVersion(path)
-	if err != nil {
-		return fmt.Errorf("failed to get last migration version: %w", err)
-	}
-
-	currentVersion, _, _ := m.Version()
-	if currentVersion > requiredVersion {
-		slog.Warn("Database version is newer than the application supports, possible downgrade detected", slog.Uint64("db_version", uint64(currentVersion)), slog.Uint64("app_version", uint64(requiredVersion)))
-		if !common.EnvConfig.AllowDowngrade {
-			return fmt.Errorf("database version (%d) is newer than application version (%d), downgrades are not allowed (set ALLOW_DOWNGRADE=true to enable)", currentVersion, requiredVersion)
-		}
-		slog.Info("Fetching migrations from GitHub to handle possible downgrades")
-		return migrateDatabaseFromGitHub(driver, requiredVersion)
-	}
-
-	if err := m.Migrate(requiredVersion); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to apply embedded migrations: %w", err)
-	}
-	return nil
-}
-
-func migrateDatabaseFromGitHub(driver database.Driver, version uint) error {
-	srcURL := "github://pocket-id/pocket-id/backend/resources/migrations/" + string(common.EnvConfig.DbProvider)
-
-	m, err := migrate.NewWithDatabaseInstance(srcURL, "pocket-id", driver)
-	if err != nil {
-		return fmt.Errorf("failed to create GitHub migration instance: %w", err)
-	}
-
-	if err := m.Migrate(version); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to apply GitHub migrations: %w", err)
-	}
-	return nil
-}
-
-// getRequiredMigrationVersion reads the embedded migration files and returns the highest version number found.
-func getRequiredMigrationVersion(path string) (uint, error) {
-	entries, err := resources.FS.ReadDir(path)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read migration directory: %w", err)
-	}
-
-	var maxVersion uint
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		var version uint
-		n, err := fmt.Sscanf(name, "%d_", &version)
-		if err == nil && n == 1 {
-			if version > maxVersion {
-				maxVersion = version
-			}
-		}
-	}
-
-	return maxVersion, nil
-}
-
-func connectDatabase() (db *gorm.DB, err error) {
+func ConnectDatabase() (db *gorm.DB, err error) {
 	var dialector gorm.Dialector
 
 	// Choose the correct database provider
