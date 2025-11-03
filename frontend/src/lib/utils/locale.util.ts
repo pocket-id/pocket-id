@@ -9,7 +9,6 @@ import { z } from 'zod/v4';
 export async function setLocale(locale: Locale, reload = true) {
 	await setLocaleForLibraries(locale);
 	setParaglideLocale(locale, { reload });
-	document.documentElement.lang = locale
 }
 
 export async function setLocaleForLibraries(
