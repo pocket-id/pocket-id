@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "APIキー \"{apiKeyName}\" を本当に削除しますか？このAPI キーを使用しているすべての連携が停止します。",
 	"last_used": "最終使用日",
 	"actions": "Actions",
-	"images_updated_successfully": "画像が正常に更新されました",
+	"images_updated_successfully": "Images updated successfully. It may take a few minutes to update.",
 	"general": "一般",
 	"configure_smtp_to_send_emails": "新しいデバイスや場所からのログインが検出された際にユーザーに警告するメール通知を有効にします。",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "ロケール",
 	"ldap_id": "LDAP ID",
 	"reauthentication": "再認証",
-	"clear_filters": "フィルターをクリア"
+	"clear_filters": "フィルターをクリア",
+	"default_profile_picture": "Default Profile Picture"
 }
