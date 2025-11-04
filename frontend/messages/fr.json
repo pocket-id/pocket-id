@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Êtes-vous sûr de vouloir révoquer la clé API \"{apiKeyName}\" ? Cela va casser toutes les intégrations utilisant cette clé.",
 	"last_used": "Dernière utilisation",
 	"actions": "Actions",
-	"images_updated_successfully": "Image mise à jour avec succès",
+	"images_updated_successfully": "Les images ont été mises à jour sans problème. Ça peut prendre quelques minutes pour que tout se mette à jour.",
 	"general": "Général",
 	"configure_smtp_to_send_emails": "Activer les notifications par e-mail pour alerter les utilisateurs lorsqu'une connexion est détectée à partir d'un nouvel appareil ou d'un nouvel emplacement.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Paramètres régionaux",
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Réauthentification",
-	"clear_filters": "Effacer les filtres"
+	"clear_filters": "Effacer les filtres",
+	"default_profile_picture": "Photo de profil par défaut"
 }
