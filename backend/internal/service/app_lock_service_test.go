@@ -91,7 +91,7 @@ func TestAppLockServiceAcquire(t *testing.T) {
 			ExpiresAt: time.Now().Unix(),
 		})
 
-		opCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		opCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		err := service.Acquire(opCtx, true)
 		require.NoError(t, err)

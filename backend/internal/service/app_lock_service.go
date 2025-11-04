@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"
 )
 
@@ -71,6 +72,19 @@ func (lv *lockValue) Unmarshal(raw string) error {
 // Acquire obtains the lock. When force is true, the lock is stolen from any existing owner.
 // If the lock is forcefully acquired, it blocks until the previous lock has expired.
 func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
+	var prevLockRaw string
+	err := s.db.WithContext(ctx).Model(&model.KV{}).Where("key = ?", lockKey).Select("value").Scan(&prevLockRaw).Error
+	if err != nil {
+		return fmt.Errorf("query existing lock: %w", err)
+	}
+
+	var prevLock lockValue
+	if prevLockRaw != "" {
+		if err := prevLock.Unmarshal(prevLockRaw); err != nil {
+			return fmt.Errorf("decode existing lock value: %w", err)
+		}
+	}
+
 	now := time.Now()
 	nowUnix := now.Unix()
 
@@ -93,9 +107,7 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
 			VALUES (?, ?)
 			ON CONFLICT(key) DO UPDATE SET 
 				value = excluded.value
-			WHERE 
-				(json_extract(kv.value, '$.expires_at') < ?) OR ?
-			RETURNING json_extract(kv.value, '$.expires_at') AS prev_expires_at
+			WHERE (json_extract(kv.value, '$.expires_at') < ?) OR ?
 		`
 	case "postgres":
 		query = `
@@ -103,16 +115,13 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
 			VALUES ($1, $2)
 			ON CONFLICT(key) DO UPDATE SET 
 				value = excluded.value
-			WHERE 
-				((kv.value::json->>'expires_at')::bigint < $3) OR $4
-			RETURNING (kv.value::json->>'expires_at')::bigint AS prev_expires_at
+			WHERE ((kv.value::json->>'expires_at')::bigint < $3) OR ($4::boolean IS TRUE)
 		`
 	default:
 		return fmt.Errorf("unsupported database dialect: %s", s.db.Name())
 	}
 
-	var prevExpires int64
-	res := s.db.WithContext(ctx).Raw(query, lockKey, raw, nowUnix, force).Scan(&prevExpires)
+	res := s.db.WithContext(ctx).Exec(query, lockKey, raw, nowUnix, force)
 	if res.Error != nil {
 		return fmt.Errorf("lock acquisition failed: %w", res.Error)
 	}
@@ -123,8 +132,8 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
 	}
 
 	wait := time.Duration(0)
-	if force && prevExpires > nowUnix {
-		wait = time.Until(time.Unix(prevExpires, 0))
+	if force && prevLock.ExpiresAt > nowUnix && prevLock.LockID != s.lockID {
+		wait = time.Until(time.Unix(prevLock.ExpiresAt, 0))
 	}
 
 	slog.Info("Acquired application lock",
@@ -133,7 +142,8 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
 		slog.Duration("wait_before_proceeding", wait),
 	)
 
-	// If we forcefully acquired the lock, wait until the previous lock has expired
+	// If we forcefully acquired the lock and there was a previous lock that is not yet expired,
+	// wait until it expires before proceeding.
 	if wait > 0 {
 		select {
 		case <-ctx.Done():
