@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Are you sure you want to revoke the API key \"{apiKeyName}\"? This will break any integrations using this key.",
 	"last_used": "Last Used",
 	"actions": "Actions",
-	"images_updated_successfully": "Images updated successfully",
+	"images_updated_successfully": "Images updated successfully. It may take a few minutes to update.",
 	"general": "General",
 	"configure_smtp_to_send_emails": "Enable email notifications to alert users when a login is detected from a new device or location.",
 	"ldap": "LDAP",
@@ -459,7 +459,8 @@
 	"view": "View",
 	"toggle_columns": "Toggle columns",
 	"locale": "Locale",
-	"ldap_id" : "LDAP ID",
+	"ldap_id": "LDAP ID",
 	"reauthentication": "Re-authentication",
-	"clear_filters" : "Clear Filters"
+	"clear_filters": "Clear Filters",
+	"default_profile_picture": "Default Profile Picture"
 }

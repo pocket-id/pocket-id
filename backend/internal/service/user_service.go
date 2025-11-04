@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -33,9 +34,10 @@ type UserService struct {
 	emailService       *EmailService
 	appConfigService   *AppConfigService
 	customClaimService *CustomClaimService
+	appImagesService   *AppImagesService
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
@@ -43,6 +45,7 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 		emailService:       emailService,
 		appConfigService:   appConfigService,
 		customClaimService: customClaimService,
+		appImagesService:   appImagesService,
 	}
 }
 
@@ -87,39 +90,42 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 		return nil, 0, &common.InvalidUUIDError{}
 	}
 
-	// First check for a custom uploaded profile picture (userID.png)
-	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
-	file, err := os.Open(profilePicturePath)
-	if err == nil {
-		// Get the file size
-		fileInfo, err := file.Stat()
-		if err != nil {
-			file.Close()
-			return nil, 0, err
-		}
-		return file, fileInfo.Size(), nil
-	}
-
-	// If no custom picture exists, get the user's data for creating initials
 	user, err := s.GetUser(ctx, userID)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Check if we have a cached default picture for these initials
-	defaultProfilePicturesDir := common.EnvConfig.UploadPath + "/profile-pictures/defaults/"
-	defaultPicturePath := defaultProfilePicturesDir + user.Initials() + ".png"
-	file, err = os.Open(defaultPicturePath)
-	if err == nil {
-		fileInfo, err := file.Stat()
-		if err != nil {
-			file.Close()
-			return nil, 0, err
-		}
-		return file, fileInfo.Size(), nil
+	profilePicturePath := filepath.Join(common.EnvConfig.UploadPath, "profile-pictures", userID+".png")
+
+	// Try custom profile picture
+	if file, size, err := utils.OpenFileWithSize(profilePicturePath); err == nil {
+		return file, size, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, 0, err
 	}
 
-	// If no cached default picture exists, create one and save it for future use
+	// Try default global profile picture
+	if s.appImagesService.IsDefaultProfilePictureSet() {
+		path, _, err := s.appImagesService.GetImage("default-profile-picture")
+		if err != nil {
+			return nil, 0, err
+		}
+		if file, size, err := utils.OpenFileWithSize(path); err == nil {
+			return file, size, nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, 0, err
+		}
+	}
+
+	// Try cached default for initials
+	defaultProfilePicturesDir := filepath.Join(common.EnvConfig.UploadPath, "profile-pictures", "defaults")
+	defaultPicturePath := filepath.Join(defaultProfilePicturesDir, user.Initials()+".png")
+
+	if file, size, err := utils.OpenFileWithSize(defaultPicturePath); err == nil {
+		return file, size, nil
+	}
+
+	// Create and return generated default with initials
 	defaultPicture, err := profilepicture.CreateDefaultProfilePicture(user.Initials())
 	if err != nil {
 		return nil, 0, err
@@ -128,19 +134,16 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	// Save the default picture for future use (in a goroutine to avoid blocking)
 	defaultPictureBytes := defaultPicture.Bytes()
 	go func() {
-		// Ensure the directory exists
-		errInternal := os.MkdirAll(defaultProfilePicturesDir, os.ModePerm)
-		if errInternal != nil {
-			slog.Error("Failed to create directory for default profile picture", slog.Any("error", errInternal))
+		if err := os.MkdirAll(defaultProfilePicturesDir, os.ModePerm); err != nil {
+			slog.Error("Failed to create directory for default profile picture", slog.Any("error", err))
 			return
 		}
-		errInternal = utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath)
-		if errInternal != nil {
-			slog.Error("Failed to cache default profile picture for initials", slog.String("initials", user.Initials()), slog.Any("error", errInternal))
+		if err := utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath); err != nil {
+			slog.Error("Failed to cache default profile picture", slog.String("initials", user.Initials()), slog.Any("error", err))
 		}
 	}()
 
-	return io.NopCloser(bytes.NewReader(defaultPictureBytes)), int64(defaultPicture.Len()), nil
+	return io.NopCloser(bytes.NewReader(defaultPictureBytes)), int64(len(defaultPictureBytes)), nil
 }
 
 func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model.UserGroup, error) {
