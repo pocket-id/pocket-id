@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Är du säker på att du vill återkalla API-nyckeln ”{apiKeyName}”? Alla integrationer som använder nyckeln slutar att fungera.",
 	"last_used": "Senast använd",
 	"actions": "Åtgärder",
-	"images_updated_successfully": "Bilderna har uppdaterats",
+	"images_updated_successfully": "Bilderna har uppdaterats. Det kan ta några minuter att uppdatera.",
 	"general": "Allmänt",
 	"configure_smtp_to_send_emails": "Aktivera e-postaviseringar för att varna användare när en inloggning upptäcks från en ny enhet eller plats.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Lokalisering",
 	"ldap_id": "LDAP-ID",
 	"reauthentication": "Omverifiering",
-	"clear_filters": "Rensa filter"
+	"clear_filters": "Rensa filter",
+	"default_profile_picture": "Standardprofilbild"
 }
