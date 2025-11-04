@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Jste si jisti, že chcete zrušit klíč API \"{apiKeyName}\"? To naruší všechny integrace pomocí tohoto klíče.",
 	"last_used": "Naposledy použito",
 	"actions": "Akce",
-	"images_updated_successfully": "Obrázky úspěšně aktualizovány",
+	"images_updated_successfully": "Obrázky byly úspěšně aktualizovány. Aktualizace může trvat několik minut.",
 	"general": "Obecné",
 	"configure_smtp_to_send_emails": "Povolte e-mailová oznámení pro upozornění uživatelů, pokud je zjištěno přihlášení z nového zařízení nebo lokace.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Jazyk",
 	"ldap_id": "LDAP ID",
 	"reauthentication": "Opětovné ověření",
-	"clear_filters": "Vymazat filtry"
+	"clear_filters": "Vymazat filtry",
+	"default_profile_picture": "Výchozí profilový obrázek"
 }
