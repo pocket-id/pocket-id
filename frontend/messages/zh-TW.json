@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "您確定要撤銷 API 金鑰「{apiKeyName}」嗎？這將會中斷所有使用此金鑰的整合。",
 	"last_used": "上次使用",
 	"actions": "操作",
-	"images_updated_successfully": "圖片更新成功",
+	"images_updated_successfully": "圖片已成功更新。更新過程可能需要數分鐘。",
 	"general": "一般",
 	"configure_smtp_to_send_emails": "啟用電子郵件通知以提醒使用者有來自新裝置或位置的登入。",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "地區",
 	"ldap_id": "LDAP 識別碼",
 	"reauthentication": "重新驗證",
-	"clear_filters": "清除篩選條件"
+	"clear_filters": "清除篩選條件",
+	"default_profile_picture": "預設個人資料照片"
 }
