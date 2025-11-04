@@ -19,6 +19,7 @@ func newTestAppLockService(t *testing.T, db *gorm.DB) *AppLockService {
 		db:        db,
 		processID: 1,
 		hostID:    "test-host",
+		lockID:    "a13c7673-c7ae-49f1-9112-2cd2d0d4b0c1",
 	}
 }
 
@@ -59,7 +60,7 @@ func TestAppLockServiceAcquire(t *testing.T) {
 		stored := readLockValue(t, db)
 		require.Equal(t, service.processID, stored.ProcessID)
 		require.Equal(t, service.hostID, stored.HostID)
-		require.Greater(t, stored.ExpiresAt, time.Now().UnixMilli())
+		require.Greater(t, stored.ExpiresAt, time.Now().Unix())
 	})
 
 	t.Run("returns ErrLockUnavailable when lock held by another process", func(t *testing.T) {
@@ -69,7 +70,7 @@ func TestAppLockServiceAcquire(t *testing.T) {
 		existing := lockValue{
 			ProcessID: 99,
 			HostID:    "other-host",
-			ExpiresAt: time.Now().Add(ttl).UnixMilli(),
+			ExpiresAt: time.Now().Add(ttl).Unix(),
 		}
 		insertLock(t, db, existing)
 
@@ -87,16 +88,18 @@ func TestAppLockServiceAcquire(t *testing.T) {
 		insertLock(t, db, lockValue{
 			ProcessID: 99,
 			HostID:    "other-host",
-			ExpiresAt: time.Now().UnixMilli(),
+			ExpiresAt: time.Now().Unix(),
 		})
 
-		err := service.Acquire(context.Background(), true)
+		opCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		err := service.Acquire(opCtx, true)
 		require.NoError(t, err)
 
 		stored := readLockValue(t, db)
 		require.Equal(t, service.processID, stored.ProcessID)
 		require.Equal(t, service.hostID, stored.HostID)
-		require.Greater(t, stored.ExpiresAt, time.Now().UnixMilli())
+		require.Greater(t, stored.ExpiresAt, time.Now().Unix())
 	})
 }
 
@@ -123,7 +126,7 @@ func TestAppLockServiceRelease(t *testing.T) {
 		existing := lockValue{
 			ProcessID: 2,
 			HostID:    "other-host",
-			ExpiresAt: time.Now().Add(ttl).UnixMilli(),
+			ExpiresAt: time.Now().Add(ttl).Unix(),
 		}
 		insertLock(t, db, existing)
 
@@ -173,7 +176,7 @@ func TestAppLockServiceRenew(t *testing.T) {
 		newOwner := lockValue{
 			ProcessID: 9,
 			HostID:    "stolen-host",
-			ExpiresAt: time.Now().Add(ttl).UnixMilli(),
+			ExpiresAt: time.Now().Add(ttl).Unix(),
 		}
 		raw, marshalErr := newOwner.Marshal()
 		require.NoError(t, marshalErr)

@@ -137,7 +137,7 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
 	if wait > 0 {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil
 		case <-time.After(wait):
 		}
 	}
