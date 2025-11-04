@@ -9,10 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
-
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
 var (
@@ -29,6 +27,7 @@ const (
 
 type AppLockService struct {
 	db        *gorm.DB
+	lockID    string
 	processID int64
 	hostID    string
 }
@@ -43,12 +42,14 @@ func NewAppLockService(db *gorm.DB) *AppLockService {
 		db:        db,
 		processID: int64(os.Getpid()),
 		hostID:    host,
+		lockID:    uuid.NewString(),
 	}
 }
 
 type lockValue struct {
 	ProcessID int64  `json:"process_id"`
 	HostID    string `json:"host_id"`
+	LockID    string `json:"lock_id"`
 	ExpiresAt int64  `json:"expires_at"`
 }
 
@@ -71,69 +72,73 @@ func (lv *lockValue) Unmarshal(raw string) error {
 // If the lock is forcefully acquired, it blocks until the previous lock has expired.
 func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
 	now := time.Now()
-	nowMillis := now.UnixMilli()
+	nowUnix := now.Unix()
+
 	value := lockValue{
 		ProcessID: s.processID,
 		HostID:    s.hostID,
-		ExpiresAt: now.Add(ttl).UnixMilli(),
+		LockID:    s.lockID,
+		ExpiresAt: now.Add(ttl).Unix(),
 	}
-
 	raw, err := value.Marshal()
 	if err != nil {
 		return fmt.Errorf("encode lock value: %w", err)
 	}
 
-	tx := s.db.WithContext(ctx).Begin()
-	defer func() { tx.Rollback() }()
+	var query string
+	switch s.db.Name() {
+	case "sqlite":
+		query = `
+			INSERT INTO kv (key, value)
+			VALUES (?, ?)
+			ON CONFLICT(key) DO UPDATE SET 
+				value = excluded.value
+			WHERE 
+				(json_extract(kv.value, '$.expires_at') < ?) OR ?
+			RETURNING json_extract(kv.value, '$.expires_at') AS prev_expires_at
+		`
+	case "postgres":
+		query = `
+			INSERT INTO kv (key, value)
+			VALUES ($1, $2)
+			ON CONFLICT(key) DO UPDATE SET 
+				value = excluded.value
+			WHERE 
+				((kv.value::json->>'expires_at')::bigint < $3) OR $4
+			RETURNING (kv.value::json->>'expires_at')::bigint AS prev_expires_at
+		`
+	default:
+		return fmt.Errorf("unsupported database dialect: %s", s.db.Name())
+	}
 
-	res := tx.
-		Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&model.KV{Key: lockKey, Value: &raw})
+	var prevExpires int64
+	res := s.db.WithContext(ctx).Raw(query, lockKey, raw, nowUnix, force).Scan(&prevExpires)
 	if res.Error != nil {
-		return fmt.Errorf("insert lock row: %w", res.Error)
-	}
-	if res.RowsAffected == 1 {
-		return tx.Commit().Error
+		return fmt.Errorf("lock acquisition failed: %w", res.Error)
 	}
 
-	current, err := s.loadLockForUpdate(tx)
-	if err != nil {
-		return err
-	} else if current == nil {
-		return errors.New("lock row is missing")
-	}
-
-	needsForceAcquire := (current.ProcessID != s.processID || current.HostID != s.hostID) && current.ExpiresAt > nowMillis
-	if !force && needsForceAcquire {
+	// If there is a lock that is not expired and force is false, no rows will be affected
+	if res.RowsAffected == 0 {
 		return ErrLockUnavailable
 	}
 
-	if err := s.writeLock(tx, value); err != nil {
-		return fmt.Errorf("update lock row: %w", err)
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return fmt.Errorf("commit lock transaction: %w", err)
+	wait := time.Duration(0)
+	if force && prevExpires > nowUnix {
+		wait = time.Until(time.Unix(prevExpires, 0))
 	}
 
 	slog.Info("Acquired application lock",
 		slog.Int64("process_id", s.processID),
 		slog.String("host_id", s.hostID),
+		slog.Duration("wait_before_proceeding", wait),
 	)
 
-	remaining := time.Until(time.UnixMilli(current.ExpiresAt))
-	if needsForceAcquire && remaining > 0 {
-		slog.Info("Waiting until previous application lock expires",
-			slog.Int64("process_id", s.processID),
-			slog.String("host_id", s.hostID),
-			slog.Int64("previous_process_id", current.ProcessID),
-			slog.String("previous_host_id", current.HostID),
-			slog.Duration("wait_duration", remaining),
-		)
+	// If we forcefully acquired the lock, wait until the previous lock has expired
+	if wait > 0 {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(remaining):
+		case <-time.After(wait):
 		}
 	}
 
@@ -162,117 +167,103 @@ func (s *AppLockService) Release(ctx context.Context) error {
 	opCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	err := s.db.WithContext(opCtx).Transaction(func(tx *gorm.DB) error {
-		current, err := s.loadLockForUpdate(tx)
-		if err != nil {
-			return err
-		}
-		if current == nil {
-			return nil
-		}
-		if current.ProcessID != s.processID || current.HostID != s.hostID {
-			return nil
-		}
-		return tx.Delete(&model.KV{}, "key = ?", lockKey).Error
-	})
-	if err != nil {
-		return fmt.Errorf("release lock: %w", err)
+	var query string
+	switch s.db.Name() {
+	case "sqlite":
+		query = `
+		DELETE FROM kv
+		WHERE key = ?
+		  AND json_extract(value, '$.lock_id') = ?
+	`
+	case "postgres":
+		query = `
+		DELETE FROM kv
+		WHERE key = $1
+		  AND value::json->>'lock_id' = $2
+	`
+	default:
+		return fmt.Errorf("unsupported database dialect: %s", s.db.Name())
 	}
 
-	slog.Info("Released application lock",
-		slog.Int64("process_id", s.processID),
-		slog.String("host_id", s.hostID),
-	)
+	res := s.db.WithContext(opCtx).Exec(query, lockKey, s.lockID)
+	if res.Error != nil {
+		return fmt.Errorf("release lock failed: %w", res.Error)
+	}
 
+	if res.RowsAffected > 0 {
+		slog.Info("Released application lock",
+			slog.Int64("process_id", s.processID),
+			slog.String("host_id", s.hostID),
+		)
+	}
 	return nil
 }
 
 // renew tries to renew the lock, retrying up to renewRetries times (sleeping 1s between attempts).
 func (s *AppLockService) renew(ctx context.Context) error {
-	var joinedErr error
+	var lastErr error
 	for attempt := 1; attempt <= renewRetries; attempt++ {
 		now := time.Now()
-		nowMillis := now.UnixMilli()
-		expiresAt := now.Add(ttl).UnixMilli()
+		nowUnix := now.Unix()
+		expiresAt := now.Add(ttl).Unix()
 
-		opCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		value := lockValue{
+			LockID:    s.lockID,
+			ProcessID: s.processID,
+			HostID:    s.hostID,
+			ExpiresAt: expiresAt,
+		}
+		raw, err := value.Marshal()
+		if err != nil {
+			return fmt.Errorf("encode lock value: %w", err)
+		}
 
-		err := s.db.WithContext(opCtx).Transaction(func(tx *gorm.DB) error {
-			current, err := s.loadLockForUpdate(tx)
-			if err != nil {
-				return err
-			}
-			if current == nil {
-				return ErrLockLost
-			}
-			if current.ProcessID != s.processID || current.HostID != s.hostID {
-				return ErrLockLost
-			}
-			if current.ExpiresAt <= nowMillis {
-				return ErrLockLost
-			}
+		var query string
+		switch s.db.Name() {
+		case "sqlite":
+			query = `
+				UPDATE kv
+				SET value = ?
+				WHERE key = ?
+				  AND json_extract(value, '$.lock_id') = ?
+				  AND json_extract(value, '$.expires_at') > ?
+			`
+		case "postgres":
+			query = `
+				UPDATE kv
+				SET value = $1
+				WHERE key = $2
+				  AND value::json->>'lock_id' = $3
+				  AND ((value::json->>'expires_at')::bigint > $4)
+			`
+		default:
+			return fmt.Errorf("unsupported database dialect: %s", s.db.Name())
+		}
 
-			current.ExpiresAt = expiresAt
-			return s.writeLock(tx, *current)
-		})
-
-		cancel()
-
-		if err == nil {
+		res := s.db.WithContext(ctx).Exec(query, raw, lockKey, s.lockID, nowUnix)
+		switch {
+		case res.Error != nil:
+			lastErr = fmt.Errorf("lock renewal failed: %w", res.Error)
+		case res.RowsAffected == 0:
+			// If there isn't a lock with the same lock ID and not expired, we lost the lock
+			lastErr = ErrLockLost
+		default:
+			slog.Debug("Renewed application lock",
+				slog.Int64("process_id", s.processID),
+				slog.String("host_id", s.hostID),
+			)
 			return nil
 		}
-		if errors.Is(err, ErrLockLost) {
-			return err
-		}
 
-		joinedErr = errors.Join(joinedErr, err)
+		// Wait before next attempt or cancel if context is done
 		if attempt < renewRetries {
-			slog.Warn("Failed to renew application lock",
-				slog.Int("attempt", attempt),
-				slog.Any("error", err),
-			)
-			time.Sleep(1 * time.Second)
-			continue
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(1 * time.Second):
+			}
 		}
 	}
-	return fmt.Errorf("failed to renew lock after %d attempts: %w", renewRetries, joinedErr)
-}
 
-func (s *AppLockService) loadLockForUpdate(tx *gorm.DB) (*lockValue, error) {
-	var row model.KV
-	err := tx.
-		Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("key = ?", lockKey).
-		Take(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("load lock row: %w", err)
-	}
-
-	var value lockValue
-	if err := value.Unmarshal(*row.Value); err != nil {
-		return nil, fmt.Errorf("decode lock value: %w", err)
-	}
-	return &value, nil
-}
-
-func (s *AppLockService) writeLock(tx *gorm.DB, value lockValue) error {
-	raw, err := value.Marshal()
-	if err != nil {
-		return fmt.Errorf("encode lock value: %w", err)
-	}
-
-	res := tx.Model(&model.KV{}).
-		Where("key = ?", lockKey).
-		Update("value", raw)
-	if res.Error != nil {
-		return fmt.Errorf("update lock row: %w", res.Error)
-	}
-	if res.RowsAffected == 0 {
-		return errors.New("lock row is missing")
-	}
-
-	return nil
+	return lastErr
 }
