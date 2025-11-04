@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "API 키 \"{apiKeyName}\"를 정말로 취소하시겠습니까? 이 키를 사용하는 모든 통합이 작동하지 않습니다.",
 	"last_used": "마지막 사용",
 	"actions": "동작",
-	"images_updated_successfully": "이미지가 성공적으로 업데이트되었습니다",
+	"images_updated_successfully": "이미지 업데이트가 성공적으로 완료되었습니다. 업데이트에는 몇 분 정도 소요될 수 있습니다.",
 	"general": "일반",
 	"configure_smtp_to_send_emails": "새로운 기기나 위치에서 로그인 감지 시 이메일 알림을 활성화합니다.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "로케일",
 	"ldap_id": "LDAP ID",
 	"reauthentication": "재인증",
-	"clear_filters": "필터 지우기"
+	"clear_filters": "필터 지우기",
+	"default_profile_picture": "기본 프로필 사진"
 }
