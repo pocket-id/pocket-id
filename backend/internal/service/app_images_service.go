@@ -88,6 +88,9 @@ func (s *AppImagesService) DeleteImage(imageName string) error {
 }
 
 func (s *AppImagesService) IsDefaultProfilePictureSet() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	_, ok := s.extensions["default-profile-picture"]
 	return ok
 }

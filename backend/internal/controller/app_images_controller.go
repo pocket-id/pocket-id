@@ -188,7 +188,7 @@ func (c *AppImagesController) getImage(ctx *gin.Context, name string) {
 	ctx.File(imagePath)
 }
 
-// updateBackgroundImageHandler godoc
+// updateDefaultProfilePicture godoc
 // @Summary Update default profile picture image
 // @Description Update the default profile picture image
 // @Tags Application Images
