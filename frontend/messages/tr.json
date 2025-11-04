@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "API anahtarı \"{apiKeyName}\" iptal etmek istediğinizden emin misiniz? Bu, bu anahtarı kullanan tüm entegrasyonları bozacaktır.",
 	"last_used": "Son Kullanım",
 	"actions": "Eylemler",
-	"images_updated_successfully": "Görseller başarıyla güncellendi",
+	"images_updated_successfully": "Görüntüler başarıyla güncellendi. Güncelleme işlemi birkaç dakika sürebilir.",
 	"general": "Genel",
 	"configure_smtp_to_send_emails": "Yeni bir cihaz veya konumdan giriş tespit edildiğinde kullanıcıları bilgilendirmek için e-posta bildirimlerini etkinleştirin.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Yerel",
 	"ldap_id": "LDAP Kimliği",
 	"reauthentication": "Yeniden Kimlik Doğrulama",
-	"clear_filters": "Filtreleri Temizle"
+	"clear_filters": "Filtreleri Temizle",
+	"default_profile_picture": "Varsayılan Profil Resmi"
 }
