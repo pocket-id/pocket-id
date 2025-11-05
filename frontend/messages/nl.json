@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Weet je zeker dat je de API-sleutel \"{apiKeyName}\" wilt intrekken? Hiermee worden alle integraties die deze sleutel gebruiken, verbroken.",
 	"last_used": "Laatst gebruikt",
 	"actions": "Acties",
-	"images_updated_successfully": "Afbeeldingen succesvol bijgewerkt",
+	"images_updated_successfully": "Afbeeldingen zijn bijgewerkt. Het kan even duren voordat alles is bijgewerkt.",
 	"general": "Algemeen",
 	"configure_smtp_to_send_emails": "Zet e-mailmeldingen aan om gebruikers te laten weten als iemand inlogt vanaf een nieuw apparaat of een nieuwe plek.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Locatie",
 	"ldap_id": "LDAP-ID",
 	"reauthentication": "Opnieuw inloggen",
-	"clear_filters": "Filters wissen"
+	"clear_filters": "Filters wissen",
+	"default_profile_picture": "Standaard profielfoto"
 }

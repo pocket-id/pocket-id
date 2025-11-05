@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Bạn có chắc chắn muốn hủy API Key \"{apiKeyName}\" không? Việc này sẽ làm gián đoạn tất cả các tích hợp sử dụng khóa này.",
 	"last_used": "Lần Sử Dụng Cuối",
 	"actions": "Hành động",
-	"images_updated_successfully": "Đã cập nhật hình ảnh thành công",
+	"images_updated_successfully": "Hình ảnh đã được cập nhật thành công. Quá trình cập nhật có thể mất vài phút.",
 	"general": "Tổng quan",
 	"configure_smtp_to_send_emails": "Bật thông báo email để thông báo cho người dùng khi phát hiện đăng nhập từ thiết bị hoặc vị trí mới.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Vùng",
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Xác thực lại",
-	"clear_filters": "Xóa bộ lọc"
+	"clear_filters": "Xóa bộ lọc",
+	"default_profile_picture": "Ảnh đại diện mặc định"
 }

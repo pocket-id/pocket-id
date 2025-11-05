@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Tem certeza que deseja cancelar a chave API “{apiKeyName}”? Isto irá desligar todas as integrações que usam esta chave.",
 	"last_used": "Último uso",
 	"actions": "Ações",
-	"images_updated_successfully": "Imagens atualizadas com sucesso",
+	"images_updated_successfully": "Imagens atualizadas com sucesso. A atualização pode demorar alguns minutos.",
 	"general": "Geral",
 	"configure_smtp_to_send_emails": "Ative as notificações por e-mail para avisar os usuários quando um login for detectado em um novo dispositivo ou local.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Localização",
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Re-autenticação",
-	"clear_filters": "Limpar filtros"
+	"clear_filters": "Limpar filtros",
+	"default_profile_picture": "Foto de perfil padrão"
 }

@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "¿Estás seguro de que deseas invalidar la API Key \"{apiKeyName}\"? Esto romperá cualquier integración que esté usando esta clave.",
 	"last_used": "Utilizado por última vez",
 	"actions": "Acciones",
-	"images_updated_successfully": "Imágenes actualizadas correctamente",
+	"images_updated_successfully": "Imágenes actualizadas correctamente. La actualización puede tardar unos minutos.",
 	"general": "General",
 	"configure_smtp_to_send_emails": "Habilita las notificaciones por correo electrónico para alertar a los usuarios cuando se detecta un inicio de sesión desde un nuevo dispositivo o ubicación.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Configuración regional",
 	"ldap_id": "Identificador LDAP",
 	"reauthentication": "Reautenticación",
-	"clear_filters": "Borrar filtros"
+	"clear_filters": "Borrar filtros",
+	"default_profile_picture": "Imagen de perfil predeterminada"
 }

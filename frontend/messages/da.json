@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Er du sikker på, at du vil tilbagekalde API-nøglen \"{apiKeyName}\"? Dette vil afbryde alle integrationer, der bruger nøglen.",
 	"last_used": "Sidst brugt",
 	"actions": "Handlinger",
-	"images_updated_successfully": "Billeder blev opdateret",
+	"images_updated_successfully": "Billeder opdateret. Det kan tage et par minutter at opdatere.",
 	"general": "Generelt",
 	"configure_smtp_to_send_emails": "Aktivér e-mailnotifikationer for at advare brugere, når et login registreres fra en ny enhed eller placering.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Lokale",
 	"ldap_id": "LDAP-id",
 	"reauthentication": "Genbekræftelse",
-	"clear_filters": "Ryd filtre"
+	"clear_filters": "Ryd filtre",
+	"default_profile_picture": "Standardprofilbillede"
 }
