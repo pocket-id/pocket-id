@@ -259,6 +259,7 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		Username:    input.Username,
 		IsAdmin:     input.IsAdmin,
 		Locale:      input.Locale,
+		Disabled:    input.Disabled,
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
