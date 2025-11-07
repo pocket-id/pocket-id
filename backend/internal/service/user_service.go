@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/url"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -22,6 +22,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
@@ -35,9 +36,10 @@ type UserService struct {
 	appConfigService   *AppConfigService
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
+	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
@@ -46,6 +48,7 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 		appConfigService:   appConfigService,
 		customClaimService: customClaimService,
 		appImagesService:   appImagesService,
+		fileStorage:        fileStorage,
 	}
 }
 
@@ -95,34 +98,32 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 		return nil, 0, err
 	}
 
-	profilePicturePath := filepath.Join(common.EnvConfig.UploadPath, "profile-pictures", userID+".png")
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
 
 	// Try custom profile picture
-	if file, size, err := utils.OpenFileWithSize(profilePicturePath); err == nil {
+	if file, size, err := s.fileStorage.Open(ctx, profilePicturePath); err == nil {
 		return file, size, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
+	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, 0, err
 	}
 
 	// Try default global profile picture
 	if s.appImagesService.IsDefaultProfilePictureSet() {
-		path, _, err := s.appImagesService.GetImage("default-profile-picture")
-		if err != nil {
-			return nil, 0, err
+		reader, size, _, err := s.appImagesService.GetImage(ctx, "default-profile-picture")
+		if err == nil {
+			return reader, size, nil
 		}
-		if file, size, err := utils.OpenFileWithSize(path); err == nil {
-			return file, size, nil
-		} else if !errors.Is(err, os.ErrNotExist) {
+		if !errors.Is(err, &common.ImageNotFoundError{}) {
 			return nil, 0, err
 		}
 	}
 
 	// Try cached default for initials
-	defaultProfilePicturesDir := filepath.Join(common.EnvConfig.UploadPath, "profile-pictures", "defaults")
-	defaultPicturePath := filepath.Join(defaultProfilePicturesDir, user.Initials()+".png")
-
-	if file, size, err := utils.OpenFileWithSize(defaultPicturePath); err == nil {
+	defaultPicturePath := path.Join("profile-pictures", "defaults", user.Initials()+".png")
+	if file, size, err := s.fileStorage.Open(ctx, defaultPicturePath); err == nil {
 		return file, size, nil
+	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, 0, err
 	}
 
 	// Create and return generated default with initials
@@ -132,13 +133,10 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	}
 
 	// Save the default picture for future use (in a goroutine to avoid blocking)
+	//nolint:contextcheck
 	defaultPictureBytes := defaultPicture.Bytes()
 	go func() {
-		if err := os.MkdirAll(defaultProfilePicturesDir, os.ModePerm); err != nil {
-			slog.Error("Failed to create directory for default profile picture", slog.Any("error", err))
-			return
-		}
-		if err := utils.SaveFileStream(bytes.NewReader(defaultPictureBytes), defaultPicturePath); err != nil {
+		if err := s.fileStorage.Save(context.Background(), defaultPicturePath, bytes.NewReader(defaultPictureBytes)); err != nil {
 			slog.Error("Failed to cache default profile picture", slog.String("initials", user.Initials()), slog.Any("error", err))
 		}
 	}()
@@ -173,15 +171,8 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 		return err
 	}
 
-	// Ensure the directory exists
-	profilePictureDir := common.EnvConfig.UploadPath + "/profile-pictures"
-	err = os.MkdirAll(profilePictureDir, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	// Create the profile picture file
-	err = utils.SaveFileStream(profilePicture, profilePictureDir+"/"+userID+".png")
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
+	err = s.fileStorage.Save(context.Background(), profilePicturePath, profilePicture)
 	if err != nil {
 		return err
 	}
@@ -212,10 +203,8 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 		return &common.LdapUserUpdateError{}
 	}
 
-	// Delete the profile picture
-	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
-	err = os.Remove(profilePicturePath)
-	if err != nil && !os.IsNotExist(err) {
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
+	if err := s.fileStorage.Delete(ctx, profilePicturePath); err != nil {
 		return err
 	}
 
@@ -682,20 +671,10 @@ func (s *UserService) ResetProfilePicture(userID string) error {
 		return &common.InvalidUUIDError{}
 	}
 
-	// Build path to profile picture
-	profilePicturePath := common.EnvConfig.UploadPath + "/profile-pictures/" + userID + ".png"
-
-	// Check if file exists and delete it
-	if _, err := os.Stat(profilePicturePath); err == nil {
-		if err := os.Remove(profilePicturePath); err != nil {
-			return fmt.Errorf("failed to delete profile picture: %w", err)
-		}
-	} else if !os.IsNotExist(err) {
-		// If any error other than "file not exists"
-		return fmt.Errorf("failed to check if profile picture exists: %w", err)
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
+	if err := s.fileStorage.Delete(context.Background(), profilePicturePath); err != nil {
+		return fmt.Errorf("failed to delete profile picture: %w", err)
 	}
-	// It's okay if the file doesn't exist - just means there's no custom picture to delete
-
 	return nil
 }
 

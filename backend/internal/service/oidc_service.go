@@ -15,8 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -35,6 +34,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -59,8 +59,9 @@ type OidcService struct {
 	customClaimService *CustomClaimService
 	webAuthnService    *WebAuthnService
 
-	httpClient *http.Client
-	jwkCache   *jwk.Cache
+	httpClient  *http.Client
+	jwkCache    *jwk.Cache
+	fileStorage storage.FileStorage
 }
 
 func NewOidcService(
@@ -72,6 +73,7 @@ func NewOidcService(
 	customClaimService *CustomClaimService,
 	webAuthnService *WebAuthnService,
 	httpClient *http.Client,
+	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
 	s = &OidcService{
 		db:                 db,
@@ -81,6 +83,7 @@ func NewOidcService(
 		customClaimService: customClaimService,
 		webAuthnService:    webAuthnService,
 		httpClient:         httpClient,
+		fileStorage:        fileStorage,
 	}
 
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
@@ -884,34 +887,41 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string) (
 	return clientSecret, nil
 }
 
-func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light bool) (string, string, error) {
+func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light bool) (io.ReadCloser, int64, string, error) {
 	var client model.OidcClient
 	err := s.db.
 		WithContext(ctx).
 		First(&client, "id = ?", clientID).
 		Error
 	if err != nil {
-		return "", "", err
+		return nil, 0, "", err
 	}
 
-	var imagePath, mimeType string
-
+	var suffix string
+	var ext string
 	switch {
 	case !light && client.DarkImageType != nil:
 		// Dark logo if requested and exists
-		imagePath = common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "-dark." + *client.DarkImageType
-		mimeType = utils.GetImageMimeType(*client.DarkImageType)
-
+		suffix = "-dark"
+		ext = *client.DarkImageType
 	case client.ImageType != nil:
 		// Light logo if requested or no dark logo is available
-		imagePath = common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + *client.ImageType
-		mimeType = utils.GetImageMimeType(*client.ImageType)
-
+		ext = *client.ImageType
 	default:
-		return "", "", errors.New("image not found")
+		return nil, 0, "", errors.New("image not found")
 	}
 
-	return imagePath, mimeType, nil
+	mimeType := utils.GetImageMimeType(ext)
+	if mimeType == "" {
+		return nil, 0, "", fmt.Errorf("unsupported image type '%s'", ext)
+	}
+	key := path.Join("oidc-client-images", fmt.Sprintf("%s%s.%s", client.ID, suffix, ext))
+	reader, size, err := s.fileStorage.Open(ctx, key)
+	if err != nil {
+		return nil, 0, "", err
+	}
+
+	return reader, size, mimeType, nil
 }
 
 func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, file *multipart.FileHeader, light bool) error {
@@ -925,9 +935,13 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		darkSuffix = "-dark"
 	}
 
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + clientID + darkSuffix + "." + fileType
-	err := utils.SaveFile(file, imagePath)
+	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+fileType)
+	reader, err := file.Open()
 	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	if err := s.fileStorage.Save(ctx, imagePath, reader); err != nil {
 		return err
 	}
 
@@ -972,8 +986,8 @@ func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) err
 		return err
 	}
 
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "." + oldImageType
-	if err := os.Remove(imagePath); err != nil {
+	imagePath := path.Join("oidc-client-images", client.ID+"."+oldImageType)
+	if err := s.fileStorage.Delete(ctx, imagePath); err != nil {
 		return err
 	}
 
@@ -1015,8 +1029,8 @@ func (s *OidcService) DeleteClientDarkLogo(ctx context.Context, clientID string)
 		return err
 	}
 
-	imagePath := common.EnvConfig.UploadPath + "/oidc-client-images/" + client.ID + "-dark." + oldImageType
-	if err := os.Remove(imagePath); err != nil {
+	imagePath := path.Join("oidc-client-images", client.ID+"-dark."+oldImageType)
+	if err := s.fileStorage.Delete(ctx, imagePath); err != nil {
 		return err
 	}
 
@@ -2017,20 +2031,13 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 		return &common.FileTypeNotSupportedError{}
 	}
 
-	folderPath := filepath.Join(common.EnvConfig.UploadPath, "oidc-client-images")
-	err = os.MkdirAll(folderPath, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
 	var darkSuffix string
 	if !light {
 		darkSuffix = "-dark"
 	}
 
-	imagePath := filepath.Join(folderPath, clientID+darkSuffix+"."+ext)
-	err = utils.SaveFileStream(io.LimitReader(resp.Body, maxLogoSize+1), imagePath)
-	if err != nil {
+	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
+	if err := s.fileStorage.Save(ctx, imagePath, io.LimitReader(resp.Body, maxLogoSize+1)); err != nil {
 		return err
 	}
 
@@ -2042,8 +2049,6 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 }
 
 func (s *OidcService) updateClientLogoType(ctx context.Context, tx *gorm.DB, clientID, ext string, light bool) error {
-	uploadsDir := common.EnvConfig.UploadPath + "/oidc-client-images"
-
 	var darkSuffix string
 	if !light {
 		darkSuffix = "-dark"
@@ -2053,9 +2058,15 @@ func (s *OidcService) updateClientLogoType(ctx context.Context, tx *gorm.DB, cli
 	if err := tx.WithContext(ctx).First(&client, "id = ?", clientID).Error; err != nil {
 		return err
 	}
-	if client.ImageType != nil && *client.ImageType != ext {
-		old := fmt.Sprintf("%s/%s%s.%s", uploadsDir, client.ID, darkSuffix, *client.ImageType)
-		_ = os.Remove(old)
+	var currentType *string
+	if light {
+		currentType = client.ImageType
+	} else {
+		currentType = client.DarkImageType
+	}
+	if currentType != nil && *currentType != ext {
+		old := path.Join("oidc-client-images", client.ID+darkSuffix+"."+*currentType)
+		_ = s.fileStorage.Delete(ctx, old)
 	}
 
 	var column string

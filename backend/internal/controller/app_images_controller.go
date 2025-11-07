@@ -177,15 +177,16 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
 }
 
 func (c *AppImagesController) getImage(ctx *gin.Context, name string) {
-	imagePath, mimeType, err := c.appImagesService.GetImage(name)
+	reader, size, mimeType, err := c.appImagesService.GetImage(ctx.Request.Context(), name)
 	if err != nil {
 		_ = ctx.Error(err)
 		return
 	}
+	defer reader.Close()
 
 	ctx.Header("Content-Type", mimeType)
 	utils.SetCacheControlHeader(ctx, 15*time.Minute, 24*time.Hour)
-	ctx.File(imagePath)
+	ctx.DataFromReader(http.StatusOK, size, mimeType, reader, nil)
 }
 
 // updateDefaultProfilePicture godoc

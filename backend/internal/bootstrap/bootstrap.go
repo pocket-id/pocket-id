@@ -10,6 +10,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -21,7 +22,21 @@ func Bootstrap(ctx context.Context) error {
 	}
 	slog.InfoContext(ctx, "Pocket ID is starting")
 
-	imageExtensions, err := initApplicationImages()
+	fileStorage, err := storage.NewFileStorage(ctx, storage.Config{
+		Backend:           common.EnvConfig.FileBackend,
+		Root:              common.EnvConfig.UploadPath,
+		S3Bucket:          common.EnvConfig.S3Bucket,
+		S3Region:          common.EnvConfig.S3Region,
+		S3Endpoint:        common.EnvConfig.S3Endpoint,
+		S3AccessKeyID:     common.EnvConfig.S3AccessKeyID,
+		S3SecretAccessKey: common.EnvConfig.S3SecretAccessKey,
+		S3ForcePathStyle:  common.EnvConfig.S3ForcePathStyle,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize file storage: %w", err)
+	}
+
+	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize application images: %w", err)
 	}
@@ -33,7 +48,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	// Create all services
-	svc, err := initServices(ctx, db, httpClient, imageExtensions)
+	svc, err := initServices(ctx, db, httpClient, imageExtensions, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}

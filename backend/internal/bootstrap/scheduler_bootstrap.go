@@ -23,7 +23,7 @@ func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, http
 	if err != nil {
 		return fmt.Errorf("failed to register DB cleanup jobs in scheduler: %w", err)
 	}
-	err = scheduler.RegisterFileCleanupJobs(ctx, db)
+	err = scheduler.RegisterFileCleanupJobs(ctx, db, svc.fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to register file cleanup jobs in scheduler: %w", err)
 	}

@@ -29,6 +29,7 @@ const (
 	DbProviderPostgres      DbProvider = "postgres"
 	MaxMindGeoLiteCityUrl   string     = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
 	defaultSqliteConnString string     = "data/pocket-id.db"
+	defaultFsUploadPath     string     = "data/uploads"
 	AppUrl                  string     = "http://localhost:1411"
 )
 
@@ -38,7 +39,14 @@ type EnvConfigSchema struct {
 	AppURL             string     `env:"APP_URL" options:"toLower,trimTrailingSlash"`
 	DbProvider         DbProvider `env:"DB_PROVIDER" options:"toLower"`
 	DbConnectionString string     `env:"DB_CONNECTION_STRING" options:"file"`
+	FileBackend        string     `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath         string     `env:"UPLOAD_PATH"`
+	S3Bucket           string     `env:"S3_BUCKET"`
+	S3Region           string     `env:"S3_REGION"`
+	S3Endpoint         string     `env:"S3_ENDPOINT"`
+	S3AccessKeyID      string     `env:"S3_ACCESS_KEY_ID"`
+	S3SecretAccessKey  string     `env:"S3_SECRET_ACCESS_KEY"`
+	S3ForcePathStyle   bool       `env:"S3_FORCE_PATH_STYLE"`
 	KeysPath           string     `env:"KEYS_PATH"`
 	KeysStorage        string     `env:"KEYS_STORAGE"`
 	EncryptionKey      []byte     `env:"ENCRYPTION_KEY" options:"file"`
@@ -72,30 +80,16 @@ func init() {
 
 func defaultConfig() EnvConfigSchema {
 	return EnvConfigSchema{
-		AppEnv:             "production",
-		LogLevel:           "info",
-		DbProvider:         "sqlite",
-		DbConnectionString: "",
-		UploadPath:         "data/uploads",
-		KeysPath:           "data/keys",
-		KeysStorage:        "", // "database" or "file"
-		EncryptionKey:      nil,
-		AppURL:             AppUrl,
-		Port:               "1411",
-		Host:               "0.0.0.0",
-		UnixSocket:         "",
-		UnixSocketMode:     "",
-		MaxMindLicenseKey:  "",
-		GeoLiteDBPath:      "data/GeoLite2-City.mmdb",
-		GeoLiteDBUrl:       MaxMindGeoLiteCityUrl,
-		LocalIPv6Ranges:    "",
-		UiConfigDisabled:   false,
-		MetricsEnabled:     false,
-		TracingEnabled:     false,
-		TrustProxy:         false,
-		AnalyticsDisabled:  false,
-		AllowDowngrade:     false,
-		InternalAppURL:     "",
+		AppEnv:        "production",
+		LogLevel:      "info",
+		DbProvider:    "sqlite",
+		FileBackend:   "fs",
+		KeysPath:      "data/keys",
+		AppURL:        AppUrl,
+		Port:          "1411",
+		Host:          "0.0.0.0",
+		GeoLiteDBPath: "data/GeoLite2-City.mmdb",
+		GeoLiteDBUrl:  MaxMindGeoLiteCityUrl,
 	}
 }
 
@@ -179,6 +173,25 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		// All good, these are valid values
 	default:
 		return fmt.Errorf("invalid value for KEYS_STORAGE: %s", config.KeysStorage)
+	}
+
+	switch config.FileBackend {
+	case "s3":
+		if config.S3Bucket == "" {
+			return errors.New("FILE_S3_BUCKET must be set when FILE_BACKEND is s3")
+		}
+		if config.S3Region == "" {
+			return errors.New("FILE_S3_REGION must be set when FILE_BACKEND is s3")
+		}
+		if config.KeysStorage == "file" {
+			return errors.New("KEYS_STORAGE cannot be 'file' when FILE_BACKEND is 's3'")
+		}
+	case "", "fs":
+		if config.UploadPath == "" {
+			config.UploadPath = defaultFsUploadPath
+		}
+	default:
+		return errors.New("invalid FILE_BACKEND value. Must be 'fs' or 's3'")
 	}
 
 	// Validate LOCAL_IPV6_RANGES

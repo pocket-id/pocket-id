@@ -2,20 +2,15 @@ package utils
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"mime"
-	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"github.com/google/uuid"
-	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
 func GetFileExtension(filename string) string {
@@ -86,110 +81,6 @@ func GetImageExtensionFromMimeType(mimeType string) string {
 	}
 }
 
-func CopyEmbeddedFileToDisk(srcFilePath, destFilePath string) error {
-	srcFile, err := resources.FS.Open(srcFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to open embedded file: %w", err)
-	}
-	defer srcFile.Close()
-
-	err = os.MkdirAll(filepath.Dir(destFilePath), os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
-	}
-
-	destFile, err := os.Create(destFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to open destination file: %w", err)
-	}
-	defer destFile.Close()
-
-	_, err = io.Copy(destFile, srcFile)
-	if err != nil {
-		return fmt.Errorf("failed to write to destination file: %w", err)
-	}
-
-	return nil
-}
-
-func EmbeddedFileSha256(filePath string) ([]byte, error) {
-	f, err := resources.FS.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open embedded file: %w", err)
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	_, err = io.Copy(h, f)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read embedded file: %w", err)
-	}
-
-	return h.Sum(nil), nil
-}
-
-func SaveFile(file *multipart.FileHeader, dst string) error {
-	src, err := file.Open()
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	if err = os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
-		return err
-	}
-
-	return SaveFileStream(src, dst)
-}
-
-// SaveFileStream saves a stream to a file.
-func SaveFileStream(r io.Reader, dstFileName string) error {
-	// Our strategy is to save to a separate file and then rename it to override the original file
-	tmpFileName := dstFileName + "." + uuid.NewString() + "-tmp"
-
-	// Write to the temporary file
-	tmpFile, err := os.Create(tmpFileName)
-	if err != nil {
-		return fmt.Errorf("failed to open file '%s' for writing: %w", tmpFileName, err)
-	}
-
-	n, err := io.Copy(tmpFile, r)
-	if err != nil {
-		// Delete the temporary file; we ignore errors here
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpFileName)
-
-		return fmt.Errorf("failed to write to file '%s': %w", tmpFileName, err)
-	}
-
-	err = tmpFile.Close()
-	if err != nil {
-		// Delete the temporary file; we ignore errors here
-		_ = os.Remove(tmpFileName)
-
-		return fmt.Errorf("failed to close stream to file '%s': %w", tmpFileName, err)
-	}
-
-	if n == 0 {
-		// Delete the temporary file; we ignore errors here
-		_ = os.Remove(tmpFileName)
-
-		return errors.New("no data written")
-	}
-
-	// Rename to the final file, which overrides existing files
-	// This is an atomic operation
-	err = os.Rename(tmpFileName, dstFileName)
-	if err != nil {
-		// Delete the temporary file; we ignore errors here
-		_ = os.Remove(tmpFileName)
-
-		return fmt.Errorf("failed to rename file '%s': %w", dstFileName, err)
-	}
-
-	return nil
-}
-
 // FileExists returns true if a file exists on disk and is a regular file
 func FileExists(path string) (bool, error) {
 	s, err := os.Stat(path)
@@ -238,18 +129,4 @@ func IsWritableDir(dir string) (bool, error) {
 	_ = file.Close()
 
 	return true, nil
-}
-
-// OpenFileWithSize opens a file and returns its size
-func OpenFileWithSize(path string) (io.ReadCloser, int64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, 0, err
-	}
-	info, err := f.Stat()
-	if err != nil {
-		f.Close()
-		return nil, 0, err
-	}
-	return f, info.Size(), nil
 }

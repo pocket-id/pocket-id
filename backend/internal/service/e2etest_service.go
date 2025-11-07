@@ -11,8 +11,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
+	"path"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -25,6 +24,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	"github.com/pocket-id/pocket-id/backend/resources"
@@ -35,15 +35,17 @@ type TestService struct {
 	jwtService       *JwtService
 	appConfigService *AppConfigService
 	ldapService      *LdapService
+	fileStorage      storage.FileStorage
 	externalIdPKey   jwk.Key
 }
 
-func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService) (*TestService, error) {
+func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		appConfigService: appConfigService,
 		jwtService:       jwtService,
 		ldapService:      ldapService,
+		fileStorage:      fileStorage,
 	}
 	err := s.initExternalIdP()
 	if err != nil {
@@ -424,8 +426,8 @@ func (s *TestService) ResetDatabase() error {
 }
 
 func (s *TestService) ResetApplicationImages(ctx context.Context) error {
-	if err := os.RemoveAll(common.EnvConfig.UploadPath); err != nil {
-		slog.ErrorContext(ctx, "Error removing directory", slog.Any("error", err))
+	if err := s.fileStorage.DeleteAll(ctx, ""); err != nil {
+		slog.ErrorContext(ctx, "Error removing uploads", slog.Any("error", err))
 		return err
 	}
 
@@ -435,13 +437,19 @@ func (s *TestService) ResetApplicationImages(ctx context.Context) error {
 	}
 
 	for _, file := range files {
-		srcFilePath := filepath.Join("images", file.Name())
-		destFilePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", file.Name())
-
-		err := utils.CopyEmbeddedFileToDisk(srcFilePath, destFilePath)
+		if file.IsDir() {
+			continue
+		}
+		srcFilePath := path.Join("images", file.Name())
+		srcFile, err := resources.FS.Open(srcFilePath)
 		if err != nil {
 			return err
 		}
+		if err := s.fileStorage.Save(ctx, path.Join("application-images", file.Name()), srcFile); err != nil {
+			srcFile.Close()
+			return err
+		}
+		srcFile.Close()
 	}
 
 	return nil

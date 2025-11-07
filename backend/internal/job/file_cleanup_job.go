@@ -4,27 +4,27 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
 	"gorm.io/gorm"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
-func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB) error {
-	jobs := &FileCleanupJobs{db: db}
+func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB, fileStorage storage.FileStorage) error {
+	jobs := &FileCleanupJobs{db: db, fileStorage: fileStorage}
 
 	// Run every 24 hours
 	return s.registerJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, false)
 }
 
 type FileCleanupJobs struct {
-	db *gorm.DB
+	db          *gorm.DB
+	fileStorage storage.FileStorage
 }
 
 // ClearUnusedDefaultProfilePictures deletes default profile pictures that don't match any user's initials
@@ -44,29 +44,24 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 		initialsInUse[user.Initials()] = struct{}{}
 	}
 
-	defaultPicturesDir := common.EnvConfig.UploadPath + "/profile-pictures/defaults"
-	if _, err := os.Stat(defaultPicturesDir); os.IsNotExist(err) {
-		return nil
-	}
-
-	files, err := os.ReadDir(defaultPicturesDir)
+	defaultPicturesDir := path.Join("profile-pictures", "defaults")
+	files, err := j.fileStorage.List(ctx, defaultPicturesDir)
 	if err != nil {
-		return fmt.Errorf("failed to read default profile pictures directory: %w", err)
+		return fmt.Errorf("failed to list default profile pictures: %w", err)
 	}
 
 	filesDeleted := 0
 	for _, file := range files {
-		if file.IsDir() {
-			continue // Skip directories
+		_, filename := path.Split(file.Path)
+		if filename == "" {
+			continue
 		}
-
-		filename := file.Name()
 		initials := strings.TrimSuffix(filename, ".png")
 
 		// If these initials aren't used by any user, delete the file
 		if _, ok := initialsInUse[initials]; !ok {
-			filePath := filepath.Join(defaultPicturesDir, filename)
-			if err := os.Remove(filePath); err != nil {
+			filePath := path.Join(defaultPicturesDir, filename)
+			if err := j.fileStorage.Delete(ctx, filePath); err != nil {
 				slog.ErrorContext(ctx, "Failed to delete unused default profile picture", slog.String("path", filePath), slog.Any("error", err))
 			} else {
 				filesDeleted++
