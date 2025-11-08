@@ -12,40 +12,6 @@ function getTemplateName(filename: string): string {
   return filename.replace(".tsx", "");
 }
 
-/**
- * Tag-aware wrapping:
- * - Prefer breaking immediately after the last '>' within maxLen.
- * - Never break at spaces.
- * - If no '>' exists in the window, hard-break at maxLen.
- */
-function tagAwareWrap(input: string, maxLen: number): string {
-  const out: string[] = [];
-
-  for (const originalLine of input.split(/\r?\n/)) {
-    let line = originalLine;
-    while (line.length > maxLen) {
-      let breakPos = line.lastIndexOf(">", maxLen);
-
-      // If '>' happens to be exactly at maxLen, break after it
-      if (breakPos === maxLen) breakPos = maxLen;
-
-      // If we found a '>' before the limit, break right after it
-      if (breakPos > -1 && breakPos < maxLen) {
-        out.push(line.slice(0, breakPos + 1));
-        line = line.slice(breakPos + 1);
-        continue;
-      }
-
-      // No suitable tag end found—hard break
-      out.push(line.slice(0, maxLen));
-      line = line.slice(maxLen);
-    }
-    out.push(line);
-  }
-
-  return out.join("\n");
-}
-
 async function buildTemplateFile(
   Component: any,
   templateName: string,
@@ -58,11 +24,7 @@ async function buildTemplateFile(
   // Normalize quotes
   const normalized = rendered.replace(/&quot;/g, '"');
 
-  // Enforce line length: prefer tag boundaries, never spaces
-  const maxLen = isPlainText ? 78 : 998; // RFC-safe
-  const safe = tagAwareWrap(normalized, maxLen);
-
-  const goTemplate = `{{define "root"}}${safe}{{end}}`;
+  const goTemplate = `{{define "root"}}${normalized}{{end}}`;
   const suffix = isPlainText ? "_text.tmpl" : "_html.tmpl";
   const templatePath = path.join(outputDir, `${templateName}${suffix}`);
 
@@ -98,7 +60,7 @@ async function discoverAndBuildTemplates() {
       }
 
       await buildTemplateFile(Component, templateName, false); // HTML
-      await buildTemplateFile(Component, templateName, true);  // Text
+      await buildTemplateFile(Component, templateName, true); // Text
 
       console.log(`✓ Built ${templateName}`);
     } catch (error) {

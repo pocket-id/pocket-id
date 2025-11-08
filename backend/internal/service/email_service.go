@@ -282,16 +282,18 @@ func prepareBody[V any](srv *EmailService, template email.Template[V], data *ema
 
 	var htmlHeader = textproto.MIMEHeader{}
 	htmlHeader.Add("Content-Type", "text/html; charset=UTF-8")
-	htmlHeader.Add("Content-Transfer-Encoding", "8bit")
+	htmlHeader.Add("Content-Transfer-Encoding", "quoted-printable")
 	htmlPart, err := mpart.CreatePart(htmlHeader)
 	if err != nil {
 		return "", "", fmt.Errorf("create html part: %w", err)
 	}
 
-	err = email.GetTemplate(srv.htmlTemplates, template).ExecuteTemplate(htmlPart, "root", data)
+	htmlQp := quotedprintable.NewWriter(htmlPart)
+	err = email.GetTemplate(srv.htmlTemplates, template).ExecuteTemplate(htmlQp, "root", data)
 	if err != nil {
 		return "", "", fmt.Errorf("execute html template: %w", err)
 	}
+	htmlQp.Close()
 
 	err = mpart.Close()
 	if err != nil {
