@@ -34,7 +34,12 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 
 	destinationFiles, err := fileStorage.List(ctx, "application-images")
 	if err != nil {
-		return nil, fmt.Errorf("failed to list application images: %w", err)
+		if storage.IsNotExist(err) {
+			destinationFiles = []storage.ObjectInfo{}
+		} else {
+			return nil, fmt.Errorf("failed to list application images: %w", err)
+		}
+
 	}
 	dstNameToExt := make(map[string]string, len(destinationFiles))
 	for _, f := range destinationFiles {

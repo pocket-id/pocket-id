@@ -36,7 +36,7 @@ type Config struct {
 // NewFileStorage initializes the configured storage backend.
 func NewFileStorage(ctx context.Context, cfg Config) (FileStorage, error) {
 	switch cfg.Backend {
-	case "", "filesystem":
+	case "", "fs":
 		if strings.TrimSpace(cfg.Root) == "" {
 			return nil, errors.New("filesystem storage requires a root path")
 		}

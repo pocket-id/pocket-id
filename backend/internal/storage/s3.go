@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -129,8 +128,19 @@ func (s *s3Storage) List(ctx context.Context, path string) ([]ObjectInfo, error)
 }
 
 func (s *s3Storage) buildObjectKey(p string) string {
+	p = filepath.Clean(p)
 	p = filepath.ToSlash(p)
-	return path.Join(s.prefix, p)
+	p = strings.Trim(p, "/")
+
+	if p == "" {
+		return s.prefix
+	}
+
+	if s.prefix == "" {
+		return p
+	}
+
+	return s.prefix + "/" + p
 }
 
 func isS3NotFound(err error) bool {

@@ -177,12 +177,6 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 
 	switch config.FileBackend {
 	case "s3":
-		if config.S3Bucket == "" {
-			return errors.New("FILE_S3_BUCKET must be set when FILE_BACKEND is s3")
-		}
-		if config.S3Region == "" {
-			return errors.New("FILE_S3_REGION must be set when FILE_BACKEND is s3")
-		}
 		if config.KeysStorage == "file" {
 			return errors.New("KEYS_STORAGE cannot be 'file' when FILE_BACKEND is 's3'")
 		}

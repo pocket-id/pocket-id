@@ -17,12 +17,19 @@ type filesystemStorage struct {
 }
 
 func newFilesystemStorage(rootPath string) (FileStorage, error) {
+	if err := os.MkdirAll(rootPath, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create root directory '%s': %w", rootPath, err)
+	}
 	root, err := os.OpenRoot(rootPath)
 	return &filesystemStorage{root: root}, err
 }
 
 func (s *filesystemStorage) Save(_ context.Context, path string, data io.Reader) error {
 	path = filepath.FromSlash(path)
+
+	if err := s.root.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return fmt.Errorf("failed to create directories for path '%s': %w", path, err)
+	}
 
 	// Our strategy is to save to a separate file and then rename it to override the original file
 	tmpName := path + "." + uuid.NewString() + "-tmp"
@@ -82,6 +89,25 @@ func (s *filesystemStorage) Delete(_ context.Context, path string) error {
 
 func (s *filesystemStorage) DeleteAll(_ context.Context, path string) error {
 	path = filepath.FromSlash(path)
+
+	// If "/" or "" is requested, we delete all contents of the root.
+	if path == "" || path == "/" {
+		dir, err := s.root.Open(path)
+		if err != nil {
+			return fmt.Errorf("failed to open root directory: %w", err)
+		}
+		defer dir.Close()
+
+		entries, err := dir.ReadDir(-1)
+		if err != nil {
+			return fmt.Errorf("failed to list root directory: %w", err)
+		}
+		for _, entry := range entries {
+			if err := s.root.RemoveAll(entry.Name()); err != nil {
+				return fmt.Errorf("failed to delete '%s': %w", entry.Name(), err)
+			}
+		}
+	}
 
 	return s.root.RemoveAll(path)
 }
