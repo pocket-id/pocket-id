@@ -132,7 +132,7 @@ func (s *s3Storage) buildObjectKey(p string) string {
 	p = filepath.ToSlash(p)
 	p = strings.Trim(p, "/")
 
-	if p == "" {
+	if p == "" || p == "." {
 		return s.prefix
 	}
 

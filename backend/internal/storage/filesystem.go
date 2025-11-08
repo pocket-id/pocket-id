@@ -90,9 +90,9 @@ func (s *filesystemStorage) Delete(_ context.Context, path string) error {
 func (s *filesystemStorage) DeleteAll(_ context.Context, path string) error {
 	path = filepath.FromSlash(path)
 
-	// If "/" or "" is requested, we delete all contents of the root.
-	if path == "" || path == "/" {
-		dir, err := s.root.Open(path)
+	// If "/", "." or "" is requested, we delete all contents of the root.
+	if path == "" || path == "/" || path == "." {
+		dir, err := s.root.Open(".")
 		if err != nil {
 			return fmt.Errorf("failed to open root directory: %w", err)
 		}
@@ -107,6 +107,7 @@ func (s *filesystemStorage) DeleteAll(_ context.Context, path string) error {
 				return fmt.Errorf("failed to delete '%s': %w", entry.Name(), err)
 			}
 		}
+		return nil
 	}
 
 	return s.root.RemoveAll(path)
