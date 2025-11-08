@@ -208,6 +208,44 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, "8080", EnvConfig.Port)
 		assert.Equal(t, "localhost", EnvConfig.Host) // lowercased
 	})
+
+	t.Run("should normalize file backend and default upload path", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("FILE_BACKEND", "FS")
+		t.Setenv("UPLOAD_PATH", "")
+
+		err := parseEnvConfig()
+		require.NoError(t, err)
+		assert.Equal(t, "fs", EnvConfig.FileBackend)
+		assert.Equal(t, defaultFsUploadPath, EnvConfig.UploadPath)
+	})
+
+	t.Run("should fail when FILE_BACKEND is s3 but keys are stored on filesystem", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("FILE_BACKEND", "s3")
+
+		err := parseEnvConfig()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "KEYS_STORAGE cannot be 'file' when FILE_BACKEND is 's3'")
+	})
+
+	t.Run("should fail with invalid FILE_BACKEND value", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("FILE_BACKEND", "invalid")
+
+		err := parseEnvConfig()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "invalid FILE_BACKEND value")
+	})
 }
 
 func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
