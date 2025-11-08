@@ -57,7 +57,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        db: [sqlite, postgres]
+        db: [sqlite, postgres, sqlite-s3]
+
     steps:
       - uses: actions/checkout@v5
 
@@ -75,6 +76,7 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Cache PostgreSQL Docker image
         if: matrix.db == 'postgres'
         uses: actions/cache@v3
@@ -92,6 +94,7 @@ jobs:
       - name: Load PostgreSQL image from cache
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
+
       - name: Cache LLDAP Docker image
         uses: actions/cache@v3
         id: lldap-cache
@@ -108,6 +111,7 @@ jobs:
       - name: Load LLDAP image from cache
         if: steps.lldap-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/lldap-image.tar
+
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
@@ -124,6 +128,7 @@ jobs:
         working-directory: ./tests
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
+
       - name: Run Docker Container (sqlite) with LDAP
         if: matrix.db == 'sqlite'
         working-directory: ./tests/setup
@@ -137,6 +142,13 @@ jobs:
         run: |
           docker compose -f docker-compose-postgres.yml up -d
           docker compose -f docker-compose-postgres.yml logs -f pocket-id &> /tmp/backend.log &
+
+      - name: Run Docker Container (sqlite-s3) with LDAP + S3
+        if: matrix.db == 'sqlite-s3'
+        working-directory: ./tests/setup
+        run: |
+          docker compose -f docker-compose-s3.yml up -d
+          docker compose -f docker-compose-s3.yml logs -f pocket-id &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./tests
