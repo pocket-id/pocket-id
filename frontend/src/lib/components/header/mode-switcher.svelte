@@ -5,6 +5,7 @@
 	import { mode, resetMode, setMode } from 'mode-watcher';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import { m } from '$lib/paraglide/messages';
 
 	const isDark = $derived(mode.current === 'dark');
 </script>
@@ -24,8 +25,8 @@
 		<span class="sr-only">Toggle theme</span>
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content align="end">
-		<DropdownMenu.Item onclick={() => setMode('light')}>Light</DropdownMenu.Item>
-		<DropdownMenu.Item onclick={() => setMode('dark')}>Dark</DropdownMenu.Item>
-		<DropdownMenu.Item onclick={() => resetMode()}>System</DropdownMenu.Item>
+		<DropdownMenu.Item onclick={() => setMode('light')}>{m.light()}</DropdownMenu.Item>
+		<DropdownMenu.Item onclick={() => setMode('dark')}>{m.dark()}</DropdownMenu.Item>
+		<DropdownMenu.Item onclick={() => resetMode()}>{m.system()}</DropdownMenu.Item>
 	</DropdownMenu.Content>
 </DropdownMenu.Root>
