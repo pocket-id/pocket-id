@@ -463,7 +463,7 @@
 	"reauthentication": "Повторная аутентификация",
 	"clear_filters": "Сбросить фильтры",
 	"default_profile_picture": "Изображение профиля по умолчанию",
-	"light": "Light",
-	"dark": "Dark",
-	"system": "System"
+	"light": "Свет",
+	"dark": "Темный",
+	"system": "Система"
 }
