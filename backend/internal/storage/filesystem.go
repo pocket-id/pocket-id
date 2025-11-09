@@ -23,6 +23,9 @@ func NewFilesystemStorage(rootPath string) (FileStorage, error) {
 		return nil, fmt.Errorf("failed to create root directory '%s': %w", rootPath, err)
 	}
 	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open root directory '%s': %w", rootPath, err)
+	}
 
 	absoluteRootPath, err := filepath.Abs(rootPath)
 	if err != nil {

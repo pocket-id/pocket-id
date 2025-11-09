@@ -28,7 +28,6 @@ type FileStorage interface {
 	Type() string
 }
 
-
 func IsNotExist(err error) bool {
 	return os.IsNotExist(err)
 }

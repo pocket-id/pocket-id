@@ -135,6 +135,7 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	// Save the default picture for future use (in a goroutine to avoid blocking)
 	//nolint:contextcheck
 	defaultPictureBytes := defaultPicture.Bytes()
+	//nolint:contextcheck
 	go func() {
 		if err := s.fileStorage.Save(context.Background(), defaultPicturePath, bytes.NewReader(defaultPictureBytes)); err != nil {
 			slog.Error("Failed to cache default profile picture", slog.String("initials", user.Initials()), slog.Any("error", err))

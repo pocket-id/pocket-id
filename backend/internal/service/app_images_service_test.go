@@ -19,10 +19,7 @@ import (
 )
 
 func TestAppImagesService_GetImage(t *testing.T) {
-	store, err := storage.NewFileStorage(context.Background(), storage.Config{
-		Backend: "fs",
-		Root:    t.TempDir(),
-	})
+	store, err := storage.NewFilesystemStorage(t.TempDir())
 	require.NoError(t, err)
 
 	require.NoError(t, store.Save(context.Background(), path.Join("application-images", "background.webp"), bytes.NewReader([]byte("data"))))
@@ -40,10 +37,7 @@ func TestAppImagesService_GetImage(t *testing.T) {
 }
 
 func TestAppImagesService_UpdateImage(t *testing.T) {
-	store, err := storage.NewFileStorage(context.Background(), storage.Config{
-		Backend: "fs",
-		Root:    t.TempDir(),
-	})
+	store, err := storage.NewFilesystemStorage(t.TempDir())
 	require.NoError(t, err)
 
 	require.NoError(t, store.Save(context.Background(), path.Join("application-images", "logoLight.svg"), bytes.NewReader([]byte("old"))))
@@ -52,7 +46,7 @@ func TestAppImagesService_UpdateImage(t *testing.T) {
 
 	fileHeader := newFileHeader(t, "logoLight.png", []byte("new"))
 
-	require.NoError(t, service.UpdateImage(fileHeader, "logoLight"))
+	require.NoError(t, service.UpdateImage(context.Background(), fileHeader, "logoLight"))
 
 	reader, _, err := store.Open(context.Background(), path.Join("application-images", "logoLight.png"))
 	require.NoError(t, err)
@@ -63,10 +57,7 @@ func TestAppImagesService_UpdateImage(t *testing.T) {
 }
 
 func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
-	store, err := storage.NewFileStorage(context.Background(), storage.Config{
-		Backend: "fs",
-		Root:    t.TempDir(),
-	})
+	store, err := storage.NewFilesystemStorage(t.TempDir())
 	require.NoError(t, err)
 
 	service := NewAppImagesService(map[string]string{}, store)
@@ -79,7 +70,7 @@ func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
 	})
 
 	t.Run("reject unsupported file types", func(t *testing.T) {
-		err := service.UpdateImage(newFileHeader(t, "logo.txt", []byte("nope")), "logo")
+		err := service.UpdateImage(context.Background(), newFileHeader(t, "logo.txt", []byte("nope")), "logo")
 		require.Error(t, err)
 		var fileTypeErr *common.FileTypeNotSupportedError
 		assert.ErrorAs(t, err, &fileTypeErr)
@@ -89,10 +80,10 @@ func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
 		require.NoError(t, store.Save(context.Background(), path.Join("application-images", "default-profile-picture.png"), bytes.NewReader([]byte("img"))))
 		service.extensions["default-profile-picture"] = "png"
 
-		require.NoError(t, service.DeleteImage("default-profile-picture"))
+		require.NoError(t, service.DeleteImage(context.Background(), "default-profile-picture"))
 		assert.False(t, service.IsDefaultProfilePictureSet())
 
-		err := service.DeleteImage("default-profile-picture")
+		err := service.DeleteImage(context.Background(), "default-profile-picture")
 		require.Error(t, err)
 		var imageErr *common.ImageNotFoundError
 		assert.ErrorAs(t, err, &imageErr)

@@ -17,7 +17,6 @@ import (
 	"github.com/aws/smithy-go"
 )
 
-
 type S3Config struct {
 	Bucket          string
 	Region          string
