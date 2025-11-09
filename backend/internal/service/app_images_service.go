@@ -73,7 +73,7 @@ func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName str
 	}
 
 	if currentExt != "" && currentExt != fileType {
-		oldImagePath := path.Join("application-images", fmt.Sprintf("%s.%s", imageName, currentExt))
+		oldImagePath := path.Join("application-images", imageName + "." + currentExt)
 		if err := s.storage.Delete(context.Background(), oldImagePath); err != nil {
 			return err
 		}
