@@ -4,6 +4,7 @@
 	import userStore from '$lib/stores/user-store';
 	import Logo from '../logo.svelte';
 	import HeaderAvatar from './header-avatar.svelte';
+	import ModeSwitcher from './mode-switcher.svelte';
 
 	const authUrls = [
 		/^\/authorize$/,
@@ -38,6 +39,7 @@
 			{/if}
 		</div>
 		<div class="flex items-center justify-between gap-4">
+			<ModeSwitcher />
 			{#if $userStore?.id}
 				<HeaderAvatar />
 			{/if}
