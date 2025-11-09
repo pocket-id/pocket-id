@@ -462,5 +462,8 @@
 	"ldap_id": "LDAP标识符",
 	"reauthentication": "重新认证",
 	"clear_filters": "清除筛选条件",
-	"default_profile_picture": "默认个人资料图片"
+	"default_profile_picture": "默认个人资料图片",
+	"light": "光",
+	"dark": "黑暗",
+	"system": "系统"
 }
