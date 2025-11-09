@@ -46,7 +46,7 @@ func (s *AppImagesService) GetImage(ctx context.Context, name string) (io.ReadCl
 	return reader, size, mimeType, nil
 }
 
-func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName string) error {
+func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.FileHeader, imageName string) error {
 	fileType := strings.ToLower(utils.GetFileExtension(file.Filename))
 	mimeType := utils.GetImageMimeType(fileType)
 	if mimeType == "" {
@@ -68,13 +68,13 @@ func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName str
 	}
 	defer fileReader.Close()
 
-	if err := s.storage.Save(context.Background(), imagePath, fileReader); err != nil {
+	if err := s.storage.Save(ctx, imagePath, fileReader); err != nil {
 		return err
 	}
 
 	if currentExt != "" && currentExt != fileType {
 		oldImagePath := path.Join("application-images", fmt.Sprintf("%s.%s", imageName, currentExt))
-		if err := s.storage.Delete(context.Background(), oldImagePath); err != nil {
+		if err := s.storage.Delete(ctx, oldImagePath); err != nil {
 			return err
 		}
 	}
@@ -84,7 +84,7 @@ func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName str
 	return nil
 }
 
-func (s *AppImagesService) DeleteImage(imageName string) error {
+func (s *AppImagesService) DeleteImage(ctx context.Context, imageName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -94,7 +94,7 @@ func (s *AppImagesService) DeleteImage(imageName string) error {
 	}
 
 	imagePath := path.Join("application-images", imageName+"."+ext)
-	if err := s.storage.Delete(context.Background(), imagePath); err != nil {
+	if err := s.storage.Delete(ctx, imagePath); err != nil {
 		return err
 	}
 

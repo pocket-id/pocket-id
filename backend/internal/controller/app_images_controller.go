@@ -116,7 +116,7 @@ func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) {
 		imageName = "logoDark"
 	}
 
-	if err := c.appImagesService.UpdateImage(file, imageName); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, imageName); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
@@ -139,7 +139,7 @@ func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.appImagesService.UpdateImage(file, "background"); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "background"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
@@ -168,7 +168,7 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.appImagesService.UpdateImage(file, "favicon"); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "favicon"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
@@ -204,7 +204,7 @@ func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.appImagesService.UpdateImage(file, "default-profile-picture"); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "default-profile-picture"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
@@ -219,7 +219,7 @@ func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/application-images/default-profile-picture [delete]
 func (c *AppImagesController) deleteDefaultProfilePicture(ctx *gin.Context) {
-	if err := c.appImagesService.DeleteImage("default-profile-picture"); err != nil {
+	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), "default-profile-picture"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}

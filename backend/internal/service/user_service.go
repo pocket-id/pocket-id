@@ -158,7 +158,7 @@ func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model
 	return user.UserGroups, nil
 }
 
-func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error {
+func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, file io.Reader) error {
 	// Validate the user ID to prevent directory traversal
 	err := uuid.Validate(userID)
 	if err != nil {
@@ -172,7 +172,7 @@ func (s *UserService) UpdateProfilePicture(userID string, file io.Reader) error 
 	}
 
 	profilePicturePath := path.Join("profile-pictures", userID+".png")
-	err = s.fileStorage.Save(context.Background(), profilePicturePath, profilePicture)
+	err = s.fileStorage.Save(ctx, profilePicturePath, profilePicture)
 	if err != nil {
 		return err
 	}
@@ -665,14 +665,14 @@ func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User
 }
 
 // ResetProfilePicture deletes a user's custom profile picture
-func (s *UserService) ResetProfilePicture(userID string) error {
+func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) error {
 	// Validate the user ID to prevent directory traversal
 	if err := uuid.Validate(userID); err != nil {
 		return &common.InvalidUUIDError{}
 	}
 
 	profilePicturePath := path.Join("profile-pictures", userID+".png")
-	if err := s.fileStorage.Delete(context.Background(), profilePicturePath); err != nil {
+	if err := s.fileStorage.Delete(ctx, profilePicturePath); err != nil {
 		return fmt.Errorf("failed to delete profile picture: %w", err)
 	}
 	return nil

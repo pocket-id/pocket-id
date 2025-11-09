@@ -470,7 +470,7 @@ func (s *LdapService) saveProfilePicture(parentCtx context.Context, userId strin
 	}
 
 	// Update the profile picture
-	err = s.userService.UpdateProfilePicture(userId, reader)
+	err = s.userService.UpdateProfilePicture(parentCtx, userId, reader)
 	if err != nil {
 		return fmt.Errorf("failed to update profile picture: %w", err)
 	}
