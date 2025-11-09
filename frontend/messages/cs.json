@@ -462,5 +462,8 @@
 	"ldap_id": "LDAP ID",
 	"reauthentication": "Opětovné ověření",
 	"clear_filters": "Vymazat filtry",
-	"default_profile_picture": "Výchozí profilový obrázek"
+	"default_profile_picture": "Výchozí profilový obrázek",
+	"light": "Světlo",
+	"dark": "Tmavá",
+	"system": "Systém"
 }
