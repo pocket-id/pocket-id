@@ -915,7 +915,7 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light 
 	if mimeType == "" {
 		return nil, 0, "", fmt.Errorf("unsupported image type '%s'", ext)
 	}
-	key := path.Join("oidc-client-images", fmt.Sprintf("%s%s.%s", client.ID, suffix, ext))
+	key := path.Join("oidc-client-images", client.ID + suffix + "." + ext)
 	reader, size, err := s.fileStorage.Open(ctx, key)
 	if err != nil {
 		return nil, 0, "", err
