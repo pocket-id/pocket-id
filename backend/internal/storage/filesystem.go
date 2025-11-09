@@ -8,12 +8,14 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
 type filesystemStorage struct {
-	root *os.Root
+	root             *os.Root
+	absoluteRootPath string
 }
 
 func newFilesystemStorage(rootPath string) (FileStorage, error) {
@@ -21,7 +23,17 @@ func newFilesystemStorage(rootPath string) (FileStorage, error) {
 		return nil, fmt.Errorf("failed to create root directory '%s': %w", rootPath, err)
 	}
 	root, err := os.OpenRoot(rootPath)
-	return &filesystemStorage{root: root}, err
+
+	absoluteRootPath, err := filepath.Abs(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path of root directory '%s': %w", rootPath, err)
+	}
+
+	return &filesystemStorage{root: root, absoluteRootPath: absoluteRootPath}, err
+}
+
+func (s *filesystemStorage) Type() string {
+	return TypeFileSystem
 }
 
 func (s *filesystemStorage) Save(_ context.Context, path string, data io.Reader) error {
@@ -136,9 +148,43 @@ func (s *filesystemStorage) List(_ context.Context, path string) ([]ObjectInfo, 
 			return nil, err
 		}
 		objects = append(objects, ObjectInfo{
-			Path: filepath.Join(path, entry.Name()),
-			Size: info.Size(),
+			Path:    filepath.Join(path, entry.Name()),
+			Size:    info.Size(),
+			ModTime: info.ModTime(),
 		})
 	}
 	return objects, nil
+}
+func (s *filesystemStorage) Walk(_ context.Context, root string, fn func(ObjectInfo) error) error {
+	root = filepath.FromSlash(root)
+
+	fullPath := filepath.Clean(filepath.Join(s.absoluteRootPath, root))
+
+	// As we can't use os.Root here, we manually ensure that the fullPath is within the root directory
+	sep := string(filepath.Separator)
+	if !strings.HasPrefix(fullPath+sep, s.absoluteRootPath+sep) {
+		return fmt.Errorf("invalid root path: %s", root)
+	}
+
+	return filepath.WalkDir(fullPath, func(full string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(s.absoluteRootPath, full)
+		if err != nil {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		return fn(ObjectInfo{
+			Path:    filepath.ToSlash(rel),
+			Size:    info.Size(),
+			ModTime: info.ModTime(),
+		})
+	})
 }

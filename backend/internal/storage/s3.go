@@ -43,6 +43,10 @@ func newS3Storage(ctx context.Context, cfg Config) (FileStorage, error) {
 	}, nil
 }
 
+func (s *s3Storage) Type() string {
+	return TypeS3
+}
+
 func (s *s3Storage) Save(ctx context.Context, path string, data io.Reader) error {
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
@@ -119,12 +123,28 @@ func (s *s3Storage) List(ctx context.Context, path string) ([]ObjectInfo, error)
 				continue
 			}
 			objects = append(objects, ObjectInfo{
-				Path: aws.ToString(obj.Key),
-				Size: aws.ToInt64(obj.Size),
+				Path:    aws.ToString(obj.Key),
+				Size:    aws.ToInt64(obj.Size),
+				ModTime: aws.ToTime(obj.LastModified),
 			})
 		}
 	}
 	return objects, nil
+}
+
+func (s *s3Storage) Walk(ctx context.Context, root string, fn func(ObjectInfo) error) error {
+	objects, err := s.List(ctx, root)
+	if err != nil {
+		return err
+	}
+
+	for _, obj := range objects {
+		if err := fn(obj); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *s3Storage) buildObjectKey(p string) string {
