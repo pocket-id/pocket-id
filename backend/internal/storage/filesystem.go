@@ -18,7 +18,7 @@ type filesystemStorage struct {
 	absoluteRootPath string
 }
 
-func newFilesystemStorage(rootPath string) (FileStorage, error) {
+func NewFilesystemStorage(rootPath string) (FileStorage, error) {
 	if err := os.MkdirAll(rootPath, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create root directory '%s': %w", rootPath, err)
 	}

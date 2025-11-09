@@ -17,28 +17,39 @@ import (
 	"github.com/aws/smithy-go"
 )
 
+
+type S3Config struct {
+	Bucket          string
+	Region          string
+	Endpoint        string
+	AccessKeyID     string
+	SecretAccessKey string
+	ForcePathStyle  bool
+	Root            string
+}
+
 type s3Storage struct {
 	client *s3.Client
 	bucket string
 	prefix string
 }
 
-func newS3Storage(ctx context.Context, cfg Config) (FileStorage, error) {
-	creds := credentials.NewStaticCredentialsProvider(cfg.S3AccessKeyID, cfg.S3SecretAccessKey, "")
-	awsCfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithRegion(cfg.S3Region), awscfg.WithCredentialsProvider(creds))
+func NewS3Storage(ctx context.Context, cfg S3Config) (FileStorage, error) {
+	creds := credentials.NewStaticCredentialsProvider(cfg.AccessKeyID, cfg.SecretAccessKey, "")
+	awsCfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithRegion(cfg.Region), awscfg.WithCredentialsProvider(creds))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
 	}
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		if cfg.S3Endpoint != "" {
-			o.BaseEndpoint = aws.String(cfg.S3Endpoint)
+		if cfg.Endpoint != "" {
+			o.BaseEndpoint = aws.String(cfg.Endpoint)
 		}
-		o.UsePathStyle = cfg.S3ForcePathStyle
+		o.UsePathStyle = cfg.ForcePathStyle
 	})
 
 	return &s3Storage{
 		client: client,
-		bucket: cfg.S3Bucket,
+		bucket: cfg.Bucket,
 		prefix: strings.Trim(cfg.Root, "/"),
 	}, nil
 }
