@@ -462,5 +462,8 @@
 	"ldap_id": "LDAP-ідентифікатор",
 	"reauthentication": "Повторна аутентифікація",
 	"clear_filters": "Очистити фільтри",
-	"default_profile_picture": "Стандартне зображення профілю"
+	"default_profile_picture": "Стандартне зображення профілю",
+	"light": "Світло",
+	"dark": "Темний",
+	"system": "Система"
 }
