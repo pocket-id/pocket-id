@@ -462,5 +462,8 @@
 	"ldap_id": "LDAP Kimliği",
 	"reauthentication": "Yeniden Kimlik Doğrulama",
 	"clear_filters": "Filtreleri Temizle",
-	"default_profile_picture": "Varsayılan Profil Resmi"
+	"default_profile_picture": "Varsayılan Profil Resmi",
+	"light": "Işık",
+	"dark": "Karanlık",
+	"system": "Sistem"
 }

@@ -462,5 +462,8 @@
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Riautenticazione",
 	"clear_filters": "Cancella filtri",
-	"default_profile_picture": "Immagine del profilo predefinita"
+	"default_profile_picture": "Immagine del profilo predefinita",
+	"light": "Luce",
+	"dark": "Buio",
+	"system": "Sistema"
 }
