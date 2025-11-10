@@ -73,11 +73,15 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
 
-	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	if err := svc.appLockService.Acquire(opCtx, false); err != nil {
+	waitUntil, err := svc.appLockService.Acquire(ctx, false)
+	if err != nil {
 		return fmt.Errorf("failed to acquire application lock: %w", err)
+	}
+	
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(time.Until(waitUntil)):
 	}
 
 	shutdownFn := func(shutdownCtx context.Context) error {

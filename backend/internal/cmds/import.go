@@ -32,7 +32,7 @@ func init() {
 		},
 	}
 
-	importCmd.Flags().StringVarP(&flags.Path, "path", "p", "./pocket-id-export.zip", "Path to the ZIP file to import the data from")
+	importCmd.Flags().StringVarP(&flags.Path, "path", "p", "pocket-id-export.zip", "Path to the ZIP file to import the data from")
 	importCmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "Skip confirmation prompts")
 	importCmd.Flags().BoolVarP(&flags.ForcefullyAcquireLock, "forcefully-acquire-lock", "", false, "Forcefully acquire the application lock by terminating the Pocket ID instance")
 
@@ -65,20 +65,29 @@ func runImport(ctx context.Context, flags importFlags) error {
 
 	appLockService := service.NewAppLockService(db)
 	defer func() { //nolint:contextcheck
-		if releaseErr := appLockService.Release(context.Background()); releaseErr != nil {
+		opCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		if releaseErr := appLockService.Release(opCtx); releaseErr != nil {
 			fmt.Printf("Warning: failed to release lock: %v\n", releaseErr)
 		}
+		cancel()
 	}()
 
 	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	err = appLockService.Acquire(opCtx, flags.ForcefullyAcquireLock)
+	waitUntil, err := appLockService.Acquire(opCtx, flags.ForcefullyAcquireLock)
 	if err != nil {
 		if errors.Is(err, service.ErrLockUnavailable) {
-			return fmt.Errorf("pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
+			//nolint:staticcheck
+			return fmt.Errorf("Pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
 		}
 		return fmt.Errorf("failed to acquire application lock: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(time.Until(waitUntil)):
 	}
 
 	importService := service.NewImportService(db)

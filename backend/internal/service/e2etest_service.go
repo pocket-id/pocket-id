@@ -479,7 +479,8 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 }
 
 func (s *TestService) ResetLock(ctx context.Context) error {
-	return s.appLockService.Acquire(ctx, true)
+	_, err := s.appLockService.Acquire(ctx, true)
+	return err
 }
 
 func (s *TestService) SetJWTKeys() error {

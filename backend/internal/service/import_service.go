@@ -200,22 +200,22 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 
 	// Disable foreign key checks for SQLite
 	if common.EnvConfig.DbProvider == common.DbProviderSqlite {
-		if err := toggleSqliteForeignKeyChecks(s.db, false); err != nil {
+		if err := setSqliteForeignKeyChecks(s.db, false); err != nil {
 			return fmt.Errorf("failed to disable foreign keys: %w", err)
 		}
 		defer func() {
-			_ = toggleSqliteForeignKeyChecks(s.db, true)
+			_ = setSqliteForeignKeyChecks(s.db, true)
 		}()
 	}
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// Disable foreign key checks for Postgres
 		if common.EnvConfig.DbProvider == common.DbProviderPostgres {
-			if err := togglePostgresForeignKeyChecks(tx, false); err != nil {
+			if err := setPostgresForeignKeyChecks(tx, false); err != nil {
 				return fmt.Errorf("failed to disable foreign keys: %w", err)
 			}
 			defer func() {
-				_ = togglePostgresForeignKeyChecks(tx, true)
+				_ = setPostgresForeignKeyChecks(tx, true)
 			}()
 		}
 
@@ -303,8 +303,8 @@ func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
 	return nil
 }
 
-// togglePostgresForeignKeyChecks enables/disables FK checks in Postgres
-func togglePostgresForeignKeyChecks(tx *gorm.DB, enable bool) error {
+// setPostgresForeignKeyChecks enables/disables FK checks in Postgres
+func setPostgresForeignKeyChecks(tx *gorm.DB, enable bool) error {
 	var tables []string
 	if err := tx.Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'`).
 		Scan(&tables).Error; err != nil {
@@ -322,8 +322,8 @@ func togglePostgresForeignKeyChecks(tx *gorm.DB, enable bool) error {
 	return nil
 }
 
-// toggleSqliteForeignKeyChecks enables/disables FK checks in SQLite
-func toggleSqliteForeignKeyChecks(db *gorm.DB, enable bool) error {
+// setSqliteForeignKeyChecks enables/disables FK checks in SQLite
+func setSqliteForeignKeyChecks(db *gorm.DB, enable bool) error {
 	value := "OFF"
 	if enable {
 		value = "ON"

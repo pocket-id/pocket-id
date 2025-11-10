@@ -71,17 +71,22 @@ func (lv *lockValue) Unmarshal(raw string) error {
 
 // Acquire obtains the lock. When force is true, the lock is stolen from any existing owner.
 // If the lock is forcefully acquired, it blocks until the previous lock has expired.
-func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
+func (s *AppLockService) Acquire(ctx context.Context, force bool) (waitUntil time.Time, err error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var prevLockRaw string
-	err := s.db.WithContext(ctx).Model(&model.KV{}).Where("key = ?", lockKey).Select("value").Scan(&prevLockRaw).Error
+	err = tx.WithContext(ctx).Model(&model.KV{}).Where("key = ?", lockKey).Select("value").Scan(&prevLockRaw).Error
 	if err != nil {
-		return fmt.Errorf("query existing lock: %w", err)
+		return time.Time{}, fmt.Errorf("query existing lock: %w", err)
 	}
 
 	var prevLock lockValue
 	if prevLockRaw != "" {
 		if err := prevLock.Unmarshal(prevLockRaw); err != nil {
-			return fmt.Errorf("decode existing lock value: %w", err)
+			return time.Time{}, fmt.Errorf("decode existing lock value: %w", err)
 		}
 	}
 
@@ -96,7 +101,7 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
 	}
 	raw, err := value.Marshal()
 	if err != nil {
-		return fmt.Errorf("encode lock value: %w", err)
+		return time.Time{}, fmt.Errorf("encode lock value: %w", err)
 	}
 
 	var query string
@@ -118,41 +123,37 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) error {
 			WHERE ((kv.value::json->>'expires_at')::bigint < $3) OR ($4::boolean IS TRUE)
 		`
 	default:
-		return fmt.Errorf("unsupported database dialect: %s", s.db.Name())
+		return time.Time{}, fmt.Errorf("unsupported database dialect: %s", s.db.Name())
 	}
 
-	res := s.db.WithContext(ctx).Exec(query, lockKey, raw, nowUnix, force)
+	res := tx.WithContext(ctx).Exec(query, lockKey, raw, nowUnix, force)
 	if res.Error != nil {
-		return fmt.Errorf("lock acquisition failed: %w", res.Error)
+		return time.Time{}, fmt.Errorf("lock acquisition failed: %w", res.Error)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return time.Time{}, fmt.Errorf("commit lock acquisition: %w", err)
 	}
 
 	// If there is a lock that is not expired and force is false, no rows will be affected
 	if res.RowsAffected == 0 {
-		return ErrLockUnavailable
+		return time.Time{}, ErrLockUnavailable
 	}
 
-	wait := time.Duration(0)
 	if force && prevLock.ExpiresAt > nowUnix && prevLock.LockID != s.lockID {
-		wait = time.Until(time.Unix(prevLock.ExpiresAt, 0))
+		waitUntil = time.Unix(prevLock.ExpiresAt, 0)
 	}
 
-	slog.Info("Acquired application lock",
+	attrs := []any{
 		slog.Int64("process_id", s.processID),
 		slog.String("host_id", s.hostID),
-		slog.Duration("wait_before_proceeding", wait),
-	)
-
-	// If we forcefully acquired the lock and there was a previous lock that is not yet expired,
-	// wait until it expires before proceeding.
-	if wait > 0 {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-time.After(wait):
-		}
 	}
+	if wait := time.Until(waitUntil); wait > 0 {
+		attrs = append(attrs, slog.Duration("wait_before_proceeding", wait))
+	}
+	slog.Info("Acquired application lock", attrs...)
 
-	return nil
+	return waitUntil, nil
 }
 
 // RunRenewal keeps renewing the lock until the context is canceled.
@@ -200,12 +201,17 @@ func (s *AppLockService) Release(ctx context.Context) error {
 		return fmt.Errorf("release lock failed: %w", res.Error)
 	}
 
-	if res.RowsAffected > 0 {
-		slog.Info("Released application lock",
+	if res.RowsAffected == 0 {
+		slog.Warn("Application lock not held by this process, cannot release",
 			slog.Int64("process_id", s.processID),
 			slog.String("host_id", s.hostID),
 		)
 	}
+
+	slog.Info("Released application lock",
+		slog.Int64("process_id", s.processID),
+		slog.String("host_id", s.hostID),
+	)
 	return nil
 }
 
@@ -250,13 +256,15 @@ func (s *AppLockService) renew(ctx context.Context) error {
 			return fmt.Errorf("unsupported database dialect: %s", s.db.Name())
 		}
 
-		res := s.db.WithContext(ctx).Exec(query, raw, lockKey, s.lockID, nowUnix)
+		opCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		res := s.db.WithContext(opCtx).Exec(query, raw, lockKey, s.lockID, nowUnix)
+		cancel()
+
 		switch {
+		case res.RowsAffected == 0:
+			return ErrLockLost
 		case res.Error != nil:
 			lastErr = fmt.Errorf("lock renewal failed: %w", res.Error)
-		case res.RowsAffected == 0:
-			// If there isn't a lock with the same lock ID and not expired, we lost the lock
-			lastErr = ErrLockLost
 		default:
 			slog.Debug("Renewed application lock",
 				slog.Int64("process_id", s.processID),
