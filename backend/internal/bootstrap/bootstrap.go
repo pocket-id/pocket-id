@@ -77,7 +77,7 @@ func Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to acquire application lock: %w", err)
 	}
-	
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -103,7 +103,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	// Init the router
-	router,err := initRouter(db, svc)
+	router, err := initRouter(db, svc)
 	if err != nil {
 		return fmt.Errorf("failed to initialize router: %w", err)
 	}
