@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Czy na pewno chcesz unieważnić klucz API \"{apiKeyName}\"? To przerwie wszelkie integracje korzystające z tego klucza.",
 	"last_used": "Ostatnio używane",
 	"actions": "Akcje",
-	"images_updated_successfully": "Sukces! Obrazy zostały zaktualizowane.",
+	"images_updated_successfully": "Obrazy zostały pomyślnie zaktualizowane. Aktualizacja może potrwać kilka minut.",
 	"general": "Ogólne",
 	"configure_smtp_to_send_emails": "Włącz powiadomienia e-mail, aby informować użytkowników, gdy logowanie zostanie wykryte z nowego urządzenia lub lokalizacji.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Ustawienia regionalne",
 	"ldap_id": "Identyfikator LDAP",
 	"reauthentication": "Ponowne uwierzytelnianie",
-	"clear_filters": "Wyczyść filtry"
+	"clear_filters": "Wyczyść filtry",
+	"default_profile_picture": "Domyślne zdjęcie profilowe"
 }

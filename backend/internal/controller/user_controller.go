@@ -286,7 +286,7 @@ func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 	}
 	defer file.Close()
 
-	if err := uc.userService.UpdateProfilePicture(userID, file); err != nil {
+	if err := uc.userService.UpdateProfilePicture(c.Request.Context(), userID, file); err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -317,7 +317,7 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 	}
 	defer file.Close()
 
-	if err := uc.userService.UpdateProfilePicture(userID, file); err != nil {
+	if err := uc.userService.UpdateProfilePicture(c.Request.Context(), userID, file); err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -687,7 +687,7 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) {
 	userID := c.Param("id")
 
-	if err := uc.userService.ResetProfilePicture(userID); err != nil {
+	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -705,7 +705,7 @@ func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) {
 func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 
-	if err := uc.userService.ResetProfilePicture(userID); err != nil {
+	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
 		_ = c.Error(err)
 		return
 	}

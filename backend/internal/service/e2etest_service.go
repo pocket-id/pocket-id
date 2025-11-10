@@ -9,8 +9,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"os"
-	"path/filepath"
+	"path"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -22,6 +23,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	"github.com/pocket-id/pocket-id/backend/resources"
@@ -32,17 +34,19 @@ type TestService struct {
 	jwtService       *JwtService
 	appConfigService *AppConfigService
 	ldapService      *LdapService
+	fileStorage      storage.FileStorage
 	appLockService   *AppLockService
 	externalIdPKey   jwk.Key
 }
 
-func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService) (*TestService, error) {
+func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		appConfigService: appConfigService,
 		jwtService:       jwtService,
 		ldapService:      ldapService,
 		appLockService:   appLockService,
+		fileStorage:      fileStorage,
 	}
 	err := s.initExternalIdP()
 	if err != nil {
@@ -427,9 +431,10 @@ func (s *TestService) ResetDatabase() error {
 	return err
 }
 
-func (s *TestService) ResetApplicationImages() error {
+func (s *TestService) ResetApplicationImages(ctx context.Context) error {
 	if err := os.RemoveAll(common.EnvConfig.UploadPath); err != nil {
-		return fmt.Errorf("failed to remove upload path: %w", err)
+		slog.ErrorContext(ctx, "Error removing directory", slog.Any("error", err))
+		return err
 	}
 
 	files, err := resources.FS.ReadDir("images")
@@ -438,13 +443,19 @@ func (s *TestService) ResetApplicationImages() error {
 	}
 
 	for _, file := range files {
-		srcFilePath := filepath.Join("images", file.Name())
-		destFilePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", file.Name())
-
-		err := utils.CopyEmbeddedFileToDisk(srcFilePath, destFilePath)
+		if file.IsDir() {
+			continue
+		}
+		srcFilePath := path.Join("images", file.Name())
+		srcFile, err := resources.FS.Open(srcFilePath)
 		if err != nil {
 			return err
 		}
+		if err := s.fileStorage.Save(ctx, path.Join("application-images", file.Name()), srcFile); err != nil {
+			srcFile.Close()
+			return err
+		}
+		srcFile.Close()
 	}
 
 	return nil

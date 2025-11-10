@@ -10,7 +10,7 @@
 				destructive:
 					'text-destructive bg-card *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current',
 				warning:
-					'bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100 [&>svg]:text-amber-900 dark:[&>svg]:text-amber-100'
+					'bg-warning text-warning-foreground border-warning/40 [&>svg]:text-warning-foreground'
 			}
 		},
 		defaultVariants: {
@@ -67,7 +67,7 @@
 	>
 		{@render children?.()}
 		{#if dismissibleId}
-			<button onclick={dismiss} class="absolute top-0 right-0 m-3 text-black dark:text-white"
+			<button onclick={dismiss} class="absolute right-0 top-0 m-3 text-black dark:text-white"
 				><LucideX class="size-4" /></button
 			>
 		{/if}

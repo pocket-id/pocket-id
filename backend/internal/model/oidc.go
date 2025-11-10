@@ -54,8 +54,8 @@ type OidcClient struct {
 	ImageType                *string
 	DarkImageType            *string
 	IsPublic                 bool
-	PkceEnabled              bool `filterable:"true"`
-	RequiresReauthentication bool `filterable:"true"`
+	PkceEnabled              bool `sortable:"true" filterable:"true"`
+	RequiresReauthentication bool `sortable:"true" filterable:"true"`
 	Credentials              OidcClientCredentials
 	LaunchURL                *string
 

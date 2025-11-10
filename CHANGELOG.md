@@ -1,3 +1,23 @@
+## v1.15.0
+
+### Bug Fixes
+
+- sorting by PKCE and re-auth of OIDC clients ([e03270e](https://github.com/pocket-id/pocket-id/commit/e03270eb9d474735ff4a1b4d8c90f1857b8cd52b) by @stonith404)
+- replace %lang% placeholder in html lang ([#1071](https://github.com/pocket-id/pocket-id/pull/1071) by @daimond113)
+- disabled property gets ignored when creating an user ([76e0192](https://github.com/pocket-id/pocket-id/commit/76e0192ceec339b6ddb4ad3424057d2bb48fae8f) by @stonith404)
+- remove redundant indexes in Postgres ([6a038fc](https://github.com/pocket-id/pocket-id/commit/6a038fcf9afabbf00c45e42071e9bbe62ecab403) by @stonith404)
+
+### Features
+
+- open edit page on table row click ([f184120](https://github.com/pocket-id/pocket-id/commit/f184120890c32f1e75a918c171084878a10e8b42) by @stonith404)
+- add ability to set default profile picture ([#1061](https://github.com/pocket-id/pocket-id/pull/1061) by @stonith404)
+
+### Other
+
+- add support for OpenBSD binaries ([d683d18](https://github.com/pocket-id/pocket-id/commit/d683d18d9109ca2850e278b78f7bf3e5aca1d34d) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.14.2...v1.15.0
+
 ## v1.14.2
 
 ### Bug Fixes

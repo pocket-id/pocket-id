@@ -122,10 +122,13 @@ test('Update application images', async ({ page }) => {
 	await page.getByLabel('Favicon').setInputFiles('resources/images/w3-schools-favicon.ico');
 	await page.getByLabel('Light Mode Logo').setInputFiles('resources/images/pingvin-share-logo.png');
 	await page.getByLabel('Dark Mode Logo').setInputFiles('resources/images/nextcloud-logo.png');
-	await page.getByLabel('Background Image').setInputFiles('resources/images/clouds.jpg');
+		await page.getByLabel('Default Profile Picture').setInputFiles('resources/images/pingvin-share-logo.png');
+    await page.getByLabel('Background Image').setInputFiles('resources/images/clouds.jpg');
 	await page.getByRole('button', { name: 'Save' }).last().click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText('Images updated successfully');
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Images updated successfully. It may take a few minutes to update.'
+	);
 
 	await page.request
 		.get('/api/application-images/favicon')

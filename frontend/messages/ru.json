@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Вы уверены, что хотите отозвать ключ API \"{apiKeyName}\"? Любые интеграции, использующие этот ключ, перестанут работать.",
 	"last_used": "Последнее использование",
 	"actions": "Действия",
-	"images_updated_successfully": "Изображения успешно обновлены",
+	"images_updated_successfully": "Изображения обновились, но может занять пару минут.",
 	"general": "Общее",
 	"configure_smtp_to_send_emails": "Включить уведомления пользователей по электронной почте при обнаружении логина с нового устройства или локации.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Язык",
 	"ldap_id": "LDAP ID",
 	"reauthentication": "Повторная аутентификация",
-	"clear_filters": "Сбросить фильтры"
+	"clear_filters": "Сбросить фильтры",
+	"default_profile_picture": "Изображение профиля по умолчанию"
 }

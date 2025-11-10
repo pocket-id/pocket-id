@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Bist du sicher, dass du den API-Schlüssel \"{apiKeyName}\" widerrufen willst? Das wird jegliche Integrationen, die diesen Schlüssel verwenden, brechen.",
 	"last_used": "Letzte Verwendung",
 	"actions": "Aktionen",
-	"images_updated_successfully": "Bild erfolgreich aktualisiert",
+	"images_updated_successfully": "Bilder erfolgreich aktualisiert. Die Aktualisierung kann ein paar Minuten dauern.",
 	"general": "Allgemein",
 	"configure_smtp_to_send_emails": "Aktiviere E-Mail Benachrichtigungen, um Benutzer zu informieren, wenn ein Login von einem neuen Gerät oder Standort erkannt wird.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Ort",
 	"ldap_id": "LDAP-ID",
 	"reauthentication": "Erneute Authentifizierung",
-	"clear_filters": "Filter löschen"
+	"clear_filters": "Filter löschen",
+	"default_profile_picture": "Standard-Profilbild"
 }

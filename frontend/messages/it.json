@@ -155,7 +155,7 @@
 	"are_you_sure_you_want_to_revoke_the_api_key_apikeyname": "Sei sicuro di voler revocare la chiave API \"{apiKeyName}\"? Questo comprometterà qualsiasi integrazione che utilizza questa chiave.",
 	"last_used": "Ultimo utilizzo",
 	"actions": "Azioni",
-	"images_updated_successfully": "Immagini aggiornate con successo",
+	"images_updated_successfully": "Immagini aggiornate senza problemi. Potrebbe volerci qualche minuto per l'aggiornamento.",
 	"general": "Generale",
 	"configure_smtp_to_send_emails": "Abilita le notifiche email per avvisare gli utenti quando viene rilevato un accesso da un nuovo dispositivo o posizione.",
 	"ldap": "LDAP",
@@ -461,5 +461,6 @@
 	"locale": "Locale",
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Riautenticazione",
-	"clear_filters": "Cancella filtri"
+	"clear_filters": "Cancella filtri",
+	"default_profile_picture": "Immagine del profilo predefinita"
 }

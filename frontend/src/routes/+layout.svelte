@@ -5,7 +5,7 @@
 	import { Toaster } from '$lib/components/ui/sonner';
 	import { m } from '$lib/paraglide/messages';
 	import { ModeWatcher } from 'mode-watcher';
-	import type { Snippet } from 'svelte';
+	import { type Snippet } from 'svelte';
 	import '../app.css';
 	import type { LayoutData } from './$types';
 
