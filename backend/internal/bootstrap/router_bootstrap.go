@@ -29,13 +29,9 @@ import (
 // This is used to register additional controllers for tests
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
 
-func initRouter(db *gorm.DB, svc *services) utils.Service {
+func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	runner, err := initRouterInternal(db, svc)
-	if err != nil {
-		slog.Error("Failed to init router", "error", err)
-		os.Exit(1)
-	}
-	return runner
+	return runner, err
 }
 
 func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {

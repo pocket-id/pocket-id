@@ -103,7 +103,10 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	// Init the router
-	router := initRouter(db, svc)
+	router,err := initRouter(db, svc)
+	if err != nil {
+		return fmt.Errorf("failed to initialize router: %w", err)
+	}
 
 	// Run all background services
 	// This call blocks until the context is canceled
