@@ -54,7 +54,7 @@ func TestAppLockServiceAcquire(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		service := newTestAppLockService(t, db)
 
-		err := service.Acquire(context.Background(), false)
+		_, err := service.Acquire(context.Background(), false)
 		require.NoError(t, err)
 
 		stored := readLockValue(t, db)
@@ -74,7 +74,7 @@ func TestAppLockServiceAcquire(t *testing.T) {
 		}
 		insertLock(t, db, existing)
 
-		err := service.Acquire(context.Background(), false)
+		_, err := service.Acquire(context.Background(), false)
 		require.ErrorIs(t, err, ErrLockUnavailable)
 
 		current := readLockValue(t, db)
@@ -91,9 +91,7 @@ func TestAppLockServiceAcquire(t *testing.T) {
 			ExpiresAt: time.Now().Unix(),
 		})
 
-		opCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		err := service.Acquire(opCtx, true)
+		_, err := service.Acquire(context.Background(), true)
 		require.NoError(t, err)
 
 		stored := readLockValue(t, db)
@@ -108,7 +106,7 @@ func TestAppLockServiceRelease(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		service := newTestAppLockService(t, db)
 
-		err := service.Acquire(context.Background(), false)
+		_, err := service.Acquire(context.Background(), false)
 		require.NoError(t, err)
 
 		err = service.Release(context.Background())
@@ -143,7 +141,7 @@ func TestAppLockServiceRenew(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		service := newTestAppLockService(t, db)
 
-		err := service.Acquire(context.Background(), false)
+		_, err := service.Acquire(context.Background(), false)
 		require.NoError(t, err)
 
 		before := readLockValue(t, db)
@@ -169,7 +167,7 @@ func TestAppLockServiceRenew(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		service := newTestAppLockService(t, db)
 
-		err := service.Acquire(context.Background(), false)
+		_, err := service.Acquire(context.Background(), false)
 		require.NoError(t, err)
 
 		// Simulate a different process taking the lock.
