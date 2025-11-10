@@ -10,7 +10,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
-	"os"
 	"path"
 	"time"
 
@@ -432,8 +431,8 @@ func (s *TestService) ResetDatabase() error {
 }
 
 func (s *TestService) ResetApplicationImages(ctx context.Context) error {
-	if err := os.RemoveAll(common.EnvConfig.UploadPath); err != nil {
-		slog.ErrorContext(ctx, "Error removing directory", slog.Any("error", err))
+	if err := s.fileStorage.DeleteAll(ctx, "/"); err != nil {
+		slog.ErrorContext(ctx, "Error removing uploads", slog.Any("error", err))
 		return err
 	}
 
