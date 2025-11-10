@@ -4,28 +4,23 @@ services:
       file: docker-compose.yml
       service: lldap
 
-  minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data --console-address ":9090"
-    environment:
-      MINIO_ROOT_USER: test
-      MINIO_ROOT_PASSWORD: test12345
+  localstack-s3:
+    image: localstack/localstack:s3-latest
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localstack-s3:4566"]
       interval: 1s
       timeout: 3s
       retries: 10
 
   create-bucket:
-    image: quay.io/minio/mc
+    image: amazon/aws-cli
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
     depends_on:
-      minio:
+      localstack-s3:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-        mc alias set local http://minio:9000 test test12345 &&
-        mc mb -p local/pocket-id-test || true
-      "
+    entrypoint: "aws --endpoint-url=http://localstack-s3:4566 s3 mb s3://pocket-id-test"
 
   pocket-id:
     extends:
@@ -35,12 +30,12 @@ services:
       FILE_BACKEND: s3
       S3_BUCKET: pocket-id-test
       S3_REGION: us-east-1
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://localstack-s3:4566
       S3_ACCESS_KEY_ID: test
-      S3_SECRET_ACCESS_KEY: test12345
+      S3_SECRET_ACCESS_KEY: test
       S3_FORCE_PATH_STYLE: true
       KEYS_STORAGE: database
-      ENCRYPTION_KEY: 123
+      ENCRYPTION_KEY: test
     depends_on:
-      - minio
-      - create-bucket
+      create-bucket:
+        condition: service_completed_successfully
