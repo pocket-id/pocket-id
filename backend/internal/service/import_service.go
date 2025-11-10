@@ -328,5 +328,5 @@ func toggleSqliteForeignKeyChecks(db *gorm.DB, enable bool) error {
 	if enable {
 		value = "ON"
 	}
-	return db.Exec(fmt.Sprintf("PRAGMA foreign_keys = %s;", value)).Error
+	return db.Exec("PRAGMA foreign_keys = " + value + ";").Error
 }
