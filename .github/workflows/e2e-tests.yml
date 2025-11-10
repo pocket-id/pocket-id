@@ -91,7 +91,7 @@ jobs:
           docker pull postgres:17
           docker save postgres:17 > /tmp/postgres-image.tar
 
-      - name: Load PostgreSQL image from cache
+      - name: Load PostgreSQL image
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
 
@@ -108,9 +108,27 @@ jobs:
           docker pull nitnelave/lldap:stable
           docker save nitnelave/lldap:stable > /tmp/lldap-image.tar
 
-      - name: Load LLDAP image from cache
+      - name: Load LLDAP image
         if: steps.lldap-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/lldap-image.tar
+
+      - name: Cache Localstack S3 Docker image
+        if: matrix.db == 'sqlite-s3'
+        uses: actions/cache@v3
+        id: s3-cache
+        with:
+          path: /tmp/localstack-s3-image.tar
+          key: localstack-s3-latest-${{ runner.os }}
+
+      - name: Pull and save Localstack S3 image
+        if: matrix.db == 'sqlite-s3' && steps.s3-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull localstack/localstack:s3-latest
+          docker save localstack/localstack:s3-latest > /tmp/localstack-s3-image.tar
+
+      - name: Load Localstack S3 image
+        if: matrix.db == 'sqlite-s3' && steps.s3-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/localstack-s3-image.tar
 
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
