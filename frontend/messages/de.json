@@ -17,7 +17,7 @@
 	"image_should_be_in_format": "Das Bild sollte im PNG- oder JPEG-Format vorliegen.",
 	"items_per_page": "Einträge pro Seite",
 	"no_items_found": "Keine Einträge gefunden",
-	"select_items": "Wähle Artikel aus...",
+	"select_items": "Elemente auswählen...",
 	"search": "Suchen...",
 	"expand_card": "Karte erweitern",
 	"copied": "Kopiert",
@@ -463,7 +463,7 @@
 	"reauthentication": "Erneute Authentifizierung",
 	"clear_filters": "Filter löschen",
 	"default_profile_picture": "Standard-Profilbild",
-	"light": "Licht",
+	"light": "Hell",
 	"dark": "Dunkel",
 	"system": "System"
 }
