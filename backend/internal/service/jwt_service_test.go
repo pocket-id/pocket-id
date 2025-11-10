@@ -43,7 +43,7 @@ func TestJwtService_Init(t *testing.T) {
 
 		// Initialize the JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Verify the private key was set
@@ -83,7 +83,7 @@ func TestJwtService_Init(t *testing.T) {
 
 		// First create a service to generate a key
 		firstService := &JwtService{}
-		err := firstService.init(nil, mockConfig, mockEnvConfig)
+		err := firstService.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err)
 
 		// Get the key ID of the first service
@@ -92,7 +92,7 @@ func TestJwtService_Init(t *testing.T) {
 
 		// Now create a new service that should load the existing key
 		secondService := &JwtService{}
-		err = secondService.init(nil, mockConfig, mockEnvConfig)
+		err = secondService.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err)
 
 		// Verify the loaded key has the same ID as the original
@@ -117,7 +117,7 @@ func TestJwtService_Init(t *testing.T) {
 
 		// Now create a new service that should load the existing key
 		svc := &JwtService{}
-		err := svc.init(nil, mockConfig, mockEnvConfig)
+		err := svc.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err)
 
 		// Ensure loaded key has the right algorithm
@@ -147,7 +147,7 @@ func TestJwtService_Init(t *testing.T) {
 
 		// Now create a new service that should load the existing key
 		svc := &JwtService{}
-		err := svc.init(nil, mockConfig, mockEnvConfig)
+		err := svc.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err)
 
 		// Ensure loaded key has the right algorithm and curve
@@ -185,7 +185,7 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 
 		// Create a JWT service with initialized key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Get the JWK (public key)
@@ -226,7 +226,7 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 
 		// Create a JWT service that loads the ECDSA key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Get the JWK (public key)
@@ -271,7 +271,7 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 
 		// Create a JWT service that loads the EdDSA key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Get the JWK (public key)
@@ -335,7 +335,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 	t.Run("generates token for regular user", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create a test user
@@ -378,7 +378,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 	t.Run("generates token for admin user", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create a test admin user
@@ -414,7 +414,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		})
 
 		service := &JwtService{}
-		err := service.init(nil, customMockConfig, mockEnvConfig)
+		err := service.init(customMockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create a test user
@@ -449,7 +449,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -506,7 +506,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -563,7 +563,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -631,7 +631,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	t.Run("generates and verifies ID token with standard claims", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create test claims
@@ -673,7 +673,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	t.Run("can accept expired tokens if told so", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create test claims
@@ -731,7 +731,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	t.Run("generates and verifies ID token with nonce", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create test claims with nonce
@@ -762,7 +762,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	t.Run("fails verification with incorrect issuer", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Generate a token with standard claims
@@ -790,7 +790,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -846,7 +846,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -901,7 +901,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -958,7 +958,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 	t.Run("generates and verifies OAuth access token with standard claims", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create a test user
@@ -1001,7 +1001,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 	t.Run("fails verification for expired token", func(t *testing.T) {
 		// Create a JWT service with a mock function to generate an expired token
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create a test user
@@ -1037,14 +1037,14 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 	t.Run("fails verification with invalid signature", func(t *testing.T) {
 		// Create two JWT services with different keys
 		service1 := &JwtService{}
-		err := service1.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service1.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    t.TempDir(), // Use a different temp dir
 		})
 		require.NoError(t, err, "Failed to initialize first JWT service")
 
 		service2 := &JwtService{}
-		err = service2.init(nil, mockConfig, &common.EnvConfigSchema{
+		err = service2.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    t.TempDir(), // Use a different temp dir
 		})
@@ -1077,7 +1077,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -1134,7 +1134,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -1191,7 +1191,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 
 		// Create a JWT service that loads the key
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    tempDir,
 		})
@@ -1257,7 +1257,7 @@ func TestGenerateVerifyOAuthRefreshToken(t *testing.T) {
 	t.Run("generates and verifies refresh token", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Create a test user
@@ -1283,7 +1283,7 @@ func TestGenerateVerifyOAuthRefreshToken(t *testing.T) {
 	t.Run("fails verification for expired token", func(t *testing.T) {
 		// Create a JWT service
 		service := &JwtService{}
-		err := service.init(nil, mockConfig, mockEnvConfig)
+		err := service.init(mockConfig, mockEnvConfig)
 		require.NoError(t, err, "Failed to initialize JWT service")
 
 		// Generate a token using JWT directly to create an expired token
@@ -1308,14 +1308,14 @@ func TestGenerateVerifyOAuthRefreshToken(t *testing.T) {
 	t.Run("fails verification with invalid signature", func(t *testing.T) {
 		// Create two JWT services with different keys
 		service1 := &JwtService{}
-		err := service1.init(nil, mockConfig, &common.EnvConfigSchema{
+		err := service1.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    t.TempDir(), // Use a different temp dir
 		})
 		require.NoError(t, err, "Failed to initialize first JWT service")
 
 		service2 := &JwtService{}
-		err = service2.init(nil, mockConfig, &common.EnvConfigSchema{
+		err = service2.init(mockConfig, &common.EnvConfigSchema{
 			KeysStorage: "file",
 			KeysPath:    t.TempDir(), // Use a different temp dir
 		})
@@ -1386,7 +1386,7 @@ func TestGetTokenType(t *testing.T) {
 	// Initialize the JWT service
 	mockConfig := NewTestAppConfigService(&model.AppConfig{})
 	service := &JwtService{}
-	err := service.init(nil, mockConfig, &common.EnvConfigSchema{
+	err := service.init(mockConfig, &common.EnvConfigSchema{
 		KeysStorage: "file",
 		KeysPath:    tempDir,
 	})
