@@ -30,11 +30,6 @@ import (
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
 
 func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
-	runner, err := initRouterInternal(db, svc)
-	return runner, err
-}
-
-func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
 	// Set the appropriate Gin mode based on the environment
 	switch common.EnvConfig.AppEnv {
 	case "production":
