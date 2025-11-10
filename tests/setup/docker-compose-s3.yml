@@ -1,0 +1,42 @@
+services:
+  lldap:
+    extends:
+      file: docker-compose.yml
+      service: lldap
+
+  localstack-s3:
+    image: localstack/localstack:s3-latest
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localstack-s3:4566"]
+      interval: 1s
+      timeout: 3s
+      retries: 10
+
+  create-bucket:
+    image: amazon/aws-cli
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    depends_on:
+      localstack-s3:
+        condition: service_healthy
+    entrypoint: "aws --endpoint-url=http://localstack-s3:4566 s3 mb s3://pocket-id-test"
+
+  pocket-id:
+    extends:
+      file: docker-compose.yml
+      service: pocket-id
+    environment:
+      FILE_BACKEND: s3
+      S3_BUCKET: pocket-id-test
+      S3_REGION: us-east-1
+      S3_ENDPOINT: http://localstack-s3:4566
+      S3_ACCESS_KEY_ID: test
+      S3_SECRET_ACCESS_KEY: test
+      S3_FORCE_PATH_STYLE: true
+      KEYS_STORAGE: database
+      ENCRYPTION_KEY: test
+    depends_on:
+      create-bucket:
+        condition: service_completed_successfully

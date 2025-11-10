@@ -116,7 +116,7 @@ func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) {
 		imageName = "logoDark"
 	}
 
-	if err := c.appImagesService.UpdateImage(file, imageName); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, imageName); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
@@ -139,7 +139,7 @@ func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.appImagesService.UpdateImage(file, "background"); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "background"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
@@ -168,7 +168,7 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.appImagesService.UpdateImage(file, "favicon"); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "favicon"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
@@ -177,15 +177,16 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
 }
 
 func (c *AppImagesController) getImage(ctx *gin.Context, name string) {
-	imagePath, mimeType, err := c.appImagesService.GetImage(name)
+	reader, size, mimeType, err := c.appImagesService.GetImage(ctx.Request.Context(), name)
 	if err != nil {
 		_ = ctx.Error(err)
 		return
 	}
+	defer reader.Close()
 
 	ctx.Header("Content-Type", mimeType)
 	utils.SetCacheControlHeader(ctx, 15*time.Minute, 24*time.Hour)
-	ctx.File(imagePath)
+	ctx.DataFromReader(http.StatusOK, size, mimeType, reader, nil)
 }
 
 // updateDefaultProfilePicture godoc
@@ -203,7 +204,7 @@ func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.appImagesService.UpdateImage(file, "default-profile-picture"); err != nil {
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "default-profile-picture"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}
@@ -218,7 +219,7 @@ func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/application-images/default-profile-picture [delete]
 func (c *AppImagesController) deleteDefaultProfilePicture(ctx *gin.Context) {
-	if err := c.appImagesService.DeleteImage("default-profile-picture"); err != nil {
+	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), "default-profile-picture"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}

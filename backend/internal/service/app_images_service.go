@@ -1,42 +1,52 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"sync"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type AppImagesService struct {
 	mu         sync.RWMutex
 	extensions map[string]string
+	storage    storage.FileStorage
 }
 
-func NewAppImagesService(extensions map[string]string) *AppImagesService {
-	return &AppImagesService{extensions: extensions}
+func NewAppImagesService(extensions map[string]string, storage storage.FileStorage) *AppImagesService {
+	return &AppImagesService{extensions: extensions, storage: storage}
 }
 
-func (s *AppImagesService) GetImage(name string) (string, string, error) {
+func (s *AppImagesService) GetImage(ctx context.Context, name string) (io.ReadCloser, int64, string, error) {
 	ext, err := s.getExtension(name)
 	if err != nil {
-		return "", "", err
+		return nil, 0, "", err
 	}
 
 	mimeType := utils.GetImageMimeType(ext)
 	if mimeType == "" {
-		return "", "", fmt.Errorf("unsupported image type '%s'", ext)
+		return nil, 0, "", fmt.Errorf("unsupported image type '%s'", ext)
 	}
 
-	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", name, ext))
-	return imagePath, mimeType, nil
+	imagePath := path.Join("application-images", name+"."+ext)
+	reader, size, err := s.storage.Open(ctx, imagePath)
+	if err != nil {
+		if storage.IsNotExist(err) {
+			return nil, 0, "", &common.ImageNotFoundError{}
+		}
+		return nil, 0, "", err
+	}
+	return reader, size, mimeType, nil
 }
 
-func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName string) error {
+func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.FileHeader, imageName string) error {
 	fileType := strings.ToLower(utils.GetFileExtension(file.Filename))
 	mimeType := utils.GetImageMimeType(fileType)
 	if mimeType == "" {
@@ -51,15 +61,20 @@ func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName str
 		s.extensions[imageName] = fileType
 	}
 
-	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", imageName, fileType))
+	imagePath := path.Join("application-images", imageName+"."+fileType)
+	fileReader, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer fileReader.Close()
 
-	if err := utils.SaveFile(file, imagePath); err != nil {
+	if err := s.storage.Save(ctx, imagePath, fileReader); err != nil {
 		return err
 	}
 
 	if currentExt != "" && currentExt != fileType {
-		oldImagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", fmt.Sprintf("%s.%s", imageName, currentExt))
-		if err := os.Remove(oldImagePath); err != nil && !os.IsNotExist(err) {
+		oldImagePath := path.Join("application-images", imageName+"."+currentExt)
+		if err := s.storage.Delete(ctx, oldImagePath); err != nil {
 			return err
 		}
 	}
@@ -69,7 +84,7 @@ func (s *AppImagesService) UpdateImage(file *multipart.FileHeader, imageName str
 	return nil
 }
 
-func (s *AppImagesService) DeleteImage(imageName string) error {
+func (s *AppImagesService) DeleteImage(ctx context.Context, imageName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -78,8 +93,8 @@ func (s *AppImagesService) DeleteImage(imageName string) error {
 		return &common.ImageNotFoundError{}
 	}
 
-	imagePath := filepath.Join(common.EnvConfig.UploadPath, "application-images", imageName+"."+ext)
-	if err := os.Remove(imagePath); err != nil && !os.IsNotExist(err) {
+	imagePath := path.Join("application-images", imageName+"."+ext)
+	if err := s.storage.Delete(ctx, imagePath); err != nil {
 		return err
 	}
 

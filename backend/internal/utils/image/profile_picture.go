@@ -19,7 +19,7 @@ import (
 const profilePictureSize = 300
 
 // CreateProfilePicture resizes the profile picture to a square
-func CreateProfilePicture(file io.Reader) (io.Reader, error) {
+func CreateProfilePicture(file io.Reader) (io.ReadSeeker, error) {
 	img, _, err := imageorient.Decode(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
@@ -27,17 +27,13 @@ func CreateProfilePicture(file io.Reader) (io.Reader, error) {
 
 	img = imaging.Fill(img, profilePictureSize, profilePictureSize, imaging.Center, imaging.Lanczos)
 
-	pr, pw := io.Pipe()
-	go func() {
-		innerErr := imaging.Encode(pw, img, imaging.PNG)
-		if innerErr != nil {
-			_ = pw.CloseWithError(fmt.Errorf("failed to encode image: %w", innerErr))
-			return
-		}
-		pw.Close()
-	}()
+	var buf bytes.Buffer
+	err = imaging.Encode(&buf, img, imaging.PNG)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode image: %w", err)
+	}
 
-	return pr, nil
+	return bytes.NewReader(buf.Bytes()), nil
 }
 
 // CreateDefaultProfilePicture creates a profile picture with the initials

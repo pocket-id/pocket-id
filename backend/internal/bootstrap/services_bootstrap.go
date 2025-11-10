@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
 type services struct {
@@ -25,10 +26,11 @@ type services struct {
 	ldapService        *service.LdapService
 	apiKeyService      *service.ApiKeyService
 	versionService     *service.VersionService
+	fileStorage        storage.FileStorage
 }
 
 // Initializes all services
-func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, imageExtensions map[string]string) (svc *services, err error) {
+func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, imageExtensions map[string]string, fileStorage storage.FileStorage) (svc *services, err error) {
 	svc = &services{}
 
 	svc.appConfigService, err = service.NewAppConfigService(ctx, db)
@@ -36,7 +38,8 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		return nil, fmt.Errorf("failed to create app config service: %w", err)
 	}
 
-	svc.appImagesService = service.NewAppImagesService(imageExtensions)
+	svc.fileStorage = fileStorage
+	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
 
 	svc.emailService, err = service.NewEmailService(db, svc.appConfigService)
 	if err != nil {
@@ -56,13 +59,13 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService, httpClient)
+	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
 	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService)
 	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)
 

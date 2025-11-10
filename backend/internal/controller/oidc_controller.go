@@ -548,16 +548,17 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
-	imagePath, mimeType, err := oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"), lightLogo)
+	reader, size, mimeType, err := oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"), lightLogo)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
+	defer reader.Close()
 
 	utils.SetCacheControlHeader(c, 15*time.Minute, 12*time.Hour)
 
 	c.Header("Content-Type", mimeType)
-	c.File(imagePath)
+	c.DataFromReader(http.StatusOK, size, mimeType, reader, nil)
 }
 
 // updateClientLogoHandler godoc
