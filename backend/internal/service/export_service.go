@@ -89,7 +89,7 @@ func (s *ExportService) schemaVersion() (uint, error) {
 
 // dumpTable selects all rows from a table and appends them to out.Tables
 func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
-	rows, err := s.db.Raw(fmt.Sprintf("SELECT * FROM %s", table)).Rows()
+	rows, err := s.db.Raw("SELECT * FROM " + table).Rows()
 	if err != nil {
 		return fmt.Errorf("failed to read table %s: %w", table, err)
 	}
