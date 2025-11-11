@@ -76,6 +76,25 @@ func TestDatabaseStorageOperations(t *testing.T) {
 		require.NoError(t, store.Delete(ctx, "images/missing.txt"))
 	})
 
+	t.Run("delete all files", func(t *testing.T) {
+		require.NoError(t, store.Save(ctx, "cleanup/a.txt", bytes.NewBufferString("a")))
+		require.NoError(t, store.Save(ctx, "cleanup/b.txt", bytes.NewBufferString("b")))
+		require.NoError(t, store.Save(ctx, "cleanup/nested/c.txt", bytes.NewBufferString("c")))
+		require.NoError(t, store.DeleteAll(ctx, "/"))
+
+		_, _, err := store.Open(ctx, "cleanup/a.txt")
+		require.Error(t, err)
+		assert.True(t, IsNotExist(err))
+
+		_, _, err = store.Open(ctx, "cleanup/b.txt")
+		require.Error(t, err)
+		assert.True(t, IsNotExist(err))
+
+		_, _, err = store.Open(ctx, "cleanup/nested/c.txt")
+		require.Error(t, err)
+		assert.True(t, IsNotExist(err))
+	})
+
 	t.Run("delete all files under a prefix", func(t *testing.T) {
 		require.NoError(t, store.Save(ctx, "cleanup/a.txt", bytes.NewBufferString("a")))
 		require.NoError(t, store.Save(ctx, "cleanup/b.txt", bytes.NewBufferString("b")))

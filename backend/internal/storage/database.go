@@ -124,10 +124,9 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 		prefix = prefix + "/"
 	}
 
-	result := s.db.
-		WithContext(ctx).
-		Where("path LIKE ?", prefix+"%").
-		Delete(&model.Storage{})
+	query := s.db.WithContext(ctx)
+	query = addPathPrefixClause(s.db.Name(), query, prefix)
+	result := query.Delete(&model.Storage{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete files with prefix '%s' from database: %w", prefix, result.Error)
 	}
@@ -146,8 +145,7 @@ func (s *databaseStorage) List(ctx context.Context, prefix string) ([]ObjectInfo
 		if !strings.HasSuffix(prefix, "/") {
 			prefix = prefix + "/"
 		}
-		// TODO: Optimize this to use an index
-		query = query.Where("path LIKE ?", prefix+"%")
+		query = addPathPrefixClause(s.db.Name(), query, prefix)
 	}
 
 	result := query.
@@ -186,8 +184,7 @@ func (s *databaseStorage) Walk(ctx context.Context, root string, fn func(ObjectI
 		if !strings.HasSuffix(root, "/") {
 			root = root + "/"
 		}
-		// TODO: Optimize this to use an index
-		query = query.Where("path LIKE ?", root+"%")
+		query = addPathPrefixClause(s.db.Name(), query, root)
 	}
 
 	result := query.
@@ -209,4 +206,17 @@ func (s *databaseStorage) Walk(ctx context.Context, root string, fn func(ObjectI
 	}
 
 	return nil
+}
+
+func addPathPrefixClause(dialect string, query *gorm.DB, prefix string) *gorm.DB {
+	// In SQLite, we use "GLOB" which can use the index
+	switch dialect {
+	case "sqlite":
+		return query.Where("path GLOB ?", prefix+"*")
+	case "postgres":
+		return query.Where("path LIKE ?", prefix+"%")
+	default:
+		// Indicates a development-time error
+		panic(fmt.Errorf("unsupported database dialect: %s", dialect))
+	}
 }

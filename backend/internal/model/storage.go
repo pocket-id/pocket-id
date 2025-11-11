@@ -12,7 +12,6 @@ type Storage struct {
 	CreatedAt datatype.DateTime `gorm:"not null"`
 }
 
-// TableName overrides the table name used by Storage to `storage`
 func (Storage) TableName() string {
 	return "storage"
 }
