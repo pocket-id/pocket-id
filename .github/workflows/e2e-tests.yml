@@ -57,7 +57,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        db: [sqlite, postgres, sqlite-s3]
+        include:
+          - db: sqlite
+            storage: fs
+          - db: postgres
+            storage: fs
+          - db: sqlite
+            storage: s3
+          - db: sqlite
+            storage: database
+          - db: postgres
+            storage: database
 
     steps:
       - uses: actions/checkout@v5
@@ -78,7 +88,6 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Cache PostgreSQL Docker image
-        if: matrix.db == 'postgres'
         uses: actions/cache@v3
         id: postgres-cache
         with:
@@ -86,13 +95,13 @@ jobs:
           key: postgres-17-${{ runner.os }}
 
       - name: Pull and save PostgreSQL image
-        if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit != 'true'
+        if: steps.postgres-cache.outputs.cache-hit != 'true'
         run: |
           docker pull postgres:17
           docker save postgres:17 > /tmp/postgres-image.tar
 
       - name: Load PostgreSQL image
-        if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
+        if: steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
 
       - name: Cache LLDAP Docker image
@@ -113,7 +122,7 @@ jobs:
         run: docker load < /tmp/lldap-image.tar
 
       - name: Cache Localstack S3 Docker image
-        if: matrix.db == 'sqlite-s3'
+        if: matrix.storage == 's3'
         uses: actions/cache@v3
         id: s3-cache
         with:
@@ -121,13 +130,13 @@ jobs:
           key: localstack-s3-latest-${{ runner.os }}
 
       - name: Pull and save Localstack S3 image
-        if: matrix.db == 'sqlite-s3' && steps.s3-cache.outputs.cache-hit != 'true'
+        if: matrix.storage == 's3' && steps.s3-cache.outputs.cache-hit != 'true'
         run: |
           docker pull localstack/localstack:s3-latest
           docker save localstack/localstack:s3-latest > /tmp/localstack-s3-image.tar
 
       - name: Load Localstack S3 image
-        if: matrix.db == 'sqlite-s3' && steps.s3-cache.outputs.cache-hit == 'true'
+        if: matrix.storage == 's3' && steps.s3-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/localstack-s3-image.tar
 
       - name: Download Docker image artifact
@@ -147,26 +156,32 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run Docker Container (sqlite) with LDAP
-        if: matrix.db == 'sqlite'
-        working-directory: ./tests/setup
-        run: |
-          docker compose up -d
-          docker compose logs -f pocket-id &> /tmp/backend.log &
-
-      - name: Run Docker Container (postgres) with LDAP
-        if: matrix.db == 'postgres'
-        working-directory: ./tests/setup
-        run: |
-          docker compose -f docker-compose-postgres.yml up -d
-          docker compose -f docker-compose-postgres.yml logs -f pocket-id &> /tmp/backend.log &
-
-      - name: Run Docker Container (sqlite-s3) with LDAP + S3
-        if: matrix.db == 'sqlite-s3'
+      - name: Run Docker Container with LDAP + S3
+        if: matrix.storage == 's3'
         working-directory: ./tests/setup
         run: |
           docker compose -f docker-compose-s3.yml up -d
           docker compose -f docker-compose-s3.yml logs -f pocket-id &> /tmp/backend.log &
+
+      - name: Run Docker Container with LDAP
+        if: matrix.storage != 's3'
+        working-directory: ./tests/setup
+        run: |
+          if [ "{{ matrix.db }}" = "postgres" ]; then
+            export DB_PROVIDER="postgres"
+            export DB_CONNECTION_STRING="postgres://postgres:postgres@postgres:5432/pocket-id"
+          else
+            export DB_PROVIDER="sqlite"
+          fi
+
+          if [ "{{ matrix.storage }}" = "fs" ]; then
+            export FILE_BACKEND="fs"
+          else
+            export FILE_BACKEND="database"
+          fi
+
+          docker compose up -d
+          docker compose logs -f pocket-id &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./tests

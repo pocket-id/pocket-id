@@ -180,12 +180,14 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		if config.KeysStorage == "file" {
 			return errors.New("KEYS_STORAGE cannot be 'file' when FILE_BACKEND is 's3'")
 		}
+	case "database":
+		// All good, these are valid values
 	case "", "fs":
 		if config.UploadPath == "" {
 			config.UploadPath = defaultFsUploadPath
 		}
 	default:
-		return errors.New("invalid FILE_BACKEND value. Must be 'fs' or 's3'")
+		return errors.New("invalid FILE_BACKEND value. Must be 'fs', 'database', or 's3'")
 	}
 
 	// Validate LOCAL_IPV6_RANGES
