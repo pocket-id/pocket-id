@@ -93,15 +93,13 @@ jobs:
         with:
           path: /tmp/postgres-image.tar
           key: postgres-17-${{ runner.os }}
-
       - name: Pull and save PostgreSQL image
-        if: steps.postgres-cache.outputs.cache-hit != 'true'
+        if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit != 'true'
         run: |
           docker pull postgres:17
           docker save postgres:17 > /tmp/postgres-image.tar
-
       - name: Load PostgreSQL image
-        if: steps.postgres-cache.outputs.cache-hit == 'true'
+        if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit != 'true'
         run: docker load < /tmp/postgres-image.tar
 
       - name: Cache LLDAP Docker image
@@ -110,13 +108,11 @@ jobs:
         with:
           path: /tmp/lldap-image.tar
           key: lldap-stable-${{ runner.os }}
-
       - name: Pull and save LLDAP image
         if: steps.lldap-cache.outputs.cache-hit != 'true'
         run: |
           docker pull nitnelave/lldap:stable
           docker save nitnelave/lldap:stable > /tmp/lldap-image.tar
-
       - name: Load LLDAP image
         if: steps.lldap-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/lldap-image.tar
@@ -128,16 +124,30 @@ jobs:
         with:
           path: /tmp/localstack-s3-image.tar
           key: localstack-s3-latest-${{ runner.os }}
-
       - name: Pull and save Localstack S3 image
         if: matrix.storage == 's3' && steps.s3-cache.outputs.cache-hit != 'true'
         run: |
           docker pull localstack/localstack:s3-latest
           docker save localstack/localstack:s3-latest > /tmp/localstack-s3-image.tar
-
       - name: Load Localstack S3 image
         if: matrix.storage == 's3' && steps.s3-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/localstack-s3-image.tar
+
+      - name: Cache AWS CLI Docker image
+        if: matrix.storage == 's3'
+        uses: actions/cache@v3
+        id: aws-cli-cache
+        with:
+          path: /tmp/aws-cli-image.tar
+          key: aws-cli-latest-${{ runner.os }}
+      - name: Pull and save AWS CLI image
+        if: matrix.storage == 's3' && steps.aws-cli-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull amazon/aws-cli:latest
+          docker save amazon/aws-cli:latest > /tmp/aws-cli-image.tar
+      - name: Load AWS CLI image
+        if: matrix.storage == 's3' && steps.aws-cli-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/aws-cli-image.tar
 
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
