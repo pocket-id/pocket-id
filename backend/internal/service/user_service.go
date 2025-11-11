@@ -183,11 +183,14 @@ func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, f
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		return s.deleteUserInternal(ctx, userID, allowLdapDelete, tx)
+		ctx = utils.ContextWithTransaction(ctx, tx)
+		return s.deleteUserInternal(ctx, userID, allowLdapDelete)
 	})
 }
 
-func (s *UserService) deleteUserInternal(ctx context.Context, userID string, allowLdapDelete bool, tx *gorm.DB) error {
+func (s *UserService) deleteUserInternal(ctx context.Context, userID string, allowLdapDelete bool) error {
+	tx := utils.TransactionFromContext(ctx)
+
 	var user model.User
 
 	err := tx.
@@ -205,7 +208,8 @@ func (s *UserService) deleteUserInternal(ctx context.Context, userID string, all
 	}
 
 	profilePicturePath := path.Join("profile-pictures", userID+".png")
-	if err := s.fileStorage.Delete(ctx, profilePicturePath); err != nil {
+	err = s.fileStorage.Delete(ctx, profilePicturePath)
+	if err != nil {
 		return err
 	}
 
@@ -679,7 +683,8 @@ func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) er
 	return nil
 }
 
-func (s *UserService) disableUserInternal(ctx context.Context, userID string, tx *gorm.DB) error {
+func (s *UserService) disableUserInternal(ctx context.Context, userID string) error {
+	tx := utils.TransactionFromContext(ctx)
 	return tx.
 		WithContext(ctx).
 		Model(&model.User{}).

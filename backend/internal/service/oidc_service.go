@@ -729,6 +729,8 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		tx.Rollback()
 	}()
 
+	ctx = utils.ContextWithTransaction(ctx, tx)
+
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
@@ -749,14 +751,14 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 	}
 
 	if input.LogoURL != nil {
-		err = s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL, true)
+		err = s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL, true)
 		if err != nil {
 			return model.OidcClient{}, fmt.Errorf("failed to download logo: %w", err)
 		}
 	}
 
 	if input.DarkLogoURL != nil {
-		err = s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.DarkLogoURL, false)
+		err = s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.DarkLogoURL, false)
 		if err != nil {
 			return model.OidcClient{}, fmt.Errorf("failed to download dark logo: %w", err)
 		}
@@ -772,36 +774,43 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 
 func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
 	tx := s.db.Begin()
-	defer func() { tx.Rollback() }()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	ctx = utils.ContextWithTransaction(ctx, tx)
 
 	var client model.OidcClient
-	if err := tx.WithContext(ctx).
+	err := tx.WithContext(ctx).
 		Preload("CreatedBy").
-		First(&client, "id = ?", clientID).Error; err != nil {
+		First(&client, "id = ?", clientID).Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
 	updateOIDCClientModelFromDto(&client, &input)
 
-	if err := tx.WithContext(ctx).Save(&client).Error; err != nil {
+	err = tx.WithContext(ctx).Save(&client).Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 
 	if input.LogoURL != nil {
-		err := s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.LogoURL, true)
+		err = s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL, true)
 		if err != nil {
 			return model.OidcClient{}, fmt.Errorf("failed to download logo: %w", err)
 		}
 	}
 
 	if input.DarkLogoURL != nil {
-		err := s.downloadAndSaveLogoFromURL(ctx, tx, client.ID, *input.DarkLogoURL, false)
+		err = s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.DarkLogoURL, false)
 		if err != nil {
 			return model.OidcClient{}, fmt.Errorf("failed to download dark logo: %w", err)
 		}
 	}
 
-	if err := tx.Commit().Error; err != nil {
+	err = tx.Commit().Error
+	if err != nil {
 		return model.OidcClient{}, err
 	}
 	return client, nil
@@ -946,8 +955,9 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 	}
 
 	tx := s.db.Begin()
+	ctx = utils.ContextWithTransaction(ctx, tx)
 
-	err = s.updateClientLogoType(ctx, tx, clientID, fileType, light)
+	err = s.updateClientLogoType(ctx, clientID, fileType, light)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -957,53 +967,36 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 }
 
 func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) error {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
+	return s.deleteClientLogoInternal(ctx, clientID, "", func(client *model.OidcClient) (string, error) {
+		if client.ImageType == nil {
+			return "", errors.New("image not found")
+		}
 
-	var client model.OidcClient
-	err := tx.
-		WithContext(ctx).
-		First(&client, "id = ?", clientID).
-		Error
-	if err != nil {
-		return err
-	}
-
-	if client.ImageType == nil {
-		return errors.New("image not found")
-	}
-
-	oldImageType := *client.ImageType
-	client.ImageType = nil
-
-	err = tx.
-		WithContext(ctx).
-		Save(&client).
-		Error
-	if err != nil {
-		return err
-	}
-
-	imagePath := path.Join("oidc-client-images", client.ID+"."+oldImageType)
-	if err := s.fileStorage.Delete(ctx, imagePath); err != nil {
-		return err
-	}
-
-	err = tx.Commit().Error
-	if err != nil {
-		return err
-	}
-
-	return nil
+		oldImageType := *client.ImageType
+		client.ImageType = nil
+		return oldImageType, nil
+	})
 }
 
 func (s *OidcService) DeleteClientDarkLogo(ctx context.Context, clientID string) error {
+	return s.deleteClientLogoInternal(ctx, clientID, "-dark", func(client *model.OidcClient) (string, error) {
+		if client.DarkImageType == nil {
+			return "", errors.New("image not found")
+		}
+
+		oldImageType := *client.DarkImageType
+		client.DarkImageType = nil
+		return oldImageType, nil
+	})
+}
+
+func (s *OidcService) deleteClientLogoInternal(ctx context.Context, clientID string, imagePathSuffix string, setClientImage func(*model.OidcClient) (string, error)) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
+
+	ctx = utils.ContextWithTransaction(ctx, tx)
 
 	var client model.OidcClient
 	err := tx.
@@ -1014,12 +1007,10 @@ func (s *OidcService) DeleteClientDarkLogo(ctx context.Context, clientID string)
 		return err
 	}
 
-	if client.DarkImageType == nil {
-		return errors.New("image not found")
+	oldImageType, err := setClientImage(&client)
+	if err != nil {
+		return err
 	}
-
-	oldImageType := *client.DarkImageType
-	client.DarkImageType = nil
 
 	err = tx.
 		WithContext(ctx).
@@ -1029,8 +1020,9 @@ func (s *OidcService) DeleteClientDarkLogo(ctx context.Context, clientID string)
 		return err
 	}
 
-	imagePath := path.Join("oidc-client-images", client.ID+"-dark."+oldImageType)
-	if err := s.fileStorage.Delete(ctx, imagePath); err != nil {
+	imagePath := path.Join("oidc-client-images", client.ID+imagePathSuffix+"."+oldImageType)
+	err = s.fileStorage.Delete(ctx, imagePath)
+	if err != nil {
 		return err
 	}
 
@@ -1976,7 +1968,7 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 	return s.IsUserGroupAllowedToAuthorize(user, client), nil
 }
 
-func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *gorm.DB, clientID string, raw string, light bool) error {
+func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clientID string, raw string, light bool) error {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return err
@@ -2037,18 +2029,22 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, tx *
 	}
 
 	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
-	if err := s.fileStorage.Save(ctx, imagePath, io.LimitReader(resp.Body, maxLogoSize+1)); err != nil {
+	err = s.fileStorage.Save(ctx, imagePath, io.LimitReader(resp.Body, maxLogoSize+1))
+	if err != nil {
 		return err
 	}
 
-	if err := s.updateClientLogoType(ctx, tx, clientID, ext, light); err != nil {
+	err = s.updateClientLogoType(ctx, clientID, ext, light)
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *OidcService) updateClientLogoType(ctx context.Context, tx *gorm.DB, clientID, ext string, light bool) error {
+func (s *OidcService) updateClientLogoType(ctx context.Context, clientID, ext string, light bool) error {
+	tx := utils.TransactionFromContext(ctx)
+
 	var darkSuffix string
 	if !light {
 		darkSuffix = "-dark"
