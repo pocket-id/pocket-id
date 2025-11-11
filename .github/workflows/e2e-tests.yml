@@ -157,12 +157,11 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run Docker containers
-        if: matrix.storage != 's3'
         working-directory: ./tests/setup
         run: |
           DOCKER_COMPOSE_FILE=docker-compose.yml
 
-          if [ "{{ matrix.db }}" = "postgres" ]; then
+          if [ "${{ matrix.db }}" = "postgres" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
             export DB_PROVIDER="postgres"
             export DB_CONNECTION_STRING="postgres://postgres:postgres@postgres:5432/pocket-id"
@@ -171,8 +170,8 @@ jobs:
             export DB_CONNECTION_STRING=""
           fi
 
-          export FILE_BACKEND="{{ matrix.storage }}"
-          if [ "{{ matrix.storage }}" = "s3" ]; then
+          export FILE_BACKEND="${{ matrix.storage }}"
+          if [ "${{ matrix.storage }}" = "s3" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-s3.yml
           fi
 
