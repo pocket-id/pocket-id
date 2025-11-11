@@ -156,32 +156,30 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run Docker Container with LDAP + S3
-        if: matrix.storage == 's3'
-        working-directory: ./tests/setup
-        run: |
-          docker compose -f docker-compose-s3.yml up -d
-          docker compose -f docker-compose-s3.yml logs -f pocket-id &> /tmp/backend.log &
-
-      - name: Run Docker Container with LDAP
+      - name: Run Docker containers
         if: matrix.storage != 's3'
         working-directory: ./tests/setup
         run: |
+          DOCKER_COMPOSE_FILE=docker-compose.yml
+
           if [ "{{ matrix.db }}" = "postgres" ]; then
+            DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
             export DB_PROVIDER="postgres"
             export DB_CONNECTION_STRING="postgres://postgres:postgres@postgres:5432/pocket-id"
           else
             export DB_PROVIDER="sqlite"
+            export DB_CONNECTION_STRING=""
           fi
 
-          if [ "{{ matrix.storage }}" = "fs" ]; then
-            export FILE_BACKEND="fs"
+          if [ "{{ matrix.storage }}" = "fs" ] || [ "{{ matrix.storage }}" = "database" ]; then
+            export FILE_BACKEND="{{ matrix.storage }}"
           else
-            export FILE_BACKEND="database"
+            DOCKER_COMPOSE_FILE=docker-compose-s3.yml
+            export FILE_BACKEND="s3"
           fi
 
-          docker compose up -d
-          docker compose logs -f pocket-id &> /tmp/backend.log &
+          docker compose -f "$DOCKER_COMPOSE_FILE" up -d
+          docker compose -f "$DOCKER_COMPOSE_FILE" logs -f pocket-id &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./tests

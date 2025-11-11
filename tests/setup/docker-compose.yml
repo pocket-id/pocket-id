@@ -8,30 +8,17 @@ services:
       - LLDAP_JWT_SECRET=secret
       - LLDAP_LDAP_USER_PASS=admin_password
       - LLDAP_LDAP_BASE_DN=dc=pocket-id,dc=org
-  postgres:
-    image: postgres:17
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=pocket-id
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
-      interval: 5s
-      timeout: 5s
-      retries: 5
   pocket-id:
     image: pocket-id:test
     ports:
       - '1411:1411'
     environment:
-      - APP_ENV=test
-      - DB_PROVIDER=${DB_PROVIDER}
-      - DB_CONNECTION_STRING=${DB_CONNECTION_STRING}
+      APP_ENV: test
+      DB_PROVIDER: ${DB_PROVIDER}
+      DB_CONNECTION_STRING: ${DB_CONNECTION_STRING}
+      FILE_BACKEND: ${FILE_BACKEND}
     build:
       args:
         - BUILD_TAGS=e2etest
       context: ../..
       dockerfile: docker/Dockerfile
-    depends_on:
-      postgres:
-        condition: service_healthy

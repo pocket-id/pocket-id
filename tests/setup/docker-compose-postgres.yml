@@ -1,0 +1,24 @@
+# This Docker Compose file is used to set up the environment for the tests.
+services:
+  lldap:
+    extends:
+      file: docker-compose.yml
+      service: lldap
+  postgres:
+    image: postgres:17
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=pocket-id
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  pocket-id:
+    extends:
+      file: docker-compose.yml
+      service: pocket-id
+    depends_on:
+      postgres:
+        condition: service_healthy
