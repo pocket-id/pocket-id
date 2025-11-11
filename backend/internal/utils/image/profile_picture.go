@@ -19,7 +19,7 @@ import (
 
 const profilePictureSize = 300
 
-// CreateProfilePicture resizes the profile picture to a square
+// CreateProfilePicture resizes the profile picture to a square and encodes it as PNG
 func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
 	// Attempt standard formats first
 	img, _, err := imageorient.Decode(file)
