@@ -187,7 +187,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
-          name: playwright-report-${{ matrix.db }}
+          name: playwright-report-${{ matrix.db }}-${{ matrix.storage }}
           path: tests/.report
           include-hidden-files: true
           retention-days: 15
@@ -196,7 +196,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
-          name: backend-${{ matrix.db }}
+          name: backend-${{ matrix.db }}-${{ matrix.storage }}
           path: /tmp/backend.log
           include-hidden-files: true
           retention-days: 15
