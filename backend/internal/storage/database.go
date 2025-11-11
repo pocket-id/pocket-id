@@ -121,7 +121,7 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 
 	// Ensure prefix ends with / for proper prefix matching
 	if !strings.HasSuffix(prefix, "/") {
-		prefix = prefix + "/"
+		prefix += "/"
 	}
 
 	query := s.db.WithContext(ctx)
@@ -143,7 +143,7 @@ func (s *databaseStorage) List(ctx context.Context, prefix string) ([]ObjectInfo
 	if prefix != "" && prefix != "/" && prefix != "." {
 		// Ensure prefix matching
 		if !strings.HasSuffix(prefix, "/") {
-			prefix = prefix + "/"
+			prefix += "/"
 		}
 		query = addPathPrefixClause(s.db.Name(), query, prefix)
 	}
@@ -182,7 +182,7 @@ func (s *databaseStorage) Walk(ctx context.Context, root string, fn func(ObjectI
 	if root != "" && root != "/" && root != "." {
 		// Ensure root matching
 		if !strings.HasSuffix(root, "/") {
-			root = root + "/"
+			root += "/"
 		}
 		query = addPathPrefixClause(s.db.Name(), query, root)
 	}
