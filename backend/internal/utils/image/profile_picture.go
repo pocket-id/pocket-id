@@ -12,6 +12,7 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
+	"golang.org/x/image/webp"
 
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
@@ -19,17 +20,28 @@ import (
 const profilePictureSize = 300
 
 // CreateProfilePicture resizes the profile picture to a square
-func CreateProfilePicture(file io.Reader) (io.ReadSeeker, error) {
+func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
+	// Attempt standard formats first
 	img, _, err := imageorient.Decode(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
+		if _, seekErr := file.Seek(0, io.SeekStart); seekErr != nil {
+			return nil, fmt.Errorf("failed to seek file: %w", seekErr)
+		}
+		// Try WebP
+		webpImg, webpErr := webp.Decode(file)
+		if webpErr != nil {
+			return nil, fmt.Errorf("failed to decode image: %w", err)
+		}
+
+		img = webpImg
 	}
 
+	// Resize to square
 	img = imaging.Fill(img, profilePictureSize, profilePictureSize, imaging.Center, imaging.Lanczos)
 
+	// Encode back to PNG
 	var buf bytes.Buffer
-	err = imaging.Encode(&buf, img, imaging.PNG)
-	if err != nil {
+	if err := imaging.Encode(&buf, img, imaging.PNG); err != nil {
 		return nil, fmt.Errorf("failed to encode image: %w", err)
 	}
 
