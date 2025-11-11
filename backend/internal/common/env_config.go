@@ -47,8 +47,6 @@ type EnvConfigSchema struct {
 	S3AccessKeyID      string     `env:"S3_ACCESS_KEY_ID"`
 	S3SecretAccessKey  string     `env:"S3_SECRET_ACCESS_KEY"`
 	S3ForcePathStyle   bool       `env:"S3_FORCE_PATH_STYLE"`
-	KeysPath           string     `env:"KEYS_PATH"`
-	KeysStorage        string     `env:"KEYS_STORAGE"`
 	EncryptionKey      []byte     `env:"ENCRYPTION_KEY" options:"file"`
 	Port               string     `env:"PORT"`
 	Host               string     `env:"HOST" options:"toLower"`
@@ -84,7 +82,6 @@ func defaultConfig() EnvConfigSchema {
 		LogLevel:      "info",
 		DbProvider:    "sqlite",
 		FileBackend:   "fs",
-		KeysPath:      "data/keys",
 		AppURL:        AppUrl,
 		Port:          "1411",
 		Host:          "0.0.0.0",
@@ -161,25 +158,9 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		}
 	}
 
-	switch config.KeysStorage {
-	// KeysStorage defaults to "file" if empty
-	case "":
-		config.KeysStorage = "file"
-	case "database":
-		if config.EncryptionKey == nil {
-			return errors.New("ENCRYPTION_KEY must be non-empty when KEYS_STORAGE is database")
-		}
-	case "file":
-		// All good, these are valid values
-	default:
-		return fmt.Errorf("invalid value for KEYS_STORAGE: %s", config.KeysStorage)
-	}
 
 	switch config.FileBackend {
 	case "s3":
-		if config.KeysStorage == "file" {
-			return errors.New("KEYS_STORAGE cannot be 'file' when FILE_BACKEND is 's3'")
-		}
 	case "", "fs":
 		if config.UploadPath == "" {
 			config.UploadPath = defaultFsUploadPath
