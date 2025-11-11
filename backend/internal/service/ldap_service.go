@@ -440,7 +440,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 }
 
 func (s *LdapService) saveProfilePicture(parentCtx context.Context, userId string, pictureString string) error {
-	var reader io.Reader
+	var reader io.ReadSeeker
 
 	_, err := url.ParseRequestURI(pictureString)
 	if err == nil {
@@ -460,7 +460,12 @@ func (s *LdapService) saveProfilePicture(parentCtx context.Context, userId strin
 		}
 		defer res.Body.Close()
 
-		reader = res.Body
+		data, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read profile picture: %w", err)
+		}
+
+		reader = bytes.NewReader(data)
 	} else if decodedPhoto, err := base64.StdEncoding.DecodeString(pictureString); err == nil {
 		// If the photo is a base64 encoded string, decode it
 		reader = bytes.NewReader(decodedPhoto)
