@@ -124,6 +124,10 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		return errors.New("invalid LOG_LEVEL value. Must be 'debug', 'info', 'warn' or 'error'")
 	}
 
+	if len(config.EncryptionKey) < 16 {
+		return errors.New("ENCRYPTION_KEY must be at least 16 bytes long")
+	}
+
 	switch config.DbProvider {
 	case DbProviderSqlite:
 		if config.DbConnectionString == "" {
@@ -157,7 +161,6 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 			return errors.New("INTERNAL_APP_URL must not contain a path")
 		}
 	}
-
 
 	switch config.FileBackend {
 	case "s3":

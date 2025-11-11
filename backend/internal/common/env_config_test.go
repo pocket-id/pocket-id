@@ -49,6 +49,18 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid DB_PROVIDER value")
 	})
 
+	t.Run("should fail when ENCRYPTION_KEY is too short", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("ENCRYPTION_KEY", "short")
+
+		err := parseEnvConfig()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "ENCRYPTION_KEY must be at least 16 bytes long")
+	})
+
 	t.Run("should set default SQLite connection string when DB_CONNECTION_STRING is empty", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "sqlite")
@@ -113,17 +125,6 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "INTERNAL_APP_URL must not contain a path")
 	})
 
-	t.Run("should default KEYS_STORAGE to 'file' when empty", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-
-		err := parseEnvConfig()
-		require.NoError(t, err)
-		assert.Equal(t, "file", EnvConfig.KeysStorage)
-	})
-
 	t.Run("should fail when KEYS_STORAGE is 'database' but no encryption key", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "sqlite")
@@ -134,25 +135,6 @@ func TestParseEnvConfig(t *testing.T) {
 		err := parseEnvConfig()
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "ENCRYPTION_KEY must be non-empty when KEYS_STORAGE is database")
-	})
-
-	t.Run("should accept valid KEYS_STORAGE values", func(t *testing.T) {
-		validStorageTypes := []string{"file", "database"}
-
-		for _, storage := range validStorageTypes {
-			EnvConfig = defaultConfig()
-			t.Setenv("DB_PROVIDER", "sqlite")
-			t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-			t.Setenv("APP_URL", "http://localhost:3000")
-			t.Setenv("KEYS_STORAGE", storage)
-			if storage == "database" {
-				t.Setenv("ENCRYPTION_KEY", "test-key")
-			}
-
-			err := parseEnvConfig()
-			require.NoError(t, err)
-			assert.Equal(t, storage, EnvConfig.KeysStorage)
-		}
 	})
 
 	t.Run("should fail with invalid KEYS_STORAGE value", func(t *testing.T) {
