@@ -159,7 +159,7 @@ func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model
 	return user.UserGroups, nil
 }
 
-func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, file io.Reader) error {
+func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, file io.ReadSeeker) error {
 	// Validate the user ID to prevent directory traversal
 	err := uuid.Validate(userID)
 	if err != nil {
