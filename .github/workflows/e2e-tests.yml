@@ -111,8 +111,8 @@ jobs:
       - name: Pull and save LLDAP image
         if: steps.lldap-cache.outputs.cache-hit != 'true'
         run: |
-          docker pull nitnelave/lldap:stable
-          docker save nitnelave/lldap:stable > /tmp/lldap-image.tar
+          docker pull lldap/lldap:2025-05-19
+          docker save lldap/lldap:2025-05-19 > /tmp/lldap-image.tar
       - name: Load LLDAP image
         if: steps.lldap-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/lldap-image.tar
