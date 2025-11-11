@@ -6,8 +6,8 @@ CREATE TABLE storage
     path       TEXT NOT NULL PRIMARY KEY,
     data       BLOB NOT NULL,
     size       INTEGER NOT NULL,
-    mod_time   INTEGER NOT NULL,
-    created_at INTEGER NOT NULL
+    mod_time   DATETIME NOT NULL,
+    created_at DATETIME NOT NULL
 );
 
 COMMIT;
