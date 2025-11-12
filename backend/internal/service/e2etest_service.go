@@ -327,9 +327,10 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			Base: model.Base{
 				ID: "5f1fa856-c164-4295-961e-175a0d22d725",
 			},
-			Name:   "Test API Key",
-			Key:    "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
-			UserID: users[0].ID,
+			Name:      "Test API Key",
+			Key:       "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
+			ExpiresAt: datatype.DateTime(time.Now().Add(24 * time.Hour)),
+			UserID:    users[0].ID,
 		}
 		if err := tx.Create(&apiKey).Error; err != nil {
 			return err
@@ -402,9 +403,19 @@ func (s *TestService) ResetDatabase() error {
 		case common.DbProviderPostgres:
 			// Query to get all tables for PostgreSQL
 			if err := tx.Raw(`
-                SELECT tablename 
-                FROM pg_tables 
+                SELECT tablename
+                FROM pg_tables
                 WHERE schemaname = 'public' AND tablename != 'schema_migrations';
+            `).Scan(&tables).Error; err != nil {
+				return err
+			}
+		case common.DbProviderMysql:
+			// Query to get all tables for MySQL
+			if err := tx.Raw(`
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                AND table_name != 'schema_migrations';
             `).Scan(&tables).Error; err != nil {
 				return err
 			}

@@ -385,7 +385,7 @@ func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB)
 			var value string
 			err := tx.WithContext(ctx).
 				Model(&model.AppConfigVariable{}).
-				Where("key = ?", key).
+				Where(getQuotedKeyColumn(tx)+" = ?", key).
 				Select("value").
 				First(&value).Error
 			if err == nil {

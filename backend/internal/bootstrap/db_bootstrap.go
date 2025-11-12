@@ -14,11 +14,13 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	mysqlMigrate "github.com/golang-migrate/migrate/v4/database/mysql"
 	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	slogGorm "github.com/orandin/slog-gorm"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
@@ -48,6 +50,8 @@ func NewDatabase() (db *gorm.DB, err error) {
 		})
 	case common.DbProviderPostgres:
 		driver, err = postgresMigrate.WithInstance(sqlDb, &postgresMigrate.Config{})
+	case common.DbProviderMysql:
+		driver, err = mysqlMigrate.WithInstance(sqlDb, &mysqlMigrate.Config{})
 	default:
 		// Should never happen at this point
 		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
@@ -175,6 +179,11 @@ func connectDatabase() (db *gorm.DB, err error) {
 			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
 		}
 		dialector = postgres.Open(common.EnvConfig.DbConnectionString)
+	case common.DbProviderMysql:
+		if common.EnvConfig.DbConnectionString == "" {
+			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for MySQL database")
+		}
+		dialector = mysql.Open(common.EnvConfig.DbConnectionString)
 	default:
 		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}

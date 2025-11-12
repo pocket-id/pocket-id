@@ -1,0 +1,28 @@
+# This Docker Compose file is used to set up the environment for the tests.
+services:
+  lldap:
+    extends:
+      file: docker-compose.yml
+      service: lldap
+  mysql:
+    image: mysql:8
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=pocket-id
+      - MYSQL_USER=mysql
+      - MYSQL_PASSWORD=mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-proot']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  pocket-id:
+    extends:
+      file: docker-compose.yml
+      service: pocket-id
+    environment:
+      - DB_PROVIDER=mysql
+      - DB_CONNECTION_STRING=mysql:mysql@tcp(mysql:3306)/pocket-id?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true
+    depends_on:
+      mysql:
+        condition: service_healthy

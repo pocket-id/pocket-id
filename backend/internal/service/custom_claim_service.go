@@ -109,6 +109,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 	err := tx.
 		WithContext(ctx).
 		Where(string(idType), value).
+		Order(getQuotedKeyColumn(tx) + " ASC").
 		Find(&existingClaims).
 		Error
 	if err != nil {
@@ -154,9 +155,10 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 		}
 
 		// Update the claim if it already exists or create a new one
+		// Note: "key" is a reserved word in MySQL, so we need to escape it properly based on database dialect
 		err = tx.
 			WithContext(ctx).
-			Where(string(idType)+" = ? AND key = ?", value, claim.Key).
+			Where(string(idType)+" = ? AND "+getQuotedKeyColumn(tx)+" = ?", value, claim.Key).
 			Assign(&customClaim).
 			FirstOrCreate(&model.CustomClaim{}).
 			Error
@@ -170,6 +172,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 	err = tx.
 		WithContext(ctx).
 		Where(string(idType)+" = ?", value).
+		Order(getQuotedKeyColumn(tx) + " ASC").
 		Find(&updatedClaims).
 		Error
 	if err != nil {
@@ -184,6 +187,7 @@ func (s *CustomClaimService) GetCustomClaimsForUser(ctx context.Context, userID 
 	err := tx.
 		WithContext(ctx).
 		Where("user_id = ?", userID).
+		Order(getQuotedKeyColumn(tx) + " ASC").
 		Find(&customClaims).
 		Error
 	return customClaims, err
@@ -194,6 +198,7 @@ func (s *CustomClaimService) GetCustomClaimsForUserGroup(ctx context.Context, us
 	err := tx.
 		WithContext(ctx).
 		Where("user_group_id = ?", userGroupID).
+		Order(getQuotedKeyColumn(tx) + " ASC").
 		Find(&customClaims).
 		Error
 	return customClaims, err
@@ -218,7 +223,9 @@ func (s *CustomClaimService) GetCustomClaimsForUserWithUserGroups(ctx context.Co
 	var userGroupsOfUser []model.UserGroup
 	err = tx.
 		WithContext(ctx).
-		Preload("CustomClaims").
+		Preload("CustomClaims", func(db *gorm.DB) *gorm.DB {
+			return db.Order(getQuotedKeyColumn(db) + " ASC")
+		}).
 		Joins("JOIN user_groups_users ON user_groups_users.user_group_id = user_groups.id").
 		Where("user_groups_users.user_id = ?", userID).
 		Find(&userGroupsOfUser).Error

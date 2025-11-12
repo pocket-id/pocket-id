@@ -120,15 +120,23 @@ func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, use
 		tx.Rollback()
 	}()
 
-	// Load & delete the session row
+	// Load the session row first (MySQL doesn't support RETURNING in DELETE)
 	var storedSession model.WebauthnSession
 	err := tx.
 		WithContext(ctx).
-		Clauses(clause.Returning{}).
-		Delete(&storedSession, "id = ?", sessionID).
+		First(&storedSession, "id = ?", sessionID).
 		Error
 	if err != nil {
 		return model.WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", err)
+	}
+
+	// Delete the session after loading
+	err = tx.
+		WithContext(ctx).
+		Delete(&model.WebauthnSession{}, "id = ?", sessionID).
+		Error
+	if err != nil {
+		return model.WebauthnCredential{}, fmt.Errorf("failed to delete WebAuthn session: %w", err)
 	}
 
 	session := webauthn.SessionData{
@@ -224,15 +232,23 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		tx.Rollback()
 	}()
 
-	// Load & delete the session row
+	// Load the session row first (MySQL doesn't support RETURNING in DELETE)
 	var storedSession model.WebauthnSession
 	err := tx.
 		WithContext(ctx).
-		Clauses(clause.Returning{}).
-		Delete(&storedSession, "id = ?", sessionID).
+		First(&storedSession, "id = ?", sessionID).
 		Error
 	if err != nil {
 		return model.User{}, "", fmt.Errorf("failed to load WebAuthn session: %w", err)
+	}
+
+	// Delete the session after loading
+	err = tx.
+		WithContext(ctx).
+		Delete(&model.WebauthnSession{}, "id = ?", sessionID).
+		Error
+	if err != nil {
+		return model.User{}, "", fmt.Errorf("failed to delete WebAuthn session: %w", err)
 	}
 
 	session := webauthn.SessionData{
@@ -390,15 +406,24 @@ func (s *WebAuthnService) CreateReauthenticationTokenWithWebauthn(ctx context.Co
 		tx.Rollback()
 	}()
 
-	// Retrieve and delete the session
+	// Load the session row first (MySQL doesn't support RETURNING in DELETE)
 	var storedSession model.WebauthnSession
 	err := tx.
 		WithContext(ctx).
-		Clauses(clause.Returning{}).
-		Delete(&storedSession, "id = ? AND expires_at > ?", sessionID, datatype.DateTime(time.Now())).
+		Where("id = ? AND expires_at > ?", sessionID, datatype.DateTime(time.Now())).
+		First(&storedSession).
 		Error
 	if err != nil {
 		return "", fmt.Errorf("failed to load WebAuthn session: %w", err)
+	}
+
+	// Delete the session after loading
+	err = tx.
+		WithContext(ctx).
+		Delete(&model.WebauthnSession{}, "id = ?", sessionID).
+		Error
+	if err != nil {
+		return "", fmt.Errorf("failed to delete WebAuthn session: %w", err)
 	}
 
 	session := webauthn.SessionData{
