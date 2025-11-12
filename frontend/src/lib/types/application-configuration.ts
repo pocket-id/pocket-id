@@ -47,7 +47,7 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeGroupMember: string;
 	ldapAttributeGroupUniqueIdentifier: string;
 	ldapAttributeGroupName: string;
-	ldapAttributeAdminGroup: string;
+	ldapAdminGroupName: string;
 	ldapSoftDeleteUsers: boolean;
 };
 
