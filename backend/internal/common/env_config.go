@@ -27,6 +27,7 @@ const (
 const (
 	DbProviderSqlite        DbProvider = "sqlite"
 	DbProviderPostgres      DbProvider = "postgres"
+	DbProviderMysql         DbProvider = "mysql"
 	MaxMindGeoLiteCityUrl   string     = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
 	defaultSqliteConnString string     = "data/pocket-id.db"
 	defaultFsUploadPath     string     = "data/uploads"
@@ -136,8 +137,12 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		if config.DbConnectionString == "" {
 			return errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
 		}
+	case DbProviderMysql:
+		if config.DbConnectionString == "" {
+			return errors.New("missing required env var 'DB_CONNECTION_STRING' for MySQL database")
+		}
 	default:
-		return errors.New("invalid DB_PROVIDER value. Must be 'sqlite' or 'postgres'")
+		return errors.New("invalid DB_PROVIDER value. Must be 'sqlite', 'postgres', or 'mysql'")
 	}
 
 	parsedAppUrl, err := url.Parse(config.AppURL)

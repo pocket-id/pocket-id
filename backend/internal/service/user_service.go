@@ -57,7 +57,9 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, listRequ
 	query := s.db.WithContext(ctx).
 		Model(&model.User{}).
 		Preload("UserGroups").
-		Preload("CustomClaims")
+		Preload("CustomClaims", func(db *gorm.DB) *gorm.DB {
+			return db.Order(getQuotedKeyColumn(db) + " ASC")
+		})
 
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
@@ -80,7 +82,9 @@ func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *go
 	err := tx.
 		WithContext(ctx).
 		Preload("UserGroups").
-		Preload("CustomClaims").
+		Preload("CustomClaims", func(db *gorm.DB) *gorm.DB {
+			return db.Order(getQuotedKeyColumn(db) + " ASC")
+		}).
 		Where("id = ?", userID).
 		First(&user).
 		Error

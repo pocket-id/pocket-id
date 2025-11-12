@@ -1514,16 +1514,16 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	// If user has no groups, only return clients with no allowed user groups
 	if len(userGroupIDs) == 0 {
 		query = query.Where(`NOT EXISTS (
-        SELECT 1 FROM oidc_clients_allowed_user_groups 
+        SELECT 1 FROM oidc_clients_allowed_user_groups
         WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id)`)
 	} else {
 		query = query.Where(`
         NOT EXISTS (
-            SELECT 1 FROM oidc_clients_allowed_user_groups 
+            SELECT 1 FROM oidc_clients_allowed_user_groups
             WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
         ) OR EXISTS (
-            SELECT 1 FROM oidc_clients_allowed_user_groups 
-            WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id 
+            SELECT 1 FROM oidc_clients_allowed_user_groups
+            WHERE oidc_clients_allowed_user_groups.oidc_client_id = oidc_clients.id
             AND oidc_clients_allowed_user_groups.user_group_id IN (?))`, userGroupIDs)
 	}
 
@@ -1532,9 +1532,16 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	// Handle custom sorting for lastUsedAt column
 	var response utils.PaginationResponse
 	if listRequestOptions.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+		orderClause := "user_authorized_oidc_clients.last_used_at " + listRequestOptions.Sort.Direction
+		// MySQL doesn't support NULLS LAST syntax - NULLs are automatically sorted last for DESC
+		// PostgreSQL and SQLite support NULLS LAST
+		dialect := s.db.Name()
+		if dialect != "mysql" {
+			orderClause += " NULLS LAST"
+		}
 		query = query.
 			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
-			Order("user_authorized_oidc_clients.last_used_at " + listRequestOptions.Sort.Direction + " NULLS LAST")
+			Order(orderClause)
 	}
 
 	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &clients)

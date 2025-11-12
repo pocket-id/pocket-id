@@ -57,7 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        db: [sqlite, postgres, sqlite-s3]
+        db: [sqlite, postgres, mysql, sqlite-s3]
 
     steps:
       - uses: actions/checkout@v5
@@ -94,6 +94,24 @@ jobs:
       - name: Load PostgreSQL image
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
+
+      - name: Cache MySQL Docker image
+        if: matrix.db == 'mysql'
+        uses: actions/cache@v3
+        id: mysql-cache
+        with:
+          path: /tmp/mysql-image.tar
+          key: mysql-8-${{ runner.os }}
+
+      - name: Pull and save MySQL image
+        if: matrix.db == 'mysql' && steps.mysql-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull mysql:8
+          docker save mysql:8 > /tmp/mysql-image.tar
+
+      - name: Load MySQL image
+        if: matrix.db == 'mysql' && steps.mysql-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/mysql-image.tar
 
       - name: Cache LLDAP Docker image
         uses: actions/cache@v3
@@ -160,6 +178,13 @@ jobs:
         run: |
           docker compose -f docker-compose-postgres.yml up -d
           docker compose -f docker-compose-postgres.yml logs -f pocket-id &> /tmp/backend.log &
+
+      - name: Run Docker Container (mysql) with LDAP
+        if: matrix.db == 'mysql'
+        working-directory: ./tests/setup
+        run: |
+          docker compose -f docker-compose-mysql.yml up -d
+          docker compose -f docker-compose-mysql.yml logs -f pocket-id &> /tmp/backend.log &
 
       - name: Run Docker Container (sqlite-s3) with LDAP + S3
         if: matrix.db == 'sqlite-s3'

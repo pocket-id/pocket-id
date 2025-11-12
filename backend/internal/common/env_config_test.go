@@ -38,6 +38,17 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, DbProviderPostgres, EnvConfig.DbProvider)
 	})
 
+	t.Run("should parse valid MySQL config correctly", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "MYSQL")
+		t.Setenv("DB_CONNECTION_STRING", "user:pass@tcp(localhost:3306)/db")
+		t.Setenv("APP_URL", "https://example.com")
+
+		err := parseEnvConfig()
+		require.NoError(t, err)
+		assert.Equal(t, DbProviderMysql, EnvConfig.DbProvider)
+	})
+
 	t.Run("should fail with invalid DB_PROVIDER", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_PROVIDER", "invalid")
@@ -67,6 +78,16 @@ func TestParseEnvConfig(t *testing.T) {
 		err := parseEnvConfig()
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "missing required env var 'DB_CONNECTION_STRING' for Postgres")
+	})
+
+	t.Run("should fail when MySQL DB_CONNECTION_STRING is missing", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "mysql")
+		t.Setenv("APP_URL", "http://localhost:3000")
+
+		err := parseEnvConfig()
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "missing required env var 'DB_CONNECTION_STRING' for MySQL")
 	})
 
 	t.Run("should fail with invalid APP_URL", func(t *testing.T) {

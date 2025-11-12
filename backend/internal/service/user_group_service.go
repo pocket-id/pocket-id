@@ -12,6 +12,20 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
+// getQuotedKeyColumn returns the properly quoted "key" column name based on database dialect
+// MySQL uses backticks, PostgreSQL uses double quotes, SQLite accepts backticks
+func getQuotedKeyColumn(db *gorm.DB) string {
+	dialect := db.Name()
+	switch dialect {
+	case "postgres":
+		return `"key"`
+	case "mysql":
+		return "`key`"
+	default: // sqlite
+		return "`key`"
+	}
+}
+
 type UserGroupService struct {
 	db               *gorm.DB
 	appConfigService *AppConfigService
@@ -24,7 +38,9 @@ func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService) *UserG
 func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
 	query := s.db.
 		WithContext(ctx).
-		Preload("CustomClaims").
+		Preload("CustomClaims", func(db *gorm.DB) *gorm.DB {
+			return db.Order(getQuotedKeyColumn(db) + " ASC")
+		}).
 		Model(&model.UserGroup{})
 
 	if name != "" {
@@ -51,7 +67,9 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 	err = tx.
 		WithContext(ctx).
 		Where("id = ?", id).
-		Preload("CustomClaims").
+		Preload("CustomClaims", func(db *gorm.DB) *gorm.DB {
+			return db.Order(getQuotedKeyColumn(db) + " ASC")
+		}).
 		Preload("Users").
 		First(&group).
 		Error
