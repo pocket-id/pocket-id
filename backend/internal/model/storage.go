@@ -5,11 +5,11 @@ import (
 )
 
 type Storage struct {
-	Path      string            `gorm:"primaryKey;not null"`
-	Data      []byte            `gorm:"not null"`
-	Size      int64             `gorm:"not null"`
-	ModTime   datatype.DateTime `gorm:"not null"`
-	CreatedAt datatype.DateTime `gorm:"not null"`
+	Path      string `gorm:"primaryKey;not null"`
+	Data      []byte
+	Size      int64
+	ModTime   datatype.DateTime
+	CreatedAt datatype.DateTime
 }
 
 func (Storage) TableName() string {

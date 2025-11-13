@@ -133,7 +133,7 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 	}
 
 	// If empty prefix, delete all
-	if prefix == "" || prefix == "/" || prefix == "." {
+	if isRootPath(prefix) {
 		result := db.
 			WithContext(ctx).
 			Where("1 = 1"). // Delete everything
@@ -171,7 +171,7 @@ func (s *databaseStorage) List(ctx context.Context, prefix string) ([]ObjectInfo
 	var storageItems []model.Storage
 	query := db.WithContext(ctx)
 
-	if prefix != "" && prefix != "/" && prefix != "." {
+	if !isRootPath(prefix) {
 		// Ensure prefix matching
 		if !strings.HasSuffix(prefix, "/") {
 			prefix += "/"
@@ -216,7 +216,7 @@ func (s *databaseStorage) Walk(ctx context.Context, root string, fn func(ObjectI
 	var storageItems []model.Storage
 	query := db.WithContext(ctx)
 
-	if root != "" && root != "/" && root != "." {
+	if !isRootPath(root) {
 		// Ensure root matching
 		if !strings.HasSuffix(root, "/") {
 			root += "/"
@@ -243,6 +243,10 @@ func (s *databaseStorage) Walk(ctx context.Context, root string, fn func(ObjectI
 	}
 
 	return nil
+}
+
+func isRootPath(path string) bool {
+	return path == "" || path == "/" || path == "."
 }
 
 func addPathPrefixClause(dialect string, query *gorm.DB, prefix string) *gorm.DB {

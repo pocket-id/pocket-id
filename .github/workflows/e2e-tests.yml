@@ -99,7 +99,7 @@ jobs:
           docker pull postgres:17
           docker save postgres:17 > /tmp/postgres-image.tar
       - name: Load PostgreSQL image
-        if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit != 'true'
+        if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
 
       - name: Cache LLDAP Docker image
