@@ -184,9 +184,21 @@ func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, f
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		return s.deleteUserInternal(ctx, tx, userID, allowLdapDelete)
 	})
+	if err != nil {
+		return fmt.Errorf("failed to delete user '%s': %w", userID, err)
+	}
+
+	// Storage operations must be executed outside of a transaction
+	profilePicturePath := path.Join("profile-pictures", userID+".png")
+	err = s.fileStorage.Delete(ctx, profilePicturePath)
+	if err != nil {
+		return fmt.Errorf("failed to delete profile picture for user '%s': %w", userID, err)
+	}
+
+	return nil
 }
 
 func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userID string, allowLdapDelete bool) error {
@@ -204,12 +216,6 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 	// Disallow deleting the user if it is an LDAP user, LDAP is enabled, and the user is not disabled
 	if !allowLdapDelete && !user.Disabled && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
 		return &common.LdapUserUpdateError{}
-	}
-
-	profilePicturePath := path.Join("profile-pictures", userID+".png")
-	err = s.fileStorage.Delete(ctx, profilePicturePath)
-	if err != nil {
-		return err
 	}
 
 	err = tx.WithContext(ctx).Delete(&user).Error
@@ -289,16 +295,27 @@ func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User,
 
 	// Apply default user groups
 	var groupIDs []string
-	if v := config.SignupDefaultUserGroupIDs.Value; v != "" && v != "[]" {
-		if err := json.Unmarshal([]byte(v), &groupIDs); err != nil {
+	v := config.SignupDefaultUserGroupIDs.Value
+	if v != "" && v != "[]" {
+		err := json.Unmarshal([]byte(v), &groupIDs)
+		if err != nil {
 			return fmt.Errorf("invalid SignupDefaultUserGroupIDs JSON: %w", err)
 		}
 		if len(groupIDs) > 0 {
 			var groups []model.UserGroup
-			if err := tx.WithContext(ctx).Where("id IN ?", groupIDs).Find(&groups).Error; err != nil {
+			err = tx.WithContext(ctx).
+				Where("id IN ?", groupIDs).
+				Find(&groups).
+				Error
+			if err != nil {
 				return fmt.Errorf("failed to find default user groups: %w", err)
 			}
-			if err := tx.WithContext(ctx).Model(user).Association("UserGroups").Replace(groups); err != nil {
+
+			err = tx.WithContext(ctx).
+				Model(user).
+				Association("UserGroups").
+				Replace(groups)
+			if err != nil {
 				return fmt.Errorf("failed to associate default user groups: %w", err)
 			}
 		}
@@ -306,12 +323,15 @@ func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User,
 
 	// Apply default custom claims
 	var claims []dto.CustomClaimCreateDto
-	if v := config.SignupDefaultCustomClaims.Value; v != "" && v != "[]" {
-		if err := json.Unmarshal([]byte(v), &claims); err != nil {
+	v = config.SignupDefaultCustomClaims.Value
+	if v != "" && v != "[]" {
+		err := json.Unmarshal([]byte(v), &claims)
+		if err != nil {
 			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
 		}
 		if len(claims) > 0 {
-			if _, err := s.customClaimService.updateCustomClaimsInternal(ctx, UserID, user.ID, claims, tx); err != nil {
+			_, err = s.customClaimService.updateCustomClaimsInternal(ctx, UserID, user.ID, claims, tx)
+			if err != nil {
 				return fmt.Errorf("failed to apply default custom claims: %w", err)
 			}
 		}
