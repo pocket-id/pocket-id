@@ -109,17 +109,12 @@ func parseEnvConfig() error {
 		return fmt.Errorf("error preparing env config: %w", err)
 	}
 
-	err = validateEnvConfig(&EnvConfig)
-	if err != nil {
-		return err
-	}
-
 	return nil
 
 }
 
-// validateEnvConfig checks the EnvConfig for required fields and valid values
-func validateEnvConfig(config *EnvConfigSchema) error {
+// ValidateEnvConfig checks the EnvConfig for required fields and valid values
+func ValidateEnvConfig(config *EnvConfigSchema) error {
 	if _, err := sloggin.ParseLevel(config.LogLevel); err != nil {
 		return errors.New("invalid LOG_LEVEL value. Must be 'debug', 'info', 'warn' or 'error'")
 	}

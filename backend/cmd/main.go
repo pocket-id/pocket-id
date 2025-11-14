@@ -4,6 +4,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/pocket-id/pocket-id/backend/internal/cmds"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 // @title Pocket ID API
@@ -11,5 +12,8 @@ import (
 // @description.markdown
 
 func main() {
+	if err := common.ValidateEnvConfig(&common.EnvConfig); err != nil {
+		panic(err)
+	}
 	cmds.Execute()
 }
