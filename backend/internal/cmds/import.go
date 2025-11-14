@@ -90,8 +90,13 @@ func runImport(ctx context.Context, flags importFlags) error {
 	case <-time.After(time.Until(waitUntil)):
 	}
 
-	importService := service.NewImportService(db)
-	if err := importService.ImportFromZip(&r.Reader); err != nil {
+	storage, err := bootstrap.InitStorage(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to initialize storage: %w", err)
+	}
+
+	importService := service.NewImportService(db, storage)
+	if err := importService.ImportFromZip(ctx, &r.Reader); err != nil {
 		return fmt.Errorf("failed to import data from zip: %w", err)
 	}
 
@@ -105,7 +110,6 @@ func askForConfirmation() (bool, error) {
 	fmt.Println("WARNING: Import will erase all existing data at the following locations:")
 	fmt.Printf("Database:      %s\n", absolutePathOrOriginal(common.EnvConfig.DbConnectionString))
 	fmt.Printf("Uploads Path:  %s\n", absolutePathOrOriginal(common.EnvConfig.UploadPath))
-	fmt.Printf("Keys Path:     %s\n", absolutePathOrOriginal(common.EnvConfig.KeysPath))
 
 	ok, err := utils.PromptForConfirmation("Do you want to continue?")
 	if err != nil {

@@ -384,6 +384,19 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
+		keyValues := []model.KV{
+			{
+				Key:   jwkutils.PrivateKeyDBKey,
+				Value: utils.Ptr("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"),
+			},
+		}
+
+		for _, kv := range keyValues {
+			if err := tx.Create(&kv).Error; err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 
@@ -468,7 +481,7 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 	}
 
 	// Manually set instance ID
-	err = s.appConfigService.UpdateAppConfigValues(ctx, "instanceId", "1ac0692c-32c4-4c17-b363-28569c231787")
+	err = s.appConfigService.UpdateAppConfigValues(ctx, "instanceId", "test-instance-id")
 	if err != nil {
 		return err
 	}
@@ -480,20 +493,6 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 func (s *TestService) ResetLock(ctx context.Context) error {
 	_, err := s.appLockService.Acquire(ctx, true)
 	return err
-}
-
-func (s *TestService) SetJWTKeys() error {
-	const privateKeyString = `{"alg":"RS256","d":"mvMDWSdPPvcum0c0iEHE2gbqtV2NKMmLwrl9E6K7g8lTV95SePLnW_bwyMPV7EGp7PQk3l17I5XRhFjze7GqTnFIOgKzMianPs7jv2ELtBMGK0xOPATgu1iGb70xZ6vcvuEfRyY3dJ0zr4jpUdVuXwKmx9rK4IdZn2dFCKfvSuspqIpz11RhF1ALrqDLkxGVv7ZwNh0_VhJZU9hcjG5l6xc7rQEKpPRkZp0IdjkGS8Z0FskoVaiRIWAbZuiVFB9WCW8k1czC4HQTPLpII01bUQx2ludbm0UlXRgVU9ptUUbU7GAImQqTOW8LfPGklEvcgzlIlR_oqw4P9yBxLi-yMQ","dp":"pvNCSnnhbo8Igw9psPR-DicxFnkXlu_ix4gpy6efTrxA-z1VDFDioJ814vKQNioYDzpyAP1gfMPhRkvG_q0hRZsJah3Sb9dfA-WkhSWY7lURQP4yIBTMU0PF_rEATuS7lRciYk1SOx5fqXZd3m_LP0vpBC4Ujlq6NAq6CIjCnms","dq":"TtUVGCCkPNgfOLmkYXu7dxxUCV5kB01-xAEK2OY0n0pG8vfDophH4_D_ZC7nvJ8J9uDhs_3JStexq1lIvaWtG99RNTChIEDzpdn6GH9yaVcb_eB4uJjrNm64FhF8PGCCwxA-xMCZMaARKwhMB2_IOMkxUbWboL3gnhJ2rDO_QO0","e":"AQAB","kid":"8uHDw3M6rf8","kty":"RSA","n":"yaeEL0VKoPBXIAaWXsUgmu05lAvEIIdJn0FX9lHh4JE5UY9B83C5sCNdhs9iSWzpeP11EVjWp8i3Yv2CF7c7u50BXnVBGtxpZpFC-585UXacoJ0chUmarL9GRFJcM1nPHBTFu68aRrn1rIKNHUkNaaxFo0NFGl_4EDDTO8HwawTjwkPoQlRzeByhlvGPVvwgB3Fn93B8QJ_cZhXKxJvjjrC_8Pk76heC_ntEMru71Ix77BoC3j2TuyiN7m9RNBW8BU5q6lKoIdvIeZfTFLzi37iufyfvMrJTixp9zhNB1NxlLCeOZl2MXegtiGqd2H3cbAyqoOiv9ihUWTfXj7SxJw","p":"_Yylc9e07CKdqNRD2EosMC2mrhrEa9j5oY_l00Qyy4-jmCA59Q9viyqvveRo0U7cRvFA5BWgWN6GGLh1DG3X-QBqVr0dnk3uzbobb55RYUXyPLuBZI2q6w2oasbiDwPdY7KpkVv_H-bpITQlyDvO8hhucA6rUV7F6KTQVz8M3Ms","q":"y5p3hch-7jJ21TkAhp_Vk1fLCAuD4tbErwQs2of9ja8sB4iJOs5Wn6HD3P7Mc8Plye7qaLHvzc8I5g0tPKWvC0DPd_FLPXiWwMVAzee3NUX_oGeJNOQp11y1w_KqdO9qZqHSEPZ3NcFL_SZMFgggxhM1uzRiPzsVN0lnD_6prZU","qi":"2Grt6uXHm61ji3xSdkBWNtUnj19vS1-7rFJp5SoYztVQVThf_W52BAiXKBdYZDRVoItC_VS2NvAOjeJjhYO_xQ_q3hK7MdtuXfEPpLnyXKkmWo3lrJ26wbeF6l05LexCkI7ShsOuSt-dsyaTJTszuKDIA6YOfWvfo3aVZmlWRaI","use":"sig"}`
-
-	privateKey, _ := jwk.ParseKey([]byte(privateKeyString))
-	_ = s.jwtService.SetKey(privateKey)
-
-	err := s.jwtService.SaveKey(privateKey)
-	if err != nil {
-		return fmt.Errorf("failed to save JWT key: %w", err)
-	}
-
-	return nil
 }
 
 // SyncLdap triggers an LDAP synchronization

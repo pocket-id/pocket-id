@@ -11,6 +11,17 @@ import { pathFromRoot, tmpDir } from 'utils/fs.util';
 const containerName = 'pocket-id';
 const setupDir = pathFromRoot('setup');
 const exampleExportPath = pathFromRoot('resources/export');
+let mode: 'sqlite' | 'postgres' | 's3' = 'sqlite';
+
+test.beforeAll(() => {
+	const dockerComposeLs = runDockerCommand(['compose', 'ls', '--format', 'json']);
+	if (dockerComposeLs.includes('postgres')) {
+		mode = 'postgres';
+	} else if (dockerComposeLs.includes('s3')) {
+		mode = 's3';
+	}
+	console.log(`Running CLI tests in ${mode.toUpperCase()} mode`);
+});
 
 test('Export', async ({ baseURL }) => {
 	// Reset the backend but with LDAP setup because the example export has no LDAP data
@@ -253,8 +264,13 @@ function runDockerCommand(args: string[]): string {
 
 function runDockerComposeCommand(args: string[]): string {
 	let dockerComposeFile = 'docker-compose.yml';
-	if (runDockerCommand(['compose', 'ls', '--format', 'json']).includes('postgres')) {
-		dockerComposeFile = 'docker-compose-postgres.yml';
+	switch (mode) {
+		case 'postgres':
+			dockerComposeFile = 'docker-compose-postgres.yml';
+			break;
+		case 's3':
+			dockerComposeFile = 'docker-compose-s3.yml';
+			break;
 	}
 	return runDockerCommand(['compose', '-f', dockerComposeFile, ...args]);
 }

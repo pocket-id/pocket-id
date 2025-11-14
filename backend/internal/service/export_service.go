@@ -2,36 +2,41 @@ package service
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"time"
 	"unicode/utf8"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"gorm.io/gorm"
 )
 
 // ExportService handles exporting Pocket ID data into a ZIP archive.
 type ExportService struct {
-	db *gorm.DB
+	db      *gorm.DB
+	storage storage.FileStorage
 }
 
-func NewExportService(db *gorm.DB) *ExportService {
-	return &ExportService{db: db}
+func NewExportService(db *gorm.DB, storage storage.FileStorage) *ExportService {
+	return &ExportService{
+		db:      db,
+		storage: storage,
+	}
 }
 
 // ExportToZip performs the full export process and writes the ZIP data to the given writer.
-func (s *ExportService) ExportToZip(w io.Writer) error {
+func (s *ExportService) ExportToZip(ctx context.Context, w io.Writer) error {
 	dbData, err := s.extractDatabase()
 	if err != nil {
 		return err
 	}
 
-	return writeExportZipStream(w, dbData)
+	return s.writeExportZipStream(ctx, w, dbData)
 }
 
 // extractDatabase reads all tables into a DatabaseExport struct
@@ -127,7 +132,7 @@ func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
 	return rows.Err()
 }
 
-func writeExportZipStream(w io.Writer, dbData DatabaseExport) error {
+func (s *ExportService) writeExportZipStream(ctx context.Context, w io.Writer, dbData DatabaseExport) error {
 	zipWriter := zip.NewWriter(w)
 
 	// Add database.json
@@ -143,53 +148,32 @@ func writeExportZipStream(w io.Writer, dbData DatabaseExport) error {
 		return fmt.Errorf("failed to encode database.json: %w", err)
 	}
 
-	// Add uploads and keys directories
-	for _, basePath := range []string{common.EnvConfig.UploadPath, common.EnvConfig.KeysPath} {
-		if err := addDirectoryToZip(zipWriter, basePath); err != nil {
-			return err
-		}
+ 	// Add uploaded files
+	if err := s.addUploadsToZip(ctx, zipWriter); err != nil {
+		return err
 	}
 
 	return zipWriter.Close()
 }
 
-// addDirectoryToZip recursively adds all files from basePath into the zip under the correct prefix
-func addDirectoryToZip(zipWriter *zip.Writer, basePath string) error {
-	if basePath == "" {
-		return nil
-	}
-	prefix := "uploads"
-	if basePath == common.EnvConfig.KeysPath {
-		prefix = "keys"
-	}
-
-	return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-
-		relPath, err := filepath.Rel(basePath, path)
-		if err != nil {
-			return err
-		}
-		zipPath := filepath.Join(prefix, relPath)
+// addUploadsToZip adds all files from the storage to the ZIP archive under the "uploads/" directory
+func (s *ExportService) addUploadsToZip(ctx context.Context, zipWriter *zip.Writer) error {
+	return s.storage.Walk(ctx, "/", func(p storage.ObjectInfo) error {
+		zipPath := filepath.Join("uploads", p.Path)
 
 		w, err := zipWriter.Create(zipPath)
 		if err != nil {
 			return fmt.Errorf("failed to create zip entry for %s: %w", zipPath, err)
 		}
 
-		f, err := os.Open(path)
+		f, _, err := s.storage.Open(ctx, p.Path)
 		if err != nil {
-			return fmt.Errorf("failed to open file %s: %w", path, err)
+			return fmt.Errorf("failed to open file %s: %w", zipPath, err)
 		}
 		defer f.Close()
 
 		if _, err := io.Copy(w, f); err != nil {
-			return fmt.Errorf("failed to copy file %s into zip: %w", path, err)
+			return fmt.Errorf("failed to copy file %s into zip: %w", zipPath, err)
 		}
 		return nil
 	})

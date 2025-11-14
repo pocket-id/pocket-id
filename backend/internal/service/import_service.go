@@ -2,25 +2,25 @@ package service
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 )
 
 // ImportService handles importing Pocket ID data from an exported ZIP archive.
 type ImportService struct {
-	db *gorm.DB
+	db      *gorm.DB
+	storage storage.FileStorage
 }
 
 type DatabaseExport struct {
@@ -29,12 +29,15 @@ type DatabaseExport struct {
 	Tables   map[string][]map[string]any `json:"tables"`
 }
 
-func NewImportService(db *gorm.DB) *ImportService {
-	return &ImportService{db: db}
+func NewImportService(db *gorm.DB, storage storage.FileStorage) *ImportService {
+	return &ImportService{
+		db:      db,
+		storage: storage,
+	}
 }
 
 // ImportFromZip performs the full import process from the given ZIP reader.
-func (s *ImportService) ImportFromZip(r *zip.Reader) error {
+func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error {
 	dbData, err := processZipDatabaseJson(r.File)
 	if err != nil {
 		return err
@@ -44,7 +47,7 @@ func (s *ImportService) ImportFromZip(r *zip.Reader) error {
 		return err
 	}
 
-	if err := processZipFiles(r.File); err != nil {
+	if err := s.importUploads(ctx, r.File); err != nil {
 		return err
 	}
 
@@ -85,20 +88,40 @@ func processZipDatabaseJson(files []*zip.File) (dbData DatabaseExport, err error
 	return dbData, errors.New("database.json not found in the ZIP file")
 }
 
-// processZipFiles extracts uploads/ and keys/ from the ZIP archive
-func processZipFiles(files []*zip.File) error {
+// importUploads imports files from the uploads/ directory in the ZIP archive
+func (s *ImportService) importUploads(ctx context.Context, files []*zip.File) error {
+	const maxFileSize = 50 << 20 // 50 MiB
+	const uploadsPrefix = "uploads/"
+
 	for _, f := range files {
-		switch {
-		case strings.HasPrefix(f.Name, "uploads/"):
-			if err := extractIntoBase(f, common.EnvConfig.UploadPath, "uploads/"); err != nil {
-				return fmt.Errorf("failed to extract uploads: %w", err)
+		if strings.HasPrefix(f.Name, uploadsPrefix) {
+
+			if f.UncompressedSize64 > maxFileSize {
+				return fmt.Errorf("file %s too large (%d bytes)", f.Name, f.UncompressedSize64)
 			}
 
-		case strings.HasPrefix(f.Name, "keys/"):
-			if err := extractIntoBase(f, common.EnvConfig.KeysPath, "keys/"); err != nil {
-				return fmt.Errorf("failed to extract keys: %w", err)
+			targetPath := strings.TrimPrefix(f.Name, uploadsPrefix)
+			if strings.HasSuffix(f.Name, "/") || targetPath == "" {
+				return nil // skip directories
 			}
+
+			if err := s.storage.DeleteAll(ctx, targetPath); err != nil {
+				return fmt.Errorf("failed to delete existing file %s: %w", targetPath, err)
+			}
+
+			rc, err := f.Open()
+			if err != nil {
+				return err
+			}
+
+			if err := s.storage.Save(ctx, targetPath, rc); err != nil {
+				return fmt.Errorf("failed to save file %s: %w", targetPath, err)
+			}
+			_ = rc.Close()
+
+			return nil
 		}
+
 	}
 
 	return nil
@@ -260,47 +283,6 @@ func normalizeRowWithSchema(row map[string]any, table string, schema map[string]
 			}
 		}
 	}
-}
-
-// extractIntoBase writes a file entry from the ZIP under baseDir, removing the given prefix
-func extractIntoBase(f *zip.File, baseDir, stripPrefix string) error {
-	const maxFileSize = 50 << 20 // 50 MiB
-	if f.UncompressedSize64 > maxFileSize {
-		return fmt.Errorf("file %s too large (%d bytes)", f.Name, f.UncompressedSize64)
-	}
-
-	name := strings.TrimPrefix(f.Name, stripPrefix)
-	if strings.HasSuffix(f.Name, "/") || name == "" {
-		return nil // skip directories
-	}
-
-	targetPath := filepath.Join(baseDir, filepath.FromSlash(name))
-	if !strings.HasPrefix(targetPath, filepath.Clean(baseDir)+string(os.PathSeparator)) {
-		return fmt.Errorf("invalid file path: %s", f.Name)
-	}
-
-	_ = os.RemoveAll(targetPath)
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-		return fmt.Errorf("failed to create directories for %s: %w", targetPath, err)
-	}
-
-	rc, err := f.Open()
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-
-	out, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, f.Mode())
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	//nolint:gosec // f.UncompressedSize64 is capped above
-	if _, err := io.CopyN(out, rc, int64(f.UncompressedSize64)); err != nil {
-		return fmt.Errorf("copy failed for %s: %w", f.Name, err)
-	}
-	return nil
 }
 
 // setPostgresForeignKeyChecks enables/disables FK checks in Postgres

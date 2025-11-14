@@ -32,29 +32,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 	slog.InfoContext(ctx, "Pocket ID is starting")
 
-	// Initialize the file storage backend
-	var fileStorage storage.FileStorage
-
-	switch common.EnvConfig.FileBackend {
-	case storage.TypeFileSystem:
-		fileStorage, err = storage.NewFilesystemStorage(common.EnvConfig.UploadPath)
-	case storage.TypeS3:
-		s3Cfg := storage.S3Config{
-			Bucket:          common.EnvConfig.S3Bucket,
-			Region:          common.EnvConfig.S3Region,
-			Endpoint:        common.EnvConfig.S3Endpoint,
-			AccessKeyID:     common.EnvConfig.S3AccessKeyID,
-			SecretAccessKey: common.EnvConfig.S3SecretAccessKey,
-			ForcePathStyle:  common.EnvConfig.S3ForcePathStyle,
-			Root:            common.EnvConfig.UploadPath,
-		}
-		fileStorage, err = storage.NewS3Storage(ctx, s3Cfg)
-	default:
-		err = fmt.Errorf("unknown file storage backend: %s", common.EnvConfig.FileBackend)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to initialize file storage: %w", err)
-	}
+	fileStorage, err := InitStorage(ctx)
 
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
@@ -122,4 +100,29 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func InitStorage(ctx context.Context) (fileStorage storage.FileStorage, err error) {
+	switch common.EnvConfig.FileBackend {
+	case storage.TypeFileSystem:
+		fileStorage, err = storage.NewFilesystemStorage(common.EnvConfig.UploadPath)
+	case storage.TypeS3:
+		s3Cfg := storage.S3Config{
+			Bucket:          common.EnvConfig.S3Bucket,
+			Region:          common.EnvConfig.S3Region,
+			Endpoint:        common.EnvConfig.S3Endpoint,
+			AccessKeyID:     common.EnvConfig.S3AccessKeyID,
+			SecretAccessKey: common.EnvConfig.S3SecretAccessKey,
+			ForcePathStyle:  common.EnvConfig.S3ForcePathStyle,
+			Root:            common.EnvConfig.UploadPath,
+		}
+		fileStorage, err = storage.NewS3Storage(ctx, s3Cfg)
+	default:
+		err = fmt.Errorf("unknown file storage backend: %s", common.EnvConfig.FileBackend)
+	}
+	if err != nil {
+		return fileStorage, fmt.Errorf("failed to initialize file storage: %w", err)
+	}
+
+	return fileStorage, nil
 }

@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -20,7 +21,7 @@ func init() {
 		Use:   "export",
 		Short: "Exports all data of Pocket ID into a ZIP file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runExport(flags)
+			return runExport(cmd.Context(), flags)
 		},
 	}
 
@@ -30,13 +31,18 @@ func init() {
 }
 
 // runExport orchestrates the export flow
-func runExport(flags exportFlags) error {
+func runExport(ctx context.Context, flags exportFlags) error {
 	db, err := bootstrap.NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	exportService := service.NewExportService(db)
+	storage, err := bootstrap.InitStorage(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to initialize storage: %w", err)
+	}
+
+	exportService := service.NewExportService(db, storage)
 
 	var w *os.File
 	w, err = os.Create(flags.Path)
@@ -45,7 +51,7 @@ func runExport(flags exportFlags) error {
 	}
 	defer w.Close()
 
-	if err := exportService.ExportToZip(w); err != nil {
+	if err := exportService.ExportToZip(ctx, w); err != nil {
 		return fmt.Errorf("failed to export data: %w", err)
 	}
 
