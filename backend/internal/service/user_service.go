@@ -101,9 +101,10 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 	profilePicturePath := path.Join("profile-pictures", userID+".png")
 
 	// Try custom profile picture
-	if file, size, err := s.fileStorage.Open(ctx, profilePicturePath); err == nil {
+	file, size, err := s.fileStorage.Open(ctx, profilePicturePath)
+	if err == nil {
 		return file, size, nil
-	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, 0, err
 	}
 
@@ -120,9 +121,10 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 
 	// Try cached default for initials
 	defaultPicturePath := path.Join("profile-pictures", "defaults", user.Initials()+".png")
-	if file, size, err := s.fileStorage.Open(ctx, defaultPicturePath); err == nil {
+	file, size, err = s.fileStorage.Open(ctx, defaultPicturePath)
+	if err == nil {
 		return file, size, nil
-	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, 0, err
 	}
 
@@ -183,14 +185,11 @@ func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, f
 
 func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		ctx = utils.ContextWithTransaction(ctx, tx)
-		return s.deleteUserInternal(ctx, userID, allowLdapDelete)
+		return s.deleteUserInternal(ctx, tx, userID, allowLdapDelete)
 	})
 }
 
-func (s *UserService) deleteUserInternal(ctx context.Context, userID string, allowLdapDelete bool) error {
-	tx := utils.TransactionFromContext(ctx)
-
+func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userID string, allowLdapDelete bool) error {
 	var user model.User
 
 	err := tx.
@@ -683,8 +682,7 @@ func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) er
 	return nil
 }
 
-func (s *UserService) disableUserInternal(ctx context.Context, userID string) error {
-	tx := utils.TransactionFromContext(ctx)
+func (s *UserService) disableUserInternal(ctx context.Context, tx *gorm.DB, userID string) error {
 	return tx.
 		WithContext(ctx).
 		Model(&model.User{}).

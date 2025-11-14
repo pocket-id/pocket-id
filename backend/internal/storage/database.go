@@ -13,7 +13,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -37,12 +36,6 @@ func (s *databaseStorage) Type() string {
 }
 
 func (s *databaseStorage) Save(ctx context.Context, relativePath string, data io.Reader) error {
-	// Get the database from the context, in case there's an active transaction
-	db := utils.TransactionFromContext(ctx)
-	if db == nil {
-		db = s.db
-	}
-
 	// Normalize the path
 	relativePath = filepath.ToSlash(filepath.Clean(relativePath))
 
@@ -62,7 +55,7 @@ func (s *databaseStorage) Save(ctx context.Context, relativePath string, data io
 	}
 
 	// Use upsert: insert or update on conflict
-	result := db.
+	result := s.db.
 		WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "path"}},
@@ -80,14 +73,8 @@ func (s *databaseStorage) Save(ctx context.Context, relativePath string, data io
 func (s *databaseStorage) Open(ctx context.Context, relativePath string) (io.ReadCloser, int64, error) {
 	relativePath = filepath.ToSlash(filepath.Clean(relativePath))
 
-	// Get the database from the context, in case there's an active transaction
-	db := utils.TransactionFromContext(ctx)
-	if db == nil {
-		db = s.db
-	}
-
 	var storage model.Storage
-	result := db.
+	result := s.db.
 		WithContext(ctx).
 		Where("path = ?", relativePath).
 		First(&storage)
@@ -106,13 +93,7 @@ func (s *databaseStorage) Open(ctx context.Context, relativePath string) (io.Rea
 func (s *databaseStorage) Delete(ctx context.Context, relativePath string) error {
 	relativePath = filepath.ToSlash(filepath.Clean(relativePath))
 
-	// Get the database from the context, in case there's an active transaction
-	db := utils.TransactionFromContext(ctx)
-	if db == nil {
-		db = s.db
-	}
-
-	result := db.
+	result := s.db.
 		WithContext(ctx).
 		Where("path = ?", relativePath).
 		Delete(&model.Storage{})
@@ -126,15 +107,9 @@ func (s *databaseStorage) Delete(ctx context.Context, relativePath string) error
 func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 	prefix = filepath.ToSlash(filepath.Clean(prefix))
 
-	// Get the database from the context, in case there's an active transaction
-	db := utils.TransactionFromContext(ctx)
-	if db == nil {
-		db = s.db
-	}
-
 	// If empty prefix, delete all
 	if isRootPath(prefix) {
-		result := db.
+		result := s.db.
 			WithContext(ctx).
 			Where("1 = 1"). // Delete everything
 			Delete(&model.Storage{})
@@ -149,8 +124,8 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 		prefix += "/"
 	}
 
-	query := db.WithContext(ctx)
-	query = addPathPrefixClause(db.Name(), query, prefix)
+	query := s.db.WithContext(ctx)
+	query = addPathPrefixClause(s.db.Name(), query, prefix)
 	result := query.Delete(&model.Storage{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete files with prefix '%s' from database: %w", prefix, result.Error)
@@ -162,21 +137,15 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 func (s *databaseStorage) List(ctx context.Context, prefix string) ([]ObjectInfo, error) {
 	prefix = filepath.ToSlash(filepath.Clean(prefix))
 
-	// Get the database from the context, in case there's an active transaction
-	db := utils.TransactionFromContext(ctx)
-	if db == nil {
-		db = s.db
-	}
-
 	var storageItems []model.Storage
-	query := db.WithContext(ctx)
+	query := s.db.WithContext(ctx)
 
 	if !isRootPath(prefix) {
 		// Ensure prefix matching
 		if !strings.HasSuffix(prefix, "/") {
 			prefix += "/"
 		}
-		query = addPathPrefixClause(db.Name(), query, prefix)
+		query = addPathPrefixClause(s.db.Name(), query, prefix)
 	}
 
 	result := query.
@@ -207,21 +176,15 @@ func (s *databaseStorage) List(ctx context.Context, prefix string) ([]ObjectInfo
 func (s *databaseStorage) Walk(ctx context.Context, root string, fn func(ObjectInfo) error) error {
 	root = filepath.ToSlash(filepath.Clean(root))
 
-	// Get the database from the context, in case there's an active transaction
-	db := utils.TransactionFromContext(ctx)
-	if db == nil {
-		db = s.db
-	}
-
 	var storageItems []model.Storage
-	query := db.WithContext(ctx)
+	query := s.db.WithContext(ctx)
 
 	if !isRootPath(root) {
 		// Ensure root matching
 		if !strings.HasSuffix(root, "/") {
 			root += "/"
 		}
-		query = addPathPrefixClause(db.Name(), query, root)
+		query = addPathPrefixClause(s.db.Name(), query, root)
 	}
 
 	result := query.

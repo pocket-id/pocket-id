@@ -724,13 +724,6 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 }
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	ctx = utils.ContextWithTransaction(ctx, tx)
-
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
@@ -739,7 +732,7 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 	}
 	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
-	err := tx.
+	err := s.db.
 		WithContext(ctx).
 		Create(&client).
 		Error
@@ -750,6 +743,7 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		return model.OidcClient{}, err
 	}
 
+	// All storage operations must be executed outside of a transaction
 	if input.LogoURL != nil {
 		err = s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL, true)
 		if err != nil {
@@ -764,11 +758,6 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		}
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
-		return model.OidcClient{}, err
-	}
-
 	return client, nil
 }
 
@@ -777,8 +766,6 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	defer func() {
 		tx.Rollback()
 	}()
-
-	ctx = utils.ContextWithTransaction(ctx, tx)
 
 	var client model.OidcClient
 	err := tx.WithContext(ctx).
@@ -795,6 +782,12 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		return model.OidcClient{}, err
 	}
 
+	err = tx.Commit().Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+
+	// All storage operations must be executed outside of a transaction
 	if input.LogoURL != nil {
 		err = s.downloadAndSaveLogoFromURL(ctx, client.ID, *input.LogoURL, true)
 		if err != nil {
@@ -809,10 +802,6 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		}
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
-		return model.OidcClient{}, err
-	}
 	return client, nil
 }
 
@@ -954,16 +943,12 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		return err
 	}
 
-	tx := s.db.Begin()
-	ctx = utils.ContextWithTransaction(ctx, tx)
-
 	err = s.updateClientLogoType(ctx, clientID, fileType, light)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
-	return tx.Commit().Error
+	return nil
 }
 
 func (s *OidcService) DeleteClientLogo(ctx context.Context, clientID string) error {
@@ -996,8 +981,6 @@ func (s *OidcService) deleteClientLogoInternal(ctx context.Context, clientID str
 		tx.Rollback()
 	}()
 
-	ctx = utils.ContextWithTransaction(ctx, tx)
-
 	var client model.OidcClient
 	err := tx.
 		WithContext(ctx).
@@ -1020,13 +1003,14 @@ func (s *OidcService) deleteClientLogoInternal(ctx context.Context, clientID str
 		return err
 	}
 
-	imagePath := path.Join("oidc-client-images", client.ID+imagePathSuffix+"."+oldImageType)
-	err = s.fileStorage.Delete(ctx, imagePath)
+	err = tx.Commit().Error
 	if err != nil {
 		return err
 	}
 
-	err = tx.Commit().Error
+	// All storage operations must be performed outside of a database transaction
+	imagePath := path.Join("oidc-client-images", client.ID+imagePathSuffix+"."+oldImageType)
+	err = s.fileStorage.Delete(ctx, imagePath)
 	if err != nil {
 		return err
 	}
@@ -1968,6 +1952,8 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 	return s.IsUserGroupAllowedToAuthorize(user, client), nil
 }
 
+var errLogoTooLarge = errors.New("logo is too large")
+
 func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clientID string, raw string, light bool) error {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -2009,7 +1995,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 
 	const maxLogoSize int64 = 2 * 1024 * 1024 // 2MB
 	if resp.ContentLength > maxLogoSize {
-		return fmt.Errorf("logo is too large")
+		return errLogoTooLarge
 	}
 
 	// Prefer extension in path if supported
@@ -2029,8 +2015,10 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	}
 
 	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
-	err = s.fileStorage.Save(ctx, imagePath, io.LimitReader(resp.Body, maxLogoSize+1))
-	if err != nil {
+	err = s.fileStorage.Save(ctx, imagePath, utils.NewLimitReader(resp.Body, maxLogoSize+1))
+	if errors.Is(err, utils.ErrSizeExceeded) {
+		return errLogoTooLarge
+	} else if err != nil {
 		return err
 	}
 
@@ -2042,39 +2030,53 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	return nil
 }
 
-func (s *OidcService) updateClientLogoType(ctx context.Context, clientID, ext string, light bool) error {
-	tx := utils.TransactionFromContext(ctx)
-
+func (s *OidcService) updateClientLogoType(ctx context.Context, clientID string, ext string, light bool) error {
 	var darkSuffix string
 	if !light {
 		darkSuffix = "-dark"
 	}
 
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var client model.OidcClient
-	if err := tx.WithContext(ctx).First(&client, "id = ?", clientID).Error; err != nil {
-		return err
+	err := tx.
+		WithContext(ctx).
+		First(&client, "id = ?", clientID).
+		Error
+	if err != nil {
+		return fmt.Errorf("failed to look up client: %w", err)
 	}
+
 	var currentType *string
 	if light {
 		currentType = client.ImageType
+		client.ImageType = &ext
 	} else {
 		currentType = client.DarkImageType
+		client.DarkImageType = &ext
 	}
+
+	err = tx.
+		WithContext(ctx).
+		Save(&client).
+		Error
+	if err != nil {
+		return fmt.Errorf("failed to save updated client: %w", err)
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Storage operations must be executed outside of a transaction
 	if currentType != nil && *currentType != ext {
 		old := path.Join("oidc-client-images", client.ID+darkSuffix+"."+*currentType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 
-	var column string
-	if light {
-		column = "image_type"
-	} else {
-		column = "dark_image_type"
-	}
-
-	return tx.WithContext(ctx).
-		Model(&model.OidcClient{}).
-		Where("id = ?", clientID).
-		Update(column, ext).
-		Error
+	return nil
 }

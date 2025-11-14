@@ -81,14 +81,12 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 		tx.Rollback()
 	}()
 
-	ctx = utils.ContextWithTransaction(ctx, tx)
-
-	err = s.SyncUsers(ctx, client)
+	err = s.SyncUsers(ctx, tx, client)
 	if err != nil {
 		return fmt.Errorf("failed to sync users: %w", err)
 	}
 
-	err = s.SyncGroups(ctx, client)
+	err = s.SyncGroups(ctx, tx, client)
 	if err != nil {
 		return fmt.Errorf("failed to sync groups: %w", err)
 	}
@@ -103,10 +101,8 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 }
 
 //nolint:gocognit
-func (s *LdapService) SyncGroups(ctx context.Context, client *ldap.Conn) error {
+func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.Conn) error {
 	dbConfig := s.appConfigService.GetDbConfig()
-
-	tx := utils.TransactionFromContext(ctx)
 
 	searchAttrs := []string{
 		dbConfig.LdapAttributeGroupName.Value,
@@ -270,10 +266,8 @@ func (s *LdapService) SyncGroups(ctx context.Context, client *ldap.Conn) error {
 }
 
 //nolint:gocognit
-func (s *LdapService) SyncUsers(ctx context.Context, client *ldap.Conn) error {
+func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.Conn) error {
 	dbConfig := s.appConfigService.GetDbConfig()
-
-	tx := utils.TransactionFromContext(ctx)
 
 	searchAttrs := []string{
 		"memberOf",
@@ -423,18 +417,19 @@ func (s *LdapService) SyncUsers(ctx context.Context, client *ldap.Conn) error {
 		}
 
 		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
-			err = s.userService.disableUserInternal(ctx, user.ID)
+			err = s.userService.disableUserInternal(ctx, tx, user.ID)
 			if err != nil {
 				return fmt.Errorf("failed to disable user %s: %w", user.Username, err)
 			}
 
 			slog.Info("Disabled user", slog.String("username", user.Username))
 		} else {
-			err = s.userService.deleteUserInternal(ctx, user.ID, true)
-			target := &common.LdapUserUpdateError{}
-			if errors.As(err, &target) {
-				return fmt.Errorf("failed to delete user %s: LDAP user must be disabled before deletion", user.Username)
-			} else if err != nil {
+			err = s.userService.deleteUserInternal(ctx, tx, user.ID, true)
+			if err != nil {
+				target := &common.LdapUserUpdateError{}
+				if errors.As(err, &target) {
+					return fmt.Errorf("failed to delete user %s: LDAP user must be disabled before deletion", user.Username)
+				}
 				return fmt.Errorf("failed to delete user %s: %w", user.Username, err)
 			}
 
