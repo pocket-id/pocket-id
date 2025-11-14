@@ -8,6 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func parseAndValidateEnvConfig(t *testing.T) error {
+	t.Helper()
+
+	if _, exists := os.LookupEnv("ENCRYPTION_KEY"); !exists {
+		t.Setenv("ENCRYPTION_KEY", "0123456789abcdef")
+	}
+
+	if err := parseEnvConfig(); err != nil {
+		return err
+	}
+
+	return ValidateEnvConfig(&EnvConfig)
+}
+
 func TestParseEnvConfig(t *testing.T) {
 	// Store original config to restore later
 	originalConfig := EnvConfig
@@ -21,7 +35,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "HTTP://LOCALHOST:3000")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.Equal(t, DbProviderSqlite, EnvConfig.DbProvider)
 		assert.Equal(t, "http://localhost:3000", EnvConfig.AppURL)
@@ -33,7 +47,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_CONNECTION_STRING", "postgres://user:pass@localhost/db")
 		t.Setenv("APP_URL", "https://example.com")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.Equal(t, DbProviderPostgres, EnvConfig.DbProvider)
 	})
@@ -44,9 +58,21 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_CONNECTION_STRING", "test")
 		t.Setenv("APP_URL", "http://localhost:3000")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "invalid DB_PROVIDER value")
+	})
+
+	t.Run("should fail when ENCRYPTION_KEY is too short", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("ENCRYPTION_KEY", "short")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "ENCRYPTION_KEY must be at least 16 bytes long")
 	})
 
 	t.Run("should set default SQLite connection string when DB_CONNECTION_STRING is empty", func(t *testing.T) {
@@ -54,7 +80,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("APP_URL", "http://localhost:3000")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.Equal(t, defaultSqliteConnString, EnvConfig.DbConnectionString)
 	})
@@ -64,7 +90,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_PROVIDER", "postgres")
 		t.Setenv("APP_URL", "http://localhost:3000")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "missing required env var 'DB_CONNECTION_STRING' for Postgres")
 	})
@@ -75,7 +101,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "€://not-a-valid-url")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "APP_URL is not a valid URL")
 	})
@@ -86,7 +112,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000/path")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "APP_URL must not contain a path")
 	})
@@ -97,7 +123,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("INTERNAL_APP_URL", "€://not-a-valid-url")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "INTERNAL_APP_URL is not a valid URL")
 	})
@@ -108,63 +134,9 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("INTERNAL_APP_URL", "http://localhost:3000/path")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "INTERNAL_APP_URL must not contain a path")
-	})
-
-	t.Run("should default KEYS_STORAGE to 'file' when empty", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-
-		err := parseEnvConfig()
-		require.NoError(t, err)
-		assert.Equal(t, "file", EnvConfig.KeysStorage)
-	})
-
-	t.Run("should fail when KEYS_STORAGE is 'database' but no encryption key", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("KEYS_STORAGE", "database")
-
-		err := parseEnvConfig()
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "ENCRYPTION_KEY must be non-empty when KEYS_STORAGE is database")
-	})
-
-	t.Run("should accept valid KEYS_STORAGE values", func(t *testing.T) {
-		validStorageTypes := []string{"file", "database"}
-
-		for _, storage := range validStorageTypes {
-			EnvConfig = defaultConfig()
-			t.Setenv("DB_PROVIDER", "sqlite")
-			t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-			t.Setenv("APP_URL", "http://localhost:3000")
-			t.Setenv("KEYS_STORAGE", storage)
-			if storage == "database" {
-				t.Setenv("ENCRYPTION_KEY", "test-key")
-			}
-
-			err := parseEnvConfig()
-			require.NoError(t, err)
-			assert.Equal(t, storage, EnvConfig.KeysStorage)
-		}
-	})
-
-	t.Run("should fail with invalid KEYS_STORAGE value", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("KEYS_STORAGE", "invalid")
-
-		err := parseEnvConfig()
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "invalid value for KEYS_STORAGE")
 	})
 
 	t.Run("should parse boolean environment variables correctly", func(t *testing.T) {
@@ -178,7 +150,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("TRUST_PROXY", "true")
 		t.Setenv("ANALYTICS_DISABLED", "false")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.True(t, EnvConfig.UiConfigDisabled)
 		assert.True(t, EnvConfig.MetricsEnabled)
@@ -194,14 +166,13 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("APP_URL", "https://prod.example.com")
 		t.Setenv("APP_ENV", "STAGING")
 		t.Setenv("UPLOAD_PATH", "/custom/uploads")
-		t.Setenv("KEYS_PATH", "/custom/keys")
 		t.Setenv("PORT", "8080")
 		t.Setenv("HOST", "LOCALHOST")
 		t.Setenv("UNIX_SOCKET", "/tmp/app.sock")
 		t.Setenv("MAXMIND_LICENSE_KEY", "test-license")
 		t.Setenv("GEOLITE_DB_PATH", "/custom/geolite.mmdb")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.Equal(t, "staging", EnvConfig.AppEnv) // lowercased
 		assert.Equal(t, "/custom/uploads", EnvConfig.UploadPath)
@@ -217,22 +188,10 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("FILE_BACKEND", "FS")
 		t.Setenv("UPLOAD_PATH", "")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.Equal(t, "fs", EnvConfig.FileBackend)
 		assert.Equal(t, defaultFsUploadPath, EnvConfig.UploadPath)
-	})
-
-	t.Run("should fail when FILE_BACKEND is s3 but keys are stored on filesystem", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("FILE_BACKEND", "s3")
-
-		err := parseEnvConfig()
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "KEYS_STORAGE cannot be 'file' when FILE_BACKEND is 's3'")
 	})
 
 	t.Run("should fail with invalid FILE_BACKEND value", func(t *testing.T) {
@@ -242,7 +201,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("FILE_BACKEND", "invalid")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "invalid FILE_BACKEND value")
 	})

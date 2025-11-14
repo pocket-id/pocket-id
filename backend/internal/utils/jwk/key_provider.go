@@ -28,22 +28,14 @@ func GetKeyProvider(db *gorm.DB, envConfig *common.EnvConfigSchema, instanceID s
 		return nil, fmt.Errorf("failed to load encryption key: %w", err)
 	}
 
-	// Get the key provider
-	switch envConfig.KeysStorage {
-	case "file", "":
-		keyProvider = &KeyProviderFile{}
-	case "database":
-		keyProvider = &KeyProviderDatabase{}
-	default:
-		return nil, fmt.Errorf("invalid key storage '%s'", envConfig.KeysStorage)
-	}
+	keyProvider = &KeyProviderDatabase{}
 	err = keyProvider.Init(KeyProviderOpts{
 		DB:        db,
 		EnvConfig: envConfig,
 		Kek:       kek,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to init key provider of type '%s': %w", envConfig.KeysStorage, err)
+		return nil, fmt.Errorf("failed to init key provider: %w", err)
 	}
 
 	return keyProvider, nil
