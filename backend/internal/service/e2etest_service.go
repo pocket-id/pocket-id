@@ -529,7 +529,7 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 			"ldapAttributeGroupUniqueIdentifier": "uuid",
 			"ldapAttributeGroupName":             "uid",
 			"ldapAttributeGroupMember":           "member",
-			"ldapAttributeAdminGroup":            "admin_group",
+			"ldapAdminGroupName":                 "admin_group",
 			"ldapSoftDeleteUsers":                "true",
 			"ldapEnabled":                        "true",
 		}

@@ -2,7 +2,7 @@ name: Svelte Check
 
 on:
   push:
-    branches: [main]
+    branches: [main, breaking/**]
     paths:
       - "frontend/src/**"
       - ".github/svelte-check-matcher.json"
