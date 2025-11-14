@@ -28,14 +28,13 @@ services:
       file: docker-compose.yml
       service: pocket-id
     environment:
-      - S3_BUCKET=pocket-id-test
-      - S3_REGION=us-east-1
-      - S3_ENDPOINT=http://localstack-s3:4566
-      - S3_ACCESS_KEY_ID=test
-      - S3_SECRET_ACCESS_KEY=test
-      - S3_FORCE_PATH_STYLE=true
-      - KEYS_STORAGE=database
-      - ENCRYPTION_KEY=test1234test1234test1234test1234
+      FILE_BACKEND: s3
+      S3_BUCKET: pocket-id-test
+      S3_REGION: us-east-1
+      S3_ENDPOINT: http://localstack-s3:4566
+      S3_ACCESS_KEY_ID: test
+      S3_SECRET_ACCESS_KEY: test
+      S3_FORCE_PATH_STYLE: true
     depends_on:
       create-bucket:
         condition: service_completed_successfully
