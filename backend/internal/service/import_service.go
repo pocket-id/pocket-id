@@ -2,11 +2,13 @@ package service
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -94,34 +96,37 @@ func (s *ImportService) importUploads(ctx context.Context, files []*zip.File) er
 	const uploadsPrefix = "uploads/"
 
 	for _, f := range files {
-		if strings.HasPrefix(f.Name, uploadsPrefix) {
-
-			if f.UncompressedSize64 > maxFileSize {
-				return fmt.Errorf("file %s too large (%d bytes)", f.Name, f.UncompressedSize64)
-			}
-
-			targetPath := strings.TrimPrefix(f.Name, uploadsPrefix)
-			if strings.HasSuffix(f.Name, "/") || targetPath == "" {
-				return nil // skip directories
-			}
-
-			if err := s.storage.DeleteAll(ctx, targetPath); err != nil {
-				return fmt.Errorf("failed to delete existing file %s: %w", targetPath, err)
-			}
-
-			rc, err := f.Open()
-			if err != nil {
-				return err
-			}
-
-			if err := s.storage.Save(ctx, targetPath, rc); err != nil {
-				return fmt.Errorf("failed to save file %s: %w", targetPath, err)
-			}
-			_ = rc.Close()
-
-			return nil
+		if !strings.HasPrefix(f.Name, uploadsPrefix) {
+			continue
 		}
 
+		if f.UncompressedSize64 > maxFileSize {
+			return fmt.Errorf("file %s too large (%d bytes)", f.Name, f.UncompressedSize64)
+		}
+
+		targetPath := strings.TrimPrefix(f.Name, uploadsPrefix)
+		if strings.HasSuffix(f.Name, "/") || targetPath == "" {
+			continue // Skip directories
+		}
+
+		if err := s.storage.DeleteAll(ctx, targetPath); err != nil {
+			return fmt.Errorf("failed to delete existing file %s: %w", targetPath, err)
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		buf, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			return fmt.Errorf("read file %s: %w", f.Name, err)
+		}
+
+		if err := s.storage.Save(ctx, targetPath, bytes.NewReader(buf)); err != nil {
+			return fmt.Errorf("failed to save file %s: %w", targetPath, err)
+		}
 	}
 
 	return nil
