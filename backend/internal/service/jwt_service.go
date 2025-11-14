@@ -57,12 +57,9 @@ type JwtService struct {
 }
 
 func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) (*JwtService, error) {
-	service := &JwtService{
-		db: db,
-	}
+	service := &JwtService{}
 
-	// Ensure keys are generated or loaded
-	err := service.init(appConfigService, &common.EnvConfig)
+	err := service.init(db, appConfigService, &common.EnvConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -70,9 +67,10 @@ func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) (*JwtService
 	return service, nil
 }
 
-func (s *JwtService) init(appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
+func (s *JwtService) init(db *gorm.DB, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
 	s.appConfigService = appConfigService
 	s.envConfig = envConfig
+	s.db = db
 
 	// Ensure keys are generated or loaded
 	return s.loadOrGenerateKey()
