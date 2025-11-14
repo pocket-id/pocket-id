@@ -1,7 +1,7 @@
 name: Unit Tests
 on:
   push:
-    branches: [main]
+    branches: [main, breaking/**]
     paths:
       - "backend/**"
   pull_request:
