@@ -5,7 +5,7 @@ import (
 )
 
 type Storage struct {
-	Path      string `gorm:"primaryKey;not null"`
+	Path      string `gorm:"primaryKey"`
 	Data      []byte
 	Size      int64
 	ModTime   datatype.DateTime
