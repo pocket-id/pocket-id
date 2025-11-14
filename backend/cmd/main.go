@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	_ "time/tzdata"
 
 	"github.com/pocket-id/pocket-id/backend/internal/cmds"
@@ -13,7 +15,8 @@ import (
 
 func main() {
 	if err := common.ValidateEnvConfig(&common.EnvConfig); err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "config error: %v\n", err)
+		os.Exit(1)
 	}
 	cmds.Execute()
 }
