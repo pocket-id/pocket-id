@@ -33,6 +33,9 @@ func Bootstrap(ctx context.Context) error {
 	slog.InfoContext(ctx, "Pocket ID is starting")
 
 	fileStorage, err := InitStorage(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to initialize file storage: %w", err)
+	}
 
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
@@ -121,7 +124,7 @@ func InitStorage(ctx context.Context) (fileStorage storage.FileStorage, err erro
 		err = fmt.Errorf("unknown file storage backend: %s", common.EnvConfig.FileBackend)
 	}
 	if err != nil {
-		return fileStorage, fmt.Errorf("failed to initialize file storage: %w", err)
+		return fileStorage, err
 	}
 
 	return fileStorage, nil

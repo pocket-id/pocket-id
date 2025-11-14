@@ -148,7 +148,7 @@ func (s *ExportService) writeExportZipStream(ctx context.Context, w io.Writer, d
 		return fmt.Errorf("failed to encode database.json: %w", err)
 	}
 
- 	// Add uploaded files
+	// Add uploaded files
 	if err := s.addUploadsToZip(ctx, zipWriter); err != nil {
 		return err
 	}
