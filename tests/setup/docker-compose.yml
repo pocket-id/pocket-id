@@ -14,8 +14,6 @@ services:
       - '1411:1411'
     environment:
       - APP_ENV=test
-      - DB_PROVIDER=${DB_PROVIDER}
-      - DB_CONNECTION_STRING=${DB_CONNECTION_STRING}
       - FILE_BACKEND=${FILE_BACKEND}
     build:
       args:

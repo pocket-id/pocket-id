@@ -171,17 +171,10 @@ jobs:
         run: |
           DOCKER_COMPOSE_FILE=docker-compose.yml
 
+          export FILE_BACKEND="${{ matrix.storage }}"
           if [ "${{ matrix.db }}" = "postgres" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
-            export DB_PROVIDER="postgres"
-            export DB_CONNECTION_STRING="postgres://postgres:postgres@postgres:5432/pocket-id"
-          else
-            export DB_PROVIDER="sqlite"
-            export DB_CONNECTION_STRING=""
-          fi
-
-          export FILE_BACKEND="${{ matrix.storage }}"
-          if [ "${{ matrix.storage }}" = "s3" ]; then
+          elif [ "${{ matrix.storage }}" = "s3" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-s3.yml
           fi
 
