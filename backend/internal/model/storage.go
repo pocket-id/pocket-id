@@ -11,3 +11,7 @@ type Storage struct {
 	ModTime   datatype.DateTime
 	CreatedAt datatype.DateTime
 }
+
+func (Storage) TableName() string {
+	return "storage"
+}
