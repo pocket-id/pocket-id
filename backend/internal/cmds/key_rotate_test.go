@@ -1,8 +1,6 @@
 package cmds
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,78 +67,14 @@ func TestKeyRotate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Run("file storage", func(t *testing.T) {
-				testKeyRotateWithFileStorage(t, tt.flags, tt.wantErr, tt.errMsg)
-			})
-
-			t.Run("database storage", func(t *testing.T) {
-				testKeyRotateWithDatabaseStorage(t, tt.flags, tt.wantErr, tt.errMsg)
-			})
+			testKeyRotateWithDatabaseStorage(t, tt.flags, tt.wantErr, tt.errMsg)
 		})
-	}
-}
-
-func testKeyRotateWithFileStorage(t *testing.T, flags keyRotateFlags, wantErr bool, errMsg string) {
-	// Create temporary directory for keys
-	tempDir := t.TempDir()
-	keysPath := filepath.Join(tempDir, "keys")
-	err := os.MkdirAll(keysPath, 0755)
-	require.NoError(t, err)
-
-	// Set up file storage config
-	envConfig := &common.EnvConfigSchema{
-		KeysStorage: "file",
-		KeysPath:    keysPath,
-	}
-
-	// Create test database
-	db := testingutils.NewDatabaseForTest(t)
-
-	// Initialize app config service and create instance
-	appConfigService, err := service.NewAppConfigService(t.Context(), db)
-	require.NoError(t, err)
-	instanceID := appConfigService.GetDbConfig().InstanceID.Value
-
-	// Check if key exists before rotation
-	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, instanceID)
-	require.NoError(t, err)
-
-	// Run the key rotation
-	err = keyRotate(t.Context(), flags, db, envConfig)
-
-	if wantErr {
-		require.Error(t, err)
-		if errMsg != "" {
-			require.ErrorContains(t, err, errMsg)
-		}
-		return
-	}
-
-	require.NoError(t, err)
-
-	// Verify key was created
-	key, err := keyProvider.LoadKey()
-	require.NoError(t, err)
-	require.NotNil(t, key)
-
-	// Verify the algorithm matches what we requested
-	alg, _ := key.Algorithm()
-	assert.NotEmpty(t, alg)
-	if flags.Alg != "" {
-		expectedAlg := flags.Alg
-		if expectedAlg == "EdDSA" {
-			// EdDSA keys should have the EdDSA algorithm
-			assert.Equal(t, "EdDSA", alg.String())
-		} else {
-			assert.Equal(t, expectedAlg, alg.String())
-		}
 	}
 }
 
 func testKeyRotateWithDatabaseStorage(t *testing.T, flags keyRotateFlags, wantErr bool, errMsg string) {
 	// Set up database storage config
 	envConfig := &common.EnvConfigSchema{
-		KeysStorage:   "database",
 		EncryptionKey: []byte("test-encryption-key-characters-long"),
 	}
 

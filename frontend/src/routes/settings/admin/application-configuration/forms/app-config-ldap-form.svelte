@@ -43,7 +43,7 @@
 		ldapAttributeGroupMember: z.string().optional(),
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
-		ldapAttributeAdminGroup: z.string().optional(),
+		ldapAdminGroupName: z.string().optional(),
 		ldapSoftDeleteUsers: z.boolean()
 	});
 
@@ -193,7 +193,7 @@
 				label={m.admin_group_name()}
 				description={m.members_of_this_group_will_have_admin_privileges_in_pocketid()}
 				placeholder="_admin_group_name"
-				bind:input={$inputs.ldapAttributeAdminGroup}
+				bind:input={$inputs.ldapAdminGroupName}
 			/>
 		</div>
 	</fieldset>

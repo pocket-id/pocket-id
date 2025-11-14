@@ -462,5 +462,8 @@
 	"ldap_id": "LDAP-id",
 	"reauthentication": "Genbekræftelse",
 	"clear_filters": "Ryd filtre",
-	"default_profile_picture": "Standardprofilbillede"
+	"default_profile_picture": "Standardprofilbillede",
+	"light": "Lys",
+	"dark": "Mørk",
+	"system": "System"
 }

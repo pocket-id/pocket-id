@@ -18,14 +18,6 @@ import (
 )
 
 const (
-	// PrivateKeyFile is the path in the data/keys folder where the key is stored
-	// This is a JSON file containing a key encoded as JWK
-	PrivateKeyFile = "jwt_private_key.json"
-
-	// PrivateKeyFileEncrypted is the path in the data/keys folder where the encrypted key is stored
-	// This is a encrypted JSON file containing a key encoded as JWK
-	PrivateKeyFileEncrypted = "jwt_private_key.json.enc"
-
 	// KeyUsageSigning is the usage for the private keys, for the "use" property
 	KeyUsageSigning = "sig"
 
@@ -96,7 +88,7 @@ func (s *JwtService) loadOrGenerateKey() error {
 	// Try loading a key
 	key, err := keyProvider.LoadKey()
 	if err != nil {
-		return fmt.Errorf("failed to load key (provider type '%s'): %w", s.envConfig.KeysStorage, err)
+		return fmt.Errorf("failed to load key: %w", err)
 	}
 
 	// If we have a key, store it in the object and we're done
@@ -117,7 +109,7 @@ func (s *JwtService) loadOrGenerateKey() error {
 	// Save the newly-generated key
 	err = keyProvider.SaveKey(s.privateKey)
 	if err != nil {
-		return fmt.Errorf("failed to save private key (provider type '%s'): %w", s.envConfig.KeysStorage, err)
+		return fmt.Errorf("failed to save private key: %w", err)
 	}
 
 	return nil

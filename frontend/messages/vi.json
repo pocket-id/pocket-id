@@ -462,5 +462,8 @@
 	"ldap_id": "ID LDAP",
 	"reauthentication": "Xác thực lại",
 	"clear_filters": "Xóa bộ lọc",
-	"default_profile_picture": "Ảnh đại diện mặc định"
+	"default_profile_picture": "Ảnh đại diện mặc định",
+	"light": "Ánh sáng",
+	"dark": "Tối",
+	"system": "Hệ thống"
 }

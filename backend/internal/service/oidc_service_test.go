@@ -144,6 +144,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	var err error
 	// Create a test database
 	db := testutils.NewDatabaseForTest(t)
+	common.EnvConfig.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
 
 	// Create two JWKs for testing
 	privateJWK, jwkSetJSON := generateTestECDSAKey(t)

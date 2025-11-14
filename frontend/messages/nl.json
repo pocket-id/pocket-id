@@ -462,5 +462,8 @@
 	"ldap_id": "LDAP-ID",
 	"reauthentication": "Opnieuw inloggen",
 	"clear_filters": "Filters wissen",
-	"default_profile_picture": "Standaard profielfoto"
+	"default_profile_picture": "Standaard profielfoto",
+	"light": "Licht",
+	"dark": "Donker",
+	"system": "Systeem"
 }
