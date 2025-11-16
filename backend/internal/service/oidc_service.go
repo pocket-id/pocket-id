@@ -1974,13 +1974,9 @@ func httpClientWithCheckRedirect(source *http.Client, checkRedirect func(req *ht
 	}
 
 	// Create a new client that clones the transport
-	client := &http.Client{}
-	sourceTransport, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		// Indicates a development-time error
-		panic("Source transport is not of type *http.Transport")
+	client := &http.Client{
+		Transport: source.Transport,
 	}
-	client.Transport = sourceTransport.Clone()
 
 	// Assign the CheckRedirect function
 	client.CheckRedirect = checkRedirect
