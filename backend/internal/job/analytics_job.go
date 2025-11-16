@@ -19,7 +19,7 @@ const heartbeatUrl = "https://analytics.pocket-id.org/heartbeat"
 
 func (s *Scheduler) RegisterAnalyticsJob(ctx context.Context, appConfig *service.AppConfigService, httpClient *http.Client) error {
 	// Skip if analytics are disabled or not in production environment
-	if common.EnvConfig.AnalyticsDisabled || common.EnvConfig.AppEnv != "production" {
+	if common.EnvConfig.AnalyticsDisabled || !common.EnvConfig.AppEnv.IsProduction() {
 		return nil
 	}
 
@@ -39,7 +39,7 @@ type AnalyticsJob struct {
 // sendHeartbeat sends a heartbeat to the analytics service
 func (j *AnalyticsJob) sendHeartbeat(parentCtx context.Context) error {
 	// Skip if analytics are disabled or not in production environment
-	if common.EnvConfig.AnalyticsDisabled || common.EnvConfig.AppEnv != "production" {
+	if common.EnvConfig.AnalyticsDisabled || !common.EnvConfig.AppEnv.IsProduction() {
 		return nil
 	}
 
