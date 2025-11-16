@@ -300,7 +300,7 @@ func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID string, c
 	}()
 
 	credential := &model.WebauthnCredential{}
-	err := s.db.
+	err := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
 		Delete(credential, "id = ? AND user_id = ?", credentialID, userID).
