@@ -125,7 +125,7 @@ func (s *databaseStorage) DeleteAll(ctx context.Context, prefix string) error {
 	}
 
 	query := s.db.WithContext(ctx)
-	query = addPathPrefixClause(s.db.Name(), query, prefix)
+	query = addPathPrefixClause(s.db.Dialector.Name(), query, prefix)
 	result := query.Delete(&model.Storage{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete files with prefix '%s' from database: %w", prefix, result.Error)
@@ -145,7 +145,7 @@ func (s *databaseStorage) List(ctx context.Context, prefix string) ([]ObjectInfo
 		if !strings.HasSuffix(prefix, "/") {
 			prefix += "/"
 		}
-		query = addPathPrefixClause(s.db.Name(), query, prefix)
+		query = addPathPrefixClause(s.db.Dialector.Name(), query, prefix)
 	}
 
 	result := query.
@@ -184,7 +184,7 @@ func (s *databaseStorage) Walk(ctx context.Context, root string, fn func(ObjectI
 		if !strings.HasSuffix(root, "/") {
 			root += "/"
 		}
-		query = addPathPrefixClause(s.db.Name(), query, root)
+		query = addPathPrefixClause(s.db.Dialector.Name(), query, root)
 	}
 
 	result := query.

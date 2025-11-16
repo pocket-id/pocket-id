@@ -81,14 +81,14 @@ jobs:
           node-version: 22
 
       - name: Cache Playwright Browsers
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Cache PostgreSQL Docker image
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: postgres-cache
         with:
           path: /tmp/postgres-image.tar
@@ -103,7 +103,7 @@ jobs:
         run: docker load < /tmp/postgres-image.tar
 
       - name: Cache LLDAP Docker image
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: lldap-cache
         with:
           path: /tmp/lldap-image.tar
@@ -119,7 +119,7 @@ jobs:
 
       - name: Cache Localstack S3 Docker image
         if: matrix.storage == 's3'
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: s3-cache
         with:
           path: /tmp/localstack-s3-image.tar
@@ -135,7 +135,7 @@ jobs:
 
       - name: Cache AWS CLI Docker image
         if: matrix.storage == 's3'
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: aws-cli-cache
         with:
           path: /tmp/aws-cli-image.tar

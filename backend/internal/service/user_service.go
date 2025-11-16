@@ -196,7 +196,7 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDe
 	// Storage operations must be executed outside of a transaction
 	profilePicturePath := path.Join("profile-pictures", userID+".png")
 	err = s.fileStorage.Delete(ctx, profilePicturePath)
-	if err != nil {
+	if err != nil && !storage.IsNotExist(err) {
 		return fmt.Errorf("failed to delete profile picture for user '%s': %w", userID, err)
 	}
 

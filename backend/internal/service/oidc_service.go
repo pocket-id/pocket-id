@@ -12,7 +12,6 @@ import (
 	"io"
 	"log/slog"
 	"mime/multipart"
-	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -1969,6 +1968,26 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 
 var errLogoTooLarge = errors.New("logo is too large")
 
+func httpClientWithCheckRedirect(source *http.Client, checkRedirect func(req *http.Request, via []*http.Request) error) *http.Client {
+	if source == nil {
+		source = http.DefaultClient
+	}
+
+	// Create a new client that clones the transport
+	client := &http.Client{}
+	sourceTransport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		// Indicates a development-time error
+		panic("Source transport is not of type *http.Transport")
+	}
+	client.Transport = sourceTransport.Clone()
+
+	// Assign the CheckRedirect function
+	client.CheckRedirect = checkRedirect
+
+	return client
+}
+
 func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clientID string, raw string, light bool) error {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -1978,18 +1997,29 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	ctx, cancel := context.WithTimeout(parentCtx, 15*time.Second)
 	defer cancel()
 
-	r := net.Resolver{}
-	ips, err := r.LookupIPAddr(ctx, u.Hostname())
-	if err != nil || len(ips) == 0 {
-		return fmt.Errorf("cannot resolve hostname")
+	// Prevents SSRF by allowing only public IPs
+	ok, err := utils.IsURLPrivate(ctx, u)
+	if err != nil {
+		return err
+	} else if ok {
+		return errors.New("private IP addresses are not allowed")
 	}
 
-	// Prevents SSRF by allowing only public IPs
-	for _, addr := range ips {
-		if utils.IsPrivateIP(addr.IP) {
-			return fmt.Errorf("private IP addresses are not allowed")
+	// We need to check this on redirects too
+	client := httpClientWithCheckRedirect(s.httpClient, func(r *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
 		}
-	}
+
+		ok, err := utils.IsURLPrivate(r.Context(), r.URL)
+		if err != nil {
+			return err
+		} else if ok {
+			return errors.New("private IP addresses are not allowed")
+		}
+
+		return nil
+	})
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
@@ -1998,7 +2028,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	req.Header.Set("User-Agent", "pocket-id/oidc-logo-fetcher")
 	req.Header.Set("Accept", "image/*")
 
-	resp, err := s.httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}

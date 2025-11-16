@@ -399,14 +399,16 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			continue
 		}
 
+		userID := databaseUser.ID
 		if databaseUser.ID == "" {
-			_, err = s.userService.createUserInternal(ctx, newUser, true, tx)
+			createdUser, err := s.userService.createUserInternal(ctx, newUser, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
 				slog.Warn("Skipping creating LDAP user", slog.String("username", newUser.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
 				return nil, nil, fmt.Errorf("error creating user '%s': %w", newUser.Username, err)
 			}
+			userID = createdUser.ID
 		} else {
 			_, err = s.userService.updateUserInternal(ctx, databaseUser.ID, newUser, false, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
@@ -423,7 +425,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			// Storage operations must be executed outside of a transaction
 			savePictures = append(savePictures, savePicture{
 				userID:   databaseUser.ID,
-				username: newUser.Username,
+				username: userID,
 				picture:  pictureString,
 			})
 		}
