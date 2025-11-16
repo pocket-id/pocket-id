@@ -5,7 +5,11 @@ export const eventTypes: Record<string, string> = {
 	TOKEN_SIGN_IN: m.token_sign_in(),
 	CLIENT_AUTHORIZATION: m.client_authorization(),
 	NEW_CLIENT_AUTHORIZATION: m.new_client_authorization(),
-	ACCOUNT_CREATED: m.account_created()
+	ACCOUNT_CREATED: m.account_created(),
+	DEVICE_CODE_AUTHORIZATION: m.device_code_authorization(),
+	NEW_DEVICE_CODE_AUTHORIZATION: m.new_device_code_authorization(),
+	PASSKEY_ADDED: m.passkey_added(),
+	PASSKEY_REMOVED: m.passkey_removed(),
 }
 
 /**
