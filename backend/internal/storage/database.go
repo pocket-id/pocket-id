@@ -26,7 +26,7 @@ type databaseStorage struct {
 // NewDatabaseStorage creates a new database storage provider
 func NewDatabaseStorage(db *gorm.DB) (FileStorage, error) {
 	if db == nil {
-		return nil, fmt.Errorf("database connection is required")
+		return nil, errors.New("database connection is required")
 	}
 	return &databaseStorage{db: db}, nil
 }

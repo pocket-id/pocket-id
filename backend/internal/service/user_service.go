@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -208,6 +209,7 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 	err := tx.
 		WithContext(ctx).
 		Where("id = ?", userID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&user).
 		Error
 	if err != nil {
@@ -369,6 +371,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	err := tx.
 		WithContext(ctx).
 		Where("id = ?", userID).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&user).
 		Error
 	if err != nil {
@@ -440,13 +443,11 @@ func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context
 
 	var userId string
 	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
-	if err != nil {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Do not return error if user not found to prevent email enumeration
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		} else {
-			return err
-		}
+		return nil
+	} else if err != nil {
+		return err
 	}
 
 	return s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute)
@@ -537,7 +538,9 @@ func (s *UserService) ExchangeOneTimeAccessToken(ctx context.Context, token stri
 	var oneTimeAccessToken model.OneTimeAccessToken
 	err := tx.
 		WithContext(ctx).
-		Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).Preload("User").
+		Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).
+		Preload("User").
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&oneTimeAccessToken).
 		Error
 	if err != nil {
@@ -744,6 +747,7 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 		err := tx.
 			WithContext(ctx).
 			Where("token = ?", signupData.Token).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&signupToken).
 			Error
 		if err != nil {
