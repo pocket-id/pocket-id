@@ -2,7 +2,6 @@ package controller
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -582,7 +581,6 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	err = oc.oidcService.UpdateClientLogo(c.Request.Context(), c.Param("id"), file, lightLogo)
-	fmt.Println("AAAAAAA SET LOGO", lightLogo, err)
 	if err != nil {
 		_ = c.Error(err)
 		return
