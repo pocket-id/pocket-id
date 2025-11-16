@@ -192,7 +192,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_PROVIDER", "postgres")
 		t.Setenv("DB_CONNECTION_STRING", "postgres://test")
 		t.Setenv("APP_URL", "https://prod.example.com")
-		t.Setenv("APP_ENV", "STAGING")
+		t.Setenv("APP_ENV", "PRODUCTION")
 		t.Setenv("UPLOAD_PATH", "/custom/uploads")
 		t.Setenv("KEYS_PATH", "/custom/keys")
 		t.Setenv("PORT", "8080")
@@ -203,7 +203,7 @@ func TestParseEnvConfig(t *testing.T) {
 
 		err := parseEnvConfig()
 		require.NoError(t, err)
-		assert.Equal(t, "staging", EnvConfig.AppEnv) // lowercased
+		assert.Equal(t, AppEnvProduction, EnvConfig.AppEnv) // lowercased
 		assert.Equal(t, "/custom/uploads", EnvConfig.UploadPath)
 		assert.Equal(t, "8080", EnvConfig.Port)
 		assert.Equal(t, "localhost", EnvConfig.Host) // lowercased
@@ -279,7 +279,7 @@ func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
 		err := prepareEnvConfig(&config)
 		require.NoError(t, err)
 
-		assert.Equal(t, "staging", config.AppEnv)
+		assert.Equal(t, AppEnv("staging"), config.AppEnv)
 		assert.Equal(t, "localhost", config.Host)
 		assert.Equal(t, []byte(encryptionKeyContent), config.EncryptionKey)
 		assert.Equal(t, dbConnContent, config.DbConnectionString)

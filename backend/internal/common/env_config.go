@@ -15,6 +15,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+type AppEnv string
 type DbProvider string
 
 const (
@@ -25,6 +26,9 @@ const (
 )
 
 const (
+	AppEnvProduction        AppEnv     = "production"
+	AppEnvDevelopment       AppEnv     = "development"
+	AppEnvTest              AppEnv     = "test"
 	DbProviderSqlite        DbProvider = "sqlite"
 	DbProviderPostgres      DbProvider = "postgres"
 	MaxMindGeoLiteCityUrl   string     = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
@@ -34,7 +38,7 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv             string     `env:"APP_ENV" options:"toLower"`
+	AppEnv             AppEnv     `env:"APP_ENV" options:"toLower"`
 	LogLevel           string     `env:"LOG_LEVEL" options:"toLower"`
 	AppURL             string     `env:"APP_URL" options:"toLower,trimTrailingSlash"`
 	DbProvider         DbProvider `env:"DB_PROVIDER" options:"toLower"`
@@ -80,7 +84,7 @@ func init() {
 
 func defaultConfig() EnvConfigSchema {
 	return EnvConfigSchema{
-		AppEnv:        "production",
+		AppEnv:        AppEnvProduction,
 		LogLevel:      "info",
 		DbProvider:    "sqlite",
 		FileBackend:   "fs",
@@ -287,4 +291,12 @@ func resolveFileBasedEnvVariable(field reflect.Value, fieldType reflect.StructFi
 	}
 
 	return nil
+}
+
+func (a AppEnv) IsProduction() bool {
+	return a == AppEnvProduction
+}
+
+func (a AppEnv) IsTest() bool {
+	return a == AppEnvTest
 }
