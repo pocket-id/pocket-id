@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"context"
+	"errors"
 	"net"
+	"net/url"
 	"strings"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -54,6 +57,23 @@ func IsTailscaleIP(ip net.IP) bool {
 
 func IsPrivateIP(ip net.IP) bool {
 	return IsLocalhostIP(ip) || IsPrivateLanIP(ip) || IsTailscaleIP(ip) || IsLocalIPv6(ip)
+}
+
+func IsURLPrivate(ctx context.Context, u *url.URL) (bool, error) {
+	var r net.Resolver
+	ips, err := r.LookupIPAddr(ctx, u.Hostname())
+	if err != nil || len(ips) == 0 {
+		return false, errors.New("cannot resolve hostname")
+	}
+
+	// Prevents SSRF by allowing only public IPs
+	for _, addr := range ips {
+		if IsPrivateIP(addr.IP) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func listContainsIP(ipNets []*net.IPNet, ip net.IP) bool {

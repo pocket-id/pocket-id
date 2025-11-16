@@ -587,7 +587,6 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
-
 }
 
 // deleteClientLogoHandler godoc
@@ -614,7 +613,6 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
-
 }
 
 // updateAllowedUserGroupsHandler godoc
