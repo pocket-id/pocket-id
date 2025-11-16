@@ -679,19 +679,21 @@ func (s *OidcService) introspectRefreshToken(ctx context.Context, clientID strin
 }
 
 func (s *OidcService) GetClient(ctx context.Context, clientID string) (model.OidcClient, error) {
-	return s.getClientInternal(ctx, clientID, s.db)
+	return s.getClientInternal(ctx, clientID, s.db, false)
 }
 
-func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB) (model.OidcClient, error) {
+func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB, forUpdate bool) (model.OidcClient, error) {
 	var client model.OidcClient
-	err := tx.
+	q := tx.
 		WithContext(ctx).
 		Preload("CreatedBy").
-		Preload("AllowedUserGroups").
-		First(&client, "id = ?", clientID).
-		Error
-	if err != nil {
-		return model.OidcClient{}, err
+		Preload("AllowedUserGroups")
+	if forUpdate {
+		q = q.Clauses(clause.Locking{Strength: "UPDATE"})
+	}
+	q = q.First(&client, "id = ?", clientID)
+	if q.Error != nil {
+		return model.OidcClient{}, q.Error
 	}
 	return client, nil
 }
@@ -834,10 +836,22 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	err := s.db.
 		WithContext(ctx).
 		Where("id = ?", clientID).
+		Clauses(clause.Returning{}).
 		Delete(&client).
 		Error
 	if err != nil {
 		return err
+	}
+
+	// Delete images if present
+	// Note that storage operations must be done outside of a transaction
+	if client.ImageType != nil && *client.ImageType != "" {
+		old := path.Join("oidc-client-images", client.ID+"."+*client.ImageType)
+		_ = s.fileStorage.Delete(ctx, old)
+	}
+	if client.DarkImageType != nil && *client.DarkImageType != "" {
+		old := path.Join("oidc-client-images", client.ID+"-dark."+*client.DarkImageType)
+		_ = s.fileStorage.Delete(ctx, old)
 	}
 
 	return nil
@@ -939,7 +953,8 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		return err
 	}
 	defer reader.Close()
-	if err := s.fileStorage.Save(ctx, imagePath, reader); err != nil {
+	err = s.fileStorage.Save(ctx, imagePath, reader)
+	if err != nil {
 		return err
 	}
 
@@ -1024,7 +1039,7 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 		tx.Rollback()
 	}()
 
-	client, err = s.getClientInternal(ctx, id, tx)
+	client, err = s.getClientInternal(ctx, id, tx, true)
 	if err != nil {
 		return model.OidcClient{}, err
 	}
@@ -1807,7 +1822,7 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		tx.Rollback()
 	}()
 
-	client, err := s.getClientInternal(ctx, clientID, tx)
+	client, err := s.getClientInternal(ctx, clientID, tx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -2041,9 +2056,11 @@ func (s *OidcService) updateClientLogoType(ctx context.Context, clientID string,
 		tx.Rollback()
 	}()
 
+	// We need to acquire an update lock for the row to be locked, since we'll update it later
 	var client model.OidcClient
 	err := tx.
 		WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&client, "id = ?", clientID).
 		Error
 	if err != nil {
