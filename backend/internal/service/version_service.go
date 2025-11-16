@@ -58,7 +58,7 @@ func (s *VersionService) GetLatestVersion(ctx context.Context) (string, error) {
 		}
 
 		if payload.TagName == "" {
-			return "", fmt.Errorf("GitHub API returned empty tag name")
+			return "", errors.New("GitHub API returned empty tag name")
 		}
 
 		return strings.TrimPrefix(payload.TagName, "v"), nil

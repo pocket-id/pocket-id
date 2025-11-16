@@ -29,7 +29,7 @@ func (m *RateLimitMiddleware) Add(limit rate.Limit, burst int) gin.HandlerFunc {
 
 		// Skip rate limiting for localhost and test environment
 		// If the client ip is localhost the request comes from the frontend
-		if ip == "" || ip == "127.0.0.1" || ip == "::1" || common.EnvConfig.AppEnv == "test" {
+		if ip == "" || ip == "127.0.0.1" || ip == "::1" || common.EnvConfig.AppEnv.IsTest() {
 			c.Next()
 			return
 		}
