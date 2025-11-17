@@ -20,8 +20,10 @@ services:
       file: docker-compose.yml
       service: pocket-id
     environment:
+      - APP_ENV=test
       - DB_PROVIDER=postgres
       - DB_CONNECTION_STRING=postgres://postgres:postgres@postgres:5432/pocket-id
+      - FILE_BACKEND=${FILE_BACKEND}
     depends_on:
       postgres:
         condition: service_healthy

@@ -11,12 +11,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/google/uuid"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"golang.org/x/text/unicode/norm"
 	"gorm.io/gorm"
@@ -32,15 +34,23 @@ type LdapService struct {
 	appConfigService *AppConfigService
 	userService      *UserService
 	groupService     *UserGroupService
+	fileStorage      storage.FileStorage
 }
 
-func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *AppConfigService, userService *UserService, groupService *UserGroupService) *LdapService {
+type savePicture struct {
+	userID   string
+	username string
+	picture  string
+}
+
+func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *AppConfigService, userService *UserService, groupService *UserGroupService, fileStorage storage.FileStorage) *LdapService {
 	return &LdapService{
 		db:               db,
 		httpClient:       httpClient,
 		appConfigService: appConfigService,
 		userService:      userService,
 		groupService:     groupService,
+		fileStorage:      fileStorage,
 	}
 }
 
@@ -68,12 +78,6 @@ func (s *LdapService) createClient() (*ldap.Conn, error) {
 }
 
 func (s *LdapService) SyncAll(ctx context.Context) error {
-	// Start a transaction
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
 	// Setup LDAP connection
 	client, err := s.createClient()
 	if err != nil {
@@ -81,7 +85,13 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 	}
 	defer client.Close()
 
-	err = s.SyncUsers(ctx, tx, client)
+	// Start a transaction
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	savePictures, deleteFiles, err := s.SyncUsers(ctx, tx, client)
 	if err != nil {
 		return fmt.Errorf("failed to sync users: %w", err)
 	}
@@ -95,6 +105,25 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 	err = tx.Commit().Error
 	if err != nil {
 		return fmt.Errorf("failed to commit changes to database: %w", err)
+	}
+
+	// Now that we've committed the transaction, we can perform operations on the storage layer
+	// First, save all new pictures
+	for _, sp := range savePictures {
+		err = s.saveProfilePicture(ctx, sp.userID, sp.picture)
+		if err != nil {
+			// This is not a fatal error
+			slog.Warn("Error saving profile picture for LDAP user", slog.String("username", sp.username), slog.Any("error", err))
+		}
+	}
+
+	// Delete all old files
+	for _, path := range deleteFiles {
+		err = s.fileStorage.Delete(ctx, path)
+		if err != nil {
+			// This is not a fatal error
+			slog.Error("Failed to delete file after LDAP sync", slog.String("path", path), slog.Any("error", err))
+		}
 	}
 
 	return nil
@@ -266,7 +295,7 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 }
 
 //nolint:gocognit
-func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.Conn) error {
+func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.Conn) (savePictures []savePicture, deleteFiles []string, err error) {
 	dbConfig := s.appConfigService.GetDbConfig()
 
 	searchAttrs := []string{
@@ -294,11 +323,12 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 
 	result, err := client.Search(searchReq)
 	if err != nil {
-		return fmt.Errorf("failed to query LDAP: %w", err)
+		return nil, nil, fmt.Errorf("failed to query LDAP: %w", err)
 	}
 
 	// Create a mapping for users that exist
 	ldapUserIDs := make(map[string]struct{}, len(result.Entries))
+	savePictures = make([]savePicture, 0, len(result.Entries))
 
 	for _, value := range result.Entries {
 		ldapId := convertLdapIdToString(value.GetAttributeValue(dbConfig.LdapAttributeUserUniqueIdentifier.Value))
@@ -329,13 +359,13 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				Error
 
 			if err != nil {
-				return fmt.Errorf("failed to enable user %s: %w", databaseUser.Username, err)
+				return nil, nil, fmt.Errorf("failed to enable user %s: %w", databaseUser.Username, err)
 			}
 		}
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			// This could error with ErrRecordNotFound and we want to ignore that here
-			return fmt.Errorf("failed to query for LDAP user ID '%s': %w", ldapId, err)
+			return nil, nil, fmt.Errorf("failed to query for LDAP user ID '%s': %w", ldapId, err)
 		}
 
 		// Check if user is admin by checking if they are in the admin group
@@ -369,32 +399,35 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 			continue
 		}
 
+		userID := databaseUser.ID
 		if databaseUser.ID == "" {
-			_, err = s.userService.createUserInternal(ctx, newUser, true, tx)
+			createdUser, err := s.userService.createUserInternal(ctx, newUser, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
 				slog.Warn("Skipping creating LDAP user", slog.String("username", newUser.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
-				return fmt.Errorf("error creating user '%s': %w", newUser.Username, err)
+				return nil, nil, fmt.Errorf("error creating user '%s': %w", newUser.Username, err)
 			}
+			userID = createdUser.ID
 		} else {
 			_, err = s.userService.updateUserInternal(ctx, databaseUser.ID, newUser, false, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
 				slog.Warn("Skipping updating LDAP user", slog.String("username", newUser.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
-				return fmt.Errorf("error updating user '%s': %w", newUser.Username, err)
+				return nil, nil, fmt.Errorf("error updating user '%s': %w", newUser.Username, err)
 			}
 		}
 
 		// Save profile picture
 		pictureString := value.GetAttributeValue(dbConfig.LdapAttributeUserProfilePicture.Value)
 		if pictureString != "" {
-			err = s.saveProfilePicture(ctx, databaseUser.ID, pictureString)
-			if err != nil {
-				// This is not a fatal error
-				slog.Warn("Error saving profile picture for user", slog.String("username", newUser.Username), slog.Any("error", err))
-			}
+			// Storage operations must be executed outside of a transaction
+			savePictures = append(savePictures, savePicture{
+				userID:   databaseUser.ID,
+				username: userID,
+				picture:  pictureString,
+			})
 		}
 	}
 
@@ -406,10 +439,11 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		Select("id, username, ldap_id, disabled").
 		Error
 	if err != nil {
-		return fmt.Errorf("failed to fetch users from database: %w", err)
+		return nil, nil, fmt.Errorf("failed to fetch users from database: %w", err)
 	}
 
 	// Mark users as disabled or delete users that no longer exist in LDAP
+	deleteFiles = make([]string, 0, len(ldapUserIDs))
 	for _, user := range ldapUsersInDb {
 		// Skip if the user ID exists in the fetched LDAP results
 		if _, exists := ldapUserIDs[*user.LdapID]; exists {
@@ -417,26 +451,30 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		}
 
 		if dbConfig.LdapSoftDeleteUsers.IsTrue() {
-			err = s.userService.disableUserInternal(ctx, user.ID, tx)
+			err = s.userService.disableUserInternal(ctx, tx, user.ID)
 			if err != nil {
-				return fmt.Errorf("failed to disable user %s: %w", user.Username, err)
+				return nil, nil, fmt.Errorf("failed to disable user %s: %w", user.Username, err)
 			}
 
 			slog.Info("Disabled user", slog.String("username", user.Username))
 		} else {
-			err = s.userService.deleteUserInternal(ctx, user.ID, true, tx)
-			target := &common.LdapUserUpdateError{}
-			if errors.As(err, &target) {
-				return fmt.Errorf("failed to delete user %s: LDAP user must be disabled before deletion", user.Username)
-			} else if err != nil {
-				return fmt.Errorf("failed to delete user %s: %w", user.Username, err)
+			err = s.userService.deleteUserInternal(ctx, tx, user.ID, true)
+			if err != nil {
+				target := &common.LdapUserUpdateError{}
+				if errors.As(err, &target) {
+					return nil, nil, fmt.Errorf("failed to delete user %s: LDAP user must be disabled before deletion", user.Username)
+				}
+				return nil, nil, fmt.Errorf("failed to delete user %s: %w", user.Username, err)
 			}
 
 			slog.Info("Deleted user", slog.String("username", user.Username))
+
+			// Storage operations must be executed outside of a transaction
+			deleteFiles = append(deleteFiles, path.Join("profile-pictures", user.ID+".png"))
 		}
 	}
 
-	return nil
+	return savePictures, deleteFiles, nil
 }
 
 func (s *LdapService) saveProfilePicture(parentCtx context.Context, userId string, pictureString string) error {

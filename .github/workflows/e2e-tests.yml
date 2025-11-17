@@ -57,7 +57,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        db: [sqlite, postgres, sqlite-s3]
+        include:
+          - db: sqlite
+            storage: fs
+          - db: postgres
+            storage: fs
+          - db: sqlite
+            storage: s3
+          - db: sqlite
+            storage: database
+          - db: postgres
+            storage: database
 
     steps:
       - uses: actions/checkout@v5
@@ -71,64 +81,73 @@ jobs:
           node-version: 22
 
       - name: Cache Playwright Browsers
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Cache PostgreSQL Docker image
-        if: matrix.db == 'postgres'
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: postgres-cache
         with:
           path: /tmp/postgres-image.tar
           key: postgres-17-${{ runner.os }}
-
       - name: Pull and save PostgreSQL image
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit != 'true'
         run: |
           docker pull postgres:17
           docker save postgres:17 > /tmp/postgres-image.tar
-
       - name: Load PostgreSQL image
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
 
       - name: Cache LLDAP Docker image
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: lldap-cache
         with:
           path: /tmp/lldap-image.tar
           key: lldap-stable-${{ runner.os }}
-
       - name: Pull and save LLDAP image
         if: steps.lldap-cache.outputs.cache-hit != 'true'
         run: |
-          docker pull nitnelave/lldap:stable
-          docker save nitnelave/lldap:stable > /tmp/lldap-image.tar
-
+          docker pull lldap/lldap:2025-05-19
+          docker save lldap/lldap:2025-05-19 > /tmp/lldap-image.tar
       - name: Load LLDAP image
         if: steps.lldap-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/lldap-image.tar
 
       - name: Cache Localstack S3 Docker image
-        if: matrix.db == 'sqlite-s3'
-        uses: actions/cache@v3
+        if: matrix.storage == 's3'
+        uses: actions/cache@v4
         id: s3-cache
         with:
           path: /tmp/localstack-s3-image.tar
           key: localstack-s3-latest-${{ runner.os }}
-
       - name: Pull and save Localstack S3 image
-        if: matrix.db == 'sqlite-s3' && steps.s3-cache.outputs.cache-hit != 'true'
+        if: matrix.storage == 's3' && steps.s3-cache.outputs.cache-hit != 'true'
         run: |
           docker pull localstack/localstack:s3-latest
           docker save localstack/localstack:s3-latest > /tmp/localstack-s3-image.tar
-
       - name: Load Localstack S3 image
-        if: matrix.db == 'sqlite-s3' && steps.s3-cache.outputs.cache-hit == 'true'
+        if: matrix.storage == 's3' && steps.s3-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/localstack-s3-image.tar
+
+      - name: Cache AWS CLI Docker image
+        if: matrix.storage == 's3'
+        uses: actions/cache@v4
+        id: aws-cli-cache
+        with:
+          path: /tmp/aws-cli-image.tar
+          key: aws-cli-latest-${{ runner.os }}
+      - name: Pull and save AWS CLI image
+        if: matrix.storage == 's3' && steps.aws-cli-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull amazon/aws-cli:latest
+          docker save amazon/aws-cli:latest > /tmp/aws-cli-image.tar
+      - name: Load AWS CLI image
+        if: matrix.storage == 's3' && steps.aws-cli-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/aws-cli-image.tar
 
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
@@ -147,26 +166,20 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run Docker Container (sqlite) with LDAP
-        if: matrix.db == 'sqlite'
+      - name: Run Docker containers
         working-directory: ./tests/setup
         run: |
-          docker compose up -d
-          docker compose logs -f pocket-id &> /tmp/backend.log &
+          DOCKER_COMPOSE_FILE=docker-compose.yml
 
-      - name: Run Docker Container (postgres) with LDAP
-        if: matrix.db == 'postgres'
-        working-directory: ./tests/setup
-        run: |
-          docker compose -f docker-compose-postgres.yml up -d
-          docker compose -f docker-compose-postgres.yml logs -f pocket-id &> /tmp/backend.log &
+          export FILE_BACKEND="${{ matrix.storage }}"
+          if [ "${{ matrix.db }}" = "postgres" ]; then
+            DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
+          elif [ "${{ matrix.storage }}" = "s3" ]; then
+            DOCKER_COMPOSE_FILE=docker-compose-s3.yml
+          fi
 
-      - name: Run Docker Container (sqlite-s3) with LDAP + S3
-        if: matrix.db == 'sqlite-s3'
-        working-directory: ./tests/setup
-        run: |
-          docker compose -f docker-compose-s3.yml up -d
-          docker compose -f docker-compose-s3.yml logs -f pocket-id &> /tmp/backend.log &
+          docker compose -f "$DOCKER_COMPOSE_FILE" up -d
+          docker compose -f "$DOCKER_COMPOSE_FILE" logs -f pocket-id &> /tmp/backend.log &
 
       - name: Run Playwright tests
         working-directory: ./tests
@@ -176,7 +189,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
-          name: playwright-report-${{ matrix.db }}
+          name: playwright-report-${{ matrix.db }}-${{ matrix.storage }}
           path: tests/.report
           include-hidden-files: true
           retention-days: 15
@@ -185,7 +198,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && github.event.pull_request.head.ref != 'i18n_crowdin'
         with:
-          name: backend-${{ matrix.db }}
+          name: backend-${{ matrix.db }}-${{ matrix.storage }}
           path: /tmp/backend.log
           include-hidden-files: true
           retention-days: 15

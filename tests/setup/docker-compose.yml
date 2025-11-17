@@ -15,6 +15,7 @@ services:
     environment:
       APP_ENV: test
       ENCRYPTION_KEY: test-encryption-key
+      FILE_BACKEND: ${FILE_BACKEND}
     volumes:
       - pocket-id-test-data:/app/data
     build:

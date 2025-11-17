@@ -34,7 +34,7 @@ func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent,
 	country, city, err := s.geoliteService.GetLocationByIP(ipAddress)
 	if err != nil {
 		// Log the error but don't interrupt the operation
-		slog.Warn("Failed to get IP location", "error", err)
+		slog.Warn("Failed to get IP location", slog.String("ip", ipAddress), slog.Any("error", err))
 	}
 
 	auditLog := model.AuditLog{
@@ -201,8 +201,8 @@ func (s *AuditLogService) ListUsernamesWithIds(ctx context.Context) (users map[s
 		WithContext(ctx).
 		Joins("User").
 		Model(&model.AuditLog{}).
-		Select("DISTINCT \"User\".id, \"User\".username").
-		Where("\"User\".username IS NOT NULL")
+		Select(`DISTINCT "User".id, "User".username`).
+		Where(`"User".username IS NOT NULL`)
 
 	type Result struct {
 		ID       string `gorm:"column:id"`
@@ -210,7 +210,8 @@ func (s *AuditLogService) ListUsernamesWithIds(ctx context.Context) (users map[s
 	}
 
 	var results []Result
-	if err := query.Find(&results).Error; err != nil {
+	err = query.Find(&results).Error
+	if err != nil {
 		return nil, fmt.Errorf("failed to query user IDs: %w", err)
 	}
 
@@ -246,7 +247,8 @@ func (s *AuditLogService) ListClientNames(ctx context.Context) (clientNames []st
 	}
 
 	var results []Result
-	if err := query.Find(&results).Error; err != nil {
+	err = query.Find(&results).Error
+	if err != nil {
 		return nil, fmt.Errorf("failed to query client IDs: %w", err)
 	}
 

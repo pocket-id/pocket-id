@@ -32,11 +32,11 @@ var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *
 func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	// Set the appropriate Gin mode based on the environment
 	switch common.EnvConfig.AppEnv {
-	case "production":
+	case common.AppEnvProduction:
 		gin.SetMode(gin.ReleaseMode)
-	case "development":
+	case common.AppEnvDevelopment:
 		gin.SetMode(gin.DebugMode)
-	case "test":
+	case common.AppEnvTest:
 		gin.SetMode(gin.TestMode)
 	}
 
@@ -83,7 +83,7 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	controller.NewVersionController(apiGroup, svc.versionService)
 
 	// Add test controller in non-production environments
-	if common.EnvConfig.AppEnv != "production" {
+	if !common.EnvConfig.AppEnv.IsProduction() {
 		for _, f := range registerTestControllers {
 			f(apiGroup, db, svc)
 		}

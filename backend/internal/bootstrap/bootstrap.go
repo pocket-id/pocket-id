@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
@@ -32,20 +33,19 @@ func Bootstrap(ctx context.Context) error {
 	}
 	slog.InfoContext(ctx, "Pocket ID is starting")
 
-	fileStorage, err := InitStorage(ctx)
+	db, err := NewDatabase()
 	if err != nil {
-		return fmt.Errorf("failed to initialize file storage: %w", err)
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+
+	fileStorage, err := InitStorage(ctx, db)
+	if err != nil {
+		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
 	}
 
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize application images: %w", err)
-	}
-
-	// Connect to the database
-	db, err := NewDatabase()
-	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
 	// Create all services
@@ -105,10 +105,12 @@ func Bootstrap(ctx context.Context) error {
 	return nil
 }
 
-func InitStorage(ctx context.Context) (fileStorage storage.FileStorage, err error) {
+func InitStorage(ctx context.Context, db *gorm.DB) (fileStorage storage.FileStorage, err error) {
 	switch common.EnvConfig.FileBackend {
 	case storage.TypeFileSystem:
 		fileStorage, err = storage.NewFilesystemStorage(common.EnvConfig.UploadPath)
+	case storage.TypeDatabase:
+		fileStorage, err = storage.NewDatabaseStorage(db)
 	case storage.TypeS3:
 		s3Cfg := storage.S3Config{
 			Bucket:          common.EnvConfig.S3Bucket,
