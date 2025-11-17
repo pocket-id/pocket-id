@@ -33,6 +33,8 @@ test('Export', async ({ baseURL }) => {
 		fetch(`${baseURL}/api/users/${users.tim.id}/profile-picture.png`)
 	]);
 
+	await new Promise((resolve) => setTimeout(resolve, 3000));
+
 	// Export the data from the seeded container
 	const exportPath = path.join(tmpDir, 'export.zip');
 	const extractPath = path.join(tmpDir, 'export-extracted');
