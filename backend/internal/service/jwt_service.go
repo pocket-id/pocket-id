@@ -73,10 +73,10 @@ func (s *JwtService) init(db *gorm.DB, appConfigService *AppConfigService, envCo
 	s.db = db
 
 	// Ensure keys are generated or loaded
-	return s.loadOrGenerateKey()
+	return s.LoadOrGenerateKey()
 }
 
-func (s *JwtService) loadOrGenerateKey() error {
+func (s *JwtService) LoadOrGenerateKey() error {
 	// Get the key provider
 	keyProvider, err := jwkutils.GetKeyProvider(s.db, s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
 	if err != nil {
@@ -184,15 +184,6 @@ func (s *JwtService) SetKey(privateKey jwk.Key) error {
 	}
 
 	return nil
-}
-
-func (s *JwtService) SaveKey(privateKey jwk.Key) error {
-	keyProvider, err := jwkutils.GetKeyProvider(s.db, s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
-	if err != nil {
-		return fmt.Errorf("failed to get key provider: %w", err)
-	}
-
-	return keyProvider.SaveKey(privateKey)
 }
 
 func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
