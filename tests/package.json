@@ -8,9 +8,13 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.56.1",
-		"@types/node": "^22.18.12",
+		"@types/adm-zip": "^0.5.7",
 		"dotenv": "^16.6.1",
 		"jose": "^6.1.0",
+		"@types/node": "^22.18.12",
 		"prettier": "^3.6.2"
+	},
+	"dependencies": {
+		"adm-zip": "^0.5.16"
 	}
 }

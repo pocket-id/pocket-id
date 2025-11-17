@@ -22,7 +22,7 @@ fi
 if ! id -u pocket-id > /dev/null 2>&1; then
     if ! getent passwd "$PUID" > /dev/null 2>&1; then
         echo "Creating user $PUID..."
-        adduser -u "$PUID" -G pocket-id-group pocket-id > /dev/null 2>&1
+        adduser -uD "$PUID" -G pocket-id-group pocket-id > /dev/null 2>&1
     else
         # If a user with the PUID already exists, use that user
         existing_user=$(getent passwd "$PUID" | cut -d: -f1)
@@ -30,9 +30,9 @@ if ! id -u pocket-id > /dev/null 2>&1; then
     fi
 fi
 
-# Change ownership of the /app/data directory
+# Change ownership of the /app directory
 mkdir -p /app/data
-find /app/data \( ! -group "${PGID}" -o ! -user "${PUID}" \) -exec chown "${PUID}:${PGID}" {} +
+find /app \( ! -group "${PGID}" -o ! -user "${PUID}" \) -exec chown "${PUID}:${PGID}" {} +
 
 # Switch to the non-root user
 exec su-exec "$PUID:$PGID" "$@"

@@ -11,13 +11,18 @@ services:
   pocket-id:
     image: pocket-id:test
     ports:
-      - '1411:1411'
+      - "1411:1411"
     environment:
       APP_ENV: test
       ENCRYPTION_KEY: test-encryption-key
       FILE_BACKEND: ${FILE_BACKEND}
+    volumes:
+      - pocket-id-test-data:/app/data
     build:
       args:
         - BUILD_TAGS=e2etest
       context: ../..
       dockerfile: docker/Dockerfile
+
+volumes:
+  pocket-id-test-data:
