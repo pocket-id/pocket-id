@@ -90,7 +90,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 	case <-time.After(time.Until(waitUntil)):
 	}
 
-	storage, err := bootstrap.InitStorage(ctx)
+	storage, err := bootstrap.InitStorage(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
