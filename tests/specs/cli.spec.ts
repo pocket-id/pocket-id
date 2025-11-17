@@ -31,9 +31,7 @@ test('Export', async ({ baseURL }) => {
 	await Promise.all([
 		fetch(`${baseURL}/api/users/${users.craig.id}/profile-picture.png`),
 		fetch(`${baseURL}/api/users/${users.tim.id}/profile-picture.png`)
-	]);
-
-	await new Promise((resolve) => setTimeout(resolve, 3000));
+	]);	
 
 	// Export the data from the seeded container
 	const exportPath = path.join(tmpDir, 'export.zip');
@@ -205,7 +203,7 @@ function runImport(pathToFile: string) {
 	try {
 		runDockerCommand(['wait', importContainerId]);
 	} finally {
-		runDockerCommand(['rm', '-f', importContainerId]);
+		// runDockerCommand(['rm', '-f', importContainerId]);
 	}
 }
 

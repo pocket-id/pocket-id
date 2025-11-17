@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20251024141000,
+	"version": 20251115000000,
 	"tables": {
 		"api_keys": [
 			{
