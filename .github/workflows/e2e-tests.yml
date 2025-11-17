@@ -171,7 +171,7 @@ jobs:
         run: |
           DOCKER_COMPOSE_FILE=docker-compose.yml
 
-          export FILE_BACKEND="${{ matrix.storage }}"
+          echo "FILE_BACKEND=${{ matrix.storage }}" > .env
           if [ "${{ matrix.db }}" = "postgres" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
           elif [ "${{ matrix.storage }}" = "s3" ]; then

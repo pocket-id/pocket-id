@@ -58,6 +58,9 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 	}
 
 	for _, table := range tables {
+		if table == "storage" || table == "schema_migrations" {
+			continue
+		}
 		if err := s.dumpTable(table, &out); err != nil {
 			return DatabaseExport{}, err
 		}
@@ -71,12 +74,12 @@ func (s *ExportService) listTables() ([]string, error) {
 
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
-		if err := s.db.Raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations';`).Scan(&tables).Error; err != nil {
+		if err := s.db.Raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`).Scan(&tables).Error; err != nil {
 			return nil, fmt.Errorf("failed to query sqlite tables: %w", err)
 		}
 
 	case common.DbProviderPostgres:
-		if err := s.db.Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public' AND tablename != 'schema_migrations';`).Scan(&tables).Error; err != nil {
+		if err := s.db.Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public'`).Scan(&tables).Error; err != nil {
 			return nil, fmt.Errorf("failed to query postgres tables: %w", err)
 		}
 	}
