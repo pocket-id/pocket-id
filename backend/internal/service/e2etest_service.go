@@ -426,7 +426,8 @@ func (s *TestService) ResetDatabase() error {
 }
 
 func (s *TestService) ResetApplicationImages(ctx context.Context) error {
-	if err := s.fileStorage.DeleteAll(ctx, "/"); err != nil {
+	err := s.fileStorage.DeleteAll(ctx, "/")
+	if err != nil {
 		slog.ErrorContext(ctx, "Error removing uploads", slog.Any("error", err))
 		return err
 	}
@@ -445,7 +446,8 @@ func (s *TestService) ResetApplicationImages(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if err := s.fileStorage.Save(ctx, path.Join("application-images", file.Name()), srcFile); err != nil {
+		err = s.fileStorage.Save(ctx, path.Join("application-images", file.Name()), srcFile)
+		if err != nil {
 			srcFile.Close()
 			return err
 		}

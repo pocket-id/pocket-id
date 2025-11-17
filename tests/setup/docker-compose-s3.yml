@@ -13,7 +13,7 @@ services:
       retries: 10
 
   create-bucket:
-    image: amazon/aws-cli
+    image: amazon/aws-cli:latest
     environment:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test

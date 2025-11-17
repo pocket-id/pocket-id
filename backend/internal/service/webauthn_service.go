@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -114,7 +116,7 @@ func (s *WebAuthnService) BeginRegistration(ctx context.Context, userID string) 
 	}, nil
 }
 
-func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, userID string, r *http.Request) (model.WebauthnCredential, error) {
+func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID string, userID string, r *http.Request, ipAddress string) (model.WebauthnCredential, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -172,6 +174,9 @@ func (s *WebAuthnService) VerifyRegistration(ctx context.Context, sessionID, use
 	if err != nil {
 		return model.WebauthnCredential{}, fmt.Errorf("failed to store WebAuthn credential: %w", err)
 	}
+
+	auditLogData := model.AuditLogData{"credentialID": hex.EncodeToString(credential.ID), "passkeyName": passkeyName}
+	s.auditLogService.Create(ctx, model.AuditLogEventPasskeyAdded, ipAddress, r.UserAgent(), userID, auditLogData, tx)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -288,14 +293,28 @@ func (s *WebAuthnService) ListCredentials(ctx context.Context, userID string) ([
 	return credentials, nil
 }
 
-func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID, credentialID string) error {
-	err := s.db.
+func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string) error {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	credential := &model.WebauthnCredential{}
+	err := tx.
 		WithContext(ctx).
-		Where("id = ? AND user_id = ?", credentialID, userID).
-		Delete(&model.WebauthnCredential{}).
+		Clauses(clause.Returning{}).
+		Delete(credential, "id = ? AND user_id = ?", credentialID, userID).
 		Error
 	if err != nil {
 		return fmt.Errorf("failed to delete record: %w", err)
+	}
+
+	auditLogData := model.AuditLogData{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
+	s.auditLogService.Create(ctx, model.AuditLogEventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
+
+	err = tx.Commit().Error
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -353,7 +372,7 @@ func (s *WebAuthnService) CreateReauthenticationTokenWithAccessToken(ctx context
 
 	userID, ok := token.Subject()
 	if !ok {
-		return "", fmt.Errorf("access token does not contain user ID")
+		return "", errors.New("access token does not contain user ID")
 	}
 
 	// Check if token is issued less than a minute ago
