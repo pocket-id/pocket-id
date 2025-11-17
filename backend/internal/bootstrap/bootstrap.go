@@ -66,8 +66,9 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	shutdownFn := func(shutdownCtx context.Context) error {
-		if err := svc.appLockService.Release(shutdownCtx); err != nil {
-			return fmt.Errorf("failed to release application lock: %w", err)
+		sErr := svc.appLockService.Release(shutdownCtx)
+		if sErr != nil {
+			return fmt.Errorf("failed to release application lock: %w", sErr)
 		}
 		return nil
 	}

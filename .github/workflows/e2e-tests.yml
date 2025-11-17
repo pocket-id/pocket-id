@@ -179,7 +179,7 @@ jobs:
           fi
 
           docker compose -f "$DOCKER_COMPOSE_FILE" up -d
-         
+
           {
             LOG_FILE="/tmp/backend.log"
             while true; do

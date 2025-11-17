@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -78,7 +79,14 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) (waitUntil tim
 	}()
 
 	var prevLockRaw string
-	err = tx.WithContext(ctx).Model(&model.KV{}).Where("key = ?", lockKey).Select("value").Scan(&prevLockRaw).Error
+	err = tx.
+		WithContext(ctx).
+		Model(&model.KV{}).
+		Where("key = ?", lockKey).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Select("value").
+		Scan(&prevLockRaw).
+		Error
 	if err != nil {
 		return time.Time{}, fmt.Errorf("query existing lock: %w", err)
 	}
@@ -261,10 +269,11 @@ func (s *AppLockService) renew(ctx context.Context) error {
 		cancel()
 
 		switch {
-		case res.RowsAffected == 0:
-			return ErrLockLost
 		case res.Error != nil:
 			lastErr = fmt.Errorf("lock renewal failed: %w", res.Error)
+		case res.RowsAffected == 0:
+			// Must be after checking res.Error
+			return ErrLockLost
 		default:
 			slog.Debug("Renewed application lock",
 				slog.Int64("process_id", s.processID),

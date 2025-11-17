@@ -79,7 +79,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 	if err != nil {
 		if errors.Is(err, service.ErrLockUnavailable) {
 			//nolint:staticcheck
-			return fmt.Errorf("Pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
+			return errors.New("Pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
 		}
 		return fmt.Errorf("failed to acquire application lock: %w", err)
 	}
