@@ -190,7 +190,7 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 			tables = append(tables, t)
 		}
 		for t := range dbData.Tables {
-			// Skip tables already present whose the order matters
+			// Skip tables already present where the order matters
 			// Also skip the schema_migrations table
 			if slices.Contains(dbData.TableOrder, t) || t == "schema_migrations" {
 				continue
@@ -250,7 +250,7 @@ func normalizeRowWithSchema(row map[string]any, table string, schema utils.DBSch
 			}
 			b, err := base64.StdEncoding.DecodeString(str)
 			if err != nil {
-				return fmt.Errorf("failed to decode value for column '%s/%s' from hex: %w", table, col, err)
+				return fmt.Errorf("failed to decode value for column '%s/%s' from base64: %w", table, col, err)
 			}
 
 			// For jsonb, we additionally cast to json.RawMessage
