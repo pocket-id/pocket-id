@@ -56,13 +56,17 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 		Provider: s.db.Name(),
 		Version:  version,
 		Tables:   map[string][]map[string]any{},
+		// These tables need to be inserted in a specific order because of foreign key constraints
+		// Not all tables are listed here, because not all tables are order-dependent
+		TableOrder: []string{"oidc_clients", "users", "user_groups"},
 	}
 
 	for _, table := range tables {
 		if table == "storage" || table == "schema_migrations" {
 			continue
 		}
-		if err := s.dumpTable(table, &out); err != nil {
+		err = s.dumpTable(table, &out)
+		if err != nil {
 			return DatabaseExport{}, err
 		}
 	}
@@ -108,7 +112,8 @@ func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
 
 	for rows.Next() {
 		vals := s.getScanValuesForTable(rows)
-		if err := rows.Scan(vals...); err != nil {
+		err = rows.Scan(vals...)
+		if err != nil {
 			return fmt.Errorf("failed to scan row in table %s: %w", table, err)
 		}
 
@@ -148,7 +153,7 @@ func (s *ExportService) getScanValueForColumn(ct *sql.ColumnType) any {
 		return reflect.New(typ).Interface()
 	}
 
-	// If we're here, the driver (modernc.org/sqlite) doesn't support ScanType, so we need to do it by hand
+	// If we're here, ScanType didn't work for whatever reason, so we need to do it by hand
 	switch strings.ToLower(ct.DatabaseTypeName()) {
 	case "boolean", "bool":
 		var x bool

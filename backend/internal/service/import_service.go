@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -27,9 +28,10 @@ type ImportService struct {
 }
 
 type DatabaseExport struct {
-	Provider string                      `json:"provider"`
-	Version  uint                        `json:"version"`
-	Tables   map[string][]map[string]any `json:"tables"`
+	Provider   string                      `json:"provider"`
+	Version    uint                        `json:"version"`
+	Tables     map[string][]map[string]any `json:"tables"`
+	TableOrder []string                    `json:"tableOrder"`
 }
 
 func NewImportService(db *gorm.DB, storage storage.FileStorage) *ImportService {
@@ -183,93 +185,33 @@ func (s *ImportService) resetSchema(targetVersion uint, exportDbProvider string)
 	return nil
 }
 
-// loadSchemaTypes retrieves the column types for all tables in the DB
-func loadSchemaTypes(db *gorm.DB) (result map[string]map[string]string, err error) {
-	result = make(map[string]map[string]string)
-
-	switch common.EnvConfig.DbProvider {
-	case common.DbProviderPostgres:
-		var rows []struct {
-			TableName  string
-			ColumnName string
-			DataType   string
-		}
-		err := db.
-			Raw(`
-				SELECT table_name, column_name, data_type
-				FROM information_schema.columns
-				WHERE table_schema = 'public';
-			`).
-			Scan(&rows).
-			Error
-		if err != nil {
-			return nil, err
-		}
-		for _, r := range rows {
-			t := strings.ToLower(r.DataType)
-			if result[r.TableName] == nil {
-				result[r.TableName] = make(map[string]string)
-			}
-			result[r.TableName][r.ColumnName] = strings.ToLower(t)
-		}
-
-	case common.DbProviderSqlite:
-		var tables []string
-		err = db.
-			Raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`).
-			Scan(&tables).
-			Error
-		if err != nil {
-			return nil, err
-		}
-		for _, table := range tables {
-			var cols []struct {
-				Name string
-				Type string
-			}
-			err := db.
-				Raw(fmt.Sprintf("PRAGMA table_info(%s);", table)).
-				Scan(&cols).
-				Error
-			if err != nil {
-				return nil, err
-			}
-			for _, c := range cols {
-				if result[table] == nil {
-					result[table] = make(map[string]string)
-				}
-				result[table][c.Name] = strings.ToLower(c.Type)
-			}
-		}
-	}
-
-	return result, nil
-}
-
 // insertData populates the DB with the imported data
 func (s *ImportService) insertData(dbData DatabaseExport) error {
-	schema, err := loadSchemaTypes(s.db)
+	schema, err := utils.LoadDBSchemaTypes(s.db)
 	if err != nil {
 		return fmt.Errorf("failed to load schema types: %w", err)
 	}
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		// Disable foreign key checks
-		err := utils.ToggleDBForeignKeyChecks(tx, false)
-		if err != nil {
-			return fmt.Errorf("failed to disable foreign keys: %w", err)
+		// Iterate through all tables
+		// Some tables need to be processed in order
+		tables := make([]string, 0, len(dbData.Tables))
+		for _, t := range dbData.TableOrder {
+			// These tables need to be done first, in order
+			tables = append(tables, t)
 		}
-		defer func() {
-			_ = utils.ToggleDBForeignKeyChecks(tx, true)
-		}()
-
-		// Insert rows
-		for table, rows := range dbData.Tables {
-			if table == "schema_migrations" {
+		for t := range dbData.Tables {
+			// Skip tables already present whose the order matters
+			// Also skip the schema_migrations table
+			if slices.Contains(dbData.TableOrder, t) || t == "schema_migrations" {
 				continue
 			}
+			tables = append(tables, t)
+		}
 
-			for _, row := range rows {
+		// Insert rows
+		for _, table := range tables {
+			for _, row := range dbData.Tables[table] {
 				err = normalizeRowWithSchema(row, table, schema)
 				if err != nil {
 					return fmt.Errorf("failed to normalize row for table '%s': %w", table, err)
@@ -290,10 +232,8 @@ func normalizeRowWithSchema(row map[string]any, table string, schema map[string]
 		return fmt.Errorf("schema not found for table '%s'", table)
 	}
 
-	fmt.Println("TABLE:", table)
 	for col, val := range row {
 		colType := schema[table][col]
-		fmt.Printf("BEFORE %s (%s) - %T %v\n", col, colType, val, val)
 
 		switch colType {
 		case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
@@ -326,8 +266,6 @@ func normalizeRowWithSchema(row map[string]any, table string, schema map[string]
 				row[col] = b
 			}
 		}
-
-		fmt.Printf("AFTER %s (%s) - %T %v\n", col, colType, row[col], row[col])
 	}
 
 	return nil

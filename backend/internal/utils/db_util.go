@@ -33,48 +33,68 @@ func DBTableExists(db *gorm.DB, tableName string) (exists bool, err error) {
 	return exists, nil
 }
 
-// ToggleDBForeignKeyChecks enables/disables Foreign Key checks in the database
-// db should hold an active transaction
-func ToggleDBForeignKeyChecks(db *gorm.DB, enable bool) error {
+// LoadDBSchemaTypes retrieves the column types for all tables in the DB
+func LoadDBSchemaTypes(db *gorm.DB) (result map[string]map[string]string, err error) {
+	result = make(map[string]map[string]string)
+
 	switch db.Name() {
 	case "postgres":
-		return togglePostgresForeignKeyChecks(db, enable)
-	case "sqlite":
-		return toggleSqliteForeignKeyChecks(db, enable)
-	default:
-		// Indicates a development-time error
-		return fmt.Errorf("unsupported database dialect: %s", db.Name())
-	}
-}
-
-func togglePostgresForeignKeyChecks(db *gorm.DB, enable bool) error {
-	var tables []string
-	err := db.
-		Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'`).
-		Scan(&tables).Error
-	if err != nil {
-		return fmt.Errorf("failed to fetch postgres tables: %w", err)
-	}
-	action := "DISABLE"
-	if enable {
-		action = "ENABLE"
-	}
-	for _, t := range tables {
-		err = db.
-			Exec(fmt.Sprintf(`ALTER TABLE "%s" %s TRIGGER ALL;`, t, action)).
+		var rows []struct {
+			TableName  string
+			ColumnName string
+			DataType   string
+		}
+		err := db.
+			Raw(`
+				SELECT table_name, column_name, data_type
+				FROM information_schema.columns
+				WHERE table_schema = 'public';
+			`).
+			Scan(&rows).
 			Error
 		if err != nil {
-			return fmt.Errorf("failed to %s triggers on %s: %w", strings.ToLower(action), t, err)
+			return nil, err
 		}
-	}
-	return nil
-}
+		for _, r := range rows {
+			t := strings.ToLower(r.DataType)
+			if result[r.TableName] == nil {
+				result[r.TableName] = make(map[string]string)
+			}
+			result[r.TableName][r.ColumnName] = strings.ToLower(t)
+		}
 
-// toggleSqliteForeignKeyChecks enables/disables FK checks in SQLite
-func toggleSqliteForeignKeyChecks(db *gorm.DB, enable bool) error {
-	value := "OFF"
-	if enable {
-		value = "ON"
+	case "sqlite":
+		var tables []string
+		err = db.
+			Raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`).
+			Scan(&tables).
+			Error
+		if err != nil {
+			return nil, err
+		}
+		for _, table := range tables {
+			var cols []struct {
+				Name string
+				Type string
+			}
+			err := db.
+				Raw(`PRAGMA table_info("` + table + `");`).
+				Scan(&cols).
+				Error
+			if err != nil {
+				return nil, err
+			}
+			for _, c := range cols {
+				if result[table] == nil {
+					result[table] = make(map[string]string)
+				}
+				result[table][c.Name] = strings.ToLower(c.Type)
+			}
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported database dialect: %s", db.Name())
 	}
-	return db.Exec("PRAGMA foreign_keys = " + value + ";").Error
+
+	return result, nil
 }
