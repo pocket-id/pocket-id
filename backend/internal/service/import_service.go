@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -134,7 +134,8 @@ func (s *ImportService) importUploads(ctx context.Context, files []*zip.File) er
 			return fmt.Errorf("read file %s: %w", f.Name, err)
 		}
 
-		if err := s.storage.Save(ctx, targetPath, bytes.NewReader(buf)); err != nil {
+		err = s.storage.Save(ctx, targetPath, bytes.NewReader(buf))
+		if err != nil {
 			return fmt.Errorf("failed to save file %s: %w", targetPath, err)
 		}
 	}
@@ -252,11 +253,6 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 		return fmt.Errorf("failed to load schema types: %w", err)
 	}
 
-	{
-		j, _ := json.Marshal(schema)
-		fmt.Println("HERE SCHEMA", string(j))
-	}
-
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// Disable foreign key checks
 		err := utils.ToggleDBForeignKeyChecks(tx, false)
@@ -274,10 +270,13 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 			}
 
 			for _, row := range rows {
-				normalizeRowWithSchema(row, table, schema)
-				err := tx.Table(table).Create(row).Error
+				err = normalizeRowWithSchema(row, table, schema)
 				if err != nil {
-					return fmt.Errorf("failed inserting into %s: %w", table, err)
+					return fmt.Errorf("failed to normalize row for table '%s': %w", table, err)
+				}
+				err = tx.Table(table).Create(row).Error
+				if err != nil {
+					return fmt.Errorf("failed inserting into table '%s': %w", table, err)
 				}
 			}
 		}
@@ -286,29 +285,50 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 }
 
 // normalizeRowWithSchema converts row values based on the DB schema
-func normalizeRowWithSchema(row map[string]any, table string, schema map[string]map[string]string) {
-	fmt.Println("AAAA", table, schema)
-	fmt.Println(row)
-	for col, val := range row {
-		// Decode binary blobs
-		if m, ok := val.(map[string]any); ok {
-			if b64, ok := m["__binary__"].(string); ok {
-				if data, err := base64.StdEncoding.DecodeString(b64); err == nil {
-					row[col] = data
-					continue
-				}
-			}
-		}
-
-		colType := ""
-		if schema[table] != nil {
-			colType = schema[table][col]
-		}
-
-		if strings.Contains(colType, "timestamp") || strings.Contains(colType, "datetime") {
-			if v, ok := val.(float64); ok {
-				row[col] = time.Unix(int64(v), 0).UTC()
-			}
-		}
+func normalizeRowWithSchema(row map[string]any, table string, schema map[string]map[string]string) error {
+	if schema[table] == nil {
+		return fmt.Errorf("schema not found for table '%s'", table)
 	}
+
+	fmt.Println("TABLE:", table)
+	for col, val := range row {
+		colType := schema[table][col]
+		fmt.Printf("BEFORE %s (%s) - %T %v\n", col, colType, val, val)
+
+		switch colType {
+		case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
+			// Dates are stored as strings
+			str, ok := val.(string)
+			if !ok {
+				return fmt.Errorf("value for column '%s/%s' was expected to be a string, but was '%T'", table, col, val)
+			}
+			d, err := datatype.DateTimeFromString(str)
+			if err != nil {
+				return fmt.Errorf("failed to decode value for column '%s/%s' as timestamp: %w", table, col, err)
+			}
+			row[col] = d
+
+		case "blob", "bytea", "jsonb":
+			// Binary data and jsonb data is stored in the file as base64-encoded string
+			str, ok := val.(string)
+			if !ok {
+				return fmt.Errorf("value for column '%s/%s' was expected to be a string, but was '%T'", table, col, val)
+			}
+			b, err := base64.StdEncoding.DecodeString(str)
+			if err != nil {
+				return fmt.Errorf("failed to decode value for column '%s/%s' from hex: %w", table, col, err)
+			}
+
+			// For jsonb, we additionally cast to json.RawMessage
+			if colType == "jsonb" {
+				row[col] = json.RawMessage(b)
+			} else {
+				row[col] = b
+			}
+		}
+
+		fmt.Printf("AFTER %s (%s) - %T %v\n", col, colType, row[col], row[col])
+	}
+
+	return nil
 }

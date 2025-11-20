@@ -7,6 +7,32 @@ import (
 	"gorm.io/gorm"
 )
 
+// DBTableExists checks if a table exists in the database
+func DBTableExists(db *gorm.DB, tableName string) (exists bool, err error) {
+	switch db.Name() {
+	case "postgres":
+		query := `SELECT EXISTS (
+			SELECT FROM information_schema.tables 
+			WHERE table_schema = 'public' 
+			AND table_name = ?
+		)`
+		err = db.Raw(query, tableName).Scan(&exists).Error
+		if err != nil {
+			return false, err
+		}
+	case "sqlite":
+		query := `SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name=?`
+		err = db.Raw(query, tableName).Scan(&exists).Error
+		if err != nil {
+			return false, err
+		}
+	default:
+		return false, fmt.Errorf("unsupported database dialect: %s", db.Name())
+	}
+
+	return exists, nil
+}
+
 // ToggleDBForeignKeyChecks enables/disables Foreign Key checks in the database
 // db should hold an active transaction
 func ToggleDBForeignKeyChecks(db *gorm.DB, enable bool) error {
