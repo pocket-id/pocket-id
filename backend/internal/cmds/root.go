@@ -17,8 +17,11 @@ var rootCmd = &cobra.Command{
 	Long:         "By default, this command starts the pocket-id server.",
 	SilenceUsage: true,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Get a context that is canceled when the application is stopping
+		ctx := signals.SignalContext(cmd.Context())
+
 		// Start the server
-		err := bootstrap.Bootstrap(cmd.Context())
+		err := bootstrap.Bootstrap(ctx)
 		if err != nil {
 			slog.Error("Failed to run pocket-id", "error", err)
 			os.Exit(1)
@@ -27,10 +30,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	// Get a context that is canceled when the application is stopping
-	ctx := signals.SignalContext(context.Background())
-
-	err := rootCmd.ExecuteContext(ctx)
+	err := rootCmd.ExecuteContext(context.Background())
 	if err != nil {
 		os.Exit(1)
 	}

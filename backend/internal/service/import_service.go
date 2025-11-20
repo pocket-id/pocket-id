@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	"gorm.io/gorm"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"gorm.io/gorm"
 )
 
 // ImportService handles importing Pocket ID data from an exported ZIP archive.
@@ -45,11 +46,13 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 		return err
 	}
 
-	if err := s.ImportDatabase(dbData); err != nil {
+	err = s.ImportDatabase(dbData)
+	if err != nil {
 		return err
 	}
 
-	if err := s.importUploads(ctx, r.File); err != nil {
+	err = s.importUploads(ctx, r.File)
+	if err != nil {
 		return err
 	}
 
@@ -58,11 +61,13 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 
 // ImportDatabase only imports the database data from the given DatabaseExport struct.
 func (s *ImportService) ImportDatabase(dbData DatabaseExport) error {
-	if err := s.resetSchema(dbData.Version, dbData.Provider); err != nil {
+	err := s.resetSchema(dbData.Version, dbData.Provider)
+	if err != nil {
 		return err
 	}
 
-	if err := s.insertData(dbData); err != nil {
+	err = s.insertData(dbData)
+	if err != nil {
 		return err
 	}
 
@@ -73,21 +78,25 @@ func (s *ImportService) ImportDatabase(dbData DatabaseExport) error {
 func processZipDatabaseJson(files []*zip.File) (dbData DatabaseExport, err error) {
 	for _, f := range files {
 		if f.Name == "database.json" {
-			rc, err := f.Open()
-			if err != nil {
-				return dbData, fmt.Errorf("failed to open database.json: %w", err)
-			}
-
-			if err := json.NewDecoder(rc).Decode(&dbData); err != nil {
-				_ = rc.Close()
-				return dbData, fmt.Errorf("failed to decode database.json: %w", err)
-			}
-
-			_ = rc.Close()
-			return dbData, nil
+			return parseDatabaseJsonStream(f)
 		}
 	}
 	return dbData, errors.New("database.json not found in the ZIP file")
+}
+
+func parseDatabaseJsonStream(f *zip.File) (dbData DatabaseExport, err error) {
+	rc, err := f.Open()
+	if err != nil {
+		return dbData, fmt.Errorf("failed to open database.json: %w", err)
+	}
+	defer rc.Close()
+
+	err = json.NewDecoder(rc).Decode(&dbData)
+	if err != nil {
+		return dbData, fmt.Errorf("failed to decode database.json: %w", err)
+	}
+
+	return dbData, nil
 }
 
 // importUploads imports files from the uploads/ directory in the ZIP archive
@@ -109,7 +118,8 @@ func (s *ImportService) importUploads(ctx context.Context, files []*zip.File) er
 			continue // Skip directories
 		}
 
-		if err := s.storage.DeleteAll(ctx, targetPath); err != nil {
+		err := s.storage.DeleteAll(ctx, targetPath)
+		if err != nil {
 			return fmt.Errorf("failed to delete existing file %s: %w", targetPath, err)
 		}
 
@@ -144,7 +154,8 @@ func (s *ImportService) resetSchema(targetVersion uint, exportDbProvider string)
 		return fmt.Errorf("failed to get migrate instance: %w", err)
 	}
 
-	if err = m.Drop(); err != nil {
+	err = m.Drop()
+	if err != nil {
 		return fmt.Errorf("failed to drop existing schema: %w", err)
 	}
 
@@ -154,11 +165,13 @@ func (s *ImportService) resetSchema(targetVersion uint, exportDbProvider string)
 		return fmt.Errorf("failed to get migrate instance: %w", err)
 	}
 
-	if err := m.Migrate(targetVersion); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	err = m.Migrate(targetVersion)
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		// Special case: If no migrations are found, it may be due to a different DB provider.
 		// In that case we just apply all migrations from the current provider.
 		if strings.HasPrefix(err.Error(), "no migration found") && exportDbProvider != string(common.EnvConfig.DbProvider) {
-			if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			err = m.Up()
+			if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 				return fmt.Errorf("migration failed: %w", err)
 			}
 			return nil
@@ -170,8 +183,8 @@ func (s *ImportService) resetSchema(targetVersion uint, exportDbProvider string)
 }
 
 // loadSchemaTypes retrieves the column types for all tables in the DB
-func loadSchemaTypes(db *gorm.DB) (map[string]map[string]string, error) {
-	result := make(map[string]map[string]string)
+func loadSchemaTypes(db *gorm.DB) (result map[string]map[string]string, err error) {
+	result = make(map[string]map[string]string)
 
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderPostgres:
@@ -180,11 +193,15 @@ func loadSchemaTypes(db *gorm.DB) (map[string]map[string]string, error) {
 			ColumnName string
 			DataType   string
 		}
-		if err := db.Raw(`
-			SELECT table_name, column_name, data_type
-			FROM information_schema.columns
-			WHERE table_schema = 'public';
-		`).Scan(&rows).Error; err != nil {
+		err := db.
+			Raw(`
+				SELECT table_name, column_name, data_type
+				FROM information_schema.columns
+				WHERE table_schema = 'public';
+			`).
+			Scan(&rows).
+			Error
+		if err != nil {
 			return nil, err
 		}
 		for _, r := range rows {
@@ -192,12 +209,16 @@ func loadSchemaTypes(db *gorm.DB) (map[string]map[string]string, error) {
 			if result[r.TableName] == nil {
 				result[r.TableName] = make(map[string]string)
 			}
-			result[r.TableName][r.ColumnName] = t
+			result[r.TableName][r.ColumnName] = strings.ToLower(t)
 		}
 
 	case common.DbProviderSqlite:
 		var tables []string
-		if err := db.Raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`).Scan(&tables).Error; err != nil {
+		err = db.
+			Raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`).
+			Scan(&tables).
+			Error
+		if err != nil {
 			return nil, err
 		}
 		for _, table := range tables {
@@ -205,7 +226,11 @@ func loadSchemaTypes(db *gorm.DB) (map[string]map[string]string, error) {
 				Name string
 				Type string
 			}
-			if err := db.Raw(fmt.Sprintf("PRAGMA table_info(%s);", table)).Scan(&cols).Error; err != nil {
+			err := db.
+				Raw(fmt.Sprintf("PRAGMA table_info(%s);", table)).
+				Scan(&cols).
+				Error
+			if err != nil {
 				return nil, err
 			}
 			for _, c := range cols {
@@ -216,6 +241,7 @@ func loadSchemaTypes(db *gorm.DB) (map[string]map[string]string, error) {
 			}
 		}
 	}
+
 	return result, nil
 }
 
@@ -226,26 +252,20 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 		return fmt.Errorf("failed to load schema types: %w", err)
 	}
 
-	// Disable foreign key checks for SQLite
-	if common.EnvConfig.DbProvider == common.DbProviderSqlite {
-		if err := setSqliteForeignKeyChecks(s.db, false); err != nil {
-			return fmt.Errorf("failed to disable foreign keys: %w", err)
-		}
-		defer func() {
-			_ = setSqliteForeignKeyChecks(s.db, true)
-		}()
+	{
+		j, _ := json.Marshal(schema)
+		fmt.Println("HERE SCHEMA", string(j))
 	}
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		// Disable foreign key checks for Postgres
-		if common.EnvConfig.DbProvider == common.DbProviderPostgres {
-			if err := setPostgresForeignKeyChecks(tx, false); err != nil {
-				return fmt.Errorf("failed to disable foreign keys: %w", err)
-			}
-			defer func() {
-				_ = setPostgresForeignKeyChecks(tx, true)
-			}()
+		// Disable foreign key checks
+		err := utils.ToggleDBForeignKeyChecks(tx, false)
+		if err != nil {
+			return fmt.Errorf("failed to disable foreign keys: %w", err)
 		}
+		defer func() {
+			_ = utils.ToggleDBForeignKeyChecks(tx, true)
+		}()
 
 		// Insert rows
 		for table, rows := range dbData.Tables {
@@ -255,7 +275,8 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 
 			for _, row := range rows {
 				normalizeRowWithSchema(row, table, schema)
-				if err := tx.Table(table).Create(row).Error; err != nil {
+				err := tx.Table(table).Create(row).Error
+				if err != nil {
 					return fmt.Errorf("failed inserting into %s: %w", table, err)
 				}
 			}
@@ -266,6 +287,8 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 
 // normalizeRowWithSchema converts row values based on the DB schema
 func normalizeRowWithSchema(row map[string]any, table string, schema map[string]map[string]string) {
+	fmt.Println("AAAA", table, schema)
+	fmt.Println(row)
 	for col, val := range row {
 		// Decode binary blobs
 		if m, ok := val.(map[string]any); ok {
@@ -288,32 +311,4 @@ func normalizeRowWithSchema(row map[string]any, table string, schema map[string]
 			}
 		}
 	}
-}
-
-// setPostgresForeignKeyChecks enables/disables FK checks in Postgres
-func setPostgresForeignKeyChecks(tx *gorm.DB, enable bool) error {
-	var tables []string
-	if err := tx.Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public'`).
-		Scan(&tables).Error; err != nil {
-		return fmt.Errorf("failed to fetch postgres tables: %w", err)
-	}
-	action := "DISABLE"
-	if enable {
-		action = "ENABLE"
-	}
-	for _, t := range tables {
-		if err := tx.Exec(fmt.Sprintf(`ALTER TABLE "%s" %s TRIGGER ALL;`, t, action)).Error; err != nil {
-			return fmt.Errorf("failed to %s triggers on %s: %w", strings.ToLower(action), t, err)
-		}
-	}
-	return nil
-}
-
-// setSqliteForeignKeyChecks enables/disables FK checks in SQLite
-func setSqliteForeignKeyChecks(db *gorm.DB, enable bool) error {
-	value := "OFF"
-	if enable {
-		value = "ON"
-	}
-	return db.Exec("PRAGMA foreign_keys = " + value + ";").Error
 }

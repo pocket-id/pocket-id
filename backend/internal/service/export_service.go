@@ -3,17 +3,18 @@ package service
 import (
 	"archive/zip"
 	"context"
-	"encoding/base64"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
-	"time"
-	"unicode/utf8"
+	"reflect"
+	"strings"
+
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
-	"gorm.io/gorm"
 )
 
 // ExportService handles exporting Pocket ID data into a ZIP archive.
@@ -104,35 +105,65 @@ func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
 	defer rows.Close()
 
 	cols, _ := rows.Columns()
-	colTypes, _ := rows.ColumnTypes()
 
 	for rows.Next() {
-		vals := make([]any, len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
-		if err := rows.Scan(ptrs...); err != nil {
+		vals := s.getScanValuesForTable(rows)
+		if err := rows.Scan(vals...); err != nil {
 			return fmt.Errorf("failed to scan row in table %s: %w", table, err)
 		}
 
 		rowMap := make(map[string]any, len(cols))
 		for i, col := range cols {
-			sqlType := colTypes[i].DatabaseTypeName()
-			rowMap[col] = normalizeForJSON(vals[i], sqlType)
+			rowMap[col] = vals[i]
 		}
 
 		// Skip the app lock row in the kv table
-		if table == "kv" {
-			if keyVal, ok := rowMap["key"]; ok && keyVal == lockKey {
-				continue
-			}
+		if table == "kv" && rowMap["key"] == lockKey {
+			continue
 		}
 
 		out.Tables[table] = append(out.Tables[table], rowMap)
 	}
 
 	return rows.Err()
+}
+
+func (s *ExportService) getScanValuesForTable(rows *sql.Rows) []any {
+	colTypes, _ := rows.ColumnTypes()
+
+	res := make([]any, len(colTypes))
+	for i, ct := range colTypes {
+		x := s.getScanValueForColumn(ct)
+		// Return a pointer
+		res[i] = &x
+	}
+
+	return res
+}
+
+func (s *ExportService) getScanValueForColumn(ct *sql.ColumnType) any {
+	// If the driver supports ScanType, use that
+	typ := ct.ScanType()
+	if typ != nil {
+		return reflect.New(typ).Interface()
+	}
+
+	// If we're here, the driver (modernc.org/sqlite) doesn't support ScanType, so we need to do it by hand
+	switch strings.ToLower(ct.DatabaseTypeName()) {
+	case "boolean", "bool":
+		var x bool
+		return x
+	case "blob", "bytea":
+		var x []byte
+		return x
+	case "integer", "int", "bigint":
+		var x int64
+		return x
+	default:
+		// Treat everything else as a string (including the "numeric" type)
+		var x string
+		return x
+	}
 }
 
 func (s *ExportService) writeExportZipStream(ctx context.Context, w io.Writer, dbData DatabaseExport) error {
@@ -180,32 +211,4 @@ func (s *ExportService) addUploadsToZip(ctx context.Context, zipWriter *zip.Writ
 		}
 		return nil
 	})
-}
-
-// normalizeForJSON ensures DB values round-trip through JSON safely
-func normalizeForJSON(value any, columnType string) any {
-	switch t := value.(type) {
-	case nil:
-		return nil
-	case []byte:
-		s := string(t)
-		// Try UTF-8 text
-		if utf8.Valid(t) {
-			return s
-		}
-		// Fallback: base64-encode as binary
-		return map[string]any{"__binary__": base64.StdEncoding.EncodeToString(t)}
-
-	case time.Time:
-		return t.Unix()
-
-	case int64:
-		if columnType == "BOOLEAN" {
-			return t != 0
-		}
-		return t
-
-	default:
-		return t
-	}
 }
