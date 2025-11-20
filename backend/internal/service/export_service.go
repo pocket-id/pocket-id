@@ -3,18 +3,16 @@ package service
 import (
 	"archive/zip"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
-	"reflect"
-	"strings"
 
 	"gorm.io/gorm"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 // ExportService handles exporting Pocket ID data into a ZIP archive.
@@ -42,9 +40,9 @@ func (s *ExportService) ExportToZip(ctx context.Context, w io.Writer) error {
 
 // extractDatabase reads all tables into a DatabaseExport struct
 func (s *ExportService) extractDatabase() (DatabaseExport, error) {
-	tables, err := s.listTables()
+	schema, err := utils.LoadDBSchemaTypes(s.db)
 	if err != nil {
-		return DatabaseExport{}, err
+		return DatabaseExport{}, fmt.Errorf("failed to load schema types: %w", err)
 	}
 
 	version, err := s.schemaVersion()
@@ -61,35 +59,17 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 		TableOrder: []string{"oidc_clients", "users", "user_groups"},
 	}
 
-	for _, table := range tables {
+	for table := range schema {
 		if table == "storage" || table == "schema_migrations" {
 			continue
 		}
-		err = s.dumpTable(table, &out)
+		err = s.dumpTable(table, schema[table], &out)
 		if err != nil {
 			return DatabaseExport{}, err
 		}
 	}
 
 	return out, nil
-}
-
-func (s *ExportService) listTables() ([]string, error) {
-	var tables []string
-
-	switch common.EnvConfig.DbProvider {
-	case common.DbProviderSqlite:
-		if err := s.db.Raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`).Scan(&tables).Error; err != nil {
-			return nil, fmt.Errorf("failed to query sqlite tables: %w", err)
-		}
-
-	case common.DbProviderPostgres:
-		if err := s.db.Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public'`).Scan(&tables).Error; err != nil {
-			return nil, fmt.Errorf("failed to query postgres tables: %w", err)
-		}
-	}
-
-	return tables, nil
 }
 
 func (s *ExportService) schemaVersion() (uint, error) {
@@ -101,7 +81,7 @@ func (s *ExportService) schemaVersion() (uint, error) {
 }
 
 // dumpTable selects all rows from a table and appends them to out.Tables
-func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
+func (s *ExportService) dumpTable(table string, types utils.DBSchemaTableTypes, out *DatabaseExport) error {
 	rows, err := s.db.Raw("SELECT * FROM " + table).Rows()
 	if err != nil {
 		return fmt.Errorf("failed to read table %s: %w", table, err)
@@ -109,9 +89,13 @@ func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
 	defer rows.Close()
 
 	cols, _ := rows.Columns()
+	if len(cols) != len(types) {
+		// Should never happen...
+		return fmt.Errorf("mismatched columns in table (%d) and schema (%d)", len(cols), len(types))
+	}
 
 	for rows.Next() {
-		vals := s.getScanValuesForTable(rows)
+		vals := s.getScanValuesForTable(cols, types)
 		err = rows.Scan(vals...)
 		if err != nil {
 			return fmt.Errorf("failed to scan row in table %s: %w", table, err)
@@ -133,42 +117,54 @@ func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
 	return rows.Err()
 }
 
-func (s *ExportService) getScanValuesForTable(rows *sql.Rows) []any {
-	colTypes, _ := rows.ColumnTypes()
-
-	res := make([]any, len(colTypes))
-	for i, ct := range colTypes {
-		x := s.getScanValueForColumn(ct)
-		// Return a pointer
-		res[i] = &x
+func (s *ExportService) getScanValuesForTable(cols []string, types utils.DBSchemaTableTypes) []any {
+	res := make([]any, len(cols))
+	for i, col := range cols {
+		// Store a pointer
+		// Note: don't create a helper function for this switch, because it would return type "any" and mess everything up
+		// If the column is nullable, we need a pointer to a pointer!
+		switch types[col].Name {
+		case "boolean", "bool":
+			var x bool
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		case "blob", "bytea", "jsonb":
+			// Treat jsonb columns as binary too
+			var x []byte
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
+			var x datatype.DateTime
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		case "integer", "int", "bigint":
+			var x int64
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		default:
+			// Treat everything else as a string (including the "numeric" type)
+			var x string
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		}
 	}
 
 	return res
-}
-
-func (s *ExportService) getScanValueForColumn(ct *sql.ColumnType) any {
-	// If the driver supports ScanType, use that
-	typ := ct.ScanType()
-	if typ != nil {
-		return reflect.New(typ).Interface()
-	}
-
-	// If we're here, ScanType didn't work for whatever reason, so we need to do it by hand
-	switch strings.ToLower(ct.DatabaseTypeName()) {
-	case "boolean", "bool":
-		var x bool
-		return x
-	case "blob", "bytea":
-		var x []byte
-		return x
-	case "integer", "int", "bigint":
-		var x int64
-		return x
-	default:
-		// Treat everything else as a string (including the "numeric" type)
-		var x string
-		return x
-	}
 }
 
 func (s *ExportService) writeExportZipStream(ctx context.Context, w io.Writer, dbData DatabaseExport) error {

@@ -227,15 +227,20 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 }
 
 // normalizeRowWithSchema converts row values based on the DB schema
-func normalizeRowWithSchema(row map[string]any, table string, schema map[string]map[string]string) error {
+func normalizeRowWithSchema(row map[string]any, table string, schema utils.DBSchemaTypes) error {
 	if schema[table] == nil {
 		return fmt.Errorf("schema not found for table '%s'", table)
 	}
 
 	for col, val := range row {
+		if val == nil {
+			// If the value is nil, then just return nil
+			return nil
+		}
+
 		colType := schema[table][col]
 
-		switch colType {
+		switch colType.Name {
 		case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
 			// Dates are stored as strings
 			str, ok := val.(string)
@@ -260,7 +265,7 @@ func normalizeRowWithSchema(row map[string]any, table string, schema map[string]
 			}
 
 			// For jsonb, we additionally cast to json.RawMessage
-			if colType == "jsonb" {
+			if colType.Name == "jsonb" {
 				row[col] = json.RawMessage(b)
 			} else {
 				row[col] = b

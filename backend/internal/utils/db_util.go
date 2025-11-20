@@ -33,9 +33,17 @@ func DBTableExists(db *gorm.DB, tableName string) (exists bool, err error) {
 	return exists, nil
 }
 
+type DBSchemaColumn struct {
+	Name     string
+	Nullable bool
+}
+type DBSchemaTableTypes = map[string]DBSchemaColumn
+type DBSchemaTypes = map[string]DBSchemaTableTypes
+
 // LoadDBSchemaTypes retrieves the column types for all tables in the DB
-func LoadDBSchemaTypes(db *gorm.DB) (result map[string]map[string]string, err error) {
-	result = make(map[string]map[string]string)
+// Result is a map of "table --> column --> {name: column type name, nullable: boolean}"
+func LoadDBSchemaTypes(db *gorm.DB) (result DBSchemaTypes, err error) {
+	result = make(DBSchemaTypes)
 
 	switch db.Name() {
 	case "postgres":
@@ -43,10 +51,11 @@ func LoadDBSchemaTypes(db *gorm.DB) (result map[string]map[string]string, err er
 			TableName  string
 			ColumnName string
 			DataType   string
+			Nullable   bool
 		}
 		err := db.
 			Raw(`
-				SELECT table_name, column_name, data_type
+				SELECT table_name, column_name, data_type, is_nullable = 'YES' AS nullable
 				FROM information_schema.columns
 				WHERE table_schema = 'public';
 			`).
@@ -58,9 +67,12 @@ func LoadDBSchemaTypes(db *gorm.DB) (result map[string]map[string]string, err er
 		for _, r := range rows {
 			t := strings.ToLower(r.DataType)
 			if result[r.TableName] == nil {
-				result[r.TableName] = make(map[string]string)
+				result[r.TableName] = make(map[string]DBSchemaColumn)
 			}
-			result[r.TableName][r.ColumnName] = strings.ToLower(t)
+			result[r.TableName][r.ColumnName] = DBSchemaColumn{
+				Name:     strings.ToLower(t),
+				Nullable: r.Nullable,
+			}
 		}
 
 	case "sqlite":
@@ -74,8 +86,9 @@ func LoadDBSchemaTypes(db *gorm.DB) (result map[string]map[string]string, err er
 		}
 		for _, table := range tables {
 			var cols []struct {
-				Name string
-				Type string
+				Name    string
+				Type    string
+				Notnull bool
 			}
 			err := db.
 				Raw(`PRAGMA table_info("` + table + `");`).
@@ -86,9 +99,12 @@ func LoadDBSchemaTypes(db *gorm.DB) (result map[string]map[string]string, err er
 			}
 			for _, c := range cols {
 				if result[table] == nil {
-					result[table] = make(map[string]string)
+					result[table] = make(map[string]DBSchemaColumn)
 				}
-				result[table][c.Name] = strings.ToLower(c.Type)
+				result[table][c.Name] = DBSchemaColumn{
+					Name:     strings.ToLower(c.Type),
+					Nullable: !c.Notnull,
+				}
 			}
 		}
 
