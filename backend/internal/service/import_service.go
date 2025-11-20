@@ -12,10 +12,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/golang-migrate/migrate/v4"
 	"gorm.io/gorm"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -169,16 +167,7 @@ func (s *ImportService) resetSchema(targetVersion uint, exportDbProvider string)
 	}
 
 	err = m.Migrate(targetVersion)
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		// Special case: If no migrations are found, it may be due to a different DB provider.
-		// In that case we just apply all migrations from the current provider.
-		if strings.HasPrefix(err.Error(), "no migration found") && exportDbProvider != string(common.EnvConfig.DbProvider) {
-			err = m.Up()
-			if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-				return fmt.Errorf("migration failed: %w", err)
-			}
-			return nil
-		}
+	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
 
