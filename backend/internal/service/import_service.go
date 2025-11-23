@@ -223,8 +223,8 @@ func normalizeRowWithSchema(row map[string]any, table string, schema utils.DBSch
 
 	for col, val := range row {
 		if val == nil {
-			// If the value is nil, then just return nil
-			return nil
+			// If the value is nil, skip the column
+			continue
 		}
 
 		colType := schema[table][col]
