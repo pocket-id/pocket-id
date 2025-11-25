@@ -38,38 +38,39 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv             AppEnv     `env:"APP_ENV" options:"toLower"`
-	LogLevel           string     `env:"LOG_LEVEL" options:"toLower"`
-	AppURL             string     `env:"APP_URL" options:"toLower,trimTrailingSlash"`
-	DbProvider         DbProvider `env:"DB_PROVIDER" options:"toLower"`
-	DbConnectionString string     `env:"DB_CONNECTION_STRING" options:"file"`
-	FileBackend        string     `env:"FILE_BACKEND" options:"toLower"`
-	UploadPath         string     `env:"UPLOAD_PATH"`
-	S3Bucket           string     `env:"S3_BUCKET"`
-	S3Region           string     `env:"S3_REGION"`
-	S3Endpoint         string     `env:"S3_ENDPOINT"`
-	S3AccessKeyID      string     `env:"S3_ACCESS_KEY_ID"`
-	S3SecretAccessKey  string     `env:"S3_SECRET_ACCESS_KEY"`
-	S3ForcePathStyle   bool       `env:"S3_FORCE_PATH_STYLE"`
-	KeysPath           string     `env:"KEYS_PATH"`
-	KeysStorage        string     `env:"KEYS_STORAGE"`
-	EncryptionKey      []byte     `env:"ENCRYPTION_KEY" options:"file"`
-	Port               string     `env:"PORT"`
-	Host               string     `env:"HOST" options:"toLower"`
-	UnixSocket         string     `env:"UNIX_SOCKET"`
-	UnixSocketMode     string     `env:"UNIX_SOCKET_MODE"`
-	MaxMindLicenseKey  string     `env:"MAXMIND_LICENSE_KEY" options:"file"`
-	GeoLiteDBPath      string     `env:"GEOLITE_DB_PATH"`
-	GeoLiteDBUrl       string     `env:"GEOLITE_DB_URL"`
-	LocalIPv6Ranges    string     `env:"LOCAL_IPV6_RANGES"`
-	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
-	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
-	TracingEnabled     bool       `env:"TRACING_ENABLED"`
-	LogJSON            bool       `env:"LOG_JSON"`
-	TrustProxy         bool       `env:"TRUST_PROXY"`
-	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
-	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
-	InternalAppURL     string     `env:"INTERNAL_APP_URL"`
+	AppEnv                          AppEnv     `env:"APP_ENV" options:"toLower"`
+	LogLevel                        string     `env:"LOG_LEVEL" options:"toLower"`
+	AppURL                          string     `env:"APP_URL" options:"toLower,trimTrailingSlash"`
+	DbProvider                      DbProvider `env:"DB_PROVIDER" options:"toLower"`
+	DbConnectionString              string     `env:"DB_CONNECTION_STRING" options:"file"`
+	FileBackend                     string     `env:"FILE_BACKEND" options:"toLower"`
+	UploadPath                      string     `env:"UPLOAD_PATH"`
+	S3Bucket                        string     `env:"S3_BUCKET"`
+	S3Region                        string     `env:"S3_REGION"`
+	S3Endpoint                      string     `env:"S3_ENDPOINT"`
+	S3AccessKeyID                   string     `env:"S3_ACCESS_KEY_ID"`
+	S3SecretAccessKey               string     `env:"S3_SECRET_ACCESS_KEY"`
+	S3ForcePathStyle                bool       `env:"S3_FORCE_PATH_STYLE"`
+	S3DisableDefaultIntegrityChecks bool       `env:"S3_DISABLE_DEFAULT_INTEGRITY_CHECKS"`
+	KeysPath                        string     `env:"KEYS_PATH"`
+	KeysStorage                     string     `env:"KEYS_STORAGE"`
+	EncryptionKey                   []byte     `env:"ENCRYPTION_KEY" options:"file"`
+	Port                            string     `env:"PORT"`
+	Host                            string     `env:"HOST" options:"toLower"`
+	UnixSocket                      string     `env:"UNIX_SOCKET"`
+	UnixSocketMode                  string     `env:"UNIX_SOCKET_MODE"`
+	MaxMindLicenseKey               string     `env:"MAXMIND_LICENSE_KEY" options:"file"`
+	GeoLiteDBPath                   string     `env:"GEOLITE_DB_PATH"`
+	GeoLiteDBUrl                    string     `env:"GEOLITE_DB_URL"`
+	LocalIPv6Ranges                 string     `env:"LOCAL_IPV6_RANGES"`
+	UiConfigDisabled                bool       `env:"UI_CONFIG_DISABLED"`
+	MetricsEnabled                  bool       `env:"METRICS_ENABLED"`
+	TracingEnabled                  bool       `env:"TRACING_ENABLED"`
+	LogJSON                         bool       `env:"LOG_JSON"`
+	TrustProxy                      bool       `env:"TRUST_PROXY"`
+	AnalyticsDisabled               bool       `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade                  bool       `env:"ALLOW_DOWNGRADE"`
+	InternalAppURL                  string     `env:"INTERNAL_APP_URL"`
 }
 
 var EnvConfig = defaultConfig()
