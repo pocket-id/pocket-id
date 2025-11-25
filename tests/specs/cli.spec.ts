@@ -157,7 +157,7 @@ function normalizeJSON(obj: any): any {
 	if (typeof obj === 'string') {
 		try {
 			// Normalize JSON strings
-			const parsed = JSON.parse(obj);
+			const parsed = JSON.parse(atob(obj));
 			return JSON.stringify(normalizeJSON(parsed));
 		} catch {
 			return obj;
