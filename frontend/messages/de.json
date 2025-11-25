@@ -105,7 +105,7 @@
 	"unknown": "unbekannt",
 	"account_details_updated_successfully": "Kontodetails erfolgreich aktualisiert",
 	"profile_picture_updated_successfully": "Profilbild erfolgreich aktualisiert. Die Aktualisierung kann einige Minuten dauern.",
-	"account_settings": "Konto Einstellungen",
+	"account_settings": "Konto-Einstellungen",
 	"passkey_missing": "Passkey fehlt",
 	"please_provide_a_passkey_to_prevent_losing_access_to_your_account": "Bitte füge einen Passkey hinzu, um zu verhindern, dass du den Zugriff auf dein Konto verlierst.",
 	"single_passkey_configured": "Nur ein Passkey hinterlegt",
