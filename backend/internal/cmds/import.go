@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -34,7 +36,7 @@ func init() {
 		},
 	}
 
-	importCmd.Flags().StringVarP(&flags.Path, "path", "p", "pocket-id-export.zip", "Path to the ZIP file to import the data from")
+	importCmd.Flags().StringVarP(&flags.Path, "path", "p", "pocket-id-export.zip", "Path to the ZIP file to import the data from, or '-' to read from stdin")
 	importCmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "Skip confirmation prompts")
 	importCmd.Flags().BoolVarP(&flags.ForcefullyAcquireLock, "forcefully-acquire-lock", "", false, "Forcefully acquire the application lock by terminating the Pocket ID instance")
 
@@ -54,11 +56,22 @@ func runImport(ctx context.Context, flags importFlags) error {
 		}
 	}
 
-	r, err := zip.OpenReader(flags.Path)
+	var (
+		zipReader *zip.ReadCloser
+		cleanup   func()
+		err       error
+	)
+
+	if flags.Path == "-" {
+		zipReader, cleanup, err = readZipFromStdin()
+		defer cleanup()
+	} else {
+		zipReader, err = zip.OpenReader(flags.Path)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to open zip: %w", err)
 	}
-	defer r.Close()
+	defer zipReader.Close()
 
 	db, err := bootstrap.ConnectDatabase()
 	if err != nil {
@@ -76,7 +89,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 	}
 
 	importService := service.NewImportService(db, storage)
-	err = importService.ImportFromZip(ctx, &r.Reader)
+	err = importService.ImportFromZip(ctx, &zipReader.Reader)
 	if err != nil {
 		return fmt.Errorf("failed to import data from zip: %w", err)
 	}
@@ -145,4 +158,34 @@ func absolutePathOrOriginal(path string) string {
 		return path
 	}
 	return abs
+}
+
+func readZipFromStdin() (*zip.ReadCloser, func(), error) {
+	tmpFile, err := os.CreateTemp("", "pocket-id-import-*.zip")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create temporary file: %w", err)
+	}
+
+	cleanup := func() {
+		_ = os.Remove(tmpFile.Name())
+	}
+
+	if _, err := io.Copy(tmpFile, os.Stdin); err != nil {
+		tmpFile.Close()
+		cleanup()
+		return nil, nil, fmt.Errorf("failed to read data from stdin: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("failed to close temporary file: %w", err)
+	}
+
+	r, err := zip.OpenReader(tmpFile.Name())
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	return r, cleanup, nil
 }
