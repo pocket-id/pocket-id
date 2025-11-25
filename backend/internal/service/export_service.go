@@ -3,17 +3,16 @@ package service
 import (
 	"archive/zip"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
-	"time"
-	"unicode/utf8"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"gorm.io/gorm"
+
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 // ExportService handles exporting Pocket ID data into a ZIP archive.
@@ -41,9 +40,9 @@ func (s *ExportService) ExportToZip(ctx context.Context, w io.Writer) error {
 
 // extractDatabase reads all tables into a DatabaseExport struct
 func (s *ExportService) extractDatabase() (DatabaseExport, error) {
-	tables, err := s.listTables()
+	schema, err := utils.LoadDBSchemaTypes(s.db)
 	if err != nil {
-		return DatabaseExport{}, err
+		return DatabaseExport{}, fmt.Errorf("failed to load schema types: %w", err)
 	}
 
 	version, err := s.schemaVersion()
@@ -55,36 +54,22 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 		Provider: s.db.Name(),
 		Version:  version,
 		Tables:   map[string][]map[string]any{},
+		// These tables need to be inserted in a specific order because of foreign key constraints
+		// Not all tables are listed here, because not all tables are order-dependent
+		TableOrder: []string{"oidc_clients", "users", "user_groups"},
 	}
 
-	for _, table := range tables {
+	for table := range schema {
 		if table == "storage" || table == "schema_migrations" {
 			continue
 		}
-		if err := s.dumpTable(table, &out); err != nil {
+		err = s.dumpTable(table, schema[table], &out)
+		if err != nil {
 			return DatabaseExport{}, err
 		}
 	}
 
 	return out, nil
-}
-
-func (s *ExportService) listTables() ([]string, error) {
-	var tables []string
-
-	switch common.EnvConfig.DbProvider {
-	case common.DbProviderSqlite:
-		if err := s.db.Raw(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`).Scan(&tables).Error; err != nil {
-			return nil, fmt.Errorf("failed to query sqlite tables: %w", err)
-		}
-
-	case common.DbProviderPostgres:
-		if err := s.db.Raw(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public'`).Scan(&tables).Error; err != nil {
-			return nil, fmt.Errorf("failed to query postgres tables: %w", err)
-		}
-	}
-
-	return tables, nil
 }
 
 func (s *ExportService) schemaVersion() (uint, error) {
@@ -96,7 +81,7 @@ func (s *ExportService) schemaVersion() (uint, error) {
 }
 
 // dumpTable selects all rows from a table and appends them to out.Tables
-func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
+func (s *ExportService) dumpTable(table string, types utils.DBSchemaTableTypes, out *DatabaseExport) error {
 	rows, err := s.db.Raw("SELECT * FROM " + table).Rows()
 	if err != nil {
 		return fmt.Errorf("failed to read table %s: %w", table, err)
@@ -104,35 +89,82 @@ func (s *ExportService) dumpTable(table string, out *DatabaseExport) error {
 	defer rows.Close()
 
 	cols, _ := rows.Columns()
-	colTypes, _ := rows.ColumnTypes()
+	if len(cols) != len(types) {
+		// Should never happen...
+		return fmt.Errorf("mismatched columns in table (%d) and schema (%d)", len(cols), len(types))
+	}
 
 	for rows.Next() {
-		vals := make([]any, len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
-		if err := rows.Scan(ptrs...); err != nil {
+		vals := s.getScanValuesForTable(cols, types)
+		err = rows.Scan(vals...)
+		if err != nil {
 			return fmt.Errorf("failed to scan row in table %s: %w", table, err)
 		}
 
 		rowMap := make(map[string]any, len(cols))
 		for i, col := range cols {
-			sqlType := colTypes[i].DatabaseTypeName()
-			rowMap[col] = normalizeForJSON(vals[i], sqlType)
+			rowMap[col] = vals[i]
 		}
 
 		// Skip the app lock row in the kv table
-		if table == "kv" {
-			if keyVal, ok := rowMap["key"]; ok && keyVal == lockKey {
-				continue
-			}
+		if table == "kv" && rowMap["key"] == lockKey {
+			continue
 		}
 
 		out.Tables[table] = append(out.Tables[table], rowMap)
 	}
 
 	return rows.Err()
+}
+
+func (s *ExportService) getScanValuesForTable(cols []string, types utils.DBSchemaTableTypes) []any {
+	res := make([]any, len(cols))
+	for i, col := range cols {
+		// Store a pointer
+		// Note: don't create a helper function for this switch, because it would return type "any" and mess everything up
+		// If the column is nullable, we need a pointer to a pointer!
+		switch types[col].Name {
+		case "boolean", "bool":
+			var x bool
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		case "blob", "bytea", "jsonb":
+			// Treat jsonb columns as binary too
+			var x []byte
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
+			var x datatype.DateTime
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		case "integer", "int", "bigint":
+			var x int64
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		default:
+			// Treat everything else as a string (including the "numeric" type)
+			var x string
+			if types[col].Nullable {
+				res[i] = utils.Ptr(utils.Ptr(x))
+			} else {
+				res[i] = utils.Ptr(x)
+			}
+		}
+	}
+
+	return res
 }
 
 func (s *ExportService) writeExportZipStream(ctx context.Context, w io.Writer, dbData DatabaseExport) error {
@@ -180,32 +212,4 @@ func (s *ExportService) addUploadsToZip(ctx context.Context, zipWriter *zip.Writ
 		}
 		return nil
 	})
-}
-
-// normalizeForJSON ensures DB values round-trip through JSON safely
-func normalizeForJSON(value any, columnType string) any {
-	switch t := value.(type) {
-	case nil:
-		return nil
-	case []byte:
-		s := string(t)
-		// Try UTF-8 text
-		if utf8.Valid(t) {
-			return s
-		}
-		// Fallback: base64-encode as binary
-		return map[string]any{"__binary__": base64.StdEncoding.EncodeToString(t)}
-
-	case time.Time:
-		return t.Unix()
-
-	case int64:
-		if columnType == "BOOLEAN" {
-			return t != 0
-		}
-		return t
-
-	default:
-		return t
-	}
 }
