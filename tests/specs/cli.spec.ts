@@ -198,7 +198,7 @@ function validateSpecialFields(obj: any): void {
 			} else if (key === 'created_at' || key === 'expires_at') {
 				expect(
 					isValidISODate(value),
-					`Expected '${key}' = ${value} to be a valid UNIX timestamp`
+					`Expected '${key}' = ${value} to be a valid ISO 8601 date string`
 				).toBe(true);
 			} else if (key === 'provider') {
 				expect(
@@ -221,10 +221,8 @@ function isUUID(value: any): boolean {
 }
 
 function isValidISODate(value: any): boolean {
-	const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
-
+	const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 	if (!isoRegex.test(value)) return false;
-
 	const date = new Date(value);
 	return !isNaN(date.getTime());
 }
@@ -234,10 +232,12 @@ function runImport(pathToFile: string) {
 		'run',
 		'-d',
 		'-v',
-		`${pathToFile}:/app/pocket-id-export.zip`,
+		`${pathToFile}:/app/data/pocket-id-export.zip`,
 		containerName,
 		'/app/pocket-id',
 		'import',
+		'--path',
+		'/app/data/pocket-id-export.zip',
 		'--yes'
 	]);
 	try {
@@ -260,13 +260,15 @@ function runExport(outputFile: string): void {
 		'-d',
 		containerName,
 		'/app/pocket-id',
-		'export'
+		'export',
+		'--path',
+		'/app/data/pocket-id-export.zip'
 	]);
 
 	try {
 		// Wait until export finishes
 		runDockerCommand(['wait', containerId]);
-		runDockerCommand(['cp', `${containerId}:/app/pocket-id-export.zip`, outputFile]);
+		runDockerCommand(['cp', `${containerId}:/app/data/pocket-id-export.zip`, outputFile]);
 	} finally {
 		runDockerCommand(['rm', '-f', containerId]);
 	}
