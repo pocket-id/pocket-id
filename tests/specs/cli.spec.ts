@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import AdmZip from 'adm-zip';
-import { execFileSync } from 'child_process';
+import { execFileSync, ExecFileSyncOptions } from 'child_process';
 import crypto from 'crypto';
 import { users } from 'data';
 import fs from 'fs';
@@ -11,6 +11,7 @@ import { pathFromRoot, tmpDir } from 'utils/fs.util';
 const containerName = 'pocket-id';
 const setupDir = pathFromRoot('setup');
 const exampleExportPath = pathFromRoot('resources/export');
+const dockerCommandMaxBuffer = 100 * 1024 * 1024;
 let mode: 'sqlite' | 'postgres' | 's3' = 'sqlite';
 
 test.beforeAll(() => {
@@ -31,7 +32,7 @@ test('Export', async ({ baseURL }) => {
 	await Promise.all([
 		fetch(`${baseURL}/api/users/${users.craig.id}/profile-picture.png`),
 		fetch(`${baseURL}/api/users/${users.tim.id}/profile-picture.png`)
-	]);	
+	]);
 
 	// Export the data from the seeded container
 	const exportPath = path.join(tmpDir, 'export.zip');
@@ -41,6 +42,21 @@ test('Export', async ({ baseURL }) => {
 	unzipExport(exportPath, extractPath);
 
 	compareExports(exampleExportPath, extractPath);
+});
+
+test('Export via stdout', async ({ baseURL }) => {
+	await cleanupBackend({ skipLdapSetup: true });
+
+	await Promise.all([
+		fetch(`${baseURL}/api/users/${users.craig.id}/profile-picture.png`),
+		fetch(`${baseURL}/api/users/${users.tim.id}/profile-picture.png`)
+	]);
+
+	const stdoutBuffer = runExportToStdout();
+	const stdoutExtractPath = path.join(tmpDir, 'export-stdout-extracted');
+	unzipExportBuffer(stdoutBuffer, stdoutExtractPath);
+
+	compareExports(exampleExportPath, stdoutExtractPath);
 });
 
 test('Import', async () => {
@@ -54,8 +70,6 @@ test('Import', async () => {
 	try {
 		runDockerComposeCommand(['stop', containerName]);
 		runImport(exampleExportArchivePath);
-	} catch (error) {
-		throw error;
 	} finally {
 		runDockerComposeCommand(['up', '-d', containerName]);
 	}
@@ -63,6 +77,27 @@ test('Import', async () => {
 	// Export again from the imported instance
 	const exportPath = path.join(tmpDir, 'export.zip');
 	const exportExtracted = path.join(tmpDir, 'export-extracted');
+	runExport(exportPath);
+	unzipExport(exportPath, exportExtracted);
+
+	compareExports(exampleExportPath, exportExtracted);
+});
+
+test('Import via stdin', async () => {
+	await cleanupBackend({ skipSeed: true });
+
+	const exampleExportArchivePath = path.join(tmpDir, 'example-export-stdin.zip');
+	const exampleExportBuffer = archiveExampleExport(exampleExportArchivePath);
+
+	try {
+		runDockerComposeCommand(['stop', containerName]);
+		runImportFromStdin(exampleExportBuffer);
+	} finally {
+		runDockerComposeCommand(['up', '-d', containerName]);
+	}
+
+	const exportPath = path.join(tmpDir, 'export-from-stdin.zip');
+	const exportExtracted = path.join(tmpDir, 'export-from-stdin-extracted');
 	runExport(exportPath);
 	unzipExport(exportPath, exportExtracted);
 
@@ -94,7 +129,7 @@ function compareExports(dir1: string, dir2: string): void {
 	expect(normalizedActual).toEqual(normalizedExpected);
 }
 
-function archiveExampleExport(outputPath: string) {
+function archiveExampleExport(outputPath: string): Buffer {
 	fs.rmSync(outputPath, { force: true });
 
 	const zip = new AdmZip();
@@ -108,7 +143,9 @@ function archiveExampleExport(outputPath: string) {
 		}
 	}
 
-	fs.writeFileSync(outputPath, zip.toBuffer());
+	const buffer = zip.toBuffer();
+	fs.writeFileSync(outputPath, buffer);
+	return buffer;
 }
 
 // Helper to load JSON files
@@ -160,7 +197,7 @@ function validateSpecialFields(obj: any): void {
 				expect(isUUID(value), `Expected '${value}' to be a valid UUID`).toBe(true);
 			} else if (key === 'created_at' || key === 'expires_at') {
 				expect(
-					isUnixTimestamp(value),
+					isValidISODate(value),
 					`Expected '${key}' = ${value} to be a valid UNIX timestamp`
 				).toBe(true);
 			} else if (key === 'provider') {
@@ -183,10 +220,13 @@ function isUUID(value: any): boolean {
 	return uuidRegex.test(value);
 }
 
-function isUnixTimestamp(value: any): boolean {
-	if (typeof value !== 'number') return false;
-	// Rough range: after 1970-01-01 and before 2300-01-01
-	return value > 0 && value < 10413788400;
+function isValidISODate(value: any): boolean {
+	const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
+	if (!isoRegex.test(value)) return false;
+
+	const date = new Date(value);
+	return !isNaN(date.getTime());
 }
 
 function runImport(pathToFile: string) {
@@ -203,8 +243,15 @@ function runImport(pathToFile: string) {
 	try {
 		runDockerCommand(['wait', importContainerId]);
 	} finally {
-		// runDockerCommand(['rm', '-f', importContainerId]);
+		runDockerCommand(['rm', '-f', importContainerId]);
 	}
+}
+
+function runImportFromStdin(archive: Buffer): void {
+	runDockerComposeCommandRaw(
+		['run', '--rm', '-T', containerName, '/app/pocket-id', 'import', '--yes', '--path', '-'],
+		{ input: archive }
+	);
 }
 
 function runExport(outputFile: string): void {
@@ -227,9 +274,30 @@ function runExport(outputFile: string): void {
 	expect(fs.existsSync(outputFile)).toBe(true);
 }
 
+function runExportToStdout(): Buffer {
+	const res = runDockerComposeCommandRaw([
+		'run',
+		'--rm',
+		'-T',
+		containerName,
+		'/app/pocket-id',
+		'export',
+		'--path',
+		'-'
+	]);
+	fs.writeFileSync('export-stdout.txt', res);
+	return res;
+}
+
 function unzipExport(zipFile: string, destDir: string): void {
 	fs.rmSync(destDir, { recursive: true, force: true });
 	const zip = new AdmZip(zipFile);
+	zip.extractAllTo(destDir, true);
+}
+
+function unzipExportBuffer(zipBuffer: Buffer, destDir: string): void {
+	fs.rmSync(destDir, { recursive: true, force: true });
+	const zip = new AdmZip(zipBuffer);
 	zip.extractAllTo(destDir, true);
 }
 
@@ -258,11 +326,31 @@ function hashAllFiles(dir: string): Record<string, string> {
 	return hashes;
 }
 
-function runDockerCommand(args: string[]): string {
-	return execFileSync('docker', args, { cwd: setupDir, stdio: 'pipe' }).toString().trim();
+function runDockerCommand(args: string[], options?: ExecFileSyncOptions): string {
+	return execFileSync('docker', args, {
+		cwd: setupDir,
+		stdio: 'pipe',
+		maxBuffer: dockerCommandMaxBuffer,
+		...options
+	})
+		.toString()
+		.trim();
 }
 
 function runDockerComposeCommand(args: string[]): string {
+	return runDockerComposeCommandRaw(args).toString().trim();
+}
+
+function runDockerComposeCommandRaw(args: string[], options?: ExecFileSyncOptions): Buffer {
+	return execFileSync('docker', dockerComposeArgs(args), {
+		cwd: setupDir,
+		stdio: 'pipe',
+		maxBuffer: dockerCommandMaxBuffer,
+		...options
+	}) as Buffer;
+}
+
+function dockerComposeArgs(args: string[]): string[] {
 	let dockerComposeFile = 'docker-compose.yml';
 	switch (mode) {
 		case 'postgres':
@@ -272,5 +360,5 @@ function runDockerComposeCommand(args: string[]): string {
 			dockerComposeFile = 'docker-compose-s3.yml';
 			break;
 	}
-	return runDockerCommand(['compose', '-f', dockerComposeFile, ...args]);
+	return ['compose', '-f', dockerComposeFile, ...args];
 }

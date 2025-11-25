@@ -1,13 +1,14 @@
 {
 	"provider": "sqlite",
-	"version": 20251115000000,
+	"version": 20251117141000,
+	"tableOrder": ["users", "user_groups", "oidc_clients"],
 	"tables": {
 		"api_keys": [
 			{
-				"created_at": 1760963799,
+				"created_at": "2025-11-25T12:39:02Z",
 				"description": null,
 				"expiration_email_sent": false,
-				"expires_at": 1760963799,
+				"expires_at": "2025-12-25T12:39:02Z",
 				"id": "5f1fa856-c164-4295-961e-175a0d22d725",
 				"key": "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
 				"last_used_at": null,
@@ -33,9 +34,9 @@
 				"code": "auth-code",
 				"code_challenge": null,
 				"code_challenge_method_sha256": null,
-				"created_at": 1760963799,
-				"expires_at": 1760967399,
-				"id": "fa5d99ea-e1f2-4cf1-9322-3142939c7e78",
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-25T13:39:02Z",
+				"id": "6bdd221e-d9f7-4e3d-92c0-4be125802ba2",
 				"nonce": "nonce",
 				"scope": "openid profile",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
@@ -45,9 +46,9 @@
 				"code": "federated",
 				"code_challenge": null,
 				"code_challenge_method_sha256": null,
-				"created_at": 1760963799,
-				"expires_at": 1760967399,
-				"id": "d04961a2-e8fe-4db8-ba62-6360f6c80425",
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-25T13:39:02Z",
+				"id": "37e914bd-ff2c-4653-8cd8-550f0213e430",
 				"nonce": "nonce",
 				"scope": "openid profile",
 				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
@@ -55,64 +56,64 @@
 		],
 		"oidc_clients": [
 			{
-				"callback_urls": "[\"http://nextcloud/auth/callback\"]",
-				"created_at": 1760963799,
+				"callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkL2F1dGgvY2FsbGJhY2siXQ==",
+				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				"credentials": "{}",
+				"dark_image_type": null,
 				"id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				"image_type": "png",
-				"dark_image_type": null,
 				"is_public": false,
 				"launch_url": "https://nextcloud.local",
-				"logout_callback_urls": "[\"http://nextcloud/auth/logout/callback\"]",
+				"logout_callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkL2F1dGgvbG9nb3V0L2NhbGxiYWNrIl0=",
 				"name": "Nextcloud",
 				"pkce_enabled": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC"
 			},
 			{
-				"callback_urls": "[\"http://immich/auth/callback\"]",
-				"created_at": 1760963799,
+				"callback_urls": "WyJodHRwOi8vaW1taWNoL2F1dGgvY2FsbGJhY2siXQ==",
+				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
 				"credentials": "{}",
+				"dark_image_type": null,
 				"id": "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
 				"image_type": null,
-				"dark_image_type": null,
 				"is_public": false,
 				"launch_url": null,
-				"logout_callback_urls": "null",
+				"logout_callback_urls": "bnVsbA==",
 				"name": "Immich",
 				"pkce_enabled": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe"
 			},
 			{
-				"callback_urls": "[\"http://tailscale/auth/callback\"]",
-				"created_at": 1760963799,
+				"callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlL2F1dGgvY2FsbGJhY2siXQ==",
+				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				"credentials": "{}",
+				"dark_image_type": null,
 				"id": "7c21a609-96b5-4011-9900-272b8d31a9d1",
 				"image_type": null,
-				"dark_image_type": null,
 				"is_public": false,
 				"launch_url": null,
-				"logout_callback_urls": "[\"http://tailscale/auth/logout/callback\"]",
+				"logout_callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlL2F1dGgvbG9nb3V0L2NhbGxiYWNrIl0=",
 				"name": "Tailscale",
 				"pkce_enabled": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a"
 			},
 			{
-				"callback_urls": "[\"http://federated/auth/callback\"]",
-				"created_at": 1760963799,
+				"callback_urls": "WyJodHRwOi8vZmVkZXJhdGVkL2F1dGgvY2FsbGJhY2siXQ==",
+				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
-				"credentials": "{\"federatedIdentities\":[{\"issuer\":\"https://external-idp.local\",\"subject\":\"c48232ff-ff65-45ed-ae96-7afa8a9b443b\",\"audience\":\"api://PocketID\",\"jwks\":\"http://pocket-id-sqlite:1411/api/externalidp/jwks.json\"}]}",
+				"credentials": "{\"federatedIdentities\":[{\"issuer\":\"https://external-idp.local\",\"subject\":\"c48232ff-ff65-45ed-ae96-7afa8a9b443b\",\"audience\":\"api://PocketID\",\"jwks\":\"http://localhost:1411/api/externalidp/jwks.json\"}]}",
+				"dark_image_type": null,
 				"id": "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
 				"image_type": null,
-				"dark_image_type": null,
 				"is_public": false,
 				"launch_url": null,
-				"logout_callback_urls": "null",
+				"logout_callback_urls": "bnVsbA==",
 				"name": "Federated",
 				"pkce_enabled": false,
 				"requires_reauthentication": false,
@@ -128,9 +129,9 @@
 		"oidc_refresh_tokens": [
 			{
 				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
-				"created_at": 1760963799,
-				"expires_at": 1761050199,
-				"id": "747f5ebc-a12d-41f4-a821-2bf95302f481",
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-26T12:39:02Z",
+				"id": "4928604e-e689-410c-9b25-5b9b6db9e46e",
 				"scope": "openid profile email",
 				"token": "fef6e2e37eb990f0bd7abd48a41d530c54b6a1f139b556e35e62475e6f4cb38d",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
@@ -138,55 +139,55 @@
 		],
 		"one_time_access_tokens": [
 			{
-				"created_at": 1760963799,
-				"expires_at": 1760967399,
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-25T13:39:02Z",
 				"id": "bf877753-4ea4-4c9c-bbbd-e198bb201cb8",
 				"token": "HPe6k6uiDRRVuAQV",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
 			{
-				"created_at": 1760963799,
-				"expires_at": 1760963798,
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-25T12:39:01Z",
 				"id": "d3afae24-fe2d-4a98-abec-cf0b8525096a",
 				"token": "YCGDtftvsvYWiXd0",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
 			{
-				"created_at": 1760963799,
-				"expires_at": 1760967399,
-				"id": "1c2edd49-67bf-4625-83c2-963f0b872bc0",
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-25T13:39:02Z",
+				"id": "defd5164-9d9b-4228-bbce-708e33f49360",
 				"token": "one-time-token",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			}
 		],
 		"signup_tokens": [
 			{
-				"created_at": 1760963799,
-				"expires_at": 1761050199,
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-26T12:39:02Z",
 				"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 				"token": "VALID1234567890A",
 				"usage_count": 0,
 				"usage_limit": 1
 			},
 			{
-				"created_at": 1760963799,
-				"expires_at": 1761568599,
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-12-02T12:39:02Z",
 				"id": "dc3c9c96-714e-48eb-926e-2d7c7858e6cf",
 				"token": "PARTIAL567890ABC",
 				"usage_count": 2,
 				"usage_limit": 5
 			},
 			{
-				"created_at": 1760963799,
-				"expires_at": 1760877399,
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-24T12:39:02Z",
 				"id": "44de1863-ffa5-4db1-9507-4887cd7a1e3f",
 				"token": "EXPIRED34567890B",
 				"usage_count": 1,
 				"usage_limit": 3
 			},
 			{
-				"created_at": 1760963799,
-				"expires_at": 1761050199,
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-26T12:39:02Z",
 				"id": "f1b1678b-7720-4d8b-8f91-1dbff1e2d02b",
 				"token": "FULLYUSED567890C",
 				"usage_count": 1,
@@ -196,33 +197,33 @@
 		"user_authorized_oidc_clients": [
 			{
 				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
-				"last_used_at": 1754053200,
+				"last_used_at": "2025-08-01T13:00:00Z",
 				"scope": "openid profile email",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
 			{
 				"client_id": "7c21a609-96b5-4011-9900-272b8d31a9d1",
-				"last_used_at": 1754834400,
+				"last_used_at": "2025-08-10T14:00:00Z",
 				"scope": "openid profile email",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
 			{
 				"client_id": "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
-				"last_used_at": 1755000000,
+				"last_used_at": "2025-08-12T12:00:00Z",
 				"scope": "openid profile email",
 				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
 			}
 		],
 		"user_groups": [
 			{
-				"created_at": 1760963799,
+				"created_at": "2025-11-25T12:39:02Z",
 				"friendly_name": "Developers",
 				"id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368",
 				"ldap_id": null,
 				"name": "developers"
 			},
 			{
-				"created_at": 1760963799,
+				"created_at": "2025-11-25T12:39:02Z",
 				"friendly_name": "Designers",
 				"id": "adab18bf-f89d-4087-9ee1-70ff15b48211",
 				"ldap_id": null,
@@ -245,7 +246,7 @@
 		],
 		"users": [
 			{
-				"created_at": 1760963799,
+				"created_at": "2025-11-25T12:39:02Z",
 				"disabled": false,
 				"display_name": "Tim Cook",
 				"email": "tim.cook@test.com",
@@ -258,7 +259,7 @@
 				"username": "tim"
 			},
 			{
-				"created_at": 1760963799,
+				"created_at": "2025-11-25T12:39:02Z",
 				"disabled": false,
 				"display_name": "Craig Federighi",
 				"email": "craig.federighi@test.com",
@@ -276,38 +277,34 @@
 				"attestation_type": "none",
 				"backup_eligible": false,
 				"backup_state": false,
-				"created_at": 1760963799,
+				"created_at": "2025-11-25T12:39:02Z",
 				"credential_id": "test-credential-tim",
-				"id": "0ef64144-a07e-4b05-bf3a-ec807ee1284b",
+				"id": "fa7977f9-7cf8-40fa-abca-42b917b6e692",
 				"name": "Passkey 1",
-				"public_key": {
-					"__binary__": "pQMmIAEhWCDBw6jkpXXr0pHrtAQetxiR5cTcILG/YGDCdKrhVhNDHCJYIIu12YrF6B7Frwl3AUqEpdrYEwj3Fo3XkGgvrBIJEUmGAQI="
-				},
-				"transport": "[\"internal\"]",
+				"public_key": "pQMmIAEhWCDBw6jkpXXr0pHrtAQetxiR5cTcILG/YGDCdKrhVhNDHCJYIIu12YrF6B7Frwl3AUqEpdrYEwj3Fo3XkGgvrBIJEUmGAQI=",
+				"transport": "WyJpbnRlcm5hbCJd",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
 			{
 				"attestation_type": "none",
 				"backup_eligible": false,
 				"backup_state": false,
-				"created_at": 1760963799,
+				"created_at": "2025-11-25T12:39:02Z",
 				"credential_id": "test-credential-craig",
-				"id": "2677d49f-2ee4-4542-a698-dffae483f26a",
+				"id": "4bcc54ef-01d1-4970-be51-669ccd8c0198",
 				"name": "Passkey 2",
-				"public_key": {
-					"__binary__": "pSJYIPmc+FlEB0neERqqscxKckGF8yq1AYrANiloshAUAouHAQIDJiABIVggj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbI="
-				},
-				"transport": "[\"internal\"]",
+				"public_key": "pSJYIPmc+FlEB0neERqqscxKckGF8yq1AYrANiloshAUAouHAQIDJiABIVggj4qA0PrZzg8Co1C27nyUbzrp8Ewjr7eOlGI2LfrzmbI=",
+				"transport": "WyJpbnRlcm5hbCJd",
 				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
 			}
 		],
 		"webauthn_sessions": [
 			{
 				"challenge": "challenge",
-				"created_at": 1760963799,
-				"expires_at": 1760967399,
-				"id": "ebb10ef3-a7a8-4fee-afc8-853b06cbe9f7",
+				"created_at": "2025-11-25T12:39:02Z",
 				"credential_params": "[{\"type\":\"public-key\",\"alg\":-7},{\"type\":\"public-key\",\"alg\":-257}]",
+				"expires_at": "2025-11-25T13:39:02Z",
+				"id": "267f6907-7bc8-4ea1-9d47-c42a172dc1c7",
 				"user_verification": "preferred"
 			}
 		]
