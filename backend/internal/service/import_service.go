@@ -185,10 +185,8 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 		// Iterate through all tables
 		// Some tables need to be processed in order
 		tables := make([]string, 0, len(dbData.Tables))
-		for _, t := range dbData.TableOrder {
-			// These tables need to be done first, in order
-			tables = append(tables, t)
-		}
+		tables = append(tables, dbData.TableOrder...)
+
 		for t := range dbData.Tables {
 			// Skip tables already present where the order matters
 			// Also skip the schema_migrations table

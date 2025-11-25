@@ -29,7 +29,7 @@ func TestMigrationsMatchingVersions(t *testing.T) {
 	slices.Sort(sqliteMigrations)
 
 	// Compare the lists
-	assert.EqualValues(t, postgresMigrations, sqliteMigrations, "Migration versions must match between Postgres and SQLite")
+	assert.Equal(t, postgresMigrations, sqliteMigrations, "Migration versions must match between Postgres and SQLite")
 }
 
 // scanMigrations scans a directory for migration files and returns a list of versions
