@@ -52,7 +52,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 		}
 		if !ok {
 			fmt.Println("Aborted")
-			return nil
+			os.Exit(1)
 		}
 	}
 
