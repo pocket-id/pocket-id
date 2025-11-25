@@ -107,8 +107,10 @@ func (s *ExportService) dumpTable(table string, types utils.DBSchemaTableTypes, 
 		}
 
 		// Skip the app lock row in the kv table
-		if table == "kv" && rowMap["key"] == lockKey {
-			continue
+		if table == "kv" {
+			if keyPtr, ok := rowMap["key"].(*string); ok && keyPtr != nil && *keyPtr == lockKey {
+				continue
+			}
 		}
 
 		out.Tables[table] = append(out.Tables[table], rowMap)
