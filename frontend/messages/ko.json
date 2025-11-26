@@ -331,6 +331,10 @@
 	"token_sign_in": "토큰 로그인",
 	"client_authorization": "클라이언트 승인",
 	"new_client_authorization": "새로운 클라이언트 승인",
+	"device_code_authorization": "기기 코드 인증",
+	"new_device_code_authorization": "신규 장치 코드 인증",
+	"passkey_added": "패스키 추가됨",
+	"passkey_removed": "패스키 제거됨",
 	"disable_animations": "애니메이션 비활성화",
 	"turn_off_ui_animations": "UI 전체의 애니메이션을 비활성화합니다.",
 	"user_disabled": "계정 비활성화",
@@ -463,7 +467,7 @@
 	"reauthentication": "재인증",
 	"clear_filters": "필터 지우기",
 	"default_profile_picture": "기본 프로필 사진",
-	"light": "빛",
-	"dark": "어둠",
+	"light": "라이트",
+	"dark": "다크",
 	"system": "시스템"
 }

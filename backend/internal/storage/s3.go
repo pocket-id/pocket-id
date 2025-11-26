@@ -18,13 +18,14 @@ import (
 )
 
 type S3Config struct {
-	Bucket          string
-	Region          string
-	Endpoint        string
-	AccessKeyID     string
-	SecretAccessKey string
-	ForcePathStyle  bool
-	Root            string
+	Bucket                        string
+	Region                        string
+	Endpoint                      string
+	AccessKeyID                   string
+	SecretAccessKey               string
+	ForcePathStyle                bool
+	DisableDefaultIntegrityChecks bool
+	Root                          string
 }
 
 type s3Storage struct {
@@ -44,6 +45,10 @@ func NewS3Storage(ctx context.Context, cfg S3Config) (FileStorage, error) {
 			o.BaseEndpoint = aws.String(cfg.Endpoint)
 		}
 		o.UsePathStyle = cfg.ForcePathStyle
+		if cfg.DisableDefaultIntegrityChecks {
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+			o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+		}
 	})
 
 	return &s3Storage{
