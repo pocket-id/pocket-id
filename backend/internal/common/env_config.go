@@ -131,12 +131,13 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		return errors.New("ENCRYPTION_KEY must be at least 16 bytes long")
 	}
 
-	if config.DbConnectionString == "" {
+	switch {
+	case config.DbConnectionString == "":
 		config.DbProvider = DbProviderSqlite
 		config.DbConnectionString = defaultSqliteConnString
-	} else if strings.HasPrefix(config.DbConnectionString, "postgres://") || strings.HasPrefix(config.DbConnectionString, "postgresql://") {
+	case strings.HasPrefix(config.DbConnectionString, "postgres://") || strings.HasPrefix(config.DbConnectionString, "postgresql://"):
 		config.DbProvider = DbProviderPostgres
-	} else {
+	default:
 		config.DbProvider = DbProviderSqlite
 	}
 
