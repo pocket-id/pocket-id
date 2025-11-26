@@ -7,7 +7,7 @@
 	let { scope }: { scope: string } = $props();
 </script>
 
-<Item.Group class="gap-3" data-testid="scopes">
+<Item.Group data-testid="scopes">
 	{#if scope!.includes('email')}
 		<ScopeItem icon={LucideMail} name={m.email()} description={m.view_your_email_address()} />
 	{/if}

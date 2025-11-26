@@ -13,12 +13,12 @@
 	const SvelteComponent = $derived(icon);
 </script>
 
-<Item.Root>
-	<Item.Media class="bg-muted rounded-lg p-2">
-		<SvelteComponent class="size-5" />
+<Item.Root size="sm">
+	<Item.Media variant="icon">
+		<SvelteComponent class="size-4" />
 	</Item.Media>
 	<Item.Content>
-		<Item.Title class="font-semibold">{name}</Item.Title>
-		<Item.Description>{description}</Item.Description>
+		<Item.Title class="font-medium">{name}</Item.Title>
+		<Item.Description class="text-xs">{description}</Item.Description>
 	</Item.Content>
 </Item.Root>

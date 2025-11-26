@@ -12,6 +12,8 @@
 
 <div
 	bind:this={ref}
+	role="heading"
+	aria-level="3"
 	data-slot="item-title"
 	class={cn("flex w-fit items-center gap-2 text-sm font-medium leading-snug", className)}
 	{...restProps}
