@@ -70,7 +70,7 @@ test.describe('Initial User Signup', () => {
 	});
 
 	test('Initial Signup - success flow', async ({ page }) => {
-		await cleanupBackend(true);
+		await cleanupBackend({ skipSeed: true });
 		await page.goto('/setup');
 		await page.getByLabel('First name').fill('Jane');
 		await page.getByLabel('Last name').fill('Smith');

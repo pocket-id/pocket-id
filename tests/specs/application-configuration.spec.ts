@@ -122,12 +122,12 @@ test.describe('Update application images', () => {
 	});
 
 	test('should upload images', async ({ page }) => {
-		await page.getByLabel('Favicon').setInputFiles('assets/w3-schools-favicon.ico');
-		await page.getByLabel('Light Mode Logo').setInputFiles('assets/pingvin-share-logo.png');
-		await page.getByLabel('Dark Mode Logo').setInputFiles('assets/cloud-logo.png');
-		await page.getByLabel('Email Logo').setInputFiles('assets/pingvin-share-logo.png');
-		await page.getByLabel('Default Profile Picture').setInputFiles('assets/pingvin-share-logo.png');
-		await page.getByLabel('Background Image').setInputFiles('assets/clouds.jpg');
+		await page.getByLabel('Favicon').setInputFiles('resources/images/w3-schools-favicon.ico');
+		await page.getByLabel('Light Mode Logo').setInputFiles('resources/images/pingvin-share-logo.png');
+		await page.getByLabel('Dark Mode Logo').setInputFiles('resources/images/cloud-logo.png');
+		await page.getByLabel('Email Logo').setInputFiles('resources/images/pingvin-share-logo.png');
+		await page.getByLabel('Default Profile Picture').setInputFiles('resources/images/pingvin-share-logo.png');
+		await page.getByLabel('Background Image').setInputFiles('resources/images/clouds.jpg');
 		await page.getByRole('button', { name: 'Save' }).last().click();
 
 		await expect(page.locator('[data-type="success"]')).toHaveText(
@@ -154,7 +154,7 @@ test.describe('Update application images', () => {
 	test('should only allow png/jpeg for email logo', async ({ page }) => {
 		const emailLogoInput = page.getByLabel('Email Logo');
 
-		await emailLogoInput.setInputFiles('assets/cloud-logo.svg');
+		await emailLogoInput.setInputFiles('resources/images/cloud-logo.svg');
 		await page.getByRole('button', { name: 'Save' }).last().click();
 
 		await expect(page.locator('[data-type="error"]')).toHaveText(
