@@ -38,3 +38,6 @@ services:
     depends_on:
       create-bucket:
         condition: service_completed_successfully
+
+volumes:
+  pocket-id-test-data:

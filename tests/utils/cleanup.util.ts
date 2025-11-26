@@ -1,9 +1,9 @@
 import playwrightConfig from '../playwright.config';
 
-export async function cleanupBackend(skipSeed = false) {
+export async function cleanupBackend({ skipSeed = false, skipLdapSetup = false } = {}) {
 	const url = new URL('/api/test/reset', playwrightConfig.use!.baseURL);
 
-	if (process.env.SKIP_LDAP_TESTS === 'true' || skipSeed) {
+	if (process.env.SKIP_LDAP_TESTS === 'true' || skipSeed || skipLdapSetup) {
 		url.searchParams.append('skip-ldap', 'true');
 	}
 
