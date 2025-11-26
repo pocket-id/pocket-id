@@ -48,6 +48,7 @@ const (
 )
 
 type JwtService struct {
+	db               *gorm.DB
 	envConfig        *common.EnvConfigSchema
 	privateKey       jwk.Key
 	keyId            string
@@ -58,7 +59,6 @@ type JwtService struct {
 func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) (*JwtService, error) {
 	service := &JwtService{}
 
-	// Ensure keys are generated or loaded
 	err := service.init(db, appConfigService, &common.EnvConfig)
 	if err != nil {
 		return nil, err
@@ -70,14 +70,15 @@ func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) (*JwtService
 func (s *JwtService) init(db *gorm.DB, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
 	s.appConfigService = appConfigService
 	s.envConfig = envConfig
+	s.db = db
 
 	// Ensure keys are generated or loaded
-	return s.loadOrGenerateKey(db)
+	return s.LoadOrGenerateKey()
 }
 
-func (s *JwtService) loadOrGenerateKey(db *gorm.DB) error {
+func (s *JwtService) LoadOrGenerateKey() error {
 	// Get the key provider
-	keyProvider, err := jwkutils.GetKeyProvider(db, s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
+	keyProvider, err := jwkutils.GetKeyProvider(s.db, s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
 	if err != nil {
 		return fmt.Errorf("failed to get key provider: %w", err)
 	}

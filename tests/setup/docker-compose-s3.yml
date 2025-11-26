@@ -35,7 +35,9 @@ services:
       S3_ACCESS_KEY_ID: test
       S3_SECRET_ACCESS_KEY: test
       S3_FORCE_PATH_STYLE: true
-      KEYS_STORAGE: database
     depends_on:
       create-bucket:
         condition: service_completed_successfully
+
+volumes:
+  pocket-id-test-data:

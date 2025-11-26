@@ -171,7 +171,7 @@ jobs:
         run: |
           DOCKER_COMPOSE_FILE=docker-compose.yml
 
-          export FILE_BACKEND="${{ matrix.storage }}"
+          echo "FILE_BACKEND=${{ matrix.storage }}" > .env
           if [ "${{ matrix.db }}" = "postgres" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
           elif [ "${{ matrix.storage }}" = "s3" ]; then
@@ -179,7 +179,20 @@ jobs:
           fi
 
           docker compose -f "$DOCKER_COMPOSE_FILE" up -d
-          docker compose -f "$DOCKER_COMPOSE_FILE" logs -f pocket-id &> /tmp/backend.log &
+
+          {
+            LOG_FILE="/tmp/backend.log"
+            while true; do
+              CID=$(docker compose -f "$DOCKER_COMPOSE_FILE" ps -q pocket-id)
+              if [ -n "$CID" ]; then
+                echo "[$(date)] Attaching logs for $CID" >> "$LOG_FILE"
+                docker logs -f --since=0 "$CID" >> "$LOG_FILE" 2>&1
+              else
+                echo "[$(date)] Container not yet running…" >> "$LOG_FILE"
+              fi
+              sleep 1
+            done
+          } &
 
       - name: Run Playwright tests
         working-directory: ./tests

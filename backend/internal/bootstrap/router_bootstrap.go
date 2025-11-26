@@ -29,16 +29,7 @@ import (
 // This is used to register additional controllers for tests
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
 
-func initRouter(db *gorm.DB, svc *services) utils.Service {
-	runner, err := initRouterInternal(db, svc)
-	if err != nil {
-		slog.Error("Failed to init router", "error", err)
-		os.Exit(1)
-	}
-	return runner
-}
-
-func initRouterInternal(db *gorm.DB, svc *services) (utils.Service, error) {
+func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	// Set the appropriate Gin mode based on the environment
 	switch common.EnvConfig.AppEnv {
 	case common.AppEnvProduction:
