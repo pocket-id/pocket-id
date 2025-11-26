@@ -38,25 +38,25 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv             AppEnv     `env:"APP_ENV" options:"toLower"`
-	LogLevel           string     `env:"LOG_LEVEL" options:"toLower"`
-	LogJSON            bool       `env:"LOG_JSON"`
-	AppURL             string     `env:"APP_URL" options:"toLower,trimTrailingSlash"`
-	DbProvider         DbProvider `env:"DB_PROVIDER" options:"toLower"`
-	DbConnectionString string     `env:"DB_CONNECTION_STRING" options:"file"`
-	EncryptionKey      []byte     `env:"ENCRYPTION_KEY" options:"file"`
-	Port               string     `env:"PORT"`
-	Host               string     `env:"HOST" options:"toLower"`
-	UnixSocket         string     `env:"UNIX_SOCKET"`
-	UnixSocketMode     string     `env:"UNIX_SOCKET_MODE"`
-	LocalIPv6Ranges    string     `env:"LOCAL_IPV6_RANGES"`
-	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
-	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
-	TracingEnabled     bool       `env:"TRACING_ENABLED"`
-	TrustProxy         bool       `env:"TRUST_PROXY"`
-	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
-	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
-	InternalAppURL     string     `env:"INTERNAL_APP_URL"`
+	AppEnv             AppEnv `env:"APP_ENV" options:"toLower"`
+	LogLevel           string `env:"LOG_LEVEL" options:"toLower"`
+	LogJSON            bool   `env:"LOG_JSON"`
+	AppURL             string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
+	DbProvider         DbProvider
+	DbConnectionString string `env:"DB_CONNECTION_STRING" options:"file"`
+	EncryptionKey      []byte `env:"ENCRYPTION_KEY" options:"file"`
+	Port               string `env:"PORT"`
+	Host               string `env:"HOST" options:"toLower"`
+	UnixSocket         string `env:"UNIX_SOCKET"`
+	UnixSocketMode     string `env:"UNIX_SOCKET_MODE"`
+	LocalIPv6Ranges    string `env:"LOCAL_IPV6_RANGES"`
+	UiConfigDisabled   bool   `env:"UI_CONFIG_DISABLED"`
+	MetricsEnabled     bool   `env:"METRICS_ENABLED"`
+	TracingEnabled     bool   `env:"TRACING_ENABLED"`
+	TrustProxy         bool   `env:"TRUST_PROXY"`
+	AnalyticsDisabled  bool   `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade     bool   `env:"ALLOW_DOWNGRADE"`
+	InternalAppURL     string `env:"INTERNAL_APP_URL"`
 
 	MaxMindLicenseKey string `env:"MAXMIND_LICENSE_KEY" options:"file"`
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
@@ -131,17 +131,13 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		return errors.New("ENCRYPTION_KEY must be at least 16 bytes long")
 	}
 
-	switch config.DbProvider {
-	case DbProviderSqlite:
-		if config.DbConnectionString == "" {
-			config.DbConnectionString = defaultSqliteConnString
-		}
-	case DbProviderPostgres:
-		if config.DbConnectionString == "" {
-			return errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
-		}
-	default:
-		return errors.New("invalid DB_PROVIDER value. Must be 'sqlite' or 'postgres'")
+	if config.DbConnectionString == "" {
+		config.DbProvider = DbProviderSqlite
+		config.DbConnectionString = defaultSqliteConnString
+	} else if strings.HasPrefix(config.DbConnectionString, "postgres://") || strings.HasPrefix(config.DbConnectionString, "postgresql://") {
+		config.DbProvider = DbProviderPostgres
+	} else {
+		config.DbProvider = DbProviderSqlite
 	}
 
 	parsedAppUrl, err := url.Parse(config.AppURL)
