@@ -4,8 +4,8 @@
 	import Qrcode from '$lib/components/qrcode/qrcode.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
-	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
@@ -67,8 +67,8 @@
 
 		{#if signupToken === null}
 			<div class="space-y-4">
-				<div>
-					<Label for="expiration">{m.expiration()}</Label>
+				<Field.Field>
+					<Field.Label for="expiration">{m.expiration()}</Field.Label>
 					<Select.Root
 						type="single"
 						value={Object.keys(availableExpirations)[0]}
@@ -83,13 +83,13 @@
 							{/each}
 						</Select.Content>
 					</Select.Root>
-				</div>
+				</Field.Field>
 
-				<div>
-					<Label class="mb-0" for="usage-limit">{m.usage_limit()}</Label>
-					<p class="text-muted-foreground mt-1 mb-2 text-xs">
+				<Field.Field>
+					<Field.Label for="usage-limit">{m.usage_limit()}</Field.Label>
+					<Field.Description>
 						{m.number_of_times_token_can_be_used()}
-					</p>
+					</Field.Description>
 					<Input
 						id="usage-limit"
 						type="number"
@@ -98,7 +98,7 @@
 						bind:value={usageLimit}
 						class="h-9"
 					/>
-				</div>
+				</Field.Field>
 			</div>
 
 			<Dialog.Footer class="mt-4">

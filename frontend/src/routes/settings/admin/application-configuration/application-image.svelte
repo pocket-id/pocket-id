@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FileInput from '$lib/components/form/file-input.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import { cn } from '$lib/utils/style';
 	import { LucideImageOff, LucideUpload, LucideX } from '@lucide/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
@@ -53,7 +53,7 @@
 </script>
 
 <div class="flex flex-col items-start md:flex-row md:items-center" {...restProps}>
-	<Label class="w-52" for={id}>{label}</Label>
+	<Field.Label class="w-52" for={id}>{label}</Field.Label>
 	<FileInput {id} variant="secondary" {accept} onchange={onImageChange}>
 		<div
 			class={cn('group/image relative flex items-center rounded transition-colors', {

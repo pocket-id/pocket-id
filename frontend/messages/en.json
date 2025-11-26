@@ -469,5 +469,6 @@
 	"default_profile_picture": "Default Profile Picture",
 	"light": "Light",
 	"dark": "Dark",
-	"system": "System"
+	"system": "System",
+	"scopes": "Scopes"
 }

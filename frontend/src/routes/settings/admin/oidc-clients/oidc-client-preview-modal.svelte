@@ -5,7 +5,7 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import Label from '$lib/components/ui/label/label.svelte';
+	import * as Field from '$lib/components/ui/field';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
@@ -14,6 +14,7 @@
 	import { debounced } from '$lib/utils/debounce-util';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { LucideAlertTriangle } from '@lucide/svelte';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { onMount } from 'svelte';
 
 	let {
@@ -110,33 +111,31 @@
 		<div class="overflow-auto px-4">
 			{#if loadingPreview}
 				<div class="flex items-center justify-center py-12">
-					<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
+					<Spinner class="size-8" />
 				</div>
 			{/if}
 
 			<div class="flex justify-start gap-3">
-				<div>
-					<Label class="text-sm font-medium">{m.users()}</Label>
-					<div>
-						<SearchableSelect
-							class="w-48"
-							selectText={m.select_user()}
-							isLoading={isUserSearchLoading}
-							items={Object.values(users).map((user) => ({
-								value: user.id,
-								label: user.username
-							}))}
-							value={user?.id || ''}
-							oninput={(e) => onUserSearch(e.currentTarget.value)}
-							onSelect={(value) => {
-								user = users.find((u) => u.id === value) || null;
-								loadPreviewData();
-							}}
-						/>
-					</div>
-				</div>
-				<div>
-					<Label class="text-sm font-medium">Scopes</Label>
+				<Field.Field>
+					<Field.Label>{m.users()}</Field.Label>
+					<SearchableSelect
+						class="w-48"
+						selectText={m.select_user()}
+						isLoading={isUserSearchLoading}
+						items={Object.values(users).map((user) => ({
+							value: user.id,
+							label: user.username
+						}))}
+						value={user?.id || ''}
+						oninput={(e) => onUserSearch(e.currentTarget.value)}
+						onSelect={(value) => {
+							user = users.find((u) => u.id === value) || null;
+							loadPreviewData();
+						}}
+					/>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label>{m.scopes()}</Field.Label>
 					<MultiSelect
 						items={[
 							{ value: 'openid', label: 'openid' },
@@ -146,7 +145,7 @@
 						]}
 						bind:selectedItems={scopes}
 					/>
-				</div>
+				</Field.Field>
 			</div>
 
 			{#if errorMessage && !loadingPreview}
@@ -186,7 +185,7 @@
 {#snippet tabContent(data: any, title: string)}
 	<div class="space-y-4">
 		<div class="mb-6 flex items-center justify-between">
-			<Label class="text-lg font-semibold">{title}</Label>
+			<span class="text-lg font-semibold">{title}</span>
 			<CopyToClipboard value={JSON.stringify(data, null, 2)}>
 				<Button size="sm" variant="outline">{m.copy_all()}</Button>
 			</CopyToClipboard>
@@ -194,7 +193,7 @@
 		<div class="space-y-3">
 			{#each Object.entries(data || {}) as [key, value]}
 				<div class="grid grid-cols-1 items-start gap-4 border-b pb-3 md:grid-cols-[200px_1fr]">
-					<Label class="pt-1 text-sm font-medium">{key}</Label>
+					<Field.Label class="pt-1">{key}</Field.Label>
 					<div class="min-w-0">
 						<CopyToClipboard value={typeof value === 'string' ? value : JSON.stringify(value)}>
 							<div

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Field from '$lib/components/ui/field';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -23,7 +23,7 @@
 			<Dialog.Title>{m.one_time_link()}</Dialog.Title>
 			<Dialog.Description>{m.use_this_link_to_sign_in_once()}</Dialog.Description>
 		</Dialog.Header>
-		<Label for="one-time-link">{m.one_time_link()}</Label>
+		<Field.Label for="one-time-link">{m.one_time_link()}</Field.Label>
 		<Input id="one-time-link" value={oneTimeLink} readonly />
 	</Dialog.Content>
 </Dialog.Root>
