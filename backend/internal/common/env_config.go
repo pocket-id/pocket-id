@@ -38,39 +38,40 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv                          AppEnv     `env:"APP_ENV" options:"toLower"`
-	LogLevel                        string     `env:"LOG_LEVEL" options:"toLower"`
-	AppURL                          string     `env:"APP_URL" options:"toLower,trimTrailingSlash"`
-	DbProvider                      DbProvider `env:"DB_PROVIDER" options:"toLower"`
-	DbConnectionString              string     `env:"DB_CONNECTION_STRING" options:"file"`
-	FileBackend                     string     `env:"FILE_BACKEND" options:"toLower"`
-	UploadPath                      string     `env:"UPLOAD_PATH"`
-	S3Bucket                        string     `env:"S3_BUCKET"`
-	S3Region                        string     `env:"S3_REGION"`
-	S3Endpoint                      string     `env:"S3_ENDPOINT"`
-	S3AccessKeyID                   string     `env:"S3_ACCESS_KEY_ID"`
-	S3SecretAccessKey               string     `env:"S3_SECRET_ACCESS_KEY"`
-	S3ForcePathStyle                bool       `env:"S3_FORCE_PATH_STYLE"`
-	S3DisableDefaultIntegrityChecks bool       `env:"S3_DISABLE_DEFAULT_INTEGRITY_CHECKS"`
-	KeysPath                        string     `env:"KEYS_PATH"`
-	KeysStorage                     string     `env:"KEYS_STORAGE"`
-	EncryptionKey                   []byte     `env:"ENCRYPTION_KEY" options:"file"`
-	Port                            string     `env:"PORT"`
-	Host                            string     `env:"HOST" options:"toLower"`
-	UnixSocket                      string     `env:"UNIX_SOCKET"`
-	UnixSocketMode                  string     `env:"UNIX_SOCKET_MODE"`
-	MaxMindLicenseKey               string     `env:"MAXMIND_LICENSE_KEY" options:"file"`
-	GeoLiteDBPath                   string     `env:"GEOLITE_DB_PATH"`
-	GeoLiteDBUrl                    string     `env:"GEOLITE_DB_URL"`
-	LocalIPv6Ranges                 string     `env:"LOCAL_IPV6_RANGES"`
-	UiConfigDisabled                bool       `env:"UI_CONFIG_DISABLED"`
-	MetricsEnabled                  bool       `env:"METRICS_ENABLED"`
-	TracingEnabled                  bool       `env:"TRACING_ENABLED"`
-	LogJSON                         bool       `env:"LOG_JSON"`
-	TrustProxy                      bool       `env:"TRUST_PROXY"`
-	AnalyticsDisabled               bool       `env:"ANALYTICS_DISABLED"`
-	AllowDowngrade                  bool       `env:"ALLOW_DOWNGRADE"`
-	InternalAppURL                  string     `env:"INTERNAL_APP_URL"`
+	AppEnv             AppEnv     `env:"APP_ENV" options:"toLower"`
+	LogLevel           string     `env:"LOG_LEVEL" options:"toLower"`
+	LogJSON            bool       `env:"LOG_JSON"`
+	AppURL             string     `env:"APP_URL" options:"toLower,trimTrailingSlash"`
+	DbProvider         DbProvider `env:"DB_PROVIDER" options:"toLower"`
+	DbConnectionString string     `env:"DB_CONNECTION_STRING" options:"file"`
+	EncryptionKey      []byte     `env:"ENCRYPTION_KEY" options:"file"`
+	Port               string     `env:"PORT"`
+	Host               string     `env:"HOST" options:"toLower"`
+	UnixSocket         string     `env:"UNIX_SOCKET"`
+	UnixSocketMode     string     `env:"UNIX_SOCKET_MODE"`
+	LocalIPv6Ranges    string     `env:"LOCAL_IPV6_RANGES"`
+	UiConfigDisabled   bool       `env:"UI_CONFIG_DISABLED"`
+	MetricsEnabled     bool       `env:"METRICS_ENABLED"`
+	TracingEnabled     bool       `env:"TRACING_ENABLED"`
+	TrustProxy         bool       `env:"TRUST_PROXY"`
+	AnalyticsDisabled  bool       `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade     bool       `env:"ALLOW_DOWNGRADE"`
+	InternalAppURL     string     `env:"INTERNAL_APP_URL"`
+
+	MaxMindLicenseKey string `env:"MAXMIND_LICENSE_KEY" options:"file"`
+	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
+	GeoLiteDBUrl      string `env:"GEOLITE_DB_URL"`
+
+	FileBackend string `env:"FILE_BACKEND" options:"toLower"`
+	UploadPath  string `env:"UPLOAD_PATH"`
+
+	S3Bucket                        string `env:"S3_BUCKET"`
+	S3Region                        string `env:"S3_REGION"`
+	S3Endpoint                      string `env:"S3_ENDPOINT"`
+	S3AccessKeyID                   string `env:"S3_ACCESS_KEY_ID"`
+	S3SecretAccessKey               string `env:"S3_SECRET_ACCESS_KEY"`
+	S3ForcePathStyle                bool   `env:"S3_FORCE_PATH_STYLE"`
+	S3DisableDefaultIntegrityChecks bool   `env:"S3_DISABLE_DEFAULT_INTEGRITY_CHECKS"`
 }
 
 var EnvConfig = defaultConfig()
@@ -89,7 +90,6 @@ func defaultConfig() EnvConfigSchema {
 		LogLevel:      "info",
 		DbProvider:    "sqlite",
 		FileBackend:   "fs",
-		KeysPath:      "data/keys",
 		AppURL:        AppUrl,
 		Port:          "1411",
 		Host:          "0.0.0.0",
@@ -117,19 +117,18 @@ func parseEnvConfig() error {
 		return fmt.Errorf("error preparing env config: %w", err)
 	}
 
-	err = validateEnvConfig(&EnvConfig)
-	if err != nil {
-		return err
-	}
-
 	return nil
 
 }
 
-// validateEnvConfig checks the EnvConfig for required fields and valid values
-func validateEnvConfig(config *EnvConfigSchema) error {
+// ValidateEnvConfig checks the EnvConfig for required fields and valid values
+func ValidateEnvConfig(config *EnvConfigSchema) error {
 	if _, err := sloggin.ParseLevel(config.LogLevel); err != nil {
 		return errors.New("invalid LOG_LEVEL value. Must be 'debug', 'info', 'warn' or 'error'")
+	}
+
+	if len(config.EncryptionKey) < 16 {
+		return errors.New("ENCRYPTION_KEY must be at least 16 bytes long")
 	}
 
 	switch config.DbProvider {
@@ -166,27 +165,8 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		}
 	}
 
-	switch config.KeysStorage {
-	// KeysStorage defaults to "file" if empty
-	case "":
-		config.KeysStorage = "file"
-	case "database":
-		if config.EncryptionKey == nil {
-			return errors.New("ENCRYPTION_KEY must be non-empty when KEYS_STORAGE is database")
-		}
-	case "file":
-		// All good, these are valid values
-	default:
-		return fmt.Errorf("invalid value for KEYS_STORAGE: %s", config.KeysStorage)
-	}
-
 	switch config.FileBackend {
-	case "s3":
-		if config.KeysStorage == "file" {
-			return errors.New("KEYS_STORAGE cannot be 'file' when FILE_BACKEND is 's3'")
-		}
-	case "database":
-		// All good, these are valid values
+	case "s3", "database":
 	case "", "fs":
 		if config.UploadPath == "" {
 			config.UploadPath = defaultFsUploadPath

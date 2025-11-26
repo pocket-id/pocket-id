@@ -11,6 +11,15 @@ import (
 // DateTime custom type for time.Time to store date as unix timestamp for sqlite and as date for postgres
 type DateTime time.Time //nolint:recvcheck
 
+func DateTimeFromString(str string) (DateTime, error) {
+	t, err := time.Parse(time.RFC3339Nano, str)
+	if err != nil {
+		return DateTime{}, fmt.Errorf("failed to parse date string: %w", err)
+	}
+
+	return DateTime(t), nil
+}
+
 func (date *DateTime) Scan(value any) (err error) {
 	switch v := value.(type) {
 	case time.Time:

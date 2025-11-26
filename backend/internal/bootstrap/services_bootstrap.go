@@ -27,6 +27,7 @@ type services struct {
 	apiKeyService      *service.ApiKeyService
 	versionService     *service.VersionService
 	fileStorage        storage.FileStorage
+	appLockService     *service.AppLockService
 }
 
 // Initializes all services
@@ -40,6 +41,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 
 	svc.fileStorage = fileStorage
 	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
+	svc.appLockService = service.NewAppLockService(db)
 
 	svc.emailService, err = service.NewEmailService(db, svc.appConfigService)
 	if err != nil {
