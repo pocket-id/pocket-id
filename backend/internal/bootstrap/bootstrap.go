@@ -114,13 +114,14 @@ func InitStorage(ctx context.Context, db *gorm.DB) (fileStorage storage.FileStor
 		fileStorage, err = storage.NewDatabaseStorage(db)
 	case storage.TypeS3:
 		s3Cfg := storage.S3Config{
-			Bucket:          common.EnvConfig.S3Bucket,
-			Region:          common.EnvConfig.S3Region,
-			Endpoint:        common.EnvConfig.S3Endpoint,
-			AccessKeyID:     common.EnvConfig.S3AccessKeyID,
-			SecretAccessKey: common.EnvConfig.S3SecretAccessKey,
-			ForcePathStyle:  common.EnvConfig.S3ForcePathStyle,
-			Root:            common.EnvConfig.UploadPath,
+			Bucket:                        common.EnvConfig.S3Bucket,
+			Region:                        common.EnvConfig.S3Region,
+			Endpoint:                      common.EnvConfig.S3Endpoint,
+			AccessKeyID:                   common.EnvConfig.S3AccessKeyID,
+			SecretAccessKey:               common.EnvConfig.S3SecretAccessKey,
+			ForcePathStyle:                common.EnvConfig.S3ForcePathStyle,
+			DisableDefaultIntegrityChecks: common.EnvConfig.S3DisableDefaultIntegrityChecks,
+			Root:                          common.EnvConfig.UploadPath,
 		}
 		fileStorage, err = storage.NewS3Storage(ctx, s3Cfg)
 	default:
