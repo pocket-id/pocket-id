@@ -31,7 +31,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should parse valid SQLite config correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "SQLITE") // should be lowercased automatically
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "HTTP://LOCALHOST:3000")
 
@@ -43,7 +42,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should parse valid Postgres config correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "POSTGRES")
 		t.Setenv("DB_CONNECTION_STRING", "postgres://user:pass@localhost/db")
 		t.Setenv("APP_URL", "https://example.com")
 
@@ -52,20 +50,8 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, DbProviderPostgres, EnvConfig.DbProvider)
 	})
 
-	t.Run("should fail with invalid DB_PROVIDER", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "invalid")
-		t.Setenv("DB_CONNECTION_STRING", "test")
-		t.Setenv("APP_URL", "http://localhost:3000")
-
-		err := parseAndValidateEnvConfig(t)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "invalid DB_PROVIDER value")
-	})
-
 	t.Run("should fail when ENCRYPTION_KEY is too short", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("ENCRYPTION_KEY", "short")
@@ -77,7 +63,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should set default SQLite connection string when DB_CONNECTION_STRING is empty", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("APP_URL", "http://localhost:3000")
 
 		err := parseAndValidateEnvConfig(t)
@@ -85,19 +70,8 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, defaultSqliteConnString, EnvConfig.DbConnectionString)
 	})
 
-	t.Run("should fail when Postgres DB_CONNECTION_STRING is missing", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "postgres")
-		t.Setenv("APP_URL", "http://localhost:3000")
-
-		err := parseAndValidateEnvConfig(t)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "missing required env var 'DB_CONNECTION_STRING' for Postgres")
-	})
-
 	t.Run("should fail with invalid APP_URL", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "€://not-a-valid-url")
 
@@ -108,7 +82,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when APP_URL contains path", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000/path")
 
@@ -119,7 +92,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail with invalid INTERNAL_APP_URL", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("INTERNAL_APP_URL", "€://not-a-valid-url")
 
@@ -130,7 +102,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail when INTERNAL_APP_URL contains path", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("INTERNAL_APP_URL", "http://localhost:3000/path")
 
@@ -141,7 +112,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should parse boolean environment variables correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("UI_CONFIG_DISABLED", "true")
@@ -196,7 +166,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should parse string environment variables correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "postgres")
 		t.Setenv("DB_CONNECTION_STRING", "postgres://test")
 		t.Setenv("APP_URL", "https://prod.example.com")
 		t.Setenv("APP_ENV", "PRODUCTION")
@@ -217,7 +186,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should normalize file backend and default upload path", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("FILE_BACKEND", "FILESYSTEM")
@@ -231,7 +199,6 @@ func TestParseEnvConfig(t *testing.T) {
 
 	t.Run("should fail with invalid FILE_BACKEND value", func(t *testing.T) {
 		EnvConfig = defaultConfig()
-		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("FILE_BACKEND", "invalid")
