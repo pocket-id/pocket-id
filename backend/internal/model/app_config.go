@@ -79,6 +79,7 @@ type AppConfig struct {
 	LdapAttributeGroupName             AppConfigVariable `key:"ldapAttributeGroupName"`
 	LdapAttributeAdminGroup            AppConfigVariable `key:"ldapAttributeAdminGroup"`
 	LdapSoftDeleteUsers                AppConfigVariable `key:"ldapSoftDeleteUsers"`
+	LdapExtraAttributes                AppConfigVariable `key:"ldapExtraAttributes"`
 }
 
 func (c *AppConfig) ToAppConfigVariableSlice(showAll bool, redactSensitiveValues bool) []AppConfigVariable {

@@ -104,6 +104,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		LdapAttributeGroupName:             model.AppConfigVariable{},
 		LdapAttributeAdminGroup:            model.AppConfigVariable{},
 		LdapSoftDeleteUsers:                model.AppConfigVariable{Value: "true"},
+		LdapExtraAttributes:                model.AppConfigVariable{Value: "[{\"user\":[],\"group\":[]}]"},
 	}
 }
 
