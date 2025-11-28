@@ -1,6 +1,5 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
-	import LdapExtraAttributesInput from '$lib/components/form/ldap-extra-attributes-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
@@ -45,30 +44,14 @@
 		ldapAttributeGroupUniqueIdentifier: z.string().min(1),
 		ldapAttributeGroupName: z.string().min(1),
 		ldapAttributeAdminGroup: z.string().optional(),
-		ldapSoftDeleteUsers: z.boolean(),
-    ldapExtraAttributes: z.object({
-      user: z.array(
-        z.object({
-          key: z.string().min(1),
-          value: z.string().min(1),
-          multi: z.boolean()
-        })
-      ),
-      group: z.array(
-        z.object({
-          key: z.string().min(1),
-          value: z.string().min(1),
-          multi: z.boolean()
-        })
-      )
-    })
+		ldapSoftDeleteUsers: z.boolean()
 	});
 
 	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
 
 	async function onSubmit() {
-    const data = form.validate();
-    if (!data) return false;
+		const data = form.validate();
+		if (!data) return false;
 		await callback({
 			...data,
 			ldapEnabled: true
@@ -77,7 +60,7 @@
 		return true;
 	}
 
-  async function onDisable() {
+	async function onDisable() {
 		ldapEnabled = false;
 		await callback({ ldapEnabled });
 		toast.success(m.ldap_disabled_successfully());
@@ -98,7 +81,6 @@
 
 		ldapSyncing = false;
 	}
-
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>
@@ -215,18 +197,6 @@
 			/>
 		</div>
 	</fieldset>
-
-	<h4 class="mt-10 text-lg font-semibold">{m.ldap_extra_user_attributes()}</h4>
-  <p class="text-muted-foreground text-[0.8rem]">
-    {m.ldap_extra_user_attributes_description()}
-  </p>
-  <LdapExtraAttributesInput bind:ldapExtraAttributes={$inputs.ldapExtraAttributes.value.user} />
-
-	<h4 class="mt-10 text-lg font-semibold">{m.ldap_extra_group_attributes()}</h4>
-  <p class="text-muted-foreground text-[0.8rem]">
-    {m.ldap_extra_group_attributes_description()}
-  </p>
-  <LdapExtraAttributesInput bind:ldapExtraAttributes={$inputs.ldapExtraAttributes.value.group} />
 
 	<div class="mt-8 flex flex-wrap justify-end gap-3">
 		{#if ldapEnabled}

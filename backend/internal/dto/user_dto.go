@@ -8,19 +8,18 @@ import (
 )
 
 type UserDto struct {
-	ID             string           `json:"id"`
-	Username       string           `json:"username"`
-	Email          *string          `json:"email" `
-	FirstName      string           `json:"firstName"`
-	LastName       *string          `json:"lastName"`
-	DisplayName    string           `json:"displayName"`
-	IsAdmin        bool             `json:"isAdmin"`
-	Locale         *string          `json:"locale"`
-	CustomClaims   []CustomClaimDto `json:"customClaims"`
-	LdapAttributes []CustomClaimDto `json:"ldapAttributes"`
-	UserGroups     []UserGroupDto   `json:"userGroups"`
-	LdapID         *string          `json:"ldapId"`
-	Disabled       bool             `json:"disabled"`
+	ID           string           `json:"id"`
+	Username     string           `json:"username"`
+	Email        *string          `json:"email" `
+	FirstName    string           `json:"firstName"`
+	LastName     *string          `json:"lastName"`
+	DisplayName  string           `json:"displayName"`
+	IsAdmin      bool             `json:"isAdmin"`
+	Locale       *string          `json:"locale"`
+	CustomClaims []CustomClaimDto `json:"customClaims"`
+	UserGroups   []UserGroupDto   `json:"userGroups"`
+	LdapID       *string          `json:"ldapId"`
+	Disabled     bool             `json:"disabled"`
 }
 
 type UserCreateDto struct {

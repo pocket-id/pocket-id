@@ -20,7 +20,7 @@
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
 	import AppConfigSignupDefaultsForm from './forms/app-config-signup-defaults-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
-	
+
 	let { data } = $props();
 	let appConfig = $state(data.appConfig);
 
@@ -36,7 +36,6 @@
 				axiosErrorToast(e);
 				throw e;
 			});
-
 		await appConfigStore.reload();
 	}
 

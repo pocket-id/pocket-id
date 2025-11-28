@@ -65,7 +65,7 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Contex
 	}
 
 	userId := c.Param("userId")
-	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(c.Request.Context(), userId, false, input)
+	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(c.Request.Context(), userId, input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -99,7 +99,7 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.C
 	}
 
 	userGroupId := c.Param("userGroupId")
-	claims, err := ccc.customClaimService.UpdateCustomClaimsForUserGroup(c.Request.Context(), userGroupId, false, input)
+	claims, err := ccc.customClaimService.UpdateCustomClaimsForUserGroup(c.Request.Context(), userGroupId, input)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -49,10 +49,6 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeGroupName: string;
 	ldapAttributeAdminGroup: string;
 	ldapSoftDeleteUsers: boolean;
-  ldapExtraAttributes: {
-    user: LdapExtraAttribute[],
-    group: LdapExtraAttribute[]
-  };
 };
 
 export type AppConfigRawResponse = {
@@ -65,10 +61,4 @@ export type AppVersionInformation = {
 	isUpToDate: boolean | null;
 	newestVersion: string | null;
 	currentVersion: string;
-};
-
-export type LdapExtraAttribute = {
-	key: string;
-	value: string;
-  multi: boolean;
 };

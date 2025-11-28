@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -140,23 +139,6 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 		dbConfig.LdapAttributeGroupMember.Value,
 	}
 
-	var leaClaims dto.LdapAttributesDto
-	leaGroupClaims := make(map[string]dto.LdapExtraAttributeDto)
-	extraAttributes := dbConfig.LdapExtraAttributes.Value
-	if extraAttributes != "" && extraAttributes != "[]" {
-		err := json.Unmarshal([]byte(extraAttributes), &leaClaims)
-		if err == nil && len(leaClaims.Group) > 0 {
-			for _, claim := range leaClaims.Group {
-				searchAttrs = append(searchAttrs, claim.Value)
-				leaGroupClaims[claim.Value] = dto.LdapExtraAttributeDto{
-					Key:   claim.Key,
-					Value: claim.Value,
-					Multi: claim.Multi,
-				}
-			}
-		}
-	}
-
 	searchReq := ldap.NewSearchRequest(
 		dbConfig.LdapBase.Value,
 		ldap.ScopeWholeSubtree,
@@ -268,32 +250,6 @@ func (s *LdapService) SyncGroups(ctx context.Context, tx *gorm.DB, client *ldap.
 			if err != nil {
 				return fmt.Errorf("failed to sync users for group '%s': %w", syncGroup.Name, err)
 			}
-
-			// Update LDAP attributes as custom claims
-			if len(leaGroupClaims) > 0 {
-				claims := make([]dto.CustomClaimCreateDto, 0, len(leaGroupClaims))
-				for attr, leaDto := range leaGroupClaims {
-					var attrValue string = ""
-					if leaDto.Multi {
-						attrValues := value.GetAttributeValues(attr)
-						if len(attrValues) > 0 {
-							b, _ := json.Marshal(attrValues)
-							attrValue = string(b)
-						}
-					} else {
-						attrValue = value.GetAttributeValue(attr)
-					}
-					if attrValue != "" {
-						claims = append(claims, dto.CustomClaimCreateDto{
-							Key:    leaDto.Key,
-							Value:  attrValue,
-							IsLdap: true,
-						})
-					}
-				}
-
-				_, _ = s.userService.customClaimService.updateCustomClaimsInternal(ctx, UserGroupID, newGroup.ID, true, claims, tx)
-			}
 		} else {
 			_, err = s.groupService.updateInternal(ctx, databaseGroup.ID, syncGroup, true, tx)
 			if err != nil {
@@ -353,23 +309,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		dbConfig.LdapAttributeUserLastName.Value,
 		dbConfig.LdapAttributeUserProfilePicture.Value,
 		dbConfig.LdapAttributeUserDisplayName.Value,
-	}
-
-	var leaClaims dto.LdapAttributesDto
-	leaUserClaims := make(map[string]dto.LdapExtraAttributeDto)
-	extraAttributes := dbConfig.LdapExtraAttributes.Value
-	if extraAttributes != "" && extraAttributes != "[]" {
-		err := json.Unmarshal([]byte(extraAttributes), &leaClaims)
-		if err == nil && len(leaClaims.User) > 0 {
-			for _, claim := range leaClaims.User {
-				searchAttrs = append(searchAttrs, claim.Value)
-				leaUserClaims[claim.Value] = dto.LdapExtraAttributeDto{
-					Key:   claim.Key,
-					Value: claim.Value,
-					Multi: claim.Multi,
-				}
-			}
-		}
 	}
 
 	// Filters must start and finish with ()!
@@ -489,32 +428,6 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 				username: userID,
 				picture:  pictureString,
 			})
-		}
-
-		// Update LDAP attributes as custom claims
-		if len(leaUserClaims) > 0 {
-			claims := make([]dto.CustomClaimCreateDto, 0, len(leaUserClaims))
-			for attr, leaDto := range leaUserClaims {
-				var attrValue string = ""
-				if leaDto.Multi {
-					attrValues := value.GetAttributeValues(attr)
-					if len(attrValues) > 0 {
-						b, _ := json.Marshal(attrValues)
-						attrValue = string(b)
-					}
-				} else {
-					attrValue = value.GetAttributeValue(attr)
-				}
-				if attrValue != "" {
-					claims = append(claims, dto.CustomClaimCreateDto{
-						Key:    leaDto.Key,
-						Value:  attrValue,
-						IsLdap: true,
-					})
-				}
-			}
-
-			_, _ = s.userService.customClaimService.updateCustomClaimsInternal(ctx, UserID, userID, true, claims, tx)
 		}
 	}
 

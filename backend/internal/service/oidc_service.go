@@ -1915,7 +1915,7 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 
 	if slices.Contains(scopes, "profile") {
 		// Add custom claims
-		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, false, tx)
+		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, tx)
 		if err != nil {
 			return nil, err
 		}

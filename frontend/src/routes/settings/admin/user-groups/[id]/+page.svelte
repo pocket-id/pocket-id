@@ -15,7 +15,6 @@
 	import { backNavigate } from '../../users/navigate-back-util';
 	import UserGroupForm from '../user-group-form.svelte';
 	import UserSelection from '../user-selection.svelte';
-	import * as Table from '$lib/components/ui/table/index.js';
 
 	let { data } = $props();
 	let userGroup = $state({
@@ -110,31 +109,4 @@
 	<div class="mt-5 flex justify-end">
 		<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
 	</div>
-</CollapsibleCard>
-
-<CollapsibleCard
-	id="user-ldap-claims"
-	title={m.ldap_extra_attributes()}
-	description={m.ldap_extra_attributes_description()}
->
-  <Table.Root class="min-w-full table-auto overflow-x-auto">
-    <Table.Header>
-      <Table.Row>
-        <Table.Head>Attribute</Table.Head>
-        <Table.Head>Value(s)</Table.Head>
-      </Table.Row>
-    </Table.Header>
-    <Table.Body>
-      {#each userGroup.ldapAttributes as attribute}
-        <Table.Row>
-          <Table.Cell>{attribute.key}</Table.Cell>
-          <Table.Cell>{#if ["{", "["].some(p => attribute.value.startsWith(p))}
-            {@html JSON.parse(attribute.value).join('<br/> ')}
-            {:else}
-            {attribute.value}
-            {/if}</Table.Cell>
-        </Table.Row>
-      {/each}
-    </Table.Body>
-  </Table.Root>
 </CollapsibleCard>

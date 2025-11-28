@@ -81,8 +81,7 @@ func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *go
 	err := tx.
 		WithContext(ctx).
 		Preload("UserGroups").
-		Preload("CustomClaims", "not is_ldap").
-		Preload("LdapAttributes", "is_ldap").
+		Preload("CustomClaims").
 		Where("id = ?", userID).
 		First(&user).
 		Error
@@ -334,7 +333,7 @@ func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User,
 			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
 		}
 		if len(claims) > 0 {
-			_, err = s.customClaimService.updateCustomClaimsInternal(ctx, UserID, user.ID, false, claims, tx)
+			_, err = s.customClaimService.updateCustomClaimsInternal(ctx, UserID, user.ID, claims, tx)
 			if err != nil {
 				return fmt.Errorf("failed to apply default custom claims: %w", err)
 			}
