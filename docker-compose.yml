@@ -1,16 +1,25 @@
 services:
-  pocket-id:
-    image: ghcr.io/pocket-id/pocket-id:v1
+  # pocket-id:
+  #   image: ghcr.io/pocket-id/pocket-id:v1
+  #   restart: unless-stopped
+  #   env_file: .env
+  #   ports:
+  #     - 1411:1411
+  #   volumes:
+  #     - "./data:/app/data"
+  #   # Optional healthcheck
+  #   healthcheck:
+  #     test: [ "CMD", "/app/pocket-id", "healthcheck" ]
+  #     interval: 1m30s
+  #     timeout: 5s
+  #     retries: 2
+  #     start_period: 10s
+  db:
+    image: postgres
     restart: unless-stopped
-    env_file: .env
     ports:
-      - 1411:1411
-    volumes:
-      - "./data:/app/data"
-    # Optional healthcheck
-    healthcheck:
-      test: [ "CMD", "/app/pocket-id", "healthcheck" ]
-      interval: 1m30s
-      timeout: 5s
-      retries: 2
-      start_period: 10s
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: pocketid
+      POSTGRES_USER: pocketid

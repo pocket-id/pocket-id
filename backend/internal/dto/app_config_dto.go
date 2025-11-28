@@ -49,6 +49,7 @@ type AppConfigUpdateDto struct {
 	LdapAttributeGroupName                     string `json:"ldapAttributeGroupName"`
 	LdapAttributeAdminGroup                    string `json:"ldapAttributeAdminGroup"`
 	LdapSoftDeleteUsers                        string `json:"ldapSoftDeleteUsers"`
+	LdapExtraAttributes                        string `json:"ldapExtraAttributes" binding:"omitempty,json"`
 	EmailOneTimeAccessAsAdminEnabled           string `json:"emailOneTimeAccessAsAdminEnabled" binding:"required"`
 	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" binding:"required"`
 	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" binding:"required"`
