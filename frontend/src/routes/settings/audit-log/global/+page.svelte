@@ -13,7 +13,7 @@
 	let auditLogListRef: AuditLogList;
 
 	let filters: AuditLogFilter = $state({
-		userId: '',
+		userID: '',
 		event: '',
 		location: '',
 		clientName: ''
@@ -59,7 +59,7 @@
 								label: username
 							}))
 						]}
-						bind:value={filters.userId}
+						bind:value={filters.userID}
 					/>
 				{/await}
 			</div>
@@ -72,7 +72,7 @@
 							value,
 							label
 						}))
-					]}
+					]}					
 					bind:value={filters.event}
 				/>
 			</div>
