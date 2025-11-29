@@ -65,8 +65,6 @@ The backend is built with [Gin](https://gin-gonic.com) and written in Go. To set
 2. Copy the `.env.development-example` file to `.env` and edit the variables as needed
 3. Start the backend with `go run -tags exclude_frontend ./cmd`
 
-* Note: May need to create `data` folder in `backend` folder
-
 ### Frontend
 
 The frontend is built with [SvelteKit](https://kit.svelte.dev) and written in TypeScript. To set it up, follow these steps:
