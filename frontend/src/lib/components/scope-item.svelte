@@ -1,5 +1,7 @@
 <script lang="ts">
+	import * as Item from '$lib/components/ui/item/index.js';
 	import type { Icon as IconType } from '@lucide/svelte';
+
 	interface Props {
 		icon: typeof IconType;
 		name: string;
@@ -11,10 +13,12 @@
 	const SvelteComponent = $derived(icon);
 </script>
 
-<div class="flex items-center">
-	<div class="bg-muted mr-5 rounded-lg p-2"><SvelteComponent /></div>
-	<div class="text-start">
-		<h3 class="font-semibold">{name}</h3>
-		<p class="text-muted-foreground text-sm">{description}</p>
-	</div>
-</div>
+<Item.Root size="sm">
+	<Item.Media variant="icon">
+		<SvelteComponent class="size-4" />
+	</Item.Media>
+	<Item.Content>
+		<Item.Title class="font-medium">{name}</Item.Title>
+		<Item.Description class="text-xs">{description}</Item.Description>
+	</Item.Content>
+</Item.Root>

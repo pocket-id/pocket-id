@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 
 	let {
 		id,
@@ -26,14 +26,10 @@
 		onCheckedChange={(v) => onCheckedChange && onCheckedChange(v == true)}
 		bind:checked
 	/>
-	<div class="grid gap-1.5 leading-none">
-		<Label for={id} class="mb-0 text-sm leading-none font-medium">
-			{label}
-		</Label>
+	<Field.Field class="gap-0">
+		<Field.Label for={id}>{label}</Field.Label>
 		{#if description}
-			<p class="text-muted-foreground text-[0.8rem]">
-				{description}
-			</p>
+			<Field.Description>{description}</Field.Description>
 		{/if}
-	</div>
+	</Field.Field>
 </div>

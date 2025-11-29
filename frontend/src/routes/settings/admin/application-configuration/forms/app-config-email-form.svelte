@@ -3,7 +3,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import Label from '$lib/components/ui/label/label.svelte';
+	import * as Field from '$lib/components/ui/field';
 	import * as Select from '$lib/components/ui/select';
 	import { m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
@@ -112,8 +112,8 @@
 			<FormInput label={m.smtp_user()} bind:input={$inputs.smtpUser} />
 			<FormInput label={m.smtp_password()} type="password" bind:input={$inputs.smtpPassword} />
 			<FormInput label={m.smtp_from()} bind:input={$inputs.smtpFrom} />
-			<div class="grid gap-2">
-				<Label class="mb-0" for="smtp-tls">{m.smtp_tls_option()}</Label>
+			<Field.Field>
+				<Field.Label for="smtp-tls">{m.smtp_tls_option()}</Field.Label>
 				<Select.Root
 					type="single"
 					value={$inputs.smtpTls.value}
@@ -128,7 +128,7 @@
 						<Select.Item value="tls" label="TLS" />
 					</Select.Content>
 				</Select.Root>
-			</div>
+			</Field.Field>
 			<SwitchWithLabel
 				id="skip-cert-verify"
 				label={m.skip_certificate_verification()}

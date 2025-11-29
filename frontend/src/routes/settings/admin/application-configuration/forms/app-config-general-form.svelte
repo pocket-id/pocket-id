@@ -2,8 +2,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import * as Select from '$lib/components/ui/select';
+	import * as Field from '$lib/components/ui/field';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
@@ -82,21 +81,21 @@
 				bind:checked={$inputs.disableAnimations.value}
 			/>
 
-			<div class="space-y-5">
+			<Field.Field class="space-y-5">
 				<div>
-					<Label class="mb-0 text-sm font-medium">
+					<Field.Label>
 						{m.accent_color()}
-					</Label>
-					<p class="text-muted-foreground text-[0.8rem]">
+					</Field.Label>
+					<Field.Description>
 						{m.select_an_accent_color_to_customize_the_appearance_of_pocket_id()}
-					</p>
+					</Field.Description>
 				</div>
 				<AccentColorPicker
 					previousColor={appConfig.accentColor}
 					bind:selectedColor={$inputs.accentColor.value}
 					disabled={$appConfigStore.uiConfigDisabled}
 				/>
-			</div>
+			</Field.Field>
 		</div>
 		<div class="mt-5 flex justify-end">
 			<Button {isLoading} type="submit">{m.save()}</Button>
