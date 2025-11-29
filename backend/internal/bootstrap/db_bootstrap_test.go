@@ -2,6 +2,8 @@ package bootstrap
 
 import (
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,6 +84,29 @@ func TestIsSqliteInMemory(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestEnsureSqliteDatabaseDir(t *testing.T) {
+	t.Run("creates missing directory", func(t *testing.T) {
+		tempDir := t.TempDir()
+		dbPath := filepath.Join(tempDir, "nested", "pocket-id.db")
+
+		err := ensureSqliteDatabaseDir(dbPath)
+		require.NoError(t, err)
+
+		info, err := os.Stat(filepath.Dir(dbPath))
+		require.NoError(t, err)
+		assert.True(t, info.IsDir())
+	})
+
+	t.Run("fails when parent is file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		filePath := filepath.Join(tempDir, "file.txt")
+		require.NoError(t, os.WriteFile(filePath, []byte("test"), 0o600))
+
+		err := ensureSqliteDatabaseDir(filepath.Join(filePath, "data.db"))
+		require.Error(t, err)
+	})
 }
 
 func TestConvertSqlitePragmaArgs(t *testing.T) {

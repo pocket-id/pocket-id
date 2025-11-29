@@ -155,6 +155,12 @@ func connectDatabase() (db *gorm.DB, err error) {
 			return nil, err
 		}
 
+		if !isMemoryDB {
+			if err := ensureSqliteDatabaseDir(dbPath); err != nil {
+				return nil, err
+			}
+		}
+
 		// Before we connect, also make sure that there's a temporary folder for SQLite to write its data
 		err = ensureSqliteTempDir(filepath.Dir(dbPath))
 		if err != nil {
@@ -386,6 +392,27 @@ func isSqliteInMemory(connString string) bool {
 	qs, _ := url.ParseQuery(lc[(idx + 1):])
 
 	return len(qs["mode"]) > 0 && qs["mode"][0] == "memory"
+}
+
+// ensureSqliteDatabaseDir creates the parent directory for the SQLite database file if it doesn't exist yet
+func ensureSqliteDatabaseDir(dbPath string) error {
+	dir := filepath.Dir(dbPath)
+
+	info, err := os.Stat(dir)
+	switch {
+	case err == nil:
+		if !info.IsDir() {
+			return fmt.Errorf("SQLite database directory '%s' is not a directory", dir)
+		}
+		return nil
+	case os.IsNotExist(err):
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return fmt.Errorf("failed to create SQLite database directory '%s': %w", dir, err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("failed to check SQLite database directory '%s': %w", dir, err)
+	}
 }
 
 // ensureSqliteTempDir ensures that SQLite has a directory where it can write temporary files if needed
