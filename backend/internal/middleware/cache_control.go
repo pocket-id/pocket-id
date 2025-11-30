@@ -17,10 +17,10 @@ func NewCacheControlMiddleware() *CacheControlMiddleware {
 
 func (m *CacheControlMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Next()
-
 		if c.Writer.Header().Get("Cache-Control") == "" {
 			c.Header("Cache-Control", m.headerValue)
 		}
+
+		c.Next()
 	}
 }
