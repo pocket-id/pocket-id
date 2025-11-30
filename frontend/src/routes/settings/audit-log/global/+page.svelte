@@ -72,7 +72,7 @@
 							value,
 							label
 						}))
-					]}					
+					]}
 					bind:value={filters.event}
 				/>
 			</div>

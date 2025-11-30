@@ -9,8 +9,8 @@ export const eventTypes: Record<string, string> = {
 	DEVICE_CODE_AUTHORIZATION: m.device_code_authorization(),
 	NEW_DEVICE_CODE_AUTHORIZATION: m.new_device_code_authorization(),
 	PASSKEY_ADDED: m.passkey_added(),
-	PASSKEY_REMOVED: m.passkey_removed(),
-}
+	PASSKEY_REMOVED: m.passkey_removed()
+};
 
 /**
  * Translates an audit log event type using paraglide messages.
