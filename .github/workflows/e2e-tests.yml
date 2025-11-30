@@ -59,9 +59,9 @@ jobs:
       matrix:
         include:
           - db: sqlite
-            storage: fs
+            storage: filesystem
           - db: postgres
-            storage: fs
+            storage: filesystem
           - db: sqlite
             storage: s3
           - db: sqlite
