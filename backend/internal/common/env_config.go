@@ -90,7 +90,6 @@ func defaultConfig() EnvConfigSchema {
 		LogLevel:      "info",
 		DbProvider:    "sqlite",
 		FileBackend:   "filesystem",
-		FileBackend:   "filesystem",
 		AppURL:        AppUrl,
 		Port:          "1411",
 		Host:          "0.0.0.0",
