@@ -39,7 +39,9 @@
 			{/if}
 		</div>
 		<div class="flex items-center justify-between gap-4">
-			<ModeSwitcher />
+			{#if !isAuthPage}
+				<ModeSwitcher />
+			{/if}
 			{#if $userStore?.id}
 				<HeaderAvatar />
 			{/if}

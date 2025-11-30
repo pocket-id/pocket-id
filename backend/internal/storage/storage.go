@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	TypeFileSystem = "fs"
+	TypeFileSystem = "filesystem"
 	TypeS3         = "s3"
 )
 

@@ -5,12 +5,14 @@
       "name": "Backend",
       "type": "go",
       "request": "launch",
-      "envFile": "${workspaceFolder}/backend/cmd/.env",
+      "envFile": "${workspaceFolder}/backend/.env",
       "env": {
         "APP_ENV": "development"
       },
       "mode": "debug",
       "program": "${workspaceFolder}/backend/cmd/main.go",
+      "buildFlags": "-tags=exclude_frontend",
+      "cwd": "${workspaceFolder}/backend",
     },
     {
       "name": "Frontend",
