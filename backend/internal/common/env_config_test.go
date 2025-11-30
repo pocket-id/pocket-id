@@ -214,12 +214,12 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("DB_PROVIDER", "sqlite")
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("FILE_BACKEND", "FS")
+		t.Setenv("FILE_BACKEND", "FILESYSTEM")
 		t.Setenv("UPLOAD_PATH", "")
 
 		err := parseEnvConfig()
 		require.NoError(t, err)
-		assert.Equal(t, "fs", EnvConfig.FileBackend)
+		assert.Equal(t, "filesystem", EnvConfig.FileBackend)
 		assert.Equal(t, defaultFsUploadPath, EnvConfig.UploadPath)
 	})
 
