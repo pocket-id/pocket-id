@@ -14,7 +14,7 @@
 	"profile_picture": "Изображение профиля",
 	"profile_picture_is_managed_by_ldap_server": "Изображение профиля управляется сервером LDAP и не может быть изменено здесь.",
 	"click_profile_picture_to_upload_custom": "Нажмите на изображение профиля, чтобы загрузить его из ваших файлов.",
-	"image_should_be_in_format": "Изображение должно быть в формате PNG или JPEG.",
+	"image_should_be_in_format": "Изображение должно быть в формате PNG, JPEG или WEBP.",
 	"items_per_page": "Элементов на странице",
 	"no_items_found": "Элементы не найдены",
 	"select_items": "Выбрать элементы...",

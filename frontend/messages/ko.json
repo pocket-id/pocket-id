@@ -14,7 +14,7 @@
 	"profile_picture": "프로필 사진",
 	"profile_picture_is_managed_by_ldap_server": "프로필 사진이 LDAP 서버에서 관리되어 여기에서 변경할 수 없습니다.",
 	"click_profile_picture_to_upload_custom": "프로필 사진을 클릭하여 파일에서 사용자 정의 사진을 업로드하세요.",
-	"image_should_be_in_format": "이미지는 PNG 또는 JPEG 형식이어야 합니다.",
+	"image_should_be_in_format": "이미지는 PNG, JPEG 또는 WEBP 형식이어야 합니다.",
 	"items_per_page": "페이지당 항목",
 	"no_items_found": "항목 없음",
 	"select_items": "항목을 선택하세요...",

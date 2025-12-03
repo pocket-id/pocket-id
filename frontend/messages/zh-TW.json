@@ -14,7 +14,7 @@
 	"profile_picture": "個人資料圖片",
 	"profile_picture_is_managed_by_ldap_server": "這張個人資料圖片是由 LDAP 伺服器管理，無法在此變更。",
 	"click_profile_picture_to_upload_custom": "點擊個人資料圖片，從您的檔案中上傳自訂圖片。",
-	"image_should_be_in_format": "圖片應為 PNG 或 JPEG 格式。",
+	"image_should_be_in_format": "圖片應為 PNG、JPEG 或 WEBP 格式。",
 	"items_per_page": "每頁項目數",
 	"no_items_found": "找不到任何項目",
 	"select_items": "選擇項目...",

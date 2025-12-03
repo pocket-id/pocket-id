@@ -14,7 +14,7 @@
 	"profile_picture": "Фотографія профілю",
 	"profile_picture_is_managed_by_ldap_server": "Фотографія профілю управляється сервером LDAP і не може бути змінена тут.",
 	"click_profile_picture_to_upload_custom": "Натисніть на зображення профілю, щоб завантажити власне зображення.",
-	"image_should_be_in_format": "Зображення повинно бути у форматі PNG або JPEG.",
+	"image_should_be_in_format": "Зображення повинно бути у форматі PNG, JPEG або WEBP.",
 	"items_per_page": "Елементів на сторінці",
 	"no_items_found": "Нічого не знайдено",
 	"select_items": "Виберіть елементи...",
