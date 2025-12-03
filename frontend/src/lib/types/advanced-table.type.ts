@@ -3,7 +3,7 @@ import type { Component, Snippet } from 'svelte';
 export type AdvancedTableColumn<T extends Record<string, any>> = {
 	label: string;
 	column?: keyof T & string;
-    key?: string;
+	key?: string;
 	value?: (item: T) => string | number | boolean | undefined;
 	cell?: Snippet<[{ item: T }]>;
 	sortable?: boolean;
@@ -12,9 +12,11 @@ export type AdvancedTableColumn<T extends Record<string, any>> = {
 		value: string | boolean;
 		icon?: Component;
 	}[];
-    hidden?: boolean;
+	hidden?: boolean;
 };
-export type CreateAdvancedTableActions<T extends Record<string, any>> = (item: T) => AdvancedTableAction<T>[];
+export type CreateAdvancedTableActions<T extends Record<string, any>> = (
+	item: T
+) => AdvancedTableAction<T>[];
 
 export type AdvancedTableAction<T> = {
 	label: string;

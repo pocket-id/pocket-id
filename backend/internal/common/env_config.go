@@ -88,7 +88,7 @@ func defaultConfig() EnvConfigSchema {
 		AppEnv:        AppEnvProduction,
 		LogLevel:      "info",
 		DbProvider:    "sqlite",
-		FileBackend:   "fs",
+		FileBackend:   "filesystem",
 		KeysPath:      "data/keys",
 		AppURL:        AppUrl,
 		Port:          "1411",
@@ -187,12 +187,12 @@ func validateEnvConfig(config *EnvConfigSchema) error {
 		}
 	case "database":
 		// All good, these are valid values
-	case "", "fs":
+	case "", "filesystem":
 		if config.UploadPath == "" {
 			config.UploadPath = defaultFsUploadPath
 		}
 	default:
-		return errors.New("invalid FILE_BACKEND value. Must be 'fs', 'database', or 's3'")
+		return errors.New("invalid FILE_BACKEND value. Must be 'filesystem', 'database', or 's3'")
 	}
 
 	// Validate LOCAL_IPV6_RANGES

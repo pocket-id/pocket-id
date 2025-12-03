@@ -36,7 +36,10 @@
 
 	async function createLoginCode() {
 		try {
-			code = await userService.createOneTimeAccessToken(userId!, availableExpirations[selectedExpiration]);
+			code = await userService.createOneTimeAccessToken(
+				userId!,
+				availableExpirations[selectedExpiration]
+			);
 			oneTimeLink = `${page.url.origin}/lc/${code}`;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -45,7 +48,10 @@
 
 	async function sendLoginCodeEmail() {
 		try {
-			await userService.requestOneTimeAccessEmailAsAdmin(userId!, availableExpirations[selectedExpiration]);
+			await userService.requestOneTimeAccessEmailAsAdmin(
+				userId!,
+				availableExpirations[selectedExpiration]
+			);
 			toast.success(m.login_code_email_success());
 			onOpenChange(false);
 		} catch (e) {

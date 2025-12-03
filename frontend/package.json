@@ -1,6 +1,6 @@
 {
   "name": "pocket-id-frontend",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -45,7 +45,7 @@
     "formsnap": "^2.0.1",
     "globals": "^16.5.0",
     "mode-watcher": "^1.1.0",
-    "prettier": "^3.7.0",
+    "prettier": "^3.7.3",
     "prettier-plugin-svelte": "^3.4.0",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "rollup": "^4.53.3",
