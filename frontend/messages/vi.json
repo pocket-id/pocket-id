@@ -14,7 +14,7 @@
 	"profile_picture": "Ảnh đại diện",
 	"profile_picture_is_managed_by_ldap_server": "Hình đại diện được quản lý bởi máy chủ LDAP và không thể thay đổi tại đây.",
 	"click_profile_picture_to_upload_custom": "Nhấp vào hình ảnh hồ sơ để tải lên hình ảnh tùy chỉnh.",
-	"image_should_be_in_format": "Hình ảnh phải ở định dạng PNG hoặc JPEG.",
+	"image_should_be_in_format": "Hình ảnh phải ở định dạng PNG, JPEG hoặc WEBP.",
 	"items_per_page": "Số kết quả mỗi trang",
 	"no_items_found": "Không tìm thấy kết quả nào",
 	"select_items": "Chọn các mục...",

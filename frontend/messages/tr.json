@@ -14,7 +14,7 @@
 	"profile_picture": "Profil resmi",
 	"profile_picture_is_managed_by_ldap_server": "Profil resmi LDAP sunucusu tarafından yönetilmektedir ve burada değiştirilemez.",
 	"click_profile_picture_to_upload_custom": "Özel bir resim yüklemek için profil resmine tıklayın.",
-	"image_should_be_in_format": "Resim PNG veya JPEG formatın’da olmalıdır.",
+	"image_should_be_in_format": "Resim PNG, JPEG veya WEBP formatın’da olmalıdır.",
 	"items_per_page": "Sayfa başına öğe sayısı",
 	"no_items_found": "Hiçbir öğe bulunamadı",
 	"select_items": "Öğeleri seçin...",

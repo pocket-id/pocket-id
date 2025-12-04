@@ -14,7 +14,7 @@
 	"profile_picture": "プロフィール画像",
 	"profile_picture_is_managed_by_ldap_server": "プロフィール画像はLDAPサーバーによって管理されており、ここでは変更できません。",
 	"click_profile_picture_to_upload_custom": "プロフィール画像をクリックして、ファイルからカスタム画像をアップロードします。",
-	"image_should_be_in_format": "画像はPNGまたはJPEG形式である必要があります。",
+	"image_should_be_in_format": "画像はPNG、JPEG、またはWEBP形式である必要があります。",
 	"items_per_page": "ページあたりの表示件数",
 	"no_items_found": "項目が見つかりません",
 	"select_items": "項目を選択…",
