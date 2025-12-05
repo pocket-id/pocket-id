@@ -55,13 +55,13 @@ const (
 )
 
 // UpdateCustomClaimsForUser updates the custom claims for a user
-func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, userID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
+func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, userID string, isLdap bool, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
+	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserID, userID, isLdap, claims, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -75,13 +75,13 @@ func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, user
 }
 
 // UpdateCustomClaimsForUserGroup updates the custom claims for a user group
-func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context, userGroupID string, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
+func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context, userGroupID string, isLdap bool, claims []dto.CustomClaimCreateDto) ([]model.CustomClaim, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserGroupID, userGroupID, claims, tx)
+	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserGroupID, userGroupID, isLdap, claims, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context,
 }
 
 // updateCustomClaimsInternal updates the custom claims for a user or user group within a transaction
-func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idType idType, value string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
+func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idType idType, value string, isLdap bool, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
 	// Check for duplicate keys in the claims slice
 	seenKeys := make(map[string]struct{})
 	for _, claim := range claims {
@@ -108,7 +108,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 	var existingClaims []model.CustomClaim
 	err := tx.
 		WithContext(ctx).
-		Where(string(idType), value).
+		Where(string(idType)+" = ? AND is_ldap = ?", value, isLdap).
 		Find(&existingClaims).
 		Error
 	if err != nil {
@@ -119,7 +119,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 	for _, existingClaim := range existingClaims {
 		found := false
 		for _, claim := range claims {
-			if claim.Key == existingClaim.Key {
+			if claim.Key == existingClaim.Key && claim.IsLdap == existingClaim.IsLdap {
 				found = true
 				break
 			}
@@ -142,8 +142,9 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 			return nil, &common.ReservedClaimError{Key: claim.Key}
 		}
 		customClaim := model.CustomClaim{
-			Key:   claim.Key,
-			Value: claim.Value,
+			Key:    claim.Key,
+			Value:  claim.Value,
+			IsLdap: claim.IsLdap,
 		}
 
 		switch idType {
@@ -156,7 +157,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 		// Update the claim if it already exists or create a new one
 		err = tx.
 			WithContext(ctx).
-			Where(string(idType)+" = ? AND key = ?", value, claim.Key).
+			Where(string(idType)+" = ? AND key = ? AND is_ldap = ?", value, claim.Key, isLdap).
 			Assign(&customClaim).
 			FirstOrCreate(&model.CustomClaim{}).
 			Error
@@ -169,7 +170,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 	var updatedClaims []model.CustomClaim
 	err = tx.
 		WithContext(ctx).
-		Where(string(idType)+" = ?", value).
+		Where(string(idType)+" = ? AND is_ldap = ?", value, isLdap).
 		Find(&updatedClaims).
 		Error
 	if err != nil {
@@ -179,7 +180,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 	return updatedClaims, nil
 }
 
-func (s *CustomClaimService) GetCustomClaimsForUser(ctx context.Context, userID string, tx *gorm.DB) ([]model.CustomClaim, error) {
+func (s *CustomClaimService) GetCustomClaimsForUser(ctx context.Context, userID string, isLdap bool, tx *gorm.DB) ([]model.CustomClaim, error) {
 	var customClaims []model.CustomClaim
 	err := tx.
 		WithContext(ctx).
@@ -189,11 +190,11 @@ func (s *CustomClaimService) GetCustomClaimsForUser(ctx context.Context, userID 
 	return customClaims, err
 }
 
-func (s *CustomClaimService) GetCustomClaimsForUserGroup(ctx context.Context, userGroupID string, tx *gorm.DB) ([]model.CustomClaim, error) {
+func (s *CustomClaimService) GetCustomClaimsForUserGroup(ctx context.Context, userGroupID string, isLdap bool, tx *gorm.DB) ([]model.CustomClaim, error) {
 	var customClaims []model.CustomClaim
 	err := tx.
 		WithContext(ctx).
-		Where("user_group_id = ?", userGroupID).
+		Where("user_group_id = ? AND is_ldap = ?", userGroupID, isLdap).
 		Find(&customClaims).
 		Error
 	return customClaims, err
@@ -201,9 +202,9 @@ func (s *CustomClaimService) GetCustomClaimsForUserGroup(ctx context.Context, us
 
 // GetCustomClaimsForUserWithUserGroups returns the custom claims of a user and all user groups the user is a member of,
 // prioritizing the user's claims over user group claims with the same key.
-func (s *CustomClaimService) GetCustomClaimsForUserWithUserGroups(ctx context.Context, userID string, tx *gorm.DB) ([]model.CustomClaim, error) {
+func (s *CustomClaimService) GetCustomClaimsForUserWithUserGroups(ctx context.Context, userID string, isLdap bool, tx *gorm.DB) ([]model.CustomClaim, error) {
 	// Get the custom claims of the user
-	customClaims, err := s.GetCustomClaimsForUser(ctx, userID, tx)
+	customClaims, err := s.GetCustomClaimsForUser(ctx, userID, isLdap, tx)
 	if err != nil {
 		return nil, err
 	}

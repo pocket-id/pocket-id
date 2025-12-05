@@ -24,7 +24,8 @@ func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService) *UserG
 func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
 	query := s.db.
 		WithContext(ctx).
-		Preload("CustomClaims").
+		Preload("CustomClaims", "not is_ldap").
+		Preload("LdapAttributes", "is_ldap").
 		Model(&model.UserGroup{})
 
 	if name != "" {
@@ -51,7 +52,8 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 	err = tx.
 		WithContext(ctx).
 		Where("id = ?", id).
-		Preload("CustomClaims").
+		Preload("CustomClaims", "not is_ldap").
+		Preload("LdapAttributes", "is_ldap").
 		Preload("Users").
 		First(&group).
 		Error

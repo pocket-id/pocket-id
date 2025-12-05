@@ -12,6 +12,7 @@ export type User = {
 	isAdmin: boolean;
 	userGroups: UserGroup[];
 	customClaims: CustomClaim[];
+	ldapAttributes: CustomClaim[];
 	locale?: Locale;
 	ldapId?: string;
 	disabled?: boolean;
