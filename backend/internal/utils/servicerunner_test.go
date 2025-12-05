@@ -61,6 +61,26 @@ func TestServiceRunner_Run(t *testing.T) {
 		require.ErrorIs(t, err, expectedErr)
 	})
 
+	t.Run("service error cancels others", func(t *testing.T) {
+		expectedErr := errors.New("boom")
+		errorService := func(ctx context.Context) error {
+			return expectedErr
+		}
+		waitingService := func(ctx context.Context) error {
+			<-ctx.Done()
+			return ctx.Err()
+		}
+
+		runner := NewServiceRunner(errorService, waitingService)
+
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+
+		err := runner.Run(ctx)
+		require.Error(t, err)
+		require.ErrorIs(t, err, expectedErr)
+	})
+
 	t.Run("context canceled", func(t *testing.T) {
 		// Create a service that waits until context is canceled
 		waitingService := func(ctx context.Context) error {

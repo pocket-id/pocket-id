@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
@@ -15,6 +16,16 @@ import (
 )
 
 func Bootstrap(ctx context.Context) error {
+	var shutdownFns []utils.Service
+	defer func() { //nolint:contextcheck
+		// Invoke all shutdown functions on exit
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := utils.NewServiceRunner(shutdownFns...).Run(shutdownCtx); err != nil {
+			slog.Error("Error during graceful shutdown", "error", err)
+		}
+	}()
+
 	// Initialize the observability stack, including the logger, distributed tracing, and metrics
 	shutdownFns, httpClient, err := initObservability(ctx, common.EnvConfig.MetricsEnabled, common.EnvConfig.TracingEnabled)
 	if err != nil {
@@ -22,15 +33,80 @@ func Bootstrap(ctx context.Context) error {
 	}
 	slog.InfoContext(ctx, "Pocket ID is starting")
 
-	// Connect to the database
 	db, err := NewDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	// Initialize the file storage backend
-	var fileStorage storage.FileStorage
+	fileStorage, err := InitStorage(ctx, db)
+	if err != nil {
+		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
+	}
 
+	imageExtensions, err := initApplicationImages(ctx, fileStorage)
+	if err != nil {
+		return fmt.Errorf("failed to initialize application images: %w", err)
+	}
+
+	// Create all services
+	svc, err := initServices(ctx, db, httpClient, imageExtensions, fileStorage)
+	if err != nil {
+		return fmt.Errorf("failed to initialize services: %w", err)
+	}
+
+	waitUntil, err := svc.appLockService.Acquire(ctx, false)
+	if err != nil {
+		return fmt.Errorf("failed to acquire application lock: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(time.Until(waitUntil)):
+	}
+
+	shutdownFn := func(shutdownCtx context.Context) error {
+		sErr := svc.appLockService.Release(shutdownCtx)
+		if sErr != nil {
+			return fmt.Errorf("failed to release application lock: %w", sErr)
+		}
+		return nil
+	}
+	shutdownFns = append(shutdownFns, shutdownFn)
+
+	// Init the job scheduler
+	scheduler, err := job.NewScheduler()
+	if err != nil {
+		return fmt.Errorf("failed to create job scheduler: %w", err)
+	}
+	err = registerScheduledJobs(ctx, db, svc, httpClient, scheduler)
+	if err != nil {
+		return fmt.Errorf("failed to register scheduled jobs: %w", err)
+	}
+
+	// Init the router
+	router, err := initRouter(db, svc)
+	if err != nil {
+		return fmt.Errorf("failed to initialize router: %w", err)
+	}
+
+	// Run all background services
+	// This call blocks until the context is canceled
+	services := []utils.Service{svc.appLockService.RunRenewal, router}
+
+	if common.EnvConfig.AppEnv != "test" {
+		services = append(services, scheduler.Run)
+	}
+
+	err = utils.NewServiceRunner(services...).Run(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to run services: %w", err)
+	}
+
+	return nil
+}
+
+func InitStorage(ctx context.Context, db *gorm.DB) (fileStorage storage.FileStorage, err error) {
 	switch common.EnvConfig.FileBackend {
 	case storage.TypeFileSystem:
 		fileStorage, err = storage.NewFilesystemStorage(common.EnvConfig.UploadPath)
@@ -52,53 +128,8 @@ func Bootstrap(ctx context.Context) error {
 		err = fmt.Errorf("unknown file storage backend: %s", common.EnvConfig.FileBackend)
 	}
 	if err != nil {
-		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
+		return fileStorage, err
 	}
 
-	imageExtensions, err := initApplicationImages(ctx, fileStorage)
-	if err != nil {
-		return fmt.Errorf("failed to initialize application images: %w", err)
-	}
-
-	// Create all services
-	svc, err := initServices(ctx, db, httpClient, imageExtensions, fileStorage)
-	if err != nil {
-		return fmt.Errorf("failed to initialize services: %w", err)
-	}
-
-	// Init the job scheduler
-	scheduler, err := job.NewScheduler()
-	if err != nil {
-		return fmt.Errorf("failed to create job scheduler: %w", err)
-	}
-	err = registerScheduledJobs(ctx, db, svc, httpClient, scheduler)
-	if err != nil {
-		return fmt.Errorf("failed to register scheduled jobs: %w", err)
-	}
-
-	// Init the router
-	router := initRouter(db, svc)
-
-	// Run all background services
-	// This call blocks until the context is canceled
-	err = utils.
-		NewServiceRunner(router, scheduler.Run).
-		Run(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to run services: %w", err)
-	}
-
-	// Invoke all shutdown functions
-	// We give these a timeout of 5s
-	// Note: we use a background context because the run context has been canceled already
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdownCancel()
-	err = utils.
-		NewServiceRunner(shutdownFns...).
-		Run(shutdownCtx) //nolint:contextcheck
-	if err != nil {
-		slog.Error("Error shutting down services", slog.Any("error", err))
-	}
-
-	return nil
+	return fileStorage, nil
 }
