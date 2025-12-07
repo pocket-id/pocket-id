@@ -151,3 +151,33 @@ type OidcDeviceCode struct {
 	ClientID string
 	Client   OidcClient
 }
+
+type OidcAPI struct {
+	Base
+
+	Name       string      `sortable:"true"`
+	Identifier string      `sortable:"true"`
+	Data       OidcAPIData `gorm:"type:text"`
+}
+
+func (a OidcAPI) DefaultIdentifier() string {
+	return "api://" + a.Identifier
+}
+
+//nolint:recvcheck
+type OidcAPIData struct {
+	Permissions []OidcAPIPermission `json:"permissions"`
+}
+
+func (p *OidcAPIData) Scan(value any) error {
+	return utils.UnmarshalJSONFromDatabase(p, value)
+}
+
+func (p OidcAPIData) Value() (driver.Value, error) {
+	return json.Marshal(p)
+}
+
+type OidcAPIPermission struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}

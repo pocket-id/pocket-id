@@ -1433,7 +1433,6 @@ func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id stri
 }
 
 func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
-
 	query := s.db.
 		WithContext(ctx).
 		Model(&model.UserAuthorizedOidcClient{}).
@@ -2119,6 +2118,109 @@ func (s *OidcService) updateClientLogoType(ctx context.Context, clientID string,
 	if currentType != nil && *currentType != ext {
 		old := path.Join("oidc-client-images", client.ID+darkSuffix+"."+*currentType)
 		_ = s.fileStorage.Delete(ctx, old)
+	}
+
+	return nil
+}
+
+func (s *OidcService) CreateAPI(ctx context.Context, input dto.OidcAPICreateDto) (model.OidcAPI, error) {
+	api := model.OidcAPI{
+		Name: input.Name,
+	}
+
+	err := s.db.
+		WithContext(ctx).
+		Create(&api).
+		Error
+	if err != nil {
+		return model.OidcAPI{}, fmt.Errorf("failed to create API in database: %w", err)
+	}
+
+	return api, nil
+}
+
+func (s *OidcService) GetAPI(ctx context.Context, id string) (model.OidcAPI, error) {
+	var api model.OidcAPI
+	err := s.db.
+		WithContext(ctx).
+		First(&api, "id = ?", id).
+		Error
+	if err != nil {
+		return model.OidcAPI{}, fmt.Errorf("failed to get API from database: %w", err)
+	}
+
+	return api, nil
+}
+
+func (s *OidcService) ListAPIs(ctx context.Context, searchTerm string, listRequestOptions utils.ListRequestOptions) ([]model.OidcAPI, utils.PaginationResponse, error) {
+	var apis []model.OidcAPI
+
+	query := s.db.
+		WithContext(ctx).
+		Model(&model.OidcAPI{})
+
+	if searchTerm != "" {
+		query = query.Where("id = ? OR name = ? OR identifier = ?", searchTerm, searchTerm, searchTerm)
+	}
+
+	response, err := utils.PaginateFilterAndSort(listRequestOptions, query, &apis)
+	return apis, response, err
+}
+
+func (s *OidcService) UpdateAPI(ctx context.Context, id string, input dto.OidcAPIUpdateDto) (model.OidcAPI, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var api model.OidcAPI
+	err := tx.
+		WithContext(ctx).
+		First(&api, "id = ?", id).
+		Error
+	if err != nil {
+		return model.OidcAPI{}, fmt.Errorf("failed to get API from database: %w", err)
+	}
+
+	api.Name = input.Name
+	api.Identifier = input.Identifier
+
+	// Convert permissions from DTO to model
+	api.Data.Permissions = make([]model.OidcAPIPermission, len(input.Permissions))
+	for i, p := range input.Permissions {
+		api.Data.Permissions[i] = model.OidcAPIPermission{
+			Name:        p.Name,
+			Description: p.Description,
+		}
+	}
+
+	err = tx.
+		WithContext(ctx).
+		Save(&api).
+		Error
+	if err != nil {
+		return model.OidcAPI{}, fmt.Errorf("failed to save API in database: %w", err)
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.OidcAPI{}, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return api, nil
+}
+
+func (s *OidcService) DeleteAPI(ctx context.Context, id string) error {
+	result := s.db.
+		WithContext(ctx).
+		Delete(&model.OidcAPI{}, "id = ?", id)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 
 	return nil

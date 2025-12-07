@@ -63,6 +63,12 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAccessibleClientsHandler)
 
+	// OIDC API (Resource Server) routes
+	group.POST("/oidc/apis", authMiddleware.Add(), oc.createAPIHandler)
+	group.GET("/oidc/apis", authMiddleware.Add(), oc.listAPIsHandler)
+	group.GET("/oidc/apis/:id", authMiddleware.Add(), oc.getAPIHandler)
+	group.POST("/oidc/apis/:id", authMiddleware.Add(), oc.updateAPIHandler)
+	group.DELETE("/oidc/apis/:id", authMiddleware.Add(), oc.deleteAPIHandler)
 }
 
 type OidcController struct {
@@ -844,4 +850,152 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, preview)
+}
+
+// createAPIHandler godoc
+// @Summary Create OIDC API
+// @Description Create a new OIDC API (resource server)
+// @Tags OIDC
+// @Accept json
+// @Produce json
+// @Param api body dto.OidcAPICreateDto true "API information"
+// @Success 201 {object} dto.OidcAPIDto "Created API"
+// @Router /api/oidc/apis [post]
+func (oc *OidcController) createAPIHandler(c *gin.Context) {
+	var input dto.OidcAPICreateDto
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	api, err := oc.oidcService.CreateAPI(c.Request.Context(), input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var apiDto dto.OidcAPIDto
+	err = dto.MapStruct(api, &apiDto)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, apiDto)
+}
+
+// listAPIsHandler godoc
+// @Summary List OIDC APIs
+// @Description Get a paginated list of OIDC APIs (resource servers)
+// @Tags OIDC
+// @Param search query string false "Search term to filter APIs by name"
+// @Param pagination[page] query int false "Page number for pagination" default(1)
+// @Param pagination[limit] query int false "Number of items per page" default(20)
+// @Param sort[column] query string false "Column to sort by"
+// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
+// @Success 200 {object} dto.Paginated[dto.OidcAPIDto]
+// @Router /api/oidc/apis [get]
+func (oc *OidcController) listAPIsHandler(c *gin.Context) {
+	searchTerm := c.Query("search")
+	listRequestOptions := utils.ParseListRequestOptions(c)
+
+	apis, pagination, err := oc.oidcService.ListAPIs(c.Request.Context(), searchTerm, listRequestOptions)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	apisDto := make([]dto.OidcAPIDto, len(apis))
+	for i, api := range apis {
+		var apiDto dto.OidcAPIDto
+		err = dto.MapStruct(api, &apiDto)
+		if err != nil {
+			_ = c.Error(err)
+			return
+		}
+		apisDto[i] = apiDto
+	}
+
+	c.JSON(http.StatusOK, dto.Paginated[dto.OidcAPIDto]{
+		Data:       apisDto,
+		Pagination: pagination,
+	})
+}
+
+// getAPIHandler godoc
+// @Summary Get OIDC API
+// @Description Get detailed information about an OIDC API (resource server)
+// @Tags OIDC
+// @Produce json
+// @Param id path string true "API ID"
+// @Success 200 {object} dto.OidcAPIDto "API information"
+// @Router /api/oidc/apis/{id} [get]
+func (oc *OidcController) getAPIHandler(c *gin.Context) {
+	apiID := c.Param("id")
+	api, err := oc.oidcService.GetAPI(c.Request.Context(), apiID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var apiDto dto.OidcAPIDto
+	err = dto.MapStruct(api, &apiDto)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, apiDto)
+}
+
+// updateAPIHandler godoc
+// @Summary Update OIDC API
+// @Description Update an existing OIDC API (resource server)
+// @Tags OIDC
+// @Accept json
+// @Produce json
+// @Param id path string true "API ID"
+// @Param api body dto.OidcAPIUpdateDto true "API information"
+// @Success 200 {object} dto.OidcAPIDto "Updated API"
+// @Router /api/oidc/apis/{id} [post]
+func (oc *OidcController) updateAPIHandler(c *gin.Context) {
+	var input dto.OidcAPIUpdateDto
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	api, err := oc.oidcService.UpdateAPI(c.Request.Context(), c.Param("id"), input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var apiDto dto.OidcAPIDto
+	err = dto.MapStruct(api, &apiDto)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, apiDto)
+}
+
+// deleteAPIHandler godoc
+// @Summary Delete OIDC API
+// @Description Delete an OIDC API (resource server) by ID
+// @Tags OIDC
+// @Param id path string true "API ID"
+// @Success 204 "No Content"
+// @Router /api/oidc/apis/{id} [delete]
+func (oc *OidcController) deleteAPIHandler(c *gin.Context) {
+	err := oc.oidcService.DeleteAPI(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

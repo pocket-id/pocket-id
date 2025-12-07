@@ -178,3 +178,26 @@ type AccessibleOidcClientDto struct {
 	OidcClientMetaDataDto
 	LastUsedAt *datatype.DateTime `json:"lastUsedAt"`
 }
+
+type OidcAPIDto struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Identifier  string                 `json:"identifier"`
+	Permissions []OidcAPIPermissionDto `json:"permissions"`
+	CreatedAt   datatype.DateTime      `json:"createdAt"`
+}
+
+type OidcAPIPermissionDto struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type OidcAPICreateDto struct {
+	Name string `json:"name" binding:"required,max=100" unorm:"nfc"`
+}
+
+type OidcAPIUpdateDto struct {
+	Name        string                 `json:"name" binding:"required,max=100" unorm:"nfc"`
+	Identifier  string                 `json:"identifier" binding:"omitempty,url,max=255"`
+	Permissions []OidcAPIPermissionDto `json:"permissions" binding:"omitempty,dive"`
+}
