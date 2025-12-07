@@ -14,7 +14,7 @@
 	"profile_picture": "Profilový obrázek",
 	"profile_picture_is_managed_by_ldap_server": "Profilový obrázek je spravován LDAP serverem a nelze jej zde změnit.",
 	"click_profile_picture_to_upload_custom": "Klikněte na profilový obrázek pro nahrání vlastního ze souborů.",
-	"image_should_be_in_format": "Obrázek by měl být ve formátu PNG nebo JPEG.",
+	"image_should_be_in_format": "Obrázek by měl být ve formátu PNG, JPEG nebo WEBP.",
 	"items_per_page": "Položek na stránku",
 	"no_items_found": "Nenalezeny žádné položky",
 	"select_items": "Vyberte položky...",

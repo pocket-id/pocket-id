@@ -14,7 +14,7 @@
 	"profile_picture": "Zdjęcie profilowe",
 	"profile_picture_is_managed_by_ldap_server": "Zdjęcie profilowe jest zarządzane przez serwer LDAP i nie można go tutaj zmienić.",
 	"click_profile_picture_to_upload_custom": "Kliknij zdjęcie profilowe, aby przesłać własne z plików.",
-	"image_should_be_in_format": "Obraz powinien być w formacie PNG lub JPEG.",
+	"image_should_be_in_format": "Obraz powinien być w formacie PNG, JPEG lub WEBP.",
 	"items_per_page": "Elementów na stronę",
 	"no_items_found": "Nie znaleziono żadnych elementów",
 	"select_items": "Wybierz elementy...",

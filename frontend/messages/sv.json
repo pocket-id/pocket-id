@@ -14,7 +14,7 @@
 	"profile_picture": "Profilbild",
 	"profile_picture_is_managed_by_ldap_server": "Profilbilden hanteras av LDAP-servern och kan inte ändras här.",
 	"click_profile_picture_to_upload_custom": "Klicka på profilbilden för att ladda upp en anpassad bild från dina filer.",
-	"image_should_be_in_format": "Bilden ska vara i PNG- eller JPEG-format.",
+	"image_should_be_in_format": "Bilden ska vara i PNG-, JPEG- eller WEBP-format.",
 	"items_per_page": "Objekt per sida",
 	"no_items_found": "Inga objekt hittades",
 	"select_items": "Välj objekt...",

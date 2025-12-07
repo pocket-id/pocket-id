@@ -14,7 +14,7 @@
 	"profile_picture": "Profiilikuva",
 	"profile_picture_is_managed_by_ldap_server": "Profiilikuva hallitaan LDAP-palvelimella, eikä sitä voi muuttaa tässä.",
 	"click_profile_picture_to_upload_custom": "Napsauta profiilikuvaa ladataksesi kuvan tiedostoistasi.",
-	"image_should_be_in_format": "Kuvan tulee olla PNG- tai JPEG-muodossa.",
+	"image_should_be_in_format": "Kuvan tulee olla PNG-, JPEG- tai WEBP-muodossa.",
 	"items_per_page": "Kohteita per sivu",
 	"no_items_found": "Kohteita ei löytynyt",
 	"select_items": "Valitse kohteet...",

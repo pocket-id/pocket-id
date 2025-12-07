@@ -54,6 +54,8 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 60)
 
 	// Setup global middleware
+	r.Use(middleware.HeadMiddleware())
+	r.Use(middleware.NewCacheControlMiddleware().Add())
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewCspMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
@@ -101,7 +103,17 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	srv := &http.Server{
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
-		Handler:           r,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			// HEAD requests don't get matched by Gin routes, so we convert them to GET
+			// middleware.HeadMiddleware will convert them back to HEAD later
+			if req.Method == http.MethodHead {
+				req.Method = http.MethodGet
+				ctx := context.WithValue(req.Context(), middleware.IsHeadRequestCtxKey{}, true)
+				req = req.WithContext(ctx)
+			}
+
+			r.ServeHTTP(w, req)
+		}),
 	}
 
 	// Set up the listener
