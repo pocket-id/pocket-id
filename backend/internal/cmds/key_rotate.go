@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
@@ -78,7 +79,7 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, envConfig
 		}
 		if !ok {
 			fmt.Println("Aborted")
-			return nil
+			os.Exit(1)
 		}
 	}
 

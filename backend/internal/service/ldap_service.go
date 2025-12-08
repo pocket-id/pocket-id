@@ -371,7 +371,7 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		// Check if user is admin by checking if they are in the admin group
 		isAdmin := false
 		for _, group := range value.GetAttributeValues("memberOf") {
-			if getDNProperty(dbConfig.LdapAttributeGroupName.Value, group) == dbConfig.LdapAttributeAdminGroup.Value {
+			if getDNProperty(dbConfig.LdapAttributeGroupName.Value, group) == dbConfig.LdapAdminGroupName.Value {
 				isAdmin = true
 				break
 			}
