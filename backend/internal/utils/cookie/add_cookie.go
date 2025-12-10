@@ -15,5 +15,5 @@ func AddSessionIdCookie(c *gin.Context, maxAgeInSeconds int, sessionID string) {
 }
 
 func AddDeviceTokenCookie(c *gin.Context, deviceToken string) {
-	c.SetCookie(DeviceTokenCookieName, deviceToken, int(15*time.Minute.Seconds()), "/api/one-time-access-email", "", true, true)
+	c.SetCookie(DeviceTokenCookieName, deviceToken, int(15*time.Minute.Seconds()), "/api/one-time-access-token", "", true, true)
 }
