@@ -8,7 +8,7 @@ import (
 
 var AccessTokenCookieName = "__Host-access_token"
 var SessionIdCookieName = "__Host-session"
-var DeviceTokenCookieName = "__Host-device_token"
+var DeviceTokenCookieName = "__Host-device_token" //nolint:gosec
 
 func init() {
 	if strings.HasPrefix(common.EnvConfig.AppURL, "http://") {

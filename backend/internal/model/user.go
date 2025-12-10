@@ -87,9 +87,9 @@ func (u User) Initials() string {
 
 type OneTimeAccessToken struct {
 	Base
-	Token     string
+	Token       string
 	DeviceToken *string
-	ExpiresAt datatype.DateTime
+	ExpiresAt   datatype.DateTime
 
 	UserID string
 	User   User
