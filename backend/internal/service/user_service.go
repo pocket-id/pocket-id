@@ -546,7 +546,7 @@ func (s *UserService) ExchangeOneTimeAccessToken(ctx context.Context, token, dev
 	var oneTimeAccessToken model.OneTimeAccessToken
 	err := tx.
 		WithContext(ctx).
-		Where("token = ? AND expires_at > ? AND (device_token IS NULL OR device_token = ?)", token, datatype.DateTime(time.Now()), deviceToken).
+		Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).
 		Preload("User").
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&oneTimeAccessToken).
@@ -557,6 +557,10 @@ func (s *UserService) ExchangeOneTimeAccessToken(ctx context.Context, token, dev
 		}
 		return model.User{}, "", err
 	}
+	if oneTimeAccessToken.DeviceToken != nil && deviceToken != *oneTimeAccessToken.DeviceToken {
+		return model.User{}, "", &common.DeviceCodeInvalid{}
+	}
+
 	accessToken, err := s.jwtService.GenerateAccessToken(oneTimeAccessToken.User)
 	if err != nil {
 		return model.User{}, "", err
