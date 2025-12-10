@@ -519,7 +519,7 @@ func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, use
 }
 
 func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID string, ttl time.Duration) (token string, err error) {
-	token, _, err = s.createOneTimeAccessTokenInternal(ctx, userID, ttl, true, s.db)
+	token, _, err = s.createOneTimeAccessTokenInternal(ctx, userID, ttl, false, s.db)
 	return token, err
 }
 
