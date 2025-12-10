@@ -51,7 +51,7 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 			}
 
 			// Create a new access token that expires in 1 hour
-			oneTimeAccessToken, txErr = service.NewOneTimeAccessToken(user.ID, time.Hour)
+			oneTimeAccessToken, txErr = service.NewOneTimeAccessToken(user.ID, time.Hour, false)
 			if txErr != nil {
 				return fmt.Errorf("failed to generate access token: %w", txErr)
 			}
