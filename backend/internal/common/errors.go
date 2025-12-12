@@ -38,6 +38,13 @@ type TokenInvalidOrExpiredError struct{}
 func (e *TokenInvalidOrExpiredError) Error() string       { return "token is invalid or expired" }
 func (e *TokenInvalidOrExpiredError) HttpStatusCode() int { return 400 }
 
+type DeviceCodeInvalid struct{}
+
+func (e *DeviceCodeInvalid) Error() string {
+	return "one time access code must be used on the device it was generated for"
+}
+func (e *DeviceCodeInvalid) HttpStatusCode() int { return 400 }
+
 type TokenInvalidError struct{}
 
 func (e *TokenInvalidError) Error() string {
