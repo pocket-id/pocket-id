@@ -7,6 +7,7 @@ export type UserGroup = {
 	name: string;
 	createdAt: string;
 	customClaims: CustomClaim[];
+	ldapAttributes: CustomClaim[];
 	ldapId?: string;
 };
 
