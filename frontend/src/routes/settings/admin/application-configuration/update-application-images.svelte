@@ -87,7 +87,8 @@
 	<Button
 		class="mt-5"
 		usePromiseLoading
-		onclick={() => callback(logoLight, logoDark, logoEmail, defaultProfilePicture, backgroundImage, favicon)}
+		onclick={() =>
+			callback(logoLight, logoDark, logoEmail, defaultProfilePicture, backgroundImage, favicon)}
 		>{m.save()}</Button
 	>
 </div>

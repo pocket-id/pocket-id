@@ -53,7 +53,7 @@ export default class AppConfigService extends APIService {
 
 		await this.api.put(`/application-images/email`, formData);
 		cachedEmailLogo.bustCache();
-	}
+	};
 
 	updateDefaultProfilePicture = async (defaultProfilePicture: File) => {
 		const formData = new FormData();
