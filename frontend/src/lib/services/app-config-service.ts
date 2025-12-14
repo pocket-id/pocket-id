@@ -4,6 +4,7 @@ import {
 	cachedApplicationLogo,
 	cachedBackgroundImage,
 	cachedDefaultProfilePicture,
+	cachedEmailLogo,
 	cachedProfilePicture
 } from '$lib/utils/cached-image-util';
 import { get } from 'svelte/store';
@@ -45,6 +46,14 @@ export default class AppConfigService extends APIService {
 		});
 		cachedApplicationLogo.bustCache(light);
 	};
+
+	updateEmailLogo = async (emailLogo: File) => {
+		const formData = new FormData();
+		formData.append('file', emailLogo);
+
+		await this.api.put(`/application-images/email`, formData);
+		cachedEmailLogo.bustCache();
+	}
 
 	updateDefaultProfilePicture = async (defaultProfilePicture: File) => {
 		const formData = new FormData();

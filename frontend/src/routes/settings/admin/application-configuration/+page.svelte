@@ -42,6 +42,7 @@
 	async function updateImages(
 		logoLight: File | undefined,
 		logoDark: File | undefined,
+		logoEmail: File | undefined,
 		defaultProfilePicture: File | null | undefined,
 		backgroundImage: File | undefined,
 		favicon: File | undefined
@@ -54,6 +55,10 @@
 
 		const darkLogoPromise = logoDark
 			? appConfigService.updateLogo(logoDark, false)
+			: Promise.resolve();
+
+		const emailLogoPromise = logoEmail
+			? appConfigService.updateEmailLogo(logoEmail)
 			: Promise.resolve();
 
 		const defaultProfilePicturePromise =
@@ -70,6 +75,7 @@
 		await Promise.all([
 			lightLogoPromise,
 			darkLogoPromise,
+			emailLogoPromise,
 			defaultProfilePicturePromise,
 			backgroundImagePromise,
 			faviconPromise
