@@ -198,6 +198,7 @@ func initLogger(r *gin.Engine) {
 		"GET /api/application-images/logo",
 		"GET /api/application-images/background",
 		"GET /api/application-images/favicon",
+		"GET /api/application-images/email",
 		"GET /_app",
 		"GET /fonts",
 		"GET /healthz",
