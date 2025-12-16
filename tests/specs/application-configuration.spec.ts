@@ -157,7 +157,7 @@ test.describe('Update application images', () => {
 		await emailLogoInput.setInputFiles('assets/nextcloud-logo.svg');
 		await page.getByRole('button', { name: 'Save' }).last().click();
 
-		await expect(page.locator('[data-type="success"]')).toHaveText(
+		await expect(page.locator('[data-type="error"]')).toHaveText(
 			'File must be of type .png or .jpg/jpeg'
 		);
 	});
