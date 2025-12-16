@@ -1,3 +1,5 @@
+-- This migration is part of v2
+
 PRAGMA foreign_keys = OFF;
 
 BEGIN;
