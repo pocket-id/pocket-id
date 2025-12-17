@@ -11,10 +11,12 @@
 	type WithoutChildren = {
 		children?: undefined;
 		input?: FormInput<string | boolean | number | Date | undefined>;
+		labelFor?: never;
 	};
 	type WithChildren = {
 		children: Snippet;
 		input?: any;
+		labelFor?: string;
 	};
 
 	let {
@@ -27,6 +29,7 @@
 		type = 'text',
 		children,
 		onInput,
+		labelFor,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> &
 		(WithChildren | WithoutChildren) & {
@@ -44,7 +47,7 @@
 
 <div {...restProps}>
 	{#if label}
-		<Label required={input?.required} class="mb-0" for={id}>{label}</Label>
+		<Label required={input?.required} class="mb-0" for={labelFor ?? id}>{label}</Label>
 	{/if}
 	{#if description}
 		<p class="text-muted-foreground mt-1 text-xs">

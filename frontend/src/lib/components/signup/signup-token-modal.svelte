@@ -130,7 +130,7 @@
 
 		{#if signupToken === null}
 			<form class="space-y-4" onsubmit={preventDefault(createSignupToken)}>
-				<FormInput label={m.expiration()} input={$inputs.ttl}>
+				<FormInput labelFor="expiration" label={m.expiration()} input={$inputs.ttl}>
 					<Select.Root
 						type="single"
 						value={$inputs.ttl.value.toString()}
@@ -152,6 +152,7 @@
 					{/if}
 				</FormInput>
 				<FormInput
+					labelFor="usage-limit"
 					label={m.usage_limit()}
 					description={m.number_of_times_token_can_be_used()}
 					input={$inputs.usageLimit}
@@ -165,6 +166,7 @@
 					/>
 				</FormInput>
 				<FormInput
+					labelFor="default-groups"
 					label={m.user_groups()}
 					description={m.signup_token_user_groups_description()}
 					input={$inputs.userGroupIds}

@@ -64,8 +64,7 @@
 								<DropdownButton.Main disabled={false} onclick={() => (expandAddUser = true)}>
 									{selectedCreateOptions}
 								</DropdownButton.Main>
-
-								<DropdownButton.DropdownTrigger>
+								<DropdownButton.DropdownTrigger aria-label="Create options">
 									<DropdownButton.Trigger class="border-l" />
 								</DropdownButton.DropdownTrigger>
 							</DropdownButton.Root>

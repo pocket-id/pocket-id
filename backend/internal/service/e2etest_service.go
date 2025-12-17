@@ -344,6 +344,9 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				ExpiresAt:  datatype.DateTime(time.Now().Add(24 * time.Hour)),
 				UsageLimit: 1,
 				UsageCount: 0,
+				UserGroups: []model.UserGroup{
+					userGroups[0],
+				},
 			},
 			{
 				Base: model.Base{
