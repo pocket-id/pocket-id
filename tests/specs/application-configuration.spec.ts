@@ -116,30 +116,49 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('API Key Expiration')).toBeChecked();
 });
 
-test('Update application images', async ({ page }) => {
-	await page.getByRole('button', { name: 'Expand card' }).nth(4).click();
+test.describe('Update application images', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.getByRole('button', { name: 'Expand card' }).nth(4).click();
+	});
 
-	await page.getByLabel('Favicon').setInputFiles('assets/w3-schools-favicon.ico');
-	await page.getByLabel('Light Mode Logo').setInputFiles('assets/pingvin-share-logo.png');
-	await page.getByLabel('Dark Mode Logo').setInputFiles('assets/nextcloud-logo.png');
-	await page.getByLabel('Default Profile Picture').setInputFiles('assets/pingvin-share-logo.png');
-	await page.getByLabel('Background Image').setInputFiles('assets/clouds.jpg');
-	await page.getByRole('button', { name: 'Save' }).last().click();
+	test('should upload images', async ({ page }) => {
+		await page.getByLabel('Favicon').setInputFiles('assets/w3-schools-favicon.ico');
+		await page.getByLabel('Light Mode Logo').setInputFiles('assets/pingvin-share-logo.png');
+		await page.getByLabel('Dark Mode Logo').setInputFiles('assets/cloud-logo.png');
+		await page.getByLabel('Email Logo').setInputFiles('assets/pingvin-share-logo.png');
+		await page.getByLabel('Default Profile Picture').setInputFiles('assets/pingvin-share-logo.png');
+		await page.getByLabel('Background Image').setInputFiles('assets/clouds.jpg');
+		await page.getByRole('button', { name: 'Save' }).last().click();
 
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Images updated successfully. It may take a few minutes to update.'
-	);
+		await expect(page.locator('[data-type="success"]')).toHaveText(
+			'Images updated successfully. It may take a few minutes to update.'
+		);
 
-	await page.request
-		.get('/api/application-images/favicon')
-		.then((res) => expect.soft(res.status()).toBe(200));
-	await page.request
-		.get('/api/application-images/logo?light=true')
-		.then((res) => expect.soft(res.status()).toBe(200));
-	await page.request
-		.get('/api/application-images/logo?light=false')
-		.then((res) => expect.soft(res.status()).toBe(200));
-	await page.request
-		.get('/api/application-images/background')
-		.then((res) => expect.soft(res.status()).toBe(200));
+		await page.request
+			.get('/api/application-images/favicon')
+			.then((res) => expect.soft(res.status()).toBe(200));
+		await page.request
+			.get('/api/application-images/logo?light=true')
+			.then((res) => expect.soft(res.status()).toBe(200));
+		await page.request
+			.get('/api/application-images/logo?light=false')
+			.then((res) => expect.soft(res.status()).toBe(200));
+		await page.request
+			.get('/api/application-images/email')
+			.then((res) => expect.soft(res.status()).toBe(200));
+		await page.request
+			.get('/api/application-images/background')
+			.then((res) => expect.soft(res.status()).toBe(200));
+	});
+
+	test('should only allow png/jpeg for email logo', async ({ page }) => {
+		const emailLogoInput = page.getByLabel('Email Logo');
+
+		await emailLogoInput.setInputFiles('assets/cloud-logo.svg');
+		await page.getByRole('button', { name: 'Save' }).last().click();
+
+		await expect(page.locator('[data-type="error"]')).toHaveText(
+			'File must be of type .png or .jpg/jpeg'
+		);
+	});
 });
