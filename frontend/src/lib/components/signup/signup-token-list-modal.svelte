@@ -11,7 +11,7 @@
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '$lib/types/advanced-table.type';
-	import type { SignupTokenDto } from '$lib/types/signup-token.type';
+	import type { SignupToken } from '$lib/types/signup-token.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { Copy, Trash2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -23,14 +23,14 @@
 	} = $props();
 
 	const userService = new UserService();
-	let tableRef: AdvancedTable<SignupTokenDto>;
+	let tableRef: AdvancedTable<SignupToken>;
 
 	function formatDate(dateStr: string | undefined) {
 		if (!dateStr) return m.never();
 		return new Date(dateStr).toLocaleString();
 	}
 
-	async function deleteToken(token: SignupTokenDto) {
+	async function deleteToken(token: SignupToken) {
 		openConfirmDialog({
 			title: m.delete_signup_token(),
 			message: m.are_you_sure_you_want_to_delete_this_signup_token(),
@@ -58,11 +58,11 @@
 		return new Date(expiresAt) < new Date();
 	}
 
-	function isTokenUsedUp(token: SignupTokenDto) {
+	function isTokenUsedUp(token: SignupToken) {
 		return token.usageCount >= token.usageLimit;
 	}
 
-	function getTokenStatus(token: SignupTokenDto) {
+	function getTokenStatus(token: SignupToken) {
 		if (isTokenExpired(token.expiresAt)) return 'expired';
 		if (isTokenUsedUp(token)) return 'used-up';
 		return 'active';
@@ -79,7 +79,7 @@
 		}
 	}
 
-	function copySignupLink(token: SignupTokenDto) {
+	function copySignupLink(token: SignupToken) {
 		const signupLink = `${page.url.origin}/st/${token.token}`;
 		navigator.clipboard
 			.writeText(signupLink)
@@ -91,7 +91,7 @@
 			});
 	}
 
-	const columns: AdvancedTableColumn<SignupTokenDto>[] = [
+	const columns: AdvancedTableColumn<SignupToken>[] = [
 		{ label: m.token(), column: 'token', cell: TokenCell },
 		{ label: m.status(), key: 'status', cell: StatusCell },
 		{
@@ -106,7 +106,12 @@
 			sortable: true,
 			value: (item) => formatDate(item.expiresAt)
 		},
-		{ label: 'Usage Limit', column: 'usageLimit' },
+		{
+			key: 'userGroups',
+			label: m.user_groups(),
+			value: (item) => item.userGroups.map((g) => g.name).join(', '),
+			hidden: true
+		},
 		{
 			label: m.created(),
 			column: 'createdAt',
@@ -116,7 +121,7 @@
 		}
 	];
 
-	const actions: CreateAdvancedTableActions<SignupTokenDto> = (_) => [
+	const actions: CreateAdvancedTableActions<SignupToken> = (_) => [
 		{
 			label: m.copy(),
 			icon: Copy,
@@ -131,13 +136,13 @@
 	];
 </script>
 
-{#snippet TokenCell({ item }: { item: SignupTokenDto })}
+{#snippet TokenCell({ item }: { item: SignupToken })}
 	<span class="font-mono text-xs">
 		{item.token.substring(0, 3)}...{item.token.substring(Math.max(item.token.length - 4, 0))}
 	</span>
 {/snippet}
 
-{#snippet StatusCell({ item }: { item: SignupTokenDto })}
+{#snippet StatusCell({ item }: { item: SignupToken })}
 	{@const status = getTokenStatus(item)}
 	{@const statusBadge = getStatusBadge(status)}
 	<Badge class="rounded-full" variant={statusBadge.variant}>
@@ -145,7 +150,7 @@
 	</Badge>
 {/snippet}
 
-{#snippet UsageCell({ item }: { item: SignupTokenDto })}
+{#snippet UsageCell({ item }: { item: SignupToken })}
 	<div class="flex items-center gap-1">
 		{item.usageCount}
 		{m.of()}

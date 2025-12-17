@@ -1,6 +1,6 @@
 import userStore from '$lib/stores/user-store';
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
-import type { SignupTokenDto } from '$lib/types/signup-token.type';
+import type { SignupToken } from '$lib/types/signup-token.type';
 import type { UserGroup } from '$lib/types/user-group.type';
 import type { User, UserCreate, UserSignUp } from '$lib/types/user.type';
 import { cachedProfilePicture } from '$lib/utils/cached-image-util';
@@ -76,8 +76,12 @@ export default class UserService extends APIService {
 		return res.data.token;
 	};
 
-	createSignupToken = async (ttl: string | number, usageLimit: number) => {
-		const res = await this.api.post(`/signup-tokens`, { ttl, usageLimit });
+	createSignupToken = async (
+		ttl: string | number,
+		usageLimit: number,
+		userGroupIds: string[] = []
+	) => {
+		const res = await this.api.post(`/signup-tokens`, { ttl, usageLimit, userGroupIds });
 		return res.data.token;
 	};
 
@@ -111,7 +115,7 @@ export default class UserService extends APIService {
 
 	listSignupTokens = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/signup-tokens', { params: options });
-		return res.data as Paginated<SignupTokenDto>;
+		return res.data as Paginated<SignupToken>;
 	};
 
 	deleteSignupToken = async (tokenId: string) => {

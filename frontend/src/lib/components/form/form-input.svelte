@@ -8,6 +8,15 @@
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
+	type WithoutChildren = {
+		children?: undefined;
+		input?: FormInput<string | boolean | number | Date | undefined>;
+	};
+	type WithChildren = {
+		children: Snippet;
+		input?: any;
+	};
+
 	let {
 		input = $bindable(),
 		label,
@@ -19,17 +28,16 @@
 		children,
 		onInput,
 		...restProps
-	}: HTMLAttributes<HTMLDivElement> & {
-		input?: FormInput<string | boolean | number | Date | undefined>;
-		label?: string;
-		description?: string;
-		docsLink?: string;
-		placeholder?: string;
-		disabled?: boolean;
-		type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date';
-		onInput?: (e: FormInputEvent) => void;
-		children?: Snippet;
-	} = $props();
+	}: HTMLAttributes<HTMLDivElement> &
+		(WithChildren | WithoutChildren) & {
+			label?: string;
+			description?: string;
+			docsLink?: string;
+			placeholder?: string;
+			disabled?: boolean;
+			type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date';
+			onInput?: (e: FormInputEvent) => void;
+		} = $props();
 
 	const id = label?.toLowerCase().replace(/ /g, '-');
 </script>
