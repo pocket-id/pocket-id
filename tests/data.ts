@@ -66,7 +66,7 @@ export const oidcClients = {
 
 export const userGroups = {
 	developers: {
-		id: '4110f814-56f1-4b28-8998-752b69bc97c0e',
+		id: 'c7ae7c01-28a3-4f3c-9572-1ee734ea8368',
 		friendlyName: 'Developers',
 		name: 'developers'
 	},
