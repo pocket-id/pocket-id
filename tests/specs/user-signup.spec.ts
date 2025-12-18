@@ -42,6 +42,7 @@ test.describe('Signup Token Creation', () => {
 		await page.getByLabel('Usage Limit').fill('8');
 
 		await page.getByLabel('User Groups').click();
+		await page.getByRole('option', { name: userGroups.developers.name }).click();
 		await page.getByRole('option', { name: userGroups.designers.name }).click();
 		await page.getByLabel('User Groups').click();
 
@@ -59,6 +60,7 @@ test.describe('Signup Token Creation', () => {
 		const dateInAWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US');
 		await expect(row.getByRole('cell', { name: dateInAWeek })).toBeVisible();
 		await expect(row.getByRole('cell', { name: userGroups.developers.name })).toBeVisible();
+		await expect(row.getByRole('cell', { name: userGroups.designers.name })).toBeVisible();
 	});
 });
 
