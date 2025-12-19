@@ -470,5 +470,16 @@
 	"default_profile_picture": "Default Profile Picture",
 	"light": "Light",
 	"dark": "Dark",
-	"system": "System"
+	"system": "System",
+  "ldap_extra_attributes": "Ldap Attributes Retrieved",
+  "ldap_extra_attributes_description": "Additional LDAP attributes fetched during user and group synchronization",
+  "ldap_extra_user_attributes": "User Attributes",
+  "ldap_extra_user_attributes_description": "Specify additional LDAP attributes to fetch and store for each user.",
+  "ldap_extra_group_attributes": "Group Attributes",
+  "ldap_extra_group_attributes_description": "Specify additional LDAP attributes to fetch and store for each group.",
+  "ldap_attribute_key": "Key",
+  "ldap_attribute_name": "LDAP Attribute Name",
+  "ldap_attribute_multi": "Multi-valued Attribute",
+  "add_ldap_attribute": "Add LDAP Attribute",
+  "ldap_mutli_valued_attribute": "Multi-value"
 }

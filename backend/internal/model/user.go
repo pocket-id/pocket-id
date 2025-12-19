@@ -23,9 +23,10 @@ type User struct {
 	LdapID      *string
 	Disabled    bool `sortable:"true" filterable:"true"`
 
-	CustomClaims []CustomClaim
-	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`
-	Credentials  []WebauthnCredential
+	CustomClaims   []CustomClaim
+	LdapAttributes []CustomClaim
+	UserGroups     []UserGroup `gorm:"many2many:user_groups_users;"`
+	Credentials    []WebauthnCredential
 }
 
 func (u User) WebAuthnID() []byte { return []byte(u.ID) }
