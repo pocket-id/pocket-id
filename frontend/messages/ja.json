@@ -470,5 +470,6 @@
 	"default_profile_picture": "デフォルトのプロフィール画像",
 	"light": "光",
 	"dark": "闇",
-	"system": "システム"
+	"system": "システム",
+	"signup_token_user_groups_description": "このトークンを使用して登録するユーザーに、これらのグループを自動的に割り当てます。"
 }
