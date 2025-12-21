@@ -470,5 +470,6 @@
 	"default_profile_picture": "Изображение профиля по умолчанию",
 	"light": "Светлая",
 	"dark": "Темная",
-	"system": "Системная"
+	"system": "Системная",
+	"signup_token_user_groups_description": "Automatically assign these groups to users who sign up using this token."
 }
