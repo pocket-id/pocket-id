@@ -470,5 +470,6 @@
 	"default_profile_picture": "Photo de profil par défaut",
 	"light": "Lumière",
 	"dark": "Sombre",
-	"system": "Système"
+	"system": "Système",
+	"signup_token_user_groups_description": "Attribuez automatiquement ces groupes aux utilisateurs qui s'inscrivent en utilisant ce jeton."
 }
