@@ -470,5 +470,6 @@
 	"default_profile_picture": "Varsayılan Profil Resmi",
 	"light": "Işık",
 	"dark": "Karanlık",
-	"system": "Sistem"
+	"system": "Sistem",
+	"signup_token_user_groups_description": "Bu token kullanarak kaydolan kullanıcılara bu grupları otomatik olarak atayın."
 }
