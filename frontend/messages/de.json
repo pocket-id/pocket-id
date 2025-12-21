@@ -470,5 +470,6 @@
 	"default_profile_picture": "Standard-Profilbild",
 	"light": "Hell",
 	"dark": "Dunkel",
-	"system": "System"
+	"system": "System",
+	"signup_token_user_groups_description": "Weise diese Gruppen automatisch den Leuten zu, die sich mit diesem Token anmelden."
 }
