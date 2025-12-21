@@ -470,5 +470,6 @@
 	"default_profile_picture": "Výchozí profilový obrázek",
 	"light": "Světlo",
 	"dark": "Tmavá",
-	"system": "Systém"
+	"system": "Systém",
+	"signup_token_user_groups_description": "Automaticky přiřaďte tyto skupiny uživatelům, kteří se zaregistrují pomocí tohoto tokenu."
 }
