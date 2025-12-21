@@ -470,5 +470,6 @@
 	"default_profile_picture": "Ảnh đại diện mặc định",
 	"light": "Ánh sáng",
 	"dark": "Tối",
-	"system": "Hệ thống"
+	"system": "Hệ thống",
+	"signup_token_user_groups_description": "Tự động gán các nhóm này cho người dùng đăng ký bằng token này."
 }
