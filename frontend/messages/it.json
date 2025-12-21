@@ -470,5 +470,6 @@
 	"default_profile_picture": "Immagine del profilo predefinita",
 	"light": "Luce",
 	"dark": "Buio",
-	"system": "Sistema"
+	"system": "Sistema",
+	"signup_token_user_groups_description": "Assegna automaticamente questi gruppi agli utenti che si registrano usando questo token."
 }
