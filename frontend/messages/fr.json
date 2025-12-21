@@ -44,7 +44,7 @@
 	"error_occurred_with_authenticator": "Une erreur est survenue pendant l'authentification",
 	"authenticator_does_not_support_discoverable_credentials": "L'authentificateur ne prend pas en charge les identifiants découvrables",
 	"authenticator_does_not_support_resident_keys": "L'authentificateur ne prend pas en charge les clés résidentes",
-	"passkey_was_previously_registered": "Cette clé d'accès à déjà été enregistré",
+	"passkey_was_previously_registered": "Cette clé d'accès a déjà été enregistrée",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "L'authentificateur ne supporte aucun des algorithmes requis",
 	"authenticator_timed_out": "L'authentification a expiré",
 	"critical_error_occurred_contact_administrator": "Une erreur critique s'est produite. Veuillez contacter votre administrateur.",
@@ -468,7 +468,7 @@
 	"reauthentication": "Réauthentification",
 	"clear_filters": "Effacer les filtres",
 	"default_profile_picture": "Photo de profil par défaut",
-	"light": "Lumière",
+	"light": "Clair",
 	"dark": "Sombre",
 	"system": "Système",
 	"signup_token_user_groups_description": "Attribuez automatiquement ces groupes aux utilisateurs qui s'inscrivent en utilisant ce jeton."
