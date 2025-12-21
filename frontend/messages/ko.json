@@ -471,5 +471,5 @@
 	"light": "라이트",
 	"dark": "다크",
 	"system": "시스템",
-	"signup_token_user_groups_description": "Automatically assign these groups to users who sign up using this token."
+	"signup_token_user_groups_description": "이 토큰을 사용하여 가입하는 사용자에게 자동으로 이 그룹들을 할당합니다."
 }
