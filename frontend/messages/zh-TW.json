@@ -470,5 +470,6 @@
 	"default_profile_picture": "預設個人資料照片",
 	"light": "光",
 	"dark": "黑暗",
-	"system": "系統"
+	"system": "系統",
+	"signup_token_user_groups_description": "自動將這些群組指派給使用此代幣註冊的用戶。"
 }
