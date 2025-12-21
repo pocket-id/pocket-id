@@ -470,5 +470,6 @@
 	"default_profile_picture": "Domyślne zdjęcie profilowe",
 	"light": "Światło",
 	"dark": "Ciemny",
-	"system": "System"
+	"system": "System",
+	"signup_token_user_groups_description": "Automatycznie przypisujcie te grupy do użytkowników, którzy zarejestrują się przy użyciu tego tokenu."
 }
