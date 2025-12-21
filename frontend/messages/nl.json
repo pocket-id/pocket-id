@@ -470,5 +470,6 @@
 	"default_profile_picture": "Standaard profielfoto",
 	"light": "Licht",
 	"dark": "Donker",
-	"system": "Systeem"
+	"system": "Systeem",
+	"signup_token_user_groups_description": "Wijs deze groepen automatisch toe aan mensen die zich aanmelden met dit token."
 }
