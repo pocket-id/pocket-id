@@ -545,7 +545,7 @@ func (uc *UserController) createSignupTokenHandler(c *gin.Context) {
 		ttl = defaultSignupTokenDuration
 	}
 
-	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit)
+	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
 	if err != nil {
 		_ = c.Error(err)
 		return

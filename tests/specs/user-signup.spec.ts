@@ -1,9 +1,13 @@
 import test, { expect, type Page } from '@playwright/test';
-import { signupTokens, users } from '../data';
+import { signupTokens, userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
 
-async function setSignupMode(page: Page, mode: 'Disabled' | 'Signup with token' | 'Open Signup') {
+async function setSignupMode(
+	page: Page,
+	mode: 'Disabled' | 'Signup with token' | 'Open Signup',
+	signout = true
+) {
 	await page.goto('/settings/admin/application-configuration');
 
 	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
@@ -15,9 +19,50 @@ async function setSignupMode(page: Page, mode: 'Disabled' | 'Signup with token' 
 		'User creation settings updated successfully.'
 	);
 
-	await page.context().clearCookies();
-	await page.goto('/login');
+	if (signout) {
+		await page.context().clearCookies();
+		await page.goto('/login');
+	}
 }
+
+test.describe('Signup Token Creation', () => {
+	test.beforeEach(async ({ page }) => {
+		await cleanupBackend();
+		await setSignupMode(page, 'Signup with token', false);
+	});
+
+	test('Create signup token', async ({ page }) => {
+		await page.goto('/settings/admin/users');
+
+		await page.getByLabel('Create options').getByRole('button').click();
+		await page.getByRole('menuitem', { name: 'Create Signup Token' }).click();
+		await page.getByLabel('Expiration').click();
+		await page.getByRole('option', { name: 'week' }).click();
+
+		await page.getByLabel('Usage Limit').fill('8');
+
+		await page.getByLabel('User Groups').click();
+		await page.getByRole('option', { name: userGroups.developers.name }).click();
+		await page.getByRole('option', { name: userGroups.designers.name }).click();
+		await page.getByLabel('User Groups').click();
+
+		await page.getByRole('button', { name: 'Create', exact: true }).click();
+		await page.getByRole('button', { name: 'Close' }).click();
+
+		await page.getByLabel('Create options').getByRole('button').click();
+		await page.getByRole('menuitem', { name: 'View Active Signup Tokens' }).click();
+		await page.getByLabel('Manage Signup Tokens').getByRole('button', { name: 'View' }).click();
+
+		await page.getByRole('menuitemcheckbox', { name: 'User Groups' }).click();
+
+		const row = page.getByRole('row').last();
+		await expect(row.getByRole('cell', { name: '0 of 8' })).toBeVisible();
+		const dateInAWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US');
+		await expect(row.getByRole('cell', { name: dateInAWeek })).toBeVisible();
+		await expect(row.getByRole('cell', { name: userGroups.developers.name })).toBeVisible();
+		await expect(row.getByRole('cell', { name: userGroups.designers.name })).toBeVisible();
+	});
+});
 
 test.describe('Initial User Signup', () => {
 	test.beforeEach(async ({ page }) => {
@@ -74,6 +119,9 @@ test.describe('User Signup', () => {
 
 			await page.waitForURL('/signup/add-passkey');
 			await expect(page.getByText('Set up your passkey')).toBeVisible();
+
+			const response = await page.request.get('/api/users/me').then((res) => res.json());
+			expect(response.userGroups.map((g) => g.id)).toContain(userGroups.developers.id);
 		});
 
 		test('Signup with token - invalid token shows error', async ({ page }) => {

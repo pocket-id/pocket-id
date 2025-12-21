@@ -6,8 +6,9 @@ import (
 )
 
 type SignupTokenCreateDto struct {
-	TTL        utils.JSONDuration `json:"ttl" binding:"required,ttl"`
-	UsageLimit int                `json:"usageLimit" binding:"required,min=1,max=100"`
+	TTL          utils.JSONDuration `json:"ttl" binding:"required,ttl"`
+	UsageLimit   int                `json:"usageLimit" binding:"required,min=1,max=100"`
+	UserGroupIDs []string           `json:"userGroupIds"`
 }
 
 type SignupTokenDto struct {
@@ -16,5 +17,6 @@ type SignupTokenDto struct {
 	ExpiresAt  datatype.DateTime `json:"expiresAt"`
 	UsageLimit int               `json:"usageLimit"`
 	UsageCount int               `json:"usageCount"`
+	UserGroups []UserGroupDto    `json:"userGroups"`
 	CreatedAt  datatype.DateTime `json:"createdAt"`
 }

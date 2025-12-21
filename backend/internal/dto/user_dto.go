@@ -23,15 +23,16 @@ type UserDto struct {
 }
 
 type UserCreateDto struct {
-	Username    string  `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
-	Email       *string `json:"email" binding:"omitempty,email" unorm:"nfc"`
-	FirstName   string  `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
-	LastName    string  `json:"lastName" binding:"max=50" unorm:"nfc"`
-	DisplayName string  `json:"displayName" binding:"required,min=1,max=100" unorm:"nfc"`
-	IsAdmin     bool    `json:"isAdmin"`
-	Locale      *string `json:"locale"`
-	Disabled    bool    `json:"disabled"`
-	LdapID      string  `json:"-"`
+	Username     string   `json:"username" binding:"required,username,min=2,max=50" unorm:"nfc"`
+	Email        *string  `json:"email" binding:"omitempty,email" unorm:"nfc"`
+	FirstName    string   `json:"firstName" binding:"required,min=1,max=50" unorm:"nfc"`
+	LastName     string   `json:"lastName" binding:"max=50" unorm:"nfc"`
+	DisplayName  string   `json:"displayName" binding:"required,min=1,max=100" unorm:"nfc"`
+	IsAdmin      bool     `json:"isAdmin"`
+	Locale       *string  `json:"locale"`
+	Disabled     bool     `json:"disabled"`
+	UserGroupIds []string `json:"userGroupIds"`
+	LdapID       string   `json:"-"`
 }
 
 func (u UserCreateDto) Validate() error {

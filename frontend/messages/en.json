@@ -470,5 +470,6 @@
 	"default_profile_picture": "Default Profile Picture",
 	"light": "Light",
 	"dark": "Dark",
-	"system": "System"
+	"system": "System",
+	"signup_token_user_groups_description": "Automatically assign these groups to users who sign up using this token."
 }
