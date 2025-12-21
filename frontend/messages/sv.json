@@ -470,5 +470,6 @@
 	"default_profile_picture": "Standardprofilbild",
 	"light": "Ljus",
 	"dark": "Mörk",
-	"system": "System"
+	"system": "System",
+	"signup_token_user_groups_description": "Tilldela automatiskt dessa grupper till användare som registrerar sig med denna token."
 }
