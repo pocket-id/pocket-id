@@ -470,5 +470,6 @@
 	"default_profile_picture": "Oletusprofiilikuva",
 	"light": "Vaalea",
 	"dark": "Tumma",
-	"system": "Järjestelmä"
+	"system": "Järjestelmä",
+	"signup_token_user_groups_description": "Määritä nämä ryhmät automaattisesti käyttäjille, jotka rekisteröityvät tällä tunnuksella."
 }
