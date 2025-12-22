@@ -19,7 +19,7 @@
 	);
 </script>
 
-<div class=" w-full {isAuthPage ? 'absolute top-0 z-10 mt-4' : 'border-b'}">
+<div class=" w-full {isAuthPage ? 'absolute top-0 z-10 mt-3 lg:mt-8 pr-2 lg:pr-3' : 'border-b'}">
 	<div
 		class="{!isAuthPage
 			? 'max-w-[1640px]'

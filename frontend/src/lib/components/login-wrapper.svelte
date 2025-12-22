@@ -48,20 +48,16 @@
 {#if isDesktop.current}
 	<div class="h-screen items-center overflow-hidden text-center">
 		<div
-			class="relative z-10 flex h-full w-[650px] p-16 {cn(
-				showAlternativeSignInMethodButton && 'pb-0',
-				animate && 'animate-delayed-fade'
+			class="relative z-10 flex h-full w-[650px] 2xl:w-[800px] p-16 {cn(
+				showAlternativeSignInMethodButton && 'pb-0'
 			)}"
 		>
 			<div class="flex h-full w-full flex-col overflow-hidden">
-				<div class="relative flex flex-grow flex-col items-center justify-center overflow-auto">
+				<div class="relative flex grow flex-col items-center justify-center overflow-auto">
 					{@render children()}
 				</div>
 				{#if showAlternativeSignInMethodButton}
-					<div
-						class="mb-4 flex items-center justify-center"
-						style={animate ? 'animation-delay: 500ms;' : ''}
-					>
+					<div class="mb-4 flex items-center justify-center">
 						<a
 							href={alternativeSignInButton.href}
 							class="text-muted-foreground text-xs transition-colors hover:underline"
@@ -73,13 +69,13 @@
 			</div>
 		</div>
 
-		<!-- Background image with slide animation -->
-		<div class="{cn(animate && 'animate-slide-bg-container')} absolute top-0 right-0 bottom-0 z-0">
+		<!-- Background image -->
+		<div class="absolute top-0 right-0 left-500px bottom-0 z-0 overflow-hidden rounded-[40px] m-6">
 			<img
 				src={cachedBackgroundImage.getUrl()}
-				class="h-screen rounded-l-[60px] object-cover {animate
-					? 'w-full'
-					: 'w-[calc(100vw-650px)]'}"
+				class="{cn(
+					animate && 'animate-bg-zoom'
+				)} h-screen object-cover w-[calc(100vw-650px)] 2xl:w-[calc(100vw-800px)]"
 				alt={m.login_background()}
 			/>
 		</div>
@@ -89,7 +85,7 @@
 		class="flex h-screen items-center justify-center bg-cover bg-center text-center"
 		style="background-image: url({cachedBackgroundImage.getUrl()});"
 	>
-		<Card.Root class="mx-3 w-full max-w-md" style={animate ? 'animation-delay: 200ms;' : ''}>
+		<Card.Root class="mx-3 w-full max-w-md">
 			<Card.CardContent
 				class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton ? 'pb-3 sm:pb-3' : ''}"
 			>
