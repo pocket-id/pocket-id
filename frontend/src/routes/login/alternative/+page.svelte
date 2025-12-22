@@ -41,14 +41,14 @@
 		</p>
 		<Item.Group class="mt-5 gap-3">
 			{#each methods as method}
-				<Item.Root variant="outline">
+				<Item.Root variant="outline" class="gap-5">
 					{#snippet child({ props })}
 						<a href={method.href + page.url.search} {...props}>
-							<Item.Media class="text-primary">
+							<Item.Media class="text-primary !self-center !translate-y-0">
 								<method.icon class="size-7" />
 							</Item.Media>
-							<Item.Content>
-								<Item.Title class="text-lg">{method.title}</Item.Title>
+							<Item.Content class="text-start">
+								<Item.Title class="text-lg font-semibold">{method.title}</Item.Title>
 								<Item.Description>{method.description}</Item.Description>
 							</Item.Content>
 							<Item.Actions>
