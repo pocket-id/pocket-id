@@ -19,6 +19,6 @@
 	</Item.Media>
 	<Item.Content>
 		<Item.Title class="font-medium">{name}</Item.Title>
-		<Item.Description class="text-xs">{description}</Item.Description>
+		<Item.Description>{description}</Item.Description>
 	</Item.Content>
 </Item.Root>

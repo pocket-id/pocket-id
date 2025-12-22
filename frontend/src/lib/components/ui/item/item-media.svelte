@@ -1,32 +1,33 @@
 <script lang="ts" module>
-	import { tv, type VariantProps } from "tailwind-variants";
+	import { tv, type VariantProps } from 'tailwind-variants';
 
 	export const itemMediaVariants = tv({
-		base: "flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:translate-y-0.5 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none",
+		base: 'flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:translate-y-0.5 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none',
 		variants: {
 			variant: {
-				default: "bg-transparent",
+				default: 'bg-transparent',
+				transparent: 'bg-transparent',
 				icon: "bg-muted size-8 rounded-sm border [&_svg:not([class*='size-'])]:size-4",
-				image: "size-10 overflow-hidden rounded-sm [&_img]:size-full [&_img]:object-cover",
-			},
+				image: 'size-10 overflow-hidden rounded-sm [&_img]:size-full [&_img]:object-cover'
+			}
 		},
 		defaultVariants: {
-			variant: "default",
-		},
+			variant: 'default'
+		}
 	});
 
-	export type ItemMediaVariant = VariantProps<typeof itemMediaVariants>["variant"];
+	export type ItemMediaVariant = VariantProps<typeof itemMediaVariants>['variant'];
 </script>
 
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils/style.js";
-	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from '$lib/utils/style.js';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {
 		ref = $bindable(null),
 		class: className,
 		children,
-		variant = "default",
+		variant = 'default',
 		...restProps
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & { variant?: ItemMediaVariant } = $props();
 </script>

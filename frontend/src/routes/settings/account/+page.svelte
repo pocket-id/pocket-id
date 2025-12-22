@@ -119,7 +119,6 @@
 	</Item.Root>
 </div>
 
-<!-- Account details card -->
 <Card.Root>
 	<Card.Header>
 		<Card.Title>
@@ -138,7 +137,6 @@
 	</Card.Content>
 </Card.Root>
 
-<!-- Passkey management -->
 <Item.Group class="bg-muted/50 rounded-xl border p-4">
 	<Item.Root class="border-none bg-transparent p-0">
 		<Item.Media class="text-primary/80">
@@ -162,9 +160,8 @@
 	{/if}
 </Item.Group>
 
-<!-- Login code card -->
 <div class="hidden sm:block">
-	<Item.Root variant="muted">
+	<Item.Root variant="muted" class="border-border">
 		<Item.Media class="text-primary/80">
 			<RectangleEllipsis class="size-5" />
 		</Item.Media>
@@ -182,9 +179,8 @@
 	</Item.Root>
 </div>
 
-<!-- Language selection card -->
 <div>
-	<Item.Root variant="muted">
+	<Item.Root variant="muted" class="border-border">
 		<Item.Media class="text-primary/80">
 			<Languages class="size-5" />
 		</Item.Media>

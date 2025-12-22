@@ -20,7 +20,7 @@
 	} = $props();
 </script>
 
-<Item.Root variant="muted" class="hover:bg-muted transition-colors">
+<Item.Root variant="transparent" class="hover:bg-muted transition-colors">
 	<Item.Media class="bg-primary/10 text-primary rounded-lg p-2">
 		{#if icon}{@const Icon = icon}
 			<Icon class="size-5" />
