@@ -1,0 +1,1 @@
+ALTER TABLE one_time_access_tokens ADD COLUMN device_token VARCHAR(16);

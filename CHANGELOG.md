@@ -1,3 +1,44 @@
+## v1.16.0
+
+### Bug Fixes
+
+- use `quoted-printable` encoding for mails to prevent line limitation ([5cf73e9](https://github.com/pocket-id/pocket-id/commit/5cf73e9309640d097ba94d97851cf502b7b2e063) by @stonith404)
+- automatically create parent directory of Sqlite db ([cfc9e46](https://github.com/pocket-id/pocket-id/commit/cfc9e464d983b051e7ed4da1620fae61dc73cff2) by @stonith404)
+- global audit log user filter not working ([d98c0a3](https://github.com/pocket-id/pocket-id/commit/d98c0a391a747f9eea70ea01c3f984264a4a7a19) by @stonith404)
+- theme mode not correctly applied if selected manually ([a1cd325](https://github.com/pocket-id/pocket-id/commit/a1cd3251cd2b7d7aca610696ef338c5d01fdce2e) by @stonith404)
+- hide theme switcher on auth pages because of dynamic background ([5d6a7fd](https://github.com/pocket-id/pocket-id/commit/5d6a7fdb58b6b82894dcb9be3b9fe6ca3e53f5fa) by @stonith404)
+
+### Documentation
+
+- add `ENCRYPTION_KEY` to `.env.example` for breaking change preparation ([4eeb06f](https://github.com/pocket-id/pocket-id/commit/4eeb06f29d984164939bf66299075efead87ee19) by @stonith404)
+
+### Features
+
+- light/dark/system mode switcher ([#1081](https://github.com/pocket-id/pocket-id/pull/1081) by @kmendell)
+- add support for S3 storage backend ([#1080](https://github.com/pocket-id/pocket-id/pull/1080) by @stonith404)
+- add support for WEBP profile pictures ([#1090](https://github.com/pocket-id/pocket-id/pull/1090) by @stonith404)
+- add database storage backend ([#1091](https://github.com/pocket-id/pocket-id/pull/1091) by @ItalyPaleAle)
+- adding/removing passkeys creates an entry in audit logs ([#1099](https://github.com/pocket-id/pocket-id/pull/1099) by @ItalyPaleAle)
+- add option to disable S3 integrity check ([a3c9687](https://github.com/pocket-id/pocket-id/commit/a3c968758a17e95b2e55ae179d6601d8ec2cf052) by @stonith404)
+- add `Cache-Control: private, no-store` to all API routes per default ([#1126](https://github.com/pocket-id/pocket-id/pull/1126) by @stonith404)
+
+### Other
+
+- update pnpm to 10.20 ([#1082](https://github.com/pocket-id/pocket-id/pull/1082) by @kmendell)
+- run checks on PR to `breaking/**` branches ([ab9c0f9](https://github.com/pocket-id/pocket-id/commit/ab9c0f9ac092725c70ec3a963f57bc739f425d4f) by @stonith404)
+- use constants for AppEnv values ([#1098](https://github.com/pocket-id/pocket-id/pull/1098) by @ItalyPaleAle)
+- bump golang.org/x/crypto from 0.43.0 to 0.45.0 in /backend in the go_modules group across 1 directory ([#1107](https://github.com/pocket-id/pocket-id/pull/1107) by @dependabot[bot])
+- add Finish files ([ca888b3](https://github.com/pocket-id/pocket-id/commit/ca888b3dd221a209df5e7beb749156f7ea21e1c0) by @stonith404)
+- upgrade dependencies ([4bde271](https://github.com/pocket-id/pocket-id/commit/4bde271b4715f59bd2ed1f7c18a867daf0f26b8b) by @stonith404)
+- fix Dutch validation message ([f523f39](https://github.com/pocket-id/pocket-id/commit/f523f39483a06256892d17dc02528ea009c87a9f) by @stonith404)
+- fix package vulnerabilities ([3d46bad](https://github.com/pocket-id/pocket-id/commit/3d46badb3cecc1ee8eb8bfc9b377108be32d4ffc) by @stonith404)
+- update vscode launch.json ([#1117](https://github.com/pocket-id/pocket-id/pull/1117) by @mnestor)
+- rename file backend value `fs` to `filesystem` ([8d30346](https://github.com/pocket-id/pocket-id/commit/8d30346f642b483653f7a3dec006cb0273927afb) by @stonith404)
+- fix wrong storage value ([b2c718d](https://github.com/pocket-id/pocket-id/commit/b2c718d13d12b6c152e19974d3490c2ed7f5d51d) by @stonith404)
+- run formatter ([14c7471](https://github.com/pocket-id/pocket-id/commit/14c7471b5272cdaf42751701d842348d0d60cd0e) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.15.0...v1.16.0
+
 ## v1.15.0
 
 ### Bug Fixes

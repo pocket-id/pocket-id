@@ -6,7 +6,6 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { cn } from '$lib/utils/style';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import type { FormEventHandler } from 'svelte/elements';
 
 	type Item = {

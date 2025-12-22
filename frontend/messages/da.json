@@ -14,7 +14,7 @@
 	"profile_picture": "Profilbillede",
 	"profile_picture_is_managed_by_ldap_server": "Profilbilledet administreres af LDAP-serveren og kan ikke ændres her.",
 	"click_profile_picture_to_upload_custom": "Klik på profilbilledet for at uploade et brugerdefineret billede fra dine filer.",
-	"image_should_be_in_format": "Billedet skal være i PNG eller JPEG-format.",
+	"image_should_be_in_format": "Billedet skal være i PNG, JPEG eller WEBP-format.",
 	"items_per_page": "Emner pr. side",
 	"no_items_found": "Ingen emner fundet",
 	"select_items": "Vælg emner...",

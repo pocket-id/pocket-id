@@ -14,7 +14,7 @@
 	"profile_picture": "头像",
 	"profile_picture_is_managed_by_ldap_server": "头像由 LDAP 服务器管理，无法在此处更改。",
 	"click_profile_picture_to_upload_custom": "点击头像来从文件中上传您的自定义头像。",
-	"image_should_be_in_format": "图片应为 PNG 或 JPEG 格式。",
+	"image_should_be_in_format": "图片应为 PNG、JPEG 或 WEBP 格式。",
 	"items_per_page": "每页条数",
 	"no_items_found": "这里暂时空空如也",
 	"select_items": "选择项目……",

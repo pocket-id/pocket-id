@@ -7,6 +7,7 @@
 	import { LucideExternalLink } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import FormattedMessage from '../formatted-message.svelte';
 
 	let {
 		input = $bindable(),
@@ -40,7 +41,7 @@
 	{/if}
 	{#if description}
 		<Field.Description>
-			{description}
+			<FormattedMessage m={description} />
 			{#if docsLink}
 				<a
 					class="relative text-black after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:translate-y-[-1px] after:bg-white dark:text-white"

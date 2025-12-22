@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -1196,7 +1195,7 @@ func (s *OidcService) getCallbackURL(client *model.OidcClient, inputCallbackURL 
 
 	// If URLs are already configured, validate against them
 	if len(client.CallbackURLs) > 0 {
-		matched, err := s.getCallbackURLFromList(client.CallbackURLs, inputCallbackURL)
+		matched, err := utils.GetCallbackURLFromList(client.CallbackURLs, inputCallbackURL)
 		if err != nil {
 			return "", err
 		} else if matched == "" {
@@ -1219,7 +1218,7 @@ func (s *OidcService) getLogoutCallbackURL(client *model.OidcClient, inputLogout
 		return client.LogoutCallbackURLs[0], nil
 	}
 
-	matched, err := s.getCallbackURLFromList(client.LogoutCallbackURLs, inputLogoutCallbackURL)
+	matched, err := utils.GetCallbackURLFromList(client.LogoutCallbackURLs, inputLogoutCallbackURL)
 	if err != nil {
 		return "", err
 	} else if matched == "" {
@@ -1227,21 +1226,6 @@ func (s *OidcService) getLogoutCallbackURL(client *model.OidcClient, inputLogout
 	}
 
 	return matched, nil
-}
-
-func (s *OidcService) getCallbackURLFromList(urls []string, inputCallbackURL string) (callbackURL string, err error) {
-	for _, callbackPattern := range urls {
-		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(callbackPattern), `\*`, ".*") + "$"
-		matched, err := regexp.MatchString(regexPattern, inputCallbackURL)
-		if err != nil {
-			return "", err
-		}
-		if matched {
-			return inputCallbackURL, nil
-		}
-	}
-
-	return "", nil
 }
 
 func (s *OidcService) addCallbackURLToClient(ctx context.Context, client *model.OidcClient, callbackURL string, tx *gorm.DB) error {

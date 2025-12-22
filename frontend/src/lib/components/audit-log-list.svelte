@@ -6,6 +6,7 @@
 	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
 	import type { AuditLog, AuditLogFilter } from '$lib/types/audit-log.type';
 	import { translateAuditLogEvent } from '$lib/utils/audit-log-translator';
+	import { untrack } from 'svelte';
 
 	let {
 		isAdmin = false,
@@ -61,7 +62,11 @@
 
 	$effect(() => {
 		if (filters) {
-			tableRef?.refresh();
+			filters.userID;
+			filters.event;
+			filters.location;
+			filters.clientName;
+			untrack(() => tableRef?.refresh());
 		}
 	});
 

@@ -22,7 +22,7 @@ test.describe('API Key Management', () => {
 		await page.getByRole('button', { name: 'Select a date' }).click();
 		await page.getByLabel('Select year').click();
 		// Select the next year
-		await page.getByText((currentDate.getFullYear() + 1).toString()).click();
+		await page.getByRole('option', { name: (currentDate.getFullYear() + 1).toString() }).click();
 		// Select the first day of the month
 		await page
 			.getByRole('button', { name: /([A-Z][a-z]+), ([A-Z][a-z]+) 1, (\d{4})/ })
@@ -62,7 +62,7 @@ test.describe('API Key Management', () => {
 		await page.getByRole('menuitem', { name: 'Revoke' }).click();
 
 		await page.getByRole('button', { name: 'Revoke' }).click();
-		
+
 		// Verify success message
 		await expect(page.locator('[data-type="success"]')).toHaveText('API key revoked successfully');
 

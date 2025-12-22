@@ -12,7 +12,7 @@
 		"@types/node": "^22.18.12",
 		"dotenv": "^17.2.3",
 		"jose": "^6.1.2",
-		"prettier": "^3.6.2"
+		"prettier": "^3.7.0"
 	},
 	"dependencies": {
 		"adm-zip": "^0.5.16"
