@@ -468,7 +468,7 @@
 	"reauthentication": "Yeniden Kimlik Doğrulama",
 	"clear_filters": "Filtreleri Temizle",
 	"default_profile_picture": "Varsayılan Profil Resmi",
-	"light": "Işık",
+	"light": "Aydınlık",
 	"dark": "Karanlık",
 	"system": "Sistem",
 	"signup_token_user_groups_description": "Bu token kullanarak kaydolan kullanıcılara bu grupları otomatik olarak atayın."
