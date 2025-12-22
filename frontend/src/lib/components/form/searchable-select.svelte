@@ -2,9 +2,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils/style';
-	import { LoaderCircle, LucideCheck, LucideChevronDown } from '@lucide/svelte';
+	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import type { FormEventHandler, HTMLAttributes } from 'svelte/elements';
 
@@ -90,7 +91,7 @@
 			<Command.Empty>
 				{#if isLoading}
 					<div class="flex w-full justify-center">
-						<LoaderCircle class="size-4 animate-spin" />
+						<Spinner />
 					</div>
 				{:else}
 					{m.no_items_found()}

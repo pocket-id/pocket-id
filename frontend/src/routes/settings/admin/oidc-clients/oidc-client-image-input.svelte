@@ -2,7 +2,7 @@
 	import UrlFileInput from '$lib/components/form/url-file-input.svelte';
 	import ImageBox from '$lib/components/image-box.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import { m } from '$lib/paraglide/messages';
 	import { LucideX } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
@@ -26,7 +26,7 @@
 	let id = `oidc-client-logo-${light ? 'light' : 'dark'}`;
 </script>
 
-<Label for={id}>{m.logo()}</Label>
+<Field.Label for={id}>{m.logo()}</Field.Label>
 <div class="flex h-24 items-end gap-4">
 	<div class="flex flex-col gap-2">
 		{#if tabTriggers}

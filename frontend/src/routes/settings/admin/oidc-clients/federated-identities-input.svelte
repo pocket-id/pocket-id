@@ -1,8 +1,8 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
-	import Label from '$lib/components/ui/label/label.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { OidcClient, OidcClientFederatedIdentity } from '$lib/types/oidc.type';
 	import { LucideMinus, LucidePlus } from '@lucide/svelte';
@@ -67,7 +67,7 @@
 			{#each federatedIdentities as identity, i}
 				<div class="space-y-3 rounded-lg border p-4">
 					<div class="flex items-center justify-between">
-						<Label class="text-sm font-medium">Identity {i + 1}</Label>
+						<Field.Label>Identity {i + 1}</Field.Label>
 						{#if federatedIdentities.length > 0}
 							<Button
 								variant="outline"
@@ -81,8 +81,8 @@
 					</div>
 
 					<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-						<div>
-							<Label required for="issuer-{i}" class="text-xs">Issuer</Label>
+						<Field.Field>
+							<Field.Label required for="issuer-{i}">Issuer</Field.Label>
 							<Input
 								id="issuer-{i}"
 								placeholder="https://example.com/"
@@ -91,12 +91,12 @@
 								aria-invalid={!!getFieldError(i, 'issuer')}
 							/>
 							{#if getFieldError(i, 'issuer')}
-								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'issuer')}</p>
+								<Field.Error>{getFieldError(i, 'issuer')}</Field.Error>
 							{/if}
-						</div>
+						</Field.Field>
 
-						<div>
-							<Label for="subject-{i}" class="text-xs">Subject</Label>
+						<Field.Field>
+							<Field.Label for="subject-{i}">Subject</Field.Label>
 							<Input
 								id="subject-{i}"
 								placeholder="Defaults to the client ID"
@@ -105,12 +105,12 @@
 								aria-invalid={!!getFieldError(i, 'subject')}
 							/>
 							{#if getFieldError(i, 'subject')}
-								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'subject')}</p>
+								<Field.Error>{getFieldError(i, 'subject')}</Field.Error>
 							{/if}
-						</div>
+						</Field.Field>
 
-						<div>
-							<Label for="audience-{i}" class="text-xs">Audience</Label>
+						<Field.Field>
+							<Field.Label for="audience-{i}">Audience</Field.Label>
 							<Input
 								id="audience-{i}"
 								placeholder="Defaults to the Pocket ID URL"
@@ -119,12 +119,12 @@
 								aria-invalid={!!getFieldError(i, 'audience')}
 							/>
 							{#if getFieldError(i, 'audience')}
-								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'audience')}</p>
+								<Field.Error>{getFieldError(i, 'audience')}</Field.Error>
 							{/if}
-						</div>
+						</Field.Field>
 
-						<div>
-							<Label for="jwks-{i}" class="text-xs">JWKS URL</Label>
+						<Field.Field>
+							<Field.Label for="jwks-{i}">JWKS URL</Field.Label>
 							<Input
 								id="jwks-{i}"
 								placeholder="Defaults to {identity.issuer || '<issuer>'}/.well-known/jwks.json"
@@ -133,9 +133,9 @@
 								aria-invalid={!!getFieldError(i, 'jwks')}
 							/>
 							{#if getFieldError(i, 'jwks')}
-								<p class="text-destructive mt-1 text-xs">{getFieldError(i, 'jwks')}</p>
+								<Field.Error>{getFieldError(i, 'jwks')}</Field.Error>
 							{/if}
-						</div>
+						</Field.Field>
 					</div>
 				</div>
 			{/each}
