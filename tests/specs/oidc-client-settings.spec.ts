@@ -1,5 +1,5 @@
 import test, { expect, Page } from '@playwright/test';
-import { oidcClients } from '../data';
+import { oidcClients, userGroups } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -116,4 +116,26 @@ test('Delete OIDC client', async ({ page }) => {
 		'OIDC client deleted successfully'
 	);
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
+});
+
+test('Update OIDC client allowed user groups', async ({ page }) => {
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+
+	await page.getByRole('button', { name: 'Restrict' }).click();
+
+	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
+	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();
+
+	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+
+	await expect(page.getByText('Allowed user groups updated successfully')).toBeVisible();
+
+	await page.reload();
+
+	await expect(
+		page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox')
+	).toHaveAttribute('data-state', 'checked');
+	await expect(
+		page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox')
+	).toHaveAttribute('data-state', 'checked');
 });

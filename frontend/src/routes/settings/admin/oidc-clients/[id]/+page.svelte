@@ -133,7 +133,7 @@
 		await oidcService
 			.updateAllowedUserGroups(client.id, allowedGroups)
 			.then(() => {
-				toast.success(m.user_groups_restriction_updated_successfully());
+				toast.success(m.allowed_user_groups_updated_successfully());
 			})
 			.catch((e) => {
 				axiosErrorToast(e);

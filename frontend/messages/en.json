@@ -311,6 +311,7 @@
 	"unrestrict": "Unrestrict",
 	"restrict": "Restrict",
 	"user_groups_restriction_updated_successfully": "User groups restriction updated successfully",
+	"allowed_user_groups_updated_successfully": "Allowed user groups updated successfully",
 	"favicon": "Favicon",
 	"light_mode_logo": "Light Mode Logo",
 	"dark_mode_logo": "Dark Mode Logo",
@@ -478,5 +479,6 @@
 	"allowed_oidc_clients": "Allowed OIDC Clients",
 	"allowed_oidc_clients_description": "Select the OIDC clients that members of this user group are allowed to sign in to.",
 	"unrestrict_oidc_client": "Unrestrict {clientName}",
-	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in."
+	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
+	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
 }
