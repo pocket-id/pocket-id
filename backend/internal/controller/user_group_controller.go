@@ -28,6 +28,7 @@ func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.A
 		userGroupsGroup.PUT("/:id", ugc.update)
 		userGroupsGroup.DELETE("/:id", ugc.delete)
 		userGroupsGroup.PUT("/:id/users", ugc.updateUsers)
+		userGroupsGroup.PUT("/:id/allowed-oidc-clients", ugc.updateAllowedOidcClients)
 	}
 }
 
@@ -44,7 +45,7 @@ type UserGroupController struct {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.UserGroupDtoWithUserCount]
+// @Success 200 {object} dto.Paginated[dto.UserGroupMinimalDto]
 // @Router /api/user-groups [get]
 func (ugc *UserGroupController) list(c *gin.Context) {
 	searchTerm := c.Query("search")
@@ -57,9 +58,9 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 	}
 
 	// Map the user groups to DTOs
-	var groupsDto = make([]dto.UserGroupDtoWithUserCount, len(groups))
+	var groupsDto = make([]dto.UserGroupMinimalDto, len(groups))
 	for i, group := range groups {
-		var groupDto dto.UserGroupDtoWithUserCount
+		var groupDto dto.UserGroupMinimalDto
 		if err := dto.MapStruct(group, &groupDto); err != nil {
 			_ = c.Error(err)
 			return
@@ -72,7 +73,7 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 		groupsDto[i] = groupDto
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.UserGroupDtoWithUserCount]{
+	c.JSON(http.StatusOK, dto.Paginated[dto.UserGroupMinimalDto]{
 		Data:       groupsDto,
 		Pagination: pagination,
 	})
@@ -85,7 +86,7 @@ func (ugc *UserGroupController) list(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "User Group ID"
-// @Success 200 {object} dto.UserGroupDtoWithUsers
+// @Success 200 {object} dto.UserGroupDto
 // @Router /api/user-groups/{id} [get]
 func (ugc *UserGroupController) get(c *gin.Context) {
 	group, err := ugc.UserGroupService.Get(c.Request.Context(), c.Param("id"))
@@ -94,7 +95,7 @@ func (ugc *UserGroupController) get(c *gin.Context) {
 		return
 	}
 
-	var groupDto dto.UserGroupDtoWithUsers
+	var groupDto dto.UserGroupDto
 	if err := dto.MapStruct(group, &groupDto); err != nil {
 		_ = c.Error(err)
 		return
@@ -110,7 +111,7 @@ func (ugc *UserGroupController) get(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param userGroup body dto.UserGroupCreateDto true "User group information"
-// @Success 201 {object} dto.UserGroupDtoWithUsers "Created user group"
+// @Success 201 {object} dto.UserGroupDto "Created user group"
 // @Router /api/user-groups [post]
 func (ugc *UserGroupController) create(c *gin.Context) {
 	var input dto.UserGroupCreateDto
@@ -125,7 +126,7 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 		return
 	}
 
-	var groupDto dto.UserGroupDtoWithUsers
+	var groupDto dto.UserGroupDto
 	if err := dto.MapStruct(group, &groupDto); err != nil {
 		_ = c.Error(err)
 		return
@@ -142,7 +143,7 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 // @Produce json
 // @Param id path string true "User Group ID"
 // @Param userGroup body dto.UserGroupCreateDto true "User group information"
-// @Success 200 {object} dto.UserGroupDtoWithUsers "Updated user group"
+// @Success 200 {object} dto.UserGroupDto "Updated user group"
 // @Router /api/user-groups/{id} [put]
 func (ugc *UserGroupController) update(c *gin.Context) {
 	var input dto.UserGroupCreateDto
@@ -157,7 +158,7 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 		return
 	}
 
-	var groupDto dto.UserGroupDtoWithUsers
+	var groupDto dto.UserGroupDto
 	if err := dto.MapStruct(group, &groupDto); err != nil {
 		_ = c.Error(err)
 		return
@@ -192,7 +193,7 @@ func (ugc *UserGroupController) delete(c *gin.Context) {
 // @Produce json
 // @Param id path string true "User Group ID"
 // @Param users body dto.UserGroupUpdateUsersDto true "List of user IDs to assign to this group"
-// @Success 200 {object} dto.UserGroupDtoWithUsers
+// @Success 200 {object} dto.UserGroupDto
 // @Router /api/user-groups/{id}/users [put]
 func (ugc *UserGroupController) updateUsers(c *gin.Context) {
 	var input dto.UserGroupUpdateUsersDto
@@ -207,11 +208,43 @@ func (ugc *UserGroupController) updateUsers(c *gin.Context) {
 		return
 	}
 
-	var groupDto dto.UserGroupDtoWithUsers
+	var groupDto dto.UserGroupDto
 	if err := dto.MapStruct(group, &groupDto); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	c.JSON(http.StatusOK, groupDto)
+}
+
+// updateAllowedOidcClients godoc
+// @Summary Update allowed OIDC clients
+// @Description Update the OIDC clients allowed for a specific user group
+// @Tags OIDC
+// @Accept json
+// @Produce json
+// @Param id path string true "User Group ID"
+// @Param groups body dto.UserGroupUpdateAllowedOidcClientsDto true "OIDC client IDs to allow"
+// @Success 200 {object} dto.UserGroupDto "Updated user group"
+// @Router /api/user-groups/{id}/allowed-oidc-clients [put]
+func (ugc *UserGroupController) updateAllowedOidcClients(c *gin.Context) {
+	var input dto.UserGroupUpdateAllowedOidcClientsDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	userGroup, err := ugc.UserGroupService.UpdateAllowedOidcClient(c.Request.Context(), c.Param("id"), input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var userGroupDto dto.UserGroupDto
+	if err := dto.MapStruct(userGroup, &userGroupDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, userGroupDto)
 }

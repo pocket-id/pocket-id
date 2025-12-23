@@ -778,6 +778,14 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 
 	updateOIDCClientModelFromDto(&client, &input)
 
+	if !input.IsGroupRestricted {
+		// Clear allowed user groups if the restriction is removed
+		err = tx.Model(&client).Association("AllowedUserGroups").Clear()
+		if err != nil {
+			return model.OidcClient{}, err
+		}
+	}
+
 	err = tx.WithContext(ctx).Save(&client).Error
 	if err != nil {
 		return model.OidcClient{}, err

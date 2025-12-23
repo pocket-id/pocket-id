@@ -53,6 +53,7 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 		Where("id = ?", id).
 		Preload("CustomClaims").
 		Preload("Users").
+		Preload("AllowedOidcClients").
 		First(&group).
 		Error
 	return group, err
@@ -247,4 +248,55 @@ func (s *UserGroupService) GetUserCountOfGroup(ctx context.Context, id string) (
 		Association("Users").
 		Count()
 	return count, nil
+}
+
+func (s *UserGroupService) UpdateAllowedOidcClient(ctx context.Context, id string, input dto.UserGroupUpdateAllowedOidcClientsDto) (group model.UserGroup, err error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	group, err = s.getInternal(ctx, id, tx)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
+	// Fetch the clients based on the client IDs
+	var clients []model.OidcClient
+	if len(input.OidcClientIDs) > 0 {
+		err = tx.
+			WithContext(ctx).
+			Where("id IN (?)", input.OidcClientIDs).
+			Find(&clients).
+			Error
+		if err != nil {
+			return model.UserGroup{}, err
+		}
+	}
+
+	// Replace the current clients with the new set of clients
+	err = tx.
+		WithContext(ctx).
+		Model(&group).
+		Association("AllowedOidcClients").
+		Replace(clients)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
+	// Save the updated group
+	err = tx.
+		WithContext(ctx).
+		Save(&group).
+		Error
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
+	return group, nil
 }

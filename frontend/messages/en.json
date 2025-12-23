@@ -306,7 +306,7 @@
 	"client_secret": "Client secret",
 	"show_more_details": "Show more details",
 	"allowed_user_groups": "Allowed User Groups",
-	"allowed_user_groups_description": "Select user groups to restrict signing in to this client to only users in these groups.",
+	"allowed_user_groups_description": "Select the user groups whose members are allowed to sign in to this client.",
 	"allowed_user_groups_status_unrestricted_description": "No user group restrictions are applied. Any user can sign in to this client.",
 	"unrestrict": "Unrestrict",
 	"restrict": "Restrict",
@@ -474,5 +474,9 @@
 	"light": "Light",
 	"dark": "Dark",
 	"system": "System",
-	"signup_token_user_groups_description": "Automatically assign these groups to users who sign up using this token."
+	"signup_token_user_groups_description": "Automatically assign these groups to users who sign up using this token.",
+	"allowed_oidc_clients": "Allowed OIDC Clients",
+	"allowed_oidc_clients_description": "Select the OIDC clients that members of this user group are allowed to sign in to.",
+	"unrestrict_oidc_client": "Unrestrict {clientName}",
+	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in."
 }
