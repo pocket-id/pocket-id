@@ -18,6 +18,7 @@ type OidcClientDto struct {
 	IsPublic           bool                     `json:"isPublic"`
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
+	IsGroupRestricted  bool                     `json:"isGroupRestricted"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -43,6 +44,7 @@ type OidcClientUpdateDto struct {
 	HasDarkLogo              bool                     `json:"hasDarkLogo"`
 	LogoURL                  *string                  `json:"logoUrl"`
 	DarkLogoURL              *string                  `json:"darkLogoUrl"`
+	IsGroupRestricted        bool                     `json:"isGroupRestricted"`
 }
 
 type OidcClientCreateDto struct {

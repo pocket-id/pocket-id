@@ -80,6 +80,16 @@
 		return success;
 	}
 
+	async function toggleGroupRestriction() {
+		client.isGroupRestricted = !client.isGroupRestricted;
+		await oidcService
+			.updateClient(client.id, client)
+			.then(() => {
+				toast.success(m.user_groups_restriction_updated_successfully());
+			})
+			.catch(axiosErrorToast);
+	}
+
 	async function createClientSecret() {
 		openConfirmDialog({
 			title: m.create_new_client_secret(),
@@ -104,7 +114,7 @@
 		await oidcService
 			.updateAllowedUserGroups(client.id, allowedGroups)
 			.then(() => {
-				toast.success(m.allowed_user_groups_updated_successfully());
+				toast.success(m.user_groups_restriction_updated_successfully());
 			})
 			.catch((e) => {
 				axiosErrorToast(e);
@@ -119,6 +129,14 @@
 <svelte:head>
 	<title>{m.oidc_client_name({ name: client.name })}</title>
 </svelte:head>
+
+{#snippet UnrestrictButton()}
+	<Button
+		onclick={toggleGroupRestriction}
+		variant={client.isGroupRestricted ? 'secondary' : 'default'}
+		>{client.isGroupRestricted ? m.unrestrict() : m.restrict()}</Button
+	>
+{/snippet}
 
 <div>
 	<button type="button" class="text-muted-foreground flex text-sm" onclick={backNavigation.go}
@@ -193,12 +211,23 @@
 <CollapsibleCard
 	id="allowed-user-groups"
 	title={m.allowed_user_groups()}
-	description={m.add_user_groups_to_this_client_to_restrict_access_to_users_in_these_groups()}
+	button={!client.isGroupRestricted ? UnrestrictButton : undefined}
+	forcedExpanded={client.isGroupRestricted ? undefined : false}
+	description={client.isGroupRestricted
+		? m.allowed_user_groups_description()
+		: m.allowed_user_groups_status_unrestricted_description()}
 >
-	<UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
-	<div class="mt-5 flex justify-end">
-		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
-	</div>
+	{#if client.isGroupRestricted}
+		<UserGroupSelection
+			bind:selectedGroupIds={client.allowedUserGroupIds}
+			selectionDisabled={!client.isGroupRestricted}
+		/>
+		<div class="mt-5 flex justify-end gap-3">
+			<Button onclick={toggleGroupRestriction} variant="secondary">{m.unrestrict()}</Button>
+
+			<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
+		</div>
+	{/if}
 </CollapsibleCard>
 <Card.Root>
 	<Card.Header>

@@ -226,7 +226,7 @@ func (s *OidcService) hasAuthorizedClientInternal(ctx context.Context, clientID,
 
 // IsUserGroupAllowedToAuthorize checks if the user group of the user is allowed to authorize the client
 func (s *OidcService) IsUserGroupAllowedToAuthorize(user model.User, client model.OidcClient) bool {
-	if len(client.AllowedUserGroups) == 0 {
+	if !client.IsGroupRestricted {
 		return true
 	}
 
@@ -816,6 +816,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.LaunchURL = input.LaunchURL
+	client.IsGroupRestricted = input.IsGroupRestricted
 
 	// Credentials
 	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
