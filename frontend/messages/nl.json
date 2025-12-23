@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Eén enkele passkey geconfigureerd",
 	"it_is_recommended_to_add_more_than_one_passkey": "Het is raadzaam om meer dan één passkey toe te voegen om te voorkomen dat je de toegang tot je account verliest.",
 	"account_details": "Accountgegevens",
+	"birth_date": "Geboortedatum",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Beheer de passkeys waarmee je jezelf kunt verifiëren.",
 	"add_passkey": "Passkey toevoegen",

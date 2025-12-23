@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Налаштовано єдиний ключ доступу",
 	"it_is_recommended_to_add_more_than_one_passkey": "Рекомендується додати більше одного ключа доступу, щоб уникнути втрати доступу до вашого облікового запису.",
 	"account_details": "Дані облікового запису",
+	"birth_date": "Дата народження",
 	"passkeys": "Ключі доступу",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Керуйте своїми ключами доступу, які ви можете використовувати для автентифікації.",
 	"add_passkey": "Додати ключ доступу",

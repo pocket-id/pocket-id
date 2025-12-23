@@ -111,6 +111,7 @@
 	"single_passkey_configured": "已設定一組密碼金鑰",
 	"it_is_recommended_to_add_more_than_one_passkey": "建議您新增多組密碼金鑰，以避免日後無法存取帳號。",
 	"account_details": "帳號詳細資料",
+	"birth_date": "出生日期",
 	"passkeys": "密碼金鑰",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "管理可用於驗證身分的密碼金鑰。",
 	"add_passkey": "新增密碼金鑰",

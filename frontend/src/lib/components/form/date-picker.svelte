@@ -72,9 +72,10 @@
 			{#snippet child({ props })}
 				<Button
 					{...props}
+					{id}
 					variant="outline"
 					class={cn(
-						'w-full justify-start text-left font-normal',
+						'w-full justify-start text-left font-normal h-9 text-accent-foreground',
 						!value && 'text-muted-foreground'
 					)}
 					aria-label={m.select_a_date()}

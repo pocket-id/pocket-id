@@ -21,7 +21,8 @@ type User struct {
 	IsAdmin     bool    `sortable:"true" filterable:"true"`
 	Locale      *string
 	LdapID      *string
-	Disabled    bool `sortable:"true" filterable:"true"`
+	Disabled    bool       `sortable:"true" filterable:"true"`
+	BirthDate   *datatype.DateTime `sortable:"true"`
 
 	CustomClaims []CustomClaim
 	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`

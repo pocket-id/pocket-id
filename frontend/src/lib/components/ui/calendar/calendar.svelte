@@ -25,11 +25,14 @@
 			label: monthFmt.format(month.toDate(getLocalTimeZone()))
 		};
 	});
-
-	const yearOptions = Array.from({ length: 100 }, (_, i) => ({
-		label: String(new Date().getFullYear() + i),
-		value: new Date().getFullYear() + i
-	}));
+	const currentYear = new Date().getFullYear();
+	const yearOptions = Array.from({ length: 201 }, (_, i) => {
+		const year = currentYear - 100 + i;
+		return {
+			label: String(year),
+			value: year
+		};
+	});
 
 	const defaultYear = $derived(
 		placeholder ? { value: placeholder.year, label: String(placeholder.year) } : undefined

@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Yksi pääsyavain määritetty",
 	"it_is_recommended_to_add_more_than_one_passkey": "On suositeltavaa lisätä useampi pääsyavain, jottet menetä päsyä tiliisi.",
 	"account_details": "Tilitiedot",
+	"birth_date": "Syntymäaika",
 	"passkeys": "Pääsyavaimet",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Hallitse pääsyavaimiasi, joita voit käyttää tunnistautumiseen.",
 	"add_passkey": "Lisää pääsyavain",

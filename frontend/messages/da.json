@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Én adgangsnøgle er konfigureret",
 	"it_is_recommended_to_add_more_than_one_passkey": "Det anbefales at tilføje mere end én adgangsnøgle for at undgå at miste adgangen til din konto.",
 	"account_details": "Kontooplysninger",
+	"birth_date": "Fødselsdato",
 	"passkeys": "Adgangsnøgler",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Administrér dine adgangsnøgler, som du kan bruge til at godkende dig selv.",
 	"add_passkey": "Tilføj adgangsnøgle",

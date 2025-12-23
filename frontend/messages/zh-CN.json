@@ -111,6 +111,7 @@
 	"single_passkey_configured": "已添加一个通行密钥",
 	"it_is_recommended_to_add_more_than_one_passkey": "建议添加多个通行密钥以避免失去对账户的访问。",
 	"account_details": "账户详情",
+	"birth_date": "出生日期",
 	"passkeys": "通行密钥",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "管理您的通行密钥，以用于身份验证。",
 	"add_passkey": "添加通行密钥",

@@ -6,26 +6,28 @@ import type { User, UserCreate, UserSignUp } from '$lib/types/user.type';
 import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 import { get } from 'svelte/store';
 import APIService from './api-service';
+import { mapUser } from '$lib/utils/user-util';
 
 export default class UserService extends APIService {
 	list = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/users', { params: options });
-		return res.data as Paginated<User>;
+		const data = res?.data?.data.map((d: User) => mapUser(d));
+		return { ...res.data, data: data } as Paginated<User>;
 	};
 
 	get = async (id: string) => {
 		const res = await this.api.get(`/users/${id}`);
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	getCurrent = async () => {
 		const res = await this.api.get('/users/me');
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	create = async (user: UserCreate) => {
 		const res = await this.api.post('/users', user);
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	getUserGroups = async (userId: string) => {
@@ -35,12 +37,12 @@ export default class UserService extends APIService {
 
 	update = async (id: string, user: UserCreate) => {
 		const res = await this.api.put(`/users/${id}`, user);
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	updateCurrent = async (user: UserCreate) => {
 		const res = await this.api.put('/users/me', user);
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	remove = async (id: string) => {
@@ -87,7 +89,7 @@ export default class UserService extends APIService {
 
 	exchangeOneTimeAccessToken = async (token: string) => {
 		const res = await this.api.post(`/one-time-access-token/${token}`);
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	requestOneTimeAccessEmailAsUnauthenticatedUser = async (email: string, redirectPath?: string) => {
@@ -100,17 +102,17 @@ export default class UserService extends APIService {
 
 	updateUserGroups = async (id: string, userGroupIds: string[]) => {
 		const res = await this.api.put(`/users/${id}/user-groups`, { userGroupIds });
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	signup = async (data: UserSignUp) => {
 		const res = await this.api.post(`/signup`, data);
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	signupInitialUser = async (data: UserSignUp) => {
 		const res = await this.api.post(`/signup/setup`, data);
-		return res.data as User;
+		return mapUser(res.data as User);
 	};
 
 	listSignupTokens = async (options?: ListRequestOptions) => {

@@ -9,6 +9,7 @@ export type User = {
 	firstName: string;
 	lastName?: string;
 	displayName: string;
+	birthDate?: Date;
 	isAdmin: boolean;
 	userGroups: UserGroup[];
 	customClaims: CustomClaim[];

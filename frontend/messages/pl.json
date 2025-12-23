@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Skonfigurowano pojedynczy klucz",
 	"it_is_recommended_to_add_more_than_one_passkey": "Zaleca się dodanie więcej niż jednego klucza, aby uniknąć utraty dostępu do konta.",
 	"account_details": "Szczegóły konta",
+	"birth_date": "Data urodzenia",
 	"passkeys": "Klucze",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Zarządzaj swoimi kluczami, których możesz użyć do uwierzytelnienia siebie.",
 	"add_passkey": "Dodaj klucz",

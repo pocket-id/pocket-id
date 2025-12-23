@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Настроен один пасскей",
 	"it_is_recommended_to_add_more_than_one_passkey": "Рекомендуется добавить более одного пасскея во избежание потери доступа к вашей учетной записи.",
 	"account_details": "Детали учетной записи",
+	"birth_date": "Дата рождения",
 	"passkeys": "Пасскеи",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Управляйте пасскеями, которые вы можете использовать для аутентификации себя.",
 	"add_passkey": "Добавить пасскей",

@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Single Passkey Configured",
 	"it_is_recommended_to_add_more_than_one_passkey": "アカウントへのアクセスを失わないように、複数のパスキーを追加することをお勧めします。",
 	"account_details": "アカウントの詳細",
+	"birth_date": "生年月日",
 	"passkeys": "パスキー",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "認証に使用するパスキーを管理します。",
 	"add_passkey": "パスキーを追加",

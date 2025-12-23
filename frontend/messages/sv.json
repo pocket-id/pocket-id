@@ -111,6 +111,7 @@
 	"single_passkey_configured": "En passkey konfigurerad",
 	"it_is_recommended_to_add_more_than_one_passkey": "Det rekommenderas att lägga till fler än en passkey för att undvika att förlora åtkomsten till ditt konto.",
 	"account_details": "Kontouppgifter",
+	"birth_date": "Födelsedatum",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Hantera dina passkeys som du kan använda för att autentisera dig själv.",
 	"add_passkey": "Lägg till en passkey",

@@ -22,14 +22,18 @@
 		firstName: '',
 		lastName: '',
 		email: '',
-		username: ''
+		username: '',
+		birthDate: undefined
 	};
 
 	const formSchema = z.object({
 		firstName: z.string().min(1).max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
 		username: usernameSchema,
-		email: get(appConfigStore).requireUserEmail ? z.email() : emptyToUndefined(z.email().optional())
+		email: get(appConfigStore).requireUserEmail
+			? z.email()
+			: emptyToUndefined(z.email().optional()),
+		birthDate: z.date().optional()
 	});
 	type FormSchema = typeof formSchema;
 
@@ -59,5 +63,6 @@
 
 		<FormInput label={m.username()} bind:input={$inputs.username} />
 		<FormInput label={m.email()} bind:input={$inputs.email} type="email" />
+		<FormInput label={m.birth_date()} bind:input={$inputs.birthDate} type="date" />
 	</div>
 </form>

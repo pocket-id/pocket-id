@@ -15,6 +15,21 @@ test('Update account details', async ({ page }) => {
 	await page.getByLabel('Display Name').fill('Timothy Apple');
 	await page.getByLabel('Email').fill('timothy.apple@test.com');
 	await page.getByLabel('Username').fill('timothy');
+
+	// Choose the date
+	const currentDate = new Date();
+	await page.getByRole('button', { name: 'Select a date' }).click();
+	await page.getByLabel('Select year').click();
+	// Select 20 years ago
+	await page
+		.getByRole('option', { name: (currentDate.getFullYear() - 20).toString() })
+		.click();
+	// Select the first day of the month
+	await page
+		.getByRole('button', { name: /([A-Z][a-z]+), ([A-Z][a-z]+) 1, (\d{4})/ })
+		.first()
+		.click();
+
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(

@@ -159,6 +159,20 @@ test.describe('User Signup', () => {
 			await page.getByLabel('Username').fill('janesmith');
 			await page.getByLabel('Email').fill('jane.smith@test.com');
 
+			// Choose the date
+			const currentDate = new Date();
+			await page.getByRole('button', { name: 'Select a date' }).click();
+			await page.getByLabel('Select year').click();
+			// Select 20 years ago
+			await page
+				.getByRole('option', { name: (currentDate.getFullYear() - 20).toString() })
+				.click();
+			// Select the first day of the month
+			await page
+				.getByRole('button', { name: /([A-Z][a-z]+), ([A-Z][a-z]+) 1, (\d{4})/ })
+				.first()
+				.click();
+
 			await page.getByRole('button', { name: 'Sign Up' }).click();
 
 			await page.waitForURL('/signup/add-passkey');

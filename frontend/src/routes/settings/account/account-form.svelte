@@ -41,7 +41,8 @@
 		email: get(appConfigStore).requireUserEmail
 			? z.email()
 			: emptyToUndefined(z.email().optional()),
-		isAdmin: z.boolean()
+		isAdmin: z.boolean(),
+		birthDate: z.date().optional()
 	});
 	type FormSchema = typeof formSchema;
 
@@ -108,6 +109,9 @@
 			</div>
 			<div>
 				<FormInput label={m.email()} bind:input={$inputs.email} />
+			</div>
+			<div>
+				<FormInput label={m.birth_date()} bind:input={$inputs.birthDate} type="date" />
 			</div>
 		</div>
 

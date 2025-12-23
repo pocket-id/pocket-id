@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Single Passkey Configured",
 	"it_is_recommended_to_add_more_than_one_passkey": "It is recommended to add more than one passkey to avoid losing access to your account.",
 	"account_details": "Account Details",
+	"birth_date": "Date of Birth",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Manage your passkeys that you can use to authenticate yourself.",
 	"add_passkey": "Add Passkey",

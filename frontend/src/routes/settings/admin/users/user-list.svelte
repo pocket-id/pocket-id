@@ -132,7 +132,8 @@
 		},
 		{ label: m.ldap_id(), column: 'ldapId', hidden: true },
 		{ label: m.locale(), column: 'locale', hidden: true },
-		{ label: m.source(), key: 'source', hidden: !$appConfigStore.ldapEnabled, cell: SourceCell }
+		{ label: m.source(), key: 'source', hidden: !$appConfigStore.ldapEnabled, cell: SourceCell },
+		{ label: m.birth_date(), cell: BirthDateCell, key: 'birthDate' }
 	];
 
 	const actions: CreateAdvancedTableActions<User> = (u) => [
@@ -181,6 +182,10 @@
 	<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}>
 		{item.ldapId ? m.ldap() : m.local()}
 	</Badge>
+{/snippet}
+
+{#snippet BirthDateCell({ item }: { item: User })}
+	{item.birthDate?.toDateString() ?? ''}
 {/snippet}
 
 <AdvancedTable

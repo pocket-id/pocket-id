@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Nastaven jediný přístupový klíč",
 	"it_is_recommended_to_add_more_than_one_passkey": "Doporučujeme přidat více než jeden přístupový klíč, aby nedošlo ke ztrátě přístupu k Vašemu účtu.",
 	"account_details": "Podrobnosti účtu",
+	"birth_date": "Datum narození",
 	"passkeys": "Přístupové klíče",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Spravujte své přístupové klíče, které můžete použít pro ověření.",
 	"add_passkey": "Přidat přístupový klíč",

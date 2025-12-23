@@ -30,7 +30,8 @@
 		email: existingUser?.email || '',
 		username: existingUser?.username || '',
 		isAdmin: existingUser?.isAdmin || false,
-		disabled: existingUser?.disabled || false
+		disabled: existingUser?.disabled || false,
+		birthDate: existingUser?.birthDate || undefined
 	};
 
 	const formSchema = z.object({
@@ -42,7 +43,8 @@
 			? z.email()
 			: emptyToUndefined(z.email().optional()),
 		isAdmin: z.boolean(),
-		disabled: z.boolean()
+		disabled: z.boolean(),
+		birthDate: z.date().optional()
 	});
 	type FormSchema = typeof formSchema;
 
@@ -77,6 +79,7 @@
 			/>
 			<FormInput label={m.username()} bind:input={$inputs.username} />
 			<FormInput label={m.email()} bind:input={$inputs.email} />
+			<FormInput label={m.birth_date()} bind:input={$inputs.birthDate} type="date" />
 		</div>
 		<div class="mt-5 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<SwitchWithLabel

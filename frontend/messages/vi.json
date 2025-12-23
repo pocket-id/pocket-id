@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Đã cài đặt passkey duy nhất",
 	"it_is_recommended_to_add_more_than_one_passkey": "Nên có hơn một passkey cập để tránh mất quyền truy cập vào tài khoản của bạn.",
 	"account_details": "Thông Tin Tài Khoản",
+	"birth_date": "Ngày sinh",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Quản lý các passkeys mà bạn có thể sử dụng để xác thực danh tính của mình.",
 	"add_passkey": "Thêm Passkey",

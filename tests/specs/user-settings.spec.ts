@@ -15,11 +15,28 @@ test('Create user', async ({ page }) => {
 	await page.getByLabel('Email').fill(user.email);
 	await page.getByLabel('Username').fill(user.username);
 
+	// Choose the date
+	const currentDate = new Date();
+	await page.getByRole('button', { name: 'Select a date' }).click();
+	await page.getByLabel('Select year').click();
+	// Select 20 years ago
+	await page
+		.getByRole('option', { name: (currentDate.getFullYear() - 20).toString() })
+		.click();
+	// Select the first day of the month
+	await page
+		.getByRole('button', { name: /([A-Z][a-z]+), ([A-Z][a-z]+) 1, (\d{4})/ })
+		.first()
+		.click();
+
 	await expect(page.getByLabel('Display Name')).toHaveValue(`${user.firstname} ${user.lastname}`);
 
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.getByRole('row', { name: `${user.firstname} ${user.lastname}` })).toBeVisible();
+	await expect(
+		page.getByRole('cell', { name: (currentDate.getFullYear() - 20).toString() })
+	).toBeVisible();
 	await expect(page.locator('[data-type="success"]')).toHaveText('User created successfully');
 });
 
@@ -127,6 +144,21 @@ test('Update user', async ({ page }) => {
 	await page.getByLabel('Display Name').fill('Crack Apple');
 	await page.getByLabel('Email').fill('crack.apple@test.com');
 	await page.getByLabel('Username').fill('crack');
+
+	// Choose the date
+	const currentDate = new Date();
+	await page.getByRole('button', { name: 'Select a date' }).click();
+	await page.getByLabel('Select year').click();
+	// Select 20 years ago
+	await page
+		.getByRole('option', { name: (currentDate.getFullYear() - 20).toString() })
+		.click();
+	// Select the first day of the month
+	await page
+		.getByRole('button', { name: /([A-Z][a-z]+), ([A-Z][a-z]+) 1, (\d{4})/ })
+		.first()
+		.click();
+
 	await page.getByRole('button', { name: 'Save' }).first().click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('User updated successfully');

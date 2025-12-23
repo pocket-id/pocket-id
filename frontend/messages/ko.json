@@ -111,6 +111,7 @@
 	"single_passkey_configured": "패스키가 하나만 구성되었습니다",
 	"it_is_recommended_to_add_more_than_one_passkey": "계정 접근 권한을 잃지 않기 위해 패스키를 두 개 이상 추가하는 것이 권장됩니다.",
 	"account_details": "계정 세부 사항",
+	"birth_date": "생년월일",
 	"passkeys": "패스키",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "사용자 인증에 사용하는 패스키를 관리하세요.",
 	"add_passkey": "패스키 추가",

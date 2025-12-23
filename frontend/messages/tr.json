@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Tek geçiş anahtarı yapılandırıldı",
 	"it_is_recommended_to_add_more_than_one_passkey": "Birden fazla geçiş anahtarı eklemeniz önerilir, böylece hesabınıza erişimi kaybetmezsiniz.",
 	"account_details": "Hesap Bilgileri",
+	"birth_date": "Doğum tarihi",
 	"passkeys": "Geçiş Anahtarları",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Kendinizi doğrulamak için kullanabileceğiniz geçiş anahtarlarınızı yönetin.",
 	"add_passkey": "Geçiş Anahtarı Ekle",

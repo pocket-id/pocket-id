@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Nur ein Passkey hinterlegt",
 	"it_is_recommended_to_add_more_than_one_passkey": "Es wird empfohlen, mehr als einen Passkey zu hinterlegen, um den Zugriff auf das Konto nicht zu verlieren.",
 	"account_details": "Kontodetails",
+	"birth_date": "Geburtsdatum",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Verwalte deine Passkeys, mit denen du dich authentifizieren kannst.",
 	"add_passkey": "Passkey hinzufügen",

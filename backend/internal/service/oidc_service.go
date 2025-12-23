@@ -1939,6 +1939,10 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 		claims["name"] = user.FullName()
 		claims["display_name"] = user.DisplayName
 
+		if user.BirthDate != nil {
+			claims["birthdate"] = user.BirthDate.ToTime().Format("2006-01-02")
+		}
+
 		claims["preferred_username"] = user.Username
 		claims["picture"] = common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png"
 	}

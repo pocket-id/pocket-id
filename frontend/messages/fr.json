@@ -111,6 +111,7 @@
 	"single_passkey_configured": "Une seule clé d'accès configurée",
 	"it_is_recommended_to_add_more_than_one_passkey": "Il est recommandé d'ajouter plus d'une clé d'accès pour éviter de perdre l'accès à votre compte.",
 	"account_details": "Paramètres du compte",
+	"birth_date": "Date de naissance",
 	"passkeys": "Clés d'accès",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Gérez vos clés d'accès que vous pouvez utiliser pour vous authentifier.",
 	"add_passkey": "Ajouter une clé d'accès",
