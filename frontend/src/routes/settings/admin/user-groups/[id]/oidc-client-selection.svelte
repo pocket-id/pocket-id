@@ -5,7 +5,7 @@
 	import OidcService from '$lib/services/oidc-service';
 	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
 	import type { ListRequestOptions } from '$lib/types/list-request.type';
-	import type { OidcClient } from '$lib/types/oidc.type';
+	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { mode } from 'mode-watcher';
 
@@ -17,12 +17,30 @@
 
 	const oidcClientService = new OidcService();
 
+	let tableRef: AdvancedTable<OidcClientWithAllowedUserGroupsCount>;
+
+	export function refresh() {
+		return tableRef?.refresh();
+	}
+
 	const isLightMode = $derived(mode.current === 'light');
 
-	const columns: AdvancedTableColumn<OidcClient>[] = [
+	const columns: AdvancedTableColumn<OidcClientWithAllowedUserGroupsCount>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.logo(), key: 'logo', cell: LogoCell },
 		{ label: m.name(), column: 'name', sortable: true },
+		{
+			label: m.oidc_allowed_group_count(),
+			column: 'allowedUserGroupsCount',
+			sortable: true,
+
+			value: (item) => (item.isGroupRestricted ? item.allowedUserGroupsCount : '-')
+		},
+		{
+			label: m.restricted(),
+			column: 'isGroupRestricted',
+			sortable: true
+		},
 		{
 			label: m.client_launch_url(),
 			column: 'launchURL',
@@ -60,6 +78,7 @@
 {/snippet}
 
 <AdvancedTable
+	bind:this={tableRef}
 	id="oidc-client-selection"
 	{fetchCallback}
 	defaultSort={{ column: 'name', direction: 'asc' }}

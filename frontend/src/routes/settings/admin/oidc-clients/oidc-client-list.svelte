@@ -26,8 +26,8 @@
 	const isLightMode = $derived(mode.current === 'light');
 
 	const booleanFilterValues = [
-		{ label: m.enabled(), value: true },
-		{ label: m.disabled(), value: false }
+		{ label: m.yes(), value: true },
+		{ label: m.no(), value: false }
 	];
 
 	const columns: AdvancedTableColumn<OidcClientWithAllowedUserGroupsCount>[] = [
@@ -38,8 +38,13 @@
 			label: m.oidc_allowed_group_count(),
 			column: 'allowedUserGroupsCount',
 			sortable: true,
-			value: (item) =>
-				item.allowedUserGroupsCount > 0 ? item.allowedUserGroupsCount : m.unrestricted()
+			value: (item) => (item.isGroupRestricted ? item.allowedUserGroupsCount : '-')
+		},
+		{
+			label: m.restricted(),
+			column: 'isGroupRestricted',
+			sortable: true,
+			filterableValues: booleanFilterValues
 		},
 		{
 			label: m.pkce(),

@@ -281,7 +281,7 @@
 									{:else if column.cell}
 										{@render column.cell({ item })}
 									{:else if column.column && typeof item[column.column] === 'boolean'}
-										{item[column.column] ? m.enabled() : m.disabled()}
+										{item[column.column] ? m.yes() : m.no()}
 									{:else if column.column}
 										{item[column.column]}
 									{/if}
