@@ -20,6 +20,11 @@ export const cachedApplicationLogo: CachableImage = {
 	}
 };
 
+export const cachedEmailLogo: CachableImage = {
+	getUrl: () => getCachedImageUrl(new URL('/api/application-images/email', window.location.origin)),
+	bustCache: () => bustImageCache(new URL('/api/application-images/email', window.location.origin))
+};
+
 export const cachedDefaultProfilePicture: CachableImage = {
 	getUrl: () =>
 		getCachedImageUrl(

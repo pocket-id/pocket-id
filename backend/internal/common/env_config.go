@@ -38,25 +38,26 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv             AppEnv `env:"APP_ENV" options:"toLower"`
-	LogLevel           string `env:"LOG_LEVEL" options:"toLower"`
-	LogJSON            bool   `env:"LOG_JSON"`
-	AppURL             string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
-	DbProvider         DbProvider
-	DbConnectionString string `env:"DB_CONNECTION_STRING" options:"file"`
-	EncryptionKey      []byte `env:"ENCRYPTION_KEY" options:"file"`
-	Port               string `env:"PORT"`
-	Host               string `env:"HOST" options:"toLower"`
-	UnixSocket         string `env:"UNIX_SOCKET"`
-	UnixSocketMode     string `env:"UNIX_SOCKET_MODE"`
-	LocalIPv6Ranges    string `env:"LOCAL_IPV6_RANGES"`
-	UiConfigDisabled   bool   `env:"UI_CONFIG_DISABLED"`
-	MetricsEnabled     bool   `env:"METRICS_ENABLED"`
-	TracingEnabled     bool   `env:"TRACING_ENABLED"`
-	TrustProxy         bool   `env:"TRUST_PROXY"`
-	AnalyticsDisabled  bool   `env:"ANALYTICS_DISABLED"`
-	AllowDowngrade     bool   `env:"ALLOW_DOWNGRADE"`
-	InternalAppURL     string `env:"INTERNAL_APP_URL"`
+	AppEnv                AppEnv `env:"APP_ENV" options:"toLower"`
+	LogLevel              string `env:"LOG_LEVEL" options:"toLower"`
+	LogJSON               bool   `env:"LOG_JSON"`
+	AuditLogRetentionDays int    `env:"AUDIT_LOG_RETENTION_DAYS"`
+	AppURL                string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
+	DbProvider            DbProvider
+	DbConnectionString    string `env:"DB_CONNECTION_STRING" options:"file"`
+	EncryptionKey         []byte `env:"ENCRYPTION_KEY" options:"file"`
+	Port                  string `env:"PORT"`
+	Host                  string `env:"HOST" options:"toLower"`
+	UnixSocket            string `env:"UNIX_SOCKET"`
+	UnixSocketMode        string `env:"UNIX_SOCKET_MODE"`
+	LocalIPv6Ranges       string `env:"LOCAL_IPV6_RANGES"`
+	UiConfigDisabled      bool   `env:"UI_CONFIG_DISABLED"`
+	MetricsEnabled        bool   `env:"METRICS_ENABLED"`
+	TracingEnabled        bool   `env:"TRACING_ENABLED"`
+	TrustProxy            bool   `env:"TRUST_PROXY"`
+	AnalyticsDisabled     bool   `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade        bool   `env:"ALLOW_DOWNGRADE"`
+	InternalAppURL        string `env:"INTERNAL_APP_URL"`
 
 	MaxMindLicenseKey string `env:"MAXMIND_LICENSE_KEY" options:"file"`
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
@@ -86,15 +87,16 @@ func init() {
 
 func defaultConfig() EnvConfigSchema {
 	return EnvConfigSchema{
-		AppEnv:        AppEnvProduction,
-		LogLevel:      "info",
-		DbProvider:    "sqlite",
-		FileBackend:   "filesystem",
-		AppURL:        AppUrl,
-		Port:          "1411",
-		Host:          "0.0.0.0",
-		GeoLiteDBPath: "data/GeoLite2-City.mmdb",
-		GeoLiteDBUrl:  MaxMindGeoLiteCityUrl,
+		AppEnv:                AppEnvProduction,
+		LogLevel:              "info",
+		DbProvider:            "sqlite",
+		FileBackend:           "filesystem",
+		AppURL:                AppUrl,
+		Port:                  "1411",
+		Host:                  "0.0.0.0",
+		GeoLiteDBPath:         "data/GeoLite2-City.mmdb",
+		GeoLiteDBUrl:          MaxMindGeoLiteCityUrl,
+		AuditLogRetentionDays: 90,
 	}
 }
 
@@ -189,6 +191,10 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 			return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
 		}
 
+	}
+
+	if config.AuditLogRetentionDays <= 0 {
+		return errors.New("AUDIT_LOG_RETENTION_DAYS must be greater than 0")
 	}
 
 	return nil

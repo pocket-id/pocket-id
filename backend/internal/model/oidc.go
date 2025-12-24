@@ -58,6 +58,7 @@ type OidcClient struct {
 	RequiresReauthentication bool `sortable:"true" filterable:"true"`
 	Credentials              OidcClientCredentials
 	LaunchURL                *string
+	IsGroupRestricted        bool
 
 	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID               *string

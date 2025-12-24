@@ -253,6 +253,18 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		return model.User{}, &common.UserEmailNotSetError{}
 	}
 
+	var userGroups []model.UserGroup
+	if len(input.UserGroupIds) > 0 {
+		err := tx.
+			WithContext(ctx).
+			Where("id IN ?", input.UserGroupIds).
+			Find(&userGroups).
+			Error
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
 	user := model.User{
 		FirstName:   input.FirstName,
 		LastName:    input.LastName,
@@ -262,6 +274,7 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		IsAdmin:     input.IsAdmin,
 		Locale:      input.Locale,
 		Disabled:    input.Disabled,
+		UserGroups:  userGroups,
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
@@ -285,7 +298,13 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 
 	// Apply default groups and claims for new non-LDAP users
 	if !isLdapSync {
-		if err := s.applySignupDefaults(ctx, &user, tx); err != nil {
+		if len(input.UserGroupIds) == 0 {
+			if err := s.applyDefaultGroups(ctx, &user, tx); err != nil {
+				return model.User{}, err
+			}
+		}
+
+		if err := s.applyDefaultCustomClaims(ctx, &user, tx); err != nil {
 			return model.User{}, err
 		}
 	}
@@ -293,10 +312,9 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 	return user, nil
 }
 
-func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User, tx *gorm.DB) error {
+func (s *UserService) applyDefaultGroups(ctx context.Context, user *model.User, tx *gorm.DB) error {
 	config := s.appConfigService.GetDbConfig()
 
-	// Apply default user groups
 	var groupIDs []string
 	v := config.SignupDefaultUserGroupIDs.Value
 	if v != "" && v != "[]" {
@@ -323,10 +341,14 @@ func (s *UserService) applySignupDefaults(ctx context.Context, user *model.User,
 			}
 		}
 	}
+	return nil
+}
 
-	// Apply default custom claims
+func (s *UserService) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB) error {
+	config := s.appConfigService.GetDbConfig()
+
 	var claims []dto.CustomClaimCreateDto
-	v = config.SignupDefaultCustomClaims.Value
+	v := config.SignupDefaultCustomClaims.Value
 	if v != "" && v != "[]" {
 		err := json.Unmarshal([]byte(v), &claims)
 		if err != nil {
@@ -727,11 +749,21 @@ func (s *UserService) disableUserInternal(ctx context.Context, tx *gorm.DB, user
 		Error
 }
 
-func (s *UserService) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int) (model.SignupToken, error) {
+func (s *UserService) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (model.SignupToken, error) {
 	signupToken, err := NewSignupToken(ttl, usageLimit)
 	if err != nil {
 		return model.SignupToken{}, err
 	}
+
+	var userGroups []model.UserGroup
+	err = s.db.WithContext(ctx).
+		Where("id IN ?", userGroupIDs).
+		Find(&userGroups).
+		Error
+	if err != nil {
+		return model.SignupToken{}, err
+	}
+	signupToken.UserGroups = userGroups
 
 	err = s.db.WithContext(ctx).Create(signupToken).Error
 	if err != nil {
@@ -755,9 +787,11 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 	}
 
 	var signupToken model.SignupToken
+	var userGroupIDs []string
 	if tokenProvided {
 		err := tx.
 			WithContext(ctx).
+			Preload("UserGroups").
 			Where("token = ?", signupData.Token).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&signupToken).
@@ -772,14 +806,19 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 		if !signupToken.IsValid() {
 			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
 		}
+
+		for _, group := range signupToken.UserGroups {
+			userGroupIDs = append(userGroupIDs, group.ID)
+		}
 	}
 
 	userToCreate := dto.UserCreateDto{
-		Username:    signupData.Username,
-		Email:       signupData.Email,
-		FirstName:   signupData.FirstName,
-		LastName:    signupData.LastName,
-		DisplayName: strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
+		Username:     signupData.Username,
+		Email:        signupData.Email,
+		FirstName:    signupData.FirstName,
+		LastName:     signupData.LastName,
+		DisplayName:  strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
+		UserGroupIds: userGroupIDs,
 	}
 
 	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
@@ -820,7 +859,7 @@ func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAd
 
 func (s *UserService) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]model.SignupToken, utils.PaginationResponse, error) {
 	var tokens []model.SignupToken
-	query := s.db.WithContext(ctx).Model(&model.SignupToken{})
+	query := s.db.WithContext(ctx).Preload("UserGroups").Model(&model.SignupToken{})
 
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &tokens)
 	return tokens, pagination, err

@@ -4,7 +4,8 @@
 	import {
 		cachedApplicationLogo,
 		cachedBackgroundImage,
-		cachedDefaultProfilePicture
+		cachedDefaultProfilePicture,
+		cachedEmailLogo
 	} from '$lib/utils/cached-image-util';
 	import ApplicationImage from './application-image.svelte';
 
@@ -14,6 +15,7 @@
 		callback: (
 			logoLight: File | undefined,
 			logoDark: File | undefined,
+			logoEmail: File | undefined,
 			defaultProfilePicture: File | null | undefined,
 			backgroundImage: File | undefined,
 			favicon: File | undefined
@@ -22,6 +24,7 @@
 
 	let logoLight = $state<File | undefined>();
 	let logoDark = $state<File | undefined>();
+	let logoEmail = $state<File | undefined>();
 	let defaultProfilePicture = $state<File | null | undefined>();
 	let backgroundImage = $state<File | undefined>();
 	let favicon = $state<File | undefined>();
@@ -55,6 +58,15 @@
 		forceColorScheme="dark"
 	/>
 	<ApplicationImage
+		id="logo-email"
+		imageClass="size-24"
+		label={m.email_logo()}
+		bind:image={logoEmail}
+		imageURL={cachedEmailLogo.getUrl()}
+		accept="image/png, image/jpeg"
+		forceColorScheme="light"
+	/>
+	<ApplicationImage
 		id="default-profile-picture"
 		imageClass="size-24"
 		label={m.default_profile_picture()}
@@ -75,7 +87,8 @@
 	<Button
 		class="mt-5"
 		usePromiseLoading
-		onclick={() => callback(logoLight, logoDark, defaultProfilePicture, backgroundImage, favicon)}
+		onclick={() =>
+			callback(logoLight, logoDark, logoEmail, defaultProfilePicture, backgroundImage, favicon)}
 		>{m.save()}</Button
 	>
 </div>

@@ -9,6 +9,7 @@
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { fade } from 'svelte/transition';
+	import { cn } from 'tailwind-variants';
 	import LoginLogoErrorSuccessIndicator from './components/login-logo-error-success-indicator.svelte';
 
 	let { data } = $props();
@@ -55,13 +56,18 @@
 			{m.authenticate_with_passkey_to_access_account()}
 		</p>
 	{/if}
-	<div class="mt-10 flex justify-center gap-3">
+	<div class="mt-10 flex justify-center gap-3 w-full max-w-[450px]">
 		{#if $appConfigStore.allowUserSignups === 'open'}
-			<Button variant="secondary" href="/signup">
+			<Button class="w-[50%]" variant="secondary" href="/signup">
 				{m.signup()}
 			</Button>
 		{/if}
-		<Button {isLoading} onclick={authenticate} autofocus={true}>
+		<Button
+			class={cn($appConfigStore.allowUserSignups === 'open' && 'w-[50%]')}
+			{isLoading}
+			onclick={authenticate}
+			autofocus={true}
+		>
 			{error ? m.try_again() : m.authenticate()}
 		</Button>
 	</div>
