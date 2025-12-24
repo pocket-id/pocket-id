@@ -159,7 +159,7 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("APP_URL", "http://localhost:3000")
 		t.Setenv("AUDIT_LOG_RETENTION_DAYS", "0")
 
-		err := parseEnvConfig()
+		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "AUDIT_LOG_RETENTION_DAYS must be greater than 0")
 	})
