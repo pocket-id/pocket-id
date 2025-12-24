@@ -478,7 +478,7 @@
 	"signup_token_user_groups_description": "Bu token kullanarak kaydolan kullanıcılara bu grupları otomatik olarak atayın.",
 	"allowed_oidc_clients": "İzin Verilen OIDC İstemcileri",
 	"allowed_oidc_clients_description": "Bu kullanıcı grubunun üyelerinin oturum açmasına izin verilen OIDC istemcilerini seçin.",
-	"unrestrict_oidc_client": "Unrestrict {clientName}",
-	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
-	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
+	"unrestrict_oidc_client": "Kısıtlama kaldır {clientName}",
+	"confirm_unrestrict_oidc_client_description": "OIDC istemcisinin kısıtlamasını kaldırmak istediğinizden emin misiniz <b>{clientName}</b>? Bu, bu istemci için tüm grup atamalarını kaldıracak ve herhangi bir kullanıcı oturum açabilecektir.",
+	"allowed_oidc_clients_updated_successfully": "İzin verilen OIDC istemcileri başarıyla güncellendi"
 }
