@@ -478,7 +478,7 @@
 	"signup_token_user_groups_description": "自动将这些组分配给使用此令牌注册的用户。",
 	"allowed_oidc_clients": "允许的 OIDC 客户端",
 	"allowed_oidc_clients_description": "选择允许此用户组成员登录的 OIDC 客户端。",
-	"unrestrict_oidc_client": "Unrestrict {clientName}",
-	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
-	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
+	"unrestrict_oidc_client": "解除限制 {clientName}",
+	"confirm_unrestrict_oidc_client_description": "您确定要解除对该 OIDC 客户端的限制吗？ <b>{clientName}</b>？此操作将移除此客户端的所有组分配，任何用户均可登录。",
+	"allowed_oidc_clients_updated_successfully": "允许的 OIDC 客户端已成功更新"
 }
