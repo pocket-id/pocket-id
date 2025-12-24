@@ -1,7 +1,7 @@
 name: E2E Tests
 on:
   push:
-    branches: [main, breaking/**]
+    branches: [main]
     paths-ignore:
       - "docs/**"
       - "**.md"
