@@ -102,7 +102,8 @@
 			logo: $inputs.logoUrl?.value ? undefined : logo,
 			logoUrl: $inputs.logoUrl?.value,
 			darkLogo: $inputs.darkLogoUrl?.value ? undefined : darkLogo,
-			darkLogoUrl: $inputs.darkLogoUrl?.value
+			darkLogoUrl: $inputs.darkLogoUrl?.value,
+			isGroupRestricted: existingClient?.isGroupRestricted ?? true
 		});
 
 		const hasLogo = logo != null || !!$inputs.logoUrl?.value;

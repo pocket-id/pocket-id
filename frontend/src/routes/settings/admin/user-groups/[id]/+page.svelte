@@ -15,11 +15,13 @@
 	import { backNavigate } from '../../users/navigate-back-util';
 	import UserGroupForm from '../user-group-form.svelte';
 	import UserSelection from '../user-selection.svelte';
+	import OidcClientSelection from './oidc-client-selection.svelte';
 
 	let { data } = $props();
 	let userGroup = $state({
 		...data.userGroup,
-		userIds: data.userGroup.users.map((u) => u.id)
+		userIds: data.userGroup.users.map((u) => u.id),
+		allowedOidcClientIds: data.userGroup.allowedOidcClients.map((c) => c.id)
 	});
 
 	const userGroupService = new UserGroupService();
@@ -52,6 +54,17 @@
 		await customClaimService
 			.updateUserGroupCustomClaims(userGroup.id, userGroup.customClaims)
 			.then(() => toast.success(m.custom_claims_updated_successfully()))
+			.catch((e) => {
+				axiosErrorToast(e);
+			});
+	}
+
+	async function updateAllowedOidcClients(allowedClients: string[]) {
+		await userGroupService
+			.updateAllowedOidcClients(userGroup.id, allowedClients)
+			.then(() => {
+				toast.success(m.allowed_oidc_clients_updated_successfully());
+			})
 			.catch((e) => {
 				axiosErrorToast(e);
 			});
@@ -108,5 +121,18 @@
 	<CustomClaimsInput bind:customClaims={userGroup.customClaims} />
 	<div class="mt-5 flex justify-end">
 		<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
+	</div>
+</CollapsibleCard>
+
+<CollapsibleCard
+	id="user-group-oidc-clients"
+	title={m.allowed_oidc_clients()}
+	description={m.allowed_oidc_clients_description()}
+>
+	<OidcClientSelection bind:selectedGroupIds={userGroup.allowedOidcClientIds} />
+	<div class="mt-5 flex justify-end gap-3">
+		<Button onclick={() => updateAllowedOidcClients(userGroup.allowedOidcClientIds)}
+			>{m.save()}</Button
+		>
 	</div>
 </CollapsibleCard>

@@ -1,4 +1,5 @@
 import type { CustomClaim } from './custom-claim.type';
+import type { OidcClientMetaData } from './oidc.type';
 import type { User } from './user.type';
 
 export type UserGroup = {
@@ -8,13 +9,11 @@ export type UserGroup = {
 	createdAt: string;
 	customClaims: CustomClaim[];
 	ldapId?: string;
-};
-
-export type UserGroupWithUsers = UserGroup & {
 	users: User[];
+	allowedOidcClients: OidcClientMetaData[];
 };
 
-export type UserGroupWithUserCount = UserGroup & {
+export type UserGroupMinimal = Omit<UserGroup, 'users' | 'allowedOidcClients'> & {
 	userCount: number;
 };
 
