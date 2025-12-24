@@ -478,7 +478,7 @@
 	"signup_token_user_groups_description": "Weise diese Gruppen automatisch den Leuten zu, die sich mit diesem Token anmelden.",
 	"allowed_oidc_clients": "Zugelassene OIDC-Clients",
 	"allowed_oidc_clients_description": "Wähle die OIDC-Clients aus, bei denen sich Mitglieder dieser Benutzergruppe anmelden dürfen.",
-	"unrestrict_oidc_client": "Unrestrict {clientName}",
-	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
-	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
+	"unrestrict_oidc_client": "Uneingeschränkt {clientName}",
+	"confirm_unrestrict_oidc_client_description": "Bist du sicher, dass du die Beschränkung für den OIDC-Client aufheben willst? <b>{clientName}</b>? Dadurch werden alle Gruppenzuweisungen für diesen Client entfernt und jeder Benutzer kann sich anmelden.",
+	"allowed_oidc_clients_updated_successfully": "Zugelassene OIDC-Clients erfolgreich aktualisiert"
 }
