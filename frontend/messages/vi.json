@@ -478,7 +478,7 @@
 	"signup_token_user_groups_description": "Tự động gán các nhóm này cho người dùng đăng ký bằng token này.",
 	"allowed_oidc_clients": "Các khách hàng OIDC được phép",
 	"allowed_oidc_clients_description": "Chọn các khách hàng OIDC mà các thành viên của nhóm người dùng này được phép đăng nhập vào.",
-	"unrestrict_oidc_client": "Unrestrict {clientName}",
-	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
-	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
+	"unrestrict_oidc_client": "Không giới hạn {clientName}",
+	"confirm_unrestrict_oidc_client_description": "Bạn có chắc chắn muốn gỡ bỏ hạn chế cho khách hàng OIDC <b>{clientName}</b>? Điều này sẽ xóa tất cả các gán nhóm cho khách hàng này và bất kỳ người dùng nào cũng có thể đăng nhập.",
+	"allowed_oidc_clients_updated_successfully": "Các khách hàng OIDC được phép đã được cập nhật thành công."
 }
