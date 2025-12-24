@@ -478,7 +478,7 @@
 	"signup_token_user_groups_description": "このトークンを使用して登録するユーザーに、これらのグループを自動的に割り当てます。",
 	"allowed_oidc_clients": "許可されたOIDCクライアント",
 	"allowed_oidc_clients_description": "このユーザーグループのメンバーがサインインを許可されているOIDCクライアントを選択してください。",
-	"unrestrict_oidc_client": "Unrestrict {clientName}",
-	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
-	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
+	"unrestrict_oidc_client": "制限なし {clientName}",
+	"confirm_unrestrict_oidc_client_description": "OIDCクライアントの制限を解除してもよろしいですか？ <b>{clientName}</b>？これにより、このクライアントに対するすべてのグループ割り当てが解除され、どのユーザーでもサインインできるようになります。",
+	"allowed_oidc_clients_updated_successfully": "許可されたOIDCクライアントの更新が正常に完了しました"
 }
