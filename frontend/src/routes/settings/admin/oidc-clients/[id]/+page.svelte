@@ -83,8 +83,14 @@
 	async function enableGroupRestriction() {
 		client.isGroupRestricted = true;
 		await oidcService
-			.updateClient(client.id, client)
-			.then(() => toast.success(m.user_groups_restriction_updated_successfully()))
+			.updateClient(client.id, {
+				...client,
+				isGroupRestricted: true
+			})
+			.then(() => {
+				toast.success(m.user_groups_restriction_updated_successfully());
+				client.isGroupRestricted = true;
+			})
 			.catch(axiosErrorToast);
 	}
 
@@ -96,12 +102,15 @@
 				label: m.unrestrict(),
 				destructive: true,
 				action: async () => {
-					client.isGroupRestricted = false;
 					await oidcService
-						.updateClient(client.id, client)
+						.updateClient(client.id, {
+							...client,
+							isGroupRestricted: false
+						})
 						.then(() => {
 							toast.success(m.user_groups_restriction_updated_successfully());
 							client.allowedUserGroupIds = [];
+							client.isGroupRestricted = false;
 						})
 						.catch(axiosErrorToast);
 				}

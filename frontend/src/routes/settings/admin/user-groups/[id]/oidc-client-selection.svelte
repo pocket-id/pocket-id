@@ -39,7 +39,7 @@
 	async function fetchCallback(requestOptions: ListRequestOptions) {
 		const clients = await oidcClientService.listClients(requestOptions);
 		const unrestrictedClientIds = clients.data.filter((c) => !c.isGroupRestricted).map((c) => c.id);
-		selectedGroupIds = [...selectedGroupIds, ...unrestrictedClientIds];
+		selectedGroupIds = [...new Set([...selectedGroupIds, ...unrestrictedClientIds])];
 
 		return clients;
 	}
