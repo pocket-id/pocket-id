@@ -22,7 +22,7 @@
 				<LogsIcon class="text-primary/80 size-5" />
 				{m.audit_log()}
 			</Card.Title>
-			<Card.Description>{m.see_your_account_activities_from_the_last_3_months()}</Card.Description>
+			<Card.Description>{m.see_your_recent_account_activities()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<AuditLogList />
