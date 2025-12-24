@@ -478,7 +478,7 @@
 	"signup_token_user_groups_description": "Määritä nämä ryhmät automaattisesti käyttäjille, jotka rekisteröityvät tällä tunnuksella.",
 	"allowed_oidc_clients": "Sallitut OIDC-asiakkaat",
 	"allowed_oidc_clients_description": "Valitse OIDC-asiakkaat, joihin tämän käyttäjäryhmän jäsenet voivat kirjautua.",
-	"unrestrict_oidc_client": "Unrestrict {clientName}",
-	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
-	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
+	"unrestrict_oidc_client": "Rajoittamaton {clientName}",
+	"confirm_unrestrict_oidc_client_description": "Haluatko varmasti poistaa OIDC-asiakkaan rajoitukset <b>{clientName}</b>? Tämä poistaa kaikki tämän asiakkaan ryhmämääritykset, ja kuka tahansa käyttäjä voi kirjautua sisään.",
+	"allowed_oidc_clients_updated_successfully": "Sallitut OIDC-asiakkaat päivitetty onnistuneesti"
 }
