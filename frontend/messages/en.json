@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Select the OIDC clients that members of this user group are allowed to sign in to.",
 	"unrestrict_oidc_client": "Unrestrict {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
-	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
+	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully",
+	"yes": "Yes",
+	"no": "No",
+	"restricted": "Restricted"
 }

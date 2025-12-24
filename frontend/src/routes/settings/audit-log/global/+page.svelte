@@ -37,7 +37,7 @@
 	<Card.Header>
 		<Card.Title>{m.global_audit_log()}</Card.Title>
 		<Card.Description class="mt-1"
-			>{m.see_all_account_activities_from_the_last_3_months()}</Card.Description
+			>{m.see_all_recent_account_activities()}</Card.Description
 		>
 	</Card.Header>
 	<Card.Content>

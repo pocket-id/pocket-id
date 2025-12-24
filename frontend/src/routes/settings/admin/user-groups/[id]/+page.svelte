@@ -24,6 +24,8 @@
 		allowedOidcClientIds: data.userGroup.allowedOidcClients.map((c) => c.id)
 	});
 
+	let oidcClientSelectionRef: OidcClientSelection;
+
 	const userGroupService = new UserGroupService();
 	const customClaimService = new CustomClaimService();
 	const backNavigation = backNavigate('/settings/admin/user-groups');
@@ -64,6 +66,7 @@
 			.updateAllowedOidcClients(userGroup.id, allowedClients)
 			.then(() => {
 				toast.success(m.allowed_oidc_clients_updated_successfully());
+				oidcClientSelectionRef.refresh();
 			})
 			.catch((e) => {
 				axiosErrorToast(e);
@@ -129,7 +132,10 @@
 	title={m.allowed_oidc_clients()}
 	description={m.allowed_oidc_clients_description()}
 >
-	<OidcClientSelection bind:selectedGroupIds={userGroup.allowedOidcClientIds} />
+	<OidcClientSelection
+		bind:this={oidcClientSelectionRef}
+		bind:selectedGroupIds={userGroup.allowedOidcClientIds}
+	/>
 	<div class="mt-5 flex justify-end gap-3">
 		<Button onclick={() => updateAllowedOidcClients(userGroup.allowedOidcClientIds)}
 			>{m.save()}</Button
