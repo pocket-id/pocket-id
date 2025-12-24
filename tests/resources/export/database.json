@@ -1,7 +1,7 @@
 {
 	"provider": "sqlite",
 	"version": 20251219000000,
-	"tableOrder": ["users", "user_groups", "oidc_clients"],
+	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens"],
 	"tables": {
 		"api_keys": [
 			{
