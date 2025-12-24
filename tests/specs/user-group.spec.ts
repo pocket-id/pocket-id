@@ -147,6 +147,6 @@ test('Update user group allowed user groups', async ({ page }) => {
 		page.getByRole('row', { name: oidcClients.tailscale.name }).getByRole('checkbox')
 	).toHaveAttribute('data-state', 'checked');
 	await expect(
-		page.getByRole('row', { name: oidcClients.immich.name  }).getByRole('checkbox')
+		page.getByRole('row', { name: oidcClients.immich.name }).getByRole('checkbox')
 	).toHaveAttribute('data-state', 'unchecked');
 });

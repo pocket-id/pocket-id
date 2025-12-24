@@ -77,7 +77,7 @@ type AppConfig struct {
 	LdapAttributeGroupMember           AppConfigVariable `key:"ldapAttributeGroupMember"`
 	LdapAttributeGroupUniqueIdentifier AppConfigVariable `key:"ldapAttributeGroupUniqueIdentifier"`
 	LdapAttributeGroupName             AppConfigVariable `key:"ldapAttributeGroupName"`
-	LdapAttributeAdminGroup            AppConfigVariable `key:"ldapAttributeAdminGroup"`
+	LdapAdminGroupName                 AppConfigVariable `key:"ldapAdminGroupName"`
 	LdapSoftDeleteUsers                AppConfigVariable `key:"ldapSoftDeleteUsers"`
 }
 
