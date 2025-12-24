@@ -478,7 +478,7 @@
 	"signup_token_user_groups_description": "自動將這些群組指派給使用此代幣註冊的用戶。",
 	"allowed_oidc_clients": "允許的 OIDC 客戶端",
 	"allowed_oidc_clients_description": "選擇允許此使用者群組成員登入的 OIDC 客戶端。",
-	"unrestrict_oidc_client": "Unrestrict {clientName}",
-	"confirm_unrestrict_oidc_client_description": "Are you sure you want to unrestrict the OIDC client <b>{clientName}</b>? This will remove all group assignments for this client and any user will be able to sign in.",
-	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully"
+	"unrestrict_oidc_client": "解除限制 {clientName}",
+	"confirm_unrestrict_oidc_client_description": "您確定要解除 OIDC 客戶端的限制嗎？ <b>{clientName}</b>？此操作將移除此客戶端的所有群組指派，任何使用者皆可登入。",
+	"allowed_oidc_clients_updated_successfully": "已允許的 OIDC 客戶端更新成功"
 }
