@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Valitse OIDC-asiakkaat, joihin tämän käyttäjäryhmän jäsenet voivat kirjautua.",
 	"unrestrict_oidc_client": "Rajoittamaton {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Haluatko varmasti poistaa OIDC-asiakkaan rajoitukset <b>{clientName}</b>? Tämä poistaa kaikki tämän asiakkaan ryhmämääritykset, ja kuka tahansa käyttäjä voi kirjautua sisään.",
-	"allowed_oidc_clients_updated_successfully": "Sallitut OIDC-asiakkaat päivitetty onnistuneesti"
+	"allowed_oidc_clients_updated_successfully": "Sallitut OIDC-asiakkaat päivitetty onnistuneesti",
+	"yes": "Kyllä",
+	"no": "Ei",
+	"restricted": "Rajoitettu"
 }

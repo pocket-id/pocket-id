@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Виберіть клієнти OIDC, до яких члени цієї групи користувачів мають право входити.",
 	"unrestrict_oidc_client": "Без обмежень {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Ви впевнені, що хочете зняти обмеження з клієнта OIDC <b>{clientName}</b>? Це призведе до видалення всіх групових призначень для цього клієнта, і будь-який користувач зможе увійти в систему.",
-	"allowed_oidc_clients_updated_successfully": "Дозволені клієнти OIDC успішно оновлені"
+	"allowed_oidc_clients_updated_successfully": "Дозволені клієнти OIDC успішно оновлені",
+	"yes": "Так",
+	"no": "Ні",
+	"restricted": "Обмежений"
 }

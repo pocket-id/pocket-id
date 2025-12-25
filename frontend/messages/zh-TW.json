@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "選擇允許此使用者群組成員登入的 OIDC 客戶端。",
 	"unrestrict_oidc_client": "解除限制 {clientName}",
 	"confirm_unrestrict_oidc_client_description": "您確定要解除 OIDC 客戶端的限制嗎？ <b>{clientName}</b>？此操作將移除此客戶端的所有群組指派，任何使用者皆可登入。",
-	"allowed_oidc_clients_updated_successfully": "已允許的 OIDC 客戶端更新成功"
+	"allowed_oidc_clients_updated_successfully": "已允許的 OIDC 客戶端更新成功",
+	"yes": "是的",
+	"no": "不",
+	"restricted": "限制"
 }

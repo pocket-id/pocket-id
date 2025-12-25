@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Escolha os clientes OIDC nos quais os membros desse grupo de usuários podem fazer login.",
 	"unrestrict_oidc_client": "Desbloquear {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Tem certeza que quer desbloquear o cliente OIDC? <b>{clientName}</b>? Isso vai tirar todas as atribuições de grupo para esse cliente e qualquer usuário vai poder fazer login.",
-	"allowed_oidc_clients_updated_successfully": "Clientes OIDC autorizados atualizados com sucesso"
+	"allowed_oidc_clients_updated_successfully": "Clientes OIDC autorizados atualizados com sucesso",
+	"yes": "Sim",
+	"no": "Não",
+	"restricted": "Restrito"
 }

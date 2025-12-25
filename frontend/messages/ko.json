@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "이 사용자 그룹의 구성원이 로그인할 수 있는 OIDC 클라이언트를 선택하십시오.",
 	"unrestrict_oidc_client": "제한 해제 {clientName}",
 	"confirm_unrestrict_oidc_client_description": "OIDC 클라이언트의 제한을 해제하시겠습니까? <b>{clientName}</b>? 이 작업은 해당 클라이언트의 모든 그룹 할당을 제거하며, 모든 사용자가 로그인할 수 있게 됩니다.",
-	"allowed_oidc_clients_updated_successfully": "허용된 OIDC 클라이언트 업데이트 성공"
+	"allowed_oidc_clients_updated_successfully": "허용된 OIDC 클라이언트 업데이트 성공",
+	"yes": "네",
+	"no": "아니",
+	"restricted": "제한됨"
 }

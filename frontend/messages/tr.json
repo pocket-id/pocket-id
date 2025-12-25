@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Bu kullanıcı grubunun üyelerinin oturum açmasına izin verilen OIDC istemcilerini seçin.",
 	"unrestrict_oidc_client": "Kısıtlama kaldır {clientName}",
 	"confirm_unrestrict_oidc_client_description": "OIDC istemcisinin kısıtlamasını kaldırmak istediğinizden emin misiniz <b>{clientName}</b>? Bu, bu istemci için tüm grup atamalarını kaldıracak ve herhangi bir kullanıcı oturum açabilecektir.",
-	"allowed_oidc_clients_updated_successfully": "İzin verilen OIDC istemcileri başarıyla güncellendi"
+	"allowed_oidc_clients_updated_successfully": "İzin verilen OIDC istemcileri başarıyla güncellendi",
+	"yes": "Evet",
+	"no": "Hayır",
+	"restricted": "Kısıtlı"
 }

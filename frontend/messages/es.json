@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Selecciona los clientes OIDC en los que los miembros de este grupo de usuarios pueden iniciar sesión.",
 	"unrestrict_oidc_client": "Sin restricciones {clientName}",
 	"confirm_unrestrict_oidc_client_description": "¿Estás seguro de que deseas eliminar las restricciones del cliente OIDC <b>{clientName}</b>? Esto eliminará todas las asignaciones de grupo para este cliente y cualquier usuario podrá iniciar sesión.",
-	"allowed_oidc_clients_updated_successfully": "Clientes OIDC permitidos actualizados correctamente"
+	"allowed_oidc_clients_updated_successfully": "Clientes OIDC permitidos actualizados correctamente",
+	"yes": "Sí",
+	"no": "No",
+	"restricted": "Restringido"
 }

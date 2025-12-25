@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Scegli i client OIDC a cui i membri di questo gruppo di utenti possono accedere.",
 	"unrestrict_oidc_client": "Sbloccare {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Sei sicuro di voler rimuovere le restrizioni dal client OIDC <b>{clientName}</b>? Così facendo, cancellerai tutte le assegnazioni di gruppo per questo client e chiunque potrà accedere.",
-	"allowed_oidc_clients_updated_successfully": "I client OIDC autorizzati sono stati aggiornati senza problemi."
+	"allowed_oidc_clients_updated_successfully": "I client OIDC autorizzati sono stati aggiornati senza problemi.",
+	"yes": "Sì",
+	"no": "No",
+	"restricted": "Limitato"
 }
