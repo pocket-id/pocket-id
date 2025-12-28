@@ -142,7 +142,7 @@
 							{getExpirationLabel($inputs.ttl.value)}
 						</Select.Trigger>
 						<Select.Content>
-							{#each availableExpirations as expiration}
+							{#each availableExpirations as expiration (expiration.value)}
 								<Select.Item value={expiration.value.toString()}>
 									{expiration.label}
 								</Select.Item>
@@ -164,16 +164,15 @@
 						class="h-9"
 					/>
 				</Field.Field>
+
+				<UserGroupInput bind:selectedGroupIds={$inputs.userGroupIds.value} />
 			</div>
 
 			<Dialog.Footer class="mt-4">
-				<Button
-					onclick={() => createSignupToken()}
-					disabled={!selectedExpiration || usageLimit < 1}
-				>
-					<UserGroupInput bind:selectedGroupIds={$inputs.userGroupIds.value} />
-				</Dialog.Footer>
-			</form>
+				<Button onclick={() => createSignupToken()} disabled={isLoading}>
+					{m.create()}
+				</Button>
+			</Dialog.Footer>
 		{:else}
 			<div class="flex flex-col items-center gap-2">
 				<Qrcode
