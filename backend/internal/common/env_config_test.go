@@ -129,6 +129,41 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.False(t, EnvConfig.AnalyticsDisabled)
 	})
 
+	t.Run("should default audit log retention days to 90", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+
+		err := parseEnvConfig()
+		require.NoError(t, err)
+		assert.Equal(t, 90, EnvConfig.AuditLogRetentionDays)
+	})
+
+	t.Run("should parse audit log retention days override", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("AUDIT_LOG_RETENTION_DAYS", "365")
+
+		err := parseEnvConfig()
+		require.NoError(t, err)
+		assert.Equal(t, 365, EnvConfig.AuditLogRetentionDays)
+	})
+
+	t.Run("should fail when AUDIT_LOG_RETENTION_DAYS is non-positive", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_PROVIDER", "sqlite")
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("AUDIT_LOG_RETENTION_DAYS", "0")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "AUDIT_LOG_RETENTION_DAYS must be greater than 0")
+	})
+
 	t.Run("should parse string environment variables correctly", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_CONNECTION_STRING", "postgres://test")

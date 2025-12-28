@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { userGroups, users } from '../data';
+import { oidcClients, userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -77,7 +77,7 @@ test('Delete user group', async ({ page }) => {
 test('Update user group custom claims', async ({ page }) => {
 	await page.goto(`/settings/admin/user-groups/${userGroups.designers.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).click();
+	await page.getByRole('button', { name: 'Expand card' }).first().click();
 
 	// Add two custom claims
 	await page.getByRole('button', { name: 'Add custom claim' }).click();
@@ -118,4 +118,35 @@ test('Update user group custom claims', async ({ page }) => {
 	// Check if custom claim is removed
 	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim2');
 	await expect(page.getByPlaceholder('Value').first()).toHaveValue('customClaim2_value');
+});
+
+test('Update user group allowed user groups', async ({ page }) => {
+	await page.goto(`/settings/admin/user-groups/${userGroups.designers.id}`);
+
+	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+
+	// Unrestricted OIDC clients should be checked and disabled
+	const nextcloudRow = page
+		.getByRole('row', { name: oidcClients.nextcloud.name })
+		.getByRole('checkbox');
+	await expect(nextcloudRow).toHaveAttribute('data-state', 'checked');
+	await expect(nextcloudRow).toBeDisabled();
+
+	await page.getByRole('row', { name: oidcClients.tailscale.name }).getByRole('checkbox').click();
+	await page.getByRole('row', { name: oidcClients.immich.name }).getByRole('checkbox').click();
+
+	await page.getByRole('button', { name: 'Save' }).nth(2).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Allowed OIDC clients updated successfully'
+	);
+
+	await page.reload();
+
+	await expect(
+		page.getByRole('row', { name: oidcClients.tailscale.name }).getByRole('checkbox')
+	).toHaveAttribute('data-state', 'checked');
+	await expect(
+		page.getByRole('row', { name: oidcClients.immich.name }).getByRole('checkbox')
+	).toHaveAttribute('data-state', 'unchecked');
 });

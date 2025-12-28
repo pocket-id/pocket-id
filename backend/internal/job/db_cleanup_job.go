@@ -10,6 +10,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
@@ -119,11 +120,13 @@ func (j *DbCleanupJobs) clearReauthenticationTokens(ctx context.Context) error {
 	return nil
 }
 
-// ClearAuditLogs deletes audit logs older than 90 days
+// ClearAuditLogs deletes audit logs older than the configured retention window
 func (j *DbCleanupJobs) clearAuditLogs(ctx context.Context) error {
+	cutoff := time.Now().AddDate(0, 0, -common.EnvConfig.AuditLogRetentionDays)
+
 	st := j.db.
 		WithContext(ctx).
-		Delete(&model.AuditLog{}, "created_at < ?", datatype.DateTime(time.Now().AddDate(0, 0, -90)))
+		Delete(&model.AuditLog{}, "created_at < ?", datatype.DateTime(cutoff))
 	if st.Error != nil {
 		return fmt.Errorf("failed to delete old audit logs: %w", st.Error)
 	}

@@ -24,7 +24,8 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 	// Previous versions of images
 	// If these are found, they are deleted
 	legacyImageHashes := imageHashMap{
-		"background.jpg": mustDecodeHex("138d510030ed845d1d74de34658acabff562d306476454369a60ab8ade31933f"),
+		"background.jpg":  mustDecodeHex("138d510030ed845d1d74de34658acabff562d306476454369a60ab8ade31933f"),
+		"background.webp": mustDecodeHex("3fc436a66d6b872b01d96a4e75046c46b5c3e2daccd51e98ecdf98fd445599ab"),
 	}
 
 	sourceFiles, err := resources.FS.ReadDir("images")

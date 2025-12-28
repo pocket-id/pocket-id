@@ -42,6 +42,7 @@
 			column: 'disabled',
 			cell: StatusCell,
 			sortable: true,
+			value: (item) => (item.disabled ? m.disabled() : m.enabled()),
 			filterableValues: [
 				{
 					label: m.enabled(),

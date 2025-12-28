@@ -9,6 +9,17 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import FormattedMessage from '../formatted-message.svelte';
 
+	type WithoutChildren = {
+		children?: undefined;
+		input?: FormInput<string | boolean | number | Date | undefined>;
+		labelFor?: never;
+	};
+	type WithChildren = {
+		children: Snippet;
+		input?: any;
+		labelFor?: string;
+	};
+
 	let {
 		input = $bindable(),
 		label,
@@ -19,25 +30,25 @@
 		type = 'text',
 		children,
 		onInput,
+		labelFor,
 		...restProps
-	}: HTMLAttributes<HTMLDivElement> & {
-		input?: FormInput<string | boolean | number | Date | undefined>;
-		label?: string;
-		description?: string;
-		docsLink?: string;
-		placeholder?: string;
-		disabled?: boolean;
-		type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date';
-		onInput?: (e: FormInputEvent) => void;
-		children?: Snippet;
-	} = $props();
+	}: HTMLAttributes<HTMLDivElement> &
+		(WithChildren | WithoutChildren) & {
+			label?: string;
+			description?: string;
+			docsLink?: string;
+			placeholder?: string;
+			disabled?: boolean;
+			type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date';
+			onInput?: (e: FormInputEvent) => void;
+		} = $props();
 
 	const id = label?.toLowerCase().replace(/ /g, '-');
 </script>
 
 <Field.Field data-disabled={disabled} {...restProps}>
 	{#if label}
-		<Field.Label required={input?.required} for={id}>{label}</Field.Label>
+		<Field.Label required={input?.required} class="mb-0" for={labelFor ?? id}>{label}</Field.Label>
 	{/if}
 	{#if description}
 		<Field.Description>

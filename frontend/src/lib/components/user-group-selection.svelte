@@ -3,7 +3,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserGroupService from '$lib/services/user-group-service';
 	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
-	import type { UserGroupWithUserCount } from '$lib/types/user-group.type';
+	import type { UserGroupMinimal } from '$lib/types/user-group.type';
 
 	let {
 		selectionDisabled = false,
@@ -15,7 +15,7 @@
 
 	const userGroupService = new UserGroupService();
 
-	const columns: AdvancedTableColumn<UserGroupWithUserCount>[] = [
+	const columns: AdvancedTableColumn<UserGroupMinimal>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.friendly_name(), column: 'friendlyName', sortable: true },
 		{ label: m.name(), column: 'name', sortable: true },

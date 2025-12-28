@@ -1,16 +1,13 @@
 <script lang="ts">
 	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
-	import SearchableMultiSelect from '$lib/components/form/searchable-multi-select.svelte';
+	import UserGroupInput from '$lib/components/form/user-group-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
 	import * as Select from '$lib/components/ui/select';
 	import { m } from '$lib/paraglide/messages';
-	import UserGroupService from '$lib/services/user-group-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration';
-	import { debounced } from '$lib/utils/debounce-util';
 	import { preventDefault } from '$lib/utils/event-util';
-	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	let {
@@ -21,14 +18,10 @@
 		callback: (updatedConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
-	const userGroupService = new UserGroupService();
-
-	let userGroups = $state<{ value: string; label: string }[]>([]);
-	let selectedGroups = $state<{ value: string; label: string }[]>([]);
+	let selectedGroupIds = $state<string[]>(appConfig.signupDefaultUserGroupIDs || []);
 	let customClaims = $state(appConfig.signupDefaultCustomClaims || []);
 	let allowUserSignups = $state(appConfig.allowUserSignups);
 	let isLoading = $state(false);
-	let isUserSearchLoading = $state(false);
 
 	const signupOptions = {
 		disabled: {
@@ -45,42 +38,11 @@
 		}
 	};
 
-	async function loadUserGroups(search?: string) {
-		userGroups = (await userGroupService.list({ search })).data.map((group) => ({
-			value: group.id,
-			label: group.name
-		}));
-
-		// Ensure selected groups are still in the list
-		for (const selectedGroup of selectedGroups) {
-			if (!userGroups.some((g) => g.value === selectedGroup.value)) {
-				userGroups.push(selectedGroup);
-			}
-		}
-	}
-
-	async function loadSelectedGroups() {
-		selectedGroups = (
-			await Promise.all(
-				appConfig.signupDefaultUserGroupIDs.map((groupId) => userGroupService.get(groupId))
-			)
-		).map((group) => ({
-			value: group.id,
-			label: group.name
-		}));
-	}
-
-	const onUserGroupSearch = debounced(
-		async (search: string) => await loadUserGroups(search),
-		300,
-		(loading) => (isUserSearchLoading = loading)
-	);
-
 	async function onSubmit() {
 		isLoading = true;
 		await callback({
 			allowUserSignups: allowUserSignups,
-			signupDefaultUserGroupIDs: selectedGroups.map((g) => g.value),
+			signupDefaultUserGroupIDs: selectedGroupIds,
 			signupDefaultCustomClaims: customClaims
 		});
 		toast.success(m.user_creation_updated_successfully());
@@ -88,12 +50,9 @@
 	}
 
 	$effect(() => {
-		loadSelectedGroups();
 		customClaims = appConfig.signupDefaultCustomClaims || [];
 		allowUserSignups = appConfig.allowUserSignups;
 	});
-
-	onMount(() => loadUserGroups());
 </script>
 
 <form onsubmit={preventDefault(onSubmit)}>

@@ -10,19 +10,19 @@
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '$lib/types/advanced-table.type';
-	import type { UserGroup, UserGroupWithUserCount } from '$lib/types/user-group.type';
+	import type { UserGroupMinimal } from '$lib/types/user-group.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	const userGroupService = new UserGroupService();
-	let tableRef: AdvancedTable<UserGroupWithUserCount>;
+	let tableRef: AdvancedTable<UserGroupMinimal>;
 
 	export function refresh() {
 		return tableRef?.refresh();
 	}
 
-	const columns: AdvancedTableColumn<UserGroupWithUserCount>[] = [
+	const columns: AdvancedTableColumn<UserGroupMinimal>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.friendly_name(), column: 'friendlyName', sortable: true },
 		{ label: m.name(), column: 'name', sortable: true },
@@ -38,7 +38,7 @@
 		{ label: m.source(), key: 'source', hidden: !$appConfigStore.ldapEnabled, cell: SourceCell }
 	];
 
-	const actions: CreateAdvancedTableActions<UserGroupWithUserCount> = (group) => [
+	const actions: CreateAdvancedTableActions<UserGroupMinimal> = (group) => [
 		{
 			label: m.edit(),
 			primary: true,
@@ -55,7 +55,7 @@
 		}
 	];
 
-	async function deleteUserGroup(userGroup: UserGroup) {
+	async function deleteUserGroup(userGroup: UserGroupMinimal) {
 		openConfirmDialog({
 			title: m.delete_name({ name: userGroup.name }),
 			message: m.are_you_sure_you_want_to_delete_this_user_group(),
@@ -76,7 +76,7 @@
 	}
 </script>
 
-{#snippet SourceCell({ item }: { item: UserGroupWithUserCount })}
+{#snippet SourceCell({ item }: { item: UserGroupMinimal })}
 	<Badge class="rounded-full" variant={item.ldapId ? 'default' : 'outline'}>
 		{item.ldapId ? m.ldap() : m.local()}
 	</Badge>

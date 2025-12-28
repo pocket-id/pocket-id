@@ -72,7 +72,7 @@ type UserController struct {
 // @Description Retrieve all groups a specific user belongs to
 // @Tags Users,User Groups
 // @Param id path string true "User ID"
-// @Success 200 {array} dto.UserGroupDtoWithUsers
+// @Success 200 {array} dto.UserGroupDto
 // @Router /api/users/{id}/groups [get]
 func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 	userID := c.Param("id")
@@ -82,7 +82,7 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 		return
 	}
 
-	var groupsDto []dto.UserGroupDtoWithUsers
+	var groupsDto []dto.UserGroupDto
 	if err := dto.MapStructList(groups, &groupsDto); err != nil {
 		_ = c.Error(err)
 		return
@@ -545,7 +545,7 @@ func (uc *UserController) createSignupTokenHandler(c *gin.Context) {
 		ttl = defaultSignupTokenDuration
 	}
 
-	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit)
+	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
 	if err != nil {
 		_ = c.Error(err)
 		return

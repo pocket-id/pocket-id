@@ -23,11 +23,13 @@ func NewAppImagesController(
 	}
 
 	group.GET("/application-images/logo", controller.getLogoHandler)
+	group.GET("/application-images/email", controller.getEmailLogoHandler)
 	group.GET("/application-images/background", controller.getBackgroundImageHandler)
 	group.GET("/application-images/favicon", controller.getFaviconHandler)
 	group.GET("/application-images/default-profile-picture", authMiddleware.Add(), controller.getDefaultProfilePicture)
 
 	group.PUT("/application-images/logo", authMiddleware.Add(), controller.updateLogoHandler)
+	group.PUT("/application-images/email", authMiddleware.Add(), controller.updateEmailLogoHandler)
 	group.PUT("/application-images/background", authMiddleware.Add(), controller.updateBackgroundImageHandler)
 	group.PUT("/application-images/favicon", authMiddleware.Add(), controller.updateFaviconHandler)
 	group.PUT("/application-images/default-profile-picture", authMiddleware.Add(), controller.updateDefaultProfilePicture)
@@ -57,6 +59,18 @@ func (c *AppImagesController) getLogoHandler(ctx *gin.Context) {
 	}
 
 	c.getImage(ctx, imageName)
+}
+
+// getEmailLogoHandler godoc
+// @Summary Get email logo image
+// @Description Get the email logo image for use in emails
+// @Tags Application Images
+// @Produce image/png
+// @Produce image/jpeg
+// @Success 200 {file} binary "Email logo image"
+// @Router /api/application-images/email [get]
+func (c *AppImagesController) getEmailLogoHandler(ctx *gin.Context) {
+	c.getImage(ctx, "logoEmail")
 }
 
 // getBackgroundImageHandler godoc
@@ -117,6 +131,37 @@ func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) {
 	}
 
 	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, imageName); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+// updateEmailLogoHandler godoc
+// @Summary Update email logo
+// @Description Update the email logo for use in emails
+// @Tags Application Images
+// @Accept multipart/form-data
+// @Param file formData file true "Email logo image file"
+// @Success 204 "No Content"
+// @Router /api/application-images/email [put]
+func (c *AppImagesController) updateEmailLogoHandler(ctx *gin.Context) {
+	file, err := ctx.FormFile("file")
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	fileType := utils.GetFileExtension(file.Filename)
+	mimeType := utils.GetImageMimeType(fileType)
+
+	if mimeType != "image/png" && mimeType != "image/jpeg" {
+		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: ".png or .jpg/jpeg"})
+		return
+	}
+
+	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "logoEmail"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}

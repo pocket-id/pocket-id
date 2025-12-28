@@ -1,7 +1,7 @@
 {
 	"provider": "sqlite",
-	"version": 20251117141000,
-	"tableOrder": ["users", "user_groups", "oidc_clients"],
+	"version": 20251219000000,
+	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens"],
 	"tables": {
 		"api_keys": [
 			{
@@ -63,6 +63,7 @@
 				"dark_image_type": null,
 				"id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				"image_type": "png",
+				"is_group_restricted": false,
 				"is_public": false,
 				"launch_url": "https://nextcloud.local",
 				"logout_callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkL2F1dGgvbG9nb3V0L2NhbGxiYWNrIl0=",
@@ -79,6 +80,7 @@
 				"dark_image_type": null,
 				"id": "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
 				"image_type": null,
+				"is_group_restricted": true,
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "bnVsbA==",
@@ -95,6 +97,7 @@
 				"dark_image_type": null,
 				"id": "7c21a609-96b5-4011-9900-272b8d31a9d1",
 				"image_type": null,
+				"is_group_restricted": true,
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlL2F1dGgvbG9nb3V0L2NhbGxiYWNrIl0=",
@@ -111,6 +114,7 @@
 				"dark_image_type": null,
 				"id": "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
 				"image_type": null,
+				"is_group_restricted": false,
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "bnVsbA==",
@@ -143,6 +147,7 @@
 				"expires_at": "2025-11-25T13:39:02Z",
 				"id": "bf877753-4ea4-4c9c-bbbd-e198bb201cb8",
 				"token": "HPe6k6uiDRRVuAQV",
+				"device_token": null,
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
 			{
@@ -150,6 +155,7 @@
 				"expires_at": "2025-11-25T12:39:01Z",
 				"id": "d3afae24-fe2d-4a98-abec-cf0b8525096a",
 				"token": "YCGDtftvsvYWiXd0",
+				"device_token": null,
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
 			{
@@ -157,6 +163,7 @@
 				"expires_at": "2025-11-25T13:39:02Z",
 				"id": "defd5164-9d9b-4228-bbce-708e33f49360",
 				"token": "one-time-token",
+				"device_token": null,
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			}
 		],
@@ -192,6 +199,12 @@
 				"token": "FULLYUSED567890C",
 				"usage_count": 1,
 				"usage_limit": 1
+			}
+		],
+		"signup_tokens_user_groups": [
+			{
+				"signup_token_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+				"user_group_id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368"
 			}
 		],
 		"user_authorized_oidc_clients": [

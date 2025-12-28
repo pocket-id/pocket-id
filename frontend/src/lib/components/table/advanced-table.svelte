@@ -25,6 +25,7 @@
 		selectedIds = $bindable(),
 		withoutSearch = false,
 		selectionDisabled = false,
+		rowSelectionDisabled,
 		fetchCallback,
 		defaultSort,
 		columns,
@@ -34,6 +35,7 @@
 		selectedIds?: string[];
 		withoutSearch?: boolean;
 		selectionDisabled?: boolean;
+		rowSelectionDisabled?: (item: T) => boolean;
 		fetchCallback: (requestOptions: ListRequestOptions) => Promise<Paginated<T>>;
 		defaultSort?: SortRequest;
 		columns: AdvancedTableColumn<T>[];
@@ -91,7 +93,9 @@
 	});
 
 	async function onAllCheck(checked: boolean) {
-		const pageIds = items!.data.map((item) => item.id);
+		const pageIds = items!.data
+			.filter((item) => !rowSelectionDisabled?.(item))
+			.map((item) => item.id);
 		const current = selectedIds ?? [];
 
 		if (checked) {
@@ -264,7 +268,7 @@
 							{#if selectedIds}
 								<Table.Cell class="w-12">
 									<Checkbox
-										disabled={selectionDisabled}
+										disabled={selectionDisabled || rowSelectionDisabled?.(item)}
 										checked={selectedIds.includes(item.id)}
 										onCheckedChange={(c: boolean) => onCheck(c, item.id)}
 									/>
@@ -277,7 +281,7 @@
 									{:else if column.cell}
 										{@render column.cell({ item })}
 									{:else if column.column && typeof item[column.column] === 'boolean'}
-										{item[column.column] ? m.enabled() : m.disabled()}
+										{item[column.column] ? m.yes() : m.no()}
 									{:else if column.column}
 										{item[column.column]}
 									{/if}

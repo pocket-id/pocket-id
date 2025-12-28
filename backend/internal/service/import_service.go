@@ -61,7 +61,7 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 
 // ImportDatabase only imports the database data from the given DatabaseExport struct.
 func (s *ImportService) ImportDatabase(dbData DatabaseExport) error {
-	err := s.resetSchema(dbData.Version, dbData.Provider)
+	err := s.resetSchema(dbData.Version)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (s *ImportService) importUploads(ctx context.Context, files []*zip.File) er
 }
 
 // resetSchema drops the existing schema and migrates to the target version
-func (s *ImportService) resetSchema(targetVersion uint, exportDbProvider string) error {
+func (s *ImportService) resetSchema(targetVersion uint) error {
 	sqlDb, err := s.db.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get sql.DB: %w", err)
@@ -155,9 +155,17 @@ func (s *ImportService) resetSchema(targetVersion uint, exportDbProvider string)
 		return fmt.Errorf("failed to get migrate instance: %w", err)
 	}
 
+	if s.db.Name() == "sqlite" {
+		s.db.Exec("PRAGMA foreign_keys = OFF;")
+	}
+
 	err = m.Drop()
 	if err != nil {
 		return fmt.Errorf("failed to drop existing schema: %w", err)
+	}
+
+	if s.db.Name() == "sqlite" {
+		defer s.db.Exec("PRAGMA foreign_keys = ON;")
 	}
 
 	// Needs to be called again to re-create the schema_migrations table

@@ -1,5 +1,5 @@
 import test, { expect, Page } from '@playwright/test';
-import { oidcClients } from '../data';
+import { oidcClients, userGroups } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -71,9 +71,9 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.getByLabel('Name').fill('Nextcloud updated');
 	await page.getByTestId('callback-url-1').first().fill('http://nextcloud-updated/auth/callback');
 	await page.locator('[role="tab"][data-value="light-logo"]').first().click();
-	await page.setInputFiles('#oidc-client-logo-light', 'resources/images/nextcloud-logo.png');
+	await page.setInputFiles('#oidc-client-logo-light', 'resources/images/cloud-logo.png');
 	await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
-	await page.setInputFiles('#oidc-client-logo-dark', 'resources/images/nextcloud-logo.png');
+	await page.setInputFiles('#oidc-client-logo-dark', 'resources/images/cloud-logo.png');
 	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 	await page.getByRole('button', { name: 'Save' }).click();
 
@@ -116,4 +116,26 @@ test('Delete OIDC client', async ({ page }) => {
 		'OIDC client deleted successfully'
 	);
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
+});
+
+test('Update OIDC client allowed user groups', async ({ page }) => {
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+
+	await page.getByRole('button', { name: 'Restrict' }).click();
+
+	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
+	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();
+
+	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+
+	await expect(page.getByText('Allowed user groups updated successfully')).toBeVisible();
+
+	await page.reload();
+
+	await expect(
+		page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox')
+	).toHaveAttribute('data-state', 'checked');
+	await expect(
+		page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox')
+	).toHaveAttribute('data-state', 'checked');
 });

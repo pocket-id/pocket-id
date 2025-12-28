@@ -12,6 +12,8 @@
 		title,
 		description,
 		defaultExpanded = false,
+		forcedExpanded,
+		button,
 		icon,
 		children
 	}: {
@@ -19,7 +21,9 @@
 		title: string;
 		description?: string;
 		defaultExpanded?: boolean;
+		forcedExpanded?: boolean;
 		icon?: typeof IconType;
+		button?: Snippet;
 		children: Snippet;
 	} = $props();
 
@@ -47,6 +51,12 @@
 		}
 		loadExpandedState();
 	});
+
+	$effect(() => {
+		if (forcedExpanded !== undefined) {
+			expanded = forcedExpanded;
+		}
+	});
 </script>
 
 <Card.Root>
@@ -63,11 +73,18 @@
 					<Card.Description>{description}</Card.Description>
 				{/if}
 			</div>
-			<Button class="ml-10 h-8 p-3" variant="ghost" aria-label={m.expand_card()}>
-				<LucideChevronDown
-					class={cn('size-5 transition-transform duration-200', expanded && 'rotate-180 transform')}
-				/>
-			</Button>
+			{#if button}
+				{@render button()}
+			{:else}
+				<Button class="ml-10 h-8 p-3" variant="ghost" aria-label={m.expand_card()}>
+					<LucideChevronDown
+						class={cn(
+							'size-5 transition-transform duration-200',
+							expanded && 'rotate-180 transform'
+						)}
+					/>
+				</Button>
+			{/if}
 		</div>
 	</Card.Header>
 	{#if expanded}
