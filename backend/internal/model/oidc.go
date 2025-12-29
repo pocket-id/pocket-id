@@ -101,6 +101,7 @@ func (c OidcRefreshToken) Scopes() []string {
 
 type OidcClientCredentials struct { //nolint:recvcheck
 	FederatedIdentities []OidcClientFederatedIdentity `json:"federatedIdentities,omitempty"`
+	ClaimRemappings     []OidcClientClaimRemapping    `json:"claimRemappings,omitempty"`
 }
 
 type OidcClientFederatedIdentity struct {
@@ -109,6 +110,20 @@ type OidcClientFederatedIdentity struct {
 	Audience string `json:"audience,omitempty"`
 	JWKS     string `json:"jwks,omitempty"` // URL of the JWKS
 }
+
+type OidcClientClaimRemapping struct {
+	ClaimName   string                   `json:"claimName"`
+	SourceType  ClaimRemappingSourceType `json:"sourceType"`
+	SourceValue string                   `json:"sourceValue"`
+}
+
+type ClaimRemappingSourceType string
+
+const (
+	RemappingSourceUserField   ClaimRemappingSourceType = "user_field"
+	RemappingSourceCustomClaim ClaimRemappingSourceType = "custom_claim"
+	RemappingSourceStatic      ClaimRemappingSourceType = "static"
+)
 
 func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (OidcClientFederatedIdentity, bool) {
 	if issuer == "" {
