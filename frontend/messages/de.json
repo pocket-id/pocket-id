@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Wähle die OIDC-Clients aus, bei denen sich Mitglieder dieser Benutzergruppe anmelden dürfen.",
 	"unrestrict_oidc_client": "Uneingeschränkt {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Bist du sicher, dass du die Beschränkung für den OIDC-Client aufheben willst? <b>{clientName}</b>? Dadurch werden alle Gruppenzuweisungen für diesen Client entfernt und jeder Benutzer kann sich anmelden.",
-	"allowed_oidc_clients_updated_successfully": "Zugelassene OIDC-Clients erfolgreich aktualisiert"
+	"allowed_oidc_clients_updated_successfully": "Zugelassene OIDC-Clients erfolgreich aktualisiert",
+	"yes": "Ja",
+	"no": "Nein",
+	"restricted": "Eingeschränkt"
 }

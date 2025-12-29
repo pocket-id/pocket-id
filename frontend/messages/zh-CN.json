@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "选择允许此用户组成员登录的 OIDC 客户端。",
 	"unrestrict_oidc_client": "解除限制 {clientName}",
 	"confirm_unrestrict_oidc_client_description": "您确定要解除对该 OIDC 客户端的限制吗？ <b>{clientName}</b>？此操作将移除此客户端的所有组分配，任何用户均可登录。",
-	"allowed_oidc_clients_updated_successfully": "允许的 OIDC 客户端已成功更新"
+	"allowed_oidc_clients_updated_successfully": "允许的 OIDC 客户端已成功更新",
+	"yes": "是的",
+	"no": "不",
+	"restricted": "限制"
 }
