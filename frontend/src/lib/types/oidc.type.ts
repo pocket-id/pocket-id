@@ -16,8 +16,17 @@ export type OidcClientFederatedIdentity = {
 	jwks?: string | undefined;
 };
 
+export type ClaimRemappingSourceType = 'user_field' | 'custom_claim' | 'static';
+
+export type OidcClientClaimRemapping = {
+	claimName: string;
+	sourceType: ClaimRemappingSourceType;
+	sourceValue: string;
+};
+
 export type OidcClientCredentials = {
 	federatedIdentities: OidcClientFederatedIdentity[];
+	claimRemappings?: OidcClientClaimRemapping[];
 };
 
 export type OidcClient = OidcClientMetaData & {

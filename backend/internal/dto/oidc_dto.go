@@ -54,6 +54,7 @@ type OidcClientCreateDto struct {
 
 type OidcClientCredentialsDto struct {
 	FederatedIdentities []OidcClientFederatedIdentityDto `json:"federatedIdentities,omitempty"`
+	ClaimRemappings     []OidcClientClaimRemappingDto    `json:"claimRemappings,omitempty"`
 }
 
 type OidcClientFederatedIdentityDto struct {
@@ -61,6 +62,12 @@ type OidcClientFederatedIdentityDto struct {
 	Subject  string `json:"subject,omitempty"`
 	Audience string `json:"audience,omitempty"`
 	JWKS     string `json:"jwks,omitempty"`
+}
+
+type OidcClientClaimRemappingDto struct {
+	ClaimName   string `json:"claimName" binding:"required,min=1,max=255"`
+	SourceType  string `json:"sourceType" binding:"required,oneof=user_field custom_claim static"`
+	SourceValue string `json:"sourceValue" binding:"required,min=1,max=1000"`
 }
 
 type AuthorizeOidcClientRequestDto struct {
