@@ -6,7 +6,6 @@
 	import Qrcode from '$lib/components/qrcode/qrcode.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { m } from '$lib/paraglide/messages';
@@ -130,9 +129,8 @@
 		</Dialog.Header>
 
 		{#if signupToken === null}
-			<div class="space-y-4">
-				<Field.Field>
-					<Field.Label for="expiration">{m.expiration()}</Field.Label>
+			<form class="space-y-4" onsubmit={preventDefault(createSignupToken)}>
+				<FormInput labelFor="expiration" label={m.expiration()} input={$inputs.ttl}>
 					<Select.Root
 						type="single"
 						value={$inputs.ttl.value.toString()}
@@ -142,20 +140,23 @@
 							{getExpirationLabel($inputs.ttl.value)}
 						</Select.Trigger>
 						<Select.Content>
-							{#each availableExpirations as expiration (expiration.value)}
+							{#each availableExpirations as expiration}
 								<Select.Item value={expiration.value.toString()}>
 									{expiration.label}
 								</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
-				</Field.Field>
-
-				<Field.Field>
-					<Field.Label for="usage-limit">{m.usage_limit()}</Field.Label>
-					<Field.Description>
-						{m.number_of_times_token_can_be_used()}
-					</Field.Description>
+					{#if $inputs.ttl.error}
+						<p class="text-destructive mt-1 text-xs">{$inputs.ttl.error}</p>
+					{/if}
+				</FormInput>
+				<FormInput
+					labelFor="usage-limit"
+					label={m.usage_limit()}
+					description={m.number_of_times_token_can_be_used()}
+					input={$inputs.usageLimit}
+				>
 					<Input
 						id="usage-limit"
 						type="number"
@@ -163,16 +164,22 @@
 						aria-invalid={$inputs.usageLimit.error ? 'true' : undefined}
 						class="h-9"
 					/>
-				</Field.Field>
+				</FormInput>
+				<FormInput
+					labelFor="default-groups"
+					label={m.user_groups()}
+					description={m.signup_token_user_groups_description()}
+					input={$inputs.userGroupIds}
+				>
+					<UserGroupInput bind:selectedGroupIds={$inputs.userGroupIds.value} />
+				</FormInput>
 
-				<UserGroupInput bind:selectedGroupIds={$inputs.userGroupIds.value} />
-			</div>
-
-			<Dialog.Footer class="mt-4">
-				<Button onclick={() => createSignupToken()} disabled={isLoading}>
-					{m.create()}
-				</Button>
-			</Dialog.Footer>
+				<Dialog.Footer class="mt-4">
+					<Button type="submit" {isLoading}>
+						{m.create()}
+					</Button>
+				</Dialog.Footer>
+			</form>
 		{:else}
 			<div class="flex flex-col items-center gap-2">
 				<Qrcode

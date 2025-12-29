@@ -57,69 +57,61 @@
 
 <form onsubmit={preventDefault(onSubmit)}>
 	<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
-		<Field.Field>
-			<Field.Label for="enable-user-signup">{m.enable_user_signups()}</Field.Label>
-			<Field.Description>
-				{m.enable_user_signups_description()}
-			</Field.Description>
-			<Select.Root
-				type="single"
-				value={allowUserSignups}
-				onValueChange={(v) => (allowUserSignups = v as typeof allowUserSignups)}
-			>
-				<Select.Trigger
-					id="enable-user-signup"
-					class="w-full"
-					aria-label={m.enable_user_signups()}
-					placeholder={m.enable_user_signups()}
+		<div class="grid gap-2">
+			<Field.Field>
+				<Field.Label for="enable-user-signup">{m.enable_user_signups()}</Field.Label>
+				<Field.Description>
+					{m.enable_user_signups_description()}
+				</Field.Description>
+				<Select.Root
+					type="single"
+					value={allowUserSignups}
+					onValueChange={(v) => (allowUserSignups = v as typeof allowUserSignups)}
 				>
-					{signupOptions[allowUserSignups]?.label}
-				</Select.Trigger>
-				<Select.Content>
-					<Select.Item value="disabled">
-						<div class="flex flex-col items-start gap-1">
-							<span class="font-medium">{signupOptions.disabled.label}</span>
-							<span class="text-muted-foreground text-xs">
-								{signupOptions.disabled.description}
-							</span>
-						</div>
-					</Select.Item>
-					<Select.Item value="withToken">
-						<div class="flex flex-col items-start gap-1">
-							<span class="font-medium">{signupOptions.withToken.label}</span>
-							<span class="text-muted-foreground text-xs">
-								{signupOptions.withToken.description}
-							</span>
-						</div>
-					</Select.Item>
-					<Select.Item value="open">
-						<div class="flex flex-col items-start gap-1">
-							<span class="font-medium">{signupOptions.open.label}</span>
-							<span class="text-muted-foreground text-xs">
-								{signupOptions.open.description}
-							</span>
-						</div>
-					</Select.Item>
-				</Select.Content>
-			</Select.Root>
-		</Field.Field>
+					<Select.Trigger
+						id="enable-user-signup"
+						class="w-full"
+						aria-label={m.enable_user_signups()}
+						placeholder={m.enable_user_signups()}
+					>
+						{signupOptions[allowUserSignups]?.label}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="disabled">
+							<div class="flex flex-col items-start gap-1">
+								<span class="font-medium">{signupOptions.disabled.label}</span>
+								<span class="text-muted-foreground text-xs">
+									{signupOptions.disabled.description}
+								</span>
+							</div>
+						</Select.Item>
+						<Select.Item value="withToken">
+							<div class="flex flex-col items-start gap-1">
+								<span class="font-medium">{signupOptions.withToken.label}</span>
+								<span class="text-muted-foreground text-xs">
+									{signupOptions.withToken.description}
+								</span>
+							</div>
+						</Select.Item>
+						<Select.Item value="open">
+							<div class="flex flex-col items-start gap-1">
+								<span class="font-medium">{signupOptions.open.label}</span>
+								<span class="text-muted-foreground text-xs">
+									{signupOptions.open.description}
+								</span>
+							</div>
+						</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
+		</div>
 
 		<Field.Field>
 			<Field.Label for="default-groups">{m.user_groups()}</Field.Label>
 			<Field.Description>
 				{m.user_creation_groups_description()}
 			</Field.Description>
-			<SearchableMultiSelect
-				id="default-groups"
-				items={userGroups}
-				oninput={(e) => onUserGroupSearch(e.currentTarget.value)}
-				selectedItems={selectedGroups.map((g) => g.value)}
-				onSelect={(selected) => {
-					selectedGroups = userGroups.filter((g) => selected.includes(g.value));
-				}}
-				isLoading={isUserSearchLoading}
-				disableInternalSearch
-			/>
+			<UserGroupInput bind:selectedGroupIds />
 		</Field.Field>
 		<Field.Field>
 			<Field.Label>{m.custom_claims()}</Field.Label>
