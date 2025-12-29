@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Wybierz klientów OIDC, do których członkowie tej grupy użytkowników mogą się logować.",
 	"unrestrict_oidc_client": "Bez ograniczeń {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Czy na pewno chcesz znieść ograniczenia dla klienta OIDC <b>{clientName}</b>? Spowoduje to usunięcie wszystkich przypisanych do niego grup, a każdy użytkownik będzie mógł się zalogować.",
-	"allowed_oidc_clients_updated_successfully": "Dozwolone klienci OIDC zaktualizowani pomyślnie"
+	"allowed_oidc_clients_updated_successfully": "Dozwolone klienci OIDC zaktualizowani pomyślnie",
+	"yes": "Tak",
+	"no": "Nie",
+	"restricted": "Ograniczony"
 }

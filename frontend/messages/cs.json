@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Vyberte klienty OIDC, ke kterým se mohou členové této skupiny uživatelů přihlašovat.",
 	"unrestrict_oidc_client": "Bez omezení {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Opravdu chcete zrušit omezení klienta OIDC <b>{clientName}</b>? Tím se odstraní všechna přiřazení skupin pro tohoto klienta a přihlásit se bude moci kterýkoli uživatel.",
-	"allowed_oidc_clients_updated_successfully": "Povolené klienty OIDC úspěšně aktualizovány"
+	"allowed_oidc_clients_updated_successfully": "Povolené klienty OIDC úspěšně aktualizovány",
+	"yes": "Ano",
+	"no": "Ne",
+	"restricted": "Omezený"
 }

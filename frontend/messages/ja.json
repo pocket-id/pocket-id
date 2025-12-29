@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "このユーザーグループのメンバーがサインインを許可されているOIDCクライアントを選択してください。",
 	"unrestrict_oidc_client": "制限なし {clientName}",
 	"confirm_unrestrict_oidc_client_description": "OIDCクライアントの制限を解除してもよろしいですか？ <b>{clientName}</b>？これにより、このクライアントに対するすべてのグループ割り当てが解除され、どのユーザーでもサインインできるようになります。",
-	"allowed_oidc_clients_updated_successfully": "許可されたOIDCクライアントの更新が正常に完了しました"
+	"allowed_oidc_clients_updated_successfully": "許可されたOIDCクライアントの更新が正常に完了しました",
+	"yes": "はい",
+	"no": "いいえ",
+	"restricted": "制限付き"
 }
