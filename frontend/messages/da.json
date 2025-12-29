@@ -480,5 +480,8 @@
 	"allowed_oidc_clients_description": "Vælg de OIDC-klienter, som medlemmer af denne brugergruppe har tilladelse til at logge på.",
 	"unrestrict_oidc_client": "Ubegrænset {clientName}",
 	"confirm_unrestrict_oidc_client_description": "Er du sikker på, at du vil ophæve begrænsningen for OIDC-klienten <b>{clientName}</b>? Dette vil fjerne alle gruppetildelinger for denne klient, og alle brugere vil kunne logge ind.",
-	"allowed_oidc_clients_updated_successfully": "Tilladte OIDC-klienter opdateret med succes"
+	"allowed_oidc_clients_updated_successfully": "Tilladte OIDC-klienter opdateret med succes",
+	"yes": "Ja",
+	"no": "Nej",
+	"restricted": "Begrænset"
 }
