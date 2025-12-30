@@ -136,7 +136,7 @@
 		<div class="mt-5 flex justify-end gap-3">
 			{#if existingProvider}
 				<Button variant="destructive" onclick={onDisable}>{m.disable()}</Button>
-				<Button variant="secondary" isLoading={isSyncing} onclick={onSync}>Sync</Button>
+				<Button variant="secondary" isLoading={isSyncing} onclick={onSync}>{m.sync_now()}</Button>
 			{/if}
 			<Button type="submit">{existingProvider ? m.save() : m.enable()}</Button>
 		</div>

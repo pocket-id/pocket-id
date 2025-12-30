@@ -9,7 +9,7 @@ services:
       - LLDAP_LDAP_USER_PASS=admin_password
       - LLDAP_LDAP_BASE_DN=dc=pocket-id,dc=org
   scim-test-server:
-    image: pocket-id/scim-test-server:latest
+    image: ghcr.io/pocket-id/scim-test-server:latest
     ports:
       - "18123:8080"    
   pocket-id:

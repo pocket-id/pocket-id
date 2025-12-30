@@ -17,7 +17,7 @@ async function configureOidcClient(page: Page) {
 async function syncScimServiceProvider(page: Page) {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
 
-	await page.getByRole('button', { name: 'Sync' }).click();
+	await page.getByRole('button', { name: 'Sync now' }).click();
 	await page.waitForSelector('[data-type="success"]');
 }
 
@@ -137,7 +137,7 @@ test.describe('SCIM Sync', () => {
 
 		const scimUsers = await getScimResources('Users');
 		await expect(scimUsers.length).toBe(1);
-		await expect(scimUsers.find((u: any) => u.userName === users.tim)).toBeUndefined();
+		await expect(scimUsers.find((u: any) => u.userName === users.tim.username)).toBeUndefined();
 
 		const scimGroups = await getScimResources('Groups');
 		await expect(scimGroups.length).toBe(1);
