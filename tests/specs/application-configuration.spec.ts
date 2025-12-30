@@ -123,9 +123,7 @@ test.describe('Update application images', () => {
 
 	test('should upload images', async ({ page }) => {
 		await page.getByLabel('Favicon').setInputFiles('resources/images/w3-schools-favicon.ico');
-		await page
-			.getByLabel('Light Mode Logo')
-			.setInputFiles('resources/images/pingvin-share-logo.png');
+		await page.getByLabel('Light Mode Logo').setInputFiles('resources/images/pingvin-share-logo.png');
 		await page.getByLabel('Dark Mode Logo').setInputFiles('resources/images/cloud-logo.png');
 		await page.getByLabel('Email Logo').setInputFiles('resources/images/pingvin-share-logo.png');
 		await page
