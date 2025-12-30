@@ -153,7 +153,7 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 
 	group.Name = input.Name
 	group.FriendlyName = input.FriendlyName
-	group.UpdatedAt =  utils.Ptr(datatype.DateTime(time.Now()))
+	group.UpdatedAt = utils.Ptr(datatype.DateTime(time.Now()))
 
 	err = tx.
 		WithContext(ctx).

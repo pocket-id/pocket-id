@@ -17,7 +17,7 @@ type UserGroup struct {
 	AllowedOidcClients []OidcClient `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 }
 
-func (ug UserGroup) LastModified()  time.Time {
+func (ug UserGroup) LastModified() time.Time {
 	if ug.UpdatedAt != nil {
 		return ug.UpdatedAt.ToTime()
 	}

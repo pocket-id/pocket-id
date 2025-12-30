@@ -249,6 +249,7 @@ func (s *ScimService) syncUsers(
 			stats.Updated++
 		case scimActionDeleted:
 			stats.Deleted++
+		case scimActionNone:
 		}
 	}
 
@@ -298,6 +299,7 @@ func (s *ScimService) syncGroups(
 			stats.Updated++
 		case scimActionDeleted:
 			stats.Deleted++
+		case scimActionNone:
 		}
 
 	}
@@ -714,7 +716,7 @@ func scimRetryDelay(retryAfter string, attempt int) time.Duration {
 
 	// Exponential backoff otherwise
 	maxDelay := 10 * time.Second
-	delay := 500 * time.Millisecond * time.Duration(1<<uint(attempt-1))
+	delay := 500 * time.Millisecond * (time.Duration(1) << (attempt - 1)) //nolint:gosec // attempt is bounded 1-3
 	if delay > maxDelay {
 		return maxDelay
 	}
