@@ -98,7 +98,6 @@ func defaultConfig() EnvConfigSchema {
 		Host:                  "0.0.0.0",
 		GeoLiteDBPath:         "data/GeoLite2-City.mmdb",
 		GeoLiteDBUrl:          MaxMindGeoLiteCityUrl,
-		AuditLogRetentionDays: 90,
 	}
 }
 

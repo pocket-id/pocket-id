@@ -87,7 +87,7 @@
 		resetCallback={resetProfilePicture}
 	/>
 
-	<Field.Separator />
+	<Field.Separator class="m-2" />
 
 	<fieldset disabled={userInfoInputDisabled}>
 		<Field.Group class="grid grid-cols-1 gap-4 sm:grid-cols-2">

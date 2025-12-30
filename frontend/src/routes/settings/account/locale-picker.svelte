@@ -41,7 +41,7 @@
 </script>
 
 <Select.Root type="single" value={currentLocale} onValueChange={(v) => updateLocale(v as Locale)}>
-	<Select.Trigger class="h-9 max-w-[200px]" aria-label="Select locale">
+	<Select.Trigger class="h-8 max-w-[200px]" aria-label="Select locale">
 		{locales[currentLocale]}
 	</Select.Trigger>
 	<Select.Content>
