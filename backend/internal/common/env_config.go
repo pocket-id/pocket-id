@@ -168,7 +168,7 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	switch config.FileBackend {
 	case "s3", "database":
 		// All good, these are valid values
-	case "", "fs":
+	case "", "filesystem":
 		if config.UploadPath == "" {
 			config.UploadPath = defaultFsUploadPath
 		}

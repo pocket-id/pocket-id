@@ -287,7 +287,6 @@ function runExportToStdout(): Buffer {
 		'--path',
 		'-'
 	]);
-	fs.writeFileSync('export-stdout.txt', res);
 	return res;
 }
 

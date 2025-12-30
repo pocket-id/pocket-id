@@ -126,7 +126,9 @@ test.describe('Update application images', () => {
 		await page.getByLabel('Light Mode Logo').setInputFiles('resources/images/pingvin-share-logo.png');
 		await page.getByLabel('Dark Mode Logo').setInputFiles('resources/images/cloud-logo.png');
 		await page.getByLabel('Email Logo').setInputFiles('resources/images/pingvin-share-logo.png');
-		await page.getByLabel('Default Profile Picture').setInputFiles('resources/images/pingvin-share-logo.png');
+		await page
+			.getByLabel('Default Profile Picture')
+			.setInputFiles('resources/images/pingvin-share-logo.png');
 		await page.getByLabel('Background Image').setInputFiles('resources/images/clouds.jpg');
 		await page.getByRole('button', { name: 'Save' }).last().click();
 
