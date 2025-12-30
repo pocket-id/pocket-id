@@ -472,7 +472,7 @@
 	"reauthentication": "重新认证",
 	"clear_filters": "清除筛选条件",
 	"default_profile_picture": "默认个人资料图片",
-	"light": "光",
+	"light": "浅色",
 	"dark": "黑暗",
 	"system": "系统",
 	"signup_token_user_groups_description": "自动将这些组分配给使用此令牌注册的用户。",
