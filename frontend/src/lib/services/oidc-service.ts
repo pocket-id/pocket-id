@@ -10,6 +10,7 @@ import type {
 	OidcClientWithAllowedUserGroupsCount,
 	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
+import type { ScimServiceProvider } from '$lib/types/scim.type';
 import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 import APIService from './api-service';
 
@@ -126,6 +127,11 @@ class OidcService extends APIService {
 
 	revokeOwnAuthorizedClient = async (clientId: string) => {
 		await this.api.delete(`/oidc/users/me/authorized-clients/${clientId}`);
+	};
+
+	getScimResourceProvider = async (clientId: string) => {
+		const res = await this.api.get(`/oidc/clients/${clientId}/scim-service-provider`);
+		return res.data as ScimServiceProvider;
 	};
 }
 

@@ -171,7 +171,12 @@ jobs:
         run: |
           DOCKER_COMPOSE_FILE=docker-compose.yml
 
-          echo "FILE_BACKEND=${{ matrix.storage }}" > .env
+          cat > .env <<EOF
+          FILE_BACKEND=${{ matrix.storage }}
+          SCIM_SERVICE_PROVIDER_URL=http://localhost:18123/v2
+          SCIM_SERVICE_PROVIDER_URL_INTERNAL=http://scim-test-server:8080/v2
+          EOF
+
           if [ "${{ matrix.db }}" = "postgres" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
           elif [ "${{ matrix.storage }}" = "s3" ]; then

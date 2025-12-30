@@ -98,6 +98,17 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				DisplayName: "Craig Federighi",
 				IsAdmin:     false,
 			},
+			{
+				Base: model.Base{
+					ID: "d9256384-98ad-49a7-bc58-99ad0b4dc23c",
+				},
+				Username:    "eddy",
+				Email:       utils.Ptr("eddy.cue@test.com"),
+				FirstName:   "Eddy",
+				LastName:    "Cue",
+				DisplayName: "Eddy Cue",
+				IsAdmin:     false,
+			},
 		}
 		for _, user := range users {
 			if err := tx.Create(&user).Error; err != nil {
@@ -207,6 +218,20 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 							JWKS:     baseURL + "/api/externalidp/jwks.json",
 						},
 					},
+				},
+			},
+			{
+				Base: model.Base{
+					ID: "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
+				},
+				Name:              "SCIM Client",
+				Secret:            "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK", // nQbiuMRG7FpdK2EnDd5MBivWQeKFXohn
+				CallbackURLs:      model.UrlList{"http://scimclient/auth/callback"},
+				CreatedByID:       utils.Ptr(users[0].ID),
+				IsGroupRestricted: true,
+				AllowedUserGroups: []model.UserGroup{
+					userGroups[0],
+					userGroups[1],
 				},
 			},
 		}

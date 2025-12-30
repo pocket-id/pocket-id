@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -151,6 +153,7 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 
 	group.Name = input.Name
 	group.FriendlyName = input.FriendlyName
+	group.UpdatedAt =  utils.Ptr(datatype.DateTime(time.Now()))
 
 	err = tx.
 		WithContext(ctx).
@@ -214,6 +217,8 @@ func (s *UserGroupService) updateUsersInternal(ctx context.Context, id string, u
 	}
 
 	// Save the updated group
+	group.UpdatedAt = utils.Ptr(datatype.DateTime(time.Now()))
+
 	err = tx.
 		WithContext(ctx).
 		Save(&group).

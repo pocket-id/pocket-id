@@ -426,6 +426,8 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		}
 	}
 
+	user.UpdatedAt = utils.Ptr(datatype.DateTime(time.Now()))
+
 	err = tx.
 		WithContext(ctx).
 		Save(&user).
