@@ -5,7 +5,7 @@ CREATE TABLE scim_service_providers
     endpoint       TEXT        NOT NULL,
     token          TEXT        NOT NULL,
     last_synced_at TIMESTAMPTZ,
-    oidc_client_id UUID        NOT NULL REFERENCES oidc_clients (id) ON DELETE CASCADE
+    oidc_client_id TEXT        NOT NULL REFERENCES oidc_clients (id) ON DELETE CASCADE
 );
 
 ALTER TABLE users
