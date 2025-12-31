@@ -6,7 +6,7 @@ type ScimServiceProvider struct {
 	Base
 
 	Endpoint     string `sortable:"true"`
-	Token        string
+	Token        datatype.EncryptedString
 	LastSyncedAt *datatype.DateTime `sortable:"true"`
 
 	OidcClientID string

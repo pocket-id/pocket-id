@@ -92,7 +92,7 @@ func (s *ScimService) CreateServiceProvider(
 	input *dto.ScimServiceProviderCreateDTO) (model.ScimServiceProvider, error) {
 	provider := model.ScimServiceProvider{
 		Endpoint:     input.Endpoint,
-		Token:        input.Token,
+		Token:        datatype.EncryptedString(input.Token),
 		OidcClientID: input.OidcClientID,
 	}
 
@@ -116,7 +116,7 @@ func (s *ScimService) UpdateServiceProvider(ctx context.Context,
 	}
 
 	provider.Endpoint = input.Endpoint
-	provider.Token = input.Token
+	provider.Token = datatype.EncryptedString(input.Token)
 	provider.OidcClientID = input.OidcClientID
 
 	if err := s.db.WithContext(ctx).Save(&provider).Error; err != nil {
@@ -663,8 +663,9 @@ func (s *ScimService) scimRequest(
 		if payload != nil {
 			req.Header.Set("Content-Type", scimContentType)
 		}
-		if provider.Token != "" {
-			req.Header.Set("Authorization", "Bearer "+provider.Token)
+		token := string(provider.Token)
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
 		}
 
 		slog.Debug("Sending SCIM request",
