@@ -311,7 +311,7 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 	}
 
 	// Explicitly use the input clientID for the audience claim to ensure consistency
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, "")
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, deviceAuth.Nonce)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -1278,6 +1278,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		ExpiresAt:    datatype.DateTime(time.Now().Add(DeviceCodeDuration)),
 		IsAuthorized: false,
 		ClientID:     client.ID,
+		Nonce:        input.Nonce,
 	}
 
 	if err := s.db.Create(deviceAuth).Error; err != nil {
