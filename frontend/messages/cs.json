@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Povolené klienty OIDC úspěšně aktualizovány",
 	"yes": "Ano",
 	"no": "Ne",
-	"restricted": "Omezený"
+	"restricted": "Omezený",
+	"scim_provisioning": "SCIM Provisioning",
+	"scim_provisioning_description": "Provisioning SCIM vám umožňuje automaticky přidávat a odebírat uživatele a skupiny z vašeho klienta OIDC. Více informací najdete v <link href='https://pocket-id.org/docs/configuration/scim'>dokumentaci</link>.",
+	"scim_endpoint": "Koncový bod SCIM",
+	"scim_token": "SCIM token",
+	"last_successful_sync_at": "Poslední úspěšná synchronizace: {time}",
+	"scim_configuration_updated_successfully": "Konfigurace SCIM byla úspěšně aktualizována.",
+	"scim_enabled_successfully": "SCIM úspěšně aktivován.",
+	"scim_disabled_successfully": "SCIM disabled successfully.",
+	"disable_scim_provisioning": "Disable SCIM Provisioning",
+	"disable_scim_provisioning_confirm_description": "Are you sure you want to disable SCIM provisioning for <b>{clientName}</b>? This will stop all automatic user and group provisioning and deprovisioning.",
+	"scim_sync_failed": "SCIM sync failed. Check the server logs for more information.",
+	"scim_sync_successful": "The SCIM sync has been completed successfully.",
+	"save_and_sync": "Save and Sync",
+	"scim_save_changes_description": "You have to save the changes before starting a SCIM sync. Do you want to save now?",
+	"scopes": "Rozsah"
 }
