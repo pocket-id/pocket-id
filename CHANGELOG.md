@@ -1,3 +1,16 @@
+## v2.0.1
+
+### Bug Fixes
+
+- admins imported from LDAP lose admin privileges ([2cce200](https://github.com/pocket-id/pocket-id/commit/2cce2008928081b5e0f0e6bcbc3f43816f082de9) by @stonith404)
+- restore old input input field size ([2341da9](https://github.com/pocket-id/pocket-id/commit/2341da99e9716686cf28dd0680d751ae9da0fadc) by @stonith404)
+
+### Other
+
+- bump image tag to `v2` ([cd2e9f3](https://github.com/pocket-id/pocket-id/commit/cd2e9f3a2ad753815ef8da998f9b54853d953a2a) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.0.0...v2.0.1
+
 ## v2.0.0
 
 ### Bug Fixes
