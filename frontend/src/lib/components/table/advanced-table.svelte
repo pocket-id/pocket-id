@@ -331,7 +331,7 @@
 				value={items?.pagination.itemsPerPage.toString()}
 				onValueChange={(v) => onPageSizeChange(Number(v))}
 			>
-				<Select.Trigger class="h-8 w-[80px]">
+				<Select.Trigger class="w-20">
 					{items?.pagination.itemsPerPage}
 				</Select.Trigger>
 				<Select.Content>

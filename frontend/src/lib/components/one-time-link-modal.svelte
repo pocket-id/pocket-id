@@ -85,7 +85,7 @@
 					value={Object.keys(availableExpirations)[0]}
 					onValueChange={(v) => (selectedExpiration = v! as keyof typeof availableExpirations)}
 				>
-					<Select.Trigger id="expiration" class="h-8 w-full">
+					<Select.Trigger id="expiration" class="w-full">
 						{selectedExpiration}
 					</Select.Trigger>
 					<Select.Content>

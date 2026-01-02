@@ -37,7 +37,7 @@
 	}
 </script>
 
-<Item.Group class="gap-3">
+<Item.Group class="mt-3">
 	{#each passkeys as passkey}
 		<GlassRowItem
 			label={passkey.name}

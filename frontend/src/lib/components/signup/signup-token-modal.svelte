@@ -136,7 +136,7 @@
 						value={$inputs.ttl.value.toString()}
 						onValueChange={(v) => v && form.setValue('ttl', Number(v))}
 					>
-						<Select.Trigger id="expiration" class="h-8 w-full">
+						<Select.Trigger id="expiration" class="w-full">
 							{getExpirationLabel($inputs.ttl.value)}
 						</Select.Trigger>
 						<Select.Content>
@@ -162,7 +162,7 @@
 						type="number"
 						bind:value={$inputs.usageLimit.value}
 						aria-invalid={$inputs.usageLimit.error ? 'true' : undefined}
-						class="h-8"
+						class="h-9"
 					/>
 				</FormInput>
 				<FormInput

@@ -155,7 +155,6 @@
 		</Item.Actions>
 	</Item.Root>
 	{#if passkeys.length != 0}
-		<Item.Separator class="my-4" />
 		<PasskeyList bind:passkeys />
 	{/if}
 </Item.Group>
