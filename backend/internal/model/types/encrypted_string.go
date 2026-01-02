@@ -35,6 +35,11 @@ func (e *EncryptedString) Scan(value any) error {
 		return fmt.Errorf("unexpected type for EncryptedString: %T", value)
 	}
 
+	if raw == "" {
+		*e = ""
+		return nil
+	}
+
 	encBytes, err := base64.StdEncoding.DecodeString(raw)
 	if err != nil {
 		return fmt.Errorf("failed to decode encrypted string: %w", err)

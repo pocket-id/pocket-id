@@ -137,13 +137,13 @@ test.describe('SCIM Sync', () => {
 
 		const scimUsers = await getScimResources('Users');
 		await expect(scimUsers.length).toBe(1);
-		await expect(scimUsers.find((u: any) => u.userName === users.tim.username)).toBeUndefined();
+		await expect(scimUsers.find((u: any) => u.userName === users.tim.username)).toBeDefined();
 
 		const scimGroups = await getScimResources('Groups');
 		await expect(scimGroups.length).toBe(1);
 		await expect(
-			scimGroups.find((g: any) => g.displayName === userGroups.developers.name)
-		).toBeUndefined();
+			scimGroups.find((g: any) => g.displayName === userGroups.designers.friendlyName)
+		).toBeDefined();
 	});
 
 	test('Remove group restrictions and sync', async ({ page }) => {
