@@ -20,13 +20,13 @@
 	} = $props();
 </script>
 
-<Item.Root variant="transparent" class="hover:bg-muted transition-colors">
+<Item.Root variant="transparent" class="hover:bg-muted transition-colors py-2 px-0 sm:px-4">
 	<Item.Media class="bg-primary/10 text-primary rounded-lg p-2">
 		{#if icon}{@const Icon = icon}
 			<Icon class="size-5" />
 		{/if}
 	</Item.Media>
-	<Item.Content>
+	<Item.Content class="gap-0.5">
 		<Item.Title>{label}</Item.Title>
 		{#if description}
 			<Item.Description class="flex items-center">

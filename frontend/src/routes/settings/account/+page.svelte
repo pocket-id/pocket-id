@@ -137,12 +137,12 @@
 	</Card.Content>
 </Card.Root>
 
-<Item.Group class="bg-muted/50 rounded-xl border p-4">
+<Item.Group class="bg-card rounded-xl border p-4 shadow-sm">
 	<Item.Root class="border-none bg-transparent p-0">
 		<Item.Media class="text-primary/80">
 			<KeyRound class="size-5" />
 		</Item.Media>
-		<Item.Content>
+		<Item.Content class="min-w-52">
 			<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
 			<Item.Description>
 				{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
@@ -161,7 +161,7 @@
 </Item.Group>
 
 <div class="hidden sm:block">
-	<Item.Root variant="muted" class="border-border">
+	<Item.Root variant="card" class="border-border">
 		<Item.Media class="text-primary/80">
 			<RectangleEllipsis class="size-5" />
 		</Item.Media>
@@ -179,24 +179,22 @@
 	</Item.Root>
 </div>
 
-<div>
-	<Item.Root variant="muted" class="border-border">
-		<Item.Media class="text-primary/80">
-			<Languages class="size-5" />
-		</Item.Media>
-		<Item.Content>
-			<Item.Title>{m.language()}</Item.Title>
-			<Item.Description>
-				{m.select_the_language_you_want_to_use()}
-				<br />
-				<FormattedMessage m={m.contribute_to_translation()} />
-			</Item.Description>
-		</Item.Content>
-		<Item.Actions>
-			<LocalePicker />
-		</Item.Actions>
-	</Item.Root>
-</div>
+<Item.Root variant="card" class="border-border mb-2">
+	<Item.Media class="text-primary/80">
+		<Languages class="size-5" />
+	</Item.Media>
+	<Item.Content class="min-w-52">
+		<Item.Title>{m.language()}</Item.Title>
+		<Item.Description>
+			{m.select_the_language_you_want_to_use()}
+			<br />
+			<FormattedMessage m={m.contribute_to_translation()} />
+		</Item.Description>
+	</Item.Content>
+	<Item.Actions>
+		<LocalePicker />
+	</Item.Actions>
+</Item.Root>
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}

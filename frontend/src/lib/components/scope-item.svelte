@@ -13,9 +13,9 @@
 	const SvelteComponent = $derived(icon);
 </script>
 
-<Item.Root size="sm" class="gap-5">
-	<Item.Media class="bg-muted !self-center rounded-lg p-2 !translate-y-0">
-		<SvelteComponent class="size-4" />
+<Item.Root class="py-1.5 px-0">
+	<Item.Media class="bg-muted !self-center rounded-lg p-2 !translate-y-0 h-full">
+		<SvelteComponent class="size-5" />
 	</Item.Media>
 	<Item.Content class="text-start">
 		<Item.Title class="font-semibold">{name}</Item.Title>

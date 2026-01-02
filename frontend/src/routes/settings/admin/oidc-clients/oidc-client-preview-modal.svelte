@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Field from '$lib/components/ui/field';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
@@ -14,7 +15,6 @@
 	import { debounced } from '$lib/utils/debounce-util';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { LucideAlertTriangle } from '@lucide/svelte';
-	import { Spinner } from '$lib/components/ui/spinner';
 	import { onMount } from 'svelte';
 
 	let {
@@ -116,10 +116,9 @@
 			{/if}
 
 			<div class="flex justify-start gap-3">
-				<Field.Field>
+				<Field.Field class="w-auto min-w-48">
 					<Field.Label>{m.users()}</Field.Label>
 					<SearchableSelect
-						class="w-48"
 						selectText={m.select_user()}
 						isLoading={isUserSearchLoading}
 						items={Object.values(users).map((user) => ({
@@ -134,7 +133,7 @@
 						}}
 					/>
 				</Field.Field>
-				<Field.Field>
+				<Field.Field class="w-auto">
 					<Field.Label>{m.scopes()}</Field.Label>
 					<MultiSelect
 						items={[
