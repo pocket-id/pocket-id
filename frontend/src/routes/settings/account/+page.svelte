@@ -3,6 +3,7 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import * as Item from '$lib/components/ui/item/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
@@ -100,28 +101,24 @@
 
 <!-- Login code card mobile -->
 <div class="block sm:hidden">
-	<Card.Root>
-		<Card.Header>
-			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-				<div>
-					<Card.Title>
-						<RectangleEllipsis class="text-primary/80 size-5" />
-						{m.login_code()}
-					</Card.Title>
-					<Card.Description>
-						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
-					</Card.Description>
-				</div>
-
-				<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
-					{m.create()}
-				</Button>
-			</div>
-		</Card.Header>
-	</Card.Root>
+	<Item.Root variant="outline">
+		<Item.Media class="text-primary/80">
+			<RectangleEllipsis class="size-5" />
+		</Item.Media>
+		<Item.Content>
+			<Item.Title>{m.login_code()}</Item.Title>
+			<Item.Description>
+				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+			</Item.Description>
+		</Item.Content>
+		<Item.Actions class="w-full sm:w-auto">
+			<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
+				{m.create()}
+			</Button>
+		</Item.Actions>
+	</Item.Root>
 </div>
 
-<!-- Account details card -->
 <Card.Root>
 	<Card.Header>
 		<Card.Title>
@@ -140,76 +137,63 @@
 	</Card.Content>
 </Card.Root>
 
-<!-- Passkey management card -->
-<div>
-	<Card.Root class="gap-3">
-		<Card.Header>
-			<div class="flex items-center justify-between">
-				<div>
-					<Card.Title>
-						<KeyRound class="text-primary/80 size-5" />
-						{m.passkeys()}
-					</Card.Title>
-					<Card.Description>
-						{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
-					</Card.Description>
-				</div>
-				<Button variant="outline" class="ml-3" onclick={createPasskey}>
-					{m.add_passkey()}
-				</Button>
-			</div>
-		</Card.Header>
-		{#if passkeys.length != 0}
-			<Card.Content>
-				<PasskeyList bind:passkeys />
-			</Card.Content>
-		{/if}
-	</Card.Root>
-</div>
+<Item.Group class="bg-card rounded-xl border p-4 shadow-sm">
+	<Item.Root class="border-none bg-transparent p-0">
+		<Item.Media class="text-primary/80">
+			<KeyRound class="size-5" />
+		</Item.Media>
+		<Item.Content class="min-w-52">
+			<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
+			<Item.Description>
+				{m.manage_your_passkeys_that_you_can_use_to_authenticate_yourself()}
+			</Item.Description>
+		</Item.Content>
+		<Item.Actions>
+			<Button variant="outline" onclick={createPasskey}>
+				{m.add_passkey()}
+			</Button>
+		</Item.Actions>
+	</Item.Root>
+	{#if passkeys.length != 0}
+		<PasskeyList bind:passkeys />
+	{/if}
+</Item.Group>
 
-<!-- Login code card -->
 <div class="hidden sm:block">
-	<Card.Root>
-		<Card.Header>
-			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-				<div>
-					<Card.Title>
-						<RectangleEllipsis class="text-primary/80 size-5" />
-						{m.login_code()}
-					</Card.Title>
-					<Card.Description>
-						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
-					</Card.Description>
-				</div>
-				<Button variant="outline" onclick={() => (showLoginCodeModal = true)}>
-					{m.create()}
-				</Button>
-			</div>
-		</Card.Header>
-	</Card.Root>
+	<Item.Root variant="card" class="border-border">
+		<Item.Media class="text-primary/80">
+			<RectangleEllipsis class="size-5" />
+		</Item.Media>
+		<Item.Content>
+			<Item.Title>{m.login_code()}</Item.Title>
+			<Item.Description>
+				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+			</Item.Description>
+		</Item.Content>
+		<Item.Actions>
+			<Button variant="outline" onclick={() => (showLoginCodeModal = true)}>
+				{m.create()}
+			</Button>
+		</Item.Actions>
+	</Item.Root>
 </div>
 
-<!-- Language selection card -->
-<div>
-	<Card.Root>
-		<Card.Header>
-			<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-				<div>
-					<Card.Title>
-						<Languages class="text-primary/80 size-5" />
-						{m.language()}
-					</Card.Title>
-					<Card.Description>
-						{m.select_the_language_you_want_to_use()}
-						<br />
-						<FormattedMessage m={m.contribute_to_translation()} />
-					</Card.Description>
-				</div>
-				<LocalePicker />
-			</div>
-		</Card.Header>
-	</Card.Root>
-</div>
+<Item.Root variant="card" class="border-border mb-2">
+	<Item.Media class="text-primary/80">
+		<Languages class="size-5" />
+	</Item.Media>
+	<Item.Content class="min-w-52">
+		<Item.Title>{m.language()}</Item.Title>
+		<Item.Description>
+			{m.select_the_language_you_want_to_use()}
+			<br />
+			<FormattedMessage m={m.contribute_to_translation()} />
+		</Item.Description>
+	</Item.Content>
+	<Item.Actions>
+		<LocalePicker />
+	</Item.Actions>
+</Item.Root>
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import { preventDefault } from '$lib/utils/event-util';
 
@@ -48,8 +48,8 @@
 
 		<form onsubmit={preventDefault(applyCustomColor)}>
 			<div class="space-y-4">
-				<div>
-					<Label for="custom-color-input" class="text-sm font-medium">{m.color_value()}</Label>
+				<Field.Field>
+					<Field.Label for="custom-color-input">{m.color_value()}</Field.Label>
 					<div class="flex items-center gap-2">
 						<div class="w-full transition">
 							<Input
@@ -68,7 +68,7 @@
 							style="background-color: {customColorInput}"
 						></div>
 					</div>
-				</div>
+				</Field.Field>
 			</div>
 
 			<Dialog.Footer class="mt-6">

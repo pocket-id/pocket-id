@@ -6,7 +6,7 @@
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import Label from '$lib/components/ui/label/label.svelte';
+	import * as Field from '$lib/components/ui/field';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
@@ -207,14 +207,14 @@
 	<Card.Content>
 		<div class="flex flex-col">
 			<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
-				<Label class="mb-0 w-50">{m.client_id()}</Label>
+				<Field.Label class="w-50">{m.client_id()}</Field.Label>
 				<CopyToClipboard value={client.id}>
 					<span class="text-muted-foreground text-sm" data-testid="client-id"> {client.id}</span>
 				</CopyToClipboard>
 			</div>
 			{#if !client.isPublic}
 				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
-					<Label class="mb-0 w-50">{m.client_secret()}</Label>
+					<Field.Label class="w-50">{m.client_secret()}</Field.Label>
 					{#if $clientSecretStore}
 						<CopyToClipboard value={$clientSecretStore}>
 							<span class="text-muted-foreground text-sm" data-testid="client-secret">
@@ -241,7 +241,7 @@
 				<div transition:slide>
 					{#each Object.entries(setupDetails) as [key, value]}
 						<div class="mb-5 flex flex-col sm:flex-row sm:items-center">
-							<Label class="mb-0 w-50">{key}</Label>
+							<Field.Label class="w-50">{key}</Field.Label>
 							<CopyToClipboard {value}>
 								<span class="text-muted-foreground text-sm">{value}</span>
 							</CopyToClipboard>

@@ -5,7 +5,8 @@
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
-	import { LucideLoader, LucideRefreshCw, LucideUpload } from '@lucide/svelte';
+	import { LucideRefreshCw, LucideUpload } from '@lucide/svelte';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { onMount } from 'svelte';
 	import { openConfirmDialog } from '../confirm-dialog';
 
@@ -88,7 +89,7 @@
 					</Avatar.Root>
 					<div class="absolute inset-0 flex items-center justify-center">
 						{#if isLoading}
-							<LucideLoader class="size-5 animate-spin" />
+							<Spinner class="size-5" />
 						{:else}
 							<LucideUpload class="size-5 opacity-0 transition-opacity group-hover:opacity-100" />
 						{/if}

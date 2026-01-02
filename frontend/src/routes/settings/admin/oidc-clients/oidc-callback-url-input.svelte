@@ -1,6 +1,7 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
 	import { m } from '$lib/paraglide/messages';
 	import { LucideMinus, LucidePlus } from '@lucide/svelte';
@@ -44,7 +45,7 @@
 		</div>
 	</FormInput>
 	{#if error}
-		<p class="text-destructive mt-1 text-xs">{error}</p>
+		<Field.Error>{error}</Field.Error>
 	{/if}
 	<Button
 		class="mt-2"

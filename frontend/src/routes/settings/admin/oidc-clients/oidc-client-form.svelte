@@ -233,7 +233,7 @@
 					onLogoChange={(input) => onLogoChange(input, true)}
 				>
 					{#snippet tabTriggers()}
-						<Tabs.List class="grid h-9 w-full grid-cols-2">
+						<Tabs.List class="grid h-8 w-full grid-cols-2">
 							<Tabs.Trigger value="light-logo" class="px-3">
 								<LucideSun class="size-4" />
 							</Tabs.Trigger>
@@ -253,7 +253,7 @@
 					onLogoChange={(input) => onLogoChange(input, false)}
 				>
 					{#snippet tabTriggers()}
-						<Tabs.List class="grid h-9 w-full grid-cols-2">
+						<Tabs.List class="grid h-8 w-full grid-cols-2">
 							<Tabs.Trigger value="light-logo" class="px-3">
 								<LucideSun class="size-4" />
 							</Tabs.Trigger>

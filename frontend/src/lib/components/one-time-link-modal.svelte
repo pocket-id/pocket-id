@@ -4,7 +4,7 @@
 	import Qrcode from '$lib/components/qrcode/qrcode.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import Label from '$lib/components/ui/label/label.svelte';
+	import * as Field from '$lib/components/ui/field';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Separator } from '$lib/components/ui/separator';
 	import { m } from '$lib/paraglide/messages';
@@ -78,14 +78,14 @@
 		</Dialog.Header>
 
 		{#if oneTimeLink === null}
-			<div>
-				<Label for="expiration">{m.expiration()}</Label>
+			<Field.Field>
+				<Field.Label for="expiration">{m.expiration()}</Field.Label>
 				<Select.Root
 					type="single"
 					value={Object.keys(availableExpirations)[0]}
 					onValueChange={(v) => (selectedExpiration = v! as keyof typeof availableExpirations)}
 				>
-					<Select.Trigger id="expiration" class="w-full h-9">
+					<Select.Trigger id="expiration" class="w-full">
 						{selectedExpiration}
 					</Select.Trigger>
 					<Select.Content>
@@ -94,7 +94,7 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
-			</div>
+			</Field.Field>
 			<Dialog.Footer class="mt-2">
 				{#if $appConfigStore.emailOneTimeAccessAsAdminEnabled}
 					<Button
@@ -112,10 +112,10 @@
 		{:else}
 			<div class="flex flex-col items-center gap-2">
 				<CopyToClipboard value={code!}>
-					<p class="text-3xl font-code">{code}</p>
+					<p class="text-3xl font-bold">{code}</p>
 				</CopyToClipboard>
 
-				<div class="flex items-center justify-center gap-3 my-2 text-muted-foreground">
+				<div class="text-muted-foreground my-2 flex items-center justify-center gap-3">
 					<Separator />
 					<p class="text-xs text-nowrap">{m.or_visit()}</p>
 					<Separator />
@@ -124,12 +124,12 @@
 				<Qrcode
 					class="mb-2"
 					value={oneTimeLink}
-					size={180}
+					size={150}
 					color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
 					backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 				/>
 				<CopyToClipboard value={oneTimeLink!}>
-					<p data-testId="login-code-link">{oneTimeLink!}</p>
+					<p data-testId="login-code-link" class="text-sm">{oneTimeLink!}</p>
 				</CopyToClipboard>
 			</div>
 		{/if}

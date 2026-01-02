@@ -136,7 +136,7 @@
 						value={$inputs.ttl.value.toString()}
 						onValueChange={(v) => v && form.setValue('ttl', Number(v))}
 					>
-						<Select.Trigger id="expiration" class="h-9 w-full">
+						<Select.Trigger id="expiration" class="w-full">
 							{getExpirationLabel($inputs.ttl.value)}
 						</Select.Trigger>
 						<Select.Content>

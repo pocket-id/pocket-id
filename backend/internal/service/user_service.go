@@ -888,7 +888,7 @@ func NewOneTimeAccessToken(userID string, ttl time.Duration, withDeviceToken boo
 		tokenLength = 6
 	}
 
-	token, err := utils.GenerateRandomAlphanumericString(tokenLength)
+	token, err := utils.GenerateRandomUnambiguousString(tokenLength)
 	if err != nil {
 		return nil, err
 	}

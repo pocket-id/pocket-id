@@ -3,9 +3,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
-	import { cn } from '$lib/utils/style';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { m } from '$lib/paraglide/messages';
-	import { LoaderCircle, LucideCheck, LucideChevronDown } from '@lucide/svelte';
+	import { cn } from '$lib/utils/style';
+	import { LucideCheck, LucideChevronDown } from '@lucide/svelte';
 	import type { FormEventHandler } from 'svelte/elements';
 
 	type Item = {
@@ -108,7 +109,7 @@
 			<Command.Empty>
 				{#if isLoading}
 					<div class="flex w-full items-center justify-center py-2">
-						<LoaderCircle class="size-4 animate-spin" />
+						<Spinner />
 					</div>
 				{:else}
 					{m.no_items_found()}
