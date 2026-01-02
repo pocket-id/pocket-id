@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "允许的 OIDC 客户端已成功更新",
 	"yes": "是的",
 	"no": "不",
-	"restricted": "限制"
+	"restricted": "限制",
+	"scim_provisioning": "SCIM 配置",
+	"scim_provisioning_description": "SCIM 配置功能可让您自动为 OIDC 客户端创建和删除用户及组。更多详情请参<link href='https://pocket-id.org/docs/configuration/scim'>阅文档</link>。",
+	"scim_endpoint": "SCIM 端点",
+	"scim_token": "SCIM 令牌",
+	"last_successful_sync_at": "上次成功同步： {time}",
+	"scim_configuration_updated_successfully": "SCIM 配置更新成功。",
+	"scim_enabled_successfully": "SCIM已成功启用。",
+	"scim_disabled_successfully": "SCIM disabled successfully.",
+	"disable_scim_provisioning": "Disable SCIM Provisioning",
+	"disable_scim_provisioning_confirm_description": "Are you sure you want to disable SCIM provisioning for <b>{clientName}</b>? This will stop all automatic user and group provisioning and deprovisioning.",
+	"scim_sync_failed": "SCIM sync failed. Check the server logs for more information.",
+	"scim_sync_successful": "The SCIM sync has been completed successfully.",
+	"save_and_sync": "Save and Sync",
+	"scim_save_changes_description": "You have to save the changes before starting a SCIM sync. Do you want to save now?",
+	"scopes": "Scopes"
 }
