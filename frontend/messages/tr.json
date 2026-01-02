@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "İzin verilen OIDC istemcileri başarıyla güncellendi",
 	"yes": "Evet",
 	"no": "Hayır",
-	"restricted": "Kısıtlı"
+	"restricted": "Kısıtlı",
+	"scim_provisioning": "SCIM Sağlama",
+	"scim_provisioning_description": "SCIM provizyonu, OIDC istemcinizden kullanıcıları ve grupları otomatik olarak provizyonlamanıza ve provizyonunu kaldırmanıza olanak tanır. Daha fazla bilgi için <link href='https://pocket-id.org/docs/configuration/scim'>belgelere</link> bakın.",
+	"scim_endpoint": "SCIM Uç Noktası",
+	"scim_token": "SCIM Token",
+	"last_successful_sync_at": "Son başarılı senkronizasyon: {time}",
+	"scim_configuration_updated_successfully": "SCIM yapılandırması başarıyla güncellendi.",
+	"scim_enabled_successfully": "SCIM başarıyla etkinleştirildi.",
+	"scim_disabled_successfully": "SCIM disabled successfully.",
+	"disable_scim_provisioning": "Disable SCIM Provisioning",
+	"disable_scim_provisioning_confirm_description": "Are you sure you want to disable SCIM provisioning for <b>{clientName}</b>? This will stop all automatic user and group provisioning and deprovisioning.",
+	"scim_sync_failed": "SCIM sync failed. Check the server logs for more information.",
+	"scim_sync_successful": "The SCIM sync has been completed successfully.",
+	"save_and_sync": "Save and Sync",
+	"scim_save_changes_description": "You have to save the changes before starting a SCIM sync. Do you want to save now?",
+	"scopes": "Kapsamlar"
 }
