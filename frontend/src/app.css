@@ -140,7 +140,6 @@
 
 	/* Font */
 	--font-playfair: 'Playfair Display', serif;
-	--font-code: 'Google Sans', sans-serif;
 }
 
 @layer base {
@@ -175,11 +174,6 @@
 		font-family: 'Playfair Display';
 		font-weight: 700;
 		src: url('/fonts/PlayfairDisplay-Bold.woff') format('woff');
-	}
-	@font-face {
-		font-family: 'Google Sans';
-		font-weight: 600;
-		src: url('/fonts/GoogleSansCode-SemiBold.ttf') format('truetype');
 	}
 }
 

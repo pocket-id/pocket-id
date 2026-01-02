@@ -112,7 +112,7 @@
 		{:else}
 			<div class="flex flex-col items-center gap-2">
 				<CopyToClipboard value={code!}>
-					<p class="text-3xl font-code">{code}</p>
+					<p class="text-3xl font-bold">{code}</p>
 				</CopyToClipboard>
 
 				<div class="flex items-center justify-center gap-3 my-2 text-muted-foreground">
@@ -124,12 +124,12 @@
 				<Qrcode
 					class="mb-2"
 					value={oneTimeLink}
-					size={180}
+					size={150}
 					color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
 					backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 				/>
 				<CopyToClipboard value={oneTimeLink!}>
-					<p data-testId="login-code-link">{oneTimeLink!}</p>
+					<p data-testId="login-code-link" class="text-sm">{oneTimeLink!}</p>
 				</CopyToClipboard>
 			</div>
 		{/if}
