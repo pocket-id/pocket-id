@@ -14,6 +14,17 @@ import (
 // GenerateRandomAlphanumericString generates a random alphanumeric string of the given length
 func GenerateRandomAlphanumericString(length int) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	return GenerateRandomString(length, charset)
+}
+
+// GenerateRandomUnambiguousString generates a random string of the given length using unambiguous characters
+func GenerateRandomUnambiguousString(length int) (string, error) {
+	const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"
+	return GenerateRandomString(length, charset)
+}
+
+// GenerateRandomString generates a random string of the given length using the provided character set
+func GenerateRandomString(length int, charset string) (string, error) {
 
 	if length <= 0 {
 		return "", errors.New("length must be a positive integer")
