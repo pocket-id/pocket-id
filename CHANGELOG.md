@@ -1,3 +1,47 @@
+## v2.0.0
+
+### Bug Fixes
+
+- update image format message to include WEBP ([#1133](https://github.com/pocket-id/pocket-id/pull/1133) by @sebdanielsson)
+- add Japanese locale to inlang settings ([#1142](https://github.com/pocket-id/pocket-id/pull/1142) by @tai-ga)
+- restrict email one time sign in token to same browser ([#1144](https://github.com/pocket-id/pocket-id/pull/1144) by @stonith404)
+- rename `LDAP_ATTRIBUTE_ADMIN_GROUP` env variable to `LDAP_ADMIN_GROUP_NAME` ([e1c5021](https://github.com/pocket-id/pocket-id/commit/e1c5021eeedcbc54bad0eccd72d7ae760be61934) by @stonith404)
+- make wildcard matching in callback URLs more stricter ([078152d](https://github.com/pocket-id/pocket-id/commit/078152d4dbb05dd027ff323f39d090ecb67927c7) by @stonith404)
+- remove ambiguous characters from login code ([d9e7bf9](https://github.com/pocket-id/pocket-id/commit/d9e7bf9eef522d8c081fac2000bace6f95518039) by @stonith404)
+- add missing translations to date picker ([894eaf3](https://github.com/pocket-id/pocket-id/commit/894eaf3cffdd9182b9c29e28b4dcb7e8bcbda26b) by @stonith404)
+
+### Features
+
+- add HTTP `HEAD` method support ([#1135](https://github.com/pocket-id/pocket-id/pull/1135) by @stonith404)
+- add email logo customization ([#1150](https://github.com/pocket-id/pocket-id/pull/1150) by @MelvinSnijders)
+- add ability define user groups for sign up tokens ([#1155](https://github.com/pocket-id/pocket-id/pull/1155) by @stonith404)
+- minor redesign of auth pages ([08e4ffe](https://github.com/pocket-id/pocket-id/commit/08e4ffeb600a4a6644d91b1600b0205997ed1685) by @stonith404)
+- allow audit log retention to be controlled by env variable ([#1158](https://github.com/pocket-id/pocket-id/pull/1158) by @jenic)
+- restrict oidc clients by user groups per default ([#1164](https://github.com/pocket-id/pocket-id/pull/1164) by @stonith404)
+- add "restricted" column to oidc client table ([1bc9f5f](https://github.com/pocket-id/pocket-id/commit/1bc9f5f7e780310d81608381544ba530df7f433b) by @stonith404)
+- drop support for storing JWK on the filesystem ([f014458](https://github.com/pocket-id/pocket-id/commit/f0144584af90b918a3157a298f1bb95928a117b8) by @stonith404)
+- add CLI command for importing and exporting Pocket ID data ([3420a00](https://github.com/pocket-id/pocket-id/commit/3420a000737d89a5c3c6c250d171d96126553beb) by @stonith404)
+- remove DbProvider env variable and calculate it dynamically ([ba2f0f1](https://github.com/pocket-id/pocket-id/commit/ba2f0f18f4bacc5a86217dec0b0dcb6030c40cb9) by @kmendell)
+- add support for SCIM provisioning ([#1182](https://github.com/pocket-id/pocket-id/pull/1182) by @stonith404)
+
+### Other
+
+- update AAGUIDs ([#1128](https://github.com/pocket-id/pocket-id/pull/1128) by @github-actions[bot])
+- fix api key e2e test ([25f67bd](https://github.com/pocket-id/pocket-id/commit/25f67bd25a0ee0cab48d72107722e8c8428fa547) by @stonith404)
+- update AAGUIDs ([#1140](https://github.com/pocket-id/pocket-id/pull/1140) by @github-actions[bot])
+- upgrade dependencies ([90f555f](https://github.com/pocket-id/pocket-id/commit/90f555f7c12ff07545f7cd1a1754a8c19f5a4978) by @stonith404)
+- fix type error after version bump ([edb32d8](https://github.com/pocket-id/pocket-id/commit/edb32d82b2c138433d8eb17d5a6a19f4728ae2d4) by @stonith404)
+- remove `breaking/**` push trigger from actions ([461293b](https://github.com/pocket-id/pocket-id/commit/461293ba1da4ddbff2c77f23a42487b63964e474) by @stonith404)
+- update AAGUIDs ([#1177](https://github.com/pocket-id/pocket-id/pull/1177) by @github-actions[bot])
+- preparation for merge into main branch ([#1113](https://github.com/pocket-id/pocket-id/pull/1113) by @stonith404)
+- bump pnpm to version 10.27.0 ([#1183](https://github.com/pocket-id/pocket-id/pull/1183) by @kmendell)
+- update forms and other areas to use new shadcn components ([#1115](https://github.com/pocket-id/pocket-id/pull/1115) by @kmendell)
+- run formatter ([e4a8ca4](https://github.com/pocket-id/pocket-id/commit/e4a8ca476cc3c7e8d8cdc8de21b5d7d99d07f7a0) by @stonith404)
+- upgrade dependencies ([4776b70](https://github.com/pocket-id/pocket-id/commit/4776b70d96f3dc291394dc79c941738bbe48199a) by @stonith404)
+- change translation string in e2e tests ([ffb2ef9](https://github.com/pocket-id/pocket-id/commit/ffb2ef91bd7bbe78eb29e86cd3675b695e821498) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v1.16.0...v2.0.0
+
 ## v1.16.0
 
 ### Bug Fixes
