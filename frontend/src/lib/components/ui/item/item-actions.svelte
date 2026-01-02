@@ -16,7 +16,11 @@
 <div
 	bind:this={ref}
 	data-slot="item-actions"
-	class={cn('flex items-center gap-2', wrapOnMobile && 'w-full pl-8 sm:w-auto sm:pl-0 pt-1', className)}
+	class={cn(
+		'flex items-center gap-2',
+		wrapOnMobile && 'w-full pl-8 sm:w-auto sm:pl-0 pt-1',
+		className
+	)}
 	{...restProps}
 >
 	{@render children?.()}

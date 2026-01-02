@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils/style.js";
-	import type { HTMLAttributes } from "svelte/elements";
+	import { cn, type WithElementRef } from '$lib/utils/style.js';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {
 		ref = $bindable(null),
@@ -14,7 +14,7 @@
 	bind:this={ref}
 	role="list"
 	data-slot="item-group"
-	class={cn("group/item-group flex flex-col", className)}
+	class={cn('group/item-group flex flex-col', className)}
 	{...restProps}
 >
 	{@render children?.()}
