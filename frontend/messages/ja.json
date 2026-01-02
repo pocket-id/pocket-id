@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "許可されたOIDCクライアントの更新が正常に完了しました",
 	"yes": "はい",
 	"no": "いいえ",
-	"restricted": "制限付き"
+	"restricted": "制限付き",
+	"scim_provisioning": "SCIMプロビジョニング",
+	"scim_provisioning_description": "SCIMプロビジョニングにより、OIDCクライアントからユーザーやグループを自動的にプロビジョニングおよびデプロビジョニングできます。詳細は<link href='https://pocket-id.org/docs/configuration/scim'>ドキュメント</link>をご覧ください。",
+	"scim_endpoint": "SCIMエンドポイント",
+	"scim_token": "SCIMトークン",
+	"last_successful_sync_at": "最後の正常な同期: {time}",
+	"scim_configuration_updated_successfully": "SCIM設定の更新に成功しました。",
+	"scim_enabled_successfully": "SCIMが正常に有効化されました。",
+	"scim_disabled_successfully": "SCIM disabled successfully.",
+	"disable_scim_provisioning": "Disable SCIM Provisioning",
+	"disable_scim_provisioning_confirm_description": "Are you sure you want to disable SCIM provisioning for <b>{clientName}</b>? This will stop all automatic user and group provisioning and deprovisioning.",
+	"scim_sync_failed": "SCIM sync failed. Check the server logs for more information.",
+	"scim_sync_successful": "The SCIM sync has been completed successfully.",
+	"save_and_sync": "Save and Sync",
+	"scim_save_changes_description": "You have to save the changes before starting a SCIM sync. Do you want to save now?",
+	"scopes": "スコープ"
 }
