@@ -18,7 +18,7 @@
 			},
 			size: {
 				default: 'h-10 px-4 py-2',
-				sm: 'h-9 rounded-md px-3',
+				sm: 'h-8 rounded-md px-3',
 				lg: 'h-11 rounded-md px-8',
 				icon: 'h-10 w-10'
 			}
@@ -42,7 +42,7 @@
 </script>
 
 <script lang="ts">
-	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { onMount } from 'svelte';
 
 	let {
@@ -97,7 +97,7 @@
 		{...restProps}
 	>
 		{#if isLoading}
-			<LoaderCircle class="size-4 animate-spin" />
+			<Spinner />
 		{/if}
 		{@render children?.()}
 	</a>
@@ -112,7 +112,7 @@
 		{...restProps}
 	>
 		{#if isLoading}
-			<LoaderCircle class="size-4 animate-spin" />
+			<Spinner />
 		{/if}
 		{@render children?.()}
 	</button>

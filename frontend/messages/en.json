@@ -483,5 +483,6 @@
 	"allowed_oidc_clients_updated_successfully": "Allowed OIDC clients updated successfully",
 	"yes": "Yes",
 	"no": "No",
-	"restricted": "Restricted"
+	"restricted": "Restricted",
+  "scopes": "Scopes"
 }

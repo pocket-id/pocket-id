@@ -2,8 +2,7 @@
 	import { page } from '$app/state';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import Logo from '$lib/components/logo.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
+	import * as Item from '$lib/components/ui/item/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { LucideChevronRight, LucideMail, LucideRectangleEllipsis } from '@lucide/svelte';
@@ -40,24 +39,26 @@
 		<p class="text-muted-foreground mt-3">
 			{m.if_you_do_not_have_access_to_your_passkey_you_can_sign_in_using_one_of_the_following_methods()}
 		</p>
-		<div class="mt-5 flex flex-col gap-3">
+		<Item.Group class="mt-5 gap-3">
 			{#each methods as method}
-				<a href={method.href + page.url.search}>
-					<Card.Root>
-						<Card.Content class="flex items-center justify-between px-4">
-							<div class="flex gap-3">
-								<method.icon class="text-primary size-7" />
-								<div class="text-start">
-									<h3 class="text-lg font-semibold">{method.title}</h3>
-									<p class="text-muted-foreground text-sm">{method.description}</p>
-								</div>
-							</div>
-							<Button variant="ghost"><LucideChevronRight class="size-5" /></Button>
-						</Card.Content>
-					</Card.Root>
-				</a>
+				<Item.Root variant="outline" class="gap-5">
+					{#snippet child({ props })}
+						<a href={method.href + page.url.search} {...props}>
+							<Item.Media class="text-primary !self-center !translate-y-0">
+								<method.icon class="size-7" />
+							</Item.Media>
+							<Item.Content class="text-start">
+								<Item.Title class="text-lg font-semibold">{method.title}</Item.Title>
+								<Item.Description>{method.description}</Item.Description>
+							</Item.Content>
+							<Item.Actions>
+								<LucideChevronRight class="size-5" />
+							</Item.Actions>
+						</a>
+					{/snippet}
+				</Item.Root>
 			{/each}
-		</div>
+		</Item.Group>
 
 		<a class="text-muted-foreground mt-5 text-xs" href={'/login' + page.url.search}
 			>{m.use_your_passkey_instead()}</a

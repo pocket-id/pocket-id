@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { openConfirmDialog } from '$lib/components/confirm-dialog/';
 	import GlassRowItem from '$lib/components/passkey-row.svelte';
+	import * as Item from '$lib/components/ui/item/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import WebauthnService from '$lib/services/webauthn-service';
 	import type { Passkey } from '$lib/types/passkey.type';
@@ -36,7 +37,7 @@
 	}
 </script>
 
-<div class="space-y-3">
+<Item.Group class="mt-3">
 	{#each passkeys as passkey}
 		<GlassRowItem
 			label={passkey.name}
@@ -46,7 +47,7 @@
 			onDelete={() => deletePasskey(passkey)}
 		/>
 	{/each}
-</div>
+</Item.Group>
 
 <RenamePasskeyModal
 	bind:passkey={passkeyToRename}

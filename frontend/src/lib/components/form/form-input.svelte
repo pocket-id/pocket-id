@@ -1,7 +1,7 @@
 <script lang="ts">
 	import DatePicker from '$lib/components/form/date-picker.svelte';
+	import * as Field from '$lib/components/ui/field';
 	import { Input, type FormInputEvent } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { m } from '$lib/paraglide/messages';
 	import type { FormInput } from '$lib/utils/form-util';
 	import { LucideExternalLink } from '@lucide/svelte';
@@ -46,12 +46,12 @@
 	const id = label?.toLowerCase().replace(/ /g, '-');
 </script>
 
-<div {...restProps}>
+<Field.Field data-disabled={disabled} {...restProps}>
 	{#if label}
-		<Label required={input?.required} class="mb-0" for={labelFor ?? id}>{label}</Label>
+		<Field.Label required={input?.required} class="mb-0" for={labelFor ?? id}>{label}</Field.Label>
 	{/if}
 	{#if description}
-		<p class="text-muted-foreground mt-1 text-xs">
+		<Field.Description>
 			<FormattedMessage m={description} />
 			{#if docsLink}
 				<a
@@ -63,28 +63,26 @@
 					<LucideExternalLink class="inline size-3 align-text-top" />
 				</a>
 			{/if}
-		</p>
+		</Field.Description>
 	{/if}
-	<div class={label || description ? 'mt-2' : ''}>
-		{#if children}
-			{@render children()}
-		{:else if input}
-			{#if type === 'date'}
-				<DatePicker {id} bind:value={input.value as Date} />
-			{:else}
-				<Input
-					aria-invalid={!!input.error}
-					{id}
-					{placeholder}
-					{type}
-					bind:value={input.value}
-					{disabled}
-					oninput={(e) => onInput?.(e)}
-				/>
-			{/if}
+	{#if children}
+		{@render children()}
+	{:else if input}
+		{#if type === 'date'}
+			<DatePicker {id} bind:value={input.value as Date} />
+		{:else}
+			<Input
+				aria-invalid={!!input.error}
+				{id}
+				{placeholder}
+				{type}
+				bind:value={input.value}
+				{disabled}
+				oninput={(e) => onInput?.(e)}
+			/>
 		{/if}
-		{#if input?.error}
-			<p class="text-destructive mt-1 text-start text-xs">{input.error}</p>
-		{/if}
-	</div>
-</div>
+	{/if}
+	{#if input?.error}
+		<Field.Error>{input.error}</Field.Error>
+	{/if}
+</Field.Field>
