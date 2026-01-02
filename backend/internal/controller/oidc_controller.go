@@ -63,6 +63,8 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAccessibleClientsHandler)
 
+	group.GET("/oidc/clients/:id/scim-service-provider", authMiddleware.Add(), oc.getClientScimServiceProviderHandler)
+
 }
 
 type OidcController struct {
@@ -844,4 +846,30 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, preview)
+}
+
+// getClientScimServiceProviderHandler godoc
+// @Summary Get SCIM service provider
+// @Description Get the SCIM service provider configuration for an OIDC client
+// @Tags OIDC
+// @Produce json
+// @Param id path string true "Client ID"
+// @Success 200 {object} dto.ScimServiceProviderDTO "SCIM service provider configuration"
+// @Router /api/oidc/clients/{id}/scim-service-provider [get]
+func (oc *OidcController) getClientScimServiceProviderHandler(c *gin.Context) {
+	clientID := c.Param("id")
+
+	provider, err := oc.oidcService.GetClientScimServiceProvider(c.Request.Context(), clientID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var providerDto dto.ScimServiceProviderDTO
+	if err := dto.MapStruct(provider, &providerDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, providerDto)
 }

@@ -2,6 +2,7 @@ package model
 
 import (
 	"strings"
+	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -22,6 +23,7 @@ type User struct {
 	Locale      *string
 	LdapID      *string
 	Disabled    bool `sortable:"true" filterable:"true"`
+	UpdatedAt   *datatype.DateTime
 
 	CustomClaims []CustomClaim
 	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`
@@ -83,6 +85,13 @@ func (u User) Initials() string {
 		return strings.ToUpper(u.Username[:2])
 	}
 	return strings.ToUpper(first + last)
+}
+
+func (u User) LastModified() time.Time {
+	if u.UpdatedAt != nil {
+		return u.UpdatedAt.ToTime()
+	}
+	return u.CreatedAt.ToTime()
 }
 
 type OneTimeAccessToken struct {

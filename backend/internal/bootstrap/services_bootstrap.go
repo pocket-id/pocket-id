@@ -12,22 +12,24 @@ import (
 )
 
 type services struct {
-	appConfigService   *service.AppConfigService
-	appImagesService   *service.AppImagesService
-	emailService       *service.EmailService
-	geoLiteService     *service.GeoLiteService
-	auditLogService    *service.AuditLogService
-	jwtService         *service.JwtService
-	webauthnService    *service.WebAuthnService
-	userService        *service.UserService
-	customClaimService *service.CustomClaimService
-	oidcService        *service.OidcService
-	userGroupService   *service.UserGroupService
-	ldapService        *service.LdapService
-	apiKeyService      *service.ApiKeyService
-	versionService     *service.VersionService
-	fileStorage        storage.FileStorage
-	appLockService     *service.AppLockService
+	appConfigService     *service.AppConfigService
+	appImagesService     *service.AppImagesService
+	emailService         *service.EmailService
+	geoLiteService       *service.GeoLiteService
+	auditLogService      *service.AuditLogService
+	jwtService           *service.JwtService
+	webauthnService      *service.WebAuthnService
+	scimService          *service.ScimService
+	scimSchedulerService *service.ScimSchedulerService
+	userService          *service.UserService
+	customClaimService   *service.CustomClaimService
+	oidcService          *service.OidcService
+	userGroupService     *service.UserGroupService
+	ldapService          *service.LdapService
+	apiKeyService        *service.ApiKeyService
+	versionService       *service.VersionService
+	fileStorage          storage.FileStorage
+	appLockService       *service.AppLockService
 }
 
 // Initializes all services
@@ -70,6 +72,11 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService, fileStorage)
 	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)
+	svc.scimService = service.NewScimService(db, httpClient)
+	svc.scimSchedulerService, err = service.NewScimSchedulerService(ctx, svc.scimService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SCIM scheduler service: %w", err)
+	}
 
 	svc.versionService = service.NewVersionService(httpClient)
 

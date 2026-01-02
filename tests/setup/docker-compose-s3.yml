@@ -3,7 +3,10 @@ services:
     extends:
       file: docker-compose.yml
       service: lldap
-
+  scim-test-server:
+    extends:
+      file: docker-compose.yml
+      service: scim-test-server
   localstack-s3:
     image: localstack/localstack:s3-latest
     healthcheck:
@@ -11,7 +14,6 @@ services:
       interval: 1s
       timeout: 3s
       retries: 10
-
   create-bucket:
     image: amazon/aws-cli:latest
     environment:
@@ -22,7 +24,6 @@ services:
       localstack-s3:
         condition: service_healthy
     entrypoint: "aws --endpoint-url=http://localstack-s3:4566 s3 mb s3://pocket-id-test"
-
   pocket-id:
     extends:
       file: docker-compose.yml

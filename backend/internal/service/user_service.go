@@ -426,6 +426,8 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		}
 	}
 
+	user.UpdatedAt = utils.Ptr(datatype.DateTime(time.Now()))
+
 	err = tx.
 		WithContext(ctx).
 		Save(&user).
@@ -644,6 +646,16 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 	err = tx.WithContext(ctx).Save(&user).Error
 	if err != nil {
 		return model.User{}, err
+	}
+
+	// Update the UpdatedAt field for all affected groups
+	now := time.Now()
+	for _, group := range groups {
+		group.UpdatedAt = utils.Ptr(datatype.DateTime(now))
+		err = tx.WithContext(ctx).Save(&group).Error
+		if err != nil {
+			return model.User{}, err
+		}
 	}
 
 	err = tx.Commit().Error

@@ -4,6 +4,7 @@
 	import { LucideChevronDown, type Icon as IconType } from '@lucide/svelte';
 	import { onMount, type Snippet } from 'svelte';
 	import { slide } from 'svelte/transition';
+	import FormattedMessage from './formatted-message.svelte';
 	import { Button } from './ui/button';
 	import * as Card from './ui/card';
 
@@ -70,7 +71,7 @@
 					{title}
 				</Card.Title>
 				{#if description}
-					<Card.Description>{description}</Card.Description>
+					<Card.Description><FormattedMessage m={description} /></Card.Description>
 				{/if}
 			</div>
 			{#if button}

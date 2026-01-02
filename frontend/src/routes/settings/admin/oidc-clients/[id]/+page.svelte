@@ -10,8 +10,10 @@
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
+	import ScimService from '$lib/services/scim-service';
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft, LucideRefreshCcw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -19,16 +21,20 @@
 	import { backNavigate } from '../../users/navigate-back-util';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
+	import ScimResourceProviderForm from './scim-resource-provider-form.svelte';
 
 	let { data } = $props();
 	let client = $state({
-		...data,
-		allowedUserGroupIds: data.allowedUserGroups.map((g) => g.id)
+		...data.client,
+		allowedUserGroupIds: data.client.allowedUserGroups.map((g) => g.id)
 	});
+
+	let scimServiceProvider = $state(data.scimServiceProvider);
 	let showAllDetails = $state(false);
 	let showPreview = $state(false);
 
 	const oidcService = new OidcService();
+	const scimService = new ScimService();
 	const backNavigation = backNavigate('/settings/admin/oidc-clients');
 
 	const setupDetails = $state({
@@ -149,6 +155,30 @@
 			});
 	}
 
+	async function saveScimServiceProvider(provider: ScimServiceProviderCreate | null) {
+		try {
+			if (!provider) {
+				await scimService.deleteServiceProvider(scimServiceProvider!.id);
+				scimServiceProvider = undefined;
+				toast.success(m.scim_disabled_successfully());
+				return true;
+			}
+			let createdProvider;
+			if (scimServiceProvider) {
+				createdProvider = await scimService.updateServiceProvider(scimServiceProvider.id, provider);
+				toast.success(m.scim_configuration_updated_successfully());
+			} else {
+				createdProvider = await scimService.createServiceProvider(provider);
+				toast.success(m.scim_enabled_successfully());
+			}
+			scimServiceProvider = createdProvider;
+			return true;
+		} catch (e) {
+			axiosErrorToast(e);
+			return false;
+		}
+	}
+
 	beforeNavigate(() => {
 		clientSecretStore.clear();
 	});
@@ -251,8 +281,21 @@
 	<div class="mt-5 flex justify-end gap-3">
 		<Button onclick={disableGroupRestriction} variant="secondary">{m.unrestrict()}</Button>
 
-		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
+		<Button usePromiseLoading onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}
+			>{m.save()}</Button
+		>
 	</div>
+</CollapsibleCard>
+<CollapsibleCard
+	id="scim-provisioning"
+	title={m.scim_provisioning()}
+	description={m.scim_provisioning_description()}
+>
+	<ScimResourceProviderForm
+		oidcClientId={client.id}
+		existingProvider={scimServiceProvider}
+		onSave={saveScimServiceProvider}
+	/>
 </CollapsibleCard>
 <Card.Root>
 	<Card.Header>

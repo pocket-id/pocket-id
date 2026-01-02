@@ -11,7 +11,7 @@ test('Dashboard shows all clients in the correct order', async ({ page }) => {
 
 	await page.goto('/settings/apps');
 
-	await expect(page.getByTestId('authorized-oidc-client-card')).toHaveCount(4);
+	await expect(page.getByTestId('authorized-oidc-client-card')).toHaveCount(5);
 
 	// Should be first
 	const card1 = page.getByTestId('authorized-oidc-client-card').first();
@@ -32,7 +32,7 @@ test.describe('Dashboard shows only clients where user has access', () => {
 
 		const cards = page.getByTestId('authorized-oidc-client-card');
 
-		await expect(cards).toHaveCount(3);
+		await expect(cards).toHaveCount(4);
 
 		const cardTexts = await cards.allTextContents();
 		expect(cardTexts.some((text) => text.includes(notVisibleClient.name))).toBe(false);
@@ -40,7 +40,7 @@ test.describe('Dashboard shows only clients where user has access', () => {
 	test('User can see all clients', async ({ page }) => {
 		await page.goto('/settings/apps');
 		const cards = page.getByTestId('authorized-oidc-client-card');
-		await expect(cards).toHaveCount(4);
+		await expect(cards).toHaveCount(5);
 	});
 });
 

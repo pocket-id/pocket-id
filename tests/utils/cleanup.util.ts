@@ -19,3 +19,8 @@ export async function cleanupBackend({ skipSeed = false, skipLdapSetup = false }
 		throw new Error(`Failed to reset backend: ${response.status} ${response.statusText}`);
 	}
 }
+
+export async function cleanupScimServiceProvider() {
+	if (!process.env.SCIM_SERVICE_PROVIDER_URL) return;
+	await fetch(`${process.env.SCIM_SERVICE_PROVIDER_URL}/reset`, { method: 'POST' });
+}
