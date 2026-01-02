@@ -53,7 +53,7 @@
 			)}"
 		>
 			<div class="flex h-full w-full flex-col overflow-hidden">
-				<div class="relative flex grow flex-col items-center justify-center overflow-auto">
+				<div class="relative flex grow flex-col items-center justify-center overflow-auto p-1">
 					{@render children()}
 				</div>
 				{#if showAlternativeSignInMethodButton}
