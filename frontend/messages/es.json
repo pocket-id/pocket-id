@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Clientes OIDC permitidos actualizados correctamente",
 	"yes": "Sí",
 	"no": "No",
-	"restricted": "Restringido"
+	"restricted": "Restringido",
+	"scim_provisioning": "Aprovisionamiento SCIM",
+	"scim_provisioning_description": "El aprovisionamiento SCIM te permite aprovisionar y desaprovisionar automáticamente usuarios y grupos desde tu cliente OIDC. Obtén más información en la <link href='https://pocket-id.org/docs/configuration/scim'>documentación</link>.",
+	"scim_endpoint": "Punto final SCIM",
+	"scim_token": "Token SCIM",
+	"last_successful_sync_at": "Última sincronización correcta: {time}",
+	"scim_configuration_updated_successfully": "Configuración SCIM actualizada correctamente.",
+	"scim_enabled_successfully": "SCIM habilitado correctamente.",
+	"scim_disabled_successfully": "SCIM desactivado correctamente.",
+	"disable_scim_provisioning": "Desactivar el aprovisionamiento SCIM",
+	"disable_scim_provisioning_confirm_description": "¿Estás seguro de que deseas desactivar el aprovisionamiento SCIM para <b>{clientName}</b>? Esto detendrá todo el aprovisionamiento y desaprovisionamiento automático de usuarios y grupos.",
+	"scim_sync_failed": "Error en la sincronización SCIM. Consulta los registros del servidor para obtener más información.",
+	"scim_sync_successful": "La sincronización SCIM se ha completado correctamente.",
+	"save_and_sync": "Guardar y sincronizar",
+	"scim_save_changes_description": "Debes guardar los cambios antes de iniciar una sincronización SCIM. ¿Deseas guardar ahora?",
+	"scopes": "Ámbitos"
 }

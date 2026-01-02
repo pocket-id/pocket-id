@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Dozwolone klienci OIDC zaktualizowani pomyślnie",
 	"yes": "Tak",
 	"no": "Nie",
-	"restricted": "Ograniczony"
+	"restricted": "Ograniczony",
+	"scim_provisioning": "SCIM Provisioning",
+	"scim_provisioning_description": "Provisioning SCIM umożliwia automatyczne dodawanie i usuwanie użytkowników oraz grup z klienta OIDC. Więcej informacji znajdziesz w <link href='https://pocket-id.org/docs/configuration/scim'>dokumentacji</link>.",
+	"scim_endpoint": "Punkt końcowy SCIM",
+	"scim_token": "Token SCIM",
+	"last_successful_sync_at": "Ostatnia udana synchronizacja: {time}",
+	"scim_configuration_updated_successfully": "Konfiguracja SCIM została pomyślnie zaktualizowana.",
+	"scim_enabled_successfully": "SCIM został pomyślnie włączony.",
+	"scim_disabled_successfully": "SCIM został pomyślnie wyłączony.",
+	"disable_scim_provisioning": "Wyłącz dostarczanie SCIM",
+	"disable_scim_provisioning_confirm_description": "Czy na pewno chcesz wyłączyć przydzielanie SCIM dla <b>{clientName}</b>? Spowoduje to zatrzymanie wszystkich automatycznych procesów przydzielania i odbierania uprawnień użytkownikom i grupom.",
+	"scim_sync_failed": "Synchronizacja SCIM nie powiodła się. Więcej informacji znajdziesz w logach serwera.",
+	"scim_sync_successful": "Synchronizacja SCIM została pomyślnie zakończona.",
+	"save_and_sync": "Zapisz i zsynchronizuj",
+	"scim_save_changes_description": "Przed rozpoczęciem synchronizacji SCIM należy zapisać zmiany. Czy chcesz zapisać teraz?",
+	"scopes": "Zakresy"
 }

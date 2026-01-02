@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Tillåtna OIDC-klienter uppdaterade framgångsrikt",
 	"yes": "Ja",
 	"no": "Nej",
-	"restricted": "Begränsad"
+	"restricted": "Begränsad",
+	"scim_provisioning": "SCIM-provisionering",
+	"scim_provisioning_description": "SCIM-provisionering gör det möjligt att automatiskt tilldela och återta behörigheter för användare och grupper från din OIDC-klient. Läs mer i <link href='https://pocket-id.org/docs/configuration/scim'>dokumentationen</link>.",
+	"scim_endpoint": "SCIM-slutpunkt",
+	"scim_token": "SCIM-token",
+	"last_successful_sync_at": "Senaste lyckade synkronisering: {time}",
+	"scim_configuration_updated_successfully": "SCIM-konfigurationen har uppdaterats.",
+	"scim_enabled_successfully": "SCIM har aktiverats framgångsrikt.",
+	"scim_disabled_successfully": "SCIM har inaktiverats.",
+	"disable_scim_provisioning": "Inaktivera SCIM-provisionering",
+	"disable_scim_provisioning_confirm_description": "Är du säker på att du vill inaktivera SCIM-provisionering för <b>{clientName}</b>? Detta kommer att stoppa all automatisk provisionering och avprovisionering av användare och grupper.",
+	"scim_sync_failed": "SCIM-synkroniseringen misslyckades. Kontrollera serverloggarna för mer information.",
+	"scim_sync_successful": "SCIM-synkroniseringen har slutförts.",
+	"save_and_sync": "Spara och synkronisera",
+	"scim_save_changes_description": "Du måste spara ändringarna innan du startar en SCIM-synkronisering. Vill du spara nu?",
+	"scopes": "Omfattning"
 }

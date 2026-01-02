@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Toegestane OIDC-clients zijn goed bijgewerkt",
 	"yes": "Ja",
 	"no": "Nee",
-	"restricted": "Beperkt"
+	"restricted": "Beperkt",
+	"scim_provisioning": "SCIM-provisioning",
+	"scim_provisioning_description": "Met SCIM-provisioning kun je automatisch gebruikers en groepen toevoegen en verwijderen vanuit je OIDC-client. Check de <link href='https://pocket-id.org/docs/configuration/scim'>documentatie</link> voor meer info.",
+	"scim_endpoint": "SCIM-eindpunt",
+	"scim_token": "SCIM-token",
+	"last_successful_sync_at": "Laatste succesvolle synchronisatie: {time}",
+	"scim_configuration_updated_successfully": "SCIM-configuratie is goed bijgewerkt.",
+	"scim_enabled_successfully": "SCIM is nu ingeschakeld.",
+	"scim_disabled_successfully": "SCIM is nu uitgeschakeld.",
+	"disable_scim_provisioning": "Schakel SCIM-provisioning uit",
+	"disable_scim_provisioning_confirm_description": "Weet je zeker dat je SCIM-provisioning wilt uitschakelen voor <b>{clientName}</b>? Hierdoor worden alle automatische provisioning- en deprovisioning-processen voor gebruikers en groepen gestopt.",
+	"scim_sync_failed": "SCIM-synchronisatie is mislukt. Check de serverlogboeken voor meer info.",
+	"scim_sync_successful": "De SCIM-synchronisatie is goed gelukt.",
+	"save_and_sync": "Opslaan en synchroniseren",
+	"scim_save_changes_description": "Je moet de wijzigingen opslaan voordat je een SCIM-synchronisatie start. Wil je nu opslaan?",
+	"scopes": "Scopes"
 }

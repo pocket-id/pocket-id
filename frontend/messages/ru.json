@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Разрешенные клиенты OIDC обновились без проблем",
 	"yes": "Да",
 	"no": "Нет",
-	"restricted": "Ограниченный"
+	"restricted": "Ограниченный",
+	"scim_provisioning": "Настройка SCIM",
+	"scim_provisioning_description": "SCIM позволяет автоматически добавлять и удалять пользователей и группы из твоего клиента OIDC. Подробнее читай в <link href='https://pocket-id.org/docs/configuration/scim'>документации</link>.",
+	"scim_endpoint": "Конечная точка SCIM",
+	"scim_token": "Токен SCIM",
+	"last_successful_sync_at": "Последняя удачная синхронизация: {time}",
+	"scim_configuration_updated_successfully": "Настройки SCIM обновились без проблем.",
+	"scim_enabled_successfully": "SCIM включен, все работает.",
+	"scim_disabled_successfully": "SCIM отключен, все нормально.",
+	"disable_scim_provisioning": "Отключить настройку SCIM",
+	"disable_scim_provisioning_confirm_description": "Ты уверен, что хочешь отключить SCIM-провижининг для <b>{clientName}</b>? Это остановит все автоматические действия по предоставлению и отмене доступа пользователей и групп.",
+	"scim_sync_failed": "Синхронизация SCIM не получилась. Посмотри в журналах сервера, там будет больше инфо.",
+	"scim_sync_successful": "Синхронизация SCIM прошла без проблем.",
+	"save_and_sync": "Сохранить и синхронизировать",
+	"scim_save_changes_description": "Перед тем, как начать синхронизацию SCIM, нужно сохранить изменения. Хочешь сохранить сейчас?",
+	"scopes": "Области применения"
 }

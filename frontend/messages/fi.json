@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Sallitut OIDC-asiakkaat päivitetty onnistuneesti",
 	"yes": "Kyllä",
 	"no": "Ei",
-	"restricted": "Rajoitettu"
+	"restricted": "Rajoitettu",
+	"scim_provisioning": "SCIM-provisiointi",
+	"scim_provisioning_description": "SCIM-provisioinnin avulla voit automaattisesti provisioida ja poistaa provisioinnin käyttäjiltä ja ryhmiltä OIDC-asiakasohjelmasta. Lisätietoja on <link href='https://pocket-id.org/docs/configuration/scim'>dokumentaatiossa</link>.",
+	"scim_endpoint": "SCIM-päätepiste",
+	"scim_token": "SCIM-tunnus",
+	"last_successful_sync_at": "Viimeisin onnistunut synkronointi: {time}",
+	"scim_configuration_updated_successfully": "SCIM-määritykset päivitetty onnistuneesti.",
+	"scim_enabled_successfully": "SCIM on otettu käyttöön onnistuneesti.",
+	"scim_disabled_successfully": "SCIM on poistettu käytöstä onnistuneesti.",
+	"disable_scim_provisioning": "Poista SCIM-provisiointi käytöstä",
+	"disable_scim_provisioning_confirm_description": "Haluatko varmasti poistaa SCIM-provisioinnin käytöstä <b>{clientName}</b>? Tämä lopettaa kaiken automaattisen käyttäjien ja ryhmien provisioningin ja deprovisioningin.",
+	"scim_sync_failed": "SCIM-synkronointi epäonnistui. Tarkista lisätietoja palvelimen lokitiedostoista.",
+	"scim_sync_successful": "SCIM-synkronointi on suoritettu onnistuneesti.",
+	"save_and_sync": "Tallenna ja synkronoi",
+	"scim_save_changes_description": "Sinun on tallennettava muutokset ennen SCIM-synkronoinnin aloittamista. Haluatko tallentaa nyt?",
+	"scopes": "Käyttöalueet"
 }

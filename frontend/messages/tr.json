@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "İzin verilen OIDC istemcileri başarıyla güncellendi",
 	"yes": "Evet",
 	"no": "Hayır",
-	"restricted": "Kısıtlı"
+	"restricted": "Kısıtlı",
+	"scim_provisioning": "SCIM Sağlama",
+	"scim_provisioning_description": "SCIM provizyonu, OIDC istemcinizden kullanıcıları ve grupları otomatik olarak provizyonlamanıza ve provizyonunu kaldırmanıza olanak tanır. Daha fazla bilgi için <link href='https://pocket-id.org/docs/configuration/scim'>belgelere</link> bakın.",
+	"scim_endpoint": "SCIM Uç Noktası",
+	"scim_token": "SCIM Token",
+	"last_successful_sync_at": "Son başarılı senkronizasyon: {time}",
+	"scim_configuration_updated_successfully": "SCIM yapılandırması başarıyla güncellendi.",
+	"scim_enabled_successfully": "SCIM başarıyla etkinleştirildi.",
+	"scim_disabled_successfully": "SCIM başarıyla devre dışı bırakıldı.",
+	"disable_scim_provisioning": "SCIM Sağlamayı Devre Dışı Bırak",
+	"disable_scim_provisioning_confirm_description": "SCIM provizyonunu devre dışı bırakmak istediğinizden emin misiniz <b>{clientName}</b>Bu, tüm otomatik kullanıcı ve grup provizyonunu ve provizyonun kaldırılmasını durduracaktır.",
+	"scim_sync_failed": "SCIM senkronizasyonu başarısız oldu. Daha fazla bilgi için sunucu günlüklerini kontrol edin.",
+	"scim_sync_successful": "SCIM senkronizasyonu başarıyla tamamlandı.",
+	"save_and_sync": "Kaydet ve Senkronize Et",
+	"scim_save_changes_description": "SCIM senkronizasyonunu başlatmadan önce değişiklikleri kaydetmeniz gerekir. Şimdi kaydetmek ister misiniz?",
+	"scopes": "Kapsamlar"
 }

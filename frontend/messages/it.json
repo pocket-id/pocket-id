@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "I client OIDC autorizzati sono stati aggiornati senza problemi.",
 	"yes": "Sì",
 	"no": "No",
-	"restricted": "Limitato"
+	"restricted": "Limitato",
+	"scim_provisioning": "Provisioning SCIM",
+	"scim_provisioning_description": "Il provisioning SCIM ti permette di aggiungere e rimuovere automaticamente utenti e gruppi dal tuo client OIDC. Scopri di più nella <link href='https://pocket-id.org/docs/configuration/scim'>documentazione.</link>",
+	"scim_endpoint": "Endpoint SCIM",
+	"scim_token": "Token SCIM",
+	"last_successful_sync_at": "Ultima sincronizzazione riuscita: {time}",
+	"scim_configuration_updated_successfully": "Configurazione SCIM aggiornata senza problemi.",
+	"scim_enabled_successfully": "SCIM attivato con successo.",
+	"scim_disabled_successfully": "SCIM disattivato con successo.",
+	"disable_scim_provisioning": "Disattiva il provisioning SCIM",
+	"disable_scim_provisioning_confirm_description": "Sei sicuro di voler disattivare il provisioning SCIM per <b>{clientName}</b>? Questo fermerà tutto il provisioning e il deprovisioning automatico di utenti e gruppi.",
+	"scim_sync_failed": "La sincronizzazione SCIM non è andata a buon fine. Dai un'occhiata ai log del server per saperne di più.",
+	"scim_sync_successful": "La sincronizzazione SCIM è andata a buon fine.",
+	"save_and_sync": "Salva e sincronizza",
+	"scim_save_changes_description": "Devi salvare le modifiche prima di iniziare una sincronizzazione SCIM. Vuoi salvare adesso?",
+	"scopes": "Scopi"
 }

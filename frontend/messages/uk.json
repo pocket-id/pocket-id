@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Дозволені клієнти OIDC успішно оновлені",
 	"yes": "Так",
 	"no": "Ні",
-	"restricted": "Обмежений"
+	"restricted": "Обмежений",
+	"scim_provisioning": "Надання SCIM",
+	"scim_provisioning_description": "SCIM-провізінінг дозволяє автоматично надавати та скасовувати доступ користувачам і групам з вашого клієнта OIDC. Дізнайтеся більше в <link href='https://pocket-id.org/docs/configuration/scim'>документації</link>.",
+	"scim_endpoint": "Кінцева точка SCIM",
+	"scim_token": "Токен SCIM",
+	"last_successful_sync_at": "Остання успішна синхронізація: {time}",
+	"scim_configuration_updated_successfully": "Конфігурація SCIM успішно оновлена.",
+	"scim_enabled_successfully": "SCIM успішно увімкнено.",
+	"scim_disabled_successfully": "SCIM успішно вимкнено.",
+	"disable_scim_provisioning": "Вимкнути надання SCIM",
+	"disable_scim_provisioning_confirm_description": "Ви впевнені, що хочете вимкнути надання доступу SCIM для <b>{clientName}</b>? Це зупинить всі автоматичні процеси надання та скасування доступу для користувачів і груп.",
+	"scim_sync_failed": "Синхронізація SCIM не вдалася. Перевірте журнали сервера для отримання додаткової інформації.",
+	"scim_sync_successful": "Синхронізація SCIM успішно завершена.",
+	"save_and_sync": "Зберегти та синхронізувати",
+	"scim_save_changes_description": "Перед початком синхронізації SCIM необхідно зберегти зміни. Чи хочете ви зберегти зараз?",
+	"scopes": "Області застосування"
 }

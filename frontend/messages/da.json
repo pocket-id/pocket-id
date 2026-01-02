@@ -483,5 +483,20 @@
 	"allowed_oidc_clients_updated_successfully": "Tilladte OIDC-klienter opdateret med succes",
 	"yes": "Ja",
 	"no": "Nej",
-	"restricted": "Begrænset"
+	"restricted": "Begrænset",
+	"scim_provisioning": "SCIM-provisionering",
+	"scim_provisioning_description": "SCIM-provisionering giver dig mulighed for automatisk at provisionere og deprovisionere brugere og grupper fra din OIDC-klient. Få mere at vide i <link href='https://pocket-id.org/docs/configuration/scim'>dokumentationen</link>.",
+	"scim_endpoint": "SCIM-endpoint",
+	"scim_token": "SCIM-token",
+	"last_successful_sync_at": "Sidste vellykkede synkronisering: {time}",
+	"scim_configuration_updated_successfully": "SCIM-konfigurationen er opdateret.",
+	"scim_enabled_successfully": "SCIM er aktiveret med succes.",
+	"scim_disabled_successfully": "SCIM er deaktiveret.",
+	"disable_scim_provisioning": "Deaktiver SCIM-provisionering",
+	"disable_scim_provisioning_confirm_description": "Er du sikker på, at du vil deaktivere SCIM-provisionering for <b>{clientName}</b>? Dette vil stoppe al automatisk bruger- og gruppe-provisionering og deprovisionering.",
+	"scim_sync_failed": "SCIM-synkronisering mislykkedes. Se serverlogfilerne for yderligere oplysninger.",
+	"scim_sync_successful": "SCIM-synkroniseringen er gennemført med succes.",
+	"save_and_sync": "Gem og synkroniser",
+	"scim_save_changes_description": "Du skal gemme ændringerne, før du starter en SCIM-synkronisering. Vil du gemme nu?",
+	"scopes": "Omfang"
 }
