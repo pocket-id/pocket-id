@@ -393,6 +393,13 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			expectMatch:      true,
 		},
 		{
+			name:             "127.0.0.1 with same port - exact match",
+			urls:             []string{"http://127.0.0.1:8080/callback"},
+			inputCallbackURL: "http://127.0.0.1:8080/callback",
+			expectedURL:      "http://127.0.0.1:8080/callback",
+			expectMatch:      true,
+		},
+		{
 			name:             "127.0.0.1 with different port",
 			urls:             []string{"http://127.0.0.1/callback"},
 			inputCallbackURL: "http://127.0.0.1:9999/callback",
