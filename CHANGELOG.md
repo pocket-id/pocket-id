@@ -1,3 +1,17 @@
+## v2.0.2
+
+### Bug Fixes
+
+- migration fails if users exist with no email address ([2f651ad](https://github.com/pocket-id/pocket-id/commit/2f651adf3b4e8d689461da2083c3afcb1eb1d477) by @stonith404)
+- allow version downgrade database is dirty ([ba00f40](https://github.com/pocket-id/pocket-id/commit/ba00f40bd4b06f31d251599fcb1db63e902a6987) by @stonith404)
+- localhost callback URLs with port don't match correctly ([7c34501](https://github.com/pocket-id/pocket-id/commit/7c345010556f11a593948b2a1ae558b7a8003696) by @stonith404)
+
+### Other
+
+- add no-op migration to postgres ([a24b2af](https://github.com/pocket-id/pocket-id/commit/a24b2afb7b8165bed05976058a8ae797adc245df) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.0.1...v2.0.2
+
 ## v2.0.1
 
 ### Bug Fixes
