@@ -498,5 +498,6 @@
 	"scim_sync_successful": "SCIM 同步已成功完成。",
 	"save_and_sync": "保存并同步",
 	"scim_save_changes_description": "在开始 SCIM 同步之前，您必须先保存更改。是否现在保存？",
-	"scopes": "Scopes"
+	"scopes": "Scopes",
+	"issuer_url": "发行者网址"
 }
