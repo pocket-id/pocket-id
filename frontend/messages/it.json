@@ -498,5 +498,6 @@
 	"scim_sync_successful": "La sincronizzazione SCIM è andata a buon fine.",
 	"save_and_sync": "Salva e sincronizza",
 	"scim_save_changes_description": "Devi salvare le modifiche prima di iniziare una sincronizzazione SCIM. Vuoi salvare adesso?",
-	"scopes": "Scopi"
+	"scopes": "Scopi",
+	"issuer_url": "URL dell'emittente"
 }
