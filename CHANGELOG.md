@@ -1,3 +1,20 @@
+## v2.1.0
+
+### Bug Fixes
+
+- invalid cookie name for email login code device token ([d6a7b50](https://github.com/pocket-id/pocket-id/commit/d6a7b503ff4571b1291a55a569add3374f5e2d5b) by @stonith404)
+
+### Features
+
+- add issuer url to oidc client details list ([#1197](https://github.com/pocket-id/pocket-id/pull/1197) by @kmendell)
+- process nonce within device authorization flow ([#1185](https://github.com/pocket-id/pocket-id/pull/1185) by @justincmoy)
+
+### Other
+
+- run SCIM jobs in context of gocron instead of custom implementation ([4881130](https://github.com/pocket-id/pocket-id/commit/4881130eadcef0642f8a87650b7c36fda453b51b) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.0.2...v2.1.0
+
 ## v2.0.2
 
 ### Bug Fixes
