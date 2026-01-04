@@ -498,5 +498,6 @@
 	"scim_sync_successful": "Synchronizace SCIM byla úspěšně dokončena.",
 	"save_and_sync": "Uložit a synchronizovat",
 	"scim_save_changes_description": "Před spuštěním synchronizace SCIM je nutné uložit změny. Chcete uložit nyní?",
-	"scopes": "Rozsah"
+	"scopes": "Rozsah",
+	"issuer_url": "URL vydavatele"
 }
