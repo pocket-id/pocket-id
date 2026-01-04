@@ -498,5 +498,6 @@
 	"scim_sync_successful": "SCIM-synkroniseringen er gennemført med succes.",
 	"save_and_sync": "Gem og synkroniser",
 	"scim_save_changes_description": "Du skal gemme ændringerne, før du starter en SCIM-synkronisering. Vil du gemme nu?",
-	"scopes": "Omfang"
+	"scopes": "Omfang",
+	"issuer_url": "Udsteders URL"
 }
