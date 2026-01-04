@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
-	import ScopeItem from '$lib/components/scope-item.svelte';
+	import ScopeList from '$lib/components/scope-list.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
@@ -10,7 +10,6 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
-	import { LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
 	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
@@ -140,30 +139,8 @@
 							/>
 						</p>
 					</Card.Header>
-					<Card.Content data-testid="scopes">
-						<div class="flex flex-col gap-3">
-							{#if scope!.includes('email')}
-								<ScopeItem
-									icon={LucideMail}
-									name={m.email()}
-									description={m.view_your_email_address()}
-								/>
-							{/if}
-							{#if scope!.includes('profile')}
-								<ScopeItem
-									icon={LucideUser}
-									name={m.profile()}
-									description={m.view_your_profile_information()}
-								/>
-							{/if}
-							{#if scope!.includes('groups')}
-								<ScopeItem
-									icon={LucideUsers}
-									name={m.groups()}
-									description={m.view_the_groups_you_are_a_member_of()}
-								/>
-							{/if}
-						</div>
+					<Card.Content>
+						<ScopeList {scope} />
 					</Card.Content>
 				</Card.Root>
 			</div>

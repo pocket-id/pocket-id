@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import type { Passkey } from '$lib/types/passkey.type';
@@ -52,7 +52,7 @@
 		</Dialog.Header>
 		<form onsubmit={preventDefault(onSubmit)}>
 			<div class="grid items-center gap-4 sm:grid-cols-4">
-				<Label for="name" class="sm:text-right">{m.name()}</Label>
+				<Field.Label for="name" class="sm:text-right">{m.name()}</Field.Label>
 				<Input id="name" bind:value={name} class="col-span-3" />
 			</div>
 			<Dialog.Footer class="mt-4">

@@ -48,8 +48,13 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize application images: %w", err)
 	}
 
+	scheduler, err := job.NewScheduler()
+	if err != nil {
+		return fmt.Errorf("failed to create job scheduler: %w", err)
+	}
+
 	// Create all services
-	svc, err := initServices(ctx, db, httpClient, imageExtensions, fileStorage)
+	svc, err := initServices(ctx, db, httpClient, imageExtensions, fileStorage, scheduler)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
@@ -74,11 +79,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 	shutdownFns = append(shutdownFns, shutdownFn)
 
-	// Init the job scheduler
-	scheduler, err := job.NewScheduler()
-	if err != nil {
-		return fmt.Errorf("failed to create job scheduler: %w", err)
-	}
+	// Register scheduled jobs
 	err = registerScheduledJobs(ctx, db, svc, httpClient, scheduler)
 	if err != nil {
 		return fmt.Errorf("failed to register scheduled jobs: %w", err)

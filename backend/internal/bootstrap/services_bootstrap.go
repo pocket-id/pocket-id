@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -19,6 +20,7 @@ type services struct {
 	auditLogService    *service.AuditLogService
 	jwtService         *service.JwtService
 	webauthnService    *service.WebAuthnService
+	scimService        *service.ScimService
 	userService        *service.UserService
 	customClaimService *service.CustomClaimService
 	oidcService        *service.OidcService
@@ -31,7 +33,7 @@ type services struct {
 }
 
 // Initializes all services
-func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, imageExtensions map[string]string, fileStorage storage.FileStorage) (svc *services, err error) {
+func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, imageExtensions map[string]string, fileStorage storage.FileStorage, scheduler *job.Scheduler) (svc *services, err error) {
 	svc = &services{}
 
 	svc.appConfigService, err = service.NewAppConfigService(ctx, db)
@@ -61,13 +63,15 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService, httpClient, fileStorage)
+	svc.scimService = service.NewScimService(db, scheduler, httpClient)
+
+	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService, svc.scimService, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
-	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, fileStorage)
+	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService, svc.scimService)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService, fileStorage)
 	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)
 

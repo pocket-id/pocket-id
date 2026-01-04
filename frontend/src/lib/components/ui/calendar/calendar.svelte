@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import { cn } from '$lib/utils/style';
 	import { CalendarDate, DateFormatter, getLocalTimeZone, today } from '@internationalized/date';
 	import { Calendar as CalendarPrimitive, type WithoutChildrenOrChild } from 'bits-ui';
@@ -12,9 +13,10 @@
 		value: CalendarDate | undefined;
 	} = $props();
 
+	const locale = getLocale();
 	const currentDate = today(getLocalTimeZone());
 
-	const monthFmt = new DateFormatter('en-US', {
+	const monthFmt = new DateFormatter(locale, {
 		month: 'long'
 	});
 
@@ -53,6 +55,7 @@
 	type="single"
 	weekdayFormat="short"
 	class={cn('rounded-md border p-3')}
+	{locale}
 	bind:value
 	bind:placeholder
 >

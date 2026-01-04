@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20251219000000,
+	"version": 20251229173100,
 	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens"],
 	"tables": {
 		"api_keys": [
@@ -122,12 +122,36 @@
 				"pkce_enabled": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe"
+			},
+			{
+				"callback_urls": "WyJodHRwOi8vc2NpbWNsaWVudC9hdXRoL2NhbGxiYWNrIl0=",
+				"created_at": "2025-11-25T12:39:02Z",
+				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
+				"dark_image_type": null,
+				"id": "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
+				"image_type": null,
+				"is_group_restricted": true,
+				"is_public": false,
+				"launch_url": null,
+				"logout_callback_urls": "bnVsbA==",
+				"name": "SCIM Client",
+				"pkce_enabled": false,
+				"requires_reauthentication": false,
+				"secret": "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK"
 			}
 		],
 		"oidc_clients_allowed_user_groups": [
 			{
 				"oidc_client_id": "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
 				"user_group_id": "adab18bf-f89d-4087-9ee1-70ff15b48211"
+			},
+			{
+				"oidc_client_id": "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
+				"user_group_id": "adab18bf-f89d-4087-9ee1-70ff15b48211"
+			},
+			{
+				"oidc_client_id": "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
+				"user_group_id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368"
 			}
 		],
 		"oidc_refresh_tokens": [
@@ -230,6 +254,7 @@
 		"user_groups": [
 			{
 				"created_at": "2025-11-25T12:39:02Z",
+				"updated_at": null,
 				"friendly_name": "Developers",
 				"id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368",
 				"ldap_id": null,
@@ -237,6 +262,7 @@
 			},
 			{
 				"created_at": "2025-11-25T12:39:02Z",
+				"updated_at": null,
 				"friendly_name": "Designers",
 				"id": "adab18bf-f89d-4087-9ee1-70ff15b48211",
 				"ldap_id": null,
@@ -260,6 +286,7 @@
 		"users": [
 			{
 				"created_at": "2025-11-25T12:39:02Z",
+				"updated_at": null,
 				"disabled": false,
 				"display_name": "Tim Cook",
 				"email": "tim.cook@test.com",
@@ -273,6 +300,7 @@
 			},
 			{
 				"created_at": "2025-11-25T12:39:02Z",
+				"updated_at": null,
 				"disabled": false,
 				"display_name": "Craig Federighi",
 				"email": "craig.federighi@test.com",
@@ -283,6 +311,20 @@
 				"ldap_id": null,
 				"locale": null,
 				"username": "craig"
+			},
+			{
+				"created_at": "2025-11-25T12:39:02Z",
+				"updated_at": null,
+				"disabled": false,
+				"display_name": "Eddy Cue",
+				"email": "eddy.cue@test.com",
+				"first_name": "Eddy",
+				"id": "d9256384-98ad-49a7-bc58-99ad0b4dc23c",
+				"is_admin": false,
+				"last_name": "Cue",
+				"ldap_id": null,
+				"locale": null,
+				"username": "eddy"
 			}
 		],
 		"webauthn_credentials": [

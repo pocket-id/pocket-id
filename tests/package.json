@@ -9,10 +9,10 @@
 	"devDependencies": {
 		"@playwright/test": "^1.57.0",
 		"@types/adm-zip": "^0.5.7",
-		"@types/node": "^22.18.12",
+		"@types/node": "^22.19.3",
 		"dotenv": "^17.2.3",
-		"jose": "^6.1.2",
-		"prettier": "^3.7.0"
+		"jose": "^6.1.3",
+		"prettier": "^3.7.4"
 	},
 	"dependencies": {
 		"adm-zip": "^0.5.16"

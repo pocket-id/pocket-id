@@ -56,6 +56,12 @@ export const oidcClients = {
 		},
 		accessCodes: ['federated']
 	},
+	scim: {
+		id: 'c46d2090-37a0-4f2b-8748-6aa53b0c1afa',
+		name: 'SCIM Client',
+		callbackUrl: 'http://scim.client/auth/callback',
+		secret: 'nQbiuMRG7FpdK2EnDd5MBivWQeKFXohn'
+	},
 	pingvinShare: {
 		name: 'Pingvin Share',
 		callbackUrl: 'http://pingvin.share/auth/callback',

@@ -6,12 +6,14 @@
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import Label from '$lib/components/ui/label/label.svelte';
+	import * as Field from '$lib/components/ui/field';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
+	import ScimService from '$lib/services/scim-service';
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft, LucideRefreshCcw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -19,19 +21,24 @@
 	import { backNavigate } from '../../users/navigate-back-util';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
+	import ScimResourceProviderForm from './scim-resource-provider-form.svelte';
 
 	let { data } = $props();
 	let client = $state({
-		...data,
-		allowedUserGroupIds: data.allowedUserGroups.map((g) => g.id)
+		...data.client,
+		allowedUserGroupIds: data.client.allowedUserGroups.map((g) => g.id)
 	});
+
+	let scimServiceProvider = $state(data.scimServiceProvider);
 	let showAllDetails = $state(false);
 	let showPreview = $state(false);
 
 	const oidcService = new OidcService();
+	const scimService = new ScimService();
 	const backNavigation = backNavigate('/settings/admin/oidc-clients');
 
 	const setupDetails = $state({
+		[m.issuer_url()]: `https://${page.url.host}`,
 		[m.authorization_url()]: `https://${page.url.host}/authorize`,
 		[m.oidc_discovery_url()]: `https://${page.url.host}/.well-known/openid-configuration`,
 		[m.token_url()]: `https://${page.url.host}/api/oidc/token`,
@@ -149,6 +156,30 @@
 			});
 	}
 
+	async function saveScimServiceProvider(provider: ScimServiceProviderCreate | null) {
+		try {
+			if (!provider) {
+				await scimService.deleteServiceProvider(scimServiceProvider!.id);
+				scimServiceProvider = undefined;
+				toast.success(m.scim_disabled_successfully());
+				return true;
+			}
+			let createdProvider;
+			if (scimServiceProvider) {
+				createdProvider = await scimService.updateServiceProvider(scimServiceProvider.id, provider);
+				toast.success(m.scim_configuration_updated_successfully());
+			} else {
+				createdProvider = await scimService.createServiceProvider(provider);
+				toast.success(m.scim_enabled_successfully());
+			}
+			scimServiceProvider = createdProvider;
+			return true;
+		} catch (e) {
+			axiosErrorToast(e);
+			return false;
+		}
+	}
+
 	beforeNavigate(() => {
 		clientSecretStore.clear();
 	});
@@ -177,14 +208,14 @@
 	<Card.Content>
 		<div class="flex flex-col">
 			<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
-				<Label class="mb-0 w-50">{m.client_id()}</Label>
+				<Field.Label class="w-52">{m.client_id()}</Field.Label>
 				<CopyToClipboard value={client.id}>
 					<span class="text-muted-foreground text-sm" data-testid="client-id"> {client.id}</span>
 				</CopyToClipboard>
 			</div>
 			{#if !client.isPublic}
 				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
-					<Label class="mb-0 w-50">{m.client_secret()}</Label>
+					<Field.Label class="w-52">{m.client_secret()}</Field.Label>
 					{#if $clientSecretStore}
 						<CopyToClipboard value={$clientSecretStore}>
 							<span class="text-muted-foreground text-sm" data-testid="client-secret">
@@ -210,8 +241,8 @@
 			{#if showAllDetails}
 				<div transition:slide>
 					{#each Object.entries(setupDetails) as [key, value]}
-						<div class="mb-5 flex flex-col sm:flex-row sm:items-center">
-							<Label class="mb-0 w-50">{key}</Label>
+						<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
+							<Field.Label class="w-52">{key}</Field.Label>
 							<CopyToClipboard {value}>
 								<span class="text-muted-foreground text-sm">{value}</span>
 							</CopyToClipboard>
@@ -251,8 +282,21 @@
 	<div class="mt-5 flex justify-end gap-3">
 		<Button onclick={disableGroupRestriction} variant="secondary">{m.unrestrict()}</Button>
 
-		<Button onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button>
+		<Button usePromiseLoading onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}
+			>{m.save()}</Button
+		>
 	</div>
+</CollapsibleCard>
+<CollapsibleCard
+	id="scim-provisioning"
+	title={m.scim_provisioning()}
+	description={m.scim_provisioning_description()}
+>
+	<ScimResourceProviderForm
+		oidcClientId={client.id}
+		existingProvider={scimServiceProvider}
+		onSave={saveScimServiceProvider}
+	/>
 </CollapsibleCard>
 <Card.Root>
 	<Card.Header>

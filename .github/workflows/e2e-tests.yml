@@ -117,6 +117,21 @@ jobs:
         if: steps.lldap-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/lldap-image.tar
 
+      - name: Cache SCIM Test Server Docker image
+        uses: actions/cache@v4
+        id: scim-cache
+        with:
+          path: /tmp/scim-test-server-image.tar
+          key: scim-test-server-${{ runner.os }}
+      - name: Pull and save SCIM Test Server image
+        if: steps.scim-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull ghcr.io/pocket-id/scim-test-server
+          docker save ghcr.io/pocket-id/scim-test-server > /tmp/scim-test-server-image.tar
+      - name: Load SCIM Test Server image
+        if: steps.scim-cache.outputs.cache-hit == 'true'
+        run: docker load < /tmp/scim-test-server-image.tar
+
       - name: Cache Localstack S3 Docker image
         if: matrix.storage == 's3'
         uses: actions/cache@v4
@@ -171,7 +186,12 @@ jobs:
         run: |
           DOCKER_COMPOSE_FILE=docker-compose.yml
 
-          echo "FILE_BACKEND=${{ matrix.storage }}" > .env
+          cat > .env <<EOF
+          FILE_BACKEND=${{ matrix.storage }}
+          SCIM_SERVICE_PROVIDER_URL=http://localhost:18123/v2
+          SCIM_SERVICE_PROVIDER_URL_INTERNAL=http://scim-test-server:8080/v2
+          EOF
+
           if [ "${{ matrix.db }}" = "postgres" ]; then
             DOCKER_COMPOSE_FILE=docker-compose-postgres.yml
           elif [ "${{ matrix.storage }}" = "s3" ]; then

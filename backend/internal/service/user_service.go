@@ -37,10 +37,11 @@ type UserService struct {
 	appConfigService   *AppConfigService
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
+	scimService        *ScimService
 	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
@@ -49,6 +50,7 @@ func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditL
 		appConfigService:   appConfigService,
 		customClaimService: customClaimService,
 		appImagesService:   appImagesService,
+		scimService:        scimService,
 		fileStorage:        fileStorage,
 	}
 }
@@ -226,6 +228,7 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
+	s.scimService.ScheduleSync()
 	return nil
 }
 
@@ -309,6 +312,7 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		}
 	}
 
+	s.scimService.ScheduleSync()
 	return user, nil
 }
 
@@ -426,6 +430,8 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		}
 	}
 
+	user.UpdatedAt = utils.Ptr(datatype.DateTime(time.Now()))
+
 	err = tx.
 		WithContext(ctx).
 		Save(&user).
@@ -445,6 +451,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		return user, err
 	}
 
+	s.scimService.ScheduleSync()
 	return user, nil
 }
 
@@ -646,11 +653,22 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		return model.User{}, err
 	}
 
+	// Update the UpdatedAt field for all affected groups
+	now := time.Now()
+	for _, group := range groups {
+		group.UpdatedAt = utils.Ptr(datatype.DateTime(now))
+		err = tx.WithContext(ctx).Save(&group).Error
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
 	err = tx.Commit().Error
 	if err != nil {
 		return model.User{}, err
 	}
 
+	s.scimService.ScheduleSync()
 	return user, nil
 }
 
@@ -741,12 +759,19 @@ func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) er
 }
 
 func (s *UserService) disableUserInternal(ctx context.Context, tx *gorm.DB, userID string) error {
-	return tx.
+	err := tx.
 		WithContext(ctx).
 		Model(&model.User{}).
 		Where("id = ?", userID).
 		Update("disabled", true).
 		Error
+
+	if err != nil {
+		return err
+	}
+
+	s.scimService.ScheduleSync()
+	return nil
 }
 
 func (s *UserService) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (model.SignupToken, error) {
@@ -876,7 +901,7 @@ func NewOneTimeAccessToken(userID string, ttl time.Duration, withDeviceToken boo
 		tokenLength = 6
 	}
 
-	token, err := utils.GenerateRandomAlphanumericString(tokenLength)
+	token, err := utils.GenerateRandomUnambiguousString(tokenLength)
 	if err != nil {
 		return nil, err
 	}

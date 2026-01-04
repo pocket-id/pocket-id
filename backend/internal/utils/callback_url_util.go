@@ -17,31 +17,38 @@ func GetCallbackURLFromList(urls []string, inputCallbackURL string) (callbackURL
 	//   time of the request for loopback IP redirect URIs, to accommodate
 	//   clients that obtain an available ephemeral port from the operating
 	//   system at the time of the request.
-	loopbackRedirect := ""
+	loopbackCallbackURLWithoutPort := ""
 	u, _ := url.Parse(inputCallbackURL)
 
 	if u != nil && u.Scheme == "http" {
 		host := u.Hostname()
 		ip := net.ParseIP(host)
 		if host == "localhost" || (ip != nil && ip.IsLoopback()) {
-			loopbackRedirect = u.String()
 			u.Host = host
-			inputCallbackURL = u.String()
+			loopbackCallbackURLWithoutPort = u.String()
 		}
 	}
 
 	for _, pattern := range urls {
+		// Try the original callback first
 		matches, err := matchCallbackURL(pattern, inputCallbackURL)
 		if err != nil {
 			return "", err
-		} else if !matches {
-			continue
+		}
+		if matches {
+			return inputCallbackURL, nil
 		}
 
-		if loopbackRedirect != "" {
-			return loopbackRedirect, nil
+		// If we have a loopback variant, try that too
+		if loopbackCallbackURLWithoutPort != "" {
+			matches, err = matchCallbackURL(pattern, loopbackCallbackURLWithoutPort)
+			if err != nil {
+				return "", err
+			}
+			if matches {
+				return inputCallbackURL, nil
+			}
 		}
-		return inputCallbackURL, nil
 	}
 
 	return "", nil

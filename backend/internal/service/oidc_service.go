@@ -56,6 +56,7 @@ type OidcService struct {
 	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
 	webAuthnService    *WebAuthnService
+	scimService        *ScimService
 
 	httpClient  *http.Client
 	jwkCache    *jwk.Cache
@@ -70,6 +71,7 @@ func NewOidcService(
 	auditLogService *AuditLogService,
 	customClaimService *CustomClaimService,
 	webAuthnService *WebAuthnService,
+	scimService *ScimService,
 	httpClient *http.Client,
 	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
@@ -80,6 +82,7 @@ func NewOidcService(
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
 		webAuthnService:    webAuthnService,
+		scimService:        scimService,
 		httpClient:         httpClient,
 		fileStorage:        fileStorage,
 	}
@@ -168,7 +171,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", err
 	}
 
-	if !s.IsUserGroupAllowedToAuthorize(user, client) {
+	if !IsUserGroupAllowedToAuthorize(user, client) {
 		return "", "", &common.OidcAccessDeniedError{}
 	}
 
@@ -224,7 +227,7 @@ func (s *OidcService) hasAuthorizedClientInternal(ctx context.Context, clientID,
 }
 
 // IsUserGroupAllowedToAuthorize checks if the user group of the user is allowed to authorize the client
-func (s *OidcService) IsUserGroupAllowedToAuthorize(user model.User, client model.OidcClient) bool {
+func IsUserGroupAllowedToAuthorize(user model.User, client model.OidcClient) bool {
 	if !client.IsGroupRestricted {
 		return true
 	}
@@ -1088,6 +1091,7 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 		return model.OidcClient{}, err
 	}
 
+	s.scimService.ScheduleSync()
 	return client, nil
 }
 
@@ -1326,7 +1330,7 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		return fmt.Errorf("error finding user groups: %w", err)
 	}
 
-	if !s.IsUserGroupAllowedToAuthorize(user, deviceAuth.Client) {
+	if !IsUserGroupAllowedToAuthorize(user, deviceAuth.Client) {
 		return &common.OidcAccessDeniedError{}
 	}
 
@@ -1830,7 +1834,7 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		return nil, err
 	}
 
-	if !s.IsUserGroupAllowedToAuthorize(user, client) {
+	if !IsUserGroupAllowedToAuthorize(user, client) {
 		return nil, &common.OidcAccessDeniedError{}
 	}
 
@@ -1957,7 +1961,7 @@ func (s *OidcService) IsClientAccessibleToUser(ctx context.Context, clientID str
 		return false, err
 	}
 
-	return s.IsUserGroupAllowedToAuthorize(user, client), nil
+	return IsUserGroupAllowedToAuthorize(user, client), nil
 }
 
 var errLogoTooLarge = errors.New("logo is too large")
@@ -2116,4 +2120,17 @@ func (s *OidcService) updateClientLogoType(ctx context.Context, clientID string,
 	}
 
 	return nil
+}
+
+func (s *OidcService) GetClientScimServiceProvider(ctx context.Context, clientID string) (model.ScimServiceProvider, error) {
+	var provider model.ScimServiceProvider
+	err := s.db.
+		WithContext(ctx).
+		First(&provider, "oidc_client_id = ?", clientID).
+		Error
+	if err != nil {
+		return model.ScimServiceProvider{}, err
+	}
+
+	return provider, nil
 }

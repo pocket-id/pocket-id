@@ -38,7 +38,14 @@ func MigrateDatabase(sqlDb *sql.DB) error {
 		return migrateDatabaseFromGitHub(sqlDb, requiredVersion)
 	}
 
-	if err := m.Migrate(requiredVersion); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	err = m.Migrate(requiredVersion)
+	if err != nil {
+		if errors.Is(err, migrate.ErrNoChange) {
+			return nil
+		}
+		if errors.As(err, &migrate.ErrDirty{}) {
+			return fmt.Errorf("database migration failed. Please create an issue on GitHub and temporarely downgrade to the previous version: %w", err)
+		}
 		return fmt.Errorf("failed to apply embedded migrations: %w", err)
 	}
 	return nil
@@ -98,7 +105,7 @@ func migrateDatabaseFromGitHub(sqlDb *sql.DB, version uint) error {
 		return fmt.Errorf("failed to create GitHub migration instance: %w", err)
 	}
 
-	if err := m.Migrate(version); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	if err := m.Force(int(version)); err != nil && !errors.Is(err, migrate.ErrNoChange) { //nolint:gosec
 		return fmt.Errorf("failed to apply GitHub migrations: %w", err)
 	}
 	return nil

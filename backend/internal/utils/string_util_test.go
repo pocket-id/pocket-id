@@ -2,6 +2,7 @@ package utils
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -45,6 +46,77 @@ func TestGenerateRandomAlphanumericString(t *testing.T) {
 		str2, _ := GenerateRandomAlphanumericString(10)
 		if str1 == str2 {
 			t.Error("Generated strings should be different")
+		}
+	})
+}
+
+func TestGenerateRandomUnambiguousString(t *testing.T) {
+	t.Run("valid length returns correct string", func(t *testing.T) {
+		const length = 10
+		str, err := GenerateRandomUnambiguousString(length)
+
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if len(str) != length {
+			t.Errorf("Expected length %d, got %d", length, len(str))
+		}
+
+		matched, err := regexp.MatchString(`^[abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789]+$`, str)
+		if err != nil {
+			t.Errorf("Regex match failed: %v", err)
+		}
+		if !matched {
+			t.Errorf("String contains ambiguous characters: %s", str)
+		}
+	})
+
+	t.Run("zero length returns error", func(t *testing.T) {
+		_, err := GenerateRandomUnambiguousString(0)
+		if err == nil {
+			t.Error("Expected error for zero length, got nil")
+		}
+	})
+
+	t.Run("negative length returns error", func(t *testing.T) {
+		_, err := GenerateRandomUnambiguousString(-1)
+		if err == nil {
+			t.Error("Expected error for negative length, got nil")
+		}
+	})
+}
+
+func TestGenerateRandomString(t *testing.T) {
+	t.Run("valid length returns characters from charset", func(t *testing.T) {
+		const length = 20
+		const charset = "abc"
+		str, err := GenerateRandomString(length, charset)
+
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if len(str) != length {
+			t.Errorf("Expected length %d, got %d", length, len(str))
+		}
+
+		for _, r := range str {
+			if !strings.ContainsRune(charset, r) {
+				t.Fatalf("String contains character outside charset: %q", r)
+			}
+		}
+	})
+
+	t.Run("zero length returns error", func(t *testing.T) {
+		_, err := GenerateRandomString(0, "abc")
+		if err == nil {
+			t.Error("Expected error for zero length, got nil")
+		}
+	})
+
+	t.Run("negative length returns error", func(t *testing.T) {
+		_, err := GenerateRandomString(-1, "abc")
+		if err == nil {
+			t.Error("Expected error for negative length, got nil")
 		}
 	})
 }

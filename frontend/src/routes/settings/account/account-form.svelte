@@ -2,6 +2,7 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Field from '$lib/components/ui/field/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
@@ -86,30 +87,20 @@
 		resetCallback={resetProfilePicture}
 	/>
 
-	<hr class="border-border" />
+	<Field.Separator class="m-2" />
 
 	<fieldset disabled={userInfoInputDisabled}>
-		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-			<div>
-				<FormInput label={m.first_name()} bind:input={$inputs.firstName} onInput={onNameInput} />
-			</div>
-			<div>
-				<FormInput label={m.last_name()} bind:input={$inputs.lastName} onInput={onNameInput} />
-			</div>
-			<div>
-				<FormInput
-					label={m.display_name()}
-					bind:input={$inputs.displayName}
-					onInput={() => (hasManualDisplayNameEdit = true)}
-				/>
-			</div>
-			<div>
-				<FormInput label={m.username()} bind:input={$inputs.username} />
-			</div>
-			<div>
-				<FormInput label={m.email()} bind:input={$inputs.email} />
-			</div>
-		</div>
+		<Field.Group class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+			<FormInput label={m.first_name()} bind:input={$inputs.firstName} onInput={onNameInput} />
+			<FormInput label={m.last_name()} bind:input={$inputs.lastName} onInput={onNameInput} />
+			<FormInput
+				label={m.display_name()}
+				bind:input={$inputs.displayName}
+				onInput={() => (hasManualDisplayNameEdit = true)}
+			/>
+			<FormInput label={m.username()} bind:input={$inputs.username} />
+			<FormInput label={m.email()} type="email" bind:input={$inputs.email} />
+		</Field.Group>
 
 		<div class="flex justify-end pt-4">
 			<Button {isLoading} type="submit">{m.save()}</Button>
