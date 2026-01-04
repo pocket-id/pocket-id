@@ -498,5 +498,6 @@
 	"scim_sync_successful": "SCIM同期が正常に完了しました。",
 	"save_and_sync": "保存と同期",
 	"scim_save_changes_description": "SCIM同期を開始する前に変更を保存する必要があります。今すぐ保存しますか？",
-	"scopes": "スコープ"
+	"scopes": "スコープ",
+	"issuer_url": "発行者URL"
 }
