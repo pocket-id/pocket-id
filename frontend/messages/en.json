@@ -498,5 +498,6 @@
 	"scim_sync_successful": "The SCIM sync has been completed successfully.",
 	"save_and_sync": "Save and Sync",
 	"scim_save_changes_description": "You have to save the changes before starting a SCIM sync. Do you want to save now?",
-	"scopes": "Scopes"
+	"scopes": "Scopes",
+	"issuer_url": "Issuer URL"
 }

@@ -38,6 +38,7 @@
 	const backNavigation = backNavigate('/settings/admin/oidc-clients');
 
 	const setupDetails = $state({
+		[m.issuer_url()]: `https://${page.url.host}`,
 		[m.authorization_url()]: `https://${page.url.host}/authorize`,
 		[m.oidc_discovery_url()]: `https://${page.url.host}/.well-known/openid-configuration`,
 		[m.token_url()]: `https://${page.url.host}/api/oidc/token`,
@@ -207,14 +208,14 @@
 	<Card.Content>
 		<div class="flex flex-col">
 			<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
-				<Field.Label class="w-50">{m.client_id()}</Field.Label>
+				<Field.Label class="w-52">{m.client_id()}</Field.Label>
 				<CopyToClipboard value={client.id}>
 					<span class="text-muted-foreground text-sm" data-testid="client-id"> {client.id}</span>
 				</CopyToClipboard>
 			</div>
 			{#if !client.isPublic}
 				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
-					<Field.Label class="w-50">{m.client_secret()}</Field.Label>
+					<Field.Label class="w-52">{m.client_secret()}</Field.Label>
 					{#if $clientSecretStore}
 						<CopyToClipboard value={$clientSecretStore}>
 							<span class="text-muted-foreground text-sm" data-testid="client-secret">
@@ -240,8 +241,8 @@
 			{#if showAllDetails}
 				<div transition:slide>
 					{#each Object.entries(setupDetails) as [key, value]}
-						<div class="mb-5 flex flex-col sm:flex-row sm:items-center">
-							<Field.Label class="w-50">{key}</Field.Label>
+						<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
+							<Field.Label class="w-52">{key}</Field.Label>
 							<CopyToClipboard {value}>
 								<span class="text-muted-foreground text-sm">{value}</span>
 							</CopyToClipboard>
