@@ -141,6 +141,7 @@ func TestOidcService_jwkSetForURL(t *testing.T) {
 func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	const (
 		federatedClientIssuer         = "https://external-idp.com"
+		federatedClientIssuerOther    = "https://external-idp-2.com"
 		federatedClientAudience       = "https://pocket-id.com"
 		federatedClientIssuerDefaults = "https://external-idp-defaults.com/"
 	)
@@ -218,6 +219,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	}, "test-user-id")
 	require.NoError(t, err)
 
+	differingFederatedID := "some-issuer-specific-sub"
 	federatedClient, err = s.UpdateClient(t.Context(), federatedClient.ID, dto.OidcClientUpdateDto{
 		Name:         federatedClient.Name,
 		CallbackURLs: federatedClient.CallbackURLs,
@@ -227,6 +229,12 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 					Issuer:   federatedClientIssuer,
 					Audience: federatedClientAudience,
 					Subject:  federatedClient.ID,
+					JWKS:     federatedClientIssuer + "/jwks.json",
+				},
+				{
+					Issuer:   federatedClientIssuerOther,
+					Audience: federatedClientAudience,
+					Subject:  differingFederatedID,
 					JWKS:     federatedClientIssuer + "/jwks.json",
 				},
 				{Issuer: federatedClientIssuerDefaults},
@@ -317,6 +325,52 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, client)
 			assert.Equal(t, federatedClient.ID, client.ID)
+		})
+
+		t.Run("Succeeds with valid JWT with sub different from client ID and no client ID", func(t *testing.T) {
+			// Create JWT for federated identity
+			token, err := jwt.NewBuilder().
+				Issuer(federatedClientIssuerOther).
+				Audience([]string{federatedClientAudience}).
+				Subject(differingFederatedID).
+				IssuedAt(time.Now()).
+				Expiration(time.Now().Add(10 * time.Minute)).
+				Build()
+			require.NoError(t, err)
+			signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256(), privateJWK))
+			require.NoError(t, err)
+
+			// Test with valid JWT assertion
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
+				ClientAssertionType: ClientAssertionTypeJWTBearer,
+				ClientAssertion:     string(signedToken),
+			}, true)
+			require.NoError(t, err)
+			require.NotNil(t, client)
+			assert.Equal(t, federatedClient.ID, client.ID)
+		})
+
+		t.Run("Fails with client ID mismatch", func(t *testing.T) {
+			token, err := jwt.NewBuilder().
+				Issuer(federatedClientIssuer).
+				Audience([]string{federatedClientAudience}).
+				Subject(federatedClient.ID).
+				IssuedAt(time.Now()).
+				Expiration(time.Now().Add(10 * time.Minute)).
+				Build()
+			require.NoError(t, err)
+			signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256(), privateJWK))
+			require.NoError(t, err)
+
+			// Test with valid JWT assertion but mismatching client ID
+			client, err := s.verifyClientCredentialsInternal(t.Context(), s.db, ClientAuthCredentials{
+				ClientID:            "something-else",
+				ClientAssertionType: ClientAssertionTypeJWTBearer,
+				ClientAssertion:     string(signedToken),
+			}, true)
+			require.Error(t, err)
+			require.ErrorIs(t, err, &common.OidcClientAssertionInvalidError{})
+			assert.Nil(t, client)
 		})
 
 		t.Run("Fails with malformed JWT", func(t *testing.T) {
