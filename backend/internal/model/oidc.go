@@ -144,6 +144,7 @@ type OidcDeviceCode struct {
 	DeviceCode   string
 	UserCode     string
 	Scope        string
+	Nonce        string
 	ExpiresAt    datatype.DateTime
 	IsAuthorized bool
 
