@@ -498,5 +498,6 @@
 	"scim_sync_successful": "SCIM senkronizasyonu başarıyla tamamlandı.",
 	"save_and_sync": "Kaydet ve Senkronize Et",
 	"scim_save_changes_description": "SCIM senkronizasyonunu başlatmadan önce değişiklikleri kaydetmeniz gerekir. Şimdi kaydetmek ister misiniz?",
-	"scopes": "Kapsamlar"
+	"scopes": "Kapsamlar",
+	"issuer_url": "İhraççı URL"
 }

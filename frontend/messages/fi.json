@@ -498,5 +498,6 @@
 	"scim_sync_successful": "SCIM-synkronointi on suoritettu onnistuneesti.",
 	"save_and_sync": "Tallenna ja synkronoi",
 	"scim_save_changes_description": "Sinun on tallennettava muutokset ennen SCIM-synkronoinnin aloittamista. Haluatko tallentaa nyt?",
-	"scopes": "Käyttöalueet"
+	"scopes": "Käyttöalueet",
+	"issuer_url": "Julkaisijan URL-osoite"
 }

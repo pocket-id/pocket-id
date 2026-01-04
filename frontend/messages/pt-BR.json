@@ -498,5 +498,6 @@
 	"scim_sync_successful": "A sincronização SCIM foi concluída com sucesso.",
 	"save_and_sync": "Salvar e sincronizar",
 	"scim_save_changes_description": "Você precisa salvar as alterações antes de iniciar uma sincronização SCIM. Quer salvar agora?",
-	"scopes": "Âmbitos"
+	"scopes": "Âmbitos",
+	"issuer_url": "URL do emissor"
 }

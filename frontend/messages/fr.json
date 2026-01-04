@@ -498,5 +498,6 @@
 	"scim_sync_successful": "La synchronisation SCIM s'est bien passée.",
 	"save_and_sync": "Enregistrer et synchroniser",
 	"scim_save_changes_description": "Tu dois enregistrer les changements avant de lancer une synchronisation SCIM. Tu veux enregistrer maintenant ?",
-	"scopes": "Portées"
+	"scopes": "Portées",
+	"issuer_url": "URL de l'émetteur"
 }

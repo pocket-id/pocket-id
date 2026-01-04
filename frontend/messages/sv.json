@@ -498,5 +498,6 @@
 	"scim_sync_successful": "SCIM-synkroniseringen har slutförts.",
 	"save_and_sync": "Spara och synkronisera",
 	"scim_save_changes_description": "Du måste spara ändringarna innan du startar en SCIM-synkronisering. Vill du spara nu?",
-	"scopes": "Omfattning"
+	"scopes": "Omfattning",
+	"issuer_url": "Utfärdarens URL"
 }

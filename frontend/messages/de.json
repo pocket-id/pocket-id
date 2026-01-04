@@ -498,5 +498,6 @@
 	"scim_sync_successful": "Die SCIM-Synchronisierung ist erfolgreich abgeschlossen worden.",
 	"save_and_sync": "Speichern und synchronisieren",
 	"scim_save_changes_description": "Du musst die Änderungen speichern, bevor du eine SCIM-Synchronisierung startest. Willst du jetzt speichern?",
-	"scopes": "Kopfsuchgeräte"
+	"scopes": "Kopfsuchgeräte",
+	"issuer_url": "Aussteller-URL"
 }

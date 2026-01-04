@@ -498,5 +498,6 @@
 	"scim_sync_successful": "De SCIM-synchronisatie is goed gelukt.",
 	"save_and_sync": "Opslaan en synchroniseren",
 	"scim_save_changes_description": "Je moet de wijzigingen opslaan voordat je een SCIM-synchronisatie start. Wil je nu opslaan?",
-	"scopes": "Scopes"
+	"scopes": "Scopes",
+	"issuer_url": "URL van de uitgever"
 }

@@ -498,5 +498,6 @@
 	"scim_sync_successful": "Synchronizacja SCIM została pomyślnie zakończona.",
 	"save_and_sync": "Zapisz i zsynchronizuj",
 	"scim_save_changes_description": "Przed rozpoczęciem synchronizacji SCIM należy zapisać zmiany. Czy chcesz zapisać teraz?",
-	"scopes": "Zakresy"
+	"scopes": "Zakresy",
+	"issuer_url": "Adres URL wystawcy"
 }
