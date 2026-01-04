@@ -21,13 +21,13 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 	// Run every 24 hours (but with some jitter so they don't run at the exact same time), and now
 	def := gocron.DurationRandomJob(24*time.Hour-2*time.Minute, 24*time.Hour+2*time.Minute)
 	return errors.Join(
-		s.registerJob(ctx, "ClearWebauthnSessions", def, jobs.clearWebauthnSessions, true),
-		s.registerJob(ctx, "ClearOneTimeAccessTokens", def, jobs.clearOneTimeAccessTokens, true),
-		s.registerJob(ctx, "ClearSignupTokens", def, jobs.clearSignupTokens, true),
-		s.registerJob(ctx, "ClearOidcAuthorizationCodes", def, jobs.clearOidcAuthorizationCodes, true),
-		s.registerJob(ctx, "ClearOidcRefreshTokens", def, jobs.clearOidcRefreshTokens, true),
-		s.registerJob(ctx, "ClearReauthenticationTokens", def, jobs.clearReauthenticationTokens, true),
-		s.registerJob(ctx, "ClearAuditLogs", def, jobs.clearAuditLogs, true),
+		s.RegisterJob(ctx, "ClearWebauthnSessions", def, jobs.clearWebauthnSessions, true),
+		s.RegisterJob(ctx, "ClearOneTimeAccessTokens", def, jobs.clearOneTimeAccessTokens, true),
+		s.RegisterJob(ctx, "ClearSignupTokens", def, jobs.clearSignupTokens, true),
+		s.RegisterJob(ctx, "ClearOidcAuthorizationCodes", def, jobs.clearOidcAuthorizationCodes, true),
+		s.RegisterJob(ctx, "ClearOidcRefreshTokens", def, jobs.clearOidcRefreshTokens, true),
+		s.RegisterJob(ctx, "ClearReauthenticationTokens", def, jobs.clearReauthenticationTokens, true),
+		s.RegisterJob(ctx, "ClearAuditLogs", def, jobs.clearAuditLogs, true),
 	)
 }
 

@@ -16,11 +16,12 @@ import (
 
 type UserGroupService struct {
 	db               *gorm.DB
+	scimService      *ScimService
 	appConfigService *AppConfigService
 }
 
-func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService) *UserGroupService {
-	return &UserGroupService{db: db, appConfigService: appConfigService}
+func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService, scimService *ScimService) *UserGroupService {
+	return &UserGroupService{db: db, appConfigService: appConfigService, scimService: scimService}
 }
 
 func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
@@ -90,7 +91,13 @@ func (s *UserGroupService) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	return tx.Commit().Error
+	err = tx.Commit().Error
+	if err != nil {
+		return err
+	}
+
+	s.scimService.ScheduleSync()
+	return nil
 }
 
 func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
@@ -118,6 +125,8 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 		}
 		return model.UserGroup{}, err
 	}
+
+	s.scimService.ScheduleSync()
 	return group, nil
 }
 
@@ -165,6 +174,8 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 	} else if err != nil {
 		return model.UserGroup{}, err
 	}
+
+	s.scimService.ScheduleSync()
 	return group, nil
 }
 
@@ -227,6 +238,7 @@ func (s *UserGroupService) updateUsersInternal(ctx context.Context, id string, u
 		return model.UserGroup{}, err
 	}
 
+	s.scimService.ScheduleSync()
 	return group, nil
 }
 
@@ -303,5 +315,6 @@ func (s *UserGroupService) UpdateAllowedOidcClient(ctx context.Context, id strin
 		return model.UserGroup{}, err
 	}
 
+	s.scimService.ScheduleSync()
 	return group, nil
 }

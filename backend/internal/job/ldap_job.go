@@ -18,7 +18,7 @@ func (s *Scheduler) RegisterLdapJobs(ctx context.Context, ldapService *service.L
 	jobs := &LdapJobs{ldapService: ldapService, appConfigService: appConfigService}
 
 	// Register the job to run every hour
-	return s.registerJob(ctx, "SyncLdap", gocron.DurationJob(time.Hour), jobs.syncLdap, true)
+	return s.RegisterJob(ctx, "SyncLdap", gocron.DurationJob(time.Hour), jobs.syncLdap, true)
 }
 
 func (j *LdapJobs) syncLdap(ctx context.Context) error {

@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -24,6 +25,26 @@ func NewScheduler() (*Scheduler, error) {
 	}, nil
 }
 
+func (s *Scheduler) RemoveJob(name string) error {
+	jobs := s.scheduler.Jobs()
+
+	var errs []error
+	for _, job := range jobs {
+		if job.Name() == name {
+			err := s.scheduler.RemoveJob(job.ID())
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to unqueue job %q with ID %q: %w", name, job.ID().String(), err))
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	return nil
+}
+
 // Run the scheduler.
 // This function blocks until the context is canceled.
 func (s *Scheduler) Run(ctx context.Context) error {
@@ -43,9 +64,10 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) registerJob(ctx context.Context, name string, def gocron.JobDefinition, job func(ctx context.Context) error, runImmediately bool) error {
+func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, job func(ctx context.Context) error, runImmediately bool, extraOptions ...gocron.JobOption) error {
 	jobOptions := []gocron.JobOption{
 		gocron.WithContext(ctx),
+		gocron.WithName(name),
 		gocron.WithEventListeners(
 			gocron.BeforeJobRuns(func(jobID uuid.UUID, jobName string) {
 				slog.Info("Starting job",
@@ -72,6 +94,8 @@ func (s *Scheduler) registerJob(ctx context.Context, name string, def gocron.Job
 	if runImmediately {
 		jobOptions = append(jobOptions, gocron.JobOption(gocron.WithStartImmediately()))
 	}
+
+	jobOptions = append(jobOptions, extraOptions...)
 
 	_, err := s.scheduler.NewJob(def, gocron.NewTask(job), jobOptions...)
 

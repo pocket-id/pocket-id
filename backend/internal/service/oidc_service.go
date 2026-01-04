@@ -56,6 +56,7 @@ type OidcService struct {
 	auditLogService    *AuditLogService
 	customClaimService *CustomClaimService
 	webAuthnService    *WebAuthnService
+	scimService        *ScimService
 
 	httpClient  *http.Client
 	jwkCache    *jwk.Cache
@@ -70,6 +71,7 @@ func NewOidcService(
 	auditLogService *AuditLogService,
 	customClaimService *CustomClaimService,
 	webAuthnService *WebAuthnService,
+	scimService *ScimService,
 	httpClient *http.Client,
 	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
@@ -80,6 +82,7 @@ func NewOidcService(
 		auditLogService:    auditLogService,
 		customClaimService: customClaimService,
 		webAuthnService:    webAuthnService,
+		scimService:        scimService,
 		httpClient:         httpClient,
 		fileStorage:        fileStorage,
 	}
@@ -1088,6 +1091,7 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 		return model.OidcClient{}, err
 	}
 
+	s.scimService.ScheduleSync()
 	return client, nil
 }
 

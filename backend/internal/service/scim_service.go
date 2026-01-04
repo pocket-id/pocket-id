@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-co-op/gocron/v2"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -32,6 +33,11 @@ const scimErrorBodyLimit = 4096
 
 type scimSyncAction int
 
+type Scheduler interface {
+	RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, job func(ctx context.Context) error, runImmediately bool, extraOptions ...gocron.JobOption) error
+	RemoveJob(name string) error
+}
+
 const (
 	scimActionNone scimSyncAction = iota
 	scimActionCreated
@@ -48,15 +54,16 @@ type scimSyncStats struct {
 // ScimService handles SCIM provisioning to external service providers.
 type ScimService struct {
 	db         *gorm.DB
+	scheduler  Scheduler
 	httpClient *http.Client
 }
 
-func NewScimService(db *gorm.DB, httpClient *http.Client) *ScimService {
+func NewScimService(db *gorm.DB, scheduler Scheduler, httpClient *http.Client) *ScimService {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 20 * time.Second}
 	}
 
-	return &ScimService{db: db, httpClient: httpClient}
+	return &ScimService{db: db, scheduler: scheduler, httpClient: httpClient}
 }
 
 func (s *ScimService) GetServiceProvider(
@@ -130,6 +137,41 @@ func (s *ScimService) DeleteServiceProvider(ctx context.Context, serviceProvider
 	return s.db.WithContext(ctx).
 		Delete(&model.ScimServiceProvider{}, "id = ?", serviceProviderID).
 		Error
+}
+
+//nolint:contextcheck
+func (s *ScimService) ScheduleSync() {
+	jobName := "ScheduledScimSync"
+	start := time.Now().Add(5 * time.Minute)
+
+	_ = s.scheduler.RemoveJob(jobName)
+
+	err := s.scheduler.RegisterJob(
+		context.Background(), jobName,
+		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(start)), s.SyncAll, false)
+
+	if err != nil {
+		slog.Error("Failed to schedule SCIM sync", slog.Any("error", err))
+	}
+}
+
+func (s *ScimService) SyncAll(ctx context.Context) error {
+	providers, err := s.ListServiceProviders(ctx)
+	if err != nil {
+		return err
+	}
+
+	var errs []error
+	for _, provider := range providers {
+		if ctx.Err() != nil {
+			errs = append(errs, ctx.Err())
+			break
+		}
+		if err := s.SyncServiceProvider(ctx, provider.ID); err != nil {
+			errs = append(errs, fmt.Errorf("failed to sync SCIM provider %s: %w", provider.ID, err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func (s *ScimService) SyncServiceProvider(ctx context.Context, serviceProviderID string) error {
