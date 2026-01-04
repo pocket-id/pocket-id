@@ -499,5 +499,5 @@
 	"save_and_sync": "저장 및 동기화",
 	"scim_save_changes_description": "SCIM 동기화를 시작하기 전에 변경 사항을 저장해야 합니다. 지금 저장하시겠습니까?",
 	"scopes": "범위",
-	"issuer_url": "Issuer URL"
+	"issuer_url": "발행자 URL"
 }
