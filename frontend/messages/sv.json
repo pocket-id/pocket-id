@@ -499,5 +499,7 @@
 	"save_and_sync": "Spara och synkronisera",
 	"scim_save_changes_description": "Du måste spara ändringarna innan du startar en SCIM-synkronisering. Vill du spara nu?",
 	"scopes": "Omfattning",
-	"issuer_url": "Utfärdarens URL"
+	"issuer_url": "Utfärdarens URL",
+	"smtp_field_required_when_other_provided": "Krävs när någon SMTP-inställning anges",
+	"smtp_field_required_when_email_enabled": "Krävs när e-postaviseringar är aktiverade"
 }
