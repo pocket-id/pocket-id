@@ -50,6 +50,11 @@ type EnvConfigSchema struct {
 	InternalAppURL        string `env:"INTERNAL_APP_URL"`
 	UiConfigDisabled      bool   `env:"UI_CONFIG_DISABLED"`
 
+	InitialAdminUsername  string `env:"INITIAL_ADMIN_USERNAME"`
+	InitialAdminEmail     string `env:"INITIAL_ADMIN_EMAIL"`
+	InitialAdminFirstName string `env:"INITIAL_ADMIN_FIRST_NAME"`
+	InitialAdminLastName  string `env:"INITIAL_ADMIN_LAST_NAME"`
+
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
 	S3Bucket                        string `env:"S3_BUCKET"`

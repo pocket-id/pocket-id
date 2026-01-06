@@ -254,4 +254,47 @@ func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, binaryKeyContent, config.EncryptionKey)
 	})
+
+	t.Run("should parse initial admin environment variables correctly", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("INITIAL_ADMIN_USERNAME", "admin")
+		t.Setenv("INITIAL_ADMIN_FIRST_NAME", "Admin")
+		t.Setenv("INITIAL_ADMIN_LAST_NAME", "User")
+		t.Setenv("INITIAL_ADMIN_EMAIL", "admin@example.com")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, "admin", EnvConfig.InitialAdminUsername)
+		assert.Equal(t, "Admin", EnvConfig.InitialAdminFirstName)
+		assert.Equal(t, "User", EnvConfig.InitialAdminLastName)
+		assert.Equal(t, "admin@example.com", EnvConfig.InitialAdminEmail)
+	})
+
+	t.Run("should parse initial admin variables as empty when not set", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, "", EnvConfig.InitialAdminUsername)
+		assert.Equal(t, "", EnvConfig.InitialAdminFirstName)
+		assert.Equal(t, "", EnvConfig.InitialAdminLastName)
+		assert.Equal(t, "", EnvConfig.InitialAdminEmail)
+	})
+
+	t.Run("should parse initial admin variables when set", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("INITIAL_ADMIN_USERNAME", "admin")
+		t.Setenv("INITIAL_ADMIN_FIRST_NAME", "Admin")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, "admin", EnvConfig.InitialAdminUsername)
+		assert.Equal(t, "Admin", EnvConfig.InitialAdminFirstName)
+	})
 }

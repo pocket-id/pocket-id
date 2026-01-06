@@ -8,8 +8,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/signals"
 )
+
+// Global flags for CLI commands
+var globalFlags struct {
+	endpoint string
+	apiKey   string
+	format   string
+}
 
 var rootCmd = &cobra.Command{
 	Use:          "pocket-id",
@@ -27,8 +35,23 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	// Add global flags
+	rootCmd.PersistentFlags().StringVarP(&globalFlags.endpoint, "endpoint", "e", "", "API endpoint URL (default: http://localhost:"+common.EnvConfig.Port+")")
+	rootCmd.PersistentFlags().StringVarP(&globalFlags.apiKey, "api-key", "k", "", "API key for authentication (can also use POCKET_ID_API_KEY env var)")
+	rootCmd.PersistentFlags().StringVarP(&globalFlags.format, "format", "f", "json", "Output format (json, yaml, table)")
+
 	// Get a context that is canceled when the application is stopping
 	ctx := signals.SignalContext(context.Background())
+
+	// Pre-run function to set API key from environment variable if not provided via flag
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		// If API key is not set via flag, check environment variable
+		if globalFlags.apiKey == "" {
+			if envApiKey := os.Getenv("POCKET_ID_API_KEY"); envApiKey != "" {
+				globalFlags.apiKey = envApiKey
+			}
+		}
+	}
 
 	err := rootCmd.ExecuteContext(ctx)
 	if err != nil {

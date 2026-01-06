@@ -38,6 +38,11 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
+	// Create initial admin user from environment variables if configured
+	if err := CreateInitialAdminIfNeeded(ctx, db); err != nil {
+		return fmt.Errorf("failed to create initial admin: %w", err)
+	}
+
 	fileStorage, err := InitStorage(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
