@@ -76,7 +76,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Save a key
-		err = provider.SaveKey(key)
+		err = provider.SaveKey(t.Context(), key)
 		require.NoError(t, err)
 
 		// Load the key
@@ -158,7 +158,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		err = originalProvider.SaveKey(key)
+		err = originalProvider.SaveKey(t.Context(), key)
 		require.NoError(t, err)
 
 		// Now try to load with a different KEK
@@ -233,7 +233,7 @@ func TestKeyProviderDatabase_SaveKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Save the key
-		err = provider.SaveKey(key)
+		err = provider.SaveKey(t.Context(), key)
 		require.NoError(t, err, "Expected no error when saving key")
 
 		// Verify record exists in database
