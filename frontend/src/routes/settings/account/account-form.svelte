@@ -46,7 +46,10 @@
 	});
 	type FormSchema = typeof formSchema;
 
-	const { inputs, ...form } = createForm<FormSchema>(formSchema, account);
+	const { inputs, ...form } = createForm<FormSchema>(formSchema, {
+		...account,
+		email: account.email || ''
+	});
 
 	function onNameInput() {
 		if (!hasManualDisplayNameEdit) {

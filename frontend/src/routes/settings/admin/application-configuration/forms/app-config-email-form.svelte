@@ -41,7 +41,7 @@
 				.optional(),
 			smtpUser: z.string().optional(),
 			smtpPassword: z.string().optional(),
-			smtpFrom: z.email().optional(),
+			smtpFrom: z.email().or(z.literal('')).optional(),
 			smtpTls: z.enum(['none', 'starttls', 'tls']),
 			smtpSkipCertVerify: z.boolean(),
 			emailOneTimeAccessAsUnauthenticatedEnabled: z.boolean(),
