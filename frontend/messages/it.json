@@ -499,5 +499,7 @@
 	"save_and_sync": "Salva e sincronizza",
 	"scim_save_changes_description": "Devi salvare le modifiche prima di iniziare una sincronizzazione SCIM. Vuoi salvare adesso?",
 	"scopes": "Scopi",
-	"issuer_url": "URL dell'emittente"
+	"issuer_url": "URL dell'emittente",
+	"smtp_field_required_when_other_provided": "Richiesto quando c'è un'impostazione SMTP",
+	"smtp_field_required_when_email_enabled": "Richiesto quando le notifiche via e-mail sono attivate"
 }
