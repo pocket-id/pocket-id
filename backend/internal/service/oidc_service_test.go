@@ -160,7 +160,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 	mockConfig := NewTestAppConfigService(&model.AppConfig{
 		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
 	})
-	mockJwtService, err := NewJwtService(db, mockConfig)
+	mockJwtService, err := NewJwtService(t.Context(), db, mockConfig)
 	require.NoError(t, err)
 
 	// Create a mock HTTP client with custom transport to return the JWKS

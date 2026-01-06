@@ -40,7 +40,7 @@ func TestEncryptionKeyRotate(t *testing.T) {
 
 	signingKey, err := jwkutils.GenerateKey("RS256", "")
 	require.NoError(t, err)
-	require.NoError(t, oldProvider.SaveKey(signingKey))
+	require.NoError(t, oldProvider.SaveKey(t.Context(), signingKey))
 
 	oldEncKey, err := datatype.DeriveEncryptedStringKey(oldKey)
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestEncryptionKeyRotate(t *testing.T) {
 		Kek: newKek,
 	}))
 
-	rotatedKey, err := newProvider.LoadKey()
+	rotatedKey, err := newProvider.LoadKey(t.Context())
 	require.NoError(t, err)
 	require.NotNil(t, rotatedKey)
 

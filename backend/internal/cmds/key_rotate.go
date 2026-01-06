@@ -102,7 +102,7 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, envConfig
 	}
 
 	// Save the key
-	err = keyProvider.SaveKey(key)
+	err = keyProvider.SaveKey(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to store new key: %w", err)
 	}

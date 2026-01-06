@@ -94,7 +94,7 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 	}
 
 	err = db.Transaction(func(tx *gorm.DB) error {
-		err = rotateSigningKeyEncryption(tx, oldKek, newKek)
+		err = rotateSigningKeyEncryption(ctx, tx, oldKek, newKek)
 		if err != nil {
 			return err
 		}
@@ -116,7 +116,7 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 	return nil
 }
 
-func rotateSigningKeyEncryption(db *gorm.DB, oldKek []byte, newKek []byte) error {
+func rotateSigningKeyEncryption(ctx context.Context, db *gorm.DB, oldKek []byte, newKek []byte) error {
 	oldProvider := &jwkutils.KeyProviderDatabase{}
 	err := oldProvider.Init(jwkutils.KeyProviderOpts{
 		DB:  db,
@@ -126,7 +126,7 @@ func rotateSigningKeyEncryption(db *gorm.DB, oldKek []byte, newKek []byte) error
 		return fmt.Errorf("failed to init key provider with old encryption key: %w", err)
 	}
 
-	key, err := oldProvider.LoadKey()
+	key, err := oldProvider.LoadKey(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load signing key using old encryption key: %w", err)
 	}
@@ -143,7 +143,7 @@ func rotateSigningKeyEncryption(db *gorm.DB, oldKek []byte, newKek []byte) error
 		return fmt.Errorf("failed to init key provider with new encryption key: %w", err)
 	}
 
-	if err := newProvider.SaveKey(key); err != nil {
+	if err := newProvider.SaveKey(ctx, key); err != nil {
 		return fmt.Errorf("failed to store signing key with new encryption key: %w", err)
 	}
 
