@@ -499,5 +499,7 @@
 	"save_and_sync": "Uložit a synchronizovat",
 	"scim_save_changes_description": "Před spuštěním synchronizace SCIM je nutné uložit změny. Chcete uložit nyní?",
 	"scopes": "Rozsah",
-	"issuer_url": "URL vydavatele"
+	"issuer_url": "URL vydavatele",
+	"smtp_field_required_when_other_provided": "Vyžadováno, pokud je zadáno jakékoli nastavení SMTP",
+	"smtp_field_required_when_email_enabled": "Vyžadováno, pokud jsou povolena e-mailová oznámení"
 }
