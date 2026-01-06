@@ -499,5 +499,7 @@
 	"save_and_sync": "Tallenna ja synkronoi",
 	"scim_save_changes_description": "Sinun on tallennettava muutokset ennen SCIM-synkronoinnin aloittamista. Haluatko tallentaa nyt?",
 	"scopes": "Käyttöalueet",
-	"issuer_url": "Julkaisijan URL-osoite"
+	"issuer_url": "Julkaisijan URL-osoite",
+	"smtp_field_required_when_other_provided": "Vaaditaan, kun SMTP-asetukset on määritetty",
+	"smtp_field_required_when_email_enabled": "Vaaditaan, kun sähköpostimuistutukset ovat käytössä"
 }
