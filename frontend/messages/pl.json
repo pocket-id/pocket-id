@@ -499,5 +499,7 @@
 	"save_and_sync": "Zapisz i zsynchronizuj",
 	"scim_save_changes_description": "Przed rozpoczęciem synchronizacji SCIM należy zapisać zmiany. Czy chcesz zapisać teraz?",
 	"scopes": "Zakresy",
-	"issuer_url": "Adres URL wystawcy"
+	"issuer_url": "Adres URL wystawcy",
+	"smtp_field_required_when_other_provided": "Wymagane, gdy podano dowolne ustawienie SMTP",
+	"smtp_field_required_when_email_enabled": "Wymagane, gdy włączone są powiadomienia e-mailowe"
 }
