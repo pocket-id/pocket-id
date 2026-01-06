@@ -499,5 +499,7 @@
 	"save_and_sync": "保存并同步",
 	"scim_save_changes_description": "在开始 SCIM 同步之前，您必须先保存更改。是否现在保存？",
 	"scopes": "Scopes",
-	"issuer_url": "发行者网址"
+	"issuer_url": "发行者网址",
+	"smtp_field_required_when_other_provided": "当提供任何SMTP设置时需要",
+	"smtp_field_required_when_email_enabled": "启用电子邮件通知时需要"
 }
