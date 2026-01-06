@@ -499,5 +499,7 @@
 	"save_and_sync": "Enregistrer et synchroniser",
 	"scim_save_changes_description": "Tu dois enregistrer les changements avant de lancer une synchronisation SCIM. Tu veux enregistrer maintenant ?",
 	"scopes": "Portées",
-	"issuer_url": "URL de l'émetteur"
+	"issuer_url": "URL de l'émetteur",
+	"smtp_field_required_when_other_provided": "Nécessaire quand un paramètre SMTP est fourni",
+	"smtp_field_required_when_email_enabled": "C'est nécessaire quand les notifications par e-mail sont activées."
 }
