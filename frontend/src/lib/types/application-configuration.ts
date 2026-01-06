@@ -21,7 +21,7 @@ export type AllAppConfig = AppConfig & {
 	signupDefaultCustomClaims: CustomClaim[];
 	// Email
 	smtpHost: string;
-	smtpPort: number;
+	smtpPort: string;
 	smtpFrom: string;
 	smtpUser: string;
 	smtpPassword: string;
