@@ -499,5 +499,7 @@
 	"save_and_sync": "儲存與同步",
 	"scim_save_changes_description": "您必須在開始 SCIM 同步前儲存變更。現在要儲存嗎？",
 	"scopes": "範圍",
-	"issuer_url": "發行者網址"
+	"issuer_url": "發行者網址",
+	"smtp_field_required_when_other_provided": "當提供任何 SMTP 設定時即為必要",
+	"smtp_field_required_when_email_enabled": "當電子郵件通知功能啟用時，此項目為必填項目"
 }
