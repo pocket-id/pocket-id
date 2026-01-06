@@ -499,5 +499,7 @@
 	"save_and_sync": "Зберегти та синхронізувати",
 	"scim_save_changes_description": "Перед початком синхронізації SCIM необхідно зберегти зміни. Чи хочете ви зберегти зараз?",
 	"scopes": "Області застосування",
-	"issuer_url": "URL емітента"
+	"issuer_url": "URL емітента",
+	"smtp_field_required_when_other_provided": "Необхідно, якщо вказано будь-яке налаштування SMTP",
+	"smtp_field_required_when_email_enabled": "Необхідно, якщо увімкнено сповіщення електронною поштою"
 }
