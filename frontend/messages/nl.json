@@ -499,5 +499,7 @@
 	"save_and_sync": "Opslaan en synchroniseren",
 	"scim_save_changes_description": "Je moet de wijzigingen opslaan voordat je een SCIM-synchronisatie start. Wil je nu opslaan?",
 	"scopes": "Scopes",
-	"issuer_url": "URL van de uitgever"
+	"issuer_url": "URL van de uitgever",
+	"smtp_field_required_when_other_provided": "Moet je invullen als er SMTP-instellingen zijn",
+	"smtp_field_required_when_email_enabled": "Moet je invullen als je e-mailmeldingen hebt ingeschakeld."
 }
