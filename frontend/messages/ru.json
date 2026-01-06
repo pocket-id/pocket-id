@@ -500,6 +500,6 @@
 	"scim_save_changes_description": "Перед тем, как начать синхронизацию SCIM, нужно сохранить изменения. Хочешь сохранить сейчас?",
 	"scopes": "Области применения",
 	"issuer_url": "URL эмитента",
-	"smtp_field_required_when_other_provided": "Required when any SMTP setting is provided",
-	"smtp_field_required_when_email_enabled": "Required when email notifications are enabled"
+	"smtp_field_required_when_other_provided": "Нужно, если есть какие-то настройки SMTP",
+	"smtp_field_required_when_email_enabled": "Нужно, если включены уведомления по электронной почте"
 }
