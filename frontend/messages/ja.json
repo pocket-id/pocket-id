@@ -499,5 +499,7 @@
 	"save_and_sync": "保存と同期",
 	"scim_save_changes_description": "SCIM同期を開始する前に変更を保存する必要があります。今すぐ保存しますか？",
 	"scopes": "スコープ",
-	"issuer_url": "発行者URL"
+	"issuer_url": "発行者URL",
+	"smtp_field_required_when_other_provided": "いずれかのSMTP設定が提供された場合に必須",
+	"smtp_field_required_when_email_enabled": "メール通知が有効な場合に必須"
 }
