@@ -499,5 +499,7 @@
 	"save_and_sync": "Speichern und synchronisieren",
 	"scim_save_changes_description": "Du musst die Änderungen speichern, bevor du eine SCIM-Synchronisierung startest. Willst du jetzt speichern?",
 	"scopes": "Kopfsuchgeräte",
-	"issuer_url": "Aussteller-URL"
+	"issuer_url": "Aussteller-URL",
+	"smtp_field_required_when_other_provided": "Muss angegeben werden, wenn SMTP-Einstellungen gemacht werden",
+	"smtp_field_required_when_email_enabled": "Muss aktiviert sein, wenn du E-Mail-Benachrichtigungen nutzen willst."
 }
