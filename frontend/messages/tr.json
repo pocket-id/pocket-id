@@ -499,5 +499,7 @@
 	"save_and_sync": "Kaydet ve Senkronize Et",
 	"scim_save_changes_description": "SCIM senkronizasyonunu başlatmadan önce değişiklikleri kaydetmeniz gerekir. Şimdi kaydetmek ister misiniz?",
 	"scopes": "Kapsamlar",
-	"issuer_url": "İhraççı URL"
+	"issuer_url": "İhraççı URL",
+	"smtp_field_required_when_other_provided": "Herhangi bir SMTP ayarı sağlandığında gereklidir",
+	"smtp_field_required_when_email_enabled": "E-posta bildirimleri etkinleştirildiğinde gereklidir"
 }
