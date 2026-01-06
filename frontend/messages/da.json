@@ -499,5 +499,7 @@
 	"save_and_sync": "Gem og synkroniser",
 	"scim_save_changes_description": "Du skal gemme ændringerne, før du starter en SCIM-synkronisering. Vil du gemme nu?",
 	"scopes": "Omfang",
-	"issuer_url": "Udsteders URL"
+	"issuer_url": "Udsteders URL",
+	"smtp_field_required_when_other_provided": "Påkrævet, når der angives en SMTP-indstilling",
+	"smtp_field_required_when_email_enabled": "Påkrævet, når e-mail-underretninger er aktiveret"
 }
