@@ -499,5 +499,7 @@
 	"save_and_sync": "Guardar y sincronizar",
 	"scim_save_changes_description": "Debes guardar los cambios antes de iniciar una sincronización SCIM. ¿Deseas guardar ahora?",
 	"scopes": "Ámbitos",
-	"issuer_url": "URL del emisor"
+	"issuer_url": "URL del emisor",
+	"smtp_field_required_when_other_provided": "Necesario cuando se proporciona cualquier configuración SMTP.",
+	"smtp_field_required_when_email_enabled": "Requerido cuando las notificaciones por correo electrónico están habilitadas."
 }
