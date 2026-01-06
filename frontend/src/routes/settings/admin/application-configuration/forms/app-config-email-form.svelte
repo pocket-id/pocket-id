@@ -31,20 +31,58 @@
 
 	let isSendingTestEmail = $state(false);
 
-	const formSchema = z.object({
-		requireUserEmail: z.boolean(),
-		smtpHost: z.string().min(1),
-		smtpPort: z.number().min(1),
-		smtpUser: z.string(),
-		smtpPassword: z.string(),
-		smtpFrom: z.email(),
-		smtpTls: z.enum(['none', 'starttls', 'tls']),
-		smtpSkipCertVerify: z.boolean(),
-		emailOneTimeAccessAsUnauthenticatedEnabled: z.boolean(),
-		emailOneTimeAccessAsAdminEnabled: z.boolean(),
-		emailLoginNotificationEnabled: z.boolean(),
-		emailApiKeyExpirationEnabled: z.boolean()
-	});
+	const formSchema = z
+		.object({
+			requireUserEmail: z.boolean(),
+			smtpHost: z.string().optional(),
+			smtpPort: z
+				.preprocess((v: string) => (!v ? undefined : parseInt(v)), z.number().optional().nullable())
+				.transform((v) => v?.toString() ?? '')
+				.optional(),
+			smtpUser: z.string().optional(),
+			smtpPassword: z.string().optional(),
+			smtpFrom: z.email().optional(),
+			smtpTls: z.enum(['none', 'starttls', 'tls']),
+			smtpSkipCertVerify: z.boolean(),
+			emailOneTimeAccessAsUnauthenticatedEnabled: z.boolean(),
+			emailOneTimeAccessAsAdminEnabled: z.boolean(),
+			emailLoginNotificationEnabled: z.boolean(),
+			emailApiKeyExpirationEnabled: z.boolean()
+		})
+		.superRefine((data, ctx) => {
+			const requiredSmtpFields: (keyof z.infer<typeof formSchema>)[] = [
+				'smtpHost',
+				'smtpPort',
+				'smtpFrom'
+			];
+
+			const emailFields: (keyof z.infer<typeof formSchema>)[] = [
+				'emailOneTimeAccessAsUnauthenticatedEnabled',
+				'emailOneTimeAccessAsAdminEnabled',
+				'emailLoginNotificationEnabled',
+				'emailApiKeyExpirationEnabled'
+			];
+
+			function requireFieldsWhen(condition: boolean, message: string) {
+				if (!condition) return;
+
+				for (const f of requiredSmtpFields) {
+					if (!data[f]) {
+						ctx.addIssue({
+							code: 'custom',
+							path: [f],
+							message
+						});
+					}
+				}
+			}
+
+			const anyProvided = requiredSmtpFields.some((f) => !!data[f]);
+			requireFieldsWhen(anyProvided, m.smtp_field_required_when_other_provided());
+
+			const emailEnabled = emailFields.some((f) => data[f]);
+			requireFieldsWhen(emailEnabled, m.smtp_field_required_when_email_enabled());
+		});
 
 	let { inputs, ...form } = $derived(createForm(formSchema, appConfig));
 
@@ -106,7 +144,7 @@
 			bind:checked={$inputs.requireUserEmail.value}
 		/>
 		<h4 class="mt-10 text-lg font-semibold">{m.smtp_configuration()}</h4>
-		<div class="mt-4 grid grid-cols-1 items-end gap-5 md:grid-cols-2">
+		<div class="mt-4 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<FormInput label={m.smtp_host()} bind:input={$inputs.smtpHost} />
 			<FormInput label={m.smtp_port()} type="number" bind:input={$inputs.smtpPort} />
 			<FormInput label={m.smtp_user()} bind:input={$inputs.smtpUser} />
