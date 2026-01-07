@@ -1,5 +1,5 @@
 import VersionService from '$lib/services/version-service';
-import type { AppVersionInformation } from '$lib/types/application-configuration';
+import type { AppVersionInformation } from '$lib/types/application-configuration.type';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async () => {

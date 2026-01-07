@@ -14,6 +14,7 @@ type AppConfigVariableDto struct {
 type AppConfigUpdateDto struct {
 	AppName                                    string `json:"appName" binding:"required,min=1,max=30" unorm:"nfc"`
 	SessionDuration                            string `json:"sessionDuration" binding:"required"`
+	HomePageURL                                string `json:"homePageUrl" binding:"required"`
 	EmailsVerified                             string `json:"emailsVerified" binding:"required"`
 	DisableAnimations                          string `json:"disableAnimations" binding:"required"`
 	AllowOwnAccountEdit                        string `json:"allowOwnAccountEdit" binding:"required"`

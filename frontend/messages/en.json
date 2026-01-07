@@ -509,5 +509,7 @@
 	"renew": "Renew",
 	"renew_api_key": "Renew API Key",
 	"renew_api_key_description": "Renewing the API key will generate a new key. Make sure to update any integrations using this key.",
-	"api_key_renewed": "API key renewed"
+	"api_key_renewed": "API key renewed",
+	"app_config_home_page": "Home Page",
+	"app_config_home_page_description": "The page users are redirected to after signing in."
 }

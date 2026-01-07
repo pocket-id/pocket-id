@@ -9,6 +9,10 @@ test.beforeEach(async ({ page }) => {
 test('Update general configuration', async ({ page }) => {
 	await page.getByLabel('Application Name', { exact: true }).fill('Updated Name');
 	await page.getByLabel('Session Duration').fill('30');
+
+	await page.getByRole('button', { name: 'Home Page' }).click();
+	await page.getByRole('option', { name: 'My Apps' }).click();
+
 	await page.getByRole('button', { name: 'Save' }).first().click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
@@ -20,6 +24,9 @@ test('Update general configuration', async ({ page }) => {
 
 	await expect(page.getByLabel('Application Name', { exact: true })).toHaveValue('Updated Name');
 	await expect(page.getByLabel('Session Duration')).toHaveValue('30');
+
+	await page.getByRole('link', { name: 'Logo Updated Name' }).click();
+	await page.waitForURL('/settings/apps');
 });
 
 test.describe('Update user creation configuration', () => {
@@ -123,7 +130,9 @@ test.describe('Update application images', () => {
 
 	test('should upload images', async ({ page }) => {
 		await page.getByLabel('Favicon').setInputFiles('resources/images/w3-schools-favicon.ico');
-		await page.getByLabel('Light Mode Logo').setInputFiles('resources/images/pingvin-share-logo.png');
+		await page
+			.getByLabel('Light Mode Logo')
+			.setInputFiles('resources/images/pingvin-share-logo.png');
 		await page.getByLabel('Dark Mode Logo').setInputFiles('resources/images/cloud-logo.png');
 		await page.getByLabel('Email Logo').setInputFiles('resources/images/pingvin-share-logo.png');
 		await page

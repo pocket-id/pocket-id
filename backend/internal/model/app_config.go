@@ -36,6 +36,7 @@ type AppConfig struct {
 	// General
 	AppName                   AppConfigVariable `key:"appName,public"` // Public
 	SessionDuration           AppConfigVariable `key:"sessionDuration"`
+	HomePageURL               AppConfigVariable `key:"homePageUrl,public"` // Public
 	EmailsVerified            AppConfigVariable `key:"emailsVerified"`
 	AccentColor               AppConfigVariable `key:"accentColor,public"`         // Public
 	DisableAnimations         AppConfigVariable `key:"disableAnimations,public"`   // Public

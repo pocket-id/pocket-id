@@ -1,5 +1,5 @@
 import AppConfigService from '$lib/services/app-config-service';
-import type { AppConfig } from '$lib/types/application-configuration';
+import type { AppConfig } from '$lib/types/application-configuration.type';
 import { applyAccentColor } from '$lib/utils/accent-color-util';
 import { writable } from 'svelte/store';
 
