@@ -33,14 +33,17 @@ export function getWebauthnErrorMessage(e: unknown) {
 		ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: m.passkey_was_previously_registered(),
 		ERROR_AUTHENTICATOR_NO_SUPPORTED_PUBKEYCREDPARAMS_ALG:
 			m.authenticator_does_not_support_any_of_the_requested_algorithms(),
-		ERROR_USER_DISABLED_MSG: m.user_disabled()
+		ERROR_INVALID_DOMAIN: `${m.webauthn_error_invalid_domain()} ${m.contact_administrator_to_fix()}`,
+		ERROR_INVALID_RP_ID: `${m.webauthn_error_invalid_rp_id()} ${m.contact_administrator_to_fix()}`,
+		NotSupportedError: m.webauthn_not_supported_by_browser(),
+		NotAllowedError: m.webauthn_operation_not_allowed_or_timed_out()
 	};
 
-	let message = m.an_unknown_error_occurred();
+	let message: string = m.an_unknown_error_occurred();
 	if (e instanceof WebAuthnError && e.code in errors) {
 		message = errors[e.code as keyof typeof errors];
-	} else if (e instanceof WebAuthnError && e?.message.includes('timed out')) {
-		message = m.authenticator_timed_out();
+	} else if (e instanceof WebAuthnError && e.cause instanceof Error && e.cause.name in errors) {
+		message = errors[e.cause.name as keyof typeof errors];
 	} else if (e instanceof AxiosError && e.response?.data.error) {
 		message = e.response?.data.error;
 	} else {
