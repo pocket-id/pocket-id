@@ -505,5 +505,7 @@
 	"scopes": "Käyttöalueet",
 	"issuer_url": "Julkaisijan URL-osoite",
 	"smtp_field_required_when_other_provided": "Vaaditaan, kun SMTP-asetukset on määritetty",
-	"smtp_field_required_when_email_enabled": "Vaaditaan, kun sähköpostimuistutukset ovat käytössä"
+	"smtp_field_required_when_email_enabled": "Vaaditaan, kun sähköpostimuistutukset ovat käytössä",
+	"app_config_home_page": "Kotisivu",
+	"app_config_home_page_description": "Sivu, jolle käyttäjät ohjataan kirjautumisen jälkeen."
 }
