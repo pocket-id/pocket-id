@@ -505,5 +505,7 @@
 	"scopes": "Scopi",
 	"issuer_url": "URL dell'emittente",
 	"smtp_field_required_when_other_provided": "Richiesto quando c'è un'impostazione SMTP",
-	"smtp_field_required_when_email_enabled": "Richiesto quando le notifiche via e-mail sono attivate"
+	"smtp_field_required_when_email_enabled": "Richiesto quando le notifiche via e-mail sono attivate",
+	"app_config_home_page": "Pagina iniziale",
+	"app_config_home_page_description": "La pagina a cui gli utenti vengono reindirizzati dopo aver effettuato l'accesso."
 }
