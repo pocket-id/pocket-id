@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "O autenticador não aceita chaves residentes",
 	"passkey_was_previously_registered": "Esta chave de acesso já está registrada",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "O autenticador não suporta nenhum dos algoritmos solicitados",
-	"authenticator_timed_out": "Tempo limite do autenticador atingido",
+	"webauthn_error_invalid_rp_id": "A identificação da parte confiável configurada não está válida.",
+	"webauthn_error_invalid_domain": "O domínio configurado não está certo.",
+	"contact_administrator_to_fix": "Fala com o administrador pra resolver esse problema.",
+	"webauthn_operation_not_allowed_or_timed_out": "A operação não foi permitida ou expirou.",
+	"webauthn_not_supported_by_browser": "As chaves de acesso não são suportadas por este navegador. Por favor, use um método alternativo de login.",
 	"critical_error_occurred_contact_administrator": "Ocorreu um erro grave. Por favor, entre em contato com o administrador.",
 	"sign_in_to": "Entrar em {name}",
 	"client_not_found": "Cliente não encontrado",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Salvar e sincronizar",
 	"scim_save_changes_description": "Você precisa salvar as alterações antes de iniciar uma sincronização SCIM. Quer salvar agora?",
 	"scopes": "Âmbitos",
-	"issuer_url": "URL do emissor"
+	"issuer_url": "URL do emissor",
+	"smtp_field_required_when_other_provided": "É necessário quando qualquer configuração SMTP é fornecida.",
+	"smtp_field_required_when_email_enabled": "É necessário quando as notificações por e-mail estão ativadas."
 }
