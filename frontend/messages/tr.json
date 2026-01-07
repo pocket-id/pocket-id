@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Kimlik doğrulayıcı yerleşik anahtarları desteklemiyor",
 	"passkey_was_previously_registered": "Bu geçiş anahtarı daha önce kaydedilmiştir",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Kimlik doğrulayıcı, talep edilen algoritmalardan hiçbirini desteklemiyor",
-	"authenticator_timed_out": "Kimlik doğrulayıcı zaman aşımına uğradı",
+	"webauthn_error_invalid_rp_id": "Yapılandırılan güvenen taraf kimliği geçersiz.",
+	"webauthn_error_invalid_domain": "Yapılandırılan etki alanı geçersiz.",
+	"contact_administrator_to_fix": "Bu sorunu gidermek için yöneticinize başvurun.",
+	"webauthn_operation_not_allowed_or_timed_out": "İşlem izin verilmedi veya zaman aşımına uğradı",
+	"webauthn_not_supported_by_browser": "Bu tarayıcıda geçiş anahtarları desteklenmemektedir. Lütfen alternatif bir oturum açma yöntemi kullanın.",
 	"critical_error_occurred_contact_administrator": "Kritik bir hata oluştu. Lütfen sistem yöneticinizle iletişime geçin.",
 	"sign_in_to": "{name} hesabına giriş yap",
 	"client_not_found": "İstemci bulunamadı",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Kaydet ve Senkronize Et",
 	"scim_save_changes_description": "SCIM senkronizasyonunu başlatmadan önce değişiklikleri kaydetmeniz gerekir. Şimdi kaydetmek ister misiniz?",
 	"scopes": "Kapsamlar",
-	"issuer_url": "İhraççı URL"
+	"issuer_url": "İhraççı URL",
+	"smtp_field_required_when_other_provided": "Herhangi bir SMTP ayarı sağlandığında gereklidir",
+	"smtp_field_required_when_email_enabled": "E-posta bildirimleri etkinleştirildiğinde gereklidir"
 }
