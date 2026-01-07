@@ -1,5 +1,5 @@
 import userStore from '$lib/stores/user-store';
-import type { AllAppConfig, AppConfigRawResponse } from '$lib/types/application-configuration';
+import type { AllAppConfig, AppConfigRawResponse } from '$lib/types/application-configuration.type';
 import {
 	cachedApplicationLogo,
 	cachedBackgroundImage,
