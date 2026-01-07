@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Der Authentifikator unterstützt keine residenten Schlüssel",
 	"passkey_was_previously_registered": "Dieser Passkey wurde bereits registriert",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Der Authentifikator unterstützt keinen der angeforderten Algorithmen",
-	"authenticator_timed_out": "Der Authentifikator hat eine Zeitüberschreitung",
+	"webauthn_error_invalid_rp_id": "Die eingestellte ID der vertrauenden Seite ist nicht okay.",
+	"webauthn_error_invalid_domain": "Die eingestellte Domain ist nicht okay.",
+	"contact_administrator_to_fix": "Sprich mit deinem Administrator, um das Problem zu lösen.",
+	"webauthn_operation_not_allowed_or_timed_out": "Der Vorgang wurde nicht erlaubt oder ist abgelaufen.",
+	"webauthn_not_supported_by_browser": "Passkeys werden von diesem Browser nicht unterstützt. Bitte probier eine andere Anmeldemethode aus.",
 	"critical_error_occurred_contact_administrator": "Ein kritischer Fehler ist aufgetreten. Bitte kontaktiere deinen Administrator.",
 	"sign_in_to": "Bei {name} anmelden",
 	"client_not_found": "Client nicht gefunden",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Speichern und synchronisieren",
 	"scim_save_changes_description": "Du musst die Änderungen speichern, bevor du eine SCIM-Synchronisierung startest. Willst du jetzt speichern?",
 	"scopes": "Kopfsuchgeräte",
-	"issuer_url": "Aussteller-URL"
+	"issuer_url": "Aussteller-URL",
+	"smtp_field_required_when_other_provided": "Muss angegeben werden, wenn SMTP-Einstellungen gemacht werden",
+	"smtp_field_required_when_email_enabled": "Muss aktiviert sein, wenn du E-Mail-Benachrichtigungen nutzen willst."
 }
