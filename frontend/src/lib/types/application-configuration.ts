@@ -2,6 +2,7 @@ import type { CustomClaim } from './custom-claim.type';
 
 export type AppConfig = {
 	appName: string;
+	homePageUrl: string;
 	allowOwnAccountEdit: boolean;
 	allowUserSignups: 'disabled' | 'withToken' | 'open';
 	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
@@ -16,6 +17,7 @@ export type AppConfig = {
 export type AllAppConfig = AppConfig & {
 	// General
 	sessionDuration: number;
+	homePageUrl: string;
 	emailsVerified: boolean;
 	signupDefaultUserGroupIDs: string[];
 	signupDefaultCustomClaims: CustomClaim[];
