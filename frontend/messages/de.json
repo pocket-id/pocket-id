@@ -505,5 +505,7 @@
 	"scopes": "Kopfsuchgeräte",
 	"issuer_url": "Aussteller-URL",
 	"smtp_field_required_when_other_provided": "Muss angegeben werden, wenn SMTP-Einstellungen gemacht werden",
-	"smtp_field_required_when_email_enabled": "Muss aktiviert sein, wenn du E-Mail-Benachrichtigungen nutzen willst."
+	"smtp_field_required_when_email_enabled": "Muss aktiviert sein, wenn du E-Mail-Benachrichtigungen nutzen willst.",
+	"app_config_home_page": "Startseite",
+	"app_config_home_page_description": "Die Seite, auf die Nutzer nach der Anmeldung weitergeleitet werden."
 }
