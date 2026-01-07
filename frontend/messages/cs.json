@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Autentikátor nepodporuje rezidentní klíče",
 	"passkey_was_previously_registered": "Tento přístupový klíč byl již dříve zaregistrován",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Autentikátor nepodporuje žádný z požadovaných algoritmů",
-	"authenticator_timed_out": "Vypršel časový limit autentifikátoru",
+	"webauthn_error_invalid_rp_id": "Nakonfigurované ID spoléhající strany je neplatné.",
+	"webauthn_error_invalid_domain": "Nakonfigurovaná doména je neplatná.",
+	"contact_administrator_to_fix": "Kontaktujte svého správce, aby tento problém vyřešil.",
+	"webauthn_operation_not_allowed_or_timed_out": "Operace nebyla povolena nebo vypršela časová lhůta.",
+	"webauthn_not_supported_by_browser": "Tento prohlížeč nepodporuje přístupové klíče. Použijte prosím alternativní způsob přihlášení.",
 	"critical_error_occurred_contact_administrator": "Došlo k kritické chybě. Obraťte se na správce.",
 	"sign_in_to": "Přihlásit se k {name}",
 	"client_not_found": "Klient nebyl nalezen",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Uložit a synchronizovat",
 	"scim_save_changes_description": "Před spuštěním synchronizace SCIM je nutné uložit změny. Chcete uložit nyní?",
 	"scopes": "Rozsah",
-	"issuer_url": "URL vydavatele"
+	"issuer_url": "URL vydavatele",
+	"smtp_field_required_when_other_provided": "Vyžadováno, pokud je zadáno jakékoli nastavení SMTP",
+	"smtp_field_required_when_email_enabled": "Vyžadováno, pokud jsou povolena e-mailová oznámení"
 }
