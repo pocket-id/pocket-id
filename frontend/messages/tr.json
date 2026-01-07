@@ -505,5 +505,7 @@
 	"scopes": "Kapsamlar",
 	"issuer_url": "İhraççı URL",
 	"smtp_field_required_when_other_provided": "Herhangi bir SMTP ayarı sağlandığında gereklidir",
-	"smtp_field_required_when_email_enabled": "E-posta bildirimleri etkinleştirildiğinde gereklidir"
+	"smtp_field_required_when_email_enabled": "E-posta bildirimleri etkinleştirildiğinde gereklidir",
+	"app_config_home_page": "Ana Sayfa",
+	"app_config_home_page_description": "Kullanıcıların oturum açtıktan sonra yönlendirildikleri sayfa."
 }
