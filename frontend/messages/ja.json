@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "認証ツールは resident key をサポートしていません",
 	"passkey_was_previously_registered": "このパスキーは既に登録されています",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "認証ツールは要求されたアルゴリズムのいずれをもサポートしていません",
-	"authenticator_timed_out": "認証ツールがタイムアウトしました",
+	"webauthn_error_invalid_rp_id": "設定された信頼当事者IDは無効です。",
+	"webauthn_error_invalid_domain": "設定されたドメインは無効です。",
+	"contact_administrator_to_fix": "この問題を修正するには、管理者にお問い合わせください。",
+	"webauthn_operation_not_allowed_or_timed_out": "操作は許可されませんでした、またはタイムアウトしました",
+	"webauthn_not_supported_by_browser": "このブラウザではパスキーはサポートされていません。別のサインイン方法をご利用ください。",
 	"critical_error_occurred_contact_administrator": "重大なエラーが発生しました。管理者にお問い合わせください。",
 	"sign_in_to": "{name} にサインイン",
 	"client_not_found": "クライアントが見つかりません",
@@ -499,5 +503,7 @@
 	"save_and_sync": "保存と同期",
 	"scim_save_changes_description": "SCIM同期を開始する前に変更を保存する必要があります。今すぐ保存しますか？",
 	"scopes": "スコープ",
-	"issuer_url": "発行者URL"
+	"issuer_url": "発行者URL",
+	"smtp_field_required_when_other_provided": "いずれかのSMTP設定が提供された場合に必須",
+	"smtp_field_required_when_email_enabled": "メール通知が有効な場合に必須"
 }
