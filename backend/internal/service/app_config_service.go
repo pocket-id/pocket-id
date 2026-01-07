@@ -61,6 +61,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		// General
 		AppName:                   model.AppConfigVariable{Value: "Pocket ID"},
 		SessionDuration:           model.AppConfigVariable{Value: "60"},
+		HomePageURL:               model.AppConfigVariable{Value: "/settings/account"},
 		EmailsVerified:            model.AppConfigVariable{Value: "false"},
 		DisableAnimations:         model.AppConfigVariable{Value: "false"},
 		AllowOwnAccountEdit:       model.AppConfigVariable{Value: "true"},

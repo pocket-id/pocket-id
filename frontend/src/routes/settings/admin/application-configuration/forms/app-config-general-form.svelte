@@ -3,9 +3,10 @@
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
+	import * as Select from '$lib/components/ui/select';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AllAppConfig } from '$lib/types/application-configuration';
+	import type { AllAppConfig } from '$lib/types/application-configuration.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
@@ -22,8 +23,14 @@
 
 	let isLoading = $state(false);
 
+	const homePageUrlOptions = [
+		{ label: m.my_account(), value: '/settings/account' },
+		{ label: m.my_apps(), value: '/settings/apps' }
+	];
+
 	const updatedAppConfig = {
 		appName: appConfig.appName,
+		homePageUrl: appConfig.homePageUrl,
 		sessionDuration: appConfig.sessionDuration,
 		emailsVerified: appConfig.emailsVerified,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
@@ -33,6 +40,7 @@
 
 	const formSchema = z.object({
 		appName: z.string().min(2).max(30),
+		homePageUrl: z.string(),
 		sessionDuration: z.number().min(1).max(43200),
 		emailsVerified: z.boolean(),
 		allowOwnAccountEdit: z.boolean(),
@@ -62,6 +70,32 @@
 				description={m.the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again()}
 				bind:input={$inputs.sessionDuration}
 			/>
+			<Field.Field>
+				<Field.Label>{m.app_config_home_page()}</Field.Label>
+				<Field.Description>
+					{m.app_config_home_page_description()}
+				</Field.Description>
+				<Select.Root
+					type="single"
+					value={$inputs.homePageUrl.value}
+					onValueChange={(v) => ($inputs.homePageUrl.value = v as string)}
+				>
+					<Select.Trigger
+						class="w-full"
+						aria-label={m.app_config_home_page()}
+					>
+						{homePageUrlOptions.find((option) => option.value === $inputs.homePageUrl.value)
+							?.label ?? $inputs.homePageUrl.value}
+					</Select.Trigger>
+					<Select.Content>
+						{#each homePageUrlOptions as option}
+							<Select.Item value={option.value}>
+								{option.label}
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</Field.Field>
 			<SwitchWithLabel
 				id="self-account-editing"
 				label={m.enable_self_account_editing()}

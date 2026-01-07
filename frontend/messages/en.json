@@ -505,5 +505,7 @@
 	"scopes": "Scopes",
 	"issuer_url": "Issuer URL",
 	"smtp_field_required_when_other_provided": "Required when any SMTP setting is provided",
-	"smtp_field_required_when_email_enabled": "Required when email notifications are enabled"
+	"smtp_field_required_when_email_enabled": "Required when email notifications are enabled",
+	"app_config_home_page": "Home Page",
+	"app_config_home_page_description": "The page users are redirected to after signing in."
 }

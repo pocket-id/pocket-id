@@ -6,7 +6,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { AllAppConfig } from '$lib/types/application-configuration';
+	import type { AllAppConfig } from '$lib/types/application-configuration.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { toast } from 'svelte-sonner';
 
