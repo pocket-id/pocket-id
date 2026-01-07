@@ -505,5 +505,7 @@
 	"scopes": "Phạm vi",
 	"issuer_url": "Địa chỉ URL của tổ chức phát hành",
 	"smtp_field_required_when_other_provided": "Yêu cầu khi cung cấp bất kỳ cài đặt SMTP nào.",
-	"smtp_field_required_when_email_enabled": "Yêu cầu khi bật thông báo qua email"
+	"smtp_field_required_when_email_enabled": "Yêu cầu khi bật thông báo qua email",
+	"app_config_home_page": "Trang chủ",
+	"app_config_home_page_description": "Trang mà người dùng được chuyển hướng đến sau khi đăng nhập."
 }
