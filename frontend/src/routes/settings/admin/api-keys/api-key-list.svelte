@@ -7,13 +7,17 @@
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '$lib/types/advanced-table.type';
-	import type { ApiKey } from '$lib/types/api-key.type';
+	import type { ApiKey, ApiKeyResponse } from '$lib/types/api-key.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideBan } from '@lucide/svelte';
+	import { LucideBan, LucideRefreshCcw, LucideTriangleAlert } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import ApiKeyDialog from './api-key-dialog.svelte';
+	import RenewApiKeyModal from './renew-api-key-modal.svelte';
 
 	const apiKeyService = new ApiKeyService();
 
+	let apiKeyToRenew: ApiKey | null = $state(null);
+	let renewedApiKey: ApiKeyResponse | null = $state(null);
 	let tableRef: AdvancedTable<ApiKey>;
 
 	export function refresh() {
@@ -35,7 +39,7 @@
 			label: m.expires_at(),
 			column: 'expiresAt',
 			sortable: true,
-			value: (item) => formatDate(item.expiresAt)
+			cell: ExpirationCell
 		},
 		{
 			label: m.last_used(),
@@ -54,12 +58,34 @@
 
 	const actions: CreateAdvancedTableActions<ApiKey> = (apiKey) => [
 		{
+			label: m.renew(),
+			icon: LucideRefreshCcw,
+			variant: 'primary',
+			hidden: new Date(apiKey.expiresAt) > new Date(),
+			onClick: (apiKey) => (apiKeyToRenew = apiKey)
+		},
+		{
 			label: m.revoke(),
 			icon: LucideBan,
 			variant: 'danger',
 			onClick: (apiKey) => revokeApiKey(apiKey)
 		}
 	];
+
+	async function renewApiKey(expirationDate: Date) {
+		if (!apiKeyToRenew) return;
+
+		await apiKeyService
+			.renew(apiKeyToRenew.id, expirationDate)
+			.then(async (response) => {
+				renewedApiKey = response;
+				await refresh();
+				apiKeyToRenew = null;
+			})
+			.catch((e) => {
+				axiosErrorToast(e);
+			});
+	}
 
 	function revokeApiKey(apiKey: ApiKey) {
 		openConfirmDialog({
@@ -84,6 +110,20 @@
 	}
 </script>
 
+{#snippet ExpirationCell({ item }: { item: ApiKey })}
+	{@const expired = new Date(item.expiresAt) <= new Date()}
+	<span
+		class={{
+			'flex gap-2 items-center': true,
+			'text-orange-300': expired
+		}}
+		>{formatDate(item.expiresAt)}
+		{#if expired}
+			<LucideTriangleAlert class="size-4" />
+		{/if}
+	</span>
+{/snippet}
+
 <AdvancedTable
 	id="api-key-list"
 	bind:this={tableRef}
@@ -93,3 +133,6 @@
 	{columns}
 	{actions}
 />
+
+<ApiKeyDialog title={m.api_key_renewed()} bind:apiKeyResponse={renewedApiKey} />
+<RenewApiKeyModal bind:apiKey={apiKeyToRenew} onRenew={renewApiKey} />

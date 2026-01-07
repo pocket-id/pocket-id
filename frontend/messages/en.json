@@ -505,5 +505,9 @@
 	"scopes": "Scopes",
 	"issuer_url": "Issuer URL",
 	"smtp_field_required_when_other_provided": "Required when any SMTP setting is provided",
-	"smtp_field_required_when_email_enabled": "Required when email notifications are enabled"
+	"smtp_field_required_when_email_enabled": "Required when email notifications are enabled",
+	"renew": "Renew",
+	"renew_api_key": "Renew API Key",
+	"renew_api_key_description": "Renewing the API key will generate a new key. Make sure to update any integrations using this key.",
+	"api_key_renewed": "API key renewed"
 }

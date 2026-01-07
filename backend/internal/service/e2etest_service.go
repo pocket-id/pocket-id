@@ -354,17 +354,30 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
-		apiKey := model.ApiKey{
-			Base: model.Base{
-				ID: "5f1fa856-c164-4295-961e-175a0d22d725",
+		apiKeys := []model.ApiKey{
+			{
+				Base: model.Base{
+					ID: "5f1fa856-c164-4295-961e-175a0d22d725",
+				},
+				Name:      "Test API Key",
+				Key:       "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
+				UserID:    users[0].ID,
+				ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)),
 			},
-			Name:      "Test API Key",
-			Key:       "6c34966f57ef2bb7857649aff0e7ab3ad67af93c846342ced3f5a07be8706c20",
-			UserID:    users[0].ID,
-			ExpiresAt: datatype.DateTime(time.Now().Add(30 * 24 * time.Hour)),
+			{
+				Base: model.Base{
+					ID: "98900330-7a7b-48fe-881b-2cc6ad049976",
+				},
+				Name:      "Expired API Key",
+				Key:       "141ff8ac9db640ba93630099de83d0ead8e7ac673e3a7d31b4fd7ff2252e6389",
+				UserID:    users[0].ID,
+				ExpiresAt: datatype.DateTime(time.Now().Add(-20 * 24 * time.Hour)),
+			},
 		}
-		if err := tx.Create(&apiKey).Error; err != nil {
-			return err
+		for _, apiKey := range apiKeys {
+			if err := tx.Create(&apiKey).Error; err != nil {
+				return err
+			}
 		}
 
 		signupTokens := []model.SignupToken{

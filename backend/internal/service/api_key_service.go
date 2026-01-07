@@ -72,6 +72,56 @@ func (s *ApiKeyService) CreateApiKey(ctx context.Context, userID string, input d
 	return apiKey, token, nil
 }
 
+func (s *ApiKeyService) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time) (model.ApiKey, string, error) {
+	// Check if expiration is in the future
+	if !expiration.After(time.Now()) {
+		return model.ApiKey{}, "", &common.APIKeyExpirationDateError{}
+	}
+
+	tx := s.db.Begin()
+	defer tx.Rollback()
+
+	var apiKey model.ApiKey
+	err := tx.
+		WithContext(ctx).
+		Model(&model.ApiKey{}).
+		Where("id = ? AND user_id = ?", apiKeyID, userID).
+		First(&apiKey).
+		Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return model.ApiKey{}, "", &common.APIKeyNotFoundError{}
+		}
+		return model.ApiKey{}, "", err
+	}
+
+	// Only allow renewal if the key has already expired
+	if apiKey.ExpiresAt.ToTime().After(time.Now()) {
+		return model.ApiKey{}, "", &common.ApiKeyNotExpiredError{}
+	}
+
+	// Generate a secure random API key
+	token, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return model.ApiKey{}, "", err
+	}
+
+	apiKey.Key = utils.CreateSha256Hash(token)
+	apiKey.ExpiresAt = datatype.DateTime(expiration)
+
+	err = tx.WithContext(ctx).Save(&apiKey).Error
+	if err != nil {
+		return model.ApiKey{}, "", err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return model.ApiKey{}, "", err
+	}
+
+	return apiKey, token, nil
+}
+
 func (s *ApiKeyService) RevokeApiKey(ctx context.Context, userID, apiKeyID string) error {
 	var apiKey model.ApiKey
 	err := s.db.

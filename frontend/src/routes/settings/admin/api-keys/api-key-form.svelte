@@ -19,6 +19,7 @@
 	// Set default expiration to 30 days from now
 	const defaultExpiry = new Date();
 	defaultExpiry.setDate(defaultExpiry.getDate() + 30);
+	defaultExpiry.setHours(0, 0, 0, 0);
 
 	const apiKey = {
 		name: '',
