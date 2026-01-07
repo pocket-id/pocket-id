@@ -505,5 +505,7 @@
 	"scopes": "Rozsah",
 	"issuer_url": "URL vydavatele",
 	"smtp_field_required_when_other_provided": "Vyžadováno, pokud je zadáno jakékoli nastavení SMTP",
-	"smtp_field_required_when_email_enabled": "Vyžadováno, pokud jsou povolena e-mailová oznámení"
+	"smtp_field_required_when_email_enabled": "Vyžadováno, pokud jsou povolena e-mailová oznámení",
+	"app_config_home_page": "Domovská stránka",
+	"app_config_home_page_description": "Stránka, na kterou jsou uživatelé přesměrováni po přihlášení."
 }
