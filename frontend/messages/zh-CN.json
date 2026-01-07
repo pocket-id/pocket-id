@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "认证器不支持常驻密钥",
 	"passkey_was_previously_registered": "此通行密钥曾被注册",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "认证器不支持任何请求的算法",
-	"authenticator_timed_out": "认证器超时",
+	"webauthn_error_invalid_rp_id": "配置的依赖方ID无效。",
+	"webauthn_error_invalid_domain": "配置的域名无效。",
+	"contact_administrator_to_fix": "请联系您的管理员以解决此问题。",
+	"webauthn_operation_not_allowed_or_timed_out": "该操作未被允许或超时",
+	"webauthn_not_supported_by_browser": "此浏览器不支持密钥登录。请使用其他登录方式。",
 	"critical_error_occurred_contact_administrator": "发生严重错误。请联系您的管理员。",
 	"sign_in_to": "登录到 {name}",
 	"client_not_found": "客户端未找到",
@@ -499,5 +503,7 @@
 	"save_and_sync": "保存并同步",
 	"scim_save_changes_description": "在开始 SCIM 同步之前，您必须先保存更改。是否现在保存？",
 	"scopes": "Scopes",
-	"issuer_url": "发行者网址"
+	"issuer_url": "发行者网址",
+	"smtp_field_required_when_other_provided": "当提供任何SMTP设置时需要",
+	"smtp_field_required_when_email_enabled": "启用电子邮件通知时需要"
 }
