@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "此驗證器不支援常駐金鑰",
 	"passkey_was_previously_registered": "這個密碼金鑰先前已註冊",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "驗證器不支援任何一種所要求的演算法",
-	"authenticator_timed_out": "驗證器逾時",
+	"webauthn_error_invalid_rp_id": "已設定的信賴方識別碼無效。",
+	"webauthn_error_invalid_domain": "設定的網域無效。",
+	"contact_administrator_to_fix": "請聯絡您的管理員以解決此問題。",
+	"webauthn_operation_not_allowed_or_timed_out": "此操作未獲許可或已超時",
+	"webauthn_not_supported_by_browser": "此瀏覽器不支援通行密鑰。請使用其他登入方式。",
 	"critical_error_occurred_contact_administrator": "發生嚴重錯誤，請聯絡您的管理員。",
 	"sign_in_to": "登入 {name}",
 	"client_not_found": "找不到客戶端",
@@ -499,5 +503,7 @@
 	"save_and_sync": "儲存與同步",
 	"scim_save_changes_description": "您必須在開始 SCIM 同步前儲存變更。現在要儲存嗎？",
 	"scopes": "範圍",
-	"issuer_url": "發行者網址"
+	"issuer_url": "發行者網址",
+	"smtp_field_required_when_other_provided": "當提供任何 SMTP 設定時即為必要",
+	"smtp_field_required_when_email_enabled": "當電子郵件通知功能啟用時，此項目為必填項目"
 }
