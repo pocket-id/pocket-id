@@ -505,5 +505,7 @@
 	"scopes": "スコープ",
 	"issuer_url": "発行者URL",
 	"smtp_field_required_when_other_provided": "いずれかのSMTP設定が提供された場合に必須",
-	"smtp_field_required_when_email_enabled": "メール通知が有効な場合に必須"
+	"smtp_field_required_when_email_enabled": "メール通知が有効な場合に必須",
+	"app_config_home_page": "ホームページ",
+	"app_config_home_page_description": "ユーザーがサインイン後にリダイレクトされるページ。"
 }
