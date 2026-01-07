@@ -506,6 +506,6 @@
 	"issuer_url": "URL эмитента",
 	"smtp_field_required_when_other_provided": "Нужно, если есть какие-то настройки SMTP",
 	"smtp_field_required_when_email_enabled": "Нужно, если включены уведомления по электронной почте",
-	"app_config_home_page": "Home Page",
-	"app_config_home_page_description": "The page users are redirected to after signing in."
+	"app_config_home_page": "Главная страница",
+	"app_config_home_page_description": "Страница, куда пользователи попадают после входа в систему."
 }
