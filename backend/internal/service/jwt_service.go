@@ -56,10 +56,10 @@ type JwtService struct {
 	jwksEncoded      []byte
 }
 
-func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) (*JwtService, error) {
+func NewJwtService(ctx context.Context, db *gorm.DB, appConfigService *AppConfigService) (*JwtService, error) {
 	service := &JwtService{}
 
-	err := service.init(db, appConfigService, &common.EnvConfig)
+	err := service.init(ctx, db, appConfigService, &common.EnvConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -67,16 +67,16 @@ func NewJwtService(db *gorm.DB, appConfigService *AppConfigService) (*JwtService
 	return service, nil
 }
 
-func (s *JwtService) init(db *gorm.DB, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
+func (s *JwtService) init(ctx context.Context, db *gorm.DB, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
 	s.appConfigService = appConfigService
 	s.envConfig = envConfig
 	s.db = db
 
 	// Ensure keys are generated or loaded
-	return s.LoadOrGenerateKey()
+	return s.LoadOrGenerateKey(ctx)
 }
 
-func (s *JwtService) LoadOrGenerateKey() error {
+func (s *JwtService) LoadOrGenerateKey(ctx context.Context) error {
 	// Get the key provider
 	keyProvider, err := jwkutils.GetKeyProvider(s.db, s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
 	if err != nil {
@@ -84,7 +84,7 @@ func (s *JwtService) LoadOrGenerateKey() error {
 	}
 
 	// Try loading a key
-	key, err := keyProvider.LoadKey()
+	key, err := keyProvider.LoadKey(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load key: %w", err)
 	}
@@ -105,7 +105,7 @@ func (s *JwtService) LoadOrGenerateKey() error {
 	}
 
 	// Save the newly-generated key
-	err = keyProvider.SaveKey(s.privateKey)
+	err = keyProvider.SaveKey(ctx, s.privateKey)
 	if err != nil {
 		return fmt.Errorf("failed to save private key: %w", err)
 	}

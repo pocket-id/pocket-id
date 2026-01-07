@@ -33,12 +33,12 @@ func (f *KeyProviderDatabase) Init(opts KeyProviderOpts) error {
 	return nil
 }
 
-func (f *KeyProviderDatabase) LoadKey() (key jwk.Key, err error) {
+func (f *KeyProviderDatabase) LoadKey(ctx context.Context) (key jwk.Key, err error) {
 	row := model.KV{
 		Key: PrivateKeyDBKey,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	err = f.db.WithContext(ctx).First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -74,7 +74,7 @@ func (f *KeyProviderDatabase) LoadKey() (key jwk.Key, err error) {
 	return key, nil
 }
 
-func (f *KeyProviderDatabase) SaveKey(key jwk.Key) error {
+func (f *KeyProviderDatabase) SaveKey(ctx context.Context, key jwk.Key) error {
 	// Encode the key to JSON
 	data, err := EncodeJWKBytes(key)
 	if err != nil {
@@ -94,7 +94,7 @@ func (f *KeyProviderDatabase) SaveKey(key jwk.Key) error {
 		Value: &encB64,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	err = f.db.
 		WithContext(ctx).

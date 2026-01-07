@@ -38,7 +38,7 @@ func initJwtService(t *testing.T, db *gorm.DB, appConfig *AppConfigService, envC
 	t.Helper()
 
 	service := &JwtService{}
-	err := service.init(db, appConfig, envConfig)
+	err := service.init(t.Context(), db, appConfig, envConfig)
 	require.NoError(t, err, "Failed to initialize JWT service")
 
 	return service
@@ -65,7 +65,7 @@ func saveKeyToDatabase(t *testing.T, db *gorm.DB, envConfig *common.EnvConfigSch
 	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, appConfig.GetDbConfig().InstanceID.Value)
 	require.NoError(t, err, "Failed to init key provider")
 
-	err = keyProvider.SaveKey(key)
+	err = keyProvider.SaveKey(t.Context(), key)
 	require.NoError(t, err, "Failed to save key")
 
 	kid, ok := key.KeyID()
@@ -93,7 +93,7 @@ func TestJwtService_Init(t *testing.T) {
 		// Verify the key has been persisted in the database
 		keyProvider, err := jwkutils.GetKeyProvider(db, mockEnvConfig, mockConfig.GetDbConfig().InstanceID.Value)
 		require.NoError(t, err, "Failed to init key provider")
-		key, err := keyProvider.LoadKey()
+		key, err := keyProvider.LoadKey(t.Context())
 		require.NoError(t, err, "Failed to load key from provider")
 		require.NotNil(t, key, "Key should be present in the database")
 

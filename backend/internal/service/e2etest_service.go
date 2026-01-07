@@ -526,7 +526,7 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 	}
 
 	// Reload the JWK
-	if err := s.jwtService.LoadOrGenerateKey(); err != nil {
+	if err := s.jwtService.LoadOrGenerateKey(ctx); err != nil {
 		return err
 	}
 

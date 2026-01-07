@@ -104,7 +104,7 @@ func testKeyRotateWithDatabaseStorage(t *testing.T, flags keyRotateFlags, wantEr
 	require.NoError(t, err)
 
 	// Verify key was created
-	key, err := keyProvider.LoadKey()
+	key, err := keyProvider.LoadKey(t.Context())
 	require.NoError(t, err)
 	require.NotNil(t, key)
 

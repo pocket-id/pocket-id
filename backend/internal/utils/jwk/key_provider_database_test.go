@@ -59,7 +59,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Load key when none exists
-		loadedKey, err := provider.LoadKey()
+		loadedKey, err := provider.LoadKey(t.Context())
 		require.NoError(t, err)
 		assert.Nil(t, loadedKey, "Expected nil key when no key exists in database")
 	})
@@ -76,11 +76,11 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Save a key
-		err = provider.SaveKey(key)
+		err = provider.SaveKey(t.Context(), key)
 		require.NoError(t, err)
 
 		// Load the key
-		loadedKey, err := provider.LoadKey()
+		loadedKey, err := provider.LoadKey(t.Context())
 		require.NoError(t, err)
 		assert.NotNil(t, loadedKey, "Expected non-nil key when key exists in database")
 
@@ -114,7 +114,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Attempt to load the key
-		loadedKey, err := provider.LoadKey()
+		loadedKey, err := provider.LoadKey(t.Context())
 		require.Error(t, err, "Expected error when loading key with invalid base64")
 		require.ErrorContains(t, err, "not a valid base64-encoded value")
 		assert.Nil(t, loadedKey, "Expected nil key when loading fails")
@@ -140,7 +140,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Attempt to load the key
-		loadedKey, err := provider.LoadKey()
+		loadedKey, err := provider.LoadKey(t.Context())
 		require.Error(t, err, "Expected error when loading key with invalid encrypted data")
 		require.ErrorContains(t, err, "failed to decrypt")
 		assert.Nil(t, loadedKey, "Expected nil key when loading fails")
@@ -158,7 +158,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		err = originalProvider.SaveKey(key)
+		err = originalProvider.SaveKey(t.Context(), key)
 		require.NoError(t, err)
 
 		// Now try to load with a different KEK
@@ -171,7 +171,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Attempt to load the key with the wrong KEK
-		loadedKey, err := differentProvider.LoadKey()
+		loadedKey, err := differentProvider.LoadKey(t.Context())
 		require.Error(t, err, "Expected error when loading key with wrong KEK")
 		require.ErrorContains(t, err, "failed to decrypt")
 		assert.Nil(t, loadedKey, "Expected nil key when loading fails")
@@ -206,7 +206,7 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Attempt to load the key
-		loadedKey, err := provider.LoadKey()
+		loadedKey, err := provider.LoadKey(t.Context())
 		require.Error(t, err, "Expected error when loading invalid key data")
 		require.ErrorContains(t, err, "failed to parse")
 		assert.Nil(t, loadedKey, "Expected nil key when loading fails")
@@ -233,7 +233,7 @@ func TestKeyProviderDatabase_SaveKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Save the key
-		err = provider.SaveKey(key)
+		err = provider.SaveKey(t.Context(), key)
 		require.NoError(t, err, "Expected no error when saving key")
 
 		// Verify record exists in database

@@ -1,6 +1,7 @@
 package jwk
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -17,8 +18,8 @@ type KeyProviderOpts struct {
 
 type KeyProvider interface {
 	Init(opts KeyProviderOpts) error
-	LoadKey() (jwk.Key, error)
-	SaveKey(key jwk.Key) error
+	LoadKey(ctx context.Context) (jwk.Key, error)
+	SaveKey(ctx context.Context, key jwk.Key) error
 }
 
 func GetKeyProvider(db *gorm.DB, envConfig *common.EnvConfigSchema, instanceID string) (keyProvider KeyProvider, err error) {
