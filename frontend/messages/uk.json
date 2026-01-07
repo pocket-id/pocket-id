@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Автентифікатор не підтримує локальні ключі",
 	"passkey_was_previously_registered": "Цей ключ доступу був раніше зареєстрований",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Автентифікатор не підтримує жоден із запитаних алгоритмів",
-	"authenticator_timed_out": "Час очікування автентифікатора вичерпано",
+	"webauthn_error_invalid_rp_id": "Налаштований ідентифікатор сторони, що покладається, є недійсним.",
+	"webauthn_error_invalid_domain": "Налаштований домен є недійсним.",
+	"contact_administrator_to_fix": "Зверніться до адміністратора, щоб вирішити цю проблему.",
+	"webauthn_operation_not_allowed_or_timed_out": "Операція не була дозволена або закінчився час очікування",
+	"webauthn_not_supported_by_browser": "Цей браузер не підтримує паролі. Будь ласка, скористайтеся альтернативним методом входу.",
 	"critical_error_occurred_contact_administrator": "Виникла критична помилка. Будь ласка, зверніться до адміністратора.",
 	"sign_in_to": "Увійти в {name}",
 	"client_not_found": "Клієнта не знайдено",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Зберегти та синхронізувати",
 	"scim_save_changes_description": "Перед початком синхронізації SCIM необхідно зберегти зміни. Чи хочете ви зберегти зараз?",
 	"scopes": "Області застосування",
-	"issuer_url": "URL емітента"
+	"issuer_url": "URL емітента",
+	"smtp_field_required_when_other_provided": "Необхідно, якщо вказано будь-яке налаштування SMTP",
+	"smtp_field_required_when_email_enabled": "Необхідно, якщо увімкнено сповіщення електронною поштою"
 }
