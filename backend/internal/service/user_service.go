@@ -461,7 +461,7 @@ func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, user
 		return &common.OneTimeAccessDisabledError{}
 	}
 
-	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, true)
+	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false)
 	return err
 }
 
