@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Autentiseraren stöder inte lagrade nycklar",
 	"passkey_was_previously_registered": "Denna passkey har redan registrerats",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Autentiseraren stöder inte någon av de begärda algoritmerna",
-	"authenticator_timed_out": "Autentiseraren överskred tidsgränsen",
+	"webauthn_error_invalid_rp_id": "Det konfigurerade ID:t för den förlitande parten är ogiltigt.",
+	"webauthn_error_invalid_domain": "Den konfigurerade domänen är ogiltig.",
+	"contact_administrator_to_fix": "Kontakta din administratör för att åtgärda detta problem.",
+	"webauthn_operation_not_allowed_or_timed_out": "Operationen var inte tillåten eller tidsgränsen överskreds",
+	"webauthn_not_supported_by_browser": "Passkeys stöds inte av denna webbläsare. Använd en alternativ inloggningsmetod.",
 	"critical_error_occurred_contact_administrator": "Ett kritiskt fel har inträffat. Kontakta din administratör.",
 	"sign_in_to": "Logga in på {name}",
 	"client_not_found": "Klienten hittades inte",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Spara och synkronisera",
 	"scim_save_changes_description": "Du måste spara ändringarna innan du startar en SCIM-synkronisering. Vill du spara nu?",
 	"scopes": "Omfattning",
-	"issuer_url": "Utfärdarens URL"
+	"issuer_url": "Utfärdarens URL",
+	"smtp_field_required_when_other_provided": "Krävs när någon SMTP-inställning anges",
+	"smtp_field_required_when_email_enabled": "Krävs när e-postaviseringar är aktiverade"
 }
