@@ -505,5 +505,7 @@
 	"scopes": "範圍",
 	"issuer_url": "發行者網址",
 	"smtp_field_required_when_other_provided": "當提供任何 SMTP 設定時即為必要",
-	"smtp_field_required_when_email_enabled": "當電子郵件通知功能啟用時，此項目為必填項目"
+	"smtp_field_required_when_email_enabled": "當電子郵件通知功能啟用時，此項目為必填項目",
+	"app_config_home_page": "首頁",
+	"app_config_home_page_description": "用戶登入後被重定向至的頁面。"
 }
