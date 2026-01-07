@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "El autenticador no soporta claves residentes",
 	"passkey_was_previously_registered": "Esta Passkey ha sido registrado previamente",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "El autenticador no soporta ninguno de los algoritmos solicitados",
-	"authenticator_timed_out": "Se agotó el tiempo de espera del autenticador",
+	"webauthn_error_invalid_rp_id": "El ID de la parte confiable configurado no es válido.",
+	"webauthn_error_invalid_domain": "El dominio configurado no es válido.",
+	"contact_administrator_to_fix": "Ponte en contacto con tu administrador para solucionar este problema.",
+	"webauthn_operation_not_allowed_or_timed_out": "La operación no fue permitida o se agotó el tiempo de espera.",
+	"webauthn_not_supported_by_browser": "Este navegador no admite claves de acceso. Utiliza otro método para iniciar sesión.",
 	"critical_error_occurred_contact_administrator": "Ha ocurrido un error crítico. Por favor, contacte a su administrador.",
 	"sign_in_to": "Iniciar sesión en {name}",
 	"client_not_found": "Cliente no encontrado",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Guardar y sincronizar",
 	"scim_save_changes_description": "Debes guardar los cambios antes de iniciar una sincronización SCIM. ¿Deseas guardar ahora?",
 	"scopes": "Ámbitos",
-	"issuer_url": "URL del emisor"
+	"issuer_url": "URL del emisor",
+	"smtp_field_required_when_other_provided": "Necesario cuando se proporciona cualquier configuración SMTP.",
+	"smtp_field_required_when_email_enabled": "Requerido cuando las notificaciones por correo electrónico están habilitadas."
 }
