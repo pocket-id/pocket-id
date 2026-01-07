@@ -505,5 +505,7 @@
 	"scopes": "Області застосування",
 	"issuer_url": "URL емітента",
 	"smtp_field_required_when_other_provided": "Необхідно, якщо вказано будь-яке налаштування SMTP",
-	"smtp_field_required_when_email_enabled": "Необхідно, якщо увімкнено сповіщення електронною поштою"
+	"smtp_field_required_when_email_enabled": "Необхідно, якщо увімкнено сповіщення електронною поштою",
+	"app_config_home_page": "Головна сторінка",
+	"app_config_home_page_description": "Сторінка, на яку перенаправляють користувачів після входу в систему."
 }
