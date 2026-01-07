@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Todentaja ei tue laiteavaimia",
 	"passkey_was_previously_registered": "Tämä pääsyavain on aiemmin rekisteröity",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Todentaja ei tue mitään pyydetyistä algoritmeista",
-	"authenticator_timed_out": "Todentaja aikakatkaistiin",
+	"webauthn_error_invalid_rp_id": "Määritetty luottavan osapuolen tunnus on virheellinen.",
+	"webauthn_error_invalid_domain": "Määritetty verkkotunnus ei ole kelvollinen.",
+	"contact_administrator_to_fix": "Ota yhteyttä järjestelmänvalvojaan tämän ongelman korjaamiseksi.",
+	"webauthn_operation_not_allowed_or_timed_out": "Toimintoa ei sallittu tai sen aikakatkaisu umpeutui.",
+	"webauthn_not_supported_by_browser": "Tämä selain ei tue salasanan sijaan käytettäviä tunnuksia. Käytä vaihtoehtoista kirjautumistapaa.",
 	"critical_error_occurred_contact_administrator": "Kriittinen virhe tapahtui. Ota yhteyttä järjestelmänvalvojaan.",
 	"sign_in_to": "Kirjaudu palveluun {name}",
 	"client_not_found": "Asiakasta ei löydy",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Tallenna ja synkronoi",
 	"scim_save_changes_description": "Sinun on tallennettava muutokset ennen SCIM-synkronoinnin aloittamista. Haluatko tallentaa nyt?",
 	"scopes": "Käyttöalueet",
-	"issuer_url": "Julkaisijan URL-osoite"
+	"issuer_url": "Julkaisijan URL-osoite",
+	"smtp_field_required_when_other_provided": "Vaaditaan, kun SMTP-asetukset on määritetty",
+	"smtp_field_required_when_email_enabled": "Vaaditaan, kun sähköpostimuistutukset ovat käytössä"
 }
