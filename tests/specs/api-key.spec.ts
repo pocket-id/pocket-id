@@ -113,6 +113,6 @@ async function selectDate(page: Page, year: number, month: number, day: number) 
 	await page.getByRole('option', { name: monthName }).click();
 
 	await page
-		.getByRole('button', { name: new RegExp(`/([A-Z][a-z]+), ([A-Z][a-z]+) ${day}, (\\d{4})/`) }).first()
+		.getByRole('button', { name: new RegExp(`([A-Z][a-z]+), ([A-Z][a-z]+) ${day}, (\\d{4})`) }).first()
 		.click();
 }

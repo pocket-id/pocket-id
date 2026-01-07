@@ -5,9 +5,12 @@
 	"tables": {
 		"api_keys": [
 			{
+				"created_at": "2025-12-21T19:12:03Z",
 				"description": null,
 				"expiration_email_sent": false,
+				"expires_at": "2025-12-25T12:00:00Z",
 				"key": "141ff8ac9db640ba93630099de83d0ead8e7ac673e3a7d31b4fd7ff2252e6389",
+				"id": "98900330-7a7b-48fe-881b-2cc6ad049976",
 				"last_used_at": null,
 				"name": "Expired API Key",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
