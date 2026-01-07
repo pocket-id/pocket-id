@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Thiết bị xác thực không hỗ trợ khóa lưu trữ",
 	"passkey_was_previously_registered": "Passkey này đã được đăng ký trước đó",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Thiết bị xác thực không hỗ trợ bất kỳ thuật toán nào trong số các thuật toán được yêu cầu",
-	"authenticator_timed_out": "Thời gian chờ của trình xác thực đã hết hạn",
+	"webauthn_error_invalid_rp_id": "ID của bên tin cậy đã cấu hình là không hợp lệ.",
+	"webauthn_error_invalid_domain": "Domain đã cấu hình không hợp lệ.",
+	"contact_administrator_to_fix": "Liên hệ với quản trị viên của bạn để khắc phục sự cố này.",
+	"webauthn_operation_not_allowed_or_timed_out": "Hoạt động này không được phép hoặc đã hết thời gian chờ.",
+	"webauthn_not_supported_by_browser": "Chìa khóa truy cập không được hỗ trợ bởi trình duyệt này. Vui lòng sử dụng phương thức đăng nhập thay thế.",
 	"critical_error_occurred_contact_administrator": "Đã xảy ra lỗi nghiêm trọng. Vui lòng liên hệ với quản trị viên.",
 	"sign_in_to": "Đăng nhập {name}",
 	"client_not_found": "Không tìm thấy client.",
@@ -499,5 +503,7 @@
 	"save_and_sync": "Lưu và Đồng bộ hóa",
 	"scim_save_changes_description": "Bạn phải lưu các thay đổi trước khi bắt đầu đồng bộ hóa SCIM. Bạn có muốn lưu ngay bây giờ không?",
 	"scopes": "Phạm vi",
-	"issuer_url": "Địa chỉ URL của tổ chức phát hành"
+	"issuer_url": "Địa chỉ URL của tổ chức phát hành",
+	"smtp_field_required_when_other_provided": "Yêu cầu khi cung cấp bất kỳ cài đặt SMTP nào.",
+	"smtp_field_required_when_email_enabled": "Yêu cầu khi bật thông báo qua email"
 }
