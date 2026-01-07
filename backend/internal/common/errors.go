@@ -266,12 +266,12 @@ func (e *APIKeyNotFoundError) Error() string {
 }
 func (e *APIKeyNotFoundError) HttpStatusCode() int { return http.StatusUnauthorized }
 
-type ApiKeyNotExpiredError struct{}
+type APIKeyNotExpiredError struct{}
 
-func (e *ApiKeyNotExpiredError) Error() string {
+func (e *APIKeyNotExpiredError) Error() string {
 	return "API Key is not expired yet"
 }
-func (e *ApiKeyNotExpiredError) HttpStatusCode() int { return http.StatusBadRequest }
+func (e *APIKeyNotExpiredError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type APIKeyExpirationDateError struct{}
 

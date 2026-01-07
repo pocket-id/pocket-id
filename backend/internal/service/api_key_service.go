@@ -98,7 +98,7 @@ func (s *ApiKeyService) RenewApiKey(ctx context.Context, userID, apiKeyID string
 
 	// Only allow renewal if the key has already expired
 	if apiKey.ExpiresAt.ToTime().After(time.Now()) {
-		return model.ApiKey{}, "", &common.ApiKeyNotExpiredError{}
+		return model.ApiKey{}, "", &common.APIKeyNotExpiredError{}
 	}
 
 	// Generate a secure random API key
