@@ -505,5 +505,7 @@
 	"scopes": "Portées",
 	"issuer_url": "URL de l'émetteur",
 	"smtp_field_required_when_other_provided": "Nécessaire quand un paramètre SMTP est fourni",
-	"smtp_field_required_when_email_enabled": "C'est nécessaire quand les notifications par e-mail sont activées."
+	"smtp_field_required_when_email_enabled": "C'est nécessaire quand les notifications par e-mail sont activées.",
+	"app_config_home_page": "Page d'accueil",
+	"app_config_home_page_description": "La page où les utilisateurs sont redirigés après s'être connectés."
 }
