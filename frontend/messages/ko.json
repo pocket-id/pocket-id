@@ -506,6 +506,6 @@
 	"issuer_url": "발행자 URL",
 	"smtp_field_required_when_other_provided": "어떤 SMTP 설정이라도 제공될 때 필수",
 	"smtp_field_required_when_email_enabled": "이메일 알림이 활성화된 경우 필수",
-	"app_config_home_page": "Home Page",
-	"app_config_home_page_description": "The page users are redirected to after signing in."
+	"app_config_home_page": "홈페이지",
+	"app_config_home_page_description": "사용자가 로그인 후 이동하는 페이지."
 }
