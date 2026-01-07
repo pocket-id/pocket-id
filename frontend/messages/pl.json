@@ -505,5 +505,7 @@
 	"scopes": "Zakresy",
 	"issuer_url": "Adres URL wystawcy",
 	"smtp_field_required_when_other_provided": "Wymagane, gdy podano dowolne ustawienie SMTP",
-	"smtp_field_required_when_email_enabled": "Wymagane, gdy włączone są powiadomienia e-mailowe"
+	"smtp_field_required_when_email_enabled": "Wymagane, gdy włączone są powiadomienia e-mailowe",
+	"app_config_home_page": "Strona główna",
+	"app_config_home_page_description": "Strona, do której użytkownicy są przekierowywani po zalogowaniu."
 }
