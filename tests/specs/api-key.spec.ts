@@ -19,7 +19,7 @@ test.describe('API Key Management', () => {
 
 		// Choose the date
 		const currentDate = new Date();
-		await selectDate(page, currentDate.getFullYear() + 1, currentDate.getMonth() + 1, 1);
+		await selectDate(page, currentDate.getFullYear() + 1, currentDate.getMonth(), 1);
 
 		// Submit the form
 		await page.getByRole('button', { name: 'Save' }).click();
@@ -113,7 +113,6 @@ async function selectDate(page: Page, year: number, month: number, day: number) 
 	await page.getByRole('option', { name: monthName }).click();
 
 	await page
-		.getByRole('button', { name: /([A-Z][a-z]+), ([A-Z][a-z]+) 1, (\d{4})/ })
-		.nth(day - 1)
+		.getByRole('button', { name: new RegExp(`/([A-Z][a-z]+), ([A-Z][a-z]+) ${day}, (\\d{4})/`) }).first()
 		.click();
 }
