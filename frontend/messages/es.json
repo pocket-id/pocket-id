@@ -505,5 +505,7 @@
 	"scopes": "Ámbitos",
 	"issuer_url": "URL del emisor",
 	"smtp_field_required_when_other_provided": "Necesario cuando se proporciona cualquier configuración SMTP.",
-	"smtp_field_required_when_email_enabled": "Requerido cuando las notificaciones por correo electrónico están habilitadas."
+	"smtp_field_required_when_email_enabled": "Requerido cuando las notificaciones por correo electrónico están habilitadas.",
+	"app_config_home_page": "Página de inicio",
+	"app_config_home_page_description": "La página a la que se redirige a los usuarios después de iniciar sesión."
 }
