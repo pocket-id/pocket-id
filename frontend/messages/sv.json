@@ -505,5 +505,7 @@
 	"scopes": "Omfattning",
 	"issuer_url": "Utfärdarens URL",
 	"smtp_field_required_when_other_provided": "Krävs när någon SMTP-inställning anges",
-	"smtp_field_required_when_email_enabled": "Krävs när e-postaviseringar är aktiverade"
+	"smtp_field_required_when_email_enabled": "Krävs när e-postaviseringar är aktiverade",
+	"app_config_home_page": "Hemsida",
+	"app_config_home_page_description": "Den sida som användarna omdirigeras till efter inloggningen."
 }
