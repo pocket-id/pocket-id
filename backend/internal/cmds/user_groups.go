@@ -299,7 +299,7 @@ func init() {
 	userGroupsUpdateCmd.Flags().String("name", "", "Group name (2-255 chars)")
 	userGroupsUpdateCmd.Flags().String("friendly-name", "", "Friendly name (2-50 chars)")
 
-	userGroupsDeleteCmd.Flags().BoolVarP(&forceDelete, "force", "f", false, "Force deletion without confirmation")
+	userGroupsDeleteCmd.Flags().BoolVar(&forceDelete, "force", false, "Force deletion without confirmation")
 
 	userGroupsUpdateUsersCmd.Flags().StringSlice("user-ids", []string{}, "User IDs to assign to this group (comma-separated)")
 	userGroupsUpdateUsersCmd.MarkFlagRequired("user-ids")

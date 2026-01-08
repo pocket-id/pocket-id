@@ -1,7 +1,9 @@
 package cmds
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -66,12 +68,9 @@ It will create the first user with admin privileges and return an access token.`
 		signUpDto.Email = &email
 
 		// Make request to setup endpoint
-		var response struct {
-			User  dto.UserDto `json:"user"`
-			Token string      `json:"token"`
-		}
+		var userDto dto.UserDto
 
-		if err := client.Post(ctx, "/api/users/signup/setup", signUpDto, &response); err != nil {
+		if err := client.Post(ctx, "/api/signup/setup", signUpDto, &userDto); err != nil {
 			// Check if setup was already completed
 			if strings.Contains(err.Error(), "Setup already completed") {
 				return fmt.Errorf("initial setup already completed - users already exist in the database")
@@ -79,30 +78,35 @@ It will create the first user with admin privileges and return an access token.`
 			return fmt.Errorf("failed to create initial admin: %w", err)
 		}
 
-		// Output result
+		// Output result based on format
+		if globalFlags.format == "json" {
+			encoder := json.NewEncoder(os.Stdout)
+			encoder.SetIndent("", "  ")
+			return encoder.Encode(userDto)
+		}
+
+		// Default text output
 		fmt.Println("✅ Initial admin user created successfully!")
 		fmt.Println()
-		fmt.Printf("User ID:      %s\n", response.User.ID)
-		fmt.Printf("Username:     %s\n", response.User.Username)
-		if response.User.Email != nil {
-			fmt.Printf("Email:        %s\n", *response.User.Email)
+		fmt.Printf("User ID:      %s\n", userDto.ID)
+		fmt.Printf("Username:     %s\n", userDto.Username)
+		if userDto.Email != nil {
+			fmt.Printf("Email:        %s\n", *userDto.Email)
 		}
-		fmt.Printf("First Name:   %s\n", response.User.FirstName)
-		if response.User.LastName != nil {
-			fmt.Printf("Last Name:    %s\n", *response.User.LastName)
+		fmt.Printf("First Name:   %s\n", userDto.FirstName)
+		if userDto.LastName != nil {
+			fmt.Printf("Last Name:    %s\n", *userDto.LastName)
 		}
-		fmt.Printf("Display Name: %s\n", response.User.DisplayName)
-		fmt.Printf("Admin:        %v\n", response.User.IsAdmin)
-		fmt.Println()
-		fmt.Println("🔑 Access Token (save this now):")
-		fmt.Println(response.Token)
+		fmt.Printf("Display Name: %s\n", userDto.DisplayName)
+		fmt.Printf("Admin:        %v\n", userDto.IsAdmin)
 		fmt.Println()
 		fmt.Println("Next steps:")
-		fmt.Println("1. Use this token to authenticate in the web interface")
-		fmt.Println("2. Generate an API key for automation:")
+		fmt.Println("1. Generate an API key for automation:")
 		fmt.Printf("   pocket-id api-key generate \"%s\" --name \"CLI Key\" --show-token\n", username)
-		fmt.Println("3. Set the API key as environment variable:")
+		fmt.Println("2. Set the API key as environment variable:")
 		fmt.Println("   export POCKET_ID_API_KEY=\"your-generated-api-key\"")
+		fmt.Println("3. Use the API key for CLI commands:")
+		fmt.Println("   pocket-id --api-key \"YOUR_API_KEY\" users list")
 
 		return nil
 	},

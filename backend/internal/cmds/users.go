@@ -118,8 +118,13 @@ var usersCreateCmd = &cobra.Command{
 		if firstName == "" {
 			return fmt.Errorf("first name is required")
 		}
+		// Generate display name from first and last name if not provided
 		if displayName == "" {
-			return fmt.Errorf("display name is required")
+			if lastName != "" {
+				displayName = firstName + " " + lastName
+			} else {
+				displayName = firstName
+			}
 		}
 
 		// Prepare request body
@@ -374,13 +379,12 @@ func init() {
 	usersCreateCmd.Flags().String("email", "", "Email address")
 	usersCreateCmd.Flags().String("first-name", "", "First name (required)")
 	usersCreateCmd.Flags().String("last-name", "", "Last name")
-	usersCreateCmd.Flags().String("display-name", "", "Display name (required)")
+	usersCreateCmd.Flags().String("display-name", "", "Display name (generated from first and last name if not provided)")
 	usersCreateCmd.Flags().Bool("admin", false, "Make user an admin")
 	usersCreateCmd.Flags().String("locale", "", "Locale (e.g., en-US)")
 	usersCreateCmd.Flags().Bool("disabled", false, "Disable the user")
 	usersCreateCmd.MarkFlagRequired("username")
 	usersCreateCmd.MarkFlagRequired("first-name")
-	usersCreateCmd.MarkFlagRequired("display-name")
 
 	usersUpdateCmd.Flags().String("username", "", "Username")
 	usersUpdateCmd.Flags().String("email", "", "Email address")
@@ -391,7 +395,7 @@ func init() {
 	usersUpdateCmd.Flags().String("locale", "", "Locale (e.g., en-US)")
 	usersUpdateCmd.Flags().Bool("disabled", false, "Disable the user")
 
-	usersDeleteCmd.Flags().BoolVarP(&forceDelete, "force", "f", false, "Force deletion without confirmation")
+	usersDeleteCmd.Flags().BoolVar(&forceDelete, "force", false, "Force deletion without confirmation")
 
 	usersUpdateMeCmd.Flags().String("email", "", "Email address")
 	usersUpdateMeCmd.Flags().String("first-name", "", "First name")

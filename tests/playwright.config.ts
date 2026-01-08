@@ -21,12 +21,12 @@ export default defineConfig({
 		trace: 'on-first-retry'
 	},
 	projects: [
-		{ name: 'cli', testMatch: /cli\.spec\.ts/ },
+		{ name: 'cli', testMatch: /cli.*\.spec\.ts/ },
 		{ name: 'auth-setup', testMatch: /auth\.setup\.ts/ },
 		{
 			name: 'browser-chrome',
 			use: { ...devices['Desktop Chrome'], storageState: '.tmp/auth/user.json' },
-			testIgnore: /cli\.spec\.ts/,
+			testIgnore: /cli.*\.spec\.ts/,
 			dependencies: ['auth-setup']
 		}
 	],

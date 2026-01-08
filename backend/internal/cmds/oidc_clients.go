@@ -376,7 +376,7 @@ func init() {
 	oidcClientsUpdateCmd.Flags().String("launch-url", "", "Launch URL for the client")
 	oidcClientsUpdateCmd.Flags().Bool("group-restricted", false, "Restrict access to specific user groups")
 
-	oidcClientsDeleteCmd.Flags().BoolVarP(&forceDelete, "force", "f", false, "Force deletion without confirmation")
+	oidcClientsDeleteCmd.Flags().BoolVar(&forceDelete, "force", false, "Force deletion without confirmation")
 
 	oidcClientsUpdateAllowedGroupsCmd.Flags().StringSlice("group-ids", []string{}, "User group IDs allowed to access this client (comma-separated)")
 	oidcClientsUpdateAllowedGroupsCmd.MarkFlagRequired("group-ids")

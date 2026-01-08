@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 
@@ -16,14 +17,14 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// apiKeyCmd represents the api-key command group
+// apiKeyCmd represents the api-key command
 var apiKeyCmd = &cobra.Command{
 	Use:   "api-key",
 	Short: "Manage API keys",
-	Long:  `Create, list, and revoke API keys.`,
+	Long:  `Generate, list, and revoke API keys for accessing the Pocket ID API.`,
 }
 
 func init() {
@@ -37,12 +38,15 @@ func init() {
 	apiKeyCmd.AddCommand(apiKeyGenerateCmd)
 }
 
-// apiKeyGenerateCmd generates an API key directly (database access)
+// apiKeyGenerateCmd generates an API key directly in the database (for setup/backup)
 var apiKeyGenerateCmd = &cobra.Command{
 	Use:   "generate [username or email]",
-	Short: "Generate a new API key for a user",
-	Long:  `Generate a new API key for the specified user with direct database access.`,
-	Args:  cobra.ExactArgs(1),
+	Short: "Generate an API key directly in database",
+	Long: `Generate an API key directly in the database for the given user.
+
+This command bypasses the API and writes directly to the database.
+It's useful for initial setup or recovery scenarios when the API is not accessible.`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Get the username or email of the user
 		userArg := args[0]
@@ -99,52 +103,102 @@ var apiKeyGenerateCmd = &cobra.Command{
 				return errors.New("invalid user loaded: ID is empty")
 			}
 
-			// Create API key service
-			apiKeyService := service.NewApiKeyService(tx, nil) // No email service needed for CLI
+			// Generate a secure random API key token
+			token, txErr = utils.GenerateRandomAlphanumericString(32)
+			if txErr != nil {
+				return fmt.Errorf("failed to generate API key token: %w", txErr)
+			}
 
-			// Create API key DTO
-			expiresAtDateTime := datatype.DateTime(expiresAt)
-			createDto := dto.ApiKeyCreateDto{
+			// Create the API key
+			apiKey = &model.ApiKey{
+				Base: model.Base{
+					ID: uuid.New().String(),
+				},
 				Name:      name,
-				ExpiresAt: expiresAtDateTime,
+				Key:       utils.CreateSha256Hash(token),
+				UserID:    user.ID,
+				ExpiresAt: datatype.DateTime(expiresAt),
 			}
 
 			// Set description if provided
 			if description != "" {
-				createDto.Description = &description
+				apiKey.Description = &description
 			}
 
-			// Create the API key
-			createdApiKey, createdToken, txErr := apiKeyService.CreateApiKey(queryCtx, user.ID, createDto)
+			queryCtx, queryCancel = context.WithTimeout(cmd.Context(), 10*time.Second)
+			defer queryCancel()
+			txErr = tx.
+				WithContext(queryCtx).
+				Create(apiKey).
+				Error
 			if txErr != nil {
-				return fmt.Errorf("failed to generate API key: %w", txErr)
+				return fmt.Errorf("failed to save API key: %w", txErr)
 			}
 
-			apiKey = &createdApiKey
-			token = createdToken
 			return nil
 		})
 		if err != nil {
 			return err
 		}
 
-		// Print the result
-		fmt.Printf("API key created successfully for user: %s\n", userArg)
-		fmt.Printf("Key ID: %s\n", apiKey.ID)
-		fmt.Printf("Name: %s\n", apiKey.Name)
-		if apiKey.Description != nil {
-			fmt.Printf("Description: %s\n", *apiKey.Description)
-		}
-		fmt.Printf("Expires at: %s\n", apiKey.ExpiresAt.ToTime().Format(time.RFC3339))
+		// Output result based on format
+		switch strings.ToLower(globalFlags.format) {
+		case "json":
+			// Create API key DTO for JSON output
+			apiKeyDto := dto.ApiKeyDto{
+				ID:                  apiKey.ID,
+				Name:                apiKey.Name,
+				Description:         apiKey.Description,
+				ExpiresAt:           apiKey.ExpiresAt,
+				LastUsedAt:          apiKey.LastUsedAt,
+				CreatedAt:           datatype.DateTime(apiKey.CreatedAt),
+				ExpirationEmailSent: apiKey.ExpirationEmailSent,
+			}
 
-		if showToken {
-			fmt.Printf("\nAPI Token (save this now, it won't be shown again):\n%s\n", token)
-			fmt.Println("\nWarning: This token will not be displayed again. Save it securely.")
-		} else {
-			fmt.Println("\nNote: Use --show-token flag to display the API token.")
-		}
+			encoder := json.NewEncoder(os.Stdout)
+			encoder.SetIndent("", "  ")
+			return encoder.Encode(map[string]interface{}{
+				"apiKey": apiKeyDto,
+				"token":  token,
+			})
+		case "yaml":
+			// Create API key DTO for YAML output
+			apiKeyDto := dto.ApiKeyDto{
+				ID:                  apiKey.ID,
+				Name:                apiKey.Name,
+				Description:         apiKey.Description,
+				ExpiresAt:           apiKey.ExpiresAt,
+				LastUsedAt:          apiKey.LastUsedAt,
+				CreatedAt:           datatype.DateTime(apiKey.CreatedAt),
+				ExpirationEmailSent: apiKey.ExpirationEmailSent,
+			}
 
-		return nil
+			// For now, fall back to JSON if YAML is not available
+			yamlData, err := json.Marshal(map[string]interface{}{
+				"apiKey": apiKeyDto,
+				"token":  token,
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(yamlData))
+			return nil
+		default: // table or default
+			fmt.Printf("API key generated successfully:\n")
+			fmt.Printf("Key ID: %s\n", apiKey.ID)
+			fmt.Printf("Name: %s\n", apiKey.Name)
+			if apiKey.Description != nil {
+				fmt.Printf("Description: %s\n", *apiKey.Description)
+			}
+			fmt.Printf("Expires at: %s\n", apiKey.ExpiresAt.ToTime().Format(time.RFC3339))
+			if showToken {
+				fmt.Printf("\nAPI Token:\n%s\n", token)
+				fmt.Println("\nWarning: Save this token securely.")
+			} else {
+				fmt.Println("\nAPI token generated but not shown (use --show-token to display)")
+			}
+			return nil
+		}
 	},
 }
 
@@ -206,26 +260,46 @@ var apiKeyCreateCmd = &cobra.Command{
 			return fmt.Errorf("failed to create API key: %w", err)
 		}
 
-		// Output result
-		fmt.Printf("API key created successfully:\n")
-		fmt.Printf("Key ID: %s\n", response.ApiKey.ID)
-		fmt.Printf("Name: %s\n", response.ApiKey.Name)
-		if response.ApiKey.Description != nil {
-			fmt.Printf("Description: %s\n", *response.ApiKey.Description)
+		// Output result based on format
+		switch strings.ToLower(globalFlags.format) {
+		case "json":
+			encoder := json.NewEncoder(os.Stdout)
+			encoder.SetIndent("", "  ")
+			return encoder.Encode(map[string]interface{}{
+				"apiKey": response.ApiKey,
+				"token":  response.Token,
+			})
+		case "yaml":
+			// For now, fall back to JSON if YAML is not available
+			yamlData, err := json.Marshal(map[string]interface{}{
+				"apiKey": response.ApiKey,
+				"token":  response.Token,
+			})
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(yamlData))
+			return nil
+		default: // table or default
+			fmt.Printf("API key created successfully:\n")
+			fmt.Printf("Key ID: %s\n", response.ApiKey.ID)
+			fmt.Printf("Name: %s\n", response.ApiKey.Name)
+			if response.ApiKey.Description != nil {
+				fmt.Printf("Description: %s\n", *response.ApiKey.Description)
+			}
+			fmt.Printf("Expires at: %s\n", response.ApiKey.ExpiresAt.ToTime().Format(time.RFC3339))
+			fmt.Printf("\nAPI Token (save this now, it won't be shown again):\n%s\n", response.Token)
+			fmt.Println("\nWarning: This token will not be displayed again. Save it securely.")
+			return nil
 		}
-		fmt.Printf("Expires at: %s\n", response.ApiKey.ExpiresAt.ToTime().Format(time.RFC3339))
-		fmt.Printf("\nAPI Token (save this now, it won't be shown again):\n%s\n", response.Token)
-		fmt.Println("\nWarning: This token will not be displayed again. Save it securely.")
-
-		return nil
 	},
 }
 
 // apiKeyListCmd lists API keys via API
 var apiKeyListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List API keys via API",
-	Long:  `List API keys for the authenticated user via the Pocket ID API.`,
+	Short: "List API keys",
+	Long:  `List API keys for the authenticated user.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
@@ -252,30 +326,19 @@ var apiKeyListCmd = &cobra.Command{
 		}
 
 		// Output result
-		return outputApiKeys(response, globalFlags.format)
+		return outputResult(response, globalFlags.format)
 	},
 }
 
 // apiKeyRevokeCmd revokes an API key via API
 var apiKeyRevokeCmd = &cobra.Command{
-	Use:   "revoke [key-id]",
-	Short: "Revoke an API key via API",
-	Long:  `Revoke (delete) an API key by ID via the Pocket ID API.`,
+	Use:   "revoke [api-key-id]",
+	Short: "Revoke an API key",
+	Long:  `Revoke (delete) an API key by ID.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
-		keyID := args[0]
-
-		// Confirm revocation
-		if !forceDelete {
-			fmt.Printf("Are you sure you want to revoke API key %s? (y/N): ", keyID)
-			var response string
-			fmt.Scanln(&response)
-			if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
-				fmt.Println("Revocation cancelled")
-				return nil
-			}
-		}
+		apiKeyID := args[0]
 
 		// Create API client
 		client := NewAPIClient(globalFlags.endpoint, globalFlags.apiKey)
@@ -284,11 +347,11 @@ var apiKeyRevokeCmd = &cobra.Command{
 		}
 
 		// Make request
-		if err := client.Delete(ctx, "/api/api-keys/"+keyID); err != nil {
+		if err := client.Delete(ctx, "/api/api-keys/"+apiKeyID); err != nil {
 			return fmt.Errorf("failed to revoke API key: %w", err)
 		}
 
-		fmt.Printf("API key %s revoked successfully\n", keyID)
+		fmt.Printf("API key %s revoked successfully\n", apiKeyID)
 		return nil
 	},
 }
@@ -310,52 +373,4 @@ func init() {
 	// Add flags to apiKeyListCmd
 	apiKeyListCmd.Flags().Int("page", 1, "Page number")
 	apiKeyListCmd.Flags().Int("limit", 20, "Items per page")
-
-	// Add flags to apiKeyRevokeCmd
-	apiKeyRevokeCmd.Flags().BoolVarP(&forceDelete, "force", "f", false, "Force revocation without confirmation")
-}
-
-// outputApiKeys outputs API keys in the specified format
-func outputApiKeys(data PaginatedResponse[dto.ApiKeyDto], format string) error {
-	switch strings.ToLower(format) {
-	case "json":
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(data)
-	case "yaml":
-		// For now, fall back to JSON if YAML is not available
-		yamlData, err := json.Marshal(data)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(yamlData))
-		return nil
-	case "table":
-		fmt.Printf("%-36s %-20s %-30s %-25s %-25s\n", "ID", "Name", "Description", "Expires At", "Last Used")
-		fmt.Println(strings.Repeat("-", 140))
-		for _, key := range data.Data {
-			desc := ""
-			if key.Description != nil {
-				desc = *key.Description
-			}
-			expiresAt := key.ExpiresAt.ToTime().Format("2006-01-02 15:04:05")
-			lastUsed := ""
-			if key.LastUsedAt != nil {
-				lastUsed = key.LastUsedAt.ToTime().Format("2006-01-02 15:04:05")
-			}
-			fmt.Printf("%-36s %-20s %-30s %-25s %-25s\n",
-				key.ID,
-				truncate(key.Name, 18),
-				truncate(desc, 28),
-				expiresAt,
-				lastUsed)
-		}
-		fmt.Printf("\nPage %d of %d (Total: %d items)\n",
-			data.Pagination.Page,
-			data.Pagination.TotalPages,
-			data.Pagination.TotalItems)
-		return nil
-	default:
-		return fmt.Errorf("unsupported format: %s", format)
-	}
 }
