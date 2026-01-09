@@ -506,6 +506,10 @@
 	"issuer_url": "URL van de uitgever",
 	"smtp_field_required_when_other_provided": "Moet je invullen als er SMTP-instellingen zijn",
 	"smtp_field_required_when_email_enabled": "Moet je invullen als je e-mailmeldingen hebt ingeschakeld.",
+	"renew": "Vernieuwen",
+	"renew_api_key": "API-sleutel vernieuwen",
+	"renew_api_key_description": "Als je de API-sleutel vernieuwt, krijg je een nieuwe sleutel. Zorg ervoor dat je alle integraties die deze sleutel gebruiken, bijwerkt.",
+	"api_key_renewed": "API-sleutel vernieuwd",
 	"app_config_home_page": "Startpagina",
 	"app_config_home_page_description": "De pagina waar gebruikers naartoe gaan nadat ze zijn ingelogd."
 }
