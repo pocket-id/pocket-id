@@ -506,6 +506,10 @@
 	"issuer_url": "Udsteders URL",
 	"smtp_field_required_when_other_provided": "Påkrævet, når der angives en SMTP-indstilling",
 	"smtp_field_required_when_email_enabled": "Påkrævet, når e-mail-underretninger er aktiveret",
+	"renew": "Forny",
+	"renew_api_key": "Forny API-nøgle",
+	"renew_api_key_description": "Ved at forny API-nøglen genereres en ny nøgle. Sørg for at opdatere alle integrationer, der bruger denne nøgle.",
+	"api_key_renewed": "API-nøgle fornyet",
 	"app_config_home_page": "Hjemmeside",
 	"app_config_home_page_description": "Den side, som brugerne omdirigeres til efter at have logget ind."
 }
