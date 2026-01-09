@@ -506,6 +506,10 @@
 	"issuer_url": "URL эмитента",
 	"smtp_field_required_when_other_provided": "Нужно, если есть какие-то настройки SMTP",
 	"smtp_field_required_when_email_enabled": "Нужно, если включены уведомления по электронной почте",
+	"renew": "Renew",
+	"renew_api_key": "Renew API Key",
+	"renew_api_key_description": "Renewing the API key will generate a new key. Make sure to update any integrations using this key.",
+	"api_key_renewed": "API key renewed",
 	"app_config_home_page": "Главная страница",
 	"app_config_home_page_description": "Страница, куда пользователи попадают после входа в систему."
 }
