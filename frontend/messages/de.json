@@ -506,6 +506,10 @@
 	"issuer_url": "Aussteller-URL",
 	"smtp_field_required_when_other_provided": "Muss angegeben werden, wenn SMTP-Einstellungen gemacht werden",
 	"smtp_field_required_when_email_enabled": "Muss aktiviert sein, wenn du E-Mail-Benachrichtigungen nutzen willst.",
+	"renew": "Erneuern",
+	"renew_api_key": "API-Schlüssel erneuern",
+	"renew_api_key_description": "Wenn du den API-Schlüssel erneuerst, wird ein neuer Schlüssel erstellt. Denk dran, alle Integrationen, die diesen Schlüssel nutzen, zu aktualisieren.",
+	"api_key_renewed": "API-Schlüssel erneuert",
 	"app_config_home_page": "Startseite",
 	"app_config_home_page_description": "Die Seite, auf die Nutzer nach der Anmeldung weitergeleitet werden."
 }
