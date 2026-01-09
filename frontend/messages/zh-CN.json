@@ -506,6 +506,10 @@
 	"issuer_url": "发行者网址",
 	"smtp_field_required_when_other_provided": "当提供任何SMTP设置时需要",
 	"smtp_field_required_when_email_enabled": "启用电子邮件通知时需要",
+	"renew": "更新",
+	"renew_api_key": "更新 API 密钥",
+	"renew_api_key_description": "更新API密钥将生成新密钥。请确保更新所有使用此密钥的集成。",
+	"api_key_renewed": "API密钥已更新",
 	"app_config_home_page": "主页",
 	"app_config_home_page_description": "用户登录后被重定向到的页面。"
 }
