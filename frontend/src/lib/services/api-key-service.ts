@@ -13,6 +13,13 @@ export default class ApiKeyService extends APIService {
 		return res.data as ApiKeyResponse;
 	};
 
+	renew = async (id: string, expiresAt: Date): Promise<ApiKeyResponse> => {
+		const res = await this.api.post(`/api-keys/${id}/renew`, {
+			expiresAt
+		});
+		return res.data as ApiKeyResponse;
+	};
+
 	revoke = async (id: string): Promise<void> => {
 		await this.api.delete(`/api-keys/${id}`);
 	};

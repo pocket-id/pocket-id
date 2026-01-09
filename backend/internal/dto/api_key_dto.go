@@ -10,6 +10,10 @@ type ApiKeyCreateDto struct {
 	ExpiresAt   datatype.DateTime `json:"expiresAt" binding:"required"`
 }
 
+type ApiKeyRenewDto struct {
+	ExpiresAt datatype.DateTime `json:"expiresAt" binding:"required"`
+}
+
 type ApiKeyDto struct {
 	ID                  string             `json:"id"`
 	Name                string             `json:"name"`

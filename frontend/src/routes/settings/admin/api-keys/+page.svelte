@@ -76,4 +76,4 @@
 	</Card.Content>
 </Card.Root>
 
-<ApiKeyDialog bind:apiKeyResponse />
+<ApiKeyDialog title={m.api_key_created()} bind:apiKeyResponse />

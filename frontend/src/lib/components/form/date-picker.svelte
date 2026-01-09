@@ -32,19 +32,6 @@
 	}
 
 	$effect(() => {
-		if (calendarDisplayDate) {
-			const newExternalDate = calendarDisplayDate.toDate(getLocalTimeZone());
-			if (!value || value.getTime() !== newExternalDate.getTime()) {
-				value = newExternalDate;
-			}
-		} else {
-			if (value !== undefined) {
-				value = undefined;
-			}
-		}
-	});
-
-	$effect(() => {
 		if (value) {
 			const newInternalCalendarDate = dateToCalendarDate(value);
 			if (!calendarDisplayDate || calendarDisplayDate.compare(newInternalCalendarDate) !== 0) {
@@ -59,6 +46,17 @@
 
 	function handleCalendarInteraction(newDateValue?: DateValue) {
 		open = false;
+		calendarDisplayDate = newDateValue as CalendarDate | undefined;
+		if (calendarDisplayDate) {
+			const newExternalDate = calendarDisplayDate.toDate(getLocalTimeZone());
+			if (!value || value.getTime() !== newExternalDate.getTime()) {
+				value = newExternalDate;
+			}
+		} else {
+			if (value !== undefined) {
+				value = undefined;
+			}
+		}
 	}
 
 	const df = new DateFormatter(getLocale(), {
@@ -89,8 +87,7 @@
 		<Popover.Content class="w-auto p-0" align="start">
 			<Calendar
 				type="single"
-				bind:value={calendarDisplayDate}
-				onValueChange={handleCalendarInteraction}
+				bind:value={() => calendarDisplayDate, (newValue) => handleCalendarInteraction(newValue)}
 				initialFocus
 			/>
 		</Popover.Content>

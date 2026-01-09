@@ -30,6 +30,7 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 	{
 		apiKeyGroup.GET("", uc.listApiKeysHandler)
 		apiKeyGroup.POST("", uc.createApiKeyHandler)
+		apiKeyGroup.POST("/:id/renew", uc.renewApiKeyHandler)
 		apiKeyGroup.DELETE("/:id", uc.revokeApiKeyHandler)
 	}
 }
@@ -96,6 +97,41 @@ func (c *ApiKeyController) createApiKeyHandler(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, dto.ApiKeyResponseDto{
+		ApiKey: apiKeyDto,
+		Token:  token,
+	})
+}
+
+// renewApiKeyHandler godoc
+// @Summary Renew API key
+// @Description Renew an existing API key by ID
+// @Tags API Keys
+// @Param id path string true "API Key ID"
+// @Success 200 {object} dto.ApiKeyResponseDto "Renewed API key with new token"
+// @Router /api/api-keys/{id}/renew [post]
+func (c *ApiKeyController) renewApiKeyHandler(ctx *gin.Context) {
+	userID := ctx.GetString("userID")
+	apiKeyID := ctx.Param("id")
+
+	var input dto.ApiKeyRenewDto
+	if err := dto.ShouldBindWithNormalizedJSON(ctx, &input); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	apiKey, token, err := c.apiKeyService.RenewApiKey(ctx.Request.Context(), userID, apiKeyID, input.ExpiresAt.ToTime())
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	var apiKeyDto dto.ApiKeyDto
+	if err := dto.MapStruct(apiKey, &apiKeyDto); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, dto.ApiKeyResponseDto{
 		ApiKey: apiKeyDto,
 		Token:  token,
 	})

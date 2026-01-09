@@ -6,8 +6,10 @@
 	import type { ApiKeyResponse } from '$lib/types/api-key.type';
 
 	let {
+		title,
 		apiKeyResponse = $bindable()
 	}: {
+		title: string;
 		apiKeyResponse: ApiKeyResponse | null;
 	} = $props();
 
@@ -21,7 +23,7 @@
 <Dialog.Root open={!!apiKeyResponse} {onOpenChange}>
 	<Dialog.Content class="max-w-md" onOpenAutoFocus={(e) => e.preventDefault()}>
 		<Dialog.Header>
-			<Dialog.Title>{m.api_key_created()}</Dialog.Title>
+			<Dialog.Title>{title}</Dialog.Title>
 			<Dialog.Description>
 				{m.for_security_reasons_this_key_will_only_be_shown_once()}
 			</Dialog.Description>
