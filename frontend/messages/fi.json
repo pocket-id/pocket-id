@@ -506,6 +506,10 @@
 	"issuer_url": "Julkaisijan URL-osoite",
 	"smtp_field_required_when_other_provided": "Vaaditaan, kun SMTP-asetukset on määritetty",
 	"smtp_field_required_when_email_enabled": "Vaaditaan, kun sähköpostimuistutukset ovat käytössä",
+	"renew": "Uudista",
+	"renew_api_key": "Uudista API-avain",
+	"renew_api_key_description": "API-avaimen uusiminen luo uuden avaimen. Muista päivittää kaikki integraatiot, joissa tätä avainta käytetään.",
+	"api_key_renewed": "API-avain uusittu",
 	"app_config_home_page": "Kotisivu",
 	"app_config_home_page_description": "Sivu, jolle käyttäjät ohjataan kirjautumisen jälkeen."
 }
