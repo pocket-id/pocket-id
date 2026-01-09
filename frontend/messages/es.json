@@ -506,6 +506,10 @@
 	"issuer_url": "URL del emisor",
 	"smtp_field_required_when_other_provided": "Necesario cuando se proporciona cualquier configuración SMTP.",
 	"smtp_field_required_when_email_enabled": "Requerido cuando las notificaciones por correo electrónico están habilitadas.",
+	"renew": "Renovar",
+	"renew_api_key": "Renovar clave API",
+	"renew_api_key_description": "Al renovar la clave API se generará una nueva clave. Asegúrate de actualizar cualquier integración que utilice esta clave.",
+	"api_key_renewed": "Clave API renovada",
 	"app_config_home_page": "Página de inicio",
 	"app_config_home_page_description": "La página a la que se redirige a los usuarios después de iniciar sesión."
 }
