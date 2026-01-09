@@ -506,6 +506,10 @@
 	"issuer_url": "URL dell'emittente",
 	"smtp_field_required_when_other_provided": "Richiesto quando c'è un'impostazione SMTP",
 	"smtp_field_required_when_email_enabled": "Richiesto quando le notifiche via e-mail sono attivate",
+	"renew": "Rinnovare",
+	"renew_api_key": "Rinnova chiave API",
+	"renew_api_key_description": "Rinnovando la chiave API ne verrà generata una nuova. Assicurati di aggiornare tutte le integrazioni che usano questa chiave.",
+	"api_key_renewed": "Chiave API rinnovata",
 	"app_config_home_page": "Pagina iniziale",
 	"app_config_home_page_description": "La pagina a cui gli utenti vengono reindirizzati dopo aver effettuato l'accesso."
 }
