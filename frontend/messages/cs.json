@@ -506,6 +506,10 @@
 	"issuer_url": "URL vydavatele",
 	"smtp_field_required_when_other_provided": "Vyžadováno, pokud je zadáno jakékoli nastavení SMTP",
 	"smtp_field_required_when_email_enabled": "Vyžadováno, pokud jsou povolena e-mailová oznámení",
+	"renew": "Obnovit",
+	"renew_api_key": "Obnovit klíč API",
+	"renew_api_key_description": "Obnovením klíče API se vygeneruje nový klíč. Nezapomeňte aktualizovat všechny integrace, které tento klíč používají.",
+	"api_key_renewed": "API klíč obnoven",
 	"app_config_home_page": "Domovská stránka",
 	"app_config_home_page_description": "Stránka, na kterou jsou uživatelé přesměrováni po přihlášení."
 }
