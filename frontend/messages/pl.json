@@ -506,6 +506,10 @@
 	"issuer_url": "Adres URL wystawcy",
 	"smtp_field_required_when_other_provided": "Wymagane, gdy podano dowolne ustawienie SMTP",
 	"smtp_field_required_when_email_enabled": "Wymagane, gdy włączone są powiadomienia e-mailowe",
+	"renew": "Odnowić",
+	"renew_api_key": "Odnów klucz API",
+	"renew_api_key_description": "Odnowienie klucza API spowoduje wygenerowanie nowego klucza. Pamiętaj o aktualizacji wszystkich integracji korzystających z tego klucza.",
+	"api_key_renewed": "Klucz API odnowiony",
 	"app_config_home_page": "Strona główna",
 	"app_config_home_page_description": "Strona, do której użytkownicy są przekierowywani po zalogowaniu."
 }
