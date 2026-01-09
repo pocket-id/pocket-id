@@ -506,6 +506,10 @@
 	"issuer_url": "İhraççı URL",
 	"smtp_field_required_when_other_provided": "Herhangi bir SMTP ayarı sağlandığında gereklidir",
 	"smtp_field_required_when_email_enabled": "E-posta bildirimleri etkinleştirildiğinde gereklidir",
+	"renew": "Yenile",
+	"renew_api_key": "API Anahtarını Yenile",
+	"renew_api_key_description": "API anahtarını yenilemek yeni bir anahtar oluşturacaktır. Bu anahtarı kullanarak tüm entegrasyonları güncellediğinizden emin olun.",
+	"api_key_renewed": "API anahtarı yenilendi",
 	"app_config_home_page": "Ana Sayfa",
 	"app_config_home_page_description": "Kullanıcıların oturum açtıktan sonra yönlendirildikleri sayfa."
 }
