@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "인증기가 레지던트 키를 지원하지 않습니다",
 	"passkey_was_previously_registered": "이 패스키는 이미 등록되었습니다",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "인증기가 요청된 알고리즘 중 어느 것도 지원하지 않습니다",
-	"authenticator_timed_out": "인증기가 시간 초과되었습니다",
+	"webauthn_error_invalid_rp_id": "구성된 신뢰 당사자 ID가 유효하지 않습니다.",
+	"webauthn_error_invalid_domain": "구성된 도메인이 유효하지 않습니다.",
+	"contact_administrator_to_fix": "이 문제를 해결하려면 관리자에게 문의하십시오.",
+	"webauthn_operation_not_allowed_or_timed_out": "작업이 허용되지 않았거나 시간 초과되었습니다.",
+	"webauthn_not_supported_by_browser": "이 브라우저에서는 패스키를 지원하지 않습니다. 다른 로그인 방법을 사용해 주세요.",
 	"critical_error_occurred_contact_administrator": "치명적인 오류가 발생했습니다. 관리자에게 연락해주세요.",
 	"sign_in_to": "{name}에 로그인",
 	"client_not_found": "클라이언트를 찾을 수 없습니다",
@@ -499,5 +503,13 @@
 	"save_and_sync": "저장 및 동기화",
 	"scim_save_changes_description": "SCIM 동기화를 시작하기 전에 변경 사항을 저장해야 합니다. 지금 저장하시겠습니까?",
 	"scopes": "범위",
-	"issuer_url": "발행자 URL"
+	"issuer_url": "발행자 URL",
+	"smtp_field_required_when_other_provided": "어떤 SMTP 설정이라도 제공될 때 필수",
+	"smtp_field_required_when_email_enabled": "이메일 알림이 활성화된 경우 필수",
+	"renew": "갱신하다",
+	"renew_api_key": "API 키 갱신",
+	"renew_api_key_description": "API 키를 갱신하면 새 키가 생성됩니다. 이 키를 사용하는 모든 통합 기능을 반드시 업데이트하십시오.",
+	"api_key_renewed": "API 키 갱신됨",
+	"app_config_home_page": "홈페이지",
+	"app_config_home_page_description": "사용자가 로그인 후 이동하는 페이지."
 }

@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "De authenticator ondersteunt geen vaste sleutels",
 	"passkey_was_previously_registered": "Deze passkey is eerder geregistreerd",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "De authenticator ondersteunt geen van de gevraagde algoritmen",
-	"authenticator_timed_out": "De authenticator is verlopen",
+	"webauthn_error_invalid_rp_id": "De ID van de vertrouwende partij die je hebt ingesteld, klopt niet.",
+	"webauthn_error_invalid_domain": "Het domein dat je hebt ingesteld, klopt niet.",
+	"contact_administrator_to_fix": "Neem contact op met je beheerder om dit probleem op te lossen.",
+	"webauthn_operation_not_allowed_or_timed_out": "De bewerking is niet toegestaan of de tijd is verstreken.",
+	"webauthn_not_supported_by_browser": "Passkeys worden niet ondersteund door deze browser. Probeer een andere manier om in te loggen.",
 	"critical_error_occurred_contact_administrator": "Er is een kritieke fout opgetreden. Neem contact op met de beheerder.",
 	"sign_in_to": "Meld je aan bij {name}",
 	"client_not_found": "Client niet gevonden",
@@ -499,5 +503,13 @@
 	"save_and_sync": "Opslaan en synchroniseren",
 	"scim_save_changes_description": "Je moet de wijzigingen opslaan voordat je een SCIM-synchronisatie start. Wil je nu opslaan?",
 	"scopes": "Scopes",
-	"issuer_url": "URL van de uitgever"
+	"issuer_url": "URL van de uitgever",
+	"smtp_field_required_when_other_provided": "Moet je invullen als er SMTP-instellingen zijn",
+	"smtp_field_required_when_email_enabled": "Moet je invullen als je e-mailmeldingen hebt ingeschakeld.",
+	"renew": "Vernieuwen",
+	"renew_api_key": "API-sleutel vernieuwen",
+	"renew_api_key_description": "Als je de API-sleutel vernieuwt, krijg je een nieuwe sleutel. Zorg ervoor dat je alle integraties die deze sleutel gebruiken, bijwerkt.",
+	"api_key_renewed": "API-sleutel vernieuwd",
+	"app_config_home_page": "Startpagina",
+	"app_config_home_page_description": "De pagina waar gebruikers naartoe gaan nadat ze zijn ingelogd."
 }

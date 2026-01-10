@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "L'autenticatore non supporta le chiavi residenti",
 	"passkey_was_previously_registered": "Questa passkey è stata registrata in precedenza",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "L'autenticatore non supporta nessuno degli algoritmi richiesti",
-	"authenticator_timed_out": "L'autenticatore ha superato il tempo limite",
+	"webauthn_error_invalid_rp_id": "L'ID della parte affidabile che hai impostato non va bene.",
+	"webauthn_error_invalid_domain": "Il dominio che hai impostato non va bene.",
+	"contact_administrator_to_fix": "Chiedi al tuo amministratore di risolvere questo problema.",
+	"webauthn_operation_not_allowed_or_timed_out": "L'operazione non è stata autorizzata o è scaduta.",
+	"webauthn_not_supported_by_browser": "Questo browser non supporta le passkey. Prova a usare un altro modo per accedere.",
 	"critical_error_occurred_contact_administrator": "Si è verificato un errore critico. Contatta il tuo amministratore.",
 	"sign_in_to": "Accedi a {name}",
 	"client_not_found": "Client non trovato",
@@ -499,5 +503,13 @@
 	"save_and_sync": "Salva e sincronizza",
 	"scim_save_changes_description": "Devi salvare le modifiche prima di iniziare una sincronizzazione SCIM. Vuoi salvare adesso?",
 	"scopes": "Scopi",
-	"issuer_url": "URL dell'emittente"
+	"issuer_url": "URL dell'emittente",
+	"smtp_field_required_when_other_provided": "Richiesto quando c'è un'impostazione SMTP",
+	"smtp_field_required_when_email_enabled": "Richiesto quando le notifiche via e-mail sono attivate",
+	"renew": "Rinnovare",
+	"renew_api_key": "Rinnova chiave API",
+	"renew_api_key_description": "Rinnovando la chiave API ne verrà generata una nuova. Assicurati di aggiornare tutte le integrazioni che usano questa chiave.",
+	"api_key_renewed": "Chiave API rinnovata",
+	"app_config_home_page": "Pagina iniziale",
+	"app_config_home_page_description": "La pagina a cui gli utenti vengono reindirizzati dopo aver effettuato l'accesso."
 }

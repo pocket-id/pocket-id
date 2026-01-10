@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Godkenderen understøtter ikke gemte nøgler",
 	"passkey_was_previously_registered": "Denne adgangsnøgle er allerede registreret",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Godkenderen understøtter ikke nogen af de algoritmer, der anmodes om",
-	"authenticator_timed_out": "Godkenderen overskred tidsgrænsen",
+	"webauthn_error_invalid_rp_id": "Den konfigurerede afhængige parts ID er ugyldig.",
+	"webauthn_error_invalid_domain": "Det konfigurerede domæne er ugyldigt.",
+	"contact_administrator_to_fix": "Kontakt din administrator for at løse dette problem.",
+	"webauthn_operation_not_allowed_or_timed_out": "Operationen var ikke tilladt eller timet ud",
+	"webauthn_not_supported_by_browser": "Passkeys understøttes ikke af denne browser. Brug en alternativ login-metode.",
 	"critical_error_occurred_contact_administrator": "En kritisk fejl opstod. Kontakt venligst din administrator.",
 	"sign_in_to": "Log ind på {name}",
 	"client_not_found": "Klient ikke fundet",
@@ -499,5 +503,13 @@
 	"save_and_sync": "Gem og synkroniser",
 	"scim_save_changes_description": "Du skal gemme ændringerne, før du starter en SCIM-synkronisering. Vil du gemme nu?",
 	"scopes": "Omfang",
-	"issuer_url": "Udsteders URL"
+	"issuer_url": "Udsteders URL",
+	"smtp_field_required_when_other_provided": "Påkrævet, når der angives en SMTP-indstilling",
+	"smtp_field_required_when_email_enabled": "Påkrævet, når e-mail-underretninger er aktiveret",
+	"renew": "Forny",
+	"renew_api_key": "Forny API-nøgle",
+	"renew_api_key_description": "Ved at forny API-nøglen genereres en ny nøgle. Sørg for at opdatere alle integrationer, der bruger denne nøgle.",
+	"api_key_renewed": "API-nøgle fornyet",
+	"app_config_home_page": "Hjemmeside",
+	"app_config_home_page_description": "Den side, som brugerne omdirigeres til efter at have logget ind."
 }
