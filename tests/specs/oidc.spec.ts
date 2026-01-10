@@ -113,7 +113,7 @@ test('End session without id token hint shows confirmation page', async ({ page 
 	await expect(page).toHaveURL('/logout');
 	await page.getByRole('button', { name: 'Sign out' }).click();
 
-	await expect(page).toHaveURL('/login');
+	await expect(page).toHaveURL('/login?redirect=%2F"');
 });
 
 test('End session with id token hint redirects to callback URL', async ({ page }) => {
