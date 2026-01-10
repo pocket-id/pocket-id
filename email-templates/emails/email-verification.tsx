@@ -25,7 +25,8 @@ export const EmailVerification = ({
 
     <Text>
       Hello {data.userFullName}, <br />
-      Click the button below to verify your email address for {appName}.
+      Click the button below to verify your email address for {appName}. This
+      link will expire in 24 hours.
       <br />
     </Text>
 
