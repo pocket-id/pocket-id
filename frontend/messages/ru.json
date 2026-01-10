@@ -46,7 +46,11 @@
 	"authenticator_does_not_support_resident_keys": "Аутентификатор не поддерживает резидентные ключи",
 	"passkey_was_previously_registered": "Этот пасскей был ранее зарегистрирован",
 	"authenticator_does_not_support_any_of_the_requested_algorithms": "Аутентификатор не поддерживает ни один из запрошенных алгоритмов",
-	"authenticator_timed_out": "Время ожидания аутентификатора истекло",
+	"webauthn_error_invalid_rp_id": "Идентификатор настроенной полагающейся стороны неверный.",
+	"webauthn_error_invalid_domain": "Настроенный домен не работает.",
+	"contact_administrator_to_fix": "Обратись к своему администратору, чтобы решить эту проблему.",
+	"webauthn_operation_not_allowed_or_timed_out": "Операция не разрешена или истекло время ожидания",
+	"webauthn_not_supported_by_browser": "Этот браузер не поддерживает пароли. Попробуй войти другим способом.",
 	"critical_error_occurred_contact_administrator": "Произошла критическая ошибка. Обратитесь к администратору.",
 	"sign_in_to": "Войти в {name}",
 	"client_not_found": "Клиент не найден",
@@ -499,5 +503,13 @@
 	"save_and_sync": "Сохранить и синхронизировать",
 	"scim_save_changes_description": "Перед тем, как начать синхронизацию SCIM, нужно сохранить изменения. Хочешь сохранить сейчас?",
 	"scopes": "Области применения",
-	"issuer_url": "URL эмитента"
+	"issuer_url": "URL эмитента",
+	"smtp_field_required_when_other_provided": "Нужно, если есть какие-то настройки SMTP",
+	"smtp_field_required_when_email_enabled": "Нужно, если включены уведомления по электронной почте",
+	"renew": "Обновлять",
+	"renew_api_key": "Обнови ключ API",
+	"renew_api_key_description": "При обновлении ключа API будет сгенерирован новый ключ. Не забудь обновить все интеграции, которые используют этот ключ.",
+	"api_key_renewed": "Ключ API обновлен",
+	"app_config_home_page": "Главная страница",
+	"app_config_home_page_description": "Страница, куда пользователи попадают после входа в систему."
 }
