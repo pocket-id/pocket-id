@@ -2,7 +2,7 @@ import userStore from '$lib/stores/user-store';
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type { SignupToken } from '$lib/types/signup-token.type';
 import type { UserGroup } from '$lib/types/user-group.type';
-import type { User, UserCreate, UserSignUp } from '$lib/types/user.type';
+import type { AccountUpdate, User, UserCreate, UserSignUp } from '$lib/types/user.type';
 import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 import { get } from 'svelte/store';
 import APIService from './api-service';
@@ -38,7 +38,7 @@ export default class UserService extends APIService {
 		return res.data as User;
 	};
 
-	updateCurrent = async (user: UserCreate) => {
+	updateCurrent = async (user: AccountUpdate) => {
 		const res = await this.api.put('/users/me', user);
 		return res.data as User;
 	};
@@ -130,5 +130,5 @@ export default class UserService extends APIService {
 	verifyEmail = async (token: string) => {
 		const res = await this.api.post('/users/me/verify-email', { token });
 		return res.data as User;
-	}
+	};
 }

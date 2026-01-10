@@ -1,6 +1,6 @@
 CREATE TABLE email_verification_tokens
 (
-    id         TEXT UUID KEY,
+    id         UUID PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL,
     token      TEXT        NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,

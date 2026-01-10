@@ -6,7 +6,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
-	import type { UserCreate } from '$lib/types/user.type';
+	import type { AccountUpdate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
@@ -22,9 +22,9 @@
 		isLdapUser = false,
 		userInfoInputDisabled = false
 	}: {
-		account: UserCreate;
+		account: AccountUpdate;
 		userId: string;
-		callback: (user: UserCreate) => Promise<boolean>;
+		callback: (user: AccountUpdate) => Promise<boolean>;
 		isLdapUser?: boolean;
 		userInfoInputDisabled?: boolean;
 	} = $props();
@@ -39,10 +39,7 @@
 		lastName: emptyToUndefined(z.string().max(50).optional()),
 		displayName: z.string().min(1).max(100),
 		username: usernameSchema,
-		email: get(appConfigStore).requireUserEmail
-			? z.email()
-			: emptyToUndefined(z.email().optional()),
-		isAdmin: z.boolean()
+		email: get(appConfigStore).requireUserEmail ? z.email() : emptyToUndefined(z.email().optional())
 	});
 	type FormSchema = typeof formSchema;
 

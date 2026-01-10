@@ -10,7 +10,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import type { Passkey } from '$lib/types/passkey.type';
-	import type { UserCreate } from '$lib/types/user.type';
+	import type { AccountUpdate, UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import {
 		KeyRound,
@@ -40,7 +40,7 @@
 		!$appConfigStore.allowOwnAccountEdit || (!!account.ldapId && $appConfigStore.ldapEnabled)
 	);
 
-	async function updateAccount(user: UserCreate) {
+	async function updateAccount(user: AccountUpdate) {
 		let success = true;
 		await userService
 			.updateCurrent(user)

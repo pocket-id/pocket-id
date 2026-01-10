@@ -31,4 +31,6 @@ export function getAuthRedirectPath(url: URL, user: User | null) {
 	if (isAdminPath && !isAdmin) {
 		return '/settings';
 	}
+
+	return null;
 }

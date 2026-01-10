@@ -33,7 +33,7 @@
 		lastName: existingUser?.lastName || '',
 		displayName: existingUser?.displayName || '',
 		email: existingUser?.email || '',
-		emailVerified: existingUser?.emailVerified || emailsVerifiedPerDefault,
+		emailVerified: existingUser?.emailVerified ?? emailsVerifiedPerDefault,
 		username: existingUser?.username || '',
 		isAdmin: existingUser?.isAdmin || false,
 		disabled: existingUser?.disabled || false
