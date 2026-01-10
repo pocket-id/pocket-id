@@ -378,13 +378,14 @@ func (s *LdapService) SyncUsers(ctx context.Context, tx *gorm.DB, client *ldap.C
 		}
 
 		newUser := dto.UserCreateDto{
-			Username:    value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
-			Email:       utils.PtrOrNil(value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value)),
-			FirstName:   value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
-			LastName:    value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
-			DisplayName: value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.Value),
-			IsAdmin:     isAdmin,
-			LdapID:      ldapId,
+			Username:      value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
+			Email:         utils.PtrOrNil(value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value)),
+			EmailVerified: true,
+			FirstName:     value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
+			LastName:      value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
+			DisplayName:   value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.Value),
+			IsAdmin:       isAdmin,
+			LdapID:        ldapId,
 		}
 
 		if newUser.DisplayName == "" {
