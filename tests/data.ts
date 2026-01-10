@@ -92,6 +92,11 @@ export const oneTimeAccessTokens = [
 	{ token: 'YCGDtftvsvYWiXd0', expired: true }
 ];
 
+export const emailVerificationTokens = [
+	{ token: '2FZFSoupBdHyqIL65bWTsgCgHIhxlXup', expired: false },
+	{ token: 'EXPIRED1234567890ABCDE', expired: true }
+];
+
 export const apiKeys = [
 	{
 		id: '5f1fa856-c164-4295-961e-175a0d22d725',

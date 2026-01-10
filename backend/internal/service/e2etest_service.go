@@ -94,7 +94,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Username:      "craig",
 				Email:         utils.Ptr("craig.federighi@test.com"),
-				EmailVerified: true,
+				EmailVerified: false,
 				FirstName:     "Craig",
 				LastName:      "Federighi",
 				DisplayName:   "Craig Federighi",
@@ -424,6 +424,31 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 		}
 		for _, token := range signupTokens {
+			if err := tx.Create(&token).Error; err != nil {
+				return err
+			}
+		}
+
+		emailVerificationTokens := []model.EmailVerificationToken{
+			{
+				Base: model.Base{
+					ID: "ef9ca469-b178-4857-bd39-26639dca45de",
+				},
+				Token:     "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup",
+				ExpiresAt: datatype.DateTime(time.Now().Add(2 * time.Hour)),
+				UserID:    users[1].ID,
+			},
+			{
+				Base: model.Base{
+					ID: "a3dcb4d2-7f3c-4e8a-9f4d-5b6c7d8e9f00",
+				},
+				Token:     "EXPIRED1234567890ABCDE",
+				ExpiresAt: datatype.DateTime(time.Now().Add(-1 * time.Hour)),
+				UserID:    users[1].ID,
+			},
+		}
+
+		for _, token := range emailVerificationTokens {
 			if err := tx.Create(&token).Error; err != nil {
 				return err
 			}

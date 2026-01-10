@@ -4,11 +4,7 @@ CREATE TABLE email_verification_tokens
     created_at TIMESTAMPTZ NOT NULL,
     token      TEXT        NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,
-    user_id    TEXT        NOT NULL,
-    CONSTRAINT email_verification_tokens_user_id_fkey
-        FOREIGN KEY (user_id)
-            REFERENCES users (id)
-            ON DELETE CASCADE
+    user_id    UUID        NOT NULL REFERENCES users ON DELETE CASCADE
 );
 
 ALTER TABLE users
