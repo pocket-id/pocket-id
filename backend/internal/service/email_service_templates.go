@@ -49,6 +49,13 @@ var ApiKeyExpiringSoonTemplate = email.Template[ApiKeyExpiringSoonTemplateData]{
 	},
 }
 
+var EmailVerificationTemplate = email.Template[EmailVerificationTemplateData]{
+	Path: "email-verification",
+	Title: func(data *email.TemplateData[EmailVerificationTemplateData]) string {
+		return "Verify your " + data.AppName + " email address"
+	},
+}
+
 type NewLoginTemplateData struct {
 	IPAddress string
 	Country   string
@@ -70,5 +77,10 @@ type ApiKeyExpiringSoonTemplateData struct {
 	ExpiresAt  time.Time
 }
 
+type EmailVerificationTemplateData struct {
+	UserFullName     string
+	VerificationLink string
+}
+
 // this is list of all template paths used for preloading templates
-var emailTemplatesPaths = []string{NewLoginTemplate.Path, OneTimeAccessTemplate.Path, TestTemplate.Path, ApiKeyExpiringSoonTemplate.Path}
+var emailTemplatesPaths = []string{NewLoginTemplate.Path, OneTimeAccessTemplate.Path, TestTemplate.Path, ApiKeyExpiringSoonTemplate.Path, EmailVerificationTemplate.Path}

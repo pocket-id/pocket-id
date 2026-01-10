@@ -121,4 +121,14 @@ export default class UserService extends APIService {
 	deleteSignupToken = async (tokenId: string) => {
 		await this.api.delete(`/signup-tokens/${tokenId}`);
 	};
+
+	sendEmailVerification = async () => {
+		const res = await this.api.post('/users/me/send-email-verification');
+		return res.data as User;
+	};
+
+	verifyEmail = async (token: string) => {
+		const res = await this.api.post('/users/me/verify-email', { token });
+		return res.data as User;
+	}
 }

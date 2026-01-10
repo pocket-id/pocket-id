@@ -5,15 +5,13 @@ NEW SIGN-IN DETECTED
 
 Warning
 
-Your {{.AppName}} account was recently accessed from a new IP address or
-browser. If you recognize this activity, no further action is required.
+Your {{.AppName}} account was recently accessed from a new IP address or browser. If you recognize this activity, no further action is required.
 
 DETAILS
 
 Approximate Location
 
-{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if
-.Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}
+{{if and .Data.City .Data.Country}}{{.Data.City}}, {{.Data.Country}}{{else if .Data.Country}}{{.Data.Country}}{{else}}Unknown{{end}}
 
 IP Address
 

@@ -31,6 +31,7 @@
 		children,
 		onInput,
 		labelFor,
+		inputClass,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> &
 		(WithChildren | WithoutChildren) & {
@@ -39,6 +40,7 @@
 			docsLink?: string;
 			placeholder?: string;
 			disabled?: boolean;
+			inputClass?: string;
 			type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date';
 			onInput?: (e: FormInputEvent) => void;
 		} = $props();
@@ -73,6 +75,7 @@
 		{:else}
 			<Input
 				aria-invalid={!!input.error}
+				class={inputClass}
 				{id}
 				{placeholder}
 				{type}

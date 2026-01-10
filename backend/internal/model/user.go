@@ -14,16 +14,17 @@ import (
 type User struct {
 	Base
 
-	Username    string  `sortable:"true"`
-	Email       *string `sortable:"true"`
-	FirstName   string  `sortable:"true"`
-	LastName    string  `sortable:"true"`
-	DisplayName string  `sortable:"true"`
-	IsAdmin     bool    `sortable:"true" filterable:"true"`
-	Locale      *string
-	LdapID      *string
-	Disabled    bool `sortable:"true" filterable:"true"`
-	UpdatedAt   *datatype.DateTime
+	Username      string  `sortable:"true"`
+	Email         *string `sortable:"true"`
+	EmailVerified bool    `sortable:"true" filterable:"true"`
+	FirstName     string  `sortable:"true"`
+	LastName      string  `sortable:"true"`
+	DisplayName   string  `sortable:"true"`
+	IsAdmin       bool    `sortable:"true" filterable:"true"`
+	Locale        *string
+	LdapID        *string
+	Disabled      bool `sortable:"true" filterable:"true"`
+	UpdatedAt     *datatype.DateTime
 
 	CustomClaims []CustomClaim
 	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`
@@ -92,14 +93,4 @@ func (u User) LastModified() time.Time {
 		return u.UpdatedAt.ToTime()
 	}
 	return u.CreatedAt.ToTime()
-}
-
-type OneTimeAccessToken struct {
-	Base
-	Token       string
-	DeviceToken *string
-	ExpiresAt   datatype.DateTime
-
-	UserID string
-	User   User
 }

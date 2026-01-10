@@ -24,6 +24,7 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 		s.RegisterJob(ctx, "ClearWebauthnSessions", def, jobs.clearWebauthnSessions, true),
 		s.RegisterJob(ctx, "ClearOneTimeAccessTokens", def, jobs.clearOneTimeAccessTokens, true),
 		s.RegisterJob(ctx, "ClearSignupTokens", def, jobs.clearSignupTokens, true),
+		s.RegisterJob(ctx, "ClearEmailVerificationTokens", def, jobs.clearEmailVerificationTokens, true),
 		s.RegisterJob(ctx, "ClearOidcAuthorizationCodes", def, jobs.clearOidcAuthorizationCodes, true),
 		s.RegisterJob(ctx, "ClearOidcRefreshTokens", def, jobs.clearOidcRefreshTokens, true),
 		s.RegisterJob(ctx, "ClearReauthenticationTokens", def, jobs.clearReauthenticationTokens, true),
@@ -133,5 +134,18 @@ func (j *DbCleanupJobs) clearAuditLogs(ctx context.Context) error {
 
 	slog.InfoContext(ctx, "Deleted old audit logs", slog.Int64("count", st.RowsAffected))
 
+	return nil
+}
+
+// ClearEmailVerificationTokens deletes email verification tokens that have expired
+func (j *DbCleanupJobs) clearEmailVerificationTokens(ctx context.Context) error {
+	st := j.db.
+		WithContext(ctx).
+		Delete(&model.EmailVerificationToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
+	if st.Error != nil {
+		return fmt.Errorf("failed to clean expired email verification tokens: %w", st.Error)
+	}
+
+	slog.InfoContext(ctx, "Cleaned expired email verification tokens", slog.Int64("count", st.RowsAffected))
 	return nil
 }

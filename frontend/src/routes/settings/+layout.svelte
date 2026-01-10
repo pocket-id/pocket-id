@@ -1,8 +1,9 @@
 <script lang="ts">
+	import EmailVerificationStateBox from '$lib/components/email-verification-state-box.svelte';
 	import FadeWrapper from '$lib/components/fade-wrapper.svelte';
+	import Sidebar from '$lib/components/sidebar.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
-	import Sidebar from '$lib/components/sidebar.svelte';
 	import { LucideSettings } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
@@ -71,6 +72,7 @@
 
 			<div class="flex w-full flex-col gap-4 overflow-hidden">
 				<FadeWrapper>
+					<EmailVerificationStateBox />
 					{@render children()}
 				</FadeWrapper>
 			</div>

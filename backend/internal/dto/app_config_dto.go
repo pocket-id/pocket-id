@@ -54,4 +54,5 @@ type AppConfigUpdateDto struct {
 	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" binding:"required"`
 	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" binding:"required"`
 	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" binding:"required"`
+	EmailVerificationEnabled                   string `json:"emailVerificationEnabled" binding:"required"`
 }

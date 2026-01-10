@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "The duration of a session in minutes before the user has to sign in again.",
 	"enable_self_account_editing": "Enable Self-Account Editing",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "Whether the users should be able to edit their own account details.",
-	"emails_verified": "Emails Verified",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "Whether the user's email should be marked as verified for the OIDC clients.",
 	"ldap_configuration_updated_successfully": "LDAP configuration updated successfully",
 	"ldap_disabled_successfully": "LDAP disabled successfully",
 	"ldap_sync_finished": "LDAP sync finished",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "Renewing the API key will generate a new key. Make sure to update any integrations using this key.",
 	"api_key_renewed": "API key renewed",
 	"app_config_home_page": "Home Page",
-	"app_config_home_page_description": "The page users are redirected to after signing in."
+	"app_config_home_page_description": "The page users are redirected to after signing in.",
+	"email_verification_warning": "Verify your email address",
+	"email_verification_warning_description": "Your email address is not verified yet. Please verify it as soon as possible.",
+	"email_verification": "Email Verification",
+	"email_verification_description": "Send a verification email to users when they sign up or change their email address.",
+	"email_verification_success_title": "Email Verified Successfully",
+	"email_verification_success_description": "Your email address has been verified successfully.",
+	"email_verification_error_title": "Email Verification Failed",
+	"mark_as_unverified": "Mark as unverified",
+	"mark_as_verified": "Mark as verified",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }

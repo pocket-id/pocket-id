@@ -8,6 +8,7 @@
 	import UserService from '$lib/services/user-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
+	import userStore from '$lib/stores/user-store';
 	import type { Passkey } from '$lib/types/passkey.type';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
@@ -43,7 +44,10 @@
 		let success = true;
 		await userService
 			.updateCurrent(user)
-			.then(() => toast.success(m.account_details_updated_successfully()))
+			.then((user) => {
+				toast.success(m.account_details_updated_successfully());
+				userStore.setUser(user);
+			})
 			.catch((e) => {
 				axiosErrorToast(e);
 				success = false;
