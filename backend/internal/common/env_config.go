@@ -70,10 +70,11 @@ type EnvConfigSchema struct {
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl      string `env:"GEOLITE_DB_URL"`
 
-	LogLevel       string `env:"LOG_LEVEL" options:"toLower"`
-	MetricsEnabled bool   `env:"METRICS_ENABLED"`
-	TracingEnabled bool   `env:"TRACING_ENABLED"`
-	LogJSON        bool   `env:"LOG_JSON"`
+	LogLevel            string `env:"LOG_LEVEL" options:"toLower"`
+	MetricsEnabled      bool   `env:"METRICS_ENABLED"`
+	TracingEnabled      bool   `env:"TRACING_ENABLED"`
+	LogJSON             bool   `env:"LOG_JSON"`
+	DisableRateLimiting bool   `env:"DISABLE_RATE_LIMITING"`
 }
 
 var EnvConfig = defaultConfig()

@@ -17,6 +17,12 @@ func NewRateLimitMiddleware() *RateLimitMiddleware {
 }
 
 func (m *RateLimitMiddleware) Add(limit rate.Limit, burst int) gin.HandlerFunc {
+	if common.EnvConfig.DisableRateLimiting == true {
+		return func(c *gin.Context) {
+			c.Next()
+		}
+	}
+	
 	// Map to store the rate limiters per IP
 	var clients = make(map[string]*client)
 	var mu sync.Mutex
