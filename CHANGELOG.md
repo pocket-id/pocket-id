@@ -1,3 +1,27 @@
+## v2.2.0
+
+### Bug Fixes
+
+- allow changing "require email address" if no SMTP credentials present ([8c68b08](https://github.com/pocket-id/pocket-id/commit/8c68b08c12ba371deda61662e3d048d63d07c56f) by @stonith404)
+- data import from sqlite to postgres fails because of wrong datatype ([1a032a8](https://github.com/pocket-id/pocket-id/commit/1a032a812ef78b250a898d14bec73a8ef7a7859a) by @stonith404)
+- user can't update account if email is empty ([5828fa5](https://github.com/pocket-id/pocket-id/commit/5828fa57791314594625d52475733dce23cc2fcc) by @stonith404)
+- login codes sent by an admin incorrectly requires a device token ([03f9be0](https://github.com/pocket-id/pocket-id/commit/03f9be0d125732e02a8e2c5390d9e6d0c74ce957) by @stonith404)
+- allow exchanging logic code if already authenticated ([0e2cdc3](https://github.com/pocket-id/pocket-id/commit/0e2cdc393e34276bb3b8ea318cdc7261de3f2dec) by @stonith404)
+- db version downgrades don't downgrade db schema ([4df4bcb](https://github.com/pocket-id/pocket-id/commit/4df4bcb6451b4bf88093e04f3222c8737f2c7be3) by @stonith404)
+- use user specific email verified claim instead of global one ([2a11c3e](https://github.com/pocket-id/pocket-id/commit/2a11c3e60942d45c2e5b422d99945bce65a622a2) by @stonith404)
+
+### Features
+
+- add CLI command for encryption key rotation ([#1209](https://github.com/pocket-id/pocket-id/pull/1209) by @stonith404)
+- improve passkey error messages ([2f25861](https://github.com/pocket-id/pocket-id/commit/2f25861d15aefa868042e70d3e21b7b38a6ae679) by @stonith404)
+- make home page URL configurable ([#1215](https://github.com/pocket-id/pocket-id/pull/1215) by @stonith404)
+- add option to renew API key ([#1214](https://github.com/pocket-id/pocket-id/pull/1214) by @stonith404)
+- add support for email verification ([#1223](https://github.com/pocket-id/pocket-id/pull/1223) by @stonith404)
+- add environment variable to disable built-in rate limiting ([9ca3d33](https://github.com/pocket-id/pocket-id/commit/9ca3d33c8897cf49a871783058205bb180529cd2) by @stonith404)
+- add static api key env variable ([#1229](https://github.com/pocket-id/pocket-id/pull/1229) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.1.0...v2.2.0
+
 ## v2.1.0
 
 ### Bug Fixes
