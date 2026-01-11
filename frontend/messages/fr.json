@@ -519,7 +519,7 @@
 	"email_verification_error_title": "Échec de la vérification de l'adresse e-mail",
 	"mark_as_unverified": "Marquer comme non vérifié",
 	"mark_as_verified": "Marquer comme vérifié",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "L'e-mail de vérification a été envoyé sans problème.",
+	"emails_verified_by_default": "E-mails vérifiés par défaut",
+	"emails_verified_by_default_description": "Quand cette option est activée, les adresses e-mail des utilisateurs seront marquées comme vérifiées par défaut lors de leur inscription ou quand ils changent d'adresse e-mail."
 }
