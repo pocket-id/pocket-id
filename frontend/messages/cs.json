@@ -519,7 +519,7 @@
 	"email_verification_error_title": "Ověření e-mailu se nezdařilo",
 	"mark_as_unverified": "Označit jako neověřené",
 	"mark_as_verified": "Označit jako ověřené",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "Ověřovací e-mail byl úspěšně odeslán.",
+	"emails_verified_by_default": "E-maily ověřené ve výchozím nastavení",
+	"emails_verified_by_default_description": "Pokud je tato funkce povolena, budou e-mailové adresy uživatelů při registraci nebo při změně e-mailové adresy automaticky označeny jako ověřené."
 }
