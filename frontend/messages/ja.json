@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "ユーザーが再度ログインする必要があるまでのセッションの継続時間。(分単位)",
 	"enable_self_account_editing": "自身のアカウント編集を有効にする",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "ユーザーが自身のアカウントの詳細を編集できるかどうか。",
-	"emails_verified": "メールアドレス確認済み",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "ユーザのEメールをOIDCクライアントで検証済みとしてマークするかどうか。",
 	"ldap_configuration_updated_successfully": "LDAP 設定が正常に更新されました",
 	"ldap_disabled_successfully": "LDAPは正常に無効化されました",
 	"ldap_sync_finished": "LDAP同期が完了しました",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "APIキーを更新すると新しいキーが生成されます。このキーを使用しているすべての連携を更新してください。",
 	"api_key_renewed": "APIキーを更新しました",
 	"app_config_home_page": "ホームページ",
-	"app_config_home_page_description": "ユーザーがサインイン後にリダイレクトされるページ。"
+	"app_config_home_page_description": "ユーザーがサインイン後にリダイレクトされるページ。",
+	"email_verification_warning": "メールアドレスを確認してください",
+	"email_verification_warning_description": "メールアドレスはまだ確認されていません。できるだけ早く確認してください。",
+	"email_verification": "メール認証",
+	"email_verification_description": "ユーザーが登録時またはメールアドレスを変更した際に、確認メールを送信する。",
+	"email_verification_success_title": "メールアドレスの確認が完了しました",
+	"email_verification_success_description": "メールアドレスの確認が完了しました。",
+	"email_verification_error_title": "メール認証に失敗しました",
+	"mark_as_unverified": "未確認としてマークする",
+	"mark_as_verified": "確認済みとしてマークする",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }
