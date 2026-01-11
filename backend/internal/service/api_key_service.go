@@ -26,9 +26,11 @@ type ApiKeyService struct {
 func NewApiKeyService(ctx context.Context, db *gorm.DB, emailService *EmailService) (*ApiKeyService, error) {
 	s := &ApiKeyService{db: db, emailService: emailService}
 
-	_, err := s.initStaticApiKeyUser(ctx, common.EnvConfig.StaticApiKey)
-	if err != nil {
-		return nil, err
+	if common.EnvConfig.StaticApiKey == "" {
+		err := s.deleteStaticApiKeyUser(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return s, nil
@@ -155,7 +157,7 @@ func (s *ApiKeyService) ValidateApiKey(ctx context.Context, apiKey string) (mode
 	}
 
 	if common.EnvConfig.StaticApiKey != "" && apiKey == common.EnvConfig.StaticApiKey {
-		return s.initStaticApiKeyUser(ctx, common.EnvConfig.StaticApiKey)
+		return s.initStaticApiKeyUser(ctx)
 	}
 
 	now := time.Now()
@@ -232,15 +234,7 @@ func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey 
 		Error
 }
 
-func (s *ApiKeyService) initStaticApiKeyUser(ctx context.Context, staticApiKey string) (user model.User, err error) {
-	if staticApiKey == "" {
-		err := s.db.
-			WithContext(ctx).
-			Delete(&model.User{}, "id = ?", staticApiKeyUserID).
-			Error
-		return model.User{}, err
-	}
-
+func (s *ApiKeyService) initStaticApiKeyUser(ctx context.Context) (user model.User, err error) {
 	err = s.db.
 		WithContext(ctx).
 		First(&user, "id = ?", staticApiKeyUserID).
@@ -275,4 +269,11 @@ func (s *ApiKeyService) initStaticApiKeyUser(ctx context.Context, staticApiKey s
 		Error
 
 	return user, err
+}
+
+func (s *ApiKeyService) deleteStaticApiKeyUser(ctx context.Context) error {
+	return s.db.
+		WithContext(ctx).
+		Delete(&model.User{}, "id = ?", staticApiKeyUserID).
+		Error
 }
