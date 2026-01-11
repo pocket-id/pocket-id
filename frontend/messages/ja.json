@@ -519,7 +519,7 @@
 	"email_verification_error_title": "メール認証に失敗しました",
 	"mark_as_unverified": "未確認としてマークする",
 	"mark_as_verified": "確認済みとしてマークする",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "確認メールが正常に送信されました。",
+	"emails_verified_by_default": "メールはデフォルトで検証済み",
+	"emails_verified_by_default_description": "有効化すると、ユーザーが登録時またはメールアドレスを変更した際に、デフォルトでメールアドレスが確認済みとしてマークされます。"
 }
