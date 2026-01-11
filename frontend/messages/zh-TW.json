@@ -519,7 +519,7 @@
 	"email_verification_error_title": "電子郵件驗證失敗",
 	"mark_as_unverified": "標記為未驗證",
 	"mark_as_verified": "標記為已驗證",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "驗證電子郵件已成功寄出。",
+	"emails_verified_by_default": "電子郵件預設為已驗證",
+	"emails_verified_by_default_description": "啟用此功能後，用戶的電子郵件地址將在註冊時或變更電子郵件地址時，預設標記為已驗證狀態。"
 }

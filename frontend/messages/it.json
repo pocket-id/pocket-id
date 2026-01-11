@@ -519,7 +519,7 @@
 	"email_verification_error_title": "Verifica e-mail non riuscita",
 	"mark_as_unverified": "Contrassegna come non verificato",
 	"mark_as_verified": "Contrassegna come verificato",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "Email di conferma inviata con successo.",
+	"emails_verified_by_default": "Email verificate di default",
+	"emails_verified_by_default_description": "Quando questa opzione è attiva, gli indirizzi email degli utenti saranno automaticamente contrassegnati come verificati al momento della registrazione o quando cambiano il loro indirizzo email."
 }

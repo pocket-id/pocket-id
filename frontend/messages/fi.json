@@ -519,7 +519,7 @@
 	"email_verification_error_title": "Sähköpostin vahvistus epäonnistui",
 	"mark_as_unverified": "Merkitse vahvistamattomaksi",
 	"mark_as_verified": "Merkitse vahvistetuksi",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "Vahvistussähköposti lähetetty onnistuneesti.",
+	"emails_verified_by_default": "Sähköpostit vahvistettu oletuksena",
+	"emails_verified_by_default_description": "Kun tämä toiminto on käytössä, käyttäjien sähköpostiosoitteet merkitään oletusarvoisesti vahvistetuiksi rekisteröitymisen yhteydessä tai kun heidän sähköpostiosoitteensa muuttuu."
 }
