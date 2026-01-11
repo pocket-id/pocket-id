@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "La durée d'une session en minutes avant que l'utilisateur ne doive se reconnecter.",
 	"enable_self_account_editing": "Activer l'édition de compte par l'utilisateur",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "Cela permet aux utilisateurs de modifier les détails de leur compte.",
-	"emails_verified": "Email vérifié",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "Indique si l'adresse e-mail de l'utilisateur doit être marquée comme vérifiée pour les clients OIDC.",
 	"ldap_configuration_updated_successfully": "Configuration LDAP mise à jour avec succès",
 	"ldap_disabled_successfully": "LDAP désactivé avec succès",
 	"ldap_sync_finished": "Synchronisation LDAP terminée",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "Quand tu renouvelles la clé API, une nouvelle clé est créée. N'oublie pas de mettre à jour toutes les intégrations qui utilisent cette clé.",
 	"api_key_renewed": "Clé API renouvelée",
 	"app_config_home_page": "Page d'accueil",
-	"app_config_home_page_description": "La page où les utilisateurs sont redirigés après s'être connectés."
+	"app_config_home_page_description": "La page où les utilisateurs sont redirigés après s'être connectés.",
+	"email_verification_warning": "Vérifie ton adresse e-mail",
+	"email_verification_warning_description": "Ton adresse e-mail n'est pas encore validée. Valide-la dès que possible.",
+	"email_verification": "Vérification de l'adresse e-mail",
+	"email_verification_description": "Envoie un e-mail de vérification aux utilisateurs quand ils s'inscrivent ou changent leur adresse e-mail.",
+	"email_verification_success_title": "Adresse e-mail validée avec succès",
+	"email_verification_success_description": "Ton adresse e-mail a été validée avec succès.",
+	"email_verification_error_title": "Échec de la vérification de l'adresse e-mail",
+	"mark_as_unverified": "Marquer comme non vérifié",
+	"mark_as_verified": "Marquer comme vérifié",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }
