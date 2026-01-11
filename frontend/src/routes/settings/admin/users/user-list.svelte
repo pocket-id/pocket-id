@@ -48,10 +48,10 @@
 					try {
 						await userService.remove(user.id);
 						await refresh();
+						toast.success(m.user_deleted_successfully());
 					} catch (e) {
 						axiosErrorToast(e);
 					}
-					toast.success(m.user_deleted_successfully());
 				}
 			}
 		});

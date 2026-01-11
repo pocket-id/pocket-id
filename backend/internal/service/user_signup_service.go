@@ -125,7 +125,9 @@ func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData d
 	}()
 
 	var userCount int64
-	if err := tx.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
+	if err := tx.WithContext(ctx).Model(&model.User{}).
+		Where("id != ?", staticApiKeyUserID).
+		Count(&userCount).Error; err != nil {
 		return model.User{}, "", err
 	}
 	if userCount != 0 {
