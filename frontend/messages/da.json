@@ -519,7 +519,7 @@
 	"email_verification_error_title": "E-mail-bekræftelse mislykkedes",
 	"mark_as_unverified": "Marker som ikke verificeret",
 	"mark_as_verified": "Marker som verificeret",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "Bekræftelses-e-mail sendt med succes.",
+	"emails_verified_by_default": "E-mails verificeret som standard",
+	"emails_verified_by_default_description": "Når denne funktion er aktiveret, vil brugernes e-mailadresser som standard blive markeret som verificerede ved tilmelding eller når deres e-mailadresse ændres."
 }
