@@ -519,7 +519,7 @@
 	"email_verification_error_title": "电子邮件验证失败",
 	"mark_as_unverified": "标记为未验证",
 	"mark_as_verified": "标记为已验证",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "验证邮件已成功发送。",
+	"emails_verified_by_default": "电子邮件默认已验证",
+	"emails_verified_by_default_description": "启用后，用户的电子邮件地址将在注册时或更改电子邮件地址时默认标记为已验证。"
 }
