@@ -35,7 +35,7 @@ func MigrateDatabase(sqlDb *sql.DB) error {
 			return fmt.Errorf("database version (%d) is newer than application version (%d), downgrades are not allowed (set ALLOW_DOWNGRADE=true to enable)", currentVersion, requiredVersion)
 		}
 		slog.Info("Fetching migrations from GitHub to handle possible downgrades")
-		return migrateDatabaseFromGitHub(sqlDb, requiredVersion)
+		return migrateDatabaseFromGitHub(sqlDb, requiredVersion, currentVersion)
 	}
 
 	err = m.Migrate(requiredVersion)
@@ -92,7 +92,7 @@ func newMigrationDriver(sqlDb *sql.DB, dbProvider common.DbProvider) (driver dat
 }
 
 // migrateDatabaseFromGitHub applies database migrations fetched from GitHub to handle downgrades.
-func migrateDatabaseFromGitHub(sqlDb *sql.DB, version uint) error {
+func migrateDatabaseFromGitHub(sqlDb *sql.DB, requiredVersion uint, currentVersion uint) error {
 	srcURL := "github://pocket-id/pocket-id/backend/resources/migrations/" + string(common.EnvConfig.DbProvider)
 
 	driver, err := newMigrationDriver(sqlDb, common.EnvConfig.DbProvider)
@@ -105,9 +105,18 @@ func migrateDatabaseFromGitHub(sqlDb *sql.DB, version uint) error {
 		return fmt.Errorf("failed to create GitHub migration instance: %w", err)
 	}
 
-	if err := m.Force(int(version)); err != nil && !errors.Is(err, migrate.ErrNoChange) { //nolint:gosec
+	// Reset the dirty state before forcing the version
+	if err := m.Force(int(currentVersion)); err != nil {
+		return fmt.Errorf("failed to force database version: %w", err)
+	}
+
+	if err := m.Migrate(requiredVersion); err != nil {
+		if errors.Is(err, migrate.ErrNoChange) {
+			return nil
+		}
 		return fmt.Errorf("failed to apply GitHub migrations: %w", err)
 	}
+
 	return nil
 }
 
