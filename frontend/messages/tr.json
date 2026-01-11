@@ -519,7 +519,7 @@
 	"email_verification_error_title": "E-posta Doğrulama Başarısız",
 	"mark_as_unverified": "Doğrulanmamış olarak işaretle",
 	"mark_as_verified": "Doğrulanmış olarak işaretle",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "Doğrulama e-postası başarıyla gönderildi.",
+	"emails_verified_by_default": "Varsayılan olarak doğrulanmış e-postalar",
+	"emails_verified_by_default_description": "Etkinleştirildiğinde, kullanıcıların e-posta adresleri kayıt sırasında veya e-posta adresleri değiştirildiğinde varsayılan olarak doğrulanmış olarak işaretlenecektir."
 }
