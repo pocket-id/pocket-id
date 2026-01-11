@@ -32,7 +32,6 @@
 		appName: appConfig.appName,
 		homePageUrl: appConfig.homePageUrl,
 		sessionDuration: appConfig.sessionDuration,
-		emailsVerified: appConfig.emailsVerified,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
 		disableAnimations: appConfig.disableAnimations,
 		accentColor: appConfig.accentColor
@@ -42,7 +41,6 @@
 		appName: z.string().min(2).max(30),
 		homePageUrl: z.string(),
 		sessionDuration: z.number().min(1).max(43200),
-		emailsVerified: z.boolean(),
 		allowOwnAccountEdit: z.boolean(),
 		disableAnimations: z.boolean(),
 		accentColor: z.string()
@@ -80,10 +78,7 @@
 					value={$inputs.homePageUrl.value}
 					onValueChange={(v) => ($inputs.homePageUrl.value = v as string)}
 				>
-					<Select.Trigger
-						class="w-full"
-						aria-label={m.app_config_home_page()}
-					>
+					<Select.Trigger class="w-full" aria-label={m.app_config_home_page()}>
 						{homePageUrlOptions.find((option) => option.value === $inputs.homePageUrl.value)
 							?.label ?? $inputs.homePageUrl.value}
 					</Select.Trigger>
@@ -101,12 +96,6 @@
 				label={m.enable_self_account_editing()}
 				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
 				bind:checked={$inputs.allowOwnAccountEdit.value}
-			/>
-			<SwitchWithLabel
-				id="emails-verified"
-				label={m.emails_verified()}
-				description={m.whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients()}
-				bind:checked={$inputs.emailsVerified.value}
 			/>
 			<SwitchWithLabel
 				id="disable-animations"

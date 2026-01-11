@@ -1,0 +1,10 @@
+{{define "root"}}{{.AppName}}
+
+
+EMAIL VERIFICATION
+
+Hello {{.Data.UserFullName}},
+Click the button below to verify your email address for {{.AppName}}. This link will expire in 24 hours.
+
+
+Verify {{.Data.VerificationLink}}{{end}}

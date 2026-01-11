@@ -14,19 +14,17 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const (
-	defaultOneTimeAccessTokenDuration = 15 * time.Minute
-	defaultSignupTokenDuration        = time.Hour
-)
+const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 
 // NewUserController creates a new controller for user management endpoints
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, appConfigService *service.AppConfigService) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, appConfigService *service.AppConfigService) {
 	uc := UserController{
-		userService:      userService,
-		appConfigService: appConfigService,
+		userService:          userService,
+		oneTimeAccessService: oneTimeAccessService,
+		appConfigService:     appConfigService,
 	}
 
 	group.GET("/users", authMiddleware.Add(), uc.listUsersHandler)
@@ -54,17 +52,14 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
 
-	group.POST("/signup-tokens", authMiddleware.Add(), uc.createSignupTokenHandler)
-	group.GET("/signup-tokens", authMiddleware.Add(), uc.listSignupTokensHandler)
-	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), uc.deleteSignupTokenHandler)
-	group.POST("/signup", rateLimitMiddleware.Add(rate.Every(1*time.Minute), 10), uc.signupHandler)
-	group.POST("/signup/setup", uc.signUpInitialAdmin)
-
+	group.POST("/users/me/send-email-verification", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), authMiddleware.WithAdminNotRequired().Add(), uc.sendEmailVerificationHandler)
+	group.POST("/users/me/verify-email", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), authMiddleware.WithAdminNotRequired().Add(), uc.verifyEmailHandler)
 }
 
 type UserController struct {
-	userService      *service.UserService
-	appConfigService *service.AppConfigService
+	userService          *service.UserService
+	oneTimeAccessService *service.OneTimeAccessService
+	appConfigService     *service.AppConfigService
 }
 
 // getUserGroupsHandler godoc
@@ -342,7 +337,7 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 			ttl = defaultOneTimeAccessTokenDuration
 		}
 	}
-	token, err := uc.userService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, ttl)
+	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -391,7 +386,7 @@ func (uc *UserController) RequestOneTimeAccessEmailAsUnauthenticatedUserHandler(
 		return
 	}
 
-	deviceToken, err := uc.userService.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), input.Email, input.RedirectPath)
+	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), input.Email, input.RedirectPath)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -424,7 +419,7 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 	if ttl <= 0 {
 		ttl = defaultOneTimeAccessTokenDuration
 	}
-	err := uc.userService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), userID, ttl)
+	err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), userID, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -442,41 +437,7 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 // @Router /api/one-time-access-token/{token} [post]
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 	deviceToken, _ := c.Cookie(cookie.DeviceTokenCookieName)
-	user, token, err := uc.userService.ExchangeOneTimeAccessToken(c.Request.Context(), c.Param("token"), deviceToken, c.ClientIP(), c.Request.UserAgent())
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
-
-	c.JSON(http.StatusOK, userDto)
-}
-
-// signUpInitialAdmin godoc
-// @Summary Sign up initial admin user
-// @Description Sign up and generate setup access token for initial admin user
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param body body dto.SignUpDto true "User information"
-// @Success 200 {object} dto.UserDto
-// @Router /api/signup/setup [post]
-func (uc *UserController) signUpInitialAdmin(c *gin.Context) {
-	var input dto.SignUpDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	user, token, err := uc.userService.SignUpInitialAdmin(c.Request.Context(), input)
+	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), c.Param("token"), deviceToken, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -522,130 +483,6 @@ func (uc *UserController) updateUserGroups(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, userDto)
-}
-
-// createSignupTokenHandler godoc
-// @Summary Create signup token
-// @Description Create a new signup token that allows user registration
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param token body dto.SignupTokenCreateDto true "Signup token information"
-// @Success 201 {object} dto.SignupTokenDto
-// @Router /api/signup-tokens [post]
-func (uc *UserController) createSignupTokenHandler(c *gin.Context) {
-	var input dto.SignupTokenCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	ttl := input.TTL.Duration
-	if ttl <= 0 {
-		ttl = defaultSignupTokenDuration
-	}
-
-	signupToken, err := uc.userService.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var tokenDto dto.SignupTokenDto
-	err = dto.MapStruct(signupToken, &tokenDto)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, tokenDto)
-}
-
-// listSignupTokensHandler godoc
-// @Summary List signup tokens
-// @Description Get a paginated list of signup tokens
-// @Tags Users
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.SignupTokenDto]
-// @Router /api/signup-tokens [get]
-func (uc *UserController) listSignupTokensHandler(c *gin.Context) {
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	tokens, pagination, err := uc.userService.ListSignupTokens(c.Request.Context(), listRequestOptions)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var tokensDto []dto.SignupTokenDto
-	if err := dto.MapStructList(tokens, &tokensDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, dto.Paginated[dto.SignupTokenDto]{
-		Data:       tokensDto,
-		Pagination: pagination,
-	})
-}
-
-// deleteSignupTokenHandler godoc
-// @Summary Delete signup token
-// @Description Delete a signup token by ID
-// @Tags Users
-// @Param id path string true "Token ID"
-// @Success 204 "No Content"
-// @Router /api/signup-tokens/{id} [delete]
-func (uc *UserController) deleteSignupTokenHandler(c *gin.Context) {
-	tokenID := c.Param("id")
-
-	err := uc.userService.DeleteSignupToken(c.Request.Context(), tokenID)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// signupWithTokenHandler godoc
-// @Summary Sign up
-// @Description Create a new user account
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param user body dto.SignUpDto true "User information"
-// @Success 201 {object} dto.SignUpDto
-// @Router /api/signup [post]
-func (uc *UserController) signupHandler(c *gin.Context) {
-	var input dto.SignUpDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	ipAddress := c.ClientIP()
-	userAgent := c.GetHeader("User-Agent")
-
-	user, accessToken, err := uc.userService.SignUp(c.Request.Context(), input, ipAddress, userAgent)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
-
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, userDto)
 }
 
 // updateUser is an internal helper method, not exposed as an API endpoint
@@ -708,6 +545,47 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 	userID := c.GetString("userID")
 
 	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// sendEmailVerificationHandler godoc
+// @Summary Send email verification
+// @Description Send an email verification to the currently authenticated user
+// @Tags Users
+// @Produce json
+// @Success 204 "No Content"
+// @Router /api/users/me/send-email-verification [post]
+func (uc *UserController) sendEmailVerificationHandler(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	if err := uc.userService.SendEmailVerification(c.Request.Context(), userID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// verifyEmailHandler godoc
+// @Summary Verify email
+// @Description Verify the currently authenticated user's email using a verification token
+// @Tags Users
+// @Param body body dto.EmailVerificationDto true "Email verification token"
+// @Success 204 "No Content"
+// @Router /api/users/me/verify-email [post]
+func (uc *UserController) verifyEmailHandler(c *gin.Context) {
+	var input dto.EmailVerificationDto
+	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	userID := c.GetString("userID")
+	if err := uc.userService.VerifyEmail(c.Request.Context(), userID, input.Token); err != nil {
 		_ = c.Error(err)
 		return
 	}

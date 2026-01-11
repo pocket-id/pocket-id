@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { users } from '../data';
+import { emailVerificationTokens, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
@@ -127,4 +127,32 @@ test('Generate own one time access token as non admin', async ({ page, context }
 
 	await page.goto(link!);
 	await page.waitForURL('/settings/account');
+});
+
+test('Email verification succeeds', async ({ page, context }) => {
+	await context.clearCookies();
+
+	const token = emailVerificationTokens.find((t) => !t.expired)!.token;
+	await page.goto(`/verify-email?token=${token}`);
+	await (await passkeyUtil.init(page)).addPasskey('craig');
+
+	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.waitForURL('/settings/account?emailVerificationState=success');
+
+	await expect(page.getByText('Email Verified Successfully')).toBeVisible();
+});
+
+test('Email verification fails with expired token', async ({ page, context }) => {
+	await context.clearCookies();
+
+	const token = emailVerificationTokens.find((t) => t.expired)!.token;
+	await page.goto(`/verify-email?token=${token}`);
+	await (await passkeyUtil.init(page)).addPasskey('craig');
+
+	await page.getByRole('button', { name: 'Authenticate' }).click();
+	await page.waitForURL(
+		'/settings/account?emailVerificationState=Invalid+email+verification+token'
+	);
+
+	await expect(page.getByText('Invalid email verification token')).toBeVisible();
 });

@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260106140900,
+	"version": 20260109090200,
 	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens"],
 	"tables": {
 		"api_keys": [
@@ -301,6 +301,7 @@
 				"disabled": false,
 				"display_name": "Tim Cook",
 				"email": "tim.cook@test.com",
+				"email_verified": true,
 				"first_name": "Tim",
 				"id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				"is_admin": true,
@@ -315,6 +316,7 @@
 				"disabled": false,
 				"display_name": "Craig Federighi",
 				"email": "craig.federighi@test.com",
+				"email_verified": false,
 				"first_name": "Craig",
 				"id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
 				"is_admin": false,
@@ -329,6 +331,7 @@
 				"disabled": false,
 				"display_name": "Eddy Cue",
 				"email": "eddy.cue@test.com",
+				"email_verified": false,
 				"first_name": "Eddy",
 				"id": "d9256384-98ad-49a7-bc58-99ad0b4dc23c",
 				"is_admin": false,
@@ -372,6 +375,22 @@
 				"expires_at": "2025-11-25T13:39:02Z",
 				"id": "267f6907-7bc8-4ea1-9d47-c42a172dc1c7",
 				"user_verification": "preferred"
+			}
+		],
+		"email_verification_tokens": [
+			{
+				"created_at": "2025-11-25T12:39:02Z",
+				"expires_at": "2025-11-26T12:39:02Z",
+				"id": "ef9ca469-b178-4857-bd39-26639dca45de",
+				"token": "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup",
+				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
+			},
+			{
+				"created_at": "2025-11-24T12:39:02Z",
+				"expires_at": "2025-11-25T12:39:02Z",
+				"id": "a3dcb4d2-7f3c-4e8a-9f4d-5b6c7d8e9f00",
+				"token": "EXPIRED1234567890ABCDE",
+				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
 			}
 		]
 	}

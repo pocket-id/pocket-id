@@ -6,9 +6,11 @@
 		variants: {
 			variant: {
 				default: 'bg-card text-card-foreground',
+				success:
+					'bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-100 [&>svg]:text-green-900 dark:[&>svg]:text-green-100',
 				info: 'bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100 [&>svg]:text-blue-900 dark:[&>svg]:text-blue-100',
 				destructive:
-					'text-destructive bg-card *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current',
+					'bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100 [&>svg]:text-red-900 dark:[&>svg]:text-red-100',
 				warning:
 					'bg-warning text-warning-foreground border-warning/40 [&>svg]:text-warning-foreground'
 			}
@@ -32,10 +34,12 @@
 		class: className,
 		variant = 'default',
 		children,
+		onDismiss,
 		dismissibleId = undefined,
 		...restProps
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		variant?: AlertVariant;
+		onDismiss?: () => void;
 		dismissibleId?: string;
 	} = $props();
 
@@ -49,6 +53,7 @@
 	});
 
 	function dismiss() {
+		onDismiss?.();
 		if (dismissibleId) {
 			const dismissedAlerts = JSON.parse(localStorage.getItem('dismissed-alerts') || '[]');
 			localStorage.setItem('dismissed-alerts', JSON.stringify([...dismissedAlerts, dismissibleId]));
@@ -66,7 +71,7 @@
 		role="alert"
 	>
 		{@render children?.()}
-		{#if dismissibleId}
+		{#if dismissibleId || onDismiss}
 			<button onclick={dismiss} class="absolute right-0 top-0 m-3 text-black dark:text-white"
 				><LucideX class="size-4" /></button
 			>

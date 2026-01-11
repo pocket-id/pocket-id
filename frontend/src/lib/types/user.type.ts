@@ -6,6 +6,7 @@ export type User = {
 	id: string;
 	username: string;
 	email: string | undefined;
+	emailVerified: boolean;
 	firstName: string;
 	lastName?: string;
 	displayName: string;
@@ -19,6 +20,11 @@ export type User = {
 
 export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId' | 'userGroups'>;
 
-export type UserSignUp = Omit<UserCreate, 'isAdmin' | 'disabled' | 'displayName'> & {
+export type AccountUpdate = Omit<UserCreate, 'isAdmin' | 'disabled' | 'emailVerified'>
+
+export type UserSignUp = Omit<
+	UserCreate,
+	'isAdmin' | 'disabled' | 'displayName' | 'emailVerified'
+> & {
 	token?: string;
 };

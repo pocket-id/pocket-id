@@ -12,8 +12,11 @@
 	import { LucideMinus, UserPen, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
+	import type { PageProps } from './$types';
 	import UserForm from './user-form.svelte';
 	import UserList from './user-list.svelte';
+
+	let { data }: PageProps = $props();
 
 	let selectedCreateOptions = $state(m.add_user());
 	let expandAddUser = $state(false);
@@ -91,7 +94,10 @@
 		{#if expandAddUser}
 			<div transition:slide>
 				<Card.Content>
-					<UserForm callback={createUser} />
+					<UserForm
+						callback={createUser}
+						emailsVerifiedPerDefault={data.emailsVerifiedPerDefault}
+					/>
 				</Card.Content>
 			</div>
 		{/if}

@@ -9,13 +9,11 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"net/url"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/trace"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -25,7 +23,6 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 )
 
@@ -269,15 +266,16 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 	}
 
 	user := model.User{
-		FirstName:   input.FirstName,
-		LastName:    input.LastName,
-		DisplayName: input.DisplayName,
-		Email:       input.Email,
-		Username:    input.Username,
-		IsAdmin:     input.IsAdmin,
-		Locale:      input.Locale,
-		Disabled:    input.Disabled,
-		UserGroups:  userGroups,
+		FirstName:     input.FirstName,
+		LastName:      input.LastName,
+		DisplayName:   input.DisplayName,
+		Email:         input.Email,
+		EmailVerified: input.EmailVerified,
+		Username:      input.Username,
+		IsAdmin:       input.IsAdmin,
+		Locale:        input.Locale,
+		Disabled:      input.Disabled,
+		UserGroups:    userGroups,
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
@@ -419,13 +417,20 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		user.FirstName = updatedUser.FirstName
 		user.LastName = updatedUser.LastName
 		user.DisplayName = updatedUser.DisplayName
-		user.Email = updatedUser.Email
 		user.Username = updatedUser.Username
 		user.Locale = updatedUser.Locale
+
+		if (user.Email == nil && updatedUser.Email != nil) || (user.Email != nil && updatedUser.Email != nil && *user.Email != *updatedUser.Email) {
+			// Email has changed, reset email verification status
+			user.EmailVerified = s.appConfigService.GetDbConfig().EmailsVerified.IsTrue()
+		}
+
+		user.Email = updatedUser.Email
 
 		// Admin-only fields: Only allow updates when not updating own account
 		if !updateOwnUser {
 			user.IsAdmin = updatedUser.IsAdmin
+			user.EmailVerified = updatedUser.EmailVerified
 			user.Disabled = updatedUser.Disabled
 		}
 	}
@@ -453,164 +458,6 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 
 	s.scimService.ScheduleSync()
 	return user, nil
-}
-
-func (s *UserService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, ttl time.Duration) error {
-	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsAdminEnabled.IsTrue()
-	if isDisabled {
-		return &common.OneTimeAccessDisabledError{}
-	}
-
-	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false)
-	return err
-}
-
-func (s *UserService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) (string, error) {
-	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue()
-	if isDisabled {
-		return "", &common.OneTimeAccessDisabledError{}
-	}
-
-	var userId string
-	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Do not return error if user not found to prevent email enumeration
-		return "", nil
-	} else if err != nil {
-		return "", err
-	}
-
-	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true)
-	if err != nil {
-		return "", err
-	} else if deviceToken == nil {
-		return "", errors.New("device token expected but not returned")
-	}
-
-	return *deviceToken, nil
-}
-
-func (s *UserService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool) (*string, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	user, err := s.GetUser(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	if user.Email == nil {
-		return nil, &common.UserEmailNotSetError{}
-	}
-
-	oneTimeAccessToken, deviceToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, ttl, withDeviceToken, tx)
-	if err != nil {
-		return nil, err
-	}
-	err = tx.Commit().Error
-	if err != nil {
-		return nil, err
-	}
-
-	// We use a background context here as this is running in a goroutine
-	//nolint:contextcheck
-	go func() {
-		span := trace.SpanFromContext(ctx)
-		innerCtx := trace.ContextWithSpan(context.Background(), span)
-
-		link := common.EnvConfig.AppURL + "/lc"
-		linkWithCode := link + "/" + oneTimeAccessToken
-
-		// Add redirect path to the link
-		if strings.HasPrefix(redirectPath, "/") {
-			encodedRedirectPath := url.QueryEscape(redirectPath)
-			linkWithCode = linkWithCode + "?redirect=" + encodedRedirectPath
-		}
-
-		errInternal := SendEmail(innerCtx, s.emailService, email.Address{
-			Name:  user.FullName(),
-			Email: *user.Email,
-		}, OneTimeAccessTemplate, &OneTimeAccessTemplateData{
-			Code:              oneTimeAccessToken,
-			LoginLink:         link,
-			LoginLinkWithCode: linkWithCode,
-			ExpirationString:  utils.DurationToString(ttl),
-		})
-		if errInternal != nil {
-			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", errInternal), slog.String("address", *user.Email))
-			return
-		}
-	}()
-
-	return deviceToken, nil
-}
-
-func (s *UserService) CreateOneTimeAccessToken(ctx context.Context, userID string, ttl time.Duration) (token string, err error) {
-	token, _, err = s.createOneTimeAccessTokenInternal(ctx, userID, ttl, false, s.db)
-	return token, err
-}
-
-func (s *UserService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, ttl time.Duration, withDeviceToken bool, tx *gorm.DB) (token string, deviceToken *string, err error) {
-	oneTimeAccessToken, err := NewOneTimeAccessToken(userID, ttl, withDeviceToken)
-	if err != nil {
-		return "", nil, err
-	}
-
-	err = tx.WithContext(ctx).Create(oneTimeAccessToken).Error
-	if err != nil {
-		return "", nil, err
-	}
-
-	return oneTimeAccessToken.Token, oneTimeAccessToken.DeviceToken, nil
-}
-
-func (s *UserService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	var oneTimeAccessToken model.OneTimeAccessToken
-	err := tx.
-		WithContext(ctx).
-		Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).
-		Preload("User").
-		Clauses(clause.Locking{Strength: "UPDATE"}).
-		First(&oneTimeAccessToken).
-		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
-		}
-		return model.User{}, "", err
-	}
-	if oneTimeAccessToken.DeviceToken != nil && deviceToken != *oneTimeAccessToken.DeviceToken {
-		return model.User{}, "", &common.DeviceCodeInvalid{}
-	}
-
-	accessToken, err := s.jwtService.GenerateAccessToken(oneTimeAccessToken.User)
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	err = tx.
-		WithContext(ctx).
-		Delete(&oneTimeAccessToken).
-		Error
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	s.auditLogService.Create(ctx, model.AuditLogEventOneTimeAccessTokenSignIn, ipAddress, userAgent, oneTimeAccessToken.User.ID, model.AuditLogData{}, tx)
-
-	err = tx.Commit().Error
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	return oneTimeAccessToken.User, accessToken, nil
 }
 
 func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroupIds []string) (user model.User, err error) {
@@ -670,47 +517,6 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 
 	s.scimService.ScheduleSync()
 	return user, nil
-}
-
-func (s *UserService) SignUpInitialAdmin(ctx context.Context, signUpData dto.SignUpDto) (model.User, string, error) {
-	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
-
-	var userCount int64
-	if err := tx.WithContext(ctx).Model(&model.User{}).Count(&userCount).Error; err != nil {
-		return model.User{}, "", err
-	}
-	if userCount != 0 {
-		return model.User{}, "", &common.SetupAlreadyCompletedError{}
-	}
-
-	userToCreate := dto.UserCreateDto{
-		FirstName:   signUpData.FirstName,
-		LastName:    signUpData.LastName,
-		DisplayName: strings.TrimSpace(signUpData.FirstName + " " + signUpData.LastName),
-		Username:    signUpData.Username,
-		Email:       signUpData.Email,
-		IsAdmin:     true,
-	}
-
-	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	token, err := s.jwtService.GenerateAccessToken(user)
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	err = tx.Commit().Error
-	if err != nil {
-		return model.User{}, "", err
-	}
-
-	return user, token, nil
 }
 
 func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User, tx *gorm.DB) error {
@@ -774,172 +580,72 @@ func (s *UserService) disableUserInternal(ctx context.Context, tx *gorm.DB, user
 	return nil
 }
 
-func (s *UserService) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (model.SignupToken, error) {
-	signupToken, err := NewSignupToken(ttl, usageLimit)
+func (s *UserService) SendEmailVerification(ctx context.Context, userID string) error {
+	user, err := s.GetUser(ctx, userID)
 	if err != nil {
-		return model.SignupToken{}, err
+		return err
 	}
 
-	var userGroups []model.UserGroup
-	err = s.db.WithContext(ctx).
-		Where("id IN ?", userGroupIDs).
-		Find(&userGroups).
-		Error
-	if err != nil {
-		return model.SignupToken{}, err
-	}
-	signupToken.UserGroups = userGroups
-
-	err = s.db.WithContext(ctx).Create(signupToken).Error
-	if err != nil {
-		return model.SignupToken{}, err
+	if user.Email == nil {
+		return &common.UserEmailNotSetError{}
 	}
 
-	return *signupToken, nil
+	randomToken, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return err
+	}
+
+	expiration := time.Now().Add(24 * time.Hour)
+	emailVerificationToken := &model.EmailVerificationToken{
+		UserID:    user.ID,
+		Token:     randomToken,
+		ExpiresAt: datatype.DateTime(expiration),
+	}
+
+	err = s.db.WithContext(ctx).Create(emailVerificationToken).Error
+	if err != nil {
+		return err
+	}
+
+	return SendEmail(ctx, s.emailService, email.Address{
+		Name:  user.FullName(),
+		Email: *user.Email,
+	}, EmailVerificationTemplate, &EmailVerificationTemplateData{
+		UserFullName:     user.FullName(),
+		VerificationLink: common.EnvConfig.AppURL + "/verify-email?token=" + emailVerificationToken.Token,
+	})
 }
 
-func (s *UserService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAddress, userAgent string) (model.User, string, error) {
+func (s *UserService) VerifyEmail(ctx context.Context, userID string, token string) error {
 	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
+	defer tx.Rollback()
 
-	tokenProvided := signupData.Token != ""
+	var emailVerificationToken model.EmailVerificationToken
+	err := tx.WithContext(ctx).Where("token = ? AND user_id = ? AND expires_at > ?",
+		token, userID, datatype.DateTime(time.Now())).First(&emailVerificationToken).Error
 
-	config := s.appConfigService.GetDbConfig()
-	if config.AllowUserSignups.Value != "open" && !tokenProvided {
-		return model.User{}, "", &common.OpenSignupDisabledError{}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return &common.InvalidEmailVerificationTokenError{}
+	} else if err != nil {
+		return err
 	}
 
-	var signupToken model.SignupToken
-	var userGroupIDs []string
-	if tokenProvided {
-		err := tx.
-			WithContext(ctx).
-			Preload("UserGroups").
-			Where("token = ?", signupData.Token).
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			First(&signupToken).
-			Error
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return model.User{}, "", &common.TokenInvalidOrExpiredError{}
-			}
-			return model.User{}, "", err
-		}
-
-		if !signupToken.IsValid() {
-			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
-		}
-
-		for _, group := range signupToken.UserGroups {
-			userGroupIDs = append(userGroupIDs, group.ID)
-		}
-	}
-
-	userToCreate := dto.UserCreateDto{
-		Username:     signupData.Username,
-		Email:        signupData.Email,
-		FirstName:    signupData.FirstName,
-		LastName:     signupData.LastName,
-		DisplayName:  strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
-		UserGroupIds: userGroupIDs,
-	}
-
-	user, err := s.createUserInternal(ctx, userToCreate, false, tx)
+	user, err := s.getUserInternal(ctx, emailVerificationToken.UserID, tx)
 	if err != nil {
-		return model.User{}, "", err
+		return err
 	}
 
-	accessToken, err := s.jwtService.GenerateAccessToken(user)
+	user.EmailVerified = true
+	user.UpdatedAt = utils.Ptr(datatype.DateTime(time.Now()))
+	err = tx.WithContext(ctx).Save(&user).Error
 	if err != nil {
-		return model.User{}, "", err
+		return err
 	}
 
-	if tokenProvided {
-		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
-			"signupToken": signupToken.Token,
-		}, tx)
-
-		signupToken.UsageCount++
-
-		err = tx.WithContext(ctx).Save(&signupToken).Error
-		if err != nil {
-			return model.User{}, "", err
-
-		}
-	} else {
-		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
-			"method": "open_signup",
-		}, tx)
-	}
-
-	err = tx.Commit().Error
+	err = tx.WithContext(ctx).Delete(&emailVerificationToken).Error
 	if err != nil {
-		return model.User{}, "", err
+		return err
 	}
 
-	return user, accessToken, nil
-}
-
-func (s *UserService) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]model.SignupToken, utils.PaginationResponse, error) {
-	var tokens []model.SignupToken
-	query := s.db.WithContext(ctx).Preload("UserGroups").Model(&model.SignupToken{})
-
-	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &tokens)
-	return tokens, pagination, err
-}
-
-func (s *UserService) DeleteSignupToken(ctx context.Context, tokenID string) error {
-	return s.db.WithContext(ctx).Delete(&model.SignupToken{}, "id = ?", tokenID).Error
-}
-
-func NewOneTimeAccessToken(userID string, ttl time.Duration, withDeviceToken bool) (*model.OneTimeAccessToken, error) {
-	// If expires at is less than 15 minutes, use a 6-character token instead of 16
-	tokenLength := 16
-	if ttl <= 15*time.Minute {
-		tokenLength = 6
-	}
-
-	token, err := utils.GenerateRandomUnambiguousString(tokenLength)
-	if err != nil {
-		return nil, err
-	}
-
-	var deviceToken *string
-	if withDeviceToken {
-		dt, err := utils.GenerateRandomAlphanumericString(16)
-		if err != nil {
-			return nil, err
-		}
-		deviceToken = &dt
-	}
-
-	now := time.Now().Round(time.Second)
-	o := &model.OneTimeAccessToken{
-		UserID:      userID,
-		ExpiresAt:   datatype.DateTime(now.Add(ttl)),
-		Token:       token,
-		DeviceToken: deviceToken,
-	}
-
-	return o, nil
-}
-
-func NewSignupToken(ttl time.Duration, usageLimit int) (*model.SignupToken, error) {
-	// Generate a random token
-	randomString, err := utils.GenerateRandomAlphanumericString(16)
-	if err != nil {
-		return nil, err
-	}
-
-	now := time.Now().Round(time.Second)
-	token := &model.SignupToken{
-		Token:      randomString,
-		ExpiresAt:  datatype.DateTime(now.Add(ttl)),
-		UsageLimit: usageLimit,
-		UsageCount: 0,
-	}
-
-	return token, nil
+	return tx.Commit().Error
 }

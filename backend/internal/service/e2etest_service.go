@@ -80,23 +80,25 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Base: model.Base{
 					ID: "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				},
-				Username:    "tim",
-				Email:       utils.Ptr("tim.cook@test.com"),
-				FirstName:   "Tim",
-				LastName:    "Cook",
-				DisplayName: "Tim Cook",
-				IsAdmin:     true,
+				Username:      "tim",
+				Email:         utils.Ptr("tim.cook@test.com"),
+				EmailVerified: true,
+				FirstName:     "Tim",
+				LastName:      "Cook",
+				DisplayName:   "Tim Cook",
+				IsAdmin:       true,
 			},
 			{
 				Base: model.Base{
 					ID: "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
 				},
-				Username:    "craig",
-				Email:       utils.Ptr("craig.federighi@test.com"),
-				FirstName:   "Craig",
-				LastName:    "Federighi",
-				DisplayName: "Craig Federighi",
-				IsAdmin:     false,
+				Username:      "craig",
+				Email:         utils.Ptr("craig.federighi@test.com"),
+				EmailVerified: false,
+				FirstName:     "Craig",
+				LastName:      "Federighi",
+				DisplayName:   "Craig Federighi",
+				IsAdmin:       false,
 			},
 			{
 				Base: model.Base{
@@ -422,6 +424,31 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			},
 		}
 		for _, token := range signupTokens {
+			if err := tx.Create(&token).Error; err != nil {
+				return err
+			}
+		}
+
+		emailVerificationTokens := []model.EmailVerificationToken{
+			{
+				Base: model.Base{
+					ID: "ef9ca469-b178-4857-bd39-26639dca45de",
+				},
+				Token:     "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup",
+				ExpiresAt: datatype.DateTime(time.Now().Add(2 * time.Hour)),
+				UserID:    users[1].ID,
+			},
+			{
+				Base: model.Base{
+					ID: "a3dcb4d2-7f3c-4e8a-9f4d-5b6c7d8e9f00",
+				},
+				Token:     "EXPIRED1234567890ABCDE",
+				ExpiresAt: datatype.DateTime(time.Now().Add(-1 * time.Hour)),
+				UserID:    users[1].ID,
+			},
+		}
+
+		for _, token := range emailVerificationTokens {
 			if err := tx.Create(&token).Error; err != nil {
 				return err
 			}

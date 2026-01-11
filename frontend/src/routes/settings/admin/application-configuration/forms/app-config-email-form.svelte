@@ -34,6 +34,7 @@
 	const formSchema = z
 		.object({
 			requireUserEmail: z.boolean(),
+			emailsVerified: z.boolean(),
 			smtpHost: z.string().optional(),
 			smtpPort: z
 				.preprocess((v: string) => (!v ? undefined : parseInt(v)), z.number().optional().nullable())
@@ -45,6 +46,7 @@
 			smtpTls: z.enum(['none', 'starttls', 'tls']),
 			smtpSkipCertVerify: z.boolean(),
 			emailOneTimeAccessAsUnauthenticatedEnabled: z.boolean(),
+			emailVerificationEnabled: z.boolean(),
 			emailOneTimeAccessAsAdminEnabled: z.boolean(),
 			emailLoginNotificationEnabled: z.boolean(),
 			emailApiKeyExpirationEnabled: z.boolean()
@@ -58,6 +60,7 @@
 
 			const emailFields: (keyof z.infer<typeof formSchema>)[] = [
 				'emailOneTimeAccessAsUnauthenticatedEnabled',
+				'emailVerificationEnabled',
 				'emailOneTimeAccessAsAdminEnabled',
 				'emailLoginNotificationEnabled',
 				'emailApiKeyExpirationEnabled'
@@ -137,12 +140,20 @@
 <form onsubmit={preventDefault(onSubmit)}>
 	<fieldset disabled={$appConfigStore.uiConfigDisabled}>
 		<h4 class="mb-4 text-lg font-semibold">{m.general()}</h4>
-		<SwitchWithLabel
-			id="require-user-email"
-			label={m.require_user_email()}
-			description={m.require_user_email_description()}
-			bind:checked={$inputs.requireUserEmail.value}
-		/>
+		<div class="flex flex-col gap-5">
+			<SwitchWithLabel
+				id="require-user-email"
+				label={m.require_user_email()}
+				description={m.require_user_email_description()}
+				bind:checked={$inputs.requireUserEmail.value}
+			/>
+			<SwitchWithLabel
+				id="emails-verified-by-default"
+				label={m.emails_verified_by_default()}
+				description={m.emails_verified_by_default_description()}
+				bind:checked={$inputs.emailsVerified.value}
+			/>
+		</div>
 		<h4 class="mt-10 text-lg font-semibold">{m.smtp_configuration()}</h4>
 		<div class="mt-4 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<FormInput label={m.smtp_host()} bind:input={$inputs.smtpHost} />
@@ -182,7 +193,12 @@
 				description={m.send_an_email_to_the_user_when_they_log_in_from_a_new_device()}
 				bind:checked={$inputs.emailLoginNotificationEnabled.value}
 			/>
-
+			<SwitchWithLabel
+				id="email-verification"
+				label={m.email_verification()}
+				description={m.email_verification_description()}
+				bind:checked={$inputs.emailVerificationEnabled.value}
+			/>
 			<SwitchWithLabel
 				id="email-login-admin"
 				label={m.email_login_code_from_admin()}

@@ -2,20 +2,25 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Toggle } from '$lib/components/ui/toggle';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { User, UserCreate } from '$lib/types/user.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
+	import { LucideMailCheck, LucideMailWarning } from '@lucide/svelte';
 	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
 
 	let {
 		callback,
-		existingUser
+		existingUser,
+		emailsVerifiedPerDefault = false
 	}: {
 		existingUser?: User;
+		emailsVerifiedPerDefault?: boolean;
 		callback: (user: UserCreate) => Promise<boolean>;
 	} = $props();
 
@@ -28,6 +33,7 @@
 		lastName: existingUser?.lastName || '',
 		displayName: existingUser?.displayName || '',
 		email: existingUser?.email || '',
+		emailVerified: existingUser?.emailVerified ?? emailsVerifiedPerDefault,
 		username: existingUser?.username || '',
 		isAdmin: existingUser?.isAdmin || false,
 		disabled: existingUser?.disabled || false
@@ -41,6 +47,7 @@
 		email: get(appConfigStore).requireUserEmail
 			? z.email()
 			: emptyToUndefined(z.email().optional()),
+		emailVerified: z.boolean(),
 		isAdmin: z.boolean(),
 		disabled: z.boolean()
 	});
@@ -76,7 +83,34 @@
 				bind:input={$inputs.displayName}
 			/>
 			<FormInput label={m.username()} bind:input={$inputs.username} />
-			<FormInput label={m.email()} bind:input={$inputs.email} />
+			<div class="flex items-end">
+				<FormInput
+					inputClass="rounded-r-none border-r-0"
+					label={m.email()}
+					bind:input={$inputs.email}
+				/>
+				<Tooltip.Provider>
+					{@const label = $inputs.emailVerified.value
+						? m.mark_as_unverified()
+						: m.mark_as_verified()}
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							<Toggle
+								bind:pressed={$inputs.emailVerified.value}
+								aria-label={label}
+								class="h-9 border-input bg-yellow-100 dark:bg-yellow-950 data-[state=on]:bg-green-100 dark:data-[state=on]:bg-green-950 rounded-l-none border px-2 py-1 shadow-xs flex items-center hover:data-[state=on]:bg-accent"
+							>
+								{#if $inputs.emailVerified.value}
+									<LucideMailCheck class="text-green-500 dark:text-green-600 size-5" />
+								{:else}
+									<LucideMailWarning class="text-yellow-500 dark:text-yellow-600 size-5" />
+								{/if}
+							</Toggle>
+						</Tooltip.Trigger>
+						<Tooltip.Content>{label}</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+			</div>
 		</div>
 		<div class="mt-5 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<SwitchWithLabel
