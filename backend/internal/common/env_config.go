@@ -49,6 +49,7 @@ type EnvConfigSchema struct {
 	AllowDowngrade        bool   `env:"ALLOW_DOWNGRADE"`
 	InternalAppURL        string `env:"INTERNAL_APP_URL"`
 	UiConfigDisabled      bool   `env:"UI_CONFIG_DISABLED"`
+	DisableRateLimiting   bool   `env:"DISABLE_RATE_LIMITING"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
