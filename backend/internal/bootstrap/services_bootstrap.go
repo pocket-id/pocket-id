@@ -75,7 +75,12 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService, svc.scimService)
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService, fileStorage)
-	svc.apiKeyService = service.NewApiKeyService(db, svc.emailService)
+
+	svc.apiKeyService, err = service.NewApiKeyService(ctx, db, svc.emailService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API key service: %w", err)
+	}
+
 	svc.userSignUpService = service.NewUserSignupService(db, svc.jwtService, svc.auditLogService, svc.appConfigService, svc.userService)
 	svc.oneTimeAccessService = service.NewOneTimeAccessService(db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 

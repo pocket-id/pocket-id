@@ -16,13 +16,25 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const staticApiKeyUserID = "00000000-0000-0000-0000-000000000000"
+
 type ApiKeyService struct {
 	db           *gorm.DB
 	emailService *EmailService
 }
 
-func NewApiKeyService(db *gorm.DB, emailService *EmailService) *ApiKeyService {
-	return &ApiKeyService{db: db, emailService: emailService}
+func NewApiKeyService(ctx context.Context, db *gorm.DB, emailService *EmailService) (*ApiKeyService, error) {
+	s := &ApiKeyService{db: db, emailService: emailService}
+
+	if common.EnvConfig.StaticApiKey == "" {
+		err := s.deleteStaticApiKeyUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s, nil
+
 }
 
 func (s *ApiKeyService) ListApiKeys(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.ApiKey, utils.PaginationResponse, error) {
@@ -144,6 +156,10 @@ func (s *ApiKeyService) ValidateApiKey(ctx context.Context, apiKey string) (mode
 		return model.User{}, &common.NoAPIKeyProvidedError{}
 	}
 
+	if common.EnvConfig.StaticApiKey != "" && apiKey == common.EnvConfig.StaticApiKey {
+		return s.initStaticApiKeyUser(ctx)
+	}
+
 	now := time.Now()
 	hashedKey := utils.CreateSha256Hash(apiKey)
 
@@ -215,5 +231,49 @@ func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey 
 		Model(&model.ApiKey{}).
 		Where("id = ?", apiKey.ID).
 		Update("expiration_email_sent", true).
+		Error
+}
+
+func (s *ApiKeyService) initStaticApiKeyUser(ctx context.Context) (user model.User, err error) {
+	err = s.db.
+		WithContext(ctx).
+		First(&user, "id = ?", staticApiKeyUserID).
+		Error
+
+	if err == nil {
+		return user, nil
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, err
+	}
+
+	usernameSuffix, err := utils.GenerateRandomAlphanumericString(6)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	user = model.User{
+		Base: model.Base{
+			ID: staticApiKeyUserID,
+		},
+		FirstName:   "Static API User",
+		Username:    "static-api-user-" + usernameSuffix,
+		DisplayName: "Static API User",
+		IsAdmin:     true,
+	}
+
+	err = s.db.
+		WithContext(ctx).
+		Create(&user).
+		Error
+
+	return user, err
+}
+
+func (s *ApiKeyService) deleteStaticApiKeyUser(ctx context.Context) error {
+	return s.db.
+		WithContext(ctx).
+		Delete(&model.User{}, "id = ?", staticApiKeyUserID).
 		Error
 }

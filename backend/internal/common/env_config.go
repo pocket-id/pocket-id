@@ -50,6 +50,7 @@ type EnvConfigSchema struct {
 	InternalAppURL        string `env:"INTERNAL_APP_URL"`
 	UiConfigDisabled      bool   `env:"UI_CONFIG_DISABLED"`
 	DisableRateLimiting   bool   `env:"DISABLE_RATE_LIMITING"`
+	StaticApiKey          string `env:"STATIC_API_KEY" options:"file"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
@@ -198,6 +199,10 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 
 	if config.AuditLogRetentionDays <= 0 {
 		return errors.New("AUDIT_LOG_RETENTION_DAYS must be greater than 0")
+	}
+
+	if config.StaticApiKey != "" && len(config.StaticApiKey) < 16 {
+		return errors.New("STATIC_API_KEY must be at least 16 characters long")
 	}
 
 	return nil
