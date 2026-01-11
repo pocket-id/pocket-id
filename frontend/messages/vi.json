@@ -519,7 +519,7 @@
 	"email_verification_error_title": "Xác minh email không thành công",
 	"mark_as_unverified": "Đánh dấu là chưa xác minh",
 	"mark_as_verified": "Đánh dấu là đã xác minh",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "Email xác minh đã được gửi thành công.",
+	"emails_verified_by_default": "Email được xác minh theo mặc định",
+	"emails_verified_by_default_description": "Khi tính năng này được kích hoạt, địa chỉ email của người dùng sẽ được đánh dấu là đã xác minh theo mặc định khi đăng ký hoặc khi địa chỉ email của họ được thay đổi."
 }
