@@ -1900,7 +1900,7 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 	claims["sub"] = user.ID
 	if slices.Contains(scopes, "email") {
 		claims["email"] = user.Email
-		claims["email_verified"] = s.appConfigService.GetDbConfig().EmailsVerified.IsTrue()
+		claims["email_verified"] = user.EmailVerified
 	}
 
 	if slices.Contains(scopes, "groups") {
