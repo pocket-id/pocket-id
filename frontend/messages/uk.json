@@ -519,7 +519,7 @@
 	"email_verification_error_title": "Перевірка електронної адреси не вдалася",
 	"mark_as_unverified": "Позначити як неперевірене",
 	"mark_as_verified": "Позначити як перевірене",
-	"email_verification_sent": "Verification email sent successfully.",
-	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"email_verification_sent": "Електронний лист для підтвердження надіслано успішно.",
+	"emails_verified_by_default": "Електронні листи перевіряються за замовчуванням",
+	"emails_verified_by_default_description": "Якщо ця опція увімкнена, адреси електронної пошти користувачів будуть позначатися як підтверджені за замовчуванням під час реєстрації або при зміні адреси електронної пошти."
 }
