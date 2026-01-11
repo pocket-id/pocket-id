@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "Тривалість сесії у хвилинах до повторного входу користувача.",
 	"enable_self_account_editing": "Увімкнути редагування власного облікового запису",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "Чи повинні користувачі мати можливість редагувати власні дані облікового запису.",
-	"emails_verified": "Підтверджена електронна пошта",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "Чи слід позначати електронну пошту користувача як підтверджену для OIDC клієнтів.",
 	"ldap_configuration_updated_successfully": "Налаштування LDAP успішно оновлено",
 	"ldap_disabled_successfully": "LDAP успішно вимкнено",
 	"ldap_sync_finished": "Синхронізація LDAP завершена",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "Оновлення API-ключа призведе до створення нового ключа. Обов'язково оновіть усі інтеграції, що використовують цей ключ.",
 	"api_key_renewed": "Ключ API оновлено",
 	"app_config_home_page": "Головна сторінка",
-	"app_config_home_page_description": "Сторінка, на яку перенаправляють користувачів після входу в систему."
+	"app_config_home_page_description": "Сторінка, на яку перенаправляють користувачів після входу в систему.",
+	"email_verification_warning": "Підтвердьте свою адресу електронної пошти",
+	"email_verification_warning_description": "Ваша електронна адреса ще не підтверджена. Будь ласка, підтвердьте її якомога швидше.",
+	"email_verification": "Перевірка електронної адреси",
+	"email_verification_description": "Надсилайте користувачам підтверджувальний лист електронною поштою, коли вони реєструються або змінюють свою адресу електронної пошти.",
+	"email_verification_success_title": "Електронна адреса успішно підтверджена",
+	"email_verification_success_description": "Ваша електронна адреса була успішно підтверджена.",
+	"email_verification_error_title": "Перевірка електронної адреси не вдалася",
+	"mark_as_unverified": "Позначити як неперевірене",
+	"mark_as_verified": "Позначити як перевірене",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }
