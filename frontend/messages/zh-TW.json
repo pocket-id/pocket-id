@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "使用者需重新登入前的階段時長（以分鐘為單位）。",
 	"enable_self_account_editing": "允許使用者自行編輯帳號資訊",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "是否允許使用者編輯自己的帳號資料。",
-	"emails_verified": "已驗證的電子郵件",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "是否應將使用者的電子郵件標記為已驗證，以供 OIDC 客戶端使用。",
 	"ldap_configuration_updated_successfully": "LDAP 設定更新成功",
 	"ldap_disabled_successfully": "LDAP 已成功停用",
 	"ldap_sync_finished": "LDAP 同步完成",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "重新生成 API 金鑰將產生新的金鑰。請務必更新所有使用此金鑰的整合服務。",
 	"api_key_renewed": "API 金鑰已更新",
 	"app_config_home_page": "首頁",
-	"app_config_home_page_description": "用戶登入後被重定向至的頁面。"
+	"app_config_home_page_description": "用戶登入後被重定向至的頁面。",
+	"email_verification_warning": "請驗證您的電子郵件地址",
+	"email_verification_warning_description": "您的電子郵件地址尚未完成驗證。請盡快完成驗證程序。",
+	"email_verification": "電子郵件驗證",
+	"email_verification_description": "當用戶註冊或變更電子郵件地址時，向其發送驗證郵件。",
+	"email_verification_success_title": "電子郵件驗證成功",
+	"email_verification_success_description": "您的電子郵件地址已成功驗證。",
+	"email_verification_error_title": "電子郵件驗證失敗",
+	"mark_as_unverified": "標記為未驗證",
+	"mark_as_verified": "標記為已驗證",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }

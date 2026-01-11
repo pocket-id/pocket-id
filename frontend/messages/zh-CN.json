@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "用户需再次登录之前的会话时长（以分钟为单位）。",
 	"enable_self_account_editing": "启用用户自行编辑账户功能",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "用户是否能够编辑自己的账户详细信息。",
-	"emails_verified": "已验证的邮箱地址",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "用户的电子邮件是否应标记为已验证，适用于 OIDC 客户端。",
 	"ldap_configuration_updated_successfully": "LDAP 配置更新成功",
 	"ldap_disabled_successfully": "LDAP 已成功禁用",
 	"ldap_sync_finished": "LDAP 同步完成",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "更新API密钥将生成新密钥。请确保更新所有使用此密钥的集成。",
 	"api_key_renewed": "API密钥已更新",
 	"app_config_home_page": "主页",
-	"app_config_home_page_description": "用户登录后被重定向到的页面。"
+	"app_config_home_page_description": "用户登录后被重定向到的页面。",
+	"email_verification_warning": "请验证您的电子邮件地址",
+	"email_verification_warning_description": "您的电子邮箱尚未完成验证。请尽快完成验证。",
+	"email_verification": "电子邮件验证",
+	"email_verification_description": "在用户注册或更改电子邮件地址时向其发送验证邮件。",
+	"email_verification_success_title": "电子邮件验证成功",
+	"email_verification_success_description": "您的电子邮件地址已成功验证。",
+	"email_verification_error_title": "电子邮件验证失败",
+	"mark_as_unverified": "标记为未验证",
+	"mark_as_verified": "标记为已验证",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }

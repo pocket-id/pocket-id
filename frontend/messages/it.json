@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "La durata di una sessione in minuti prima che l'utente debba accedere nuovamente.",
 	"enable_self_account_editing": "Abilita modifica del proprio account",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "Se gli utenti dovrebbero essere in grado di modificare i dettagli del proprio account.",
-	"emails_verified": "Email verificate",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "Se l'email dell'utente deve essere contrassegnata come verificata per i client OIDC.",
 	"ldap_configuration_updated_successfully": "Configurazione LDAP aggiornata con successo",
 	"ldap_disabled_successfully": "LDAP disabilitato con successo",
 	"ldap_sync_finished": "Sincronizzazione LDAP completata",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "Rinnovando la chiave API ne verrà generata una nuova. Assicurati di aggiornare tutte le integrazioni che usano questa chiave.",
 	"api_key_renewed": "Chiave API rinnovata",
 	"app_config_home_page": "Pagina iniziale",
-	"app_config_home_page_description": "La pagina a cui gli utenti vengono reindirizzati dopo aver effettuato l'accesso."
+	"app_config_home_page_description": "La pagina a cui gli utenti vengono reindirizzati dopo aver effettuato l'accesso.",
+	"email_verification_warning": "Conferma il tuo indirizzo email",
+	"email_verification_warning_description": "Il tuo indirizzo email non è ancora stato verificato. Ti chiediamo di farlo il prima possibile.",
+	"email_verification": "Verifica dell'indirizzo e-mail",
+	"email_verification_description": "Manda un'email di verifica agli utenti quando si registrano o cambiano il loro indirizzo email.",
+	"email_verification_success_title": "Email verificata con successo",
+	"email_verification_success_description": "Il tuo indirizzo email è stato verificato senza problemi.",
+	"email_verification_error_title": "Verifica e-mail non riuscita",
+	"mark_as_unverified": "Contrassegna come non verificato",
+	"mark_as_verified": "Contrassegna come verificato",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }

@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "Istunnon kesto minuutteina ennen kuin käyttäjän on kirjauduttava uudelleen.",
 	"enable_self_account_editing": "Ota käyttöön tilin itsemuokkaus",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "Määrittää voiko käyttäjät itse muokata oman tilinsä tietoja.",
-	"emails_verified": "Sähköpostiosoitteet vahvistettu",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "Merkitäänkö käyttäjän sähköpostiosoite vahvistetuksi OIDC-asiakkaille.",
 	"ldap_configuration_updated_successfully": "LDAP-määritykset päivitetty onnistuneesti",
 	"ldap_disabled_successfully": "LDAP poistettu käytöstä onnistuneesti",
 	"ldap_sync_finished": "LDAP-synkronointi valmis",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "API-avaimen uusiminen luo uuden avaimen. Muista päivittää kaikki integraatiot, joissa tätä avainta käytetään.",
 	"api_key_renewed": "API-avain uusittu",
 	"app_config_home_page": "Kotisivu",
-	"app_config_home_page_description": "Sivu, jolle käyttäjät ohjataan kirjautumisen jälkeen."
+	"app_config_home_page_description": "Sivu, jolle käyttäjät ohjataan kirjautumisen jälkeen.",
+	"email_verification_warning": "Vahvista sähköpostiosoitteesi",
+	"email_verification_warning_description": "Sähköpostiosoitteesi ei ole vielä vahvistettu. Vahvista se mahdollisimman pian.",
+	"email_verification": "Sähköpostin vahvistus",
+	"email_verification_description": "Lähetä vahvistussähköposti käyttäjille, kun he rekisteröityvät tai muuttavat sähköpostiosoitteensa.",
+	"email_verification_success_title": "Sähköposti vahvistettu onnistuneesti",
+	"email_verification_success_description": "Sähköpostiosoitteesi on vahvistettu onnistuneesti.",
+	"email_verification_error_title": "Sähköpostin vahvistus epäonnistui",
+	"mark_as_unverified": "Merkitse vahvistamattomaksi",
+	"mark_as_verified": "Merkitse vahvistetuksi",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }

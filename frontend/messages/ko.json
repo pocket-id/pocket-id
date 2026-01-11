@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "사용자가 다시 로그인하기 전 세션의 시간(분)입니다.",
 	"enable_self_account_editing": "셀프 계정 편집 활성화",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "사용자가 자신의 계정 정보를 편집할 수 있습니다.",
-	"emails_verified": "이메일 인증됨",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "OIDC 클라이언트에게 사용자의 이메일이 인증된 것으로 표시합니다.",
 	"ldap_configuration_updated_successfully": "LDAP 구성이 성공적으로 변경되었습니다",
 	"ldap_disabled_successfully": "LDAP가 성공적으로 비활성화되었습니다",
 	"ldap_sync_finished": "LDAP 동기화 완료",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "API 키를 갱신하면 새 키가 생성됩니다. 이 키를 사용하는 모든 통합 기능을 반드시 업데이트하십시오.",
 	"api_key_renewed": "API 키 갱신됨",
 	"app_config_home_page": "홈페이지",
-	"app_config_home_page_description": "사용자가 로그인 후 이동하는 페이지."
+	"app_config_home_page_description": "사용자가 로그인 후 이동하는 페이지.",
+	"email_verification_warning": "Verify your email address",
+	"email_verification_warning_description": "Your email address is not verified yet. Please verify it as soon as possible.",
+	"email_verification": "Email Verification",
+	"email_verification_description": "Send a verification email to users when they sign up or change their email address.",
+	"email_verification_success_title": "Email Verified Successfully",
+	"email_verification_success_description": "Your email address has been verified successfully.",
+	"email_verification_error_title": "Email Verification Failed",
+	"mark_as_unverified": "Mark as unverified",
+	"mark_as_verified": "Mark as verified",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }

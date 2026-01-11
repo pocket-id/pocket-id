@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "Thời gian của một phiên (tính bằng phút) trước khi người dùng phải đăng nhập lại.",
 	"enable_self_account_editing": "Cho Phép Chỉnh Sửa Tài Khoản Cá Nhân",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "Người dùng có nên được phép chỉnh sửa thông tin tài khoản của mình không?",
-	"emails_verified": "Xác Minh Email",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "Có nên đánh dấu email của người dùng là đã xác minh cho các OIDC clients hay không.",
 	"ldap_configuration_updated_successfully": "Cấu hình LDAP đã được cập nhật thành công",
 	"ldap_disabled_successfully": "Tắt LDAP thành công",
 	"ldap_sync_finished": "Quá trình đồng bộ hóa LDAP đã hoàn tất",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "Việc gia hạn khóa API sẽ tạo ra một khóa mới. Hãy đảm bảo cập nhật các tích hợp sử dụng khóa này.",
 	"api_key_renewed": "Khóa API đã được gia hạn",
 	"app_config_home_page": "Trang chủ",
-	"app_config_home_page_description": "Trang mà người dùng được chuyển hướng đến sau khi đăng nhập."
+	"app_config_home_page_description": "Trang mà người dùng được chuyển hướng đến sau khi đăng nhập.",
+	"email_verification_warning": "Xác minh địa chỉ email của bạn",
+	"email_verification_warning_description": "Địa chỉ email của bạn chưa được xác minh. Vui lòng xác minh ngay lập tức.",
+	"email_verification": "Xác minh email",
+	"email_verification_description": "Gửi email xác minh cho người dùng khi họ đăng ký hoặc thay đổi địa chỉ email.",
+	"email_verification_success_title": "Email đã được xác minh thành công.",
+	"email_verification_success_description": "Địa chỉ email của bạn đã được xác minh thành công.",
+	"email_verification_error_title": "Xác minh email không thành công",
+	"mark_as_unverified": "Đánh dấu là chưa xác minh",
+	"mark_as_verified": "Đánh dấu là đã xác minh",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }

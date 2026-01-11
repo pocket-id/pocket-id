@@ -196,8 +196,6 @@
 	"the_duration_of_a_session_in_minutes_before_the_user_has_to_sign_in_again": "De duur van een sessie in minuten voordat de gebruiker zich opnieuw moet aanmelden.",
 	"enable_self_account_editing": "Bewerken van eigen account mogelijk maken",
 	"whether_the_users_should_be_able_to_edit_their_own_account_details": "Of gebruikers hun eigen accountgegevens moeten kunnen bewerken.",
-	"emails_verified": "E-mails geverifieerd",
-	"whether_the_users_email_should_be_marked_as_verified_for_the_oidc_clients": "Of het e-mailadres van de gebruiker als geverifieerd moet worden gemarkeerd voor de OIDC-clients.",
 	"ldap_configuration_updated_successfully": "LDAP-configuratie succesvol bijgewerkt",
 	"ldap_disabled_successfully": "LDAP succesvol uitgeschakeld",
 	"ldap_sync_finished": "LDAP-synchronisatie voltooid",
@@ -511,5 +509,17 @@
 	"renew_api_key_description": "Als je de API-sleutel vernieuwt, krijg je een nieuwe sleutel. Zorg ervoor dat je alle integraties die deze sleutel gebruiken, bijwerkt.",
 	"api_key_renewed": "API-sleutel vernieuwd",
 	"app_config_home_page": "Startpagina",
-	"app_config_home_page_description": "De pagina waar gebruikers naartoe gaan nadat ze zijn ingelogd."
+	"app_config_home_page_description": "De pagina waar gebruikers naartoe gaan nadat ze zijn ingelogd.",
+	"email_verification_warning": "Check je e-mailadres",
+	"email_verification_warning_description": "Je e-mailadres is nog niet geverifieerd. Doe dat alsjeblieft zo snel mogelijk.",
+	"email_verification": "E-mailverificatie",
+	"email_verification_description": "Stuur een bevestigingsmail naar mensen als ze zich aanmelden of hun e-mailadres veranderen.",
+	"email_verification_success_title": "E-mailadres succesvol geverifieerd",
+	"email_verification_success_description": "Je e-mailadres is goed geverifieerd.",
+	"email_verification_error_title": "E-mailverificatie mislukt",
+	"mark_as_unverified": "Markeer als niet geverifieerd",
+	"mark_as_verified": "Markeer als geverifieerd",
+	"email_verification_sent": "Verification email sent successfully.",
+	"emails_verified_by_default": "Emails verified by default",
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
 }
