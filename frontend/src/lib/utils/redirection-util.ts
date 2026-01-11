@@ -9,14 +9,17 @@ export function getAuthRedirectPath(url: URL, user: User | null) {
 
 	const isUnauthenticatedOnlyPath =
 		path == '/login' ||
-		path.startsWith('/login/') ||
+		(path.startsWith('/login/') && path != '/login/alternative/code') ||
 		path == '/lc' ||
-		path.startsWith('/lc/') ||
 		path == '/signup' ||
 		path == '/signup/setup' ||
 		path == '/setup' ||
 		path.startsWith('/st/');
-	const isPublicPath = ['/authorize', '/device', '/health', '/healthz'].includes(path);
+
+	const isPublicPath =
+		path.startsWith('/lc/') ||
+		['/authorize', '/login/alternative/code', '/device', '/health', '/healthz'].includes(path);
+
 	const isAdminPath = path == '/settings/admin' || path.startsWith('/settings/admin/');
 
 	if (!isUnauthenticatedOnlyPath && !isPublicPath && !isSignedIn) {
