@@ -113,7 +113,7 @@
 	"passkey_missing": "Ключ доступа отсутствует",
 	"please_provide_a_passkey_to_prevent_losing_access_to_your_account": "Пожалуйста, добавьте ключ доступа, чтобы не потерять доступ к своей учетной записи.",
 	"single_passkey_configured": "Настроен только один ключ доступа",
-	"it_is_recommended_to_add_more_than_one_passkey": "Рекомендуется добавить более одного пасскея во избежание потери доступа к вашей учетной записи.",
+	"it_is_recommended_to_add_more_than_one_passkey": "Рекомендуется добавить более одного ключа доступа, чтобы не потерять доступ к вашей учетной записи.",
 	"account_details": "Детали учетной записи",
 	"passkeys": "Ключи доступа",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Управляйте своими ключами доступа, которые вы можете использовать для аутентификации.",
