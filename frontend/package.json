@@ -49,7 +49,7 @@
     "prettier-plugin-svelte": "^3.4.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "rollup": "^4.54.0",
-    "svelte": "^5.46.1",
+    "svelte": "^5.46.4",
     "svelte-check": "^4.3.5",
     "svelte-sonner": "^1.0.7",
     "tailwind-variants": "^3.2.2",
