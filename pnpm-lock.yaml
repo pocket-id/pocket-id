@@ -6,7 +6,7 @@ settings:
 
 overrides:
   cookie@<0.7.0: '>=0.7.0'
-  devalue: ^5.3.2
+  devalue: ^5.6.2
   glob@>=11.0.0 <11.1.0: '>=11.1.0'
   js-yaml@>=4.0.0 <4.1.1: '>=4.1.1'
   valibot@>=0.31.0 <1.2.0: '>=1.2.0'
@@ -1742,9 +1742,6 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
-
-  devalue@5.6.1:
-    resolution: {integrity: sha512-jDwizj+IlEZBunHcOuuFVBnIMPAEHvTsJj0BcIp94xYguLRVBcXO853px/MyIJvbVzWdsGvrRweIUWJw8hBP7A==}
 
   devalue@5.6.2:
     resolution: {integrity: sha512-nPRkjWzzDQlsejL1WVifk5rvcFi/y1onBRxjaFMjZeR9mFpqu2gmAZ9xUB9/IEanEP/vBtGeGganC/GO1fmufg==}
@@ -4461,8 +4458,6 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  devalue@5.6.1: {}
-
   devalue@5.6.2: {}
 
   dijkstrajs@1.0.3: {}
@@ -5615,7 +5610,7 @@ snapshots:
   sveltekit-superforms@2.29.1(@sveltejs/kit@2.49.5(@sveltejs/vite-plugin-svelte@6.2.1(svelte@5.46.4)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1)))(svelte@5.46.4)(typescript@5.9.3)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1)))(@types/json-schema@7.0.15)(svelte@5.46.4)(typescript@5.9.3):
     dependencies:
       '@sveltejs/kit': 2.49.5(@sveltejs/vite-plugin-svelte@6.2.1(svelte@5.46.4)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1)))(svelte@5.46.4)(typescript@5.9.3)(vite@7.3.0(@types/node@24.10.4)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.1))
-      devalue: 5.6.1
+      devalue: 5.6.2
       memoize-weak: 1.0.2
       svelte: 5.46.4
       ts-deepmerge: 7.0.3
