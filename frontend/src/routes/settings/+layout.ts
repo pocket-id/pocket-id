@@ -10,8 +10,13 @@ export const load: LayoutLoad = async () => {
 	let isUpToDate = true;
 	try {
 		newestVersion = await versionService.getNewestVersion();
-		isUpToDate = newestVersion === currentVersion;
-	} catch {}
+		// If newestVersion is empty, it means the check is disabled or failed.
+		// In this case, we assume the version is up to date.
+		isUpToDate = newestVersion === '' || newestVersion === currentVersion;
+	} catch {
+		// If the request fails, assume up-to-date to avoid showing a warning.
+		isUpToDate = true;
+	}
 
 	const versionInformation: AppVersionInformation = {
 		currentVersion: versionService.getCurrentVersion(),

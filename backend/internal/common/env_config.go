@@ -50,6 +50,7 @@ type EnvConfigSchema struct {
 	InternalAppURL        string `env:"INTERNAL_APP_URL"`
 	UiConfigDisabled      bool   `env:"UI_CONFIG_DISABLED"`
 	DisableRateLimiting   bool   `env:"DISABLE_RATE_LIMITING"`
+	VersionCheckDisabled  bool   `env:"VERSION_CHECK_DISABLED"`
 	StaticApiKey          string `env:"STATIC_API_KEY" options:"file"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
