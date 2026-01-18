@@ -14,6 +14,7 @@
 		de: 'Deutsch',
 		en: 'English',
 		es: 'Español',
+		et: 'Eesti',
 		fi: 'Suomi',
 		fr: 'Français',
 		it: 'Italiano',
