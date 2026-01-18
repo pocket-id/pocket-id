@@ -129,6 +129,10 @@ func parseEnvConfig() error {
 
 // ValidateEnvConfig checks the EnvConfig for required fields and valid values
 func ValidateEnvConfig(config *EnvConfigSchema) error {
+	if shouldSkipEnvValidation(os.Args) {
+		return nil
+	}
+
 	if _, err := sloggin.ParseLevel(config.LogLevel); err != nil {
 		return errors.New("invalid LOG_LEVEL value. Must be 'debug', 'info', 'warn' or 'error'")
 	}
@@ -208,6 +212,17 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 
 	return nil
 
+}
+
+func shouldSkipEnvValidation(args []string) bool {
+	for _, arg := range args[1:] {
+		switch arg {
+		case "-h", "--help", "help", "version":
+			return true
+		}
+	}
+
+	return false
 }
 
 // prepareEnvConfig processes special options for EnvConfig fields
