@@ -24,6 +24,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/skip2/go-qrcode"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -1294,6 +1295,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		UserCode:                userCode,
 		VerificationURI:         common.EnvConfig.AppURL + "/device",
 		VerificationURIComplete: common.EnvConfig.AppURL + "/device?code=" + userCode,
+		QRCodeURI:               common.EnvConfig.AppURL + "/api/oidc/device/qrcode?code=" + userCode,
 		ExpiresIn:               int(DeviceCodeDuration.Seconds()),
 		Interval:                5,
 	}, nil
@@ -1411,6 +1413,34 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 		Scope:                 deviceAuth.Scope,
 		AuthorizationRequired: !hasAuthorizedClient,
 	}, nil
+}
+
+func (s *OidcService) GenerateDeviceCodeQR(ctx context.Context, userCode string) ([]byte, error) {
+	var deviceAuth model.OidcDeviceCode
+	err := s.db.
+		WithContext(ctx).
+		First(&deviceAuth, "user_code = ?", userCode).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &common.OidcInvalidDeviceCodeError{}
+		}
+		return nil, err
+	}
+
+	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
+		return nil, &common.OidcDeviceCodeExpiredError{}
+	}
+
+	verificationURL := common.EnvConfig.AppURL + "/device?code=" + userCode
+
+	// Import the qrcode package at the top: "github.com/skip2/go-qrcode"
+	qr, err := qrcode.Encode(verificationURL, qrcode.Medium, 256)
+	if err != nil {
+		return nil, fmt.Errorf("error generating QR code: %w", err)
+	}
+
+	return qr, nil
 }
 
 func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id string) (int64, error) {

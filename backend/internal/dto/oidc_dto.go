@@ -147,6 +147,7 @@ type OidcDeviceAuthorizationResponseDto struct {
 	UserCode                string `json:"user_code"`
 	VerificationURI         string `json:"verification_uri"`
 	VerificationURIComplete string `json:"verification_uri_complete"`
+	QRCodeURI               string `json:"qr_code_uri"`
 	ExpiresIn               int    `json:"expires_in"`
 	Interval                int    `json:"interval"`
 	RequiresAuthorization   bool   `json:"requires_authorization"`

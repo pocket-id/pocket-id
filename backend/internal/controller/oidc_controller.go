@@ -55,6 +55,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/device/authorize", oc.deviceAuthorizationHandler)
 	group.POST("/oidc/device/verify", authMiddleware.WithAdminNotRequired().Add(), oc.verifyDeviceCodeHandler)
 	group.GET("/oidc/device/info", authMiddleware.WithAdminNotRequired().Add(), oc.getDeviceCodeInfoHandler)
+	group.GET("/oidc/device/qrcode", oc.getDeviceCodeQRHandler)
 
 	group.GET("/oidc/users/me/authorized-clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
 	group.GET("/oidc/users/:id/authorized-clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
@@ -806,6 +807,30 @@ func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, deviceCodeInfo)
+}
+
+// getDeviceCodeQRHandler godoc
+// @Summary Get QR code for device authorization
+// @Description Generate a QR code image for device authorization flow
+// @Tags OIDC
+// @Produce png
+// @Param code query string true "User code for device authorization"
+// @Success 200 {file} image/png "QR code image"
+// @Router /api/oidc/device/qrcode [get]
+func (oc *OidcController) getDeviceCodeQRHandler(c *gin.Context) {
+	userCode := c.Query("code")
+	if userCode == "" {
+		_ = c.Error(&common.ValidationError{Message: "code is required"})
+		return
+	}
+
+	qrCode, err := oc.oidcService.GenerateDeviceCodeQR(c.Request.Context(), userCode)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Data(http.StatusOK, "image/png", qrCode)
 }
 
 // getClientPreviewHandler godoc

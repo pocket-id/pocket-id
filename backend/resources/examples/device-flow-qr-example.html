@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIDC Device Flow with QR Code - Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .qr-section {
+            text-align: center;
+            padding: 30px;
+            background: #fafafa;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        #qrcode {
+            margin: 20px auto;
+            display: inline-block;
+        }
+        .user-code {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            color: #333;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .details div {
+            margin: 5px 0;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 OIDC Device Flow with QR Code</h1>
+        <p class="description">
+            This example demonstrates how to implement passwordless authentication for remote devices
+            (Smart TVs, IoT devices, kiosks) using OIDC Device Authorization Grant with QR codes.
+        </p>
+
+        <div>
+            <button id="startBtn" onclick="startDeviceFlow()">Start Device Flow</button>
+            <button id="resetBtn" onclick="reset()" class="hidden">Reset</button>
+        </div>
+
+        <div id="qrSection" class="qr-section hidden">
+            <h2>Scan with your mobile device</h2>
+            <div id="qrcode"></div>
+            <div>
+                <p>Or enter this code manually:</p>
+                <div id="userCode" class="user-code"></div>
+            </div>
+        </div>
+
+        <div id="status"></div>
+
+        <div id="details" class="details hidden"></div>
+    </div>
+
+    <!-- Include QRCode.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <script>
+        // Configuration - Replace with your actual values
+        const CONFIG = {
+            baseUrl: window.location.origin,  // e.g., 'https://your-pocket-id-instance.com'
+            clientId: 'your-client-id',
+            clientSecret: 'your-client-secret',  // Note: In production, handle secrets securely
+            scope: 'openid profile email'
+        };
+
+        let deviceCode = '';
+        let pollingInterval = null;
+
+        async function startDeviceFlow() {
+            setStatus('Initiating device authorization...', 'pending');
+            document.getElementById('startBtn').disabled = true;
+
+            try {
+                // Step 1: Request device authorization
+                const authResponse = await fetch(`${CONFIG.baseUrl}/api/oidc/device/authorize`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        client_id: CONFIG.clientId,
+                        client_secret: CONFIG.clientSecret,
+                        scope: CONFIG.scope
+                    })
+                });
+
+                if (!authResponse.ok) {
+                    throw new Error(`Authorization request failed: ${authResponse.statusText}`);
+                }
+
+                const authData = await authResponse.json();
+                console.log('Device authorization response:', authData);
+
+                // Store device code for polling
+                deviceCode = authData.device_code;
+
+                // Display QR code
+                displayQRCode(authData);
+
+                // Start polling for authorization
+                startPolling(authData.interval || 5);
+
+                // Show details
+                showDetails(authData);
+
+            } catch (error) {
+                console.error('Error:', error);
+                setStatus(`Error: ${error.message}`, 'error');
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        function displayQRCode(authData) {
+            const qrSection = document.getElementById('qrSection');
+            const qrcodeDiv = document.getElementById('qrcode');
+            const userCodeDiv = document.getElementById('userCode');
+
+            // Clear previous QR code
+            qrcodeDiv.innerHTML = '';
+
+            // Generate QR code
+            new QRCode(qrcodeDiv, {
+                text: authData.verification_uri_complete,
+                width: 256,
+                height: 256,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            // Display user code
+            userCodeDiv.textContent = authData.user_code;
+
+            // Show the section
+            qrSection.classList.remove('hidden');
+            document.getElementById('resetBtn').classList.remove('hidden');
+
+            setStatus('Waiting for authorization... Please scan the QR code or visit the verification URL on your mobile device.', 'pending');
+        }
+
+        function startPolling(interval) {
+            pollingInterval = setInterval(async () => {
+                try {
+                    const tokenResponse = await fetch(`${CONFIG.baseUrl}/api/oidc/token`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams({
+                            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+                            device_code: deviceCode,
+                            client_id: CONFIG.clientId,
+                            client_secret: CONFIG.clientSecret
+                        })
+                    });
+
+                    if (tokenResponse.ok) {
+                        // Authorization complete!
+                        const tokens = await tokenResponse.json();
+                        console.log('Tokens received:', tokens);
+                        
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        
+                        setStatus('✓ Authorization successful! Tokens received.', 'success');
+                        showTokens(tokens);
+                        
+                    } else {
+                        const errorData = await tokenResponse.json();
+                        
+                        // Handle expected errors during polling
+                        if (errorData.error === 'authorization_pending') {
+                            // Still waiting, continue polling
+                            return;
+                        } else if (errorData.error === 'slow_down') {
+                            // Server asked to slow down, continue polling
+                            return;
+                        } else if (errorData.error === 'expired_token') {
+                            clearInterval(pollingInterval);
+                            setStatus('Error: Authorization code expired. Please try again.', 'error');
+                        } else if (errorData.error === 'access_denied') {
+                            clearInterval(pollingInterval);
+                            setStatus('Error: Authorization was denied by the user.', 'error');
+                        } else {
+                            clearInterval(pollingInterval);
+                            setStatus(`Error: ${errorData.error}`, 'error');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    clearInterval(pollingInterval);
+                    setStatus(`Error during polling: ${error.message}`, 'error');
+                }
+            }, interval * 1000);
+        }
+
+        function setStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function showDetails(authData) {
+            const detailsDiv = document.getElementById('details');
+            detailsDiv.innerHTML = `
+                <div><strong>Device Code:</strong> ${authData.device_code}</div>
+                <div><strong>User Code:</strong> ${authData.user_code}</div>
+                <div><strong>Verification URI:</strong> ${authData.verification_uri}</div>
+                <div><strong>Verification URI Complete:</strong> ${authData.verification_uri_complete}</div>
+                <div><strong>QR Code Image URL:</strong> ${authData.qr_code_uri || 'N/A'}</div>
+                <div><strong>Expires In:</strong> ${authData.expires_in} seconds</div>
+                <div><strong>Polling Interval:</strong> ${authData.interval} seconds</div>
+            `;
+            detailsDiv.classList.remove('hidden');
+        }
+
+        function showTokens(tokens) {
+            const detailsDiv = document.getElementById('details');
+            detailsDiv.innerHTML = `
+                <div><strong>Access Token:</strong> ${tokens.access_token.substring(0, 50)}...</div>
+                <div><strong>Token Type:</strong> ${tokens.token_type}</div>
+                <div><strong>Expires In:</strong> ${tokens.expires_in} seconds</div>
+                ${tokens.id_token ? `<div><strong>ID Token:</strong> ${tokens.id_token.substring(0, 50)}...</div>` : ''}
+                ${tokens.refresh_token ? `<div><strong>Refresh Token:</strong> ${tokens.refresh_token.substring(0, 50)}...</div>` : ''}
+            `;
+        }
+
+        function reset() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+            
+            deviceCode = '';
+            document.getElementById('qrSection').classList.add('hidden');
+            document.getElementById('status').textContent = '';
+            document.getElementById('status').className = 'status';
+            document.getElementById('details').classList.add('hidden');
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('resetBtn').classList.add('hidden');
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+        });
+    </script>
+</body>
+</html>
