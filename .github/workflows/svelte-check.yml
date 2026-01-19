@@ -2,7 +2,7 @@ name: Svelte Check
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/**]
     paths:
       - "frontend/src/**"
       - ".github/svelte-check-matcher.json"
@@ -11,7 +11,7 @@ on:
       - "frontend/tsconfig.json"
       - "frontend/svelte.config.js"
   pull_request:
-    branches: [main]
+    branches: [main, feature/**]
     paths:
       - "frontend/src/**"
       - ".github/svelte-check-matcher.json"

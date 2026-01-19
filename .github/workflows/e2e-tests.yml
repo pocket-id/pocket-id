@@ -1,13 +1,13 @@
 name: E2E Tests
 on:
   push:
-    branches: [main]
+    branches: [main, feature/**]
     paths-ignore:
       - "docs/**"
       - "**.md"
       - ".github/**"
   pull_request:
-    branches: [main, breaking/**]
+    branches: [main, breaking/**, feature/**]
     paths-ignore:
       - "docs/**"
       - "**.md"

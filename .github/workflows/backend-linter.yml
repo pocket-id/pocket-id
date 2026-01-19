@@ -2,11 +2,11 @@ name: Run Backend Linter
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/**]
     paths:
       - "backend/**"
   pull_request:
-    branches: [main, breaking/**]
+    branches: [main, breaking/**, feature/**]
     paths:
       - "backend/**"
 
