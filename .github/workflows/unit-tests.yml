@@ -1,11 +1,11 @@
 name: Unit Tests
 on:
   push:
-    branches: [main, feature/**]
+    branches: [main]
     paths:
       - "backend/**"
   pull_request:
-    branches: [main, feature/**]
+    branches: [main]
     paths:
       - "backend/**"
 
