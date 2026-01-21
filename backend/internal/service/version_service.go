@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -31,6 +32,10 @@ func NewVersionService(httpClient *http.Client) *VersionService {
 }
 
 func (s *VersionService) GetLatestVersion(ctx context.Context) (string, error) {
+	if common.EnvConfig.VersionCheckDisabled {
+		return "", nil
+	}
+
 	version, err := s.cache.GetOrFetch(ctx, func(ctx context.Context) (string, error) {
 		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
