@@ -15,6 +15,8 @@ import (
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
@@ -101,11 +103,16 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	// These are not rate-limited
 	controller.NewHealthzController(r)
 
+	var protocols http.Protocols
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	// Set up the server
 	srv := &http.Server{
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		Protocols:         &protocols,
+		Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// HEAD requests don't get matched by Gin routes, so we convert them to GET
 			// middleware.HeadMiddleware will convert them back to HEAD later
 			if req.Method == http.MethodHead {
@@ -115,7 +122,7 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 			}
 
 			r.ServeHTTP(w, req)
-		}),
+		}), &http2.Server{}),
 	}
 
 	// Set up the listener
