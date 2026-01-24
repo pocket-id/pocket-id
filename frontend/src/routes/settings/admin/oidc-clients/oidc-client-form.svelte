@@ -181,6 +181,7 @@
 			label={m.client_launch_url()}
 			description={m.client_launch_url_description()}
 			class="w-full"
+			type="url"
 			bind:input={$inputs.launchURL}
 		/>
 		<OidcCallbackUrlInput

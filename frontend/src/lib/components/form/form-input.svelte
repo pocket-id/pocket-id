@@ -41,7 +41,7 @@
 			placeholder?: string;
 			disabled?: boolean;
 			inputClass?: string;
-			type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date';
+			type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date' | 'url';
 			onInput?: (e: FormInputEvent) => void;
 		} = $props();
 

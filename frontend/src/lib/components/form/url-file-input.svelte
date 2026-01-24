@@ -74,6 +74,7 @@
 				oninput={(e) => (url = e.currentTarget.value)}
 				onfocusout={handleUrlChange}
 				aria-invalid={hasError}
+				type="url"
 			/>
 			{#if hasError}
 				<p class="text-destructive mt-1 text-start text-xs">{m.invalid_url()}</p>
