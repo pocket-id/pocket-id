@@ -52,7 +52,7 @@ func init() {
 	}
 }
 
-func RegisterFrontend(router *gin.Engine) error {
+func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc) error {
 	distFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
 		return fmt.Errorf("failed to create sub FS: %w", err)
@@ -61,7 +61,7 @@ func RegisterFrontend(router *gin.Engine) error {
 	cacheMaxAge := time.Hour * 24
 	fileServer := NewFileServerWithCaching(http.FS(distFS), int(cacheMaxAge.Seconds()))
 
-	router.NoRoute(func(c *gin.Context) {
+	handler := func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 
 		if strings.HasSuffix(path, "/") {
@@ -97,7 +97,9 @@ func RegisterFrontend(router *gin.Engine) error {
 		// Serve other static assets with caching
 		c.Request.URL.Path = "/" + path
 		fileServer.ServeHTTP(c.Writer, c.Request)
-	})
+	}
+
+	router.NoRoute(rateLimitMiddleware, handler)
 
 	return nil
 }
