@@ -1,7 +1,7 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"my_account": "My Account",
-	"logout": "Logout",
+	"logout": "Logg ut",
 	"confirm": "Confirm",
 	"docs": "Docs",
 	"key": "Key",
