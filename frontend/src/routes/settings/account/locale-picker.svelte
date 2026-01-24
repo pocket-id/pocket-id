@@ -21,6 +21,7 @@
 		ja: '日本語',
 		ko: '한국어',
 		nl: 'Nederlands',
+		no: 'Norsk',
 		pl: 'Polski',
 		'pt-BR': 'Português brasileiro',
 		ru: 'Русский',
