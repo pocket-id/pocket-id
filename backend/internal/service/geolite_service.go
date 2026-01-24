@@ -2,6 +2,7 @@ package service
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -151,7 +152,22 @@ func (s *GeoLiteService) isDatabaseUpToDate() bool {
 
 // extractDatabase extracts the database file from the tar.gz archive directly to the target location.
 func (s *GeoLiteService) extractDatabase(reader io.Reader) error {
-	gzr, err := gzip.NewReader(reader)
+	// Check for gzip magic number
+	buf := make([]byte, 2)
+	_, err := io.ReadFull(reader, buf)
+	if err != nil {
+		return fmt.Errorf("failed to read magic number: %w", err)
+	}
+
+	// Check if the file starts with the gzip magic number
+	isGzip := buf[0] == 0x1f && buf[1] == 0x8b
+
+	if !isGzip {
+		// If not gzip, assume it's a regular database file
+		return s.writeDatabaseFile(io.MultiReader(bytes.NewReader(buf), reader))
+	}
+
+	gzr, err := gzip.NewReader(io.MultiReader(bytes.NewReader(buf), reader))
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
@@ -221,4 +237,38 @@ func (s *GeoLiteService) extractDatabase(reader io.Reader) error {
 	}
 
 	return errors.New("GeoLite2-City.mmdb not found in archive")
+}
+
+func (s *GeoLiteService) writeDatabaseFile(reader io.Reader) error {
+	baseDir := filepath.Dir(common.EnvConfig.GeoLiteDBPath)
+	tmpFile, err := os.CreateTemp(baseDir, "geolite.*.mmdb.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary database file: %w", err)
+	}
+	defer tmpFile.Close()
+
+	// Write the file contents directly to the temporary file
+	if _, err := io.Copy(tmpFile, reader); err != nil {
+		os.Remove(tmpFile.Name())
+		return fmt.Errorf("failed to write database file: %w", err)
+	}
+
+	// Validate the downloaded database file
+	if db, err := maxminddb.Open(tmpFile.Name()); err == nil {
+		db.Close()
+	} else {
+		os.Remove(tmpFile.Name())
+		return fmt.Errorf("failed to open downloaded database file: %w", err)
+	}
+
+	// Ensure atomic replacement of the old database file
+	s.mutex.Lock()
+	err = os.Rename(tmpFile.Name(), common.EnvConfig.GeoLiteDBPath)
+	s.mutex.Unlock()
+
+	if err != nil {
+		os.Remove(tmpFile.Name())
+		return fmt.Errorf("failed to replace database file: %w", err)
+	}
+	return nil
 }
