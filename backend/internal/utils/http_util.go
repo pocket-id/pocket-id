@@ -2,6 +2,7 @@ package utils
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,27 @@ func BearerAuth(r *http.Request) (string, bool) {
 	}
 
 	return "", false
+}
+
+// OAuthClientBasicAuth returns the OAuth client ID and secret provided in the request's
+// Authorization header, if present. See RFC 6749, Section 2.3.
+func OAuthClientBasicAuth(r *http.Request) (clientID, clientSecret string, ok bool) {
+	clientID, clientSecret, ok = r.BasicAuth()
+	if !ok {
+		return "", "", false
+	}
+
+	clientID, err := url.QueryUnescape(clientID)
+	if err != nil {
+		return "", "", false
+	}
+
+	clientSecret, err = url.QueryUnescape(clientSecret)
+	if err != nil {
+		return "", "", false
+	}
+
+	return clientID, clientSecret, true
 }
 
 // SetCacheControlHeader sets the Cache-Control header for the response.
