@@ -460,7 +460,7 @@
 	"group_rdn_attribute_description": "Атрибут, що використовується в розрізнювальному імені групи (DN).",
 	"display_name_attribute": "Атрибут імені для відображення",
 	"display_name": "Ім'я для відображення",
-	"configure_application_images": "Налаштування зображень застосунків",
+	"configure_application_images": "Налаштування зображень застосунку",
 	"ui_config_disabled_info_title": "Конфігурація інтерфейсу користувача вимкнена",
 	"ui_config_disabled_info_description": "Конфігурація інтерфейсу користувача вимкнена, оскільки налаштування конфігурації програми керуються через змінні середовища. Деякі налаштування можуть бути недоступними для редагування.",
 	"logo_from_url_description": "Вставте пряму URL-адресу зображення (svg, png, webp). Знайдіть іконки на <link  href=\"https://selfh.st/icons\">Selfh.st Icons</link> або <link href=\"https://dashboardicons.com\">Dashboard Icons</link>.",
