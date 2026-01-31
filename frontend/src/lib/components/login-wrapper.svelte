@@ -46,9 +46,9 @@
 </script>
 
 {#if isDesktop.current}
-	<div class="h-screen items-center overflow-hidden text-center">
+	<div class="h-screen items-center overflow-hidden text-center flex justify-center">
 		<div
-			class="relative z-10 flex h-full w-[650px] 2xl:w-[800px] p-16 {cn(
+			class="flex h-full w-[650px] 2xl:w-[800px] p-16 {cn(
 				showAlternativeSignInMethodButton && 'pb-0'
 			)}"
 		>
@@ -70,13 +70,14 @@
 		</div>
 
 		<!-- Background image -->
-		<div class="absolute top-0 right-0 left-500px bottom-0 z-0 overflow-hidden rounded-[40px] m-6">
+		<div class="flex m-6">
 			<img
 				src={cachedBackgroundImage.getUrl()}
 				class="{cn(
 					animate && 'animate-bg-zoom'
-				)} h-screen object-cover w-[calc(100vw-650px)] 2xl:w-[calc(100vw-800px)]"
+				)} object-cover rounded-[40px] h-[calc(100vh-3rem)]"
 				alt={m.login_background()}
+				onerror={this.style.display='none'}
 			/>
 		</div>
 	</div>

@@ -71,6 +71,11 @@ export default class AppConfigService extends APIService {
 		cachedBackgroundImage.bustCache();
 	};
 
+	deleteBackgroundImage = async () => {
+		await this.api.delete(`/application-images/background`);
+		cachedBackgroundImage.bustCache();
+	};
+
 	deleteDefaultProfilePicture = async () => {
 		await this.api.delete('/application-images/default-profile-picture');
 		cachedDefaultProfilePicture.bustCache();

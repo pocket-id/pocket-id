@@ -68,9 +68,12 @@
 					? appConfigService.updateDefaultProfilePicture(defaultProfilePicture)
 					: Promise.resolve();
 
-		const backgroundImagePromise = backgroundImage
-			? appConfigService.updateBackgroundImage(backgroundImage)
-			: Promise.resolve();
+		const backgroundImagePromise =
+			backgroundImage === null
+			? appConfigService.deleteBackgroundImage()
+			: backgroundImage
+				? appConfigService.updateBackgroundImage(backgroundImage)
+				: Promise.resolve();
 
 		await Promise.all([
 			lightLogoPromise,
