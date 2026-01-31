@@ -35,9 +35,9 @@
 	const userService = new UserService();
 
 	const formSchema = z.object({
-		firstName: z.string().min(1).max(50),
+		firstName: emptyToUndefined(z.string().max(50).optional()),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
-		displayName: z.string().min(1).max(100),
+		displayName: emptyToUndefined(z.string().max(100).optional()),
 		username: usernameSchema,
 		email: get(appConfigStore).requireUserEmail ? z.email() : emptyToUndefined(z.email().optional())
 	});
@@ -91,6 +91,8 @@
 
 	<fieldset disabled={userInfoInputDisabled}>
 		<Field.Group class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+			<FormInput label={m.username()} bind:input={$inputs.username} />
+			<FormInput label={m.email()} type="email" bind:input={$inputs.email} />
 			<FormInput label={m.first_name()} bind:input={$inputs.firstName} onInput={onNameInput} />
 			<FormInput label={m.last_name()} bind:input={$inputs.lastName} onInput={onNameInput} />
 			<FormInput
@@ -98,8 +100,6 @@
 				bind:input={$inputs.displayName}
 				onInput={() => (hasManualDisplayNameEdit = true)}
 			/>
-			<FormInput label={m.username()} bind:input={$inputs.username} />
-			<FormInput label={m.email()} type="email" bind:input={$inputs.email} />
 		</Field.Group>
 
 		<div class="flex justify-end pt-4">
