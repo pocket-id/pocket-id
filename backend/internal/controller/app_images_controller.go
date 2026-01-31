@@ -2,7 +2,9 @@ package controller
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -197,7 +199,7 @@ func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) {
 // @Description Update the application favicon
 // @Tags Application Images
 // @Accept multipart/form-data
-// @Param file formData file true "Favicon file (.ico)"
+// @Param file formData file true "Favicon file (.svg/.png/.ico)"
 // @Success 204 "No Content"
 // @Router /api/application-images/favicon [put]
 func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
@@ -208,8 +210,9 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
 	}
 
 	fileType := utils.GetFileExtension(file.Filename)
-	if fileType != "ico" {
-		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: ".ico"})
+	mimeType := utils.GetImageMimeType(strings.ToLower(fileType))
+	if !slices.Contains([]string{"image/svg+xml", "image/png", "image/x-icon"}, mimeType) {
+		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: ".svg or .png or .ico"})
 		return
 	}
 
