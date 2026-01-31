@@ -11,7 +11,7 @@
 	"add_another": "Додати ще",
 	"select_a_date": "Обрати дату",
 	"select_file": "Обрати файл",
-	"profile_picture": "Фотографія профілю",
+	"profile_picture": "Зображення профілю",
 	"profile_picture_is_managed_by_ldap_server": "Зображення профілю керується сервером LDAP і не може бути змінене тут.",
 	"click_profile_picture_to_upload_custom": "Натисніть на зображення профілю, щоб завантажити власне зображення.",
 	"image_should_be_in_format": "Зображення повинно бути у форматі PNG, JPEG або WEBP.",
