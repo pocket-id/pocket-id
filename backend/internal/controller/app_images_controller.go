@@ -208,8 +208,8 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
 	}
 
 	fileType := utils.GetFileExtension(file.Filename)
-	if fileType != "ico" {
-		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: ".ico"})
+	if utils.GetImageMimeType(fileType) == "" {
+		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: fileType})
 		return
 	}
 

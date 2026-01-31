@@ -146,7 +146,7 @@ type WrongFileTypeError struct {
 }
 
 func (e *WrongFileTypeError) Error() string {
-	return fmt.Sprintf("File must be of type %s", e.ExpectedFileType)
+	return fmt.Sprintf("Unsupported Image type of %s", e.ExpectedFileType)
 }
 func (e *WrongFileTypeError) HttpStatusCode() int { return http.StatusBadRequest }
 
