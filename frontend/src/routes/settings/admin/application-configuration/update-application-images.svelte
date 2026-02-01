@@ -26,7 +26,7 @@
 	let logoDark = $state<File | undefined>();
 	let logoEmail = $state<File | undefined>();
 	let defaultProfilePicture = $state<File | null | undefined>();
-	let backgroundImage = $state<File | null| undefined>();
+	let backgroundImage = $state<File | null | undefined>();
 	let favicon = $state<File | undefined>();
 
 	let defaultProfilePictureSet = $state(true);

@@ -17,6 +17,7 @@
 		showAlternativeSignInMethodButton?: boolean;
 	} = $props();
 
+	let imageError = $state(false);
 	let isInitialLoad = $state(false);
 	let animate = $derived(isInitialLoad && !$appConfigStore.disableAnimations);
 
@@ -69,6 +70,7 @@
 			</div>
 		</div>
 
+{#if !imageError }
 		<!-- Background image -->
 		<div class="flex m-6">
 			<img
@@ -77,9 +79,10 @@
 					animate && 'animate-bg-zoom'
 				)} object-cover rounded-[40px] h-[calc(100vh-3rem)]"
 				alt={m.login_background()}
-				onerror={this.style.display='none'}
+				onerror={() => imageError = true}
 			/>
 		</div>
+{/if}
 	</div>
 {:else}
 	<div
