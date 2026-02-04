@@ -26,7 +26,7 @@
 	};
 
 	const formSchema = z.object({
-		firstName: emptyToUndefined(z.string().max(50).optional()),
+		firstName: z.string().max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
 		username: usernameSchema,
 		email: get(appConfigStore).requireUserEmail ? z.email() : emptyToUndefined(z.email().optional())

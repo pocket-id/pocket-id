@@ -40,9 +40,9 @@
 	};
 
 	const formSchema = z.object({
-		firstName: emptyToUndefined(z.string().max(50).optional()),
+		firstName: z.string().max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
-		displayName: emptyToUndefined(z.string().max(100).optional()),
+		displayName: z.string().max(100),
 		username: usernameSchema,
 		email: get(appConfigStore).requireUserEmail
 			? z.email()
@@ -67,7 +67,7 @@
 		if (!hasManualDisplayNameEdit) {
 			$inputs.displayName.value = `${$inputs.firstName.value}${
 				$inputs.lastName?.value ? ' ' + $inputs.lastName.value : ''
-			}`;
+			}`.trim();
 		}
 	}
 </script>
