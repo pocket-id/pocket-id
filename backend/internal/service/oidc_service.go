@@ -139,7 +139,39 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", err
 	}
 
-	if client.RequiresReauthentication {
+	// Parse prompt parameter (space-delimited list per OIDC spec)
+	promptValues := parsePromptParameter(input.Prompt)
+	hasPromptNone := contains(promptValues, "none")
+	hasPromptLogin := contains(promptValues, "login")
+	hasPromptConsent := contains(promptValues, "consent")
+	hasPromptSelectAccount := contains(promptValues, "select_account")
+
+	// Validate prompt parameter conflicts early before database queries
+	if hasPromptConsent && hasPromptNone {
+		// consent and none together is an error - can't satisfy both
+		return "", "", &common.OidcInteractionRequiredError{}
+	}
+
+	// Handle prompt=select_account early (not supported)
+	if hasPromptSelectAccount {
+		if hasPromptNone {
+			// Can't select account without interaction
+			return "", "", &common.OidcAccountSelectionRequiredError{}
+		}
+		// Account selection not supported - return interaction_required
+		return "", "", &common.OidcInteractionRequiredError{}
+	}
+
+	// If prompt=login is specified, require reauthentication
+	if hasPromptLogin {
+		if input.ReauthenticationToken == "" {
+			return "", "", &common.ReauthenticationRequiredError{}
+		}
+		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
+		if err != nil {
+			return "", "", err
+		}
+	} else if client.RequiresReauthentication {
 		if input.ReauthenticationToken == "" {
 			return "", "", &common.ReauthenticationRequiredError{}
 		}
@@ -173,6 +205,26 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	if !IsUserGroupAllowedToAuthorize(user, client) {
 		return "", "", &common.OidcAccessDeniedError{}
+	}
+
+	// Check if authorization is required (consent)
+	hasAlreadyAuthorized, err := s.hasAuthorizedClientInternal(ctx, input.ClientID, userID, input.Scope, tx)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Handle prompt=consent - always require consent display
+	if hasPromptConsent {
+		// Always require consent to be shown for this request
+		// This should be handled by frontend showing the consent UI
+		// Backend will always create/update authorization
+		hasAlreadyAuthorized = false
+	}
+
+	// Handle prompt=none - check if consent would be required
+	if hasPromptNone && !hasAlreadyAuthorized {
+		// User needs to consent but prompt=none means no UI
+		return "", "", &common.OidcConsentRequiredError{}
 	}
 
 	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, input.ClientID, input.Scope, tx)
@@ -2133,4 +2185,22 @@ func (s *OidcService) GetClientScimServiceProvider(ctx context.Context, clientID
 	}
 
 	return provider, nil
+}
+
+// parsePromptParameter parses the OIDC prompt parameter which is a space-delimited list of values
+func parsePromptParameter(prompt string) []string {
+	if prompt == "" {
+		return []string{}
+	}
+	return strings.Fields(prompt)
+}
+
+// contains checks if a string slice contains a specific value
+func contains(slice []string, value string) bool {
+	for _, item := range slice {
+		if item == value {
+			return true
+		}
+	}
+	return false
 }
