@@ -974,3 +974,43 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.ErrorContains(t, err, "failed to look up client")
 	})
 }
+
+// Tests for prompt parameter parsing and handling
+func TestParsePromptParameter(t *testing.T) {
+	t.Run("empty prompt returns empty slice", func(t *testing.T) {
+		result := parsePromptParameter("")
+		assert.Equal(t, []string{}, result)
+	})
+
+	t.Run("single prompt value", func(t *testing.T) {
+		result := parsePromptParameter("none")
+		assert.Equal(t, []string{"none"}, result)
+	})
+
+	t.Run("multiple prompt values space-delimited", func(t *testing.T) {
+		result := parsePromptParameter("login consent")
+		assert.Equal(t, []string{"login", "consent"}, result)
+	})
+
+	t.Run("multiple prompt values with extra spaces", func(t *testing.T) {
+		result := parsePromptParameter("  none   login  ")
+		assert.Equal(t, []string{"none", "login"}, result)
+	})
+}
+
+func TestContains(t *testing.T) {
+	t.Run("finds value in slice", func(t *testing.T) {
+		slice := []string{"none", "login", "consent"}
+		assert.True(t, contains(slice, "login"))
+	})
+
+	t.Run("returns false for missing value", func(t *testing.T) {
+		slice := []string{"none", "login"}
+		assert.False(t, contains(slice, "consent"))
+	})
+
+	t.Run("returns false for empty slice", func(t *testing.T) {
+		slice := []string{}
+		assert.False(t, contains(slice, "none"))
+	})
+}
