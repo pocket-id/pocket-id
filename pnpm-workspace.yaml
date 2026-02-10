@@ -10,3 +10,5 @@ overrides:
   js-yaml@>=4.0.0 <4.1.1: ">=4.1.1"
   valibot@>=0.31.0 <1.2.0: ">=1.2.0"
   validator@<13.15.20: ">=13.15.20"
+  "@isaacs/brace-expansion": ">=5.0.1"
+  next: ">=16.1.5"
