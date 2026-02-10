@@ -22,6 +22,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
+
 const maxTotalSize = 300 * 1024 * 1024 // 300 MB limit for total decompressed size
 
 type GeoLiteService struct {

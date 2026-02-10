@@ -27,10 +27,7 @@
 	>
 		<div class="flex h-16 items-center">
 			{#if !isAuthPage}
-				<a
-					href="/"
-					class="flex items-center gap-3 transition-opacity hover:opacity-80"
-				>
+				<a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
 					<Logo class="size-8" />
 					<h1 class="text-lg font-semibold tracking-tight" data-testid="application-name">
 						{$appConfigStore.appName}
