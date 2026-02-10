@@ -35,13 +35,23 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			wantErr: "Field validation for 'Username' failed on the 'required' tag",
 		},
 		{
+			name: "missing first name",
+			input: UserCreateDto{
+				Username: "testuser",
+				Email:    utils.Ptr("test@example.com"),
+				LastName: "Doe",
+			},
+			wantErr: "",
+		},
+		{
 			name: "missing display name",
 			input: UserCreateDto{
+				Username:  "testuser",
 				Email:     utils.Ptr("test@example.com"),
 				FirstName: "John",
 				LastName:  "Doe",
 			},
-			wantErr: "Field validation for 'DisplayName' failed on the 'required' tag",
+			wantErr: "",
 		},
 		{
 			name: "username contains invalid characters",
@@ -74,7 +84,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				LastName:    "Doe",
 				DisplayName: "John Doe",
 			},
-			wantErr: "Field validation for 'FirstName' failed on the 'required' tag",
+			wantErr: "",
 		},
 		{
 			name: "last name too long",
