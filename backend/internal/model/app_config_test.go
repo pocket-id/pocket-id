@@ -70,13 +70,13 @@ func TestAppConfigVariable_AsMinutesDuration(t *testing.T) {
 // - dto.AppConfigDto should not include "internal" fields from model.AppConfig
 // This test is primarily meant to catch discrepancies between the two structs as fields are added or removed over time
 func TestAppConfigStructMatchesUpdateDto(t *testing.T) {
-	appConfigType := reflect.TypeOf(model.AppConfig{})
-	updateDtoType := reflect.TypeOf(dto.AppConfigUpdateDto{})
+	appConfigType := reflect.TypeFor[model.AppConfig]()
+	updateDtoType := reflect.TypeFor[dto.AppConfigUpdateDto]()
 
 	// Process AppConfig fields
 	appConfigFields := make(map[string]string)
-	for i := 0; i < appConfigType.NumField(); i++ {
-		field := appConfigType.Field(i)
+	for field := range appConfigType.Fields() {
+		field := field
 		if field.Tag.Get("key") == "" {
 			// Skip internal fields
 			continue
@@ -91,8 +91,8 @@ func TestAppConfigStructMatchesUpdateDto(t *testing.T) {
 
 	// Process AppConfigUpdateDto fields
 	dtoFields := make(map[string]string)
-	for i := 0; i < updateDtoType.NumField(); i++ {
-		field := updateDtoType.Field(i)
+	for field := range updateDtoType.Fields() {
+		field := field
 
 		// Extract the json name from the tag (takes the part before any binding constraints)
 		jsonTag := field.Tag.Get("json")

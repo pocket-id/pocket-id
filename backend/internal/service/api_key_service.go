@@ -170,7 +170,7 @@ func (s *ApiKeyService) ValidateApiKey(ctx context.Context, apiKey string) (mode
 		Clauses(clause.Returning{}).
 		Where("key = ? AND expires_at > ?", hashedKey, datatype.DateTime(now)).
 		Updates(&model.ApiKey{
-			LastUsedAt: utils.Ptr(datatype.DateTime(now)),
+			LastUsedAt: new(datatype.DateTime(now)),
 		}).
 		Preload("User").
 		First(&key).

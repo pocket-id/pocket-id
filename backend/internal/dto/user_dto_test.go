@@ -3,7 +3,6 @@ package dto
 import (
 	"testing"
 
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +16,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			name: "valid input",
 			input: UserCreateDto{
 				Username:    "testuser",
-				Email:       utils.Ptr("test@example.com"),
+				Email:       new("test@example.com"),
 				FirstName:   "John",
 				LastName:    "Doe",
 				DisplayName: "John Doe",
@@ -27,7 +26,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 		{
 			name: "missing username",
 			input: UserCreateDto{
-				Email:       utils.Ptr("test@example.com"),
+				Email:       new("test@example.com"),
 				FirstName:   "John",
 				LastName:    "Doe",
 				DisplayName: "John Doe",
@@ -37,7 +36,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 		{
 			name: "missing display name",
 			input: UserCreateDto{
-				Email:     utils.Ptr("test@example.com"),
+				Email:     new("test@example.com"),
 				FirstName: "John",
 				LastName:  "Doe",
 			},
@@ -47,7 +46,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			name: "username contains invalid characters",
 			input: UserCreateDto{
 				Username:    "test/ser",
-				Email:       utils.Ptr("test@example.com"),
+				Email:       new("test@example.com"),
 				FirstName:   "John",
 				LastName:    "Doe",
 				DisplayName: "John Doe",
@@ -58,7 +57,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			name: "invalid email",
 			input: UserCreateDto{
 				Username:    "testuser",
-				Email:       utils.Ptr("not-an-email"),
+				Email:       new("not-an-email"),
 				FirstName:   "John",
 				LastName:    "Doe",
 				DisplayName: "John Doe",
@@ -69,7 +68,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			name: "first name too short",
 			input: UserCreateDto{
 				Username:    "testuser",
-				Email:       utils.Ptr("test@example.com"),
+				Email:       new("test@example.com"),
 				FirstName:   "",
 				LastName:    "Doe",
 				DisplayName: "John Doe",
@@ -80,7 +79,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			name: "last name too long",
 			input: UserCreateDto{
 				Username:    "testuser",
-				Email:       utils.Ptr("test@example.com"),
+				Email:       new("test@example.com"),
 				FirstName:   "John",
 				LastName:    "abcdfghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
 				DisplayName: "John Doe",

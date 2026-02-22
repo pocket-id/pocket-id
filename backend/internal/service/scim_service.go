@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -243,7 +244,7 @@ func (s *ScimService) SyncServiceProvider(ctx context.Context, serviceProviderID
 		return errors.Join(errs...)
 	}
 
-	provider.LastSyncedAt = utils.Ptr(datatype.DateTime(time.Now()))
+	provider.LastSyncedAt = new(datatype.DateTime(time.Now()))
 	if err := s.db.WithContext(ctx).Save(&provider).Error; err != nil {
 		return err
 	}
@@ -788,10 +789,8 @@ func ensureScimStatus(
 	resp *http.Response,
 	provider model.ScimServiceProvider,
 	allowedStatuses ...int) error {
-	for _, status := range allowedStatuses {
-		if resp.StatusCode == status {
-			return nil
-		}
+	if slices.Contains(allowedStatuses, resp.StatusCode) {
+		return nil
 	}
 
 	body := readScimErrorBody(resp.Body)

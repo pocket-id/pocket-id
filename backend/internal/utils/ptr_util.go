@@ -1,8 +1,10 @@
 package utils
 
 // Ptr returns a pointer to the given value.
+//
+//go:fix inline
 func Ptr[T any](v T) *T {
-	return &v
+	return new(v)
 }
 
 // PtrOrNil returns a pointer to v if v is not the zero value of its type,

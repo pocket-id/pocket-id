@@ -43,7 +43,7 @@ func ParseListRequestOptions(ctx *gin.Context) (listRequestOptions ListRequestOp
 	return listRequestOptions
 }
 
-func PaginateFilterAndSort(params ListRequestOptions, query *gorm.DB, result interface{}) (PaginationResponse, error) {
+func PaginateFilterAndSort(params ListRequestOptions, query *gorm.DB, result any) (PaginationResponse, error) {
 	meta := extractModelMetadata(result)
 
 	query = applyFilters(params.Filters, query, meta)
@@ -52,7 +52,7 @@ func PaginateFilterAndSort(params ListRequestOptions, query *gorm.DB, result int
 	return Paginate(params.Pagination.Page, params.Pagination.Limit, query, result)
 }
 
-func Paginate(page int, pageSize int, query *gorm.DB, result interface{}) (PaginationResponse, error) {
+func Paginate(page int, pageSize int, query *gorm.DB, result any) (PaginationResponse, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -117,8 +117,8 @@ func parseNestedFilters(ctx *gin.Context) map[string][]any {
 		// Keys can be "filters[field]" or "filters[field][0]"
 		raw := strings.TrimPrefix(key, "filters[")
 		// Take everything up to the first closing bracket
-		if idx := strings.IndexByte(raw, ']'); idx != -1 {
-			field := raw[:idx]
+		if before, _, ok := strings.Cut(raw, "]"); ok {
+			field := before
 			for _, v := range values {
 				result[field] = append(result[field], ConvertStringToType(v))
 			}
@@ -165,12 +165,12 @@ func applySorting(sortColumn string, sortDirection string, query *gorm.DB, meta 
 }
 
 // extractModelMetadata extracts FieldMeta from the model struct using reflection
-func extractModelMetadata(model interface{}) map[string]FieldMeta {
+func extractModelMetadata(model any) map[string]FieldMeta {
 	meta := make(map[string]FieldMeta)
 
 	// Unwrap pointers and slices to get the element struct type
 	t := reflect.TypeOf(model)
-	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
+	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice {
 		t = t.Elem()
 		if t == nil {
 			return meta
@@ -180,8 +180,8 @@ func extractModelMetadata(model interface{}) map[string]FieldMeta {
 	// recursive parser that merges fields from embedded structs
 	var parseStruct func(reflect.Type)
 	parseStruct = func(st reflect.Type) {
-		for i := 0; i < st.NumField(); i++ {
-			field := st.Field(i)
+		for field := range st.Fields() {
+			field := field
 			ft := field.Type
 
 			// If the field is an embedded/anonymous struct, recurse into it

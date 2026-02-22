@@ -42,7 +42,7 @@ func (d *JSONDuration) UnmarshalJSON(b []byte) error {
 	}
 }
 
-func UnmarshalJSONFromDatabase(data interface{}, value any) error {
+func UnmarshalJSONFromDatabase(data any, value any) error {
 	switch v := value.(type) {
 	case []byte:
 		return json.Unmarshal(v, data)

@@ -71,8 +71,10 @@ func GetHostnameFromURL(rawURL string) string {
 }
 
 // StringPointer creates a string pointer from a string value
+//
+//go:fix inline
 func StringPointer(s string) *string {
-	return &s
+	return new(s)
 }
 
 func CapitalizeFirstLetter(str string) string {

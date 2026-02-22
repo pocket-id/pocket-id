@@ -58,7 +58,7 @@ type ReauthenticationToken struct {
 type AuthenticatorTransportList []protocol.AuthenticatorTransport //nolint:recvcheck
 
 // Scan and Value methods for GORM to handle the custom type
-func (atl *AuthenticatorTransportList) Scan(value interface{}) error {
+func (atl *AuthenticatorTransportList) Scan(value any) error {
 	return utils.UnmarshalJSONFromDatabase(atl, value)
 }
 
@@ -69,7 +69,7 @@ func (atl AuthenticatorTransportList) Value() (driver.Value, error) {
 type CredentialParameters []protocol.CredentialParameter //nolint:recvcheck
 
 // Scan and Value methods for GORM to handle the custom type
-func (cp *CredentialParameters) Scan(value interface{}) error {
+func (cp *CredentialParameters) Scan(value any) error {
 	return utils.UnmarshalJSONFromDatabase(cp, value)
 }
 
