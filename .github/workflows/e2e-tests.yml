@@ -25,8 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Set up Depot CLI
+        uses: depot/setup-action@v1
+
+        # This way will at least confiugure the docker builder driver, so the container is built with depot, but still is a locally built image.
+      - name: Setup depot buildx driver
+        run: depot configure-docker
 
       - name: Build and export
         uses: docker/build-push-action@v6
@@ -90,12 +94,12 @@ jobs:
         id: postgres-cache
         with:
           path: /tmp/postgres-image.tar
-          key: postgres-17-${{ runner.os }}
+          key: postgres-18-${{ runner.os }}
       - name: Pull and save PostgreSQL image
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit != 'true'
         run: |
-          docker pull postgres:17
-          docker save postgres:17 > /tmp/postgres-image.tar
+          docker pull postgres:18
+          docker save postgres:18 > /tmp/postgres-image.tar
       - name: Load PostgreSQL image
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
@@ -172,7 +176,7 @@ jobs:
         run: docker load -i /tmp/docker-image.tar
 
       - name: Install test dependencies
-        run: pnpm --filter pocket-id-tests install --frozen-lockfile
+        run: pnpm -C tests install --frozen-lockfile
 
       - name: Install Playwright Browsers
         working-directory: ./tests
