@@ -414,10 +414,10 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			expectMatch:      true,
 		},
 		{
-			name:             "IPv6 loopback without brackets in input",
-			urls:             []string{"http://[::1]/callback"},
-			inputCallbackURL: "http://::1:8080/callback",
-			expectedURL:      "http://::1:8080/callback",
+			name:             "IPv6 loopback with wildcard path",
+			urls:             []string{"http://[::1]/auth/*"},
+			inputCallbackURL: "http://[::1]:8080/auth/callback",
+			expectedURL:      "http://[::1]:8080/auth/callback",
 			expectMatch:      true,
 		},
 		{
@@ -460,6 +460,13 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			urls:             []string{"*"},
 			inputCallbackURL: "http://127.0.0.1:8080/callback",
 			expectedURL:      "http://127.0.0.1:8080/callback",
+			expectMatch:      true,
+		},
+		{
+			name:             "wildcard matches IPv6 loopback",
+			urls:             []string{"*"},
+			inputCallbackURL: "http://[::1]:8080/callback",
+			expectedURL:      "http://[::1]:8080/callback",
 			expectMatch:      true,
 		},
 	}
