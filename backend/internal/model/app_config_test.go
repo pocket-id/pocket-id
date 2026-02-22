@@ -76,7 +76,6 @@ func TestAppConfigStructMatchesUpdateDto(t *testing.T) {
 	// Process AppConfig fields
 	appConfigFields := make(map[string]string)
 	for field := range appConfigType.Fields() {
-		field := field
 		if field.Tag.Get("key") == "" {
 			// Skip internal fields
 			continue
@@ -92,8 +91,6 @@ func TestAppConfigStructMatchesUpdateDto(t *testing.T) {
 	// Process AppConfigUpdateDto fields
 	dtoFields := make(map[string]string)
 	for field := range updateDtoType.Fields() {
-		field := field
-
 		// Extract the json name from the tag (takes the part before any binding constraints)
 		jsonTag := field.Tag.Get("json")
 		jsonName, _, _ := strings.Cut(jsonTag, ",")

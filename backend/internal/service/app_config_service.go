@@ -187,7 +187,6 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	rv := reflect.ValueOf(input)
 	dbUpdate := make([]model.AppConfigVariable, 0, rt.NumField())
 	for field := range rt.Fields() {
-		field := field
 		value := rv.FieldByName(field.Name).String()
 
 		// Get the value of the json tag, taking only what's before the comma

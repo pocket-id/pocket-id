@@ -501,9 +501,9 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 	}
 
 	// Update the UpdatedAt field for all affected groups
-	now := time.Now()
+	now := datatype.DateTime(time.Now())
 	for _, group := range groups {
-		group.UpdatedAt = new(datatype.DateTime(now))
+		group.UpdatedAt = &now
 		err = tx.WithContext(ctx).Save(&group).Error
 		if err != nil {
 			return model.User{}, err

@@ -181,7 +181,6 @@ func extractModelMetadata(model any) map[string]FieldMeta {
 	var parseStruct func(reflect.Type)
 	parseStruct = func(st reflect.Type) {
 		for field := range st.Fields() {
-			field := field
 			ft := field.Type
 
 			// If the field is an embedded/anonymous struct, recurse into it
