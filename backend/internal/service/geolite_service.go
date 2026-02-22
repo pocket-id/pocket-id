@@ -162,6 +162,8 @@ func (s *GeoLiteService) extractDatabase(reader io.Reader) error {
 	}
 
 	// Check if the file starts with the gzip magic number
+	// Gosec returns false positive for "G602: slice index out of range"
+	//nolint:gosec
 	isGzip := buf[0] == 0x1f && buf[1] == 0x8b
 
 	if !isGzip {
