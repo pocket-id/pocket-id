@@ -34,6 +34,7 @@ func NewAppImagesController(
 	group.PUT("/application-images/favicon", authMiddleware.Add(), controller.updateFaviconHandler)
 	group.PUT("/application-images/default-profile-picture", authMiddleware.Add(), controller.updateDefaultProfilePicture)
 
+	group.DELETE("/application-images/background", authMiddleware.Add(), controller.deleteBackgroundImageHandler)
 	group.DELETE("/application-images/default-profile-picture", authMiddleware.Add(), controller.deleteDefaultProfilePicture)
 }
 
@@ -185,6 +186,21 @@ func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) {
 	}
 
 	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "background"); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+// deleteBackgroundImageHandler godoc
+// @Summary Delete background image
+// @Description Delete the application background image
+// @Tags Application Images
+// @Success 204 "No Content"
+// @Router /api/application-images/background [delete]
+func (c *AppImagesController) deleteBackgroundImageHandler(ctx *gin.Context) {
+	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), "background"); err != nil {
 		_ = ctx.Error(err)
 		return
 	}

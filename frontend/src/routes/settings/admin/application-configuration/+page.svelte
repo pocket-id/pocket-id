@@ -44,7 +44,7 @@
 		logoDark: File | undefined,
 		logoEmail: File | undefined,
 		defaultProfilePicture: File | null | undefined,
-		backgroundImage: File | undefined,
+		backgroundImage: File | null | undefined,
 		favicon: File | undefined
 	) {
 		const faviconPromise = favicon ? appConfigService.updateFavicon(favicon) : Promise.resolve();
@@ -68,9 +68,12 @@
 					? appConfigService.updateDefaultProfilePicture(defaultProfilePicture)
 					: Promise.resolve();
 
-		const backgroundImagePromise = backgroundImage
-			? appConfigService.updateBackgroundImage(backgroundImage)
-			: Promise.resolve();
+		const backgroundImagePromise =
+			backgroundImage === null
+			? appConfigService.deleteBackgroundImage()
+			: backgroundImage
+				? appConfigService.updateBackgroundImage(backgroundImage)
+				: Promise.resolve();
 
 		await Promise.all([
 			lightLogoPromise,

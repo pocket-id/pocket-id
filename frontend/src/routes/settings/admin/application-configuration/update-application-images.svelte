@@ -17,7 +17,7 @@
 			logoDark: File | undefined,
 			logoEmail: File | undefined,
 			defaultProfilePicture: File | null | undefined,
-			backgroundImage: File | undefined,
+			backgroundImage: File | null | undefined,
 			favicon: File | undefined
 		) => void;
 	} = $props();
@@ -26,10 +26,11 @@
 	let logoDark = $state<File | undefined>();
 	let logoEmail = $state<File | undefined>();
 	let defaultProfilePicture = $state<File | null | undefined>();
-	let backgroundImage = $state<File | undefined>();
+	let backgroundImage = $state<File | null | undefined>();
 	let favicon = $state<File | undefined>();
 
 	let defaultProfilePictureSet = $state(true);
+	let backgroundImageSet = $state(true);
 </script>
 
 <div class="flex flex-col gap-8">
@@ -77,10 +78,12 @@
 	/>
 	<ApplicationImage
 		id="background-image"
-		imageClass="h-[350px] max-w-[500px]"
+		imageClass="max-h-[350px] max-w-[500px]"
 		label={m.background_image()}
+		isResetable
 		bind:image={backgroundImage}
 		imageURL={cachedBackgroundImage.getUrl()}
+		isImageSet={backgroundImageSet}
 	/>
 </div>
 <div class="flex justify-end">
