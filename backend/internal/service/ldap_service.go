@@ -529,7 +529,7 @@ func getDNProperty(property string, str string) string {
 	// First we split at the comma
 	property = strings.ToLower(property)
 	l := len(property) + 1
-	for _, v := range strings.Split(str, ",") {
+	for v := range strings.SplitSeq(str, ",") {
 		v = strings.TrimSpace(v)
 		if len(v) > l && strings.ToLower(v)[0:l] == property+"=" {
 			return v[l:]

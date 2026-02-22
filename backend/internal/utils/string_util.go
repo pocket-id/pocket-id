@@ -70,11 +70,6 @@ func GetHostnameFromURL(rawURL string) string {
 	return parsedURL.Hostname()
 }
 
-// StringPointer creates a string pointer from a string value
-func StringPointer(s string) *string {
-	return &s
-}
-
 func CapitalizeFirstLetter(str string) string {
 	if str == "" {
 		return ""

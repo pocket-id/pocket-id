@@ -9,7 +9,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type sourceStruct struct {
@@ -60,11 +59,11 @@ type embeddedStruct struct {
 func TestMapStruct(t *testing.T) {
 	src := sourceStruct{
 		AString:            "abcd",
-		AStringPtr:         utils.Ptr("xyz"),
+		AStringPtr:         new("xyz"),
 		ABool:              true,
-		ABoolPtr:           utils.Ptr(false),
+		ABoolPtr:           new(false),
 		ACustomDateTime:    datatype.DateTime(time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)),
-		ACustomDateTimePtr: utils.Ptr(datatype.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC))),
+		ACustomDateTimePtr: new(datatype.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC))),
 		ANilStringPtr:      nil,
 		ASlice:             []string{"a", "b", "c"},
 		AMap: map[string]int{
@@ -80,8 +79,8 @@ func TestMapStruct(t *testing.T) {
 			Bar: 111,
 		},
 
-		StringPtrToString:      utils.Ptr("foobar"),
-		EmptyStringPtrToString: utils.Ptr(""),
+		StringPtrToString:      new("foobar"),
+		EmptyStringPtrToString: new(""),
 		NilStringPtrToString:   nil,
 		IntToInt64:             99,
 		AuditLogEventToString:  model.AuditLogEventAccountCreated,
@@ -118,11 +117,11 @@ func TestMapStructList(t *testing.T) {
 	sources := []sourceStruct{
 		{
 			AString:            "first",
-			AStringPtr:         utils.Ptr("one"),
+			AStringPtr:         new("one"),
 			ABool:              true,
-			ABoolPtr:           utils.Ptr(false),
+			ABoolPtr:           new(false),
 			ACustomDateTime:    datatype.DateTime(time.Date(2025, 1, 2, 3, 4, 5, 0, time.UTC)),
-			ACustomDateTimePtr: utils.Ptr(datatype.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC))),
+			ACustomDateTimePtr: new(datatype.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC))),
 			ASlice:             []string{"a", "b"},
 			AMap: map[string]int{
 				"a": 1,
@@ -136,11 +135,11 @@ func TestMapStructList(t *testing.T) {
 		},
 		{
 			AString:            "second",
-			AStringPtr:         utils.Ptr("two"),
+			AStringPtr:         new("two"),
 			ABool:              false,
-			ABoolPtr:           utils.Ptr(true),
+			ABoolPtr:           new(true),
 			ACustomDateTime:    datatype.DateTime(time.Date(2026, 6, 7, 8, 9, 10, 0, time.UTC)),
-			ACustomDateTimePtr: utils.Ptr(datatype.DateTime(time.Date(2023, 6, 7, 8, 9, 10, 0, time.UTC))),
+			ACustomDateTimePtr: new(datatype.DateTime(time.Date(2023, 6, 7, 8, 9, 10, 0, time.UTC))),
 			ASlice:             []string{"c", "d", "e"},
 			AMap: map[string]int{
 				"c": 3,
