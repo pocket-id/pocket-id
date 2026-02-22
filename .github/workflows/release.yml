@@ -5,17 +5,18 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: write
+  packages: write
+  attestations: write
+  id-token: write
+
 jobs:
   build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-      attestations: write
-      id-token: write
+    runs-on: depot-ubuntu-24.04-16
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup Node.js
@@ -112,14 +113,12 @@ jobs:
         run: gh release upload ${{ github.ref_name }} backend/.bin/*
 
   publish-release:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     needs: [build]
-    permissions:
-      contents: write
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Mark release as published
         run: gh release edit ${{ github.ref_name }} --draft=false
