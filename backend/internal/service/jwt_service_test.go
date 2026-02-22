@@ -27,6 +27,8 @@ import (
 
 const testEncryptionKey = "0123456789abcdef0123456789abcdef"
 
+const uuidRegexPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
 func newTestEnvConfig() *common.EnvConfigSchema {
 	return &common.EnvConfigSchema{
 		AppURL:        "https://test.example.com",
@@ -323,6 +325,9 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
 			assert.Equal(t, []string{service.envConfig.AppURL}, audience, "Audience should contain the app URL")
+		jwtID, ok := claims.JwtID()
+		_ = assert.True(t, ok, "JWT ID not found in token") &&
+			assert.Regexp(t, uuidRegexPattern, jwtID, "JWT ID is not a UUID")
 
 		expectedExp := time.Now().Add(1 * time.Hour)
 		expiration, ok := claims.Expiration()
@@ -520,6 +525,9 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
 			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
+		jwtID, ok := claims.JwtID()
+		_ = assert.True(t, ok, "JWT ID not found in token") &&
+			assert.Regexp(t, uuidRegexPattern, jwtID, "JWT ID is not a UUID")
 
 		expectedExp := time.Now().Add(1 * time.Hour)
 		expiration, ok := claims.Expiration()
@@ -754,6 +762,9 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
 			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
+		jwtID, ok := claims.JwtID()
+		_ = assert.True(t, ok, "JWT ID not found in token") &&
+			assert.Regexp(t, uuidRegexPattern, jwtID, "JWT ID is not a UUID")
 
 		expectedExp := time.Now().Add(1 * time.Hour)
 		expiration, ok := claims.Expiration()
