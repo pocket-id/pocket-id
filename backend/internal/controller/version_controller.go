@@ -6,15 +6,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 // NewVersionController registers version-related routes.
-func NewVersionController(group *gin.RouterGroup, versionService *service.VersionService) {
+func NewVersionController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, versionService *service.VersionService) {
 	vc := &VersionController{versionService: versionService}
 	group.GET("/version/latest", vc.getLatestVersionHandler)
-	group.GET("/version/current", vc.getCurrentVersionHandler)
+	group.GET("/version/current", authMiddleware.WithAdminNotRequired().Add(), vc.getCurrentVersionHandler)
 }
 
 type VersionController struct {
@@ -48,7 +49,6 @@ func (vc *VersionController) getLatestVersionHandler(c *gin.Context) {
 // @Success 200 {object} map[string]string "Current version information"
 // @Router /api/version/current [get]
 func (vc *VersionController) getCurrentVersionHandler(c *gin.Context) {
-	utils.SetCacheControlHeader(c, 5*time.Minute, 15*time.Minute)
 
 	c.JSON(http.StatusOK, gin.H{
 		"currentVersion": common.Version,
