@@ -39,7 +39,7 @@
 		label={m.favicon()}
 		bind:image={favicon}
 		imageURL="/api/application-images/favicon"
-		accept="image/x-icon"
+		accept="image/png, image/jpeg, image/svg+xml, image/x-icon, image/gif, image/webp, image/avif, image/heic"
 	/>
 	<ApplicationImage
 		id="logo-light"
