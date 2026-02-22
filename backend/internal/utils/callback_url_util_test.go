@@ -91,6 +91,18 @@ func TestMatchCallbackURL(t *testing.T) {
 			"https://еxample.com/callback",
 			false,
 		},
+		{
+			"userinfo prefix doesn't bypass exact hostname",
+			"https://auth.company.com/callback",
+			"https://auth@company.com/callback",
+			false,
+		},
+		{
+			"userinfo prefix doesn't bypass wildcard subdomain",
+			"https://*.victim.com/callback",
+			"https://wildcard@victim.com/callback",
+			false,
+		},
 
 		// Port
 		{
@@ -706,86 +718,78 @@ func TestMatchPath(t *testing.T) {
 	}
 }
 
-func TestSplitParts(t *testing.T) {
+func TestValidateCallbackURLPattern(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		expectedParts []string
-		expectedPath  string
+		name        string
+		pattern     string
+		shouldError bool
 	}{
 		{
-			name:          "simple https URL",
-			input:         "https://example.com/callback",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "/callback",
+			name:        "exact URL",
+			pattern:     "https://example.com/callback",
+			shouldError: false,
 		},
 		{
-			name:          "URL with port",
-			input:         "https://example.com:8080/callback",
-			expectedParts: []string{"https", "example", "com", "8080"},
-			expectedPath:  "/callback",
+			name:        "wildcard scheme",
+			pattern:     "*://example.com/callback",
+			shouldError: false,
 		},
 		{
-			name:          "URL with subdomain",
-			input:         "https://api.example.com/callback",
-			expectedParts: []string{"https", "api", "example", "com"},
-			expectedPath:  "/callback",
+			name:        "wildcard port",
+			pattern:     "https://example.com:*/callback",
+			shouldError: false,
 		},
 		{
-			name:          "URL with credentials",
-			input:         "https://user:pass@example.com/callback",
-			expectedParts: []string{"https", "user", "pass", "example", "com"},
-			expectedPath:  "/callback",
+			name:        "partial wildcard port",
+			pattern:     "https://example.com:80*/callback",
+			shouldError: false,
 		},
 		{
-			name:          "URL without path",
-			input:         "https://example.com",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "",
+			name:        "wildcard userinfo",
+			pattern:     "https://user:*@example.com/callback",
+			shouldError: false,
 		},
 		{
-			name:          "URL with deep path",
-			input:         "https://example.com/api/v1/callback",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "/api/v1/callback",
+			name:        "glob wildcard",
+			pattern:     "*",
+			shouldError: false,
 		},
 		{
-			name:          "URL with path and query",
-			input:         "https://example.com/callback?code=123",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "/callback?code=123",
+			name:        "relative URL",
+			pattern:     "/callback",
+			shouldError: true,
 		},
 		{
-			name:          "URL with trailing slash",
-			input:         "https://example.com/",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "/",
+			name:        "missing scheme separator",
+			pattern:     "https//example.com/callback",
+			shouldError: true,
 		},
 		{
-			name:          "URL with multiple subdomains",
-			input:         "https://api.v1.staging.example.com/callback",
-			expectedParts: []string{"https", "api", "v1", "staging", "example", "com"},
-			expectedPath:  "/callback",
+			name:        "malformed wildcard host glob",
+			pattern:     "https://exa[mple.com/callback",
+			shouldError: true,
 		},
 		{
-			name:          "URL with port and credentials",
-			input:         "https://user:pass@example.com:8080/callback",
-			expectedParts: []string{"https", "user", "pass", "example", "com", "8080"},
-			expectedPath:  "/callback",
+			name:        "malformed wildcard query glob",
+			pattern:     "https://example.com/callback?code=[abc",
+			shouldError: true,
 		},
 		{
-			name:          "scheme with authority separator but no slash",
-			input:         "http://example.com",
-			expectedParts: []string{"http", "example", "com"},
-			expectedPath:  "",
+			name:        "malformed authority",
+			pattern:     "https://[::1/callback",
+			shouldError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parts, path := splitParts(tt.input)
-			assert.Equal(t, tt.expectedParts, parts, "parts mismatch")
-			assert.Equal(t, tt.expectedPath, path, "path mismatch")
+			err := ValidateCallbackURLPattern(tt.pattern)
+			if tt.shouldError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
 		})
 	}
 }

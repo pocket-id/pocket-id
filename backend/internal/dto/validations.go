@@ -1,9 +1,7 @@
 package dto
 
 import (
-	"net/url"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -67,19 +65,5 @@ func ValidateClientID(clientID string) bool {
 
 // ValidateCallbackURL validates callback URLs with support for wildcards
 func ValidateCallbackURL(raw string) bool {
-	// Don't validate if it contains a wildcard
-	if strings.Contains(raw, "*") {
-		return true
-	}
-
-	u, err := url.Parse(raw)
-	if err != nil {
-		return false
-	}
-
-	if !u.IsAbs() {
-		return false
-	}
-
-	return true
+	return utils.ValidateCallbackURLPattern(raw) == nil
 }
