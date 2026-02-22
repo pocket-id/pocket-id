@@ -622,3 +622,122 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 
 	expect(webauthnStartCalled).toBe(true);
 });
+
+test.describe('OIDC prompt parameter', () => {
+	test('prompt=none redirects with login_required when user not authenticated', async ({
+		page
+	}) => {
+		await page.context().clearCookies();
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Should redirect to callback URL with error
+		const currentUrl = new URL(page.url());
+		expect(currentUrl.searchParams.get('error')).toBe('login_required');
+		expect(currentUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none redirects with consent_required when authorization needed', async ({
+		page
+	}) => {
+		const oidcClient = oidcClients.immich;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Should redirect to callback URL with error
+		const currentUrl = new URL(page.url());
+		expect(currentUrl.searchParams.get('error')).toBe('consent_required');
+		expect(currentUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none succeeds when user is authenticated and authorized', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Should redirect successfully to callback URL with code
+		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
+			if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
+				throw e;
+			}
+		});
+	});
+
+	test('prompt=consent forces consent display even for authorized client', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'consent');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Should show consent UI even though client was already authorized
+		await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+		await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Sign in' }).click();
+
+		// Should redirect successfully after consent
+		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
+			if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
+				throw e;
+			}
+		});
+	});
+
+	test('prompt=login forces reauthentication', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'login');
+
+		let reauthCalled = false;
+		await page.route('/api/webauthn/login/start', async (route) => {
+			reauthCalled = true;
+			await route.continue();
+		});
+
+		await (await passkeyUtil.init(page)).addPasskey();
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Should require reauthentication even though user is signed in
+		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
+			if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
+				throw e;
+			}
+		});
+
+		expect(reauthCalled).toBe(true);
+	});
+
+	test('prompt=select_account returns interaction_required error', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'select_account');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Should show error since account selection is not supported
+		await expect(
+			page.getByRole('paragraph').filter({ hasText: 'interaction_required' })
+		).toBeVisible();
+	});
+
+	test('prompt=none with prompt=consent returns interaction_required', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none consent');
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Should redirect with error since both can't be satisfied
+		const currentUrl = new URL(page.url());
+		expect(currentUrl.searchParams.get('error')).toBe('interaction_required');
+		expect(currentUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+});
