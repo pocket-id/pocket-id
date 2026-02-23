@@ -118,7 +118,6 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 	// Set the logger provider globally
 	globallog.SetLoggerProvider(provider)
 
-	// Wrap the handler in a "fanout" one
 	handler = slog.NewMultiHandler(
 		handler,
 		otelslog.NewHandler(common.Name, otelslog.WithLoggerProvider(provider)),
