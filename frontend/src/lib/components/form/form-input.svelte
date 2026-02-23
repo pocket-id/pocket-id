@@ -86,6 +86,6 @@
 		{/if}
 	{/if}
 	{#if input?.error}
-		<Field.Error>{input.error}</Field.Error>
+		<Field.Error class="text-start">{input.error}</Field.Error>
 	{/if}
 </Field.Field>

@@ -12,7 +12,7 @@ import (
 // Normalize iterates through an object and performs Unicode normalization on all string fields with the `unorm` tag.
 func Normalize(obj any) {
 	v := reflect.ValueOf(obj)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return
 	}
 	v = v.Elem()
@@ -21,7 +21,7 @@ func Normalize(obj any) {
 	if v.Kind() == reflect.Slice {
 		for i := 0; i < v.Len(); i++ {
 			elem := v.Index(i)
-			if elem.Kind() == reflect.Ptr && !elem.IsNil() && elem.Elem().Kind() == reflect.Struct {
+			if elem.Kind() == reflect.Pointer && !elem.IsNil() && elem.Elem().Kind() == reflect.Struct {
 				Normalize(elem.Interface())
 			} else if elem.Kind() == reflect.Struct && elem.CanAddr() {
 				Normalize(elem.Addr().Interface())

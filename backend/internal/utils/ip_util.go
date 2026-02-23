@@ -87,9 +87,9 @@ func listContainsIP(ipNets []*net.IPNet, ip net.IP) bool {
 
 func loadLocalIPv6Ranges() {
 	localIPv6Ranges = nil
-	ranges := strings.Split(common.EnvConfig.LocalIPv6Ranges, ",")
+	ranges := strings.SplitSeq(common.EnvConfig.LocalIPv6Ranges, ",")
 
-	for _, rangeStr := range ranges {
+	for rangeStr := range ranges {
 		rangeStr = strings.TrimSpace(rangeStr)
 		if rangeStr == "" {
 			continue
