@@ -20,9 +20,10 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: "pnpm"
       - uses: actions/setup-go@v6
         with:
           go-version-file: "backend/go.mod"
