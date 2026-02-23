@@ -14,35 +14,37 @@ permissions:
 jobs:
   build:
     runs-on: depot-ubuntu-24.04-16
+
+    env:
+      CONTAINER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/pocket-id
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+
+      - name: Set up Depot CLI
+        uses: depot/setup-action@v1
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: "pnpm"
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: "backend/go.mod"
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Set DOCKER_IMAGE_NAME
-        run: |
-          # Lowercase REPO_OWNER which is required for containers
-          REPO_OWNER=${{ github.repository_owner }}
-          DOCKER_IMAGE_NAME="ghcr.io/${REPO_OWNER,,}/pocket-id"
-          echo "DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME}" >>${GITHUB_ENV}
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{github.repository_owner}}
           password: ${{secrets.GITHUB_TOKEN}}
+
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -53,59 +55,89 @@ jobs:
             type=semver,pattern={{version}},prefix=v
             type=semver,pattern={{major}}.{{minor}},prefix=v
             type=semver,pattern={{major}},prefix=v
+          labels: |
+            org.opencontainers.image.authors=Pocket ID
+            org.opencontainers.image.url=https://github.com/pocket-id/pocket-id
+            org.opencontainers.image.documentation=https://github.com/pocket-id/pocket-id/blob/main/README.md
+            org.opencontainers.image.source=https://github.com/pocket-id/pocket-id
+            org.opencontainers.image.version=next
+            org.opencontainers.image.licenses=BSD-2-Clause
+            org.opencontainers.image.ref.name=pocket-id
+            org.opencontainers.image.title=Pocket ID
+
       - name: Docker metadata (distroless)
         id: meta-distroless
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.DOCKER_IMAGE_NAME }}
+            ${{ env.CONTAINER_IMAGE_NAME }}
           flavor: |
             suffix=-distroless,onlatest=true
           tags: |
             type=semver,pattern={{version}},prefix=v
             type=semver,pattern={{major}}.{{minor}},prefix=v
             type=semver,pattern={{major}},prefix=v
+          labels: |
+            org.opencontainers.image.authors=Pocket ID
+            org.opencontainers.image.url=https://github.com/pocket-id/pocket-id
+            org.opencontainers.image.documentation=https://github.com/pocket-id/pocket-id/blob/main/README.md
+            org.opencontainers.image.source=https://github.com/pocket-id/pocket-id
+            org.opencontainers.image.version=next-distroless
+            org.opencontainers.image.licenses=BSD-2-Clause
+            org.opencontainers.image.ref.name=pocket-id
+            org.opencontainers.image.title=Pocket ID
+
       - name: Install frontend dependencies
         run: pnpm --filter pocket-id-frontend install --frozen-lockfile
+
       - name: Build frontend
         run: pnpm --filter pocket-id-frontend build
 
       - name: Build binaries
         run: sh scripts/development/build-binaries.sh
+
       - name: Build and push container image
-        uses: docker/build-push-action@v6
+        uses: depot/build-push-action@v1
         id: container-build-push
         with:
           context: .
+          file: docker/Dockerfile-prebuilt
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          file: docker/Dockerfile-prebuilt
+          sbom: true
+          provenance: true
+
       - name: Build and push container image (distroless)
-        uses: docker/build-push-action@v6
+        uses: depot/build-push-action@v1
         id: container-build-push-distroless
         with:
           context: .
+          file: docker/Dockerfile-distroless
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-distroless.outputs.tags }}
           labels: ${{ steps.meta-distroless.outputs.labels }}
-          file: docker/Dockerfile-distroless
+          sbom: true
+          provenance: true
+
       - name: Binary attestation
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: "backend/.bin/pocket-id-**"
+
       - name: Container image attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-name: "${{ env.CONTAINER_IMAGE_NAME }}"
           subject-digest: ${{ steps.container-build-push.outputs.digest }}
           push-to-registry: true
+
       - name: Container image attestation (distroless)
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: "${{ env.DOCKER_IMAGE_NAME }}"
+          subject-name: "${{ env.CONTAINER_IMAGE_NAME }}"
           subject-digest: ${{ steps.container-build-push-distroless.outputs.digest }}
           push-to-registry: true
       - name: Upload binaries to release
