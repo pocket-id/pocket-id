@@ -7,6 +7,77 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestValidateCallbackURLPattern(t *testing.T) {
+	tests := []struct {
+		name        string
+		pattern     string
+		shouldError bool
+	}{
+		{
+			name:        "exact URL",
+			pattern:     "https://example.com/callback",
+			shouldError: false,
+		},
+		{
+			name:        "wildcard scheme",
+			pattern:     "*://example.com/callback",
+			shouldError: false,
+		},
+		{
+			name:        "wildcard port",
+			pattern:     "https://example.com:*/callback",
+			shouldError: false,
+		},
+		{
+			name:        "partial wildcard port",
+			pattern:     "https://example.com:80*/callback",
+			shouldError: false,
+		},
+		{
+			name:        "wildcard userinfo",
+			pattern:     "https://user:*@example.com/callback",
+			shouldError: false,
+		},
+		{
+			name:        "glob wildcard",
+			pattern:     "*",
+			shouldError: false,
+		},
+		{
+			name:        "relative URL",
+			pattern:     "/callback",
+			shouldError: true,
+		},
+		{
+			name:        "missing scheme separator",
+			pattern:     "https//example.com/callback",
+			shouldError: true,
+		},
+		{
+			name:        "malformed wildcard host glob",
+			pattern:     "https://exa[mple.com/callback",
+			shouldError: true,
+		},
+		{
+			name:        "malformed authority",
+			pattern:     "https://[::1/callback",
+			shouldError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateCallbackURLPattern(tt.pattern)
+			if tt.shouldError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestMatchCallbackURL(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log/slog"
 	"net"
 	"net/url"
 	"path"
@@ -10,6 +11,20 @@ import (
 
 	"github.com/dunglas/go-urlpattern"
 )
+
+// ValidateCallbackURLPattern checks if the given callback URL pattern
+// is valid according to the rules defined in this package.
+func ValidateCallbackURLPattern(pattern string) error {
+	if pattern == "*" {
+		return nil
+	}
+
+	pattern, _, _ = strings.Cut(pattern, "#")
+	pattern = normalizeToURLPatternStandard(pattern)
+
+	_, err := urlpattern.New(pattern, "", nil)
+	return err
+}
 
 // GetCallbackURLFromList returns the first callback URL that matches the input callback URL.
 func GetCallbackURLFromList(urls []string, inputCallbackURL string) (callbackURL string, err error) {
@@ -100,6 +115,8 @@ func matchCallbackURL(pattern string, inputCallbackURL string) (matches bool, er
 	// Validate the rest of the URL using urlpattern
 	p, err := urlpattern.New(pattern, "", nil)
 	if err != nil {
+		//nolint:nilerr
+		slog.Warn("invalid callback URL pattern, skipping", "pattern", pattern, "error", err)
 		return false, nil
 	}
 
