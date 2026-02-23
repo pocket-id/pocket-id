@@ -61,14 +61,14 @@ type ScimResourceData struct {
 	ID         string           `json:"id,omitempty"`
 	ExternalID string           `json:"externalId,omitempty"`
 	Schemas    []string         `json:"schemas"`
-	Meta       ScimResourceMeta `json:"meta"`
+	Meta       ScimResourceMeta `json:"meta,omitempty"`
 }
 
 type ScimResourceMeta struct {
 	Location     string    `json:"location,omitempty"`
 	ResourceType string    `json:"resourceType,omitempty"`
 	Created      time.Time `json:"created"`
-	LastModified time.Time `json:"lastModified"`
+	LastModified time.Time `json:"lastModified,omitempty"`
 	Version      string    `json:"version,omitempty"`
 }
 
