@@ -280,6 +280,13 @@ func (e *APIKeyExpirationDateError) Error() string {
 }
 func (e *APIKeyExpirationDateError) HttpStatusCode() int { return http.StatusBadRequest }
 
+type APIKeyAuthNotAllowedError struct{}
+
+func (e *APIKeyAuthNotAllowedError) Error() string {
+	return "API key authentication is not allowed for this endpoint"
+}
+func (e *APIKeyAuthNotAllowedError) HttpStatusCode() int { return http.StatusForbidden }
+
 type OidcInvalidRefreshTokenError struct{}
 
 func (e *OidcInvalidRefreshTokenError) Error() string {

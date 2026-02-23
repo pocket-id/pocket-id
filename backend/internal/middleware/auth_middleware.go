@@ -18,6 +18,7 @@ type AuthMiddleware struct {
 type AuthOptions struct {
 	AdminRequired   bool
 	SuccessOptional bool
+	AllowApiKeyAuth bool
 }
 
 func NewAuthMiddleware(
@@ -31,6 +32,7 @@ func NewAuthMiddleware(
 		options: AuthOptions{
 			AdminRequired:   true,
 			SuccessOptional: false,
+			AllowApiKeyAuth: true,
 		},
 	}
 }
@@ -59,6 +61,17 @@ func (m *AuthMiddleware) WithSuccessOptional() *AuthMiddleware {
 	return clone
 }
 
+// WithApiKeyAuthDisabled disables API key authentication fallback and requires JWT auth.
+func (m *AuthMiddleware) WithApiKeyAuthDisabled() *AuthMiddleware {
+	clone := &AuthMiddleware{
+		apiKeyMiddleware: m.apiKeyMiddleware,
+		jwtMiddleware:    m.jwtMiddleware,
+		options:          m.options,
+	}
+	clone.options.AllowApiKeyAuth = false
+	return clone
+}
+
 func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, isAdmin, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
@@ -75,6 +88,21 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 		// If JWT auth failed and the error is not a NotSignedInError, abort the request
 		if !errors.Is(err, &common.NotSignedInError{}) {
 			c.Abort()
+			_ = c.Error(err)
+			return
+		}
+
+		if !m.options.AllowApiKeyAuth {
+			if m.options.SuccessOptional {
+				c.Next()
+				return
+			}
+
+			c.Abort()
+			if c.GetHeader("X-API-Key") != "" {
+				_ = c.Error(&common.APIKeyAuthNotAllowedError{})
+				return
+			}
 			_ = c.Error(err)
 			return
 		}
