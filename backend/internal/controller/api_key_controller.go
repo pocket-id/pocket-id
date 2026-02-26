@@ -26,12 +26,11 @@ func NewApiKeyController(group *gin.RouterGroup, authMiddleware *middleware.Auth
 	uc := &ApiKeyController{apiKeyService: apiKeyService}
 
 	apiKeyGroup := group.Group("/api-keys")
-	apiKeyGroup.Use(authMiddleware.WithAdminNotRequired().Add())
 	{
-		apiKeyGroup.GET("", uc.listApiKeysHandler)
-		apiKeyGroup.POST("", uc.createApiKeyHandler)
-		apiKeyGroup.POST("/:id/renew", uc.renewApiKeyHandler)
-		apiKeyGroup.DELETE("/:id", uc.revokeApiKeyHandler)
+		apiKeyGroup.GET("", authMiddleware.WithAdminNotRequired().Add(), uc.listApiKeysHandler)
+		apiKeyGroup.POST("", authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(), uc.createApiKeyHandler)
+		apiKeyGroup.POST("/:id/renew", authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(), uc.renewApiKeyHandler)
+		apiKeyGroup.DELETE("/:id", authMiddleware.WithAdminNotRequired().Add(), uc.revokeApiKeyHandler)
 	}
 }
 

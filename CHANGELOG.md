@@ -1,3 +1,44 @@
+## v2.3.0
+
+### Bug Fixes
+
+- ENCRYPTION_KEY needed for version and help commands ([#1256](https://github.com/pocket-id/pocket-id/pull/1256) by @kmendell)
+- prevent deletion of OIDC provider logo for non admin/anonymous users ([#1267](https://github.com/pocket-id/pocket-id/pull/1267) by @HiMoritz)
+- add `type="url"` to url inputs ([bb7b0d5](https://github.com/pocket-id/pocket-id/commit/bb7b0d56084df49b6a003cc3eaf076884e2cbf60) by @stonith404)
+- increase rate limit for frontend and api requests ([aab7e36](https://github.com/pocket-id/pocket-id/commit/aab7e364e85f1ce13950da93cc50324328cdd96d) by @stonith404)
+- decode URL-encoded client ID and secret in Basic auth ([#1263](https://github.com/pocket-id/pocket-id/pull/1263) by @ypomortsev)
+- token endpoint must not accept params as query string args ([#1321](https://github.com/pocket-id/pocket-id/pull/1321) by @ItalyPaleAle)
+- left align input error messages ([b3fe143](https://github.com/pocket-id/pocket-id/commit/b3fe14313684f9d8c389ed93ea8e479e3681b5c6) by @stonith404)
+- disallow API key renewal and creation with API key authentication ([#1334](https://github.com/pocket-id/pocket-id/pull/1334) by @stonith404)
+
+### Features
+
+- add VERSION_CHECK_DISABLED environment variable ([#1254](https://github.com/pocket-id/pocket-id/pull/1254) by @dihmandrake)
+- add support for HTTP/2 ([56afebc](https://github.com/pocket-id/pocket-id/commit/56afebc242be7ed14b58185425d6445bf18f640a) by @stonith404)
+- manageability of uncompressed geolite db file ([#1234](https://github.com/pocket-id/pocket-id/pull/1234) by @gucheen)
+- add JWT ID for generated tokens ([#1322](https://github.com/pocket-id/pocket-id/pull/1322) by @imnotjames)
+- current version api endpoint ([#1310](https://github.com/pocket-id/pocket-id/pull/1310) by @kmendell)
+
+### Other
+
+- bump @sveltejs/kit from 2.49.2 to 2.49.5 in the npm_and_yarn group across 1 directory ([#1240](https://github.com/pocket-id/pocket-id/pull/1240) by @dependabot[bot])
+- bump svelte from 5.46.1 to 5.46.4 in the npm_and_yarn group across 1 directory ([#1242](https://github.com/pocket-id/pocket-id/pull/1242) by @dependabot[bot])
+- bump devalue to 5.6.2 ([9dbc02e](https://github.com/pocket-id/pocket-id/commit/9dbc02e56871b2de6a39c443e1455efc26a949f7) by @kmendell)
+- upgrade deps ([4811625](https://github.com/pocket-id/pocket-id/commit/4811625cdd64b47ea67b7a9b03396e455896ccd6) by @kmendell)
+- add Estonian files ([53ef61a](https://github.com/pocket-id/pocket-id/commit/53ef61a3e5c4b77edec49d41ab94302bfec84269) by @kmendell)
+- update AAGUIDs ([#1257](https://github.com/pocket-id/pocket-id/pull/1257) by @github-actions[bot])
+- add Norwegian language files ([80558c5](https://github.com/pocket-id/pocket-id/commit/80558c562533e7b4d658d5baa4221d8cd209b47d) by @stonith404)
+- run formatter ([60825c5](https://github.com/pocket-id/pocket-id/commit/60825c5743b0e233ab622fd4d0ea04eb7ab59529) by @kmendell)
+- bump axios from 1.13.2 to 1.13.5 in the npm_and_yarn group across 1 directory ([#1309](https://github.com/pocket-id/pocket-id/pull/1309) by @dependabot[bot])
+- update dependenicies ([94a4897](https://github.com/pocket-id/pocket-id/commit/94a48977ba24e099b6221838d620c365eb1d4bf4) by @kmendell)
+- update AAGUIDs ([#1316](https://github.com/pocket-id/pocket-id/pull/1316) by @github-actions[bot])
+- bump svelte from 5.46.4 to 5.51.5 in the npm_and_yarn group across 1 directory ([#1324](https://github.com/pocket-id/pocket-id/pull/1324) by @dependabot[bot])
+- bump @sveltejs/kit from 2.49.5 to 2.52.2 in the npm_and_yarn group across 1 directory ([#1327](https://github.com/pocket-id/pocket-id/pull/1327) by @dependabot[bot])
+- upgrade dependencies ([0678699](https://github.com/pocket-id/pocket-id/commit/0678699d0cce5448c425b2c16bedab5fc242cbf0) by @stonith404)
+- upgrade to node 24 and go 1.26.0 ([#1328](https://github.com/pocket-id/pocket-id/pull/1328) by @kmendell)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.2.0...v2.3.0
+
 ## v2.2.0
 
 ### Bug Fixes

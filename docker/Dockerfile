@@ -4,7 +4,7 @@
 ARG BUILD_TAGS=""
 
 # Stage 1: Build Frontend
-FROM node:22-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 RUN corepack enable
 
 WORKDIR /build
@@ -18,7 +18,7 @@ COPY ./frontend ./frontend/
 RUN BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
 
 # Stage 2: Build Backend
-FROM golang:1.25-alpine AS backend-builder
+FROM golang:1.26-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 COPY ./backend/go.mod ./backend/go.sum ./

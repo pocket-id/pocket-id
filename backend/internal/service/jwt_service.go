@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -193,6 +194,7 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 		Expiration(now.Add(s.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes())).
 		IssuedAt(now).
 		Issuer(s.envConfig.AppURL).
+		JwtID(uuid.New().String()).
 		Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build token: %w", err)
@@ -247,6 +249,7 @@ func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, no
 		Expiration(now.Add(1 * time.Hour)).
 		IssuedAt(now).
 		Issuer(s.envConfig.AppURL).
+		JwtID(uuid.New().String()).
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build token: %w", err)
@@ -336,6 +339,7 @@ func (s *JwtService) BuildOAuthAccessToken(user model.User, clientID string) (jw
 		Expiration(now.Add(1 * time.Hour)).
 		IssuedAt(now).
 		Issuer(s.envConfig.AppURL).
+		JwtID(uuid.New().String()).
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build token: %w", err)

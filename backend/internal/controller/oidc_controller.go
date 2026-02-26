@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -24,7 +25,11 @@ import (
 // @Description Initializes all OIDC-related API endpoints for authentication and client management
 // @Tags OIDC
 func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, oidcService *service.OidcService, jwtService *service.JwtService) {
-	oc := &OidcController{oidcService: oidcService, jwtService: jwtService}
+	oc := &OidcController{
+		oidcService:  oidcService,
+		jwtService:   jwtService,
+		createTokens: oidcService.CreateTokens,
+	}
 
 	group.POST("/oidc/authorize", authMiddleware.WithAdminNotRequired().Add(), oc.authorizeHandler)
 	group.POST("/oidc/authorization-required", authMiddleware.WithAdminNotRequired().Add(), oc.authorizationConfirmationRequiredHandler)
@@ -68,8 +73,9 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 }
 
 type OidcController struct {
-	oidcService *service.OidcService
-	jwtService  *service.JwtService
+	oidcService  *service.OidcService
+	jwtService   *service.JwtService
+	createTokens func(context.Context, dto.OidcCreateTokensDto) (service.CreatedTokens, error)
 }
 
 // authorizeHandler godoc
@@ -144,8 +150,13 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 // @Success 200 {object} dto.OidcTokenResponseDto "Token response with access_token and optional id_token and refresh_token"
 // @Router /api/oidc/token [post]
 func (oc *OidcController) createTokensHandler(c *gin.Context) {
+	// Per RFC-6749, parameters passed to the /token endpoint MUST be passed in the body of the request
+	// Gin's "ShouldBind" by default reads from the query string too, so we need to reset all query string args before invoking ShouldBind
+	c.Request.URL.RawQuery = ""
+
 	var input dto.OidcCreateTokensDto
-	if err := c.ShouldBind(&input); err != nil {
+	err := c.ShouldBind(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -167,7 +178,7 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		input.ClientID, input.ClientSecret, _ = utils.OAuthClientBasicAuth(c.Request)
 	}
 
-	tokens, err := oc.oidcService.CreateTokens(c.Request.Context(), input)
+	tokens, err := oc.createTokens(c.Request.Context(), input)
 
 	switch {
 	case errors.Is(err, &common.OidcAuthorizationPendingError{}):

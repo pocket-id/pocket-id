@@ -21,7 +21,6 @@ Before you submit the pull request for review please ensure that
   ```
 
   Where `TYPE` can be:
-
   - **feat** - is a new feature
   - **doc** - documentation only changes
   - **fix** - a bug fix
@@ -51,8 +50,8 @@ If you use [Dev Containers](https://code.visualstudio.com/docs/remote/containers
 
 If you don't use Dev Containers, you need to install the following tools manually:
 
-- [Node.js](https://nodejs.org/en/download/) >= 22
-- [Go](https://golang.org/doc/install) >= 1.25
+- [Node.js](https://nodejs.org/en/download/) >= 24
+- [Go](https://golang.org/doc/install) >= 1.26
 - [Git](https://git-scm.com/downloads)
 
 ### 2. Setup

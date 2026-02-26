@@ -106,7 +106,7 @@ func defaultConfig() EnvConfigSchema {
 
 func parseEnvConfig() error {
 	parsers := map[reflect.Type]env.ParserFunc{
-		reflect.TypeOf([]byte{}): func(value string) (interface{}, error) {
+		reflect.TypeFor[[]byte](): func(value string) (any, error) {
 			return []byte(value), nil
 		},
 	}
@@ -184,8 +184,8 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	}
 
 	// Validate LOCAL_IPV6_RANGES
-	ranges := strings.Split(config.LocalIPv6Ranges, ",")
-	for _, rangeStr := range ranges {
+	ranges := strings.SplitSeq(config.LocalIPv6Ranges, ",")
+	for rangeStr := range ranges {
 		rangeStr = strings.TrimSpace(rangeStr)
 		if rangeStr == "" {
 			continue
@@ -235,9 +235,9 @@ func prepareEnvConfig(config *EnvConfigSchema) error {
 		fieldType := typ.Field(i)
 
 		optionsTag := fieldType.Tag.Get("options")
-		options := strings.Split(optionsTag, ",")
+		options := strings.SplitSeq(optionsTag, ",")
 
-		for _, option := range options {
+		for option := range options {
 			switch option {
 			case "toLower":
 				if field.Kind() == reflect.String {

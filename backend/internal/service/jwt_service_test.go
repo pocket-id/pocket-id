@@ -20,12 +20,13 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
 const testEncryptionKey = "0123456789abcdef0123456789abcdef"
+
+const uuidRegexPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 
 func newTestEnvConfig() *common.EnvConfigSchema {
 	return &common.EnvConfigSchema{
@@ -303,7 +304,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		user := model.User{
 			Base:    model.Base{ID: "user123"},
-			Email:   utils.Ptr("user@example.com"),
+			Email:   new("user@example.com"),
 			IsAdmin: false,
 		}
 
@@ -323,6 +324,9 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
 			assert.Equal(t, []string{service.envConfig.AppURL}, audience, "Audience should contain the app URL")
+		jwtID, ok := claims.JwtID()
+		_ = assert.True(t, ok, "JWT ID not found in token") &&
+			assert.Regexp(t, uuidRegexPattern, jwtID, "JWT ID is not a UUID")
 
 		expectedExp := time.Now().Add(1 * time.Hour)
 		expiration, ok := claims.Expiration()
@@ -336,7 +340,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		adminUser := model.User{
 			Base:    model.Base{ID: "admin123"},
-			Email:   utils.Ptr("admin@example.com"),
+			Email:   new("admin@example.com"),
 			IsAdmin: true,
 		}
 
@@ -388,7 +392,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		user := model.User{
 			Base:    model.Base{ID: "eddsauser123"},
-			Email:   utils.Ptr("eddsauser@example.com"),
+			Email:   new("eddsauser@example.com"),
 			IsAdmin: true,
 		}
 
@@ -425,7 +429,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		user := model.User{
 			Base:    model.Base{ID: "ecdsauser123"},
-			Email:   utils.Ptr("ecdsauser@example.com"),
+			Email:   new("ecdsauser@example.com"),
 			IsAdmin: true,
 		}
 
@@ -462,7 +466,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 
 		user := model.User{
 			Base:    model.Base{ID: "rsauser123"},
-			Email:   utils.Ptr("rsauser@example.com"),
+			Email:   new("rsauser@example.com"),
 			IsAdmin: true,
 		}
 
@@ -497,7 +501,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	t.Run("generates and verifies ID token with standard claims", func(t *testing.T) {
 		service, _, _ := setupJwtService(t, mockConfig)
 
-		userClaims := map[string]interface{}{
+		userClaims := map[string]any{
 			"sub":   "user123",
 			"name":  "Test User",
 			"email": "user@example.com",
@@ -520,6 +524,9 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
 			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
+		jwtID, ok := claims.JwtID()
+		_ = assert.True(t, ok, "JWT ID not found in token") &&
+			assert.Regexp(t, uuidRegexPattern, jwtID, "JWT ID is not a UUID")
 
 		expectedExp := time.Now().Add(1 * time.Hour)
 		expiration, ok := claims.Expiration()
@@ -531,7 +538,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	t.Run("can accept expired tokens if told so", func(t *testing.T) {
 		service, _, _ := setupJwtService(t, mockConfig)
 
-		userClaims := map[string]interface{}{
+		userClaims := map[string]any{
 			"sub":   "user123",
 			"name":  "Test User",
 			"email": "user@example.com",
@@ -579,7 +586,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	t.Run("generates and verifies ID token with nonce", func(t *testing.T) {
 		service, _, _ := setupJwtService(t, mockConfig)
 
-		userClaims := map[string]interface{}{
+		userClaims := map[string]any{
 			"sub":  "user456",
 			"name": "Another User",
 		}
@@ -604,7 +611,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 	t.Run("fails verification with incorrect issuer", func(t *testing.T) {
 		service, _, _ := setupJwtService(t, mockConfig)
 
-		userClaims := map[string]interface{}{
+		userClaims := map[string]any{
 			"sub": "user789",
 		}
 		tokenString, err := service.GenerateIDToken(userClaims, "client-789", "")
@@ -626,7 +633,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 
-		userClaims := map[string]interface{}{
+		userClaims := map[string]any{
 			"sub":   "eddsauser456",
 			"name":  "EdDSA User",
 			"email": "eddsauser@example.com",
@@ -664,7 +671,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 
-		userClaims := map[string]interface{}{
+		userClaims := map[string]any{
 			"sub":   "ecdsauser456",
 			"email": "ecdsauser@example.com",
 		}
@@ -701,7 +708,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 
-		userClaims := map[string]interface{}{
+		userClaims := map[string]any{
 			"sub":   "rsauser456",
 			"name":  "RSA User",
 			"email": "rsauser@example.com",
@@ -734,7 +741,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 
 		user := model.User{
 			Base:  model.Base{ID: "user123"},
-			Email: utils.Ptr("user@example.com"),
+			Email: new("user@example.com"),
 		}
 		const clientID = "test-client-123"
 
@@ -754,6 +761,9 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		issuer, ok := claims.Issuer()
 		_ = assert.True(t, ok, "Issuer not found in token") &&
 			assert.Equal(t, service.envConfig.AppURL, issuer, "Issuer should match app URL")
+		jwtID, ok := claims.JwtID()
+		_ = assert.True(t, ok, "JWT ID not found in token") &&
+			assert.Regexp(t, uuidRegexPattern, jwtID, "JWT ID is not a UUID")
 
 		expectedExp := time.Now().Add(1 * time.Hour)
 		expiration, ok := claims.Expiration()
@@ -814,7 +824,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 
 		user := model.User{
 			Base:  model.Base{ID: "eddsauser789"},
-			Email: utils.Ptr("eddsaoauth@example.com"),
+			Email: new("eddsaoauth@example.com"),
 		}
 		const clientID = "eddsa-oauth-client"
 
@@ -851,7 +861,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 
 		user := model.User{
 			Base:  model.Base{ID: "ecdsauser789"},
-			Email: utils.Ptr("ecdsaoauth@example.com"),
+			Email: new("ecdsaoauth@example.com"),
 		}
 		const clientID = "ecdsa-oauth-client"
 
@@ -888,7 +898,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 
 		user := model.User{
 			Base:  model.Base{ID: "rsauser789"},
-			Email: utils.Ptr("rsaoauth@example.com"),
+			Email: new("rsaoauth@example.com"),
 		}
 		const clientID = "rsa-oauth-client"
 

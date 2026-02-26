@@ -118,11 +118,10 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 	// Set the logger provider globally
 	globallog.SetLoggerProvider(provider)
 
-	// Wrap the handler in a "fanout" one
-	handler = utils.LogFanoutHandler{
+	handler = slog.NewMultiHandler(
 		handler,
 		otelslog.NewHandler(common.Name, otelslog.WithLoggerProvider(provider)),
-	}
+	)
 
 	// Set the default slog to send logs to OTel and add the app name
 	log := slog.New(handler).

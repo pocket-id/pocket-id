@@ -77,6 +77,9 @@ func (s *ApiKeyService) CreateApiKey(ctx context.Context, userID string, input d
 		Create(&apiKey).
 		Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return model.ApiKey{}, "", &common.AlreadyInUseError{Property: "API key name"}
+		}
 		return model.ApiKey{}, "", err
 	}
 
@@ -170,7 +173,7 @@ func (s *ApiKeyService) ValidateApiKey(ctx context.Context, apiKey string) (mode
 		Clauses(clause.Returning{}).
 		Where("key = ? AND expires_at > ?", hashedKey, datatype.DateTime(now)).
 		Updates(&model.ApiKey{
-			LastUsedAt: utils.Ptr(datatype.DateTime(now)),
+			LastUsedAt: new(datatype.DateTime(now)),
 		}).
 		Preload("User").
 		First(&key).

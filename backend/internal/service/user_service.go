@@ -435,7 +435,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		}
 	}
 
-	user.UpdatedAt = utils.Ptr(datatype.DateTime(time.Now()))
+	user.UpdatedAt = new(datatype.DateTime(time.Now()))
 
 	err = tx.
 		WithContext(ctx).
@@ -501,9 +501,9 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 	}
 
 	// Update the UpdatedAt field for all affected groups
-	now := time.Now()
+	now := datatype.DateTime(time.Now())
 	for _, group := range groups {
-		group.UpdatedAt = utils.Ptr(datatype.DateTime(now))
+		group.UpdatedAt = &now
 		err = tx.WithContext(ctx).Save(&group).Error
 		if err != nil {
 			return model.User{}, err
@@ -636,7 +636,7 @@ func (s *UserService) VerifyEmail(ctx context.Context, userID string, token stri
 	}
 
 	user.EmailVerified = true
-	user.UpdatedAt = utils.Ptr(datatype.DateTime(time.Now()))
+	user.UpdatedAt = new(datatype.DateTime(time.Now()))
 	err = tx.WithContext(ctx).Save(&user).Error
 	if err != nil {
 		return err
