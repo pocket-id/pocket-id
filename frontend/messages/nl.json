@@ -365,7 +365,6 @@
 	"enter_code_displayed_in_previous_step": "Voer de code in die in de vorige stap werd getoond.",
 	"authorize": "Autoriseren",
 	"federated_client_credentials": "Federatieve clientreferenties",
-	"federated_client_credentials_description": "Met federatieve clientreferenties kun je OIDC-clients verifiëren met JWT-tokens die zijn uitgegeven door andere instanties.",
 	"add_federated_client_credential": "Federatieve clientreferenties toevoegen",
 	"add_another_federated_client_credential": "Voeg nog een federatieve clientreferentie toe",
 	"oidc_allowed_group_count": "Aantal groepen met toegang",

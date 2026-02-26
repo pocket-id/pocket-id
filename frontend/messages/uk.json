@@ -365,7 +365,6 @@
 	"enter_code_displayed_in_previous_step": "Введіть код, який було показано на попередньому кроці.",
 	"authorize": "Авторизувати",
 	"federated_client_credentials": "Федеративні облікові дані клієнта",
-	"federated_client_credentials_description": "За допомогою федеративних облікових даних клієнта ви можете автентифікувати клієнтів OIDC за допомогою токенів JWT, виданих третіми сторонами.",
 	"add_federated_client_credential": "Додати федеративний обліковий запис клієнта",
 	"add_another_federated_client_credential": "Додати ще один федеративний обліковий запис клієнта",
 	"oidc_allowed_group_count": "Кількість дозволених груп",

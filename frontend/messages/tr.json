@@ -365,7 +365,6 @@
 	"enter_code_displayed_in_previous_step": "Önceki adımda görüntülenen kodu girin.",
 	"authorize": "Yetkilendir",
 	"federated_client_credentials": "Birleştirilmiş İstemci Kimlik Bilgileri",
-	"federated_client_credentials_description": "Birleşik istemci kimlik bilgilerini kullanarak, üçüncü taraf otoriteleri tarafından verilen JWT token'ları kullanarak OIDC istemcilerinin kimliklerini doğrulayabilirsiniz.",
 	"add_federated_client_credential": "Birleştirilmiş İstemci Kimlik Bilgisi Ekle",
 	"add_another_federated_client_credential": "Başka bir birleştirilmiş istemci kimlik bilgisi ekle",
 	"oidc_allowed_group_count": "İzin Verilen Grup Sayısı",
