@@ -160,8 +160,8 @@ func (f *FileServerWithCaching) ServeHTTP(w http.ResponseWriter, r *http.Request
 		w.Header().Add("Vary", "Accept-Encoding")
 
 		// Select the encoding if any
-		ce := f.selectEncoding(r)
-		if ce != "" {
+		ext, ce := f.selectEncoding(r)
+		if ext != "" {
 			// Set the content type explicitly before changing the path
 			ct := mime.TypeByExtension(path.Ext(r.URL.Path))
 			if ct != "" {
@@ -170,34 +170,34 @@ func (f *FileServerWithCaching) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 			// Make the serve return the encoded content
 			w.Header().Set("Content-Encoding", ce)
-			r.URL.Path += "." + ce
+			r.URL.Path += "." + ext
 		}
 	}
 
 	http.FileServer(f.root).ServeHTTP(w, r)
 }
 
-func (f *FileServerWithCaching) selectEncoding(r *http.Request) string {
+func (f *FileServerWithCaching) selectEncoding(r *http.Request) (ext string, contentEnc string) {
 	available, ok := f.preCompressed[r.URL.Path]
 	if !ok {
-		return ""
+		return "", ""
 	}
 
 	// Check if the client accepts compressed files
 	acceptEncoding := strings.TrimSpace(strings.ToLower(r.Header.Get("Accept-Encoding")))
 	if acceptEncoding == "" {
-		return ""
+		return "", ""
 	}
 
 	// Prefer brotli over gzip when both are accepted.
 	if available.br && (acceptEncoding == "*" || acceptEncoding == "br" || strings.Contains(acceptEncoding, "br")) {
-		return "br"
+		return "br", "br"
 	}
 	if available.gz && (acceptEncoding == "gzip" || strings.Contains(acceptEncoding, "gzip")) {
-		return "gz"
+		return "gz", "gzip"
 	}
 
-	return ""
+	return "", ""
 }
 
 func isImmutableAsset(r *http.Request) bool {
