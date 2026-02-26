@@ -664,7 +664,7 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 }
 
 func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
-	// Per RFC-6749, parameters passed to the /token endpoint MUST be passed in the body of the request
+	// Per RFC 8628 (OAuth 2.0 Device Authorization Grant), parameters for the device authorization request MUST be sent in the body of the POST request
 	// Gin's "ShouldBind" by default reads from the query string too, so we need to reset all query string args before invoking ShouldBind
 	c.Request.URL.RawQuery = ""
 

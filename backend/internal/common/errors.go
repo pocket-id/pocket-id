@@ -20,7 +20,7 @@ type AlreadyInUseError struct {
 func (e *AlreadyInUseError) Error() string {
 	return e.Property + " is already in use"
 }
-func (e *AlreadyInUseError) HttpStatusCode() int { return http.StatusUnauthorized }
+func (e *AlreadyInUseError) HttpStatusCode() int { return http.StatusBadRequest }
 
 func (e *AlreadyInUseError) Is(target error) bool {
 	// Ignore the field property when checking if an error is of the type AlreadyInUseError

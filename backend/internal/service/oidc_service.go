@@ -1768,7 +1768,7 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.C
 	// (Note: we don't use jwt.WithIssuer() because that would be redundant)
 	_, err = jwt.Parse(assertion,
 		jwt.WithValidate(true),
-		jwt.WithVerify(true),
+
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithKeySet(jwks, jws.WithInferAlgorithmFromKey(true), jws.WithUseDefault(true)),
 		jwt.WithAudience(audience),
