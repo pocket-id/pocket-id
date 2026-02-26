@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"mime"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -58,9 +60,16 @@ func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc) e
 		return fmt.Errorf("failed to create sub FS: %w", err)
 	}
 
-	cacheMaxAge := time.Hour * 24
-	fileServer := NewFileServerWithCaching(http.FS(distFS), int(cacheMaxAge.Seconds()))
+	// Load a map of all files to see which ones are available pre-compressed
+	preCompressed, err := listPreCompressedAssets(distFS)
+	if err != nil {
+		return fmt.Errorf("failed to index pre-compressed frontend assets: %w", err)
+	}
 
+	// Init the file server
+	fileServer := NewFileServerWithCaching(http.FS(distFS), preCompressed)
+
+	// Handler for Gin
 	handler := func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 
@@ -108,34 +117,138 @@ func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc) e
 type FileServerWithCaching struct {
 	root                    http.FileSystem
 	lastModified            time.Time
-	cacheMaxAge             int
 	lastModifiedHeaderValue string
-	cacheControlHeaderValue string
+	preCompressed           preCompressedMap
 }
 
-func NewFileServerWithCaching(root http.FileSystem, maxAge int) *FileServerWithCaching {
+func NewFileServerWithCaching(root http.FileSystem, preCompressed preCompressedMap) *FileServerWithCaching {
 	return &FileServerWithCaching{
 		root:                    root,
 		lastModified:            time.Now(),
-		cacheMaxAge:             maxAge,
 		lastModifiedHeaderValue: time.Now().UTC().Format(http.TimeFormat),
-		cacheControlHeaderValue: fmt.Sprintf("public, max-age=%d", maxAge),
+		preCompressed:           preCompressed,
 	}
 }
 
 func (f *FileServerWithCaching) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Check if the client has a cached version
-	if ifModifiedSince := r.Header.Get("If-Modified-Since"); ifModifiedSince != "" {
-		ifModifiedSinceTime, err := time.Parse(http.TimeFormat, ifModifiedSince)
-		if err == nil && f.lastModified.Before(ifModifiedSinceTime.Add(1*time.Second)) {
-			// Client's cached version is up to date
-			w.WriteHeader(http.StatusNotModified)
-			return
+	// First, set cache headers
+	// Check if the request is for an immutable asset
+	if isImmutableAsset(r) {
+		// Set the cache control header as immutable with a long expiration
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else {
+		// Check if the client has a cached version
+		ifModifiedSince := r.Header.Get("If-Modified-Since")
+		if ifModifiedSince != "" {
+			ifModifiedSinceTime, err := time.Parse(http.TimeFormat, ifModifiedSince)
+			if err == nil && f.lastModified.Before(ifModifiedSinceTime.Add(1*time.Second)) {
+				// Client's cached version is up to date
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+		}
+
+		// Cache other assets for up to 24 hours, but set Last-Modified too
+		w.Header().Set("Last-Modified", f.lastModifiedHeaderValue)
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+	}
+
+	// Check if the asset is available pre-compressed
+	_, ok := f.preCompressed[r.URL.Path]
+	if ok {
+		// Add a "Vary" with "Accept-Encoding" so CDNs are aware that content is pre-compressed
+		w.Header().Add("Vary", "Accept-Encoding")
+
+		// Select the encoding if any
+		ce := f.selectEncoding(r)
+		if ce != "" {
+			// Set the content type explicitly before changing the path
+			ct := mime.TypeByExtension(path.Ext(r.URL.Path))
+			if ct != "" {
+				w.Header().Set("Content-Type", ct)
+			}
+
+			// Make the serve return the encoded content
+			w.Header().Set("Content-Encoding", ce)
+			r.URL.Path += "." + ce
 		}
 	}
 
-	w.Header().Set("Last-Modified", f.lastModifiedHeaderValue)
-	w.Header().Set("Cache-Control", f.cacheControlHeaderValue)
-
 	http.FileServer(f.root).ServeHTTP(w, r)
+}
+
+func (f *FileServerWithCaching) selectEncoding(r *http.Request) string {
+	available, ok := f.preCompressed[r.URL.Path]
+	if !ok {
+		return ""
+	}
+
+	// Check if the client accepts compressed files
+	acceptEncoding := strings.TrimSpace(strings.ToLower(r.Header.Get("Accept-Encoding")))
+	if acceptEncoding == "" {
+		return ""
+	}
+
+	// Prefer brotli over gzip when both are accepted.
+	if available.br && (acceptEncoding == "*" || acceptEncoding == "br" || strings.Contains(acceptEncoding, "br")) {
+		return "br"
+	}
+	if available.gz && (acceptEncoding == "gzip" || strings.Contains(acceptEncoding, "gzip")) {
+		return "gz"
+	}
+
+	return ""
+}
+
+func isImmutableAsset(r *http.Request) bool {
+	switch {
+	// Fonts
+	case strings.HasPrefix(r.URL.Path, "/fonts/"):
+		return true
+
+	// Compiled SvelteKit assets
+	case strings.HasPrefix(r.URL.Path, "/_app/immutable/"):
+		return true
+
+	default:
+		return false
+	}
+}
+
+type preCompressedMap map[string]struct {
+	br bool
+	gz bool
+}
+
+func listPreCompressedAssets(distFS fs.FS) (preCompressedMap, error) {
+	preCompressed := make(preCompressedMap, 0)
+	err := fs.WalkDir(distFS, ".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		switch {
+		case strings.HasSuffix(path, ".br"):
+			originalPath := "/" + strings.TrimSuffix(path, ".br")
+			entry := preCompressed[originalPath]
+			entry.br = true
+			preCompressed[originalPath] = entry
+		case strings.HasSuffix(path, ".gz"):
+			originalPath := "/" + strings.TrimSuffix(path, ".gz")
+			entry := preCompressed[originalPath]
+			entry.gz = true
+			preCompressed[originalPath] = entry
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return preCompressed, nil
 }
