@@ -124,7 +124,7 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 	function isRequired(fieldSchema: z.ZodTypeAny): boolean {
 		// Handle string allow empty
 		if (fieldSchema instanceof z.ZodString) {
-			let minCheck = fieldSchema.def.checks.find((c) => c._zod.def.check === 'min_length');
+			let minCheck = fieldSchema.def.checks?.find((c) => c._zod.def.check === 'min_length');
 			if (!minCheck || minCheck._zod.def.minimum === 0) {
 				return false;
 			}

@@ -64,7 +64,7 @@ test('Change Locale', async ({ page }) => {
 	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
 
 	// Check if the validation messages are translated because they are provided by Zod
-	await page.getByRole('textbox', { name: 'Voornaam' }).fill('');
+	await page.getByRole('textbox', { name: 'Gebruikersnaam' }).fill('');
 	await page.getByRole('button', { name: 'Opslaan' }).click();
 	await expect(page.getByText('Te kort: verwacht dat string >=1 tekens heeft')).toBeVisible();
 
@@ -74,7 +74,7 @@ test('Change Locale', async ({ page }) => {
 
 	await expect(page.getByText('Taal', { exact: true })).toBeVisible();
 
-	await page.getByRole('textbox', { name: 'Voornaam' }).fill('');
+	await page.getByRole('textbox', { name: 'Gebruikersnaam' }).fill('');
 	await page.getByRole('button', { name: 'Opslaan' }).click();
 	await expect(page.getByText('Te kort: verwacht dat string >=1 tekens heeft')).toBeVisible();
 });
