@@ -31,7 +31,7 @@ export const callbackUrlSchema = z
 
 export const usernameSchema = z
 	.string()
-	.min(1)
+	.min(2)
 	.max(30)
 	.regex(/^[a-zA-Z0-9]/, m.username_must_start_with())
 	.regex(/[a-zA-Z0-9]$/, m.username_must_end_with())
