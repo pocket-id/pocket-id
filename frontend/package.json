@@ -33,7 +33,7 @@
     "@internationalized/date": "^3.11.0",
     "@lucide/svelte": "^0.559.0",
     "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.53.0",
+    "@sveltejs/kit": "^2.53.3",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@types/eslint": "^9.6.1",
     "@types/node": "^24.10.13",
