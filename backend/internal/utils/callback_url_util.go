@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/url"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -129,15 +128,15 @@ func matchCallbackURL(pattern string, inputCallbackURL string) (matches bool, er
 func normalizeToURLPatternStandard(pattern string) string {
 	patternBase, patternPath := extractPath(pattern)
 
-	// Replace single asterisk wildcards with :p{index} and keep globstar wildcards as **.
 	var result strings.Builder
 	for i := 0; i < len(patternPath); i++ {
 		if patternPath[i] == '*' {
-			// Check if it's a globstar (**)
+			// Replace globstar with a single asterisk
 			if i+1 < len(patternPath) && patternPath[i+1] == '*' {
-				result.WriteString("**")
+				result.WriteString("*")
 				i++ // skip next *
 			} else {
+				// Replace single asterisk with :p{index}
 				result.WriteString(":p")
 				result.WriteString(strconv.Itoa(i))
 			}
@@ -146,12 +145,6 @@ func normalizeToURLPatternStandard(pattern string) string {
 		}
 	}
 	patternPath = result.String()
-
-	// Replace globstar wildcards (**) with a single *
-	re := regexp.MustCompile(`\*{2}`)
-	patternPath = re.ReplaceAllStringFunc(patternPath, func(_ string) string {
-		return "*"
-	})
 
 	return patternBase + patternPath
 }
@@ -163,12 +156,12 @@ func extractPath(url string) (base string, path string) {
 	if i := strings.Index(url, "://"); i >= 0 {
 		// Look for the next slash after scheme://
 		rest := url[i+3:]
-		if j := strings.IndexRune(rest, '/'); j >= 0 {
+		if j := strings.IndexByte(rest, '/'); j >= 0 {
 			pathStart = i + 3 + j
 		}
 	} else {
 		// Otherwise, first slash is path start
-		pathStart = strings.IndexRune(url, '/')
+		pathStart = strings.IndexByte(url, '/')
 	}
 
 	if pathStart >= 0 {
@@ -183,7 +176,7 @@ func extractPath(url string) (base string, path string) {
 }
 
 func extractQueryParams(rawUrl string) (base string, query url.Values, err error) {
-	if i := strings.Index(rawUrl, "?"); i >= 0 {
+	if i := strings.IndexByte(rawUrl, '?'); i >= 0 {
 		query, err = url.ParseQuery(rawUrl[i+1:])
 		if err != nil {
 			return "", nil, err
