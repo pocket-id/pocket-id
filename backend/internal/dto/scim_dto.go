@@ -67,7 +67,7 @@ type ScimResourceData struct {
 type ScimResourceMeta struct {
 	Location     string    `json:"location,omitempty"`
 	ResourceType string    `json:"resourceType,omitempty"`
-	Created      time.Time `json:"created,omitempty"`
+	Created      time.Time `json:"created"`
 	LastModified time.Time `json:"lastModified,omitempty"`
 	Version      string    `json:"version,omitempty"`
 }

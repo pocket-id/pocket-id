@@ -129,39 +129,39 @@ func (s *ExportService) getScanValuesForTable(cols []string, types utils.DBSchem
 		case "boolean", "bool":
 			var x bool
 			if types[col].Nullable {
-				res[i] = utils.Ptr(utils.Ptr(x))
+				res[i] = new(new(x))
 			} else {
-				res[i] = utils.Ptr(x)
+				res[i] = new(x)
 			}
 		case "blob", "bytea", "jsonb":
 			// Treat jsonb columns as binary too
 			var x []byte
 			if types[col].Nullable {
-				res[i] = utils.Ptr(utils.Ptr(x))
+				res[i] = new(new(x))
 			} else {
-				res[i] = utils.Ptr(x)
+				res[i] = new(x)
 			}
 		case "timestamp", "timestamptz", "timestamp with time zone", "datetime":
 			var x datatype.DateTime
 			if types[col].Nullable {
-				res[i] = utils.Ptr(utils.Ptr(x))
+				res[i] = new(new(x))
 			} else {
-				res[i] = utils.Ptr(x)
+				res[i] = new(x)
 			}
 		case "integer", "int", "bigint":
 			var x int64
 			if types[col].Nullable {
-				res[i] = utils.Ptr(utils.Ptr(x))
+				res[i] = new(new(x))
 			} else {
-				res[i] = utils.Ptr(x)
+				res[i] = new(x)
 			}
 		default:
 			// Treat everything else as a string (including the "numeric" type)
 			var x string
 			if types[col].Nullable {
-				res[i] = utils.Ptr(utils.Ptr(x))
+				res[i] = new(new(x))
 			} else {
-				res[i] = utils.Ptr(x)
+				res[i] = new(x)
 			}
 		}
 	}
