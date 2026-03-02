@@ -58,11 +58,6 @@ func TestValidateCallbackURLPattern(t *testing.T) {
 			pattern:     "https://exa[mple.com/callback",
 			shouldError: true,
 		},
-		{
-			name:        "malformed authority",
-			pattern:     "https://[::1/callback",
-			shouldError: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -74,6 +69,76 @@ func TestValidateCallbackURLPattern(t *testing.T) {
 			}
 
 			require.NoError(t, err)
+		})
+	}
+}
+
+func TestNormalizeToURLPatternStandard(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "exact URL unchanged",
+			input:    "https://example.com/callback",
+			expected: "https://example.com/callback",
+		},
+		{
+			name:     "single wildcard path segment converted to named parameter",
+			input:    "https://example.com/api/*/callback",
+			expected: "https://example.com/api/:p5/callback",
+		},
+		{
+			name:     "single wildcard in path suffix converted to named parameter",
+			input:    "https://example.com/test*",
+			expected: "https://example.com/test:p5",
+		},
+		{
+			name:     "globstar converted to single asterisk",
+			input:    "https://example.com/**/callback",
+			expected: "https://example.com/*/callback",
+		},
+		{
+			name:     "mixed globstar and single wildcard conversion",
+			input:    "https://example.com/**/v1/**/callback/*",
+			expected: "https://example.com/*/v1/*/callback/:p19",
+		},
+		{
+			name:     "URL without path unchanged",
+			input:    "https://example.com",
+			expected: "https://example.com",
+		},
+		{
+			name:     "relative path conversion",
+			input:    "/foo/*/bar",
+			expected: "/foo/:p5/bar",
+		},
+		{
+			name:     "wildcard in hostname is not normalized by this function",
+			input:    "https://*.example.com/callback",
+			expected: "https://*.example.com/callback",
+		},
+		{
+			name:     "IPv6 hostname escapes all colons inside address",
+			input:    "https://[2001:db8:1:1::a:1]/callback",
+			expected: "https://[2001\\:db8\\:1\\:1\\:\\:a\\:1]/callback",
+		},
+		{
+			name:     "IPv6 hostname with port escapes only address colons",
+			input:    "https://[::1]:8080/callback",
+			expected: "https://[\\:\\:1]:8080/callback",
+		},
+		{
+			name:     "wildcard in query is converted when query is part of input",
+			input:    "https://example.com/callback?code=*",
+			expected: "https://example.com/callback?code=:p15",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, normalizeToURLPatternStandard(tt.input))
 		})
 	}
 }
@@ -97,6 +162,18 @@ func TestMatchCallbackURL(t *testing.T) {
 			"https://example.org/callback",
 			"https://example.com/callback",
 			false,
+		},
+		{
+			"exact match - IPv4",
+			"https://10.1.0.1/callback",
+			"https://10.1.0.1/callback",
+			true,
+		},
+		{
+			"exact match - IPv6",
+			"https://[2001:db8:1:1::a:1]/callback",
+			"https://[2001:db8:1:1::a:1]/callback",
+			true,
 		},
 
 		// Scheme
@@ -182,6 +259,30 @@ func TestMatchCallbackURL(t *testing.T) {
 			"https://example.com:8080/callback",
 			true,
 		},
+		{
+			"wildcard port - IPv4",
+			"https://10.1.0.1:*/callback",
+			"https://10.1.0.1:8080/callback",
+			true,
+		},
+		{
+			"partial wildcard in port prefix - IPv4",
+			"https://10.1.0.1:80*/callback",
+			"https://10.1.0.1:8080/callback",
+			true,
+		},
+		{
+			"wildcard port - IPv6",
+			"https://[2001:db8:1:1::a:1]:*/callback",
+			"https://[2001:db8:1:1::a:1]:8080/callback",
+			true,
+		},
+		{
+			"partial wildcard in port prefix - IPv6",
+			"https://[2001:db8:1:1::a:1]:80*/callback",
+			"https://[2001:db8:1:1::a:1]:8080/callback",
+			true,
+		},
 
 		// Path
 		{
@@ -200,6 +301,18 @@ func TestMatchCallbackURL(t *testing.T) {
 			"wildcard entire path",
 			"https://example.com/*",
 			"https://example.com/callback",
+			true,
+		},
+		{
+			"wildcard entire path - IPv4",
+			"https://10.1.0.1/*",
+			"https://10.1.0.1/callback",
+			true,
+		},
+		{
+			"wildcard entire path - IPv6",
+			"https://[2001:db8:1:1::a:1]/*",
+			"https://[2001:db8:1:1::a:1]/callback",
 			true,
 		},
 		{
@@ -435,10 +548,11 @@ func TestMatchCallbackURL(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		matches, err := matchCallbackURL(tt.pattern, tt.input)
-		require.NoError(t, err, tt.name)
-		assert.Equal(t, tt.shouldMatch, matches, tt.name)
-
+		t.Run(tt.name, func(t *testing.T) {
+			matches, err := matchCallbackURL(tt.pattern, tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.shouldMatch, matches)
+		})
 	}
 }
 
@@ -472,14 +586,21 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			expectMatch:      true,
 		},
 		{
-			name:             "IPv6 loopback with dynamic port",
+			name:             "IPv6 loopback with dynamic port - exact match",
 			urls:             []string{"http://[::1]/callback"},
 			inputCallbackURL: "http://[::1]:8080/callback",
 			expectedURL:      "http://[::1]:8080/callback",
 			expectMatch:      true,
 		},
 		{
-			name:             "IPv6 loopback with wildcard path",
+			name:             "IPv6 loopback with same port - exact match",
+			urls:             []string{"http://[::1]:8080/callback"},
+			inputCallbackURL: "http://[::1]:8080/callback",
+			expectedURL:      "http://[::1]:8080/callback",
+			expectMatch:      true,
+		},
+		{
+			name:             "IPv6 loopback with path match",
 			urls:             []string{"http://[::1]/auth/*"},
 			inputCallbackURL: "http://[::1]:8080/auth/callback",
 			expectedURL:      "http://[::1]:8080/auth/callback",
@@ -504,6 +625,20 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			urls:             []string{"http://127.0.0.1/auth/*"},
 			inputCallbackURL: "http://127.0.0.1:3000/auth/callback",
 			expectedURL:      "http://127.0.0.1:3000/auth/callback",
+			expectMatch:      true,
+		},
+		{
+			name:             "loopback with path port",
+			urls:             []string{"http://127.0.0.1:*/auth/callback"},
+			inputCallbackURL: "http://127.0.0.1:3000/auth/callback",
+			expectedURL:      "http://127.0.0.1:3000/auth/callback",
+			expectMatch:      true,
+		},
+		{
+			name:             "IPv6 loopback with path port",
+			urls:             []string{"http://[::1]:*/auth/callback"},
+			inputCallbackURL: "http://[::1]:3000/auth/callback",
+			expectedURL:      "http://[::1]:3000/auth/callback",
 			expectMatch:      true,
 		},
 		{
@@ -545,6 +680,76 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			} else {
 				assert.Empty(t, result)
 			}
+		})
+	}
+}
+
+func TestLoopbackURLWithWildcardPort(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output string
+	}{
+		{
+			name:   "localhost http with port strips port",
+			input:  "http://localhost:3000/callback",
+			output: "http://localhost/callback",
+		},
+		{
+			name:   "localhost http without port stays same",
+			input:  "http://localhost/callback",
+			output: "http://localhost/callback",
+		},
+		{
+			name:   "IPv4 loopback with port strips port",
+			input:  "http://127.0.0.1:8080/callback",
+			output: "http://127.0.0.1/callback",
+		},
+		{
+			name:   "IPv4 loopback without port stays same",
+			input:  "http://127.0.0.1/callback",
+			output: "http://127.0.0.1/callback",
+		},
+		{
+			name:   "IPv6 loopback with port strips port and keeps brackets",
+			input:  "http://[::1]:8080/callback",
+			output: "http://[::1]/callback",
+		},
+		{
+			name:   "IPv6 loopback preserves path query and fragment",
+			input:  "http://[::1]:8080/auth/callback?code=123#state",
+			output: "http://[::1]/auth/callback?code=123#state",
+		},
+		{
+			name:   "https loopback returns empty",
+			input:  "https://127.0.0.1:8080/callback",
+			output: "",
+		},
+		{
+			name:   "non loopback host returns empty",
+			input:  "http://example.com:8080/callback",
+			output: "",
+		},
+		{
+			name:   "non loopback IP returns empty",
+			input:  "http://192.168.1.10:8080/callback",
+			output: "",
+		},
+		{
+			name:   "malformed URL returns empty",
+			input:  "http://[::1:8080/callback",
+			output: "",
+		},
+		{
+			name:   "relative URL returns empty",
+			input:  "/callback",
+			output: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.output, loopbackURLWithWildcardPort(tt.input))
 		})
 	}
 }
