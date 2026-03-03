@@ -365,7 +365,6 @@
 	"enter_code_displayed_in_previous_step": "이전 단계에 표시된 코드를 입력하세요.",
 	"authorize": "승인",
 	"federated_client_credentials": "연동 클라이언트 자격 증명",
-	"federated_client_credentials_description": "연동 클라이언트 자격 증명을 이용하여, OIDC 클라이언트를 제3자 인증 기관에서 발급한 JWT 토큰을 이용해 인증할 수 있습니다.",
 	"add_federated_client_credential": "연동 클라이언트 자격 증명 추가",
 	"add_another_federated_client_credential": "다른 연동 클라이언트 자격 증명 추가",
 	"oidc_allowed_group_count": "허용된 그룹 수",

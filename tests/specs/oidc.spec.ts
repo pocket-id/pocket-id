@@ -332,6 +332,7 @@ test.describe('Introspection endpoint', () => {
 				Authorization: 'Bearer ' + clientAssertion
 			},
 			form: {
+				client_id: oidcClients.federated.id,
 				token: validAccessToken
 			}
 		});
@@ -374,6 +375,7 @@ test.describe('Introspection endpoint', () => {
 				Authorization: 'Bearer ' + clientAssertion
 			},
 			form: {
+				client_id: oidcClients.federated.id,
 				token: validAccessToken
 			}
 		});

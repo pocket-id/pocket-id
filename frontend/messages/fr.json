@@ -365,7 +365,6 @@
 	"enter_code_displayed_in_previous_step": "Entrez le code affiché à l'étape précédente.",
 	"authorize": "Autoriser",
 	"federated_client_credentials": "Identifiants client fédérés",
-	"federated_client_credentials_description": "Avec des identifiants clients fédérés, vous pouvez authentifier des clients OIDC avec des tokens JWT émis par des autorités tierces.",
 	"add_federated_client_credential": "Ajouter un identifiant client fédéré",
 	"add_another_federated_client_credential": "Ajouter un autre identifiant client fédéré",
 	"oidc_allowed_group_count": "Nombre de groupes autorisés",

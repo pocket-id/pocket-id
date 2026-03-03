@@ -365,7 +365,6 @@
 	"enter_code_displayed_in_previous_step": "Indtast koden, der blev vist i det forrige trin.",
 	"authorize": "Godkend",
 	"federated_client_credentials": "Federated klientlegitimationsoplysninger",
-	"federated_client_credentials_description": "Ved hjælp af federated klientlegitimationsoplysninger kan du godkende OIDC-klienter med JWT-tokens udstedt af tredjepartsudbydere.",
 	"add_federated_client_credential": "Tilføj federated klientlegitimation",
 	"add_another_federated_client_credential": "Tilføj endnu en federated klientlegitimation",
 	"oidc_allowed_group_count": "Tilladt antal grupper",

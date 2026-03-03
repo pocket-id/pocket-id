@@ -358,11 +358,13 @@ func (oc *OidcController) introspectTokenHandler(c *gin.Context) {
 	)
 	creds.ClientID, creds.ClientSecret, ok = utils.OAuthClientBasicAuth(c.Request)
 	if !ok {
-		// If there's no basic auth, check if we have a bearer token
+		// If there's no basic auth, check if we have a bearer token (used as client assertion)
 		bearer, ok := utils.BearerAuth(c.Request)
 		if ok {
 			creds.ClientAssertionType = service.ClientAssertionTypeJWTBearer
 			creds.ClientAssertion = bearer
+			// When using client assertions, client_id can be passed as a form field
+			creds.ClientID = input.ClientID
 		}
 	}
 
@@ -685,8 +687,13 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 }
 
 func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
+	// Per RFC 8628 (OAuth 2.0 Device Authorization Grant), parameters for the device authorization request MUST be sent in the body of the POST request
+	// Gin's "ShouldBind" by default reads from the query string too, so we need to reset all query string args before invoking ShouldBind
+	c.Request.URL.RawQuery = ""
+
 	var input dto.OidcDeviceAuthorizationRequestDto
-	if err := c.ShouldBind(&input); err != nil {
+	err := c.ShouldBind(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}

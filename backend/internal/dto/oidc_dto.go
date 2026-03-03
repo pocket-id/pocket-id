@@ -99,7 +99,8 @@ type OidcCreateTokensDto struct {
 }
 
 type OidcIntrospectDto struct {
-	Token string `form:"token" binding:"required"`
+	Token    string `form:"token" binding:"required"`
+	ClientID string `form:"client_id"`
 }
 
 type OidcUpdateAllowedUserGroupsDto struct {

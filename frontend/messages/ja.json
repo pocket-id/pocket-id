@@ -365,7 +365,6 @@
 	"enter_code_displayed_in_previous_step": "前のステップで表示されたコードを入力してください。",
 	"authorize": "Authorize",
 	"federated_client_credentials": "連携クライアントの資格情報",
-	"federated_client_credentials_description": "Using federated client credentials, you can authenticate OIDC clients using JWT tokens issued by third-party authorities.",
 	"add_federated_client_credential": "Add Federated Client Credential",
 	"add_another_federated_client_credential": "Add another federated client credential",
 	"oidc_allowed_group_count": "許可されたグループ数",
