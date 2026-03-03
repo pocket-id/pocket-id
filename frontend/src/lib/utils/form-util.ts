@@ -122,6 +122,11 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 	}
 
 	function isRequired(fieldSchema: z.ZodTypeAny): boolean {
+		// Handle string allow empty
+		if (fieldSchema instanceof z.ZodString) {
+			return fieldSchema.minLength !== null && fieldSchema.minLength > 0;
+		}
+
 		// Handle unions like callbackUrlSchema
 		if (fieldSchema instanceof z.ZodUnion) {
 			return !fieldSchema.def.options.some((o: any) => {
@@ -138,6 +143,7 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 		if (fieldSchema instanceof z.ZodOptional || fieldSchema instanceof z.ZodDefault) {
 			return false;
 		}
+
 		return true;
 	}
 
