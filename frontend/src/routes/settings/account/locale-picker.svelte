@@ -23,6 +23,7 @@
 		nl: 'Nederlands',
 		no: 'Norsk',
 		pl: 'Polski',
+		pt: 'Português',
 		'pt-BR': 'Português brasileiro',
 		ru: 'Русский',
 		sv: 'Svenska',
