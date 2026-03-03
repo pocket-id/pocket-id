@@ -26,7 +26,7 @@
 	};
 
 	const formSchema = z.object({
-		firstName: z.string().min(1).max(50),
+		firstName: z.string().max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
 		username: usernameSchema,
 		email: get(appConfigStore).requireUserEmail ? z.email() : emptyToUndefined(z.email().optional())
@@ -52,12 +52,12 @@
 
 <form id="sign-up-form" onsubmit={preventDefault(onSubmit)} class="w-full">
 	<div class="mt-7 space-y-4">
+		<FormInput label={m.username()} bind:input={$inputs.username} />
+		<FormInput label={m.email()} bind:input={$inputs.email} type="email" />
+
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<FormInput label={m.first_name()} bind:input={$inputs.firstName} />
 			<FormInput label={m.last_name()} bind:input={$inputs.lastName} />
 		</div>
-
-		<FormInput label={m.username()} bind:input={$inputs.username} />
-		<FormInput label={m.email()} bind:input={$inputs.email} type="email" />
 	</div>
 </form>

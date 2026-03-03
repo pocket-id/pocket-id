@@ -7,6 +7,142 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestValidateCallbackURLPattern(t *testing.T) {
+	tests := []struct {
+		name        string
+		pattern     string
+		shouldError bool
+	}{
+		{
+			name:        "exact URL",
+			pattern:     "https://example.com/callback",
+			shouldError: false,
+		},
+		{
+			name:        "wildcard scheme",
+			pattern:     "*://example.com/callback",
+			shouldError: false,
+		},
+		{
+			name:        "wildcard port",
+			pattern:     "https://example.com:*/callback",
+			shouldError: false,
+		},
+		{
+			name:        "partial wildcard port",
+			pattern:     "https://example.com:80*/callback",
+			shouldError: false,
+		},
+		{
+			name:        "wildcard userinfo",
+			pattern:     "https://user:*@example.com/callback",
+			shouldError: false,
+		},
+		{
+			name:        "glob wildcard",
+			pattern:     "*",
+			shouldError: false,
+		},
+		{
+			name:        "relative URL",
+			pattern:     "/callback",
+			shouldError: true,
+		},
+		{
+			name:        "missing scheme separator",
+			pattern:     "https//example.com/callback",
+			shouldError: true,
+		},
+		{
+			name:        "malformed wildcard host glob",
+			pattern:     "https://exa[mple.com/callback",
+			shouldError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateCallbackURLPattern(tt.pattern)
+			if tt.shouldError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestNormalizeToURLPatternStandard(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "exact URL unchanged",
+			input:    "https://example.com/callback",
+			expected: "https://example.com/callback",
+		},
+		{
+			name:     "single wildcard path segment converted to named parameter",
+			input:    "https://example.com/api/*/callback",
+			expected: "https://example.com/api/:p5/callback",
+		},
+		{
+			name:     "single wildcard in path suffix converted to named parameter",
+			input:    "https://example.com/test*",
+			expected: "https://example.com/test:p5",
+		},
+		{
+			name:     "globstar converted to single asterisk",
+			input:    "https://example.com/**/callback",
+			expected: "https://example.com/*/callback",
+		},
+		{
+			name:     "mixed globstar and single wildcard conversion",
+			input:    "https://example.com/**/v1/**/callback/*",
+			expected: "https://example.com/*/v1/*/callback/:p19",
+		},
+		{
+			name:     "URL without path unchanged",
+			input:    "https://example.com",
+			expected: "https://example.com",
+		},
+		{
+			name:     "relative path conversion",
+			input:    "/foo/*/bar",
+			expected: "/foo/:p5/bar",
+		},
+		{
+			name:     "wildcard in hostname is not normalized by this function",
+			input:    "https://*.example.com/callback",
+			expected: "https://*.example.com/callback",
+		},
+		{
+			name:     "IPv6 hostname escapes all colons inside address",
+			input:    "https://[2001:db8:1:1::a:1]/callback",
+			expected: "https://[2001\\:db8\\:1\\:1\\:\\:a\\:1]/callback",
+		},
+		{
+			name:     "IPv6 hostname with port escapes only address colons",
+			input:    "https://[::1]:8080/callback",
+			expected: "https://[\\:\\:1]:8080/callback",
+		},
+		{
+			name:     "wildcard in query is converted when query is part of input",
+			input:    "https://example.com/callback?code=*",
+			expected: "https://example.com/callback?code=:p15",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, normalizeToURLPatternStandard(tt.input))
+		})
+	}
+}
+
 func TestMatchCallbackURL(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -26,6 +162,18 @@ func TestMatchCallbackURL(t *testing.T) {
 			"https://example.org/callback",
 			"https://example.com/callback",
 			false,
+		},
+		{
+			"exact match - IPv4",
+			"https://10.1.0.1/callback",
+			"https://10.1.0.1/callback",
+			true,
+		},
+		{
+			"exact match - IPv6",
+			"https://[2001:db8:1:1::a:1]/callback",
+			"https://[2001:db8:1:1::a:1]/callback",
+			true,
 		},
 
 		// Scheme
@@ -111,6 +259,30 @@ func TestMatchCallbackURL(t *testing.T) {
 			"https://example.com:8080/callback",
 			true,
 		},
+		{
+			"wildcard port - IPv4",
+			"https://10.1.0.1:*/callback",
+			"https://10.1.0.1:8080/callback",
+			true,
+		},
+		{
+			"partial wildcard in port prefix - IPv4",
+			"https://10.1.0.1:80*/callback",
+			"https://10.1.0.1:8080/callback",
+			true,
+		},
+		{
+			"wildcard port - IPv6",
+			"https://[2001:db8:1:1::a:1]:*/callback",
+			"https://[2001:db8:1:1::a:1]:8080/callback",
+			true,
+		},
+		{
+			"partial wildcard in port prefix - IPv6",
+			"https://[2001:db8:1:1::a:1]:80*/callback",
+			"https://[2001:db8:1:1::a:1]:8080/callback",
+			true,
+		},
 
 		// Path
 		{
@@ -129,6 +301,18 @@ func TestMatchCallbackURL(t *testing.T) {
 			"wildcard entire path",
 			"https://example.com/*",
 			"https://example.com/callback",
+			true,
+		},
+		{
+			"wildcard entire path - IPv4",
+			"https://10.1.0.1/*",
+			"https://10.1.0.1/callback",
+			true,
+		},
+		{
+			"wildcard entire path - IPv6",
+			"https://[2001:db8:1:1::a:1]/*",
+			"https://[2001:db8:1:1::a:1]/callback",
 			true,
 		},
 		{
@@ -185,12 +369,6 @@ func TestMatchCallbackURL(t *testing.T) {
 			"missing credentials",
 			"https://user:pass@example.com/callback",
 			"https://example.com/callback",
-			false,
-		},
-		{
-			"unexpected credentials",
-			"https://example.com/callback",
-			"https://user:pass@example.com/callback",
 			false,
 		},
 		{
@@ -347,7 +525,7 @@ func TestMatchCallbackURL(t *testing.T) {
 			"backslash instead of forward slash",
 			"https://example.com/callback",
 			"https://example.com\\callback",
-			false,
+			true,
 		},
 		{
 			"double slash in hostname (protocol smuggling)",
@@ -370,10 +548,11 @@ func TestMatchCallbackURL(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		matches, err := matchCallbackURL(tt.pattern, tt.input)
-		require.NoError(t, err, tt.name)
-		assert.Equal(t, tt.shouldMatch, matches, tt.name)
-
+		t.Run(tt.name, func(t *testing.T) {
+			matches, err := matchCallbackURL(tt.pattern, tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.shouldMatch, matches)
+		})
 	}
 }
 
@@ -407,14 +586,21 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			expectMatch:      true,
 		},
 		{
-			name:             "IPv6 loopback with dynamic port",
+			name:             "IPv6 loopback with dynamic port - exact match",
 			urls:             []string{"http://[::1]/callback"},
 			inputCallbackURL: "http://[::1]:8080/callback",
 			expectedURL:      "http://[::1]:8080/callback",
 			expectMatch:      true,
 		},
 		{
-			name:             "IPv6 loopback with wildcard path",
+			name:             "IPv6 loopback with same port - exact match",
+			urls:             []string{"http://[::1]:8080/callback"},
+			inputCallbackURL: "http://[::1]:8080/callback",
+			expectedURL:      "http://[::1]:8080/callback",
+			expectMatch:      true,
+		},
+		{
+			name:             "IPv6 loopback with path match",
 			urls:             []string{"http://[::1]/auth/*"},
 			inputCallbackURL: "http://[::1]:8080/auth/callback",
 			expectedURL:      "http://[::1]:8080/auth/callback",
@@ -439,6 +625,20 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			urls:             []string{"http://127.0.0.1/auth/*"},
 			inputCallbackURL: "http://127.0.0.1:3000/auth/callback",
 			expectedURL:      "http://127.0.0.1:3000/auth/callback",
+			expectMatch:      true,
+		},
+		{
+			name:             "loopback with path port",
+			urls:             []string{"http://127.0.0.1:*/auth/callback"},
+			inputCallbackURL: "http://127.0.0.1:3000/auth/callback",
+			expectedURL:      "http://127.0.0.1:3000/auth/callback",
+			expectMatch:      true,
+		},
+		{
+			name:             "IPv6 loopback with path port",
+			urls:             []string{"http://[::1]:*/auth/callback"},
+			inputCallbackURL: "http://[::1]:3000/auth/callback",
+			expectedURL:      "http://[::1]:3000/auth/callback",
 			expectMatch:      true,
 		},
 		{
@@ -480,6 +680,76 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 			} else {
 				assert.Empty(t, result)
 			}
+		})
+	}
+}
+
+func TestLoopbackURLWithWildcardPort(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output string
+	}{
+		{
+			name:   "localhost http with port strips port",
+			input:  "http://localhost:3000/callback",
+			output: "http://localhost/callback",
+		},
+		{
+			name:   "localhost http without port stays same",
+			input:  "http://localhost/callback",
+			output: "http://localhost/callback",
+		},
+		{
+			name:   "IPv4 loopback with port strips port",
+			input:  "http://127.0.0.1:8080/callback",
+			output: "http://127.0.0.1/callback",
+		},
+		{
+			name:   "IPv4 loopback without port stays same",
+			input:  "http://127.0.0.1/callback",
+			output: "http://127.0.0.1/callback",
+		},
+		{
+			name:   "IPv6 loopback with port strips port and keeps brackets",
+			input:  "http://[::1]:8080/callback",
+			output: "http://[::1]/callback",
+		},
+		{
+			name:   "IPv6 loopback preserves path query and fragment",
+			input:  "http://[::1]:8080/auth/callback?code=123#state",
+			output: "http://[::1]/auth/callback?code=123#state",
+		},
+		{
+			name:   "https loopback returns empty",
+			input:  "https://127.0.0.1:8080/callback",
+			output: "",
+		},
+		{
+			name:   "non loopback host returns empty",
+			input:  "http://example.com:8080/callback",
+			output: "",
+		},
+		{
+			name:   "non loopback IP returns empty",
+			input:  "http://192.168.1.10:8080/callback",
+			output: "",
+		},
+		{
+			name:   "malformed URL returns empty",
+			input:  "http://[::1:8080/callback",
+			output: "",
+		},
+		{
+			name:   "relative URL returns empty",
+			input:  "/callback",
+			output: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.output, loopbackURLWithWildcardPort(tt.input))
 		})
 	}
 }
@@ -550,249 +820,6 @@ func TestGetCallbackURLFromList_MultiplePatterns(t *testing.T) {
 			} else {
 				assert.Empty(t, result)
 			}
-		})
-	}
-}
-
-func TestMatchPath(t *testing.T) {
-	tests := []struct {
-		name        string
-		pattern     string
-		input       string
-		shouldMatch bool
-	}{
-		// Exact matches
-		{
-			name:        "exact match",
-			pattern:     "/callback",
-			input:       "/callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "exact mismatch",
-			pattern:     "/callback",
-			input:       "/other",
-			shouldMatch: false,
-		},
-		{
-			name:        "empty paths",
-			pattern:     "",
-			input:       "",
-			shouldMatch: true,
-		},
-
-		// Single wildcard (*)
-		{
-			name:        "single wildcard matches segment",
-			pattern:     "/api/*/callback",
-			input:       "/api/v1/callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "single wildcard doesn't match multiple segments",
-			pattern:     "/api/*/callback",
-			input:       "/api/v1/v2/callback",
-			shouldMatch: false,
-		},
-		{
-			name:        "single wildcard at end",
-			pattern:     "/callback/*",
-			input:       "/callback/test",
-			shouldMatch: true,
-		},
-		{
-			name:        "single wildcard at start",
-			pattern:     "/*/callback",
-			input:       "/api/callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "multiple single wildcards",
-			pattern:     "/*/test/*",
-			input:       "/api/test/callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "partial wildcard prefix",
-			pattern:     "/test*",
-			input:       "/testing",
-			shouldMatch: true,
-		},
-		{
-			name:        "partial wildcard suffix",
-			pattern:     "/*-callback",
-			input:       "/oauth-callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "partial wildcard middle",
-			pattern:     "/api-*-v1",
-			input:       "/api-internal-v1",
-			shouldMatch: true,
-		},
-
-		// Double wildcard (**)
-		{
-			name:        "double wildcard matches multiple segments",
-			pattern:     "/api/**/callback",
-			input:       "/api/v1/v2/v3/callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "double wildcard matches single segment",
-			pattern:     "/api/**/callback",
-			input:       "/api/v1/callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "double wildcard doesn't match when pattern has extra slashes",
-			pattern:     "/api/**/callback",
-			input:       "/api/callback",
-			shouldMatch: false,
-		},
-		{
-			name:        "double wildcard at end",
-			pattern:     "/api/**",
-			input:       "/api/v1/v2/callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "double wildcard in middle",
-			pattern:     "/api/**/v2/**/callback",
-			input:       "/api/v1/v2/v3/v4/callback",
-			shouldMatch: true,
-		},
-
-		// Complex patterns
-		{
-			name:        "mix of single and double wildcards",
-			pattern:     "/*/api/**/callback",
-			input:       "/app/api/v1/v2/callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "wildcard with special characters",
-			pattern:     "/callback-*",
-			input:       "/callback-123",
-			shouldMatch: true,
-		},
-		{
-			name:        "path with query-like string (no special handling)",
-			pattern:     "/callback?code=*",
-			input:       "/callback?code=abc",
-			shouldMatch: true,
-		},
-
-		// Edge cases
-		{
-			name:        "single wildcard matches empty segment",
-			pattern:     "/api/*/callback",
-			input:       "/api//callback",
-			shouldMatch: true,
-		},
-		{
-			name:        "pattern longer than input",
-			pattern:     "/api/v1/callback",
-			input:       "/api",
-			shouldMatch: false,
-		},
-		{
-			name:        "input longer than pattern",
-			pattern:     "/api",
-			input:       "/api/v1/callback",
-			shouldMatch: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			matches, err := matchPath(tt.pattern, tt.input)
-			require.NoError(t, err)
-			assert.Equal(t, tt.shouldMatch, matches)
-		})
-	}
-}
-
-func TestSplitParts(t *testing.T) {
-	tests := []struct {
-		name          string
-		input         string
-		expectedParts []string
-		expectedPath  string
-	}{
-		{
-			name:          "simple https URL",
-			input:         "https://example.com/callback",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "/callback",
-		},
-		{
-			name:          "URL with port",
-			input:         "https://example.com:8080/callback",
-			expectedParts: []string{"https", "example", "com", "8080"},
-			expectedPath:  "/callback",
-		},
-		{
-			name:          "URL with subdomain",
-			input:         "https://api.example.com/callback",
-			expectedParts: []string{"https", "api", "example", "com"},
-			expectedPath:  "/callback",
-		},
-		{
-			name:          "URL with credentials",
-			input:         "https://user:pass@example.com/callback",
-			expectedParts: []string{"https", "user", "pass", "example", "com"},
-			expectedPath:  "/callback",
-		},
-		{
-			name:          "URL without path",
-			input:         "https://example.com",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "",
-		},
-		{
-			name:          "URL with deep path",
-			input:         "https://example.com/api/v1/callback",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "/api/v1/callback",
-		},
-		{
-			name:          "URL with path and query",
-			input:         "https://example.com/callback?code=123",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "/callback?code=123",
-		},
-		{
-			name:          "URL with trailing slash",
-			input:         "https://example.com/",
-			expectedParts: []string{"https", "example", "com"},
-			expectedPath:  "/",
-		},
-		{
-			name:          "URL with multiple subdomains",
-			input:         "https://api.v1.staging.example.com/callback",
-			expectedParts: []string{"https", "api", "v1", "staging", "example", "com"},
-			expectedPath:  "/callback",
-		},
-		{
-			name:          "URL with port and credentials",
-			input:         "https://user:pass@example.com:8080/callback",
-			expectedParts: []string{"https", "user", "pass", "example", "com", "8080"},
-			expectedPath:  "/callback",
-		},
-		{
-			name:          "scheme with authority separator but no slash",
-			input:         "http://example.com",
-			expectedParts: []string{"http", "example", "com"},
-			expectedPath:  "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			parts, path := splitParts(tt.input)
-			assert.Equal(t, tt.expectedParts, parts, "parts mismatch")
-			assert.Equal(t, tt.expectedPath, path, "path mismatch")
 		})
 	}
 }

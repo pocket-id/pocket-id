@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - LLDAP_JWT_SECRET=secret
+      - LLDAP_LDAP_USER_EMAIL=admin@pocket-id.org
       - LLDAP_LDAP_USER_PASS=admin_password
       - LLDAP_LDAP_BASE_DN=dc=pocket-id,dc=org
   scim-test-server:

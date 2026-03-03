@@ -77,6 +77,9 @@ func (s *ApiKeyService) CreateApiKey(ctx context.Context, userID string, input d
 		Create(&apiKey).
 		Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return model.ApiKey{}, "", &common.AlreadyInUseError{Property: "API key name"}
+		}
 		return model.ApiKey{}, "", err
 	}
 

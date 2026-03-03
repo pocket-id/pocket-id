@@ -20,7 +20,7 @@ type AlreadyInUseError struct {
 func (e *AlreadyInUseError) Error() string {
 	return e.Property + " is already in use"
 }
-func (e *AlreadyInUseError) HttpStatusCode() int { return 400 }
+func (e *AlreadyInUseError) HttpStatusCode() int { return http.StatusBadRequest }
 
 func (e *AlreadyInUseError) Is(target error) bool {
 	// Ignore the field property when checking if an error is of the type AlreadyInUseError
@@ -31,26 +31,26 @@ func (e *AlreadyInUseError) Is(target error) bool {
 type SetupAlreadyCompletedError struct{}
 
 func (e *SetupAlreadyCompletedError) Error() string       { return "setup already completed" }
-func (e *SetupAlreadyCompletedError) HttpStatusCode() int { return 400 }
+func (e *SetupAlreadyCompletedError) HttpStatusCode() int { return http.StatusConflict }
 
 type TokenInvalidOrExpiredError struct{}
 
 func (e *TokenInvalidOrExpiredError) Error() string       { return "token is invalid or expired" }
-func (e *TokenInvalidOrExpiredError) HttpStatusCode() int { return 400 }
+func (e *TokenInvalidOrExpiredError) HttpStatusCode() int { return http.StatusUnauthorized }
 
 type DeviceCodeInvalid struct{}
 
 func (e *DeviceCodeInvalid) Error() string {
 	return "one time access code must be used on the device it was generated for"
 }
-func (e *DeviceCodeInvalid) HttpStatusCode() int { return 400 }
+func (e *DeviceCodeInvalid) HttpStatusCode() int { return http.StatusUnauthorized }
 
 type TokenInvalidError struct{}
 
 func (e *TokenInvalidError) Error() string {
 	return "Token is invalid"
 }
-func (e *TokenInvalidError) HttpStatusCode() int { return 400 }
+func (e *TokenInvalidError) HttpStatusCode() int { return http.StatusUnauthorized }
 
 type OidcMissingAuthorizationError struct{}
 
@@ -60,46 +60,51 @@ func (e *OidcMissingAuthorizationError) HttpStatusCode() int { return http.Statu
 type OidcGrantTypeNotSupportedError struct{}
 
 func (e *OidcGrantTypeNotSupportedError) Error() string       { return "grant type not supported" }
-func (e *OidcGrantTypeNotSupportedError) HttpStatusCode() int { return 400 }
+func (e *OidcGrantTypeNotSupportedError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type OidcMissingClientCredentialsError struct{}
 
 func (e *OidcMissingClientCredentialsError) Error() string       { return "client id or secret not provided" }
-func (e *OidcMissingClientCredentialsError) HttpStatusCode() int { return 400 }
+func (e *OidcMissingClientCredentialsError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type OidcClientSecretInvalidError struct{}
 
 func (e *OidcClientSecretInvalidError) Error() string       { return "invalid client secret" }
-func (e *OidcClientSecretInvalidError) HttpStatusCode() int { return 400 }
+func (e *OidcClientSecretInvalidError) HttpStatusCode() int { return http.StatusUnauthorized }
 
 type OidcClientAssertionInvalidError struct{}
 
 func (e *OidcClientAssertionInvalidError) Error() string       { return "invalid client assertion" }
-func (e *OidcClientAssertionInvalidError) HttpStatusCode() int { return 400 }
+func (e *OidcClientAssertionInvalidError) HttpStatusCode() int { return http.StatusUnauthorized }
 
 type OidcInvalidAuthorizationCodeError struct{}
 
 func (e *OidcInvalidAuthorizationCodeError) Error() string       { return "invalid authorization code" }
-func (e *OidcInvalidAuthorizationCodeError) HttpStatusCode() int { return 400 }
+func (e *OidcInvalidAuthorizationCodeError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type OidcClientNotFoundError struct{}
+
+func (e *OidcClientNotFoundError) Error() string       { return "client not found" }
+func (e *OidcClientNotFoundError) HttpStatusCode() int { return http.StatusNotFound }
 
 type OidcMissingCallbackURLError struct{}
 
 func (e *OidcMissingCallbackURLError) Error() string {
 	return "unable to detect callback url, it might be necessary for an admin to fix this"
 }
-func (e *OidcMissingCallbackURLError) HttpStatusCode() int { return 400 }
+func (e *OidcMissingCallbackURLError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type OidcInvalidCallbackURLError struct{}
 
 func (e *OidcInvalidCallbackURLError) Error() string {
 	return "invalid callback URL, it might be necessary for an admin to fix this"
 }
-func (e *OidcInvalidCallbackURLError) HttpStatusCode() int { return 400 }
+func (e *OidcInvalidCallbackURLError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type FileTypeNotSupportedError struct{}
 
 func (e *FileTypeNotSupportedError) Error() string       { return "file type not supported" }
-func (e *FileTypeNotSupportedError) HttpStatusCode() int { return 400 }
+func (e *FileTypeNotSupportedError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type FileTooLargeError struct {
 	MaxSize string
@@ -279,6 +284,13 @@ func (e *APIKeyExpirationDateError) Error() string {
 	return "API Key expiration time must be in the future"
 }
 func (e *APIKeyExpirationDateError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type APIKeyAuthNotAllowedError struct{}
+
+func (e *APIKeyAuthNotAllowedError) Error() string {
+	return "API key authentication is not allowed for this endpoint"
+}
+func (e *APIKeyAuthNotAllowedError) HttpStatusCode() int { return http.StatusForbidden }
 
 type OidcInvalidRefreshTokenError struct{}
 

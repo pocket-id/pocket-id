@@ -39,7 +39,7 @@ func (u User) WebAuthnDisplayName() string {
 	if u.DisplayName != "" {
 		return u.DisplayName
 	}
-	return u.FirstName + " " + u.LastName
+	return u.FullName()
 }
 
 func (u User) WebAuthnIcon() string { return "" }
@@ -76,7 +76,16 @@ func (u User) WebAuthnCredentialDescriptors() (descriptors []protocol.Credential
 }
 
 func (u User) FullName() string {
-	return u.FirstName + " " + u.LastName
+	fullname := strings.TrimSpace(u.FirstName + " " + u.LastName)
+	if fullname != "" {
+		return fullname
+	}
+
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+
+	return u.Username
 }
 
 func (u User) Initials() string {
