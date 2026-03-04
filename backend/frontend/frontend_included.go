@@ -91,6 +91,15 @@ func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc) e
 		}
 
 		if path == "index.html" {
+			// Check if this is an OAuth2 authorization request with response_mode=form_post
+			// In that case, we need to allow form submissions to the redirect_uri
+			responseMode := c.Query("response_mode")
+			redirectURI := c.Query("redirect_uri")
+			if responseMode == "form_post" && redirectURI != "" {
+				// Set the allowed form-action in CSP to include the redirect URI
+				middleware.SetAllowedFormAction(c, redirectURI)
+			}
+
 			nonce := middleware.GetCSPNonce(c)
 
 			// Do not cache the HTML shell, as it embeds a per-request nonce
