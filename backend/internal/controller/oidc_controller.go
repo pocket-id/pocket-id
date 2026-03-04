@@ -202,9 +202,20 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		return
 	}
 
-	// Client id and secret can also be passed over the Authorization header
-	if input.ClientID == "" && input.ClientSecret == "" {
-		input.ClientID, input.ClientSecret, _ = utils.OAuthClientBasicAuth(c.Request)
+	// Client id and secret can also be passed via the Authorization header
+	// (RFC 6749 §2.3.1 "client_secret_basic"). When PKCE is used, some
+	// libraries (e.g. jumbojett/openid-connect-php) send client_id in the
+	// body for the code_verifier binding while keeping the secret only in
+	// the Authorization header. We therefore fall back to Basic auth
+	// whenever the secret is missing, not only when both fields are empty.
+	if input.ClientSecret == "" {
+		basicID, basicSecret, ok := utils.OAuthClientBasicAuth(c.Request)
+		if ok {
+			if input.ClientID == "" {
+				input.ClientID = basicID
+			}
+			input.ClientSecret = basicSecret
+		}
 	}
 
 	tokens, err := oc.createTokens(c.Request.Context(), input)
@@ -704,9 +715,20 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 		return
 	}
 
-	// Client id and secret can also be passed over the Authorization header
-	if input.ClientID == "" && input.ClientSecret == "" {
-		input.ClientID, input.ClientSecret, _ = utils.OAuthClientBasicAuth(c.Request)
+	// Client id and secret can also be passed via the Authorization header
+	// (RFC 6749 §2.3.1 "client_secret_basic"). When PKCE is used, some
+	// libraries (e.g. jumbojett/openid-connect-php) send client_id in the
+	// body for the code_verifier binding while keeping the secret only in
+	// the Authorization header. We therefore fall back to Basic auth
+	// whenever the secret is missing, not only when both fields are empty.
+	if input.ClientSecret == "" {
+		basicID, basicSecret, ok := utils.OAuthClientBasicAuth(c.Request)
+		if ok {
+			if input.ClientID == "" {
+				input.ClientID = basicID
+			}
+			input.ClientSecret = basicSecret
+		}
 	}
 
 	response, err := oc.oidcService.CreateDeviceAuthorization(c.Request.Context(), input)
