@@ -79,7 +79,7 @@ func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Con
 		tx.Rollback()
 	}()
 
-	user, err := s.userService.GetUser(ctx, userID)
+	user, err := s.userService.getUserInternal(ctx, userID, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -131,8 +131,32 @@ func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Con
 }
 
 func (s *OneTimeAccessService) CreateOneTimeAccessToken(ctx context.Context, userID string, ttl time.Duration) (token string, err error) {
-	token, _, err = s.createOneTimeAccessTokenInternal(ctx, userID, ttl, false, s.db)
-	return token, err
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	// Load the user to ensure it exists
+	_, err = s.userService.getUserInternal(ctx, userID, tx)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", &common.UserNotFoundError{}
+	} else if err != nil {
+		return "", err
+	}
+
+	// Create the one-time access token
+	token, _, err = s.createOneTimeAccessTokenInternal(ctx, userID, ttl, false, tx)
+	if err != nil {
+		return "", err
+	}
+
+	// Commit
+	err = tx.Commit().Error
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
 func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, ttl time.Duration, withDeviceToken bool, tx *gorm.DB) (token string, deviceToken *string, err error) {

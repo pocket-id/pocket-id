@@ -3,8 +3,7 @@ package dto
 import "github.com/pocket-id/pocket-id/backend/internal/utils"
 
 type OneTimeAccessTokenCreateDto struct {
-	UserID string             `json:"userId"`
-	TTL    utils.JSONDuration `json:"ttl" binding:"ttl"`
+	TTL utils.JSONDuration `json:"ttl" binding:"ttl"`
 }
 
 type OneTimeAccessEmailAsUnauthenticatedUserDto struct {

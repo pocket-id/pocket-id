@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
 	"github.com/gin-gonic/gin"
@@ -322,22 +323,34 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 
 func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bool) {
 	var input dto.OneTimeAccessTokenCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	var ttl time.Duration
+	var (
+		userID string
+		ttl    time.Duration
+	)
 	if own {
-		input.UserID = c.GetString("userID")
+		// Get user ID from context and force the default TTL
+		userID = c.GetString("userID")
 		ttl = defaultOneTimeAccessTokenDuration
 	} else {
+		// Get user ID from URL parameter, and optional TTL from body
+		userID = c.Param("id")
 		ttl = input.TTL.Duration
 		if ttl <= 0 {
 			ttl = defaultOneTimeAccessTokenDuration
 		}
 	}
-	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(c.Request.Context(), input.UserID, ttl)
+	if userID == "" {
+		_ = c.Error(&common.UserIdNotProvidedError{})
+		return
+	}
+
+	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(c.Request.Context(), userID, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return
