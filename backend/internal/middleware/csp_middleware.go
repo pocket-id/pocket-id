@@ -31,31 +31,23 @@ func SetAllowedFormAction(c *gin.Context, uri string) {
 
 func (m *CspMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Generate a random base64 nonce for this request
 		nonce := generateNonce()
 		c.Set("csp_nonce", nonce)
 
-		// Get any allowed form-action from context (set by the authorize endpoint)
-		// Also check query parameters for response_mode=form_post (for both frontend and API requests)
-		formAction := "'self'"
+		// Determine if there is an EXTRA target beyond 'self'
+		var extraAction string
 		if v, ok := c.Get("csp_allowed_form_action"); ok {
-			if uri, ok := v.(string); ok && uri != "" {
-				formAction = "'self' " + uri
-			}
-		} else {
-			// If not set by the authorize endpoint, check query parameters
-			responseMode := c.Query("response_mode")
-			redirectURI := c.Query("redirect_uri")
-			if responseMode == "form_post" && redirectURI != "" {
-				formAction = "'self' " + redirectURI
-			}
+			extraAction, _ = v.(string)
+		} else if c.Query("response_mode") == "form_post" {
+			extraAction = c.Query("redirect_uri")
 		}
 
+		// 'self' is kept in the string; extraAction is just appended
 		csp := "default-src 'self'; " +
 			"base-uri 'self'; " +
 			"object-src 'none'; " +
 			"frame-ancestors 'none'; " +
-			"form-action " + formAction + "; " +
+			"form-action 'self' " + extraAction + "; " +
 			"img-src * blob:;" +
 			"font-src 'self'; " +
 			"style-src 'self' 'unsafe-inline'; " +
