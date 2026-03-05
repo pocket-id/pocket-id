@@ -37,12 +37,16 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 	}
 
 	for _, key := range apiKeys {
-		if key.User.Email == nil {
+		if key.User.Email == nil || key.User.ID == "" {
 			continue
 		}
 		err = j.apiKeyService.SendApiKeyExpiringSoonEmail(ctx, key)
 		if err != nil {
-			slog.ErrorContext(ctx, "Failed to send expiring API key notification email", slog.String("key", key.ID), slog.Any("error", err))
+			slog.ErrorContext(ctx, "Failed to send expiring API key notification email",
+				slog.String("key", key.ID),
+				slog.String("user", key.User.ID),
+				slog.Any("error", err),
+			)
 		}
 	}
 	return nil

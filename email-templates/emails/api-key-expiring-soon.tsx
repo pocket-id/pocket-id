@@ -40,7 +40,7 @@ ApiKeyExpiringEmail.TemplateProps = {
   ...sharedTemplateProps,
   data: {
     name: "{{.Data.Name}}",
-    apiKeyName: "{{.Data.APIKeyName}}",
+    apiKeyName: "{{.Data.ApiKeyName}}",
     expiresAt: '{{.Data.ExpiresAt.Format "2006-01-02 15:04:05 MST"}}',
   },
 };

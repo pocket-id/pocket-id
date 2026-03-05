@@ -150,7 +150,8 @@ func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Addr
 	}
 
 	// Send the email
-	if err := srv.sendEmailContent(client, toEmail, c); err != nil {
+	err = srv.sendEmailContent(client, toEmail, c)
+	if err != nil {
 		return fmt.Errorf("send email content: %w", err)
 	}
 
