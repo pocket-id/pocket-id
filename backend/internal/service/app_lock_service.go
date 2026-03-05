@@ -73,7 +73,10 @@ func (lv *lockValue) Unmarshal(raw string) error {
 // Acquire obtains the lock. When force is true, the lock is stolen from any existing owner.
 // If the lock is forcefully acquired, it blocks until the previous lock has expired.
 func (s *AppLockService) Acquire(ctx context.Context, force bool) (waitUntil time.Time, err error) {
-	tx := s.db.Begin()
+	tx := s.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return time.Time{}, fmt.Errorf("begin lock transaction: %w", tx.Error)
+	}
 	defer func() {
 		tx.Rollback()
 	}()

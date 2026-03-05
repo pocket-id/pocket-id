@@ -17,7 +17,7 @@ func (s *Scheduler) RegisterScimJobs(ctx context.Context, scimService *service.S
 	jobs := &ScimJobs{scimService: scimService}
 
 	// Register the job to run every hour (with some jitter)
-	return s.RegisterJob(ctx, "SyncScim", gocron.DurationJob(24*time.Hour), jobs.SyncScim, true)
+	return s.RegisterJob(ctx, "SyncScim", gocron.DurationJob(time.Hour), jobs.SyncScim, true)
 }
 
 func (j *ScimJobs) SyncScim(ctx context.Context) error {
