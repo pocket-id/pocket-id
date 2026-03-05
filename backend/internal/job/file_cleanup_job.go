@@ -22,7 +22,7 @@ func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB, fi
 
 	var errs []error
 	errs = append(errs,
-		s.RegisterJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, service.RegisterJobOpts{RunImmediately: false}),
+		s.RegisterJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, service.RegisterJobOpts{}),
 	)
 
 	// Only necessary for file system storage

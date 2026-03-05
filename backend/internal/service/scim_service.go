@@ -144,7 +144,7 @@ func (s *ScimService) ScheduleSync() {
 
 	err := s.scheduler.RegisterJob(
 		context.Background(), jobName,
-		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(start)), s.SyncAll, RegisterJobOpts{RunImmediately: false})
+		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(start)), s.SyncAll, RegisterJobOpts{})
 
 	if err != nil {
 		slog.Error("Failed to schedule SCIM sync", slog.Any("error", err))

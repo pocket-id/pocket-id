@@ -75,6 +75,7 @@ func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.Job
 					return struct{}{}, origJob(ctx)
 				},
 				backoff.WithBackOff(opts.BackOff),
+				backoff.WithMaxTries(3),
 				backoff.WithNotify(func(err error, d time.Duration) {
 					slog.WarnContext(ctx, "Job failed, retrying",
 						slog.String("name", name),
