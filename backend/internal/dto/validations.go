@@ -76,13 +76,13 @@ func ValidateCallbackURL(raw string) bool {
 }
 
 // ValidateResponseMode validates response_mode parameter
-// If responseMode is present, it must be either "form_post" or "query"
+// If responseMode is present, it must be "form_post"
 // Empty responseMode is allowed (will use default behavior)
 func ValidateResponseMode(responseMode string) bool {
 	// Empty responseMode is allowed (field not provided, use default)
 	if responseMode == "" {
 		return true
 	}
-	// If present, it must be form_post or query
-	return responseMode == "form_post" || responseMode == "query"
+	// If present, it must be form_post
+	return responseMode == "form_post"
 }
