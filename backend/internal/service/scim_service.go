@@ -168,7 +168,8 @@ func (s *ScimService) SyncAll(ctx context.Context) error {
 			errs = append(errs, ctx.Err())
 			break
 		}
-		if err := s.SyncServiceProvider(ctx, provider.ID); err != nil {
+		err = s.SyncServiceProvider(ctx, provider.ID)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to sync SCIM provider %s: %w", provider.ID, err))
 		}
 	}
@@ -210,26 +211,20 @@ func (s *ScimService) SyncServiceProvider(ctx context.Context, serviceProviderID
 	}
 
 	var errs []error
-	var userStats scimSyncStats
-	var groupStats scimSyncStats
 
 	// Sync users first, so that groups can reference them
-	if stats, err := s.syncUsers(ctx, provider, users, &userResources); err != nil {
-		errs = append(errs, err)
-		userStats = stats
-	} else {
-		userStats = stats
-	}
-
-	stats, err := s.syncGroups(ctx, provider, groups, groupResources.Resources, userResources.Resources)
+	userStats, err := s.syncUsers(ctx, provider, users, &userResources)
 	if err != nil {
 		errs = append(errs, err)
-		groupStats = stats
-	} else {
-		groupStats = stats
+	}
+
+	groupStats, err := s.syncGroups(ctx, provider, groups, groupResources.Resources, userResources.Resources)
+	if err != nil {
+		errs = append(errs, err)
 	}
 
 	if len(errs) > 0 {
+		err = errors.Join(errs...)
 		slog.WarnContext(ctx, "SCIM sync completed with errors",
 			slog.String("provider_id", provider.ID),
 			slog.Int("error_count", len(errs)),
@@ -240,12 +235,14 @@ func (s *ScimService) SyncServiceProvider(ctx context.Context, serviceProviderID
 			slog.Int("groups_updated", groupStats.Updated),
 			slog.Int("groups_deleted", groupStats.Deleted),
 			slog.Duration("duration", time.Since(start)),
+			slog.Any("error", err),
 		)
-		return errors.Join(errs...)
+		return err
 	}
 
 	provider.LastSyncedAt = new(datatype.DateTime(time.Now()))
-	if err := s.db.WithContext(ctx).Save(&provider).Error; err != nil {
+	err = s.db.WithContext(ctx).Save(&provider).Error
+	if err != nil {
 		return err
 	}
 
@@ -273,7 +270,7 @@ func (s *ScimService) syncUsers(
 
 	// Update or create users
 	for _, u := range users {
-		existing := getResourceByExternalID[dto.ScimUser](u.ID, resourceList.Resources)
+		existing := getResourceByExternalID(u.ID, resourceList.Resources)
 
 		action, created, err := s.syncUser(ctx, provider, u, existing)
 		if created != nil && existing == nil {
@@ -434,7 +431,7 @@ func (s *ScimService) syncGroup(
 	// Prepare group members
 	members := make([]dto.ScimGroupMember, len(group.Users))
 	for i, user := range group.Users {
-		userResource := getResourceByExternalID[dto.ScimUser](user.ID, userResources)
+		userResource := getResourceByExternalID(user.ID, userResources)
 		if userResource == nil {
 			// Groups depend on user IDs already being provisioned
 			return scimActionNone, fmt.Errorf("cannot sync group %s: user %s is not provisioned in SCIM provider", group.ID, user.ID)

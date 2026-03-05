@@ -19,14 +19,19 @@ import (
 func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB, fileStorage storage.FileStorage) error {
 	jobs := &FileCleanupJobs{db: db, fileStorage: fileStorage}
 
-	err := s.RegisterJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, false)
+	var errs []error
+	errs = append(errs,
+		s.RegisterJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, false),
+	)
 
 	// Only necessary for file system storage
 	if fileStorage.Type() == storage.TypeFileSystem {
-		err = errors.Join(err, s.RegisterJob(ctx, "ClearOrphanedTempFiles", gocron.DurationJob(12*time.Hour), jobs.clearOrphanedTempFiles, true))
+		errs = append(errs,
+			s.RegisterJob(ctx, "ClearOrphanedTempFiles", gocron.DurationJob(12*time.Hour), jobs.clearOrphanedTempFiles, true),
+		)
 	}
 
-	return err
+	return errors.Join(errs...)
 }
 
 type FileCleanupJobs struct {
@@ -68,7 +73,8 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 		// If these initials aren't used by any user, delete the file
 		if _, ok := initialsInUse[initials]; !ok {
 			filePath := path.Join(defaultPicturesDir, filename)
-			if err := j.fileStorage.Delete(ctx, filePath); err != nil {
+			err = j.fileStorage.Delete(ctx, filePath)
+			if err != nil {
 				slog.ErrorContext(ctx, "Failed to delete unused default profile picture", slog.String("path", filePath), slog.Any("error", err))
 			} else {
 				filesDeleted++
@@ -95,8 +101,9 @@ func (j *FileCleanupJobs) clearOrphanedTempFiles(ctx context.Context) error {
 			return nil
 		}
 
-		if err := j.fileStorage.Delete(ctx, p.Path); err != nil {
-			slog.ErrorContext(ctx, "Failed to delete temp file", slog.String("path", p.Path), slog.Any("error", err))
+		rErr := j.fileStorage.Delete(ctx, p.Path)
+		if rErr != nil {
+			slog.ErrorContext(ctx, "Failed to delete temp file", slog.String("path", p.Path), slog.Any("error", rErr))
 			return nil
 		}
 		deleted++

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
@@ -33,16 +34,12 @@ func (s *Scheduler) RemoveJob(name string) error {
 		if job.Name() == name {
 			err := s.scheduler.RemoveJob(job.ID())
 			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to unqueue job %q with ID %q: %w", name, job.ID().String(), err))
+				errs = append(errs, fmt.Errorf("failed to dequeue job %q with ID %q: %w", name, job.ID().String(), err))
 			}
 		}
 	}
 
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-
-	return nil
+	return errors.Join(errs...)
 }
 
 // Run the scheduler.
@@ -104,4 +101,10 @@ func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.Job
 	}
 
 	return nil
+}
+
+func jobDefWithJitter(interval time.Duration) gocron.JobDefinition {
+	const jitter = 5 * time.Minute
+
+	return gocron.DurationRandomJob(interval-jitter, interval+jitter)
 }
