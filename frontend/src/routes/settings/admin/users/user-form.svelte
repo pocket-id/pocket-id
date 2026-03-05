@@ -40,9 +40,9 @@
 	};
 
 	const formSchema = z.object({
-		firstName: z.string().min(1).max(50),
+		firstName: z.string().max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
-		displayName: z.string().min(1).max(100),
+		displayName: z.string().max(100),
 		username: usernameSchema,
 		email: get(appConfigStore).requireUserEmail
 			? z.email()
@@ -67,7 +67,7 @@
 		if (!hasManualDisplayNameEdit) {
 			$inputs.displayName.value = `${$inputs.firstName.value}${
 				$inputs.lastName?.value ? ' ' + $inputs.lastName.value : ''
-			}`;
+			}`.trim();
 		}
 	}
 </script>
@@ -75,13 +75,6 @@
 <form onsubmit={preventDefault(onSubmit)}>
 	<fieldset disabled={inputDisabled}>
 		<div class="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
-			<FormInput label={m.first_name()} oninput={onNameInput} bind:input={$inputs.firstName} />
-			<FormInput label={m.last_name()} oninput={onNameInput} bind:input={$inputs.lastName} />
-			<FormInput
-				label={m.display_name()}
-				oninput={() => (hasManualDisplayNameEdit = true)}
-				bind:input={$inputs.displayName}
-			/>
 			<FormInput label={m.username()} bind:input={$inputs.username} />
 			<div class="flex items-end">
 				<FormInput
@@ -111,6 +104,13 @@
 					</Tooltip.Root>
 				</Tooltip.Provider>
 			</div>
+			<FormInput label={m.first_name()} oninput={onNameInput} bind:input={$inputs.firstName} />
+			<FormInput label={m.last_name()} oninput={onNameInput} bind:input={$inputs.lastName} />
+			<FormInput
+				label={m.display_name()}
+				oninput={() => (hasManualDisplayNameEdit = true)}
+				bind:input={$inputs.displayName}
+			/>
 		</div>
 		<div class="mt-5 grid grid-cols-1 items-start gap-5 md:grid-cols-2">
 			<SwitchWithLabel
