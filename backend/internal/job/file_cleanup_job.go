@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
@@ -21,13 +22,13 @@ func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB, fi
 
 	var errs []error
 	errs = append(errs,
-		s.RegisterJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, false),
+		s.RegisterJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, service.RegisterJobOpts{RunImmediately: false}),
 	)
 
 	// Only necessary for file system storage
 	if fileStorage.Type() == storage.TypeFileSystem {
 		errs = append(errs,
-			s.RegisterJob(ctx, "ClearOrphanedTempFiles", gocron.DurationJob(12*time.Hour), jobs.clearOrphanedTempFiles, true),
+			s.RegisterJob(ctx, "ClearOrphanedTempFiles", gocron.DurationJob(12*time.Hour), jobs.clearOrphanedTempFiles, service.RegisterJobOpts{RunImmediately: true}),
 		)
 	}
 

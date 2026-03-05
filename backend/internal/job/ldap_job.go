@@ -16,7 +16,7 @@ func (s *Scheduler) RegisterLdapJobs(ctx context.Context, ldapService *service.L
 	jobs := &LdapJobs{ldapService: ldapService, appConfigService: appConfigService}
 
 	// Register the job to run every hour (with some jitter)
-	return s.RegisterJob(ctx, "SyncLdap", jobDefWithJitter(time.Hour), jobs.syncLdap, true)
+	return s.RegisterJob(ctx, "SyncLdap", jobDefWithJitter(time.Hour), jobs.syncLdap, service.RegisterJobOpts{RunImmediately: true})
 }
 
 func (j *LdapJobs) syncLdap(ctx context.Context) error {

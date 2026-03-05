@@ -23,7 +23,7 @@ func (s *Scheduler) RegisterGeoLiteUpdateJobs(ctx context.Context, geoLiteServic
 	jobs := &GeoLiteUpdateJobs{geoLiteService: geoLiteService}
 
 	// Run every 24 hours (and right away)
-	return s.RegisterJob(ctx, "UpdateGeoLiteDB", gocron.DurationJob(24*time.Hour), jobs.updateGoeLiteDB, true)
+	return s.RegisterJob(ctx, "UpdateGeoLiteDB", gocron.DurationJob(24*time.Hour), jobs.updateGoeLiteDB, service.RegisterJobOpts{RunImmediately: true})
 }
 
 func (j *GeoLiteUpdateJobs) updateGoeLiteDB(ctx context.Context) error {
