@@ -15,6 +15,6 @@ export const load: PageLoad = async ({ url }) => {
 		client,
 		codeChallenge: url.searchParams.get('code_challenge')!,
 		codeChallengeMethod: url.searchParams.get('code_challenge_method')!,
-		responseMode: url.searchParams.get('response_mode') || 'query'
+		responseMode: url.searchParams.get('response_mode') || ''
 	};
 };
