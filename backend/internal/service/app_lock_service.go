@@ -174,7 +174,8 @@ func (s *AppLockService) RunRenewal(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			if err := s.renew(ctx); err != nil {
+			err := s.renew(ctx)
+			if err != nil {
 				return fmt.Errorf("renew lock: %w", err)
 			}
 		}
@@ -183,33 +184,43 @@ func (s *AppLockService) RunRenewal(ctx context.Context) error {
 
 // Release releases the lock if it is held by this process.
 func (s *AppLockService) Release(ctx context.Context) error {
-	opCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
+	db, err := s.db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get DB connection: %w", err)
+	}
 
 	var query string
 	switch s.db.Name() {
 	case "sqlite":
 		query = `
-		DELETE FROM kv
-		WHERE key = ?
-		  AND json_extract(value, '$.lock_id') = ?
-	`
+DELETE FROM kv
+WHERE key = ?
+  AND json_extract(value, '$.lock_id') = ?
+`
 	case "postgres":
 		query = `
-		DELETE FROM kv
-		WHERE key = $1
-		  AND value::json->>'lock_id' = $2
-	`
+DELETE FROM kv
+WHERE key = $1
+  AND value::json->>'lock_id' = $2
+`
 	default:
 		return fmt.Errorf("unsupported database dialect: %s", s.db.Name())
 	}
 
-	res := s.db.WithContext(opCtx).Exec(query, lockKey, s.lockID)
-	if res.Error != nil {
-		return fmt.Errorf("release lock failed: %w", res.Error)
+	opCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	res, err := db.ExecContext(opCtx, query, lockKey, s.lockID)
+	if err != nil {
+		return fmt.Errorf("release lock failed: %w", err)
 	}
 
-	if res.RowsAffected == 0 {
+	count, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to count affected rows: %w", err)
+	}
+
+	if count == 0 {
 		slog.Warn("Application lock not held by this process, cannot release",
 			slog.Int64("process_id", s.processID),
 			slog.String("host_id", s.hostID),
@@ -225,6 +236,11 @@ func (s *AppLockService) Release(ctx context.Context) error {
 
 // renew tries to renew the lock, retrying up to renewRetries times (sleeping 1s between attempts).
 func (s *AppLockService) renew(ctx context.Context) error {
+	db, err := s.db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get DB connection: %w", err)
+	}
+
 	var lastErr error
 	for attempt := 1; attempt <= renewRetries; attempt++ {
 		now := time.Now()
@@ -246,41 +262,55 @@ func (s *AppLockService) renew(ctx context.Context) error {
 		switch s.db.Name() {
 		case "sqlite":
 			query = `
-				UPDATE kv
-				SET value = ?
-				WHERE key = ?
-				  AND json_extract(value, '$.lock_id') = ?
-				  AND json_extract(value, '$.expires_at') > ?
-			`
+UPDATE kv
+SET value = ?
+WHERE key = ?
+  AND json_extract(value, '$.lock_id') = ?
+  AND json_extract(value, '$.expires_at') > ?
+`
 		case "postgres":
 			query = `
-				UPDATE kv
-				SET value = $1
-				WHERE key = $2
-				  AND value::json->>'lock_id' = $3
-				  AND ((value::json->>'expires_at')::bigint > $4)
-			`
+UPDATE kv
+SET value = $1
+WHERE key = $2
+  AND value::json->>'lock_id' = $3
+  AND ((value::json->>'expires_at')::bigint > $4)
+`
 		default:
 			return fmt.Errorf("unsupported database dialect: %s", s.db.Name())
 		}
 
 		opCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		res := s.db.WithContext(opCtx).Exec(query, raw, lockKey, s.lockID, nowUnix)
+		res, err := db.ExecContext(opCtx, query, raw, lockKey, s.lockID, nowUnix)
 		cancel()
 
-		switch {
-		case res.Error != nil:
-			lastErr = fmt.Errorf("lock renewal failed: %w", res.Error)
-		case res.RowsAffected == 0:
-			// Must be after checking res.Error
-			return ErrLockLost
-		default:
+		// Query succeeded, but may have updated 0 rows
+		if err == nil {
+			count, err := res.RowsAffected()
+			if err != nil {
+				return fmt.Errorf("failed to count affected rows: %w", err)
+			}
+
+			// If no rows were updated, we lost the lock
+			if count == 0 {
+				return ErrLockLost
+			}
+
+			// All good
 			slog.Debug("Renewed application lock",
 				slog.Int64("process_id", s.processID),
 				slog.String("host_id", s.hostID),
+				slog.Duration("duration", time.Since(now)),
 			)
 			return nil
 		}
+
+		// If we're here, we have an error that can be retried
+		slog.Debug("Application lock renewal attempt failed",
+			slog.Any("error", err),
+			slog.Duration("duration", time.Since(now)),
+		)
+		lastErr = fmt.Errorf("lock renewal failed: %w", err)
 
 		// Wait before next attempt or cancel if context is done
 		if attempt < renewRetries {
