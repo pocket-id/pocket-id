@@ -71,7 +71,7 @@ type AuthorizeOidcClientRequestDto struct {
 	CodeChallenge         string `json:"codeChallenge"`
 	CodeChallengeMethod   string `json:"codeChallengeMethod"`
 	ReauthenticationToken string `json:"reauthenticationToken"`
-	ResponseMode          string `json:"responseMode"`
+	ResponseMode          string `json:"responseMode" binding:"omitempty,response_mode"`
 }
 
 type AuthorizeOidcClientResponseDto struct {
