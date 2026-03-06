@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -66,7 +67,7 @@ func validateRedirectURI(ctx any, oidcService *service.OidcService, clientID, re
 
 	// If the client has no callback URLs configured, reject the redirect URI
 	if len(client.CallbackURLs) == 0 {
-		return false, fmt.Errorf("client has no callback URLs configured")
+		return false, errors.New("client has no callback URLs configured")
 	}
 
 	// Validate the redirect URI against the client's callback URLs
