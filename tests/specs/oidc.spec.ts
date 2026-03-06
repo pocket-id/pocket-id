@@ -37,7 +37,6 @@ test('Authorize existing client while not signed in', async ({ page }) => {
 	});
 });
 
-
 test('Authorize new client', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
 	const urlParams = createUrlParams(oidcClient);
