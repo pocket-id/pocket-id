@@ -34,11 +34,6 @@ const scimErrorBodyLimit = 4096
 
 type scimSyncAction int
 
-type Scheduler interface {
-	RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, job func(ctx context.Context) error, runImmediately bool, extraOptions ...gocron.JobOption) error
-	RemoveJob(name string) error
-}
-
 const (
 	scimActionNone scimSyncAction = iota
 	scimActionCreated
@@ -149,7 +144,7 @@ func (s *ScimService) ScheduleSync() {
 
 	err := s.scheduler.RegisterJob(
 		context.Background(), jobName,
-		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(start)), s.SyncAll, false)
+		gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(start)), s.SyncAll, RegisterJobOpts{})
 
 	if err != nil {
 		slog.Error("Failed to schedule SCIM sync", slog.Any("error", err))
