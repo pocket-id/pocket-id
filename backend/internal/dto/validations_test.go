@@ -64,7 +64,7 @@ func TestValidateResponseMode(t *testing.T) {
 		expected bool
 	}{
 		{"valid form_post", "form_post", true},
-		{"invalid query", "query", false},
+		{"valid query", "query", true},
 		{"valid empty", "", true},
 		{"invalid fragment", "fragment", false},
 	}
