@@ -65,7 +65,7 @@ func (s *Scheduler) Run(ctx context.Context) error {
 }
 
 func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, jobFn func(ctx context.Context) error, opts service.RegisterJobOpts) error {
-	// If a BackOff strategy is provided, wrap the job with retry logic.
+	// If a BackOff strategy is provided, wrap the job with retry logic
 	if opts.BackOff != nil {
 		origJob := jobFn
 		jobFn = func(ctx context.Context) error {
@@ -75,7 +75,6 @@ func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.Job
 					return struct{}{}, origJob(ctx)
 				},
 				backoff.WithBackOff(opts.BackOff),
-				backoff.WithMaxTries(3),
 				backoff.WithNotify(func(err error, d time.Duration) {
 					slog.WarnContext(ctx, "Job failed, retrying",
 						slog.String("name", name),

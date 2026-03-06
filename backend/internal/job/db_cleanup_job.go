@@ -19,9 +19,7 @@ import (
 func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) error {
 	jobs := &DbCleanupJobs{db: db}
 
-	// Use exponential backoff for each DB cleanup job so transient query failures
-	// are retried automatically rather than causing an immediate job failure.
-	// Each job gets its own backoff instance to avoid shared state.
+	// Use exponential backoff for each DB cleanup job so transient query failures are retried automatically rather than causing an immediate job failure
 	return errors.Join(
 		s.RegisterJob(ctx, "ClearWebauthnSessions", jobDefWithJitter(24*time.Hour), jobs.clearWebauthnSessions, service.RegisterJobOpts{RunImmediately: true, BackOff: backoff.NewExponentialBackOff()}),
 		s.RegisterJob(ctx, "ClearOneTimeAccessTokens", jobDefWithJitter(24*time.Hour), jobs.clearOneTimeAccessTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: backoff.NewExponentialBackOff()}),
