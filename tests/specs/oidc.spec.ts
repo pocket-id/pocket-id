@@ -37,6 +37,7 @@ test('Authorize existing client while not signed in', async ({ page }) => {
 	});
 });
 
+
 test('Authorize new client', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
 	const urlParams = createUrlParams(oidcClient);
@@ -623,4 +624,54 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 	});
 
 	expect(webauthnStartCalled).toBe(true);
+});
+
+test('Authorize existing client while not signed in with response_mode=form_post', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('response_mode', 'form_post');
+	await page.context().clearCookies();
+
+	// Track if we receive a POST request to the callback URL
+	let formPostReceived = false;
+	page.on('request', (request) => {
+		if (request.method() === 'POST' && request.url().includes(oidcClient.callbackUrl)) {
+			formPostReceived = true;
+		}
+	});
+
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	await (await passkeyUtil.init(page)).addPasskey();
+	await page.getByRole('button', { name: 'Sign in' }).click();
+
+	// Wait for the POST request to be made to the callback URL
+	await expect(() => {
+		if (!formPostReceived) {
+			throw new Error('Form POST request not received');
+		}
+	}).toBeTruthy();
+});
+
+test('Authorize existing client with response_mode=form_post', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('response_mode', 'form_post');
+
+	// Track if we receive a POST request to the callback URL
+	let formPostReceived = false;
+	page.on('request', (request) => {
+		if (request.method() === 'POST' && request.url().includes(oidcClient.callbackUrl)) {
+			formPostReceived = true;
+		}
+	});
+
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	// Wait for the POST request to be made to the callback URL
+	await expect(() => {
+		if (!formPostReceived) {
+			throw new Error('Form POST request not received');
+		}
+	}).toBeTruthy();
 });
