@@ -21,28 +21,31 @@ on:
       - "frontend/svelte.config.js"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  id-token: write
+
 jobs:
   type-check:
     name: Run Svelte Check
     # Don't run on dependabot branches
     if: github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write
-      pull-requests: write
+    runs-on: depot-ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm --filter pocket-id-frontend install --frozen-lockfile
