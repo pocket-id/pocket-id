@@ -23,17 +23,31 @@ func GetCSPNonce(c *gin.Context) string {
 	return ""
 }
 
+// SetAllowedFormAction sets the allowed form-action for the CSP header.
+// This is used for OAuth2 response_mode=form_post to allow form submissions to the client's redirect URI.
+func SetAllowedFormAction(c *gin.Context, uri string) {
+	c.Set("csp_allowed_form_action", uri)
+}
+
 func (m *CspMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Generate a random base64 nonce for this request
 		nonce := generateNonce()
 		c.Set("csp_nonce", nonce)
 
+		// Determine if there is an EXTRA target beyond 'self'
+		var extraAction string
+		if v, ok := c.Get("csp_allowed_form_action"); ok {
+			extraAction, _ = v.(string)
+		} else if c.Query("response_mode") == "form_post" {
+			extraAction = c.Query("redirect_uri")
+		}
+
+		// 'self' is kept in the string; extraAction is just appended
 		csp := "default-src 'self'; " +
 			"base-uri 'self'; " +
 			"object-src 'none'; " +
 			"frame-ancestors 'none'; " +
-			"form-action 'self'; " +
+			"form-action 'self' " + extraAction + "; " +
 			"img-src * blob:;" +
 			"font-src 'self'; " +
 			"style-src 'self' 'unsafe-inline'; " +
