@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"my_account": "My Account",
+	"my_account": "Minu konto",
 	"logout": "Logout",
 	"confirm": "Confirm",
 	"docs": "Docs",
@@ -365,6 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Enter the code that was displayed in the previous step.",
 	"authorize": "Authorize",
 	"federated_client_credentials": "Federated Client Credentials",
+	"federated_client_credentials_description": "Föderatiivsed kliendi autentimisandmed võimaldavad OIDC-kliente autentida ilma pikaajalisi salajasi andmeid haldamata. Need kasutavad kolmandate osapoolte poolt väljastatud JWT-tokeneid kliendi kinnituste jaoks, nt töökoormuse identiteeditokeneid.",
 	"add_federated_client_credential": "Add Federated Client Credential",
 	"add_another_federated_client_credential": "Add another federated client credential",
 	"oidc_allowed_group_count": "Allowed Group Count",
