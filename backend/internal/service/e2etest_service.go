@@ -258,7 +258,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Nonce:     "nonce",
 				ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
 				UserID:    users[1].ID,
-				ClientID:  oidcClients[2].ID,
+				ClientID:  oidcClients[3].ID,
 			},
 		}
 		for _, authCode := range authCodes {
