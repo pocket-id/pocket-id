@@ -365,6 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Ange koden som visades i föregående steg.",
 	"authorize": "Godkänn",
 	"federated_client_credentials": "Federerade klientuppgifter",
+	"federated_client_credentials_description": "Federerade klientautentiseringsuppgifter gör det möjligt att autentisera OIDC-klienter utan att hantera långlivade hemligheter. De utnyttjar JWT-tokens som utfärdats av tredjepartsmyndigheter för klientpåståenden, t.ex. identitetstokens för arbetsbelastning.",
 	"add_federated_client_credential": "Lägg till federerad klientuppgift",
 	"add_another_federated_client_credential": "Lägg till ytterligare en federerad klientuppgift",
 	"oidc_allowed_group_count": "Tillåtet antal grupper",

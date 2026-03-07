@@ -365,6 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Entrez le code affiché à l'étape précédente.",
 	"authorize": "Autoriser",
 	"federated_client_credentials": "Identifiants client fédérés",
+	"federated_client_credentials_description": "Les informations d'identification client fédérées permettent d'authentifier les clients OIDC sans avoir à gérer des secrets à long terme. Elles utilisent des jetons JWT émis par des autorités tierces pour les assertions client, par exemple des jetons d'identité de charge de travail.",
 	"add_federated_client_credential": "Ajouter un identifiant client fédéré",
 	"add_another_federated_client_credential": "Ajouter un autre identifiant client fédéré",
 	"oidc_allowed_group_count": "Nombre de groupes autorisés",
