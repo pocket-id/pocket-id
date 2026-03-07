@@ -5,9 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
+	backoff "github.com/cenkalti/backoff/v5"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
+
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 type Scheduler struct {
@@ -33,16 +37,12 @@ func (s *Scheduler) RemoveJob(name string) error {
 		if job.Name() == name {
 			err := s.scheduler.RemoveJob(job.ID())
 			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to unqueue job %q with ID %q: %w", name, job.ID().String(), err))
+				errs = append(errs, fmt.Errorf("failed to dequeue job %q with ID %q: %w", name, job.ID().String(), err))
 			}
 		}
 	}
 
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-
-	return nil
+	return errors.Join(errs...)
 }
 
 // Run the scheduler.
@@ -64,7 +64,29 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, job func(ctx context.Context) error, runImmediately bool, extraOptions ...gocron.JobOption) error {
+func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, jobFn func(ctx context.Context) error, opts service.RegisterJobOpts) error {
+	// If a BackOff strategy is provided, wrap the job with retry logic
+	if opts.BackOff != nil {
+		origJob := jobFn
+		jobFn = func(ctx context.Context) error {
+			_, err := backoff.Retry(
+				ctx,
+				func() (struct{}, error) {
+					return struct{}{}, origJob(ctx)
+				},
+				backoff.WithBackOff(opts.BackOff),
+				backoff.WithNotify(func(err error, d time.Duration) {
+					slog.WarnContext(ctx, "Job failed, retrying",
+						slog.String("name", name),
+						slog.Any("error", err),
+						slog.Duration("retryIn", d),
+					)
+				}),
+			)
+			return err
+		}
+	}
+
 	jobOptions := []gocron.JobOption{
 		gocron.WithContext(ctx),
 		gocron.WithName(name),
@@ -91,17 +113,23 @@ func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.Job
 		),
 	}
 
-	if runImmediately {
+	if opts.RunImmediately {
 		jobOptions = append(jobOptions, gocron.JobOption(gocron.WithStartImmediately()))
 	}
 
-	jobOptions = append(jobOptions, extraOptions...)
+	jobOptions = append(jobOptions, opts.ExtraOptions...)
 
-	_, err := s.scheduler.NewJob(def, gocron.NewTask(job), jobOptions...)
+	_, err := s.scheduler.NewJob(def, gocron.NewTask(jobFn), jobOptions...)
 
 	if err != nil {
 		return fmt.Errorf("failed to register job %q: %w", name, err)
 	}
 
 	return nil
+}
+
+func jobDefWithJitter(interval time.Duration) gocron.JobDefinition {
+	const jitter = 5 * time.Minute
+
+	return gocron.DurationRandomJob(interval-jitter, interval+jitter)
 }

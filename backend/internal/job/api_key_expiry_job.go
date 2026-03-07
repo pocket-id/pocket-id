@@ -22,7 +22,7 @@ func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyService *
 	}
 
 	// Send every day at midnight
-	return s.RegisterJob(ctx, "ExpiredApiKeyEmailJob", gocron.CronJob("0 0 * * *", false), jobs.checkAndNotifyExpiringApiKeys, false)
+	return s.RegisterJob(ctx, "ExpiredApiKeyEmailJob", gocron.CronJob("0 0 * * *", false), jobs.checkAndNotifyExpiringApiKeys, service.RegisterJobOpts{})
 }
 
 func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) error {
@@ -42,7 +42,11 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 		}
 		err = j.apiKeyService.SendApiKeyExpiringSoonEmail(ctx, key)
 		if err != nil {
-			slog.ErrorContext(ctx, "Failed to send expiring API key notification email", slog.String("key", key.ID), slog.Any("error", err))
+			slog.ErrorContext(ctx, "Failed to send expiring API key notification email",
+				slog.String("key", key.ID),
+				slog.String("user", key.User.ID),
+				slog.Any("error", err),
+			)
 		}
 	}
 	return nil
