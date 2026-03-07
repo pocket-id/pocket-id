@@ -19,9 +19,15 @@ func ValidateCallbackURLPattern(pattern string) error {
 	}
 
 	pattern, _, _ = strings.Cut(pattern, "#")
-	pattern = normalizeToURLPatternStandard(pattern)
 
-	_, err := urlpattern.New(pattern, "", nil)
+	// go-urlpattern supports wildcard matching during Test(), but validating raw
+	// wildcard host/port patterns directly can reject legitimate callback patterns
+	// such as https://*.example.com/... and https://app.example.com:*/....
+	// For syntax validation, replace wildcard tokens with concrete placeholders.
+	validationPattern := strings.ReplaceAll(pattern, "*", "x")
+	validationPattern = normalizeToURLPatternStandard(validationPattern)
+
+	_, err := urlpattern.New(validationPattern, "", nil)
 	return err
 }
 

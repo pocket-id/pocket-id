@@ -24,8 +24,18 @@ func TestValidateCallbackURLPattern(t *testing.T) {
 			shouldError: false,
 		},
 		{
+			name:        "wildcard subdomain",
+			pattern:     "https://*.example.com/oauth/callback",
+			shouldError: false,
+		},
+		{
 			name:        "wildcard port",
 			pattern:     "https://example.com:*/callback",
+			shouldError: false,
+		},
+		{
+			name:        "wildcard port with fixed host",
+			pattern:     "https://app.example.com:*/oauth/callback",
 			shouldError: false,
 		},
 		{
