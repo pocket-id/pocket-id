@@ -1,0 +1,106 @@
+name: PR Quality
+
+permissions:
+    contents: read
+    issues: read
+    pull-requests: write
+
+on:
+    pull_request_target:
+        types: [opened, reopened]
+
+jobs:
+    pr-quality:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: peakoss/anti-slop@v0
+              with:
+                  # General Settings
+                  max-failures: 4
+
+                  # PR Branch Checks
+                  allowed-target-branches: "main"
+                  blocked-target-branches: ""
+                  allowed-source-branches: ""
+                  blocked-source-branches: ""
+
+                  # PR Quality Checks
+                  max-negative-reactions: 0
+                  require-maintainer-can-modify: true
+
+                  # PR Title Checks
+                  require-conventional-title: true
+
+                  # PR Description Checks
+                  require-description: true
+                  max-description-length: 2500
+                  max-emoji-count: 0
+                  max-code-references: 0
+                  require-linked-issue: false
+                  blocked-terms: ""
+                  blocked-issue-numbers: ""
+
+                  # PR Template Checks
+                  require-pr-template: true
+                  strict-pr-template-sections: ""
+                  optional-pr-template-sections: "Issues"
+                  max-additional-pr-template-sections: 3
+
+                  # Commit Message Checks
+                  max-commit-message-length: 500
+                  require-conventional-commits: false
+                  require-commit-author-match: true
+                  blocked-commit-authors: ""
+
+                  # File Checks
+                  allowed-file-extensions: ""
+                  allowed-paths: ""
+                  blocked-paths: |
+                      SECURITY.md
+                      LICENSE
+                  require-final-newline: false
+                  max-added-comments: 0
+
+                  # User Checks
+                  detect-spam-usernames: true
+                  min-account-age: 30
+                  max-daily-forks: 7
+                  min-profile-completeness: 4
+
+                  # Merge Checks
+                  min-repo-merged-prs: 0
+                  min-repo-merge-ratio: 0
+                  min-global-merge-ratio: 30
+                  global-merge-ratio-exclude-own: false
+
+                  # Exemptions
+                  exempt-draft-prs: false
+                  exempt-bots: |
+                      actions-user
+                      dependabot[bot]
+                      renovate[bot]
+                      github-actions[bot]
+                  exempt-users: ""
+                  exempt-author-association: "OWNER,MEMBER,COLLABORATOR"
+                  exempt-label: "quality/exempt"
+                  exempt-pr-label: ""
+                  exempt-all-milestones: false
+                  exempt-all-pr-milestones: false
+                  exempt-milestones: ""
+                  exempt-pr-milestones: ""
+
+                  # PR Success Actions
+                  success-add-pr-labels: "quality/verified"
+
+                  # PR Failure Actions
+                  failure-remove-pr-labels: ""
+                  failure-remove-all-pr-labels: true
+                  failure-add-pr-labels: "quality/rejected"
+                  failure-pr-message: |
+                      This PR did not pass quality checks so it will be closed.
+                      See the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}) for details on which checks failed.
+
+                      If you believe this is a mistake please let us know.
+
+                  close-pr: true
+                  lock-pr: false
