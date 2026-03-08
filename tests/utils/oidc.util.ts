@@ -1,5 +1,22 @@
 import type { Page } from '@playwright/test';
 
+export async function interceptCallbackRedirect(
+	page: Page,
+	callbackPath: string,
+	action: () => Promise<void>
+): Promise<URL> {
+	const callbackPromise = new Promise<URL>((resolve) => {
+		page.route((url) => url.pathname === callbackPath, async (route) => {
+			resolve(new URL(route.request().url()));
+			await route.abort();
+		});
+	});
+
+	await action();
+
+	return callbackPromise;
+}
+
 export async function getUserCode(
 	page: Page,
 	clientId: string,

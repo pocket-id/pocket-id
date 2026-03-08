@@ -96,6 +96,16 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 
 	code, callbackURL, err := oc.oidcService.Authorize(c.Request.Context(), input, c.GetString("userID"), c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
+		// Check if this is a prompt-related error that should be returned as a redirect error
+		if isOidcPromptError(err) {
+			// Return error info so frontend can redirect to callback URL with error
+			c.JSON(http.StatusOK, gin.H{
+				"error":            err.Error(),
+				"callbackURL":      input.CallbackURL,
+				"requiresRedirect": true,
+			})
+			return
+		}
 		_ = c.Error(err)
 		return
 	}
@@ -107,6 +117,19 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// isOidcPromptError checks if an error is a prompt-related OIDC error that should trigger a redirect
+func isOidcPromptError(err error) bool {
+	var loginReq *common.OidcLoginRequiredError
+	var consentReq *common.OidcConsentRequiredError
+	var interactionReq *common.OidcInteractionRequiredError
+	var accountSelectionReq *common.OidcAccountSelectionRequiredError
+
+	return errors.As(err, &loginReq) ||
+		errors.As(err, &consentReq) ||
+		errors.As(err, &interactionReq) ||
+		errors.As(err, &accountSelectionReq)
 }
 
 // authorizationConfirmationRequiredHandler godoc
