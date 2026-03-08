@@ -123,9 +123,39 @@ test('Update email configuration', async ({ page }) => {
 	await expect(page.getByLabel('API Key Expiration')).toBeChecked();
 });
 
+test.describe('Update webhook configuration', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.getByRole('button', { name: 'Expand card' }).nth(3).click();
+	});
+
+	test('should save webhook URL and events', async ({ page }) => {
+		await page.getByLabel('Webhook URL').fill('https://example.com/webhook');
+
+		await page.getByRole('combobox', { name: 'Webhook Events' }).click();
+		await page.getByRole('option', { name: 'Sign In', exact: true }).click();
+		await page.getByRole('option', { name: 'Account Created' }).click();
+
+		await page.getByRole('button', { name: 'Save' }).nth(2).click();
+
+		await expect(page.locator('[data-type="success"]').last()).toHaveText(
+			'Webhook configuration updated successfully'
+		);
+
+		await page.reload();
+		await page.getByRole('button', { name: 'Expand card' }).nth(3).click();
+
+		await expect(page.getByLabel('Webhook URL')).toHaveValue('https://example.com/webhook');
+
+		await page.getByRole('combobox', { name: 'Webhook Events' }).click();
+
+		await expect(page.getByRole('option', { name: 'Sign In', exact: true })).toBeChecked();
+		await expect(page.getByRole('option', { name: 'Account Created' })).toBeChecked();
+	});
+});
+
 test.describe('Update application images', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.getByRole('button', { name: 'Expand card' }).nth(4).click();
+		await page.getByRole('button', { name: 'Expand card' }).nth(5).click(); // LDAP is 4, so Images is 5
 	});
 
 	test('should upload images', async ({ page }) => {

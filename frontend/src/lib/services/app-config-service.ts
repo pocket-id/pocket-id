@@ -81,6 +81,10 @@ export default class AppConfigService extends APIService {
 		await this.api.post('/application-configuration/test-email');
 	};
 
+	sendTestWebhook = async () => {
+		await this.api.post('/application-configuration/test-webhook');
+	};
+
 	syncLdap = async () => {
 		await this.api.post('/application-configuration/sync-ldap');
 	};
@@ -103,7 +107,7 @@ function parseValue(value: string) {
 			return parsed;
 		}
 		value = String(parsed);
-	} catch {}
+	} catch { }
 
 	// Handle rest of the types
 	if (value === 'true') {

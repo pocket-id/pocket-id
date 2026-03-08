@@ -18,14 +18,16 @@ type AuditLogService struct {
 	appConfigService *AppConfigService
 	emailService     *EmailService
 	geoliteService   *GeoLiteService
+	webhookService   *WebhookService
 }
 
-func NewAuditLogService(db *gorm.DB, appConfigService *AppConfigService, emailService *EmailService, geoliteService *GeoLiteService) *AuditLogService {
+func NewAuditLogService(db *gorm.DB, appConfigService *AppConfigService, emailService *EmailService, geoliteService *GeoLiteService, webhookService *WebhookService) *AuditLogService {
 	return &AuditLogService{
 		db:               db,
 		appConfigService: appConfigService,
 		emailService:     emailService,
 		geoliteService:   geoliteService,
+		webhookService:   webhookService,
 	}
 }
 
@@ -60,6 +62,24 @@ func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent,
 		slog.Error("Failed to create audit log", "error", err)
 		return model.AuditLog{}, false
 	}
+
+	// Dispatch webhook notification asynchronously
+	go func() {
+		innerCtx := context.WithoutCancel(ctx)
+		// Fetch user details if user ID is present
+		if auditLog.UserID != "" && auditLog.Username == "" {
+			var user model.User
+			if err := s.db.WithContext(innerCtx).Select("username", "email").First(&user, "id = ?", auditLog.UserID).Error; err == nil {
+				if user.Email != nil && *user.Email != "" {
+					auditLog.Username = *user.Email
+				} else {
+					auditLog.Username = user.Username
+				}
+			}
+		}
+
+		s.webhookService.SendEvent(innerCtx, auditLog)
+	}()
 
 	return auditLog, true
 }

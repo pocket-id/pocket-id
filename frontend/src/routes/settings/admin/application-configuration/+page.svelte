@@ -12,13 +12,15 @@
 		Mail,
 		SlidersHorizontal,
 		UserSearch,
-		Users
+		Users,
+		Webhook
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import AppConfigEmailForm from './forms/app-config-email-form.svelte';
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
 	import AppConfigSignupDefaultsForm from './forms/app-config-signup-defaults-form.svelte';
+	import AppConfigWebhookForm from './forms/app-config-webhook-form.svelte';
 	import UpdateApplicationImages from './update-application-images.svelte';
 
 	let { data } = $props();
@@ -128,6 +130,17 @@
 		description={m.configure_smtp_to_send_emails()}
 	>
 		<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
+	</CollapsibleCard>
+</div>
+
+<div>
+	<CollapsibleCard
+		id="application-configuration-webhooks"
+		icon={Webhook}
+		title={m.webhooks()}
+		description={m.configure_webhooks_description()}
+	>
+		<AppConfigWebhookForm {appConfig} callback={updateAppConfig} />
 	</CollapsibleCard>
 </div>
 
