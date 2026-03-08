@@ -1,3 +1,9 @@
+<script module lang="ts">
+	// Persist the last failing background image URL across route remounts so
+	// login pages without a background do not briefly retry the image and stutter.
+	let persistedMissingBackgroundImageUrl: string | undefined;
+</script>
+
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
@@ -17,13 +23,31 @@
 		showAlternativeSignInMethodButton?: boolean;
 	} = $props();
 
-	let imageError = $state(false);
+	let missingBackgroundImageUrl = $state<string | undefined>(persistedMissingBackgroundImageUrl);
+	let loadedBackgroundImageUrl = $state<string | undefined>();
 	let isInitialLoad = $state(false);
-	let animate = $derived(isInitialLoad && !$appConfigStore.disableAnimations);
+	let backgroundImageUrl = $derived(cachedBackgroundImage.getUrl());
+	let imageError = $derived(missingBackgroundImageUrl === backgroundImageUrl);
+	let imageLoaded = $derived(loadedBackgroundImageUrl === backgroundImageUrl);
+	let animate = $derived(isInitialLoad && imageLoaded && !$appConfigStore.disableAnimations);
 
 	afterNavigate((e) => {
 		isInitialLoad = !e?.from?.url;
 	});
+
+	function onBackgroundImageLoad() {
+		loadedBackgroundImageUrl = backgroundImageUrl;
+		if (persistedMissingBackgroundImageUrl === backgroundImageUrl) {
+			persistedMissingBackgroundImageUrl = undefined;
+			missingBackgroundImageUrl = undefined;
+		}
+	}
+
+	function onBackgroundImageError() {
+		loadedBackgroundImageUrl = undefined;
+		persistedMissingBackgroundImageUrl = backgroundImageUrl;
+		missingBackgroundImageUrl = backgroundImageUrl;
+	}
 
 	const isDesktop = new MediaQuery('min-width: 1024px');
 	let alternativeSignInButton = $state({
@@ -70,19 +94,18 @@
 			</div>
 		</div>
 
-{#if !imageError }
-		<!-- Background image -->
-		<div class="flex m-6">
-			<img
-				src={cachedBackgroundImage.getUrl()}
-				class="{cn(
-					animate && 'animate-bg-zoom'
-				)} object-cover rounded-[40px] h-[calc(100vh-3rem)]"
-				alt={m.login_background()}
-				onerror={() => imageError = true}
-			/>
-		</div>
-{/if}
+		{#if !imageError}
+			<!-- Background image -->
+			<div class="m-6 flex h-[calc(100vh-3rem)] overflow-hidden rounded-[40px]">
+				<img
+					src={backgroundImageUrl}
+					class="h-full object-cover {cn(animate && 'animate-bg-zoom')}"
+					alt={m.login_background()}
+					onload={onBackgroundImageLoad}
+					onerror={onBackgroundImageError}
+				/>
+			</div>
+		{/if}
 	</div>
 {:else}
 	<div
