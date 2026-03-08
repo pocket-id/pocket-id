@@ -49,6 +49,10 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 		_ = r.SetTrustedProxies(nil)
 	}
 
+	if common.EnvConfig.TrustedPlatform != "" {
+		r.TrustedPlatform = common.EnvConfig.TrustedPlatform
+	}
+
 	if common.EnvConfig.TracingEnabled {
 		r.Use(otelgin.Middleware(common.Name))
 	}
