@@ -350,8 +350,8 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient)
 			DisplayName:   value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.Value),
 			// Admin status is computed after groups are loaded so it can use the
 			// configured group member attribute instead of a hard-coded memberOf.
-			IsAdmin:       false,
-			LdapID:        ldapID,
+			IsAdmin: false,
+			LdapID:  ldapID,
 		}
 
 		if newUser.DisplayName == "" {
