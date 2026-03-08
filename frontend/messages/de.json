@@ -365,6 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Gib den Code ein, der im vorherigen Schritt angezeigt wurde.",
 	"authorize": "Autorisieren",
 	"federated_client_credentials": "Federated Client Credentials",
+	"federated_client_credentials_description": "Mit föderierten Client-Anmeldeinfos kann man OIDC-Clients authentifizieren, ohne sich um langlebige Geheimnisse kümmern zu müssen. Sie nutzen JWT-Token, die von Drittanbietern für Client-Assertions ausgestellt werden, z. B. Workload-Identitätstoken.",
 	"add_federated_client_credential": "Föderierte Client-Anmeldeinfos hinzufügen",
 	"add_another_federated_client_credential": "Weitere Anmeldeinformationen für einen Verbundclient hinzufügen",
 	"oidc_allowed_group_count": "Erlaubte Gruppenanzahl",

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -205,36 +206,33 @@ func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) 
 }
 
 func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey model.ApiKey) error {
-	user := apiKey.User
-
-	if user.ID == "" {
-		if err := s.db.WithContext(ctx).First(&user, "id = ?", apiKey.UserID).Error; err != nil {
-			return err
-		}
-	}
-
-	if user.Email == nil {
+	if apiKey.User.Email == nil {
 		return &common.UserEmailNotSetError{}
 	}
 
 	err := SendEmail(ctx, s.emailService, email.Address{
-		Name:  user.FullName(),
-		Email: *user.Email,
+		Name:  apiKey.User.FullName(),
+		Email: *apiKey.User.Email,
 	}, ApiKeyExpiringSoonTemplate, &ApiKeyExpiringSoonTemplateData{
 		ApiKeyName: apiKey.Name,
 		ExpiresAt:  apiKey.ExpiresAt.ToTime(),
-		Name:       user.FirstName,
+		Name:       apiKey.User.FirstName,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("error sending notification email: %w", err)
 	}
 
 	// Mark the API key as having had an expiration email sent
-	return s.db.WithContext(ctx).
+	err = s.db.WithContext(ctx).
 		Model(&model.ApiKey{}).
 		Where("id = ?", apiKey.ID).
 		Update("expiration_email_sent", true).
 		Error
+	if err != nil {
+		return fmt.Errorf("error recording expiration sent email in database: %w", err)
+	}
+
+	return nil
 }
 
 func (s *ApiKeyService) initStaticApiKeyUser(ctx context.Context) (user model.User, err error) {

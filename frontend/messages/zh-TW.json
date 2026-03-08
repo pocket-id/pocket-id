@@ -365,6 +365,7 @@
 	"enter_code_displayed_in_previous_step": "請輸入上一步顯示的代碼。",
 	"authorize": "授權",
 	"federated_client_credentials": "聯邦身分",
+	"federated_client_credentials_description": "聯合客戶憑證允許驗證 OIDC 客戶端，無需管理長期存續的機密。此機制利用第三方權威機構發行的 JWT 憑證來驗證客戶端聲明，例如工作負載身分憑證。",
 	"add_federated_client_credential": "增加聯邦身分",
 	"add_another_federated_client_credential": "新增另一組聯邦身分",
 	"oidc_allowed_group_count": "允許的群組數量",
