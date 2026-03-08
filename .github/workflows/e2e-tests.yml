@@ -21,7 +21,7 @@ permissions:
 jobs:
   test:
     if: github.event.pull_request.head.ref != 'i18n_crowdin'
-    runs-on: depot-ubuntu-24.04-16
+    runs-on: depot-ubuntu-24.04-32
     strategy:
       fail-fast: false
       matrix:
@@ -67,12 +67,12 @@ jobs:
         id: postgres-cache
         with:
           path: /tmp/postgres-image.tar
-          key: postgres-17-${{ runner.os }}
+          key: postgres-18-${{ runner.os }}
       - name: Pull and save PostgreSQL image
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit != 'true'
         run: |
-          docker pull postgres:17
-          docker save postgres:17 > /tmp/postgres-image.tar
+          docker pull postgres:18
+          docker save postgres:18 > /tmp/postgres-image.tar
       - name: Load PostgreSQL image
         if: matrix.db == 'postgres' && steps.postgres-cache.outputs.cache-hit == 'true'
         run: docker load < /tmp/postgres-image.tar
