@@ -18,7 +18,9 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 
 COPY ./frontend ./frontend/
 
-RUN BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
+RUN --mount=type=cache,target=/build/frontend/node_modules/.vite \
+  --mount=type=cache,target=/build/frontend/.svelte-kit \
+  BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
 
 # Stage 2: Build Backend
 FROM golang:1.26-alpine AS backend-builder
