@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # This file uses multi-stage builds to build the application from source, including the front-end
 
 # Tags passed to "go build"
@@ -9,9 +11,10 @@ RUN corepack enable
 
 WORKDIR /build
 
-COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/package.json ./frontend/
-RUN pnpm --filter pocket-id-frontend install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+  pnpm --filter pocket-id-frontend install --frozen-lockfile
 
 COPY ./frontend ./frontend/
 
@@ -22,14 +25,17 @@ FROM golang:1.26-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 COPY ./backend/go.mod ./backend/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+  go mod download
 
 COPY ./backend ./
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
 COPY .version .version
 
 WORKDIR /build/cmd
-RUN VERSION=$(cat /build/.version) \ 
+RUN --mount=type=cache,target=/go/pkg/mod \
+  --mount=type=cache,target=/root/.cache/go-build \
+  VERSION=$(cat /build/.version) && \
   CGO_ENABLED=0 \
   GOOS=linux \
   go build \
