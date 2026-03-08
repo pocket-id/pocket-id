@@ -365,7 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Syötä edellisessä vaiheessa näkynyt koodi.",
 	"authorize": "Salli",
 	"federated_client_credentials": "Federoidut asiakastunnukset",
-	"federated_client_credentials_description": "Yhdistettyjen asiakastunnistetietojen avulla voit todentaa OIDC-asiakkaat kolmannen osapuolen myöntämillä JWT-tunnuksilla.",
+	"federated_client_credentials_description": "Yhdistetyt asiakastunnistetiedot mahdollistavat OIDC-asiakkaiden todentamisen ilman pitkäaikaisten salaisuuksien hallintaa. Ne hyödyntävät kolmansien osapuolten viranomaisten myöntämiä JWT-tunnuksia asiakastodistuksiin, esimerkiksi työkuorman tunnistetunnuksiin.",
 	"add_federated_client_credential": "Lisää federoitu asiakastunnus",
 	"add_another_federated_client_credential": "Lisää toinen federoitu asiakastunnus",
 	"oidc_allowed_group_count": "Sallittujen ryhmien määrä",

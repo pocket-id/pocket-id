@@ -365,7 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Wprowadź kod wyświetlony w poprzednim kroku.",
 	"authorize": "Autoryzuj",
 	"federated_client_credentials": "Połączone poświadczenia klienta",
-	"federated_client_credentials_description": "Korzystając z połączonych poświadczeń klienta, możecie uwierzytelnić klientów OIDC za pomocą tokenów JWT wydanych przez zewnętrzne organy.",
+	"federated_client_credentials_description": "Połączone poświadczenia klienta umożliwiają uwierzytelnianie klientów OIDC bez konieczności zarządzania długotrwałymi sekretami. Wykorzystują one tokeny JWT wydane przez zewnętrzne organy do potwierdzania tożsamości klientów, np. tokeny tożsamości obciążenia.",
 	"add_federated_client_credential": "Dodaj poświadczenia klienta federacyjnego",
 	"add_another_federated_client_credential": "Dodaj kolejne poświadczenia klienta federacyjnego",
 	"oidc_allowed_group_count": "Dopuszczalna liczba grup",

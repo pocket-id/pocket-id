@@ -365,7 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Enter the code that was displayed in the previous step.",
 	"authorize": "Authorize",
 	"federated_client_credentials": "Federated Client Credentials",
-	"federated_client_credentials_description": "Using federated client credentials, you can authenticate OIDC clients using JWT tokens issued by third-party authorities.",
+	"federated_client_credentials_description": "Federated client credentials allow authenticating OIDC clients without managing long-lived secrets. They leverage JWT tokens issued by third-party authorities for client assertions, e.g. workload identity tokens.",
 	"add_federated_client_credential": "Add Federated Client Credential",
 	"add_another_federated_client_credential": "Add another federated client credential",
 	"oidc_allowed_group_count": "Allowed Group Count",

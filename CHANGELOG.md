@@ -1,3 +1,35 @@
+## v2.4.0
+
+### Bug Fixes
+
+- improve wildcard matching by using `go-urlpattern` ([#1332](https://github.com/pocket-id/pocket-id/pull/1332) by @stonith404)
+- federated client credentials not working if sub ≠ client_id ([#1342](https://github.com/pocket-id/pocket-id/pull/1342) by @ItalyPaleAle)
+- handle IPv6 addresses in callback URLs ([#1355](https://github.com/pocket-id/pocket-id/pull/1355) by @ItalyPaleAle)
+- wildcard callback URLs blocked by browser-native URL validation ([#1359](https://github.com/pocket-id/pocket-id/pull/1359) by @Copilot)
+- one-time-access-token route should get user ID from URL only ([#1358](https://github.com/pocket-id/pocket-id/pull/1358) by @ItalyPaleAle)
+- various fixes in background jobs ([#1362](https://github.com/pocket-id/pocket-id/pull/1362) by @ItalyPaleAle)
+- use URL keyboard type for callback URL inputs ([a675d07](https://github.com/pocket-id/pocket-id/commit/a675d075d1ab9b7ff8160f1cfc35bc0ea1f1980a) by @stonith404)
+
+### Features
+
+- allow first name and display name to be optional ([#1288](https://github.com/pocket-id/pocket-id/pull/1288) by @taoso)
+
+### Other
+
+- bump svelte from 5.53.2 to 5.53.5 in the npm_and_yarn group across 1 directory ([#1348](https://github.com/pocket-id/pocket-id/pull/1348) by @dependabot[bot])
+- bump @sveltejs/kit from 2.53.0 to 2.53.3 in the npm_and_yarn group across 1 directory ([#1349](https://github.com/pocket-id/pocket-id/pull/1349) by @dependabot[bot])
+- update AAGUIDs ([#1354](https://github.com/pocket-id/pocket-id/pull/1354) by @github-actions[bot])
+- add Português files ([01141b8](https://github.com/pocket-id/pocket-id/commit/01141b8c0f2e96a40fd876d3206e49a694fd12c4) by @kmendell)
+- add Latvian files ([e0fc4cc](https://github.com/pocket-id/pocket-id/commit/e0fc4cc01bd51e5a97e46aad78a493a668049220) by @kmendell)
+- fix wrong seed data ([e7bd66d](https://github.com/pocket-id/pocket-id/commit/e7bd66d1a77c89dde542b4385ba01dc0d432e434) by @stonith404)
+- fix wrong seed data in `database.json` ([f4eb8db](https://github.com/pocket-id/pocket-id/commit/f4eb8db50993edacd90e919b39a5c6d9dd4924c7) by @stonith404)
+
+### Performance Improvements
+
+- frontend performance optimizations ([#1344](https://github.com/pocket-id/pocket-id/pull/1344) by @ItalyPaleAle)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.3.0...v2.4.0
+
 ## v2.3.0
 
 ### Bug Fixes

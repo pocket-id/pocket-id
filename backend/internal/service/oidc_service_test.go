@@ -229,6 +229,12 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 					Subject:  federatedClient.ID,
 					JWKS:     federatedClientIssuer + "/jwks.json",
 				},
+				{
+					Issuer:   "federated-issuer-2",
+					Audience: federatedClientAudience,
+					Subject:  "my-federated-client",
+					JWKS:     federatedClientIssuer + "/jwks.json",
+				},
 				{Issuer: federatedClientIssuerDefaults},
 			},
 		},
@@ -461,6 +467,43 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 				// Generate a token
 				input := dto.OidcCreateTokensDto{
+					ClientID:            federatedClient.ID,
+					ClientAssertion:     string(signedToken),
+					ClientAssertionType: ClientAssertionTypeJWTBearer,
+				}
+				createdToken, err := s.createTokenFromClientCredentials(t.Context(), input)
+				require.NoError(t, err)
+				require.NotNil(t, token)
+
+				// Verify the token
+				claims, err := s.jwtService.VerifyOAuthAccessToken(createdToken.AccessToken)
+				require.NoError(t, err, "Failed to verify generated token")
+
+				// Check the claims
+				subject, ok := claims.Subject()
+				_ = assert.True(t, ok, "User ID not found in token") &&
+					assert.Equal(t, "client-"+federatedClient.ID, subject, "Token subject should match federated client ID with prefix")
+				audience, ok := claims.Audience()
+				_ = assert.True(t, ok, "Audience not found in token") &&
+					assert.Equal(t, []string{federatedClient.ID}, audience, "Audience should contain the federated client ID")
+			})
+
+			t.Run("Succeeds with valid assertion and custom subject", func(t *testing.T) {
+				// Create JWT for federated identity
+				token, err := jwt.NewBuilder().
+					Issuer("federated-issuer-2").
+					Audience([]string{federatedClientAudience}).
+					Subject("my-federated-client").
+					IssuedAt(time.Now()).
+					Expiration(time.Now().Add(10 * time.Minute)).
+					Build()
+				require.NoError(t, err)
+				signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256(), privateJWK))
+				require.NoError(t, err)
+
+				// Generate a token
+				input := dto.OidcCreateTokensDto{
+					ClientID:            federatedClient.ID,
 					ClientAssertion:     string(signedToken),
 					ClientAssertionType: ClientAssertionTypeJWTBearer,
 				}
@@ -483,6 +526,7 @@ func TestOidcService_verifyClientCredentialsInternal(t *testing.T) {
 
 			t.Run("Fails with invalid assertion", func(t *testing.T) {
 				input := dto.OidcCreateTokensDto{
+					ClientID:            confidentialClient.ID,
 					ClientAssertion:     "invalid.jwt.token",
 					ClientAssertionType: ClientAssertionTypeJWTBearer,
 				}

@@ -365,7 +365,7 @@
 	"enter_code_displayed_in_previous_step": "이전 단계에 표시된 코드를 입력하세요.",
 	"authorize": "승인",
 	"federated_client_credentials": "연동 클라이언트 자격 증명",
-	"federated_client_credentials_description": "연동 클라이언트 자격 증명을 이용하여, OIDC 클라이언트를 제3자 인증 기관에서 발급한 JWT 토큰을 이용해 인증할 수 있습니다.",
+	"federated_client_credentials_description": "연방 클라이언트 자격 증명은 장기 비밀을 관리하지 않고도 OIDC 클라이언트를 인증할 수 있게 합니다. 이는 클라이언트 어설션(예: 워크로드 신원 토큰)을 위해 제3자 기관이 발급한 JWT 토큰을 활용합니다.",
 	"add_federated_client_credential": "연동 클라이언트 자격 증명 추가",
 	"add_another_federated_client_credential": "다른 연동 클라이언트 자격 증명 추가",
 	"oidc_allowed_group_count": "허용된 그룹 수",

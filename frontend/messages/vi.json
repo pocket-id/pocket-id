@@ -365,7 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Nhập mã đã hiển thị ở bước trước.",
 	"authorize": "Cho phép",
 	"federated_client_credentials": "Thông Tin Xác Thực Của Federated Clients",
-	"federated_client_credentials_description": "Sử dụng thông tin xác thực của federated client, bạn có thể xác thực các client OIDC bằng cách sử dụng token JWT được cấp bởi các bên thứ ba.",
+	"federated_client_credentials_description": "Thông tin xác thực khách hàng liên kết cho phép xác thực các khách hàng OIDC mà không cần quản lý các khóa bí mật có thời hạn dài. Chúng sử dụng các token JWT do các cơ quan thứ ba cấp để xác thực thông tin của khách hàng, ví dụ như các token danh tính công việc.",
 	"add_federated_client_credential": "Thêm thông tin xác thực cho federated clients",
 	"add_another_federated_client_credential": "Thêm một thông tin xác thực cho federated clients khác",
 	"oidc_allowed_group_count": "Số lượng nhóm được phép",
