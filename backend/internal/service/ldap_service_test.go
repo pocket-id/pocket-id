@@ -2,6 +2,8 @@ package service
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetDNProperty(t *testing.T) {
@@ -68,6 +70,57 @@ func TestGetDNProperty(t *testing.T) {
 				t.Errorf("getDNProperty(%q, %q) = %q, want %q",
 					tt.property, tt.dn, result, tt.expectedResult)
 			}
+		})
+	}
+}
+
+func TestNormalizeLDAPDN(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "already normalized",
+			input:    "cn=alice,dc=example,dc=com",
+			expected: "cn=alice,dc=example,dc=com",
+		},
+		{
+			name:     "uppercase attribute types",
+			input:    "CN=Alice,DC=example,DC=com",
+			expected: "cn=alice,dc=example,dc=com",
+		},
+		{
+			name:     "spaces after commas",
+			input:    "cn=alice, dc=example, dc=com",
+			expected: "cn=alice,dc=example,dc=com",
+		},
+		{
+			name:     "uppercase types and spaces",
+			input:    "CN=Alice, DC=example, DC=com",
+			expected: "cn=alice,dc=example,dc=com",
+		},
+		{
+			name:     "multi-valued RDN",
+			input:    "cn=alice+uid=a123,dc=example,dc=com",
+			expected: "cn=alice+uid=a123,dc=example,dc=com",
+		},
+		{
+			name:     "invalid DN falls back to lowercase+trim",
+			input:    "  NOT A VALID DN  ",
+			expected: "not a valid dn",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := normalizeLDAPDN(tt.input)
+			assert.Equalf(t, tt.expected, result, "normalizeLDAPDN(%q)", tt.input)
 		})
 	}
 }
