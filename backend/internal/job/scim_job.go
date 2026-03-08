@@ -16,8 +16,8 @@ type ScimJobs struct {
 func (s *Scheduler) RegisterScimJobs(ctx context.Context, scimService *service.ScimService) error {
 	jobs := &ScimJobs{scimService: scimService}
 
-	// Register the job to run every hour
-	return s.RegisterJob(ctx, "SyncScim", gocron.DurationJob(time.Hour), jobs.SyncScim, true)
+	// Register the job to run every hour (with some jitter)
+	return s.RegisterJob(ctx, "SyncScim", gocron.DurationJob(time.Hour), jobs.SyncScim, service.RegisterJobOpts{RunImmediately: true})
 }
 
 func (j *ScimJobs) SyncScim(ctx context.Context) error {

@@ -139,6 +139,20 @@ func (e *TooManyRequestsError) Error() string {
 }
 func (e *TooManyRequestsError) HttpStatusCode() int { return http.StatusTooManyRequests }
 
+type UserIdNotProvidedError struct{}
+
+func (e *UserIdNotProvidedError) Error() string {
+	return "User id not provided"
+}
+func (e *UserIdNotProvidedError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type UserNotFoundError struct{}
+
+func (e *UserNotFoundError) Error() string {
+	return "User not found"
+}
+func (e *UserNotFoundError) HttpStatusCode() int { return http.StatusNotFound }
+
 type ClientIdOrSecretNotProvidedError struct{}
 
 func (e *ClientIdOrSecretNotProvidedError) Error() string {

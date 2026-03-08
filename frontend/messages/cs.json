@@ -365,6 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Zadejte kód, který byl zobrazen v předchozím kroku.",
 	"authorize": "Autorizovat",
 	"federated_client_credentials": "Údaje o klientovi ve federaci",
+	"federated_client_credentials_description": "Federované klientské přihlašovací údaje umožňují ověřování klientů OIDC bez správy dlouhodobých tajných klíčů. Využívají tokeny JWT vydané třetími stranami pro klientská tvrzení, např. tokeny identity pracovního zatížení.",
 	"add_federated_client_credential": "Přidat údaje federovaného klienta",
 	"add_another_federated_client_credential": "Přidat dalšího federovaného klienta",
 	"oidc_allowed_group_count": "Počet povolených skupin",

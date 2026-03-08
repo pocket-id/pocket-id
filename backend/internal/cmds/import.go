@@ -119,11 +119,10 @@ func acquireImportLock(ctx context.Context, db *gorm.DB, force bool) error {
 	defer cancel()
 
 	waitUntil, err := appLockService.Acquire(opCtx, force)
-	if err != nil {
-		if errors.Is(err, service.ErrLockUnavailable) {
-			//nolint:staticcheck
-			return errors.New("Pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
-		}
+	if errors.Is(err, service.ErrLockUnavailable) {
+		//nolint:staticcheck
+		return errors.New("Pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
+	} else if err != nil {
 		return fmt.Errorf("failed to acquire application lock: %w", err)
 	}
 
