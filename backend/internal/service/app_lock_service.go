@@ -96,7 +96,8 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) (waitUntil tim
 
 	var prevLock lockValue
 	if prevLockRaw != "" {
-		if err := prevLock.Unmarshal(prevLockRaw); err != nil {
+		err = prevLock.Unmarshal(prevLockRaw)
+		if err != nil {
 			return time.Time{}, fmt.Errorf("decode existing lock value: %w", err)
 		}
 	}
@@ -142,7 +143,8 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) (waitUntil tim
 		return time.Time{}, fmt.Errorf("lock acquisition failed: %w", res.Error)
 	}
 
-	if err := tx.Commit().Error; err != nil {
+	err = tx.Commit().Error
+	if err != nil {
 		return time.Time{}, fmt.Errorf("commit lock acquisition: %w", err)
 	}
 
