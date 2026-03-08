@@ -35,6 +35,7 @@ type LdapService struct {
 	userService      *UserService
 	groupService     *UserGroupService
 	fileStorage      storage.FileStorage
+	clientFactory    func() (ldapClient, error)
 }
 
 type savePicture struct {
@@ -62,8 +63,14 @@ type ldapDesiredState struct {
 	groupIDs map[string]struct{}
 }
 
+type ldapClient interface {
+	Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error)
+	Bind(username, password string) error
+	Close() error
+}
+
 func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *AppConfigService, userService *UserService, groupService *UserGroupService, fileStorage storage.FileStorage) *LdapService {
-	return &LdapService{
+	service := &LdapService{
 		db:               db,
 		httpClient:       httpClient,
 		appConfigService: appConfigService,
@@ -71,9 +78,12 @@ func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *AppC
 		groupService:     groupService,
 		fileStorage:      fileStorage,
 	}
+
+	service.clientFactory = service.createClient
+	return service
 }
 
-func (s *LdapService) createClient() (*ldap.Conn, error) {
+func (s *LdapService) createClient() (ldapClient, error) {
 	dbConfig := s.appConfigService.GetDbConfig()
 
 	if !dbConfig.LdapEnabled.IsTrue() {
@@ -98,7 +108,7 @@ func (s *LdapService) createClient() (*ldap.Conn, error) {
 
 func (s *LdapService) SyncAll(ctx context.Context) error {
 	// Setup LDAP connection
-	client, err := s.createClient()
+	client, err := s.clientFactory()
 	if err != nil {
 		return fmt.Errorf("failed to create LDAP client: %w", err)
 	}
@@ -157,7 +167,7 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 	return nil
 }
 
-func (s *LdapService) fetchDesiredState(ctx context.Context, client *ldap.Conn) (ldapDesiredState, error) {
+func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient) (ldapDesiredState, error) {
 	// Fetch users first so we can use their DNs when resolving group members
 	users, userIDs, usernamesByDN, err := s.fetchUsersFromLDAP(ctx, client)
 	if err != nil {
@@ -178,7 +188,7 @@ func (s *LdapService) fetchDesiredState(ctx context.Context, client *ldap.Conn) 
 	}, nil
 }
 
-func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client *ldap.Conn, usernamesByDN map[string]string) (desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, err error) {
+func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, usernamesByDN map[string]string) (desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, err error) {
 	dbConfig := s.appConfigService.GetDbConfig()
 
 	// Query LDAP for all groups we want to manage
@@ -251,7 +261,7 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client *ldap.Conn
 	return desiredGroups, ldapGroupIDs, nil
 }
 
-func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client *ldap.Conn) (desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, usernamesByDN map[string]string, err error) {
+func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient) (desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, usernamesByDN map[string]string, err error) {
 	dbConfig := s.appConfigService.GetDbConfig()
 
 	// Query LDAP for all users we want to manage
@@ -346,7 +356,7 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client *ldap.Conn)
 	return desiredUsers, ldapUserIDs, usernamesByDN, nil
 }
 
-func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client *ldap.Conn, member string, usernamesByDN map[string]string) string {
+func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client ldapClient, member string, usernamesByDN map[string]string) string {
 	dbConfig := s.appConfigService.GetDbConfig()
 
 	// First try the DN cache we built while loading users
