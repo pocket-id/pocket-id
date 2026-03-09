@@ -80,7 +80,7 @@ func ValidateCallbackURL(raw string) bool {
 // Empty responseMode is allowed (field not provided, use default)
 func ValidateResponseMode(responseMode string) bool {
 	switch responseMode {
-	case  "form_post", "query":
+	case "form_post", "query":
 		return true
 	case "":
 		return true
