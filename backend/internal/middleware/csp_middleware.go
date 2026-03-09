@@ -34,12 +34,14 @@ func (m *CspMiddleware) Add() gin.HandlerFunc {
 		nonce := generateNonce()
 		c.Set("csp_nonce", nonce)
 
+		// Let the handler run first, then set CSP header with the final context values
+		c.Next()
+
 		// Determine if there is an EXTRA target beyond 'self'
+		// This is set by handlers (e.g., OIDC authorize) after validating the redirect URI
 		var extraAction string
 		if v, ok := c.Get("csp_allowed_form_action"); ok {
 			extraAction, _ = v.(string)
-		} else if c.Query("response_mode") == "form_post" {
-			extraAction = c.Query("redirect_uri")
 		}
 
 		// 'self' is kept in the string; extraAction is just appended
@@ -54,7 +56,6 @@ func (m *CspMiddleware) Add() gin.HandlerFunc {
 			"script-src 'self' 'nonce-" + nonce + "'"
 
 		c.Writer.Header().Set("Content-Security-Policy", csp)
-		c.Next()
 	}
 }
 
