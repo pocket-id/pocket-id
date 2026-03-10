@@ -404,7 +404,7 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 		}
 	}
 
-	if authorizationCodeMetaData.ClientID != input.ClientID && authorizationCodeMetaData.ExpiresAt.ToTime().Before(time.Now()) {
+	if authorizationCodeMetaData.ClientID != input.ClientID || authorizationCodeMetaData.ExpiresAt.ToTime().Before(time.Now()) {
 		return CreatedTokens{}, &common.OidcInvalidAuthorizationCodeError{}
 	}
 

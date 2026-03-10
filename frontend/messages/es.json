@@ -365,6 +365,7 @@
 	"enter_code_displayed_in_previous_step": "Introduce el código que se mostró en el paso anterior.",
 	"authorize": "Autorizar",
 	"federated_client_credentials": "Credenciales de cliente federadas",
+	"federated_client_credentials_description": "Las credenciales de cliente federadas permiten autenticar clientes OIDC sin gestionar secretos de larga duración. Aprovechan los tokens JWT emitidos por autoridades externas para las afirmaciones de los clientes, por ejemplo, tokens de identidad de carga de trabajo.",
 	"add_federated_client_credential": "Añadir credenciales de cliente federado",
 	"add_another_federated_client_credential": "Añadir otra credencial de cliente federado",
 	"oidc_allowed_group_count": "Recuento de grupos permitidos",

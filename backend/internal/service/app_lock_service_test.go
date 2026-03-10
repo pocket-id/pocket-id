@@ -49,6 +49,23 @@ func readLockValue(t *testing.T, db *gorm.DB) lockValue {
 	return value
 }
 
+func lockDatabaseForWrite(t *testing.T, db *gorm.DB) *gorm.DB {
+	t.Helper()
+
+	tx := db.Begin()
+	require.NoError(t, tx.Error)
+
+	// Keep a write transaction open to block other queries.
+	err := tx.Exec(
+		`INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING`,
+		lockKey,
+		`{"expires_at":0}`,
+	).Error
+	require.NoError(t, err)
+
+	return tx
+}
+
 func TestAppLockServiceAcquire(t *testing.T) {
 	t.Run("creates new lock when none exists", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
@@ -99,6 +116,66 @@ func TestAppLockServiceAcquire(t *testing.T) {
 		require.Equal(t, service.hostID, stored.HostID)
 		require.Greater(t, stored.ExpiresAt, time.Now().Unix())
 	})
+
+	t.Run("force acquisition returns wait duration when stealing active lock", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		service := newTestAppLockService(t, db)
+
+		existing := lockValue{
+			ProcessID: 99,
+			HostID:    "other-host",
+			LockID:    "other-lock-id",
+			ExpiresAt: time.Now().Add(ttl).Unix(),
+		}
+		insertLock(t, db, existing)
+
+		waitUntil, err := service.Acquire(context.Background(), true)
+		require.NoError(t, err)
+		require.WithinDuration(t, time.Unix(existing.ExpiresAt, 0), waitUntil, time.Second)
+	})
+
+	t.Run("force acquisition does not wait when lock id is unchanged", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		service := newTestAppLockService(t, db)
+
+		insertLock(t, db, lockValue{
+			ProcessID: 99,
+			HostID:    "other-host",
+			LockID:    service.lockID,
+			ExpiresAt: time.Now().Add(ttl).Unix(),
+		})
+
+		waitUntil, err := service.Acquire(context.Background(), true)
+		require.NoError(t, err)
+		require.True(t, waitUntil.IsZero())
+	})
+
+	t.Run("returns error when existing lock value is invalid JSON", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		service := newTestAppLockService(t, db)
+
+		raw := "this-is-not-json"
+		err := db.Create(&model.KV{Key: lockKey, Value: &raw}).Error
+		require.NoError(t, err)
+
+		_, err = service.Acquire(context.Background(), false)
+		require.ErrorContains(t, err, "decode existing lock value")
+	})
+
+	t.Run("returns context deadline exceeded when database is locked", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		service := newTestAppLockService(t, db)
+
+		tx := lockDatabaseForWrite(t, db)
+		defer tx.Rollback()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+		defer cancel()
+
+		_, err := service.Acquire(ctx, false)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.ErrorContains(t, err, "begin lock transaction")
+	})
 }
 
 func TestAppLockServiceRelease(t *testing.T) {
@@ -133,6 +210,24 @@ func TestAppLockServiceRelease(t *testing.T) {
 
 		stored := readLockValue(t, db)
 		require.Equal(t, existing, stored)
+	})
+
+	t.Run("returns context deadline exceeded when database is locked", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		service := newTestAppLockService(t, db)
+
+		_, err := service.Acquire(context.Background(), false)
+		require.NoError(t, err)
+
+		tx := lockDatabaseForWrite(t, db)
+		defer tx.Rollback()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+		defer cancel()
+
+		err = service.Release(ctx)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.ErrorContains(t, err, "release lock failed")
 	})
 }
 
@@ -185,5 +280,22 @@ func TestAppLockServiceRenew(t *testing.T) {
 
 		err = service.renew(context.Background())
 		require.ErrorIs(t, err, ErrLockLost)
+	})
+
+	t.Run("returns context deadline exceeded when database is locked", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		service := newTestAppLockService(t, db)
+
+		_, err := service.Acquire(context.Background(), false)
+		require.NoError(t, err)
+
+		tx := lockDatabaseForWrite(t, db)
+		defer tx.Rollback()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+		defer cancel()
+
+		err = service.renew(ctx)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
 	})
 }

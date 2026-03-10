@@ -2,7 +2,9 @@ package controller
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +36,7 @@ func NewAppImagesController(
 	group.PUT("/application-images/favicon", authMiddleware.Add(), controller.updateFaviconHandler)
 	group.PUT("/application-images/default-profile-picture", authMiddleware.Add(), controller.updateDefaultProfilePicture)
 
+	group.DELETE("/application-images/background", authMiddleware.Add(), controller.deleteBackgroundImageHandler)
 	group.DELETE("/application-images/default-profile-picture", authMiddleware.Add(), controller.deleteDefaultProfilePicture)
 }
 
@@ -192,12 +195,27 @@ func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) {
 	ctx.Status(http.StatusNoContent)
 }
 
+// deleteBackgroundImageHandler godoc
+// @Summary Delete background image
+// @Description Delete the application background image
+// @Tags Application Images
+// @Success 204 "No Content"
+// @Router /api/application-images/background [delete]
+func (c *AppImagesController) deleteBackgroundImageHandler(ctx *gin.Context) {
+	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), "background"); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
 // updateFaviconHandler godoc
 // @Summary Update favicon
 // @Description Update the application favicon
 // @Tags Application Images
 // @Accept multipart/form-data
-// @Param file formData file true "Favicon file (.ico)"
+// @Param file formData file true "Favicon file (.svg/.png/.ico)"
 // @Success 204 "No Content"
 // @Router /api/application-images/favicon [put]
 func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
@@ -208,8 +226,9 @@ func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
 	}
 
 	fileType := utils.GetFileExtension(file.Filename)
-	if fileType != "ico" {
-		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: ".ico"})
+	mimeType := utils.GetImageMimeType(strings.ToLower(fileType))
+	if !slices.Contains([]string{"image/svg+xml", "image/png", "image/x-icon"}, mimeType) {
+		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: ".svg or .png or .ico"})
 		return
 	}
 

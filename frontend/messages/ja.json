@@ -365,6 +365,7 @@
 	"enter_code_displayed_in_previous_step": "前のステップで表示されたコードを入力してください。",
 	"authorize": "Authorize",
 	"federated_client_credentials": "連携クライアントの資格情報",
+	"federated_client_credentials_description": "フェデレーテッドクライアント認証情報は、長期にわたるシークレットを管理せずにOIDCクライアントを認証することを可能にします。これらは、クライアントアサーション（例：ワークロードIDトークン）のためにサードパーティ機関が発行するJWTトークンを活用します。",
 	"add_federated_client_credential": "Add Federated Client Credential",
 	"add_another_federated_client_credential": "Add another federated client credential",
 	"oidc_allowed_group_count": "許可されたグループ数",
