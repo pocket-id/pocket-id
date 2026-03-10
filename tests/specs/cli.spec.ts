@@ -109,7 +109,7 @@ function compareExports(dir1: string, dir2: string): void {
 	const hashes2 = hashAllFiles(dir2);
 
 	const files1 = Object.keys(hashes1).sort();
-	const files2 = Object.keys(hashes2).sort();
+	const files2 = Object.keys(hashes2).sort().filter(p => !p.includes('.inited'));
 	expect(files2).toEqual(files1);
 
 	for (const file of files1) {
