@@ -8,14 +8,15 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   update-aaguids:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Fetch JSON data
         run: |

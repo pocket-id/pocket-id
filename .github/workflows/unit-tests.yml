@@ -9,14 +9,16 @@ on:
     paths:
       - "backend/**"
 
+permissions:
+  contents: read
+  id-token: write
+  actions: write
+
 jobs:
   test-backend:
-    permissions:
-      contents: read
-      actions: write
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version-file: "backend/go.mod"

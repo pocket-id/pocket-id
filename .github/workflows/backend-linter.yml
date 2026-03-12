@@ -17,14 +17,15 @@ permissions:
   pull-requests: read
   # Optional: allow write access to checks to allow the action to annotate code in the PR.
   checks: write
+  id-token: write
 
 jobs:
   golangci-lint:
     name: Run Golangci-lint
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Go
         uses: actions/setup-go@v6
