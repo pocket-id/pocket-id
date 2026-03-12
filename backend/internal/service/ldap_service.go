@@ -180,12 +180,40 @@ func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient) 
 		return ldapDesiredState{}, err
 	}
 
+	// Apply user admin flags from the desired group membership snapshot.
+	// This intentionally uses the configured group member attribute rather than
+	// relying on a user-side reverse-membership attribute such as memberOf.
+	s.applyAdminGroupMembership(users, groups)
+
 	return ldapDesiredState{
 		users:    users,
 		userIDs:  userIDs,
 		groups:   groups,
 		groupIDs: groupIDs,
 	}, nil
+}
+
+func (s *LdapService) applyAdminGroupMembership(desiredUsers []ldapDesiredUser, desiredGroups []ldapDesiredGroup) {
+	dbConfig := s.appConfigService.GetDbConfig()
+	if dbConfig.LdapAdminGroupName.Value == "" {
+		return
+	}
+
+	adminUsernames := make(map[string]struct{})
+	for _, group := range desiredGroups {
+		if group.input.Name != dbConfig.LdapAdminGroupName.Value {
+			continue
+		}
+
+		for _, username := range group.memberUsernames {
+			adminUsernames[username] = struct{}{}
+		}
+	}
+
+	for i := range desiredUsers {
+		_, isAdmin := adminUsernames[desiredUsers[i].input.Username]
+		desiredUsers[i].input.IsAdmin = desiredUsers[i].input.IsAdmin || isAdmin
+	}
 }
 
 func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, usernamesByDN map[string]string) (desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, err error) {
@@ -266,7 +294,6 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient)
 
 	// Query LDAP for all users we want to manage
 	searchAttrs := []string{
-		"memberOf",
 		"sn",
 		"cn",
 		dbConfig.LdapAttributeUserUniqueIdentifier.Value,
@@ -314,15 +341,6 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient)
 
 		ldapUserIDs[ldapID] = struct{}{}
 
-		// Check if user is admin by checking if they are in the admin group
-		isAdmin := false
-		for _, group := range value.GetAttributeValues("memberOf") {
-			if getDNProperty(dbConfig.LdapAttributeGroupName.Value, group) == dbConfig.LdapAdminGroupName.Value {
-				isAdmin = true
-				break
-			}
-		}
-
 		newUser := dto.UserCreateDto{
 			Username:      value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
 			Email:         utils.PtrOrNil(value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value)),
@@ -330,8 +348,10 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient)
 			FirstName:     value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
 			LastName:      value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
 			DisplayName:   value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.Value),
-			IsAdmin:       isAdmin,
-			LdapID:        ldapID,
+			// Admin status is computed after groups are loaded so it can use the
+			// configured group member attribute instead of a hard-coded memberOf.
+			IsAdmin: false,
+			LdapID:  ldapID,
 		}
 
 		if newUser.DisplayName == "" {
