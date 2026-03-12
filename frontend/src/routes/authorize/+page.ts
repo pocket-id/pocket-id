@@ -14,6 +14,7 @@ export const load: PageLoad = async ({ url }) => {
 		callbackURL: url.searchParams.get('redirect_uri')!,
 		client,
 		codeChallenge: url.searchParams.get('code_challenge')!,
-		codeChallengeMethod: url.searchParams.get('code_challenge_method')!
+		codeChallengeMethod: url.searchParams.get('code_challenge_method')!,
+		responseMode: url.searchParams.get('response_mode') || ''
 	};
 };

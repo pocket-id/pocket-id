@@ -100,6 +100,12 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 		return
 	}
 
+	// Set the allowed form-action in CSP after validation (when response_mode is form_post)
+	// Only set if we have a valid callback URL from the service
+	if input.ResponseMode == "form_post" && callbackURL != "" {
+		middleware.SetAllowedFormAction(c, callbackURL)
+	}
+
 	response := dto.AuthorizeOidcClientResponseDto{
 		Code:        code,
 		CallbackURL: callbackURL,

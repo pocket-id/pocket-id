@@ -51,6 +51,12 @@ func init() {
 	}); err != nil {
 		panic("Failed to register custom validation for callback_url: " + err.Error())
 	}
+
+	if err := v.RegisterValidation("response_mode", func(fl validator.FieldLevel) bool {
+		return ValidateResponseMode(fl.Field().String())
+	}); err != nil {
+		panic("Failed to register custom validation for response_mode: " + err.Error())
+	}
 }
 
 // ValidateUsername validates username inputs
@@ -67,4 +73,18 @@ func ValidateClientID(clientID string) bool {
 func ValidateCallbackURL(raw string) bool {
 	err := utils.ValidateCallbackURLPattern(raw)
 	return err == nil
+}
+
+// ValidateResponseMode validates response_mode parameter
+// If responseMode is present, it must be "form_post" or "query"
+// Empty responseMode is allowed (field not provided, use default)
+func ValidateResponseMode(responseMode string) bool {
+	switch responseMode {
+	case "form_post", "query":
+		return true
+	case "":
+		return true
+	default:
+		return false
+	}
 }

@@ -56,3 +56,22 @@ func TestValidateClientID(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateResponseMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"valid form_post", "form_post", true},
+		{"valid query", "query", true},
+		{"valid empty", "", true},
+		{"invalid fragment", "fragment", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ValidateResponseMode(tt.input))
+		})
+	}
+}
