@@ -23,8 +23,6 @@ import (
 	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 )
 
-const sqliteNetworkFilesystemKey = "bootstrap.sqliteNetworkFilesystem"
-
 func NewDatabase() (db *gorm.DB, err error) {
 	db, err = ConnectDatabase()
 	if err != nil {
@@ -109,10 +107,6 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 			Logger:         getGormLogger(),
 		})
 		if err == nil {
-			if common.EnvConfig.DbProvider == common.DbProviderSqlite {
-				db = db.Set(sqliteNetworkFilesystemKey, sqliteNetworkFilesystem)
-			}
-
 			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
 
 			if onConnFn != nil {
@@ -134,21 +128,6 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 	slog.Error("Failed to connect to database after 3 attempts", slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 
 	return nil, err
-}
-
-// IsSqliteDatabaseOnNetworkFilesystem returns true if the current database connection is to a SQLite database stored on a networked filesystem
-func IsSqliteDatabaseOnNetworkFilesystem(db *gorm.DB) bool {
-	if db == nil {
-		return false
-	}
-
-	value, ok := db.Get(sqliteNetworkFilesystemKey)
-	if !ok {
-		return false
-	}
-
-	onNetworkFilesystem, ok := value.(bool)
-	return ok && onNetworkFilesystem
 }
 
 func parseSqliteConnectionString(connString string) (parsedConnString string, dbPath string, isMemoryDB bool, err error) {
