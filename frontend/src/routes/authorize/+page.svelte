@@ -35,10 +35,11 @@
 	const hasPromptNone = promptValues.includes('none');
 	const hasPromptConsent = promptValues.includes('consent');
 	const hasPromptLogin = promptValues.includes('login');
+	const hasPromptSelectAccount = promptValues.includes('select_account');
 
 	onMount(() => {
-		// Conflicting prompt values - can't satisfy both none and consent
-		if (hasPromptNone && hasPromptConsent) {
+		// Conflicting prompt values - none can't be combined with any interactive prompt
+		if (hasPromptNone && (hasPromptConsent || hasPromptLogin || hasPromptSelectAccount)) {
 			redirectWithError('interaction_required');
 			return;
 		}
@@ -124,14 +125,25 @@
 				return;
 			}
 
-			onSuccess(result.code!, result.callbackURL, result.issuer!);
+			onSuccess(result.code!, result.callbackURL!, result.issuer!);
 		} catch (e) {
 			errorMessage = getWebauthnErrorMessage(e);
 			isLoading = false;
 		}
 	}
 
+	function isAllowedRedirectURL(url: string): boolean {
+		try {
+			const parsed = new URL(url);
+			return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+		} catch {
+			return false;
+		}
+	}
+
 	function redirectWithError(error: string) {
+		if (!isAllowedRedirectURL(callbackURL)) return;
+
 		const redirectURL = new URL(callbackURL);
 		redirectURL.searchParams.append('error', error);
 		if (authorizeState) {
@@ -141,6 +153,8 @@
 	}
 
 	function onSuccess(code: string, callbackURL: string, issuer: string) {
+		if (!isAllowedRedirectURL(callbackURL)) return;
+
 		success = true;
 		setTimeout(() => {
 			const redirectURL = new URL(callbackURL);

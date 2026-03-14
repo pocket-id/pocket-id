@@ -1042,6 +1042,36 @@ func TestParsePromptParameter(t *testing.T) {
 	})
 }
 
+func TestPromptParameterConflicts(t *testing.T) {
+	tests := []struct {
+		name              string
+		prompt            string
+		expectConflict    bool
+	}{
+		{"none alone is valid", "none", false},
+		{"login alone is valid", "login", false},
+		{"consent alone is valid", "consent", false},
+		{"login consent is valid", "login consent", false},
+		{"none consent conflicts", "none consent", true},
+		{"none login conflicts", "none login", true},
+		{"none select_account conflicts", "none select_account", true},
+		{"none consent login conflicts", "none consent login", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values := parsePromptParameter(tt.prompt)
+			hasNone := contains(values, "none")
+			hasConsent := contains(values, "consent")
+			hasLogin := contains(values, "login")
+			hasSelectAccount := contains(values, "select_account")
+
+			conflict := hasNone && (hasConsent || hasLogin || hasSelectAccount)
+			assert.Equal(t, tt.expectConflict, conflict)
+		})
+	}
+}
+
 func TestContains(t *testing.T) {
 	t.Run("finds value in slice", func(t *testing.T) {
 		slice := []string{"none", "login", "consent"}

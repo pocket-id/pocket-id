@@ -139,6 +139,18 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", err
 	}
 
+	// If the client is not public, the code challenge must be provided
+	if client.IsPublic && input.CodeChallenge == "" {
+		return "", "", &common.OidcMissingCodeChallengeError{}
+	}
+
+	// Validate the callback URL before any prompt checks, so that prompt-related
+	// error responses never contain an unvalidated redirect target
+	callbackURL, err := s.getCallbackURL(&client, input.CallbackURL, tx, ctx)
+	if err != nil {
+		return "", "", err
+	}
+
 	// Parse prompt parameter (space-delimited list per OIDC spec)
 	promptValues := parsePromptParameter(input.Prompt)
 	hasPromptNone := contains(promptValues, "none")
@@ -146,19 +158,15 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	hasPromptConsent := contains(promptValues, "consent")
 	hasPromptSelectAccount := contains(promptValues, "select_account")
 
-	// Validate prompt parameter conflicts early before database queries
-	if hasPromptConsent && hasPromptNone {
-		// consent and none together is an error - can't satisfy both
+	// Validate prompt parameter conflicts early.
+	// Per OIDC Core §3.1.2.6, prompt=none must not be combined with any
+	// value that requires user interaction.
+	if hasPromptNone && (hasPromptConsent || hasPromptLogin || hasPromptSelectAccount) {
 		return "", "", &common.OidcInteractionRequiredError{}
 	}
 
 	// Handle prompt=select_account early (not supported)
 	if hasPromptSelectAccount {
-		if hasPromptNone {
-			// Can't select account without interaction
-			return "", "", &common.OidcAccountSelectionRequiredError{}
-		}
-		// Account selection not supported - return interaction_required
 		return "", "", &common.OidcInteractionRequiredError{}
 	}
 
@@ -179,17 +187,6 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		if err != nil {
 			return "", "", err
 		}
-	}
-
-	// If the client is not public, the code challenge must be provided
-	if client.IsPublic && input.CodeChallenge == "" {
-		return "", "", &common.OidcMissingCodeChallengeError{}
-	}
-
-	// Get the callback URL of the client. Return an error if the provided callback URL is not allowed
-	callbackURL, err := s.getCallbackURL(&client, input.CallbackURL, tx, ctx)
-	if err != nil {
-		return "", "", err
 	}
 
 	// Check if the user group is allowed to authorize the client

@@ -751,4 +751,36 @@ test.describe('OIDC prompt parameter', () => {
 		expect(redirectUrl.searchParams.get('error')).toBe('interaction_required');
 		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
 	});
+
+	test('prompt=none with prompt=login returns interaction_required', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none login');
+
+		// Should redirect with error since both can't be satisfied
+		const redirectUrl = await oidcUtil.interceptCallbackRedirect(
+			page,
+			'/auth/callback',
+			() => page.goto(`/authorize?${urlParams.toString()}`).then(() => {})
+		);
+
+		expect(redirectUrl.searchParams.get('error')).toBe('interaction_required');
+		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none with prompt=select_account returns interaction_required', async ({ page }) => {
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none select_account');
+
+		// Should redirect with error since both can't be satisfied
+		const redirectUrl = await oidcUtil.interceptCallbackRedirect(
+			page,
+			'/auth/callback',
+			() => page.goto(`/authorize?${urlParams.toString()}`).then(() => {})
+		);
+
+		expect(redirectUrl.searchParams.get('error')).toBe('interaction_required');
+		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
 });

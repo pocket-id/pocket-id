@@ -98,10 +98,8 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	if err != nil {
 		// Check if this is a prompt-related error that should be returned as a redirect error
 		if isOidcPromptError(err) {
-			// Return error info so frontend can redirect to callback URL with error
 			c.JSON(http.StatusOK, gin.H{
 				"error":            err.Error(),
-				"callbackURL":      input.CallbackURL,
 				"requiresRedirect": true,
 			})
 			return

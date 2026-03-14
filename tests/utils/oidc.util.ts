@@ -3,18 +3,30 @@ import type { Page } from '@playwright/test';
 export async function interceptCallbackRedirect(
 	page: Page,
 	callbackPath: string,
-	action: () => Promise<void>
+	action: () => Promise<void>,
+	timeoutMs: number = 10000
 ): Promise<URL> {
-	const callbackPromise = new Promise<URL>((resolve) => {
-		page.route((url) => url.pathname === callbackPath, async (route) => {
+	const routeMatcher = (url: URL) => url.pathname === callbackPath;
+
+	const callbackPromise = new Promise<URL>((resolve, reject) => {
+		const timer = setTimeout(
+			() => reject(new Error(`Timed out waiting for redirect to ${callbackPath}`)),
+			timeoutMs
+		);
+
+		page.route(routeMatcher, async (route) => {
+			clearTimeout(timer);
 			resolve(new URL(route.request().url()));
 			await route.abort();
 		});
 	});
 
-	await action();
-
-	return callbackPromise;
+	try {
+		await action();
+		return await callbackPromise;
+	} finally {
+		await page.unroute(routeMatcher);
+	}
 }
 
 export async function getUserCode(
