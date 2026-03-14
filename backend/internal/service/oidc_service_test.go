@@ -1044,9 +1044,9 @@ func TestParsePromptParameter(t *testing.T) {
 
 func TestPromptParameterConflicts(t *testing.T) {
 	tests := []struct {
-		name              string
-		prompt            string
-		expectConflict    bool
+		name           string
+		prompt         string
+		expectConflict bool
 	}{
 		{"none alone is valid", "none", false},
 		{"login alone is valid", "login", false},
