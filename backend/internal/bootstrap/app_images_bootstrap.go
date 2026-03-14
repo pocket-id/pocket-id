@@ -83,9 +83,9 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 	} else if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("failed to read .inited: %w", err)
 	} else {
-		err := fileStorage.Save(ctx, initedPath, strings.NewReader("1"))
+		err := fileStorage.Save(ctx, initedPath, strings.NewReader(""))
 		if err != nil {
-			return nil, fmt.Errorf("failed to store .inted: %w", err)
+			return nil, fmt.Errorf("failed to store .inited: %w", err)
 		}
 	}
 
