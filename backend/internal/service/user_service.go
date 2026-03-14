@@ -225,7 +225,10 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 
-	s.scimService.ScheduleSync()
+	if s.scimService != nil {
+		s.scimService.ScheduleSync()
+	}
+
 	return nil
 }
 
@@ -310,7 +313,10 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		}
 	}
 
-	s.scimService.ScheduleSync()
+	if s.scimService != nil {
+		s.scimService.ScheduleSync()
+	}
+
 	return user, nil
 }
 
@@ -456,7 +462,10 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		return user, err
 	}
 
-	s.scimService.ScheduleSync()
+	if s.scimService != nil {
+		s.scimService.ScheduleSync()
+	}
+
 	return user, nil
 }
 
@@ -515,7 +524,10 @@ func (s *UserService) UpdateUserGroups(ctx context.Context, id string, userGroup
 		return model.User{}, err
 	}
 
-	s.scimService.ScheduleSync()
+	if s.scimService != nil {
+		s.scimService.ScheduleSync()
+	}
+
 	return user, nil
 }
 
@@ -576,7 +588,10 @@ func (s *UserService) disableUserInternal(ctx context.Context, tx *gorm.DB, user
 		return err
 	}
 
-	s.scimService.ScheduleSync()
+	if s.scimService != nil {
+		s.scimService.ScheduleSync()
+	}
+
 	return nil
 }
 

@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -60,7 +62,9 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	waitUntil, err := svc.appLockService.Acquire(ctx, false)
-	if err != nil {
+	if errors.Is(err, service.ErrLockUnavailable) {
+		return errors.New("it appears that there's already one instance of Pocket ID running; running multiple replicas of Pocket ID is currently not supported")
+	} else if err != nil {
 		return fmt.Errorf("failed to acquire application lock: %w", err)
 	}
 
