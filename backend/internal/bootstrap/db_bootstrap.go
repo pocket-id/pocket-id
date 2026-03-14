@@ -23,6 +23,8 @@ import (
 	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 )
 
+const sqliteNetworkFilesystemKey = "bootstrap.sqliteNetworkFilesystem"
+
 func NewDatabase() (db *gorm.DB, err error) {
 	db, err = ConnectDatabase()
 	if err != nil {
@@ -34,7 +36,8 @@ func NewDatabase() (db *gorm.DB, err error) {
 	}
 
 	// Run migrations
-	if err := utils.MigrateDatabase(sqlDb); err != nil {
+	err = utils.MigrateDatabase(sqlDb)
+	if err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
@@ -42,7 +45,10 @@ func NewDatabase() (db *gorm.DB, err error) {
 }
 
 func ConnectDatabase() (db *gorm.DB, err error) {
-	var dialector gorm.Dialector
+	var (
+		dialector               gorm.Dialector
+		sqliteNetworkFilesystem bool
+	)
 
 	// Choose the correct database provider
 	var onConnFn func(conn *sql.DB)
@@ -62,6 +68,14 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 		if !isMemoryDB {
 			if err := ensureSqliteDatabaseDir(dbPath); err != nil {
 				return nil, err
+			}
+
+			sqliteNetworkFilesystem, err = utils.IsNetworkedFileSystem(filepath.Dir(dbPath))
+			if err != nil {
+				// Log the error only
+				slog.Warn("Failed to detect filesystem type for the SQLite database directory", slog.String("path", filepath.Dir(dbPath)), slog.Any("error", err))
+			} else if sqliteNetworkFilesystem {
+				slog.Warn("⚠️⚠️⚠️ SQLite databases should not be stored on a networked file system like NFS, SMB, or FUSE, as there's a risk of crashes and even database corruption", slog.String("path", filepath.Dir(dbPath)))
 			}
 		}
 
@@ -95,6 +109,10 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 			Logger:         getGormLogger(),
 		})
 		if err == nil {
+			if common.EnvConfig.DbProvider == common.DbProviderSqlite {
+				db = db.Set(sqliteNetworkFilesystemKey, sqliteNetworkFilesystem)
+			}
+
 			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
 
 			if onConnFn != nil {
@@ -116,6 +134,21 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 	slog.Error("Failed to connect to database after 3 attempts", slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 
 	return nil, err
+}
+
+// IsSqliteDatabaseOnNetworkFilesystem returns true if the current database connection is to a SQLite database stored on a networked filesystem
+func IsSqliteDatabaseOnNetworkFilesystem(db *gorm.DB) bool {
+	if db == nil {
+		return false
+	}
+
+	value, ok := db.Get(sqliteNetworkFilesystemKey)
+	if !ok {
+		return false
+	}
+
+	onNetworkFilesystem, ok := value.(bool)
+	return ok && onNetworkFilesystem
 }
 
 func parseSqliteConnectionString(connString string) (parsedConnString string, dbPath string, isMemoryDB bool, err error) {
