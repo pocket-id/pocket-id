@@ -25,6 +25,7 @@ func IsNetworkedFileSystem(path string) (bool, error) {
 
 	// Statfs_t.Type is arch-dependent (for example, int32 on some systems and int64 on others).
 	// Normalize through uint32 first so signed values still preserve the Linux bit pattern for magic numbers such as CIFS (0xff534d42), then compare in a wide unsigned form.
+	//nolint:gosec
 	switch uint64(uint32(statfs.Type)) {
 	case nfsSuperMagic, smbSuperMagic, cifsSuperMagic, fuseSuperMagic:
 		return true, nil
