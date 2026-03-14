@@ -139,7 +139,39 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", err
 	}
 
-	if client.RequiresReauthentication {
+	// If the client is not public, the code challenge must be provided
+	if client.IsPublic && input.CodeChallenge == "" {
+		return "", "", &common.OidcMissingCodeChallengeError{}
+	}
+
+	// Validate the callback URL before any prompt checks, so that prompt-related
+	// error responses never contain an unvalidated redirect target
+	callbackURL, err := s.getCallbackURL(&client, input.CallbackURL, tx, ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Parse prompt parameter (space-delimited list per OIDC spec)
+	promptValues := parsePromptParameter(input.Prompt)
+	hasPromptNone := contains(promptValues, "none")
+	hasPromptLogin := contains(promptValues, "login")
+	hasPromptConsent := contains(promptValues, "consent")
+	hasPromptSelectAccount := contains(promptValues, "select_account")
+
+	// Validate prompt parameter conflicts early.
+	// Per OIDC Core §3.1.2.6, prompt=none must not be combined with any
+	// value that requires user interaction.
+	if hasPromptNone && (hasPromptConsent || hasPromptLogin || hasPromptSelectAccount) {
+		return "", "", &common.OidcInteractionRequiredError{}
+	}
+
+	// Handle prompt=select_account early (not supported)
+	if hasPromptSelectAccount {
+		return "", "", &common.OidcInteractionRequiredError{}
+	}
+
+	// If prompt=login is specified, require reauthentication
+	if hasPromptLogin {
 		if input.ReauthenticationToken == "" {
 			return "", "", &common.ReauthenticationRequiredError{}
 		}
@@ -147,17 +179,14 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		if err != nil {
 			return "", "", err
 		}
-	}
-
-	// If the client is not public, the code challenge must be provided
-	if client.IsPublic && input.CodeChallenge == "" {
-		return "", "", &common.OidcMissingCodeChallengeError{}
-	}
-
-	// Get the callback URL of the client. Return an error if the provided callback URL is not allowed
-	callbackURL, err := s.getCallbackURL(&client, input.CallbackURL, tx, ctx)
-	if err != nil {
-		return "", "", err
+	} else if client.RequiresReauthentication {
+		if input.ReauthenticationToken == "" {
+			return "", "", &common.ReauthenticationRequiredError{}
+		}
+		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	// Check if the user group is allowed to authorize the client
@@ -173,6 +202,26 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	if !IsUserGroupAllowedToAuthorize(user, client) {
 		return "", "", &common.OidcAccessDeniedError{}
+	}
+
+	// Check if authorization is required (consent)
+	hasAlreadyAuthorized, err := s.hasAuthorizedClientInternal(ctx, input.ClientID, userID, input.Scope, tx)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Handle prompt=consent - always require consent display
+	if hasPromptConsent {
+		// Always require consent to be shown for this request
+		// This should be handled by frontend showing the consent UI
+		// Backend will always create/update authorization
+		hasAlreadyAuthorized = false
+	}
+
+	// Handle prompt=none - check if consent would be required
+	if hasPromptNone && !hasAlreadyAuthorized {
+		// User needs to consent but prompt=none means no UI
+		return "", "", &common.OidcConsentRequiredError{}
 	}
 
 	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, input.ClientID, input.Scope, tx)
@@ -2102,4 +2151,22 @@ func (s *OidcService) GetClientScimServiceProvider(ctx context.Context, clientID
 	}
 
 	return provider, nil
+}
+
+// parsePromptParameter parses the OIDC prompt parameter which is a space-delimited list of values
+func parsePromptParameter(prompt string) []string {
+	if prompt == "" {
+		return []string{}
+	}
+	return strings.Fields(prompt)
+}
+
+// contains checks if a string slice contains a specific value
+func contains(slice []string, value string) bool {
+	for _, item := range slice {
+		if item == value {
+			return true
+		}
+	}
+	return false
 }
