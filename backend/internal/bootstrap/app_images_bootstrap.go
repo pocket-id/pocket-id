@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -74,6 +75,18 @@ func initApplicationImages(ctx context.Context, fileStorage storage.FileStorage)
 			continue
 		}
 		dstNameToExt[nameWithoutExt] = ext
+	}
+
+	initedPath := path.Join("application-images", ".inited")
+	if _, _, err := fileStorage.Open(ctx, initedPath); err == nil {
+		return dstNameToExt, nil
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to read .inited: %w", err)
+	} else {
+		err := fileStorage.Save(ctx, initedPath, strings.NewReader(""))
+		if err != nil {
+			return nil, fmt.Errorf("failed to store .inited: %w", err)
+		}
 	}
 
 	// Copy images from the images directory to the application-images directory if they don't already exist
