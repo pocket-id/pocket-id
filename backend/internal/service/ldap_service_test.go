@@ -44,7 +44,6 @@ func TestLdapServiceSyncAllReconcilesUsersAndGroups(t *testing.T) {
 				"givenName":   {"Alice"},
 				"sn":          {"Jones"},
 				"displayName": {""},
-				"memberOf":    {"cn=admins,ou=groups,dc=example,dc=com"},
 			}),
 			ldapEntry("uid=bob,ou=people,dc=example,dc=com", map[string][]string{
 				"entryUUID":   {"u-bob"},
@@ -56,6 +55,11 @@ func TestLdapServiceSyncAllReconcilesUsersAndGroups(t *testing.T) {
 			}),
 		),
 		ldapSearchResult(
+			ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-admins"},
+				"cn":        {"admins"},
+				"member":    {"uid=alice,ou=people,dc=example,dc=com"},
+			}),
 			ldapEntry("cn=team,ou=groups,dc=example,dc=com", map[string][]string{
 				"entryUUID": {"g-team"},
 				"cn":        {"team"},
@@ -188,7 +192,81 @@ func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 	assert.ElementsMatch(t, []string{"alice"}, usernames(groups[0].Users))
 }
 
+func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
+	tests := []struct {
+		name        string
+		appConfig   *model.AppConfig
+		groupEntry  *ldap.Entry
+		groupName   string
+		groupLookup string
+	}{
+		{
+			name:      "memberOf missing on user",
+			appConfig: defaultTestLDAPAppConfig(),
+			groupEntry: ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-admins"},
+				"cn":        {"admins"},
+				"member":    {"uid=testadmin,ou=people,dc=example,dc=com"},
+			}),
+			groupName:   "admins",
+			groupLookup: "g-admins",
+		},
+		{
+			name: "configured group name attribute differs from DN RDN",
+			appConfig: func() *model.AppConfig {
+				cfg := defaultTestLDAPAppConfig()
+				cfg.LdapAttributeGroupName = model.AppConfigVariable{Value: "displayName"}
+				cfg.LdapAdminGroupName = model.AppConfigVariable{Value: "pocketid.admin"}
+				return cfg
+			}(),
+			groupEntry: ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID":   {"g-display-admins"},
+				"cn":          {"admins"},
+				"displayName": {"pocketid.admin"},
+				"member":      {"uid=testadmin,ou=people,dc=example,dc=com"},
+			}),
+			groupName:   "pocketid.admin",
+			groupLookup: "g-display-admins",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, db := newTestLdapServiceWithAppConfig(t, tt.appConfig, newFakeLDAPClient(
+				ldapSearchResult(
+					ldapEntry("uid=testadmin,ou=people,dc=example,dc=com", map[string][]string{
+						"entryUUID":   {"u-testadmin"},
+						"uid":         {"testadmin"},
+						"mail":        {"testadmin@example.com"},
+						"givenName":   {"Test"},
+						"sn":          {"Admin"},
+						"displayName": {""},
+					}),
+				),
+				ldapSearchResult(tt.groupEntry),
+			))
+
+			require.NoError(t, service.SyncAll(t.Context()))
+
+			var user model.User
+			require.NoError(t, db.First(&user, "ldap_id = ?", "u-testadmin").Error)
+			assert.True(t, user.IsAdmin)
+
+			var group model.UserGroup
+			require.NoError(t, db.Preload("Users").First(&group, "ldap_id = ?", tt.groupLookup).Error)
+			assert.Equal(t, tt.groupName, group.Name)
+			assert.ElementsMatch(t, []string{"testadmin"}, usernames(group.Users))
+		})
+	}
+}
+
 func newTestLdapService(t *testing.T, client ldapClient) (*LdapService, *gorm.DB) {
+	t.Helper()
+
+	return newTestLdapServiceWithAppConfig(t, defaultTestLDAPAppConfig(), client)
+}
+
+func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *model.AppConfig, client ldapClient) (*LdapService, *gorm.DB) {
 	t.Helper()
 
 	db := testutils.NewDatabaseForTest(t)
@@ -196,25 +274,7 @@ func newTestLdapService(t *testing.T, client ldapClient) (*LdapService, *gorm.DB
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
 
-	appConfig := NewTestAppConfigService(&model.AppConfig{
-		RequireUserEmail:                   model.AppConfigVariable{Value: "false"},
-		LdapEnabled:                        model.AppConfigVariable{Value: "true"},
-		LdapBase:                           model.AppConfigVariable{Value: "dc=example,dc=com"},
-		LdapUserSearchFilter:               model.AppConfigVariable{Value: "(objectClass=person)"},
-		LdapUserGroupSearchFilter:          model.AppConfigVariable{Value: "(objectClass=groupOfNames)"},
-		LdapAttributeUserUniqueIdentifier:  model.AppConfigVariable{Value: "entryUUID"},
-		LdapAttributeUserUsername:          model.AppConfigVariable{Value: "uid"},
-		LdapAttributeUserEmail:             model.AppConfigVariable{Value: "mail"},
-		LdapAttributeUserFirstName:         model.AppConfigVariable{Value: "givenName"},
-		LdapAttributeUserLastName:          model.AppConfigVariable{Value: "sn"},
-		LdapAttributeUserDisplayName:       model.AppConfigVariable{Value: "displayName"},
-		LdapAttributeUserProfilePicture:    model.AppConfigVariable{Value: "jpegPhoto"},
-		LdapAttributeGroupMember:           model.AppConfigVariable{Value: "member"},
-		LdapAttributeGroupUniqueIdentifier: model.AppConfigVariable{Value: "entryUUID"},
-		LdapAttributeGroupName:             model.AppConfigVariable{Value: "cn"},
-		LdapAdminGroupName:                 model.AppConfigVariable{Value: "admins"},
-		LdapSoftDeleteUsers:                model.AppConfigVariable{Value: "true"},
-	})
+	appConfig := NewTestAppConfigService(appConfigModel)
 
 	groupService := NewUserGroupService(db, appConfig, nil)
 	userService := NewUserService(
@@ -235,6 +295,28 @@ func newTestLdapService(t *testing.T, client ldapClient) (*LdapService, *gorm.DB
 	}
 
 	return service, db
+}
+
+func defaultTestLDAPAppConfig() *model.AppConfig {
+	return &model.AppConfig{
+		RequireUserEmail:                   model.AppConfigVariable{Value: "false"},
+		LdapEnabled:                        model.AppConfigVariable{Value: "true"},
+		LdapBase:                           model.AppConfigVariable{Value: "dc=example,dc=com"},
+		LdapUserSearchFilter:               model.AppConfigVariable{Value: "(objectClass=person)"},
+		LdapUserGroupSearchFilter:          model.AppConfigVariable{Value: "(objectClass=groupOfNames)"},
+		LdapAttributeUserUniqueIdentifier:  model.AppConfigVariable{Value: "entryUUID"},
+		LdapAttributeUserUsername:          model.AppConfigVariable{Value: "uid"},
+		LdapAttributeUserEmail:             model.AppConfigVariable{Value: "mail"},
+		LdapAttributeUserFirstName:         model.AppConfigVariable{Value: "givenName"},
+		LdapAttributeUserLastName:          model.AppConfigVariable{Value: "sn"},
+		LdapAttributeUserDisplayName:       model.AppConfigVariable{Value: "displayName"},
+		LdapAttributeUserProfilePicture:    model.AppConfigVariable{Value: "jpegPhoto"},
+		LdapAttributeGroupMember:           model.AppConfigVariable{Value: "member"},
+		LdapAttributeGroupUniqueIdentifier: model.AppConfigVariable{Value: "entryUUID"},
+		LdapAttributeGroupName:             model.AppConfigVariable{Value: "cn"},
+		LdapAdminGroupName:                 model.AppConfigVariable{Value: "admins"},
+		LdapSoftDeleteUsers:                model.AppConfigVariable{Value: "true"},
+	}
 }
 
 func newFakeLDAPClient(userResult, groupResult *ldap.SearchResult) ldapClient {
