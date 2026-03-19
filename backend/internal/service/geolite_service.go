@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,7 +113,11 @@ func (s *GeoLiteService) UpdateDatabase(parentCtx context.Context) error {
 	}
 
 	slog.Info("Updating GeoLite2 City database")
-	downloadUrl := fmt.Sprintf(common.EnvConfig.GeoLiteDBUrl, common.EnvConfig.MaxMindLicenseKey)
+
+	downloadUrl := common.EnvConfig.GeoLiteDBUrl
+	if strings.Contains(downloadUrl, "%s") {
+		downloadUrl = fmt.Sprintf(downloadUrl, common.EnvConfig.MaxMindLicenseKey)
+	}
 
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Minute)
 	defer cancel()
