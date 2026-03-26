@@ -91,6 +91,7 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		"id_token_signing_alg_values_supported":          []string{alg.String()},
 		"authorization_response_iss_parameter_supported": true,
 		"code_challenge_methods_supported":               []string{"plain", "S256"},
+		"token_endpoint_auth_methods_supported":          []string{"client_secret_basic", "client_secret_post", "none"},
 	}
 	return json.Marshal(config)
 }

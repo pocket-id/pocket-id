@@ -34,7 +34,8 @@ func NewDatabase() (db *gorm.DB, err error) {
 	}
 
 	// Run migrations
-	if err := utils.MigrateDatabase(sqlDb); err != nil {
+	err = utils.MigrateDatabase(sqlDb)
+	if err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
@@ -42,7 +43,10 @@ func NewDatabase() (db *gorm.DB, err error) {
 }
 
 func ConnectDatabase() (db *gorm.DB, err error) {
-	var dialector gorm.Dialector
+	var (
+		dialector               gorm.Dialector
+		sqliteNetworkFilesystem bool
+	)
 
 	// Choose the correct database provider
 	var onConnFn func(conn *sql.DB)
@@ -62,6 +66,14 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 		if !isMemoryDB {
 			if err := ensureSqliteDatabaseDir(dbPath); err != nil {
 				return nil, err
+			}
+
+			sqliteNetworkFilesystem, err = utils.IsNetworkedFileSystem(filepath.Dir(dbPath))
+			if err != nil {
+				// Log the error only
+				slog.Warn("Failed to detect filesystem type for the SQLite database directory", slog.String("path", filepath.Dir(dbPath)), slog.Any("error", err))
+			} else if sqliteNetworkFilesystem {
+				slog.Warn("⚠️⚠️⚠️ SQLite databases should not be stored on a networked file system like NFS, SMB, or FUSE, as there's a risk of crashes and even database corruption", slog.String("path", filepath.Dir(dbPath)))
 			}
 		}
 
