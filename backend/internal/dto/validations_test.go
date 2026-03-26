@@ -20,6 +20,7 @@ func TestValidateUsername(t *testing.T) {
 		{"starts with symbol", ".username", false},
 		{"ends with non-alphanumeric", "username-", false},
 		{"contains space", "user name", false},
+		{"valid single char", "a", true},
 		{"empty", "", false},
 		{"only special chars", "-._@", false},
 		{"valid long", "a1234567890_b.c-d@e", true},
