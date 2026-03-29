@@ -11,6 +11,8 @@
 	import userStore from '$lib/stores/user-store';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
+	import { goto } from '$app/navigation';
+	import { isLimitedDevice } from '$lib/utils/device-detect-util';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -31,6 +33,12 @@
 	let userSignedInAt: Date | undefined;
 
 	onMount(() => {
+		if (!$userStore && $appConfigStore.qrLoginEnabled && (isLimitedDevice() || !window.PublicKeyCredential)) {
+			const currentUrl = window.location.pathname + window.location.search;
+			goto(`/login/alternative?redirect=${encodeURIComponent(currentUrl)}`);
+			return;
+		}
+
 		if ($userStore) {
 			authorize();
 		}

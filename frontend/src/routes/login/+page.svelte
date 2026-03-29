@@ -6,8 +6,10 @@
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
+	import { isLimitedDevice } from '$lib/utils/device-detect-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
+	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { cn } from 'tailwind-variants';
 	import LoginLogoErrorSuccessIndicator from './components/login-logo-error-success-indicator.svelte';
@@ -18,6 +20,32 @@
 
 	let isLoading = $state(false);
 	let error: string | undefined = $state(undefined);
+
+	onMount(() => {
+		const params = new URLSearchParams(window.location.search);
+		const method = params.get('method');
+
+		if (method === 'code' || method === 'email') {
+			params.delete('method');
+			const remaining = params.toString();
+			goto(`/login/alternative/${method}` + (remaining ? `?${remaining}` : ''));
+			return;
+		}
+
+		if (method === 'qr' && $appConfigStore.qrLoginEnabled) {
+			params.delete('method');
+			const remaining = params.toString();
+			goto('/login/alternative' + (remaining ? `?${remaining}` : ''));
+			return;
+		}
+
+		if ($appConfigStore.qrLoginEnabled && method !== 'passkey') {
+			if (isLimitedDevice() || !window.PublicKeyCredential) {
+				const remaining = params.toString();
+				goto('/login/alternative' + (remaining ? `?${remaining}` : ''));
+			}
+		}
+	});
 
 	async function authenticate() {
 		error = undefined;

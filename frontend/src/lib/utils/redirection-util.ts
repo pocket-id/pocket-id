@@ -20,6 +20,9 @@ export function getAuthRedirectPath(url: URL, user: User | null) {
 		path.startsWith('/lc/') ||
 		['/authorize', '/login/alternative/code', '/device', '/health', '/healthz'].includes(path);
 
+	// /login/alternative is intentionally isUnauthenticatedOnlyPath (via /login/ prefix).
+	// Devices without WebAuthn are redirected there from /authorize.
+
 	const isAdminPath = path == '/settings/admin' || path.startsWith('/settings/admin/');
 
 	if (!isUnauthenticatedOnlyPath && !isPublicPath && !isSignedIn) {
