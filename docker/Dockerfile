@@ -49,6 +49,7 @@ COPY --from=backend-builder /build/pocket-id /app/pocket-id
 COPY ./scripts/docker /app/docker
 
 RUN chmod +x /app/pocket-id && \
+  find /app/docker -name "*.sh" -exec sed -i 's/\r$//' {} \; && \
   find /app/docker -name "*.sh" -exec chmod +x {} \;
 
 EXPOSE 1411

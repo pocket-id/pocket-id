@@ -141,12 +141,14 @@ func (cu UrlList) Value() (driver.Value, error) {
 
 type OidcDeviceCode struct {
 	Base
-	DeviceCode   string
-	UserCode     string
-	Scope        string
-	Nonce        string
-	ExpiresAt    datatype.DateTime
-	IsAuthorized bool
+	DeviceCode      string
+	UserCode        string
+	Scope           string
+	Nonce           string
+	ExpiresAt       datatype.DateTime
+	IsAuthorized    bool
+	IntervalSeconds int `gorm:"default:5"`
+	LastPolledAt    *datatype.DateTime
 
 	UserID   *string
 	User     User

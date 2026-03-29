@@ -17,9 +17,10 @@ func GenerateRandomAlphanumericString(length int) (string, error) {
 	return GenerateRandomString(length, charset)
 }
 
-// GenerateRandomUnambiguousString generates a random string of the given length using unambiguous characters
+// GenerateRandomUnambiguousString generates a random string using unambiguous uppercase characters and digits.
+// Excludes 0/O and 1/I/L to avoid visual confusion.
 func GenerateRandomUnambiguousString(length int) (string, error) {
-	const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"
+	const charset = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 	return GenerateRandomString(length, charset)
 }
 

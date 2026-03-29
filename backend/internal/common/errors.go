@@ -11,8 +11,6 @@ type AppError interface {
 	HttpStatusCode() int
 }
 
-// Custom error types for various conditions
-
 type AlreadyInUseError struct {
 	Property string
 }
@@ -372,13 +370,15 @@ func (e *OidcInvalidDeviceCodeError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
 
-type OidcSlowDownError struct{}
+type OidcSlowDownError struct {
+	Interval int
+}
 
 func (e *OidcSlowDownError) Error() string {
 	return "polling too frequently"
 }
 func (e *OidcSlowDownError) HttpStatusCode() int {
-	return http.StatusTooManyRequests
+	return http.StatusBadRequest
 }
 
 type OidcAuthorizationPendingError struct{}

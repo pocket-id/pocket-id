@@ -44,9 +44,10 @@ const (
 
 	ClientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" //nolint:gosec
 
-	AccessTokenDuration  = time.Hour
-	RefreshTokenDuration = 30 * 24 * time.Hour // 30 days
-	DeviceCodeDuration   = 15 * time.Minute
+	AccessTokenDuration       = time.Hour
+	RefreshTokenDuration      = 30 * 24 * time.Hour // 30 days
+	DeviceCodeDuration        = 5 * time.Minute
+	MaxDeviceCodePollInterval = 60 // seconds
 )
 
 type OidcService struct {
@@ -87,6 +88,10 @@ func NewOidcService(
 		fileStorage:        fileStorage,
 	}
 
+	if err := s.ensureSelfLoginClient(); err != nil {
+		return nil, fmt.Errorf("failed to ensure self-login client: %w", err)
+	}
+
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
 	s.jwkCache, err = s.getJWKCache(ctx)
 	if err != nil {
@@ -94,6 +99,24 @@ func NewOidcService(
 	}
 
 	return s, nil
+}
+
+const SelfLoginClientID = "pocket-id-self-login"
+
+func (s *OidcService) ensureSelfLoginClient() error {
+	var count int64
+	s.db.Model(&model.OidcClient{}).Where("id = ?", SelfLoginClientID).Count(&count)
+	if count > 0 {
+		return nil
+	}
+
+	client := model.OidcClient{
+		Name:     "Pocket ID Self Login",
+		IsPublic: true,
+	}
+	client.ID = SelfLoginClientID
+
+	return s.db.Create(&client).Error
 }
 
 func (s *OidcService) getJWKCache(ctx context.Context) (*jwk.Cache, error) {
@@ -267,6 +290,39 @@ func (s *OidcService) CreateTokens(ctx context.Context, input dto.OidcCreateToke
 	}
 }
 
+func (s *OidcService) checkDeviceCodePollRate(ctx context.Context, tx *gorm.DB, deviceAuth *model.OidcDeviceCode) error {
+	now := time.Now()
+	if deviceAuth.LastPolledAt != nil {
+		elapsed := now.Sub(deviceAuth.LastPolledAt.ToTime())
+		if elapsed < time.Duration(deviceAuth.IntervalSeconds)*time.Second {
+			nowDt := datatype.DateTime(now)
+			deviceAuth.LastPolledAt = &nowDt
+			deviceAuth.IntervalSeconds = min(deviceAuth.IntervalSeconds+5, MaxDeviceCodePollInterval)
+			if err := tx.WithContext(ctx).Save(deviceAuth).Error; err != nil {
+				return err
+			}
+			if err := tx.Commit().Error; err != nil {
+				return err
+			}
+			return &common.OidcSlowDownError{Interval: deviceAuth.IntervalSeconds}
+		}
+	}
+	nowDt := datatype.DateTime(now)
+	deviceAuth.LastPolledAt = &nowDt
+	if err := tx.WithContext(ctx).Save(deviceAuth).Error; err != nil {
+		return err
+	}
+
+	if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
+		if err := tx.Commit().Error; err != nil {
+			return err
+		}
+		return &common.OidcAuthorizationPendingError{}
+	}
+
+	return nil
+}
+
 func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.OidcCreateTokensDto) (CreatedTokens, error) {
 	tx := s.db.Begin()
 	defer func() {
@@ -278,10 +334,10 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, err
 	}
 
-	// Get the device authorization from database with explicit query conditions
 	var deviceAuth model.OidcDeviceCode
 	err = tx.
 		WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Preload("User").
 		Where("device_code = ? AND client_id = ?", input.DeviceCode, input.ClientID).
 		First(&deviceAuth).
@@ -293,19 +349,12 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, err
 	}
 
-	// Check if device code has expired
 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
 		return CreatedTokens{}, &common.OidcDeviceCodeExpiredError{}
 	}
 
-	// Check if device code has been authorized
-	if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
-		return CreatedTokens{}, &common.OidcAuthorizationPendingError{}
-	}
-
-	// Get user claims for the ID token - ensure UserID is not nil
-	if deviceAuth.UserID == nil {
-		return CreatedTokens{}, &common.OidcAuthorizationPendingError{}
+	if err := s.checkDeviceCodePollRate(ctx, tx, &deviceAuth); err != nil {
+		return CreatedTokens{}, err
 	}
 
 	userClaims, err := s.getUserClaimsForClientInternal(ctx, *deviceAuth.UserID, input.ClientID, tx)
@@ -313,7 +362,6 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, err
 	}
 
-	// Explicitly use the input clientID for the audience claim to ensure consistency
 	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, deviceAuth.Nonce)
 	if err != nil {
 		return CreatedTokens{}, err
@@ -329,14 +377,11 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, err
 	}
 
-	// Delete the used device code
-	err = tx.WithContext(ctx).Delete(&deviceAuth).Error
-	if err != nil {
+	if err = tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
 		return CreatedTokens{}, err
 	}
 
-	err = tx.Commit().Error
-	if err != nil {
+	if err = tx.Commit().Error; err != nil {
 		return CreatedTokens{}, err
 	}
 
@@ -1264,25 +1309,24 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		return nil, err
 	}
 
-	// Generate codes
 	deviceCode, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
 		return nil, err
 	}
-	userCode, err := utils.GenerateRandomAlphanumericString(8)
+	userCode, err := utils.GenerateRandomUnambiguousString(8)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create device authorization
 	deviceAuth := &model.OidcDeviceCode{
-		DeviceCode:   deviceCode,
-		UserCode:     userCode,
-		Scope:        input.Scope,
-		ExpiresAt:    datatype.DateTime(time.Now().Add(DeviceCodeDuration)),
-		IsAuthorized: false,
-		ClientID:     client.ID,
-		Nonce:        input.Nonce,
+		DeviceCode:      deviceCode,
+		UserCode:        userCode,
+		Scope:           input.Scope,
+		ExpiresAt:       datatype.DateTime(time.Now().Add(DeviceCodeDuration)),
+		IsAuthorized:    false,
+		IntervalSeconds: 5,
+		ClientID:        client.ID,
+		Nonce:           input.Nonce,
 	}
 
 	if err := s.db.Create(deviceAuth).Error; err != nil {
@@ -1293,7 +1337,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		DeviceCode:              deviceCode,
 		UserCode:                userCode,
 		VerificationURI:         common.EnvConfig.AppURL + "/device",
-		VerificationURIComplete: common.EnvConfig.AppURL + "/device?code=" + userCode,
+		VerificationURIComplete: common.EnvConfig.AppURL + "/device?code=" + url.QueryEscape(userCode),
 		ExpiresIn:               int(DeviceCodeDuration.Seconds()),
 		Interval:                5,
 	}, nil
@@ -1308,18 +1352,25 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 	var deviceAuth model.OidcDeviceCode
 	err := tx.
 		WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Preload("Client.AllowedUserGroups").
 		First(&deviceAuth, "user_code = ?", userCode).
 		Error
 	if err != nil {
-		return fmt.Errorf("error finding device code: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &common.OidcInvalidDeviceCodeError{}
+		}
+		return err
 	}
 
 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
 		return &common.OidcDeviceCodeExpiredError{}
 	}
 
-	// Check if the user group is allowed to authorize the client
+	if deviceAuth.IsAuthorized {
+		return &common.OidcInvalidDeviceCodeError{}
+	}
+
 	var user model.User
 	err = tx.
 		WithContext(ctx).
@@ -1327,35 +1378,18 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		First(&user, "id = ?", userID).
 		Error
 	if err != nil {
-		return fmt.Errorf("error finding user groups: %w", err)
+		return err
 	}
 
 	if !IsUserGroupAllowedToAuthorize(user, deviceAuth.Client) {
 		return &common.OidcAccessDeniedError{}
 	}
 
-	err = tx.
-		WithContext(ctx).
-		Preload("Client").
-		First(&deviceAuth, "user_code = ?", userCode).
-		Error
-	if err != nil {
-		return fmt.Errorf("error finding device code: %w", err)
-	}
-
-	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
-		return &common.OidcDeviceCodeExpiredError{}
-	}
-
 	deviceAuth.UserID = &userID
 	deviceAuth.IsAuthorized = true
 
-	err = tx.
-		WithContext(ctx).
-		Save(&deviceAuth).
-		Error
-	if err != nil {
-		return fmt.Errorf("error saving device auth: %w", err)
+	if err = tx.WithContext(ctx).Save(&deviceAuth).Error; err != nil {
+		return err
 	}
 
 	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, deviceAuth.ClientID, deviceAuth.Scope, tx)
@@ -1391,7 +1425,10 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 		return nil, &common.OidcDeviceCodeExpiredError{}
 	}
 
-	// Check if the user has already authorized this client with this scope
+	if deviceAuth.IsAuthorized {
+		return nil, &common.OidcInvalidDeviceCodeError{}
+	}
+
 	hasAuthorizedClient := false
 	if userID != "" {
 		var err error
@@ -1411,6 +1448,65 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 		Scope:                 deviceAuth.Scope,
 		AuthorizationRequired: !hasAuthorizedClient,
 	}, nil
+}
+
+// ExchangeDeviceTokenForSession exchanges a device code for a browser session (self-login client only).
+func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceCode string, clientID string, ipAddress string, userAgent string) (*model.User, error) {
+	if clientID != SelfLoginClientID {
+		return nil, &common.OidcAccessDeniedError{}
+	}
+
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var deviceAuth model.OidcDeviceCode
+	err := tx.
+		WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("device_code = ? AND client_id = ?", deviceCode, clientID).
+		First(&deviceAuth).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &common.OidcInvalidDeviceCodeError{}
+		}
+		return nil, err
+	}
+
+	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
+		return nil, &common.OidcDeviceCodeExpiredError{}
+	}
+
+	if err := s.checkDeviceCodePollRate(ctx, tx, &deviceAuth); err != nil {
+		return nil, err
+	}
+
+	if deviceAuth.UserID == nil {
+		return nil, &common.OidcInvalidDeviceCodeError{}
+	}
+
+	var user model.User
+	if err = tx.WithContext(ctx).First(&user, "id = ?", *deviceAuth.UserID).Error; err != nil {
+		return nil, err
+	}
+
+	if user.Disabled {
+		return nil, &common.UserDisabledError{}
+	}
+
+	if err = tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
+		return nil, err
+	}
+
+	s.auditLogService.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, user.ID, model.AuditLogData{"method": "device_code"}, tx)
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id string) (int64, error) {

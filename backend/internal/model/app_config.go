@@ -41,6 +41,7 @@ type AppConfig struct {
 	AccentColor               AppConfigVariable `key:"accentColor,public"`         // Public
 	DisableAnimations         AppConfigVariable `key:"disableAnimations,public"`   // Public
 	AllowOwnAccountEdit       AppConfigVariable `key:"allowOwnAccountEdit,public"` // Public
+	QrLoginEnabled            AppConfigVariable `key:"qrLoginEnabled,public"`      // Public
 	AllowUserSignups          AppConfigVariable `key:"allowUserSignups,public"`    // Public
 	SignupDefaultUserGroupIDs AppConfigVariable `key:"signupDefaultUserGroupIDs"`
 	SignupDefaultCustomClaims AppConfigVariable `key:"signupDefaultCustomClaims"`
