@@ -102,7 +102,7 @@ test('Delete user', async ({ page }) => {
 		.getByRole('button')
 		.click();
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
-	await page.getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('User deleted successfully');
 	await expect(

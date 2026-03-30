@@ -33,6 +33,12 @@
 			value: (item) => item.username ?? m.unknown()
 		},
 		{
+			label: 'Actor',
+			key: 'actorUsername',
+			hidden: !isAdmin,
+			value: (item) => item.actorUsername ?? ''
+		},
+		{
 			label: m.event(),
 			column: 'event',
 			sortable: true,

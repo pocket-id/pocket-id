@@ -98,9 +98,30 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 		return
 	}
 
+	actorIDs := make([]string, 0, len(logsDtos))
+	seenActorIDs := make(map[string]struct{}, len(logsDtos))
+	for _, log := range logsDtos {
+		actorID := log.Data["actorUserID"]
+		if actorID == "" {
+			continue
+		}
+		if _, ok := seenActorIDs[actorID]; ok {
+			continue
+		}
+		seenActorIDs[actorID] = struct{}{}
+		actorIDs = append(actorIDs, actorID)
+	}
+
+	actorUsernames, err := alc.auditLogService.ListUsernamesByIDs(c.Request.Context(), actorIDs)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
 	for i, logsDto := range logsDtos {
 		logsDto.Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
 		logsDto.Username = logs[i].User.Username
+		logsDto.ActorUsername = actorUsernames[logsDto.Data["actorUserID"]]
 		logsDtos[i] = logsDto
 	}
 
