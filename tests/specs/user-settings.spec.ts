@@ -264,7 +264,7 @@ test('Admin can delete another user passkey and audit log is created', async ({ 
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
 
 	await page.getByLabel('Delete').click();
-	await page.getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
 	await expect(page.getByText('Passkey 2')).not.toBeVisible();
