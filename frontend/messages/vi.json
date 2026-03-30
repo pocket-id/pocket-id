@@ -117,6 +117,7 @@
 	"account_details": "Thông Tin Tài Khoản",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Quản lý các passkeys mà bạn có thể sử dụng để xác thực danh tính của mình.",
+	"manage_this_users_passkeys": "Manage this user's passkeys.",
 	"add_passkey": "Thêm Passkey",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Tạo mã đăng nhập một lần để đăng nhập từ thiết bị khác mà không cần passkeys.",
 	"create": "Tạo",

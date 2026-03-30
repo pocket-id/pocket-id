@@ -293,26 +293,31 @@ func (s *WebAuthnService) ListCredentials(ctx context.Context, userID string) ([
 	return credentials, nil
 }
 
-func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string) error {
+func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string, actorUserID string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	credential := &model.WebauthnCredential{}
-	err := tx.
+	result := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
-		Delete(credential, "id = ? AND user_id = ?", credentialID, userID).
-		Error
-	if err != nil {
-		return fmt.Errorf("failed to delete record: %w", err)
+		Delete(credential, "id = ? AND user_id = ?", credentialID, userID)
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete record: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 
 	auditLogData := model.AuditLogData{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
+	if actorUserID != "" && actorUserID != userID {
+		auditLogData["actorUserID"] = actorUserID
+	}
 	s.auditLogService.Create(ctx, model.AuditLogEventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
 
-	err = tx.Commit().Error
+	err := tx.Commit().Error
 	if err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}

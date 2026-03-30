@@ -117,6 +117,7 @@
 	"account_details": "Детали учетной записи",
 	"passkeys": "Ключи доступа",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Управляйте своими ключами доступа, которые вы можете использовать для аутентификации.",
+	"manage_this_users_passkeys": "Manage this user's passkeys.",
 	"add_passkey": "Добавить ключ доступа",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Создайте одноразовый код входа, чтобы войти с другого устройства без ключа доступа.",
 	"create": "Создать",

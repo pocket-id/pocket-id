@@ -5,15 +5,18 @@
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import * as Item from '$lib/components/ui/item/index.js';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import CustomClaimService from '$lib/services/custom-claim-service';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
+	import type { Passkey } from '$lib/types/passkey.type';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft } from '@lucide/svelte';
+	import { KeyRound, LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import AdminPasskeyList from './admin-passkey-list.svelte';
 	import { backNavigate } from '../navigate-back-util';
 	import UserForm from '../user-form.svelte';
 
@@ -22,6 +25,7 @@
 		...data.user,
 		userGroupIds: data.user.userGroups.map((g) => g.id)
 	});
+	let passkeys: Passkey[] = $state(data.passkeys);
 
 	const userService = new UserService();
 	const customClaimService = new CustomClaimService();
@@ -127,6 +131,23 @@
 		>
 	</div>
 </CollapsibleCard>
+
+<Card.Root>
+	<Card.Content class="pt-6">
+		<Item.Root class="border-none bg-transparent p-0">
+			<Item.Media class="text-primary/80">
+				<KeyRound class="size-5" />
+			</Item.Media>
+			<Item.Content class="min-w-52">
+				<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
+				<Item.Description>{m.manage_this_users_passkeys()}</Item.Description>
+			</Item.Content>
+		</Item.Root>
+		{#if passkeys.length > 0}
+			<AdminPasskeyList userId={user.id} bind:passkeys />
+		{/if}
+	</Card.Content>
+</Card.Root>
 
 <CollapsibleCard
 	id="user-custom-claims"

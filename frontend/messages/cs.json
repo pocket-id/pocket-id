@@ -117,6 +117,7 @@
 	"account_details": "Podrobnosti účtu",
 	"passkeys": "Přístupové klíče",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Spravujte své přístupové klíče, které můžete použít pro ověření.",
+	"manage_this_users_passkeys": "Přehled a správa přístupových klíčů tohoto uživatele.",
 	"add_passkey": "Přidat přístupový klíč",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Vytvořte jednorázový přihlašovací kód pro přihlášení z jiného zařízení bez přístupového klíče.",
 	"create": "Vytvořit",

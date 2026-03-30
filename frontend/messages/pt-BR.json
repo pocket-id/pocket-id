@@ -117,6 +117,7 @@
 	"account_details": "Detalhes da Conta",
 	"passkeys": "Chaves de acesso",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Gerencie as chaves de acesso que pode usar para se identificar.",
+	"manage_this_users_passkeys": "Manage this user's passkeys.",
 	"add_passkey": "Adicionar chave de acesso",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Crie um código de login único para entrar em outro dispositivo sem precisar da chave de acesso.",
 	"create": "Criar",

@@ -117,6 +117,7 @@
 	"account_details": "Kontodetaljer",
 	"passkeys": "Passnøkler",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Manage your passkeys that you can use to authenticate yourself.",
+	"manage_this_users_passkeys": "Manage this user's passkeys.",
 	"add_passkey": "Legg til passnøkkel",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Create a one-time login code to sign in from a different device without a passkey.",
 	"create": "Opprett",

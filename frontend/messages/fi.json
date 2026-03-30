@@ -117,6 +117,7 @@
 	"account_details": "Tilitiedot",
 	"passkeys": "Pääsyavaimet",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Hallitse pääsyavaimiasi, joita voit käyttää tunnistautumiseen.",
+	"manage_this_users_passkeys": "Manage this user's passkeys.",
 	"add_passkey": "Lisää pääsyavain",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Luo kertakäyttöinen kirjautumiskoodi, jotta voit kirjautua sisään toisella laitteella ilman pääsyavainta.",
 	"create": "Luo",
