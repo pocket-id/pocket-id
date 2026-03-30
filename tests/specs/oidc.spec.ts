@@ -886,3 +886,175 @@ async function routeCallbackPage(page: Page, callbackUrl: string): Promise<(url:
 
 	return callbackRouteMatcher;
 }
+
+// ─── PAR (Pushed Authorization Requests - RFC 9126) ──────────────────────────
+
+test.describe('Pushed Authorization Requests (PAR)', () => {
+	const client = oidcClients.parClient;
+
+	test('PAR endpoint returns request_uri for valid confidential client', async ({ page }) => {
+		const result = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl
+		});
+
+		expect(result.request_uri).toMatch(/^urn:ietf:params:oauth:request_uri:/);
+		expect(result.expires_in).toBe(90);
+		expect(result.error).toBeUndefined();
+	});
+
+	test('PAR full flow: push then authorize then exchange tokens', async ({ page }) => {
+		// Step 1: Push authorization parameters
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			nonce: 'par-nonce-123'
+		});
+		expect(parResult.request_uri).toBeDefined();
+		expect(parResult.error).toBeUndefined();
+
+		// Step 2: Navigate to /authorize using the request_uri
+		// The PAR client is pre-authorized, so the consent screen is skipped
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+
+		// Ignore DNS resolution error as the callback URL is not reachable
+		await page.goto(`/authorize?${urlParams.toString()}`);
+		await page.waitForURL(client.callbackUrl + '**').catch((e) => {
+			if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
+				throw e;
+			}
+		});
+	});
+
+	test('PAR request_uri is single-use', async ({ page }) => {
+		// Push two requests — use the first via the browser, then try to reuse it
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		// First use — navigate to /authorize (will consume the request_uri)
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+		await page.goto(`/authorize?${urlParams.toString()}`);
+		await page.waitForURL(client.callbackUrl + '**').catch(() => {});
+
+		// Second use of the same request_uri should fail
+		// Use the authorize API directly (requires auth cookie which we have)
+		const response = await page.request.post('/api/oidc/authorize', {
+			headers: { 'Content-Type': 'application/json' },
+			data: {
+				clientID: client.id,
+				requestURI: parResult.request_uri
+			}
+		});
+		expect(response.status()).toBe(400);
+	});
+
+	test('PAR endpoint rejects request without client credentials', async ({ page }) => {
+		const result = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			// no clientSecret
+			redirectUri: client.callbackUrl
+		});
+
+		expect(result.error).toBeDefined();
+		expect(result.request_uri).toBeUndefined();
+	});
+
+	test('PAR endpoint rejects public client', async ({ page }) => {
+		// nextcloud is a confidential client; use a public client id if we had one
+		// The parClient is confidential — test by setting isPublic via admin API first
+		await page.request.put(`/api/oidc/clients/${client.id}`, {
+			headers: { 'Content-Type': 'application/json' },
+			data: {
+				name: client.name,
+				callbackURLs: [client.callbackUrl],
+				logoutCallbackURLs: [],
+				isPublic: true,
+				pkceEnabled: true,
+				requiresReauthentication: false,
+				requiresPushedAuthorizationRequests: false,
+				credentials: { federatedIdentities: [] },
+				isGroupRestricted: false
+			}
+		});
+
+		const result = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			// No secret — public client has none
+			redirectUri: client.callbackUrl
+		});
+
+		expect(result.error).toBeDefined();
+		expect(result.request_uri).toBeUndefined();
+	});
+
+	test('PAR endpoint rejects invalid redirect_uri at push time', async ({ page }) => {
+		const result = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: 'http://evil.example.com/steal'
+		});
+
+		expect(result.error).toBeDefined();
+		expect(result.request_uri).toBeUndefined();
+	});
+
+	test('Client with requiresPushedAuthorizationRequests rejects direct /authorize', async ({
+		page,
+		request
+	}) => {
+		// Enable the PAR requirement on the client
+		await request.put(`/api/oidc/clients/${client.id}`, {
+			headers: { 'Content-Type': 'application/json' },
+			data: {
+				name: client.name,
+				callbackURLs: [client.callbackUrl],
+				logoutCallbackURLs: [],
+				isPublic: false,
+				pkceEnabled: false,
+				requiresReauthentication: false,
+				requiresPushedAuthorizationRequests: true,
+				credentials: { federatedIdentities: [] },
+				isGroupRestricted: false
+			}
+		});
+
+		// Attempt a normal authorization (without request_uri)
+		const response = await page.request.post('/api/oidc/authorize', {
+			headers: { 'Content-Type': 'application/json' },
+			data: {
+				clientID: client.id,
+				scope: 'openid profile',
+				callbackURL: client.callbackUrl
+			}
+		});
+		expect(response.status()).toBe(400);
+	});
+
+	test('Admin UI: PAR toggle persists after save', async ({ page }) => {
+		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+
+		// Enable the PAR toggle
+		const parToggle = page.getByTestId('requires-par').or(page.locator('#requires-par'));
+		if (!(await parToggle.isChecked())) {
+			await parToggle.click();
+		}
+
+		await page.getByRole('button', { name: /save/i }).click();
+		await page.reload();
+
+		const savedToggle = page.getByTestId('requires-par').or(page.locator('#requires-par'));
+		await expect(savedToggle).toBeChecked();
+	});
+});

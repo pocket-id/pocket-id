@@ -32,7 +32,8 @@
 		codeChallengeMethod,
 		authorizeState,
 		prompt,
-		responseMode
+		responseMode,
+		requestURI
 	} = data;
 
 	let isLoading = $state(false);
@@ -111,7 +112,7 @@
 				userSignedInAt = new Date();
 			}
 
-			if (!authorizationConfirmed) {
+			if (!authorizationConfirmed && !requestURI) {
 				authorizationRequired = await oidService.isAuthorizationRequired(client!.id, scope);
 
 				// If prompt=consent, always show consent UI
@@ -153,7 +154,8 @@
 				codeChallengeMethod,
 				reauthToken,
 				responseMode,
-				prompt
+				prompt,
+				requestURI
 			);
 
 			// Check if backend returned a redirect error

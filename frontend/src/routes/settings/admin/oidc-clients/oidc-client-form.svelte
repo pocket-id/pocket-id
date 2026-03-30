@@ -49,6 +49,8 @@
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false,
 		requiresReauthentication: existingClient?.requiresReauthentication || false,
+		requiresPushedAuthorizationRequests:
+			existingClient?.requiresPushedAuthorizationRequests || false,
 		launchURL: existingClient?.launchURL || '',
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
@@ -74,6 +76,7 @@
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
+		requiresPushedAuthorizationRequests: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
 		darkLogoUrl: optionalUrl,
@@ -205,6 +208,7 @@
 			onCheckedChange={(v) => {
 				if (v) {
 					$inputs.pkceEnabled.value = true;
+					$inputs.requiresPushedAuthorizationRequests.value = false;
 				}
 			}}
 			bind:checked={$inputs.isPublic.value}
@@ -221,6 +225,13 @@
 			label={m.requires_reauthentication()}
 			description={m.requires_users_to_authenticate_again_on_each_authorization()}
 			bind:checked={$inputs.requiresReauthentication.value}
+		/>
+		<SwitchWithLabel
+			id="requires-par"
+			label={m.requires_pushed_authorization_requests()}
+			description={m.requires_pushed_authorization_requests_description()}
+			disabled={$inputs.isPublic.value}
+			bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
 		/>
 	</div>
 	<div class="mt-7 w-full md:w-1/2">

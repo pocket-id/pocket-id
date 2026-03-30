@@ -47,7 +47,10 @@
 		[m.logout_url()]: `https://${page.url.host}/api/oidc/end-session`,
 		[m.certificate_url()]: `https://${page.url.host}/.well-known/jwks.json`,
 		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled(),
-		[m.requires_reauthentication()]: client.requiresReauthentication ? m.enabled() : m.disabled()
+		[m.requires_reauthentication()]: client.requiresReauthentication ? m.enabled() : m.disabled(),
+		[m.requires_pushed_authorization_requests()]: client.requiresPushedAuthorizationRequests
+			? m.enabled()
+			: m.disabled()
 	});
 
 	async function updateClient(updatedClient: OidcClientCreateWithLogo) {
@@ -68,6 +71,8 @@
 		setupDetails[m.requires_reauthentication()] = updatedClient.requiresReauthentication
 			? m.enabled()
 			: m.disabled();
+		setupDetails[m.requires_pushed_authorization_requests()] =
+			updatedClient.requiresPushedAuthorizationRequests ? m.enabled() : m.disabled();
 
 		await Promise.all([dataPromise, imagePromise, darkImagePromise])
 			.then(() => {
