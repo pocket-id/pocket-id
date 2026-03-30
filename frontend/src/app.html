@@ -7,17 +7,24 @@
 		<meta name="robots" content="noindex" />
 		<link rel="manifest" href="/app.webmanifest" />
 		<link rel="apple-touch-icon" href="/img/static-logo-512.png" />
+		<style>
+			/* Fallback colors for browsers without oklch() or var() support */
+			body { background-color: #ffffff; color: #0a0a0a; }
+			.dark body { background-color: #0a0a0a; color: #fafafa; }
+		</style>
 		<script>
 			try {
 				const mode = localStorage.getItem('mode-watcher-mode') || 'system';
-				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				const prefersDark = window.matchMedia
+					? window.matchMedia('(prefers-color-scheme: dark)').matches
+					: true; // Default to dark for old browsers (e.g. Smart TVs)
 				const isDark = mode === 'dark' || (mode === 'system' && prefersDark);
 
 				document.documentElement.classList.toggle('dark', isDark);
 				document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
 			} catch (e) {
-				// Ignore errors
-				// Failing to set theme is not critical
+				// Fallback: assume dark mode for maximum readability on old devices
+				document.documentElement.className = 'dark';
 			}
 		</script>
 		%sveltekit.head%

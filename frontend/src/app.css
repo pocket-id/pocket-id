@@ -7,7 +7,7 @@
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
   looks the same as it did with Tailwind CSS v3.
- 
+
   If we ever want to remove these styles, we need to add an explicit border
   color utility to any element that depends on these defaults.
 */
@@ -23,74 +23,140 @@
 
 :root {
 	--radius: 0.625rem;
+	--background: #ffffff;
 	--background: oklch(1 0 0);
+	--foreground: #0a0a0a;
 	--foreground: oklch(0.145 0 0);
+	--card: #ffffff;
 	--card: oklch(1 0 0);
+	--card-foreground: #0a0a0a;
 	--card-foreground: oklch(0.145 0 0);
+	--popover: #ffffff;
 	--popover: oklch(1 0 0);
+	--popover-foreground: #0a0a0a;
 	--popover-foreground: oklch(0.145 0 0);
+	--primary: #171717;
 	--primary: oklch(0.205 0 0);
+	--primary-foreground: #fafafa;
 	--primary-foreground: oklch(0.985 0 0);
+	--secondary: #f5f5f5;
 	--secondary: oklch(0.97 0 0);
+	--secondary-foreground: #171717;
 	--secondary-foreground: oklch(0.205 0 0);
+	--muted: #f5f5f5;
 	--muted: oklch(0.97 0 0);
+	--muted-foreground: #737373;
 	--muted-foreground: oklch(0.556 0 0);
+	--accent: #f5f5f5;
 	--accent: oklch(0.97 0 0);
+	--accent-foreground: #171717;
 	--accent-foreground: oklch(0.205 0 0);
+	--destructive: #e7000b;
 	--destructive: oklch(0.577 0.245 27.325);
+	--warning: #fff0c5;
 	--warning: oklch(0.96 0.06 85);
+	--warning-foreground: #492b00;
 	--warning-foreground: oklch(0.32 0.07 70);
+	--border: #e5e5e5;
 	--border: oklch(0.922 0 0);
+	--input: #e5e5e5;
 	--input: oklch(0.922 0 0);
+	--ring: #a1a1a1;
 	--ring: oklch(0.708 0 0);
+	--chart-1: #f54900;
 	--chart-1: oklch(0.646 0.222 41.116);
+	--chart-2: #009689;
 	--chart-2: oklch(0.6 0.118 184.704);
+	--chart-3: #104e64;
 	--chart-3: oklch(0.398 0.07 227.392);
+	--chart-4: #ffb900;
 	--chart-4: oklch(0.828 0.189 84.429);
+	--chart-5: #fe9a00;
 	--chart-5: oklch(0.769 0.188 70.08);
+	--sidebar: #fafafa;
 	--sidebar: oklch(0.985 0 0);
+	--sidebar-foreground: #0a0a0a;
 	--sidebar-foreground: oklch(0.145 0 0);
+	--sidebar-primary: #171717;
 	--sidebar-primary: oklch(0.205 0 0);
+	--sidebar-primary-foreground: #fafafa;
 	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: #f5f5f5;
 	--sidebar-accent: oklch(0.97 0 0);
+	--sidebar-accent-foreground: #171717;
 	--sidebar-accent-foreground: oklch(0.205 0 0);
+	--sidebar-border: #e5e5e5;
 	--sidebar-border: oklch(0.922 0 0);
+	--sidebar-ring: #a1a1a1;
 	--sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
+	--background: #0a0a0a;
 	--background: oklch(0.145 0 0);
+	--foreground: #fafafa;
 	--foreground: oklch(0.985 0 0);
+	--card: #171717;
 	--card: oklch(0.205 0 0);
+	--card-foreground: #fafafa;
 	--card-foreground: oklch(0.985 0 0);
+	--popover: #171717;
 	--popover: oklch(0.205 0 0);
+	--popover-foreground: #fafafa;
 	--popover-foreground: oklch(0.985 0 0);
+	--primary: #e5e5e5;
 	--primary: oklch(0.922 0 0);
+	--primary-foreground: #171717;
 	--primary-foreground: oklch(0.205 0 0);
+	--secondary: #262626;
 	--secondary: oklch(0.269 0 0);
+	--secondary-foreground: #fafafa;
 	--secondary-foreground: oklch(0.985 0 0);
+	--muted: #262626;
 	--muted: oklch(0.269 0 0);
+	--muted-foreground: #a1a1a1;
 	--muted-foreground: oklch(0.708 0 0);
+	--accent: #262626;
 	--accent: oklch(0.269 0 0);
+	--accent-foreground: #fafafa;
 	--accent-foreground: oklch(0.985 0 0);
+	--destructive: #ff6467;
 	--destructive: oklch(0.704 0.191 22.216);
+	--warning: #6c4302;
 	--warning: oklch(0.42 0.09 70);
+	--warning-foreground: #f1e7d2;
 	--warning-foreground: oklch(0.93 0.03 85);
+	--border: rgba(255, 255, 255, 0.1);
 	--border: oklch(1 0 0 / 10%);
+	--input: rgba(255, 255, 255, 0.15);
 	--input: oklch(1 0 0 / 15%);
+	--ring: #737373;
 	--ring: oklch(0.556 0 0);
+	--chart-1: #1447e6;
 	--chart-1: oklch(0.488 0.243 264.376);
+	--chart-2: #00bc7d;
 	--chart-2: oklch(0.696 0.17 162.48);
+	--chart-3: #fe9a00;
 	--chart-3: oklch(0.769 0.188 70.08);
+	--chart-4: #ad46ff;
 	--chart-4: oklch(0.627 0.265 303.9);
+	--chart-5: #ff2056;
 	--chart-5: oklch(0.645 0.246 16.439);
+	--sidebar: #171717;
 	--sidebar: oklch(0.205 0 0);
+	--sidebar-foreground: #fafafa;
 	--sidebar-foreground: oklch(0.985 0 0);
+	--sidebar-primary: #1447e6;
 	--sidebar-primary: oklch(0.488 0.243 264.376);
+	--sidebar-primary-foreground: #fafafa;
 	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: #262626;
 	--sidebar-accent: oklch(0.269 0 0);
+	--sidebar-accent-foreground: #fafafa;
 	--sidebar-accent-foreground: oklch(0.985 0 0);
+	--sidebar-border: rgba(255, 255, 255, 0.1);
 	--sidebar-border: oklch(1 0 0 / 10%);
+	--sidebar-ring: #737373;
 	--sidebar-ring: oklch(0.556 0 0);
 }
 
