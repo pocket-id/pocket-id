@@ -106,6 +106,7 @@
 	"ip_address": "IP-адреса",
 	"device": "Пристрій",
 	"client": "Клієнт",
+	"actor": "Actor",
 	"unknown": "Невідомий",
 	"account_details_updated_successfully": "Дані облікового запису успішно оновлені",
 	"profile_picture_updated_successfully": "Зображення профілю успішно оновлено. Оновлення може зайняти кілька хвилин.",

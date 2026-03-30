@@ -106,6 +106,7 @@
 	"ip_address": "IP 地址",
 	"device": "裝置",
 	"client": "客戶端",
+	"actor": "Actor",
 	"unknown": "未知",
 	"account_details_updated_successfully": "帳號資訊更新成功",
 	"profile_picture_updated_successfully": "個人資料圖片更新成功。 這可能會花幾分鐘更新。",

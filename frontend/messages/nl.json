@@ -106,6 +106,7 @@
 	"ip_address": "IP-adres",
 	"device": "Apparaat",
 	"client": "Client",
+	"actor": "Actor",
 	"unknown": "Onbekend",
 	"account_details_updated_successfully": "Accountgegevens succesvol bijgewerkt",
 	"profile_picture_updated_successfully": "Profielfoto succesvol bijgewerkt. Het kan enkele minuten duren voordat de wijzigingen zichtbaar zijn.",

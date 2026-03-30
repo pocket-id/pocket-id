@@ -106,6 +106,7 @@
 	"ip_address": "IP Adresi",
 	"device": "Cihaz",
 	"client": "İstemci",
+	"actor": "Actor",
 	"unknown": "Bilinmeyen",
 	"account_details_updated_successfully": "Hesap bilgileri başarıyla güncellendi",
 	"profile_picture_updated_successfully": "Profil resmi başarıyla güncellendi. Güncellenmesi birkaç dakika sürebilir.",

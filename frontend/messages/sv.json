@@ -106,6 +106,7 @@
 	"ip_address": "IP-adress",
 	"device": "Enhet",
 	"client": "Klient",
+	"actor": "Actor",
 	"unknown": "Okänd",
 	"account_details_updated_successfully": "Kontouppgifterna har uppdaterats",
 	"profile_picture_updated_successfully": "Profilbilden har uppdaterats. Det kan ta några minuter innan uppdateringen syns.",
