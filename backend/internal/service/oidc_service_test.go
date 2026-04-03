@@ -1413,3 +1413,193 @@ func TestPromptParameterConflicts(t *testing.T) {
 		})
 	}
 }
+
+func TestOidcService_ValidateEndSession_DeletesRefreshTokens(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	common.EnvConfig.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
+
+	mockConfig := NewTestAppConfigService(&model.AppConfig{
+		SessionDuration: model.AppConfigVariable{Value: "60"},
+	})
+	mockJwtService, err := NewJwtService(t.Context(), db, mockConfig)
+	require.NoError(t, err)
+
+	oidcService := &OidcService{
+		db:         db,
+		jwtService: mockJwtService,
+	}
+
+	ctx := context.Background()
+	userID := "test-user-123"
+	clientID := "test-client-456"
+
+	userEmail := "test@example.com"
+	user := model.User{
+		Base:  model.Base{ID: userID},
+		Email: &userEmail,
+	}
+	require.NoError(t, db.Create(&user).Error)
+
+	client := model.OidcClient{
+		Base:               model.Base{ID: clientID},
+		Name:               "Test Client",
+		LogoutCallbackURLs: []string{"https://example.com/logout"},
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	authorization := model.UserAuthorizedOidcClient{
+		UserID:   userID,
+		ClientID: clientID,
+	}
+	require.NoError(t, db.Create(&authorization).Error)
+
+	refreshToken1 := model.OidcRefreshToken{
+		Token:    "refresh-token-1",
+		UserID:   userID,
+		ClientID: clientID,
+	}
+	require.NoError(t, db.Create(&refreshToken1).Error)
+
+	refreshToken2 := model.OidcRefreshToken{
+		Token:    "refresh-token-2",
+		UserID:   userID,
+		ClientID: "other-client",
+	}
+	require.NoError(t, db.Create(&refreshToken2).Error)
+
+	userClaims := map[string]any{
+		"sub":   userID,
+		"name":  "Test User",
+		"email": userEmail,
+	}
+	idToken, err := mockJwtService.GenerateIDToken(userClaims, clientID, "", "")
+	require.NoError(t, err)
+
+	input := dto.OidcLogoutDto{
+		IdTokenHint:           idToken,
+		ClientId:              clientID,
+		PostLogoutRedirectUri: "https://example.com/logout",
+	}
+
+	callbackURL, err := oidcService.ValidateEndSession(ctx, input, userID)
+	require.NoError(t, err)
+	assert.Equal(t, "https://example.com/logout", callbackURL)
+
+	var remainingTokens []model.OidcRefreshToken
+	err = db.Where("user_id = ?", userID).Find(&remainingTokens).Error
+	require.NoError(t, err)
+	assert.Empty(t, remainingTokens, "all refresh tokens for the user should be deleted")
+}
+
+func TestOidcService_validateClaimMappings(t *testing.T) {
+
+	t.Run("Valid claim mappings", func(t *testing.T) {
+		mappings := []dto.OidcClientClaimMappingDto{
+			{ClaimName: "email", SourceType: "user_field", SourceValue: "email"},
+			{ClaimName: "preferred_username", SourceType: "custom_claim", SourceValue: "other_name"},
+			{ClaimName: "role", SourceType: "static", SourceValue: "user"},
+		}
+		err := validateClaimMappings(mappings)
+		require.NoError(t, err)
+	})
+
+	t.Run("Invalid claim mappings", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			mapping  dto.OidcClientClaimMappingDto
+			errorMsg string
+		}{
+			{
+				name: "Missing claim name",
+				mapping: dto.OidcClientClaimMappingDto{
+					SourceType:  "user_field",
+					SourceValue: "email",
+				},
+				errorMsg: "claim name, source type and source value are required",
+			},
+			{
+				name: "Missing source type",
+				mapping: dto.OidcClientClaimMappingDto{
+					ClaimName:   "email",
+					SourceValue: "email",
+				},
+				errorMsg: "claim name, source type and source value are required",
+			},
+			{
+				name: "Missing static source value",
+				mapping: dto.OidcClientClaimMappingDto{
+					ClaimName:  "email",
+					SourceType: "static",
+				},
+				errorMsg: "claim name, source type and source value are required",
+			},
+			{
+				name: "Invalid source type",
+				mapping: dto.OidcClientClaimMappingDto{
+					ClaimName:   "email",
+					SourceType:  "invalid_type",
+					SourceValue: "email",
+				},
+				errorMsg: "invalid source type 'invalid_type'",
+			},
+			{
+				name: "Invalid user attrbute",
+				mapping: dto.OidcClientClaimMappingDto{
+					ClaimName:   "email",
+					SourceType:  "user_field",
+					SourceValue: "bad_attribute",
+				},
+				errorMsg: "invalid user field 'bad_attribute' for mapping",
+			},
+			{
+				name: "Reserved claim name",
+				mapping: dto.OidcClientClaimMappingDto{
+					ClaimName:   "sub",
+					SourceType:  "static",
+					SourceValue: "12456",
+				},
+				errorMsg: "cannot remap reserved claim 'sub'",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				err := validateClaimMappings([]dto.OidcClientClaimMappingDto{tc.mapping})
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.errorMsg)
+			})
+		}
+	})
+}
+
+func TestOidcService_applyClaimMappings(t *testing.T) {
+	s := &OidcService{}
+	t.Run("Customize claim for a client", func(t *testing.T) {
+		claims := map[string]any{
+			"email":              "user@example.com",
+			"preferred_username": "john_doe",
+			"family_name":        "Doe",
+		}
+		mappings := []model.OidcClientClaimMapping{
+			{ClaimName: "email", SourceType: "static", SourceValue: "no-reply@example.com"},
+			{ClaimName: "preferred_username", SourceType: "user_field", SourceValue: "email"},
+			{ClaimName: "quota", SourceType: "custom_claim", SourceValue: "quota"},
+		}
+		email := "user@example.com"
+		user := &model.User{
+			Email: &email,
+		}
+		customClaimsMap := map[string]any{
+			"quota": "100",
+			"unsed": "value",
+		}
+		err := s.applyClaimMappings(claims, mappings, user, customClaimsMap)
+		require.NoError(t, err)
+
+		require.Equal(t, "no-reply@example.com", claims["email"])
+		require.Equal(t, &email, claims["preferred_username"])
+		require.Equal(t, "100", claims["quota"])
+		require.Equal(t, "Doe", claims["family_name"])
+		require.Empty(t, claims["unsed"])
+	})
+}

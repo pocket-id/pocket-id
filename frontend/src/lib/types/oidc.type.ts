@@ -16,17 +16,14 @@ export type OidcClientFederatedIdentity = {
 	jwks?: string | undefined;
 };
 
-export type ClaimRemappingSourceType = 'user_field' | 'custom_claim' | 'static';
-
-export type OidcClientClaimRemapping = {
+export type OidcClientClaimMapping = {
 	claimName: string;
-	sourceType: ClaimRemappingSourceType;
+	sourceType: 'user_field' | 'custom_claim' | 'static';
 	sourceValue: string;
 };
 
 export type OidcClientCredentials = {
 	federatedIdentities: OidcClientFederatedIdentity[];
-	claimRemappings?: OidcClientClaimRemapping[];
 };
 
 export type OidcClient = OidcClientMetaData & {
@@ -36,6 +33,7 @@ export type OidcClient = OidcClientMetaData & {
 	pkceEnabled: boolean;
 	requiresReauthentication: boolean;
 	credentials?: OidcClientCredentials;
+	claimMappings?: OidcClientClaimMapping[];
 	launchURL?: string;
 	isGroupRestricted: boolean;
 };
