@@ -58,6 +58,7 @@ type OidcClient struct {
 	PkceEnabled              bool `sortable:"true" filterable:"true"`
 	RequiresReauthentication bool `sortable:"true" filterable:"true"`
 	Credentials              OidcClientCredentials
+	ClaimMappings            OidcClientClaimMappings
 	LaunchURL                *string
 	IsGroupRestricted        bool `sortable:"true" filterable:"true"`
 
@@ -101,7 +102,6 @@ func (c OidcRefreshToken) Scopes() []string {
 
 type OidcClientCredentials struct { //nolint:recvcheck
 	FederatedIdentities []OidcClientFederatedIdentity `json:"federatedIdentities,omitempty"`
-	ClaimRemappings     []OidcClientClaimRemapping    `json:"claimRemappings,omitempty"`
 }
 
 type OidcClientFederatedIdentity struct {
@@ -111,18 +111,18 @@ type OidcClientFederatedIdentity struct {
 	JWKS     string `json:"jwks,omitempty"` // URL of the JWKS
 }
 
-type OidcClientClaimRemapping struct {
-	ClaimName   string                   `json:"claimName"`
-	SourceType  ClaimRemappingSourceType `json:"sourceType"`
-	SourceValue string                   `json:"sourceValue"`
+type OidcClientClaimMapping struct {
+	ClaimName   string                 `json:"claimName"`
+	SourceType  ClaimMappingSourceType `json:"sourceType"`
+	SourceValue string                 `json:"sourceValue"`
 }
 
-type ClaimRemappingSourceType string
+type ClaimMappingSourceType string
 
 const (
-	RemappingSourceUserField   ClaimRemappingSourceType = "user_field"
-	RemappingSourceCustomClaim ClaimRemappingSourceType = "custom_claim"
-	RemappingSourceStatic      ClaimRemappingSourceType = "static"
+	MappingSourceUserField   ClaimMappingSourceType = "user_field"
+	MappingSourceCustomClaim ClaimMappingSourceType = "custom_claim"
+	MappingSourceStatic      ClaimMappingSourceType = "static"
 )
 
 func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (OidcClientFederatedIdentity, bool) {
@@ -144,6 +144,16 @@ func (occ *OidcClientCredentials) Scan(value any) error {
 }
 
 func (occ OidcClientCredentials) Value() (driver.Value, error) {
+	return json.Marshal(occ)
+}
+
+type OidcClientClaimMappings []OidcClientClaimMapping //nolint:recvcheck
+
+func (occ *OidcClientClaimMappings) Scan(value any) error {
+	return utils.UnmarshalJSONFromDatabase(occ, value)
+}
+
+func (occ OidcClientClaimMappings) Value() (driver.Value, error) {
 	return json.Marshal(occ)
 }
 

@@ -17,7 +17,7 @@
 	import { LucideChevronDown, LucideMoon, LucideSun } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
-	import ClaimRemappingsInput from './claim-remappings-input.svelte';
+	import ClaimMappingListInput from './claim-mapping-list-input.svelte';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import OidcClientImageInput from './oidc-client-image-input.svelte';
@@ -52,9 +52,9 @@
 		requiresReauthentication: existingClient?.requiresReauthentication || false,
 		launchURL: existingClient?.launchURL || '',
 		credentials: {
-			federatedIdentities: existingClient?.credentials?.federatedIdentities || [],
-			claimRemappings: existingClient?.credentials?.claimRemappings || []
+			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		},
+		claimMappings: existingClient?.claimMappings || [],
 		logoUrl: '',
 		darkLogoUrl: ''
 	};
@@ -87,17 +87,17 @@
 					audience: z.string().optional(),
 					jwks: z.url().optional().or(z.literal(''))
 				})
-			),
-			claimRemappings: z
-				.array(
-					z.object({
-						claimName: z.string().min(1).max(255),
-						sourceType: z.enum(['user_field', 'custom_claim', 'static']),
-						sourceValue: z.string().min(1).max(1000)
-					})
-				)
-				.default([])
-		})
+			)
+		}),
+		claimMappings: z
+			.array(
+				z.object({
+					claimName: z.string().min(1).max(255),
+					sourceType: z.enum(['user_field', 'custom_claim', 'static']),
+					sourceValue: z.string().min(1).max(1000)
+				})
+			)
+			.default([])
 	});
 
 	type FormSchema = typeof formSchema;
@@ -179,11 +179,11 @@
 			});
 	}
 
-	function getClaimRemappingErrors(errors: z.ZodError<any> | undefined) {
+	function getClaimMappingErrors(errors: z.ZodError<any> | undefined) {
 		return errors?.issues
-			.filter((e) => e.path[0] == 'credentials' && e.path[1] == 'claimRemappings')
+			.filter((e) => e.path[0] == 'claimMappings')
 			.map((e) => {
-				e.path.splice(0, 2);
+				e.path.splice(0, 1);
 				return e;
 			});
 	}
@@ -304,10 +304,9 @@
 				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
 				errors={getFederatedIdentityErrors($errors)}
 			/>
-			<ClaimRemappingsInput
-				client={existingClient}
-				bind:claimRemappings={$inputs.credentials.value.claimRemappings}
-				errors={getClaimRemappingErrors($errors)}
+			<ClaimMappingListInput
+				bind:claimMappings={$inputs.claimMappings.value}
+				errors={getClaimMappingErrors($errors)}
 			/>
 		</div>
 	{/if}

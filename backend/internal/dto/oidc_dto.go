@@ -13,12 +13,13 @@ type OidcClientMetaDataDto struct {
 
 type OidcClientDto struct {
 	OidcClientMetaDataDto
-	CallbackURLs       []string                 `json:"callbackURLs"`
-	LogoutCallbackURLs []string                 `json:"logoutCallbackURLs"`
-	IsPublic           bool                     `json:"isPublic"`
-	PkceEnabled        bool                     `json:"pkceEnabled"`
-	Credentials        OidcClientCredentialsDto `json:"credentials"`
-	IsGroupRestricted  bool                     `json:"isGroupRestricted"`
+	CallbackURLs       []string                    `json:"callbackURLs"`
+	LogoutCallbackURLs []string                    `json:"logoutCallbackURLs"`
+	IsPublic           bool                        `json:"isPublic"`
+	PkceEnabled        bool                        `json:"pkceEnabled"`
+	Credentials        OidcClientCredentialsDto    `json:"credentials"`
+	ClaimMappings      []OidcClientClaimMappingDto `json:"claimMappings"`
+	IsGroupRestricted  bool                        `json:"isGroupRestricted"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -32,19 +33,20 @@ type OidcClientWithAllowedGroupsCountDto struct {
 }
 
 type OidcClientUpdateDto struct {
-	Name                     string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
-	CallbackURLs             []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
-	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
-	IsPublic                 bool                     `json:"isPublic"`
-	PkceEnabled              bool                     `json:"pkceEnabled"`
-	RequiresReauthentication bool                     `json:"requiresReauthentication"`
-	Credentials              OidcClientCredentialsDto `json:"credentials"`
-	LaunchURL                *string                  `json:"launchURL" binding:"omitempty,url"`
-	HasLogo                  bool                     `json:"hasLogo"`
-	HasDarkLogo              bool                     `json:"hasDarkLogo"`
-	LogoURL                  *string                  `json:"logoUrl"`
-	DarkLogoURL              *string                  `json:"darkLogoUrl"`
-	IsGroupRestricted        bool                     `json:"isGroupRestricted"`
+	Name                     string                      `json:"name" binding:"required,max=50" unorm:"nfc"`
+	CallbackURLs             []string                    `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
+	LogoutCallbackURLs       []string                    `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
+	IsPublic                 bool                        `json:"isPublic"`
+	PkceEnabled              bool                        `json:"pkceEnabled"`
+	RequiresReauthentication bool                        `json:"requiresReauthentication"`
+	Credentials              OidcClientCredentialsDto    `json:"credentials"`
+	ClaimMappings            []OidcClientClaimMappingDto `json:"claimMappings,omitempty"`
+	LaunchURL                *string                     `json:"launchURL" binding:"omitempty,url"`
+	HasLogo                  bool                        `json:"hasLogo"`
+	HasDarkLogo              bool                        `json:"hasDarkLogo"`
+	LogoURL                  *string                     `json:"logoUrl"`
+	DarkLogoURL              *string                     `json:"darkLogoUrl"`
+	IsGroupRestricted        bool                        `json:"isGroupRestricted"`
 }
 
 type OidcClientCreateDto struct {
@@ -54,7 +56,6 @@ type OidcClientCreateDto struct {
 
 type OidcClientCredentialsDto struct {
 	FederatedIdentities []OidcClientFederatedIdentityDto `json:"federatedIdentities,omitempty"`
-	ClaimRemappings     []OidcClientClaimRemappingDto    `json:"claimRemappings,omitempty"`
 }
 
 type OidcClientFederatedIdentityDto struct {
@@ -64,7 +65,7 @@ type OidcClientFederatedIdentityDto struct {
 	JWKS     string `json:"jwks,omitempty"`
 }
 
-type OidcClientClaimRemappingDto struct {
+type OidcClientClaimMappingDto struct {
 	ClaimName   string `json:"claimName" binding:"required,min=1,max=255"`
 	SourceType  string `json:"sourceType" binding:"required,oneof=user_field custom_claim static"`
 	SourceValue string `json:"sourceValue" binding:"required,min=1,max=1000"`

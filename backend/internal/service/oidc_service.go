@@ -828,8 +828,8 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 }
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
-	// Validate claim remappings
-	if err := validateClaimRemappings(input.Credentials.ClaimRemappings); err != nil {
+	// Validate claim mappings
+	if err := validateClaimMappings(input.ClaimMappings); err != nil {
 		return model.OidcClient{}, err
 	}
 
@@ -871,8 +871,8 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 }
 
 func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
-	// Validate claim remappings
-	if err := validateClaimRemappings(input.Credentials.ClaimRemappings); err != nil {
+	// Validate claim mappings
+	if err := validateClaimMappings(input.ClaimMappings); err != nil {
 		return model.OidcClient{}, err
 	}
 
@@ -927,7 +927,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	return client, nil
 }
 
-// Valid user field names that can be used as remapping sources
+// Valid user field names that can be used as mapping sources
 var validUserFieldSources = map[string]bool{
 	"email":        true,
 	"first_name":   true,
@@ -938,7 +938,7 @@ var validUserFieldSources = map[string]bool{
 }
 
 // Reserved claims that cannot be remapped
-var reservedClaimsForRemapping = map[string]bool{
+var reservedClaimsForMapping = map[string]bool{
 	"sub":       true,
 	"iss":       true,
 	"aud":       true,
@@ -954,62 +954,61 @@ var reservedClaimsForRemapping = map[string]bool{
 	"groups":    true,
 }
 
-func validateClaimRemappings(remappings []dto.OidcClientClaimRemappingDto) error {
+func validateClaimMappings(mappings []dto.OidcClientClaimMappingDto) error {
 	seenClaims := make(map[string]bool)
 
-	for _, remapping := range remappings {
-		// Check for duplicates
-		if seenClaims[remapping.ClaimName] {
-			return fmt.Errorf("duplicate claim remapping for '%s'", remapping.ClaimName)
+	for _, mapping := range mappings {
+
+		if len(mapping.ClaimName) == 0 || len(mapping.SourceType) == 0 || len(mapping.SourceValue) == 0 {
+			return fmt.Errorf("claim name, source type and source value are required")
 		}
-		seenClaims[remapping.ClaimName] = true
+		// Check for duplicates
+		if seenClaims[mapping.ClaimName] {
+			return fmt.Errorf("duplicate claim mapping for '%s'", mapping.ClaimName)
+		}
+		seenClaims[mapping.ClaimName] = true
 
 		// Check if claim is reserved
-		if reservedClaimsForRemapping[remapping.ClaimName] {
-			return fmt.Errorf("cannot remap reserved claim '%s'", remapping.ClaimName)
+		if reservedClaimsForMapping[mapping.ClaimName] {
+			return fmt.Errorf("cannot remap reserved claim '%s'", mapping.ClaimName)
 		}
 
 		// Validate source based on type
-		switch remapping.SourceType {
+		switch mapping.SourceType {
 		case "user_field":
-			if !validUserFieldSources[remapping.SourceValue] {
-				return fmt.Errorf("invalid user field '%s' for remapping", remapping.SourceValue)
+			if !validUserFieldSources[mapping.SourceValue] {
+				return fmt.Errorf("invalid user field '%s' for mapping", mapping.SourceValue)
 			}
 		case "custom_claim":
 			// Custom claim key validation
-			if len(remapping.SourceValue) == 0 || len(remapping.SourceValue) > 255 {
+			if len(mapping.SourceValue) == 0 || len(mapping.SourceValue) > 255 {
 				return fmt.Errorf("invalid custom claim key length")
 			}
 		case "static":
 			// Static values are always valid (string or JSON)
 		default:
-			return fmt.Errorf("invalid source type '%s'", remapping.SourceType)
+			return fmt.Errorf("invalid source type '%s'", mapping.SourceType)
 		}
 	}
 
 	return nil
 }
 
-func (s *OidcService) applyClaimRemappings(
-	claims map[string]any,
-	remappings []model.OidcClientClaimRemapping,
-	user *model.User,
-	customClaimsMap map[string]any,
-) error {
+func (s *OidcService) applyClaimMappings(claims map[string]any, mappings []model.OidcClientClaimMapping, user *model.User, customClaimsMap map[string]any) error {
 	// Store original values for fallback
 	originalClaims := make(map[string]any)
 	for k, v := range claims {
 		originalClaims[k] = v
 	}
 
-	for _, remapping := range remappings {
+	for _, mapping := range mappings {
 		var remappedValue any
 		var foundValue bool
 
-		switch remapping.SourceType {
-		case model.RemappingSourceUserField:
+		switch mapping.SourceType {
+		case model.MappingSourceUserField:
 			// Map from user field
-			switch remapping.SourceValue {
+			switch mapping.SourceValue {
 			case "email":
 				remappedValue = user.Email
 				foundValue = user.Email != nil
@@ -1030,31 +1029,31 @@ func (s *OidcService) applyClaimRemappings(
 				foundValue = user.Locale != nil
 			}
 
-		case model.RemappingSourceCustomClaim:
+		case model.MappingSourceCustomClaim:
 			// Map from custom claim
-			if value, exists := customClaimsMap[remapping.SourceValue]; exists {
+			if value, exists := customClaimsMap[mapping.SourceValue]; exists {
 				remappedValue = value
 				foundValue = true
 			}
 
-		case model.RemappingSourceStatic:
+		case model.MappingSourceStatic:
 			// Try to parse as JSON, fall back to string
 			var jsonValue any
-			err := json.Unmarshal([]byte(remapping.SourceValue), &jsonValue)
+			err := json.Unmarshal([]byte(mapping.SourceValue), &jsonValue)
 			if err == nil {
 				remappedValue = jsonValue
 			} else {
-				remappedValue = remapping.SourceValue
+				remappedValue = mapping.SourceValue
 			}
 			foundValue = true
 		}
 
 		// If value was found, use it; otherwise fall back to original value
 		if foundValue {
-			claims[remapping.ClaimName] = remappedValue
-		} else if originalValue, exists := originalClaims[remapping.ClaimName]; exists {
-			// Fall back to original value if remapping source doesn't exist
-			claims[remapping.ClaimName] = originalValue
+			claims[mapping.ClaimName] = remappedValue
+		} else if originalValue, exists := originalClaims[mapping.ClaimName]; exists {
+			// Fall back to original value if mapping source doesn't exist
+			claims[mapping.ClaimName] = originalValue
 		}
 	}
 
@@ -1084,12 +1083,12 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 		}
 	}
 
-	// Credentials - ClaimRemappings
-	client.Credentials.ClaimRemappings = make([]model.OidcClientClaimRemapping, len(input.Credentials.ClaimRemappings))
-	for i, cr := range input.Credentials.ClaimRemappings {
-		client.Credentials.ClaimRemappings[i] = model.OidcClientClaimRemapping{
+	// Credentials - ClaimMappings
+	client.ClaimMappings = make([]model.OidcClientClaimMapping, len(input.ClaimMappings))
+	for i, cr := range input.ClaimMappings {
+		client.ClaimMappings[i] = model.OidcClientClaimMapping{
 			ClaimName:   cr.ClaimName,
-			SourceType:  model.ClaimRemappingSourceType(cr.SourceType),
+			SourceType:  model.ClaimMappingSourceType(cr.SourceType),
 			SourceValue: cr.SourceValue,
 		}
 	}
@@ -2205,7 +2204,7 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 			return nil, err
 		}
 
-		// Store custom claims in a map for easy lookup during remapping
+		// Store custom claims in a map for easy lookup during mapping
 		customClaimsMap := make(map[string]any)
 		for _, customClaim := range customClaims {
 			// The value of the custom claim can be a JSON object or a string
@@ -2231,9 +2230,9 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 		claims["preferred_username"] = user.Username
 		claims["picture"] = common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png"
 
-		// Apply claim remappings for this client (if configured)
-		if client != nil && len(client.Credentials.ClaimRemappings) > 0 {
-			err = s.applyClaimRemappings(claims, client.Credentials.ClaimRemappings, user, customClaimsMap)
+		// Apply claim mappings for this client (if configured)
+		if client != nil && len(client.ClaimMappings) > 0 {
+			err = s.applyClaimMappings(claims, client.ClaimMappings, user, customClaimsMap)
 			if err != nil {
 				return nil, err
 			}

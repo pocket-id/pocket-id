@@ -526,5 +526,16 @@
 	"email_verification_sent": "Verification email sent successfully.",
 	"emails_verified_by_default": "Emails verified by default",
 	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed.",
-	"user_has_no_passkeys_yet": "This user has no passkeys yet."
+	"user_has_no_passkeys_yet": "This user has no passkeys yet.",
+	"claim_mappings": "Claim mappings",
+	"claim_mappings_description": "Map token's claims to different sources for this client. For example, map 'preferred_username' to a custom claim value to return a user's email instead of their Pocket-ID username.",
+	"add_claim_mapping": "Add Claim mapping",
+	"add_another_claim_mapping": "Add Another Claim mapping",
+	"claim_name": "Claim Name",
+	"claim_source": "Claim Source",
+	"static_value": "Static Value",
+	"user_attribute": "User Attribute",
+	"custom_claim": "Custom Claim",
+	"claim_value": "Claim Value",
+	"remove_claim_mapping": "Remove Claim Mapping"
 }
