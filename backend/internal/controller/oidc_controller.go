@@ -89,12 +89,19 @@ type OidcController struct {
 // @Router /api/oidc/authorize [post]
 func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	var input dto.AuthorizeOidcClientRequestDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	code, callbackURL, err := oc.oidcService.Authorize(c.Request.Context(), input, c.GetString("userID"), c.ClientIP(), c.Request.UserAgent())
+	code, callbackURL, err := oc.oidcService.Authorize(
+		c.Request.Context(),
+		input,
+		c.GetString("userID"),
+		c.ClientIP(),
+		c.Request.UserAgent(),
+	)
 	if err != nil {
 		_ = c.Error(err)
 		return

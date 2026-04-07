@@ -57,3 +57,28 @@ func TestValidateClientID(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCallbackURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"valid https URL", "https://example.com/callback", true},
+		{"valid loopback URL", "http://127.0.0.1:49813/callback", true},
+		{"empty scheme", "//127.0.0.1:49813/callback", true},
+		{"valid custom scheme", "pocketid://callback", true},
+		{"invalid malformed URL", "http://[::1", false},
+		{"invalid missing scheme separator", "://example.com/callback", false},
+		{"rejects javascript scheme", "javascript:alert(1)", false},
+		{"rejects mixed case javascript scheme", "JavaScript:alert(1)", false},
+		{"rejects data scheme", "data:text/html;base64,PGgxPkhlbGxvPC9oMT4=", false},
+		{"rejects mixed case data scheme", "DaTa:text/html;base64,PGgxPkhlbGxvPC9oMT4=", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ValidateCallbackURL(tt.input))
+		})
+	}
+}

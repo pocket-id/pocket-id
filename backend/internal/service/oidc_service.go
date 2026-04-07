@@ -125,9 +125,7 @@ func (s *OidcService) getJWKCache(ctx context.Context) (*jwk.Cache, error) {
 
 func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClientRequestDto, userID, ipAddress, userAgent string) (string, string, error) {
 	tx := s.db.Begin()
-	defer func() {
-		tx.Rollback()
-	}()
+	defer tx.Rollback()
 
 	var client model.OidcClient
 	err := tx.
