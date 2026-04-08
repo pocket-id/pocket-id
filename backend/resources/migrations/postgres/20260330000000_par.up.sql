@@ -1,6 +1,6 @@
 CREATE TABLE oidc_pushed_authorization_requests (
     id TEXT NOT NULL PRIMARY KEY,
-    created_at BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
     request_uri TEXT NOT NULL UNIQUE,
     client_id TEXT NOT NULL REFERENCES oidc_clients(id) ON DELETE CASCADE,
     scope TEXT NOT NULL DEFAULT '',
@@ -11,7 +11,7 @@ CREATE TABLE oidc_pushed_authorization_requests (
     code_challenge_method TEXT,
     response_type TEXT NOT NULL DEFAULT 'code',
     prompt TEXT NOT NULL DEFAULT '',
-    expires_at BIGINT NOT NULL
+    expires_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX idx_oidc_par_expires_at ON oidc_pushed_authorization_requests (expires_at);
