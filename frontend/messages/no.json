@@ -106,7 +106,6 @@
 	"ip_address": "IP adresse",
 	"device": "Enhet",
 	"client": "Klient",
-	"actor": "Actor",
 	"unknown": "Ukjent",
 	"account_details_updated_successfully": "Brukerdetaljer oppdatert",
 	"profile_picture_updated_successfully": "Profilbildet er oppdatert. Det kan ta noen minutter før det vises overalt.",

@@ -106,7 +106,6 @@
 	"ip_address": "IP adresa",
 	"device": "Zařízení",
 	"client": "Klient",
-	"actor": "Actor",
 	"unknown": "Neznámé",
 	"account_details_updated_successfully": "Účet byl úspěšně aktualizován",
 	"profile_picture_updated_successfully": "Profilový obrázek byl úspěšně aktualizován. Aktualizace může trvat několik minut.",

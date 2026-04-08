@@ -106,7 +106,6 @@
 	"ip_address": "IP Address",
 	"device": "Device",
 	"client": "Client",
-	"actor": "Actor",
 	"unknown": "Unknown",
 	"account_details_updated_successfully": "Account details updated successfully",
 	"profile_picture_updated_successfully": "Profile picture updated successfully. It may take a few minutes to update.",

@@ -106,7 +106,6 @@
 	"ip_address": "Adresse IP",
 	"device": "Périphérique",
 	"client": "Application",
-	"actor": "Actor",
 	"unknown": "Indisponible",
 	"account_details_updated_successfully": "Les informations du compte ont été mises à jour avec succès",
 	"profile_picture_updated_successfully": "La photo de profil a été mise à jour avec succès. La mise à jour peut prendre quelques minutes.",

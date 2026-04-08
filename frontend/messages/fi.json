@@ -106,7 +106,6 @@
 	"ip_address": "IP-osoite",
 	"device": "Laite",
 	"client": "Asiakas",
-	"actor": "Actor",
 	"unknown": "Tuntematon",
 	"account_details_updated_successfully": "Tilin tiedot päivitetty onnistuneesti",
 	"profile_picture_updated_successfully": "Profiilikuva päivitetty onnistuneesti. Päivitys voi kestää muutaman minuutin.",

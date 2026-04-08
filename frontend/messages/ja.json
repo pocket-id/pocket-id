@@ -106,7 +106,6 @@
 	"ip_address": "IPアドレス",
 	"device": "デバイス",
 	"client": "クライアント",
-	"actor": "Actor",
 	"unknown": "不明",
 	"account_details_updated_successfully": "アカウントの詳細が正常に更新されました",
 	"profile_picture_updated_successfully": "プロフィール画像が正常に更新されました。反映まで数分かかる場合があります。",

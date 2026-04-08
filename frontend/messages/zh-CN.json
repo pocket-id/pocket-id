@@ -106,7 +106,6 @@
 	"ip_address": "IP 地址",
 	"device": "设备",
 	"client": "客户端",
-	"actor": "Actor",
 	"unknown": "未知",
 	"account_details_updated_successfully": "账户信息已成功更新",
 	"profile_picture_updated_successfully": "头像更新成功。可能需要几分钟才能完成刷新。",

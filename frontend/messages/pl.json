@@ -106,7 +106,6 @@
 	"ip_address": "Adres IP",
 	"device": "Urządzenie",
 	"client": "Klient",
-	"actor": "Actor",
 	"unknown": "Nieznany",
 	"account_details_updated_successfully": "Sukces! Szczegóły konta zostały zaktualizowane.",
 	"profile_picture_updated_successfully": "Sukces! Zdjęcie profilowe zostało zaktualizowane. Może to potrwać kilka minut.",

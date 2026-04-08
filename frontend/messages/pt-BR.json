@@ -106,7 +106,6 @@
 	"ip_address": "Endereço de IP",
 	"device": "Dispositivo",
 	"client": "Cliente",
-	"actor": "Actor",
 	"unknown": "Desconhecido",
 	"account_details_updated_successfully": "Detalhes da conta atualizados com sucesso",
 	"profile_picture_updated_successfully": "Foto de perfil alterada com sucesso. A atualização pode demorar alguns minutos.",

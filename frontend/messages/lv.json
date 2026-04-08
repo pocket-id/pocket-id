@@ -106,7 +106,6 @@
 	"ip_address": "IP adrese",
 	"device": "Ierīce",
 	"client": "Klients",
-	"actor": "Actor",
 	"unknown": "Nezināms",
 	"account_details_updated_successfully": "Konta dati veiksmīgi atjaunināti",
 	"profile_picture_updated_successfully": "Profila attēls veiksmīgi atjaunināts. Izmaiņu parādīšanās var aizņemt dažas minūtes.",
