@@ -118,7 +118,6 @@
 	"account_details": "계정 세부 사항",
 	"passkeys": "패스키",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "사용자 인증에 사용하는 패스키를 관리하세요.",
-	"manage_this_users_passkeys": "Manage this user's passkeys.",
 	"add_passkey": "패스키 추가",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "패스키 없이 다른 기기에서 로그인하기 위한 일회용 로그인 코드를 생성합니다.",
 	"create": "생성",
