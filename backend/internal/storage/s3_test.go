@@ -46,7 +46,7 @@ func TestS3Helpers(t *testing.T) {
 			{name: "no prefix empty key", prefix: "", key: "", expected: ""},
 			{name: "prefix matches and is stripped", prefix: "data/uploads", key: "data/uploads/application-images/logo.svg", expected: "application-images/logo.svg"},
 			{name: "single-segment prefix stripped", prefix: "root", key: "root/foo/bar.txt", expected: "foo/bar.txt"},
-			{name: "prefix as exact key returns empty rest", prefix: "root", key: "root", expected: "root"},
+			{name: "prefix equal to key without trailing slash is unchanged", prefix: "root", key: "root", expected: "root"},
 			{name: "key without expected prefix returned unchanged", prefix: "data/uploads", key: "other/path.txt", expected: "other/path.txt"},
 		}
 
