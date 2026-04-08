@@ -138,13 +138,20 @@ func (s *s3Storage) List(ctx context.Context, path string) ([]ObjectInfo, error)
 				continue
 			}
 			objects = append(objects, ObjectInfo{
-				Path:    aws.ToString(obj.Key),
+				Path:    s.pathFromKey(aws.ToString(obj.Key)),
 				Size:    aws.ToInt64(obj.Size),
 				ModTime: aws.ToTime(obj.LastModified),
 			})
 		}
 	}
 	return objects, nil
+}
+
+func (s *s3Storage) pathFromKey(key string) string {
+	if s.prefix == "" {
+		return key
+	}
+	return strings.TrimPrefix(key, s.prefix+"/")
 }
 
 func (s *s3Storage) Walk(ctx context.Context, root string, fn func(ObjectInfo) error) error {
