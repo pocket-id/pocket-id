@@ -106,6 +106,7 @@
 	"ip_address": "IP adresa",
 	"device": "Zařízení",
 	"client": "Klient",
+	"actor": "Herec",
 	"unknown": "Neznámé",
 	"account_details_updated_successfully": "Účet byl úspěšně aktualizován",
 	"profile_picture_updated_successfully": "Profilový obrázek byl úspěšně aktualizován. Aktualizace může trvat několik minut.",
@@ -522,5 +523,6 @@
 	"mark_as_verified": "Označit jako ověřené",
 	"email_verification_sent": "Ověřovací e-mail byl úspěšně odeslán.",
 	"emails_verified_by_default": "E-maily ověřené ve výchozím nastavení",
-	"emails_verified_by_default_description": "Pokud je tato funkce povolena, budou e-mailové adresy uživatelů při registraci nebo při změně e-mailové adresy automaticky označeny jako ověřené."
+	"emails_verified_by_default_description": "Pokud je tato funkce povolena, budou e-mailové adresy uživatelů při registraci nebo při změně e-mailové adresy automaticky označeny jako ověřené.",
+	"user_has_no_passkeys_yet": "Tento uživatel zatím nemá žádné přístupové klíče."
 }
