@@ -106,6 +106,7 @@
 	"ip_address": "IP-osoite",
 	"device": "Laite",
 	"client": "Asiakas",
+	"actor": "Näyttelijä",
 	"unknown": "Tuntematon",
 	"account_details_updated_successfully": "Tilin tiedot päivitetty onnistuneesti",
 	"profile_picture_updated_successfully": "Profiilikuva päivitetty onnistuneesti. Päivitys voi kestää muutaman minuutin.",
@@ -117,6 +118,7 @@
 	"account_details": "Tilitiedot",
 	"passkeys": "Pääsyavaimet",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Hallitse pääsyavaimiasi, joita voit käyttää tunnistautumiseen.",
+	"manage_this_users_passkeys": "Hallitse tämän käyttäjän salasanat.",
 	"add_passkey": "Lisää pääsyavain",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Luo kertakäyttöinen kirjautumiskoodi, jotta voit kirjautua sisään toisella laitteella ilman pääsyavainta.",
 	"create": "Luo",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Merkitse vahvistetuksi",
 	"email_verification_sent": "Vahvistussähköposti lähetetty onnistuneesti.",
 	"emails_verified_by_default": "Sähköpostit vahvistettu oletuksena",
-	"emails_verified_by_default_description": "Kun tämä toiminto on käytössä, käyttäjien sähköpostiosoitteet merkitään oletusarvoisesti vahvistetuiksi rekisteröitymisen yhteydessä tai kun heidän sähköpostiosoitteensa muuttuu."
+	"emails_verified_by_default_description": "Kun tämä toiminto on käytössä, käyttäjien sähköpostiosoitteet merkitään oletusarvoisesti vahvistetuiksi rekisteröitymisen yhteydessä tai kun heidän sähköpostiosoitteensa muuttuu.",
+	"user_has_no_passkeys_yet": "Tällä käyttäjällä ei ole vielä salasanakoodeja."
 }
