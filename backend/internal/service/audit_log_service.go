@@ -223,36 +223,6 @@ func (s *AuditLogService) ListUsernamesWithIds(ctx context.Context) (users map[s
 	return users, nil
 }
 
-func (s *AuditLogService) ListUsernamesByIDs(ctx context.Context, ids []string) (map[string]string, error) {
-	if len(ids) == 0 {
-		return map[string]string{}, nil
-	}
-
-	var results []struct {
-		ID       string `gorm:"column:id"`
-		Username string `gorm:"column:username"`
-	}
-
-	err := s.db.
-		WithContext(ctx).
-		Model(&model.User{}).
-		Select("id, username").
-		Where("id IN ?", ids).
-		Where("username IS NOT NULL").
-		Find(&results).
-		Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to query usernames by IDs: %w", err)
-	}
-
-	users := make(map[string]string, len(results))
-	for _, result := range results {
-		users[result.ID] = result.Username
-	}
-
-	return users, nil
-}
-
 func (s *AuditLogService) ListClientNames(ctx context.Context) (clientNames []string, err error) {
 	dialect := s.db.Name()
 	query := s.db.

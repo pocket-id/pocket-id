@@ -313,7 +313,16 @@ func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID string, c
 
 	auditLogData := model.AuditLogData{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
 	if actorUserID != "" && actorUserID != userID {
+		var actor model.User
+		err := tx.
+			WithContext(ctx).
+			First(&actor, "id = ?", actorUserID).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to load actor user: %w", err)
+		}
 		auditLogData["actorUserID"] = actorUserID
+		auditLogData["actorUsername"] = actor.Username
 	}
 	s.auditLogService.Create(ctx, model.AuditLogEventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
 

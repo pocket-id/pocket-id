@@ -101,8 +101,6 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) {
 	userID := c.Param("id")
 
-	// Ensure the user exists so that unknown users result in a 404,
-	// consistent with other /users/:id/* admin endpoints.
 	if _, err := uc.userService.GetUser(c.Request.Context(), userID); err != nil {
 		_ = c.Error(err)
 		return
