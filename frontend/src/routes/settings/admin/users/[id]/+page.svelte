@@ -16,9 +16,9 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { KeyRound, LucideChevronLeft } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import AdminPasskeyList from './admin-passkey-list.svelte';
 	import { backNavigate } from '../navigate-back-util';
 	import UserForm from '../user-form.svelte';
+	import AdminPasskeyList from './admin-passkey-list.svelte';
 
 	let { data } = $props();
 	let user = $state({
@@ -132,22 +132,20 @@
 	</div>
 </CollapsibleCard>
 
-<Card.Root>
-	<Card.Content class="pt-6">
-		<Item.Root class="border-none bg-transparent p-0">
-			<Item.Media class="text-primary/80">
-				<KeyRound class="size-5" />
-			</Item.Media>
-			<Item.Content class="min-w-52">
-				<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
-				<Item.Description>{m.manage_this_users_passkeys()}</Item.Description>
-			</Item.Content>
-		</Item.Root>
-		{#if passkeys.length > 0}
-			<AdminPasskeyList userId={user.id} bind:passkeys />
-		{/if}
-	</Card.Content>
-</Card.Root>
+<Item.Group class="bg-card rounded-xl border p-4 shadow-sm">
+	<Item.Root class="border-none bg-transparent p-0">
+		<Item.Media class="text-primary/80">
+			<KeyRound class="size-5" />
+		</Item.Media>
+		<Item.Content class="min-w-52">
+			<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
+			<Item.Description>{passkeys.length > 0 ? m.manage_this_users_passkeys() : m.user_has_no_passkeys_yet()}</Item.Description>
+		</Item.Content>
+	</Item.Root>
+	{#if passkeys.length > 0}
+		<AdminPasskeyList userId={user.id} bind:passkeys />
+	{/if}
+</Item.Group>
 
 <CollapsibleCard
 	id="user-custom-claims"
