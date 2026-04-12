@@ -106,6 +106,7 @@
 	"ip_address": "IP-adresse",
 	"device": "Enhed",
 	"client": "Klient",
+	"actor": "Skuespiller",
 	"unknown": "Ukendt",
 	"account_details_updated_successfully": "Kontodetaljer blev opdateret",
 	"profile_picture_updated_successfully": "Profilbillede opdateret. Det kan tage et par minutter før ændringen vises.",
@@ -117,6 +118,7 @@
 	"account_details": "Kontooplysninger",
 	"passkeys": "Adgangsnøgler",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Administrér dine adgangsnøgler, som du kan bruge til at godkende dig selv.",
+	"manage_this_users_passkeys": "Administrer denne brugers adgangskoder.",
 	"add_passkey": "Tilføj adgangsnøgle",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Opret en engangskode for at logge ind fra en anden enhed uden en adgangsnøgle.",
 	"create": "Opret",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Marker som verificeret",
 	"email_verification_sent": "Bekræftelses-e-mail sendt med succes.",
 	"emails_verified_by_default": "E-mails verificeret som standard",
-	"emails_verified_by_default_description": "Når denne funktion er aktiveret, vil brugernes e-mailadresser som standard blive markeret som verificerede ved tilmelding eller når deres e-mailadresse ændres."
+	"emails_verified_by_default_description": "Når denne funktion er aktiveret, vil brugernes e-mailadresser som standard blive markeret som verificerede ved tilmelding eller når deres e-mailadresse ændres.",
+	"user_has_no_passkeys_yet": "Denne bruger har endnu ingen adgangskoder."
 }
