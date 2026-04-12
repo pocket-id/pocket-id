@@ -53,6 +53,7 @@ test.describe('Update user creation configuration', () => {
 		await page.getByRole('combobox', { name: 'User Groups' }).click();
 		await page.getByRole('option', { name: 'Developers' }).click();
 		await page.getByRole('option', { name: 'Designers' }).click();
+		await page.getByRole('combobox', { name: 'User Groups' }).click();
 
 		await page.getByRole('button', { name: 'Save' }).nth(1).click();
 
