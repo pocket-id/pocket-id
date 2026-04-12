@@ -32,6 +32,7 @@ type services struct {
 	appLockService       *service.AppLockService
 	userSignUpService    *service.UserSignUpService
 	oneTimeAccessService *service.OneTimeAccessService
+	webhookService       *service.WebhookService
 }
 
 // Initializes all services
@@ -53,7 +54,8 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	}
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
-	svc.auditLogService = service.NewAuditLogService(db, svc.appConfigService, svc.emailService, svc.geoLiteService)
+	svc.webhookService = service.NewWebhookService(svc.appConfigService, httpClient)
+	svc.auditLogService = service.NewAuditLogService(db, svc.appConfigService, svc.emailService, svc.geoLiteService, svc.webhookService)
 	svc.jwtService, err = service.NewJwtService(ctx, db, svc.appConfigService)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)

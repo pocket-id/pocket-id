@@ -21,18 +21,21 @@ func NewAppConfigController(
 	appConfigService *service.AppConfigService,
 	emailService *service.EmailService,
 	ldapService *service.LdapService,
+	webhookService *service.WebhookService,
 ) {
 
 	acc := &AppConfigController{
 		appConfigService: appConfigService,
 		emailService:     emailService,
 		ldapService:      ldapService,
+		webhookService:   webhookService,
 	}
 	group.GET("/application-configuration", acc.listAppConfigHandler)
 	group.GET("/application-configuration/all", authMiddleware.Add(), acc.listAllAppConfigHandler)
 	group.PUT("/application-configuration", authMiddleware.Add(), acc.updateAppConfigHandler)
 
 	group.POST("/application-configuration/test-email", authMiddleware.Add(), acc.testEmailHandler)
+	group.POST("/application-configuration/test-webhook", authMiddleware.Add(), acc.testWebhookHandler)
 	group.POST("/application-configuration/sync-ldap", authMiddleware.Add(), acc.syncLdapHandler)
 }
 
@@ -40,6 +43,7 @@ type AppConfigController struct {
 	appConfigService *service.AppConfigService
 	emailService     *service.EmailService
 	ldapService      *service.LdapService
+	webhookService   *service.WebhookService
 }
 
 // listAppConfigHandler godoc
@@ -146,6 +150,22 @@ func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
 	userID := c.GetString("userID")
 
 	err := acc.emailService.SendTestEmail(c.Request.Context(), userID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// testWebhookHandler godoc
+// @Summary Send test webhook
+// @Description Send a test webhook to verify webhook configuration
+// @Tags Application Configuration
+// @Success 204 "No Content"
+// @Router /api/application-configuration/test-webhook [post]
+func (acc *AppConfigController) testWebhookHandler(c *gin.Context) {
+	err := acc.webhookService.SendTestWebhook(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
