@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -110,7 +111,19 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	var protocols http.Protocols
 	protocols.SetHTTP1(true)
-	protocols.SetUnencryptedHTTP2(true)
+
+	var tlsConfig *tls.Config
+
+	if common.EnvConfig.TLSCertFile != "" && common.EnvConfig.TLSKeyFile != "" {
+		protocols.SetHTTP2(true)
+		tlsConfig, err = buildTLSConfig(common.EnvConfig.TLSCertFile, common.EnvConfig.TLSKeyFile, common.EnvConfig.TLSMinVersion)
+		if err != nil {
+			return nil, err
+		}
+		slog.Info("TLS enabled", slog.String("minVersion", common.EnvConfig.TLSMinVersion))
+	} else {
+		protocols.SetUnencryptedHTTP2(true)
+	}
 
 	// Set up the server
 	srv := &http.Server{
@@ -158,14 +171,20 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// Service runner function
 	runFn := func(ctx context.Context) error {
-		slog.Info("Server listening", slog.String("addr", addr))
+		slog.Info("Server listening", slog.String("addr", addr), slog.Bool("tls", tlsConfig != nil))
 
 		// Start the server in a background goroutine
 		go func() {
 			defer listener.Close()
 
 			// Next call blocks until the server is shut down
-			srvErr := srv.Serve(listener)
+			var srvErr error
+			if tlsConfig != nil {
+				srvErr = srv.Serve(tls.NewListener(listener, tlsConfig))
+			} else {
+				srvErr = srv.Serve(listener)
+			}
+
 			if srvErr != http.ErrServerClosed {
 				slog.Error("Error starting app server", "error", srvErr)
 				os.Exit(1)
@@ -223,4 +242,25 @@ func initLogger(r *gin.Engine) {
 			return false
 		}),
 	))
+}
+
+func buildTLSConfig(certFile, keyFile, minVersion string) (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+	}
+
+	var minTLSVersion uint16
+	switch minVersion {
+	case "1.3":
+		minTLSVersion = tls.VersionTLS13
+	default:
+		minTLSVersion = tls.VersionTLS12
+	}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   minTLSVersion, //nolint:gosec // validated to be 1.2 or 1.3 in config validation
+		NextProtos:   []string{"h2"},
+	}, nil
 }
