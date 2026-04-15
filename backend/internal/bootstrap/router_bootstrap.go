@@ -11,8 +11,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -113,13 +116,32 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	protocols.SetHTTP1(true)
 
 	var tlsConfig *tls.Config
+	var certProvider *tlsCertProvider
+	var certWatcher *fsnotify.Watcher
 
 	if common.EnvConfig.TLSCertFile != "" && common.EnvConfig.TLSKeyFile != "" {
 		protocols.SetHTTP2(true)
-		tlsConfig, err = buildTLSConfig(common.EnvConfig.TLSCertFile, common.EnvConfig.TLSKeyFile, common.EnvConfig.TLSMinVersion)
-		if err != nil {
-			return nil, err
+
+		var minTLSVersion uint16
+		switch common.EnvConfig.TLSMinVersion {
+		case "1.3":
+			minTLSVersion = tls.VersionTLS13
+		default:
+			minTLSVersion = tls.VersionTLS12
 		}
+
+		certProvider, err = newCertProvider(common.EnvConfig.TLSCertFile, common.EnvConfig.TLSKeyFile, minTLSVersion)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+		}
+
+		//nolint:gosec // MinVersion is validated to be 1.2 or 1.3 in config validation
+		tlsConfig = &tls.Config{
+			GetCertificate: certProvider.GetCertificate,
+			MinVersion:     minTLSVersion,
+			NextProtos:     []string{"h2"},
+		}
+
 		slog.Info("TLS enabled", slog.String("minVersion", common.EnvConfig.TLSMinVersion))
 	} else {
 		protocols.SetUnencryptedHTTP2(true)
@@ -173,6 +195,25 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	runFn := func(ctx context.Context) error {
 		slog.Info("Server listening", slog.String("addr", addr), slog.Bool("tls", tlsConfig != nil))
 
+		// Set up certificate hot reloading if TLS is enabled
+		if certProvider != nil {
+			certWatcher, err = fsnotify.NewWatcher()
+			if err != nil {
+				return fmt.Errorf("failed to create certificate watcher: %w", err)
+			}
+
+			// Watch both certificate and key files
+			if err := certWatcher.Add(common.EnvConfig.TLSCertFile); err != nil {
+				return fmt.Errorf("failed to watch TLS certificate: %w", err)
+			}
+			if err := certWatcher.Add(common.EnvConfig.TLSKeyFile); err != nil {
+				return fmt.Errorf("failed to watch TLS key: %w", err)
+			}
+
+			// Start certificate watcher goroutine
+			go certProvider.StartWatching(ctx, certWatcher)
+		}
+
 		// Start the server in a background goroutine
 		go func() {
 			defer listener.Close()
@@ -211,6 +252,11 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 			slog.Warn("App server shutdown error", "error", shutdownErr)
 		}
 
+		// Close certificate watcher
+		if certWatcher != nil {
+			certWatcher.Close()
+		}
+
 		return nil
 	}
 
@@ -244,23 +290,86 @@ func initLogger(r *gin.Engine) {
 	))
 }
 
-func buildTLSConfig(certFile, keyFile, minVersion string) (*tls.Config, error) {
+// tlsCertProvider holds certificates that can be dynamically reloaded
+type tlsCertProvider struct {
+	certMutex   sync.RWMutex
+	cert        *tls.Certificate
+	certFile    string
+	keyFile     string
+	minVersion  uint16
+	mu          sync.Mutex
+	forceReload atomic.Bool
+}
+
+// GetCertificate implements tls.GetCertificate interface for dynamic certificate loading
+func (p *tlsCertProvider) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	if p.forceReload.Load() {
+		p.certMutex.Lock()
+		p.forceReload.Store(false)
+		p.certMutex.Unlock()
+	}
+
+	p.certMutex.RLock()
+	defer p.certMutex.RUnlock()
+	return p.cert, nil
+}
+
+// newCertProvider creates a new certificate provider with initial certificates loaded
+func newCertProvider(certFile, keyFile string, minVersion uint16) (*tlsCertProvider, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+		return nil, err
 	}
 
-	var minTLSVersion uint16
-	switch minVersion {
-	case "1.3":
-		minTLSVersion = tls.VersionTLS13
-	default:
-		minTLSVersion = tls.VersionTLS12
-	}
-
-	return &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   minTLSVersion, //nolint:gosec // validated to be 1.2 or 1.3 in config validation
-		NextProtos:   []string{"h2"},
+	return &tlsCertProvider{
+		cert:       &cert,
+		certFile:    certFile,
+		keyFile:     keyFile,
+		minVersion: minVersion,
 	}, nil
+}
+
+// reloadCertificate reloads the certificate from disk
+func (p *tlsCertProvider) reloadCertificate() error {
+	cert, err := tls.LoadX509KeyPair(p.certFile, p.keyFile)
+	if err != nil {
+		return fmt.Errorf("failed to reload TLS certificate: %w", err)
+	}
+
+	p.certMutex.Lock()
+	p.cert = &cert
+	p.certMutex.Unlock()
+
+	return nil
+}
+
+// StartWatching begins monitoring the certificate files for changes
+func (p *tlsCertProvider) StartWatching(ctx context.Context, watcher *fsnotify.Watcher) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			// Only reload on write/rename events
+			if event.Has(fsnotify.Write | fsnotify.Rename) {
+				slog.Info("TLS certificate file changed, reloading", slog.String("path", event.Name))
+
+				if err := p.reloadCertificate(); err != nil {
+					slog.Error("Failed to reload TLS certificate", "error", err)
+					continue
+				}
+
+				p.forceReload.Store(true)
+				slog.Info("TLS certificate reloaded successfully")
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			slog.Error("Certificate watcher error", "error", err)
+		}
+	}
 }
