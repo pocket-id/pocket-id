@@ -35,7 +35,6 @@ const (
 	defaultSqliteConnString string     = "data/pocket-id.db"
 	defaultFsUploadPath     string     = "data/uploads"
 	AppUrl                  string     = "http://localhost:1411"
-	DefaultTLSMinVersion    string     = "1.2"
 )
 
 type EnvConfigSchema struct {
@@ -71,9 +70,8 @@ type EnvConfigSchema struct {
 	UnixSocketMode  string `env:"UNIX_SOCKET_MODE"`
 	LocalIPv6Ranges string `env:"LOCAL_IPV6_RANGES"`
 
-	TLSMinVersion string `env:"TLS_MIN_VERSION"`
-	TLSCertFile   string `env:"TLS_CERT" options:"file"`
-	TLSKeyFile    string `env:"TLS_KEY" options:"file"`
+	TLSCertFile string `env:"TLS_CERT" options:"file"`
+	TLSKeyFile  string `env:"TLS_KEY" options:"file"`
 
 	MaxMindLicenseKey string `env:"MAXMIND_LICENSE_KEY" options:"file"`
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
@@ -107,7 +105,6 @@ func defaultConfig() EnvConfigSchema {
 		Host:                  "0.0.0.0",
 		GeoLiteDBPath:         "data/GeoLite2-City.mmdb",
 		GeoLiteDBUrl:          MaxMindGeoLiteCityUrl,
-		TLSMinVersion:         DefaultTLSMinVersion,
 	}
 }
 
@@ -231,17 +228,10 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		}
 	}
 
-	if config.TLSKeyFile != "" && config.TLSCertFile != "" {
+	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
 		if _, err := os.Stat(config.TLSKeyFile); err != nil {
 			return fmt.Errorf("TLS_KEY_FILE not found: %w", err)
 		}
-	}
-
-	switch config.TLSMinVersion {
-	case "", "1.2", "1.3":
-		// valid
-	default:
-		return errors.New("TLS_MIN_VERSION must be '1.2' or '1.3'")
 	}
 
 	return nil

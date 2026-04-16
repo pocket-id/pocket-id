@@ -259,27 +259,6 @@ func TestParseEnvConfig(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "TLS_KEY_FILE not found")
 	})
-
-	t.Run("should fail with invalid TLS_MIN_VERSION", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("TLS_MIN_VERSION", "1.1")
-
-		err := parseAndValidateEnvConfig(t)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "TLS_MIN_VERSION must be '1.2' or '1.3'")
-	})
-
-	t.Run("should default TLS_MIN_VERSION to 1.2", func(t *testing.T) {
-		EnvConfig = defaultConfig()
-		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
-		t.Setenv("APP_URL", "http://localhost:3000")
-
-		err := parseEnvConfig()
-		require.NoError(t, err)
-		assert.Equal(t, "1.2", EnvConfig.TLSMinVersion)
-	})
 }
 
 func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
