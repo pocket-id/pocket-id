@@ -245,20 +245,22 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 
 		authCodes := []model.OidcAuthorizationCode{
 			{
-				Code:      "auth-code",
-				Scope:     "openid profile",
-				Nonce:     "nonce",
-				ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
-				UserID:    users[0].ID,
-				ClientID:  oidcClients[0].ID,
+				Code:                 "auth-code",
+				Scope:                "openid profile",
+				Nonce:                "nonce",
+				AuthenticationMethod: AuthenticationMethodPhishingResistant,
+				ExpiresAt:            datatype.DateTime(time.Now().Add(1 * time.Hour)),
+				UserID:               users[0].ID,
+				ClientID:             oidcClients[0].ID,
 			},
 			{
-				Code:      "federated",
-				Scope:     "openid profile",
-				Nonce:     "nonce",
-				ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
-				UserID:    users[1].ID,
-				ClientID:  oidcClients[3].ID,
+				Code:                 "federated",
+				Scope:                "openid profile",
+				Nonce:                "nonce",
+				AuthenticationMethod: AuthenticationMethodPhishingResistant,
+				ExpiresAt:            datatype.DateTime(time.Now().Add(1 * time.Hour)),
+				UserID:               users[1].ID,
+				ClientID:             oidcClients[3].ID,
 			},
 		}
 		for _, authCode := range authCodes {
@@ -268,11 +270,12 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		}
 
 		refreshToken := model.OidcRefreshToken{
-			Token:     utils.CreateSha256Hash("ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo"),
-			ExpiresAt: datatype.DateTime(time.Now().Add(24 * time.Hour)),
-			Scope:     "openid profile email",
-			UserID:    users[0].ID,
-			ClientID:  oidcClients[0].ID,
+			Token:                utils.CreateSha256Hash("ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo"),
+			AuthenticationMethod: AuthenticationMethodPhishingResistant,
+			ExpiresAt:            datatype.DateTime(time.Now().Add(24 * time.Hour)),
+			Scope:                "openid profile email",
+			UserID:               users[0].ID,
+			ClientID:             oidcClients[0].ID,
 		}
 		if err := tx.Create(&refreshToken).Error; err != nil {
 			return err

@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260109090200,
+	"version": 20260418120000,
 	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens"],
 	"tables": {
 		"api_keys": [
@@ -42,6 +42,7 @@
 		"oidc_authorization_codes": [
 			{
 				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
+				"authentication_method": "phr",
 				"code": "auth-code",
 				"code_challenge": null,
 				"code_challenge_method_sha256": null,
@@ -54,6 +55,7 @@
 			},
 			{
 				"client_id": "c48232ff-ff65-45ed-ae96-7afa8a9b443b",
+				"authentication_method": "phr",
 				"code": "federated",
 				"code_challenge": null,
 				"code_challenge_method_sha256": null,
@@ -168,6 +170,7 @@
 		"oidc_refresh_tokens": [
 			{
 				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
+				"authentication_method": "phr",
 				"created_at": "2025-11-25T12:39:02Z",
 				"expires_at": "2025-11-26T12:39:02Z",
 				"id": "4928604e-e689-410c-9b25-5b9b6db9e46e",
