@@ -87,7 +87,7 @@ func (s *UserSignUpService) SignUp(ctx context.Context, signupData dto.SignUpDto
 		return model.User{}, "", err
 	}
 
-	accessToken, err := s.jwtService.GenerateAccessToken(user, AuthenticationMethodOneTimePassword)
+	accessToken, err := s.jwtService.GenerateAccessToken(user, "")
 	if err != nil {
 		return model.User{}, "", err
 	}
