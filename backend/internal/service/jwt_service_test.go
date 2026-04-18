@@ -174,6 +174,7 @@ func TestJwtService_Init(t *testing.T) {
 		_ = assert.True(t, ok) &&
 			assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 	})
+
 }
 
 func TestJwtService_GetPublicJWK(t *testing.T) {
@@ -321,6 +322,9 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		isAdmin, err := GetIsAdmin(claims)
 		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
 			assert.False(t, isAdmin, "isAdmin should be false")
+		authenticationMethods, err := GetAuthenticationMethods(claims)
+		_ = assert.NoError(t, err, "Failed to get amr claim") &&
+			assert.Empty(t, authenticationMethods, "amr should be empty when not specified")
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
 			assert.Equal(t, []string{service.envConfig.AppURL}, audience, "Audience should contain the app URL")
@@ -356,6 +360,24 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, adminUser.ID, subject, "Token subject should match user ID")
+	})
+
+	t.Run("sets authentication method references claim when provided", func(t *testing.T) {
+		service, _, _ := setupJwtService(t, mockConfig)
+
+		user := model.User{
+			Base: model.Base{ID: "user-with-auth-method"},
+		}
+
+		tokenString, err := service.GenerateAccessToken(user, []string{AuthenticationMethodPhishingResistant})
+		require.NoError(t, err, "Failed to generate access token")
+
+		claims, err := service.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token")
+
+		authenticationMethods, err := GetAuthenticationMethods(claims)
+		_ = assert.NoError(t, err, "Failed to get amr claim") &&
+			assert.Equal(t, []string{AuthenticationMethodPhishingResistant}, authenticationMethods, "amr should match")
 	})
 
 	t.Run("uses session duration from config", func(t *testing.T) {
@@ -770,6 +792,25 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		assert.True(t, ok, "Expiration not found in token")
 		timeDiff := expectedExp.Sub(expiration).Minutes()
 		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
+	})
+
+	t.Run("sets authentication method references claim when provided", func(t *testing.T) {
+		service, _, _ := setupJwtService(t, mockConfig)
+
+		user := model.User{
+			Base: model.Base{ID: "oauth-amr-user"},
+		}
+		const clientID = "test-client-amr"
+
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID, []string{AuthenticationMethodPhishingResistant})
+		require.NoError(t, err, "Failed to generate OAuth access token")
+
+		claims, err := service.VerifyOAuthAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated OAuth access token")
+
+		authenticationMethods, err := GetAuthenticationMethods(claims)
+		_ = assert.NoError(t, err, "Failed to get amr claim") &&
+			assert.Equal(t, []string{AuthenticationMethodPhishingResistant}, authenticationMethods, "amr should match")
 	})
 
 	t.Run("fails verification for expired token", func(t *testing.T) {

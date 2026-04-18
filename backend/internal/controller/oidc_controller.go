@@ -99,6 +99,7 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 		c.Request.Context(),
 		input,
 		c.GetString("userID"),
+		c.GetString("authenticationMethod"),
 		c.ClientIP(),
 		c.Request.UserAgent(),
 	)
@@ -808,7 +809,14 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	userAgent := c.Request.UserAgent()
 
-	err := oc.oidcService.VerifyDeviceCode(c.Request.Context(), userCode, c.GetString("userID"), ipAddress, userAgent)
+	err := oc.oidcService.VerifyDeviceCode(
+		c.Request.Context(),
+		userCode,
+		c.GetString("userID"),
+		c.GetString("authenticationMethod"),
+		ipAddress,
+		userAgent)
+
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -864,7 +872,13 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 		return
 	}
 
-	preview, err := oc.oidcService.GetClientPreview(c.Request.Context(), clientID, userID, strings.Split(scopes, " "))
+	preview, err := oc.oidcService.GetClientPreview(
+		c.Request.Context(),
+		clientID,
+		userID,
+		strings.Split(scopes, " "),
+		c.GetString("authenticationMethod"))
+
 	if err != nil {
 		_ = c.Error(err)
 		return

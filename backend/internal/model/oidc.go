@@ -33,6 +33,7 @@ type OidcAuthorizationCode struct {
 
 	Code                      string
 	Scope                     string
+	AuthenticationMethod      string
 	Nonce                     string
 	CodeChallenge             *string
 	CodeChallengeMethodSha256 *bool
@@ -77,9 +78,10 @@ func (c OidcClient) HasDarkLogo() bool {
 type OidcRefreshToken struct {
 	Base
 
-	Token     string
-	ExpiresAt datatype.DateTime
-	Scope     string
+	Token                string
+	ExpiresAt            datatype.DateTime
+	Scope                string
+	AuthenticationMethod string
 
 	UserID string
 	User   User
@@ -141,12 +143,13 @@ func (cu UrlList) Value() (driver.Value, error) {
 
 type OidcDeviceCode struct {
 	Base
-	DeviceCode   string
-	UserCode     string
-	Scope        string
-	Nonce        string
-	ExpiresAt    datatype.DateTime
-	IsAuthorized bool
+	DeviceCode           string
+	UserCode             string
+	Scope                string
+	AuthenticationMethod string
+	Nonce                string
+	ExpiresAt            datatype.DateTime
+	IsAuthorized         bool
 
 	UserID   *string
 	User     User

@@ -266,7 +266,7 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		return model.User{}, "", &common.UserDisabledError{}
 	}
 
-	token, err := s.jwtService.GenerateAccessToken(*user)
+	token, err := s.jwtService.GenerateAccessToken(*user, AuthenticationMethodPhishingResistant)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -387,6 +387,14 @@ func (s *WebAuthnService) CreateReauthenticationTokenWithAccessToken(ctx context
 	userID, ok := token.Subject()
 	if !ok {
 		return "", errors.New("access token does not contain user ID")
+	}
+
+	authenticationMethod, err := GetAuthenticationMethod(token)
+	if err != nil {
+		return "", err
+	}
+	if authenticationMethod != AuthenticationMethodPhishingResistant {
+		return "", &common.ReauthenticationRequiredError{}
 	}
 
 	// Check if token is issued less than a minute ago

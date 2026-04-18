@@ -123,7 +123,7 @@ func (s *OidcService) getJWKCache(ctx context.Context) (*jwk.Cache, error) {
 	)
 }
 
-func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClientRequestDto, userID, ipAddress, userAgent string) (string, string, error) {
+func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClientRequestDto, userID string, authenticationMethod string, ipAddress, userAgent string) (string, string, error) {
 	tx := s.db.Begin()
 	defer tx.Rollback()
 
@@ -179,7 +179,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	// Create the authorization code
-	code, err := s.createAuthorizationCode(ctx, input.ClientID, userID, input.Scope, input.Nonce, input.CodeChallenge, input.CodeChallengeMethod, tx)
+	code, err := s.createAuthorizationCode(ctx, input.ClientID, userID, input.Scope, authenticationMethod, input.Nonce, input.CodeChallenge, input.CodeChallengeMethod, tx)
 	if err != nil {
 		return "", "", err
 	}
@@ -312,17 +312,17 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 	}
 
 	// Explicitly use the input clientID for the audience claim to ensure consistency
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, deviceAuth.Nonce)
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, deviceAuth.Nonce, deviceAuth.AuthenticationMethod)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, *deviceAuth.UserID, deviceAuth.Scope, tx)
+	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, *deviceAuth.UserID, deviceAuth.Scope, deviceAuth.AuthenticationMethod, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOAuthAccessToken(deviceAuth.User, input.ClientID)
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(deviceAuth.User, input.ClientID, deviceAuth.AuthenticationMethod)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -363,7 +363,7 @@ func (s *OidcService) createTokenFromClientCredentials(ctx context.Context, inpu
 		audClaim = input.Resource
 	}
 
-	accessToken, err := s.jwtService.GenerateOAuthAccessToken(dummyUser, audClaim)
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(dummyUser, audClaim, "")
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -411,18 +411,20 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 		return CreatedTokens{}, err
 	}
 
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, authorizationCodeMetaData.Nonce)
+	authenticationMethod := authorizationCodeMetaData.AuthenticationMethod
+
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, authorizationCodeMetaData.Nonce, authenticationMethod)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
 	// Generate a refresh token
-	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope, tx)
+	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope, authenticationMethod, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	accessToken, err := s.jwtService.GenerateOAuthAccessToken(authorizationCodeMetaData.User, input.ClientID)
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(authorizationCodeMetaData.User, input.ClientID, authenticationMethod)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -500,7 +502,8 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	}
 
 	// Generate a new access token
-	accessToken, err := s.jwtService.GenerateOAuthAccessToken(storedRefreshToken.User, input.ClientID)
+	authenticationMethods := storedRefreshToken.AuthenticationMethod
+	accessToken, err := s.jwtService.GenerateOAuthAccessToken(storedRefreshToken.User, input.ClientID, authenticationMethods)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -513,13 +516,13 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 
 	// Generate a new ID token
 	// There's no nonce here because we don't have one with the refresh token, but that's not required
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, "")
+	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, "", authenticationMethods)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
 	// Generate a new refresh token and invalidate the old one
-	newRefreshToken, err := s.createRefreshToken(ctx, input.ClientID, storedRefreshToken.UserID, storedRefreshToken.Scope, tx)
+	newRefreshToken, err := s.createRefreshToken(ctx, input.ClientID, storedRefreshToken.UserID, storedRefreshToken.Scope, authenticationMethods, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -1140,7 +1143,7 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 	return callbackURL, nil
 }
 
-func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID string, userID string, scope string, nonce string, codeChallenge string, codeChallengeMethod string, tx *gorm.DB) (string, error) {
+func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID string, userID string, scope string, authenticationMethod string, nonce string, codeChallenge string, codeChallengeMethod string, tx *gorm.DB) (string, error) {
 	randomString, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
 		return "", err
@@ -1154,6 +1157,7 @@ func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID stri
 		ClientID:                  clientID,
 		UserID:                    userID,
 		Scope:                     scope,
+		AuthenticationMethod:      authenticationMethod,
 		Nonce:                     nonce,
 		CodeChallenge:             &codeChallenge,
 		CodeChallengeMethodSha256: &codeChallengeMethodSha256,
@@ -1297,7 +1301,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 	}, nil
 }
 
-func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, userID string, ipAddress string, userAgent string) error {
+func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, userID string, authenticationMethod string, ipAddress string, userAgent string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -1346,6 +1350,7 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 	}
 
 	deviceAuth.UserID = &userID
+	deviceAuth.AuthenticationMethod = authenticationMethod
 	deviceAuth.IsAuthorized = true
 
 	err = tx.
@@ -1549,7 +1554,7 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	return dtos, response, err
 }
 
-func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, tx *gorm.DB) (string, error) {
+func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, authenticationMethod string, tx *gorm.DB) (string, error) {
 	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
 	if err != nil {
 		return "", err
@@ -1560,11 +1565,12 @@ func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, u
 	refreshTokenHash := utils.CreateSha256Hash(refreshToken)
 
 	m := model.OidcRefreshToken{
-		ExpiresAt: datatype.DateTime(time.Now().Add(RefreshTokenDuration)),
-		Token:     refreshTokenHash,
-		ClientID:  clientID,
-		UserID:    userID,
-		Scope:     scope,
+		ExpiresAt:            datatype.DateTime(time.Now().Add(RefreshTokenDuration)),
+		Token:                refreshTokenHash,
+		ClientID:             clientID,
+		UserID:               userID,
+		Scope:                scope,
+		AuthenticationMethod: authenticationMethod,
 	}
 
 	err = tx.
@@ -1780,7 +1786,7 @@ func (s *OidcService) verifyClientAssertionFromFederatedIdentities(ctx context.C
 	return nil
 }
 
-func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes []string) (*dto.OidcClientPreviewDto, error) {
+func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, userID string, scopes []string, authenticationMethod string) (*dto.OidcClientPreviewDto, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -1816,12 +1822,12 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		return nil, err
 	}
 
-	idToken, err := s.jwtService.BuildIDToken(userClaims, clientID, "")
+	idToken, err := s.jwtService.BuildIDToken(userClaims, clientID, "", authenticationMethod)
 	if err != nil {
 		return nil, err
 	}
 
-	accessToken, err := s.jwtService.BuildOAuthAccessToken(user, clientID)
+	accessToken, err := s.jwtService.BuildOAuthAccessToken(user, clientID, authenticationMethod)
 	if err != nil {
 		return nil, err
 	}
