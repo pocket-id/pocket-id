@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,7 +51,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 		assert.Empty(t, reauthenticationToken)
 		require.Error(t, err)
-		assert.True(t, errors.As(err, new(*common.ReauthenticationRequiredError)))
+		assert.ErrorAs(t, err, new(*common.ReauthenticationRequiredError))
 	})
 
 	t.Run("rejects a fresh access token without an authentication method", func(t *testing.T) {
@@ -64,6 +63,6 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 		assert.Empty(t, reauthenticationToken)
 		require.Error(t, err)
-		assert.True(t, errors.As(err, new(*common.ReauthenticationRequiredError)))
+		assert.ErrorAs(t, err, new(*common.ReauthenticationRequiredError))
 	})
 }
