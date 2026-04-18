@@ -106,6 +106,7 @@
 	"ip_address": "IP adrese",
 	"device": "Ierīce",
 	"client": "Klients",
+	"actor": "Aktieris",
 	"unknown": "Nezināms",
 	"account_details_updated_successfully": "Konta dati veiksmīgi atjaunināti",
 	"profile_picture_updated_successfully": "Profila attēls veiksmīgi atjaunināts. Izmaiņu parādīšanās var aizņemt dažas minūtes.",
@@ -117,6 +118,7 @@
 	"account_details": "Konta dati",
 	"passkeys": "Piekļuves atslēgas",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Pārvaldiet savas piekļuves atslēgas, kuras varat izmantot autentifikācijai.",
+	"manage_this_users_passkeys": "Pārvaldīt šī lietotāja piekļuves atslēgas.",
 	"add_passkey": "Pievienot piekļuves atslēgu",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Izveidojiet vienreizēju pieteikšanās kodu, lai pierakstītos no citas ierīces bez piekļuves atslēgas.",
 	"create": "Izveidot",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Atzīmēt kā apstiprinātu",
 	"email_verification_sent": "Apstiprinājuma e-pasts veiksmīgi nosūtīts.",
 	"emails_verified_by_default": "E-pasti pēc noklusējuma ir apstiprināti",
-	"emails_verified_by_default_description": "Ja iespējots, lietotāju e-pasta adreses pēc noklusējuma tiks atzīmētas kā apstiprinātas reģistrācijas laikā vai pēc e-pasta adreses maiņas."
+	"emails_verified_by_default_description": "Ja iespējots, lietotāju e-pasta adreses pēc noklusējuma tiks atzīmētas kā apstiprinātas reģistrācijas laikā vai pēc e-pasta adreses maiņas.",
+	"user_has_no_passkeys_yet": "Šim lietotājam vēl nav piekļuves atslēgu."
 }

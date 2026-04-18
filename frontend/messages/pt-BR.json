@@ -106,6 +106,7 @@
 	"ip_address": "Endereço de IP",
 	"device": "Dispositivo",
 	"client": "Cliente",
+	"actor": "Ator",
 	"unknown": "Desconhecido",
 	"account_details_updated_successfully": "Detalhes da conta atualizados com sucesso",
 	"profile_picture_updated_successfully": "Foto de perfil alterada com sucesso. A atualização pode demorar alguns minutos.",
@@ -117,6 +118,7 @@
 	"account_details": "Detalhes da Conta",
 	"passkeys": "Chaves de acesso",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Gerencie as chaves de acesso que pode usar para se identificar.",
+	"manage_this_users_passkeys": "Gerencie as senhas deste usuário.",
 	"add_passkey": "Adicionar chave de acesso",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Crie um código de login único para entrar em outro dispositivo sem precisar da chave de acesso.",
 	"create": "Criar",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Marcar como verificado",
 	"email_verification_sent": "E-mail de verificação enviado com sucesso.",
 	"emails_verified_by_default": "E-mails verificados por padrão",
-	"emails_verified_by_default_description": "Quando ativado, os endereços de e-mail dos usuários serão marcados como verificados por padrão no momento da inscrição ou quando o endereço de e-mail for alterado."
+	"emails_verified_by_default_description": "Quando ativado, os endereços de e-mail dos usuários serão marcados como verificados por padrão no momento da inscrição ou quando o endereço de e-mail for alterado.",
+	"user_has_no_passkeys_yet": "Esse usuário ainda não tem senhas."
 }

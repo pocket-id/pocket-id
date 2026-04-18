@@ -106,6 +106,7 @@
 	"ip_address": "IPアドレス",
 	"device": "デバイス",
 	"client": "クライアント",
+	"actor": "俳優",
 	"unknown": "不明",
 	"account_details_updated_successfully": "アカウントの詳細が正常に更新されました",
 	"profile_picture_updated_successfully": "プロフィール画像が正常に更新されました。反映まで数分かかる場合があります。",
@@ -117,6 +118,7 @@
 	"account_details": "アカウントの詳細",
 	"passkeys": "パスキー",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "認証に使用するパスキーを管理します。",
+	"manage_this_users_passkeys": "このユーザーのパスキーを管理します。",
 	"add_passkey": "パスキーを追加",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "パスキーなしで別のデバイスからサインインするためのワンタイムログインコードを作成します。",
 	"create": "作成",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "確認済みとしてマークする",
 	"email_verification_sent": "確認メールが正常に送信されました。",
 	"emails_verified_by_default": "メールはデフォルトで検証済み",
-	"emails_verified_by_default_description": "有効化すると、ユーザーが登録時またはメールアドレスを変更した際に、デフォルトでメールアドレスが確認済みとしてマークされます。"
+	"emails_verified_by_default_description": "有効化すると、ユーザーが登録時またはメールアドレスを変更した際に、デフォルトでメールアドレスが確認済みとしてマークされます。",
+	"user_has_no_passkeys_yet": "このユーザーにはまだパスキーがありません。"
 }

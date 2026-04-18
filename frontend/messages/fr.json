@@ -106,6 +106,7 @@
 	"ip_address": "Adresse IP",
 	"device": "Périphérique",
 	"client": "Application",
+	"actor": "Acteur",
 	"unknown": "Indisponible",
 	"account_details_updated_successfully": "Les informations du compte ont été mises à jour avec succès",
 	"profile_picture_updated_successfully": "La photo de profil a été mise à jour avec succès. La mise à jour peut prendre quelques minutes.",
@@ -117,6 +118,7 @@
 	"account_details": "Paramètres du compte",
 	"passkeys": "Clés d'accès",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Gérez vos clés d'accès que vous pouvez utiliser pour vous authentifier.",
+	"manage_this_users_passkeys": "Gérer les mots de passe de cet utilisateur.",
 	"add_passkey": "Ajouter une clé d'accès",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Créez un code de connexion unique pour vous connecter depuis un autre appareil sans mot de passe.",
 	"create": "Créer",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Marquer comme vérifié",
 	"email_verification_sent": "L'e-mail de vérification a été envoyé sans problème.",
 	"emails_verified_by_default": "E-mails vérifiés par défaut",
-	"emails_verified_by_default_description": "Quand cette option est activée, les adresses e-mail des utilisateurs seront marquées comme vérifiées par défaut lors de leur inscription ou quand ils changent d'adresse e-mail."
+	"emails_verified_by_default_description": "Quand cette option est activée, les adresses e-mail des utilisateurs seront marquées comme vérifiées par défaut lors de leur inscription ou quand ils changent d'adresse e-mail.",
+	"user_has_no_passkeys_yet": "Cet utilisateur n'a pas encore de mots de passe."
 }

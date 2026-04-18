@@ -118,6 +118,7 @@
 	"account_details": "Dettagli account",
 	"passkeys": "Passkey",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Gestisci le tue passkey che puoi utilizzare per autenticarti.",
+	"manage_this_users_passkeys": "Gestisci le chiavi di accesso di questo utente.",
 	"add_passkey": "Aggiungi Passkey",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Crea un codice di accesso monouso per accedere da un dispositivo diverso senza una passkey.",
 	"create": "Crea",
@@ -522,5 +523,6 @@
 	"mark_as_verified": "Contrassegna come verificato",
 	"email_verification_sent": "Email di conferma inviata con successo.",
 	"emails_verified_by_default": "Email verificate di default",
-	"emails_verified_by_default_description": "Quando questa opzione è attiva, gli indirizzi email degli utenti saranno automaticamente contrassegnati come verificati al momento della registrazione o quando cambiano il loro indirizzo email."
+	"emails_verified_by_default_description": "Quando questa opzione è attiva, gli indirizzi email degli utenti saranno automaticamente contrassegnati come verificati al momento della registrazione o quando cambiano il loro indirizzo email.",
+	"user_has_no_passkeys_yet": "Questo utente non ha ancora nessuna chiave di accesso."
 }

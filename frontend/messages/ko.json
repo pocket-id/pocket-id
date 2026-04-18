@@ -106,6 +106,7 @@
 	"ip_address": "IP 주소",
 	"device": "기기",
 	"client": "클라이언트",
+	"actor": "배우",
 	"unknown": "알 수 없음",
 	"account_details_updated_successfully": "계정 정보가 성공적으로 변경되었습니다",
 	"profile_picture_updated_successfully": "프로필 사진이 성공적으로 변경되었습니다. 변경 적용까지 몇 분 정도 걸릴 수 있습니다.",
@@ -117,6 +118,7 @@
 	"account_details": "계정 세부 사항",
 	"passkeys": "패스키",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "사용자 인증에 사용하는 패스키를 관리하세요.",
+	"manage_this_users_passkeys": "이 사용자의 패스키를 관리합니다.",
 	"add_passkey": "패스키 추가",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "패스키 없이 다른 기기에서 로그인하기 위한 일회용 로그인 코드를 생성합니다.",
 	"create": "생성",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "검증됨으로 표시",
 	"email_verification_sent": "확인 이메일이 성공적으로 발송되었습니다.",
 	"emails_verified_by_default": "이메일은 기본적으로 확인됨",
-	"emails_verified_by_default_description": "이 기능이 활성화되면, 사용자의 이메일 주소는 가입 시 또는 이메일 주소 변경 시 기본적으로 확인된 상태로 표시됩니다."
+	"emails_verified_by_default_description": "이 기능이 활성화되면, 사용자의 이메일 주소는 가입 시 또는 이메일 주소 변경 시 기본적으로 확인된 상태로 표시됩니다.",
+	"user_has_no_passkeys_yet": "이 사용자는 아직 패스키가 없습니다."
 }

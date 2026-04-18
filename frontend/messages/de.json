@@ -106,6 +106,7 @@
 	"ip_address": "IP-Adresse",
 	"device": "Gerät",
 	"client": "Client",
+	"actor": "Schauspieler",
 	"unknown": "unbekannt",
 	"account_details_updated_successfully": "Kontodetails erfolgreich aktualisiert",
 	"profile_picture_updated_successfully": "Profilbild erfolgreich aktualisiert. Die Aktualisierung kann einige Minuten dauern.",
@@ -117,6 +118,7 @@
 	"account_details": "Kontodetails",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Verwalte deine Passkeys, mit denen du dich authentifizieren kannst.",
+	"manage_this_users_passkeys": "Verwalte die Passwörter dieses Benutzers.",
 	"add_passkey": "Passkey hinzufügen",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Erzeuge einen einmaligen Anmeldecode, um dich ohne Passkey von einem anderen Gerät aus anzumelden.",
 	"create": "Erzeugen",
@@ -500,7 +502,7 @@
 	"scim_sync_successful": "Die SCIM-Synchronisierung ist erfolgreich abgeschlossen worden.",
 	"save_and_sync": "Speichern und synchronisieren",
 	"scim_save_changes_description": "Du musst die Änderungen speichern, bevor du eine SCIM-Synchronisierung startest. Willst du jetzt speichern?",
-	"scopes": "Kopfsuchgeräte",
+	"scopes": "Scopes",
 	"issuer_url": "Aussteller-URL",
 	"smtp_field_required_when_other_provided": "Muss angegeben werden, wenn SMTP-Einstellungen gemacht werden",
 	"smtp_field_required_when_email_enabled": "Muss aktiviert sein, wenn du E-Mail-Benachrichtigungen nutzen willst.",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Als verifiziert markieren",
 	"email_verification_sent": "Bestätigungs-E-Mail erfolgreich verschickt.",
 	"emails_verified_by_default": "E-Mails sind standardmäßig verifiziert",
-	"emails_verified_by_default_description": "Wenn diese Option aktiviert ist, werden die E-Mail-Adressen der Nutzer bei der Anmeldung oder bei einer Änderung ihrer E-Mail-Adresse standardmäßig als verifiziert markiert."
+	"emails_verified_by_default_description": "Wenn diese Option aktiviert ist, werden die E-Mail-Adressen der Nutzer bei der Anmeldung oder bei einer Änderung ihrer E-Mail-Adresse standardmäßig als verifiziert markiert.",
+	"user_has_no_passkeys_yet": "Dieser Benutzer hat noch keine Passwörter."
 }

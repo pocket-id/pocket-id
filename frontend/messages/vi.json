@@ -106,6 +106,7 @@
 	"ip_address": "Địa chỉ IP",
 	"device": "Thiết bị",
 	"client": "Client.",
+	"actor": "Diễn viên",
 	"unknown": "Không xác định",
 	"account_details_updated_successfully": "Cập nhật tài khoản thành công",
 	"profile_picture_updated_successfully": "Hình đại diện đã được cập nhật thành công. Việc cập nhật có thể mất vài phút.",
@@ -117,6 +118,7 @@
 	"account_details": "Thông Tin Tài Khoản",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Quản lý các passkeys mà bạn có thể sử dụng để xác thực danh tính của mình.",
+	"manage_this_users_passkeys": "Quản lý các khóa truy cập của người dùng này.",
 	"add_passkey": "Thêm Passkey",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Tạo mã đăng nhập một lần để đăng nhập từ thiết bị khác mà không cần passkeys.",
 	"create": "Tạo",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Đánh dấu là đã xác minh",
 	"email_verification_sent": "Email xác minh đã được gửi thành công.",
 	"emails_verified_by_default": "Email được xác minh theo mặc định",
-	"emails_verified_by_default_description": "Khi tính năng này được kích hoạt, địa chỉ email của người dùng sẽ được đánh dấu là đã xác minh theo mặc định khi đăng ký hoặc khi địa chỉ email của họ được thay đổi."
+	"emails_verified_by_default_description": "Khi tính năng này được kích hoạt, địa chỉ email của người dùng sẽ được đánh dấu là đã xác minh theo mặc định khi đăng ký hoặc khi địa chỉ email của họ được thay đổi.",
+	"user_has_no_passkeys_yet": "Người dùng này hiện chưa có khóa truy cập nào."
 }

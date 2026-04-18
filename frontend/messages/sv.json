@@ -106,6 +106,7 @@
 	"ip_address": "IP-adress",
 	"device": "Enhet",
 	"client": "Klient",
+	"actor": "Skådespelare",
 	"unknown": "Okänd",
 	"account_details_updated_successfully": "Kontouppgifterna har uppdaterats",
 	"profile_picture_updated_successfully": "Profilbilden har uppdaterats. Det kan ta några minuter innan uppdateringen syns.",
@@ -117,6 +118,7 @@
 	"account_details": "Kontouppgifter",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Hantera dina passkeys som du kan använda för att autentisera dig själv.",
+	"manage_this_users_passkeys": "Hantera den här användarens lösenord.",
 	"add_passkey": "Lägg till en passkey",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Skapa en engångskod för att logga in från en annan enhet utan en passkey.",
 	"create": "Skapa",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Markera som verifierad",
 	"email_verification_sent": "Verifieringsmeddelandet har skickats.",
 	"emails_verified_by_default": "E-postmeddelanden verifierade som standard",
-	"emails_verified_by_default_description": "När funktionen är aktiverad kommer användarnas e-postadresser att markeras som verifierade som standard vid registrering eller när deras e-postadress ändras."
+	"emails_verified_by_default_description": "När funktionen är aktiverad kommer användarnas e-postadresser att markeras som verifierade som standard vid registrering eller när deras e-postadress ändras.",
+	"user_has_no_passkeys_yet": "Den här användaren har inga lösenord ännu."
 }

@@ -1,7 +1,7 @@
 # This Dockerfile embeds a pre-built binary for the given Linux architecture
 # Binaries must be built using "./scripts/development/build-binaries.sh --docker-only"
 
-FROM alpine
+FROM alpine:3.23.4
 
 # TARGETARCH can be "amd64" or "arm64"
 ARG TARGETARCH
