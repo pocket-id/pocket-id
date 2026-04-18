@@ -34,7 +34,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 	t.Run("accepts a fresh access token from WebAuthn login", func(t *testing.T) {
 		service, user := setupService(t)
-		accessToken, err := service.jwtService.GenerateAccessToken(user, []string{AuthenticationMethodPhishingResistant})
+		accessToken, err := service.jwtService.GenerateAccessToken(user, AuthenticationMethodPhishingResistant)
 		require.NoError(t, err)
 
 		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
@@ -45,7 +45,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 	t.Run("rejects a fresh access token from one-time access login", func(t *testing.T) {
 		service, user := setupService(t)
-		accessToken, err := service.jwtService.GenerateAccessToken(user, []string{AuthenticationMethodOneTimePassword})
+		accessToken, err := service.jwtService.GenerateAccessToken(user, AuthenticationMethodOneTimePassword)
 		require.NoError(t, err)
 
 		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
@@ -57,7 +57,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 	t.Run("rejects a fresh access token without an authentication method", func(t *testing.T) {
 		service, user := setupService(t)
-		accessToken, err := service.jwtService.GenerateAccessToken(user)
+		accessToken, err := service.jwtService.GenerateAccessToken(user, "")
 		require.NoError(t, err)
 
 		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)

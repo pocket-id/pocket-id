@@ -571,15 +571,15 @@ func TestOidcServiceAuthenticationMethodsPersistence(t *testing.T) {
 		db:         db,
 		jwtService: jwtService,
 	}
-	authenticationMethods := []string{AuthenticationMethodPhishingResistant}
+	authenticationMethod := AuthenticationMethodPhishingResistant
 
-	t.Run("stores authentication methods on authorization codes", func(t *testing.T) {
+	t.Run("stores authentication method on authorization codes", func(t *testing.T) {
 		code, err := service.createAuthorizationCode(
 			t.Context(),
 			"amr-client",
 			"amr-user",
 			"openid profile",
-			authenticationMethods,
+			authenticationMethod,
 			"",
 			"",
 			"",
@@ -589,16 +589,16 @@ func TestOidcServiceAuthenticationMethodsPersistence(t *testing.T) {
 
 		var authorizationCode model.OidcAuthorizationCode
 		require.NoError(t, db.First(&authorizationCode, "code = ?", code).Error)
-		assert.Equal(t, authenticationMethods, authorizationCode.AuthenticationMethod)
+		assert.Equal(t, authenticationMethod, authorizationCode.AuthenticationMethod)
 	})
 
 	t.Run("stores authentication methods on refresh tokens", func(t *testing.T) {
-		_, err := service.createRefreshToken(t.Context(), "amr-client", "amr-user", "openid profile", authenticationMethods, db)
+		_, err := service.createRefreshToken(t.Context(), "amr-client", "amr-user", "openid profile", authenticationMethod, db)
 		require.NoError(t, err)
 
 		var refreshToken model.OidcRefreshToken
 		require.NoError(t, db.First(&refreshToken, "client_id = ? AND user_id = ?", "amr-client", "amr-user").Error)
-		assert.Equal(t, authenticationMethods, refreshToken.AuthenticationMethod)
+		assert.Equal(t, authenticationMethod, refreshToken.AuthenticationMethod)
 	})
 }
 
