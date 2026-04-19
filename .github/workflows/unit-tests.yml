@@ -1,22 +1,24 @@
 name: Unit Tests
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
       - "backend/**"
   pull_request:
-    branches: [main]
+    branches: [ main ]
     paths:
       - "backend/**"
 
+permissions:
+  contents: read
+  id-token: write
+  actions: write
+
 jobs:
   test-backend:
-    permissions:
-      contents: read
-      actions: write
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version-file: "backend/go.mod"
@@ -30,7 +32,7 @@ jobs:
         run: |
           set -e -o pipefail
           go test -tags=exclude_frontend -v ./... | tee /tmp/TestResults.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-unit-tests
