@@ -1,4 +1,4 @@
-import test, { expect } from '@playwright/test';
+import test, { expect, type Page, type Request } from '@playwright/test';
 import { oidcClients, refreshTokens, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import { generateIdToken, generateOauthAccessToken } from '../utils/jwt.util';
@@ -625,31 +625,21 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 	expect(webauthnStartCalled).toBe(true);
 });
 
-test('Authorize existing client while not signed in with response_mode=form_post', async ({ page }) => {
+test('Authorize existing client while not signed in with response_mode=form_post', async ({
+	page
+}) => {
 	const oidcClient = oidcClients.nextcloud;
 	const urlParams = createUrlParams(oidcClient);
 	urlParams.set('response_mode', 'form_post');
 	await page.context().clearCookies();
 
-	// Track if we receive a POST request to the callback URL
-	let formPostReceived = false;
-	page.on('request', (request) => {
-		if (request.method() === 'POST' && request.url().includes(oidcClient.callbackUrl)) {
-			formPostReceived = true;
-		}
-	});
-
+	const formPostRequestPromise = waitForFormPostRequest(page, oidcClient.callbackUrl);
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	await (await passkeyUtil.init(page)).addPasskey();
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	// Wait for the POST request to be made to the callback URL
-	await expect(() => {
-		if (!formPostReceived) {
-			throw new Error('Form POST request not received');
-		}
-	}).toBeTruthy();
+	await expectFormPostRequest(formPostRequestPromise);
 });
 
 test('Authorize existing client with response_mode=form_post', async ({ page }) => {
@@ -657,20 +647,23 @@ test('Authorize existing client with response_mode=form_post', async ({ page }) 
 	const urlParams = createUrlParams(oidcClient);
 	urlParams.set('response_mode', 'form_post');
 
-	// Track if we receive a POST request to the callback URL
-	let formPostReceived = false;
-	page.on('request', (request) => {
-		if (request.method() === 'POST' && request.url().includes(oidcClient.callbackUrl)) {
-			formPostReceived = true;
-		}
-	});
-
+	const formPostRequestPromise = waitForFormPostRequest(page, oidcClient.callbackUrl);
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
-	// Wait for the POST request to be made to the callback URL
-	await expect(() => {
-		if (!formPostReceived) {
-			throw new Error('Form POST request not received');
-		}
-	}).toBeTruthy();
+	await expectFormPostRequest(formPostRequestPromise);
 });
+
+function waitForFormPostRequest(page: Page, callbackUrl: string): Promise<Request> {
+	return page.waitForRequest(
+		(request) => request.method() === 'POST' && request.url() === callbackUrl
+	);
+}
+
+async function expectFormPostRequest(formPostRequestPromise: Promise<Request>) {
+	const request = await formPostRequestPromise;
+	const formData = new URLSearchParams(request.postData() ?? '');
+
+	expect(formData.get('code')).toBeTruthy();
+	expect(formData.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	expect(formData.get('iss')).toBeTruthy();
+}

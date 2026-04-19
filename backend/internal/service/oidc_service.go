@@ -683,6 +683,27 @@ func (s *OidcService) GetClient(ctx context.Context, clientID string) (model.Oid
 	return s.getClientInternal(ctx, clientID, s.db, false)
 }
 
+func (s *OidcService) ResolveAllowedCallbackURL(ctx context.Context, clientID, inputCallbackURL string) (string, error) {
+	client, err := s.GetClient(ctx, clientID)
+	if err != nil {
+		return "", err
+	}
+
+	if inputCallbackURL == "" || len(client.CallbackURLs) == 0 {
+		return "", &common.OidcMissingCallbackURLError{}
+	}
+
+	matched, err := utils.GetCallbackURLFromList(client.CallbackURLs, inputCallbackURL)
+	if err != nil {
+		return "", err
+	}
+	if matched == "" {
+		return "", &common.OidcInvalidCallbackURLError{}
+	}
+
+	return matched, nil
+}
+
 func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB, forUpdate bool) (model.OidcClient, error) {
 	var client model.OidcClient
 	q := tx.
