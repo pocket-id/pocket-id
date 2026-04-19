@@ -4,9 +4,7 @@ package frontend
 
 import (
 	"bytes"
-	"context"
 	"embed"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -20,7 +18,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 //go:embed all:dist/*
@@ -56,27 +53,6 @@ func init() {
 		_, err = w.Write(modified)
 		return err
 	}
-}
-
-// validateRedirectURI validates that the redirect_uri is in the client's allowed callback URLs
-func validateRedirectURI(ctx any, oidcService *service.OidcService, clientID, redirectURI string) (bool, error) {
-	client, err := oidcService.GetClient(ctx.(context.Context), clientID)
-	if err != nil {
-		return false, err
-	}
-
-	// If the client has no callback URLs configured, reject the redirect URI
-	if len(client.CallbackURLs) == 0 {
-		return false, errors.New("client has no callback URLs configured")
-	}
-
-	// Validate the redirect URI against the client's callback URLs
-	_, err = utils.GetCallbackURLFromList(client.CallbackURLs, redirectURI)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
 }
 
 func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc, oidcService *service.OidcService) error {
@@ -116,21 +92,19 @@ func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc, o
 		}
 
 		if path == "index.html" {
+			nonce := middleware.GetCSPNonce(c)
+
 			// Check if this is an OAuth2 authorization request with response_mode=form_post
 			// In that case, we need to validate and allow form submissions to the redirect_uri
 			responseMode := c.Query("response_mode")
 			redirectURI := c.Query("redirect_uri")
 			clientID := c.Query("client_id")
 			if responseMode == "form_post" && redirectURI != "" && clientID != "" {
-				// Validate the redirect_uri against the client's allowlist
-				isValid, err := validateRedirectURI(c.Request.Context(), oidcService, clientID, redirectURI)
-				if err == nil && isValid {
-					// Set the allowed form-action in CSP to include the redirect URI
-					middleware.SetAllowedFormAction(c, redirectURI)
+				validatedRedirectURI, err := oidcService.ResolveAllowedCallbackURL(c.Request.Context(), clientID, redirectURI)
+				if err == nil {
+					c.Header("Content-Security-Policy", middleware.BuildCSP(nonce, validatedRedirectURI))
 				}
 			}
-
-			nonce := middleware.GetCSPNonce(c)
 
 			// Do not cache the HTML shell, as it embeds a per-request nonce
 			c.Header("Content-Type", "text/html; charset=utf-8")
