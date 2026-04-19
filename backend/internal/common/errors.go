@@ -28,10 +28,10 @@ func (e *AlreadyInUseError) Is(target error) bool {
 	return errors.As(target, &x)
 }
 
-type SetupAlreadyCompletedError struct{}
+type SetupNotAvailableError struct{}
 
-func (e *SetupAlreadyCompletedError) Error() string       { return "setup already completed" }
-func (e *SetupAlreadyCompletedError) HttpStatusCode() int { return http.StatusConflict }
+func (e *SetupNotAvailableError) Error() string       { return "not found" }
+func (e *SetupNotAvailableError) HttpStatusCode() int { return http.StatusNotFound }
 
 type TokenInvalidOrExpiredError struct{}
 

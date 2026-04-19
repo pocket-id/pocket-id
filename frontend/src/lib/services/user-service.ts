@@ -123,6 +123,10 @@ export default class UserService extends APIService {
 		return res.data as User;
 	};
 
+	checkInitialUserSetupAvailable = async () => {
+		await this.api.get('/signup/setup');
+	};
+
 	listSignupTokens = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/signup-tokens', { params: options });
 		return res.data as Paginated<SignupToken>;

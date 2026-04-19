@@ -145,65 +145,16 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		return errors.New("ENCRYPTION_KEY must be at least 16 bytes long")
 	}
 
-	switch {
-	case config.DbConnectionString == "":
-		config.DbProvider = DbProviderSqlite
-		config.DbConnectionString = defaultSqliteConnString
-	case strings.HasPrefix(config.DbConnectionString, "postgres://") || strings.HasPrefix(config.DbConnectionString, "postgresql://"):
-		config.DbProvider = DbProviderPostgres
-	default:
-		config.DbProvider = DbProviderSqlite
+	prepareDbConfig(config)
+
+	if err := validateAppURLs(config); err != nil {
+		return err
 	}
-
-	parsedAppUrl, err := url.Parse(config.AppURL)
-	if err != nil {
-		return errors.New("APP_URL is not a valid URL")
+	if err := validateFileBackend(config); err != nil {
+		return err
 	}
-	if parsedAppUrl.Path != "" {
-		return errors.New("APP_URL must not contain a path")
-	}
-
-	// Derive INTERNAL_APP_URL from APP_URL if not set; validate only when provided
-	if config.InternalAppURL == "" {
-		config.InternalAppURL = config.AppURL
-	} else {
-		parsedInternalAppUrl, err := url.Parse(config.InternalAppURL)
-		if err != nil {
-			return errors.New("INTERNAL_APP_URL is not a valid URL")
-		}
-		if parsedInternalAppUrl.Path != "" {
-			return errors.New("INTERNAL_APP_URL must not contain a path")
-		}
-	}
-
-	switch config.FileBackend {
-	case "s3", "database":
-		// All good, these are valid values
-	case "", "filesystem":
-		if config.UploadPath == "" {
-			config.UploadPath = defaultFsUploadPath
-		}
-	default:
-		return errors.New("invalid FILE_BACKEND value. Must be 'filesystem', 'database', or 's3'")
-	}
-
-	// Validate LOCAL_IPV6_RANGES
-	ranges := strings.SplitSeq(config.LocalIPv6Ranges, ",")
-	for rangeStr := range ranges {
-		rangeStr = strings.TrimSpace(rangeStr)
-		if rangeStr == "" {
-			continue
-		}
-
-		_, ipNet, err := net.ParseCIDR(rangeStr)
-		if err != nil {
-			return fmt.Errorf("invalid LOCAL_IPV6_RANGES '%s': %w", rangeStr, err)
-		}
-
-		if ipNet.IP.To4() != nil {
-			return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
-		}
-
+	if err := validateLocalIPv6Ranges(config.LocalIPv6Ranges); err != nil {
+		return err
 	}
 
 	if config.AuditLogRetentionDays <= 0 {
@@ -214,7 +165,92 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		return errors.New("STATIC_API_KEY must be at least 16 characters long")
 	}
 
-	// Validate TLS config
+	return validateTLSConfig(config)
+
+}
+
+func prepareDbConfig(config *EnvConfigSchema) {
+	switch {
+	case config.DbConnectionString == "":
+		config.DbProvider = DbProviderSqlite
+		config.DbConnectionString = defaultSqliteConnString
+	case strings.HasPrefix(config.DbConnectionString, "postgres://") || strings.HasPrefix(config.DbConnectionString, "postgresql://"):
+		config.DbProvider = DbProviderPostgres
+	default:
+		config.DbProvider = DbProviderSqlite
+	}
+}
+
+func validateAppURLs(config *EnvConfigSchema) error {
+	if err := validateURLWithoutPath(config.AppURL, "APP_URL"); err != nil {
+		return err
+	}
+
+	// Derive INTERNAL_APP_URL from APP_URL if not set; validate only when provided
+	if config.InternalAppURL == "" {
+		config.InternalAppURL = config.AppURL
+		return nil
+	}
+
+	return validateURLWithoutPath(config.InternalAppURL, "INTERNAL_APP_URL")
+}
+
+func validateURLWithoutPath(rawURL, envName string) error {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("%s is not a valid URL", envName)
+	}
+	if parsedURL.Path != "" {
+		return fmt.Errorf("%s must not contain a path", envName)
+	}
+
+	return nil
+}
+
+func validateFileBackend(config *EnvConfigSchema) error {
+	switch config.FileBackend {
+	case "s3", "database":
+		return nil
+	case "", "filesystem":
+		if config.UploadPath == "" {
+			config.UploadPath = defaultFsUploadPath
+		}
+		return nil
+	default:
+		return errors.New("invalid FILE_BACKEND value. Must be 'filesystem', 'database', or 's3'")
+	}
+}
+
+func validateLocalIPv6Ranges(localIPv6Ranges string) error {
+	ranges := strings.SplitSeq(localIPv6Ranges, ",")
+	for rangeStr := range ranges {
+		rangeStr = strings.TrimSpace(rangeStr)
+		if rangeStr == "" {
+			continue
+		}
+
+		if err := validateLocalIPv6Range(rangeStr); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateLocalIPv6Range(rangeStr string) error {
+	_, ipNet, err := net.ParseCIDR(rangeStr)
+	if err != nil {
+		return fmt.Errorf("invalid LOCAL_IPV6_RANGES '%s': %w", rangeStr, err)
+	}
+
+	if ipNet.IP.To4() != nil {
+		return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
+	}
+
+	return nil
+}
+
+func validateTLSConfig(config *EnvConfigSchema) error {
 	switch {
 	case config.TLSCertFile != "" && config.TLSKeyFile == "":
 		return errors.New("TLS_KEY_FILE must be set when TLS_CERT_FILE is set")

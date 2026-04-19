@@ -36,6 +36,53 @@ import (
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
 
 func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
+	r, err := initEngine()
+	if err != nil {
+		return nil, err
+	}
+	registerRoutes(r, db, svc)
+
+	serverConfig, err := initServer(r)
+	if err != nil {
+		return nil, err
+	}
+
+	runFn := func(ctx context.Context) error {
+		return runServer(ctx, serverConfig)
+	}
+
+	return runFn, nil
+}
+
+type serverConfig struct {
+	addr         string
+	certProvider *tlsCertProvider
+	listener     net.Listener
+	server       *http.Server
+	tlsConfig    *tls.Config
+}
+
+func initEngine() (*gin.Engine, error) {
+	setGinMode()
+
+	r := gin.New()
+	initLogger(r)
+	configureEngine(r)
+	registerGlobalMiddleware(r)
+
+	frontendRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(100*time.Millisecond), 300)
+	if err := frontend.RegisterFrontend(r, frontendRateLimitMiddleware); err != nil {
+		if errors.Is(err, frontend.ErrFrontendNotIncluded) {
+			slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
+			return r, nil
+		}
+		return nil, fmt.Errorf("failed to register frontend: %w", err)
+	}
+
+	return r, nil
+}
+
+func setGinMode() {
 	// Set the appropriate Gin mode based on the environment
 	switch common.EnvConfig.AppEnv {
 	case common.AppEnvProduction:
@@ -45,10 +92,9 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	case common.AppEnvTest:
 		gin.SetMode(gin.TestMode)
 	}
+}
 
-	r := gin.New()
-	initLogger(r)
-
+func configureEngine(r *gin.Engine) {
 	if !common.EnvConfig.TrustProxy {
 		_ = r.SetTrustedProxies(nil)
 	}
@@ -60,29 +106,21 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	if common.EnvConfig.TracingEnabled {
 		r.Use(otelgin.Middleware(common.Name))
 	}
+}
 
-	// Setup global middleware
+func registerGlobalMiddleware(r *gin.Engine) {
 	r.Use(middleware.HeadMiddleware())
 	r.Use(middleware.NewCacheControlMiddleware().Add())
 	r.Use(middleware.NewCorsMiddleware().Add())
 	r.Use(middleware.NewCspMiddleware().Add())
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
+}
 
-	frontendRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(100*time.Millisecond), 300)
-	err := frontend.RegisterFrontend(r, frontendRateLimitMiddleware)
-	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
-		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to register frontend: %w", err)
-	}
-
-	// Initialize middleware for specific routes
+func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) {
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
-
 	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
 
-	// Set up API routes
 	apiGroup := r.Group("/api", apiRateLimitMiddleware)
 	controller.NewApiKeyController(apiGroup, authMiddleware, svc.apiKeyService)
 	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.webauthnService, svc.appConfigService)
@@ -97,52 +135,81 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)
 	controller.NewUserSignupController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userSignUpService, svc.appConfigService)
 
-	// Add test controller in non-production environments
-	if !common.EnvConfig.AppEnv.IsProduction() {
-		for _, f := range registerTestControllers {
-			f(apiGroup, db, svc)
-		}
-	}
+	registerTestRoutes(apiGroup, db, svc)
 
-	// Set up base routes
 	baseGroup := r.Group("/", apiRateLimitMiddleware)
 	controller.NewWellKnownController(baseGroup, svc.jwtService)
 
-	// Set up healthcheck routes
-	// These are not rate-limited
+	// These are not rate-limited.
 	controller.NewHealthzController(r)
+}
 
-	var protocols http.Protocols
-	protocols.SetHTTP1(true)
-
-	var tlsConfig *tls.Config
-	var certProvider *tlsCertProvider
-	var certWatcher *fsnotify.Watcher
-
-	if common.EnvConfig.TLSCertFile != "" && common.EnvConfig.TLSKeyFile != "" {
-		protocols.SetHTTP2(true)
-
-		certProvider, err = newCertProvider(common.EnvConfig.TLSCertFile, common.EnvConfig.TLSKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
-		}
-
-		tlsConfig = &tls.Config{
-			GetCertificate: certProvider.GetCertificate,
-			MinVersion:     tls.VersionTLS13,
-			NextProtos:     []string{"h2"},
-		}
-
-		slog.Info("TLS enabled")
-	} else {
-		protocols.SetUnencryptedHTTP2(true)
+func registerTestRoutes(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services) {
+	if common.EnvConfig.AppEnv.IsProduction() {
+		return
 	}
 
-	// Set up the server
-	srv := &http.Server{
+	for _, f := range registerTestControllers {
+		f(apiGroup, db, svc)
+	}
+}
+
+func initServer(r *gin.Engine) (*serverConfig, error) {
+	protocols, tlsConfig, certProvider, err := initServerProtocols()
+	if err != nil {
+		return nil, err
+	}
+
+	network, addr := listenerNetworkAndAddr()
+	listener, err := net.Listen(network, addr) //nolint:noctx
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
+	}
+
+	if err := setUnixSocketMode(network, addr); err != nil {
+		listener.Close()
+		return nil, err
+	}
+
+	return &serverConfig{
+		addr:         addr,
+		certProvider: certProvider,
+		listener:     listener,
+		server:       newHTTPServer(r, protocols),
+		tlsConfig:    tlsConfig,
+	}, nil
+}
+
+func initServerProtocols() (*http.Protocols, *tls.Config, *tlsCertProvider, error) {
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+
+	if common.EnvConfig.TLSCertFile == "" || common.EnvConfig.TLSKeyFile == "" {
+		protocols.SetUnencryptedHTTP2(true)
+		return protocols, nil, nil, nil
+	}
+
+	protocols.SetHTTP2(true)
+	certProvider, err := newCertProvider(common.EnvConfig.TLSCertFile, common.EnvConfig.TLSKeyFile)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+	}
+
+	tlsConfig := &tls.Config{
+		GetCertificate: certProvider.GetCertificate,
+		MinVersion:     tls.VersionTLS13,
+		NextProtos:     []string{"h2"},
+	}
+
+	slog.Info("TLS enabled")
+	return protocols, tlsConfig, certProvider, nil
+}
+
+func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
+	return &http.Server{
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
-		Protocols:         &protocols,
+		Protocols:         protocols,
 		Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// HEAD requests don't get matched by Gin routes, so we convert them to GET
 			// middleware.HeadMiddleware will convert them back to HEAD later
@@ -155,103 +222,115 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 			r.ServeHTTP(w, req)
 		}), &http2.Server{}),
 	}
+}
 
-	// Set up the listener
-	network := "tcp"
-	addr := net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port)
-	if common.EnvConfig.UnixSocket != "" {
-		network = "unix"
-		addr = common.EnvConfig.UnixSocket
-		os.Remove(addr) // remove dangling the socket file to avoid file-exist error
+func listenerNetworkAndAddr() (string, string) {
+	if common.EnvConfig.UnixSocket == "" {
+		return "tcp", net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port)
 	}
 
-	listener, err := net.Listen(network, addr) //nolint:noctx
-	if err != nil {
-		return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
-	}
+	addr := common.EnvConfig.UnixSocket
+	os.Remove(addr) // remove dangling the socket file to avoid file-exist error
+	return "unix", addr
+}
 
-	// Set the socket mode if using a Unix socket
-	if network == "unix" && common.EnvConfig.UnixSocketMode != "" {
-		mode, err := strconv.ParseUint(common.EnvConfig.UnixSocketMode, 8, 32)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
-		}
-
-		if err := os.Chmod(addr, os.FileMode(mode)); err != nil {
-			return nil, fmt.Errorf("failed to set UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
-		}
-	}
-
-	// Service runner function
-	runFn := func(ctx context.Context) error {
-		slog.Info("Server listening", slog.String("addr", addr), slog.Bool("tls", tlsConfig != nil))
-
-		// Set up certificate hot reloading if TLS is enabled
-		if certProvider != nil {
-			certWatcher, err = fsnotify.NewWatcher()
-			if err != nil {
-				return fmt.Errorf("failed to create certificate watcher: %w", err)
-			}
-
-			// Watch both certificate and key files
-			if err := certWatcher.Add(common.EnvConfig.TLSCertFile); err != nil {
-				return fmt.Errorf("failed to watch TLS certificate: %w", err)
-			}
-			if err := certWatcher.Add(common.EnvConfig.TLSKeyFile); err != nil {
-				return fmt.Errorf("failed to watch TLS key: %w", err)
-			}
-
-			// Start certificate watcher goroutine
-			go certProvider.StartWatching(ctx, certWatcher)
-		}
-
-		// Start the server in a background goroutine
-		go func() {
-			defer listener.Close()
-
-			// Next call blocks until the server is shut down
-			var srvErr error
-			if tlsConfig != nil {
-				srvErr = srv.Serve(tls.NewListener(listener, tlsConfig))
-			} else {
-				srvErr = srv.Serve(listener)
-			}
-
-			if srvErr != http.ErrServerClosed {
-				slog.Error("Error starting app server", "error", srvErr)
-				os.Exit(1)
-			}
-		}()
-
-		// Notify systemd that we are ready
-		err = systemd.SdNotifyReady()
-		if err != nil {
-			// Log the error only
-			slog.Warn("Unable to notify systemd that the service is ready", "error", err)
-		}
-
-		// Block until the context is canceled
-		<-ctx.Done()
-
-		// Handle graceful shutdown
-		// Note we use the background context here as ctx has been canceled already
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		shutdownErr := srv.Shutdown(shutdownCtx) //nolint:contextcheck
-		shutdownCancel()
-		if shutdownErr != nil {
-			// Log the error only (could be context canceled)
-			slog.Warn("App server shutdown error", "error", shutdownErr)
-		}
-
-		// Close certificate watcher
-		if certWatcher != nil {
-			certWatcher.Close()
-		}
-
+func setUnixSocketMode(network, addr string) error {
+	if network != "unix" || common.EnvConfig.UnixSocketMode == "" {
 		return nil
 	}
 
-	return runFn, nil
+	mode, err := strconv.ParseUint(common.EnvConfig.UnixSocketMode, 8, 32)
+	if err != nil {
+		return fmt.Errorf("failed to parse UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
+	}
+
+	if err := os.Chmod(addr, os.FileMode(mode)); err != nil {
+		return fmt.Errorf("failed to set UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
+	}
+
+	return nil
+}
+
+func runServer(ctx context.Context, config *serverConfig) error {
+	slog.Info("Server listening", slog.String("addr", config.addr), slog.Bool("tls", config.tlsConfig != nil))
+
+	certWatcher, err := startCertWatcher(ctx, config.certProvider)
+	if err != nil {
+		return err
+	}
+	defer closeCertWatcher(certWatcher)
+
+	startHTTPServer(config)
+	notifySystemdReady()
+
+	<-ctx.Done()
+	return shutdownServer(ctx, config.server)
+}
+
+func startCertWatcher(ctx context.Context, certProvider *tlsCertProvider) (*fsnotify.Watcher, error) {
+	if certProvider == nil {
+		return nil, nil
+	}
+
+	certWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate watcher: %w", err)
+	}
+
+	if err := certWatcher.Add(common.EnvConfig.TLSCertFile); err != nil {
+		certWatcher.Close()
+		return nil, fmt.Errorf("failed to watch TLS certificate: %w", err)
+	}
+	if err := certWatcher.Add(common.EnvConfig.TLSKeyFile); err != nil {
+		certWatcher.Close()
+		return nil, fmt.Errorf("failed to watch TLS key: %w", err)
+	}
+
+	go certProvider.StartWatching(ctx, certWatcher)
+	return certWatcher, nil
+}
+
+func closeCertWatcher(certWatcher *fsnotify.Watcher) {
+	if certWatcher != nil {
+		certWatcher.Close()
+	}
+}
+
+func startHTTPServer(config *serverConfig) {
+	go func() {
+		defer config.listener.Close()
+
+		listener := config.listener
+		if config.tlsConfig != nil {
+			listener = tls.NewListener(config.listener, config.tlsConfig)
+		}
+		srvErr := config.server.Serve(listener)
+
+		if srvErr != http.ErrServerClosed {
+			slog.Error("Error starting app server", "error", srvErr)
+			os.Exit(1)
+		}
+	}()
+}
+
+func notifySystemdReady() {
+	err := systemd.SdNotifyReady()
+	if err != nil {
+		// Log the error only
+		slog.Warn("Unable to notify systemd that the service is ready", "error", err)
+	}
+}
+
+func shutdownServer(ctx context.Context, srv *http.Server) error {
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	shutdownErr := srv.Shutdown(shutdownCtx)
+	shutdownCancel()
+	if shutdownErr != nil {
+		// Log the error only (could be context canceled)
+		slog.Warn("App server shutdown error", "error", shutdownErr)
+	}
+
+	return nil
 }
 
 func initLogger(r *gin.Engine) {

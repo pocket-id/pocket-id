@@ -534,6 +534,43 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
 	}
 
+	if storedRefreshToken.User.Disabled {
+		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
+	}
+
+	var authorizedClient model.UserAuthorizedOidcClient
+	err = tx.
+		WithContext(ctx).
+		Where("user_id = ? AND client_id = ?", storedRefreshToken.UserID, input.ClientID).
+		First(&authorizedClient).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		err = tx.WithContext(ctx).Delete(&storedRefreshToken).Error
+		if err != nil {
+			return CreatedTokens{}, err
+		}
+
+		err = tx.Commit().Error
+		if err != nil {
+			return CreatedTokens{}, err
+		}
+
+		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
+	} else if err != nil {
+		return CreatedTokens{}, err
+	}
+
+	if client.IsGroupRestricted {
+		err = tx.WithContext(ctx).Model(client).Association("AllowedUserGroups").Find(&client.AllowedUserGroups)
+		if err != nil {
+			return CreatedTokens{}, err
+		}
+	}
+
+	if !IsUserGroupAllowedToAuthorize(storedRefreshToken.User, *client) {
+		return CreatedTokens{}, &common.OidcAccessDeniedError{}
+	}
+
 	// Generate a new access token
 	authenticationMethods := storedRefreshToken.AuthenticationMethod
 	accessToken, err := s.jwtService.GenerateOAuthAccessToken(storedRefreshToken.User, input.ClientID, authenticationMethods)
@@ -1496,6 +1533,15 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 	}
 
 	err = tx.WithContext(ctx).Delete(&authorizedClient).Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.
+		WithContext(ctx).
+		Where("user_id = ? AND client_id = ?", userID, clientID).
+		Delete(&model.OidcRefreshToken{}).
+		Error
 	if err != nil {
 		return err
 	}
