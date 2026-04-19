@@ -1,3 +1,36 @@
+## v2.6.0
+
+### Bug Fixes
+
+- disable callback URLs with protocols "javascript" and "data" ([#1397](https://github.com/pocket-id/pocket-id/pull/1397) by @ItalyPaleAle)
+- strip Root prefix from S3 List() returned paths ([#1413](https://github.com/pocket-id/pocket-id/pull/1413) by @vtmocanu)
+- use valid Tailwind v4 transition class for auth animation squares ([#1415](https://github.com/pocket-id/pocket-id/pull/1415) by @CoolShades)
+- resolve posixGroup memberUid as bare usernames ([#1422](https://github.com/pocket-id/pocket-id/pull/1422) by @gucong3000)
+- prevent flickering if no background image is set on login page ([027e6f0](https://github.com/pocket-id/pocket-id/commit/027e6f078da0eec712ae22a04b37c86110cb262b) by @stonith404)
+- improve form input layout if description next to it is multi col ([9ec4683](https://github.com/pocket-id/pocket-id/commit/9ec4683d18036ba1945bffd4bce14ec4c2dff7f9) by @stonith404)
+- access token renewal bypasses important checks ([978ac87](https://github.com/pocket-id/pocket-id/commit/978ac87deffec58beaccd15aead975e91b94c8a5) by @stonith404)
+
+### Features
+
+- add ability to revoke passkeys of users as admin ([#1386](https://github.com/pocket-id/pocket-id/pull/1386) by @jose-d)
+- add auth method claim (`amr`) to tokens ([#1433](https://github.com/pocket-id/pocket-id/pull/1433) by @stonith404)
+- add TLS support for HTTP/2 server ([#1429](https://github.com/pocket-id/pocket-id/pull/1429) by @IngmarStein)
+- add OpenID Connect `prompt` Parameter Handling ([#1299](https://github.com/pocket-id/pocket-id/pull/1299) by @rjaakke)
+- return not found. on `/setup` if already completed ([444f7ff](https://github.com/pocket-id/pocket-id/commit/444f7ff2b0269c12f1dba334a37d7db2007e172f) by @stonith404)
+
+### Other
+
+- update AAGUIDs ([#1403](https://github.com/pocket-id/pocket-id/pull/1403) by @github-actions[bot])
+- upgrade dependencies ([f8f7222](https://github.com/pocket-id/pocket-id/commit/f8f7222468dad90f630ae18f7c3fd78e37ba3f77) by @stonith404)
+- combobox not closed in e2e test ([fbdb93f](https://github.com/pocket-id/pocket-id/commit/fbdb93f1a768a05e6e3f2c6fd32b5de50a745bc6) by @stonith404)
+- Security upgrade alpine from latest to 3.23.4 ([#1431](https://github.com/pocket-id/pocket-id/pull/1431) by @stonith404)
+- security upgrade alpine from latest to 3.23.4 ([#1432](https://github.com/pocket-id/pocket-id/pull/1432) by @stonith404)
+- add Catalan language files ([4f09de2](https://github.com/pocket-id/pocket-id/commit/4f09de2cfc7d1e92632116821493a670fc7ee80d) by @stonith404)
+- reduce complexity of `ValidateEnvConfig` and `initRouter` ([a0cb574](https://github.com/pocket-id/pocket-id/commit/a0cb57431372c2bcc59904342597845e92a42a93) by @stonith404)
+- pass context to `shutdownServer` ([ff26c42](https://github.com/pocket-id/pocket-id/commit/ff26c4273a061b7d2c84e7b74f1e0f9e0acc6eb0) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.5.0...v2.6.0
+
 ## v2.5.0
 
 ### Bug Fixes
