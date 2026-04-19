@@ -47,18 +47,15 @@ func init() {
 		"callback_url_pattern": func(fl validator.FieldLevel) bool {
 			return ValidateCallbackURLPattern(fl.Field().String())
 		},
+		"response_mode": func(fl validator.FieldLevel) bool {
+			return ValidateResponseMode(fl.Field().String())
+		},
 	}
 	for k, v := range validators {
 		err := engine.RegisterValidation(k, v)
 		if err != nil {
 			panic("Failed to register custom validation for " + k + ": " + err.Error())
 		}
-	}
-
-	if err := v.RegisterValidation("response_mode", func(fl validator.FieldLevel) bool {
-		return ValidateResponseMode(fl.Field().String())
-	}); err != nil {
-		panic("Failed to register custom validation for response_mode: " + err.Error())
 	}
 }
 
