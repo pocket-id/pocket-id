@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,8 +11,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -83,7 +87,7 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	controller.NewApiKeyController(apiGroup, authMiddleware, svc.apiKeyService)
 	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.webauthnService, svc.appConfigService)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService, svc.jwtService)
-	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.appConfigService)
+	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.webauthnService, svc.appConfigService)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
@@ -110,7 +114,29 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	var protocols http.Protocols
 	protocols.SetHTTP1(true)
-	protocols.SetUnencryptedHTTP2(true)
+
+	var tlsConfig *tls.Config
+	var certProvider *tlsCertProvider
+	var certWatcher *fsnotify.Watcher
+
+	if common.EnvConfig.TLSCertFile != "" && common.EnvConfig.TLSKeyFile != "" {
+		protocols.SetHTTP2(true)
+
+		certProvider, err = newCertProvider(common.EnvConfig.TLSCertFile, common.EnvConfig.TLSKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+		}
+
+		tlsConfig = &tls.Config{
+			GetCertificate: certProvider.GetCertificate,
+			MinVersion:     tls.VersionTLS13,
+			NextProtos:     []string{"h2"},
+		}
+
+		slog.Info("TLS enabled")
+	} else {
+		protocols.SetUnencryptedHTTP2(true)
+	}
 
 	// Set up the server
 	srv := &http.Server{
@@ -158,14 +184,39 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 
 	// Service runner function
 	runFn := func(ctx context.Context) error {
-		slog.Info("Server listening", slog.String("addr", addr))
+		slog.Info("Server listening", slog.String("addr", addr), slog.Bool("tls", tlsConfig != nil))
+
+		// Set up certificate hot reloading if TLS is enabled
+		if certProvider != nil {
+			certWatcher, err = fsnotify.NewWatcher()
+			if err != nil {
+				return fmt.Errorf("failed to create certificate watcher: %w", err)
+			}
+
+			// Watch both certificate and key files
+			if err := certWatcher.Add(common.EnvConfig.TLSCertFile); err != nil {
+				return fmt.Errorf("failed to watch TLS certificate: %w", err)
+			}
+			if err := certWatcher.Add(common.EnvConfig.TLSKeyFile); err != nil {
+				return fmt.Errorf("failed to watch TLS key: %w", err)
+			}
+
+			// Start certificate watcher goroutine
+			go certProvider.StartWatching(ctx, certWatcher)
+		}
 
 		// Start the server in a background goroutine
 		go func() {
 			defer listener.Close()
 
 			// Next call blocks until the server is shut down
-			srvErr := srv.Serve(listener)
+			var srvErr error
+			if tlsConfig != nil {
+				srvErr = srv.Serve(tls.NewListener(listener, tlsConfig))
+			} else {
+				srvErr = srv.Serve(listener)
+			}
+
 			if srvErr != http.ErrServerClosed {
 				slog.Error("Error starting app server", "error", srvErr)
 				os.Exit(1)
@@ -190,6 +241,11 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 		if shutdownErr != nil {
 			// Log the error only (could be context canceled)
 			slog.Warn("App server shutdown error", "error", shutdownErr)
+		}
+
+		// Close certificate watcher
+		if certWatcher != nil {
+			certWatcher.Close()
 		}
 
 		return nil
@@ -223,4 +279,100 @@ func initLogger(r *gin.Engine) {
 			return false
 		}),
 	))
+}
+
+// tlsCertProvider holds certificates that can be dynamically reloaded
+type tlsCertProvider struct {
+	certMutex   sync.RWMutex
+	cert        *tls.Certificate
+	certFile    string
+	keyFile     string
+	forceReload atomic.Bool
+}
+
+// GetCertificate implements tls.GetCertificate interface for dynamic certificate loading
+func (p *tlsCertProvider) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	if p.forceReload.Load() {
+		p.certMutex.Lock()
+		p.forceReload.Store(false)
+		p.certMutex.Unlock()
+	}
+
+	p.certMutex.RLock()
+	defer p.certMutex.RUnlock()
+	return p.cert, nil
+}
+
+// newCertProvider creates a new certificate provider with initial certificates loaded
+func newCertProvider(certFile, keyFile string) (*tlsCertProvider, error) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tlsCertProvider{
+		cert:     &cert,
+		certFile: certFile,
+		keyFile:  keyFile,
+	}, nil
+}
+
+// reloadCertificate reloads the certificate from disk
+func (p *tlsCertProvider) reloadCertificate() error {
+	cert, err := tls.LoadX509KeyPair(p.certFile, p.keyFile)
+	if err != nil {
+		return fmt.Errorf("failed to reload TLS certificate: %w", err)
+	}
+
+	p.certMutex.Lock()
+	p.cert = &cert
+	p.certMutex.Unlock()
+
+	return nil
+}
+
+// StartWatching begins monitoring the certificate files for changes with debouncing
+func (p *tlsCertProvider) StartWatching(ctx context.Context, watcher *fsnotify.Watcher) {
+	debounceDuration := 1 * time.Second
+	reloadTimer := time.NewTimer(debounceDuration)
+	reloadTimer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			// Only process write/rename events for certificate/key files
+			if event.Has(fsnotify.Write | fsnotify.Rename) {
+				// Reset the debounce timer whenever we get a relevant event
+				reloadTimer.Stop()
+				// Drain the channel if there's a pending value
+				select {
+				case <-reloadTimer.C:
+				default:
+				}
+				reloadTimer.Reset(debounceDuration)
+				slog.Debug("TLS file change detected, debouncing", slog.String("path", event.Name))
+			}
+		case <-reloadTimer.C:
+			// Timer fired - no more events in 500ms, so reload
+			slog.Info("Reloading TLS certificate")
+
+			if err := p.reloadCertificate(); err != nil {
+				slog.Error("Failed to reload TLS certificate", "error", err)
+				continue
+			}
+
+			p.forceReload.Store(true)
+			slog.Info("TLS certificate reloaded successfully")
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			slog.Error("Certificate watcher error", "error", err)
+		}
+	}
 }

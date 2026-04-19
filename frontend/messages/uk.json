@@ -106,6 +106,7 @@
 	"ip_address": "IP-адреса",
 	"device": "Пристрій",
 	"client": "Клієнт",
+	"actor": "Актор",
 	"unknown": "Невідомий",
 	"account_details_updated_successfully": "Дані облікового запису успішно оновлені",
 	"profile_picture_updated_successfully": "Зображення профілю успішно оновлено. Оновлення може зайняти кілька хвилин.",
@@ -117,6 +118,7 @@
 	"account_details": "Дані облікового запису",
 	"passkeys": "Ключі доступу",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Керуйте своїми ключами доступу, які ви можете використовувати для автентифікації.",
+	"manage_this_users_passkeys": "Керувати паролями цього користувача.",
 	"add_passkey": "Додати ключ доступу",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Створіть одноразовий код для входу, щоб увійти з іншого пристрою без ключа доступу.",
 	"create": "Створити",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Позначити як підтверджену",
 	"email_verification_sent": "Електронний лист для підтвердження успішно надіслано.",
 	"emails_verified_by_default": "Електронні адреси підтверджені за замовчуванням",
-	"emails_verified_by_default_description": "Якщо увімкнено, електронні адреси користувачів будуть автоматично позначатися як підтверджені під час реєстрації або зміни електронної адреси."
+	"emails_verified_by_default_description": "Якщо увімкнено, електронні адреси користувачів будуть автоматично позначатися як підтверджені під час реєстрації або зміни електронної адреси.",
+	"user_has_no_passkeys_yet": "Цей користувач ще не має паролів."
 }

@@ -32,6 +32,15 @@ const (
 	// RefreshTokenClaim is the claim used for the refresh token's value
 	RefreshTokenClaim = "rt"
 
+	// AuthenticationMethodsClaim is the claim used to identify how the user authenticated
+	AuthenticationMethodsClaim = "amr"
+
+	// AuthenticationMethodPhishingResistant identifies phishing-resistant authentication, such as passkeys
+	AuthenticationMethodPhishingResistant = "phr"
+
+	// AuthenticationMethodOneTimePassword identifies one-time password/code authentication
+	AuthenticationMethodOneTimePassword = "otp"
+
 	// OAuthAccessTokenJWTType identifies a JWT as an OAuth access token
 	OAuthAccessTokenJWTType = "oauth-access-token" //nolint:gosec
 
@@ -187,7 +196,8 @@ func (s *JwtService) SetKey(privateKey jwk.Key) error {
 	return nil
 }
 
-func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
+func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod string) (string, error) {
+
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
@@ -213,6 +223,11 @@ func (s *JwtService) GenerateAccessToken(user model.User) (string, error) {
 	err = SetIsAdmin(token, user.IsAdmin)
 	if err != nil {
 		return "", fmt.Errorf("failed to set 'isAdmin' claim in token: %w", err)
+	}
+
+	err = SetAuthenticationMethods(token, authenticationMethod)
+	if err != nil {
+		return "", fmt.Errorf("failed to set '%s' claim in token: %w", AuthenticationMethodsClaim, err)
 	}
 
 	alg, _ := s.privateKey.Algorithm()
@@ -243,7 +258,7 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 }
 
 // BuildIDToken creates an ID token with all claims
-func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, nonce string) (jwt.Token, error) {
+func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, nonce string, authenticationMethod string) (jwt.Token, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Expiration(now.Add(1 * time.Hour)).
@@ -265,6 +280,11 @@ func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, no
 		return nil, fmt.Errorf("failed to set 'type' claim in token: %w", err)
 	}
 
+	err = SetAuthenticationMethods(token, authenticationMethod)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set '%s' claim in token: %w", AuthenticationMethodsClaim, err)
+	}
+
 	for k, v := range userClaims {
 		err = token.Set(k, v)
 		if err != nil {
@@ -283,8 +303,8 @@ func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, no
 }
 
 // GenerateIDToken creates and signs an ID token
-func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string, nonce string) (string, error) {
-	token, err := s.BuildIDToken(userClaims, clientID, nonce)
+func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string, nonce string, authenticationMethod string) (string, error) {
+	token, err := s.BuildIDToken(userClaims, clientID, nonce, authenticationMethod)
 	if err != nil {
 		return "", err
 	}
@@ -332,7 +352,7 @@ func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool)
 }
 
 // BuildOAuthAccessToken creates an OAuth access token with all claims
-func (s *JwtService) BuildOAuthAccessToken(user model.User, clientID string) (jwt.Token, error) {
+func (s *JwtService) BuildOAuthAccessToken(user model.User, clientID string, authenticationMethod string) (jwt.Token, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
@@ -355,12 +375,17 @@ func (s *JwtService) BuildOAuthAccessToken(user model.User, clientID string) (jw
 		return nil, fmt.Errorf("failed to set 'type' claim in token: %w", err)
 	}
 
+	err = SetAuthenticationMethods(token, authenticationMethod)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set '%s' claim in token: %w", AuthenticationMethodsClaim, err)
+	}
+
 	return token, nil
 }
 
 // GenerateOAuthAccessToken creates and signs an OAuth access token
-func (s *JwtService) GenerateOAuthAccessToken(user model.User, clientID string) (string, error) {
-	token, err := s.BuildOAuthAccessToken(user, clientID)
+func (s *JwtService) GenerateOAuthAccessToken(user model.User, clientID string, authenticationMethod string) (string, error) {
+	token, err := s.BuildOAuthAccessToken(user, clientID, authenticationMethod)
 	if err != nil {
 		return "", err
 	}
@@ -534,6 +559,27 @@ func GetIsAdmin(token jwt.Token) (bool, error) {
 	return isAdmin, nil
 }
 
+// GetAuthenticationMethod returns the first authentication method in the "amr" claim in the token
+func GetAuthenticationMethod(token jwt.Token) (string, error) {
+	if !token.Has(AuthenticationMethodsClaim) {
+		return "", nil
+	}
+	var rawAuthenticationMethods []any
+	err := token.Get(AuthenticationMethodsClaim, &rawAuthenticationMethods)
+	if err != nil {
+		return "", fmt.Errorf("failed to get '%s' claim from token: %w", AuthenticationMethodsClaim, err)
+	}
+
+	if len(rawAuthenticationMethods) == 0 {
+		return "", nil
+	}
+	authenticationMethod, ok := rawAuthenticationMethods[0].(string)
+	if !ok {
+		return "", fmt.Errorf("invalid '%s' claim in token: expected array of strings", AuthenticationMethodsClaim)
+	}
+	return authenticationMethod, nil
+}
+
 // SetTokenType sets the "type" claim in the token
 func SetTokenType(token jwt.Token, tokenType string) error {
 	if tokenType == "" {
@@ -549,6 +595,14 @@ func SetIsAdmin(token jwt.Token, isAdmin bool) error {
 		return nil
 	}
 	return token.Set(IsAdminClaim, isAdmin)
+}
+
+// SetAuthenticationMethods sets the authentication method references claim in the token
+func SetAuthenticationMethods(token jwt.Token, authenticationMethod string) error {
+	if authenticationMethod == "" {
+		return nil
+	}
+	return token.Set(AuthenticationMethodsClaim, []string{authenticationMethod})
 }
 
 // SetAudienceString sets the "aud" claim with a value that is a string, and not an array

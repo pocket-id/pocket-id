@@ -174,6 +174,7 @@ func TestJwtService_Init(t *testing.T) {
 		_ = assert.True(t, ok) &&
 			assert.Equal(t, origKeyID, loadedKeyID, "Loaded key should have the same ID as the original")
 	})
+
 }
 
 func TestJwtService_GetPublicJWK(t *testing.T) {
@@ -308,7 +309,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: false,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user)
+		tokenString, err := service.GenerateAccessToken(user, "")
 		require.NoError(t, err, "Failed to generate access token")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -321,6 +322,9 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		isAdmin, err := GetIsAdmin(claims)
 		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
 			assert.False(t, isAdmin, "isAdmin should be false")
+		authenticationMethod, err := GetAuthenticationMethod(claims)
+		_ = assert.NoError(t, err, "Failed to get amr claim") &&
+			assert.Empty(t, authenticationMethod, "amr should be empty when not specified")
 		audience, ok := claims.Audience()
 		_ = assert.True(t, ok, "Audience not found in token") &&
 			assert.Equal(t, []string{service.envConfig.AppURL}, audience, "Audience should contain the app URL")
@@ -344,7 +348,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(adminUser)
+		tokenString, err := service.GenerateAccessToken(adminUser, "")
 		require.NoError(t, err, "Failed to generate access token")
 
 		claims, err := service.VerifyAccessToken(tokenString)
@@ -358,6 +362,24 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			assert.Equal(t, adminUser.ID, subject, "Token subject should match user ID")
 	})
 
+	t.Run("sets authentication method references claim when provided", func(t *testing.T) {
+		service, _, _ := setupJwtService(t, mockConfig)
+
+		user := model.User{
+			Base: model.Base{ID: "user-with-auth-method"},
+		}
+
+		tokenString, err := service.GenerateAccessToken(user, AuthenticationMethodPhishingResistant)
+		require.NoError(t, err, "Failed to generate access token")
+
+		claims, err := service.VerifyAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated token")
+
+		authenticationMethod, err := GetAuthenticationMethod(claims)
+		_ = assert.NoError(t, err, "Failed to get amr claim") &&
+			assert.Equal(t, AuthenticationMethodPhishingResistant, authenticationMethod, "amr should match")
+	})
+
 	t.Run("uses session duration from config", func(t *testing.T) {
 		customMockConfig := NewTestAppConfigService(&model.AppConfig{
 			SessionDuration: model.AppConfigVariable{Value: "30"}, // 30 minutes
@@ -368,7 +390,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			Base: model.Base{ID: "user456"},
 		}
 
-		tokenString, err := service.GenerateAccessToken(user)
+		tokenString, err := service.GenerateAccessToken(user, "")
 		require.NoError(t, err, "Failed to generate access token")
 
 		claims, err := service.VerifyAccessToken(tokenString)
@@ -396,7 +418,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user)
+		tokenString, err := service.GenerateAccessToken(user, "")
 		require.NoError(t, err, "Failed to generate access token with Ed25519 key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -433,7 +455,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user)
+		tokenString, err := service.GenerateAccessToken(user, "")
 		require.NoError(t, err, "Failed to generate access token with ECDSA key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -470,7 +492,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user)
+		tokenString, err := service.GenerateAccessToken(user, "")
 		require.NoError(t, err, "Failed to generate access token with RSA key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -508,7 +530,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		}
 		const clientID = "test-client-123"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, "", "")
 		require.NoError(t, err, "Failed to generate ID token")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -593,7 +615,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		const clientID = "test-client-456"
 		nonce := "random-nonce-value"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, nonce)
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, nonce, "")
 		require.NoError(t, err, "Failed to generate ID token with nonce")
 
 		publicKey, err := service.GetPublicJWK()
@@ -614,7 +636,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		userClaims := map[string]any{
 			"sub": "user789",
 		}
-		tokenString, err := service.GenerateIDToken(userClaims, "client-789", "")
+		tokenString, err := service.GenerateIDToken(userClaims, "client-789", "", "")
 		require.NoError(t, err, "Failed to generate ID token")
 
 		service.envConfig.AppURL = "https://wrong-issuer.com"
@@ -640,7 +662,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		}
 		const clientID = "eddsa-client-123"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, "", "")
 		require.NoError(t, err, "Failed to generate ID token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -677,7 +699,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		}
 		const clientID = "ecdsa-client-123"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, "", "")
 		require.NoError(t, err, "Failed to generate ID token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -715,7 +737,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		}
 		const clientID = "rsa-client-123"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, "")
+		tokenString, err := service.GenerateIDToken(userClaims, clientID, "", "")
 		require.NoError(t, err, "Failed to generate ID token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -745,7 +767,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		}
 		const clientID = "test-client-123"
 
-		tokenString, err := service.GenerateOAuthAccessToken(user, clientID)
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID, "")
 		require.NoError(t, err, "Failed to generate OAuth access token")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -770,6 +792,25 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		assert.True(t, ok, "Expiration not found in token")
 		timeDiff := expectedExp.Sub(expiration).Minutes()
 		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 1 hour")
+	})
+
+	t.Run("sets authentication method references claim when provided", func(t *testing.T) {
+		service, _, _ := setupJwtService(t, mockConfig)
+
+		user := model.User{
+			Base: model.Base{ID: "oauth-amr-user"},
+		}
+		const clientID = "test-client-amr"
+
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID, AuthenticationMethodPhishingResistant)
+		require.NoError(t, err, "Failed to generate OAuth access token")
+
+		claims, err := service.VerifyOAuthAccessToken(tokenString)
+		require.NoError(t, err, "Failed to verify generated OAuth access token")
+
+		authenticationMethod, err := GetAuthenticationMethod(claims)
+		_ = assert.NoError(t, err, "Failed to get amr claim") &&
+			assert.Equal(t, AuthenticationMethodPhishingResistant, authenticationMethod, "amr should match")
 	})
 
 	t.Run("fails verification for expired token", func(t *testing.T) {
@@ -805,7 +846,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		user := model.User{Base: model.Base{ID: "user789"}}
 		const clientID = "test-client-789"
 
-		tokenString, err := service1.GenerateOAuthAccessToken(user, clientID)
+		tokenString, err := service1.GenerateOAuthAccessToken(user, clientID, "")
 		require.NoError(t, err, "Failed to generate OAuth access token")
 
 		_, err = service2.VerifyOAuthAccessToken(tokenString)
@@ -828,7 +869,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		}
 		const clientID = "eddsa-oauth-client"
 
-		tokenString, err := service.GenerateOAuthAccessToken(user, clientID)
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID, "")
 		require.NoError(t, err, "Failed to generate OAuth access token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -865,7 +906,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		}
 		const clientID = "ecdsa-oauth-client"
 
-		tokenString, err := service.GenerateOAuthAccessToken(user, clientID)
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID, "")
 		require.NoError(t, err, "Failed to generate OAuth access token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -902,7 +943,7 @@ func TestGenerateVerifyOAuthAccessToken(t *testing.T) {
 		}
 		const clientID = "rsa-oauth-client"
 
-		tokenString, err := service.GenerateOAuthAccessToken(user, clientID)
+		tokenString, err := service.GenerateOAuthAccessToken(user, clientID, "")
 		require.NoError(t, err, "Failed to generate OAuth access token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 

@@ -71,20 +71,17 @@
 				reauthToken = await webauthnService.reauthenticate(authResponse);
 			}
 
-			await oidService
-				.authorize(
-					client!.id,
-					scope,
-					callbackURL,
-					nonce,
-					codeChallenge,
-					codeChallengeMethod,
-					reauthToken,
-					responseMode
-				)
-				.then(async ({ code, callbackURL, issuer }) => {
-					onSuccess(code, callbackURL, issuer);
-				});
+			const authResult = await oidService.authorize(
+				client!.id,
+				scope,
+				callbackURL,
+				nonce,
+				codeChallenge,
+				codeChallengeMethod,
+				reauthToken,
+                responseMode
+			);
+			onSuccess(authResult.code, authResult.callbackURL, authResult.issuer);
 		} catch (e) {
 			errorMessage = getWebauthnErrorMessage(e);
 			isLoading = false;
@@ -92,6 +89,15 @@
 	}
 
 	function onSuccess(code: string, callbackURL: string, issuer: string) {
+		const redirectURL = new URL(callbackURL);
+		if (redirectURL.protocol == 'javascript:' || redirectURL.protocol == 'data:') {
+			throw new Error('Invalid redirect URL protocol');
+		}
+
+		redirectURL.searchParams.append('code', code);
+		redirectURL.searchParams.append('state', authorizeState);
+		redirectURL.searchParams.append('iss', issuer);
+
 		success = true;
 		setTimeout(() => {
 			if (responseMode === 'form_post') {

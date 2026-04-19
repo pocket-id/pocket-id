@@ -44,7 +44,7 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	authMiddleware := NewAuthMiddleware(apiKeyService, userService, jwtService)
 
 	user := createUserForAuthMiddlewareTest(t, db)
-	jwtToken, err := jwtService.GenerateAccessToken(user)
+	jwtToken, err := jwtService.GenerateAccessToken(user, "")
 	require.NoError(t, err)
 
 	_, apiKeyToken, err := apiKeyService.CreateApiKey(t.Context(), user.ID, dto.ApiKeyCreateDto{

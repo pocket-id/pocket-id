@@ -8,6 +8,7 @@
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import FormattedMessage from '../formatted-message.svelte';
+	import { cn } from '$lib/utils/style';
 
 	type WithoutChildren = {
 		children?: undefined;
@@ -48,44 +49,53 @@
 	const id = label?.toLowerCase().replace(/ /g, '-');
 </script>
 
-<Field.Field data-disabled={disabled} {...restProps}>
-	{#if label}
-		<Field.Label required={input?.required} class="mb-0" for={labelFor ?? id}>{label}</Field.Label>
-	{/if}
-	{#if description}
-		<Field.Description>
-			<FormattedMessage m={description} />
-			{#if docsLink}
-				<a
-					class="relative text-black after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:translate-y-[-1px] after:bg-white dark:text-white"
-					href={docsLink}
-					target="_blank"
-				>
-					{m.docs()}
-					<LucideExternalLink class="inline size-3 align-text-top" />
-				</a>
-			{/if}
-		</Field.Description>
-	{/if}
-	{#if children}
-		{@render children()}
-	{:else if input}
-		{#if type === 'date'}
-			<DatePicker {id} bind:value={input.value as Date} />
-		{:else}
-			<Input
-				aria-invalid={!!input.error}
-				class={inputClass}
-				{id}
-				{placeholder}
-				{type}
-				bind:value={input.value}
-				{disabled}
-				oninput={(e) => onInput?.(e)}
-			/>
+<Field.Field
+	data-disabled={disabled}
+	class={cn('flex flex-col justify-between', restProps.class)}
+	{...restProps}
+>
+	<div>
+		{#if label}
+			<Field.Label required={input?.required} class="mb-0" for={labelFor ?? id}>{label}</Field.Label
+			>
 		{/if}
-	{/if}
-	{#if input?.error}
-		<Field.Error class="text-start">{input.error}</Field.Error>
-	{/if}
+		{#if description}
+			<Field.Description>
+				<FormattedMessage m={description} />
+				{#if docsLink}
+					<a
+						class="relative text-black after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:translate-y-[-1px] after:bg-white dark:text-white"
+						href={docsLink}
+						target="_blank"
+					>
+						{m.docs()}
+						<LucideExternalLink class="inline size-3 align-text-top" />
+					</a>
+				{/if}
+			</Field.Description>
+		{/if}
+	</div>
+	<div>
+		{#if children}
+			{@render children()}
+		{:else if input}
+			{#if type === 'date'}
+				<DatePicker {id} bind:value={input.value as Date} />
+			{:else}
+				<Input
+					aria-invalid={!!input.error}
+					class={inputClass}
+					{id}
+					{placeholder}
+					{type}
+					bind:value={input.value}
+					{disabled}
+					oninput={(e) => onInput?.(e)}
+				/>
+			{/if}
+		{/if}
+		{#if input?.error}
+			<Field.Error class="text-start">{input.error}</Field.Error>
+		{/if}
+	</div>
 </Field.Field>

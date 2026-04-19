@@ -70,6 +70,9 @@ type EnvConfigSchema struct {
 	UnixSocketMode  string `env:"UNIX_SOCKET_MODE"`
 	LocalIPv6Ranges string `env:"LOCAL_IPV6_RANGES"`
 
+	TLSCertFile string `env:"TLS_CERT" options:"file"`
+	TLSKeyFile  string `env:"TLS_KEY" options:"file"`
+
 	MaxMindLicenseKey string `env:"MAXMIND_LICENSE_KEY" options:"file"`
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl      string `env:"GEOLITE_DB_URL"`
@@ -209,6 +212,26 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 
 	if config.StaticApiKey != "" && len(config.StaticApiKey) < 16 {
 		return errors.New("STATIC_API_KEY must be at least 16 characters long")
+	}
+
+	// Validate TLS config
+	switch {
+	case config.TLSCertFile != "" && config.TLSKeyFile == "":
+		return errors.New("TLS_KEY_FILE must be set when TLS_CERT_FILE is set")
+	case config.TLSCertFile == "" && config.TLSKeyFile != "":
+		return errors.New("TLS_CERT_FILE must be set when TLS_KEY_FILE is set")
+	}
+
+	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
+		if _, err := os.Stat(config.TLSCertFile); err != nil {
+			return fmt.Errorf("TLS_CERT_FILE not found: %w", err)
+		}
+	}
+
+	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
+		if _, err := os.Stat(config.TLSKeyFile); err != nil {
+			return fmt.Errorf("TLS_KEY_FILE not found: %w", err)
+		}
 	}
 
 	return nil

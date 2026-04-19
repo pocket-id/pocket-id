@@ -207,6 +207,58 @@ func TestParseEnvConfig(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "invalid FILE_BACKEND value")
 	})
+
+	t.Run("should fail when TLS cert is set without key", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("TLS_CERT", "/path/to/cert.pem")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "TLS_KEY_FILE must be set when TLS_CERT_FILE is set")
+	})
+
+	t.Run("should fail when TLS key is set without cert", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("TLS_KEY", "/path/to/key.pem")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "TLS_CERT_FILE must be set when TLS_KEY_FILE is set")
+	})
+
+	t.Run("should fail when TLS cert file does not exist", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("TLS_CERT", "/nonexistent/cert.pem")
+
+		keyFile := t.TempDir() + "/key.pem"
+		require.NoError(t, os.WriteFile(keyFile, []byte("key"), 0600))
+		t.Setenv("TLS_KEY", keyFile)
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "TLS_CERT_FILE not found")
+	})
+
+	t.Run("should fail when TLS key file does not exist", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+
+		certFile := t.TempDir() + "/cert.pem"
+		require.NoError(t, os.WriteFile(certFile, []byte("cert"), 0600))
+		t.Setenv("TLS_CERT", certFile)
+		t.Setenv("TLS_KEY", "/nonexistent/key.pem")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "TLS_KEY_FILE not found")
+	})
 }
 
 func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
@@ -253,5 +305,27 @@ func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
 		err := prepareEnvConfig(&config)
 		require.NoError(t, err)
 		assert.Equal(t, binaryKeyContent, config.EncryptionKey)
+	})
+
+	t.Run("should load TLS cert and key file contents", func(t *testing.T) {
+		config := defaultConfig()
+
+		certFile := tempDir + "/cert.pem"
+		certContent := "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+		err := os.WriteFile(certFile, []byte(certContent), 0600)
+		require.NoError(t, err)
+
+		keyFile := tempDir + "/key.pem"
+		keyContent := "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"
+		err = os.WriteFile(keyFile, []byte(keyContent), 0600)
+		require.NoError(t, err)
+
+		t.Setenv("TLS_CERT_FILE", certFile)
+		t.Setenv("TLS_KEY_FILE", keyFile)
+
+		err = prepareEnvConfig(&config)
+		require.NoError(t, err)
+		assert.Equal(t, certContent, config.TLSCertFile)
+		assert.Equal(t, keyContent, config.TLSKeyFile)
 	})
 }

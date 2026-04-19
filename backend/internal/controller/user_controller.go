@@ -21,10 +21,11 @@ const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, appConfigService *service.AppConfigService) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *service.WebAuthnService, appConfigService *service.AppConfigService) {
 	uc := UserController{
 		userService:          userService,
 		oneTimeAccessService: oneTimeAccessService,
+		webAuthnService:      webAuthnService,
 		appConfigService:     appConfigService,
 	}
 
@@ -34,8 +35,10 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/users", authMiddleware.Add(), uc.createUserHandler)
 	group.PUT("/users/:id", authMiddleware.Add(), uc.updateUserHandler)
 	group.GET("/users/:id/groups", authMiddleware.Add(), uc.getUserGroupsHandler)
+	group.GET("/users/:id/webauthn-credentials", authMiddleware.Add(), uc.listUserWebauthnCredentialsHandler)
 	group.PUT("/users/me", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserHandler)
 	group.DELETE("/users/:id", authMiddleware.Add(), uc.deleteUserHandler)
+	group.DELETE("/users/:id/webauthn-credentials/:credentialId", authMiddleware.Add(), uc.deleteUserWebauthnCredentialHandler)
 
 	group.PUT("/users/:id/user-groups", authMiddleware.Add(), uc.updateUserGroups)
 
@@ -60,6 +63,7 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 type UserController struct {
 	userService          *service.UserService
 	oneTimeAccessService *service.OneTimeAccessService
+	webAuthnService      *service.WebAuthnService
 	appConfigService     *service.AppConfigService
 }
 
@@ -85,6 +89,36 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, groupsDto)
+}
+
+// listUserWebauthnCredentialsHandler godoc
+// @Summary List user passkeys
+// @Description Retrieve all WebAuthn credentials for a specific user
+// @Tags Users
+// @Param id path string true "User ID"
+// @Success 200 {array} dto.WebauthnCredentialDto
+// @Router /api/users/{id}/webauthn-credentials [get]
+func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) {
+	userID := c.Param("id")
+
+	if _, err := uc.userService.GetUser(c.Request.Context(), userID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	credentials, err := uc.webAuthnService.ListCredentials(c.Request.Context(), userID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var credentialDtos []dto.WebauthnCredentialDto
+	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, credentialDtos)
 }
 
 // listUsersHandler godoc
@@ -174,6 +208,31 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Router /api/users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) {
 	if err := uc.userService.DeleteUser(c.Request.Context(), c.Param("id"), false); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// deleteUserWebauthnCredentialHandler godoc
+// @Summary Delete user passkey
+// @Description Delete a specific WebAuthn credential for a user
+// @Tags Users
+// @Param id path string true "User ID"
+// @Param credentialId path string true "Credential ID"
+// @Success 204 "No Content"
+// @Router /api/users/{id}/webauthn-credentials/{credentialId} [delete]
+func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) {
+	err := uc.webAuthnService.DeleteCredential(
+		c.Request.Context(),
+		c.Param("id"),
+		c.Param("credentialId"),
+		c.ClientIP(),
+		c.Request.UserAgent(),
+		c.GetString("userID"),
+	)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}

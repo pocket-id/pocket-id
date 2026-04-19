@@ -137,7 +137,7 @@ func (wc *WebauthnController) deleteCredentialHandler(c *gin.Context) {
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
 
-	err := wc.webAuthnService.DeleteCredential(c.Request.Context(), userID, credentialID, clientIP, userAgent)
+	err := wc.webAuthnService.DeleteCredential(c.Request.Context(), userID, credentialID, clientIP, userAgent, userID)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -106,6 +106,7 @@
 	"ip_address": "IP 地址",
 	"device": "设备",
 	"client": "客户端",
+	"actor": "演员",
 	"unknown": "未知",
 	"account_details_updated_successfully": "账户信息已成功更新",
 	"profile_picture_updated_successfully": "头像更新成功。可能需要几分钟才能完成刷新。",
@@ -117,6 +118,7 @@
 	"account_details": "账户详情",
 	"passkeys": "通行密钥",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "管理您的通行密钥，以用于身份验证。",
+	"manage_this_users_passkeys": "管理此用户的密钥。",
 	"add_passkey": "添加通行密钥",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "创建一次性登录码，以便从不同设备登录而无需通行密钥。",
 	"create": "创建",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "标记为已验证",
 	"email_verification_sent": "验证邮件已成功发送。",
 	"emails_verified_by_default": "电子邮件默认已验证",
-	"emails_verified_by_default_description": "启用后，用户的电子邮件地址将在注册时或更改电子邮件地址时默认标记为已验证。"
+	"emails_verified_by_default_description": "启用后，用户的电子邮件地址将在注册时或更改电子邮件地址时默认标记为已验证。",
+	"user_has_no_passkeys_yet": "该用户目前还没有密钥。"
 }

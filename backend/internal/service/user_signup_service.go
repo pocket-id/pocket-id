@@ -87,7 +87,7 @@ func (s *UserSignUpService) SignUp(ctx context.Context, signupData dto.SignUpDto
 		return model.User{}, "", err
 	}
 
-	accessToken, err := s.jwtService.GenerateAccessToken(user)
+	accessToken, err := s.jwtService.GenerateAccessToken(user, "")
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -148,7 +148,7 @@ func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData d
 		return model.User{}, "", err
 	}
 
-	token, err := s.jwtService.GenerateAccessToken(user)
+	token, err := s.jwtService.GenerateAccessToken(user, AuthenticationMethodOneTimePassword)
 	if err != nil {
 		return model.User{}, "", err
 	}

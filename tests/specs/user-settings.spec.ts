@@ -1,5 +1,6 @@
 import test, { expect } from '@playwright/test';
 import { userGroups, users } from '../data';
+import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -101,7 +102,7 @@ test('Delete user', async ({ page }) => {
 		.getByRole('button')
 		.click();
 	await page.getByRole('menuitem', { name: 'Delete' }).click();
-	await page.getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('User deleted successfully');
 	await expect(
@@ -250,4 +251,46 @@ test('Update user group assignments', async ({ page }) => {
 	await expect(
 		page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox')
 	).toHaveAttribute('data-state', 'unchecked');
+});
+
+test('Admin can view another user passkeys', async ({ page }) => {
+	await page.goto(`/settings/admin/users/${users.craig.id}`);
+
+	await expect(page.getByText('Passkey 2')).toBeVisible();
+	await expect(page.getByText(/Added on/)).toBeVisible();
+});
+
+test('Admin can delete another user passkey and audit log is created', async ({ page }) => {
+	await page.goto(`/settings/admin/users/${users.craig.id}`);
+
+	await page.locator('[data-slot="item"]').filter({ hasText: 'Passkey 2' }).getByLabel('Delete').click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
+	await expect(page.getByText('Passkey 2')).not.toBeVisible();
+
+	const auditLogResponse = await page.request.get('/api/audit-logs/all');
+	expect(auditLogResponse.ok()).toBeTruthy();
+
+	const auditLogs = await auditLogResponse.json();
+	expect(
+		auditLogs.data.some(
+			(log: { event: string; userID: string; data?: { passkeyName?: string } }) =>
+				log.event === 'PASSKEY_REMOVED' &&
+				log.userID === users.craig.id &&
+				log.data?.passkeyName === 'Passkey 2'
+		)
+	).toBeTruthy();
+});
+
+test('Non-admin cannot use admin passkey endpoints', async ({ page }) => {
+	await authUtil.changeUser(page, 'craig');
+
+	const listResponse = await page.request.get(`/api/users/${users.tim.id}/webauthn-credentials`);
+	expect(listResponse.status()).toBe(403);
+
+	const deleteResponse = await page.request.delete(
+		`/api/users/${users.tim.id}/webauthn-credentials/test-passkey-id`
+	);
+	expect(deleteResponse.status()).toBe(403);
 });

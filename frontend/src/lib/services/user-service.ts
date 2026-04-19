@@ -1,5 +1,6 @@
 import userStore from '$lib/stores/user-store';
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
+import type { Passkey } from '$lib/types/passkey.type';
 import type { SignupToken } from '$lib/types/signup-token.type';
 import type { UserGroup } from '$lib/types/user-group.type';
 import type { AccountUpdate, User, UserCreate, UserSignUp } from '$lib/types/user.type';
@@ -33,6 +34,11 @@ export default class UserService extends APIService {
 		return res.data as UserGroup[];
 	};
 
+	listUserPasskeys = async (userId: string) => {
+		const res = await this.api.get(`/users/${userId}/webauthn-credentials`);
+		return res.data as Passkey[];
+	};
+
 	update = async (id: string, user: UserCreate) => {
 		const res = await this.api.put(`/users/${id}`, user);
 		return res.data as User;
@@ -45,6 +51,10 @@ export default class UserService extends APIService {
 
 	remove = async (id: string) => {
 		await this.api.delete(`/users/${id}`);
+	};
+
+	removeUserPasskey = async (userId: string, passkeyId: string) => {
+		await this.api.delete(`/users/${userId}/webauthn-credentials/${passkeyId}`);
 	};
 
 	updateProfilePicture = async (userId: string, image: File) => {

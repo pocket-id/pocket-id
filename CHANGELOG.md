@@ -1,3 +1,34 @@
+## v2.5.0
+
+### Bug Fixes
+
+- better error messages when there's another instance of Pocket ID running ([#1370](https://github.com/pocket-id/pocket-id/pull/1370) by @ItalyPaleAle)
+- move tooltip inside of form input to prevent shifting ([#1369](https://github.com/pocket-id/pocket-id/pull/1369) by @GameTec-live)
+- derive LDAP admin access from group membership ([#1374](https://github.com/pocket-id/pocket-id/pull/1374) by @kmendell)
+- avoid fmt.Sprintf on custom GeoLiteDBUrl without %s placeholder ([#1384](https://github.com/pocket-id/pocket-id/pull/1384) by @choyri)
+- show a warning when SQLite DB is stored on NFS/SMB/FUSE ([#1381](https://github.com/pocket-id/pocket-id/pull/1381) by @ItalyPaleAle)
+- empty background restore after reboot ([#1379](https://github.com/pocket-id/pocket-id/pull/1379) by @taoso)
+- allow one-char username on signup ([#1378](https://github.com/pocket-id/pocket-id/pull/1378) by @taoso)
+
+### Features
+
+- allow use of svg, png, and ico images types for favicon ([#1289](https://github.com/pocket-id/pocket-id/pull/1289) by @taoso)
+- allow clearing background image ([#1290](https://github.com/pocket-id/pocket-id/pull/1290) by @taoso)
+- add `token_endpoint_auth_methods_supported` to `.well-known` ([#1388](https://github.com/pocket-id/pocket-id/pull/1388) by @owenvoke)
+- add TRUSTED_PLATFORM environment variable for gin ([#1372](https://github.com/pocket-id/pocket-id/pull/1372) by @choyri)
+
+### Other
+
+- add pr quality action ([e3905cf](https://github.com/pocket-id/pocket-id/commit/e3905cf3159fe0370778b0d7d3be64b4246d19be) by @stonith404)
+- separate querying LDAP and updating DB during sync ([#1371](https://github.com/pocket-id/pocket-id/pull/1371) by @ItalyPaleAle)
+- bump google.golang.org/grpc from 1.79.1 to 1.79.3 in /backend in the go_modules group across 1 directory ([#1391](https://github.com/pocket-id/pocket-id/pull/1391) by @dependabot[bot])
+- Improve Latvian translations in lv.json ([#1382](https://github.com/pocket-id/pocket-id/pull/1382) by @Raito00)
+- ignore linter on app image bootstrap ([5251cd9](https://github.com/pocket-id/pocket-id/commit/5251cd97994177c96cb6f9ab3f88ca31367b5b55) by @kmendell)
+- upgrade dependencies ([e7e0176](https://github.com/pocket-id/pocket-id/commit/e7e0176316857186b9683e2f0cb0686189f86cfb) by @kmendell)
+- upgrade dependencies ([3c42a71](https://github.com/pocket-id/pocket-id/commit/3c42a713ce91b4061ffcf86d92cbb19294359ff8) by @kmendell)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.4.0...v2.5.0
+
 ## v2.4.0
 
 ### Bug Fixes

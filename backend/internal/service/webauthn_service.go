@@ -266,7 +266,7 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 		return model.User{}, "", &common.UserDisabledError{}
 	}
 
-	token, err := s.jwtService.GenerateAccessToken(*user)
+	token, err := s.jwtService.GenerateAccessToken(*user, AuthenticationMethodPhishingResistant)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -293,26 +293,40 @@ func (s *WebAuthnService) ListCredentials(ctx context.Context, userID string) ([
 	return credentials, nil
 }
 
-func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string) error {
+func (s *WebAuthnService) DeleteCredential(ctx context.Context, userID string, credentialID string, ipAddress string, userAgent string, actorUserID string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	credential := &model.WebauthnCredential{}
-	err := tx.
+	result := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
-		Delete(credential, "id = ? AND user_id = ?", credentialID, userID).
-		Error
-	if err != nil {
-		return fmt.Errorf("failed to delete record: %w", err)
+		Delete(credential, "id = ? AND user_id = ?", credentialID, userID)
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete record: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
 
 	auditLogData := model.AuditLogData{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
+	if actorUserID != "" && actorUserID != userID {
+		var actor model.User
+		err := tx.
+			WithContext(ctx).
+			First(&actor, "id = ?", actorUserID).
+			Error
+		if err != nil {
+			return fmt.Errorf("failed to load actor user: %w", err)
+		}
+		auditLogData["actorUserID"] = actorUserID
+		auditLogData["actorUsername"] = actor.Username
+	}
 	s.auditLogService.Create(ctx, model.AuditLogEventPasskeyRemoved, ipAddress, userAgent, userID, auditLogData, tx)
 
-	err = tx.Commit().Error
+	err := tx.Commit().Error
 	if err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -373,6 +387,14 @@ func (s *WebAuthnService) CreateReauthenticationTokenWithAccessToken(ctx context
 	userID, ok := token.Subject()
 	if !ok {
 		return "", errors.New("access token does not contain user ID")
+	}
+
+	authenticationMethod, err := GetAuthenticationMethod(token)
+	if err != nil {
+		return "", err
+	}
+	if authenticationMethod != AuthenticationMethodPhishingResistant {
+		return "", &common.ReauthenticationRequiredError{}
 	}
 
 	// Check if token is issued less than a minute ago

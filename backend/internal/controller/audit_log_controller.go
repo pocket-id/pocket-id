@@ -63,6 +63,7 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	// Add device information to the logs
 	for i, logsDto := range logsDtos {
 		logsDto.Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
+		logsDto.ActorUsername = logsDto.Data["actorUsername"]
 		logsDtos[i] = logsDto
 	}
 
@@ -101,6 +102,7 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 	for i, logsDto := range logsDtos {
 		logsDto.Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
 		logsDto.Username = logs[i].User.Username
+		logsDto.ActorUsername = logsDto.Data["actorUsername"]
 		logsDtos[i] = logsDto
 	}
 

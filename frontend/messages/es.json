@@ -106,6 +106,7 @@
 	"ip_address": "Dirección IP",
 	"device": "Dispositivo",
 	"client": "Cliente",
+	"actor": "Actor",
 	"unknown": "Desconocido",
 	"account_details_updated_successfully": "Detalles de la cuenta actualizados exitosamente",
 	"profile_picture_updated_successfully": "Imagen de perfil actualizada correctamente. Puede tardar unos minutos en actualizarse.",
@@ -117,6 +118,7 @@
 	"account_details": "Detalles de la cuenta",
 	"passkeys": "Claves de acceso",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Administra las claves de acceso que te permiten autenticarte.",
+	"manage_this_users_passkeys": "Gestiona las claves de acceso de este usuario.",
 	"add_passkey": "Añade una clave de acceso",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Crea un código de inicio de sesión único para iniciar sesión desde un dispositivo diferente sin una clave.",
 	"create": "Crear",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Marcar como verificado",
 	"email_verification_sent": "El correo electrónico de verificación se ha enviado correctamente.",
 	"emails_verified_by_default": "Correos electrónicos verificados de forma predeterminada",
-	"emails_verified_by_default_description": "Cuando esta opción está activada, las direcciones de correo electrónico de los usuarios se marcarán como verificadas de forma predeterminada al registrarse o cuando se modifique su dirección de correo electrónico."
+	"emails_verified_by_default_description": "Cuando esta opción está activada, las direcciones de correo electrónico de los usuarios se marcarán como verificadas de forma predeterminada al registrarse o cuando se modifique su dirección de correo electrónico.",
+	"user_has_no_passkeys_yet": "Este usuario aún no tiene claves de acceso."
 }

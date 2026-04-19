@@ -106,6 +106,7 @@
 	"ip_address": "IP adresa",
 	"device": "Zařízení",
 	"client": "Klient",
+	"actor": "Herec",
 	"unknown": "Neznámé",
 	"account_details_updated_successfully": "Účet byl úspěšně aktualizován",
 	"profile_picture_updated_successfully": "Profilový obrázek byl úspěšně aktualizován. Aktualizace může trvat několik minut.",
@@ -117,6 +118,7 @@
 	"account_details": "Podrobnosti účtu",
 	"passkeys": "Přístupové klíče",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Spravujte své přístupové klíče, které můžete použít pro ověření.",
+	"manage_this_users_passkeys": "Přehled a správa přístupových klíčů tohoto uživatele.",
 	"add_passkey": "Přidat přístupový klíč",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Vytvořte jednorázový přihlašovací kód pro přihlášení z jiného zařízení bez přístupového klíče.",
 	"create": "Vytvořit",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Označit jako ověřené",
 	"email_verification_sent": "Ověřovací e-mail byl úspěšně odeslán.",
 	"emails_verified_by_default": "E-maily ověřené ve výchozím nastavení",
-	"emails_verified_by_default_description": "Pokud je tato funkce povolena, budou e-mailové adresy uživatelů při registraci nebo při změně e-mailové adresy automaticky označeny jako ověřené."
+	"emails_verified_by_default_description": "Pokud je tato funkce povolena, budou e-mailové adresy uživatelů při registraci nebo při změně e-mailové adresy automaticky označeny jako ověřené.",
+	"user_has_no_passkeys_yet": "Tento uživatel zatím nemá žádné přístupové klíče."
 }

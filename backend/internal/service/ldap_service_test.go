@@ -141,6 +141,48 @@ func TestLdapServiceSyncAllReconcilesUsersAndGroups(t *testing.T) {
 	assert.ElementsMatch(t, []string{"alice", "bob"}, usernames(team.Users))
 }
 
+// Regression: posixGroup uses memberUid (bare uid values), not member DNs — issue #1408.
+func TestLdapServiceSyncAllMapsPosixGroupMemberUid(t *testing.T) {
+	appCfg := defaultTestLDAPAppConfig()
+	appCfg.LdapUserGroupSearchFilter = model.AppConfigVariable{Value: "(objectClass=posixGroup)"}
+	appCfg.LdapAttributeGroupMember = model.AppConfigVariable{Value: "memberUid"}
+
+	service, db := newTestLdapServiceWithAppConfig(t, appCfg, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=alice,ou=users,dc=example,dc=com", map[string][]string{
+				"entryUUID":   {"u-alice"},
+				"uid":         {"alice"},
+				"mail":        {"alice@example.com"},
+				"givenName":   {"Alice"},
+				"sn":          {"Jones"},
+				"displayName": {""},
+			}),
+			ldapEntry("uid=bob,ou=users,dc=example,dc=com", map[string][]string{
+				"entryUUID":   {"u-bob"},
+				"uid":         {"bob"},
+				"mail":        {"bob@example.com"},
+				"givenName":   {"Bob"},
+				"sn":          {"Brown"},
+				"displayName": {""},
+			}),
+		),
+		ldapSearchResult(
+			ldapEntry("cn=users,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID": {"g-users"},
+				"cn":        {"users"},
+				"memberUid": {"alice", "bob", "unknown"},
+			}),
+		),
+	))
+
+	require.NoError(t, service.SyncAll(t.Context()))
+
+	var group model.UserGroup
+	require.NoError(t, db.Preload("Users").First(&group, "ldap_id = ?", "g-users").Error)
+	assert.Equal(t, "users", group.Name)
+	assert.ElementsMatch(t, []string{"alice", "bob"}, usernames(group.Users))
+}
+
 func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 	service, db := newTestLdapService(t, newFakeLDAPClient(
 		ldapSearchResult(
@@ -325,7 +367,7 @@ func newFakeLDAPClient(userResult, groupResult *ldap.SearchResult) ldapClient {
 			switch searchRequest.Filter {
 			case "(objectClass=person)":
 				return userResult, nil
-			case "(objectClass=groupOfNames)":
+			case "(objectClass=groupOfNames)", "(objectClass=posixGroup)":
 				return groupResult, nil
 			default:
 				return &ldap.SearchResult{}, nil

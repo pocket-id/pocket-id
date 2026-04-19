@@ -33,8 +33,8 @@ type OidcClientWithAllowedGroupsCountDto struct {
 
 type OidcClientUpdateDto struct {
 	Name                     string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
-	CallbackURLs             []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url"`
-	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url"`
+	CallbackURLs             []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
+	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
 	IsPublic                 bool                     `json:"isPublic"`
 	PkceEnabled              bool                     `json:"pkceEnabled"`
 	RequiresReauthentication bool                     `json:"requiresReauthentication"`
@@ -66,7 +66,7 @@ type OidcClientFederatedIdentityDto struct {
 type AuthorizeOidcClientRequestDto struct {
 	ClientID              string `json:"clientID" binding:"required"`
 	Scope                 string `json:"scope" binding:"required"`
-	CallbackURL           string `json:"callbackURL"`
+	CallbackURL           string `json:"callbackURL" binding:"omitempty,callback_url"`
 	Nonce                 string `json:"nonce"`
 	CodeChallenge         string `json:"codeChallenge"`
 	CodeChallengeMethod   string `json:"codeChallengeMethod"`

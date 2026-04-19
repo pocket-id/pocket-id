@@ -10,9 +10,16 @@ onlyBuiltDependencies:
 overrides:
   '@isaacs/brace-expansion': '>=5.0.1'
   cookie@<0.7.0: '>=0.7.0'
-  devalue: ^5.6.2
+  devalue: '>=5.6.4'
   glob@>=11.0.0 <11.1.0: '>=11.1.0'
   js-yaml@>=4.0.0 <4.1.1: '>=4.1.1'
-  next: '>=16.1.5'
+  next: '>=16.1.7'
   valibot@>=0.31.0 <1.2.0: '>=1.2.0'
   validator@<13.15.20: '>=13.15.20'
+  flatted: '>=3.4.2'
+  'socket.io-parser': '>=4.2.6'
+  kysely: '>=0.28.14'
+  minimatch: '>=10.2.3'
+  picomatch: '>=4.0.4'
+  effect: '>=3.20.0'
+  yaml: '>=2.8.3'
