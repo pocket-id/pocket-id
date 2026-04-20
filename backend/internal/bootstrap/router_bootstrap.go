@@ -264,6 +264,9 @@ func runServer(ctx context.Context, config *serverConfig) error {
 	notifySystemdReady()
 
 	<-ctx.Done()
+
+	// We do not pass the context because it's already been canceled
+	//nolint:contextcheck
 	return shutdownServer(config.server)
 }
 

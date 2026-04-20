@@ -35,7 +35,7 @@ func TestValidateCallbackURLPattern(t *testing.T) {
 		},
 		{
 			name:        "wildcard userinfo",
-			pattern:     "https://user:*@example.com/callback",
+			pattern:     "https://user:*@example.com/callback", // #nosec G101 - Test credential
 			shouldError: false,
 		},
 		{
