@@ -97,7 +97,7 @@ func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Con
 		return nil, err
 	}
 
-	// We use a background context here as this is running in a goroutine
+	// #nosec G118 - We use a background context here as this is running in a goroutine
 	//nolint:contextcheck
 	go func() {
 		span := trace.SpanFromContext(ctx)

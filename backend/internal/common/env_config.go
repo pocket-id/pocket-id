@@ -347,6 +347,7 @@ func resolveFileBasedEnvVariable(field reflect.Value, fieldType reflect.StructFi
 		return nil
 	}
 
+	// #nosec G703 - Path is passed by the admin
 	fileContent, err := os.ReadFile(envVarFileValue)
 	if err != nil {
 		return fmt.Errorf("failed to read file for env var %s: %w", envVarFileName, err)

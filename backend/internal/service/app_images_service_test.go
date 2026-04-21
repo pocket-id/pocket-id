@@ -104,7 +104,7 @@ func newFileHeader(t *testing.T, filename string, content []byte) *multipart.Fil
 
 	require.NoError(t, writer.Close())
 
-	req := httptest.NewRequest(http.MethodPost, "/", body)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	_, fileHeader, err := req.FormFile("file")

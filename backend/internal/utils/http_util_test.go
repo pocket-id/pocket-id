@@ -64,6 +64,7 @@ func TestBearerAuth(t *testing.T) {
 	}
 }
 
+// #nosec G101 - Test credentials
 func TestOAuthClientBasicAuth(t *testing.T) {
 	tests := []struct {
 		name                 string

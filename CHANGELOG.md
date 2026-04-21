@@ -1,3 +1,17 @@
+## v2.6.1
+
+### Bug Fixes
+
+- restore login screen background from not showing up ([975d3c7](https://github.com/pocket-id/pocket-id/commit/975d3c79c6a882291c69b31d25bfcd8b7896528c) by @kmendell)
+
+### Other
+
+- ignore webauthn type for swagger generation ([ce4b89d](https://github.com/pocket-id/pocket-id/commit/ce4b89da650f025747fd0dd45eab5cebe29f5a93) by @kmendell)
+- update golangci-lint ([#1440](https://github.com/pocket-id/pocket-id/pull/1440) by @ItalyPaleAle)
+- Add catalan language ([#1436](https://github.com/pocket-id/pocket-id/pull/1436) by @mcasellas)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.6.0...v2.6.1
+
 ## v2.6.0
 
 ### Bug Fixes

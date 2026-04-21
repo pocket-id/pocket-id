@@ -18,7 +18,7 @@ func TestCacheControlMiddlewareSetsDefault(t *testing.T) {
 		c.Status(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test", http.NoBody)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -36,7 +36,7 @@ func TestCacheControlMiddlewarePreservesExistingHeader(t *testing.T) {
 		c.Status(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/custom", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/custom", http.NoBody)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)

@@ -60,7 +60,7 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	})
 
 	t.Run("rejects API key auth when API key auth is disabled", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/protected", nil)
 		req.Header.Set("X-API-Key", apiKeyToken)
 		recorder := httptest.NewRecorder()
 
@@ -75,7 +75,7 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	})
 
 	t.Run("allows JWT auth when API key auth is disabled", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/protected", nil)
 		req.Header.Set("Authorization", "Bearer "+jwtToken)
 		recorder := httptest.NewRecorder()
 

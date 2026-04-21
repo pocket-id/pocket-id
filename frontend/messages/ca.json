@@ -433,7 +433,7 @@
 	"active": "Actiu",
 	"usage": "Ús",
 	"created": "Creat",
-	"token": "Token\n",
+	"token": "Token",
 	"loading": "Carregant",
 	"delete_signup_token": "Elimina token d'alta",
 	"are_you_sure_you_want_to_delete_this_signup_token": "Segur que vols eliminar aquest token d'alta? Aquesta acció no es pot desfer.",

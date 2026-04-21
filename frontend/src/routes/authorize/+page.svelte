@@ -20,8 +20,16 @@
 	const oidService = new OidcService();
 
 	let { data }: PageProps = $props();
-	let { client, scope, callbackURL, nonce, codeChallenge, codeChallengeMethod, authorizeState, prompt } =
-		data;
+	let {
+		client,
+		scope,
+		callbackURL,
+		nonce,
+		codeChallenge,
+		codeChallengeMethod,
+		authorizeState,
+		prompt
+	} = data;
 
 	let isLoading = $state(false);
 	let success = $state(false);
@@ -71,7 +79,7 @@
 
 			if (!authorizationConfirmed) {
 				authorizationRequired = await oidService.isAuthorizationRequired(client!.id, scope);
-				
+
 				// If prompt=consent, always show consent UI
 				if (hasPromptConsent) {
 					authorizationRequired = true;

@@ -136,7 +136,8 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 
 	// Save the default picture for future use (in a goroutine to avoid blocking)
 	defaultPictureBytes := defaultPicture.Bytes()
-	//nolint:contextcheck
+	//#nosec G118 - We use a background context as this is running in background
+	// nolint:contextcheck
 	go func() {
 		// Use bytes.NewReader because we need an io.ReadSeeker
 		rErr := s.fileStorage.Save(context.Background(), defaultPicturePath, bytes.NewReader(defaultPictureBytes))
