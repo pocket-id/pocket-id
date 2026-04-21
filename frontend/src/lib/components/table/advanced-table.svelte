@@ -223,7 +223,16 @@
 						{/if}
 
 						{#each visibleColumns as column}
-							<Table.Head class={cn(column.sortable && 'p-0')}>
+							<Table.Head
+								class={cn(column.sortable && 'p-0')}
+								aria-sort={column.sortable
+									? requestOptions.sort?.column === column.column
+										? requestOptions.sort?.direction === 'asc'
+											? 'ascending'
+											: 'descending'
+										: 'none'
+									: undefined}
+							>
 								{#if column.sortable}
 									<Button
 										variant="ghost"
