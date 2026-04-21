@@ -265,9 +265,9 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 	// We update the in-memory data (in the cfg struct) and collect values to update in the database
 	// (Note the += 2, as we are iterating through key-value pairs)
 	dbUpdate := make([]model.AppConfigVariable, 0, len(keysAndValues)/2)
-	for i := 0; i < len(keysAndValues); i += 2 {
-		key := keysAndValues[i]
-		value := keysAndValues[i+1]
+	for i := 1; i < len(keysAndValues); i += 2 {
+		key := keysAndValues[i-1]
+		value := keysAndValues[i]
 
 		// Ensure that the field is valid
 		// We do this by grabbing the default value
@@ -408,6 +408,7 @@ func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB)
 		if attrs == "sensitive" {
 			fileName := os.Getenv(envVarName + "_FILE")
 			if fileName != "" {
+				// #nosec G703 - Value is provided by admin
 				b, err := os.ReadFile(fileName)
 				if err != nil {
 					return nil, fmt.Errorf("failed to read secret '%s' from file '%s': %w", envVarName, fileName, err)

@@ -264,7 +264,10 @@ func runServer(ctx context.Context, config *serverConfig) error {
 	notifySystemdReady()
 
 	<-ctx.Done()
-	return shutdownServer(ctx, config.server)
+
+	// We do not pass the context because it's already been canceled
+	//nolint:contextcheck
+	return shutdownServer(config.server)
 }
 
 func startCertWatcher(ctx context.Context, certProvider *tlsCertProvider) (*fsnotify.Watcher, error) {
@@ -321,9 +324,10 @@ func notifySystemdReady() {
 	}
 }
 
-func shutdownServer(ctx context.Context, srv *http.Server) error {
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	shutdownErr := srv.Shutdown(shutdownCtx)
+func shutdownServer(srv *http.Server) error {
+	// Note we use the background context here as ctx has been canceled already
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownErr := srv.Shutdown(shutdownCtx) //nolint:contextcheck
 	shutdownCancel()
 	if shutdownErr != nil {
 		// Log the error only (could be context canceled)
