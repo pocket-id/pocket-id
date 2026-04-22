@@ -106,8 +106,8 @@ func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Con
 		link := common.EnvConfig.AppURL + "/lc"
 		linkWithCode := link + "/" + oneTimeAccessToken
 
-		// Add redirect path to the link
-		if strings.HasPrefix(redirectPath, "/") {
+		// Add redirect path to the link (reject protocol-relative URLs like "//evil.com")
+		if strings.HasPrefix(redirectPath, "/") && !strings.HasPrefix(redirectPath, "//") {
 			encodedRedirectPath := url.QueryEscape(redirectPath)
 			linkWithCode = linkWithCode + "?redirect=" + encodedRedirectPath
 		}
