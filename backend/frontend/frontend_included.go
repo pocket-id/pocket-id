@@ -74,7 +74,13 @@ func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc) e
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 
 		if strings.HasSuffix(path, "/") {
-			c.Redirect(http.StatusMovedPermanently, strings.TrimRight(c.Request.URL.String(), "/"))
+			target := strings.TrimRight(c.Request.URL.String(), "/")
+			// Block protocol-relative URLs (e.g. "//evil.com") to prevent open redirect
+			if strings.HasPrefix(target, "//") {
+				c.Status(http.StatusBadRequest)
+				return
+			}
+			c.Redirect(http.StatusMovedPermanently, target)
 			return
 		}
 
