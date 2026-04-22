@@ -1,6 +1,7 @@
 import userStore from '$lib/stores/user-store';
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type { Passkey } from '$lib/types/passkey.type';
+import type { RecoveryCodeBatch, RecoveryCodeStatus } from '$lib/types/recovery-code.type';
 import type { SignupToken } from '$lib/types/signup-token.type';
 import type { UserGroup } from '$lib/types/user-group.type';
 import type { AccountUpdate, User, UserCreate, UserSignUp } from '$lib/types/user.type';
@@ -143,6 +144,25 @@ export default class UserService extends APIService {
 
 	verifyEmail = async (token: string) => {
 		const res = await this.api.post('/users/me/verify-email', { token });
+		return res.data as User;
+	};
+
+	getRecoveryCodeStatus = async () => {
+		const res = await this.api.get('/users/me/recovery-codes');
+		return res.data as RecoveryCodeStatus;
+	};
+
+	generateRecoveryCodes = async () => {
+		const res = await this.api.post('/users/me/recovery-codes');
+		return res.data as RecoveryCodeBatch;
+	};
+
+	revokeRecoveryCodes = async () => {
+		await this.api.delete('/users/me/recovery-codes');
+	};
+
+	redeemRecoveryCode = async (code: string) => {
+		const res = await this.api.post('/recovery-code', { code });
 		return res.data as User;
 	};
 }

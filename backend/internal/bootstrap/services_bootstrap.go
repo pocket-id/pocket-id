@@ -32,6 +32,7 @@ type services struct {
 	appLockService       *service.AppLockService
 	userSignUpService    *service.UserSignUpService
 	oneTimeAccessService *service.OneTimeAccessService
+	recoveryCodeService  *service.RecoveryCodeService
 }
 
 // Initializes all services
@@ -83,6 +84,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 
 	svc.userSignUpService = service.NewUserSignupService(db, svc.jwtService, svc.auditLogService, svc.appConfigService, svc.userService)
 	svc.oneTimeAccessService = service.NewOneTimeAccessService(db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
+	svc.recoveryCodeService = service.NewRecoveryCodeService(db, svc.appConfigService, svc.jwtService, svc.auditLogService)
 
 	svc.versionService = service.NewVersionService(httpClient)
 

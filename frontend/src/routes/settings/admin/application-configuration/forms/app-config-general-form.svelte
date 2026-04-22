@@ -34,7 +34,8 @@
 		sessionDuration: appConfig.sessionDuration,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
 		disableAnimations: appConfig.disableAnimations,
-		accentColor: appConfig.accentColor
+		accentColor: appConfig.accentColor,
+		allowRecoveryCodes: appConfig.allowRecoveryCodes
 	};
 
 	const formSchema = z.object({
@@ -43,7 +44,8 @@
 		sessionDuration: z.number().min(1).max(43200),
 		allowOwnAccountEdit: z.boolean(),
 		disableAnimations: z.boolean(),
-		accentColor: z.string()
+		accentColor: z.string(),
+		allowRecoveryCodes: z.boolean()
 	});
 
 	let { inputs, ...form } = $derived(createForm(formSchema, updatedAppConfig));
@@ -96,6 +98,12 @@
 				label={m.enable_self_account_editing()}
 				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
 				bind:checked={$inputs.allowOwnAccountEdit.value}
+			/>
+			<SwitchWithLabel
+				id="allow-recovery-codes"
+				label={m.allow_recovery_codes()}
+				description={m.allow_recovery_codes_description()}
+				bind:checked={$inputs.allowRecoveryCodes.value}
 			/>
 			<SwitchWithLabel
 				id="disable-animations"

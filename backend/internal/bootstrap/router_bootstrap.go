@@ -134,6 +134,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) {
 	controller.NewVersionController(apiGroup, authMiddleware, svc.versionService)
 	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)
 	controller.NewUserSignupController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userSignUpService, svc.appConfigService)
+	controller.NewRecoveryCodeController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.recoveryCodeService, svc.appConfigService)
 
 	registerTestRoutes(apiGroup, db, svc)
 
@@ -264,10 +265,7 @@ func runServer(ctx context.Context, config *serverConfig) error {
 	notifySystemdReady()
 
 	<-ctx.Done()
-
-	// We do not pass the context because it's already been canceled
-	//nolint:contextcheck
-	return shutdownServer(config.server)
+	return shutdownServer(ctx, config.server)
 }
 
 func startCertWatcher(ctx context.Context, certProvider *tlsCertProvider) (*fsnotify.Watcher, error) {
@@ -324,10 +322,9 @@ func notifySystemdReady() {
 	}
 }
 
-func shutdownServer(srv *http.Server) error {
-	// Note we use the background context here as ctx has been canceled already
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	shutdownErr := srv.Shutdown(shutdownCtx) //nolint:contextcheck
+func shutdownServer(ctx context.Context, srv *http.Server) error {
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	shutdownErr := srv.Shutdown(shutdownCtx)
 	shutdownCancel()
 	if shutdownErr != nil {
 		// Log the error only (could be context canceled)

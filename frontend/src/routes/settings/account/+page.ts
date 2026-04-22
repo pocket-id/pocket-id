@@ -6,13 +6,15 @@ export const load: PageLoad = async () => {
 	const webauthnService = new WebAuthnService();
 	const userService = new UserService();
 
-	const [account, passkeys] = await Promise.all([
+	const [account, passkeys, recoveryCodeStatus] = await Promise.all([
 		userService.getCurrent(),
-		webauthnService.listCredentials()
+		webauthnService.listCredentials(),
+		userService.getRecoveryCodeStatus().catch(() => ({ total: 0, unused: 0 }))
 	]);
 
 	return {
 		account,
-		passkeys
+		passkeys,
+		recoveryCodeStatus
 	};
 };

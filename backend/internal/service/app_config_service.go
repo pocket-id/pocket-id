@@ -66,6 +66,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		DisableAnimations:         model.AppConfigVariable{Value: "false"},
 		AllowOwnAccountEdit:       model.AppConfigVariable{Value: "true"},
 		AllowUserSignups:          model.AppConfigVariable{Value: "disabled"},
+		AllowRecoveryCodes:        model.AppConfigVariable{Value: "true"},
 		SignupDefaultUserGroupIDs: model.AppConfigVariable{Value: "[]"},
 		SignupDefaultCustomClaims: model.AppConfigVariable{Value: "[]"},
 		AccentColor:               model.AppConfigVariable{Value: "default"},
@@ -179,6 +180,9 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		return nil, fmt.Errorf("failed to reload config from database: %w", err)
 	}
 
+	// Snapshot selected previous values so we can react to transitions below.
+	previousAllowRecoveryCodes := cfg.AllowRecoveryCodes.IsTrue()
+
 	defaultCfg := s.getDefaultDbConfig()
 
 	// Iterate through all the fields to update
@@ -223,6 +227,14 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		return nil, err
 	}
 
+	// If recovery codes were just turned off, wipe every outstanding code so
+	// disabling the feature immediately invalidates them everywhere.
+	if previousAllowRecoveryCodes && !cfg.AllowRecoveryCodes.IsTrue() {
+		if err := tx.WithContext(ctx).Exec("DELETE FROM recovery_codes").Error; err != nil {
+			return nil, fmt.Errorf("failed to purge recovery codes on disable: %w", err)
+		}
+	}
+
 	// Commit the changes to the DB, then finally save the updated config in the object
 	err = tx.Commit().Error
 	if err != nil {
@@ -265,9 +277,9 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 	// We update the in-memory data (in the cfg struct) and collect values to update in the database
 	// (Note the += 2, as we are iterating through key-value pairs)
 	dbUpdate := make([]model.AppConfigVariable, 0, len(keysAndValues)/2)
-	for i := 1; i < len(keysAndValues); i += 2 {
-		key := keysAndValues[i-1]
-		value := keysAndValues[i]
+	for i := 0; i < len(keysAndValues); i += 2 {
+		key := keysAndValues[i]
+		value := keysAndValues[i+1]
 
 		// Ensure that the field is valid
 		// We do this by grabbing the default value
@@ -408,7 +420,6 @@ func (s *AppConfigService) loadDbConfigFromEnv(ctx context.Context, tx *gorm.DB)
 		if attrs == "sensitive" {
 			fileName := os.Getenv(envVarName + "_FILE")
 			if fileName != "" {
-				// #nosec G703 - Value is provided by admin
 				b, err := os.ReadFile(fileName)
 				if err != nil {
 					return nil, fmt.Errorf("failed to read secret '%s' from file '%s': %w", envVarName, fileName, err)

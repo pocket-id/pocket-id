@@ -25,6 +25,7 @@
 	import LocalePicker from './locale-picker.svelte';
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
+	import RecoveryCodesCard from './recovery-codes-card.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
 	let { data } = $props();
@@ -32,6 +33,7 @@
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
 	let showLoginCodeModal: boolean = $state(false);
+	let recoveryCodeStatus = $state(data.recoveryCodeStatus);
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
@@ -181,6 +183,10 @@
 		</Item.Actions>
 	</Item.Root>
 </div>
+
+{#if $appConfigStore.allowRecoveryCodes}
+	<RecoveryCodesCard bind:status={recoveryCodeStatus} />
+{/if}
 
 <Item.Root variant="card" class="border-border mb-2">
 	<Item.Media class="text-primary/80">

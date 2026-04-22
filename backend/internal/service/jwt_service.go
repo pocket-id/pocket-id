@@ -41,6 +41,9 @@ const (
 	// AuthenticationMethodOneTimePassword identifies one-time password/code authentication
 	AuthenticationMethodOneTimePassword = "otp"
 
+	// AuthenticationMethodRecoveryCode identifies sign-in with an emergency recovery code
+	AuthenticationMethodRecoveryCode = "rc"
+
 	// OAuthAccessTokenJWTType identifies a JWT as an OAuth access token
 	OAuthAccessTokenJWTType = "oauth-access-token" //nolint:gosec
 

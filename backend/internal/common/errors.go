@@ -264,6 +264,20 @@ func (e *OneTimeAccessDisabledError) Error() string {
 }
 func (e *OneTimeAccessDisabledError) HttpStatusCode() int { return http.StatusBadRequest }
 
+type RecoveryCodesDisabledError struct{}
+
+func (e *RecoveryCodesDisabledError) Error() string {
+	return "Recovery codes are disabled"
+}
+func (e *RecoveryCodesDisabledError) HttpStatusCode() int { return http.StatusForbidden }
+
+type RecoveryCodeInvalidError struct{}
+
+func (e *RecoveryCodeInvalidError) Error() string {
+	return "Recovery code is invalid or has already been used"
+}
+func (e *RecoveryCodeInvalidError) HttpStatusCode() int { return http.StatusUnauthorized }
+
 type InvalidAPIKeyError struct{}
 
 func (e *InvalidAPIKeyError) Error() string {

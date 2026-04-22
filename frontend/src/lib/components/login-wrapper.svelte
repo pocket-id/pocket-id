@@ -37,14 +37,18 @@
 		isInitialLoad = !e?.from?.url;
 	});
 
-	const isDesktop = new MediaQuery('(min-width: 1024px)');
+	const isDesktop = new MediaQuery('min-width: 1024px');
 	let alternativeSignInButton = $state({
 		href: '/login/alternative',
 		label: m.alternative_sign_in_methods()
 	});
 
 	appConfigStore.subscribe((config) => {
-		if (config.emailOneTimeAccessAsUnauthenticatedEnabled) {
+		// More than one alternative -> route to the chooser. With only the
+		// login-code path available we shortcut straight to it.
+		const hasMultipleAlternatives =
+			config.emailOneTimeAccessAsUnauthenticatedEnabled || config.allowRecoveryCodes;
+		if (hasMultipleAlternatives) {
 			alternativeSignInButton.href = '/login/alternative';
 			alternativeSignInButton.label = m.alternative_sign_in_methods();
 		} else {
@@ -61,12 +65,7 @@
 {#if backgroundImageExists === undefined}
 	<div class="bg-background h-screen"></div>
 {:else if isDesktop.current}
-	<div
-		in:fade={{ duration: 150 }}
-		class="relative flex h-screen w-full items-center overflow-hidden text-center {backgroundImageExists
-			? 'justify-start'
-			: 'justify-center'}"
-	>
+	<div in:fade={{ duration: 150 }} class="h-screen items-center overflow-hidden text-center">
 		<div
 			class="relative z-10 flex h-full p-16 {cn(
 				showAlternativeSignInMethodButton && 'pb-0',
@@ -93,7 +92,7 @@
 		{#if backgroundImageExists}
 			<!-- Background image -->
 			<div
-				class="absolute top-0 right-0 bottom-0 left-[650px] z-0 m-6 overflow-hidden rounded-[40px] 2xl:left-[800px]"
+				class="absolute top-0 right-0 left-500px bottom-0 z-0 overflow-hidden rounded-[40px] m-6"
 			>
 				<img
 					src={cachedBackgroundImage.getUrl()}

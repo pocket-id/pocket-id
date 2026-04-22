@@ -13,6 +13,7 @@ export type AppConfig = {
 	uiConfigDisabled: boolean;
 	accentColor: string;
 	requireUserEmail: boolean;
+	allowRecoveryCodes: boolean;
 };
 
 export type AllAppConfig = AppConfig & {
