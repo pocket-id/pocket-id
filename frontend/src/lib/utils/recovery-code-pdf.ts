@@ -240,7 +240,7 @@ class PageBuilder {
 
 // --- PDF wire format ------------------------------------------------------
 
-function encodePdf(content: string): Uint8Array {
+function encodePdf(content: string): Uint8Array<ArrayBuffer> {
 	const encoder = new TextEncoder();
 	const contentBytes = encoder.encode(content);
 

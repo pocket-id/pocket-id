@@ -94,8 +94,7 @@ func TestRecoveryCodeService_Redeem(t *testing.T) {
 
 		// Reusing the same code fails.
 		_, _, err = service.Redeem(t.Context(), codes[0], "", "")
-		require.Error(t, err)
-		assert.ErrorAs(t, err, new(*common.RecoveryCodeInvalidError))
+		require.ErrorAs(t, err, new(*common.RecoveryCodeInvalidError))
 
 		// Status now reports one used code.
 		total, unused, err := service.StatusForUser(t.Context(), user.ID)
