@@ -97,6 +97,11 @@ func setGinMode() {
 func configureEngine(r *gin.Engine) {
 	if !common.EnvConfig.TrustProxy {
 		_ = r.SetTrustedProxies(nil)
+	} else {
+		proxies := parseTrustedProxies(common.EnvConfig.TrustedProxies)
+		if err := r.SetTrustedProxies(proxies); err != nil {
+			slog.Error("Failed to set trusted proxies", slog.Any("error", err))
+		}
 	}
 
 	if common.EnvConfig.TrustedPlatform != "" {
@@ -106,6 +111,36 @@ func configureEngine(r *gin.Engine) {
 	if common.EnvConfig.TracingEnabled {
 		r.Use(otelgin.Middleware(common.Name))
 	}
+}
+
+// defaultTrustedProxyCIDRs are common private network ranges used as a fallback
+// when TRUST_PROXY=true but TRUSTED_PROXIES is not explicitly configured.
+var defaultTrustedProxyCIDRs = []string{
+	"10.0.0.0/8",
+	"172.16.0.0/12",
+	"192.168.0.0/16",
+	"fc00::/7",
+}
+
+// parseTrustedProxies parses a comma-separated list of CIDRs or IPs into a
+// slice suitable for gin.Engine.SetTrustedProxies. If the input is empty, it
+// falls back to defaultTrustedProxyCIDRs and logs a warning.
+func parseTrustedProxies(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		slog.Warn("TRUST_PROXY is enabled but TRUSTED_PROXIES is not set; falling back to private network ranges. " +
+			"Set TRUSTED_PROXIES to the CIDR(s) of your reverse proxy for hardened configuration.")
+		return defaultTrustedProxyCIDRs
+	}
+
+	var proxies []string
+	for _, entry := range strings.Split(raw, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry != "" {
+			proxies = append(proxies, entry)
+		}
+	}
+	return proxies
 }
 
 func registerGlobalMiddleware(r *gin.Engine) {

@@ -44,6 +44,7 @@ type EnvConfigSchema struct {
 	DbProvider            DbProvider
 	DbConnectionString    string `env:"DB_CONNECTION_STRING" options:"file"`
 	TrustProxy            bool   `env:"TRUST_PROXY"`
+	TrustedProxies        string `env:"TRUSTED_PROXIES"`
 	TrustedPlatform       string `env:"TRUSTED_PLATFORM"`
 	AuditLogRetentionDays int    `env:"AUDIT_LOG_RETENTION_DAYS"`
 	AnalyticsDisabled     bool   `env:"ANALYTICS_DISABLED"`

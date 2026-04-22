@@ -33,9 +33,13 @@ func (m *RateLimitMiddleware) Add(limit rate.Limit, burst int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 
-		// Skip rate limiting for localhost and test environment
-		// If the client ip is localhost the request comes from the frontend
-		if ip == "" || ip == "127.0.0.1" || ip == "::1" || common.EnvConfig.AppEnv.IsTest() {
+		// Skip rate limiting only in the test environment.
+		// Localhost IPs are NOT exempted: with proper trusted-proxy
+		// configuration, Gin resolves the real client IP from forwarded
+		// headers, so a localhost ClientIP() should not appear in
+		// production. Exempting localhost would allow any client behind a
+		// misconfigured proxy to bypass rate limiting via X-Forwarded-For.
+		if ip == "" || common.EnvConfig.AppEnv.IsTest() {
 			c.Next()
 			return
 		}
