@@ -179,10 +179,10 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	// Parse prompt parameter (space-delimited list per OIDC spec)
 	promptValues := parsePromptParameter(input.Prompt)
-	hasPromptNone := slices.Contains(promptValues, "none")
-	hasPromptLogin := slices.Contains(promptValues, "login")
-	hasPromptConsent := slices.Contains(promptValues, "consent")
-	hasPromptSelectAccount := slices.Contains(promptValues, "select_account")
+	hasPromptNone := contains(promptValues, "none")
+	hasPromptLogin := contains(promptValues, "login")
+	hasPromptConsent := contains(promptValues, "consent")
+	hasPromptSelectAccount := contains(promptValues, "select_account")
 
 	// Validate prompt parameter conflicts early.
 	// Per OIDC Core §3.1.2.6, prompt=none must not be combined with any
@@ -334,10 +334,14 @@ func (s *OidcService) checkDeviceCodePollRate(ctx context.Context, tx *gorm.DB, 
 			nowDt := datatype.DateTime(now)
 			deviceAuth.LastPolledAt = &nowDt
 			deviceAuth.IntervalSeconds = min(deviceAuth.IntervalSeconds+5, MaxDeviceCodePollInterval)
-			if err := tx.WithContext(ctx).Save(deviceAuth).Error; err != nil {
+
+			err := tx.WithContext(ctx).Save(deviceAuth).Error
+			if err != nil {
 				return err
 			}
-			if err := tx.Commit().Error; err != nil {
+
+			err := tx.Commit().Error
+			if err != nil {
 				return err
 			}
 			return &common.OidcSlowDownError{Interval: deviceAuth.IntervalSeconds}
@@ -345,7 +349,8 @@ func (s *OidcService) checkDeviceCodePollRate(ctx context.Context, tx *gorm.DB, 
 	}
 	nowDt := datatype.DateTime(now)
 	deviceAuth.LastPolledAt = &nowDt
-	if err := tx.WithContext(ctx).Save(deviceAuth).Error; err != nil {
+	err := tx.WithContext(ctx).Save(deviceAuth).Error
+	if err != nil {
 		return err
 	}
 
@@ -370,6 +375,7 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, err
 	}
 
+	// Get the device authorization from database with explicit query conditions
 	var deviceAuth model.OidcDeviceCode
 	err = tx.
 		WithContext(ctx).
@@ -385,11 +391,13 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, err
 	}
 
+	// Check if device code has expired
 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
 		return CreatedTokens{}, &common.OidcDeviceCodeExpiredError{}
 	}
 
-	if err := s.checkDeviceCodePollRate(ctx, tx, &deviceAuth); err != nil {
+	err := s.checkDeviceCodePollRate(ctx, tx, &deviceAuth)
+	if err != nil {
 		return CreatedTokens{}, err
 	}
 
@@ -414,11 +422,14 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, err
 	}
 
-	if err = tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
+	// Delete the used device code
+	err = tx.WithContext(ctx).Delete(&deviceAuth).Error
+	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	if err = tx.Commit().Error; err != nil {
+	err = tx.Commit().Error
+	if err != nil {
 		return CreatedTokens{}, err
 	}
 
@@ -1387,6 +1398,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		return nil, err
 	}
 
+	// Generate codes
 	deviceCode, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
 		return nil, err
@@ -1396,6 +1408,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		return nil, err
 	}
 
+	// Create device authorization
 	deviceAuth := &model.OidcDeviceCode{
 		DeviceCode:      deviceCode,
 		UserCode:        userCode,
@@ -1434,10 +1447,9 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		Preload("Client.AllowedUserGroups").
 		First(&deviceAuth, "user_code = ?", userCode).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &common.OidcInvalidDeviceCodeError{}
-		}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return &common.OidcInvalidDeviceCodeError{}
+	} else if err != nil {
 		return err
 	}
 
@@ -1449,6 +1461,7 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		return &common.OidcInvalidDeviceCodeError{}
 	}
 
+	// Check if the user group is allowed to authorize the client
 	var user model.User
 	err = tx.
 		WithContext(ctx).
@@ -1456,7 +1469,7 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 		First(&user, "id = ?", userID).
 		Error
 	if err != nil {
-		return err
+		return fmt.Errorf("error finding user groups: %w", err)
 	}
 
 	if !IsUserGroupAllowedToAuthorize(user, deviceAuth.Client) {
@@ -1467,8 +1480,12 @@ func (s *OidcService) VerifyDeviceCode(ctx context.Context, userCode string, use
 	deviceAuth.AuthenticationMethod = authenticationMethod
 	deviceAuth.IsAuthorized = true
 
-	if err = tx.WithContext(ctx).Save(&deviceAuth).Error; err != nil {
-		return err
+	err = tx.
+		WithContext(ctx).
+		Save(&deviceAuth).
+		Error
+	if err != nil {
+		return fmt.Errorf("error saving device auth: %w", err)
 	}
 
 	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, deviceAuth.ClientID, deviceAuth.Scope, tx)
@@ -2297,3 +2314,12 @@ func parsePromptParameter(prompt string) []string {
 	return strings.Fields(prompt)
 }
 
+// contains checks if a string slice contains a specific value
+func contains(slice []string, value string) bool {
+	for _, item := range slice {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}

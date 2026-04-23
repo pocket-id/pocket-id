@@ -258,7 +258,7 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 	}
 
 	// RFC 6749 Section 5.1: token responses MUST include these cache headers
-	c.Header("Cache-Control", "no-store")
+	c.Header("Cache-Control", "no-store no-cache")
 	c.Header("Pragma", "no-cache")
 
 	c.JSON(http.StatusOK, dto.OidcTokenResponseDto{
@@ -727,15 +727,18 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 		return
 	}
 
-	// Per RFC 8628, parameters MUST be sent in the POST body, not query string
+	// Per RFC 8628 (OAuth 2.0 Device Authorization Grant), parameters for the device authorization request MUST be sent in the body of the POST request
+	// Gin's "ShouldBind" by default reads from the query string too, so we need to reset all query string args before invoking ShouldBind
 	c.Request.URL.RawQuery = ""
 
 	var input dto.OidcDeviceAuthorizationRequestDto
-	if err := c.ShouldBind(&input); err != nil {
+	err := c.ShouldBind(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
+	// Client id and secret can also be passed over the Authorization header
 	if input.ClientID == "" && input.ClientSecret == "" {
 		input.ClientID, input.ClientSecret, _ = utils.OAuthClientBasicAuth(c.Request)
 	}
@@ -746,8 +749,10 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 		return
 	}
 
-	c.Header("Cache-Control", "no-store")
+	// RFC 6749 Section 5.1: token responses MUST include these cache headers
+	c.Header("Cache-Control", "no-store no-cache")
 	c.Header("Pragma", "no-cache")
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -867,19 +872,21 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 	var input struct {
 		Code string `json:"code" form:"code" binding:"required"`
 	}
-	if err := c.ShouldBind(&input); err != nil {
+	err := c.ShouldBind(&input)
+	if err != nil {
 		_ = c.Error(&common.ValidationError{Message: "code is required"})
 		return
 	}
 	userCode := strings.ToUpper(strings.TrimSpace(input.Code))
 
-	err := oc.oidcService.VerifyDeviceCode(
+	err = oc.oidcService.VerifyDeviceCode(
 		c.Request.Context(),
 		userCode,
 		c.GetString("userID"),
 		c.GetString("authenticationMethod"),
 		c.ClientIP(),
-		c.Request.UserAgent())
+		c.Request.UserAgent(),
+	)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -930,15 +937,24 @@ func (oc *OidcController) exchangeDeviceSessionHandler(c *gin.Context) {
 		return
 	}
 
+	// Per RFC-6749, parameters passed to the /token endpoint MUST be passed in the body of the request
+	// Gin's "ShouldBind" by default reads from the query string too, so we need to reset all query string args before invoking ShouldBind
 	c.Request.URL.RawQuery = ""
 
 	var input dto.OidcExchangeDeviceSessionRequestDto
-	if err := c.ShouldBind(&input); err != nil {
+	err := c.ShouldBind(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	user, authMethod, err := oc.oidcService.ExchangeDeviceTokenForSession(c.Request.Context(), input.DeviceCode, input.ClientID, c.ClientIP(), c.Request.UserAgent())
+	user, authMethod, err := oc.oidcService.ExchangeDeviceTokenForSession(
+		c.Request.Context(),
+		input.DeviceCode,
+		input.ClientID,
+		c.ClientIP(),
+		c.Request.UserAgent(),
+	)
 	if handleDeviceFlowError(c, err) {
 		return
 	}
@@ -957,13 +973,16 @@ func (oc *OidcController) exchangeDeviceSessionHandler(c *gin.Context) {
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
+	err = dto.MapStruct(user, &userDto)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.Header("Cache-Control", "no-store")
+
+	c.Header("Cache-Control", "no-store no-cache")
 	c.Header("Pragma", "no-cache")
+
 	c.JSON(http.StatusOK, userDto)
 }
 

@@ -11,7 +11,7 @@ WORKDIR /build
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY frontend/package.json ./frontend/
-RUN pnpm --filter pocket-id-frontend install
+RUN pnpm --filter pocket-id-frontend install --frozen-lockfile
 
 COPY ./frontend ./frontend/
 
