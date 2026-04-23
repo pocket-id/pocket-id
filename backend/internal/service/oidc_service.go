@@ -151,21 +151,21 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	// Parse prompt parameter (space-delimited list per OIDC spec)
 	promptValues := parsePromptParameter(input.Prompt)
-	hasPromptNone := contains(promptValues, "none")
-	hasPromptLogin := contains(promptValues, "login")
-	hasPromptConsent := contains(promptValues, "consent")
-	hasPromptSelectAccount := contains(promptValues, "select_account")
+	hasPromptNone := slices.Contains(promptValues, "none")
+	hasPromptLogin := slices.Contains(promptValues, "login")
+	hasPromptConsent := slices.Contains(promptValues, "consent")
+	hasPromptSelectAccount := slices.Contains(promptValues, "select_account")
 
 	// Validate prompt parameter conflicts early.
 	// Per OIDC Core §3.1.2.6, prompt=none must not be combined with any
 	// value that requires user interaction.
 	if hasPromptNone && (hasPromptConsent || hasPromptLogin || hasPromptSelectAccount) {
-		return "", "", &common.OidcInteractionRequiredError{}
+		return "", "", common.NewOidcInvalidRequestError("prompt type 'none' cannot be combined with others")
 	}
 
 	// Handle prompt=select_account early (not supported)
 	if hasPromptSelectAccount {
-		return "", "", &common.OidcInteractionRequiredError{}
+		return "", "", common.NewOidcInvalidRequestError("prompt type 'select_account' is not supported")
 	}
 
 	// If prompt=login is specified or the client requires reauthentication, check the reauthentication token
@@ -219,14 +219,24 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	// Log the authorization event
 	if hasAlreadyAuthorizedClient {
-		s.auditLogService.Create(ctx, model.AuditLogEventClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
+		s.auditLogService.Create(
+			ctx, model.AuditLogEventClientAuthorization,
+			ipAddress, userAgent, userID,
+			model.AuditLogData{"clientName": client.Name},
+			tx,
+		)
 	} else {
-		s.auditLogService.Create(ctx, model.AuditLogEventNewClientAuthorization, ipAddress, userAgent, userID, model.AuditLogData{"clientName": client.Name}, tx)
+		s.auditLogService.Create(
+			ctx, model.AuditLogEventNewClientAuthorization,
+			ipAddress, userAgent, userID,
+			model.AuditLogData{"clientName": client.Name},
+			tx,
+		)
 	}
 
 	err = tx.Commit().Error
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return code, callbackURL, nil
@@ -2193,14 +2203,4 @@ func parsePromptParameter(prompt string) []string {
 		return []string{}
 	}
 	return strings.Fields(prompt)
-}
-
-// contains checks if a string slice contains a specific value
-func contains(slice []string, value string) bool {
-	for _, item := range slice {
-		if item == value {
-			return true
-		}
-	}
-	return false
 }

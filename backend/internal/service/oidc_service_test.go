@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1236,30 +1237,13 @@ func TestPromptParameterConflicts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			values := parsePromptParameter(tt.prompt)
-			hasNone := contains(values, "none")
-			hasConsent := contains(values, "consent")
-			hasLogin := contains(values, "login")
-			hasSelectAccount := contains(values, "select_account")
+			hasNone := slices.Contains(values, "none")
+			hasConsent := slices.Contains(values, "consent")
+			hasLogin := slices.Contains(values, "login")
+			hasSelectAccount := slices.Contains(values, "select_account")
 
 			conflict := hasNone && (hasConsent || hasLogin || hasSelectAccount)
 			assert.Equal(t, tt.expectConflict, conflict)
 		})
 	}
-}
-
-func TestContains(t *testing.T) {
-	t.Run("finds value in slice", func(t *testing.T) {
-		slice := []string{"none", "login", "consent"}
-		assert.True(t, contains(slice, "login"))
-	})
-
-	t.Run("returns false for missing value", func(t *testing.T) {
-		slice := []string{"none", "login"}
-		assert.False(t, contains(slice, "consent"))
-	})
-
-	t.Run("returns false for empty slice", func(t *testing.T) {
-		slice := []string{}
-		assert.False(t, contains(slice, "none"))
-	})
 }
