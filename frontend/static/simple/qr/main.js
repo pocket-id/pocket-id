@@ -140,7 +140,8 @@
             console.error('QRCode library not loaded');
             return;
         }
-        QRCode.toCanvas(canvas, url, { width: 200, margin: 0 }, function (err) {
+        var size = window.innerWidth >= 1200 ? 320 : 200;
+        QRCode.toCanvas(canvas, url, { width: size, margin: 0 }, function (err) {
             if (err) console.error('QR render failed:', err);
         });
     }

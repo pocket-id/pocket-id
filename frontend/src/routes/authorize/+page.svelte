@@ -12,7 +12,7 @@
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { goto } from '$app/navigation';
-	import { getAlternativeLoginRedirect } from '$lib/utils/device-detect-util';
+	import { needsAlternativeLogin, getAlternativeLoginPath } from '$lib/utils/device-detect-util';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -61,17 +61,16 @@
 		}
 
 		// Redirect limited devices / no WebAuthn to alternative login
-		if (!$userStore && $appConfigStore.qrLoginEnabled) {
+		if (!$userStore && $appConfigStore.qrLoginEnabled && needsAlternativeLogin()) {
 			const currentUrl = window.location.pathname + window.location.search;
-			const redirect = getAlternativeLoginRedirect(currentUrl);
-			if (redirect) {
-				if (redirect.startsWith('/simple/')) {
-					window.location.href = redirect;
-				} else {
-					goto(redirect);
-				}
-				return;
+			const query = `?redirect=${encodeURIComponent(currentUrl)}`;
+			const target = getAlternativeLoginPath(query);
+			if (target.startsWith('/simple/')) {
+				window.location.href = target;
+			} else {
+				goto(target);
 			}
+			return;
 		}
 
 		if ($userStore) {

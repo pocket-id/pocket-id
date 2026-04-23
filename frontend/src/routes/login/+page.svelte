@@ -7,7 +7,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 
-	import { isLimitedDevice, supportsModernCSS } from '$lib/utils/device-detect-util';
+	import { needsAlternativeLogin, getAlternativeLoginPath } from '$lib/utils/device-detect-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
@@ -40,16 +40,15 @@
 			return;
 		}
 
-		if ($appConfigStore.qrLoginEnabled && method !== 'passkey') {
-			if (isLimitedDevice() || !window.PublicKeyCredential) {
-				const remaining = params.toString();
-				if (supportsModernCSS()) {
-					goto('/login/alternative' + (remaining ? `?${remaining}` : ''));
-				} else {
-					window.location.href = '/simple/qr/' + (remaining ? `?${remaining}` : '');
-				}
-				return;
+		if ($appConfigStore.qrLoginEnabled && method !== 'passkey' && needsAlternativeLogin()) {
+			const remaining = params.toString();
+			const target = getAlternativeLoginPath(remaining ? `?${remaining}` : '');
+			if (target.startsWith('/simple/')) {
+				window.location.href = target;
+			} else {
+				goto(target);
 			}
+			return;
 		}
 	});
 

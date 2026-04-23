@@ -938,7 +938,7 @@ func (oc *OidcController) exchangeDeviceSessionHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := oc.oidcService.ExchangeDeviceTokenForSession(c.Request.Context(), input.DeviceCode, input.ClientID, c.ClientIP(), c.Request.UserAgent())
+	user, authMethod, err := oc.oidcService.ExchangeDeviceTokenForSession(c.Request.Context(), input.DeviceCode, input.ClientID, c.ClientIP(), c.Request.UserAgent())
 	if handleDeviceFlowError(c, err) {
 		return
 	}
@@ -947,7 +947,7 @@ func (oc *OidcController) exchangeDeviceSessionHandler(c *gin.Context) {
 		return
 	}
 
-	token, err := oc.jwtService.GenerateAccessToken(*user)
+	token, err := oc.jwtService.GenerateAccessToken(*user, authMethod)
 	if err != nil {
 		_ = c.Error(err)
 		return

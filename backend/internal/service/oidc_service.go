@@ -179,10 +179,10 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	// Parse prompt parameter (space-delimited list per OIDC spec)
 	promptValues := parsePromptParameter(input.Prompt)
-	hasPromptNone := contains(promptValues, "none")
-	hasPromptLogin := contains(promptValues, "login")
-	hasPromptConsent := contains(promptValues, "consent")
-	hasPromptSelectAccount := contains(promptValues, "select_account")
+	hasPromptNone := slices.Contains(promptValues, "none")
+	hasPromptLogin := slices.Contains(promptValues, "login")
+	hasPromptConsent := slices.Contains(promptValues, "consent")
+	hasPromptSelectAccount := slices.Contains(promptValues, "select_account")
 
 	// Validate prompt parameter conflicts early.
 	// Per OIDC Core §3.1.2.6, prompt=none must not be combined with any
@@ -1530,9 +1530,9 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 }
 
 // ExchangeDeviceTokenForSession exchanges a device code for a browser session (self-login client only).
-func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceCode string, clientID string, ipAddress string, userAgent string) (*model.User, error) {
+func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceCode string, clientID string, ipAddress string, userAgent string) (*model.User, string, error) {
 	if clientID != SelfLoginClientID {
-		return nil, &common.OidcAccessDeniedError{}
+		return nil, "", &common.OidcAccessDeniedError{}
 	}
 
 	tx := s.db.Begin()
@@ -1549,43 +1549,43 @@ func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceC
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, &common.OidcInvalidDeviceCodeError{}
+			return nil, "", &common.OidcInvalidDeviceCodeError{}
 		}
-		return nil, err
+		return nil, "", err
 	}
 
 	if time.Now().After(deviceAuth.ExpiresAt.ToTime()) {
-		return nil, &common.OidcDeviceCodeExpiredError{}
+		return nil, "", &common.OidcDeviceCodeExpiredError{}
 	}
 
 	if err := s.checkDeviceCodePollRate(ctx, tx, &deviceAuth); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if deviceAuth.UserID == nil {
-		return nil, &common.OidcInvalidDeviceCodeError{}
+		return nil, "", &common.OidcInvalidDeviceCodeError{}
 	}
 
 	var user model.User
 	if err = tx.WithContext(ctx).First(&user, "id = ?", *deviceAuth.UserID).Error; err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if user.Disabled {
-		return nil, &common.UserDisabledError{}
+		return nil, "", &common.UserDisabledError{}
 	}
 
 	if err = tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	s.auditLogService.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, user.ID, model.AuditLogData{"method": "device_code"}, tx)
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return &user, nil
+	return &user, deviceAuth.AuthenticationMethod, nil
 }
 
 func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id string) (int64, error) {
@@ -2297,12 +2297,3 @@ func parsePromptParameter(prompt string) []string {
 	return strings.Fields(prompt)
 }
 
-// contains checks if a string slice contains a specific value
-func contains(slice []string, value string) bool {
-	for _, item := range slice {
-		if item == value {
-			return true
-		}
-	}
-	return false
-}

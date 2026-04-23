@@ -1,20 +1,4 @@
-/* Simple Login Page – PocketID Design System (dark mode, legacy-compatible) */
-
-/* === PocketID Dark Mode Color Reference (hex approximations) ===
-   background:       #171717  (oklch 0.205)
-   foreground:       #fafafa  (oklch 0.985)
-   card:             #262626  (oklch 0.269)
-   card-foreground:  #fafafa  (oklch 0.985)
-   primary:          #e5e5e5  (oklch 0.922)
-   primary-fg:       #262626  (oklch 0.205 → 0.269)
-   muted-foreground: #a3a3a3  (oklch 0.708)
-   border:           rgba(255,255,255,0.10)
-   input-bg:         rgba(255,255,255,0.15)
-   success:          #22c55e
-   warning:          #f59e0b
-   destructive:      #ef4444
-   radius:           10px
-   ================================================== */
+/* Simple QR Login – dark mode fallback for devices without oklch support */
 
 * {
     margin: 0;
@@ -258,8 +242,8 @@ button:active {
 
 @media (prefers-reduced-motion: reduce) {
     .spinner {
-        -webkit-animation: none;
-        animation: none;
+        -webkit-animation: spin 3s linear infinite;
+        animation: spin 3s linear infinite;
     }
 }
 

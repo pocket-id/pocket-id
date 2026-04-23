@@ -55,21 +55,26 @@ export function isLimitedDevice(): boolean {
 }
 
 /**
- * Returns true if the browser supports modern CSS (oklch).
+ * Returns true if the browser supports oklch colors (used by the SvelteKit UI).
  */
-export function supportsModernCSS(): boolean {
+export function supportsOklch(): boolean {
 	if (typeof window === 'undefined') return true;
 	return !!window.CSS?.supports?.('color', 'oklch(0 0 0)');
 }
 
 /**
- * Checks if the device needs an alternative login flow (no passkey input possible)
- * and returns the appropriate redirect path, or null if no redirect is needed.
+ * Returns true if the device needs an alternative login flow (no passkey input possible).
  */
-export function getAlternativeLoginRedirect(basePath: string): string | null {
-	if (!isLimitedDevice() && window.PublicKeyCredential) return null;
-	if (supportsModernCSS()) {
-		return '/login/alternative' + (basePath ? `?redirect=${encodeURIComponent(basePath)}` : '');
-	}
-	return '/simple/qr/' + (basePath ? `?redirect=${encodeURIComponent(basePath)}` : '');
+export function needsAlternativeLogin(): boolean {
+	if (typeof window === 'undefined') return false;
+	return isLimitedDevice() || !window.PublicKeyCredential;
+}
+
+/**
+ * Returns the redirect path for a device that needs alternative login.
+ * `queryString` is appended as-is (e.g. `?redirect=%2Fauthorize%3F...`).
+ */
+export function getAlternativeLoginPath(queryString: string): string {
+	const base = supportsOklch() ? '/login/alternative' : '/simple/qr/';
+	return base + queryString;
 }
