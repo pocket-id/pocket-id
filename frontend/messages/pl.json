@@ -106,6 +106,7 @@
 	"ip_address": "Adres IP",
 	"device": "Urządzenie",
 	"client": "Klient",
+	"actor": "Aktor",
 	"unknown": "Nieznany",
 	"account_details_updated_successfully": "Sukces! Szczegóły konta zostały zaktualizowane.",
 	"profile_picture_updated_successfully": "Sukces! Zdjęcie profilowe zostało zaktualizowane. Może to potrwać kilka minut.",
@@ -117,6 +118,7 @@
 	"account_details": "Szczegóły konta",
 	"passkeys": "Klucze",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Zarządzaj swoimi kluczami, których możesz użyć do uwierzytelnienia siebie.",
+	"manage_this_users_passkeys": "Zarządzaj kluczami dostępu tego użytkownika.",
 	"add_passkey": "Dodaj klucz",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Utwórz jednorazowy kod logowania, aby zalogować się z innego urządzenia bez klucza.",
 	"create": "Utwórz",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Oznacz jako zweryfikowane",
 	"email_verification_sent": "Wiadomość e-mail z linkiem weryfikacyjnym została wysłana.",
 	"emails_verified_by_default": "E-maile weryfikowane domyślnie",
-	"emails_verified_by_default_description": "Po włączeniu tej opcji adresy e-mail użytkowników będą domyślnie oznaczane jako zweryfikowane podczas rejestracji lub zmiany adresu e-mail."
+	"emails_verified_by_default_description": "Po włączeniu tej opcji adresy e-mail użytkowników będą domyślnie oznaczane jako zweryfikowane podczas rejestracji lub zmiany adresu e-mail.",
+	"user_has_no_passkeys_yet": "Ten użytkownik nie ma jeszcze żadnych kluczy dostępu."
 }

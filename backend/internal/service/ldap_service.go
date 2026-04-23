@@ -391,6 +391,12 @@ func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client lda
 		return norm.NFC.String(username)
 	}
 
+	// posixGroup (and similar) stores bare usernames in memberUid, not DNs. Treat any value
+	// that is not a valid DN as the username directly — see https://github.com/pocket-id/pocket-id/issues/1408
+	if _, err := ldap.ParseDN(member); err != nil {
+		return norm.NFC.String(member)
+	}
+
 	// As a fallback, query LDAP for the referenced entry
 	userSearchReq := ldap.NewSearchRequest(
 		member,

@@ -40,7 +40,7 @@ RUN VERSION=$(cat /build/.version) \
     .
 
 # Stage 3: Production Image
-FROM alpine
+FROM alpine:3.23.4
 WORKDIR /app
 
 RUN apk add --no-cache curl su-exec

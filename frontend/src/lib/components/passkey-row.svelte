@@ -9,12 +9,14 @@
 		icon,
 		onRename,
 		onDelete,
+		showRenameAction = true,
 		label,
 		description
 	}: {
 		icon: typeof IconType;
-		onRename: () => void;
+		onRename?: () => void;
 		onDelete: () => void;
+		showRenameAction?: boolean;
 		description?: string;
 		label?: string;
 	} = $props();
@@ -36,22 +38,24 @@
 		{/if}
 	</Item.Content>
 	<Item.Actions>
-		<Tooltip.Provider>
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<Button
-						onclick={onRename}
-						size="icon"
-						variant="ghost"
-						class="size-8"
-						aria-label={m.rename()}
-					>
-						<LucidePencil class="size-4" />
-					</Button>
-				</Tooltip.Trigger>
-				<Tooltip.Content>{m.rename()}</Tooltip.Content>
-			</Tooltip.Root>
-		</Tooltip.Provider>
+		{#if showRenameAction && onRename}
+			<Tooltip.Provider>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Button
+							onclick={onRename}
+							size="icon"
+							variant="ghost"
+							class="size-8"
+							aria-label={m.rename()}
+						>
+							<LucidePencil class="size-4" />
+						</Button>
+					</Tooltip.Trigger>
+					<Tooltip.Content>{m.rename()}</Tooltip.Content>
+				</Tooltip.Root>
+			</Tooltip.Provider>
+		{/if}
 
 		<Tooltip.Provider>
 			<Tooltip.Root>

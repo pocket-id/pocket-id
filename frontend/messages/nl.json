@@ -106,6 +106,7 @@
 	"ip_address": "IP-adres",
 	"device": "Apparaat",
 	"client": "Client",
+	"actor": "Acteur",
 	"unknown": "Onbekend",
 	"account_details_updated_successfully": "Accountgegevens succesvol bijgewerkt",
 	"profile_picture_updated_successfully": "Profielfoto succesvol bijgewerkt. Het kan enkele minuten duren voordat de wijzigingen zichtbaar zijn.",
@@ -117,6 +118,7 @@
 	"account_details": "Accountgegevens",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Beheer de passkeys waarmee je jezelf kunt verifiëren.",
+	"manage_this_users_passkeys": "Beheer de toegangscodes van deze gebruiker.",
 	"add_passkey": "Passkey toevoegen",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Maak een eenmalige inlogcode aan om in te loggen vanaf een ander apparaat zonder passkey.",
 	"create": "Aanmaken",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Markeer als geverifieerd",
 	"email_verification_sent": "Verificatiemail is goed verstuurd.",
 	"emails_verified_by_default": "E-mails standaard geverifieerd",
-	"emails_verified_by_default_description": "Als je dit aan zet, worden de e-mailadressen van gebruikers standaard gemarkeerd als geverifieerd bij het aanmelden of als hun e-mailadres verandert."
+	"emails_verified_by_default_description": "Als je dit aan zet, worden de e-mailadressen van gebruikers standaard gemarkeerd als geverifieerd bij het aanmelden of als hun e-mailadres verandert.",
+	"user_has_no_passkeys_yet": "Deze gebruiker heeft nog geen toegangscodes."
 }

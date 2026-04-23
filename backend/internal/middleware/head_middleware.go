@@ -16,7 +16,7 @@ type headWriter struct {
 
 func (w *headWriter) Write(b []byte) (int, error) {
 	w.size += len(b)
-	return w.size, nil
+	return len(b), nil
 }
 
 func HeadMiddleware() gin.HandlerFunc {

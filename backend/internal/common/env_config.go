@@ -60,7 +60,7 @@ type EnvConfigSchema struct {
 	S3Region                        string `env:"S3_REGION"`
 	S3Endpoint                      string `env:"S3_ENDPOINT"`
 	S3AccessKeyID                   string `env:"S3_ACCESS_KEY_ID"`
-	S3SecretAccessKey               string `env:"S3_SECRET_ACCESS_KEY"`
+	S3SecretAccessKey               string `env:"S3_SECRET_ACCESS_KEY" options:"file"`
 	S3ForcePathStyle                bool   `env:"S3_FORCE_PATH_STYLE"`
 	S3DisableDefaultIntegrityChecks bool   `env:"S3_DISABLE_DEFAULT_INTEGRITY_CHECKS"`
 
@@ -69,6 +69,9 @@ type EnvConfigSchema struct {
 	UnixSocket      string `env:"UNIX_SOCKET"`
 	UnixSocketMode  string `env:"UNIX_SOCKET_MODE"`
 	LocalIPv6Ranges string `env:"LOCAL_IPV6_RANGES"`
+
+	TLSCertFile string `env:"TLS_CERT" options:"file"`
+	TLSKeyFile  string `env:"TLS_KEY" options:"file"`
 
 	MaxMindLicenseKey string `env:"MAXMIND_LICENSE_KEY" options:"file"`
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
@@ -142,6 +145,31 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		return errors.New("ENCRYPTION_KEY must be at least 16 bytes long")
 	}
 
+	prepareDbConfig(config)
+
+	if err := validateAppURLs(config); err != nil {
+		return err
+	}
+	if err := validateFileBackend(config); err != nil {
+		return err
+	}
+	if err := validateLocalIPv6Ranges(config.LocalIPv6Ranges); err != nil {
+		return err
+	}
+
+	if config.AuditLogRetentionDays <= 0 {
+		return errors.New("AUDIT_LOG_RETENTION_DAYS must be greater than 0")
+	}
+
+	if config.StaticApiKey != "" && len(config.StaticApiKey) < 16 {
+		return errors.New("STATIC_API_KEY must be at least 16 characters long")
+	}
+
+	return validateTLSConfig(config)
+
+}
+
+func prepareDbConfig(config *EnvConfigSchema) {
 	switch {
 	case config.DbConnectionString == "":
 		config.DbProvider = DbProviderSqlite
@@ -151,64 +179,95 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	default:
 		config.DbProvider = DbProviderSqlite
 	}
+}
 
-	parsedAppUrl, err := url.Parse(config.AppURL)
-	if err != nil {
-		return errors.New("APP_URL is not a valid URL")
-	}
-	if parsedAppUrl.Path != "" {
-		return errors.New("APP_URL must not contain a path")
+func validateAppURLs(config *EnvConfigSchema) error {
+	if err := validateURLWithoutPath(config.AppURL, "APP_URL"); err != nil {
+		return err
 	}
 
 	// Derive INTERNAL_APP_URL from APP_URL if not set; validate only when provided
 	if config.InternalAppURL == "" {
 		config.InternalAppURL = config.AppURL
-	} else {
-		parsedInternalAppUrl, err := url.Parse(config.InternalAppURL)
-		if err != nil {
-			return errors.New("INTERNAL_APP_URL is not a valid URL")
-		}
-		if parsedInternalAppUrl.Path != "" {
-			return errors.New("INTERNAL_APP_URL must not contain a path")
-		}
+		return nil
 	}
 
+	return validateURLWithoutPath(config.InternalAppURL, "INTERNAL_APP_URL")
+}
+
+func validateURLWithoutPath(rawURL, envName string) error {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("%s is not a valid URL", envName)
+	}
+	if parsedURL.Path != "" {
+		return fmt.Errorf("%s must not contain a path", envName)
+	}
+
+	return nil
+}
+
+func validateFileBackend(config *EnvConfigSchema) error {
 	switch config.FileBackend {
 	case "s3", "database":
-		// All good, these are valid values
+		return nil
 	case "", "filesystem":
 		if config.UploadPath == "" {
 			config.UploadPath = defaultFsUploadPath
 		}
+		return nil
 	default:
 		return errors.New("invalid FILE_BACKEND value. Must be 'filesystem', 'database', or 's3'")
 	}
+}
 
-	// Validate LOCAL_IPV6_RANGES
-	ranges := strings.SplitSeq(config.LocalIPv6Ranges, ",")
+func validateLocalIPv6Ranges(localIPv6Ranges string) error {
+	ranges := strings.SplitSeq(localIPv6Ranges, ",")
 	for rangeStr := range ranges {
 		rangeStr = strings.TrimSpace(rangeStr)
 		if rangeStr == "" {
 			continue
 		}
 
-		_, ipNet, err := net.ParseCIDR(rangeStr)
-		if err != nil {
-			return fmt.Errorf("invalid LOCAL_IPV6_RANGES '%s': %w", rangeStr, err)
+		if err := validateLocalIPv6Range(rangeStr); err != nil {
+			return err
 		}
-
-		if ipNet.IP.To4() != nil {
-			return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
-		}
-
 	}
 
-	if config.AuditLogRetentionDays <= 0 {
-		return errors.New("AUDIT_LOG_RETENTION_DAYS must be greater than 0")
+	return nil
+}
+
+func validateLocalIPv6Range(rangeStr string) error {
+	_, ipNet, err := net.ParseCIDR(rangeStr)
+	if err != nil {
+		return fmt.Errorf("invalid LOCAL_IPV6_RANGES '%s': %w", rangeStr, err)
 	}
 
-	if config.StaticApiKey != "" && len(config.StaticApiKey) < 16 {
-		return errors.New("STATIC_API_KEY must be at least 16 characters long")
+	if ipNet.IP.To4() != nil {
+		return fmt.Errorf("range '%s' is not a valid IPv6 range", rangeStr)
+	}
+
+	return nil
+}
+
+func validateTLSConfig(config *EnvConfigSchema) error {
+	switch {
+	case config.TLSCertFile != "" && config.TLSKeyFile == "":
+		return errors.New("TLS_KEY_FILE must be set when TLS_CERT_FILE is set")
+	case config.TLSCertFile == "" && config.TLSKeyFile != "":
+		return errors.New("TLS_CERT_FILE must be set when TLS_KEY_FILE is set")
+	}
+
+	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
+		if _, err := os.Stat(config.TLSCertFile); err != nil {
+			return fmt.Errorf("TLS_CERT_FILE not found: %w", err)
+		}
+	}
+
+	if config.TLSCertFile != "" && config.TLSKeyFile != "" {
+		if _, err := os.Stat(config.TLSKeyFile); err != nil {
+			return fmt.Errorf("TLS_KEY_FILE not found: %w", err)
+		}
 	}
 
 	return nil
@@ -288,6 +347,7 @@ func resolveFileBasedEnvVariable(field reflect.Value, fieldType reflect.StructFi
 		return nil
 	}
 
+	// #nosec G703 - Path is passed by the admin
 	fileContent, err := os.ReadFile(envVarFileValue)
 	if err != nil {
 		return fmt.Errorf("failed to read file for env var %s: %w", envVarFileName, err)

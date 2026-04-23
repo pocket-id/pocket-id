@@ -62,9 +62,11 @@ export type OidcDeviceCodeInfo = {
 };
 
 export type AuthorizeResponse = {
-	code: string;
-	callbackURL: string;
-	issuer: string;
+	code?: string;
+	callbackURL?: string;
+	issuer?: string;
+	error?: string;
+	requiresRedirect?: boolean;
 };
 
 export type AccessibleOidcClient = OidcClientMetaData & {

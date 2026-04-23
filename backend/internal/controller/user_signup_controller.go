@@ -7,6 +7,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -30,6 +31,7 @@ func NewUserSignupController(group *gin.RouterGroup, authMiddleware *middleware.
 	group.GET("/signup-tokens", authMiddleware.Add(), usc.listSignupTokensHandler)
 	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), usc.deleteSignupTokenHandler)
 	group.POST("/signup", rateLimitMiddleware.Add(rate.Every(1*time.Minute), 10), usc.signupHandler)
+	group.GET("/signup/setup", usc.checkInitialAdminSetupAvailable)
 	group.POST("/signup/setup", usc.signUpInitialAdmin)
 
 }
@@ -37,6 +39,21 @@ func NewUserSignupController(group *gin.RouterGroup, authMiddleware *middleware.
 type UserSignupController struct {
 	userSignUpService *service.UserSignUpService
 	appConfigService  *service.AppConfigService
+}
+
+func (usc *UserSignupController) checkInitialAdminSetupAvailable(c *gin.Context) {
+	setupCompleted, err := usc.userSignUpService.IsInitialAdminSetupCompleted(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	if setupCompleted {
+		_ = c.Error(&common.SetupNotAvailableError{})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 // signUpInitialAdmin godoc

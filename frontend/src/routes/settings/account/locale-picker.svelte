@@ -9,6 +9,7 @@
 	const currentLocale = getLocale();
 
 	const locales = {
+		ca: 'Català',
 		cs: 'Čeština',
 		da: 'Dansk',
 		de: 'Deutsch',

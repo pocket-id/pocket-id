@@ -119,13 +119,29 @@ func handleDeviceFlowError(c *gin.Context, err error) bool {
 // @Router /api/oidc/authorize [post]
 func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	var input dto.AuthorizeOidcClientRequestDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	code, callbackURL, err := oc.oidcService.Authorize(c.Request.Context(), input, c.GetString("userID"), c.ClientIP(), c.Request.UserAgent())
+	code, callbackURL, err := oc.oidcService.Authorize(
+		c.Request.Context(),
+		input,
+		c.GetString("userID"),
+		c.GetString("authenticationMethod"),
+		c.ClientIP(),
+		c.Request.UserAgent(),
+	)
 	if err != nil {
+		// Check if this is a prompt-related error that should be returned as a redirect error
+		if isOidcPromptError(err) {
+			c.JSON(http.StatusOK, gin.H{
+				"error":            err.Error(),
+				"requiresRedirect": true,
+			})
+			return
+		}
 		_ = c.Error(err)
 		return
 	}
@@ -137,6 +153,19 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// isOidcPromptError checks if an error is a prompt-related OIDC error that should trigger a redirect
+func isOidcPromptError(err error) bool {
+	var loginReq *common.OidcLoginRequiredError
+	var consentReq *common.OidcConsentRequiredError
+	var interactionReq *common.OidcInteractionRequiredError
+	var accountSelectionReq *common.OidcAccountSelectionRequiredError
+
+	return errors.As(err, &loginReq) ||
+		errors.As(err, &consentReq) ||
+		errors.As(err, &interactionReq) ||
+		errors.As(err, &accountSelectionReq)
 }
 
 // authorizationConfirmationRequiredHandler godoc
@@ -844,7 +873,13 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 	}
 	userCode := strings.ToUpper(strings.TrimSpace(input.Code))
 
-	err := oc.oidcService.VerifyDeviceCode(c.Request.Context(), userCode, c.GetString("userID"), c.ClientIP(), c.Request.UserAgent())
+	err := oc.oidcService.VerifyDeviceCode(
+		c.Request.Context(),
+		userCode,
+		c.GetString("userID"),
+		c.GetString("authenticationMethod"),
+		ipAddress,
+		userAgent)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -963,7 +998,13 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 		return
 	}
 
-	preview, err := oc.oidcService.GetClientPreview(c.Request.Context(), clientID, userID, strings.Split(scopes, " "))
+	preview, err := oc.oidcService.GetClientPreview(
+		c.Request.Context(),
+		clientID,
+		userID,
+		strings.Split(scopes, " "),
+		c.GetString("authenticationMethod"))
+
 	if err != nil {
 		_ = c.Error(err)
 		return

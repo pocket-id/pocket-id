@@ -133,7 +133,7 @@
 			/>
 		</div>
 		<h4 class="mt-10 text-lg font-semibold">{m.attribute_mapping()}</h4>
-		<div class="mt-4 grid grid-cols-1 items-end gap-5 md:grid-cols-2">
+		<div class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2">
 			<FormInput
 				label={m.user_unique_identifier_attribute()}
 				description={m.the_value_of_this_attribute_should_never_change()}

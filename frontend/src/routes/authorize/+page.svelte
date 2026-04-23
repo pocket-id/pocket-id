@@ -22,8 +22,16 @@
 	const oidService = new OidcService();
 
 	let { data }: PageProps = $props();
-	let { client, scope, callbackURL, nonce, codeChallenge, codeChallengeMethod, authorizeState } =
-		data;
+	let {
+		client,
+		scope,
+		callbackURL,
+		nonce,
+		codeChallenge,
+		codeChallengeMethod,
+		authorizeState,
+		prompt
+	} = data;
 
 	let isLoading = $state(false);
 	let success = $state(false);
@@ -32,7 +40,27 @@
 	let authorizationConfirmed = $state(false);
 	let userSignedInAt: Date | undefined;
 
+	// Parse prompt parameter once (space-delimited per OIDC spec)
+	const promptValues = prompt ? prompt.split(' ') : [];
+	const hasPromptNone = promptValues.includes('none');
+	const hasPromptConsent = promptValues.includes('consent');
+	const hasPromptLogin = promptValues.includes('login');
+	const hasPromptSelectAccount = promptValues.includes('select_account');
+
 	onMount(() => {
+		// Conflicting prompt values - none can't be combined with any interactive prompt
+		if (hasPromptNone && (hasPromptConsent || hasPromptLogin || hasPromptSelectAccount)) {
+			redirectWithError('interaction_required');
+			return;
+		}
+
+		// If prompt=none and user is not signed in, redirect immediately with login_required
+		if (hasPromptNone && !$userStore) {
+			redirectWithError('login_required');
+			return;
+		}
+
+		// Redirect limited devices / no WebAuthn to alternative login
 		if (!$userStore && $appConfigStore.qrLoginEnabled && (isLimitedDevice() || !window.PublicKeyCredential)) {
 			const currentUrl = window.location.pathname + window.location.search;
 			goto(`/login/alternative?redirect=${encodeURIComponent(currentUrl)}`);
@@ -60,6 +88,18 @@
 
 			if (!authorizationConfirmed) {
 				authorizationRequired = await oidService.isAuthorizationRequired(client!.id, scope);
+
+				// If prompt=consent, always show consent UI
+				if (hasPromptConsent) {
+					authorizationRequired = true;
+				}
+
+				// If prompt=none and consent required, redirect with error
+				if (hasPromptNone && authorizationRequired) {
+					redirectWithError('consent_required');
+					return;
+				}
+
 				if (authorizationRequired) {
 					isLoading = false;
 					authorizationConfirmed = true;
@@ -68,7 +108,7 @@
 			}
 
 			let reauthToken: string | undefined;
-			if (client?.requiresReauthentication) {
+			if (client?.requiresReauthentication || hasPromptLogin) {
 				let authResponse;
 				const signedInRecently =
 					userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000;
@@ -79,33 +119,60 @@
 				reauthToken = await webauthnService.reauthenticate(authResponse);
 			}
 
-			await oidService
-				.authorize(
-					client!.id,
-					scope,
-					callbackURL,
-					nonce,
-					codeChallenge,
-					codeChallengeMethod,
-					reauthToken
-				)
-				.then(async ({ code, callbackURL, issuer }) => {
-					onSuccess(code, callbackURL, issuer);
-				});
+			const result = await oidService.authorize(
+				client!.id,
+				scope,
+				callbackURL,
+				nonce,
+				codeChallenge,
+				codeChallengeMethod,
+				reauthToken,
+				prompt
+			);
+
+			// Check if backend returned a redirect error
+			if (result.requiresRedirect && result.error) {
+				if (hasPromptNone) {
+					redirectWithError(result.error);
+				} else {
+					errorMessage = result.error;
+					isLoading = false;
+				}
+				return;
+			}
+
+			onSuccess(result.code!, result.callbackURL!, result.issuer!);
 		} catch (e) {
 			errorMessage = getWebauthnErrorMessage(e);
 			isLoading = false;
 		}
 	}
 
+	function redirectWithError(error: string) {
+		const redirectURL = new URL(callbackURL);
+		if (redirectURL.protocol == 'javascript:' || redirectURL.protocol == 'data:') {
+			throw new Error('Invalid redirect URL protocol');
+		}
+
+		redirectURL.searchParams.append('error', error);
+		if (authorizeState) {
+			redirectURL.searchParams.append('state', authorizeState);
+		}
+		window.location.href = redirectURL.toString();
+	}
+
 	function onSuccess(code: string, callbackURL: string, issuer: string) {
+		const redirectURL = new URL(callbackURL);
+		if (redirectURL.protocol == 'javascript:' || redirectURL.protocol == 'data:') {
+			throw new Error('Invalid redirect URL protocol');
+		}
+
+		redirectURL.searchParams.append('code', code);
+		redirectURL.searchParams.append('state', authorizeState);
+		redirectURL.searchParams.append('iss', issuer);
+
 		success = true;
 		setTimeout(() => {
-			const redirectURL = new URL(callbackURL);
-			redirectURL.searchParams.append('code', code);
-			redirectURL.searchParams.append('state', authorizeState);
-			redirectURL.searchParams.append('iss', issuer);
-
 			window.location.href = redirectURL.toString();
 		}, 1000);
 	}

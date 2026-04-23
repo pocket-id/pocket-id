@@ -21,7 +21,7 @@ export default defineConfig((mode) => {
 				disable: mode.isPreview,
 				algorithm: 'gzip',
 				ext: '.gz',
-				filter:  /\.(js|mjs|json|css)$/i
+				filter: /\.(js|mjs|json|css)$/i
 			}),
 
 			// Create brotli-compressed files
@@ -29,7 +29,7 @@ export default defineConfig((mode) => {
 				disable: mode.isPreview,
 				algorithm: 'brotliCompress',
 				ext: '.br',
-				filter:  /\.(js|mjs|json|css)$/i
+				filter: /\.(js|mjs|json|css)$/i
 			})
 		],
 

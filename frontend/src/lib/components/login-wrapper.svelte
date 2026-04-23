@@ -1,7 +1,5 @@
 <script module lang="ts">
-	// Persist the last failing background image URL across route remounts so
-	// login pages without a background do not briefly retry the image and stutter.
-	let persistedMissingBackgroundImageUrl: string | undefined;
+	let backgroundImageExists = $state<boolean | undefined>(undefined);
 </script>
 
 <script lang="ts">
@@ -11,8 +9,9 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import { cachedBackgroundImage } from '$lib/utils/cached-image-util';
 	import { cn } from '$lib/utils/style';
-	import { type Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { fade } from 'svelte/transition';
 	import * as Card from './ui/card';
 
 	let {
@@ -23,33 +22,22 @@
 		showAlternativeSignInMethodButton?: boolean;
 	} = $props();
 
-	let missingBackgroundImageUrl = $state<string | undefined>(persistedMissingBackgroundImageUrl);
-	let loadedBackgroundImageUrl = $state<string | undefined>();
 	let isInitialLoad = $state(false);
-	let backgroundImageUrl = $derived(cachedBackgroundImage.getUrl());
-	let imageError = $derived(missingBackgroundImageUrl === backgroundImageUrl);
-	let imageLoaded = $derived(loadedBackgroundImageUrl === backgroundImageUrl);
-	let animate = $derived(isInitialLoad && imageLoaded && !$appConfigStore.disableAnimations);
+	let animate = $derived(isInitialLoad && !$appConfigStore.disableAnimations);
+
+	onMount(async () => {
+		fetch(cachedBackgroundImage.getUrl(), {
+			method: 'HEAD'
+		})
+			.then(async (res) => (backgroundImageExists = res.ok))
+			.catch(() => (backgroundImageExists = false));
+	});
 
 	afterNavigate((e) => {
 		isInitialLoad = !e?.from?.url;
 	});
 
-	function onBackgroundImageLoad() {
-		loadedBackgroundImageUrl = backgroundImageUrl;
-		if (persistedMissingBackgroundImageUrl === backgroundImageUrl) {
-			persistedMissingBackgroundImageUrl = undefined;
-			missingBackgroundImageUrl = undefined;
-		}
-	}
-
-	function onBackgroundImageError() {
-		loadedBackgroundImageUrl = undefined;
-		persistedMissingBackgroundImageUrl = backgroundImageUrl;
-		missingBackgroundImageUrl = backgroundImageUrl;
-	}
-
-	const isDesktop = new MediaQuery('min-width: 1024px');
+	const isDesktop = new MediaQuery('(min-width: 1024px)');
 	let alternativeSignInButton = $state({
 		href: '/login/alternative',
 		label: m.alternative_sign_in_methods()
@@ -65,11 +53,19 @@
 	});
 </script>
 
-{#if isDesktop.current}
-	<div class="h-screen items-center overflow-hidden text-center flex justify-center">
+{#if backgroundImageExists === undefined}
+	<div class="bg-background h-screen"></div>
+{:else if isDesktop.current}
+	<div
+		in:fade={{ duration: 150 }}
+		class="relative flex h-screen w-full items-center overflow-hidden text-center {backgroundImageExists
+			? 'justify-start'
+			: 'justify-center'}"
+	>
 		<div
-			class="flex h-full w-[650px] 2xl:w-[800px] p-16 {cn(
-				showAlternativeSignInMethodButton && 'pb-0'
+			class="relative z-10 flex h-full p-16 {cn(
+				showAlternativeSignInMethodButton && 'pb-0',
+				backgroundImageExists && 'w-[650px] 2xl:w-[800px]'
 			)}"
 		>
 			<div class="flex h-full w-full flex-col overflow-hidden">
@@ -89,15 +85,17 @@
 			</div>
 		</div>
 
-		{#if !imageError}
+		{#if backgroundImageExists}
 			<!-- Background image -->
-			<div class="m-6 flex h-[calc(100vh-3rem)] overflow-hidden rounded-[40px]">
+			<div
+				class="absolute top-0 right-0 bottom-0 left-[650px] z-0 m-6 overflow-hidden rounded-[40px] 2xl:left-[800px]"
+			>
 				<img
-					src={backgroundImageUrl}
-					class="h-full object-cover {cn(animate && 'animate-bg-zoom')}"
+					src={cachedBackgroundImage.getUrl()}
+					class="{cn(
+						animate && 'animate-bg-zoom'
+					)} h-screen object-cover w-[calc(100vw-650px)] 2xl:w-[calc(100vw-800px)]"
 					alt={m.login_background()}
-					onload={onBackgroundImageLoad}
-					onerror={onBackgroundImageError}
 				/>
 			</div>
 		{/if}
@@ -107,9 +105,14 @@
 		class="flex h-screen items-center justify-center bg-cover bg-center text-center"
 		style="background-image: url({cachedBackgroundImage.getUrl()});"
 	>
-		<Card.Root class="mx-3 w-full max-w-md">
+		<Card.Root
+			class={{
+				'mx-3 w-full max-w-md': true,
+				'bg-transparent border-0': !backgroundImageExists
+			}}
+		>
 			<Card.CardContent
-				class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton ? 'pb-3 sm:pb-3' : ''}"
+				class="px-4 py-10 sm:p-10 {showAlternativeSignInMethodButton ? 'pb-3 sm:pb-3' : ''} "
 			>
 				{@render children()}
 				{#if showAlternativeSignInMethodButton}

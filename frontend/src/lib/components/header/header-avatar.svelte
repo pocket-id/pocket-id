@@ -17,7 +17,7 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger
+	<DropdownMenu.Trigger aria-label={m.my_account()}
 		><Avatar.Root class="size-9">
 			<Avatar.Image src={cachedProfilePicture.getUrl($userStore!.id)} />
 		</Avatar.Root></DropdownMenu.Trigger

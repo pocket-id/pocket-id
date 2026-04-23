@@ -106,6 +106,7 @@
 	"ip_address": "IP Address",
 	"device": "Device",
 	"client": "Client",
+	"actor": "Näitleja",
 	"unknown": "Unknown",
 	"account_details_updated_successfully": "Account details updated successfully",
 	"profile_picture_updated_successfully": "Profile picture updated successfully. It may take a few minutes to update.",
@@ -117,6 +118,7 @@
 	"account_details": "Account Details",
 	"passkeys": "Passkeys",
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Manage your passkeys that you can use to authenticate yourself.",
+	"manage_this_users_passkeys": "Haldage selle kasutaja paroolivõtmeid.",
 	"add_passkey": "Add Passkey",
 	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Create a one-time login code to sign in from a different device without a passkey.",
 	"create": "Create",
@@ -521,5 +523,6 @@
 	"mark_as_verified": "Mark as verified",
 	"email_verification_sent": "Verification email sent successfully.",
 	"emails_verified_by_default": "Emails verified by default",
-	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed."
+	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed.",
+	"user_has_no_passkeys_yet": "Sellel kasutajal pole veel paroolivõtmeid."
 }

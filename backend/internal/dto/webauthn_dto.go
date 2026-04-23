@@ -10,7 +10,7 @@ type WebauthnCredentialDto struct {
 	Name            string                            `json:"name"`
 	CredentialID    string                            `json:"credentialID"`
 	AttestationType string                            `json:"attestationType"`
-	Transport       []protocol.AuthenticatorTransport `json:"transport"`
+	Transport       []protocol.AuthenticatorTransport `json:"transport" swaggertype:"array,string"`
 
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
