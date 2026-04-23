@@ -29,7 +29,11 @@
 
 	function onAuthorized() {
 		const redirect = page.url.searchParams.get('redirect');
-		goto(redirect || '/');
+		if (redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/\\')) {
+			goto(redirect);
+		} else {
+			goto('/');
+		}
 	}
 
 	function getPasskeyLoginHref() {

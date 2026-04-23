@@ -103,15 +103,20 @@ func NewOidcService(
 
 const SelfLoginClientID = "pocket-id-self-login"
 
+const selfLoginClientName = "PocketID QR Login"
+
 func (s *OidcService) ensureSelfLoginClient() error {
-	var count int64
-	s.db.Model(&model.OidcClient{}).Where("id = ?", SelfLoginClientID).Count(&count)
-	if count > 0 {
+	var client model.OidcClient
+	result := s.db.Where("id = ?", SelfLoginClientID).First(&client)
+	if result.Error == nil {
+		if client.Name != selfLoginClientName {
+			return s.db.Model(&client).Update("name", selfLoginClientName).Error
+		}
 		return nil
 	}
 
-	client := model.OidcClient{
-		Name:     "Pocket ID Self Login",
+	client = model.OidcClient{
+		Name:     selfLoginClientName,
 		IsPublic: true,
 	}
 	client.ID = SelfLoginClientID

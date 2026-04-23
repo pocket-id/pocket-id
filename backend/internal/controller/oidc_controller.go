@@ -878,8 +878,8 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 		userCode,
 		c.GetString("userID"),
 		c.GetString("authenticationMethod"),
-		ipAddress,
-		userAgent)
+		c.ClientIP(),
+		c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -12,7 +12,7 @@
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { goto } from '$app/navigation';
-	import { isLimitedDevice } from '$lib/utils/device-detect-util';
+	import { getAlternativeLoginRedirect } from '$lib/utils/device-detect-util';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -61,10 +61,17 @@
 		}
 
 		// Redirect limited devices / no WebAuthn to alternative login
-		if (!$userStore && $appConfigStore.qrLoginEnabled && (isLimitedDevice() || !window.PublicKeyCredential)) {
+		if (!$userStore && $appConfigStore.qrLoginEnabled) {
 			const currentUrl = window.location.pathname + window.location.search;
-			goto(`/login/alternative?redirect=${encodeURIComponent(currentUrl)}`);
-			return;
+			const redirect = getAlternativeLoginRedirect(currentUrl);
+			if (redirect) {
+				if (redirect.startsWith('/simple/')) {
+					window.location.href = redirect;
+				} else {
+					goto(redirect);
+				}
+				return;
+			}
 		}
 
 		if ($userStore) {
@@ -231,7 +238,7 @@
 					{m.try_again()}
 				</Button>
 			{/if}
-			<Button href={document.referrer || '/'} class="flex-1" variant="secondary">
+			<Button href={'/'} class="flex-1" variant="secondary">
 				{m.cancel()}
 			</Button>
 		</div>

@@ -73,8 +73,15 @@ func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc) e
 	handler := func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 
+		// Trailing-slash: serve directory index.html or strip the slash
 		if strings.HasSuffix(path, "/") {
-			c.Redirect(http.StatusMovedPermanently, strings.TrimRight(c.Request.URL.String(), "/"))
+			indexPath := path + "index.html"
+			if _, err := fs.Stat(distFS, indexPath); err == nil {
+				c.Request.URL.Path = "/" + path
+				fileServer.ServeHTTP(c.Writer, c.Request)
+				return
+			}
+			c.Redirect(http.StatusMovedPermanently, strings.TrimSuffix(c.Request.URL.String(), "/"))
 			return
 		}
 
@@ -83,10 +90,20 @@ func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc) e
 			return
 		}
 
-		// If path is / or does not exist, serve index.html
+		// If path is / or does not exist, serve index.html (SPA fallback)
+		// If path is a directory with index.html, redirect to add trailing slash
 		if path == "" {
 			path = "index.html"
-		} else if _, err := fs.Stat(distFS, path); os.IsNotExist(err) {
+		} else if info, statErr := fs.Stat(distFS, path); statErr != nil {
+			if os.IsNotExist(statErr) {
+				path = "index.html"
+			}
+		} else if info.IsDir() {
+			indexPath := path + "/index.html"
+			if _, indexErr := fs.Stat(distFS, indexPath); indexErr == nil {
+				c.Redirect(http.StatusMovedPermanently, c.Request.URL.String()+"/")
+				return
+			}
 			path = "index.html"
 		}
 

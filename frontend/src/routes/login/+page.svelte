@@ -6,7 +6,8 @@
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
-	import { isLimitedDevice } from '$lib/utils/device-detect-util';
+
+	import { isLimitedDevice, supportsModernCSS } from '$lib/utils/device-detect-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
@@ -42,7 +43,12 @@
 		if ($appConfigStore.qrLoginEnabled && method !== 'passkey') {
 			if (isLimitedDevice() || !window.PublicKeyCredential) {
 				const remaining = params.toString();
-				goto('/login/alternative' + (remaining ? `?${remaining}` : ''));
+				if (supportsModernCSS()) {
+					goto('/login/alternative' + (remaining ? `?${remaining}` : ''));
+				} else {
+					window.location.href = '/simple/qr/' + (remaining ? `?${remaining}` : '');
+				}
+				return;
 			}
 		}
 	});
@@ -56,7 +62,12 @@
 			const user = await webauthnService.finishLogin(authResponse);
 
 			await userStore.setUser(user);
-			goto(data.redirect || '/settings');
+			const target = data.redirect;
+			if (target && target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/\\')) {
+				goto(target);
+			} else {
+				goto('/settings');
+			}
 		} catch (e) {
 			error = getWebauthnErrorMessage(e);
 		}

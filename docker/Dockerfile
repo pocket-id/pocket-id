@@ -15,6 +15,7 @@ RUN pnpm --filter pocket-id-frontend install --frozen-lockfile
 
 COPY ./frontend ./frontend/
 
+RUN pnpm --filter pocket-id-frontend run build-simple
 RUN BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
 
 # Stage 2: Build Backend
