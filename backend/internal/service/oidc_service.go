@@ -163,10 +163,8 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", common.NewOidcInvalidRequestError("prompt type 'none' cannot be combined with others")
 	}
 
-	// Handle prompt=select_account early (not supported)
-	if hasPromptSelectAccount {
-		return "", "", common.NewOidcInvalidRequestError("prompt type 'select_account' is not supported")
-	}
+	// prompt=select_account is handled entirely in the UI
+	// Pocket ID holds one session per browser, so the frontend renders the current user as the sole selectable account and then calls Authorize normally.
 
 	// If prompt=login is specified or the client requires reauthentication, check the reauthentication token
 	if hasPromptLogin || client.RequiresReauthentication {

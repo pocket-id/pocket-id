@@ -2,6 +2,7 @@
 	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import ScopeList from '$lib/components/scope-list.svelte';
+	import * as Avatar from '$lib/components/ui/avatar';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
@@ -9,6 +10,7 @@
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
+	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
@@ -36,7 +38,24 @@
 	let errorMessage: string | null = $state(null);
 	let authorizationRequired = $state(false);
 	let authorizationConfirmed = $state(false);
+	let accountSelectionRequired = $state(false);
 	let userSignedInAt: Date | undefined;
+
+	const fullName = $derived.by(() => {
+		if (!$userStore) {
+			return '';
+		}
+
+		if ($userStore.displayName) {
+			return $userStore.displayName;
+		}
+
+		return [
+			$userStore.firstName,
+			$userStore.lastName
+		].filter(Boolean).join(' ').trim();
+	});
+	const primaryName = $derived(fullName || $userStore?.email || '');
 
 	// Parse prompt parameter once (space-delimited per OIDC spec)
 	const promptValues = prompt ? prompt.split(' ') : [];
@@ -58,10 +77,31 @@
 			return;
 		}
 
+		// prompt=select_account: if the user is already signed in, pause so they can
+		// confirm the current account before proceeding. If they're not signed in,
+		// the normal login flow below is selection enough.
+		if (hasPromptSelectAccount && $userStore) {
+			accountSelectionRequired = true;
+			return;
+		}
+
 		if ($userStore) {
 			authorize();
 		}
 	});
+
+	function selectCurrentAccount() {
+		accountSelectionRequired = false;
+		authorize();
+	}
+
+	async function useDifferentAccount() {
+		try {
+			await webauthnService.logout();
+		} finally {
+			window.location.reload();
+		}
+	}
 
 	async function authorize() {
 		isLoading = true;
@@ -179,14 +219,47 @@
 	<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
 		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
-			{m.sign_in_to({ name: client.name })}
+			{#if accountSelectionRequired}
+				{m.choose_an_account_to_continue_to({ name: client.name })}
+			{:else}
+				{m.sign_in_to({ name: client.name })}
+			{/if}
 		</h1>
 		{#if errorMessage}
 			<p class="text-muted-foreground mt-2 mb-10">
 				{errorMessage}.
 			</p>
 		{/if}
-		{#if !authorizationRequired && !errorMessage}
+		{#if accountSelectionRequired && $userStore && !errorMessage}
+			<div transition:slide={{ duration: 300 }}>
+				<Card.Root class="mt-6 mb-4 px-2 py-4" data-testid="account-selection">
+					<Card.Content class="flex items-center justify-center gap-4">
+						<Avatar.Root class="size-11 shrink-0">
+							<Avatar.Image src={cachedProfilePicture.getUrl($userStore.id)} />
+						</Avatar.Root>
+						<div class="flex min-w-0 flex-col text-start">
+							<p class="truncate text-base leading-tight font-medium">
+								{primaryName}
+							</p>
+							{#if fullName && $userStore.email}
+								<p class="text-muted-foreground mt-1 truncate text-sm leading-tight">
+									{$userStore.email}
+								</p>
+							{/if}
+						</div>
+					</Card.Content>
+				</Card.Root>
+				<div class="mb-10 flex justify-center">
+					<button
+						type="button"
+						class="text-muted-foreground text-xs transition-colors hover:underline"
+						onclick={useDifferentAccount}
+					>
+						{m.use_a_different_account()}
+					</button>
+				</div>
+			</div>
+		{:else if !authorizationRequired && !errorMessage}
 			<p class="text-muted-foreground mt-2 mb-10">
 				<FormattedMessage
 					m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
@@ -196,7 +269,7 @@
 				/>
 			</p>
 		{:else if authorizationRequired}
-			<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
+			<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
 				<Card.Root class="mt-6 mb-10">
 					<Card.Header>
 						<p class="text-muted-foreground text-start">
@@ -212,11 +285,17 @@
 			</div>
 		{/if}
 		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
-		<div class="flex w-full max-w-[450px] flex-row-reverse gap-2">
+		<div class="flex w-full max-w-md flex-row-reverse gap-2">
 			{#if !errorMessage}
-				<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
-					{m.sign_in()}
-				</Button>
+				{#if accountSelectionRequired && $userStore}
+					<Button class="flex-1" onclick={selectCurrentAccount} autofocus={true}>
+						{m.continue_as({ name: $userStore.displayName })}
+					</Button>
+				{:else}
+					<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
+						{m.sign_in()}
+					</Button>
+				{/if}
 			{:else}
 				<Button class="flex-1" onclick={() => (errorMessage = null)}>
 					{m.try_again()}

@@ -723,17 +723,26 @@ test.describe('OIDC prompt parameter', () => {
 		expect(reauthCalled).toBe(true);
 	});
 
-	test('prompt=select_account returns interaction_required error', async ({ page }) => {
+	test('prompt=select_account shows current user and continues on confirm', async ({ page }) => {
 		const oidcClient = oidcClients.nextcloud;
 		const urlParams = createUrlParams(oidcClient);
 		urlParams.set('prompt', 'select_account');
 
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
-		// Should show error since account selection is not supported
-		await expect(
-			page.getByRole('paragraph').filter({ hasText: 'interaction_required' })
-		).toBeVisible();
+		// Account selection card with the signed-in user should appear
+		const selectionCard = page.getByTestId('account-selection');
+		await expect(selectionCard).toBeVisible();
+		await expect(selectionCard).toContainText('Tim Cook');
+
+		await page.getByRole('button', { name: /Continue as/ }).click();
+
+		// Should redirect successfully to callback URL with code
+		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
+			if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED') && !e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')) {
+				throw e;
+			}
+		});
 	});
 
 	test('prompt=none with prompt=consent returns interaction_required', async ({ page }) => {
