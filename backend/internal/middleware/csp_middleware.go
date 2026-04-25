@@ -3,6 +3,7 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,6 +26,7 @@ func GetCSPNonce(c *gin.Context) string {
 
 func (m *CspMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Generate a random base64 nonce for this request
 		nonce := generateNonce()
 		c.Set("csp_nonce", nonce)
 		c.Writer.Header().Set("Content-Security-Policy", BuildCSP(nonce))
@@ -35,10 +37,18 @@ func (m *CspMiddleware) Add() gin.HandlerFunc {
 
 func BuildCSP(nonce string, formActionExtra ...string) string {
 	formAction := "'self'"
-	for _, extra := range formActionExtra {
-		if extra != "" {
-			formAction += " " + extra
+
+	if len(formActionExtra) > 0 {
+		b := strings.Builder{}
+
+		for _, extra := range formActionExtra {
+			if extra != "" {
+				b.WriteByte(' ')
+				b.WriteString(extra)
+			}
 		}
+
+		formAction += b.String()
 	}
 
 	return "default-src 'self'; " +

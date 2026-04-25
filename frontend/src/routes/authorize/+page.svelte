@@ -237,7 +237,7 @@
 				/>
 			</p>
 		{:else if authorizationRequired}
-			<div class="w-full max-w-112.5" transition:slide={{ duration: 300 }}>
+			<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
 				<Card.Root class="mt-6 mb-10">
 					<Card.Header>
 						<p class="text-muted-foreground text-start">
@@ -253,7 +253,7 @@
 			</div>
 		{/if}
 		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
-		<div class="flex w-full max-w-112.5 flex-row-reverse gap-2">
+		<div class="flex w-full max-w-md flex-row-reverse gap-2">
 			{#if !errorMessage}
 				<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
 					{m.sign_in()}
