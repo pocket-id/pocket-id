@@ -49,7 +49,7 @@ type AppConfigController struct {
 // @Accept json
 // @Produce json
 // @Success 200 {array} dto.PublicAppConfigVariableDto
-// @Router /application-configuration [get]
+// @Router /api/application-configuration [get]
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 	configuration := acc.appConfigService.ListAppConfig(false)
 
@@ -76,7 +76,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Success 200 {array} dto.AppConfigVariableDto
-// @Router /application-configuration/all [get]
+// @Router /api/application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 	configuration := acc.appConfigService.ListAppConfig(true)
 
