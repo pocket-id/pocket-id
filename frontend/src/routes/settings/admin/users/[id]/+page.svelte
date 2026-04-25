@@ -139,7 +139,11 @@
 		</Item.Media>
 		<Item.Content class="min-w-52">
 			<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
-			<Item.Description>{passkeys.length > 0 ? m.manage_this_users_passkeys() : m.user_has_no_passkeys_yet()}</Item.Description>
+			<Item.Description
+				>{passkeys.length > 0
+					? m.manage_this_users_passkeys()
+					: m.user_has_no_passkeys_yet()}</Item.Description
+			>
 		</Item.Content>
 	</Item.Root>
 	{#if passkeys.length > 0}

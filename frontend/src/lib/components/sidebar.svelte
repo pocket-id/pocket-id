@@ -77,7 +77,11 @@
 	const delayUpdateLink = () => `${layout().total * ROW_STAGGER}ms`;
 </script>
 
-<nav class="text-muted-foreground grid gap-2 text-sm">
+<nav
+	class="text-muted-foreground grid gap-2 text-sm"
+	aria-label={m.settings()}
+	data-sveltekit-keepfocus
+>
 	{#each items as item, i}
 		{#if item.children?.length}
 			{@const id = groupId(item, i)}

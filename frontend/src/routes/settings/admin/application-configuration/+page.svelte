@@ -70,10 +70,10 @@
 
 		const backgroundImagePromise =
 			backgroundImage === null
-			? appConfigService.deleteBackgroundImage()
-			: backgroundImage
-				? appConfigService.updateBackgroundImage(backgroundImage)
-				: Promise.resolve();
+				? appConfigService.deleteBackgroundImage()
+				: backgroundImage
+					? appConfigService.updateBackgroundImage(backgroundImage)
+					: Promise.resolve();
 
 		await Promise.all([
 			lightLogoPromise,

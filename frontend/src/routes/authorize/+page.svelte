@@ -20,8 +20,17 @@
 	const oidService = new OidcService();
 
 	let { data }: PageProps = $props();
-	let { client, scope, callbackURL, nonce, codeChallenge, codeChallengeMethod, authorizeState, responseMode } =
-		data;
+	let {
+		client,
+		scope,
+		callbackURL,
+		nonce,
+		codeChallenge,
+		codeChallengeMethod,
+		authorizeState,
+		prompt,
+		responseMode
+	} = data;
 
 	let isLoading = $state(false);
 	let success = $state(false);
@@ -30,7 +39,26 @@
 	let authorizationConfirmed = $state(false);
 	let userSignedInAt: Date | undefined;
 
+	// Parse prompt parameter once (space-delimited per OIDC spec)
+	const promptValues = prompt ? prompt.split(' ') : [];
+	const hasPromptNone = promptValues.includes('none');
+	const hasPromptConsent = promptValues.includes('consent');
+	const hasPromptLogin = promptValues.includes('login');
+	const hasPromptSelectAccount = promptValues.includes('select_account');
+
 	onMount(() => {
+		// Conflicting prompt values - none can't be combined with any interactive prompt
+		if (hasPromptNone && (hasPromptConsent || hasPromptLogin || hasPromptSelectAccount)) {
+			redirectWithError('interaction_required');
+			return;
+		}
+
+		// If prompt=none and user is not signed in, redirect immediately with login_required
+		if (hasPromptNone && !$userStore) {
+			redirectWithError('login_required');
+			return;
+		}
+
 		if ($userStore) {
 			authorize();
 		}
@@ -52,6 +80,18 @@
 
 			if (!authorizationConfirmed) {
 				authorizationRequired = await oidService.isAuthorizationRequired(client!.id, scope);
+
+				// If prompt=consent, always show consent UI
+				if (hasPromptConsent) {
+					authorizationRequired = true;
+				}
+
+				// If prompt=none and consent required, redirect with error
+				if (hasPromptNone && authorizationRequired) {
+					redirectWithError('consent_required');
+					return;
+				}
+
 				if (authorizationRequired) {
 					isLoading = false;
 					authorizationConfirmed = true;
@@ -60,7 +100,7 @@
 			}
 
 			let reauthToken: string | undefined;
-			if (client?.requiresReauthentication) {
+			if (client?.requiresReauthentication || hasPromptLogin) {
 				let authResponse;
 				const signedInRecently =
 					userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000;
@@ -71,7 +111,7 @@
 				reauthToken = await webauthnService.reauthenticate(authResponse);
 			}
 
-			const authResult = await oidService.authorize(
+			const result = await oidService.authorize(
 				client!.id,
 				scope,
 				callbackURL,
@@ -79,13 +119,39 @@
 				codeChallenge,
 				codeChallengeMethod,
 				reauthToken,
-                responseMode
+				responseMode,
+				prompt
 			);
-			onSuccess(authResult.code, authResult.callbackURL, authResult.issuer);
+
+			// Check if backend returned a redirect error
+			if (result.requiresRedirect && result.error) {
+				if (hasPromptNone) {
+					redirectWithError(result.error);
+				} else {
+					errorMessage = result.error;
+					isLoading = false;
+				}
+				return;
+			}
+
+			onSuccess(result.code!, result.callbackURL!, result.issuer!);
 		} catch (e) {
 			errorMessage = getWebauthnErrorMessage(e);
 			isLoading = false;
 		}
+	}
+
+	function redirectWithError(error: string) {
+		const redirectURL = new URL(callbackURL);
+		if (redirectURL.protocol == 'javascript:' || redirectURL.protocol == 'data:') {
+			throw new Error('Invalid redirect URL protocol');
+		}
+
+		redirectURL.searchParams.append('error', error);
+		if (authorizeState) {
+			redirectURL.searchParams.append('state', authorizeState);
+		}
+		window.location.href = redirectURL.toString();
 	}
 
 	function onSuccess(code: string, callbackURL: string, issuer: string) {
@@ -171,7 +237,7 @@
 				/>
 			</p>
 		{:else if authorizationRequired}
-			<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
+			<div class="w-full max-w-112.5" transition:slide={{ duration: 300 }}>
 				<Card.Root class="mt-6 mb-10">
 					<Card.Header>
 						<p class="text-muted-foreground text-start">
@@ -187,7 +253,7 @@
 			</div>
 		{/if}
 		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
-		<div class="flex w-full max-w-[450px] flex-row-reverse gap-2">
+		<div class="flex w-full max-w-112.5 flex-row-reverse gap-2">
 			{#if !errorMessage}
 				<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
 					{m.sign_in()}

@@ -272,7 +272,7 @@ func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
 	require.NoError(t, err)
 
 	dbConnFile := tempDir + "/db_connection.txt"
-	dbConnContent := "postgres://user:pass@localhost/testdb"
+	dbConnContent := "postgres://user:pass@localhost/testdb" // #nosec G101 - test credential
 	err = os.WriteFile(dbConnFile, []byte(dbConnContent), 0600)
 	require.NoError(t, err)
 

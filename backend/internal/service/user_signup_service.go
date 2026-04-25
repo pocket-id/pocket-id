@@ -124,14 +124,12 @@ func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData d
 		tx.Rollback()
 	}()
 
-	var userCount int64
-	if err := tx.WithContext(ctx).Model(&model.User{}).
-		Where("id != ?", staticApiKeyUserID).
-		Count(&userCount).Error; err != nil {
+	setupCompleted, err := s.isInitialAdminSetupCompleted(ctx, tx)
+	if err != nil {
 		return model.User{}, "", err
 	}
-	if userCount != 0 {
-		return model.User{}, "", &common.SetupAlreadyCompletedError{}
+	if setupCompleted {
+		return model.User{}, "", &common.SetupNotAvailableError{}
 	}
 
 	userToCreate := dto.UserCreateDto{
@@ -159,6 +157,21 @@ func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData d
 	}
 
 	return user, token, nil
+}
+
+func (s *UserSignUpService) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error) {
+	return s.isInitialAdminSetupCompleted(ctx, s.db)
+}
+
+func (s *UserSignUpService) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
+	var userCount int64
+	if err := db.WithContext(ctx).Model(&model.User{}).
+		Where("id != ?", staticApiKeyUserID).
+		Count(&userCount).Error; err != nil {
+		return false, err
+	}
+
+	return userCount != 0, nil
 }
 
 func (s *UserSignUpService) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]model.SignupToken, utils.PaginationResponse, error) {

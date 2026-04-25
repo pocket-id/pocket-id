@@ -81,15 +81,11 @@ test.describe('Initial User Signup', () => {
 		await expect(page.getByText('Set up your passkey')).toBeVisible();
 	});
 
-	test('Initial Signup - setup already completed', async ({ page }) => {
+	test('Initial Signup - setup route unavailable after completion', async ({ page }) => {
 		await cleanupBackend();
 		await page.goto('/setup');
-		await page.getByLabel('First name').fill('Test');
-		await page.getByLabel('Last name').fill('User');
-		await page.getByLabel('Username').fill('testuser123');
-		await page.getByLabel('Email').fill(users.tim.email);
-		await page.getByRole('button', { name: 'Sign Up' }).click();
-		await expect(page.getByText('Setup already completed')).toBeVisible();
+		await expect(page.getByText('Not found')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Sign Up' })).not.toBeVisible();
 	});
 });
 

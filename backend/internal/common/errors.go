@@ -28,10 +28,10 @@ func (e *AlreadyInUseError) Is(target error) bool {
 	return errors.As(target, &x)
 }
 
-type SetupAlreadyCompletedError struct{}
+type SetupNotAvailableError struct{}
 
-func (e *SetupAlreadyCompletedError) Error() string       { return "setup already completed" }
-func (e *SetupAlreadyCompletedError) HttpStatusCode() int { return http.StatusConflict }
+func (e *SetupNotAvailableError) Error() string       { return "not found" }
+func (e *SetupNotAvailableError) HttpStatusCode() int { return http.StatusNotFound }
 
 type TokenInvalidOrExpiredError struct{}
 
@@ -448,3 +448,27 @@ func (e *InvalidEmailVerificationTokenError) Error() string {
 func (e *InvalidEmailVerificationTokenError) HttpStatusCode() int {
 	return http.StatusBadRequest
 }
+
+// OIDC prompt parameter errors - used for redirect error responses
+
+type OidcLoginRequiredError struct{}
+
+func (e *OidcLoginRequiredError) Error() string       { return "login_required" }
+func (e *OidcLoginRequiredError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type OidcConsentRequiredError struct{}
+
+func (e *OidcConsentRequiredError) Error() string       { return "consent_required" }
+func (e *OidcConsentRequiredError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type OidcInteractionRequiredError struct{}
+
+func (e *OidcInteractionRequiredError) Error() string       { return "interaction_required" }
+func (e *OidcInteractionRequiredError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type OidcAccountSelectionRequiredError struct{}
+
+func (e *OidcAccountSelectionRequiredError) Error() string {
+	return "account_selection_required"
+}
+func (e *OidcAccountSelectionRequiredError) HttpStatusCode() int { return http.StatusBadRequest }

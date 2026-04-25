@@ -137,25 +137,47 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", err
 	}
 
-	if client.RequiresReauthentication {
-		if input.ReauthenticationToken == "" {
-			return "", "", &common.ReauthenticationRequiredError{}
-		}
-		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
-		if err != nil {
-			return "", "", err
-		}
-	}
-
 	// If the client is not public, the code challenge must be provided
 	if client.IsPublic && input.CodeChallenge == "" {
 		return "", "", &common.OidcMissingCodeChallengeError{}
 	}
 
-	// Get the callback URL of the client. Return an error if the provided callback URL is not allowed
+	// Validate the callback URL before any prompt checks, so that prompt-related
+	// error responses never contain an unvalidated redirect target
 	callbackURL, err := s.getCallbackURL(&client, input.CallbackURL, tx, ctx)
 	if err != nil {
 		return "", "", err
+	}
+
+	// Parse prompt parameter (space-delimited list per OIDC spec)
+	promptValues := parsePromptParameter(input.Prompt)
+	hasPromptNone := contains(promptValues, "none")
+	hasPromptLogin := contains(promptValues, "login")
+	hasPromptConsent := contains(promptValues, "consent")
+	hasPromptSelectAccount := contains(promptValues, "select_account")
+
+	// Validate prompt parameter conflicts early.
+	// Per OIDC Core §3.1.2.6, prompt=none must not be combined with any
+	// value that requires user interaction.
+	if hasPromptNone && (hasPromptConsent || hasPromptLogin || hasPromptSelectAccount) {
+		return "", "", &common.OidcInteractionRequiredError{}
+	}
+
+	// Handle prompt=select_account early (not supported)
+	if hasPromptSelectAccount {
+		return "", "", &common.OidcInteractionRequiredError{}
+	}
+
+	// If prompt=login is specified or the client requires reauthentication, check the reauthentication token
+	if hasPromptLogin || client.RequiresReauthentication {
+		if input.ReauthenticationToken == "" {
+			return "", "", &common.ReauthenticationRequiredError{}
+		}
+
+		err = s.webAuthnService.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, userID)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	// Check if the user group is allowed to authorize the client
@@ -171,6 +193,17 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	if !IsUserGroupAllowedToAuthorize(user, client) {
 		return "", "", &common.OidcAccessDeniedError{}
+	}
+
+	// Handle prompt=none - if consent would be required, we can't show UI
+	if hasPromptNone {
+		hasAlreadyAuthorized, err := s.hasAuthorizedClientInternal(ctx, input.ClientID, userID, input.Scope, tx)
+		if err != nil {
+			return "", "", err
+		}
+		if !hasAlreadyAuthorized {
+			return "", "", &common.OidcConsentRequiredError{}
+		}
 	}
 
 	hasAlreadyAuthorizedClient, err := s.createAuthorizedClientInternal(ctx, userID, input.ClientID, input.Scope, tx)
@@ -499,6 +532,43 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	// Verify that the refresh token belongs to the provided client
 	if storedRefreshToken.ClientID != input.ClientID {
 		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
+	}
+
+	if storedRefreshToken.User.Disabled {
+		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
+	}
+
+	var authorizedClient model.UserAuthorizedOidcClient
+	err = tx.
+		WithContext(ctx).
+		Where("user_id = ? AND client_id = ?", storedRefreshToken.UserID, input.ClientID).
+		First(&authorizedClient).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		err = tx.WithContext(ctx).Delete(&storedRefreshToken).Error
+		if err != nil {
+			return CreatedTokens{}, err
+		}
+
+		err = tx.Commit().Error
+		if err != nil {
+			return CreatedTokens{}, err
+		}
+
+		return CreatedTokens{}, &common.OidcInvalidRefreshTokenError{}
+	} else if err != nil {
+		return CreatedTokens{}, err
+	}
+
+	if client.IsGroupRestricted {
+		err = tx.WithContext(ctx).Model(client).Association("AllowedUserGroups").Find(&client.AllowedUserGroups)
+		if err != nil {
+			return CreatedTokens{}, err
+		}
+	}
+
+	if !IsUserGroupAllowedToAuthorize(storedRefreshToken.User, *client) {
+		return CreatedTokens{}, &common.OidcAccessDeniedError{}
 	}
 
 	// Generate a new access token
@@ -1488,6 +1558,15 @@ func (s *OidcService) RevokeAuthorizedClient(ctx context.Context, userID string,
 		return err
 	}
 
+	err = tx.
+		WithContext(ctx).
+		Where("user_id = ? AND client_id = ?", userID, clientID).
+		Delete(&model.OidcRefreshToken{}).
+		Error
+	if err != nil {
+		return err
+	}
+
 	err = tx.Commit().Error
 	if err != nil {
 		return err
@@ -2127,4 +2206,22 @@ func (s *OidcService) GetClientScimServiceProvider(ctx context.Context, clientID
 	}
 
 	return provider, nil
+}
+
+// parsePromptParameter parses the OIDC prompt parameter which is a space-delimited list of values
+func parsePromptParameter(prompt string) []string {
+	if prompt == "" {
+		return []string{}
+	}
+	return strings.Fields(prompt)
+}
+
+// contains checks if a string slice contains a specific value
+func contains(slice []string, value string) bool {
+	for _, item := range slice {
+		if item == value {
+			return true
+		}
+	}
+	return false
 }

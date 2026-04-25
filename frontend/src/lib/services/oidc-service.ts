@@ -23,7 +23,8 @@ class OidcService extends APIService {
 		codeChallenge?: string,
 		codeChallengeMethod?: string,
 		reauthenticationToken?: string,
-		responseMode?: string
+		responseMode?: string,
+		prompt?: string
 	) => {
 		const res = await this.api.post('/oidc/authorize', {
 			scope,
@@ -33,7 +34,8 @@ class OidcService extends APIService {
 			codeChallenge,
 			codeChallengeMethod,
 			reauthenticationToken,
-			responseMode
+			responseMode,
+			prompt
 		});
 
 		return res.data as AuthorizeResponse;
