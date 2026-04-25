@@ -17,6 +17,7 @@
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import ClientProviderImages from './components/client-provider-images.svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	const webauthnService = new WebAuthnService();
 	const oidService = new OidcService();
@@ -99,7 +100,7 @@
 		try {
 			await webauthnService.logout();
 		} finally {
-			window.location.reload();
+			await invalidateAll();
 		}
 	}
 

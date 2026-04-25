@@ -22,7 +22,7 @@
 <div class=" w-full {isAuthPage ? 'absolute top-0 z-10 mt-3 lg:mt-8 pr-2 lg:pr-3' : 'border-b'}">
 	<div
 		class="{!isAuthPage
-			? 'max-w-[1640px]'
+			? 'max-w-410'
 			: ''} mx-auto flex w-full items-center justify-between px-4 md:px-10"
 	>
 		<div class="flex h-16 items-center">
