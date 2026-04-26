@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Tento prohlížeč nepodporuje přístupové klíče. Použijte prosím alternativní způsob přihlášení.",
 	"critical_error_occurred_contact_administrator": "Došlo k kritické chybě. Obraťte se na správce.",
 	"sign_in_to": "Přihlásit se k {name}",
+	"account_selection_signin_confirmation": "Chcete pokračovat pomocí následujícího účtu <b>{name}</b>?",
+	"use_a_different_account": "Použijte jiný účet",
 	"client_not_found": "Klient nebyl nalezen",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> chce získat přístup k následujícím informacím:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Chcete se přihlásit do <b>{client}</b> s vaším {appName} účtem?",
