@@ -16,7 +16,7 @@
   "dependencies": {
     "@simplewebauthn/browser": "^13.3.0",
     "@tailwindcss/vite": "^4.2.2",
-    "axios": "^1.15.0",
+    "axios": "^1.15.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "jose": "^6.2.2",
