@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Chìa khóa truy cập không được hỗ trợ bởi trình duyệt này. Vui lòng sử dụng phương thức đăng nhập thay thế.",
 	"critical_error_occurred_contact_administrator": "Đã xảy ra lỗi nghiêm trọng. Vui lòng liên hệ với quản trị viên.",
 	"sign_in_to": "Đăng nhập {name}",
+	"account_selection_signin_confirmation": "Bạn có muốn sử dụng tài khoản sau đây để tiếp tục <b>{name}</b>?",
+	"use_a_different_account": "Sử dụng tài khoản khác",
 	"client_not_found": "Không tìm thấy client.",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> muốn truy cập các thông tin sau:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Bạn có muốn đăng nhập vào <b>{client}</b> với tài khoản {appName} của bạn?",
