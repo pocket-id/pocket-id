@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Bu tarayıcıda geçiş anahtarları desteklenmemektedir. Lütfen alternatif bir oturum açma yöntemi kullanın.",
 	"critical_error_occurred_contact_administrator": "Kritik bir hata oluştu. Lütfen sistem yöneticinizle iletişime geçin.",
 	"sign_in_to": "{name} hesabına giriş yap",
+	"account_selection_signin_confirmation": "Devam etmek için aşağıdaki hesabı kullanmak ister misiniz <b>{name}</b>?",
+	"use_a_different_account": "Başka bir hesap kullanın",
 	"client_not_found": "İstemci bulunamadı",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> aşağıdaki bilgilere erişmek istiyor:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "{appName} hesabınla <b>{client}</b> uygulamasına giriş yapmak istiyor musun?",
