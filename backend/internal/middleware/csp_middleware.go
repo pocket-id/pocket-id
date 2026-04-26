@@ -3,6 +3,7 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,20 +29,37 @@ func (m *CspMiddleware) Add() gin.HandlerFunc {
 		// Generate a random base64 nonce for this request
 		nonce := generateNonce()
 		c.Set("csp_nonce", nonce)
+		c.Writer.Header().Set("Content-Security-Policy", BuildCSP(nonce))
 
-		csp := "default-src 'self'; " +
-			"base-uri 'self'; " +
-			"object-src 'none'; " +
-			"frame-ancestors 'none'; " +
-			"form-action 'self'; " +
-			"img-src * blob:;" +
-			"font-src 'self'; " +
-			"style-src 'self' 'unsafe-inline'; " +
-			"script-src 'self' 'nonce-" + nonce + "'"
-
-		c.Writer.Header().Set("Content-Security-Policy", csp)
 		c.Next()
 	}
+}
+
+func BuildCSP(nonce string, formActionExtra ...string) string {
+	formAction := "'self'"
+
+	if len(formActionExtra) > 0 {
+		b := strings.Builder{}
+
+		for _, extra := range formActionExtra {
+			if extra != "" {
+				b.WriteByte(' ')
+				b.WriteString(extra)
+			}
+		}
+
+		formAction += b.String()
+	}
+
+	return "default-src 'self'; " +
+		"base-uri 'self'; " +
+		"object-src 'none'; " +
+		"frame-ancestors 'none'; " +
+		"form-action " + formAction + "; " +
+		"img-src * blob:;" +
+		"font-src 'self'; " +
+		"style-src 'self' 'unsafe-inline'; " +
+		"script-src 'self' 'nonce-" + nonce + "'"
 }
 
 func generateNonce() string {

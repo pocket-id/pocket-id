@@ -896,6 +896,8 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 }
 
 func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
+	const publicLogoHost = "https://8.8.8.8"
+
 	// Create a test database
 	db := testutils.NewDatabaseForTest(t)
 
@@ -941,7 +943,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		// Create a mock HTTP client with responses
 		mockResponses := map[string]*http.Response{
 			//nolint:bodyclose
-			"https://example.com/logo.png": pngResponse,
+			publicLogoHost + "/logo.png": pngResponse,
 		}
 		httpClient := &http.Client{
 			Transport: &testutils.MockRoundTripper{
@@ -957,7 +959,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		}
 
 		// Download and save the logo
-		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "https://example.com/logo.png", true)
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/logo.png", true)
 		require.NoError(t, err)
 
 		// Verify the file was saved
@@ -986,7 +988,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		mockResponses := map[string]*http.Response{
 			//nolint:bodyclose
-			"https://example.com/dark-logo.webp": webpResponse,
+			publicLogoHost + "/dark-logo.webp": webpResponse,
 		}
 		httpClient := &http.Client{
 			Transport: &testutils.MockRoundTripper{
@@ -1001,7 +1003,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		}
 
 		// Download and save the dark logo
-		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "https://example.com/dark-logo.webp", false)
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/dark-logo.webp", false)
 		require.NoError(t, err)
 
 		// Verify the dark logo file was saved
@@ -1025,7 +1027,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		mockResponses := map[string]*http.Response{
 			//nolint:bodyclose
-			"https://example.com/icon.svg": testutils.NewMockResponse(http.StatusOK, string(svgContent)),
+			publicLogoHost + "/icon.svg": testutils.NewMockResponse(http.StatusOK, string(svgContent)),
 		}
 		httpClient := &http.Client{
 			Transport: &testutils.MockRoundTripper{
@@ -1039,7 +1041,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			httpClient:  httpClient,
 		}
 
-		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "https://example.com/icon.svg", true)
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/icon.svg", true)
 		require.NoError(t, err)
 
 		// Verify SVG file was saved
@@ -1056,7 +1058,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		mockResponses := map[string]*http.Response{
 			//nolint:bodyclose
-			"https://example.com/logo": jpgResponse,
+			publicLogoHost + "/logo": jpgResponse,
 		}
 		httpClient := &http.Client{
 			Transport: &testutils.MockRoundTripper{
@@ -1070,7 +1072,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			httpClient:  httpClient,
 		}
 
-		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "https://example.com/logo", true)
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/logo", true)
 		require.NoError(t, err)
 
 		// Verify JPG file was saved (jpeg extension is normalized to jpg)
@@ -1092,7 +1094,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 	t.Run("Returns error for non-200 status code", func(t *testing.T) {
 		mockResponses := map[string]*http.Response{
 			//nolint:bodyclose
-			"https://example.com/not-found.png": testutils.NewMockResponse(http.StatusNotFound, "Not Found"),
+			publicLogoHost + "/not-found.png": testutils.NewMockResponse(http.StatusNotFound, "Not Found"),
 		}
 		httpClient := &http.Client{
 			Transport: &testutils.MockRoundTripper{
@@ -1106,7 +1108,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			httpClient:  httpClient,
 		}
 
-		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "https://example.com/not-found.png", true)
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/not-found.png", true)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "failed to fetch logo")
 	})
@@ -1122,7 +1124,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		mockResponses := map[string]*http.Response{
 			//nolint:bodyclose
-			"https://example.com/large.png": largeResponse,
+			publicLogoHost + "/large.png": largeResponse,
 		}
 		httpClient := &http.Client{
 			Transport: &testutils.MockRoundTripper{
@@ -1136,7 +1138,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			httpClient:  httpClient,
 		}
 
-		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "https://example.com/large.png", true)
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/large.png", true)
 		require.Error(t, err)
 		require.ErrorIs(t, err, errLogoTooLarge)
 	})
@@ -1148,7 +1150,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		mockResponses := map[string]*http.Response{
 			//nolint:bodyclose
-			"https://example.com/file.txt": textResponse,
+			publicLogoHost + "/file.txt": textResponse,
 		}
 		httpClient := &http.Client{
 			Transport: &testutils.MockRoundTripper{
@@ -1162,7 +1164,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			httpClient:  httpClient,
 		}
 
-		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "https://example.com/file.txt", true)
+		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/file.txt", true)
 		require.Error(t, err)
 		var fileTypeErr *common.FileTypeNotSupportedError
 		require.ErrorAs(t, err, &fileTypeErr)
@@ -1175,7 +1177,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		mockResponses := map[string]*http.Response{
 			//nolint:bodyclose
-			"https://example.com/logo.png": pngResponse,
+			publicLogoHost + "/logo.png": pngResponse,
 		}
 		httpClient := &http.Client{
 			Transport: &testutils.MockRoundTripper{
@@ -1189,7 +1191,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 			httpClient:  httpClient,
 		}
 
-		err := s.downloadAndSaveLogoFromURL(t.Context(), "non-existent-client-id", "https://example.com/logo.png", true)
+		err := s.downloadAndSaveLogoFromURL(t.Context(), "non-existent-client-id", publicLogoHost+"/logo.png", true)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "failed to look up client")
 	})

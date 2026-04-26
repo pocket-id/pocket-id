@@ -40,7 +40,10 @@ func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	registerRoutes(r, db, svc)
+	err = registerRoutes(r, db, svc)
+	if err != nil {
+		return nil, err
+	}
 
 	serverConfig, err := initServer(r)
 	if err != nil {
@@ -69,15 +72,6 @@ func initEngine() (*gin.Engine, error) {
 	initLogger(r)
 	configureEngine(r)
 	registerGlobalMiddleware(r)
-
-	frontendRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(100*time.Millisecond), 300)
-	if err := frontend.RegisterFrontend(r, frontendRateLimitMiddleware); err != nil {
-		if errors.Is(err, frontend.ErrFrontendNotIncluded) {
-			slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
-			return r, nil
-		}
-		return nil, fmt.Errorf("failed to register frontend: %w", err)
-	}
 
 	return r, nil
 }
@@ -116,7 +110,16 @@ func registerGlobalMiddleware(r *gin.Engine) {
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 }
 
-func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) {
+func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
+
+	err := frontend.RegisterFrontend(r, svc.oidcService)
+	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
+		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
+	} else if err != nil {
+		return fmt.Errorf("failed to register frontend: %w", err)
+	}
+
+	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
@@ -142,6 +145,8 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) {
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)
+
+	return nil
 }
 
 func registerTestRoutes(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services) {

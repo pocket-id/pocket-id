@@ -31,7 +31,8 @@
 		codeChallenge,
 		codeChallengeMethod,
 		authorizeState,
-		prompt
+		prompt,
+		responseMode
 	} = data;
 
 	let isLoading = $state(false);
@@ -156,6 +157,7 @@
 				codeChallenge,
 				codeChallengeMethod,
 				reauthToken,
+				responseMode,
 				prompt
 			);
 
@@ -202,7 +204,46 @@
 
 		success = true;
 		setTimeout(() => {
-			window.location.href = redirectURL.toString();
+			if (responseMode === 'form_post') {
+				// Create a hidden form and submit it via POST
+				const form = document.createElement('form');
+				form.method = 'POST';
+				form.action = callbackURL;
+
+				// Add code parameter
+				const codeInput = document.createElement('input');
+				codeInput.type = 'hidden';
+				codeInput.name = 'code';
+				codeInput.value = code;
+				form.appendChild(codeInput);
+
+				// Add state parameter
+				if (authorizeState) {
+					const stateInput = document.createElement('input');
+					stateInput.type = 'hidden';
+					stateInput.name = 'state';
+					stateInput.value = authorizeState;
+					form.appendChild(stateInput);
+				}
+
+				// Add issuer parameter
+				const issInput = document.createElement('input');
+				issInput.type = 'hidden';
+				issInput.name = 'iss';
+				issInput.value = issuer;
+				form.appendChild(issInput);
+
+				document.body.appendChild(form);
+				form.submit();
+			} else {
+				// Default query parameter redirect (response_mode=query or not specified)
+				const redirectURL = new URL(callbackURL);
+				redirectURL.searchParams.append('code', code);
+				redirectURL.searchParams.append('state', authorizeState);
+				redirectURL.searchParams.append('iss', issuer);
+
+				window.location.href = redirectURL.toString();
+			}
 		}, 1000);
 	}
 </script>
