@@ -89,11 +89,6 @@
 		}
 	});
 
-	function selectCurrentAccount() {
-		accountSelectionRequired = false;
-		authorize();
-	}
-
 	async function useDifferentAccount() {
 		try {
 			await webauthnService.logout();
