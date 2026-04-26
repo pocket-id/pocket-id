@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Passkeys werden von diesem Browser nicht unterstützt. Bitte probier eine andere Anmeldemethode aus.",
 	"critical_error_occurred_contact_administrator": "Ein kritischer Fehler ist aufgetreten. Bitte kontaktiere deinen Administrator.",
 	"sign_in_to": "Bei {name} anmelden",
+	"account_selection_signin_confirmation": "Möchtest du mit dem folgenden Konto fortfahren <b>{name}</b>?",
+	"use_a_different_account": "Verwende ein anderes Konto",
 	"client_not_found": "Client nicht gefunden",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> möchte auf die folgenden Informationen zugreifen:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Möchtest du dich bei <b>{client}</b> mit deinem {appName} Konto anmelden?",
