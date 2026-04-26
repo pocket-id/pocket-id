@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Les clés d'accès ne sont pas prises en charge par ce navigateur. Essaie une autre méthode de connexion.",
 	"critical_error_occurred_contact_administrator": "Une erreur critique s'est produite. Veuillez contacter votre administrateur.",
 	"sign_in_to": "Connexion à {name}",
+	"account_selection_signin_confirmation": "Veux-tu utiliser le compte suivant pour continuer <b>{name}</b>?",
+	"use_a_different_account": "Utilise un autre compte",
 	"client_not_found": "Client introuvable",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> souhaite accéder aux informations suivantes :",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Voulez-vous vous connecter à <b>{client}</b> avec votre compte {appName}?",
