@@ -60,7 +60,7 @@ type EnvConfigSchema struct {
 	S3Region                        string `env:"S3_REGION"`
 	S3Endpoint                      string `env:"S3_ENDPOINT"`
 	S3AccessKeyID                   string `env:"S3_ACCESS_KEY_ID"`
-	S3SecretAccessKey               string `env:"S3_SECRET_ACCESS_KEY"`
+	S3SecretAccessKey               string `env:"S3_SECRET_ACCESS_KEY" options:"file"`
 	S3ForcePathStyle                bool   `env:"S3_FORCE_PATH_STYLE"`
 	S3DisableDefaultIntegrityChecks bool   `env:"S3_DISABLE_DEFAULT_INTEGRITY_CHECKS"`
 

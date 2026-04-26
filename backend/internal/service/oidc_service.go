@@ -754,6 +754,27 @@ func (s *OidcService) GetClient(ctx context.Context, clientID string) (model.Oid
 	return s.getClientInternal(ctx, clientID, s.db, false)
 }
 
+func (s *OidcService) ResolveAllowedCallbackURL(ctx context.Context, clientID, inputCallbackURL string) (string, error) {
+	client, err := s.GetClient(ctx, clientID)
+	if err != nil {
+		return "", err
+	}
+
+	if inputCallbackURL == "" || len(client.CallbackURLs) == 0 {
+		return "", &common.OidcMissingCallbackURLError{}
+	}
+
+	matched, err := utils.GetCallbackURLFromList(client.CallbackURLs, inputCallbackURL)
+	if err != nil {
+		return "", err
+	}
+	if matched == "" {
+		return "", &common.OidcInvalidCallbackURLError{}
+	}
+
+	return matched, nil
+}
+
 func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB, forUpdate bool) (model.OidcClient, error) {
 	var client model.OidcClient
 	q := tx.
@@ -1779,14 +1800,18 @@ func (s *OidcService) jwkSetForURL(ctx context.Context, url string) (set jwk.Set
 		// We set a timeout because otherwise Register will keep trying in case of errors
 		registerCtx, registerCancel := context.WithTimeout(ctx, 15*time.Second)
 		defer registerCancel()
-		// We need to register the URL
-		err = s.jwkCache.Register(
-			registerCtx,
-			url,
-			jwk.WithMaxInterval(24*time.Hour),
-			jwk.WithMinInterval(15*time.Minute),
+
+		registerOptions := []jwk.RegisterOption{
+			jwk.WithMaxInterval(24 * time.Hour),
+			jwk.WithMinInterval(15 * time.Minute),
 			jwk.WithWaitReady(true),
-		)
+		}
+		if s.httpClient != nil {
+			registerOptions = append(registerOptions, jwk.WithHTTPClient(s.httpClient))
+		}
+
+		// We need to register the URL
+		err = s.jwkCache.Register(registerCtx, url, registerOptions...)
 		// In case of race conditions (two goroutines calling jwkCache.Register at the same time), it's possible we can get a conflict anyways, so we ignore that error
 		if err != nil && !errors.Is(err, httprc.ErrResourceAlreadyExists()) {
 			return nil, fmt.Errorf("failed to register JWK set: %w", err)

@@ -1,3 +1,16 @@
+## v2.6.2
+
+### Bug Fixes
+
+- return correct byte count in HEAD request writer ([#1443](https://github.com/pocket-id/pocket-id/pull/1443) by @ahampal)
+- improve keyboard navigation and screen-reader labels ([#1445](https://github.com/pocket-id/pocket-id/pull/1445) by @bjoernch)
+
+### Other
+
+- upgrade to vite 8.0 and pnpm 10.33.0 ([#1446](https://github.com/pocket-id/pocket-id/pull/1446) by @kmendell)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.6.1...v2.6.2
+
 ## v2.6.1
 
 ### Bug Fixes

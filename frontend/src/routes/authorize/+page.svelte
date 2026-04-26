@@ -28,7 +28,8 @@
 		codeChallenge,
 		codeChallengeMethod,
 		authorizeState,
-		prompt
+		prompt,
+		responseMode
 	} = data;
 
 	let isLoading = $state(false);
@@ -118,6 +119,7 @@
 				codeChallenge,
 				codeChallengeMethod,
 				reauthToken,
+				responseMode,
 				prompt
 			);
 
@@ -164,7 +166,46 @@
 
 		success = true;
 		setTimeout(() => {
-			window.location.href = redirectURL.toString();
+			if (responseMode === 'form_post') {
+				// Create a hidden form and submit it via POST
+				const form = document.createElement('form');
+				form.method = 'POST';
+				form.action = callbackURL;
+
+				// Add code parameter
+				const codeInput = document.createElement('input');
+				codeInput.type = 'hidden';
+				codeInput.name = 'code';
+				codeInput.value = code;
+				form.appendChild(codeInput);
+
+				// Add state parameter
+				if (authorizeState) {
+					const stateInput = document.createElement('input');
+					stateInput.type = 'hidden';
+					stateInput.name = 'state';
+					stateInput.value = authorizeState;
+					form.appendChild(stateInput);
+				}
+
+				// Add issuer parameter
+				const issInput = document.createElement('input');
+				issInput.type = 'hidden';
+				issInput.name = 'iss';
+				issInput.value = issuer;
+				form.appendChild(issInput);
+
+				document.body.appendChild(form);
+				form.submit();
+			} else {
+				// Default query parameter redirect (response_mode=query or not specified)
+				const redirectURL = new URL(callbackURL);
+				redirectURL.searchParams.append('code', code);
+				redirectURL.searchParams.append('state', authorizeState);
+				redirectURL.searchParams.append('iss', issuer);
+
+				window.location.href = redirectURL.toString();
+			}
 		}, 1000);
 	}
 </script>
@@ -196,7 +237,7 @@
 				/>
 			</p>
 		{:else if authorizationRequired}
-			<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
+			<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
 				<Card.Root class="mt-6 mb-10">
 					<Card.Header>
 						<p class="text-muted-foreground text-start">
@@ -212,7 +253,7 @@
 			</div>
 		{/if}
 		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
-		<div class="flex w-full max-w-[450px] flex-row-reverse gap-2">
+		<div class="flex w-full max-w-md flex-row-reverse gap-2">
 			{#if !errorMessage}
 				<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
 					{m.sign_in()}

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Check if the script is being run from the root of the project
 if [ ! -f .version ] || [ ! -f frontend/package.json ] || [ ! -f CHANGELOG.md ]; then
     echo "Error: This script must be run from the root of the project."
@@ -13,6 +15,12 @@ fi
 # Check if GitHub CLI is installed
 if ! command -v gh &>/dev/null; then
     echo "Error: GitHub CLI (gh) is not installed. Please install it and authenticate using 'gh auth login'."
+    exit 1
+fi
+
+# Check if Snyk CLI is installed
+if ! command -v snyk &>/dev/null; then
+    echo "Error: Snyk CLI is not installed. Please install it and authenticate using 'snyk auth'."
     exit 1
 fi
 
@@ -74,6 +82,12 @@ else
         echo "No 'fix' or 'feat' commits found since the latest release. No new release will be created."
         exit 0
     fi
+fi
+
+echo "Running Snyk dependency scan..."
+if ! snyk test --all-projects --dev --detection-depth=3 --strict-out-of-sync=false --severity-threshold=high; then
+    echo "Error: Snyk detected high-severity vulnerable dependencies. Release creation aborted."
+    exit 1
 fi
 
 # Increment the version based on the release type
