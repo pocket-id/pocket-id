@@ -7,6 +7,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
-func RegisterFrontend(router *gin.Engine, rateLimitMiddleware gin.HandlerFunc, oidcService *service.OidcService) error {
+func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) error {
 	return ErrFrontendNotIncluded
 }

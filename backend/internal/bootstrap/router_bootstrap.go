@@ -111,8 +111,8 @@ func registerGlobalMiddleware(r *gin.Engine) {
 }
 
 func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
-	frontendRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(100*time.Millisecond), 300)
-	err := frontend.RegisterFrontend(r, frontendRateLimitMiddleware, svc.oidcService)
+
+	err := frontend.RegisterFrontend(r, svc.oidcService)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
 		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
