@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import ScopeList from '$lib/components/scope-list.svelte';
@@ -17,7 +18,6 @@
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import ClientProviderImages from './components/client-provider-images.svelte';
-	import { invalidateAll } from '$app/navigation';
 
 	const webauthnService = new WebAuthnService();
 	const oidService = new OidcService();
@@ -51,10 +51,7 @@
 			return $userStore.displayName;
 		}
 
-		return [
-			$userStore.firstName,
-			$userStore.lastName
-		].filter(Boolean).join(' ').trim();
+		return [$userStore.firstName, $userStore.lastName].filter(Boolean).join(' ').trim();
 	});
 	const primaryName = $derived(fullName || $userStore?.email || '');
 
@@ -220,11 +217,7 @@
 	<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
 		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
-			{#if accountSelectionRequired}
-				{m.choose_an_account_to_continue_to({ name: client.name })}
-			{:else}
-				{m.sign_in_to({ name: client.name })}
-			{/if}
+			{m.sign_in_to({ name: client.name })}
 		</h1>
 		{#if errorMessage}
 			<p class="text-muted-foreground mt-2 mb-10">
@@ -232,9 +225,12 @@
 			</p>
 		{/if}
 		{#if accountSelectionRequired && $userStore && !errorMessage}
-			<div transition:slide={{ duration: 300 }}>
-				<Card.Root class="mt-6 mb-4 px-2 py-4" data-testid="account-selection">
-					<Card.Content class="flex items-center justify-center gap-4">
+			<div transition:slide={{ duration: 300 }} class="flex flex-col items-center">
+				<p class="text-muted-foreground mt-2 mb-8">
+					<FormattedMessage m={m.account_selection_signin_confirmation({ name: client.name })} />
+				</p>
+				<Card.Root class="mb-2 py-4 w-sm" data-testid="account-selection">
+					<Card.Content class="flex items-center gap-4">
 						<Avatar.Root class="size-11 shrink-0">
 							<Avatar.Image src={cachedProfilePicture.getUrl($userStore.id)} />
 						</Avatar.Root>
@@ -288,15 +284,9 @@
 		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
 		<div class="flex w-full max-w-md flex-row-reverse gap-2">
 			{#if !errorMessage}
-				{#if accountSelectionRequired && $userStore}
-					<Button class="flex-1" onclick={selectCurrentAccount} autofocus={true}>
-						{m.continue_as({ name: $userStore.displayName })}
-					</Button>
-				{:else}
-					<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
-						{m.sign_in()}
-					</Button>
-				{/if}
+				<Button class="flex-1" {isLoading} onclick={authorize} autofocus={true}>
+					{m.sign_in()}
+				</Button>
 			{:else}
 				<Button class="flex-1" onclick={() => (errorMessage = null)}>
 					{m.try_again()}
