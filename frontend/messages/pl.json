@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Ta przeglądarka nie obsługuje kluczy dostępu. Proszę skorzystać z alternatywnej metody logowania.",
 	"critical_error_occurred_contact_administrator": "Wystąpił krytyczny błąd. Skontaktuj się z administratorem.",
 	"sign_in_to": "Zaloguj się do {name}",
+	"account_selection_signin_confirmation": "Czy chcesz użyć poniższego konta, aby kontynuować <b>{name}</b>?",
+	"use_a_different_account": "Zaloguj się na inne konto",
 	"client_not_found": "Nie znaleziono klienta",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> chce uzyskać dostęp do następujących informacji:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Czy chcesz zalogować się do <b>{client}</b> używając konta {appName}?",

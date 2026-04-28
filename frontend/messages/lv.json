@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Šis pārlūks neatbalsta piekļuves atslēgas. Lūdzu, izmantojiet alternatīvu pierakstīšanās metodi.",
 	"critical_error_occurred_contact_administrator": "Radās kritiska kļūda. Lūdzu, sazinieties ar administratoru.",
 	"sign_in_to": "Pierakstīties {name}",
+	"account_selection_signin_confirmation": "Vai vēlaties izmantot šo kontu, lai turpinātu <b>{name}</b>?",
+	"use_a_different_account": "Izmanto citu kontu",
 	"client_not_found": "Klients nav atrasts",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> vēlas piekļūt šādai informācijai:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Vai vēlaties pierakstīties <b>{client}</b> ar savu {appName} kontu?",
