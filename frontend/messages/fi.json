@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Tämä selain ei tue salasanan sijaan käytettäviä tunnuksia. Käytä vaihtoehtoista kirjautumistapaa.",
 	"critical_error_occurred_contact_administrator": "Kriittinen virhe tapahtui. Ota yhteyttä järjestelmänvalvojaan.",
 	"sign_in_to": "Kirjaudu palveluun {name}",
+	"account_selection_signin_confirmation": "Haluatko jatkaa seuraavalla tilillä <b>{name}</b>?",
+	"use_a_different_account": "Käytä toista tiliä",
 	"client_not_found": "Asiakasta ei löydy",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> haluaa käyttää seuraavia tietoja:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Haluatko kirjautua sisään palveluun <b>{client}</b> {appName} -tililläsi?",

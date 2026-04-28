@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Passkeys worden niet ondersteund door deze browser. Probeer een andere manier om in te loggen.",
 	"critical_error_occurred_contact_administrator": "Er is een kritieke fout opgetreden. Neem contact op met de beheerder.",
 	"sign_in_to": "Meld je aan bij {name}",
+	"account_selection_signin_confirmation": "Wil je met het volgende account verdergaan <b>{name}</b>?",
+	"use_a_different_account": "Gebruik een ander account",
 	"client_not_found": "Client niet gevonden",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> wil toegang tot de volgende informatie:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Wil je je aanmelden bij <b>{client}</b> met je {appName} account?",

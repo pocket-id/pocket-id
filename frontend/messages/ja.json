@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "このブラウザではパスキーはサポートされていません。別のサインイン方法をご利用ください。",
 	"critical_error_occurred_contact_administrator": "重大なエラーが発生しました。管理者にお問い合わせください。",
 	"sign_in_to": "{name} にサインイン",
+	"account_selection_signin_confirmation": "以下のアカウントを使用して続行しますか <b>{name}</b>？",
+	"use_a_different_account": "別のアカウントを使用する",
 	"client_not_found": "クライアントが見つかりません",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> は以下の情報にアクセスしようとしています:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "{appName} アカウントで <b>{client}</b> にサインインしますか？",

@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Passkeys stöds inte av denna webbläsare. Använd en alternativ inloggningsmetod.",
 	"critical_error_occurred_contact_administrator": "Ett kritiskt fel har inträffat. Kontakta din administratör.",
 	"sign_in_to": "Logga in på {name}",
+	"account_selection_signin_confirmation": "Vill du använda följande konto för att fortsätta till <b>{name}</b>?",
+	"use_a_different_account": "Använd ett annat konto",
 	"client_not_found": "Klienten hittades inte",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> vill få åtkomst till följande information:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Vill du logga in på <b>{client}</b> med ditt {appName} -konto?",

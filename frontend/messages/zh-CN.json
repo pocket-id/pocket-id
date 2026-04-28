@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "此浏览器不支持密钥登录。请使用其他登录方式。",
 	"critical_error_occurred_contact_administrator": "发生严重错误。请联系您的管理员。",
 	"sign_in_to": "登录到 {name}",
+	"account_selection_signin_confirmation": "您是否要使用以下账户继续 <b>{name}</b>？",
+	"use_a_different_account": "请使用另一个账户",
 	"client_not_found": "客户端未找到",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> 希望访问以下信息：",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "您是否希望使用您的 {appName} 账户登录到 <b>{client}</b>？",
