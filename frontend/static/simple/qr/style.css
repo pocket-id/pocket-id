@@ -72,15 +72,12 @@ body {
     margin-top: 12px;
 }
 
-/* Programmatic focus on state container (tabindex="-1") shouldn't show a ring,
-   but keyboard focus must still be visible. */
-.state:focus {
-    outline: none;
-}
-
+/* The state container is focused programmatically only for screen-reader announcements
+   (it's not a real keyboard target — tabindex="-1"). Always suppress the focus ring;
+   real interactive elements (button, link) have their own visible focus styles. */
+.state:focus,
 .state:focus-visible {
-    outline: 2px solid #93c5fd;
-    outline-offset: 4px;
+    outline: none;
 }
 
 /* --- Typography --- */
@@ -153,7 +150,7 @@ h1 {
 .code-box {
     width: 36px;
     height: 42px;
-    border: 1px solid rgba(255, 255, 255, 0.30);
+    border: 1px solid rgba(255, 255, 255, 0.50);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
     display: -webkit-box;
@@ -197,6 +194,7 @@ h1 {
     -webkit-justify-content: center;
     justify-content: center;
     margin-bottom: 4px;
+    color: #ffffff;
 }
 
 .status-success {
@@ -233,14 +231,15 @@ button:hover {
     opacity: 0.9;
 }
 
-/* Two separate selectors so a browser that can't parse :focus-visible still keeps :focus. */
+/* Two separate selectors so a browser that can't parse :focus-visible still keeps :focus.
+   Dark blue chosen for ≥3:1 contrast against the light button background (WCAG 1.4.11). */
 button:focus {
-    outline: 2px solid #93c5fd;
+    outline: 2px solid #1e40af;
     outline-offset: 3px;
 }
 
 button:focus-visible {
-    outline: 2px solid #93c5fd;
+    outline: 2px solid #1e40af;
     outline-offset: 3px;
 }
 
@@ -282,6 +281,7 @@ button:active {
     .status-warning,
     .status-error {
         background: Highlight;
+        color: HighlightText;
     }
 
     .code-box {

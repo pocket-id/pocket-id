@@ -70,3 +70,17 @@ export function getAlternativeLoginPath(queryString: string): string {
 	const base = supportsOklch() ? '/login/alternative' : '/simple/qr/';
 	return base + queryString;
 }
+
+// Navigates to the alternative-login page, picking goto() vs full reload depending on the target.
+// /simple/* lives outside the SvelteKit SPA, so it must be a hard navigation.
+export function navigateToAlternativeLogin(
+	queryString: string,
+	goto: (path: string) => Promise<void> | void
+): void {
+	const target = getAlternativeLoginPath(queryString);
+	if (target.startsWith('/simple/')) {
+		window.location.href = target;
+	} else {
+		goto(target);
+	}
+}

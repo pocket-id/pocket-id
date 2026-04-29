@@ -7,6 +7,7 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
+	import { isSafeRedirect } from '$lib/utils/redirection-util';
 	import { LucideChevronRight, LucideMail, LucideRectangleEllipsis } from '@lucide/svelte';
 
 	const methods = [
@@ -29,7 +30,7 @@
 
 	function onAuthorized() {
 		const redirect = page.url.searchParams.get('redirect');
-		if (redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/\\')) {
+		if (redirect && isSafeRedirect(redirect)) {
 			goto(redirect);
 		} else {
 			goto('/');

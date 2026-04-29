@@ -125,8 +125,17 @@ func (s *OidcService) ensureSelfLoginClient() error {
 		return err
 	}
 
+	// Self-heal critical fields if an admin (or a buggy migration) altered them. Without this,
+	// a flipped IsPublic would silently break the QR login flow.
+	updates := map[string]any{}
 	if existing.Name != selfLoginClientName {
-		return s.db.Model(&existing).Update("name", selfLoginClientName).Error
+		updates["name"] = selfLoginClientName
+	}
+	if !existing.IsPublic {
+		updates["is_public"] = true
+	}
+	if len(updates) > 0 {
+		return s.db.Model(&existing).Updates(updates).Error
 	}
 	return nil
 }
@@ -1434,7 +1443,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		VerificationURI:         common.EnvConfig.AppURL + "/device",
 		VerificationURIComplete: common.EnvConfig.AppURL + "/device?code=" + url.QueryEscape(userCode),
 		ExpiresIn:               int(DeviceCodeDuration.Seconds()),
-		Interval:                deviceCodeDefaultIntervalSeconds,
+		Interval:                deviceAuth.IntervalSeconds,
 	}, nil
 }
 
@@ -1600,8 +1609,14 @@ func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceC
 	// whose backing row has been removed (and to keep the post-commit return value intact).
 	authMethod := deviceAuth.AuthenticationMethod
 
-	if err = tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
-		return nil, "", err
+	delResult := tx.WithContext(ctx).Delete(&deviceAuth)
+	if delResult.Error != nil {
+		return nil, "", delResult.Error
+	}
+	// Defense-in-depth: another in-flight exchange call may have already consumed the code under
+	// the FOR UPDATE lock above. RowsAffected==0 means we lost the race; reject as invalid.
+	if delResult.RowsAffected == 0 {
+		return nil, "", &common.OidcInvalidDeviceCodeError{}
 	}
 
 	s.auditLogService.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, user.ID, model.AuditLogData{"method": "device_code"}, tx)

@@ -12,7 +12,7 @@
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { goto } from '$app/navigation';
-	import { needsAlternativeLogin, getAlternativeLoginPath } from '$lib/utils/device-detect-util';
+	import { needsAlternativeLogin, navigateToAlternativeLogin } from '$lib/utils/device-detect-util';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -69,13 +69,7 @@
 			const currentUrl = window.location.pathname + window.location.search;
 			const separator = currentUrl.includes('?') ? '&' : '?';
 			const returnUrl = currentUrl + separator + 'loop=1';
-			const query = `?redirect=${encodeURIComponent(returnUrl)}`;
-			const target = getAlternativeLoginPath(query);
-			if (target.startsWith('/simple/')) {
-				window.location.href = target;
-			} else {
-				goto(target);
-			}
+			navigateToAlternativeLogin(`?redirect=${encodeURIComponent(returnUrl)}`, goto);
 			return;
 		}
 
@@ -121,7 +115,7 @@
 
 			let reauthToken: string | undefined;
 			if (client?.requiresReauthentication || hasPromptLogin) {
-				let authResponse;
+				let reauthResponse: AuthenticationResponseJSON | undefined;
 				const params = new URLSearchParams(window.location.search);
 				const justReauthedViaAlt = params.get('reauth') === '1';
 				const signedInRecently =
@@ -135,19 +129,13 @@
 						const currentUrl = window.location.pathname + window.location.search;
 						const separator = currentUrl.includes('?') ? '&' : '?';
 						const returnUrl = currentUrl + separator + 'reauth=1';
-						const query = `?redirect=${encodeURIComponent(returnUrl)}`;
-						const target = getAlternativeLoginPath(query);
-						if (target.startsWith('/simple/')) {
-							window.location.href = target;
-						} else {
-							goto(target);
-						}
+						navigateToAlternativeLogin(`?redirect=${encodeURIComponent(returnUrl)}`, goto);
 						return;
 					}
 					const loginOptions = await webauthnService.getLoginOptions();
-					authResponse = await startAuthentication({ optionsJSON: loginOptions });
+					reauthResponse = await startAuthentication({ optionsJSON: loginOptions });
 				}
-				reauthToken = await webauthnService.reauthenticate(authResponse);
+				reauthToken = await webauthnService.reauthenticate(reauthResponse);
 			}
 
 			const result = await oidService.authorize(

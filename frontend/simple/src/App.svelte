@@ -126,6 +126,7 @@
 			if (settled) return;
 			if (retries > 0) {
 				settled = true;
+				if (activeXhr === xhr) activeXhr = null;
 				setTimeout(() => request(method, url, data, callback, retries - 1), REQUEST_RETRY_DELAY_MS);
 			} else {
 				settle(0, null);
@@ -134,9 +135,19 @@
 
 		xhr.ontimeout = onError;
 		xhr.onerror = onError;
-		xhr.onabort = () => { settled = true; };
+		xhr.onabort = () => {
+			settled = true;
+			if (activeXhr === xhr) activeXhr = null;
+		};
 		xhr.onreadystatechange = () => {
-			if (xhr.readyState !== 4 || xhr.status === 0) return;
+			if (xhr.readyState !== 4) return;
+			// Some Smart-TV browsers (WebOS/Tizen) deliver readyState=4 with status=0 on network
+			// failure WITHOUT firing onerror/ontimeout. Treat that path as a network error so the
+			// caller can apply backoff instead of hanging forever.
+			if (xhr.status === 0) {
+				onError();
+				return;
+			}
 			let response = null;
 			try { response = JSON.parse(xhr.responseText); } catch { /* ignore */ }
 			settle(xhr.status, response);
@@ -162,8 +173,10 @@
 				return;
 			}
 
+			// Any response with a parsed body counts as "server reachable" → reset network counter.
+			if (data) networkErrorCount = 0;
+
 			if (data?.error) {
-				networkErrorCount = 0;
 				if (data.error === 'authorization_pending') {
 					pollTimer = setTimeout(() => poll(myFlowId), pollingInterval * 1000);
 					return;
@@ -205,6 +218,9 @@
 					view = 'error';
 					return;
 				}
+				// Local exponential backoff for transient network failures. This is independent of
+				// RFC 8628's slow_down/interval mechanism, which only applies to successful HTTP
+				// responses with an error code. We never persist this backoff into pollingInterval.
 				const backoff = Math.min(
 					POLL_INTERVAL_MAX_S,
 					pollingInterval * Math.pow(2, networkErrorCount - 1)
@@ -279,11 +295,11 @@
 		});
 	}
 
-	const half = $derived(Math.floor(userCodeChars.length / 2));
+	const codeSplitIndex = $derived(Math.floor(userCodeChars.length / 2));
 	// aria-label mirrors the visible code (with dash separator) so WCAG 2.5.3 (Label in Name) holds.
 	const userCodeAriaLabel = $derived(
 		userCodeChars.length
-			? userCodeChars.slice(0, half).join('') + '-' + userCodeChars.slice(half).join('')
+			? userCodeChars.slice(0, codeSplitIndex).join('') + '-' + userCodeChars.slice(codeSplitIndex).join('')
 			: ''
 	);
 
@@ -298,7 +314,7 @@
 
 <main class="card">
 	{#if view === 'loading'}
-		<div class="state" tabindex="-1" role="status" aria-label="Loading" bind:this={stateEl}>
+		<div class="state" tabindex="-1" role="status" bind:this={stateEl}>
 			<div class="spinner" aria-hidden="true"></div>
 			<p class="muted">Preparing sign-in...</p>
 		</div>
@@ -318,9 +334,9 @@
 
 			<div class="code-section">
 				<p class="code-label">Your sign-in code</p>
-				<div class="code-boxes" aria-label={userCodeAriaLabel}>
+				<div class="code-boxes" role="group" aria-label={userCodeAriaLabel}>
 					{#each userCodeChars as char, i}
-						{#if i === half && userCodeChars.length > 1}
+						{#if i === codeSplitIndex && userCodeChars.length > 1}
 							<span class="code-separator" aria-hidden="true">&ndash;</span>
 						{/if}
 						<span class="code-box" aria-hidden="true">{char}</span>
@@ -334,7 +350,7 @@
 	{:else if view === 'authorized'}
 		<div class="state" tabindex="-1" aria-live="assertive" aria-atomic="true" bind:this={stateEl}>
 			<div class="status-icon status-success">
-				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 					<polyline points="20 6 9 17 4 12"></polyline>
 				</svg>
 			</div>
@@ -345,7 +361,7 @@
 	{:else if view === 'expired'}
 		<div class="state" tabindex="-1" aria-live="polite" aria-atomic="true" bind:this={stateEl}>
 			<div class="status-icon status-warning">
-				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 					<circle cx="12" cy="12" r="10"></circle>
 					<polyline points="12 6 12 12 16 14"></polyline>
 				</svg>
@@ -358,7 +374,7 @@
 	{:else if view === 'error'}
 		<div class="state" tabindex="-1" aria-live="assertive" aria-atomic="true" bind:this={stateEl}>
 			<div class="status-icon status-error">
-				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 					<circle cx="12" cy="12" r="10"></circle>
 					<line x1="15" y1="9" x2="9" y2="15"></line>
 					<line x1="9" y1="9" x2="15" y2="15"></line>

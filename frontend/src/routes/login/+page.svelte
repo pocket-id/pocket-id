@@ -7,8 +7,9 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 
-	import { needsAlternativeLogin, getAlternativeLoginPath } from '$lib/utils/device-detect-util';
+	import { needsAlternativeLogin, navigateToAlternativeLogin } from '$lib/utils/device-detect-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
+	import { isSafeRedirect } from '$lib/utils/redirection-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -36,23 +37,13 @@
 		if (method === 'qr' && $appConfigStore.qrLoginEnabled) {
 			params.delete('method');
 			const remaining = params.toString();
-			const target = getAlternativeLoginPath(remaining ? `?${remaining}` : '');
-			if (target.startsWith('/simple/')) {
-				window.location.href = target;
-			} else {
-				goto(target);
-			}
+			navigateToAlternativeLogin(remaining ? `?${remaining}` : '', goto);
 			return;
 		}
 
 		if ($appConfigStore.qrLoginEnabled && method !== 'passkey' && needsAlternativeLogin()) {
 			const remaining = params.toString();
-			const target = getAlternativeLoginPath(remaining ? `?${remaining}` : '');
-			if (target.startsWith('/simple/')) {
-				window.location.href = target;
-			} else {
-				goto(target);
-			}
+			navigateToAlternativeLogin(remaining ? `?${remaining}` : '', goto);
 			return;
 		}
 	});
@@ -67,7 +58,7 @@
 
 			await userStore.setUser(user);
 			const target = data.redirect;
-			if (target && target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/\\')) {
+			if (isSafeRedirect(target)) {
 				goto(target);
 			} else {
 				goto('/settings');

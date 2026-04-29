@@ -12,17 +12,21 @@
 
 	const oidcService = new OidcService();
 
+	const POLL_INTERVAL_INIT_S = 5;
+	const POLL_INTERVAL_MAX_S = 60;
+	const POLL_INTERVAL_INCREMENT_S = 5;
+
 	type FlowState = 'loading' | 'showing' | 'authorized' | 'expired' | 'error';
 
 	let state: FlowState = $state('loading');
 	let userCode: string = $state('');
 	let verificationUriComplete: string = $state('');
 	let deviceCode: string = $state('');
-	let pollingInterval: number = $state(5);
+	let pollingInterval: number = $state(POLL_INTERVAL_INIT_S);
 	let remainingSeconds: number = $state(0);
 	let expiresAt: number = $state(0);
 	let errorMessage: string = $state('');
-	let abortController: AbortController | null = $state(null);
+	let abortController: AbortController | null = null;
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
 	let formattedTime = $derived(
@@ -34,12 +38,9 @@
 		return () => cleanup();
 	});
 
-	const POLL_INTERVAL_INIT_S = 5;
-	const POLL_INTERVAL_MAX_S = 60;
-	const POLL_INTERVAL_INCREMENT_S = 5;
-
 	function cleanup() {
 		abortController?.abort();
+		abortController = null;
 		if (countdownInterval) {
 			clearInterval(countdownInterval);
 			countdownInterval = null;
@@ -50,9 +51,18 @@
 		// Math.ceil so the initial display shows the full duration (e.g. 5:00 not 4:59).
 		const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
 		remainingSeconds = remaining;
-		if (remaining <= 0 && state === 'showing') {
-			state = 'expired';
-			cleanup();
+		if (remaining <= 0) {
+			// Stop the interval unconditionally, regardless of current state. Otherwise it keeps
+			// firing forever after state becomes 'authorized' (countdown leak).
+			if (countdownInterval) {
+				clearInterval(countdownInterval);
+				countdownInterval = null;
+			}
+			if (state === 'showing') {
+				state = 'expired';
+				abortController?.abort();
+				abortController = null;
+			}
 		}
 	}
 
@@ -83,25 +93,30 @@
 			pollAndExchange(abortController.signal);
 		} catch (e: any) {
 			cleanup();
-			errorMessage = e?.message || 'Failed to create device code';
+			errorMessage = e?.message || m.qr_login_failed_to_create_code();
 			state = 'error';
 		}
+	}
+
+	function waitWithAbort(ms: number, signal: AbortSignal): Promise<void> {
+		return new Promise<void>((resolve, reject) => {
+			let timer: ReturnType<typeof setTimeout> | null = null;
+			const onAbort = () => {
+				if (timer) clearTimeout(timer);
+				reject(new Error('Polling aborted'));
+			};
+			timer = setTimeout(() => {
+				signal.removeEventListener('abort', onAbort);
+				resolve();
+			}, ms);
+			signal.addEventListener('abort', onAbort, { once: true });
+		});
 	}
 
 	async function pollAndExchange(signal: AbortSignal) {
 		while (true) {
 			if (signal.aborted) return;
-			await new Promise<void>((resolve, reject) => {
-				const timer = setTimeout(resolve, pollingInterval * 1000);
-				signal.addEventListener(
-					'abort',
-					() => {
-						clearTimeout(timer);
-						reject(new Error('Polling aborted'));
-					},
-					{ once: true }
-				);
-			}).catch(() => {});
+			await waitWithAbort(pollingInterval * 1000, signal).catch(() => {});
 			if (signal.aborted) return;
 
 			try {
@@ -132,18 +147,18 @@
 				}
 				if (errorCode === 'access_denied') {
 					cleanup();
-					errorMessage = 'Login was denied on the other device.';
+					errorMessage = m.qr_login_access_denied();
 					state = 'error';
 					return;
 				}
 				if (errorCode === 'invalid_grant') {
 					cleanup();
-					errorMessage = 'Invalid or unknown device code. Please try again.';
+					errorMessage = m.qr_login_invalid_grant();
 					state = 'error';
 					return;
 				}
 				cleanup();
-				errorMessage = e?.message || 'An error occurred';
+				errorMessage = e?.message || m.qr_login_unexpected_error();
 				state = 'error';
 				return;
 			}
