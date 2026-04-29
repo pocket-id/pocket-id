@@ -347,7 +347,7 @@ func (s *OidcService) checkDeviceCodePollRate(ctx context.Context, tx *gorm.DB, 
 				return err
 			}
 
-			err := tx.Commit().Error
+			err = tx.Commit().Error
 			if err != nil {
 				return err
 			}
@@ -403,7 +403,7 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, &common.OidcDeviceCodeExpiredError{}
 	}
 
-	err := s.checkDeviceCodePollRate(ctx, tx, &deviceAuth)
+	err = s.checkDeviceCodePollRate(ctx, tx, &deviceAuth)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
