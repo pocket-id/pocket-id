@@ -34,6 +34,10 @@
 		return () => cleanup();
 	});
 
+	const POLL_INTERVAL_INIT_S = 5;
+	const POLL_INTERVAL_MAX_S = 60;
+	const POLL_INTERVAL_INCREMENT_S = 5;
+
 	function cleanup() {
 		abortController?.abort();
 		if (countdownInterval) {
@@ -43,7 +47,8 @@
 	}
 
 	function syncRemainingSeconds() {
-		const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+		// Math.ceil so the initial display shows the full duration (e.g. 5:00 not 4:59).
+		const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
 		remainingSeconds = remaining;
 		if (remaining <= 0 && state === 'showing') {
 			state = 'expired';
@@ -54,13 +59,19 @@
 	async function startFlow() {
 		cleanup();
 		state = 'loading';
+		errorMessage = '';
+		userCode = '';
+		verificationUriComplete = '';
+		deviceCode = '';
+		pollingInterval = POLL_INTERVAL_INIT_S;
+		remainingSeconds = 0;
 
 		try {
 			const data = await oidcService.createSelfLoginDeviceCode();
 			deviceCode = data.device_code;
 			userCode = data.user_code;
 			verificationUriComplete = data.verification_uri_complete;
-			pollingInterval = data.interval || 5;
+			pollingInterval = data.interval || POLL_INTERVAL_INIT_S;
 			expiresAt = Date.now() + data.expires_in * 1000;
 
 			syncRemainingSeconds();
@@ -71,6 +82,7 @@
 			abortController = new AbortController();
 			pollAndExchange(abortController.signal);
 		} catch (e: any) {
+			cleanup();
 			errorMessage = e?.message || 'Failed to create device code';
 			state = 'error';
 		}
@@ -94,6 +106,8 @@
 
 			try {
 				await oidcService.exchangeDeviceTokenForSession(deviceCode);
+				if (signal.aborted) return;
+				cleanup();
 				state = 'authorized';
 				onauthorized();
 				return;
@@ -102,14 +116,33 @@
 				const errorCode = e.response?.data?.error;
 				if (errorCode === 'authorization_pending') continue;
 				if (errorCode === 'slow_down') {
-					pollingInterval = e.response?.data?.interval || Math.min(pollingInterval + 5, 60);
+					// RFC 8628 §3.5: interval MUST be increased by at least 5s; never decrease.
+					const serverInterval =
+						typeof e.response?.data?.interval === 'number' ? e.response.data.interval : 0;
+					pollingInterval = Math.min(
+						POLL_INTERVAL_MAX_S,
+						Math.max(pollingInterval + POLL_INTERVAL_INCREMENT_S, serverInterval)
+					);
 					continue;
 				}
 				if (errorCode === 'expired_token') {
-					state = 'expired';
 					cleanup();
+					state = 'expired';
 					return;
 				}
+				if (errorCode === 'access_denied') {
+					cleanup();
+					errorMessage = 'Login was denied on the other device.';
+					state = 'error';
+					return;
+				}
+				if (errorCode === 'invalid_grant') {
+					cleanup();
+					errorMessage = 'Invalid or unknown device code. Please try again.';
+					state = 'error';
+					return;
+				}
+				cleanup();
 				errorMessage = e?.message || 'An error occurred';
 				state = 'error';
 				return;

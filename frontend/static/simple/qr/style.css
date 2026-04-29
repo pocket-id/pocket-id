@@ -1,6 +1,8 @@
-/* Simple QR Login – dark mode fallback for devices without oklch support */
+/* Simple QR Login – standalone page for browsers without oklch support */
 
-* {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     -webkit-box-sizing: border-box;
@@ -34,13 +36,21 @@ body {
     width: 100%;
 }
 
+/* Card needs to stay readable when a custom background image is set,
+   so we keep a high-opacity dark base and only layer blur on top where supported. */
 .card {
-    background: rgba(23, 23, 23, 0.85);
+    background: #171717;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 16px;
     padding: 40px 32px;
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
+}
+
+@supports ((-webkit-backdrop-filter: blur(12px)) or (backdrop-filter: blur(12px))) {
+    .card {
+        background: rgba(23, 23, 23, 0.85);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+    }
 }
 
 /* --- States --- */
@@ -62,12 +72,15 @@ body {
     margin-top: 12px;
 }
 
-.hidden {
-    display: none !important;
-}
-
+/* Programmatic focus on state container (tabindex="-1") shouldn't show a ring,
+   but keyboard focus must still be visible. */
 .state:focus {
     outline: none;
+}
+
+.state:focus-visible {
+    outline: 2px solid #93c5fd;
+    outline-offset: 4px;
 }
 
 /* --- Typography --- */
@@ -81,11 +94,11 @@ h1 {
 
 .subtitle {
     font-size: 15px;
-    color: #a3a3a3;
+    color: #d4d4d4;
 }
 
 .muted {
-    color: #a3a3a3;
+    color: #d4d4d4;
     font-size: 14px;
     line-height: 1.6;
 }
@@ -117,9 +130,9 @@ h1 {
 }
 
 .code-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    color: #a3a3a3;
+    color: #d4d4d4;
     text-transform: uppercase;
     letter-spacing: 1.5px;
     margin-bottom: 10px;
@@ -140,7 +153,7 @@ h1 {
 .code-box {
     width: 36px;
     height: 42px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.30);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
     display: -webkit-box;
@@ -154,7 +167,7 @@ h1 {
     justify-content: center;
     font-size: 16px;
     font-weight: 600;
-    color: #e5e5e5;
+    color: #fafafa;
     text-transform: uppercase;
     margin: 0 3px;
     letter-spacing: 0;
@@ -163,11 +176,12 @@ h1 {
 .code-separator {
     font-size: 20px;
     font-weight: 300;
-    color: #737373;
+    color: #d4d4d4;
     margin: 0 6px;
 }
 
 /* --- Status Icons --- */
+/* Background colors darkened to satisfy WCAG 1.4.11 (3:1 ratio with white SVG strokes). */
 
 .status-icon {
     width: 56px;
@@ -186,15 +200,15 @@ h1 {
 }
 
 .status-success {
-    background: #22c55e;
+    background: #15803d;
 }
 
 .status-warning {
-    background: #f59e0b;
+    background: #b45309;
 }
 
 .status-error {
-    background: #ef4444;
+    background: #b91c1c;
 }
 
 /* --- Buttons --- */
@@ -219,8 +233,14 @@ button:hover {
     opacity: 0.9;
 }
 
+/* Two separate selectors so a browser that can't parse :focus-visible still keeps :focus. */
 button:focus {
-    outline: 2px solid #e5e5e5;
+    outline: 2px solid #93c5fd;
+    outline-offset: 3px;
+}
+
+button:focus-visible {
+    outline: 2px solid #93c5fd;
     outline-offset: 3px;
 }
 
@@ -242,8 +262,34 @@ button:active {
 
 @media (prefers-reduced-motion: reduce) {
     .spinner {
-        -webkit-animation: spin 3s linear infinite;
-        animation: spin 3s linear infinite;
+        -webkit-animation: none;
+        animation: none;
+    }
+
+    button {
+        -webkit-transition: none;
+        transition: none;
+    }
+}
+
+/* High-contrast / forced-colors mode (Windows High Contrast, etc.) */
+@media (forced-colors: active) {
+    .card {
+        border: 1px solid CanvasText;
+    }
+
+    .status-success,
+    .status-warning,
+    .status-error {
+        background: Highlight;
+    }
+
+    .code-box {
+        border: 1px solid CanvasText;
+    }
+
+    button {
+        border: 1px solid ButtonText;
     }
 }
 

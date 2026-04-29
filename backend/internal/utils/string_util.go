@@ -17,9 +17,16 @@ func GenerateRandomAlphanumericString(length int) (string, error) {
 	return GenerateRandomString(length, charset)
 }
 
-// GenerateRandomUnambiguousString generates a random string using unambiguous uppercase characters and digits.
+// GenerateRandomUnambiguousString generates a random string using unambiguous characters and digits.
 // Excludes 0/O and 1/I/L to avoid visual confusion.
 func GenerateRandomUnambiguousString(length int) (string, error) {
+	const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"
+	return GenerateRandomString(length, charset)
+}
+
+// GenerateRandomUnambiguousUppercaseString generates a random string using unambiguous uppercase characters and digits only.
+// Excludes 0/O and 1/I/L to avoid visual confusion. Intended for short-lived codes displayed on screens (e.g. QR login).
+func GenerateRandomUnambiguousUppercaseString(length int) (string, error) {
 	const charset = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 	return GenerateRandomString(length, charset)
 }

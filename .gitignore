@@ -47,6 +47,7 @@ data
 /backend/GeoLite2-City.mmdb
 /backend/frontend/dist
 /frontend/static/simple/qr/qrcode.min.js
+/frontend/static/simple/qr/app.js
 
 # Misc
 .DS_Store

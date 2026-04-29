@@ -36,7 +36,12 @@
 		if (method === 'qr' && $appConfigStore.qrLoginEnabled) {
 			params.delete('method');
 			const remaining = params.toString();
-			goto('/login/alternative' + (remaining ? `?${remaining}` : ''));
+			const target = getAlternativeLoginPath(remaining ? `?${remaining}` : '');
+			if (target.startsWith('/simple/')) {
+				window.location.href = target;
+			} else {
+				goto(target);
+			}
 			return;
 		}
 

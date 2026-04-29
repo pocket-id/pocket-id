@@ -105,23 +105,30 @@ const SelfLoginClientID = "pocket-id-self-login"
 
 const selfLoginClientName = "PocketID QR Login"
 
-func (s *OidcService) ensureSelfLoginClient() error {
-	var client model.OidcClient
-	result := s.db.Where("id = ?", SelfLoginClientID).First(&client)
-	if result.Error == nil {
-		if client.Name != selfLoginClientName {
-			return s.db.Model(&client).Update("name", selfLoginClientName).Error
-		}
-		return nil
-	}
+const deviceCodeDefaultIntervalSeconds = 5
 
-	client = model.OidcClient{
+func (s *OidcService) ensureSelfLoginClient() error {
+	// Atomic insert-if-not-exists so concurrent server starts (multi-replica deployments) don't
+	// race on the primary key. Both Postgres and SQLite back this with INSERT ... ON CONFLICT.
+	client := model.OidcClient{
 		Name:     selfLoginClientName,
 		IsPublic: true,
 	}
 	client.ID = SelfLoginClientID
 
-	return s.db.Create(&client).Error
+	if err := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&client).Error; err != nil {
+		return err
+	}
+
+	var existing model.OidcClient
+	if err := s.db.Where("id = ?", SelfLoginClientID).First(&existing).Error; err != nil {
+		return err
+	}
+
+	if existing.Name != selfLoginClientName {
+		return s.db.Model(&existing).Update("name", selfLoginClientName).Error
+	}
+	return nil
 }
 
 func (s *OidcService) getJWKCache(ctx context.Context) (*jwk.Cache, error) {
@@ -1398,24 +1405,21 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		return nil, err
 	}
 
-	// Generate codes
 	deviceCode, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
 		return nil, err
 	}
-	userCode, err := utils.GenerateRandomUnambiguousString(8)
+	userCode, err := utils.GenerateRandomUnambiguousUppercaseString(8)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create device authorization
 	deviceAuth := &model.OidcDeviceCode{
 		DeviceCode:      deviceCode,
 		UserCode:        userCode,
 		Scope:           input.Scope,
 		ExpiresAt:       datatype.DateTime(time.Now().Add(DeviceCodeDuration)),
-		IsAuthorized:    false,
-		IntervalSeconds: 5,
+		IntervalSeconds: deviceCodeDefaultIntervalSeconds,
 		ClientID:        client.ID,
 		Nonce:           input.Nonce,
 	}
@@ -1430,7 +1434,7 @@ func (s *OidcService) CreateDeviceAuthorization(ctx context.Context, input dto.O
 		VerificationURI:         common.EnvConfig.AppURL + "/device",
 		VerificationURIComplete: common.EnvConfig.AppURL + "/device?code=" + url.QueryEscape(userCode),
 		ExpiresIn:               int(DeviceCodeDuration.Seconds()),
-		Interval:                5,
+		Interval:                deviceCodeDefaultIntervalSeconds,
 	}, nil
 }
 
@@ -1546,7 +1550,7 @@ func (s *OidcService) GetDeviceCodeInfo(ctx context.Context, userCode string, us
 	}, nil
 }
 
-// ExchangeDeviceTokenForSession exchanges a device code for a browser session (self-login client only).
+// ExchangeDeviceTokenForSession is restricted to the self-login client.
 func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceCode string, clientID string, ipAddress string, userAgent string) (*model.User, string, error) {
 	if clientID != SelfLoginClientID {
 		return nil, "", &common.OidcAccessDeniedError{}
@@ -1592,6 +1596,10 @@ func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceC
 		return nil, "", &common.UserDisabledError{}
 	}
 
+	// Capture the authentication method before deleting the record so we never read from a struct
+	// whose backing row has been removed (and to keep the post-commit return value intact).
+	authMethod := deviceAuth.AuthenticationMethod
+
 	if err = tx.WithContext(ctx).Delete(&deviceAuth).Error; err != nil {
 		return nil, "", err
 	}
@@ -1602,7 +1610,7 @@ func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceC
 		return nil, "", err
 	}
 
-	return &user, deviceAuth.AuthenticationMethod, nil
+	return &user, authMethod, nil
 }
 
 func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id string) (int64, error) {

@@ -60,10 +60,16 @@
 			return;
 		}
 
-		// Redirect limited devices / no WebAuthn to alternative login
-		if (!$userStore && $appConfigStore.qrLoginEnabled && needsAlternativeLogin()) {
+		// Redirect limited devices / no WebAuthn to alternative login.
+		// `loop=1` query param breaks the cycle if the alternative-login page sends us back here
+		// while the user is still not signed in (e.g. user cancelled).
+		const alreadyRedirected = new URLSearchParams(window.location.search).get('loop') === '1';
+		const needsAltLogin = !$userStore && $appConfigStore.qrLoginEnabled && needsAlternativeLogin();
+		if (needsAltLogin && !alreadyRedirected) {
 			const currentUrl = window.location.pathname + window.location.search;
-			const query = `?redirect=${encodeURIComponent(currentUrl)}`;
+			const separator = currentUrl.includes('?') ? '&' : '?';
+			const returnUrl = currentUrl + separator + 'loop=1';
+			const query = `?redirect=${encodeURIComponent(returnUrl)}`;
 			const target = getAlternativeLoginPath(query);
 			if (target.startsWith('/simple/')) {
 				window.location.href = target;
@@ -116,9 +122,28 @@
 			let reauthToken: string | undefined;
 			if (client?.requiresReauthentication || hasPromptLogin) {
 				let authResponse;
+				const params = new URLSearchParams(window.location.search);
+				const justReauthedViaAlt = params.get('reauth') === '1';
 				const signedInRecently =
-					userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000;
+					(userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000) ||
+					justReauthedViaAlt;
 				if (!signedInRecently) {
+					// On limited devices (TVs etc.) a WebAuthn prompt would fail; route to QR login instead.
+					// reauth=1 marker prevents looping back here after the alternative-login flow returns.
+					if ($appConfigStore.qrLoginEnabled && needsAlternativeLogin()) {
+						userStore.clearUser();
+						const currentUrl = window.location.pathname + window.location.search;
+						const separator = currentUrl.includes('?') ? '&' : '?';
+						const returnUrl = currentUrl + separator + 'reauth=1';
+						const query = `?redirect=${encodeURIComponent(returnUrl)}`;
+						const target = getAlternativeLoginPath(query);
+						if (target.startsWith('/simple/')) {
+							window.location.href = target;
+						} else {
+							goto(target);
+						}
+						return;
+					}
 					const loginOptions = await webauthnService.getLoginOptions();
 					authResponse = await startAuthentication({ optionsJSON: loginOptions });
 				}

@@ -2,6 +2,7 @@ const LIMITED_DEVICE_PATTERNS = [
 	// Smart TVs
 	'SMART-TV',
 	'SmartTV',
+	'webOS',
 	'Web0S',
 	'webOS.TV',
 	'NetCast',
@@ -44,36 +45,27 @@ const LIMITED_DEVICE_PATTERNS = [
 	'Silk'
 ];
 
-/**
- * Detects whether the current browser is a limited device (Smart TV, console, etc.)
- * that cannot use passkey/WebAuthn authentication.
- */
+// All client-detection helpers default to "no redirect" during SSR (typeof window === 'undefined')
+// so that the SvelteKit app is rendered server-side and the actual capability check runs in the
+// browser. supportsOklch returns true on SSR for the same reason: we assume modern UI is fine
+// until proven otherwise.
+
 export function isLimitedDevice(): boolean {
 	if (typeof window === 'undefined') return false;
 	const ua = navigator.userAgent;
 	return LIMITED_DEVICE_PATTERNS.some((pattern) => ua.includes(pattern));
 }
 
-/**
- * Returns true if the browser supports oklch colors (used by the SvelteKit UI).
- */
 export function supportsOklch(): boolean {
 	if (typeof window === 'undefined') return true;
 	return !!window.CSS?.supports?.('color', 'oklch(0 0 0)');
 }
 
-/**
- * Returns true if the device needs an alternative login flow (no passkey input possible).
- */
 export function needsAlternativeLogin(): boolean {
 	if (typeof window === 'undefined') return false;
 	return isLimitedDevice() || !window.PublicKeyCredential;
 }
 
-/**
- * Returns the redirect path for a device that needs alternative login.
- * `queryString` is appended as-is (e.g. `?redirect=%2Fauthorize%3F...`).
- */
 export function getAlternativeLoginPath(queryString: string): string {
 	const base = supportsOklch() ? '/login/alternative' : '/simple/qr/';
 	return base + queryString;

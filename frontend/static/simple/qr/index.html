@@ -2,77 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#171717">
     <title>Sign In</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <div class="card">
-            <div id="loading-state" class="state" tabindex="-1" role="status" aria-label="Loading">
-                <div class="spinner" aria-hidden="true"></div>
-                <p class="muted">Preparing sign-in...</p>
-            </div>
-
-            <div id="showing-state" class="state hidden" tabindex="-1" aria-live="polite">
-                <h1 id="app-name">Sign In</h1>
-                <p class="subtitle">Sign in with another device</p>
-                <p class="muted">
-                    Scan the QR code with your phone or enter the code below
-                    on a device where you are already signed in.
-                </p>
-
-                <div id="qr-container">
-                    <canvas id="qr-canvas" role="img" aria-label="QR code for sign-in"></canvas>
-                </div>
-
-                <div class="code-section">
-                    <p class="code-label">Your sign-in code</p>
-                    <div id="user-code" class="code-boxes"></div>
-                </div>
-
-                <p id="countdown" class="muted small" role="timer"></p>
-            </div>
-
-            <div id="authorized-state" class="state hidden" tabindex="-1" aria-live="assertive">
-                <div class="status-icon status-success">
-                    <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                </div>
-                <h1>Authorized</h1>
-                <p class="muted">You are signed in. Redirecting...</p>
-            </div>
-
-            <div id="expired-state" class="state hidden" tabindex="-1" aria-live="polite">
-                <div class="status-icon status-warning">
-                    <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                </div>
-                <h1>Code Expired</h1>
-                <p class="muted">The sign-in code has expired. Please generate a new one.</p>
-                <button id="expired-btn" type="button">Generate New Code</button>
-            </div>
-
-            <div id="error-state" class="state hidden" tabindex="-1" aria-live="assertive">
-                <div class="status-icon status-error">
-                    <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="15" y1="9" x2="9" y2="15"></line>
-                        <line x1="9" y1="9" x2="15" y2="15"></line>
-                    </svg>
-                </div>
-                <h1>Something went wrong</h1>
-                <p class="muted" id="error-message"></p>
-                <button id="retry-btn" type="button">Try Again</button>
-            </div>
-        </div>
-    </div>
-
+    <div id="app"></div>
     <noscript><p style="text-align:center;color:#a3a3a3;padding:32px">JavaScript is required to use this sign-in page.</p></noscript>
     <script src="qrcode.min.js"></script>
-    <script src="main.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
