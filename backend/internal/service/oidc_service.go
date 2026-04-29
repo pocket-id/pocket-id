@@ -1229,6 +1229,11 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcMissingAuthorizationError{}
 	}
 
+	// Delete all refresh tokens for this user
+	if err := s.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&model.OidcRefreshToken{}).Error; err != nil {
+		return "", err
+	}
+
 	// If the client has no logout callback URLs, return an error
 	if len(userAuthorizedOIDCClient.Client.LogoutCallbackURLs) == 0 {
 		return "", &common.OidcNoCallbackURLError{}
