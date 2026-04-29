@@ -345,7 +345,7 @@
 	"device_code_authorization": "Gerätecode-Autorisierung",
 	"new_device_code_authorization": "Neue Gerätecode-Autorisierung",
 	"passkey_added": "Passwort hinzugefügt",
-	"passkey_removed": "Passwort entfernt",
+	"passkey_removed": "Passkey entfernt",
 	"disable_animations": "Animationen deaktivieren",
 	"turn_off_ui_animations": "Deaktiviert alle Animationen in der Benutzeroberfläche.",
 	"user_disabled": "Account deaktiviert",
