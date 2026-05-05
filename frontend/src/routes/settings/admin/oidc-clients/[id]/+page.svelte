@@ -14,6 +14,7 @@
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
 	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
+	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideChevronLeft, LucideRefreshCcw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -70,11 +71,18 @@
 
 		await Promise.all([dataPromise, imagePromise, darkImagePromise])
 			.then(() => {
+				if (updatedClient.logoUrl) {
+					cachedOidcClientLogo.bustCache(client.id, true);
+				}
+				if (updatedClient.darkLogoUrl) {
+					cachedOidcClientLogo.bustCache(client.id, false);
+				}
+
 				// Update the hasLogo and hasDarkLogo flags after successful upload
-				if (updatedClient.logo !== undefined) {
+				if (updatedClient.logo !== undefined || updatedClient.logoUrl !== undefined) {
 					client.hasLogo = updatedClient.logo !== null || !!updatedClient.logoUrl;
 				}
-				if (updatedClient.darkLogo !== undefined) {
+				if (updatedClient.darkLogo !== undefined || updatedClient.darkLogoUrl !== undefined) {
 					client.hasDarkLogo = updatedClient.darkLogo !== null || !!updatedClient.darkLogoUrl;
 				}
 				toast.success(m.oidc_client_updated_successfully());
