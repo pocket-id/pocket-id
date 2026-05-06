@@ -1324,6 +1324,5 @@ func TestOidcService_ValidateEndSession_DeletesRefreshTokens(t *testing.T) {
 	var remainingTokens []model.OidcRefreshToken
 	err = db.Where("user_id = ?", userID).Find(&remainingTokens).Error
 	require.NoError(t, err)
-	assert.Equal(t, 0, len(remainingTokens), "all refresh tokens for the user should be deleted")
+	assert.Empty(t, remainingTokens, "all refresh tokens for the user should be deleted")
 }
-
