@@ -146,6 +146,43 @@ func TestCreateTokensHandler(t *testing.T) {
 		assert.Equal(t, 120, response.ExpiresIn)
 	})
 
+	t.Run("Uses Basic Auth Secret When Body Has Only Client ID (PKCE)", func(t *testing.T) {
+		// Some OIDC libraries (e.g. jumbojett/openid-connect-php) combine client_secret_basic with PKCE by sending client_id in the body alongside code_verifier while keeping the secret only in the Authorization header
+		// RFC 6749 §2.3.1 permits this; the body client_id must not block the Basic auth fallback for the secret.
+		var capturedInput dto.OidcCreateTokensDto
+		oc := &OidcController{
+			createTokens: func(_ context.Context, input dto.OidcCreateTokensDto) (service.CreatedTokens, error) {
+				capturedInput = input
+				return service.CreatedTokens{
+					AccessToken:  "access-token",
+					IdToken:      "id-token",
+					RefreshToken: "refresh-token",
+					ExpiresIn:    2 * time.Minute,
+				}, nil
+			},
+		}
+
+		basicAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte("client-id:client-secret"))
+		c, recorder := createTestContext(
+			t,
+			"http://example.com/oidc/token",
+			url.Values{
+				"grant_type":    {service.GrantTypeRefreshToken},
+				"refresh_token": {"input-refresh-token"},
+				"client_id":     {"client-id"},
+			},
+			basicAuth,
+			false,
+		)
+
+		oc.createTokensHandler(c)
+
+		require.Empty(t, c.Errors)
+		assert.Equal(t, "client-id", capturedInput.ClientID)
+		assert.Equal(t, "client-secret", capturedInput.ClientSecret)
+		require.Equal(t, http.StatusOK, recorder.Code)
+	})
+
 	t.Run("Maps Authorization Pending Error", func(t *testing.T) {
 		oc := &OidcController{
 			createTokens: func(context.Context, dto.OidcCreateTokensDto) (service.CreatedTokens, error) {
