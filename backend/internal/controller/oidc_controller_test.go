@@ -147,11 +147,8 @@ func TestCreateTokensHandler(t *testing.T) {
 	})
 
 	t.Run("Uses Basic Auth Secret When Body Has Only Client ID (PKCE)", func(t *testing.T) {
-		// Some OIDC libraries (e.g. jumbojett/openid-connect-php) combine
-		// client_secret_basic with PKCE by sending client_id in the body
-		// alongside code_verifier while keeping the secret only in the
-		// Authorization header. RFC 6749 §2.3.1 permits this; the body
-		// client_id must not block the Basic auth fallback for the secret.
+		// Some OIDC libraries (e.g. jumbojett/openid-connect-php) combine client_secret_basic with PKCE by sending client_id in the body alongside code_verifier while keeping the secret only in the Authorization header
+		// RFC 6749 §2.3.1 permits this; the body client_id must not block the Basic auth fallback for the secret.
 		var capturedInput dto.OidcCreateTokensDto
 		oc := &OidcController{
 			createTokens: func(_ context.Context, input dto.OidcCreateTokensDto) (service.CreatedTokens, error) {
