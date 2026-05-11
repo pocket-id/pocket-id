@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Passkeys understøttes ikke af denne browser. Brug en alternativ login-metode.",
 	"critical_error_occurred_contact_administrator": "En kritisk fejl opstod. Kontakt venligst din administrator.",
 	"sign_in_to": "Log ind på {name}",
+	"account_selection_signin_confirmation": "Vil du bruge følgende konto til at fortsætte <b>{name}</b>?",
+	"use_a_different_account": "Brug en anden konto",
 	"client_not_found": "Klient ikke fundet",
 	"client_wants_to_access_the_following_information": "{client} ønsker at få adgang til følgende oplysninger:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Vil du logge ind på {client} med din {appName}-konto?",

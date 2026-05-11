@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Этот браузер не поддерживает ключи доступа. Попробуйте войти другим способом.",
 	"critical_error_occurred_contact_administrator": "Произошла критическая ошибка. Обратитесь к администратору.",
 	"sign_in_to": "Войти в {name}",
+	"account_selection_signin_confirmation": "Хочешь использовать следующую учетную запись, чтобы продолжить <b>{name}</b>?",
+	"use_a_different_account": "Воспользуйся другой учетной записью",
 	"client_not_found": "Клиент не найден",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> запрашивает доступ к следующей информации:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Вы хотите войти в <b>{client}</b> с помощью вашей учетной записи {appName}?",

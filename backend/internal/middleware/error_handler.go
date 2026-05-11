@@ -23,7 +23,6 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 		for _, err := range c.Errors {
-
 			// Check for record not found errors
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				errorResponse(c, http.StatusNotFound, "Record not found")
@@ -39,30 +38,56 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			}
 
 			// Check for slice validation errors
-			var sliceValidationErrors binding.SliceValidationError
-			if errors.As(err, &sliceValidationErrors) {
-				if errors.As(sliceValidationErrors[0], &validationErrors) {
+			svErr, ok := errors.AsType[binding.SliceValidationError](err)
+			if ok {
+				if errors.As(svErr[0], &validationErrors) {
 					message := handleValidationError(validationErrors)
 					errorResponse(c, http.StatusBadRequest, message)
 					return
 				}
 			}
 
-			var appErr common.AppError
-			if errors.As(err, &appErr) {
+			// AppError with description
+			appDescErr, ok := errors.AsType[common.AppErrorDescription](err)
+			if ok {
+				errorResponseWithDescription(c, appDescErr.HttpStatusCode(), appDescErr.Error(), appDescErr.Description())
+				return
+			}
+
+			// AppError (without description)
+			appErr, ok := errors.AsType[common.AppError](err)
+			if ok {
 				errorResponse(c, appErr.HttpStatusCode(), appErr.Error())
 				return
 			}
 
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong"})
+			c.JSON(http.StatusInternalServerError, errorResponseBody{
+				Error: "Something went wrong",
+			})
 		}
 	}
+}
+
+type errorResponseBody struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description,omitempty"`
 }
 
 func errorResponse(c *gin.Context, statusCode int, message string) {
 	// Capitalize the first letter of the message
 	message = strings.ToUpper(message[:1]) + message[1:]
-	c.JSON(statusCode, gin.H{"error": message})
+	c.JSON(statusCode, errorResponseBody{
+		Error: message,
+	})
+}
+
+func errorResponseWithDescription(c *gin.Context, statusCode int, message string, description string) {
+	// Capitalize the first letter of the message
+	message = strings.ToUpper(message[:1]) + message[1:]
+	c.JSON(statusCode, errorResponseBody{
+		Error:            message,
+		ErrorDescription: description,
+	})
 }
 
 func handleValidationError(validationErrors validator.ValidationErrors) string {

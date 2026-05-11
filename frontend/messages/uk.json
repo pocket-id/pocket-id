@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Цей браузер не підтримує ключі доступу. Будь ласка, скористайтеся альтернативним методом входу.",
 	"critical_error_occurred_contact_administrator": "Виникла критична помилка. Будь ласка, зверніться до адміністратора.",
 	"sign_in_to": "Увійти в {name}",
+	"account_selection_signin_confirmation": "Ви хочете продовжити, використовуючи цей обліковий запис <b>{name}</b>?",
+	"use_a_different_account": "Використовуйте інший обліковий запис",
 	"client_not_found": "Клієнт не знайдений",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> хоче отримати доступ до наступної інформації:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Бажаєте увійти до <b>{client}</b> за допомогою облікового запису {appName}?",

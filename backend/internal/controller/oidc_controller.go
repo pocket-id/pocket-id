@@ -242,10 +242,8 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		}
 	}
 
-	// Client id and secret can also be passed over the Authorization header
-	if input.ClientID == "" && input.ClientSecret == "" {
-		input.ClientID, input.ClientSecret, _ = utils.OAuthClientBasicAuth(c.Request)
-	}
+	// Check if the client ID / secret are passed in the Authorization header (RFC 6749)
+	parseBasicAuth(c.Request, &input.ClientSecret, &input.ClientID)
 
 	tokens, err := oc.createTokens(c.Request.Context(), input)
 
@@ -713,6 +711,22 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, oidcClientDto)
 }
 
+// This method can modify the value of clientSecret and clientID
+func parseBasicAuth(r *http.Request, clientSecret *string, clientID *string) {
+	// Client id and secret can also be passed via the Authorization header (RFC 6749, section 2.3.1 "client_secret_basic")
+	// When PKCE is used, some libraries send client_id in the body for the code_verifier binding while keeping the secret only in the Authorization header
+	// We therefore fall back to Basic auth whenever the secret is missing, not only when both fields are empty
+	if *clientSecret == "" {
+		basicID, basicSecret, ok := utils.OAuthClientBasicAuth(r)
+		if ok {
+			if *clientID == "" {
+				*clientID = basicID
+			}
+			*clientSecret = basicSecret
+		}
+	}
+}
+
 // deviceAuthorizationHandler godoc
 // @Summary Start device authorization flow
 // @Description Initiate the OAuth 2.0 Device Authorization Grant (RFC 8628) by requesting a device and user code
@@ -738,10 +752,8 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 		return
 	}
 
-	// Client id and secret can also be passed over the Authorization header
-	if input.ClientID == "" && input.ClientSecret == "" {
-		input.ClientID, input.ClientSecret, _ = utils.OAuthClientBasicAuth(c.Request)
-	}
+	// Check if the client ID / secret are passed in the Authorization header (RFC 6749)
+	parseBasicAuth(c.Request, &input.ClientSecret, &input.ClientID)
 
 	response, err := oc.oidcService.CreateDeviceAuthorization(c.Request.Context(), input)
 	if err != nil {

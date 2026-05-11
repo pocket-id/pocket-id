@@ -53,6 +53,8 @@
 	"webauthn_not_supported_by_browser": "Passkeys are not supported by this browser. Please use an alternative sign in method.",
 	"critical_error_occurred_contact_administrator": "A critical error occurred. Please contact your administrator.",
 	"sign_in_to": "Logg inn til {name}",
+	"account_selection_signin_confirmation": "Do you want to use the following account to continue to <b>{name}</b>?",
+	"use_a_different_account": "Use a different account",
 	"client_not_found": "Fant ikke klient",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> ønsker tilgang til følgende informasjon:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Do you want to sign in to <b>{client}</b> with your {appName} account?",
