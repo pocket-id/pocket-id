@@ -1,3 +1,31 @@
+## v2.7.0
+
+### Bug Fixes
+
+- add `_FILE` support for `S3_SECRET_ACCESS_KEY_FILE` env var ([#1452](https://github.com/pocket-id/pocket-id/pull/1452) by @ItalyPaleAle)
+- invalidate cache when changing image ([#1462](https://github.com/pocket-id/pocket-id/pull/1462) by @GameTec-live)
+- fall back to Basic auth when PKCE puts client_id in body ([#1466](https://github.com/pocket-id/pocket-id/pull/1466) by @mgabor3141)
+
+### Documentation
+
+- add missing /api prefix to app config swagger routes ([#1454](https://github.com/pocket-id/pocket-id/pull/1454) by @aclerici38)
+
+### Features
+
+- add support for response_mode=form_post ([#1360](https://github.com/pocket-id/pocket-id/pull/1360) by @Johnwulp)
+- add support for "select_account" prompt ([#1453](https://github.com/pocket-id/pocket-id/pull/1453) by @ItalyPaleAle)
+
+### Other
+
+- add script to update deps ([f9f93f0](https://github.com/pocket-id/pocket-id/commit/f9f93f0ef164426d4d4cfb58fcf59ce30b686130) by @stonith404)
+- upgrade dependencies ([20df033](https://github.com/pocket-id/pocket-id/commit/20df033c1fc3d737927447206b4f5e65d3ab4a40) by @stonith404)
+- post dependency upgrade fixes ([e33a9b8](https://github.com/pocket-id/pocket-id/commit/e33a9b8c888988f7b2e6c500e72d53b57db01f34) by @stonith404)
+- migrate github actions runners to depot  runners ([#1329](https://github.com/pocket-id/pocket-id/pull/1329) by @kmendell)
+- fix caching of ldap-cli e2e tests docker build ([#1457](https://github.com/pocket-id/pocket-id/pull/1457) by @kmendell)
+- fix incorrect container name variable ([5c7e5f6](https://github.com/pocket-id/pocket-id/commit/5c7e5f680bb70d3056b11f1a33669cc4bd9a1e17) by @kmendell)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.6.2...v2.7.0
+
 ## v2.6.2
 
 ### Bug Fixes
