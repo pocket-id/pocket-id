@@ -1218,15 +1218,23 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
 
+	tx := s.db.Begin()
+	defer tx.Rollback()
+
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
-	err = s.db.
+	err = tx.
 		WithContext(ctx).
 		Preload("Client").
 		First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).
 		Error
 	if err != nil {
 		return "", &common.OidcMissingAuthorizationError{}
+	}
+
+	// Delete all refresh tokens for this user
+	if err := tx.WithContext(ctx).Where("user_id = ?", userID).Delete(&model.OidcRefreshToken{}).Error; err != nil {
+		return "", err
 	}
 
 	// If the client has no logout callback URLs, return an error
@@ -1237,6 +1245,10 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 	callbackURL, err := s.getLogoutCallbackURL(&userAuthorizedOIDCClient.Client, input.PostLogoutRedirectUri)
 	if err != nil {
 		return "", err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return "", fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return callbackURL, nil
