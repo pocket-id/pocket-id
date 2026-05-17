@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/coreos/go-systemd/activation"
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
@@ -165,15 +166,36 @@ func initServer(r *gin.Engine) (*serverConfig, error) {
 		return nil, err
 	}
 
-	network, addr := listenerNetworkAndAddr()
-	listener, err := net.Listen(network, addr) //nolint:noctx
-	if err != nil {
-		return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
-	}
+	var addr string
+	var listener net.Listener
+	if common.EnvConfig.SystemdSocket {
+		listeners, err := activation.Listeners()
+		if err != nil {
+			return nil, fmt.Errorf("failed to receive socket from systemd: %w", err)
+		}
 
-	if err := setUnixSocketMode(network, addr); err != nil {
-		listener.Close()
-		return nil, err
+		if len(listeners) == 0 {
+			return nil, errors.New("did not receive any sockets from systemd")
+		}
+
+		if len(listeners) > 1 {
+			return nil, errors.New("received too many sockets from systemd")
+		}
+
+		addr = "(systemd)"
+		listener = listeners[0]
+	} else {
+		var network string
+		network, addr = listenerNetworkAndAddr()
+		listener, err = net.Listen(network, addr) //nolint:noctx
+		if err != nil {
+			return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
+		}
+
+		if err := setUnixSocketMode(network, addr); err != nil {
+			listener.Close()
+			return nil, err
+		}
 	}
 
 	return &serverConfig{
@@ -233,7 +255,6 @@ func listenerNetworkAndAddr() (string, string) {
 	if common.EnvConfig.UnixSocket == "" {
 		return "tcp", net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port)
 	}
-
 	addr := common.EnvConfig.UnixSocket
 	os.Remove(addr) // remove dangling the socket file to avoid file-exist error
 	return "unix", addr
