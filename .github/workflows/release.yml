@@ -9,10 +9,14 @@ permissions:
   contents: write
   packages: write
   id-token: write
+  attestations: write
+  artifact-metadata: write
 
 jobs:
   release:
-    runs-on: depot-ubuntu-latest
+    runs-on: depot-ubuntu-24.04-16
+    env:
+      CONTAINER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/pocket-id
 
     steps:
       - name: Checkout code
@@ -49,6 +53,46 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.CONTAINER_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},prefix=v
+            type=semver,pattern={{major}},prefix=v
+          labels: |
+            org.opencontainers.image.authors=Pocket ID
+            org.opencontainers.image.url=https://github.com/pocket-id/pocket-id
+            org.opencontainers.image.documentation=https://github.com/pocket-id/pocket-id/blob/main/README.md
+            org.opencontainers.image.source=https://github.com/pocket-id/pocket-id
+            org.opencontainers.image.version=next
+            org.opencontainers.image.licenses=BSD-2-Clause
+            org.opencontainers.image.ref.name=pocket-id
+            org.opencontainers.image.title=Pocket ID
+
+      - name: Build and push container image
+        uses: depot/build-push-action@v1
+        id: container-build-push
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          sbom: false
+          provenance: true
+
+      - name: Container image attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: "${{ env.CONTAINER_IMAGE_NAME }}"
+          subject-digest: ${{ steps.container-build-push.outputs.digest }}
+          push-to-registry: true
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
