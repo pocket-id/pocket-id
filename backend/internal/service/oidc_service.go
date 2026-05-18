@@ -34,6 +34,7 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 )
 
 const (
@@ -1063,7 +1064,12 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		return err
 	}
 	defer reader.Close()
-	err = s.fileStorage.Save(ctx, imagePath, reader)
+	strippedReader, err := imageutil.StripMetadata(reader, fileType)
+	if err != nil {
+		return err
+	}
+
+	err = s.fileStorage.Save(ctx, imagePath, strippedReader)
 	if err != nil {
 		return err
 	}
@@ -2151,7 +2157,14 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	}
 
 	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
-	err = s.fileStorage.Save(ctx, imagePath, utils.NewLimitReader(resp.Body, maxLogoSize+1))
+	strippedReader, err := imageutil.StripMetadata(utils.NewLimitReader(resp.Body, maxLogoSize+1), ext)
+	if errors.Is(err, utils.ErrSizeExceeded) {
+		return errLogoTooLarge
+	} else if err != nil {
+		return err
+	}
+
+	err = s.fileStorage.Save(ctx, imagePath, strippedReader)
 	if errors.Is(err, utils.ErrSizeExceeded) {
 		return errLogoTooLarge
 	} else if err != nil {

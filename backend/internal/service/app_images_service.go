@@ -12,6 +12,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 )
 
 type AppImagesService struct {
@@ -68,7 +69,12 @@ func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.File
 	}
 	defer fileReader.Close()
 
-	if err := s.storage.Save(ctx, imagePath, fileReader); err != nil {
+	strippedReader, err := imageutil.StripMetadata(fileReader, fileType)
+	if err != nil {
+		return err
+	}
+
+	if err := s.storage.Save(ctx, imagePath, strippedReader); err != nil {
 		return err
 	}
 
