@@ -583,10 +583,9 @@ func TestOidcServiceRefreshTokenAuthorizationState(t *testing.T) {
 			appConfigService: mockConfig,
 		}
 
-		email := "refresh-token-user@example.com"
 		user := model.User{
 			Username:      "refresh-token-user",
-			Email:         &email,
+			Email:         new("refresh-token-user@example.com"),
 			EmailVerified: true,
 			FirstName:     "Refresh",
 			LastName:      "User",

@@ -88,10 +88,9 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 func createUserForAuthMiddlewareTest(t *testing.T, db *gorm.DB) model.User {
 	t.Helper()
 
-	email := "auth@example.com"
 	user := model.User{
 		Username:    "auth-user",
-		Email:       &email,
+		Email:       new("auth@example.com"),
 		FirstName:   "Auth",
 		LastName:    "User",
 		DisplayName: "Auth User",

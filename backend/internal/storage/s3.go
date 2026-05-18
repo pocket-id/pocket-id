@@ -186,8 +186,7 @@ func (s *s3Storage) buildObjectKey(p string) string {
 }
 
 func isS3NotFound(err error) bool {
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		if apiErr.ErrorCode() == "NotFound" || apiErr.ErrorCode() == "NoSuchKey" {
 			return true
 		}

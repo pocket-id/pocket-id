@@ -583,8 +583,7 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 
 		err = s.userService.deleteUserInternal(ctx, tx, user.ID, true)
 		if err != nil {
-			target := &common.LdapUserUpdateError{}
-			if errors.As(err, &target) {
+			if _, ok := errors.AsType[*common.LdapUserUpdateError](err); ok {
 				return nil, nil, fmt.Errorf("failed to delete user %s: LDAP user must be disabled before deletion", user.Username)
 			}
 			return nil, nil, fmt.Errorf("failed to delete user %s: %w", user.Username, err)
