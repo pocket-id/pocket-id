@@ -1260,7 +1260,10 @@ func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID stri
 		return "", err
 	}
 
-	codeChallengeMethodSha256 := strings.ToUpper(codeChallengeMethod) == "S256"
+	codeChallengeMethodSha256, err := codeChallengeMethodIsSha256(codeChallengeMethod)
+	if err != nil {
+		return "", err
+	}
 
 	oidcAuthorizationCode := model.OidcAuthorizationCode{
 		ExpiresAt:                 datatype.DateTime(time.Now().Add(15 * time.Minute)),
@@ -1283,6 +1286,19 @@ func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID stri
 	}
 
 	return randomString, nil
+}
+
+func codeChallengeMethodIsSha256(codeChallengeMethod string) (bool, error) {
+	switch strings.ToUpper(codeChallengeMethod) {
+	case "":
+		return false, nil
+	case "PLAIN":
+		return false, nil
+	case "S256":
+		return true, nil
+	default:
+		return false, common.NewOidcInvalidRequestError("code challenge method not supported")
+	}
 }
 
 func validateCodeVerifier(codeVerifier, codeChallenge string, codeChallengeMethodSha256 bool) bool {
