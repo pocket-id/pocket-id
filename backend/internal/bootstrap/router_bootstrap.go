@@ -19,8 +19,6 @@ import (
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
@@ -215,7 +213,7 @@ func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
 		Protocols:         protocols,
-		Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// HEAD requests don't get matched by Gin routes, so we convert them to GET
 			// middleware.HeadMiddleware will convert them back to HEAD later
 			if req.Method == http.MethodHead {
@@ -225,7 +223,7 @@ func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 			}
 
 			r.ServeHTTP(w, req)
-		}), &http2.Server{}),
+		}),
 	}
 }
 
