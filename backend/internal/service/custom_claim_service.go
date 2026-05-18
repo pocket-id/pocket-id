@@ -24,6 +24,7 @@ func isReservedClaim(key string) bool {
 		"family_name",
 		"name",
 		"email",
+		"email_verified",
 		"preferred_username",
 		"display_name",
 		"groups",
