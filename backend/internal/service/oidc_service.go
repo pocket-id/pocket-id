@@ -1296,15 +1296,23 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
 
+	tx := s.db.Begin()
+	defer tx.Rollback()
+
 	// Check if the user has authorized the client before
 	var userAuthorizedOIDCClient model.UserAuthorizedOidcClient
-	err = s.db.
+	err = tx.
 		WithContext(ctx).
 		Preload("Client").
 		First(&userAuthorizedOIDCClient, "client_id = ? AND user_id = ?", clientID[0], userID).
 		Error
 	if err != nil {
 		return "", &common.OidcMissingAuthorizationError{}
+	}
+
+	// Delete all refresh tokens for this user
+	if err := tx.WithContext(ctx).Where("user_id = ?", userID).Delete(&model.OidcRefreshToken{}).Error; err != nil {
+		return "", err
 	}
 
 	// If the client has no logout callback URLs, return an error
@@ -1317,6 +1325,10 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", err
 	}
 
+	if err := tx.Commit().Error; err != nil {
+		return "", fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	return callbackURL, nil
 }
 
@@ -1326,7 +1338,10 @@ func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID stri
 		return "", err
 	}
 
-	codeChallengeMethodSha256 := strings.ToUpper(codeChallengeMethod) == "S256"
+	codeChallengeMethodSha256, err := codeChallengeMethodIsSha256(codeChallengeMethod)
+	if err != nil {
+		return "", err
+	}
 
 	oidcAuthorizationCode := model.OidcAuthorizationCode{
 		ExpiresAt:                 datatype.DateTime(time.Now().Add(15 * time.Minute)),
@@ -1349,6 +1364,19 @@ func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID stri
 	}
 
 	return randomString, nil
+}
+
+func codeChallengeMethodIsSha256(codeChallengeMethod string) (bool, error) {
+	switch strings.ToUpper(codeChallengeMethod) {
+	case "":
+		return false, nil
+	case "PLAIN":
+		return false, nil
+	case "S256":
+		return true, nil
+	default:
+		return false, common.NewOidcInvalidRequestError("code challenge method not supported")
+	}
 }
 
 func validateCodeVerifier(codeVerifier, codeChallenge string, codeChallengeMethodSha256 bool) bool {

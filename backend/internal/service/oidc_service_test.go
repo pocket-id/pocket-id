@@ -763,6 +763,61 @@ func TestValidateCodeVerifier_Plain(t *testing.T) {
 	})
 }
 
+func TestCodeChallengeMethodIsSha256(t *testing.T) {
+	tests := []struct {
+		name       string
+		method     string
+		wantSha256 bool
+		wantErr    bool
+	}{
+		{
+			name:       "omitted defaults to plain",
+			method:     "",
+			wantSha256: false,
+		},
+		{
+			name:       "plain",
+			method:     "plain",
+			wantSha256: false,
+		},
+		{
+			name:       "plain case insensitive",
+			method:     "PLAIN",
+			wantSha256: false,
+		},
+		{
+			name:       "s256",
+			method:     "S256",
+			wantSha256: true,
+		},
+		{
+			name:       "s256 case insensitive",
+			method:     "s256",
+			wantSha256: true,
+		},
+		{
+			name:    "unknown method",
+			method:  "S384",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := codeChallengeMethodIsSha256(tt.method)
+			if tt.wantErr {
+				require.Error(t, err)
+				var invalidRequest *common.OidcInvalidRequestError
+				require.ErrorAs(t, err, &invalidRequest)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantSha256, got)
+		})
+	}
+}
+
 func TestOidcService_updateClientLogoType(t *testing.T) {
 	// Create a test database
 	db := testutils.NewDatabaseForTest(t)
@@ -1248,4 +1303,81 @@ func TestPromptParameterConflicts(t *testing.T) {
 			assert.Equal(t, tt.expectConflict, conflict)
 		})
 	}
+}
+
+func TestOidcService_ValidateEndSession_DeletesRefreshTokens(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	common.EnvConfig.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
+
+	mockConfig := NewTestAppConfigService(&model.AppConfig{
+		SessionDuration: model.AppConfigVariable{Value: "60"},
+	})
+	mockJwtService, err := NewJwtService(t.Context(), db, mockConfig)
+	require.NoError(t, err)
+
+	oidcService := &OidcService{
+		db:         db,
+		jwtService: mockJwtService,
+	}
+
+	ctx := context.Background()
+	userID := "test-user-123"
+	clientID := "test-client-456"
+
+	userEmail := "test@example.com"
+	user := model.User{
+		Base:  model.Base{ID: userID},
+		Email: &userEmail,
+	}
+	require.NoError(t, db.Create(&user).Error)
+
+	client := model.OidcClient{
+		Base:               model.Base{ID: clientID},
+		Name:               "Test Client",
+		LogoutCallbackURLs: []string{"https://example.com/logout"},
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	authorization := model.UserAuthorizedOidcClient{
+		UserID:   userID,
+		ClientID: clientID,
+	}
+	require.NoError(t, db.Create(&authorization).Error)
+
+	refreshToken1 := model.OidcRefreshToken{
+		Token:    "refresh-token-1",
+		UserID:   userID,
+		ClientID: clientID,
+	}
+	require.NoError(t, db.Create(&refreshToken1).Error)
+
+	refreshToken2 := model.OidcRefreshToken{
+		Token:    "refresh-token-2",
+		UserID:   userID,
+		ClientID: "other-client",
+	}
+	require.NoError(t, db.Create(&refreshToken2).Error)
+
+	userClaims := map[string]any{
+		"sub":   userID,
+		"name":  "Test User",
+		"email": userEmail,
+	}
+	idToken, err := mockJwtService.GenerateIDToken(userClaims, clientID, "", "")
+	require.NoError(t, err)
+
+	input := dto.OidcLogoutDto{
+		IdTokenHint:           idToken,
+		ClientId:              clientID,
+		PostLogoutRedirectUri: "https://example.com/logout",
+	}
+
+	callbackURL, err := oidcService.ValidateEndSession(ctx, input, userID)
+	require.NoError(t, err)
+	assert.Equal(t, "https://example.com/logout", callbackURL)
+
+	var remainingTokens []model.OidcRefreshToken
+	err = db.Where("user_id = ?", userID).Find(&remainingTokens).Error
+	require.NoError(t, err)
+	assert.Empty(t, remainingTokens, "all refresh tokens for the user should be deleted")
 }
