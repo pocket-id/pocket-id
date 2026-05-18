@@ -79,7 +79,7 @@ func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) erro
 			return
 		}
 
-		if strings.HasPrefix(path, "api/") {
+		if strings.HasPrefix(path, "api/") || strings.HasPrefix(path, ".well-known/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
 			return
 		}
