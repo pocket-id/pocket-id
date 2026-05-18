@@ -166,45 +166,25 @@ func initServer(r *gin.Engine) (*serverConfig, error) {
 		return nil, err
 	}
 
-	var addr string
-	var listener net.Listener
+	var socketFn func() (*socket, error)
 	if common.EnvConfig.SystemdSocket {
-		listeners, err := activation.Listeners()
-		if err != nil {
-			return nil, fmt.Errorf("failed to receive socket from systemd: %w", err)
-		}
-
-		if len(listeners) == 0 {
-			return nil, errors.New("did not receive any sockets from systemd")
-		}
-
-		if len(listeners) > 1 {
-			return nil, errors.New("received too many sockets from systemd")
-		}
-
-		addr = "(systemd)"
-		listener = listeners[0]
+		socketFn = systemdSocket
+	} else if common.EnvConfig.UnixSocket != "" {
+		socketFn = unixSocket
 	} else {
-		var network string
-		network, addr = listenerNetworkAndAddr()
-		listener, err = net.Listen(network, addr) //nolint:noctx
-		if err != nil {
-			return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
-		}
-
-		if err := setUnixSocketMode(network, addr); err != nil {
-			listener.Close()
-			return nil, err
-		}
+		socketFn = tcpSocket
 	}
 
-	return &serverConfig{
-		addr:         addr,
-		certProvider: certProvider,
-		listener:     listener,
-		server:       newHTTPServer(r, protocols),
-		tlsConfig:    tlsConfig,
-	}, nil
+	socket, err := socketFn()
+	if err != nil {
+		return nil, err
+	}
+
+	addr := socket.addr
+	listener := socket.listener
+	server := newHTTPServer(r, protocols)
+
+	return &serverConfig{addr, certProvider, listener, server, tlsConfig}, nil
 }
 
 func initServerProtocols() (*http.Protocols, *tls.Config, *tlsCertProvider, error) {
@@ -232,6 +212,64 @@ func initServerProtocols() (*http.Protocols, *tls.Config, *tlsCertProvider, erro
 	return protocols, tlsConfig, certProvider, nil
 }
 
+type socket struct {
+	addr     string
+	listener net.Listener
+}
+
+func systemdSocket() (*socket, error) {
+	listeners, err := activation.Listeners()
+	if err != nil {
+		return nil, fmt.Errorf("failed to receive socket from systemd: %w", err)
+	}
+
+	if len(listeners) == 0 {
+		return nil, errors.New("did not receive any sockets from systemd")
+	}
+
+	if len(listeners) > 1 {
+		return nil, errors.New("received too many sockets from systemd")
+	}
+
+	return &socket{"(systemd)", listeners[0]}, nil
+}
+
+func unixSocket() (*socket, error) {
+	addr := common.EnvConfig.UnixSocket
+	os.Remove(addr) // remove dangling the socket file to avoid file-exist error
+
+	listener, err := net.Listen("unix", addr) //nolint:noctx
+	if err != nil {
+		return nil, fmt.Errorf("failed to create UNIX socket: %w", err)
+	}
+
+	if common.EnvConfig.UnixSocketMode != "" {
+		mode, err := strconv.ParseUint(common.EnvConfig.UnixSocketMode, 8, 32)
+		if err != nil {
+			listener.Close()
+			return nil, fmt.Errorf("failed to parse UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
+		}
+
+		if err := os.Chmod(addr, os.FileMode(mode)); err != nil {
+			listener.Close()
+			return nil, fmt.Errorf("failed to set UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
+		}
+	}
+
+	return &socket{addr, listener}, nil
+}
+
+func tcpSocket() (*socket, error) {
+	addr := net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port)
+
+	listener, err := net.Listen("tcp", addr) //nolint:noctx
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TCP socket: %w", err)
+	}
+
+	return &socket{addr, listener}, nil
+}
+
 func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 	return &http.Server{
 		MaxHeaderBytes:    1 << 20,
@@ -249,32 +287,6 @@ func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 			r.ServeHTTP(w, req)
 		}), &http2.Server{}),
 	}
-}
-
-func listenerNetworkAndAddr() (string, string) {
-	if common.EnvConfig.UnixSocket == "" {
-		return "tcp", net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port)
-	}
-	addr := common.EnvConfig.UnixSocket
-	os.Remove(addr) // remove dangling the socket file to avoid file-exist error
-	return "unix", addr
-}
-
-func setUnixSocketMode(network, addr string) error {
-	if network != "unix" || common.EnvConfig.UnixSocketMode == "" {
-		return nil
-	}
-
-	mode, err := strconv.ParseUint(common.EnvConfig.UnixSocketMode, 8, 32)
-	if err != nil {
-		return fmt.Errorf("failed to parse UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
-	}
-
-	if err := os.Chmod(addr, os.FileMode(mode)); err != nil {
-		return fmt.Errorf("failed to set UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
-	}
-
-	return nil
 }
 
 func runServer(ctx context.Context, config *serverConfig) error {
