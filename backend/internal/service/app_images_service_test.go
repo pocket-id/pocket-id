@@ -145,14 +145,14 @@ func webpFile(chunks ...[]byte) []byte {
 	for _, chunk := range chunks {
 		out.Write(chunk)
 	}
-	binary.LittleEndian.PutUint32(out.Bytes()[4:8], uint32(out.Len()-8))
+	binary.LittleEndian.PutUint32(out.Bytes()[4:8], uint32(out.Len()-8)) //nolint:gosec
 	return out.Bytes()
 }
 
 func webpChunk(chunkType string, data []byte) []byte {
 	var out bytes.Buffer
 	out.WriteString(chunkType)
-	_ = binary.Write(&out, binary.LittleEndian, uint32(len(data)))
+	_ = binary.Write(&out, binary.LittleEndian, uint32(len(data))) //nolint:gosec
 	out.Write(data)
 	if len(data)%2 == 1 {
 		out.WriteByte(0)

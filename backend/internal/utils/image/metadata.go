@@ -9,6 +9,8 @@ import (
 	"github.com/zitadel/exifremove/pkg/exifremove"
 )
 
+const maxRIFFSize = ^uint32(0)
+
 // StripMetadata removes EXIF/XMP metadata from JPG, PNG and WEBP images
 func StripMetadata(file io.Reader, ext string) (io.ReadSeeker, error) {
 	data, err := io.ReadAll(file)
@@ -90,7 +92,13 @@ func stripWEBPMetadata(data []byte) []byte {
 		pos = chunkEnd
 	}
 
+	// WEBP image can max be 4GB in size
+	riffSize := out.Len() - 8
+	if riffSize < 0 || riffSize > int(maxRIFFSize) {
+		return data
+	}
+
 	// Set the size in the header (byte 4-7)
-	binary.LittleEndian.PutUint32(out.Bytes()[4:8], uint32(out.Len()-8))
+	binary.LittleEndian.PutUint32(out.Bytes()[4:8], uint32(riffSize))
 	return out.Bytes()
 }
