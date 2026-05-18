@@ -18,6 +18,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 
 COPY ./frontend ./frontend/
 
+RUN pnpm --filter pocket-id-frontend run build-simple
 RUN --mount=type=cache,target=/build/frontend/node_modules/.vite \
   --mount=type=cache,target=/build/frontend/.svelte-kit \
   BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
@@ -57,6 +58,7 @@ COPY --from=backend-builder /build/pocket-id /app/pocket-id
 COPY ./scripts/docker /app/docker
 
 RUN chmod +x /app/pocket-id && \
+  find /app/docker -name "*.sh" -exec sed -i 's/\r$//' {} \; && \
   find /app/docker -name "*.sh" -exec chmod +x {} \;
 
 EXPOSE 1411

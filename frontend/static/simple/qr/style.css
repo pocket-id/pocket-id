@@ -1,0 +1,346 @@
+/* Simple QR Login – standalone page for browsers without oklch support */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #171717;
+    background-image: url('/api/application-images/background');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: #fafafa;
+    min-height: 100vh;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+#app {
+    max-width: 440px;
+    width: 100%;
+}
+
+/* Card needs to stay readable when a custom background image is set,
+   so we keep a high-opacity dark base and only layer blur on top where supported. */
+.card {
+    background: #171717;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 16px;
+    padding: 40px 32px;
+}
+
+@supports ((-webkit-backdrop-filter: blur(12px)) or (backdrop-filter: blur(12px))) {
+    .card {
+        background: rgba(23, 23, 23, 0.85);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+    }
+}
+
+/* --- States --- */
+
+.state {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    text-align: center;
+}
+
+.state > * + * {
+    margin-top: 12px;
+}
+
+/* The state container is focused programmatically only for screen-reader announcements
+   (it's not a real keyboard target — tabindex="-1"). Always suppress the focus ring;
+   real interactive elements (button, link) have their own visible focus styles. */
+.state:focus,
+.state:focus-visible {
+    outline: none;
+}
+
+/* --- Typography --- */
+
+h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fafafa;
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    font-size: 15px;
+    color: #d4d4d4;
+}
+
+.muted {
+    color: #d4d4d4;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.small {
+    font-size: 13px;
+}
+
+/* --- QR Code --- */
+
+#qr-container {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 12px;
+    display: inline-block;
+    margin-top: 20px;
+}
+
+#qr-canvas {
+    display: block;
+    width: 200px;
+    height: 200px;
+}
+
+/* --- User Code (individual boxes like PocketID code-input) --- */
+
+.code-section {
+    margin-top: 44px;
+}
+
+.code-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #d4d4d4;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+}
+
+.code-boxes {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+}
+
+.code-box {
+    width: 36px;
+    height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.50);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fafafa;
+    text-transform: uppercase;
+    margin: 0 3px;
+    letter-spacing: 0;
+}
+
+.code-separator {
+    font-size: 20px;
+    font-weight: 300;
+    color: #d4d4d4;
+    margin: 0 6px;
+}
+
+/* --- Status Icons --- */
+/* Background colors darkened to satisfy WCAG 1.4.11 (3:1 ratio with white SVG strokes). */
+
+.status-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+    margin-bottom: 4px;
+    color: #ffffff;
+}
+
+.status-success {
+    background: #15803d;
+}
+
+.status-warning {
+    background: #b45309;
+}
+
+.status-error {
+    background: #b91c1c;
+}
+
+/* --- Buttons --- */
+
+button {
+    background: #e5e5e5;
+    color: #171717;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 24px;
+    min-height: 48px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    -webkit-transition: opacity 0.15s;
+    transition: opacity 0.15s;
+    line-height: 1.5;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+/* Two separate selectors so a browser that can't parse :focus-visible still keeps :focus.
+   Dark blue chosen for ≥3:1 contrast against the light button background (WCAG 1.4.11). */
+button:focus {
+    outline: 2px solid #1e40af;
+    outline-offset: 3px;
+}
+
+button:focus-visible {
+    outline: 2px solid #1e40af;
+    outline-offset: 3px;
+}
+
+button:active {
+    opacity: 0.8;
+}
+
+/* --- Spinner --- */
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 2.5px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #fafafa;
+    border-radius: 50%;
+    -webkit-animation: spin 0.7s linear infinite;
+    animation: spin 0.7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        -webkit-animation: none;
+        animation: none;
+    }
+
+    button {
+        -webkit-transition: none;
+        transition: none;
+    }
+}
+
+/* High-contrast / forced-colors mode (Windows High Contrast, etc.) */
+@media (forced-colors: active) {
+    .card {
+        border: 1px solid CanvasText;
+    }
+
+    .status-success,
+    .status-warning,
+    .status-error {
+        background: Highlight;
+        color: HighlightText;
+    }
+
+    .code-box {
+        border: 1px solid CanvasText;
+    }
+
+    button {
+        border: 1px solid ButtonText;
+    }
+}
+
+/* --- Animations --- */
+
+@-webkit-keyframes spin {
+    to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
+
+@keyframes spin {
+    to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
+
+/* --- TV-friendly: larger sizing on big screens --- */
+
+@media (min-width: 1200px) {
+    #app {
+        max-width: 520px;
+    }
+
+    .card {
+        padding: 48px 40px;
+    }
+
+    h1 {
+        font-size: 28px;
+    }
+
+    .muted {
+        font-size: 16px;
+    }
+
+    .code-box {
+        width: 44px;
+        height: 52px;
+        font-size: 20px;
+        margin: 0 4px;
+    }
+
+    .code-separator {
+        font-size: 24px;
+    }
+
+    #qr-canvas {
+        width: 320px;
+        height: 320px;
+    }
+
+    button {
+        font-size: 16px;
+        padding: 12px 32px;
+        min-height: 56px;
+    }
+}

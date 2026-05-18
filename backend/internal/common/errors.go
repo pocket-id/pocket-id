@@ -315,7 +315,9 @@ type OidcInvalidDeviceCodeError struct{}
 func (e OidcInvalidDeviceCodeError) Error() string       { return "invalid device code" }
 func (e OidcInvalidDeviceCodeError) HttpStatusCode() int { return http.StatusBadRequest }
 
-type OidcSlowDownError struct{}
+type OidcSlowDownError struct {
+	Interval int
+}
 
 func (e OidcSlowDownError) Error() string       { return "polling too frequently" }
 func (e OidcSlowDownError) HttpStatusCode() int { return http.StatusTooManyRequests }

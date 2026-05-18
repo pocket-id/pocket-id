@@ -4,6 +4,7 @@ export type AppConfig = {
 	appName: string;
 	homePageUrl: string;
 	allowOwnAccountEdit: boolean;
+	qrLoginEnabled: boolean;
 	allowUserSignups: 'disabled' | 'withToken' | 'open';
 	emailOneTimeAccessAsUnauthenticatedEnabled: boolean;
 	emailOneTimeAccessAsAdminEnabled: boolean;
