@@ -311,6 +311,12 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	// The validation was successful, so we can log out and redirect the user to the callback URL without confirmation
 	cookie.AddAccessTokenCookie(c, 0, "")
 
+	// Callback URL can be empty if none is configured
+	if callbackURL == "" {
+		c.Redirect(http.StatusFound, common.EnvConfig.AppURL+"/logout")
+		return
+	}
+
 	logoutCallbackURL, _ := url.Parse(callbackURL)
 	if input.State != "" {
 		q := logoutCallbackURL.Query()

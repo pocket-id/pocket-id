@@ -79,6 +79,7 @@ type OidcRefreshToken struct {
 	Base
 
 	Token                string
+	IdTokenJti           *string
 	ExpiresAt            datatype.DateTime
 	Scope                string
 	AuthenticationMethod string
