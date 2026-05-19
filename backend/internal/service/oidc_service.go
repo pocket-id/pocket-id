@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -2154,11 +2155,20 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 		darkSuffix = "-dark"
 	}
 
-	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
-	err = s.fileStorage.Save(ctx, imagePath, utils.NewLimitReader(resp.Body, maxLogoSize+1))
+	// Buffer the body so that storage backends receive a seekable reader with a known content length,
+	// which is required for correct checksum calculation on S3-compatible services
+	limitedBody := utils.NewLimitReader(resp.Body, maxLogoSize+1)
+	buf, err := io.ReadAll(limitedBody)
 	if errors.Is(err, utils.ErrSizeExceeded) {
-		return errLogoTooLarge
-	} else if err != nil {
+		if errors.Is(err, utils.ErrSizeExceeded) {
+			return errLogoTooLarge
+		} else if err != nil {
+			return err
+		}
+	}
+
+	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
+	if err = s.fileStorage.Save(ctx, imagePath, bytes.NewReader(buf)); err != nil {
 		return err
 	}
 
