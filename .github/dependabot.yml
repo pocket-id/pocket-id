@@ -1,8 +1,5 @@
 version: 2
 
-pull-request-branch-name:
-  separator: "-"
-
 multi-ecosystem-groups:
   all-dependencies:
     schedule:
@@ -12,16 +9,18 @@ multi-ecosystem-groups:
       timezone: "Europe/Zurich"
     labels:
       - "dependencies"
+    open-pull-requests-limit: 2
+    pull-request-branch-name:
+      separator: "-"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
 
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
-    open-pull-requests-limit: 2
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -32,10 +31,6 @@ updates:
     directory: "/backend"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
-    open-pull-requests-limit: 2
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -50,10 +45,6 @@ updates:
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
     versioning-strategy: "increase-if-necessary"
-    open-pull-requests-limit: 2
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -66,10 +57,6 @@ updates:
       - "/tests/setup"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
-    open-pull-requests-limit: 2
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -82,10 +69,6 @@ updates:
       - "/tests/setup"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
-    open-pull-requests-limit: 2
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -96,10 +79,6 @@ updates:
     directory: "/"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
-    open-pull-requests-limit: 2
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
