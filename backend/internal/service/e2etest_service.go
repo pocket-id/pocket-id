@@ -271,6 +271,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 
 		refreshToken := model.OidcRefreshToken{
 			Token:                utils.CreateSha256Hash("ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo"),
+			IdTokenJti:           new("dd75f6f6-ce0a-44b7-a645-7de390ccd2fa"),
 			AuthenticationMethod: AuthenticationMethodPhishingResistant,
 			ExpiresAt:            datatype.DateTime(time.Now().Add(24 * time.Hour)),
 			Scope:                "openid profile email",
