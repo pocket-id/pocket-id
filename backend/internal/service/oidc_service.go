@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -35,6 +34,7 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 )
 
 const (
@@ -746,11 +746,10 @@ func (s *OidcService) introspectRefreshToken(ctx context.Context, clientID strin
 		).
 		First(&storedRefreshToken).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			introspectDto.Active = false
-			return introspectDto, nil
-		}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		introspectDto.Active = false
+		return introspectDto, nil
+	} else if err != nil {
 		return introspectDto, err
 	}
 
@@ -1064,7 +1063,12 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		return err
 	}
 	defer reader.Close()
-	err = s.fileStorage.Save(ctx, imagePath, reader)
+	strippedReader, err := imageutil.StripMetadata(reader, fileType)
+	if err != nil {
+		return err
+	}
+
+	err = s.fileStorage.Save(ctx, imagePath, strippedReader)
 	if err != nil {
 		return err
 	}
@@ -2180,20 +2184,19 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 		darkSuffix = "-dark"
 	}
 
-	// Buffer the body so that storage backends receive a seekable reader with a known content length,
-	// which is required for correct checksum calculation on S3-compatible services
-	limitedBody := utils.NewLimitReader(resp.Body, maxLogoSize+1)
-	buf, err := io.ReadAll(limitedBody)
+	limitReader := utils.NewLimitReader(resp.Body, maxLogoSize+1)
+	strippedReader, err := imageutil.StripMetadata(limitReader, ext)
 	if errors.Is(err, utils.ErrSizeExceeded) {
-		if errors.Is(err, utils.ErrSizeExceeded) {
-			return errLogoTooLarge
-		} else if err != nil {
-			return err
-		}
+		return errLogoTooLarge
+	} else if err != nil {
+		return err
 	}
 
 	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
-	if err = s.fileStorage.Save(ctx, imagePath, bytes.NewReader(buf)); err != nil {
+	err = s.fileStorage.Save(ctx, imagePath, strippedReader)
+	if errors.Is(err, utils.ErrSizeExceeded) {
+		return errLogoTooLarge
+	} else if err != nil {
 		return err
 	}
 
