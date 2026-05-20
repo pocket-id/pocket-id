@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260418120000,
+	"version": 20260518222000,
 	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens"],
 	"tables": {
 		"api_keys": [
@@ -171,6 +171,7 @@
 			{
 				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				"authentication_method": "phr",
+				"id_token_jti": "dd75f6f6-ce0a-44b7-a645-7de390ccd2fa",
 				"created_at": "2025-11-25T12:39:02Z",
 				"expires_at": "2025-11-26T12:39:02Z",
 				"id": "4928604e-e689-410c-9b25-5b9b6db9e46e",

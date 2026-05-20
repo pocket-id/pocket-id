@@ -12,7 +12,9 @@ import (
 const maxRIFFSize = ^uint32(0)
 
 // StripMetadata removes EXIF/XMP metadata from JPG, PNG and WEBP images
-func StripMetadata(file io.Reader, ext string) (io.ReadSeeker, error) {
+// Returns a *bytes.Reader so that storage backends receive a seekable reader with a known content length,
+// which is required for correct checksum calculation on S3-compatible services
+func StripMetadata(file io.Reader, ext string) (*bytes.Reader, error) {
 	data, err := io.ReadAll(file)
 	if err != nil {
 		return nil, err

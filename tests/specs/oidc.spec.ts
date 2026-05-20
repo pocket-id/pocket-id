@@ -130,7 +130,7 @@ test('End session without id token hint shows confirmation page', async ({ page 
 
 test('End session with id token hint redirects to callback URL', async ({ page }) => {
 	const client = oidcClients.nextcloud;
-	const idToken = await generateIdToken(users.tim, client.id);
+	const idToken = await generateIdToken("fe81c12a-7336-4aee-bebc-d901a873bf48", users.tim, client.id);
 	let redirectedCorrectly = false;
 	await page
 		.goto(

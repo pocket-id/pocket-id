@@ -86,12 +86,10 @@ func (f *KeyProviderDatabase) SaveKey(ctx context.Context, key jwk.Key) error {
 	if err != nil {
 		return fmt.Errorf("failed to encrypt key: %w", err)
 	}
-	encB64 := base64.StdEncoding.EncodeToString(enc)
-
 	// Save to database
 	row := model.KV{
 		Key:   PrivateKeyDBKey,
-		Value: &encB64,
+		Value: new(base64.StdEncoding.EncodeToString(enc)),
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)

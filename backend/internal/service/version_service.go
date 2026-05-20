@@ -69,8 +69,7 @@ func (s *VersionService) GetLatestVersion(ctx context.Context) (string, error) {
 		return strings.TrimPrefix(payload.TagName, "v"), nil
 	})
 
-	var staleErr *utils.ErrStale
-	if errors.As(err, &staleErr) {
+	if staleErr, ok := errors.AsType[*utils.ErrStale](err); ok {
 		slog.Warn("Failed to fetch latest version, returning stale cache", "error", staleErr.Err)
 		return version, nil
 	}

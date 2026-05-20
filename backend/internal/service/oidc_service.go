@@ -354,12 +354,12 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 	}
 
 	// Explicitly use the input clientID for the audience claim to ensure consistency
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, deviceAuth.Nonce, deviceAuth.AuthenticationMethod)
+	idToken, idTokenJti, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, deviceAuth.Nonce, deviceAuth.AuthenticationMethod)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
-	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, *deviceAuth.UserID, deviceAuth.Scope, deviceAuth.AuthenticationMethod, tx)
+	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, *deviceAuth.UserID, deviceAuth.Scope, deviceAuth.AuthenticationMethod, idTokenJti, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -455,13 +455,13 @@ func (s *OidcService) createTokenFromAuthorizationCode(ctx context.Context, inpu
 
 	authenticationMethod := authorizationCodeMetaData.AuthenticationMethod
 
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, authorizationCodeMetaData.Nonce, authenticationMethod)
+	idToken, idTokenJti, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, authorizationCodeMetaData.Nonce, authenticationMethod)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
 	// Generate a refresh token
-	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope, authenticationMethod, tx)
+	refreshToken, err := s.createRefreshToken(ctx, input.ClientID, authorizationCodeMetaData.UserID, authorizationCodeMetaData.Scope, authenticationMethod, idTokenJti, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -595,13 +595,13 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 
 	// Generate a new ID token
 	// There's no nonce here because we don't have one with the refresh token, but that's not required
-	idToken, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, "", authenticationMethods)
+	idToken, idTokenJti, err := s.jwtService.GenerateIDToken(userClaims, input.ClientID, "", authenticationMethods)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
 
 	// Generate a new refresh token and invalidate the old one
-	newRefreshToken, err := s.createRefreshToken(ctx, input.ClientID, storedRefreshToken.UserID, storedRefreshToken.Scope, authenticationMethods, tx)
+	newRefreshToken, err := s.createRefreshToken(ctx, input.ClientID, storedRefreshToken.UserID, storedRefreshToken.Scope, authenticationMethods, idTokenJti, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -746,11 +746,10 @@ func (s *OidcService) introspectRefreshToken(ctx context.Context, clientID strin
 		).
 		First(&storedRefreshToken).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			introspectDto.Active = false
-			return introspectDto, nil
-		}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		introspectDto.Active = false
+		return introspectDto, nil
+	} else if err != nil {
 		return introspectDto, err
 	}
 
@@ -1202,7 +1201,7 @@ func (s *OidcService) UpdateAllowedUserGroups(ctx context.Context, id string, in
 }
 
 // ValidateEndSession returns the logout callback URL for the client if all the validations pass
-func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogoutDto, userID string) (string, error) {
+func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogoutDto, userID string) (callbackURL string, err error) {
 	// If no ID token hint is provided, return an error
 	if input.IdTokenHint == "" {
 		return "", &common.TokenInvalidError{}
@@ -1224,6 +1223,16 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcClientIdNotMatchingError{}
 	}
 
+	subject, ok := token.Subject()
+	if !ok || subject != userID {
+		return "", &common.TokenInvalidError{}
+	}
+
+	idTokenJti, ok := token.JwtID()
+	if !ok {
+		return "", &common.TokenInvalidError{}
+	}
+
 	tx := s.db.Begin()
 	defer tx.Rollback()
 
@@ -1238,17 +1247,19 @@ func (s *OidcService) ValidateEndSession(ctx context.Context, input dto.OidcLogo
 		return "", &common.OidcMissingAuthorizationError{}
 	}
 
-	// Delete all refresh tokens for this user
-	if err := tx.WithContext(ctx).Where("user_id = ?", userID).Delete(&model.OidcRefreshToken{}).Error; err != nil {
-		return "", err
+	// If the client has a callback URL, validate it
+	if len(userAuthorizedOIDCClient.Client.LogoutCallbackURLs) > 0 {
+		callbackURL, err = s.getLogoutCallbackURL(&userAuthorizedOIDCClient.Client, input.PostLogoutRedirectUri)
+		if err != nil {
+			return "", err
+		}
 	}
 
-	// If the client has no logout callback URLs, return an error
-	if len(userAuthorizedOIDCClient.Client.LogoutCallbackURLs) == 0 {
-		return "", &common.OidcNoCallbackURLError{}
-	}
-
-	callbackURL, err := s.getLogoutCallbackURL(&userAuthorizedOIDCClient.Client, input.PostLogoutRedirectUri)
+	err = tx.
+		WithContext(ctx).
+		Where("user_id = ? AND client_id = ? AND id_token_jti = ?", userID, clientID[0], idTokenJti).
+		Delete(&model.OidcRefreshToken{}).
+		Error
 	if err != nil {
 		return "", err
 	}
@@ -1266,7 +1277,10 @@ func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID stri
 		return "", err
 	}
 
-	codeChallengeMethodSha256 := strings.ToUpper(codeChallengeMethod) == "S256"
+	codeChallengeMethodSha256, err := codeChallengeMethodIsSha256(codeChallengeMethod)
+	if err != nil {
+		return "", err
+	}
 
 	oidcAuthorizationCode := model.OidcAuthorizationCode{
 		ExpiresAt:                 datatype.DateTime(time.Now().Add(15 * time.Minute)),
@@ -1289,6 +1303,19 @@ func (s *OidcService) createAuthorizationCode(ctx context.Context, clientID stri
 	}
 
 	return randomString, nil
+}
+
+func codeChallengeMethodIsSha256(codeChallengeMethod string) (bool, error) {
+	switch strings.ToUpper(codeChallengeMethod) {
+	case "":
+		return false, nil
+	case "PLAIN":
+		return false, nil
+	case "S256":
+		return true, nil
+	default:
+		return false, common.NewOidcInvalidRequestError("code challenge method not supported")
+	}
 }
 
 func validateCodeVerifier(codeVerifier, codeChallenge string, codeChallengeMethodSha256 bool) bool {
@@ -1680,7 +1707,7 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 	return dtos, response, err
 }
 
-func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, authenticationMethod string, tx *gorm.DB) (string, error) {
+func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, userID string, scope string, authenticationMethod string, idTokenJti string, tx *gorm.DB) (string, error) {
 	refreshToken, err := utils.GenerateRandomAlphanumericString(40)
 	if err != nil {
 		return "", err
@@ -1693,6 +1720,7 @@ func (s *OidcService) createRefreshToken(ctx context.Context, clientID string, u
 	m := model.OidcRefreshToken{
 		ExpiresAt:            datatype.DateTime(time.Now().Add(RefreshTokenDuration)),
 		Token:                refreshTokenHash,
+		IdTokenJti:           &idTokenJti,
 		ClientID:             clientID,
 		UserID:               userID,
 		Scope:                scope,
@@ -1952,7 +1980,7 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		return nil, err
 	}
 
-	idToken, err := s.jwtService.BuildIDToken(userClaims, clientID, "", authenticationMethod)
+	idToken, _, err := s.jwtService.BuildIDToken(userClaims, clientID, "", authenticationMethod)
 	if err != nil {
 		return nil, err
 	}
@@ -2156,14 +2184,15 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 		darkSuffix = "-dark"
 	}
 
-	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
-	strippedReader, err := imageutil.StripMetadata(utils.NewLimitReader(resp.Body, maxLogoSize+1), ext)
+	limitReader := utils.NewLimitReader(resp.Body, maxLogoSize+1)
+	strippedReader, err := imageutil.StripMetadata(limitReader, ext)
 	if errors.Is(err, utils.ErrSizeExceeded) {
 		return errLogoTooLarge
 	} else if err != nil {
 		return err
 	}
 
+	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
 	err = s.fileStorage.Save(ctx, imagePath, strippedReader)
 	if errors.Is(err, utils.ErrSizeExceeded) {
 		return errLogoTooLarge
