@@ -149,12 +149,12 @@ func (occ OidcClientCredentials) Value() (driver.Value, error) {
 
 type OidcClientClaimMappings []OidcClientClaimMapping //nolint:recvcheck
 
-func (occ *OidcClientClaimMappings) Scan(value any) error {
-	return utils.UnmarshalJSONFromDatabase(occ, value)
+func (ocm *OidcClientClaimMappings) Scan(value any) error {
+	return utils.UnmarshalJSONFromDatabase(ocm, value)
 }
 
-func (occ OidcClientClaimMappings) Value() (driver.Value, error) {
-	return json.Marshal(occ)
+func (ocm OidcClientClaimMappings) Value() (driver.Value, error) {
+	return json.Marshal(ocm)
 }
 
 type UrlList []string //nolint:recvcheck
