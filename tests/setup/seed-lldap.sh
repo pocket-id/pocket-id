@@ -60,6 +60,53 @@ user_exists() {
   printf '%s' "$response" | jq -e --arg id "$1" '.data.users[]? | select(.id == $id)' >/dev/null
 }
 
+schema_attribute_exists() {
+  target="$1"
+  name="$2"
+  response="$(graphql '{schema{userSchema{attributes{name}} groupSchema{attributes{name}}}}' '{}')"
+
+  if [ "$target" = "user" ]; then
+    printf '%s' "$response" | jq -e --arg name "$name" '.data.schema.userSchema.attributes[]? | select(.name == $name)' >/dev/null
+  else
+    printf '%s' "$response" | jq -e --arg name "$name" '.data.schema.groupSchema.attributes[]? | select(.name == $name)' >/dev/null
+  fi
+}
+
+create_schema_attribute() {
+  target="$1"
+  name="$2"
+  attribute_type="$3"
+
+  if schema_attribute_exists "$target" "$name"; then
+    echo "Schema attribute already exists: $target.$name"
+    return 0
+  fi
+
+  if [ "$target" = "user" ]; then
+    graphql "mutation {
+      addUserAttribute(
+        name: \"$name\"
+        attributeType: $attribute_type
+        isList: false
+        isVisible: true
+        isEditable: true
+      ) { ok }
+    }" >/dev/null
+  else
+    graphql "mutation {
+      addGroupAttribute(
+        name: \"$name\"
+        attributeType: $attribute_type
+        isList: false
+        isVisible: true
+        isEditable: true
+      ) { ok }
+    }" >/dev/null
+  fi
+
+  echo "Created schema attribute: $target.$name"
+}
+
 create_user() {
   id="$1"
   email="$2"
@@ -67,6 +114,7 @@ create_user() {
   first_name="$4"
   last_name="$5"
   password="$6"
+  department="$7"
 
   variables="$(
     jq -cn \
@@ -75,7 +123,18 @@ create_user() {
       --arg displayName "$display_name" \
       --arg firstName "$first_name" \
       --arg lastName "$last_name" \
-      '{user: {id: $id, email: $email, displayName: $displayName, firstName: $firstName, lastName: $lastName, avatar: ""}}'
+      --arg department "$department" \
+      '{user: {
+        id: $id,
+        email: $email,
+        displayName: $displayName,
+        firstName: $firstName,
+        lastName: $lastName,
+        avatar: "",
+        attributes: [
+          {name: "department", value: [$department]}
+        ]
+      }}'
   )"
 
   graphql 'mutation createUser($user:CreateUserInput!){createUser(user:$user){id}}' "$variables" >/dev/null
@@ -112,11 +171,33 @@ update_group_display_name() {
     jq -cn \
       --argjson id "$group_id" \
       --arg displayName "$display_name" \
-      '{group: {id: $id, insertAttributes: {name: "display_name", value: $displayName}}}'
+      '{group: {id: $id, insertAttributes: {name: "display_name", value: [$displayName]}}}'
   )"
 
   graphql 'mutation updateGroup($group:UpdateGroupInput!){updateGroup(group:$group){ok}}' "$variables" >/dev/null
   echo "Attribute set for group: $name, attribute: display_name, value: $display_name"
+}
+
+update_group_elevated_rights() {
+  name="$1"
+  elevated_rights="$2"
+  group_id="$(get_group_id "$name")"
+
+  variables="$(
+    jq -cn \
+      --argjson id "$group_id" \
+      --arg elevatedRights "$elevated_rights" \
+      '{group: {
+        id: $id,
+        insertAttributes: {
+          name: "elevatedRights",
+          value: [$elevatedRights]
+        }
+      }}'
+  )"
+
+  graphql 'mutation updateGroup($group:UpdateGroupInput!){updateGroup(group:$group){ok}}' "$variables" >/dev/null
+  echo "Attribute set for group: $name, attribute: elevatedRights, value: $elevated_rights"
 }
 
 add_user_to_group() {
@@ -174,6 +255,10 @@ done
 
 login
 
+echo "Setting up LLDAP schema..."
+create_schema_attribute "user" "department" "STRING"
+create_schema_attribute "group" "elevatedRights" "STRING"
+
 echo "Checking if data is already seeded..."
 if user_exists "testuser1"; then
   echo "Data already seeded, skipping setup."
@@ -183,17 +268,19 @@ fi
 echo "Setting up LLDAP test data..."
 
 echo "Creating test users..."
-create_user "testuser1" "testuser1@pocket-id.org" "Test User 1" "Test" "User" "password123"
-create_user "testuser2" "testuser2@pocket-id.org" "Test User 2" "Test2" "User2" "password123"
+create_user "testuser1" "testuser1@pocket-id.org" "Test User 1" "Test" "User" "password123" "Engineering"
+create_user "testuser2" "testuser2@pocket-id.org" "Test User 2" "Test2" "User2" "password123" "Operations"
 
 echo "Creating test groups..."
 create_group "test_group"
 sleep 1
 update_group_display_name "test_group" "test_group"
+update_group_elevated_rights "test_group" "false"
 
 create_group "admin_group"
 sleep 1
 update_group_display_name "admin_group" "admin_group"
+update_group_elevated_rights "admin_group" "true"
 
 echo "Adding users to groups..."
 add_user_to_group_with_retry "testuser1" "test_group"

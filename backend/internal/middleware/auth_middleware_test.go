@@ -37,7 +37,9 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	jwtService, err := service.NewJwtService(t.Context(), db, appConfigService)
 	require.NoError(t, err)
 
-	userService := service.NewUserService(db, jwtService, nil, nil, appConfigService, nil, nil, nil, nil)
+	customFieldsValueService := service.NewCustomFieldValueService(db, appConfigService)
+
+	userService := service.NewUserService(db, jwtService, nil, nil, appConfigService, customFieldsValueService, nil, nil, nil)
 	apiKeyService, err := service.NewApiKeyService(t.Context(), db, nil)
 	require.NoError(t, err)
 

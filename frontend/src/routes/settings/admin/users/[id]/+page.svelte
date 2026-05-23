@@ -1,6 +1,5 @@
 <script lang="ts">
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
-	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -8,7 +7,6 @@
 	import * as Item from '$lib/components/ui/item/index.js';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import CustomClaimService from '$lib/services/custom-claim-service';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { Passkey } from '$lib/types/passkey.type';
@@ -28,7 +26,6 @@
 	let passkeys: Passkey[] = $state(data.passkeys);
 
 	const userService = new UserService();
-	const customClaimService = new CustomClaimService();
 	const backNavigation = backNavigate('/settings/admin/users');
 
 	async function updateUserGroups(userIds: string[]) {
@@ -51,15 +48,6 @@
 			});
 
 		return success;
-	}
-
-	async function updateCustomClaims() {
-		await customClaimService
-			.updateUserCustomClaims(user.id, user.customClaims)
-			.then(() => toast.success(m.custom_claims_updated_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-			});
 	}
 
 	async function updateProfilePicture(image: File) {
@@ -150,14 +138,3 @@
 		<AdminPasskeyList userId={user.id} bind:passkeys />
 	{/if}
 </Item.Group>
-
-<CollapsibleCard
-	id="user-custom-claims"
-	title={m.custom_claims()}
-	description={m.custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user()}
->
-	<CustomClaimsInput bind:customClaims={user.customClaims} />
-	<div class="mt-5 flex justify-end">
-		<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
-	</div>
-</CollapsibleCard>

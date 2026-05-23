@@ -72,14 +72,20 @@ func (s *UserSignUpService) SignUp(ctx context.Context, signupData dto.SignUpDto
 		}
 	}
 
+	customFieldValues, err := s.filterSignupCustomFieldValues(signupData.CustomFieldValues)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
 	userToCreate := dto.UserCreateDto{
-		Username:      signupData.Username,
-		Email:         signupData.Email,
-		FirstName:     signupData.FirstName,
-		LastName:      signupData.LastName,
-		DisplayName:   strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
-		UserGroupIds:  userGroupIDs,
-		EmailVerified: s.appConfigService.GetDbConfig().EmailsVerified.IsTrue(),
+		Username:          signupData.Username,
+		Email:             signupData.Email,
+		FirstName:         signupData.FirstName,
+		LastName:          signupData.LastName,
+		DisplayName:       strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
+		UserGroupIds:      userGroupIDs,
+		EmailVerified:     s.appConfigService.GetDbConfig().EmailsVerified.IsTrue(),
+		CustomFieldValues: customFieldValues,
 	}
 
 	user, err := s.userService.createUserInternal(ctx, userToCreate, false, tx)
@@ -132,13 +138,19 @@ func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData d
 		return model.User{}, "", &common.SetupNotAvailableError{}
 	}
 
+	customFieldValues, err := s.filterSignupCustomFieldValues(signUpData.CustomFieldValues)
+	if err != nil {
+		return model.User{}, "", err
+	}
+
 	userToCreate := dto.UserCreateDto{
-		FirstName:   signUpData.FirstName,
-		LastName:    signUpData.LastName,
-		DisplayName: strings.TrimSpace(signUpData.FirstName + " " + signUpData.LastName),
-		Username:    signUpData.Username,
-		Email:       signUpData.Email,
-		IsAdmin:     true,
+		FirstName:         signUpData.FirstName,
+		LastName:          signUpData.LastName,
+		DisplayName:       strings.TrimSpace(signUpData.FirstName + " " + signUpData.LastName),
+		Username:          signUpData.Username,
+		Email:             signUpData.Email,
+		IsAdmin:           true,
+		CustomFieldValues: customFieldValues,
 	}
 
 	user, err := s.userService.createUserInternal(ctx, userToCreate, false, tx)
@@ -157,6 +169,34 @@ func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData d
 	}
 
 	return user, token, nil
+}
+
+func (s *UserSignUpService) filterSignupCustomFieldValues(customFieldValues []dto.CustomFieldValueCreateDto) ([]dto.CustomFieldValueCreateDto, error) {
+	fields, err := ParseCustomFieldDefinitions(s.appConfigService.GetDbConfig().CustomFields.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	allowedFieldIDs := make(map[string]struct{}, len(fields))
+	allowedFieldKeys := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		if !customFieldAppliesTo(field, UserID) || (!field.Required && !field.UserEditable) {
+			continue
+		}
+		allowedFieldIDs[field.ID] = struct{}{}
+		allowedFieldKeys[field.Key] = struct{}{}
+	}
+
+	filteredCustomFieldValues := make([]dto.CustomFieldValueCreateDto, 0, len(customFieldValues))
+	for _, customFieldValue := range customFieldValues {
+		_, idAllowed := allowedFieldIDs[customFieldValue.CustomFieldID]
+		_, keyAllowed := allowedFieldKeys[customFieldValue.Key]
+		if idAllowed || keyAllowed {
+			filteredCustomFieldValues = append(filteredCustomFieldValues, customFieldValue)
+		}
+	}
+
+	return filteredCustomFieldValues, nil
 }
 
 func (s *UserSignUpService) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error) {

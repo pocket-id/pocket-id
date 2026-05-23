@@ -141,6 +141,51 @@ func TestLdapServiceSyncAllReconcilesUsersAndGroups(t *testing.T) {
 	assert.ElementsMatch(t, []string{"alice", "bob"}, usernames(team.Users))
 }
 
+func TestLdapServiceSyncAllImportsCustomFieldsFromLDAP(t *testing.T) {
+	appCfg := defaultTestLDAPAppConfig()
+	appCfg.CustomFields = model.AppConfigVariable{Value: `[
+		{"id":"5b6f0cb7-2865-4c2e-9795-4c81e3725f21","key":"quota","displayName":"Quota","type":"string","target":"user","required":false},
+		{"id":"5085ac6f-a1d4-4cb8-bd6b-40d68b8f0644","key":"mailboxTemplate","displayName":"Mailbox template","type":"string","target":"user","required":false},
+		{"id":"9a98fcfb-1d0b-46a3-b028-3c43694b1771","key":"nextcloudQuota","displayName":"Group quota","type":"string","target":"group","required":false}
+	]`}
+
+	service, db := newTestLdapServiceWithAppConfig(t, appCfg, newFakeLDAPClient(
+		ldapSearchResult(
+			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
+				"entryUUID":       {"u-alice"},
+				"uid":             {"alice"},
+				"mail":            {"alice@example.com"},
+				"givenName":       {"Alice"},
+				"sn":              {"Jones"},
+				"displayName":     {""},
+				"quota":           {"10 GB"},
+				"mailboxTemplate": {"standard"},
+			}),
+		),
+		ldapSearchResult(
+			ldapEntry("cn=team,ou=groups,dc=example,dc=com", map[string][]string{
+				"entryUUID":      {"g-team"},
+				"cn":             {"team"},
+				"member":         {"uid=alice,ou=people,dc=example,dc=com"},
+				"nextcloudQuota": {"100 GB"},
+			}),
+		),
+	))
+
+	require.NoError(t, service.SyncAll(t.Context()))
+
+	var alice model.User
+	require.NoError(t, db.Preload("CustomFieldValues").First(&alice, "ldap_id = ?", "u-alice").Error)
+	userValues := customFieldValuesByID(alice.CustomFieldValues)
+	assert.Equal(t, "10 GB", userValues["5b6f0cb7-2865-4c2e-9795-4c81e3725f21"])
+	assert.Equal(t, "standard", userValues["5085ac6f-a1d4-4cb8-bd6b-40d68b8f0644"])
+
+	var group model.UserGroup
+	require.NoError(t, db.Preload("CustomFieldValues").First(&group, "ldap_id = ?", "g-team").Error)
+	groupValues := customFieldValuesByID(group.CustomFieldValues)
+	assert.Equal(t, "100 GB", groupValues["9a98fcfb-1d0b-46a3-b028-3c43694b1771"])
+}
+
 // Regression: posixGroup uses memberUid (bare uid values), not member DNs — issue #1408.
 func TestLdapServiceSyncAllMapsPosixGroupMemberUid(t *testing.T) {
 	appCfg := defaultTestLDAPAppConfig()
@@ -318,14 +363,15 @@ func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *model.AppConf
 
 	appConfig := NewTestAppConfigService(appConfigModel)
 
-	groupService := NewUserGroupService(db, appConfig, nil)
+	customFieldValueService := NewCustomFieldValueService(db, appConfig)
+	groupService := NewUserGroupService(db, appConfig, customFieldValueService, nil)
 	userService := NewUserService(
 		db,
 		nil,
 		nil,
 		nil,
 		appConfig,
-		NewCustomClaimService(db),
+		customFieldValueService,
 		NewAppImagesService(map[string]string{}, fileStorage),
 		nil,
 		fileStorage,
@@ -400,6 +446,15 @@ func usernames(users []model.User) []string {
 	result := make([]string, 0, len(users))
 	for _, user := range users {
 		result = append(result, user.Username)
+	}
+
+	return result
+}
+
+func customFieldValuesByID(values []model.CustomFieldValue) map[string]string {
+	result := make(map[string]string, len(values))
+	for _, value := range values {
+		result[value.CustomFieldID] = value.Value
 	}
 
 	return result

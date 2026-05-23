@@ -26,9 +26,9 @@ type User struct {
 	Disabled      bool `sortable:"true" filterable:"true"`
 	UpdatedAt     *datatype.DateTime
 
-	CustomClaims []CustomClaim
-	UserGroups   []UserGroup `gorm:"many2many:user_groups_users;"`
-	Credentials  []WebauthnCredential
+	CustomFieldValues []CustomFieldValue
+	UserGroups        []UserGroup `gorm:"many2many:user_groups_users;"`
+	Credentials       []WebauthnCredential
 }
 
 func (u User) WebAuthnID() []byte { return []byte(u.ID) }

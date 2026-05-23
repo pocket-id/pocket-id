@@ -13,25 +13,25 @@ import (
 )
 
 type services struct {
-	appConfigService     *service.AppConfigService
-	appImagesService     *service.AppImagesService
-	emailService         *service.EmailService
-	geoLiteService       *service.GeoLiteService
-	auditLogService      *service.AuditLogService
-	jwtService           *service.JwtService
-	webauthnService      *service.WebAuthnService
-	scimService          *service.ScimService
-	userService          *service.UserService
-	customClaimService   *service.CustomClaimService
-	oidcService          *service.OidcService
-	userGroupService     *service.UserGroupService
-	ldapService          *service.LdapService
-	apiKeyService        *service.ApiKeyService
-	versionService       *service.VersionService
-	fileStorage          storage.FileStorage
-	appLockService       *service.AppLockService
-	userSignUpService    *service.UserSignUpService
-	oneTimeAccessService *service.OneTimeAccessService
+	appConfigService        *service.AppConfigService
+	appImagesService        *service.AppImagesService
+	emailService            *service.EmailService
+	geoLiteService          *service.GeoLiteService
+	auditLogService         *service.AuditLogService
+	jwtService              *service.JwtService
+	webauthnService         *service.WebAuthnService
+	scimService             *service.ScimService
+	userService             *service.UserService
+	customFieldValueService *service.CustomFieldValueService
+	oidcService             *service.OidcService
+	userGroupService        *service.UserGroupService
+	ldapService             *service.LdapService
+	apiKeyService           *service.ApiKeyService
+	versionService          *service.VersionService
+	fileStorage             storage.FileStorage
+	appLockService          *service.AppLockService
+	userSignUpService       *service.UserSignUpService
+	oneTimeAccessService    *service.OneTimeAccessService
 }
 
 // Initializes all services
@@ -59,7 +59,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)
 	}
 
-	svc.customClaimService = service.NewCustomClaimService(db)
+	svc.customFieldValueService = service.NewCustomFieldValueService(db, svc.appConfigService)
 	svc.webauthnService, err = service.NewWebAuthnService(db, svc.jwtService, svc.auditLogService, svc.appConfigService)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
@@ -67,13 +67,13 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
 
-	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService, svc.scimService, httpClient, fileStorage)
+	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customFieldValueService, svc.webauthnService, svc.scimService, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
-	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService, svc.scimService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
+	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService, svc.customFieldValueService, svc.scimService)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customFieldValueService, svc.appImagesService, svc.scimService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService, fileStorage)
 
 	svc.apiKeyService, err = service.NewApiKeyService(ctx, db, svc.emailService)

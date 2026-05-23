@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CustomFieldValuesInput from '$lib/components/form/custom-field-values-input.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -7,6 +8,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
+	import { customFieldAppliesTo } from '$lib/types/custom-field.type';
 	import type { User, UserCreate } from '$lib/types/user.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
@@ -28,6 +30,11 @@
 	let isLoading = $state(false);
 	let inputDisabled = $derived(!!existingUser?.ldapId && $appConfigStore.ldapEnabled);
 	let hasManualDisplayNameEdit = $state(!!existingUser?.displayName);
+	let customFieldValues = $state(existingUser?.customFieldValues || []);
+	let customFieldValuesInputRef = $state<CustomFieldValuesInput>();
+	let customFields = $derived(
+		$appConfigStore.customFields.filter((field) => customFieldAppliesTo(field, 'user'))
+	);
 
 	const user = {
 		firstName: existingUser?.firstName || '',
@@ -58,10 +65,17 @@
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;
+		if (!customFieldValuesInputRef?.validate()) return;
 		isLoading = true;
-		const success = await callback(data);
+		const success = await callback({
+			...data,
+			customFieldValues
+		});
 		// Reset form if user was successfully created
-		if (success && !existingUser) form.reset();
+		if (success && !existingUser) {
+			form.reset();
+			customFieldValues = [];
+		}
 		isLoading = false;
 	}
 	function onNameInput() {
@@ -128,6 +142,11 @@
 				label={m.user_disabled()}
 				description={m.disabled_users_cannot_log_in_or_use_services()}
 				bind:checked={$inputs.disabled.value}
+			/>
+			<CustomFieldValuesInput
+				bind:this={customFieldValuesInputRef}
+				bind:customFieldValues
+				{customFields}
 			/>
 		</div>
 		<div class="mt-5 flex justify-end">

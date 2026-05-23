@@ -15,19 +15,24 @@ import (
 )
 
 type UserGroupService struct {
-	db               *gorm.DB
-	scimService      *ScimService
-	appConfigService *AppConfigService
+	db                      *gorm.DB
+	scimService             *ScimService
+	appConfigService        *AppConfigService
+	customFieldValueService *CustomFieldValueService
 }
 
-func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService, scimService *ScimService) *UserGroupService {
-	return &UserGroupService{db: db, appConfigService: appConfigService, scimService: scimService}
+func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService, customFieldValueService *CustomFieldValueService, scimService *ScimService) *UserGroupService {
+	return &UserGroupService{db: db, appConfigService: appConfigService, customFieldValueService: customFieldValueService, scimService: scimService}
 }
 
 func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
-	query := s.db.
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	query := tx.
 		WithContext(ctx).
-		Preload("CustomClaims").
 		Model(&model.UserGroup{})
 
 	if name != "" {
@@ -43,6 +48,17 @@ func (s *UserGroupService) List(ctx context.Context, name string, listRequestOpt
 	}
 
 	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &groups)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	for i := range groups {
+		groups[i].CustomFieldValues, err = s.customFieldValueService.GetCustomFieldValuesForUserGroup(ctx, groups[i].ID, tx)
+		if err != nil {
+			return nil, utils.PaginationResponse{}, err
+		}
+	}
+
 	return groups, response, err
 }
 
@@ -54,11 +70,19 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 	err = tx.
 		WithContext(ctx).
 		Where("id = ?", id).
-		Preload("CustomClaims").
 		Preload("Users").
 		Preload("AllowedOidcClients").
 		First(&group).
 		Error
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
+	group.CustomFieldValues, err = s.customFieldValueService.GetCustomFieldValuesForUserGroup(ctx, group.ID, tx)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
 	return group, err
 }
 
@@ -104,7 +128,22 @@ func (s *UserGroupService) Delete(ctx context.Context, id string) error {
 }
 
 func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
-	return s.createInternal(ctx, input, s.db)
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	group, err = s.createInternal(ctx, input, tx)
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
+	err = tx.Commit().Error
+	if err != nil {
+		return model.UserGroup{}, err
+	}
+
+	return group, nil
 }
 
 func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (group model.UserGroup, err error) {
@@ -127,6 +166,12 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 			return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
 		}
 		return model.UserGroup{}, err
+	}
+
+	if input.LdapID == "" {
+		if group.CustomFieldValues, err = s.customFieldValueService.updateCustomFieldValuesInternal(ctx, UserGroupID, group.ID, input.CustomFieldValues, tx); err != nil {
+			return model.UserGroup{}, err
+		}
 	}
 
 	if s.scimService != nil {
@@ -179,6 +224,12 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 		return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
 	} else if err != nil {
 		return model.UserGroup{}, err
+	}
+
+	if input.CustomFieldValues != nil {
+		if _, err := s.customFieldValueService.updateCustomFieldValuesInternal(ctx, UserGroupID, group.ID, input.CustomFieldValues, tx); err != nil {
+			return model.UserGroup{}, err
+		}
 	}
 
 	if s.scimService != nil {

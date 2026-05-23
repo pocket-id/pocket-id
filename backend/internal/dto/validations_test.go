@@ -58,6 +58,42 @@ func TestValidateClientID(t *testing.T) {
 	}
 }
 
+func TestValidateRegex(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"empty", "", true},
+		{"valid", "^EMP-[0-9]+$", true},
+		{"invalid", "[", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ValidateRegex(tt.input))
+		})
+	}
+}
+
+func TestValidateUUID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"valid", "89bc9c8f-2cd8-4cfd-82c5-5fa14e874f03", true},
+		{"invalid", "field-1", false},
+		{"empty", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ValidateUUID(tt.input))
+		})
+	}
+}
+
 func TestValidateResponseMode(t *testing.T) {
 	tests := []struct {
 		name     string

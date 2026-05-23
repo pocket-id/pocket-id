@@ -1,11 +1,13 @@
 package dto
 
 import (
+	"errors"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 
 	"github.com/gin-gonic/gin/binding"
@@ -33,6 +35,12 @@ func init() {
 		"client_id": func(fl validator.FieldLevel) bool {
 			return ValidateClientID(fl.Field().String())
 		},
+		"regex": func(fl validator.FieldLevel) bool {
+			return ValidateRegex(fl.Field().String())
+		},
+		"uuid": func(fl validator.FieldLevel) bool {
+			return ValidateUUID(fl.Field().String())
+		},
 		"ttl": func(fl validator.FieldLevel) bool {
 			ttl, ok := fl.Field().Interface().(utils.JSONDuration)
 			if !ok {
@@ -59,6 +67,16 @@ func init() {
 	}
 }
 
+func ValidateStruct(input any) error {
+	e, ok := binding.Validator.Engine().(interface {
+		Struct(any) error
+	})
+	if !ok {
+		return errors.New("validator does not implement the expected interface")
+	}
+	return e.Struct(input)
+}
+
 // ValidateUsername validates username inputs
 func ValidateUsername(username string) bool {
 	return validateUsernameRegex.MatchString(username)
@@ -67,6 +85,20 @@ func ValidateUsername(username string) bool {
 // ValidateClientID validates client ID inputs
 func ValidateClientID(clientID string) bool {
 	return validateClientIDRegex.MatchString(clientID)
+}
+
+// ValidateRegex validates that the input is either empty or a compilable regular expression.
+func ValidateRegex(value string) bool {
+	if value == "" {
+		return true
+	}
+	_, err := regexp.Compile(value)
+	return err == nil
+}
+
+// ValidateUUID validates UUID inputs.
+func ValidateUUID(value string) bool {
+	return uuid.Validate(value) == nil
 }
 
 // ValidateCallbackURL validates the input callback URL
