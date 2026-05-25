@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"io"
 	"io/fs"
 	"mime/multipart"
@@ -54,6 +55,29 @@ func TestAppImagesService_UpdateImage(t *testing.T) {
 
 	_, _, err = store.Open(context.Background(), path.Join("application-images", "logoLight.svg"))
 	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+func TestAppImagesService_UpdateImageStripsMetadata(t *testing.T) {
+	store, err := storage.NewFilesystemStorage(t.TempDir())
+	require.NoError(t, err)
+
+	service := NewAppImagesService(map[string]string{}, store)
+
+	fileHeader := newFileHeader(t, "logo.webp", webpFile(
+		webpChunk("VP8 ", []byte{1, 2, 3, 4}),
+		webpChunk("EXIF", []byte("secret")),
+	))
+
+	require.NoError(t, service.UpdateImage(context.Background(), fileHeader, "logoLight"))
+
+	reader, _, err := store.Open(context.Background(), path.Join("application-images", "logoLight.webp"))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	payload, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	assert.NotContains(t, string(payload), "secret")
+	assert.Contains(t, string(payload), "VP8 ")
 }
 
 func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
@@ -111,4 +135,27 @@ func newFileHeader(t *testing.T, filename string, content []byte) *multipart.Fil
 	require.NoError(t, err)
 
 	return fileHeader
+}
+
+func webpFile(chunks ...[]byte) []byte {
+	var out bytes.Buffer
+	out.WriteString("RIFF")
+	out.Write([]byte{0, 0, 0, 0})
+	out.WriteString("WEBP")
+	for _, chunk := range chunks {
+		out.Write(chunk)
+	}
+	binary.LittleEndian.PutUint32(out.Bytes()[4:8], uint32(out.Len()-8)) //nolint:gosec
+	return out.Bytes()
+}
+
+func webpChunk(chunkType string, data []byte) []byte {
+	var out bytes.Buffer
+	out.WriteString(chunkType)
+	_ = binary.Write(&out, binary.LittleEndian, uint32(len(data))) //nolint:gosec
+	out.Write(data)
+	if len(data)%2 == 1 {
+		out.WriteByte(0)
+	}
+	return out.Bytes()
 }
