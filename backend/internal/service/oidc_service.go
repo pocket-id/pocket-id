@@ -35,6 +35,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
+
+	"github.com/maruel/natural"
 )
 
 const (
@@ -994,7 +996,7 @@ func validateClaimMappings(mappings []dto.OidcClientClaimMappingDto) error {
 	return nil
 }
 
-func (s *OidcService) applyClaimMappings(claims map[string]any, mappings []model.OidcClientClaimMapping, user *model.User, customClaimsMap map[string]any) error {
+func (s *OidcService) applyClaimMappings(claims map[string]any, mappings []model.OidcClientClaimMapping, user *model.User, customClaimsMap map[string][]any) error {
 	// Store original values for fallback
 	originalClaims := make(map[string]any)
 	for k, v := range claims {
@@ -1030,10 +1032,26 @@ func (s *OidcService) applyClaimMappings(claims map[string]any, mappings []model
 			}
 
 		case model.MappingSourceCustomClaim:
+			strategy := model.ConflictStrategyDefault
+			if mapping.ConflictStrategy != nil {
+				strategy = *mapping.ConflictStrategy
+			}
+
 			// Map from custom claim
 			if value, exists := customClaimsMap[mapping.SourceValue]; exists {
-				remappedValue = value
-				foundValue = true
+				if len(value) > 0 {
+					switch strategy {
+					case model.ConflictStrategyDefault:
+						remappedValue = value[0]
+					case model.ConflictStrategyFirst:
+						remappedValue = naturalSort(value, true)
+					case model.ConflictStrategyLast:
+						remappedValue = naturalSort(value, false)
+					case model.ConflictStrategyCollect:
+						remappedValue = value
+					}
+					foundValue = true
+				}
 			}
 
 		case model.MappingSourceStatic:
@@ -1058,6 +1076,25 @@ func (s *OidcService) applyClaimMappings(claims map[string]any, mappings []model
 	}
 
 	return nil
+}
+
+func naturalSort(values []any, first bool) string {
+	strValues := make([]string, len(values))
+
+	for i, v := range values {
+		if str, ok := v.(string); ok {
+			strValues[i] = str
+		} else {
+			strValues[i] = fmt.Sprintf("%v", v)
+		}
+	}
+	slices.SortFunc(strValues, natural.Compare)
+
+	if first {
+		return strValues[0]
+	} else {
+		return strValues[len(strValues)-1]
+	}
 }
 
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
@@ -1086,10 +1123,12 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	// Credentials - ClaimMappings
 	client.ClaimMappings = make([]model.OidcClientClaimMapping, len(input.ClaimMappings))
 	for i, cr := range input.ClaimMappings {
+		strategy := model.ConflictStrategy(cr.ConflictStrategy)
 		client.ClaimMappings[i] = model.OidcClientClaimMapping{
-			ClaimName:   cr.ClaimName,
-			SourceType:  model.ClaimMappingSourceType(cr.SourceType),
-			SourceValue: cr.SourceValue,
+			ClaimName:        cr.ClaimName,
+			SourceType:       model.ClaimMappingSourceType(cr.SourceType),
+			SourceValue:      cr.SourceValue,
+			ConflictStrategy: &strategy,
 		}
 	}
 
@@ -2205,18 +2244,18 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 		}
 
 		// Store custom claims in a map for easy lookup during mapping
-		customClaimsMap := make(map[string]any)
+		customClaimsMap := make(map[string][]any)
 		for _, customClaim := range customClaims {
 			// The value of the custom claim can be a JSON object or a string
 			var jsonValue any
 			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
 			if err == nil {
 				// It's JSON, so we store it as an object
-				customClaimsMap[customClaim.Key] = jsonValue
+				customClaimsMap[customClaim.Key] = append(customClaimsMap[customClaim.Key], jsonValue)
 				claims[customClaim.Key] = jsonValue
 			} else {
 				// Marshaling failed, so we store it as a string
-				customClaimsMap[customClaim.Key] = customClaim.Value
+				customClaimsMap[customClaim.Key] = append(customClaimsMap[customClaim.Key], customClaim.Value)
 				claims[customClaim.Key] = customClaim.Value
 			}
 		}

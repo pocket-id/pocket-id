@@ -66,9 +66,10 @@ type OidcClientFederatedIdentityDto struct {
 }
 
 type OidcClientClaimMappingDto struct {
-	ClaimName   string `json:"claimName" binding:"required,min=1,max=255"`
-	SourceType  string `json:"sourceType" binding:"required,oneof=user_field custom_claim static"`
-	SourceValue string `json:"sourceValue" binding:"required,min=1,max=1000"`
+	ClaimName   		string `json:"claimName" binding:"required,min=1,max=255"`
+	SourceType  		string `json:"sourceType" binding:"required,oneof=user_field custom_claim static"`
+	SourceValue 		string `json:"sourceValue" binding:"required,min=1,max=1000"`
+	ConflictStrategy	string `json:"conflictStrategy" binding:"omitempty,oneof=default first last collect"`
 }
 
 type AuthorizeOidcClientRequestDto struct {

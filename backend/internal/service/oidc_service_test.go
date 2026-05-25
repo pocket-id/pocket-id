@@ -1580,25 +1580,33 @@ func TestOidcService_applyClaimMappings(t *testing.T) {
 			"preferred_username": "john_doe",
 			"family_name":        "Doe",
 		}
+		first := model.ConflictStrategyFirst
+		collect := model.ConflictStrategyCollect
 		mappings := []model.OidcClientClaimMapping{
 			{ClaimName: "email", SourceType: "static", SourceValue: "no-reply@example.com"},
 			{ClaimName: "preferred_username", SourceType: "user_field", SourceValue: "email"},
-			{ClaimName: "quota", SourceType: "custom_claim", SourceValue: "quota"},
+			{ClaimName: "quota", SourceType: "custom_claim", SourceValue: "quota", ConflictStrategy: &first},
+			{ClaimName: "role", SourceType: "custom_claim", SourceValue: "role"},
+			{ClaimName: "list", SourceType: "custom_claim", SourceValue: "list", ConflictStrategy: &collect},
 		}
 		email := "user@example.com"
 		user := &model.User{
 			Email: &email,
 		}
-		customClaimsMap := map[string]any{
-			"quota": "100",
-			"unsed": "value",
+		customClaimsMap := map[string][]any{
+			"quota": {"100", "20"},
+			"role": {"admin"},
+			"list": {"1","2"},
+			"unsed": {"value"},
 		}
 		err := s.applyClaimMappings(claims, mappings, user, customClaimsMap)
 		require.NoError(t, err)
 
 		require.Equal(t, "no-reply@example.com", claims["email"])
 		require.Equal(t, &email, claims["preferred_username"])
-		require.Equal(t, "100", claims["quota"])
+		require.Equal(t, "20", claims["quota"])
+		require.Equal(t, "admin", claims["role"])
+		require.Equal(t, []any{"1", "2"}, claims["list"])
 		require.Equal(t, "Doe", claims["family_name"])
 		require.Empty(t, claims["unsed"])
 	})

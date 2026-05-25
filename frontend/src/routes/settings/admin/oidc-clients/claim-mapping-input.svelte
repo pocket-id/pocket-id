@@ -15,7 +15,8 @@
 		claimMapping = $bindable({
 			claimName: '',
 			sourceType: 'user_field',
-			sourceValue: ''
+			sourceValue: '',
+			conflictStrategy: 'default'
 		}),
 		onRemove,
 		errors,
@@ -29,6 +30,7 @@
 	} = $props();
 
 	let selectedSourceType = $state(claimMapping.sourceType);
+	let selectedConflictStrategy = $state(claimMapping.conflictStrategy)
 	let selectedUserAttribute = $state(claimMapping.sourceValue);
 
 	// User fields that can be used as sources
@@ -45,6 +47,13 @@
 		{ value: 'user_field', label: m.user_attribute() },
 		{ value: 'custom_claim', label: m.custom_claim() },
 		{ value: 'static', label: m.static_value() }
+	];
+
+	const conflictStrategies = [
+		{ value: 'default', label: m.conflict_strategy_default() },
+		{ value: 'first', label: m.conflict_strategy_first() },
+		{ value: 'last', label: m.conflict_strategy_last() },
+		{ value: 'collect', label: m.conflict_strategy_collect() }
 	];
 
 	function getFieldError(idx: number, field: keyof OidcClientClaimMapping): string | null {
@@ -112,8 +121,8 @@
 
 			<!-- Source Value -->
 			<Field.Field>
-				<Field.Label required for="source-value-{idx}">{m.claim_value()}</Field.Label>
 				{#if selectedSourceType === 'user_field'}
+					<Field.Label required for="source-value-{idx}">{m.claim_value()}</Field.Label>
 					<Select.Root
 						type="single"
 						value={selectedUserAttribute}
@@ -133,17 +142,43 @@
 						</Select.Content>
 					</Select.Root>
 				{:else if selectedSourceType === 'custom_claim'}
-					<Input
-						id="source-value-{idx}"
-						placeholder="company_email"
-						value={selectedUserAttribute}
-						oninput={(e) => {
-							claimMapping.sourceValue = e.currentTarget.value;
-							selectedUserAttribute = e.currentTarget.value;
-						}}
-						aria-invalid={!!getFieldError(idx, 'sourceValue')}
-					/>
+					<div class="flex items-start gap-2">
+						<Field.Field class="flex-1">
+							<Field.Label required for="source-value-{idx}">{m.claim_value()}</Field.Label>
+							<Input
+								id="source-value-{idx}"
+								placeholder="company_email"
+								value={selectedUserAttribute}
+								oninput={(e) => {
+									claimMapping.sourceValue = e.currentTarget.value;
+									selectedUserAttribute = e.currentTarget.value;
+								}}
+								aria-invalid={!!getFieldError(idx, 'sourceValue')}
+							/>
+						</Field.Field>
+						<Field.Field class="flex-0">
+							<Field.Label for="conflict-strategy-{idx}">{m.conflict_strategy()}</Field.Label>
+							<Select.Root
+								type="single"
+								value={selectedConflictStrategy}
+								onValueChange={(selected) => {
+									selectedConflictStrategy = selected;
+									claimMapping.conflictStrategy = selected;
+								}}
+							>
+								<Select.Trigger id="conflict-strategy-{idx}">
+									{conflictStrategies.find((cs) => cs.value === selectedConflictStrategy)?.label || 'Default'}
+								</Select.Trigger>
+								<Select.Content>
+									{#each conflictStrategies as strategy (strategy.value)}
+										<Select.Item value={strategy.value}>{strategy.label}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</Field.Field>
+					</div>
 				{:else}
+					<Field.Label required for="source-value-{idx}">{m.claim_value()}</Field.Label>
 					<Input
 						id="source-value-{idx}"
 						placeholder="Static value"

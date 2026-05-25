@@ -112,10 +112,20 @@ type OidcClientFederatedIdentity struct {
 }
 
 type OidcClientClaimMapping struct {
-	ClaimName   string                 `json:"claimName"`
-	SourceType  ClaimMappingSourceType `json:"sourceType"`
-	SourceValue string                 `json:"sourceValue"`
+	ClaimName   		string                 	`json:"claimName"`
+	SourceType  		ClaimMappingSourceType 	`json:"sourceType"`
+	SourceValue 		string                 	`json:"sourceValue"`
+	ConflictStrategy 	*ConflictStrategy  		`json:"conflictStrategy,omitempty"`
 }
+
+type ConflictStrategy string
+
+const (
+	ConflictStrategyDefault		ConflictStrategy = "default"
+	ConflictStrategyFirst		ConflictStrategy = "first"
+	ConflictStrategyLast		ConflictStrategy = "last"
+	ConflictStrategyCollect		ConflictStrategy = "collect"
+)
 
 type ClaimMappingSourceType string
 

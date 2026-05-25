@@ -20,6 +20,7 @@ export type OidcClientClaimMapping = {
 	claimName: string;
 	sourceType: 'user_field' | 'custom_claim' | 'static';
 	sourceValue: string;
+	conflictStrategy?: 'default' | 'first' | 'last' | 'collect';
 };
 
 export type OidcClientCredentials = {

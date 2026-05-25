@@ -228,11 +228,12 @@ func (s *CustomClaimService) GetCustomClaimsForUserWithUserGroups(ctx context.Co
 	}
 
 	// Add only non-duplicate custom claims from user groups
+	allowedGroupClaims := []model.CustomClaim{}
 	for _, userGroup := range userGroupsOfUser {
 		for _, groupClaim := range userGroup.CustomClaims {
 			// Only add claim if it does not exist in the user's claims
 			if _, exists := claimsMap[groupClaim.Key]; !exists {
-				claimsMap[groupClaim.Key] = groupClaim
+				allowedGroupClaims = append(allowedGroupClaims, groupClaim)
 			}
 		}
 	}
@@ -240,6 +241,9 @@ func (s *CustomClaimService) GetCustomClaimsForUserWithUserGroups(ctx context.Co
 	// Convert the claimsMap back to a slice
 	finalClaims := make([]model.CustomClaim, 0, len(claimsMap))
 	for _, claim := range claimsMap {
+		finalClaims = append(finalClaims, claim)
+	}
+	for _, claim := range allowedGroupClaims {
 		finalClaims = append(finalClaims, claim)
 	}
 

@@ -94,7 +94,8 @@
 				z.object({
 					claimName: z.string().min(1).max(255),
 					sourceType: z.enum(['user_field', 'custom_claim', 'static']),
-					sourceValue: z.string().min(1).max(1000)
+					sourceValue: z.string().min(1).max(1000),
+					conflictStrategy: z.enum(['default', 'first', 'last', 'collect']).default('default')
 				})
 			)
 			.default([])

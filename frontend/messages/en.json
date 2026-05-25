@@ -537,5 +537,10 @@
 	"user_attribute": "User Attribute",
 	"custom_claim": "Custom Claim",
 	"claim_value": "Claim Value",
-	"remove_claim_mapping": "Remove Claim Mapping"
+	"remove_claim_mapping": "Remove Claim Mapping",
+    "conflict_strategy": "Strategy",
+    "conflict_strategy_default": "Default",
+    "conflict_strategy_first": "First",
+    "conflict_strategy_last": "Last",
+    "conflict_strategy_collect": "Collect"
 }
