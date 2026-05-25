@@ -192,6 +192,15 @@ notarize:
 changelog:
   disable: true
 
+announce:
+  discord:
+    enabled: true
+    message_template: "Pocket ID version {{ .Tag }} has been released! Checkout the changelog at {{ .ReleaseURL }}"
+    author: "GitHub Actions"
+    # Color code of the embed. You have to use decimal numeral system, not hexadecimal.
+    # color: "9320959"
+    icon_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+
 release:
   github:
     owner: pocket-id
