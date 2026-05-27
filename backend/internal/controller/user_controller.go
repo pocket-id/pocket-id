@@ -508,6 +508,7 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 // @Success 200 {object} dto.UserDto
 // @Router /api/one-time-access-token/{token} [post]
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
+	useIncognito := c.DefaultQuery("incognito", "false") == "true"
 	deviceToken, _ := c.Cookie(cookie.DeviceTokenCookieName)
 	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), c.Param("token"), deviceToken, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
@@ -521,8 +522,12 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 		return
 	}
 
-	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
+	if useIncognito {
+		cookie.AddAccessTokenCookie(c, 2, token)
+	} else {
+		maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+		cookie.AddAccessTokenCookie(c, maxAge, token)
+	}
 
 	c.JSON(http.StatusOK, userDto)
 }
