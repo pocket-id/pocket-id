@@ -2,12 +2,18 @@
 	import { goto } from '$app/navigation';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
 	import { m } from '$lib/paraglide/messages';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
-	import { startAuthentication } from '@simplewebauthn/browser';
+	import {
+		browserSupportsWebAuthnAutofill,
+		startAuthentication,
+		type AuthenticationResponseJSON
+	} from '@simplewebauthn/browser';
+	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { cn } from 'tailwind-variants';
 	import LoginLogoErrorSuccessIndicator from './components/login-logo-error-success-indicator.svelte';
@@ -19,16 +25,51 @@
 	let isLoading = $state(false);
 	let error: string | undefined = $state(undefined);
 
+	onMount(() => {
+		void authenticateWithPasskeyAutofill();
+	});
+
+	async function finishAuthentication(authResponse: AuthenticationResponseJSON) {
+		const user = await webauthnService.finishLogin(authResponse);
+
+		await userStore.setUser(user);
+		goto(data.redirect || '/settings');
+	}
+
+	async function authenticateWithPasskeyAutofill() {
+		let supportsAutofill = false;
+		try {
+			supportsAutofill = await browserSupportsWebAuthnAutofill();
+		} catch {
+			return;
+		}
+		if (!supportsAutofill) return;
+
+		let authResponse: AuthenticationResponseJSON;
+		try {
+			const loginOptions = await webauthnService.getLoginOptions();
+			authResponse = await startAuthentication({
+				optionsJSON: loginOptions,
+				useBrowserAutofill: true
+			});
+		} catch {
+			return;
+		}
+
+		try {
+			await finishAuthentication(authResponse);
+		} catch (e) {
+			error = getWebauthnErrorMessage(e);
+		}
+	}
+
 	async function authenticate() {
 		error = undefined;
 		isLoading = true;
 		try {
 			const loginOptions = await webauthnService.getLoginOptions();
 			const authResponse = await startAuthentication({ optionsJSON: loginOptions });
-			const user = await webauthnService.finishLogin(authResponse);
-
-			await userStore.setUser(user);
-			goto(data.redirect || '/settings');
+			await finishAuthentication(authResponse);
 		} catch (e) {
 			error = getWebauthnErrorMessage(e);
 		}
@@ -56,6 +97,15 @@
 			{m.authenticate_with_passkey_to_access_account()}
 		</p>
 	{/if}
+	<div class="mt-7 w-full max-w-[450px]">
+		<Input
+			type="text"
+			autocomplete="username webauthn"
+			placeholder={m.passkeys()}
+			aria-label={m.passkeys()}
+			autofocus={true}
+		/>
+	</div>
 	<div class="mt-10 flex justify-center gap-3 w-full max-w-[450px]">
 		{#if $appConfigStore.allowUserSignups === 'open'}
 			<Button class="w-[50%]" variant="secondary" href="/signup">
@@ -66,7 +116,6 @@
 			class={cn($appConfigStore.allowUserSignups === 'open' && 'w-[50%]')}
 			{isLoading}
 			onclick={authenticate}
-			autofocus={true}
 		>
 			{error ? m.try_again() : m.authenticate()}
 		</Button>
