@@ -4,22 +4,24 @@
 	import { tv, type VariantProps } from 'tailwind-variants';
 
 	export const buttonVariants = tv({
-		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		base: "focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium outline-none transition-all focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:shrink-0 transition active:scale-95",
 		variants: {
 			variant: {
-				default: 'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
-				destructive:
-					'bg-destructive shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white',
+				default: 'bg-primary text-primary-foreground hover:bg-primary/80',
 				outline:
-					'bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border',
-				secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
-				ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+					'border border-border bg-background hover:bg-muted hover:text-foreground dark:hover:bg-input/30 aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-transparent',
+				secondary:
+					'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground',
+				ghost:
+					'hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 aria-expanded:bg-muted aria-expanded:text-foreground',
+				destructive:
+					'bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30',
 				link: 'text-primary underline-offset-4 hover:underline'
 			},
 			size: {
 				default: 'h-10 px-4 py-2',
-				sm: 'h-8 rounded-md px-3',
-				lg: 'h-11 rounded-md px-8',
+				sm: 'h-9 px-3 py-2',
+				lg: 'h-11 px-8',
 				icon: 'h-10 w-10'
 			}
 		},
@@ -96,9 +98,6 @@
 		tabindex={disabled ? -1 : undefined}
 		{...restProps}
 	>
-		{#if isLoading}
-			<Spinner />
-		{/if}
 		{@render children?.()}
 	</a>
 {:else}
@@ -111,9 +110,15 @@
 		onclick={handleOnClick}
 		{...restProps}
 	>
-		{#if isLoading}
-			<Spinner />
-		{/if}
-		{@render children?.()}
+		<span class="flex items-center w-full justify-center">
+			<Spinner
+				class={cn(
+					'grid overflow-hidden transition-[width,opacity,margin-right] duration-400 ease-[linear(0,0.897_14.4%,1.311_31.2%,1.338_46%,1.054_80.4%,1)]',
+					isLoading ? 'w-4 opacity-100 mr-2' : 'w-0 opacity-0'
+				)}
+				aria-hidden={!isLoading}
+			/>
+			{@render children?.()}
+		</span>
 	</button>
 {/if}

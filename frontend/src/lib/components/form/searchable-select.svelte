@@ -70,10 +70,12 @@
 				role="combobox"
 				aria-expanded={open}
 				{...props}
-				class={cn('justify-between', restProps.class)}
+				class={restProps.class}
 			>
-				{items.find((item) => item.value === value)?.label || selectText}
-				<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
+				<span class="flex justify-between w-full">
+					{items.find((item) => item.value === value)?.label || selectText}
+					<LucideChevronDown class="size-4 shrink-0 opacity-50" />
+				</span>
 			</Button>
 		{/snippet}
 	</Popover.Trigger>

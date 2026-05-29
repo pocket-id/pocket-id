@@ -92,11 +92,11 @@ func ValidateCallbackURLPattern(raw string) bool {
 }
 
 // ValidateResponseMode validates response_mode parameter
-// If responseMode is present, it must be "form_post" or "query"
+// If responseMode is present, it must be "form_post", "query", or "fragment"
 // Empty responseMode is allowed (field not provided, use default)
 func ValidateResponseMode(responseMode string) bool {
 	switch responseMode {
-	case "form_post", "query":
+	case "form_post", "query", "fragment":
 		return true
 	case "":
 		return true
