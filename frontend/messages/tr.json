@@ -249,7 +249,7 @@
 	"edit": "Düzenle",
 	"user_groups_updated_successfully": "Kullanıcı grupları başarıyla güncellendi",
 	"user_updated_successfully": "Kullanıcı başarıyla güncellendi",
-	"custom_claims_updated_successfully": "Özel alanlar başarıyla güncellendi",
+	"custom_claims_updated_successfully": "Özel yetkiler başarıyla güncellendi",
 	"back": "Geri",
 	"user_details_firstname_lastname": "Kullanıcı Detayları {firstName} {lastName}",
 	"manage_which_groups_this_user_belongs_to": "Bu kullanıcının ait olduğu grupları yönetin.",
