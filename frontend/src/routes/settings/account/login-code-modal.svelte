@@ -64,7 +64,6 @@
 				value={loginCodeLink}
 				size={150}
 				color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
-				backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 			/>
 			<CopyToClipboard value={loginCodeLink!}>
 				<p class="text-sm" data-testId="login-code-link">{loginCodeLink!}</p>

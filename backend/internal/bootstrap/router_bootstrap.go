@@ -165,11 +165,12 @@ func initServer(r *gin.Engine) (*serverConfig, error) {
 	}
 
 	var socketFn func() (*socket, error)
-	if common.EnvConfig.SystemdSocket {
+	switch {
+	case common.EnvConfig.SystemdSocket:
 		socketFn = systemdSocket
-	} else if common.EnvConfig.UnixSocket != "" {
+	case common.EnvConfig.UnixSocket != "":
 		socketFn = unixSocket
-	} else {
+	default:
 		socketFn = tcpSocket
 	}
 
