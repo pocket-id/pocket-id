@@ -134,6 +134,12 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 	return createdAuditLog
 }
 
+// CreateSignInFailed creates a new audit log entry in the database for a failed sign-in attempt
+func (s *AuditLogService) CreateSignInFailed(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog {
+	createdAuditLog, _ := s.Create(ctx, model.AuditLogEventSignInFailed, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
+	return createdAuditLog
+}
+
 // ListAuditLogsForUser retrieves all audit logs for a given user ID
 func (s *AuditLogService) ListAuditLogsForUser(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.AuditLog, utils.PaginationResponse, error) {
 	var logs []model.AuditLog

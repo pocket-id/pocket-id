@@ -259,10 +259,14 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 	}, session, credentialAssertionData)
 
 	if err != nil {
+		s.auditLogService.CreateSignInFailed(ctx, ipAddress, userAgent, "", tx)
+		_ = tx.Commit()
 		return model.User{}, "", err
 	}
 
 	if user.Disabled {
+		s.auditLogService.CreateSignInFailed(ctx, ipAddress, userAgent, user.ID, tx)
+		_ = tx.Commit()
 		return model.User{}, "", &common.UserDisabledError{}
 	}
 

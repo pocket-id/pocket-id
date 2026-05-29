@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -50,14 +51,22 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			// AppError with description
 			appDescErr, ok := errors.AsType[common.AppErrorDescription](err)
 			if ok {
-				errorResponseWithDescription(c, appDescErr.HttpStatusCode(), appDescErr.Error(), appDescErr.Description())
+				statusCode := appDescErr.HttpStatusCode()
+				if isSecurityError(statusCode) {
+					logSecurityEvent(c, appDescErr, appDescErr.Error())
+				}
+				errorResponseWithDescription(c, statusCode, appDescErr.Error(), appDescErr.Description())
 				return
 			}
 
 			// AppError (without description)
 			appErr, ok := errors.AsType[common.AppError](err)
 			if ok {
-				errorResponse(c, appErr.HttpStatusCode(), appErr.Error())
+				statusCode := appErr.HttpStatusCode()
+				if isSecurityError(statusCode) {
+					logSecurityEvent(c, appErr, appErr.Error())
+				}
+				errorResponse(c, statusCode, appErr.Error())
 				return
 			}
 
@@ -66,6 +75,20 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			})
 		}
 	}
+}
+
+func isSecurityError(statusCode int) bool {
+	return statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden
+}
+
+func logSecurityEvent(c *gin.Context, err error, message string) {
+	slog.WarnContext(c.Request.Context(), "Security event",
+		slog.String("event", "auth_failure"),
+		slog.String("error", message),
+		slog.String("ip", c.ClientIP()),
+		slog.String("user_agent", c.Request.UserAgent()),
+		slog.String("path", c.Request.URL.Path),
+	)
 }
 
 type errorResponseBody struct {

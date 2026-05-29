@@ -189,11 +189,15 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			s.auditLogService.CreateSignInFailed(ctx, ipAddress, userAgent, "", tx)
+			_ = tx.Commit()
 			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
 		}
 		return model.User{}, "", err
 	}
 	if oneTimeAccessToken.DeviceToken != nil && deviceToken != *oneTimeAccessToken.DeviceToken {
+		s.auditLogService.CreateSignInFailed(ctx, ipAddress, userAgent, oneTimeAccessToken.User.ID, tx)
+		_ = tx.Commit()
 		return model.User{}, "", &common.DeviceCodeInvalid{}
 	}
 
