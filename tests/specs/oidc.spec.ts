@@ -671,10 +671,43 @@ test('Authorize existing client with response_mode=form_post', async ({ page }) 
 	await expectFormPostRequest(formPostRequestPromise);
 });
 
+test('Authorize existing client with response_mode=fragment', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('response_mode', 'fragment');
+
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	const redirectUrl = await waitForCallbackURL(page, oidcClient.callbackUrl);
+	expect(redirectUrl.search).toBe('');
+
+	const fragmentParams = new URLSearchParams(redirectUrl.hash.slice(1));
+	expect(fragmentParams.get('code')).toBeTruthy();
+	expect(fragmentParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	expect(fragmentParams.get('iss')).toBeTruthy();
+});
+
 function waitForFormPostRequest(page: Page, callbackUrl: string): Promise<Request> {
 	return page.waitForRequest(
 		(request) => request.method() === 'POST' && request.url() === callbackUrl
 	);
+}
+
+async function waitForCallbackURL(page: Page, callbackUrl: string): Promise<URL> {
+	const expectedUrl = new URL(callbackUrl);
+
+	await page
+		.waitForURL((url) => url.origin === expectedUrl.origin && url.pathname === expectedUrl.pathname)
+		.catch((e) => {
+			if (
+				!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
+				!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
+			) {
+				throw e;
+			}
+		});
+
+	return new URL(page.url());
 }
 
 async function expectFormPostRequest(formPostRequestPromise: Promise<Request>) {
@@ -702,6 +735,23 @@ test.describe('OIDC prompt parameter', () => {
 
 		expect(redirectUrl.searchParams.get('error')).toBe('login_required');
 		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none redirects errors with response_mode=fragment', async ({ page }) => {
+		await page.context().clearCookies();
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('response_mode', 'fragment');
+
+		await page.goto(`/authorize?${urlParams.toString()}`).then(() => {});
+
+		const redirectUrl = await waitForCallbackURL(page, oidcClient.callbackUrl);
+		expect(redirectUrl.search).toBe('');
+
+		const fragmentParams = new URLSearchParams(redirectUrl.hash.slice(1));
+		expect(fragmentParams.get('error')).toBe('login_required');
+		expect(fragmentParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
 	});
 
 	test('prompt=none redirects with consent_required when authorization needed', async ({

@@ -180,11 +180,10 @@
 			throw new Error('Invalid redirect URL protocol');
 		}
 
-		redirectURL.searchParams.append('error', error);
-		if (authorizeState) {
-			redirectURL.searchParams.append('state', authorizeState);
-		}
-		window.location.href = redirectURL.toString();
+		window.location.href = createRedirectURL(callbackURL, {
+			error,
+			state: authorizeState
+		});
 	}
 
 	function onSuccess(code: string, callbackURL: string, issuer: string) {
@@ -192,10 +191,6 @@
 		if (redirectURL.protocol == 'javascript:' || redirectURL.protocol == 'data:') {
 			throw new Error('Invalid redirect URL protocol');
 		}
-
-		redirectURL.searchParams.append('code', code);
-		redirectURL.searchParams.append('state', authorizeState);
-		redirectURL.searchParams.append('iss', issuer);
 
 		success = true;
 		setTimeout(() => {
@@ -231,15 +226,33 @@
 				document.body.appendChild(form);
 				form.submit();
 			} else {
-				// Default query parameter redirect (response_mode=query or not specified)
-				const redirectURL = new URL(callbackURL);
-				redirectURL.searchParams.append('code', code);
-				redirectURL.searchParams.append('state', authorizeState);
-				redirectURL.searchParams.append('iss', issuer);
-
-				window.location.href = redirectURL.toString();
+				window.location.href = createRedirectURL(callbackURL, {
+					code,
+					state: authorizeState,
+					iss: issuer
+				});
 			}
 		}, 1000);
+	}
+
+	function createRedirectURL(url: string, params: Record<string, string>) {
+		const redirectURL = new URL(url);
+		const responseParams =
+			responseMode === 'fragment'
+				? new URLSearchParams(redirectURL.hash.slice(1))
+				: redirectURL.searchParams;
+
+		for (const [key, value] of Object.entries(params)) {
+			if (value) {
+				responseParams.set(key, value);
+			}
+		}
+
+		if (responseMode === 'fragment') {
+			redirectURL.hash = responseParams.toString();
+		}
+
+		return redirectURL.toString();
 	}
 </script>
 
