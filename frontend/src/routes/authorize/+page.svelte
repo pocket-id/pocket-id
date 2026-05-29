@@ -273,7 +273,22 @@
 				{errorMessage}.
 			</p>
 		{/if}
-		{#if accountSelectionRequired && $userStore && !errorMessage}
+		{#if authorizationRequired}
+			<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
+				<Card.Root class="mt-6 mb-10">
+					<Card.Header>
+						<p class="text-muted-foreground text-start">
+							<FormattedMessage
+								m={m.client_wants_to_access_the_following_information({ client: client.name })}
+							/>
+						</p>
+					</Card.Header>
+					<Card.Content>
+						<ScopeList {scope} />
+					</Card.Content>
+				</Card.Root>
+			</div>
+		{:else if accountSelectionRequired && $userStore && !errorMessage}
 			<div transition:slide={{ duration: 300 }} class="flex flex-col items-center">
 				<p class="text-muted-foreground mt-2 mb-8">
 					<FormattedMessage m={m.account_selection_signin_confirmation({ name: client.name })} />
@@ -314,21 +329,6 @@
 					})}
 				/>
 			</p>
-		{:else if authorizationRequired}
-			<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
-				<Card.Root class="mt-6 mb-10">
-					<Card.Header>
-						<p class="text-muted-foreground text-start">
-							<FormattedMessage
-								m={m.client_wants_to_access_the_following_information({ client: client.name })}
-							/>
-						</p>
-					</Card.Header>
-					<Card.Content>
-						<ScopeList {scope} />
-					</Card.Content>
-				</Card.Root>
-			</div>
 		{/if}
 		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
 		<div class="flex w-full max-w-md flex-row-reverse gap-2">
