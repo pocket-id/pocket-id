@@ -1,17 +1,21 @@
 import type { Page } from '@playwright/test';
 import passkeyUtil from './passkey.util';
 
-async function finishAuthentication(page: Page) {
+async function finishAuthentication(page: Page, url = '/settings/**') {
+	const waitForAuthentication = page.waitForURL(url);
+
 	if (new URL(page.url()).pathname === '/login') {
-		await page
+		const clickAuthenticate = page
 			.getByRole('button', { name: 'Authenticate' })
-			.click({ timeout: 1000 })
+			.click()
 			.catch((error: unknown) => {
 				if (new URL(page.url()).pathname === '/login') throw error;
 			});
+
+		await Promise.race([waitForAuthentication, clickAuthenticate]);
 	}
 
-	await page.waitForURL('/settings/**');
+	await waitForAuthentication;
 }
 
 async function authenticate(page: Page) {
@@ -29,4 +33,4 @@ async function changeUser(page: Page, username: keyof typeof passkeyUtil.passkey
 	await finishAuthentication(page);
 }
 
-export default { authenticate, changeUser };
+export default { authenticate, changeUser, finishAuthentication };

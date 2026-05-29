@@ -117,8 +117,7 @@ test('Generate own one time access token as non admin', async ({ page, context }
 	await page.goto('/login');
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 
-	await page.getByRole('button', { name: 'Authenticate' }).click();
-	await page.waitForURL('/settings/account');
+	await authUtil.finishAuthentication(page, '/settings/account');
 
 	await page.getByRole('button', { name: 'Create' }).click();
 	const link = await page.getByTestId('login-code-link').textContent();
@@ -136,8 +135,7 @@ test('Email verification succeeds', async ({ page, context }) => {
 	await page.goto(`/verify-email?token=${token}`);
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 
-	await page.getByRole('button', { name: 'Authenticate' }).click();
-	await page.waitForURL('/settings/account?emailVerificationState=success');
+	await authUtil.finishAuthentication(page, '/settings/account?emailVerificationState=success');
 
 	await expect(page.getByText('Email Verified Successfully')).toBeVisible();
 });
@@ -149,8 +147,8 @@ test('Email verification fails with expired token', async ({ page, context }) =>
 	await page.goto(`/verify-email?token=${token}`);
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 
-	await page.getByRole('button', { name: 'Authenticate' }).click();
-	await page.waitForURL(
+	await authUtil.finishAuthentication(
+		page,
 		'/settings/account?emailVerificationState=Invalid+email+verification+token'
 	);
 
