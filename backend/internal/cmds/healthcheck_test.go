@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHealthcheckTCPSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/healthz", r.URL.Path)
+		assert.Equal(t, "/healthz", r.URL.Path)
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
@@ -44,14 +45,15 @@ func TestHealthcheckFailsOnUnexpectedStatus(t *testing.T) {
 
 func TestHealthcheckUnixSocket(t *testing.T) {
 	socketPath := filepath.Join(t.TempDir(), "pocket-id.sock")
-	listener, err := net.Listen("unix", socketPath)
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", socketPath)
 	require.NoError(t, err)
 
 	server := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, "/healthz", r.URL.Path)
+			assert.Equal(t, "/healthz", r.URL.Path)
 			w.WriteHeader(http.StatusNoContent)
 		}),
+		ReadHeaderTimeout: time.Second,
 	}
 
 	errCh := make(chan error, 1)
