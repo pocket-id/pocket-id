@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -9,7 +10,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/service"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +21,7 @@ type mockSlogHandler struct {
 	lastEvent string
 }
 
-func (h *mockSlogHandler) Enabled(context.Context, slog.Level) bool  { return true }
+func (h *mockSlogHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
 func (h *mockSlogHandler) Handle(_ context.Context, r slog.Record) error {
 	if r.Message == "Security event" {
 		h.lastEvent = r.Message
@@ -25,24 +29,32 @@ func (h *mockSlogHandler) Handle(_ context.Context, r slog.Record) error {
 	return nil
 }
 func (h *mockSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler { return h }
-func (h *mockSlogHandler) WithGroup(name string) slog.Handler      { return h }
+func (h *mockSlogHandler) WithGroup(name string) slog.Handler       { return h }
 
 func TestErrorHandlerMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
 	mockHandler := &mockSlogHandler{}
-	logger := slog.New(mockHandler)
-	slog.SetDefault(logger)
-
+	slog.SetDefault(slog.New(mockHandler))
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())
 
+	// Setup database and services
+	db := testutils.NewDatabaseForTest(t)
+	auditLogService := service.NewAuditLogService(db, nil, nil, nil)
+	oneTimeAccessService := service.NewOneTimeAccessService(db, nil, nil, auditLogService, nil, nil)
+	appConfigService, err := service.NewAppConfigService(context.Background(), db)
+	require.NoError(t, err)
+	webAuthnService, _ := service.NewWebAuthnService(db, nil, auditLogService, appConfigService)
+
 	router.GET("/401", func(c *gin.Context) {
-		_ = c.Error(&common.TokenInvalidError{})
+		_, _, err := oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), "invalid-token", "", "127.0.0.1", "test-agent")
+		_ = c.Error(err)
 	})
 
 	router.GET("/403", func(c *gin.Context) {
-		_ = c.Error(&common.MissingPermissionError{})
+		credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
+		_, _, err = webAuthnService.VerifyLogin(c.Request.Context(), "sessionId", credentialAssertionData, "127.0.0.1", "test-agent")
+		_ = c.Error(err)
 	})
 
 	router.GET("/404", func(c *gin.Context) {
@@ -54,6 +66,8 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		mockHandler.lastEvent = ""
 		req := httptest.NewRequest(http.MethodGet, "/401", nil)
 		recorder := httptest.NewRecorder()
+		var initialSignInFailureCount int64
+		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
 
 		// when
 		router.ServeHTTP(recorder, req)
@@ -62,16 +76,32 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		var body map[string]string
 		err := json.Unmarshal(recorder.Body.Bytes(), &body)
 		require.NoError(t, err)
-		require.Equal(t, "Token is invalid", body["error"])
+		require.Equal(t, "Token is invalid or expired", body["error"])
 		require.Equal(t, http.StatusUnauthorized, recorder.Code)
 		require.Equal(t, "Security event", mockHandler.lastEvent)
+
+		var signInFailureCount int64
+		db.Table("audit_logs").Count(&signInFailureCount)
+		require.Equal(t, initialSignInFailureCount+1, signInFailureCount)
 	})
 
 	t.Run("logs security event for 403", func(t *testing.T) {
 		// given
 		mockHandler.lastEvent = ""
-		req := httptest.NewRequest(http.MethodGet, "/403", nil)
+		jsonBody := []byte(`{
+		  "id": "cmFuZG9tLWlk",
+		  "rawId": "cmFuZG9tLWlk",
+		  "type": "public-key",
+		  "response": {
+		    "authenticatorData": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+		    "clientDataJSON": "eyJ0eXBlIjogIndlYmF1dGhuLmdldCIsICJjaGFsbGVuZ2UiOiAiY2hhbGxlbmdlIiwgIm9yaWdpbiI6ICJodHRwczovL2V4YW1wbGUuY29tIn0",
+		    "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+		  }
+		}`)
+		req := httptest.NewRequest(http.MethodGet, "/403", bytes.NewBuffer(jsonBody))
 		recorder := httptest.NewRecorder()
+		var initialSignInFailureCount int64
+		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
 
 		// when
 		router.ServeHTTP(recorder, req)
@@ -80,9 +110,13 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		var body map[string]string
 		err := json.Unmarshal(recorder.Body.Bytes(), &body)
 		require.NoError(t, err)
-		require.Equal(t, "You don't have permission to perform this action", body["error"])
-		require.Equal(t, http.StatusForbidden, recorder.Code)
+		require.Equal(t, "Something went wrong. Try again later", body["error"])
+		require.Equal(t, http.StatusBadRequest, recorder.Code)
 		require.Equal(t, "Security event", mockHandler.lastEvent)
+
+		var signInFailureCount int64
+		db.Table("audit_logs").Count(&signInFailureCount)
+		require.Equal(t, initialSignInFailureCount+1, signInFailureCount)
 	})
 
 	t.Run("does not log security event for 404", func(t *testing.T) {
@@ -90,6 +124,8 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		mockHandler.lastEvent = ""
 		req := httptest.NewRequest(http.MethodGet, "/404", nil)
 		recorder := httptest.NewRecorder()
+		var initialSignInFailureCount int64
+		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
 
 		// when
 		router.ServeHTTP(recorder, req)
@@ -101,5 +137,9 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		require.Equal(t, "User not found", body["error"])
 		require.Equal(t, http.StatusNotFound, recorder.Code)
 		require.Equal(t, "", mockHandler.lastEvent)
+
+		var signInFailureCount int64
+		db.Table("audit_logs").Count(&signInFailureCount)
+		require.Equal(t, initialSignInFailureCount, signInFailureCount)
 	})
 }

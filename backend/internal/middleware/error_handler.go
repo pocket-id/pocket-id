@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"gorm.io/gorm"
 )
@@ -70,11 +71,45 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 				return
 			}
 
+			protocolErr, ok := errors.AsType[*protocol.Error](err)
+			if ok {
+				statusCode := webAuthnErrorToHTTPStatus(protocolErr.Type)
+				logSecurityEvent(c, nil, protocolErr.Error())
+				errorResponse(c, statusCode, "Something went wrong. Try again later")
+				return
+			}
+
 			c.JSON(http.StatusInternalServerError, errorResponseBody{
 				Error: "Something went wrong",
 			})
 		}
 	}
+}
+
+// webAuthnProtocolErrorHTTPStatus maps WebAuthn protocol error types to HTTP status codes.
+var webAuthnProtocolErrorHTTPStatus = map[string]int{
+	"invalid_request":           http.StatusBadRequest,
+	"policy_restriction":        http.StatusForbidden,
+	"challenge_mismatch":        http.StatusBadRequest,
+	"parse_error":               http.StatusBadRequest,
+	"auth_data":                 http.StatusBadRequest,
+	"verification_error":        http.StatusBadRequest,
+	"attestation_error":         http.StatusBadRequest,
+	"invalid_attestation":       http.StatusBadRequest,
+	"invalid_metadata":          http.StatusBadRequest,
+	"invalid_certificate":       http.StatusBadRequest,
+	"invalid_signature":         http.StatusBadRequest,
+	"invalid_key_type":          http.StatusBadRequest,
+	"unsupported_key_algorithm": http.StatusBadRequest,
+	"spec_unimplemented":        http.StatusNotImplemented,
+	"not_implemented":           http.StatusNotImplemented,
+}
+
+func webAuthnErrorToHTTPStatus(errorType string) int {
+	if code, ok := webAuthnProtocolErrorHTTPStatus[errorType]; ok {
+		return code
+	}
+	return http.StatusBadRequest
 }
 
 func isSecurityError(statusCode int) bool {
