@@ -239,7 +239,7 @@
 										class="h-12 w-full justify-start px-4 font-medium hover:bg-transparent"
 										onclick={() => onSort(column.column)}
 									>
-										<span class="flex items-center">
+										<span class="flex items-center w-full">
 											{column.label}
 											<ChevronDown
 												class={cn(
@@ -310,9 +310,7 @@
 												<DropdownMenu.Item
 													onclick={() => action.onClick(item)}
 													disabled={action.disabled}
-													class={action.variant === 'danger'
-														? 'text-red-500 focus:!text-red-700'
-														: ''}
+													class={action.variant === 'danger' ? 'text-red-500!' : ''}
 												>
 													{#if action.icon}
 														{@const Icon = action.icon}
