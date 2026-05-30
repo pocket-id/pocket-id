@@ -50,36 +50,55 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 	})
 
 	t.Run("logs security event for 401", func(t *testing.T) {
+		// given
 		mockHandler.lastEvent = ""
 		req := httptest.NewRequest(http.MethodGet, "/401", nil)
 		recorder := httptest.NewRecorder()
+
+		// when
 		router.ServeHTTP(recorder, req)
 
-		require.Equal(t, http.StatusUnauthorized, recorder.Code)
-		require.Equal(t, "Security event", mockHandler.lastEvent)
-
+		// then
 		var body map[string]string
 		err := json.Unmarshal(recorder.Body.Bytes(), &body)
 		require.NoError(t, err)
 		require.Equal(t, "Token is invalid", body["error"])
+		require.Equal(t, http.StatusUnauthorized, recorder.Code)
+		require.Equal(t, "Security event", mockHandler.lastEvent)
 	})
 
 	t.Run("logs security event for 403", func(t *testing.T) {
+		// given
 		mockHandler.lastEvent = ""
 		req := httptest.NewRequest(http.MethodGet, "/403", nil)
 		recorder := httptest.NewRecorder()
+
+		// when
 		router.ServeHTTP(recorder, req)
 
+		// then
+		var body map[string]string
+		err := json.Unmarshal(recorder.Body.Bytes(), &body)
+		require.NoError(t, err)
+		require.Equal(t, "You don't have permission to perform this action", body["error"])
 		require.Equal(t, http.StatusForbidden, recorder.Code)
 		require.Equal(t, "Security event", mockHandler.lastEvent)
 	})
 
 	t.Run("does not log security event for 404", func(t *testing.T) {
+		// given
 		mockHandler.lastEvent = ""
 		req := httptest.NewRequest(http.MethodGet, "/404", nil)
 		recorder := httptest.NewRecorder()
+
+		// when
 		router.ServeHTTP(recorder, req)
 
+		// then
+		var body map[string]string
+		err := json.Unmarshal(recorder.Body.Bytes(), &body)
+		require.NoError(t, err)
+		require.Equal(t, "User not found", body["error"])
 		require.Equal(t, http.StatusNotFound, recorder.Code)
 		require.Equal(t, "", mockHandler.lastEvent)
 	})
