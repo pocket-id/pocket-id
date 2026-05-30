@@ -260,13 +260,19 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 
 	if err != nil {
 		s.auditLogService.CreateSignInFailed(ctx, ipAddress, userAgent, "", tx)
-		_ = tx.Commit()
+		commitErr := tx.Commit().Error
+		if commitErr != nil {
+			return model.User{}, "", commitErr
+		}
 		return model.User{}, "", err
 	}
 
 	if user.Disabled {
 		s.auditLogService.CreateSignInFailed(ctx, ipAddress, userAgent, user.ID, tx)
-		_ = tx.Commit()
+		err := tx.Commit().Error
+		if err != nil {
+			return model.User{}, "", err
+		}
 		return model.User{}, "", &common.UserDisabledError{}
 	}
 
