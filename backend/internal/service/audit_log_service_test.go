@@ -1,0 +1,43 @@
+package service
+
+import (
+	"context"
+	"testing"
+
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
+	"github.com/stretchr/testify/require"
+)
+
+func TestAuditLogService_CreateSignInFailed(t *testing.T) {
+	// Setup database using project testing utility
+	db := testutils.NewDatabaseForTest(t)
+
+	// Initialize service
+	service := NewAuditLogService(db, nil, nil, nil)
+
+	// Test data
+	ctx := context.Background()
+	ipAddress := "127.0.0.1"
+	userAgent := "test-agent"
+	userID := "test-user"
+
+	// Create a transaction
+	tx := db.Begin()
+
+	// When
+	createdLog := service.CreateSignInFailed(ctx, ipAddress, userAgent, userID, tx)
+	tx.Commit()
+
+	// Then
+	require.NotZero(t, createdLog.ID)
+	require.Equal(t, model.AuditLogEventSignInFailed, createdLog.Event)
+	require.Equal(t, userID, createdLog.UserID)
+	require.Equal(t, ipAddress, *createdLog.IpAddress)
+
+	// Verify in DB
+	var dbLog model.AuditLog
+	err := db.First(&dbLog, "id = ?", createdLog.ID).Error
+	require.NoError(t, err)
+	require.Equal(t, model.AuditLogEventSignInFailed, dbLog.Event)
+}
