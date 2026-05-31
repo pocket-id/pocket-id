@@ -377,13 +377,13 @@ func (s *WebAuthnService) updateWebAuthnConfig() {
 	s.webAuthn.Config.RPDisplayName = s.appConfigService.GetDbConfig().AppName.Value
 }
 
-func (s *WebAuthnService) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string) (retToken string, retErr error) {
+func (s *WebAuthnService) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string, ipAddress string, userAgent string) (retToken string, retErr error) {
 	var userID string
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 		if retErr != nil {
-			s.auditLogService.CreateSignInFailure(ctx, "", "", userID)
+			s.auditLogService.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
 		}
 	}()
 
