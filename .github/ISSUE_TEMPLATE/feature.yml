@@ -1,7 +1,8 @@
 name: 🚀 Feature
 description: "Submit a proposal for a new feature"
 title: "🚀 Feature: "
-type: 'Feature'
+type: "Feature"
+labels: ["needs more upvotes"]
 body:
   - type: textarea
     id: feature-description
