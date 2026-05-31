@@ -68,6 +68,7 @@ type EnvConfigSchema struct {
 	Host            string `env:"HOST" options:"toLower"`
 	UnixSocket      string `env:"UNIX_SOCKET"`
 	UnixSocketMode  string `env:"UNIX_SOCKET_MODE"`
+	SystemdSocket   bool   `env:"SYSTEMD_SOCKET"`
 	LocalIPv6Ranges string `env:"LOCAL_IPV6_RANGES"`
 
 	TLSCertFile string `env:"TLS_CERT" options:"file"`
@@ -152,6 +153,9 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	}
 	if err := validateFileBackend(config); err != nil {
 		return err
+	}
+	if config.SystemdSocket && config.UnixSocket != "" {
+		return errors.New("SYSTEMD_SOCKET and UNIX_SOCKET are mutually exclusive")
 	}
 	if err := validateLocalIPv6Ranges(config.LocalIPv6Ranges); err != nil {
 		return err

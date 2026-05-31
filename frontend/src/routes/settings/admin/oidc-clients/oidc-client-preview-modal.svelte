@@ -115,7 +115,7 @@
 				</div>
 			{/if}
 
-			<div class="flex justify-start gap-3">
+			<div class="flex flex-col sm:flex-row justify-start gap-3">
 				<Field.Field class="w-auto min-w-48">
 					<Field.Label>{m.users()}</Field.Label>
 					<SearchableSelect

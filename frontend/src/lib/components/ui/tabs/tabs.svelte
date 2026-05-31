@@ -32,6 +32,6 @@
 	bind:value
 	onValueChange={onTabChange}
 	data-slot="tabs"
-	class={cn('flex flex-col gap-2', className)}
+	class={cn('gap-2 group/tabs flex data-[orientation=horizontal]:flex-col', className)}
 	{...restProps}
 />

@@ -15,36 +15,21 @@ test.beforeEach(async () => await cleanupBackend());
 test('Authorize existing client', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	const urlParams = createUrlParams(oidcClient);
-	await page.goto(`/authorize?${urlParams.toString()}`);
-
-	// Ignore DNS resolution error as the callback URL is not reachable
-	await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-		if (
-			!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-			!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-		) {
-			throw e;
-		}
-	});
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
 });
 
 test('Authorize existing client while not signed in', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	const urlParams = createUrlParams(oidcClient);
 	await page.context().clearCookies();
-	await page.goto(`/authorize?${urlParams.toString()}`);
 
-	await (await passkeyUtil.init(page)).addPasskey();
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, async () => {
+		await page.goto(`/authorize?${urlParams.toString()}`);
 
-	// Ignore DNS resolution error as the callback URL is not reachable
-	await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-		if (
-			!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-			!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-		) {
-			throw e;
-		}
+		await (await passkeyUtil.init(page)).addPasskey();
+		await page.getByRole('button', { name: 'Sign in' }).click();
 	});
 });
 
@@ -56,17 +41,9 @@ test('Authorize new client', async ({ page }) => {
 	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
 	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
 
-	await page.getByRole('button', { name: 'Sign in' }).click();
-
-	// Ignore DNS resolution error as the callback URL is not reachable
-	await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-		if (
-			!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-			!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-		) {
-			throw e;
-		}
-	});
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
 });
 
 test('Authorize new client while not signed in', async ({ page }) => {
@@ -81,17 +58,9 @@ test('Authorize new client while not signed in', async ({ page }) => {
 	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
 	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
 
-	await page.getByRole('button', { name: 'Sign in' }).click();
-
-	// Ignore DNS resolution error as the callback URL is not reachable
-	await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-		if (
-			!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-			!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-		) {
-			throw e;
-		}
-	});
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
 });
 
 test('Authorize new client fails with user group not allowed', async ({ page }) => {
@@ -140,23 +109,11 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 		users.tim,
 		client.id
 	);
-	let redirectedCorrectly = false;
-	await page
-		.goto(
+	await expectCallbackRedirect(page, client.logoutCallbackUrl, () =>
+		page.goto(
 			`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=${client.logoutCallbackUrl}`
 		)
-		.catch((e) => {
-			if (
-				e.message.includes('net::ERR_NAME_NOT_RESOLVED') ||
-				e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-			) {
-				redirectedCorrectly = true;
-			} else {
-				throw e;
-			}
-		});
-
-	expect(redirectedCorrectly).toBeTruthy();
+	);
 });
 
 test('Successfully refresh tokens with valid refresh token', async ({ request }) => {
@@ -681,17 +638,9 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 	await (await passkeyUtil.init(page)).addPasskey();
 
 	const urlParams = createUrlParams(oidcClients.nextcloud);
-	await page.goto(`/authorize?${urlParams.toString()}`);
-
-	await expect(page.getByTestId('scopes')).not.toBeVisible();
-
-	await page.waitForURL(oidcClients.nextcloud.callbackUrl).catch((e) => {
-		if (
-			!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-			!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-		) {
-			throw e;
-		}
+	await expectCallbackRedirect(page, oidcClients.nextcloud.callbackUrl, async () => {
+		await page.goto(`/authorize?${urlParams.toString()}`);
+		await expect(page.getByTestId('scopes')).not.toBeVisible();
 	});
 
 	expect(webauthnStartCalled).toBe(true);
@@ -723,6 +672,22 @@ test('Authorize existing client with response_mode=form_post', async ({ page }) 
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	await expectFormPostRequest(formPostRequestPromise);
+});
+
+test('Authorize existing client with response_mode=fragment', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('response_mode', 'fragment');
+
+	const redirectUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
+	expect(redirectUrl.search).toBe('');
+
+	const fragmentParams = new URLSearchParams(redirectUrl.hash.slice(1));
+	expect(fragmentParams.get('code')).toBeTruthy();
+	expect(fragmentParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	expect(fragmentParams.get('iss')).toBeTruthy();
 });
 
 function waitForFormPostRequest(page: Page, callbackUrl: string): Promise<Request> {
@@ -758,6 +723,23 @@ test.describe('OIDC prompt parameter', () => {
 		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
 	});
 
+	test('prompt=none redirects errors with response_mode=fragment', async ({ page }) => {
+		await page.context().clearCookies();
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('response_mode', 'fragment');
+
+		const redirectUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+		expect(redirectUrl.search).toBe('');
+
+		const fragmentParams = new URLSearchParams(redirectUrl.hash.slice(1));
+		expect(fragmentParams.get('error')).toBe('login_required');
+		expect(fragmentParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
 	test('prompt=none redirects with consent_required when authorization needed', async ({
 		page
 	}) => {
@@ -779,17 +761,9 @@ test.describe('OIDC prompt parameter', () => {
 		const urlParams = createUrlParams(oidcClient);
 		urlParams.set('prompt', 'none');
 
-		await page.goto(`/authorize?${urlParams.toString()}`);
-
-		// Should redirect successfully to callback URL with code
-		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-			if (
-				!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-				!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-			) {
-				throw e;
-			}
-		});
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
 	});
 
 	test('prompt=consent forces consent display even for authorized client', async ({ page }) => {
@@ -805,17 +779,9 @@ test.describe('OIDC prompt parameter', () => {
 		).toBeVisible();
 		await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
 
-		await page.getByRole('button', { name: 'Sign in' }).click();
-
-		// Should redirect successfully after consent
-		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-			if (
-				!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-				!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-			) {
-				throw e;
-			}
-		});
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.getByRole('button', { name: 'Sign in' }).click()
+		);
 	});
 
 	test('prompt=login forces reauthentication', async ({ page }) => {
@@ -830,17 +796,9 @@ test.describe('OIDC prompt parameter', () => {
 		});
 
 		await (await passkeyUtil.init(page)).addPasskey();
-		await page.goto(`/authorize?${urlParams.toString()}`);
-
-		// Should require reauthentication even though user is signed in
-		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-			if (
-				!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-				!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-			) {
-				throw e;
-			}
-		});
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
 
 		expect(reauthCalled).toBe(true);
 	});
@@ -857,17 +815,9 @@ test.describe('OIDC prompt parameter', () => {
 		await expect(selectionCard).toBeVisible();
 		await expect(selectionCard).toContainText('Tim Cook');
 
-		await page.getByRole('button', { name: 'Sign In' }).click();
-
-		// Should redirect successfully to callback URL with code
-		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-			if (
-				!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-				!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-			) {
-				throw e;
-			}
-		});
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.getByRole('button', { name: 'Sign In' }).click()
+		);
 	});
 
 	test('prompt=select_account account can be changed', async ({ page }) => {
@@ -884,17 +834,9 @@ test.describe('OIDC prompt parameter', () => {
 
 		await page.getByRole('button', { name: 'Sign In' }).click();
 
-		await page.getByRole('button', { name: 'Sign In' }).click();
-
-		// Should redirect successfully to callback URL with code
-		await page.waitForURL(oidcClient.callbackUrl).catch((e) => {
-			if (
-				!e.message.includes('net::ERR_NAME_NOT_RESOLVED') &&
-				!e.message.includes('net::ERR_CERT_AUTHORITY_INVALID')
-			) {
-				throw e;
-			}
-		});
+		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+			page.getByRole('button', { name: 'Sign In' }).click()
+		);
 	});
 
 	test('prompt=none with prompt=consent returns interaction_required', async ({ page }) => {
@@ -939,3 +881,58 @@ test.describe('OIDC prompt parameter', () => {
 		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
 	});
 });
+
+async function waitForCallbackURL(page: Page, callbackUrl: string): Promise<URL> {
+	const expectedUrl = new URL(callbackUrl);
+	const isCallbackURL = (url: URL) =>
+		url.origin === expectedUrl.origin && url.pathname === expectedUrl.pathname;
+
+	const callbackRequest = await page.waitForRequest((request) =>
+		isCallbackURL(new URL(request.url()))
+	);
+	await page.waitForURL(isCallbackURL, { waitUntil: 'commit' }).catch(() => {});
+
+	const currentURL = new URL(page.url());
+	if (isCallbackURL(currentURL)) {
+		return currentURL;
+	}
+
+	return new URL(callbackRequest.url());
+}
+
+async function expectCallbackRedirect(
+	page: Page,
+	callbackUrl: string,
+	action: () => Promise<unknown>
+): Promise<URL> {
+	const callbackRouteMatcher = await routeCallbackPage(page, callbackUrl);
+
+	try {
+		const callbackURLPromise = waitForCallbackURL(page, callbackUrl);
+		const actionPromise = action().then(
+			() => undefined,
+			(error) => error
+		);
+		const callbackURL = await callbackURLPromise;
+		await actionPromise;
+		return callbackURL;
+	} finally {
+		await page.unroute(callbackRouteMatcher);
+	}
+}
+
+async function routeCallbackPage(page: Page, callbackUrl: string): Promise<(url: URL) => boolean> {
+	const expectedUrl = new URL(callbackUrl);
+	const callbackRouteMatcher = (url: URL) =>
+		url.origin === expectedUrl.origin && url.pathname === expectedUrl.pathname;
+
+	await page.route(callbackRouteMatcher, async (route) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'text/html',
+			body: '<!doctype html><title>OIDC callback</title>'
+		});
+	});
+
+	return callbackRouteMatcher;
+}

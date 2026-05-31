@@ -16,7 +16,7 @@
 		class={buttonVariants({
 			variant: 'outline',
 			size: 'sm',
-			class: 'ml-auto h-8'
+			class: 'ml-auto'
 		})}
 	>
 		<Settings2Icon />
