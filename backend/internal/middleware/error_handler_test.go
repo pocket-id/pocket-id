@@ -109,7 +109,7 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		var body map[string]string
 		err := json.Unmarshal(recorder.Body.Bytes(), &body)
 		require.NoError(t, err)
-		require.Equal(t, "Something went wrong. Try again later", body["error"])
+		require.Equal(t, "Something went wrong. Please try again later", body["error"])
 		require.Equal(t, http.StatusBadRequest, recorder.Code)
 		require.Equal(t, "Security event", mockHandler.lastEvent)
 

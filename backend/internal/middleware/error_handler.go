@@ -75,7 +75,7 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			if ok {
 				statusCode := webAuthnErrorToHTTPStatus(protocolErr.Type)
 				logSecurityEvent(c, nil, protocolErr.Error())
-				errorResponse(c, statusCode, "Something went wrong. Try again later")
+				errorResponse(c, statusCode, "Something went wrong. Please try again later")
 				return
 			}
 
