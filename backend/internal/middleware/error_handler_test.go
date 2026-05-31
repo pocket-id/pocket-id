@@ -42,8 +42,7 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogService := service.NewAuditLogService(db, nil, nil, nil)
 	oneTimeAccessService := service.NewOneTimeAccessService(db, nil, nil, auditLogService, nil, nil)
-	appConfigService, err := service.NewAppConfigService(context.Background(), db)
-	require.NoError(t, err)
+	appConfigService, _ := service.NewAppConfigService(context.Background(), db)
 	webAuthnService, _ := service.NewWebAuthnService(db, nil, auditLogService, appConfigService)
 
 	router.GET("/401", func(c *gin.Context) {

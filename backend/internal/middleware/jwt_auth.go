@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -10,12 +11,13 @@ import (
 )
 
 type JwtAuthMiddleware struct {
-	userService *service.UserService
-	jwtService  *service.JwtService
+	userService     *service.UserService
+	jwtService      *service.JwtService
+	auditLogService *service.AuditLogService
 }
 
-func NewJwtAuthMiddleware(jwtService *service.JwtService, userService *service.UserService) *JwtAuthMiddleware {
-	return &JwtAuthMiddleware{jwtService: jwtService, userService: userService}
+func NewJwtAuthMiddleware(jwtService *service.JwtService, userService *service.UserService, auditLogService *service.AuditLogService) *JwtAuthMiddleware {
+	return &JwtAuthMiddleware{jwtService: jwtService, userService: userService, auditLogService: auditLogService}
 }
 
 func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
@@ -35,6 +37,12 @@ func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 }
 
 func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject string, isAdmin bool, authenticationMethod string, err error) {
+	var userID string
+	defer func() {
+		if err != nil && !errors.Is(err, &common.NotSignedInError{}) {
+			m.auditLogService.CreateSignInFailure(c, c.ClientIP(), c.Request.UserAgent(), userID)
+		}
+	}()
 	// Extract the token from the cookie
 	accessToken, err := c.Cookie(cookie.AccessTokenCookieName)
 	if err != nil {
@@ -65,7 +73,7 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 	if err != nil {
 		return "", false, "", &common.NotSignedInError{}
 	}
-
+	userID = user.ID
 	if user.Disabled {
 		return "", false, "", &common.UserDisabledError{}
 	}

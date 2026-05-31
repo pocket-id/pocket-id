@@ -25,9 +25,11 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		}
 		require.NoError(t, db.Create(&user).Error)
 
+		auditLogService := NewAuditLogService(db, mockConfig, nil, nil)
 		return &WebAuthnService{
-			db:         db,
-			jwtService: jwtService,
+			db:              db,
+			jwtService:      jwtService,
+			auditLogService: auditLogService,
 		}, user
 	}
 

@@ -22,12 +22,8 @@ func TestAuditLogService_CreateSignInFailed(t *testing.T) {
 	userAgent := "test-agent"
 	userID := "test-user"
 
-	// Create a transaction
-	tx := db.Begin()
-
 	// When
-	createdLog := service.CreateSignInFailed(ctx, ipAddress, userAgent, userID, tx)
-	tx.Commit()
+	createdLog := service.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
 
 	// Then
 	require.NotZero(t, createdLog.ID)
