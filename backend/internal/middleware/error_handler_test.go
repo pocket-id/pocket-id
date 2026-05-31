@@ -45,12 +45,12 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 	appConfigService, _ := service.NewAppConfigService(context.Background(), db)
 	webAuthnService, _ := service.NewWebAuthnService(db, nil, auditLogService, appConfigService)
 
-	router.GET("/401", func(c *gin.Context) {
+	router.GET("/one_time_access_invalid_token", func(c *gin.Context) {
 		_, _, err := oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), "invalid-token", "", "127.0.0.1", "test-agent")
 		_ = c.Error(err)
 	})
 
-	router.GET("/403", func(c *gin.Context) {
+	router.GET("/webauthn_protocol_error", func(c *gin.Context) {
 		credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
 		_, _, err = webAuthnService.VerifyLogin(c.Request.Context(), "sessionId", credentialAssertionData, "127.0.0.1", "test-agent")
 		_ = c.Error(err)
@@ -60,16 +60,16 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		_ = c.Error(&common.UserNotFoundError{})
 	})
 
-	t.Run("logs security event for 401", func(t *testing.T) {
+	t.Run("logs security event for OneTimeAccess invalid token", func(t *testing.T) {
 		// given
 		mockHandler.lastEvent = ""
-		req := httptest.NewRequest(http.MethodGet, "/401", nil)
+		request := httptest.NewRequest(http.MethodGet, "/one_time_access_invalid_token", nil)
 		recorder := httptest.NewRecorder()
 		var initialSignInFailureCount int64
 		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
 
 		// when
-		router.ServeHTTP(recorder, req)
+		router.ServeHTTP(recorder, request)
 
 		// then
 		var body map[string]string
@@ -84,7 +84,7 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		require.Equal(t, initialSignInFailureCount+1, signInFailureCount)
 	})
 
-	t.Run("logs security event for 403", func(t *testing.T) {
+	t.Run("logs security event for Webauthn protocol error", func(t *testing.T) {
 		// given
 		mockHandler.lastEvent = ""
 		jsonBody := []byte(`{
@@ -97,13 +97,13 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		    "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 		  }
 		}`)
-		req := httptest.NewRequest(http.MethodGet, "/403", bytes.NewBuffer(jsonBody))
+		request := httptest.NewRequest(http.MethodGet, "/webauthn_protocol_error", bytes.NewBuffer(jsonBody))
 		recorder := httptest.NewRecorder()
 		var initialSignInFailureCount int64
 		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
 
 		// when
-		router.ServeHTTP(recorder, req)
+		router.ServeHTTP(recorder, request)
 
 		// then
 		var body map[string]string
@@ -121,13 +121,13 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 	t.Run("does not log security event for 404", func(t *testing.T) {
 		// given
 		mockHandler.lastEvent = ""
-		req := httptest.NewRequest(http.MethodGet, "/404", nil)
+		request := httptest.NewRequest(http.MethodGet, "/404", nil)
 		recorder := httptest.NewRecorder()
 		var initialSignInFailureCount int64
 		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
 
 		// when
-		router.ServeHTTP(recorder, req)
+		router.ServeHTTP(recorder, request)
 
 		// then
 		var body map[string]string

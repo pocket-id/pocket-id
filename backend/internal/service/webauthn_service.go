@@ -383,7 +383,7 @@ func (s *WebAuthnService) CreateReauthenticationTokenWithAccessToken(ctx context
 	defer func() {
 		tx.Rollback()
 		if retErr != nil {
-			s.auditLogService.CreateSignInFailure(ctx, "", "", "")
+			s.auditLogService.CreateSignInFailure(ctx, "", "", userID)
 		}
 	}()
 

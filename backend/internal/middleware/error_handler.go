@@ -54,7 +54,7 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			if ok {
 				statusCode := appDescErr.HttpStatusCode()
 				if isSecurityError(statusCode) {
-					logSecurityEvent(c, appDescErr, appDescErr.Error())
+					logSecurityEvent(c, appDescErr.Error())
 				}
 				errorResponseWithDescription(c, statusCode, appDescErr.Error(), appDescErr.Description())
 				return
@@ -65,7 +65,7 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			if ok {
 				statusCode := appErr.HttpStatusCode()
 				if isSecurityError(statusCode) {
-					logSecurityEvent(c, appErr, appErr.Error())
+					logSecurityEvent(c, appErr.Error())
 				}
 				errorResponse(c, statusCode, appErr.Error())
 				return
@@ -74,7 +74,7 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			protocolErr, ok := errors.AsType[*protocol.Error](err)
 			if ok {
 				statusCode := webAuthnErrorToHTTPStatus(protocolErr.Type)
-				logSecurityEvent(c, nil, protocolErr.Error())
+				logSecurityEvent(c, protocolErr.Error())
 				errorResponse(c, statusCode, "Something went wrong. Please try again later")
 				return
 			}
@@ -116,7 +116,7 @@ func isSecurityError(statusCode int) bool {
 	return statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden
 }
 
-func logSecurityEvent(c *gin.Context, err error, message string) {
+func logSecurityEvent(c *gin.Context, message string) {
 	slog.WarnContext(c.Request.Context(), "Security event",
 		slog.String("event", "auth_failure"),
 		slog.String("error", message),
