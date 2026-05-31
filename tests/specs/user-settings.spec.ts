@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { userGroups, users } from '../data';
+import { customFields, userGroups, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 
@@ -184,48 +184,27 @@ test('Update user fails with already taken username in different casing', async 
 	await expect(page.locator('[data-type="error"]')).toHaveText('Username is already in use');
 });
 
-test('Update user custom claims', async ({ page }) => {
+test('Update user custom fields', async ({ page }) => {
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByLabel(customFields.department.displayName).fill('Engineering3');
+	await page.getByLabel(customFields.nickname.displayName).fill('');
+	await page.getByRole('button', { name: 'Save' }).first().click();
+	await expect(page.getByText('Department must only contain letters')).toBeVisible();
+	await expect(page.getByText('Field is required')).toBeVisible();
 
-	// Add two custom claims
-	await page.getByRole('button', { name: 'Add custom claim' }).click();
+	await page.getByLabel(customFields.department.displayName).fill('Design');
+	await page.getByLabel(customFields.internalId.displayName).fill('123');
+	await page.getByLabel(customFields.nickname.displayName).fill('Timmy');
+	await page.getByRole('button', { name: 'Save' }).first().click();
 
-	await page.getByPlaceholder('Key').fill('customClaim1');
-	await page.getByPlaceholder('Value').fill('customClaim1_value');
-
-	await page.getByRole('button', { name: 'Add another' }).click();
-	await page.getByPlaceholder('Key').nth(1).fill('customClaim2');
-	await page.getByPlaceholder('Value').nth(1).fill('customClaim2_value');
-
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Custom claims updated successfully'
-	);
+	await expect(page.locator('[data-type="success"]')).toHaveText('User updated successfully');
 
 	await page.reload();
 
-	// Check if custom claims are saved
-	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim1');
-	await expect(page.getByPlaceholder('Value').first()).toHaveValue('customClaim1_value');
-	await expect(page.getByPlaceholder('Key').nth(1)).toHaveValue('customClaim2');
-	await expect(page.getByPlaceholder('Value').nth(1)).toHaveValue('customClaim2_value');
-
-	// Remove one custom claim
-	await page.getByLabel('Remove custom claim').first().click();
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Custom claims updated successfully'
-	);
-
-	await page.reload();
-
-	// Check if custom claim is removed
-	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim2');
-	await expect(page.getByPlaceholder('Value').first()).toHaveValue('customClaim2_value');
+	await expect(page.getByLabel(customFields.department.displayName)).toHaveValue('Design');
+	await expect(page.getByLabel(customFields.nickname.displayName)).toHaveValue('Timmy');
+	await expect(page.getByLabel(customFields.internalId.displayName)).toHaveValue('123');
 });
 
 test('Update user group assignments', async ({ page }) => {
@@ -263,7 +242,11 @@ test('Admin can view another user passkeys', async ({ page }) => {
 test('Admin can delete another user passkey and audit log is created', async ({ page }) => {
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
 
-	await page.locator('[data-slot="item"]').filter({ hasText: 'Passkey 2' }).getByLabel('Delete').click();
+	await page
+		.locator('[data-slot="item"]')
+		.filter({ hasText: 'Passkey 2' })
+		.getByLabel('Delete')
+		.click();
 	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');

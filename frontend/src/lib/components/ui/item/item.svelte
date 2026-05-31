@@ -2,7 +2,7 @@
 	import { tv, type VariantProps } from 'tailwind-variants';
 
 	export const itemVariants = tv({
-		base: 'group/item focus-visible:border-ring focus-visible:ring-ring/50 flex flex-wrap items-center rounded-xl border border-transparent text-sm outline-none transition-colors duration-100 focus-visible:ring-[3px]',
+		base: 'group/item focus-visible:border-ring focus-visible:ring-ring/50 flex flex-wrap items-center rounded-4xl border border-transparent text-sm outline-none transition-colors duration-100 focus-visible:ring-[3px]',
 		variants: {
 			variant: {
 				default: 'bg-transparent [a&]:hover:bg-accent/50 [a&]:transition-colors',
@@ -12,8 +12,8 @@
 				transparent: 'bg-transparent'
 			},
 			size: {
-				default: 'gap-4 p-4',
-				sm: 'gap-2.5 px-4 py-3'
+				default: 'gap-4 p-6',
+				sm: 'gap-2.5 px-4 py-4'
 			}
 		},
 		defaultVariants: {

@@ -187,7 +187,6 @@
 					value={signupLink}
 					size={180}
 					color={mode.current === 'dark' ? '#FFFFFF' : '#000000'}
-					backgroundColor={mode.current === 'dark' ? '#000000' : '#FFFFFF'}
 				/>
 				<CopyToClipboard value={signupLink!}>
 					<p data-testId="signup-token-link" class="px-2 text-center text-sm break-all">

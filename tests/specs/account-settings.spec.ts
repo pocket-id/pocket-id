@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { emailVerificationTokens, users } from '../data';
+import { customFields, emailVerificationTokens, users } from '../data';
 import authUtil from '../utils/auth.util';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
@@ -20,6 +20,31 @@ test('Update account details', async ({ page }) => {
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Account details updated successfully'
 	);
+});
+
+test('Update self editable custom fields from account settings', async ({ page }) => {
+	await page.goto('/settings/account');
+
+	await expect(page.getByLabel(customFields.internalId.displayName)).not.toBeVisible();
+
+	await page.getByLabel(customFields.department.displayName).fill('Engineering3');
+	await page.getByLabel(customFields.nickname.displayName).fill('');
+	await page.getByRole('button', { name: 'Save' }).first().click();
+	await expect(page.getByText('Department must only contain letters')).toBeVisible();
+	await expect(page.getByText('Field is required')).toBeVisible();
+
+	await page.getByLabel(customFields.department.displayName).fill('Design');
+	await page.getByLabel(customFields.nickname.displayName).fill('Timmy');
+	await page.getByRole('button', { name: 'Save' }).first().click();
+
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Account details updated successfully'
+	);
+
+	await page.reload();
+
+	await expect(page.getByLabel(customFields.department.displayName)).toHaveValue('Design');
+	await expect(page.getByLabel(customFields.nickname.displayName)).toHaveValue('Timmy');
 });
 
 test('Update account details fails with already taken email', async ({ page }) => {

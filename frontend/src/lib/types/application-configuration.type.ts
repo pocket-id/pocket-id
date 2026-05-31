@@ -1,4 +1,4 @@
-import type { CustomClaim } from './custom-claim.type';
+import type { CustomFieldValue, CustomField } from './custom-field.type';
 
 export type AppConfig = {
 	appName: string;
@@ -13,6 +13,7 @@ export type AppConfig = {
 	uiConfigDisabled: boolean;
 	accentColor: string;
 	requireUserEmail: boolean;
+	customFields: CustomField[];
 };
 
 export type AllAppConfig = AppConfig & {
@@ -20,7 +21,6 @@ export type AllAppConfig = AppConfig & {
 	sessionDuration: number;
 	emailsVerified: boolean;
 	signupDefaultUserGroupIDs: string[];
-	signupDefaultCustomClaims: CustomClaim[];
 	// Email
 	smtpHost: string;
 	smtpPort: string;

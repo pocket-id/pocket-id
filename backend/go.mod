@@ -10,6 +10,7 @@ require (
 	github.com/aws/smithy-go v1.25.1
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/cenkalti/backoff/v5 v5.0.3
+	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
 	github.com/disintegration/imageorient v0.0.0-20180920195336-8147d86e83ec
 	github.com/disintegration/imaging v1.6.2
 	github.com/dunglas/go-urlpattern v0.0.0-20241020164140-716dfa1c80b1

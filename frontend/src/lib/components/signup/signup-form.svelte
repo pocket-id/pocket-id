@@ -1,7 +1,9 @@
 <script lang="ts">
+	import CustomFieldValuesInput from '$lib/components/form/custom-field-values-input.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
+	import { customFieldAppliesTo, type CustomFieldValue } from '$lib/types/custom-field.type';
 	import type { UserSignUp } from '$lib/types/user.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
@@ -35,16 +37,23 @@
 
 	const { inputs, ...form } = createForm<FormSchema>(formSchema, initialData);
 
-	let userData: UserSignUp | null = $state(null);
+	let customFieldValues = $state<CustomFieldValue[]>([]);
+	let customFieldValuesInputRef = $state<CustomFieldValuesInput>();
+	let customFields = $derived(
+		$appConfigStore.customFields.filter(
+			(field) => customFieldAppliesTo(field, 'user') && (field.required && field.userEditable)
+		)
+	);
 
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;
+		if (customFieldValuesInputRef && !customFieldValuesInputRef.validate()) return;
 
 		isLoading = true;
-		const result = await tryCatch(callback(data));
+		const result = await tryCatch(callback({ ...data, customFieldValues }));
 		if (result.data) {
-			userData = data;
+			userData = { ...data, customFieldValues };
 			isLoading = false;
 		}
 	}
@@ -58,6 +67,11 @@
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<FormInput label={m.first_name()} bind:input={$inputs.firstName} />
 			<FormInput label={m.last_name()} bind:input={$inputs.lastName} />
+			<CustomFieldValuesInput
+				bind:this={customFieldValuesInputRef}
+				bind:customFieldValues
+				{customFields}
+			/>
 		</div>
 	</div>
 </form>

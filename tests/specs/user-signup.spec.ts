@@ -1,5 +1,5 @@
 import test, { expect, type Page } from '@playwright/test';
-import { signupTokens, userGroups, users } from '../data';
+import { customFields, signupTokens, userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 import passkeyUtil from '../utils/passkey.util';
 
@@ -10,10 +10,11 @@ async function setSignupMode(
 ) {
 	await page.goto('/settings/admin/application-configuration');
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByRole('tab', { name: 'Users and groups' }).click();
+	await page.getByRole('button', { name: 'Expand card' }).first().click();
 	await page.getByRole('button', { name: 'Enable User Signups' }).click();
 	await page.getByRole('option', { name: mode }).click();
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).last().click();
 
 	await expect(page.locator('[data-type="success"]').last()).toHaveText(
 		'User creation settings updated successfully.'
@@ -117,7 +118,7 @@ test.describe('User Signup', () => {
 			await expect(page.getByText('Set up your passkey')).toBeVisible();
 
 			const response = await page.request.get('/api/users/me').then((res) => res.json());
-			expect(response.userGroups.map((g) => g.id)).toContain(userGroups.developers.id);
+			expect(response.userGroups.map((g: any) => g.id)).toContain(userGroups.developers.id);
 		});
 
 		test('Signup with token - invalid token shows error', async ({ page }) => {
@@ -159,6 +160,32 @@ test.describe('User Signup', () => {
 
 			await page.waitForURL('/signup/add-passkey');
 			await expect(page.getByText('Set up your passkey')).toBeVisible();
+		});
+
+		test('Open signup - required custom fields are shown and saved', async ({ page }) => {
+			await setSignupMode(page, 'Open Signup', false);
+			await page.context().clearCookies();
+
+			await page.goto('/signup');
+
+			await expect(page.getByLabel(customFields.nickname.displayName)).toBeVisible();
+			await expect(page.getByLabel(customFields.elevatedRights.displayName)).not.toBeVisible();
+			await expect(page.getByLabel(customFields.department.displayName)).not.toBeVisible();
+			await expect(page.getByLabel(customFields.internalId.displayName)).not.toBeVisible();
+
+			await page.getByLabel('First name').fill('Jane');
+			await page.getByLabel('Last name').fill('Smith');
+			await page.getByLabel('Username').fill('janecustomfield');
+			await page.getByLabel('Email').fill('jane.customfield@test.com');
+			await page.getByLabel(customFields.nickname.displayName).fill('123');
+
+			await page.getByRole('button', { name: 'Sign Up' }).click();
+
+			await page.getByRole('button', { name: 'Skip for now' }).click();
+			await page.getByRole('button', { name: 'Skip for now' }).nth(1).click();
+
+			await page.waitForURL('/settings/account');
+			await expect(page.getByLabel(customFields.nickname.displayName)).toHaveValue('123');
 		});
 
 		test('Open signup - validation errors', async ({ page }) => {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CustomFieldValuesInput from '$lib/components/form/custom-field-values-input.svelte';
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -6,6 +7,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
+	import { customFieldAppliesTo } from '$lib/types/custom-field.type';
 	import type { AccountUpdate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
@@ -31,6 +33,13 @@
 
 	let isLoading = $state(false);
 	let hasManualDisplayNameEdit = $state(!!account.displayName);
+	let customFieldValues = $state(account.customFieldValues || []);
+	let customFieldValuesInputRef = $state<CustomFieldValuesInput>();
+	let customFields = $derived(
+		$appConfigStore.customFields.filter(
+			(field) => customFieldAppliesTo(field, 'user') && field.userEditable
+		)
+	);
 
 	const userService = new UserService();
 
@@ -59,8 +68,13 @@
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;
+		if (!customFieldValuesInputRef?.validate()) return;
+
 		isLoading = true;
-		await callback(data);
+		await callback({
+			...data,
+			customFieldValues
+		});
 		isLoading = false;
 	}
 
@@ -100,10 +114,15 @@
 				bind:input={$inputs.displayName}
 				onInput={() => (hasManualDisplayNameEdit = true)}
 			/>
+			<CustomFieldValuesInput
+				bind:this={customFieldValuesInputRef}
+				bind:customFieldValues
+				{customFields}
+			/>
 		</Field.Group>
-
-		<div class="flex justify-end pt-4">
-			<Button {isLoading} type="submit">{m.save()}</Button>
-		</div>
 	</fieldset>
+
+	<div class="flex justify-end pt-4">
+		<Button {isLoading} type="submit">{m.save()}</Button>
+	</div>
 </form>
