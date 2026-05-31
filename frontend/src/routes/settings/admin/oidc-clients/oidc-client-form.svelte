@@ -54,7 +54,8 @@
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		},
 		logoUrl: '',
-		darkLogoUrl: ''
+		darkLogoUrl: '',
+		pkceSupported: existingClient?.pkceSupported || false
 	};
 
 	const formSchema = z.object({
@@ -73,6 +74,7 @@
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
+		pkceSupported: z.boolean(),
 		requiresReauthentication: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
@@ -209,13 +211,19 @@
 			}}
 			bind:checked={$inputs.isPublic.value}
 		/>
-		<SwitchWithLabel
-			id="pkce"
-			label={m.pkce()}
-			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
-			disabled={$inputs.isPublic.value}
-			bind:checked={$inputs.pkceEnabled.value}
-		/>
+		<div
+			class="rounded-lg transition-all duration-200"
+			class:[&_[data-switch-root]]:ring-2={!$inputs.pkceEnabled.value && $inputs.pkceSupported.value}
+			class:[&_[data-switch-root]]:ring-yellow-500={!$inputs.pkceEnabled.value && $inputs.pkceSupported.value}
+		>
+			<SwitchWithLabel
+				id="pkce"
+				label={m.pkce()}
+				description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
+				disabled={$inputs.isPublic.value}
+				bind:checked={$inputs.pkceEnabled.value}
+			/>
+		</div>
 		<SwitchWithLabel
 			id="requires-reauthentication"
 			label={m.requires_reauthentication()}
