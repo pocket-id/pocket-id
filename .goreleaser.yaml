@@ -214,7 +214,3 @@ release:
   make_latest: true
   mode: keep-existing
   name_template: "{{ .Tag }}"
-  footer: |
-    ---
-
-    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
