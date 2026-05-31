@@ -9,13 +9,11 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/coreos/go-systemd/activation"
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
@@ -209,64 +207,6 @@ func initServerProtocols() (*http.Protocols, *tls.Config, *tlsCertProvider, erro
 
 	slog.Info("TLS enabled")
 	return protocols, tlsConfig, certProvider, nil
-}
-
-type socket struct {
-	addr     string
-	listener net.Listener
-}
-
-func systemdSocket() (*socket, error) {
-	listeners, err := activation.Listeners()
-	if err != nil {
-		return nil, fmt.Errorf("failed to receive socket from systemd: %w", err)
-	}
-
-	if len(listeners) == 0 {
-		return nil, errors.New("did not receive any sockets from systemd")
-	}
-
-	if len(listeners) > 1 {
-		return nil, errors.New("received too many sockets from systemd")
-	}
-
-	return &socket{"(systemd)", listeners[0]}, nil
-}
-
-func unixSocket() (*socket, error) {
-	addr := common.EnvConfig.UnixSocket
-	os.Remove(addr) // remove dangling the socket file to avoid file-exist error
-
-	listener, err := net.Listen("unix", addr) //nolint:noctx
-	if err != nil {
-		return nil, fmt.Errorf("failed to create UNIX socket: %w", err)
-	}
-
-	if common.EnvConfig.UnixSocketMode != "" {
-		mode, err := strconv.ParseUint(common.EnvConfig.UnixSocketMode, 8, 32)
-		if err != nil {
-			listener.Close()
-			return nil, fmt.Errorf("failed to parse UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
-		}
-
-		if err := os.Chmod(addr, os.FileMode(mode)); err != nil {
-			listener.Close()
-			return nil, fmt.Errorf("failed to set UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
-		}
-	}
-
-	return &socket{addr, listener}, nil
-}
-
-func tcpSocket() (*socket, error) {
-	addr := net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port)
-
-	listener, err := net.Listen("tcp", addr) //nolint:noctx
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TCP socket: %w", err)
-	}
-
-	return &socket{addr, listener}, nil
 }
 
 func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
