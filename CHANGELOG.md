@@ -1,3 +1,46 @@
+## v2.8.0
+
+### Bug Fixes
+
+- delete refresh tokens on end-session to prevent reuse after logout ([#1458](https://github.com/pocket-id/pocket-id/pull/1458) by @wucm667)
+- return 404 status code for `.well-known` routes if not found ([714b5b3](https://github.com/pocket-id/pocket-id/commit/714b5b3307bb012b94e66e8dcb1de93a2d62eceb) by @stonith404)
+- add `email_verified` to reserved claims list ([8b22fca](https://github.com/pocket-id/pocket-id/commit/8b22fcaaa475984bb4c42306487035073d7c47e3) by @stonith404)
+- reject unknown PKCE code challenge methods ([ce6bdb9](https://github.com/pocket-id/pocket-id/commit/ce6bdb9d7e6c0f1eaaa21ddb6d808e41088a38b8) by @stonith404)
+- make stream of downloaded logos seekable for S3 checksum calculation ([cc9163f](https://github.com/pocket-id/pocket-id/commit/cc9163f577280d7c278dc744e20d0505dbe83ede) by @stonith404)
+- scope confirmation wasn't shown if account selection was prompted ([272d147](https://github.com/pocket-id/pocket-id/commit/272d1479bd64b4a068bfe4dfa5ba4cd3c5e90505) by @stonith404)
+- add support for unix socket mode in healthcheck ([a712196](https://github.com/pocket-id/pocket-id/commit/a71219637af1746e9faba5274b6095da676ec555) by @stonith404)
+- restore cross-platform binary builds ([7027296](https://github.com/pocket-id/pocket-id/commit/7027296632ab82cd9930f2fbe60054c2421688c4) by @stonith404)
+
+### Documentation
+
+- update SECURITY.md ([bb5a111](https://github.com/pocket-id/pocket-id/commit/bb5a111e3d51ad56fc074df7083022e3d4e25369) by @stonith404)
+
+### Features
+
+- delete OAuth refresh token on RP initiated logout ([#1480](https://github.com/pocket-id/pocket-id/pull/1480) by @stonith404)
+- remove EXIF/XMP metadata from uploaded images ([#1477](https://github.com/pocket-id/pocket-id/pull/1477) by @stonith404)
+- add support for `response_mode=fragment` ([0c95b7c](https://github.com/pocket-id/pocket-id/commit/0c95b7c3cc171ed77b51f236009b5ff659da0bec) by @stonith404)
+- add support for systemd socket activation ([#1479](https://github.com/pocket-id/pocket-id/pull/1479) by @deviant)
+- improve design trough the whole application ([b3d40a4](https://github.com/pocket-id/pocket-id/commit/b3d40a476b35cfa2451749e9a3d307b7babaeb6b) by @stonith404)
+
+### Other
+
+- update AAGUIDs ([#1476](https://github.com/pocket-id/pocket-id/pull/1476) by @github-actions[bot])
+- upgrade dependencies ([91c2ea2](https://github.com/pocket-id/pocket-id/commit/91c2ea2a6616a500922365d1789f1fa1ba66c112) by @stonith404)
+- remove deprecated http2 package ([e56dc12](https://github.com/pocket-id/pocket-id/commit/e56dc124cee4d3c176c89e7d574ddfde089bcbd1) by @stonith404)
+- apply go 1.26.0 syntax updated ([8ad95b8](https://github.com/pocket-id/pocket-id/commit/8ad95b8af17ba8cbb62168ed0bb54c87e3df379c) by @stonith404)
+- delete refresh tokens on end-session to prevent reuse after logout ([b27a52a](https://github.com/pocket-id/pocket-id/commit/b27a52a5915228383dbdbf0a2c353452cd351d0f) by @stonith404)
+- use dependabot for automatic dependency upgrades ([b9fdd53](https://github.com/pocket-id/pocket-id/commit/b9fdd530c0f370f2fccb6251d700aa6f9bdf4124) by @stonith404)
+- fix invalid schema ([e8c398f](https://github.com/pocket-id/pocket-id/commit/e8c398ffbd6545f76c983f01556bb3b73d40a728) by @stonith404)
+- update AAGUIDs ([#1487](https://github.com/pocket-id/pocket-id/pull/1487) by @github-actions[bot])
+- use custom Playwright route for callback URL checks ([f134247](https://github.com/pocket-id/pocket-id/commit/f13424720b7f5da3978988f0f9169cf303971a13) by @stonith404)
+- fix linter issues ([bc4f75c](https://github.com/pocket-id/pocket-id/commit/bc4f75c44f12a71380042ad4c140d41f4dddc7dd) by @stonith404)
+- don't compare hashes of profile pictures ([9ad2bfc](https://github.com/pocket-id/pocket-id/commit/9ad2bfc7b30e0eb2d7ae1406874b8caba5a1f121) by @stonith404)
+- run formatter ([0616aba](https://github.com/pocket-id/pocket-id/commit/0616abaf7f079d0a35543258e13aa5b4acb4adc0) by @stonith404)
+- use fixed minor version of Go ([e046a03](https://github.com/pocket-id/pocket-id/commit/e046a03364f00001f8699aaa7e902b33c2661118) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.7.0...v2.8.0
+
 ## v2.7.0
 
 ### Bug Fixes
