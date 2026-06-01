@@ -135,7 +135,7 @@
 	--color-sidebar-ring: var(--sidebar-ring);
 
 	/* Font */
-	--font-glooock: 'glooock ', serif;
+	--font-gloock: 'gloock', serif;
 }
 
 @layer base {
