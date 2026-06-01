@@ -42,7 +42,7 @@ jobs:
 
                   # PR Template Checks
                   require-pr-template: true
-                  strict-pr-template-sections: ""
+                  strict-pr-template-sections: "Contributing Guidelines"
                   optional-pr-template-sections: "Issues"
                   max-additional-pr-template-sections: 3
 

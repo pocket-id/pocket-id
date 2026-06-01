@@ -79,7 +79,7 @@
 			<LoginLogoErrorSuccessIndicator {success} error={!!errorMessage} />
 		{/if}
 	</div>
-	<h1 class="font-glooock mt-5 text-4xl font-bold">{m.authorize_device()}</h1>
+	<h1 class="font-gloock mt-5 text-4xl font-bold">{m.authorize_device()}</h1>
 	{#if errorMessage}
 		<p class="text-muted-foreground mt-2">
 			{errorMessage}. {m.please_try_again()}
