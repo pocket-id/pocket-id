@@ -67,7 +67,7 @@ type OidcClientFederatedIdentityDto struct {
 
 type AuthorizeOidcClientRequestDto struct {
 	ClientID              string `json:"clientID" binding:"required"`
-	Scope                 string `json:"scope"`
+	Scope                 string `json:"scope" binding:"required_without=RequestURI"`
 	CallbackURL           string `json:"callbackURL"`
 	Nonce                 string `json:"nonce"`
 	CodeChallenge         string `json:"codeChallenge"`

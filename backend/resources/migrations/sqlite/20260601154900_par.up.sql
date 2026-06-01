@@ -15,6 +15,5 @@ CREATE TABLE oidc_pushed_authorization_requests (
 );
 
 CREATE INDEX idx_oidc_par_expires_at ON oidc_pushed_authorization_requests (expires_at);
-CREATE INDEX idx_oidc_par_request_uri ON oidc_pushed_authorization_requests (request_uri);
 
 ALTER TABLE oidc_clients ADD COLUMN requires_pushed_authorization_requests BOOLEAN NOT NULL DEFAULT FALSE;

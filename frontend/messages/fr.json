@@ -290,7 +290,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Demande aux utilisateurs de se connecter à nouveau à chaque autorisation, même s'ils sont déjà connectés.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Nécessite Pushed Authorization Requests (PAR)",
-	"requires_pushed_authorization_requests_description": "Les clients doivent utiliser l'endpoint PAR pour pré-register les paramètres d'autorisation avant de démarrer le flux. Non disponible pour les clients publics.",
+	"requires_pushed_authorization_requests_description": "Les clients doivent utiliser le point de terminaison PAR (/api/oidc/par) pour préenregistrer les paramètres d'autorisation avant de démarrer le flux. Non disponible pour les clients publics.",
 	"name_logo": "Logo {name}",
 	"change_logo": "Changer le logo",
 	"upload_logo": "Télécharger un logo",

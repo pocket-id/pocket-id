@@ -916,19 +916,28 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		expect(parResult.error).toBeUndefined();
 
 		// Step 2: Navigate to /authorize using the request_uri
-		// The PAR client is pre-authorized, so the consent screen is skipped
 		const urlParams = new URLSearchParams({
 			client_id: client.id,
 			request_uri: parResult.request_uri!
 		});
 
-		// Ignore DNS resolution error as the callback URL is not reachable
-		await page.goto(`/authorize?${urlParams.toString()}`);
-		await page.waitForURL(client.callbackUrl + '**').catch((e) => {
-			if (!e.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
-				throw e;
-			}
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+		const code = callbackUrl.searchParams.get('code');
+		expect(code).toBeTruthy();
+
+		// Step 3: Exchange the authorization code for tokens
+		const tokenResult = await oidcUtil.exchangeCode(page, {
+			grant_type: 'authorization_code',
+			code: code!,
+			client_id: client.id,
+			client_secret: client.secret,
+			redirect_uri: client.callbackUrl
 		});
+		expect(tokenResult.access_token).toBeTruthy();
+		expect(tokenResult.token_type).toBe('Bearer');
+		expect(tokenResult.error).toBeUndefined();
 	});
 
 	test('PAR request_uri is single-use', async ({ page }) => {
@@ -940,13 +949,15 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		});
 		expect(parResult.request_uri).toBeDefined();
 
-		// First use — navigate to /authorize (will consume the request_uri)
+		// First use — navigate to /authorize (must succeed and consume the request_uri)
 		const urlParams = new URLSearchParams({
 			client_id: client.id,
 			request_uri: parResult.request_uri!
 		});
-		await page.goto(`/authorize?${urlParams.toString()}`);
-		await page.waitForURL(client.callbackUrl + '**').catch(() => {});
+		const firstCallbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+		expect(firstCallbackUrl.searchParams.get('code')).toBeTruthy();
 
 		// Second use of the same request_uri should fail
 		// Use the authorize API directly (requires auth cookie which we have)
@@ -991,11 +1002,11 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 
 		const result = await oidcUtil.pushAuthorizationRequest(page, {
 			clientId: client.id,
-			// No secret — public client has none
+			clientSecret: client.secret,
 			redirectUri: client.callbackUrl
 		});
 
-		expect(result.error).toBeDefined();
+		expect(result.error).toBe('pushed authorization requests are not supported for public clients');
 		expect(result.request_uri).toBeUndefined();
 	});
 

@@ -80,9 +80,9 @@ export async function pushAuthorizationRequest(
 	const form: Record<string, string> = {
 		client_id: params.clientId,
 		response_type: params.responseType ?? 'code',
-		scope: params.scope ?? 'openid profile email',
-		redirect_uri: params.redirectUri ?? ''
+		scope: params.scope ?? 'openid profile email'
 	};
+	if (params.redirectUri) form.redirect_uri = params.redirectUri;
 	if (params.clientSecret) form.client_secret = params.clientSecret;
 	if (params.codeChallenge) form.code_challenge = params.codeChallenge;
 	if (params.codeChallengeMethod) form.code_challenge_method = params.codeChallengeMethod;

@@ -226,13 +226,6 @@
 			description={m.requires_users_to_authenticate_again_on_each_authorization()}
 			bind:checked={$inputs.requiresReauthentication.value}
 		/>
-		<SwitchWithLabel
-			id="requires-par"
-			label={m.requires_pushed_authorization_requests()}
-			description={m.requires_pushed_authorization_requests_description()}
-			disabled={$inputs.isPublic.value}
-			bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
-		/>
 	</div>
 	<div class="mt-7 w-full md:w-1/2">
 		<Tabs.Root value="light-logo">
@@ -281,6 +274,13 @@
 
 	{#if showAdvancedOptions}
 		<div class="mt-7 flex flex-col gap-y-7 md:col-span-2" transition:slide={{ duration: 200 }}>
+			<SwitchWithLabel
+				id="requires-par"
+				label={m.requires_pushed_authorization_requests()}
+				description={m.requires_pushed_authorization_requests_description()}
+				disabled={$inputs.isPublic.value}
+				bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
+			/>
 			{#if mode == 'create'}
 				<FormInput
 					label={m.client_id()}

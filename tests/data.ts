@@ -72,7 +72,7 @@ export const oidcClients = {
 		id: 'a1b2c3d4-e5f6-7890-abcd-ef0000000001',
 		name: 'PAR Test Client',
 		callbackUrl: 'http://par-client/auth/callback',
-		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
+		secret: 'PARClientXkQ9mBcRt7vLeHdU3nYsWjAz'
 	}
 };
 

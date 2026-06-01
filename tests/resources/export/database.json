@@ -173,7 +173,7 @@
 				"pkce_enabled": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
-				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC"
+				"secret": "$2a$10$.sbbDReNUkvy9TeuCfX0LOI2.2uXta9FDoEs19Ykh9qjARDWs3ara"
 			}
 		],
 		"oidc_clients_allowed_user_groups": [

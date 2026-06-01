@@ -71,11 +71,11 @@
 		setupDetails[m.requires_reauthentication()] = updatedClient.requiresReauthentication
 			? m.enabled()
 			: m.disabled();
-		setupDetails[m.requires_pushed_authorization_requests()] =
-			updatedClient.requiresPushedAuthorizationRequests ? m.enabled() : m.disabled();
 
 		await Promise.all([dataPromise, imagePromise, darkImagePromise])
 			.then(() => {
+				setupDetails[m.requires_pushed_authorization_requests()] =
+					updatedClient.requiresPushedAuthorizationRequests ? m.enabled() : m.disabled();
 				if (updatedClient.logoUrl) {
 					cachedOidcClientLogo.bustCache(client.id, true);
 				}

@@ -1364,11 +1364,7 @@ func (s *OidcService) CreatePushedAuthorizationRequest(ctx context.Context, cred
 	}
 
 	if input.ResponseType != "code" {
-		return "", 0, fmt.Errorf("unsupported response_type: only 'code' is supported")
-	}
-
-	if !strings.Contains(input.Scope, "openid") {
-		return "", 0, fmt.Errorf("scope must include 'openid'")
+		return "", 0, common.NewOidcInvalidRequestError("unsupported response_type: only 'code' is supported")
 	}
 
 	// Validate redirect_uri at push time (BCP requirement)
@@ -1419,7 +1415,12 @@ func (s *OidcService) getAndConsumePushedAuthorizationRequest(ctx context.Contex
 	err := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
-		Where("request_uri = ?", requestURI).
+		Where(
+			"request_uri = ? AND client_id = ? AND expires_at > ?",
+			requestURI,
+			clientID,
+			datatype.DateTime(time.Now()),
+		).
 		Delete(&par).
 		Error
 	if err != nil {
@@ -1430,16 +1431,6 @@ func (s *OidcService) getAndConsumePushedAuthorizationRequest(ctx context.Contex
 	}
 	// After DELETE … RETURNING, check if a row was actually deleted
 	if par.ID == "" {
-		return par, &common.OidcInvalidRequestURIError{}
-	}
-
-	// Check expiry (record deleted regardless — no need to clean up)
-	if time.Now().After(par.ExpiresAt.ToTime()) {
-		return par, &common.OidcInvalidRequestURIError{}
-	}
-
-	// Validate client binding (prevents cross-client request_uri injection)
-	if par.ClientID != clientID {
 		return par, &common.OidcInvalidRequestURIError{}
 	}
 
