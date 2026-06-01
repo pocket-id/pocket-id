@@ -29,6 +29,7 @@ export type OidcClient = OidcClientMetaData & {
 	credentials?: OidcClientCredentials;
 	launchURL?: string;
 	isGroupRestricted: boolean;
+	pkceSupported: boolean;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {
