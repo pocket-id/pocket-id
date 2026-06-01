@@ -143,7 +143,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", &common.OidcMissingCodeChallengeError{}
 	}
 
-	//If a code challenge is provided but confidential client is not using PKCE,flag PKCE support
+	// If a code challenge is provided but confidential client is not using PKCE,flag PKCE support
 	if input.CodeChallenge != "" && !client.PkceEnabled {
 		err = flagPkceSupportedClient(ctx, client.ID, false, tx)
 		if err != nil {
