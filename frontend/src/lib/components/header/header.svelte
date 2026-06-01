@@ -20,7 +20,11 @@
 	);
 </script>
 
-<div class=" w-full {isAuthPage ? 'absolute top-0 z-10 mt-3 lg:mt-8 pr-2 lg:pr-3' : 'pt-3 bg-muted/40 dark:bg-background '}">
+<div
+	class=" w-full {isAuthPage
+		? 'absolute top-0 z-10 mt-3 lg:mt-8 pr-2 lg:pr-3'
+		: 'pt-3 bg-muted/40 dark:bg-background '}"
+>
 	<div
 		class="{!isAuthPage
 			? 'max-w-410'

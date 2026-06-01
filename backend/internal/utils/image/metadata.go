@@ -96,7 +96,7 @@ func stripWEBPMetadata(data []byte) []byte {
 
 	// WEBP image can max be 4GB in size
 	riffSize := out.Len() - 8
-	if riffSize < 0 || riffSize > int(maxRIFFSize) {
+	if riffSize < 0 || uint64(riffSize) > uint64(maxRIFFSize) {
 		return data
 	}
 
