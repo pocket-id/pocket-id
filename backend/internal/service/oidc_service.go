@@ -1353,12 +1353,13 @@ func codeChallengeMethodIsSha256(codeChallengeMethod string) (bool, error) {
 // CreatePushedAuthorizationRequest validates and stores authorization parameters for PAR (RFC 9126).
 // Only confidential clients (non-public) may use this endpoint.
 func (s *OidcService) CreatePushedAuthorizationRequest(ctx context.Context, creds ClientAuthCredentials, input dto.OidcPARRequestDto) (requestURI string, expiresIn int, err error) {
-	client, err := s.verifyClientCredentialsInternal(ctx, s.db, creds, false)
+	// Public clients are not allowed, but we allow them in this step for better error messages
+	client, err := s.verifyClientCredentialsInternal(ctx, s.db, creds, true)
 	if err != nil {
 		return "", 0, err
 	}
 
-	// Explicitly reject public clients even if credentials somehow passed
+	// Reject public clients here
 	if client.IsPublic {
 		return "", 0, &common.OidcPARNotSupportedForPublicClientsError{}
 	}

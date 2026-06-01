@@ -983,7 +983,6 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 	});
 
 	test('PAR endpoint rejects public client', async ({ page }) => {
-		// nextcloud is a confidential client; use a public client id if we had one
 		// The parClient is confidential — test by setting isPublic via admin API first
 		await page.request.put(`/api/oidc/clients/${client.id}`, {
 			headers: { 'Content-Type': 'application/json' },
@@ -1006,7 +1005,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 			redirectUri: client.callbackUrl
 		});
 
-		expect(result.error).toBe('pushed authorization requests are not supported for public clients');
+		expect(result.error).toBe('Pushed authorization requests are not supported for public clients');
 		expect(result.request_uri).toBeUndefined();
 	});
 
@@ -1056,8 +1055,10 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 	test('Admin UI: PAR toggle persists after save', async ({ page }) => {
 		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
 
+		await page.getByRole('button', { name: 'Show Advanced Options' }).click();
+
 		// Enable the PAR toggle
-		const parToggle = page.getByTestId('requires-par').or(page.locator('#requires-par'));
+		const parToggle = page.getByRole('switch', { name: 'Requires Pushed Authorization' });
 		if (!(await parToggle.isChecked())) {
 			await parToggle.click();
 		}
@@ -1065,7 +1066,8 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		await page.getByRole('button', { name: /save/i }).click();
 		await page.reload();
 
-		const savedToggle = page.getByTestId('requires-par').or(page.locator('#requires-par'));
+		await page.getByRole('button', { name: 'Show Advanced Options' }).click();
+		const savedToggle = page.getByRole('switch', { name: 'Requires Pushed Authorization' });
 		await expect(savedToggle).toBeChecked();
 	});
 });
