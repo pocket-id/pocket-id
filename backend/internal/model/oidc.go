@@ -58,6 +58,7 @@ type OidcClient struct {
 	PkceEnabled              bool `sortable:"true" filterable:"true"`
 	RequiresReauthentication bool `sortable:"true" filterable:"true"`
 	Credentials              OidcClientCredentials
+	ClaimMappings            OidcClientClaimMappings
 	LaunchURL                *string
 	IsGroupRestricted        bool `sortable:"true" filterable:"true"`
 
@@ -110,6 +111,20 @@ type OidcClientFederatedIdentity struct {
 	JWKS     string `json:"jwks,omitempty"` // URL of the JWKS
 }
 
+type OidcClientClaimMapping struct {
+	ClaimName   string                 `json:"claimName"`
+	SourceType  ClaimMappingSourceType `json:"sourceType"`
+	SourceValue string                 `json:"sourceValue"`
+}
+
+type ClaimMappingSourceType string
+
+const (
+	MappingSourceUserField   ClaimMappingSourceType = "user_field"
+	MappingSourceCustomClaim ClaimMappingSourceType = "custom_claim"
+	MappingSourceStatic      ClaimMappingSourceType = "static"
+)
+
 func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (OidcClientFederatedIdentity, bool) {
 	if issuer == "" {
 		return OidcClientFederatedIdentity{}, false
@@ -130,6 +145,16 @@ func (occ *OidcClientCredentials) Scan(value any) error {
 
 func (occ OidcClientCredentials) Value() (driver.Value, error) {
 	return json.Marshal(occ)
+}
+
+type OidcClientClaimMappings []OidcClientClaimMapping //nolint:recvcheck
+
+func (ocm *OidcClientClaimMappings) Scan(value any) error {
+	return utils.UnmarshalJSONFromDatabase(ocm, value)
+}
+
+func (ocm OidcClientClaimMappings) Value() (driver.Value, error) {
+	return json.Marshal(ocm)
 }
 
 type UrlList []string //nolint:recvcheck

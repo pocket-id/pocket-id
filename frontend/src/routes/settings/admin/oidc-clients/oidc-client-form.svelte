@@ -17,6 +17,7 @@
 	import { LucideChevronDown, LucideMoon, LucideSun } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
+	import ClaimMappingListInput from './claim-mapping-list-input.svelte';
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import OidcClientImageInput from './oidc-client-image-input.svelte';
@@ -53,6 +54,7 @@
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		},
+		claimMappings: existingClient?.claimMappings || [],
 		logoUrl: '',
 		darkLogoUrl: ''
 	};
@@ -86,7 +88,16 @@
 					jwks: z.url().optional().or(z.literal(''))
 				})
 			)
-		})
+		}),
+		claimMappings: z
+			.array(
+				z.object({
+					claimName: z.string().min(1).max(255),
+					sourceType: z.enum(['user_field', 'custom_claim', 'static']),
+					sourceValue: z.string().min(1).max(1000)
+				})
+			)
+			.default([])
 	});
 
 	type FormSchema = typeof formSchema;
@@ -164,6 +175,15 @@
 			.filter((e) => e.path[0] == 'credentials' && e.path[1] == 'federatedIdentities')
 			.map((e) => {
 				e.path.splice(0, 2);
+				return e;
+			});
+	}
+
+	function getClaimMappingErrors(errors: z.ZodError<any> | undefined) {
+		return errors?.issues
+			.filter((e) => e.path[0] == 'claimMappings')
+			.map((e) => {
+				e.path.splice(0, 1);
 				return e;
 			});
 	}
@@ -283,6 +303,10 @@
 				client={existingClient}
 				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
 				errors={getFederatedIdentityErrors($errors)}
+			/>
+			<ClaimMappingListInput
+				bind:claimMappings={$inputs.claimMappings.value}
+				errors={getClaimMappingErrors($errors)}
 			/>
 		</div>
 	{/if}

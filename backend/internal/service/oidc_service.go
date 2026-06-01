@@ -523,6 +523,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	err = tx.
 		WithContext(ctx).
 		Preload("User.UserGroups").
+		Preload("Client").
 		Where(
 			"token = ? AND expires_at > ? AND user_id = ? AND client_id = ?",
 			utils.CreateSha256Hash(rt),
@@ -588,7 +589,7 @@ func (s *OidcService) createTokenFromRefreshToken(ctx context.Context, input dto
 	}
 
 	// Load the profile, which we need for the ID token
-	userClaims, err := s.getUserClaims(ctx, &storedRefreshToken.User, storedRefreshToken.Scopes(), tx)
+	userClaims, err := s.getUserClaims(ctx, &storedRefreshToken.User, storedRefreshToken.Scopes(), &storedRefreshToken.Client, tx)
 	if err != nil {
 		return CreatedTokens{}, err
 	}
@@ -827,6 +828,11 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 }
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
+	// Validate claim mappings
+	if err := validateClaimMappings(input.ClaimMappings); err != nil {
+		return model.OidcClient{}, err
+	}
+
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
@@ -865,6 +871,11 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 }
 
 func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
+	// Validate claim mappings
+	if err := validateClaimMappings(input.ClaimMappings); err != nil {
+		return model.OidcClient{}, err
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -916,6 +927,139 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 	return client, nil
 }
 
+// Valid user field names that can be used as mapping sources
+var validUserFieldSources = map[string]bool{
+	"email":        true,
+	"first_name":   true,
+	"last_name":    true,
+	"display_name": true,
+	"username":     true,
+	"locale":       true,
+}
+
+// Reserved claims that cannot be remapped
+var reservedClaimsForMapping = map[string]bool{
+	"sub":       true,
+	"iss":       true,
+	"aud":       true,
+	"exp":       true,
+	"iat":       true,
+	"auth_time": true,
+	"nonce":     true,
+	"acr":       true,
+	"amr":       true,
+	"azp":       true,
+	"nbf":       true,
+	"jti":       true,
+	"groups":    true,
+}
+
+func validateClaimMappings(mappings []dto.OidcClientClaimMappingDto) error {
+	seenClaims := make(map[string]bool)
+
+	for _, mapping := range mappings {
+
+		if len(mapping.ClaimName) == 0 || len(mapping.SourceType) == 0 || len(mapping.SourceValue) == 0 {
+			return fmt.Errorf("claim name, source type and source value are required")
+		}
+		// Check for duplicates
+		if seenClaims[mapping.ClaimName] {
+			return fmt.Errorf("duplicate claim mapping for '%s'", mapping.ClaimName)
+		}
+		seenClaims[mapping.ClaimName] = true
+
+		// Check if claim is reserved
+		if reservedClaimsForMapping[mapping.ClaimName] {
+			return fmt.Errorf("cannot remap reserved claim '%s'", mapping.ClaimName)
+		}
+
+		// Validate source based on type
+		switch mapping.SourceType {
+		case "user_field":
+			if !validUserFieldSources[mapping.SourceValue] {
+				return fmt.Errorf("invalid user field '%s' for mapping", mapping.SourceValue)
+			}
+		case "custom_claim":
+			// Custom claim key validation
+			if len(mapping.SourceValue) == 0 || len(mapping.SourceValue) > 255 {
+				return fmt.Errorf("invalid custom claim key length")
+			}
+		case "static":
+			// Static values are always valid (string or JSON)
+		default:
+			return fmt.Errorf("invalid source type '%s'", mapping.SourceType)
+		}
+	}
+
+	return nil
+}
+
+func (s *OidcService) applyClaimMappings(claims map[string]any, mappings []model.OidcClientClaimMapping, user *model.User, customClaimsMap map[string]any) error {
+	// Store original values for fallback
+	originalClaims := make(map[string]any)
+	for k, v := range claims {
+		originalClaims[k] = v
+	}
+
+	for _, mapping := range mappings {
+		var remappedValue any
+		var foundValue bool
+
+		switch mapping.SourceType {
+		case model.MappingSourceUserField:
+			// Map from user field
+			switch mapping.SourceValue {
+			case "email":
+				remappedValue = user.Email
+				foundValue = user.Email != nil
+			case "first_name":
+				remappedValue = user.FirstName
+				foundValue = true
+			case "last_name":
+				remappedValue = user.LastName
+				foundValue = true
+			case "display_name":
+				remappedValue = user.DisplayName
+				foundValue = true
+			case "username":
+				remappedValue = user.Username
+				foundValue = true
+			case "locale":
+				remappedValue = user.Locale
+				foundValue = user.Locale != nil
+			}
+
+		case model.MappingSourceCustomClaim:
+			// Map from custom claim
+			if value, exists := customClaimsMap[mapping.SourceValue]; exists {
+				remappedValue = value
+				foundValue = true
+			}
+
+		case model.MappingSourceStatic:
+			// Try to parse as JSON, fall back to string
+			var jsonValue any
+			err := json.Unmarshal([]byte(mapping.SourceValue), &jsonValue)
+			if err == nil {
+				remappedValue = jsonValue
+			} else {
+				remappedValue = mapping.SourceValue
+			}
+			foundValue = true
+		}
+
+		// If value was found, use it; otherwise fall back to original value
+		if foundValue {
+			claims[mapping.ClaimName] = remappedValue
+		} else if originalValue, exists := originalClaims[mapping.ClaimName]; exists {
+			// Fall back to original value if mapping source doesn't exist
+			claims[mapping.ClaimName] = originalValue
+		}
+	}
+
+	return nil
+}
+
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
 	// Base fields
 	client.Name = input.Name
@@ -928,7 +1072,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
 
-	// Credentials
+	// Credentials - FederatedIdentities
 	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
 	for i, fi := range input.Credentials.FederatedIdentities {
 		client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{
@@ -936,6 +1080,16 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 			Audience: fi.Audience,
 			Subject:  fi.Subject,
 			JWKS:     fi.JWKS,
+		}
+	}
+
+	// Credentials - ClaimMappings
+	client.ClaimMappings = make([]model.OidcClientClaimMapping, len(input.ClaimMappings))
+	for i, cr := range input.ClaimMappings {
+		client.ClaimMappings[i] = model.OidcClientClaimMapping{
+			ClaimName:   cr.ClaimName,
+			SourceType:  model.ClaimMappingSourceType(cr.SourceType),
+			SourceValue: cr.SourceValue,
 		}
 	}
 
@@ -1969,7 +2123,7 @@ func (s *OidcService) GetClientPreview(ctx context.Context, clientID string, use
 		return nil, &common.OidcAccessDeniedError{}
 	}
 
-	userClaims, err := s.getUserClaims(ctx, &user, scopes, tx)
+	userClaims, err := s.getUserClaims(ctx, &user, scopes, &client, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -2016,16 +2170,17 @@ func (s *OidcService) getUserClaimsForClientInternal(ctx context.Context, userID
 	err := tx.
 		WithContext(ctx).
 		Preload("User.UserGroups").
+		Preload("Client").
 		First(&authorizedOidcClient, "user_id = ? AND client_id = ?", userID, clientID).
 		Error
 	if err != nil {
 		return nil, err
 	}
 
-	return s.getUserClaims(ctx, &authorizedOidcClient.User, authorizedOidcClient.Scopes(), tx)
+	return s.getUserClaims(ctx, &authorizedOidcClient.User, authorizedOidcClient.Scopes(), &authorizedOidcClient.Client, tx)
 }
 
-func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scopes []string, tx *gorm.DB) (map[string]any, error) {
+func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scopes []string, client *model.OidcClient, tx *gorm.DB) (map[string]any, error) {
 	claims := make(map[string]any, 10)
 
 	claims["sub"] = user.ID
@@ -2049,15 +2204,19 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 			return nil, err
 		}
 
+		// Store custom claims in a map for easy lookup during mapping
+		customClaimsMap := make(map[string]any)
 		for _, customClaim := range customClaims {
 			// The value of the custom claim can be a JSON object or a string
 			var jsonValue any
 			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
 			if err == nil {
 				// It's JSON, so we store it as an object
+				customClaimsMap[customClaim.Key] = jsonValue
 				claims[customClaim.Key] = jsonValue
 			} else {
 				// Marshaling failed, so we store it as a string
+				customClaimsMap[customClaim.Key] = customClaim.Value
 				claims[customClaim.Key] = customClaim.Value
 			}
 		}
@@ -2070,6 +2229,14 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 
 		claims["preferred_username"] = user.Username
 		claims["picture"] = common.EnvConfig.AppURL + "/api/users/" + user.ID + "/profile-picture.png"
+
+		// Apply claim mappings for this client (if configured)
+		if client != nil && len(client.ClaimMappings) > 0 {
+			err = s.applyClaimMappings(claims, client.ClaimMappings, user, customClaimsMap)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	if slices.Contains(scopes, "email") {
