@@ -223,10 +223,14 @@ func (s *WebAuthnService) BeginLogin(ctx context.Context) (*model.PublicKeyCrede
 	}, nil
 }
 
-func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (model.User, string, error) {
+func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (retUser model.User, retToken string, retErr error) {
+	var userID string
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
+		if retErr != nil {
+			s.auditLogService.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
+		}
 	}()
 
 	// Load & delete the session row
@@ -261,7 +265,7 @@ func (s *WebAuthnService) VerifyLogin(ctx context.Context, sessionID string, cre
 	if err != nil {
 		return model.User{}, "", err
 	}
-
+	userID = user.ID
 	if user.Disabled {
 		return model.User{}, "", &common.UserDisabledError{}
 	}
@@ -373,10 +377,14 @@ func (s *WebAuthnService) updateWebAuthnConfig() {
 	s.webAuthn.Config.RPDisplayName = s.appConfigService.GetDbConfig().AppName.Value
 }
 
-func (s *WebAuthnService) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string) (string, error) {
+func (s *WebAuthnService) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string, ipAddress string, userAgent string) (retToken string, retErr error) {
+	var userID string
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
+		if retErr != nil {
+			s.auditLogService.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
+		}
 	}()
 
 	token, err := s.jwtService.VerifyAccessToken(accessToken)

@@ -25,9 +25,11 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		}
 		require.NoError(t, db.Create(&user).Error)
 
+		auditLogService := NewAuditLogService(db, mockConfig, nil, nil)
 		return &WebAuthnService{
-			db:         db,
-			jwtService: jwtService,
+			db:              db,
+			jwtService:      jwtService,
+			auditLogService: auditLogService,
 		}, user
 	}
 
@@ -36,7 +38,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		accessToken, err := service.jwtService.GenerateAccessToken(user, AuthenticationMethodPhishingResistant)
 		require.NoError(t, err)
 
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
+		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken, "127.0.0.1", "chrome")
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, reauthenticationToken)
@@ -47,7 +49,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		accessToken, err := service.jwtService.GenerateAccessToken(user, AuthenticationMethodOneTimePassword)
 		require.NoError(t, err)
 
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
+		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken, "127.0.0.1", "chrome")
 
 		assert.Empty(t, reauthenticationToken)
 		require.Error(t, err)
@@ -59,7 +61,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		accessToken, err := service.jwtService.GenerateAccessToken(user, "")
 		require.NoError(t, err)
 
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
+		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken, "127.0.0.1", "chrome")
 
 		assert.Empty(t, reauthenticationToken)
 		require.Error(t, err)
