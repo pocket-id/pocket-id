@@ -19,6 +19,8 @@
 
 	const userService = new UserService();
 
+	const isExternalClient = $derived(data.redirect?.includes('client_id'));
+	
 	// If the previous page is a Pocket ID page, go back there instead of the generic alternative login page
 	afterNavigate((e) => {
 		if (e.from?.url.pathname) {
@@ -26,10 +28,14 @@
 		}
 	});
 
-	async function authenticate() {
+	async function authenticate(mode: 'normal' | 'incognito') {
 		isLoading = true;
+		const isIncognito = mode === 'incognito';
 		try {
-			const user = await userService.exchangeOneTimeAccessToken(code);
+			const user = await userService.exchangeOneTimeAccessToken({
+			useIncognito: isIncognito,
+				token: code 
+			});
 			await userStore.setUser(user);
 
 			try {
@@ -46,7 +52,7 @@
 
 	onMount(() => {
 		if (code) {
-			authenticate();
+			authenticate('normal');
 		}
 	});
 </script>
@@ -67,7 +73,7 @@
 	{:else}
 		<p class="text-muted-foreground mt-2">{m.enter_the_code_you_received_to_sign_in()}</p>
 	{/if}
-	<form onsubmit={preventDefault(authenticate)} class="w-full max-w-[450px]">
+	<form onsubmit={preventDefault(() => authenticate('normal'))} class="w-full max-w-[450px]">
 		<Input
 			id="Code"
 			class="mt-7"
@@ -78,7 +84,16 @@
 		/>
 		<div class="mt-8 flex justify-between gap-2">
 			<Button variant="secondary" class="flex-1" href={backHref}>{m.go_back()}</Button>
-			<Button class="flex-1" type="submit" {isLoading}>{m.submit()}</Button>
+			<Button class="flex-1" {isLoading} onclick={() => authenticate('normal')}>{m.submit()}</Button>
+			{#if isExternalClient}
+				<Button 
+					class="flex-1 bg-purple-600 hover:bg-purple-700" 
+					{isLoading} 
+					onclick={() => authenticate('incognito')}
+				>
+				Incognito
+				</Button>
+			{/if}
 		</div>
 	</form>
 </SignInWrapper>
