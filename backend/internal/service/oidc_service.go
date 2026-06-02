@@ -144,8 +144,8 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	// If a code challenge is provided but confidential client is not using PKCE,flag PKCE support
-	if input.CodeChallenge != "" && !client.PkceEnabled {
-		err = flagPkceSupportedClient(ctx, client.ID, false, tx)
+	if input.CodeChallenge != "" && !client.PkceEnabled && !client.PkceSupported {
+		err = flagPkceSupportedClient(ctx, client.ID, tx)
 		if err != nil {
 			return "", "", err
 		}
@@ -249,12 +249,12 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	return code, callbackURL, nil
 }
 
-func flagPkceSupportedClient(ctx context.Context, clientID string, reset bool, tx *gorm.DB) error {
+func flagPkceSupportedClient(ctx context.Context, clientID string, tx *gorm.DB) error {
 	err := tx.
 		WithContext(ctx).
 		Model(&model.OidcClient{}).
 		Where("id = ?", clientID).
-		Update("pkce_supported", !reset).
+		Update("pkce_supported", true).
 		Error
 	if err != nil {
 		return err
