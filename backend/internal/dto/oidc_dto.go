@@ -19,7 +19,7 @@ type OidcClientDto struct {
 	PkceEnabled        bool                     `json:"pkceEnabled"`
 	Credentials        OidcClientCredentialsDto `json:"credentials"`
 	IsGroupRestricted  bool                     `json:"isGroupRestricted"`
-	PkceSupported      bool                     `json:"pkceSupported"`
+	PkceSupported      bool                     `json:"pkceSupported,omitempty"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
