@@ -940,6 +940,35 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		expect(tokenResult.error).toBeUndefined();
 	});
 
+	test('PAR full flow shows consent screen when authorization is required', async ({ page }) => {
+		// The parClient is pre-authorized for "openid profile email"; pushing a different
+		// scope means consent is required and the consent screen must be shown rather than
+		// silently authorizing.
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			scope: 'openid profile'
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// Consent screen with the requested scope (resolved from the PAR) must be shown
+		await expect(
+			page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })
+		).toBeVisible();
+
+		// Confirming proceeds with the authorization
+		await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.getByRole('button', { name: 'Sign in' }).click()
+		);
+	});
+
 	test('PAR request_uri is single-use', async ({ page }) => {
 		// Push two requests — use the first via the browser, then try to reuse it
 		const parResult = await oidcUtil.pushAuthorizationRequest(page, {

@@ -155,13 +155,13 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 		return
 	}
 
-	hasAuthorizedClient, err := oc.oidcService.HasAuthorizedClient(c.Request.Context(), input.ClientID, c.GetString("userID"), input.Scope)
+	authorizationRequired, scope, err := oc.oidcService.AuthorizationRequired(c.Request.Context(), input.ClientID, c.GetString("userID"), input.Scope, input.RequestURI)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"authorizationRequired": !hasAuthorizedClient})
+	c.JSON(http.StatusOK, gin.H{"authorizationRequired": authorizationRequired, "scope": scope})
 }
 
 // createTokensHandler godoc

@@ -25,7 +25,6 @@
 	let { data }: PageProps = $props();
 	let {
 		client,
-		scope,
 		callbackURL,
 		nonce,
 		codeChallenge,
@@ -35,7 +34,7 @@
 		responseMode,
 		requestURI
 	} = data;
-
+	let scope = $state(data.scope);
 	let isLoading = $state(false);
 	let success = $state(false);
 	let errorMessage: string | null = $state(null);
@@ -112,8 +111,17 @@
 				userSignedInAt = new Date();
 			}
 
-			if (!authorizationConfirmed && !requestURI) {
-				authorizationRequired = await oidService.isAuthorizationRequired(client!.id, scope);
+			if (!authorizationConfirmed) {
+				const authRequired = await oidService.isAuthorizationRequired(
+					client!.id,
+					scope,
+					requestURI
+				);
+				authorizationRequired = authRequired.authorizationRequired;
+
+				if (requestURI) {
+					scope = authRequired.scope;
+				}
 
 				// If prompt=consent, always show consent UI
 				if (hasPromptConsent) {

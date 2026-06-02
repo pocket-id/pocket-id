@@ -276,6 +276,26 @@ func (s *OidcService) HasAuthorizedClient(ctx context.Context, clientID, userID,
 	return s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
 }
 
+// AuthorizationRequired reports whether the user must confirm authorization for the client.
+// In the PAR flow (requestURI set), the scope is resolved from the stored request without
+// consuming it, so it is also returned so the consent screen can render the requested scopes.
+func (s *OidcService) AuthorizationRequired(ctx context.Context, clientID, userID, scope, requestURI string) (required bool, resolvedScope string, err error) {
+	if requestURI != "" {
+		par, err := s.getPushedAuthorizationRequest(ctx, s.db, clientID, requestURI)
+		if err != nil {
+			return false, "", err
+		}
+		scope = par.Scope
+	}
+
+	hasAuthorized, err := s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
+	if err != nil {
+		return false, "", err
+	}
+
+	return !hasAuthorized, scope, nil
+}
+
 func (s *OidcService) hasAuthorizedClientInternal(ctx context.Context, clientID, userID, scope string, tx *gorm.DB) (bool, error) {
 	var userAuthorizedOidcClient model.UserAuthorizedOidcClient
 	err := tx.
@@ -1407,6 +1427,29 @@ func (s *OidcService) CreatePushedAuthorizationRequest(ctx context.Context, cred
 	}
 
 	return requestURI, int(PARDuration.Seconds()), nil
+}
+
+// getPushedAuthorizationRequest retrieves a PAR record without consuming it.
+func (s *OidcService) getPushedAuthorizationRequest(ctx context.Context, tx *gorm.DB, clientID, requestURI string) (model.OidcPushedAuthorizationRequest, error) {
+	var par model.OidcPushedAuthorizationRequest
+	err := tx.
+		WithContext(ctx).
+		Where(
+			"request_uri = ? AND client_id = ? AND expires_at > ?",
+			requestURI,
+			clientID,
+			datatype.DateTime(time.Now()),
+		).
+		First(&par).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return par, &common.OidcInvalidRequestURIError{}
+		}
+		return par, err
+	}
+
+	return par, nil
 }
 
 // getAndConsumePushedAuthorizationRequest atomically retrieves and deletes a PAR record.

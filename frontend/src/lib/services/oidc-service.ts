@@ -43,13 +43,14 @@ class OidcService extends APIService {
 		return res.data as AuthorizeResponse;
 	};
 
-	isAuthorizationRequired = async (clientId: string, scope: string) => {
+	isAuthorizationRequired = async (clientId: string, scope: string, requestURI?: string) => {
 		const res = await this.api.post('/oidc/authorization-required', {
 			scope,
-			clientId
+			clientId,
+			requestURI
 		});
 
-		return res.data.authorizationRequired as boolean;
+		return res.data as { authorizationRequired: boolean; scope: string };
 	};
 
 	listClients = async (options?: ListRequestOptions) => {
