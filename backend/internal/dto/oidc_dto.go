@@ -13,12 +13,13 @@ type OidcClientMetaDataDto struct {
 
 type OidcClientDto struct {
 	OidcClientMetaDataDto
-	CallbackURLs       []string                 `json:"callbackURLs"`
-	LogoutCallbackURLs []string                 `json:"logoutCallbackURLs"`
-	IsPublic           bool                     `json:"isPublic"`
-	PkceEnabled        bool                     `json:"pkceEnabled"`
-	Credentials        OidcClientCredentialsDto `json:"credentials"`
-	IsGroupRestricted  bool                     `json:"isGroupRestricted"`
+	CallbackURLs                        []string                 `json:"callbackURLs"`
+	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs"`
+	IsPublic                            bool                     `json:"isPublic"`
+	PkceEnabled                         bool                     `json:"pkceEnabled"`
+	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests"`
+	Credentials                         OidcClientCredentialsDto `json:"credentials"`
+	IsGroupRestricted                   bool                     `json:"isGroupRestricted"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -32,19 +33,20 @@ type OidcClientWithAllowedGroupsCountDto struct {
 }
 
 type OidcClientUpdateDto struct {
-	Name                     string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
-	CallbackURLs             []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
-	LogoutCallbackURLs       []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
-	IsPublic                 bool                     `json:"isPublic"`
-	PkceEnabled              bool                     `json:"pkceEnabled"`
-	RequiresReauthentication bool                     `json:"requiresReauthentication"`
-	Credentials              OidcClientCredentialsDto `json:"credentials"`
-	LaunchURL                *string                  `json:"launchURL" binding:"omitempty,url"`
-	HasLogo                  bool                     `json:"hasLogo"`
-	HasDarkLogo              bool                     `json:"hasDarkLogo"`
-	LogoURL                  *string                  `json:"logoUrl"`
-	DarkLogoURL              *string                  `json:"darkLogoUrl"`
-	IsGroupRestricted        bool                     `json:"isGroupRestricted"`
+	Name                                string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
+	CallbackURLs                        []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
+	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
+	IsPublic                            bool                     `json:"isPublic"`
+	PkceEnabled                         bool                     `json:"pkceEnabled"`
+	RequiresReauthentication            bool                     `json:"requiresReauthentication"`
+	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests"`
+	Credentials                         OidcClientCredentialsDto `json:"credentials"`
+	LaunchURL                           *string                  `json:"launchURL" binding:"omitempty,url"`
+	HasLogo                             bool                     `json:"hasLogo"`
+	HasDarkLogo                         bool                     `json:"hasDarkLogo"`
+	LogoURL                             *string                  `json:"logoUrl"`
+	DarkLogoURL                         *string                  `json:"darkLogoUrl"`
+	IsGroupRestricted                   bool                     `json:"isGroupRestricted"`
 }
 
 type OidcClientCreateDto struct {
@@ -65,14 +67,35 @@ type OidcClientFederatedIdentityDto struct {
 
 type AuthorizeOidcClientRequestDto struct {
 	ClientID              string `json:"clientID" binding:"required"`
-	Scope                 string `json:"scope" binding:"required"`
-	CallbackURL           string `json:"callbackURL" binding:"omitempty,callback_url"`
+	Scope                 string `json:"scope" binding:"required_without=RequestURI"`
+	CallbackURL           string `json:"callbackURL"`
 	Nonce                 string `json:"nonce"`
 	CodeChallenge         string `json:"codeChallenge"`
 	CodeChallengeMethod   string `json:"codeChallengeMethod"`
 	ReauthenticationToken string `json:"reauthenticationToken"`
 	Prompt                string `json:"prompt"`
 	ResponseMode          string `json:"responseMode" binding:"omitempty,response_mode"`
+	RequestURI            string `json:"requestURI"`
+}
+
+type OidcPARRequestDto struct {
+	ClientID            string `form:"client_id"`
+	ClientSecret        string `form:"client_secret"`
+	ClientAssertion     string `form:"client_assertion"`
+	ClientAssertionType string `form:"client_assertion_type"`
+	ResponseType        string `form:"response_type" binding:"required"`
+	Scope               string `form:"scope" binding:"required"`
+	RedirectURI         string `form:"redirect_uri"`
+	State               string `form:"state"`
+	Nonce               string `form:"nonce"`
+	CodeChallenge       string `form:"code_challenge"`
+	CodeChallengeMethod string `form:"code_challenge_method"`
+	Prompt              string `form:"prompt"`
+}
+
+type OidcPARResponseDto struct {
+	RequestURI string `json:"request_uri"`
+	ExpiresIn  int    `json:"expires_in"`
 }
 
 type AuthorizeOidcClientResponseDto struct {
@@ -82,8 +105,9 @@ type AuthorizeOidcClientResponseDto struct {
 }
 
 type AuthorizationRequiredDto struct {
-	ClientID string `json:"clientID" binding:"required"`
-	Scope    string `json:"scope" binding:"required"`
+	ClientID   string `json:"clientID" binding:"required"`
+	Scope      string `json:"scope"`
+	RequestURI string `json:"requestURI"`
 }
 
 type OidcCreateTokensDto struct {

@@ -38,6 +38,7 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 		s.RegisterJob(ctx, "ClearOidcRefreshTokens", jobDefWithJitter(24*time.Hour), jobs.clearOidcRefreshTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearReauthenticationTokens", jobDefWithJitter(24*time.Hour), jobs.clearReauthenticationTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearAuditLogs", jobDefWithJitter(24*time.Hour), jobs.clearAuditLogs, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
+		s.RegisterJob(ctx, "ClearOidcPushedAuthorizationRequests", jobDefWithJitter(24*time.Hour), jobs.clearOidcPushedAuthorizationRequests, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 	)
 }
 
@@ -142,6 +143,20 @@ func (j *DbCleanupJobs) clearAuditLogs(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "Deleted old audit logs", slog.Int64("count", st.RowsAffected))
+
+	return nil
+}
+
+// clearOidcPushedAuthorizationRequests deletes PAR records that have expired without being consumed
+func (j *DbCleanupJobs) clearOidcPushedAuthorizationRequests(ctx context.Context) error {
+	st := j.db.
+		WithContext(ctx).
+		Delete(&model.OidcPushedAuthorizationRequest{}, "expires_at < ?", datatype.DateTime(time.Now()))
+	if st.Error != nil {
+		return fmt.Errorf("failed to clean expired pushed authorization requests: %w", st.Error)
+	}
+
+	slog.InfoContext(ctx, "Cleaned expired pushed authorization requests", slog.Int64("count", st.RowsAffected))
 
 	return nil
 }

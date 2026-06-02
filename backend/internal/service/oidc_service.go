@@ -48,6 +48,9 @@ const (
 	AccessTokenDuration  = time.Hour
 	RefreshTokenDuration = 30 * 24 * time.Hour // 30 days
 	DeviceCodeDuration   = 15 * time.Minute
+	PARDuration          = 90 * time.Second
+
+	parRequestURIPrefix = "urn:ietf:params:oauth:request_uri:"
 )
 
 type OidcService struct {
@@ -136,6 +139,18 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		Error
 	if err != nil {
 		return "", "", err
+	}
+
+	// If the client requires PAR, a request_uri must be provided
+	if client.RequiresPushedAuthorizationRequests && input.RequestURI == "" {
+		return "", "", &common.OidcPARRequiredError{}
+	}
+
+	// If a request_uri is provided, consume the stored PAR and overwrite input fields
+	if input.RequestURI != "" {
+		if err := s.applyPushedAuthorizationRequest(ctx, tx, &input); err != nil {
+			return "", "", err
+		}
 	}
 
 	// If the client is not public, the code challenge must be provided
@@ -241,9 +256,55 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	return code, callbackURL, nil
 }
 
+// applyPushedAuthorizationRequest consumes the stored PAR for the given request_uri
+// and overwrites the corresponding fields on input.
+func (s *OidcService) applyPushedAuthorizationRequest(ctx context.Context, tx *gorm.DB, input *dto.AuthorizeOidcClientRequestDto) error {
+	par, err := s.getAndConsumePushedAuthorizationRequest(ctx, tx, input.ClientID, input.RequestURI)
+	if err != nil {
+		return err
+	}
+
+	input.Scope = par.Scope
+	input.CallbackURL = par.RedirectURI
+	input.Nonce = par.Nonce
+	input.Prompt = par.Prompt
+
+	input.CodeChallenge = ""
+	if par.CodeChallenge != nil {
+		input.CodeChallenge = *par.CodeChallenge
+	}
+
+	input.CodeChallengeMethod = ""
+	if par.CodeChallengeMethod != nil {
+		input.CodeChallengeMethod = *par.CodeChallengeMethod
+	}
+
+	return nil
+}
+
 // HasAuthorizedClient checks if the user has already authorized the client with the given scope
 func (s *OidcService) HasAuthorizedClient(ctx context.Context, clientID, userID, scope string) (bool, error) {
 	return s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
+}
+
+// AuthorizationRequired reports whether the user must confirm authorization for the client.
+// In the PAR flow (requestURI set), the scope is resolved from the stored request without
+// consuming it, so it is also returned so the consent screen can render the requested scopes.
+func (s *OidcService) AuthorizationRequired(ctx context.Context, clientID, userID, scope, requestURI string) (required bool, resolvedScope string, err error) {
+	if requestURI != "" {
+		par, err := s.getPushedAuthorizationRequest(ctx, s.db, clientID, requestURI)
+		if err != nil {
+			return false, "", err
+		}
+		scope = par.Scope
+	}
+
+	hasAuthorized, err := s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
+	if err != nil {
+		return false, "", err
+	}
+
+	return !hasAuthorized, scope, nil
 }
 
 func (s *OidcService) hasAuthorizedClientInternal(ctx context.Context, clientID, userID, scope string, tx *gorm.DB) (bool, error) {
@@ -925,6 +986,8 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
 	client.RequiresReauthentication = input.RequiresReauthentication
+	// PAR is not available for public clients, so ignore the flag if the client is public
+	client.RequiresPushedAuthorizationRequests = !input.IsPublic && input.RequiresPushedAuthorizationRequests
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
 
@@ -1316,6 +1379,117 @@ func codeChallengeMethodIsSha256(codeChallengeMethod string) (bool, error) {
 	default:
 		return false, common.NewOidcInvalidRequestError("code challenge method not supported")
 	}
+}
+
+// CreatePushedAuthorizationRequest validates and stores authorization parameters for PAR (RFC 9126).
+// Only confidential clients (non-public) may use this endpoint.
+func (s *OidcService) CreatePushedAuthorizationRequest(ctx context.Context, creds ClientAuthCredentials, input dto.OidcPARRequestDto) (requestURI string, expiresIn int, err error) {
+	// Public clients are not allowed, but we allow them in this step for better error messages
+	client, err := s.verifyClientCredentialsInternal(ctx, s.db, creds, true)
+	if err != nil {
+		return "", 0, err
+	}
+
+	// Reject public clients here
+	if client.IsPublic {
+		return "", 0, &common.OidcPARNotSupportedForPublicClientsError{}
+	}
+
+	if input.ResponseType != "code" {
+		return "", 0, common.NewOidcInvalidRequestError("unsupported response_type: only 'code' is supported")
+	}
+
+	// Validate redirect_uri at push time (BCP requirement)
+	if _, err = s.getCallbackURL(client, input.RedirectURI, s.db, ctx); err != nil {
+		return "", 0, err
+	}
+
+	randomSuffix, err := utils.GenerateRandomAlphanumericString(32)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to generate request URI: %w", err)
+	}
+	requestURI = parRequestURIPrefix + randomSuffix
+
+	var codeChallenge *string
+	var codeChallengeMethod *string
+	if input.CodeChallenge != "" {
+		codeChallenge = &input.CodeChallenge
+	}
+	if input.CodeChallengeMethod != "" {
+		codeChallengeMethod = &input.CodeChallengeMethod
+	}
+
+	par := model.OidcPushedAuthorizationRequest{
+		RequestURI:          requestURI,
+		ClientID:            client.ID,
+		Scope:               input.Scope,
+		RedirectURI:         input.RedirectURI,
+		State:               input.State,
+		Nonce:               input.Nonce,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: codeChallengeMethod,
+		ResponseType:        input.ResponseType,
+		Prompt:              input.Prompt,
+		ExpiresAt:           datatype.DateTime(time.Now().Add(PARDuration)),
+	}
+
+	if err = s.db.WithContext(ctx).Create(&par).Error; err != nil {
+		return "", 0, fmt.Errorf("failed to store pushed authorization request: %w", err)
+	}
+
+	return requestURI, int(PARDuration.Seconds()), nil
+}
+
+// getPushedAuthorizationRequest retrieves a PAR record without consuming it.
+func (s *OidcService) getPushedAuthorizationRequest(ctx context.Context, tx *gorm.DB, clientID, requestURI string) (model.OidcPushedAuthorizationRequest, error) {
+	var par model.OidcPushedAuthorizationRequest
+	err := tx.
+		WithContext(ctx).
+		Where(
+			"request_uri = ? AND client_id = ? AND expires_at > ?",
+			requestURI,
+			clientID,
+			datatype.DateTime(time.Now()),
+		).
+		First(&par).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return par, &common.OidcInvalidRequestURIError{}
+		}
+		return par, err
+	}
+
+	return par, nil
+}
+
+// getAndConsumePushedAuthorizationRequest atomically retrieves and deletes a PAR record.
+// Returns OidcInvalidRequestURIError if the record is not found, expired, or belongs to a different client.
+func (s *OidcService) getAndConsumePushedAuthorizationRequest(ctx context.Context, tx *gorm.DB, clientID, requestURI string) (model.OidcPushedAuthorizationRequest, error) {
+	var par model.OidcPushedAuthorizationRequest
+	err := tx.
+		WithContext(ctx).
+		Clauses(clause.Returning{}).
+		Where(
+			"request_uri = ? AND client_id = ? AND expires_at > ?",
+			requestURI,
+			clientID,
+			datatype.DateTime(time.Now()),
+		).
+		Delete(&par).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return par, &common.OidcInvalidRequestURIError{}
+		}
+		return par, err
+	}
+	// After DELETE … RETURNING, check if a row was actually deleted
+	if par.ID == "" {
+		return par, &common.OidcInvalidRequestURIError{}
+	}
+
+	return par, nil
 }
 
 func validateCodeVerifier(codeVerifier, codeChallenge string, codeChallengeMethodSha256 bool) bool {

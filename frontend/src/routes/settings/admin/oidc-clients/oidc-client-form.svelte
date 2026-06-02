@@ -49,6 +49,8 @@
 		isPublic: existingClient?.isPublic || false,
 		pkceEnabled: existingClient?.pkceEnabled || false,
 		requiresReauthentication: existingClient?.requiresReauthentication || false,
+		requiresPushedAuthorizationRequests:
+			existingClient?.requiresPushedAuthorizationRequests || false,
 		launchURL: existingClient?.launchURL || '',
 		credentials: {
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
@@ -74,6 +76,7 @@
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
+		requiresPushedAuthorizationRequests: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
 		darkLogoUrl: optionalUrl,
@@ -205,6 +208,7 @@
 			onCheckedChange={(v) => {
 				if (v) {
 					$inputs.pkceEnabled.value = true;
+					$inputs.requiresPushedAuthorizationRequests.value = false;
 				}
 			}}
 			bind:checked={$inputs.isPublic.value}
@@ -270,6 +274,13 @@
 
 	{#if showAdvancedOptions}
 		<div class="mt-7 flex flex-col gap-y-7 md:col-span-2" transition:slide={{ duration: 200 }}>
+			<SwitchWithLabel
+				id="requires-par"
+				label={m.requires_pushed_authorization_requests()}
+				description={m.requires_pushed_authorization_requests_description()}
+				disabled={$inputs.isPublic.value}
+				bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
+			/>
 			{#if mode == 'create'}
 				<FormInput
 					label={m.client_id()}
