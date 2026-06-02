@@ -74,7 +74,7 @@
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
-		pkceSupported: z.boolean(),
+		pkceSupported: z.boolean().optional(),
 		requiresReauthentication: z.boolean(),
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
