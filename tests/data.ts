@@ -67,6 +67,12 @@ export const oidcClients = {
 		callbackUrl: 'http://pingvin.share/auth/callback',
 		secondCallbackUrl: 'http://pingvin.share/auth/callback2',
 		launchURL: 'https://pingvin-share.local'
+	},
+	parClient: {
+		id: 'a1b2c3d4-e5f6-7890-abcd-ef0000000001',
+		name: 'PAR Test Client',
+		callbackUrl: 'http://par-client/auth/callback',
+		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
 	}
 };
 

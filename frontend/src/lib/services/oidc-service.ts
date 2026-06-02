@@ -24,7 +24,8 @@ class OidcService extends APIService {
 		codeChallengeMethod?: string,
 		reauthenticationToken?: string,
 		responseMode?: string,
-		prompt?: string
+		prompt?: string,
+		requestURI?: string
 	) => {
 		const res = await this.api.post('/oidc/authorize', {
 			scope,
@@ -35,19 +36,21 @@ class OidcService extends APIService {
 			codeChallengeMethod,
 			reauthenticationToken,
 			responseMode,
-			prompt
+			prompt,
+			requestURI
 		});
 
 		return res.data as AuthorizeResponse;
 	};
 
-	isAuthorizationRequired = async (clientId: string, scope: string) => {
+	isAuthorizationRequired = async (clientId: string, scope: string, requestURI?: string) => {
 		const res = await this.api.post('/oidc/authorization-required', {
 			scope,
-			clientId
+			clientId,
+			requestURI
 		});
 
-		return res.data.authorizationRequired as boolean;
+		return res.data as { authorizationRequired: boolean; scope: string };
 	};
 
 	listClients = async (options?: ListRequestOptions) => {
