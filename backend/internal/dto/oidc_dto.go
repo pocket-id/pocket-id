@@ -105,7 +105,7 @@ type AuthorizeOidcClientResponseDto struct {
 }
 
 type AuthorizationRequiredDto struct {
-	ClientID string `json:"clientID" binding:"required"`
+	ClientID   string `json:"clientID" binding:"required"`
 	Scope      string `json:"scope"`
 	RequestURI string `json:"requestURI"`
 }

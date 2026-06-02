@@ -148,23 +148,8 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 
 	// If a request_uri is provided, consume the stored PAR and overwrite input fields
 	if input.RequestURI != "" {
-		par, err := s.getAndConsumePushedAuthorizationRequest(ctx, tx, input.ClientID, input.RequestURI)
-		if err != nil {
+		if err := s.applyPushedAuthorizationRequest(ctx, tx, &input); err != nil {
 			return "", "", err
-		}
-		input.Scope = par.Scope
-		input.CallbackURL = par.RedirectURI
-		input.Nonce = par.Nonce
-		input.Prompt = par.Prompt
-		if par.CodeChallenge != nil {
-			input.CodeChallenge = *par.CodeChallenge
-		} else {
-			input.CodeChallenge = ""
-		}
-		if par.CodeChallengeMethod != nil {
-			input.CodeChallengeMethod = *par.CodeChallengeMethod
-		} else {
-			input.CodeChallengeMethod = ""
 		}
 	}
 
@@ -269,6 +254,32 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	return code, callbackURL, nil
+}
+
+// applyPushedAuthorizationRequest consumes the stored PAR for the given request_uri
+// and overwrites the corresponding fields on input.
+func (s *OidcService) applyPushedAuthorizationRequest(ctx context.Context, tx *gorm.DB, input *dto.AuthorizeOidcClientRequestDto) error {
+	par, err := s.getAndConsumePushedAuthorizationRequest(ctx, tx, input.ClientID, input.RequestURI)
+	if err != nil {
+		return err
+	}
+
+	input.Scope = par.Scope
+	input.CallbackURL = par.RedirectURI
+	input.Nonce = par.Nonce
+	input.Prompt = par.Prompt
+
+	input.CodeChallenge = ""
+	if par.CodeChallenge != nil {
+		input.CodeChallenge = *par.CodeChallenge
+	}
+
+	input.CodeChallengeMethod = ""
+	if par.CodeChallengeMethod != nil {
+		input.CodeChallengeMethod = *par.CodeChallengeMethod
+	}
+
+	return nil
 }
 
 // HasAuthorizedClient checks if the user has already authorized the client with the given scope
