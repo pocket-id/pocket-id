@@ -250,14 +250,11 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 }
 
 func flagPkceSupportedClient(ctx context.Context, clientID string, reset bool, tx *gorm.DB) error {
-
-	PkceSupported := !reset
-
 	err := tx.
 		WithContext(ctx).
 		Model(&model.OidcClient{}).
 		Where("id = ?", clientID).
-		Update("pkce_supported", PkceSupported).
+		Update("pkce_supported", !reset).
 		Error
 	if err != nil {
 		return err
