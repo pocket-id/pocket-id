@@ -153,7 +153,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		}
 	}
 
-	// If the client is not public, the code challenge must be provided
+	// If the client is public, the code challenge must be provided
 	if client.IsPublic && input.CodeChallenge == "" {
 		return "", "", &common.OidcMissingCodeChallengeError{}
 	}
@@ -399,13 +399,8 @@ func (s *OidcService) createTokenFromDeviceCode(ctx context.Context, input dto.O
 		return CreatedTokens{}, &common.OidcDeviceCodeExpiredError{}
 	}
 
-	// Check if device code has been authorized
+	// Check if device code has been authorized and ensure UserID is not nil
 	if !deviceAuth.IsAuthorized || deviceAuth.UserID == nil {
-		return CreatedTokens{}, &common.OidcAuthorizationPendingError{}
-	}
-
-	// Get user claims for the ID token - ensure UserID is not nil
-	if deviceAuth.UserID == nil {
 		return CreatedTokens{}, &common.OidcAuthorizationPendingError{}
 	}
 
