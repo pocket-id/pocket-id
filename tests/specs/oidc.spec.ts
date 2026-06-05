@@ -940,6 +940,55 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		expect(tokenResult.error).toBeUndefined();
 	});
 
+	test('par-request-info resolves the stored request parameters', async ({ page }) => {
+		const state = 'par-info-state-9f3a';
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			scope: 'openid profile',
+			state,
+			responseMode: 'form_post'
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		const res = await page.request.get('/api/oidc/par-request-info', {
+			params: { client_id: client.id, request_uri: parResult.request_uri! }
+		});
+		expect(res.ok()).toBe(true);
+
+		const body = await res.json();
+		expect(body.scope).toBe('openid profile');
+		expect(body.redirectURI).toBe(client.callbackUrl);
+		expect(body.state).toBe(state);
+		expect(body.responseMode).toBe('form_post');
+	});
+
+	test('PAR full flow carries the resolved state into the callback redirect', async ({ page }) => {
+		const state = 'par-flow-state-7b21';
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			state,
+			responseMode: 'form_post'
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+
+		const formPostRequestPromise = waitForFormPostRequest(page, client.callbackUrl);
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		const request = await formPostRequestPromise;
+		const formData = new URLSearchParams(request.postData() ?? '');
+		expect(formData.get('code')).toBeTruthy();
+		expect(formData.get('state')).toBe(state);
+	});
+
 	test('PAR full flow shows consent screen when authorization is required', async ({ page }) => {
 		// The parClient is pre-authorized for "openid profile email"; pushing a different
 		// scope means consent is required and the consent screen must be shown rather than

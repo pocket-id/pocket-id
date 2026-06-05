@@ -33,6 +33,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.POST("/oidc/authorize", authMiddleware.WithAdminNotRequired().Add(), oc.authorizeHandler)
 	group.POST("/oidc/authorization-required", authMiddleware.WithAdminNotRequired().Add(), oc.authorizationConfirmationRequiredHandler)
+	group.GET("/oidc/par-request-info", authMiddleware.WithAdminNotRequired().Add(), oc.parRequestInfoHandler)
 
 	group.POST("/oidc/token", oc.createTokensHandler)
 	group.POST("/oidc/par", oc.pushedAuthorizationRequestHandler)
@@ -162,6 +163,43 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 	}
 
 	c.JSON(http.StatusOK, gin.H{"authorizationRequired": authorizationRequired, "scope": scope})
+}
+
+// parRequestInfoHandler godoc
+// @Summary Resolve stored authorization request parameters
+// @Description Resolve the parameters of a stored request_uri request so the consent page can render the requested scope and build the final redirect. Does not consume the request.
+// @Tags OIDC
+// @Produce json
+// @Param client_id query string true "Client ID"
+// @Param request_uri query string true "Request URI returned from the PAR endpoint"
+// @Success 200 {object} dto.OidcAuthorizeRequestInfoDto "Resolved authorization request parameters"
+// @Router /api/oidc/par-request-info [get]
+func (oc *OidcController) parRequestInfoHandler(c *gin.Context) {
+	clientID := c.Query("client_id")
+	requestURI := c.Query("request_uri")
+	if clientID == "" {
+		_ = c.Error(&common.ValidationError{Message: "client_id is required"})
+		return
+	}
+	if requestURI == "" {
+		_ = c.Error(&common.ValidationError{Message: "request_uri is required"})
+		return
+	}
+
+	info, err := oc.oidcService.GetPushedAuthorizationRequest(c.Request.Context(), clientID, requestURI)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var infoDto dto.OidcAuthorizeRequestInfoDto
+	err = dto.MapStruct(info.Parameters, &infoDto)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, infoDto)
 }
 
 // createTokensHandler godoc

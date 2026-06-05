@@ -73,3 +73,12 @@ export type AuthorizeResponse = {
 export type AccessibleOidcClient = OidcClientMetaData & {
 	lastUsedAt: Date | null;
 };
+
+export type OidcAuthorizeRequestInfo = {
+	scope: string;
+	redirectURI: string;
+	state?: string;
+	nonce?: string;
+	responseMode?: string;
+	prompt?: string;
+};

@@ -87,10 +87,13 @@ func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) erro
 		if isSPARequest(path, distFS) {
 			nonce := middleware.GetCSPNonce(c)
 
-			if isOAuth2AuthorizationPostRequest(c) {
-				// In that case, we need to validate and allow form submissions to the redirect_uri
-				redirectURI := c.Query("redirect_uri")
+			// For an authorization request that responds via response_mode=form_post, the
+			// consent page auto-submits a form to the client's callback, so that callback
+			// must be allowed in the CSP form-action directive
+			isAuthPostRequest, redirectURI := isOAuth2AuthorizationPostRequest(c, oidcService)
+			if isAuthPostRequest {
 				clientID := c.Query("client_id")
+				// In that case, we need to validate and allow form submissions to the redirect_uri
 				validatedRedirectURI, err := oidcService.ResolveAllowedCallbackURL(c.Request.Context(), clientID, redirectURI)
 				if err == nil {
 					c.Header("Content-Security-Policy", middleware.BuildCSP(nonce, validatedRedirectURI))
@@ -113,17 +116,21 @@ func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) erro
 	}
 
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(300*time.Millisecond), 50)
-	router.NoRoute(rateLimitOnlyForOAuth2AuthorizationPostRequest(rateLimitMiddleware, distFS), handler)
+	router.NoRoute(rateLimitOnlyForOAuth2AuthorizationPostRequest(rateLimitMiddleware, oidcService, distFS), handler)
 
 	return nil
 }
 
-func rateLimitOnlyForOAuth2AuthorizationPostRequest(rateLimitMiddleware gin.HandlerFunc, distFS fs.FS) gin.HandlerFunc {
+func rateLimitOnlyForOAuth2AuthorizationPostRequest(rateLimitMiddleware gin.HandlerFunc, oidcService *service.OidcService, distFS fs.FS) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
-		if isSPARequest(path, distFS) && isOAuth2AuthorizationPostRequest(c) {
-			rateLimitMiddleware(c)
-			return
+
+		if isSPARequest(path, distFS) {
+			isAuthPostRequest, _ := isOAuth2AuthorizationPostRequest(c, oidcService)
+			if isAuthPostRequest {
+				rateLimitMiddleware(c)
+				return
+			}
 		}
 
 		c.Next()
@@ -132,12 +139,29 @@ func rateLimitOnlyForOAuth2AuthorizationPostRequest(rateLimitMiddleware gin.Hand
 
 // isOAuth2AuthorizationRequest checks if this is an OAuth2 authorization request with response_mode=form_post
 // In that case, we need to validate and allow form submissions to the redirect_uri
-func isOAuth2AuthorizationPostRequest(c *gin.Context) bool {
+func isOAuth2AuthorizationPostRequest(c *gin.Context, oidcService *service.OidcService) (bool, string) {
 	responseMode := c.Query("response_mode")
 	redirectURI := c.Query("redirect_uri")
 	clientID := c.Query("client_id")
+	requestUri := c.Query("request_uri")
 
-	return responseMode == "form_post" && redirectURI != "" && clientID != ""
+	if c.Request.URL.Path != "/authorize" {
+		return false, ""
+	}
+
+	if requestUri != "" && clientID != "" {
+		par, err := oidcService.GetPushedAuthorizationRequest(c.Request.Context(), clientID, requestUri)
+		if err != nil {
+			return false, ""
+		}
+
+		responseMode = par.Parameters.ResponseMode
+		redirectURI = par.Parameters.RedirectURI
+
+	}
+
+	ok := responseMode == "form_post" && redirectURI != "" && clientID != ""
+	return ok, redirectURI
 }
 
 func isSPARequest(path string, distFS fs.FS) bool {
