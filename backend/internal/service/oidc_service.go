@@ -281,25 +281,18 @@ func flagPkceSupportedClient(ctx context.Context, clientID string, tx *gorm.DB) 
 // applyPushedAuthorizationRequest consumes the stored PAR for the given request_uri
 // and overwrites the corresponding fields on input.
 func (s *OidcService) applyPushedAuthorizationRequest(ctx context.Context, tx *gorm.DB, input *dto.AuthorizeOidcClientRequestDto) error {
-	par, err := s.getAndConsumePushedAuthorizationRequest(ctx, tx, input.ClientID, input.RequestURI)
+	parMeta, err := s.getAndConsumePushedAuthorizationRequest(ctx, tx, input.ClientID, input.RequestURI)
 	if err != nil {
 		return err
 	}
+	par := parMeta.Parameters
 
 	input.Scope = par.Scope
 	input.CallbackURL = par.RedirectURI
 	input.Nonce = par.Nonce
 	input.Prompt = par.Prompt
-
-	input.CodeChallenge = ""
-	if par.CodeChallenge != nil {
-		input.CodeChallenge = *par.CodeChallenge
-	}
-
-	input.CodeChallengeMethod = ""
-	if par.CodeChallengeMethod != nil {
-		input.CodeChallengeMethod = *par.CodeChallengeMethod
-	}
+	input.CodeChallenge = par.CodeChallenge
+	input.CodeChallengeMethod = par.CodeChallengeMethod
 
 	return nil
 }
@@ -310,15 +303,13 @@ func (s *OidcService) HasAuthorizedClient(ctx context.Context, clientID, userID,
 }
 
 // AuthorizationRequired reports whether the user must confirm authorization for the client.
-// In the PAR flow (requestURI set), the scope is resolved from the stored request without
-// consuming it, so it is also returned so the consent screen can render the requested scopes.
 func (s *OidcService) AuthorizationRequired(ctx context.Context, clientID, userID, scope, requestURI string) (required bool, resolvedScope string, err error) {
 	if requestURI != "" {
-		par, err := s.getPushedAuthorizationRequest(ctx, s.db, clientID, requestURI)
+		par, err := s.getPushedAuthorizationRequestInternal(ctx, s.db, clientID, requestURI)
 		if err != nil {
 			return false, "", err
 		}
-		scope = par.Scope
+		scope = par.Parameters.Scope
 	}
 
 	hasAuthorized, err := s.hasAuthorizedClientInternal(ctx, clientID, userID, scope, s.db)
@@ -1436,27 +1427,21 @@ func (s *OidcService) CreatePushedAuthorizationRequest(ctx context.Context, cred
 	}
 	requestURI = parRequestURIPrefix + randomSuffix
 
-	var codeChallenge *string
-	var codeChallengeMethod *string
-	if input.CodeChallenge != "" {
-		codeChallenge = &input.CodeChallenge
-	}
-	if input.CodeChallengeMethod != "" {
-		codeChallengeMethod = &input.CodeChallengeMethod
-	}
-
 	par := model.OidcPushedAuthorizationRequest{
-		RequestURI:          requestURI,
-		ClientID:            client.ID,
-		Scope:               input.Scope,
-		RedirectURI:         input.RedirectURI,
-		State:               input.State,
-		Nonce:               input.Nonce,
-		CodeChallenge:       codeChallenge,
-		CodeChallengeMethod: codeChallengeMethod,
-		ResponseType:        input.ResponseType,
-		Prompt:              input.Prompt,
-		ExpiresAt:           datatype.DateTime(time.Now().Add(PARDuration)),
+		RequestURI: requestURI,
+		ClientID:   client.ID,
+		ExpiresAt:  datatype.DateTime(time.Now().Add(PARDuration)),
+		Parameters: model.OidcAuthorizationRequestParameters{
+			Scope:               input.Scope,
+			RedirectURI:         input.RedirectURI,
+			State:               input.State,
+			Nonce:               input.Nonce,
+			CodeChallenge:       input.CodeChallenge,
+			CodeChallengeMethod: input.CodeChallengeMethod,
+			ResponseType:        input.ResponseType,
+			Prompt:              input.Prompt,
+			ResponseMode:        input.ResponseMode,
+		},
 	}
 
 	if err = s.db.WithContext(ctx).Create(&par).Error; err != nil {
@@ -1466,8 +1451,13 @@ func (s *OidcService) CreatePushedAuthorizationRequest(ctx context.Context, cred
 	return requestURI, int(PARDuration.Seconds()), nil
 }
 
-// getPushedAuthorizationRequest retrieves a PAR record without consuming it.
-func (s *OidcService) getPushedAuthorizationRequest(ctx context.Context, tx *gorm.DB, clientID, requestURI string) (model.OidcPushedAuthorizationRequest, error) {
+// GetPushedAuthorizationRequest retrieves a PAR record without consuming it.
+func (s *OidcService) GetPushedAuthorizationRequest(ctx context.Context, clientID, requestURI string) (model.OidcPushedAuthorizationRequest, error) {
+	return s.getPushedAuthorizationRequestInternal(ctx, s.db, clientID, requestURI)
+}
+
+// getPushedAuthorizationRequestInternal retrieves a PAR record without consuming it.
+func (s *OidcService) getPushedAuthorizationRequestInternal(ctx context.Context, tx *gorm.DB, clientID, requestURI string) (model.OidcPushedAuthorizationRequest, error) {
 	var par model.OidcPushedAuthorizationRequest
 	err := tx.
 		WithContext(ctx).

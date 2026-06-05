@@ -163,15 +163,28 @@ type OidcDeviceCode struct {
 type OidcPushedAuthorizationRequest struct {
 	Base
 
-	RequestURI          string
-	ClientID            string
-	Scope               string
-	RedirectURI         string
-	State               string
-	Nonce               string
-	CodeChallenge       *string
-	CodeChallengeMethod *string
-	ResponseType        string
-	Prompt              string
-	ExpiresAt           datatype.DateTime
+	RequestURI string
+	ClientID   string
+	Parameters OidcAuthorizationRequestParameters
+	ExpiresAt  datatype.DateTime
+}
+
+type OidcAuthorizationRequestParameters struct { //nolint:recvcheck
+	Scope               string `json:"scope,omitempty"`
+	RedirectURI         string `json:"redirect_uri,omitempty"`
+	State               string `json:"state,omitempty"`
+	Nonce               string `json:"nonce,omitempty"`
+	CodeChallenge       string `json:"code_challenge,omitempty"`
+	CodeChallengeMethod string `json:"code_challenge_method,omitempty"`
+	ResponseType        string `json:"response_type,omitempty"`
+	Prompt              string `json:"prompt,omitempty"`
+	ResponseMode        string `json:"response_mode,omitempty"`
+}
+
+func (p *OidcAuthorizationRequestParameters) Scan(value any) error {
+	return utils.UnmarshalJSONFromDatabase(p, value)
+}
+
+func (p OidcAuthorizationRequestParameters) Value() (driver.Value, error) {
+	return json.Marshal(p)
 }
