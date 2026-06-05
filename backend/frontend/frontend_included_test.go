@@ -43,7 +43,7 @@ func TestRateLimitOnlyForOAuth2AuthorizationPostRequest(t *testing.T) {
 		middleware := rateLimitOnlyForOAuth2AuthorizationPostRequest(func(c *gin.Context) {
 			rateLimited = true
 			c.Abort()
-		}, distFS)
+		}, nil, distFS)
 
 		router := gin.New()
 		router.NoRoute(
@@ -67,7 +67,7 @@ func TestRateLimitOnlyForOAuth2AuthorizationPostRequest(t *testing.T) {
 		middleware := rateLimitOnlyForOAuth2AuthorizationPostRequest(func(c *gin.Context) {
 			rateLimited = true
 			c.Abort()
-		}, distFS)
+		}, nil, distFS)
 
 		router := gin.New()
 		router.NoRoute(
@@ -91,7 +91,7 @@ func TestRateLimitOnlyForOAuth2AuthorizationPostRequest(t *testing.T) {
 		middleware := rateLimitOnlyForOAuth2AuthorizationPostRequest(func(c *gin.Context) {
 			rateLimited = true
 			c.Abort()
-		}, distFS)
+		}, nil, distFS)
 
 		router := gin.New()
 		router.NoRoute(
@@ -103,6 +103,32 @@ func TestRateLimitOnlyForOAuth2AuthorizationPostRequest(t *testing.T) {
 
 		recorder := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/assets/app.js?response_mode=form_post&client_id=test&redirect_uri=https://example.com/callback", nil)
+		router.ServeHTTP(recorder, req)
+
+		assert.False(t, rateLimited)
+		assert.True(t, nextCalled)
+	})
+
+	t.Run("does not rate limit non-authorize spa path with form_post params", func(t *testing.T) {
+		rateLimited := false
+		nextCalled := false
+		// oidcService is nil: a non-/authorize path is rejected by the path guard
+		// before the request_uri branch that would dereference it.
+		middleware := rateLimitOnlyForOAuth2AuthorizationPostRequest(func(c *gin.Context) {
+			rateLimited = true
+			c.Abort()
+		}, nil, distFS)
+
+		router := gin.New()
+		router.NoRoute(
+			middleware,
+			func(c *gin.Context) {
+				nextCalled = true
+			},
+		)
+
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/settings?response_mode=form_post&client_id=test&redirect_uri=https://example.com/callback", nil)
 		router.ServeHTTP(recorder, req)
 
 		assert.False(t, rateLimited)

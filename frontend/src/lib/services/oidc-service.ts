@@ -8,7 +8,8 @@ import type {
 	OidcClientUpdate,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
-	OidcDeviceCodeInfo
+	OidcDeviceCodeInfo,
+	OidcAuthorizeRequestInfo
 } from '$lib/types/oidc.type';
 import type { ScimServiceProvider } from '$lib/types/scim.type';
 import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
@@ -51,6 +52,14 @@ class OidcService extends APIService {
 		});
 
 		return res.data as { authorizationRequired: boolean; scope: string };
+	};
+
+	getParRequestInfo = async (clientId: string, requestURI: string) => {
+		const res = await this.api.get('/oidc/par-request-info', {
+			params: { client_id: clientId, request_uri: requestURI }
+		});
+
+		return res.data as OidcAuthorizeRequestInfo;
 	};
 
 	listClients = async (options?: ListRequestOptions) => {
