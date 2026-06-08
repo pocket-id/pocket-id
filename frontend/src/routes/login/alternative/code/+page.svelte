@@ -27,6 +27,7 @@
 	});
 
 	async function authenticate() {
+		if (!code?.trim()) return;
 		isLoading = true;
 		try {
 			const user = await userService.exchangeOneTimeAccessToken(code);
