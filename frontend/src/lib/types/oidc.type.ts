@@ -41,7 +41,7 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo'>;
+export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'>;
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };
