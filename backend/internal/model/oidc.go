@@ -48,18 +48,19 @@ type OidcAuthorizationCode struct {
 type OidcClient struct {
 	Base
 
-	Name                     string `sortable:"true"`
-	Secret                   string
-	CallbackURLs             UrlList
-	LogoutCallbackURLs       UrlList
-	ImageType                *string
-	DarkImageType            *string
-	IsPublic                 bool
-	PkceEnabled              bool `sortable:"true" filterable:"true"`
-	RequiresReauthentication bool `sortable:"true" filterable:"true"`
-	Credentials              OidcClientCredentials
-	LaunchURL                *string
-	IsGroupRestricted        bool `sortable:"true" filterable:"true"`
+	Name                                string `sortable:"true"`
+	Secret                              string
+	CallbackURLs                        UrlList
+	LogoutCallbackURLs                  UrlList
+	ImageType                           *string
+	DarkImageType                       *string
+	IsPublic                            bool
+	PkceEnabled                         bool `sortable:"true" filterable:"true"`
+	RequiresReauthentication            bool `sortable:"true" filterable:"true"`
+	RequiresPushedAuthorizationRequests bool `sortable:"true" filterable:"true"`
+	Credentials                         OidcClientCredentials
+	LaunchURL                           *string
+	IsGroupRestricted                   bool `sortable:"true" filterable:"true"`
 
 	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID               *string
@@ -156,4 +157,20 @@ type OidcDeviceCode struct {
 	User     User
 	ClientID string
 	Client   OidcClient
+}
+
+type OidcPushedAuthorizationRequest struct {
+	Base
+
+	RequestURI          string
+	ClientID            string
+	Scope               string
+	RedirectURI         string
+	State               string
+	Nonce               string
+	CodeChallenge       *string
+	CodeChallengeMethod *string
+	ResponseType        string
+	Prompt              string
+	ExpiresAt           datatype.DateTime
 }

@@ -37,7 +37,7 @@
 	<div class="flex justify-center">
 		<LoginLogoErrorSuccessIndicator {success} error={!!error} />
 	</div>
-	<h1 class="font-glooock mt-5 text-3xl font-bold sm:text-4xl">{m.email_login()}</h1>
+	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">{m.email_login()}</h1>
 	{#if error}
 		<p class="text-muted-foreground mt-2" in:fade>
 			{error}. {m.please_try_again()}

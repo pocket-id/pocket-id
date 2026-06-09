@@ -25,16 +25,16 @@
 	let { data }: PageProps = $props();
 	let {
 		client,
-		scope,
 		callbackURL,
 		nonce,
 		codeChallenge,
 		codeChallengeMethod,
 		authorizeState,
 		prompt,
-		responseMode
+		responseMode,
+		requestURI
 	} = data;
-
+	let scope = $state(data.scope);
 	let isLoading = $state(false);
 	let success = $state(false);
 	let errorMessage: string | null = $state(null);
@@ -112,7 +112,16 @@
 			}
 
 			if (!authorizationConfirmed) {
-				authorizationRequired = await oidService.isAuthorizationRequired(client!.id, scope);
+				const authRequired = await oidService.isAuthorizationRequired(
+					client!.id,
+					scope,
+					requestURI
+				);
+				authorizationRequired = authRequired.authorizationRequired;
+
+				if (requestURI) {
+					scope = authRequired.scope;
+				}
 
 				// If prompt=consent, always show consent UI
 				if (hasPromptConsent) {
@@ -153,7 +162,8 @@
 				codeChallengeMethod,
 				reauthToken,
 				responseMode,
-				prompt
+				prompt,
+				requestURI
 			);
 
 			// Check if backend returned a redirect error
@@ -265,7 +275,7 @@
 {:else}
 	<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
-		<h1 class="font-glooock mt-5 text-3xl font-bold sm:text-4xl">
+		<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
 			{m.sign_in_to({ name: client.name })}
 		</h1>
 		{#if errorMessage}
