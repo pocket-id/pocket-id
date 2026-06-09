@@ -20,6 +20,7 @@ type OidcClientDto struct {
 	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests"`
 	Credentials                         OidcClientCredentialsDto `json:"credentials"`
 	IsGroupRestricted                   bool                     `json:"isGroupRestricted"`
+	PkceSupported                       bool                     `json:"pkceSupported,omitempty"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {

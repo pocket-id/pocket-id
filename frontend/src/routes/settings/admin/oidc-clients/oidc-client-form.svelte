@@ -20,6 +20,7 @@
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import OidcClientImageInput from './oidc-client-image-input.svelte';
+	import { Root, Trigger, Content } from '$lib/components/ui/tooltip';
 
 	let {
 		callback,
@@ -56,7 +57,8 @@
 			federatedIdentities: existingClient?.credentials?.federatedIdentities || []
 		},
 		logoUrl: '',
-		darkLogoUrl: ''
+		darkLogoUrl: '',
+		pkceSupported: existingClient?.pkceSupported || false
 	};
 
 	const formSchema = z.object({
@@ -94,6 +96,9 @@
 
 	type FormSchema = typeof formSchema;
 	const { inputs, errors, ...form } = createForm<FormSchema>(formSchema, client);
+	
+	const pkcePromptNeeded = $derived(!$inputs.pkceEnabled.value && client.pkceSupported);
+	const basePkceDescription = m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -213,13 +218,23 @@
 			}}
 			bind:checked={$inputs.isPublic.value}
 		/>
-		<SwitchWithLabel
-			id="pkce"
-			label={m.pkce()}
-			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
-			disabled={$inputs.isPublic.value}
-			bind:checked={$inputs.pkceEnabled.value}
-		/>
+		<div
+			class="rounded-lg transition-all duration-200"
+			class:[&_[data-switch-root]]:ring-2={pkcePromptNeeded}
+			class:[&_[data-switch-root]]:ring-yellow-500={pkcePromptNeeded}
+		>
+			<SwitchWithLabel
+				id="pkce"
+				label={m.pkce()}
+				description={
+					pkcePromptNeeded
+						? `${m.pkce_supported_client()} ${basePkceDescription}`
+						: basePkceDescription
+				}
+				disabled={$inputs.isPublic.value}
+				bind:checked={$inputs.pkceEnabled.value}
+			/>
+		</div>
 		<SwitchWithLabel
 			id="requires-reauthentication"
 			label={m.requires_reauthentication()}

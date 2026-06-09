@@ -158,6 +158,14 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 		return "", "", &common.OidcMissingCodeChallengeError{}
 	}
 
+	// If a code challenge is provided but confidential client is not using PKCE,flag PKCE support
+	if input.CodeChallenge != "" && !client.PkceEnabled && !client.PkceSupported {
+		err = flagPkceSupportedClient(ctx, client.ID, tx)
+		if err != nil {
+			return "", "", err
+		}
+	}
+
 	// Validate the callback URL before any prompt checks, so that prompt-related
 	// error responses never contain an unvalidated redirect target
 	callbackURL, err := s.getCallbackURL(&client, input.CallbackURL, tx, ctx)
@@ -254,6 +262,20 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 	}
 
 	return code, callbackURL, nil
+}
+
+func flagPkceSupportedClient(ctx context.Context, clientID string, tx *gorm.DB) error {
+	err := tx.
+		WithContext(ctx).
+		Model(&model.OidcClient{}).
+		Where("id = ?", clientID).
+		Update("pkce_supported", true).
+		Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // applyPushedAuthorizationRequest consumes the stored PAR for the given request_uri
@@ -985,6 +1007,10 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	// Reset any pkce support prompt if previously flagged
+	if !input.PkceEnabled {
+		client.PkceSupported = false
+	}
 	client.RequiresReauthentication = input.RequiresReauthentication
 	// PAR is not available for public clients, so ignore the flag if the client is public
 	client.RequiresPushedAuthorizationRequests = !input.IsPublic && input.RequiresPushedAuthorizationRequests

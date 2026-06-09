@@ -82,6 +82,7 @@
 				"logout_callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkL2F1dGgvbG9nb3V0L2NhbGxiYWNrIl0=",
 				"name": "Nextcloud",
 				"pkce_enabled": false,
+				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC"
@@ -100,6 +101,7 @@
 				"logout_callback_urls": "bnVsbA==",
 				"name": "Immich",
 				"pkce_enabled": false,
+				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe"
@@ -118,6 +120,7 @@
 				"logout_callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlL2F1dGgvbG9nb3V0L2NhbGxiYWNrIl0=",
 				"name": "Tailscale",
 				"pkce_enabled": false,
+				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a"
@@ -136,6 +139,7 @@
 				"logout_callback_urls": "bnVsbA==",
 				"name": "Federated",
 				"pkce_enabled": false,
+				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe"
@@ -153,6 +157,7 @@
 				"logout_callback_urls": "bnVsbA==",
 				"name": "SCIM Client",
 				"pkce_enabled": false,
+				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK"
@@ -171,6 +176,7 @@
 				"logout_callback_urls": "bnVsbA==",
 				"name": "PAR Test Client",
 				"pkce_enabled": false,
+				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC"
