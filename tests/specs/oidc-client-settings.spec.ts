@@ -118,6 +118,43 @@ test('Delete OIDC client', async ({ page }) => {
 	await expect(page.getByRole('row', { name: oidcClient.name })).not.toBeVisible();
 });
 
+test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
+	const parClient = oidcClients.parClient;
+
+	// Enable PAR on the PAR test client
+	await request.put(`/api/oidc/clients/${parClient.id}`, {
+		data: {
+			name: parClient.name,
+			callbackURLs: [parClient.callbackUrl],
+			logoutCallbackURLs: [],
+			isPublic: false,
+			pkceEnabled: false,
+			requiresReauthentication: false,
+			requiresPushedAuthorizationRequests: true,
+			credentials: { federatedIdentities: [] },
+			isGroupRestricted: false
+		}
+	});
+
+	await page.goto('/settings/admin/oidc-clients');
+
+	// Open PAR filter and select "Yes"
+	await page.getByTestId('facet-par-trigger').click();
+	await page.getByTestId('facet-par-option-true').click();
+
+	// Only the PAR client should be visible
+	await expect(page.getByRole('row', { name: parClient.name })).toBeVisible();
+	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).not.toBeVisible();
+
+	// Deselect "Yes" and select "No" to invert the filter
+	await page.getByTestId('facet-par-option-true').click();
+	await page.getByTestId('facet-par-option-false').click();
+
+	// PAR client should be hidden, others visible
+	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).toBeVisible();
+	await expect(page.getByRole('row', { name: parClient.name })).not.toBeVisible();
+});
+
 test('Update OIDC client allowed user groups', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 

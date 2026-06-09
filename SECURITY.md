@@ -5,7 +5,7 @@
 It's recommended to always use the latest version of Pocket ID. We will provide security updates for the latest version.
 
 > [!NOTE]  
-> Updates can be automated with e.g [Watchtower](https://github.com/containrrr/watchtower). Upgrading between non major versions is safe but you shouldn't upgrade between major versions before checking the release notes.
+> Updates can be automated with e.g [Watchtower](https://github.com/nicholas-fedor/watchtower/). Upgrading between non major versions is safe but you shouldn't upgrade between major versions before checking the release notes.
 
 ## Reporting a Vulnerability
 

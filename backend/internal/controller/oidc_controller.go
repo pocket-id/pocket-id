@@ -35,6 +35,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/authorization-required", authMiddleware.WithAdminNotRequired().Add(), oc.authorizationConfirmationRequiredHandler)
 
 	group.POST("/oidc/token", oc.createTokensHandler)
+	group.POST("/oidc/par", oc.pushedAuthorizationRequestHandler)
 	group.GET("/oidc/userinfo", oc.userInfoHandler)
 	group.POST("/oidc/userinfo", oc.userInfoHandler)
 	group.POST("/oidc/end-session", authMiddleware.WithAdminNotRequired().WithSuccessOptional().Add(), oc.EndSessionHandler)
@@ -154,13 +155,13 @@ func (oc *OidcController) authorizationConfirmationRequiredHandler(c *gin.Contex
 		return
 	}
 
-	hasAuthorizedClient, err := oc.oidcService.HasAuthorizedClient(c.Request.Context(), input.ClientID, c.GetString("userID"), input.Scope)
+	authorizationRequired, scope, err := oc.oidcService.AuthorizationRequired(c.Request.Context(), input.ClientID, c.GetString("userID"), input.Scope, input.RequestURI)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"authorizationRequired": !hasAuthorizedClient})
+	c.JSON(http.StatusOK, gin.H{"authorizationRequired": authorizationRequired, "scope": scope})
 }
 
 // createTokensHandler godoc
@@ -229,6 +230,49 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		ExpiresIn:    int(tokens.ExpiresIn.Seconds()),
 		IdToken:      tokens.IdToken,      // May be empty
 		RefreshToken: tokens.RefreshToken, // May be empty
+	})
+}
+
+// pushedAuthorizationRequestHandler godoc
+// @Summary Pushed Authorization Request (PAR)
+// @Description RFC 9126: Push authorization request parameters and receive a request_uri. Only confidential clients may use this endpoint.
+// @Tags OIDC
+// @Accept application/x-www-form-urlencoded
+// @Produce json
+// @Success 201 {object} dto.OidcPARResponseDto
+// @Router /api/oidc/par [post]
+func (oc *OidcController) pushedAuthorizationRequestHandler(c *gin.Context) {
+	// Per RFC 9126, parameters MUST be passed in the request body
+	c.Request.URL.RawQuery = ""
+
+	var input dto.OidcPARRequestDto
+	if err := c.ShouldBind(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	// Client id and secret can also be passed over the Authorization header
+	if input.ClientID == "" && input.ClientSecret == "" {
+		input.ClientID, input.ClientSecret, _ = utils.OAuthClientBasicAuth(c.Request)
+	}
+
+	creds := service.ClientAuthCredentials{
+		ClientID:            input.ClientID,
+		ClientSecret:        input.ClientSecret,
+		ClientAssertion:     input.ClientAssertion,
+		ClientAssertionType: input.ClientAssertionType,
+	}
+
+	requestURI, expiresIn, err := oc.oidcService.CreatePushedAuthorizationRequest(c.Request.Context(), creds, input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	// RFC 9126 §2.2 requires HTTP 201 Created for successful PAR responses
+	c.JSON(http.StatusCreated, dto.OidcPARResponseDto{
+		RequestURI: requestURI,
+		ExpiresIn:  expiresIn,
 	})
 }
 
