@@ -4,7 +4,6 @@
 	import Sidebar from '$lib/components/sidebar.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
-	import { LucideSettings } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import type { LayoutData } from './$types';
@@ -46,7 +45,7 @@
 
 <section>
 	<div
-		class="bg-muted/40 dark:bg-background flex min-h-[calc(100vh-64px)] w-full flex-col justify-between"
+		class="bg-muted/40 dark:bg-background flex min-h-[calc(100vh-86px)] w-full flex-col justify-between"
 	>
 		<main
 			in:fade={{ duration: 200 }}
@@ -54,13 +53,6 @@
 		>
 			<div class="min-w-[200px] xl:min-w-[250px]">
 				<div in:fly={{ x: -15, duration: 200 }} class="sticky top-6">
-					<div class="mx-auto grid w-full gap-2">
-						<h1 class="mb-4 flex items-center gap-2 text-2xl font-semibold">
-							<LucideSettings class="size-5" />
-							{m.settings()}
-						</h1>
-					</div>
-
 					<Sidebar
 						{items}
 						storageKey="sidebar-open:settings"
@@ -70,7 +62,7 @@
 				</div>
 			</div>
 
-			<div class="flex w-full flex-col gap-4 overflow-hidden">
+			<div class="flex w-full flex-col gap-4 overflow-hidden pb-2">
 				<FadeWrapper>
 					<EmailVerificationStateBox />
 					{@render children()}

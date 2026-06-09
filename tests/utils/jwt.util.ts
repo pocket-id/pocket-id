@@ -13,11 +13,12 @@ type User = {
 const privateKey = JSON.parse(PRIVATE_KEY_STRING);
 const privateKeyImported = await jose.importJWK(privateKey, 'RS256');
 
-export async function generateIdToken(user: User, clientId: string, expired = false) {
+export async function generateIdToken(jti: string, user: User, clientId: string, expired = false) {
 	const now = Math.floor(Date.now() / 1000);
 	const expiration = expired ? now + 1 : now + 1000000000; // Either expired or valid for a long time
 
 	const payload = {
+		jti,
 		aud: clientId,
 		email: user.email,
 		email_verified: true,

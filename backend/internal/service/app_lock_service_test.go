@@ -154,8 +154,7 @@ func TestAppLockServiceAcquire(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		service := newTestAppLockService(t, db)
 
-		raw := "this-is-not-json"
-		err := db.Create(&model.KV{Key: lockKey, Value: &raw}).Error
+		err := db.Create(&model.KV{Key: lockKey, Value: new("this-is-not-json")}).Error
 		require.NoError(t, err)
 
 		_, err = service.Acquire(context.Background(), false)

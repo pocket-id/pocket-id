@@ -9,7 +9,7 @@
 		value,
 		size = 200,
 		color = '#000000',
-		backgroundColor = '#FFFFFF',
+		backgroundColor = 'transparent',
 		...restProps
 	}: HTMLAttributes<HTMLCanvasElement> & {
 		value: string | null;
@@ -39,4 +39,4 @@
 	});
 </script>
 
-<canvas {...restProps} bind:this={canvasEl} class={cn('rounded-lg', restProps.class)}></canvas>
+<canvas {...restProps} bind:this={canvasEl} class={cn('rounded', restProps.class)}></canvas>

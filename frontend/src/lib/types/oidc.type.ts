@@ -26,6 +26,7 @@ export type OidcClient = OidcClientMetaData & {
 	isPublic: boolean;
 	pkceEnabled: boolean;
 	requiresReauthentication: boolean;
+	requiresPushedAuthorizationRequests: boolean;
 	credentials?: OidcClientCredentials;
 	launchURL?: string;
 	isGroupRestricted: boolean;

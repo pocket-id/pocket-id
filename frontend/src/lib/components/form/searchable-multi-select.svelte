@@ -81,18 +81,20 @@
 				variant="outline"
 				role="combobox"
 				aria-expanded={open}
-				class="h-auto min-h-10 w-full justify-between"
+				class="h-auto min-h-10 w-full bg-input/30!"
 			>
-				<div class="flex flex-wrap items-center gap-1">
-					{#if selectedItems.length > 0}
-						{#each selectedLabels as label}
-							<Badge variant="secondary">{label}</Badge>
-						{/each}
-					{:else}
-						<span class="text-muted-foreground font-normal">{m.select_items()}</span>
-					{/if}
+				<div class="flex items-center justify-between w-full">
+					<div class="flex flex-wrap items-center gap-1">
+						{#if selectedItems.length > 0}
+							{#each selectedLabels as label}
+								<Badge variant="secondary">{label}</Badge>
+							{/each}
+						{:else}
+							<span class="text-muted-foreground font-normal">{m.select_items()}</span>
+						{/if}
+					</div>
+					<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
 				</div>
-				<LucideChevronDown class="ml-2 size-4 shrink-0 opacity-50" />
 			</Button>
 		{/snippet}
 	</Popover.Trigger>

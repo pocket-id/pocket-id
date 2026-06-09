@@ -18,14 +18,13 @@ test('Update general configuration', async ({ page }) => {
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Application configuration updated successfully'
 	);
-	await expect(page.getByTestId('application-name')).toHaveText('Updated Name');
 
 	await page.reload();
 
 	await expect(page.getByLabel('Application Name', { exact: true })).toHaveValue('Updated Name');
 	await expect(page.getByLabel('Session Duration')).toHaveValue('30');
 
-	await page.getByRole('link', { name: 'Logo Updated Name' }).click();
+	await page.getByRole('link', { name: 'Logo' }).click();
 	await page.waitForURL('/settings/apps');
 });
 

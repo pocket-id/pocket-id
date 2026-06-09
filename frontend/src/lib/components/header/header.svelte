@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import appConfigStore from '$lib/stores/application-configuration-store';
+	import { m } from '$lib/paraglide/messages';
 	import userStore from '$lib/stores/user-store';
 	import Logo from '../logo.svelte';
+	import Separator from '../ui/separator/separator.svelte';
 	import HeaderAvatar from './header-avatar.svelte';
 	import ModeSwitcher from './mode-switcher.svelte';
 
@@ -19,7 +20,11 @@
 	);
 </script>
 
-<div class=" w-full {isAuthPage ? 'absolute top-0 z-10 mt-3 lg:mt-8 pr-2 lg:pr-3' : 'border-b'}">
+<div
+	class=" w-full {isAuthPage
+		? 'absolute top-0 z-10 mt-3 lg:mt-8 pr-2 lg:pr-3'
+		: 'pt-3 bg-muted/40 dark:bg-background '}"
+>
 	<div
 		class="{!isAuthPage
 			? 'max-w-410'
@@ -27,10 +32,11 @@
 	>
 		<div class="flex h-16 items-center">
 			{#if !isAuthPage}
-				<a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
+				<a href="/" class="flex items-center transition-opacity hover:opacity-80">
 					<Logo class="size-8" />
-					<h1 class="text-lg font-semibold tracking-tight" data-testid="application-name">
-						{$appConfigStore.appName}
+					<Separator orientation="vertical" class="h-5! bg-neutral-600 ml-2 mr-3" />
+					<h1 class="text-2xl font-gloock" data-testid="application-name">
+						{m.settings()}
 					</h1>
 				</a>
 			{/if}

@@ -258,64 +258,65 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 }
 
 // BuildIDToken creates an ID token with all claims
-func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, nonce string, authenticationMethod string) (jwt.Token, error) {
+func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, nonce string, authenticationMethod string) (jwt.Token, string, error) {
 	now := time.Now()
+	jti := uuid.New().String()
 	token, err := jwt.NewBuilder().
 		Expiration(now.Add(1 * time.Hour)).
 		IssuedAt(now).
 		Issuer(s.envConfig.AppURL).
-		JwtID(uuid.New().String()).
+		JwtID(jti).
 		Build()
 	if err != nil {
-		return nil, fmt.Errorf("failed to build token: %w", err)
+		return nil, "", fmt.Errorf("failed to build token: %w", err)
 	}
 
 	err = SetAudienceString(token, clientID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to set 'aud' claim in token: %w", err)
+		return nil, "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
 	err = SetTokenType(token, IDTokenJWTType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to set 'type' claim in token: %w", err)
+		return nil, "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
 	}
 
 	err = SetAuthenticationMethods(token, authenticationMethod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to set '%s' claim in token: %w", AuthenticationMethodsClaim, err)
+		return nil, "", fmt.Errorf("failed to set '%s' claim in token: %w", AuthenticationMethodsClaim, err)
 	}
 
 	for k, v := range userClaims {
 		err = token.Set(k, v)
 		if err != nil {
-			return nil, fmt.Errorf("failed to set claim '%s': %w", k, err)
+			return nil, "", fmt.Errorf("failed to set claim '%s': %w", k, err)
 		}
 	}
 
 	if nonce != "" {
 		err = token.Set("nonce", nonce)
 		if err != nil {
-			return nil, fmt.Errorf("failed to set claim 'nonce': %w", err)
+			return nil, "", fmt.Errorf("failed to set claim 'nonce': %w", err)
 		}
 	}
 
-	return token, nil
+	return token, jti, nil
 }
 
 // GenerateIDToken creates and signs an ID token
-func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string, nonce string, authenticationMethod string) (string, error) {
-	token, err := s.BuildIDToken(userClaims, clientID, nonce, authenticationMethod)
+func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string, nonce string, authenticationMethod string) (signedToken, jti string, err error) {
+	token, jti, err := s.BuildIDToken(userClaims, clientID, nonce, authenticationMethod)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	alg, _ := s.privateKey.Algorithm()
 	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
 	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
+		return "", "", fmt.Errorf("failed to sign token: %w", err)
 	}
 
-	return string(signed), nil
+	return string(signed), jti, nil
 }
 
 func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool) (jwt.Token, error) {

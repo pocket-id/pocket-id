@@ -26,6 +26,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -583,10 +584,9 @@ func TestOidcServiceRefreshTokenAuthorizationState(t *testing.T) {
 			appConfigService: mockConfig,
 		}
 
-		email := "refresh-token-user@example.com"
 		user := model.User{
 			Username:      "refresh-token-user",
-			Email:         &email,
+			Email:         new("refresh-token-user@example.com"),
 			EmailVerified: true,
 			FirstName:     "Refresh",
 			LastName:      "User",
@@ -624,7 +624,7 @@ func TestOidcServiceRefreshTokenAuthorizationState(t *testing.T) {
 			Scope:    scope,
 		}).Error)
 
-		refreshToken, err := service.createRefreshToken(t.Context(), client.ID, user.ID, scope, AuthenticationMethodPhishingResistant, db)
+		refreshToken, err := service.createRefreshToken(t.Context(), client.ID, user.ID, scope, AuthenticationMethodPhishingResistant, "03f94e54-53c4-42f8-afe5-918ffd97a30e", db)
 		require.NoError(t, err)
 
 		return service, db, user, client, clientSecret, refreshToken, userGroup
@@ -729,7 +729,7 @@ func TestOidcServiceAuthenticationMethodsPersistence(t *testing.T) {
 	})
 
 	t.Run("stores authentication methods on refresh tokens", func(t *testing.T) {
-		_, err := service.createRefreshToken(t.Context(), "amr-client", "amr-user", "openid profile", authenticationMethod, db)
+		_, err := service.createRefreshToken(t.Context(), "amr-client", "amr-user", "openid profile", authenticationMethod, "03f94e54-53c4-42f8-afe5-918ffd97a30e", db)
 		require.NoError(t, err)
 
 		var refreshToken model.OidcRefreshToken
@@ -1252,6 +1252,115 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 	})
 }
 
+func TestOidcService_ValidateEndSessionDeletesMatchingRefreshToken(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	common.EnvConfig.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
+	mockConfig := NewTestAppConfigService(&model.AppConfig{
+		SessionDuration: model.AppConfigVariable{Value: "60"},
+	})
+	mockJwtService, err := NewJwtService(t.Context(), db, mockConfig)
+	require.NoError(t, err)
+
+	oidcService := &OidcService{
+		db:         db,
+		jwtService: mockJwtService,
+	}
+
+	userID := "test-user-123"
+	clientID := "test-client-456"
+	otherClientID := "other-client-789"
+	otherIDTokenJti := "ac653f42-4781-49f2-bc7c-cc44503c3a1a" //nolint:gosec
+	userEmail := "test@example.com"
+
+	user := model.User{
+		Base:  model.Base{ID: userID},
+		Email: &userEmail,
+	}
+	require.NoError(t, db.Create(&user).Error)
+
+	client := model.OidcClient{
+		Base:               model.Base{ID: clientID},
+		Name:               "Test Client",
+		LogoutCallbackURLs: []string{"https://example.com/logout"},
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	otherClient := model.OidcClient{
+		Base:               model.Base{ID: otherClientID},
+		Name:               "Other Client",
+		LogoutCallbackURLs: []string{"https://other.example.com/logout"},
+	}
+	require.NoError(t, db.Create(&otherClient).Error)
+
+	require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{
+		UserID:   userID,
+		ClientID: clientID,
+	}).Error)
+
+	userClaims := map[string]any{
+		"sub":   userID,
+		"name":  "Test User",
+		"email": userEmail,
+	}
+	idToken, idTokenJti, err := mockJwtService.GenerateIDToken(userClaims, clientID, "", "")
+	require.NoError(t, err)
+
+	refreshTokens := []model.OidcRefreshToken{
+		{
+			Token:      "matching-refresh-token",
+			UserID:     userID,
+			ClientID:   clientID,
+			IdTokenJti: &idTokenJti,
+			ExpiresAt:  datatype.DateTime(time.Now().Add(time.Hour)),
+			Scope:      "openid profile",
+		},
+		{
+			Token:      "same-client-different-session",
+			UserID:     userID,
+			ClientID:   clientID,
+			IdTokenJti: &otherIDTokenJti,
+			ExpiresAt:  datatype.DateTime(time.Now().Add(time.Hour)),
+			Scope:      "openid profile",
+		},
+		{
+			Token:      "other-client-same-jti",
+			UserID:     userID,
+			ClientID:   otherClientID,
+			IdTokenJti: &idTokenJti,
+			ExpiresAt:  datatype.DateTime(time.Now().Add(time.Hour)),
+			Scope:      "openid profile",
+		},
+		{
+			Token:     "legacy-refresh-token",
+			UserID:    userID,
+			ClientID:  clientID,
+			ExpiresAt: datatype.DateTime(time.Now().Add(time.Hour)),
+			Scope:     "openid profile",
+		},
+	}
+	require.NoError(t, db.Create(&refreshTokens).Error)
+
+	callbackURL, err := oidcService.ValidateEndSession(t.Context(), dto.OidcLogoutDto{
+		IdTokenHint:           idToken,
+		ClientId:              clientID,
+		PostLogoutRedirectUri: "https://example.com/logout",
+	}, userID)
+	require.NoError(t, err)
+	assert.Equal(t, "https://example.com/logout", callbackURL)
+
+	var remainingTokens []model.OidcRefreshToken
+	require.NoError(t, db.Order("token").Find(&remainingTokens).Error)
+	remainingTokenValues := make([]string, len(remainingTokens))
+	for i, token := range remainingTokens {
+		remainingTokenValues[i] = token.Token
+	}
+	assert.ElementsMatch(t, []string{
+		"legacy-refresh-token",
+		"other-client-same-jti",
+		"same-client-different-session",
+	}, remainingTokenValues)
+}
+
 // Tests for prompt parameter parsing and handling
 func TestParsePromptParameter(t *testing.T) {
 	t.Run("empty prompt returns empty slice", func(t *testing.T) {
@@ -1303,81 +1412,4 @@ func TestPromptParameterConflicts(t *testing.T) {
 			assert.Equal(t, tt.expectConflict, conflict)
 		})
 	}
-}
-
-func TestOidcService_ValidateEndSession_DeletesRefreshTokens(t *testing.T) {
-	db := testutils.NewDatabaseForTest(t)
-	common.EnvConfig.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
-
-	mockConfig := NewTestAppConfigService(&model.AppConfig{
-		SessionDuration: model.AppConfigVariable{Value: "60"},
-	})
-	mockJwtService, err := NewJwtService(t.Context(), db, mockConfig)
-	require.NoError(t, err)
-
-	oidcService := &OidcService{
-		db:         db,
-		jwtService: mockJwtService,
-	}
-
-	ctx := context.Background()
-	userID := "test-user-123"
-	clientID := "test-client-456"
-
-	userEmail := "test@example.com"
-	user := model.User{
-		Base:  model.Base{ID: userID},
-		Email: &userEmail,
-	}
-	require.NoError(t, db.Create(&user).Error)
-
-	client := model.OidcClient{
-		Base:               model.Base{ID: clientID},
-		Name:               "Test Client",
-		LogoutCallbackURLs: []string{"https://example.com/logout"},
-	}
-	require.NoError(t, db.Create(&client).Error)
-
-	authorization := model.UserAuthorizedOidcClient{
-		UserID:   userID,
-		ClientID: clientID,
-	}
-	require.NoError(t, db.Create(&authorization).Error)
-
-	refreshToken1 := model.OidcRefreshToken{
-		Token:    "refresh-token-1",
-		UserID:   userID,
-		ClientID: clientID,
-	}
-	require.NoError(t, db.Create(&refreshToken1).Error)
-
-	refreshToken2 := model.OidcRefreshToken{
-		Token:    "refresh-token-2",
-		UserID:   userID,
-		ClientID: "other-client",
-	}
-	require.NoError(t, db.Create(&refreshToken2).Error)
-
-	userClaims := map[string]any{
-		"sub":   userID,
-		"name":  "Test User",
-		"email": userEmail,
-	}
-	idToken, err := mockJwtService.GenerateIDToken(userClaims, clientID, "", "")
-	require.NoError(t, err)
-
-	input := dto.OidcLogoutDto{
-		IdTokenHint:           idToken,
-		ClientId:              clientID,
-		PostLogoutRedirectUri: "https://example.com/logout",
-	}
-
-	callbackURL, err := oidcService.ValidateEndSession(ctx, input, userID)
-	require.NoError(t, err)
-	assert.Equal(t, "https://example.com/logout", callbackURL)
-
-	var remainingTokens []model.OidcRefreshToken
-	err = db.Where("user_id = ?", userID).Find(&remainingTokens).Error
-	require.NoError(t, err)
-	assert.Empty(t, remainingTokens, "all refresh tokens for the user should be deleted")
 }

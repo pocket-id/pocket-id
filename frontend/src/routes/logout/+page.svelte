@@ -34,7 +34,7 @@
 			<Logo class="size-10" />
 		</div>
 	</div>
-	<h1 class="font-playfair mt-5 text-4xl font-bold">{m.sign_out()}</h1>
+	<h1 class="font-gloock mt-5 text-4xl">{m.sign_out()}</h1>
 
 	<p class="text-muted-foreground mt-2">
 		<FormattedMessage

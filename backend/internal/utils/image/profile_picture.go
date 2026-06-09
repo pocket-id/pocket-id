@@ -54,7 +54,7 @@ func CreateDefaultProfilePicture(initials string) (*bytes.Buffer, error) {
 	img := imaging.New(profilePictureSize, profilePictureSize, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 
 	// Load the font
-	fontBytes, err := resources.FS.ReadFile("fonts/PlayfairDisplay-Bold.ttf")
+	fontBytes, err := resources.FS.ReadFile("fonts/Gloock.ttf")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read font file: %w", err)
 	}
@@ -84,7 +84,7 @@ func CreateDefaultProfilePicture(initials string) (*bytes.Buffer, error) {
 
 	// Center the initials
 	x := (profilePictureSize - font.MeasureString(face, initials).Ceil()) / 2
-	y := (profilePictureSize-face.Metrics().Height.Ceil())/2 + face.Metrics().Ascent.Ceil() - 10
+	y := (profilePictureSize-face.Metrics().Height.Ceil())/2 + face.Metrics().Ascent.Ceil()
 	drawer.Dot = fixed.P(x, y)
 
 	// Draw the initials

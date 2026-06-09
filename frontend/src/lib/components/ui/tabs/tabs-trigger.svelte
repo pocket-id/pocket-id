@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn } from '$lib/utils/style.js';
 	import { Tabs as TabsPrimitive } from 'bits-ui';
+	import { cn } from '$lib/utils/style.js';
 
 	let {
 		ref = $bindable(null),
@@ -17,4 +17,4 @@
 		className
 	)}
 	{...restProps}
-></TabsPrimitive.Trigger>
+/>

@@ -66,8 +66,9 @@ func TestValidateResponseMode(t *testing.T) {
 	}{
 		{"valid form_post", "form_post", true},
 		{"valid query", "query", true},
+		{"valid fragment", "fragment", true},
 		{"valid empty", "", true},
-		{"invalid fragment", "fragment", false},
+		{"invalid unknown", "unknown", false},
 	}
 
 	for _, tt := range tests {

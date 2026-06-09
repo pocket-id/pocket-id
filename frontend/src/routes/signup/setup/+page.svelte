@@ -47,7 +47,7 @@
 		<LoginLogoErrorSuccessIndicator error={!!error} />
 	</div>
 
-	<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
+	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
 		{m.signup_to_appname({ appName: $appConfigStore.appName })}
 	</h1>
 

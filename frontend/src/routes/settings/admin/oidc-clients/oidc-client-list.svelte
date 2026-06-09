@@ -60,6 +60,13 @@
 			filterableValues: booleanFilterValues
 		},
 		{
+			label: m.par(),
+			column: 'requiresPushedAuthorizationRequests',
+			sortable: true,
+			hidden: true,
+			filterableValues: booleanFilterValues
+		},
+		{
 			label: m.client_launch_url(),
 			column: 'launchURL',
 			hidden: true

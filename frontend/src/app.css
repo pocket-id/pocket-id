@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '@fontsource/gloock';
 
 @variant dark (&:where(.dark, .dark *));
 
@@ -22,7 +23,7 @@
 }
 
 :root {
-	--radius: 0.625rem;
+	--radius: 1rem;
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);
 	--card: oklch(1 0 0);
@@ -133,13 +134,8 @@
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
 
-	/* Animations */
-	--animate-accordion-up: accordion-up 0.2s ease-out;
-	--animate-accordion-down: accordion-down 0.2s ease-out;
-	--animate-caret-blink: caret-blink 1.25s ease-out infinite;
-
 	/* Font */
-	--font-playfair: 'Playfair Display', serif;
+	--font-gloock: 'gloock', serif;
 }
 
 @layer base {
@@ -154,60 +150,6 @@
 	button {
 		@apply cursor-pointer;
 	}
-
-	@font-face {
-		font-family: 'Playfair Display';
-		font-weight: 400;
-		src: url('/fonts/PlayfairDisplay-Regular.woff') format('woff');
-	}
-	@font-face {
-		font-family: 'Playfair Display';
-		font-weight: 500;
-		src: url('/fonts/PlayfairDisplay-Medium.woff') format('woff');
-	}
-	@font-face {
-		font-family: 'Playfair Display';
-		font-weight: 600;
-		src: url('/fonts/PlayfairDisplay-SemiBold.woff') format('woff');
-	}
-	@font-face {
-		font-family: 'Playfair Display';
-		font-weight: 700;
-		src: url('/fonts/PlayfairDisplay-Bold.woff') format('woff');
-	}
-}
-
-@keyframes accordion-down {
-	from {
-		height: 0;
-	}
-
-	to {
-		height: var(--bits-accordion-content-height);
-	}
-}
-
-@keyframes accordion-up {
-	from {
-		height: var(--bits-accordion-content-height);
-	}
-
-	to {
-		height: 0;
-	}
-}
-
-@keyframes caret-blink {
-	0%,
-	70%,
-	100% {
-		opacity: 1;
-	}
-
-	20%,
-	50% {
-		opacity: 0;
-	}
 }
 
 .animate-fade-in {
@@ -220,6 +162,7 @@
 		opacity: 0;
 		transform: translateY(10px);
 	}
+
 	to {
 		opacity: 1;
 		transform: translateY(0);
@@ -230,6 +173,7 @@
 	0% {
 		transform: scale(1.3);
 	}
+
 	100% {
 		transform: scale(1);
 	}
@@ -246,6 +190,7 @@
 	40% {
 		opacity: 0;
 	}
+
 	100% {
 		opacity: 1;
 	}

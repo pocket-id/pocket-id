@@ -106,10 +106,9 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Insert invalid base64 data
-		invalidBase64 := "not-valid-base64"
 		err = db.Create(&model.KV{
 			Key:   PrivateKeyDBKey,
-			Value: &invalidBase64,
+			Value: new("not-valid-base64"),
 		}).Error
 		require.NoError(t, err)
 
@@ -132,10 +131,9 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		require.NoError(t, err)
 
 		// Insert valid base64 but invalid encrypted data
-		invalidData := base64.StdEncoding.EncodeToString([]byte("not-valid-encrypted-data"))
 		err = db.Create(&model.KV{
 			Key:   PrivateKeyDBKey,
-			Value: &invalidData,
+			Value: new(base64.StdEncoding.EncodeToString([]byte("not-valid-encrypted-data"))),
 		}).Error
 		require.NoError(t, err)
 
@@ -195,13 +193,10 @@ func TestKeyProviderDatabase_LoadKey(t *testing.T) {
 		encryptedData, err := cryptoutils.Encrypt(kek, invalidKeyData, nil)
 		require.NoError(t, err)
 
-		// Base64 encode the encrypted data
-		encodedData := base64.StdEncoding.EncodeToString(encryptedData)
-
 		// Save to database
 		err = db.Create(&model.KV{
 			Key:   PrivateKeyDBKey,
-			Value: &encodedData,
+			Value: new(base64.StdEncoding.EncodeToString(encryptedData)),
 		}).Error
 		require.NoError(t, err)
 

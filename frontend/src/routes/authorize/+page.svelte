@@ -27,16 +27,16 @@
 	let { data }: PageProps = $props();
 	let {
 		client,
-		scope,
 		callbackURL,
 		nonce,
 		codeChallenge,
 		codeChallengeMethod,
 		authorizeState,
 		prompt,
-		responseMode
+		responseMode,
+		requestURI
 	} = data;
-
+	let scope = $state(data.scope);
 	let isLoading = $state(false);
 	let success = $state(false);
 	let errorMessage: string | null = $state(null);
@@ -127,7 +127,16 @@
 			}
 
 			if (!authorizationConfirmed) {
-				authorizationRequired = await oidService.isAuthorizationRequired(client!.id, scope);
+				const authRequired = await oidService.isAuthorizationRequired(
+					client!.id,
+					scope,
+					requestURI
+				);
+				authorizationRequired = authRequired.authorizationRequired;
+
+				if (requestURI) {
+					scope = authRequired.scope;
+				}
 
 				// If prompt=consent, always show consent UI
 				if (hasPromptConsent) {
@@ -181,7 +190,8 @@
 				codeChallengeMethod,
 				reauthToken,
 				responseMode,
-				prompt
+				prompt,
+				requestURI
 			);
 
 			// Check if backend returned a redirect error
@@ -208,11 +218,10 @@
 			throw new Error('Invalid redirect URL protocol');
 		}
 
-		redirectURL.searchParams.append('error', error);
-		if (authorizeState) {
-			redirectURL.searchParams.append('state', authorizeState);
-		}
-		window.location.href = redirectURL.toString();
+		window.location.href = createRedirectURL(callbackURL, {
+			error,
+			state: authorizeState
+		});
 	}
 
 	function onSuccess(code: string, callbackURL: string, issuer: string) {
@@ -220,10 +229,6 @@
 		if (redirectURL.protocol == 'javascript:' || redirectURL.protocol == 'data:') {
 			throw new Error('Invalid redirect URL protocol');
 		}
-
-		redirectURL.searchParams.append('code', code);
-		redirectURL.searchParams.append('state', authorizeState);
-		redirectURL.searchParams.append('iss', issuer);
 
 		success = true;
 		setTimeout(() => {
@@ -259,15 +264,33 @@
 				document.body.appendChild(form);
 				form.submit();
 			} else {
-				// Default query parameter redirect (response_mode=query or not specified)
-				const redirectURL = new URL(callbackURL);
-				redirectURL.searchParams.append('code', code);
-				redirectURL.searchParams.append('state', authorizeState);
-				redirectURL.searchParams.append('iss', issuer);
-
-				window.location.href = redirectURL.toString();
+				window.location.href = createRedirectURL(callbackURL, {
+					code,
+					state: authorizeState,
+					iss: issuer
+				});
 			}
 		}, 1000);
+	}
+
+	function createRedirectURL(url: string, params: Record<string, string>) {
+		const redirectURL = new URL(url);
+		const responseParams =
+			responseMode === 'fragment'
+				? new URLSearchParams(redirectURL.hash.slice(1))
+				: redirectURL.searchParams;
+
+		for (const [key, value] of Object.entries(params)) {
+			if (value) {
+				responseParams.set(key, value);
+			}
+		}
+
+		if (responseMode === 'fragment') {
+			redirectURL.hash = responseParams.toString();
+		}
+
+		return redirectURL.toString();
 	}
 </script>
 
@@ -280,7 +303,7 @@
 {:else}
 	<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
 		<ClientProviderImages {client} {success} error={!!errorMessage} />
-		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">
+		<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
 			{m.sign_in_to({ name: client.name })}
 		</h1>
 		{#if errorMessage}
@@ -288,7 +311,22 @@
 				{errorMessage}.
 			</p>
 		{/if}
-		{#if accountSelectionRequired && $userStore && !errorMessage}
+		{#if authorizationRequired}
+			<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
+				<Card.Root class="mt-6 mb-10">
+					<Card.Header>
+						<p class="text-muted-foreground text-start">
+							<FormattedMessage
+								m={m.client_wants_to_access_the_following_information({ client: client.name })}
+							/>
+						</p>
+					</Card.Header>
+					<Card.Content>
+						<ScopeList {scope} />
+					</Card.Content>
+				</Card.Root>
+			</div>
+		{:else if accountSelectionRequired && $userStore && !errorMessage}
 			<div transition:slide={{ duration: 300 }} class="flex flex-col items-center">
 				<p class="text-muted-foreground mt-2 mb-8">
 					<FormattedMessage m={m.account_selection_signin_confirmation({ name: client.name })} />
@@ -329,21 +367,6 @@
 					})}
 				/>
 			</p>
-		{:else if authorizationRequired}
-			<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
-				<Card.Root class="mt-6 mb-10">
-					<Card.Header>
-						<p class="text-muted-foreground text-start">
-							<FormattedMessage
-								m={m.client_wants_to_access_the_following_information({ client: client.name })}
-							/>
-						</p>
-					</Card.Header>
-					<Card.Content>
-						<ScopeList {scope} />
-					</Card.Content>
-				</Card.Root>
-			</div>
 		{/if}
 		<!-- Flex flow is reversed so the sign in button, which has auto-focus, is the first one in the DOM, for a11y -->
 		<div class="flex w-full max-w-md flex-row-reverse gap-2">

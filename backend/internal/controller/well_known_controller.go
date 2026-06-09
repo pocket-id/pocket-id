@@ -92,7 +92,9 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		"authorization_response_iss_parameter_supported": true,
 		"code_challenge_methods_supported":               []string{"plain", "S256"},
 		"prompt_values_supported":                        []string{"none", "login", "consent", "select_account"},
-		"token_endpoint_auth_methods_supported":          []string{"client_secret_basic", "client_secret_post", "none"},
+		"token_endpoint_auth_methods_supported":          []string{"client_secret_basic", "client_secret_post", "private_key_jwt", "none"},
+		"pushed_authorization_request_endpoint":          internalAppUrl + "/api/oidc/par",
+		"require_pushed_authorization_requests":          false,
 	}
 	return json.Marshal(config)
 }

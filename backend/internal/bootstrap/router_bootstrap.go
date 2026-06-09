@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,8 +18,6 @@ import (
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
@@ -165,24 +162,26 @@ func initServer(r *gin.Engine) (*serverConfig, error) {
 		return nil, err
 	}
 
-	network, addr := listenerNetworkAndAddr()
-	listener, err := net.Listen(network, addr) //nolint:noctx
-	if err != nil {
-		return nil, fmt.Errorf("failed to create %s listener: %w", network, err)
+	var socketFn func() (*socket, error)
+	switch {
+	case common.EnvConfig.SystemdSocket:
+		socketFn = systemdSocket
+	case common.EnvConfig.UnixSocket != "":
+		socketFn = unixSocket
+	default:
+		socketFn = tcpSocket
 	}
 
-	if err := setUnixSocketMode(network, addr); err != nil {
-		listener.Close()
+	socket, err := socketFn()
+	if err != nil {
 		return nil, err
 	}
 
-	return &serverConfig{
-		addr:         addr,
-		certProvider: certProvider,
-		listener:     listener,
-		server:       newHTTPServer(r, protocols),
-		tlsConfig:    tlsConfig,
-	}, nil
+	addr := socket.addr
+	listener := socket.listener
+	server := newHTTPServer(r, protocols)
+
+	return &serverConfig{addr, certProvider, listener, server, tlsConfig}, nil
 }
 
 func initServerProtocols() (*http.Protocols, *tls.Config, *tlsCertProvider, error) {
@@ -215,7 +214,7 @@ func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 10 * time.Second,
 		Protocols:         protocols,
-		Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// HEAD requests don't get matched by Gin routes, so we convert them to GET
 			// middleware.HeadMiddleware will convert them back to HEAD later
 			if req.Method == http.MethodHead {
@@ -225,35 +224,8 @@ func newHTTPServer(r *gin.Engine, protocols *http.Protocols) *http.Server {
 			}
 
 			r.ServeHTTP(w, req)
-		}), &http2.Server{}),
+		}),
 	}
-}
-
-func listenerNetworkAndAddr() (string, string) {
-	if common.EnvConfig.UnixSocket == "" {
-		return "tcp", net.JoinHostPort(common.EnvConfig.Host, common.EnvConfig.Port)
-	}
-
-	addr := common.EnvConfig.UnixSocket
-	os.Remove(addr) // remove dangling the socket file to avoid file-exist error
-	return "unix", addr
-}
-
-func setUnixSocketMode(network, addr string) error {
-	if network != "unix" || common.EnvConfig.UnixSocketMode == "" {
-		return nil
-	}
-
-	mode, err := strconv.ParseUint(common.EnvConfig.UnixSocketMode, 8, 32)
-	if err != nil {
-		return fmt.Errorf("failed to parse UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
-	}
-
-	if err := os.Chmod(addr, os.FileMode(mode)); err != nil {
-		return fmt.Errorf("failed to set UNIX socket mode '%s': %w", common.EnvConfig.UnixSocketMode, err)
-	}
-
-	return nil
 }
 
 func runServer(ctx context.Context, config *serverConfig) error {

@@ -23,7 +23,7 @@
 </script>
 
 <Item.Root variant="transparent" class="hover:bg-muted transition-colors py-3 px-0 sm:px-4">
-	<Item.Media class="bg-primary/10 text-primary rounded-lg p-2">
+	<Item.Media class="bg-primary/10 text-primary rounded-full p-3">
 		{#if icon}{@const Icon = icon}
 			<Icon class="size-5" />
 		{/if}

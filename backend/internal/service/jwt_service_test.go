@@ -530,9 +530,10 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		}
 		const clientID = "test-client-123"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, "", "")
+		tokenString, jti, err := service.GenerateIDToken(userClaims, clientID, "", "")
 		require.NoError(t, err, "Failed to generate ID token")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
+		assert.Regexp(t, uuidRegexPattern, jti, "Returned JWT ID is not a UUID")
 
 		claims, err := service.VerifyIdToken(tokenString, false)
 		require.NoError(t, err, "Failed to verify generated ID token")
@@ -549,6 +550,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		jwtID, ok := claims.JwtID()
 		_ = assert.True(t, ok, "JWT ID not found in token") &&
 			assert.Regexp(t, uuidRegexPattern, jwtID, "JWT ID is not a UUID")
+		assert.Equal(t, jti, jwtID, "Returned JWT ID should match token claim")
 
 		expectedExp := time.Now().Add(1 * time.Hour)
 		expiration, ok := claims.Expiration()
@@ -615,7 +617,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		const clientID = "test-client-456"
 		nonce := "random-nonce-value"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, nonce, "")
+		tokenString, _, err := service.GenerateIDToken(userClaims, clientID, nonce, "")
 		require.NoError(t, err, "Failed to generate ID token with nonce")
 
 		publicKey, err := service.GetPublicJWK()
@@ -636,7 +638,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		userClaims := map[string]any{
 			"sub": "user789",
 		}
-		tokenString, err := service.GenerateIDToken(userClaims, "client-789", "", "")
+		tokenString, _, err := service.GenerateIDToken(userClaims, "client-789", "", "")
 		require.NoError(t, err, "Failed to generate ID token")
 
 		service.envConfig.AppURL = "https://wrong-issuer.com"
@@ -662,7 +664,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		}
 		const clientID = "eddsa-client-123"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, "", "")
+		tokenString, _, err := service.GenerateIDToken(userClaims, clientID, "", "")
 		require.NoError(t, err, "Failed to generate ID token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -699,7 +701,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		}
 		const clientID = "ecdsa-client-123"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, "", "")
+		tokenString, _, err := service.GenerateIDToken(userClaims, clientID, "", "")
 		require.NoError(t, err, "Failed to generate ID token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -737,7 +739,7 @@ func TestGenerateVerifyIdToken(t *testing.T) {
 		}
 		const clientID = "rsa-client-123"
 
-		tokenString, err := service.GenerateIDToken(userClaims, clientID, "", "")
+		tokenString, _, err := service.GenerateIDToken(userClaims, clientID, "", "")
 		require.NoError(t, err, "Failed to generate ID token with key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 

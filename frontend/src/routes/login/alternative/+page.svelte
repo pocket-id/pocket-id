@@ -53,7 +53,7 @@
 		<div class="bg-muted mx-auto rounded-2xl p-3">
 			<Logo class="size-10" />
 		</div>
-		<h1 class="font-playfair mt-5 text-3xl font-bold sm:text-4xl">{m.alternative_sign_in()}</h1>
+		<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">{m.alternative_sign_in()}</h1>
 		<p class="text-muted-foreground mt-3">
 			{m.if_you_do_not_have_access_to_your_passkey_you_can_sign_in_using_one_of_the_following_methods()}
 		</p>

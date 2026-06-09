@@ -236,6 +236,15 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					userGroups[1],
 				},
 			},
+			{
+				Base: model.Base{
+					ID: "a1b2c3d4-e5f6-7890-abcd-ef0000000001",
+				},
+				Name:         "PAR Test Client",
+				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
+				CallbackURLs: model.UrlList{"http://par-client/auth/callback"},
+				CreatedByID:  new(users[0].ID),
+			},
 		}
 		for _, client := range oidcClients {
 			if err := tx.Create(&client).Error; err != nil {
@@ -271,6 +280,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 
 		refreshToken := model.OidcRefreshToken{
 			Token:                utils.CreateSha256Hash("ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo"),
+			IdTokenJti:           new("dd75f6f6-ce0a-44b7-a645-7de390ccd2fa"),
 			AuthenticationMethod: AuthenticationMethodPhishingResistant,
 			ExpiresAt:            datatype.DateTime(time.Now().Add(24 * time.Hour)),
 			Scope:                "openid profile email",
@@ -308,6 +318,12 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				UserID:     users[1].ID,
 				ClientID:   oidcClients[3].ID,
 				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 12, 12, 0, 0, 0, time.UTC)),
+			},
+			{
+				Scope:      "openid profile email",
+				UserID:     users[0].ID,
+				ClientID:   oidcClients[5].ID,
+				LastUsedAt: datatype.DateTime(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
 			},
 		}
 		for _, userAuthorizedClient := range userAuthorizedClients {

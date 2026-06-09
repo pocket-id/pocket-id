@@ -7,11 +7,11 @@
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
-		"@playwright/test": "^1.59.1",
+		"@playwright/test": "^1.60.0",
 		"@types/adm-zip": "^0.5.8",
-		"@types/node": "^25.6.0",
+		"@types/node": "^25.9.0",
 		"dotenv": "^17.4.2",
-		"jose": "^6.2.2",
+		"jose": "^6.2.3",
 		"prettier": "^3.8.3"
 	},
 	"dependencies": {

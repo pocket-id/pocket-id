@@ -109,10 +109,16 @@ function compareExports(dir1: string, dir2: string): void {
 	const hashes2 = hashAllFiles(dir2);
 
 	const files1 = Object.keys(hashes1).sort();
-	const files2 = Object.keys(hashes2).sort().filter(p => !p.includes('.inited'));
+	const files2 = Object.keys(hashes2)
+		.sort()
+		.filter((p) => !p.includes('.inited'));
 	expect(files2).toEqual(files1);
 
 	for (const file of files1) {
+		const profilePictures = ['CF.png', 'CR.png'];
+		if (profilePictures.includes(path.basename(file))) {
+			continue; // Skip profile pictures because they get generated on demand and can differ between exports
+		}
 		expect(hashes2[file], `${file} hash should match`).toEqual(hashes1[file]);
 	}
 

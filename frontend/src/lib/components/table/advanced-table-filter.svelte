@@ -38,11 +38,13 @@
 				{...props}
 				variant="outline"
 				size="sm"
-				class="h-8 border-dashed"
+				class="order-dashed"
 				data-testid={`facet-${title.toLowerCase()}-trigger`}
 			>
-				<ListFilterIcon />
-				{title}
+				<span class="flex gap-2 items-center">
+					<ListFilterIcon />
+					{title}
+				</span>
 				{#if selectedValues.size > 0}
 					<Separator orientation="vertical" class="mx-2 h-4" />
 					<Badge variant="secondary" class="rounded-sm px-1 font-normal lg:hidden">
