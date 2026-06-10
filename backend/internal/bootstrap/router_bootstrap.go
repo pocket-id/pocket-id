@@ -117,7 +117,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	}
 
 	// Initialize middleware for specific routes
-	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)
+	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService, svc.auditLogService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
 

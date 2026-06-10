@@ -173,10 +173,14 @@ func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Cont
 	return oneTimeAccessToken.Token, oneTimeAccessToken.DeviceToken, nil
 }
 
-func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
+func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (retUser model.User, retToken string, retErr error) {
+	var userID string
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
+		if retErr != nil {
+			s.auditLogService.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
+		}
 	}()
 
 	var oneTimeAccessToken model.OneTimeAccessToken
@@ -193,6 +197,7 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 		}
 		return model.User{}, "", err
 	}
+	userID = oneTimeAccessToken.UserID
 	if oneTimeAccessToken.DeviceToken != nil && deviceToken != *oneTimeAccessToken.DeviceToken {
 		return model.User{}, "", &common.DeviceCodeInvalid{}
 	}
