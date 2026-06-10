@@ -2,6 +2,7 @@ import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type
 import type {
 	AccessibleOidcClient,
 	AuthorizeResponse,
+	DeviceAuthorizationResponse,
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
@@ -13,6 +14,8 @@ import type {
 import type { ScimServiceProvider } from '$lib/types/scim.type';
 import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 import APIService from './api-service';
+
+const SELF_LOGIN_CLIENT_ID = 'pocket-id-self-login';
 
 class OidcService extends APIService {
 	authorize = async (
@@ -112,7 +115,7 @@ class OidcService extends APIService {
 	};
 
 	verifyDeviceCode = async (userCode: string) => {
-		return await this.api.post(`/oidc/device/verify?code=${userCode}`);
+		return await this.api.post('/oidc/device/verify', { code: userCode });
 	};
 
 	getDeviceCodeInfo = async (userCode: string): Promise<OidcDeviceCodeInfo> => {
@@ -139,6 +142,21 @@ class OidcService extends APIService {
 	getScimResourceProvider = async (clientId: string) => {
 		const res = await this.api.get(`/oidc/clients/${clientId}/scim-service-provider`);
 		return res.data as ScimServiceProvider;
+	};
+
+	createSelfLoginDeviceCode = async (): Promise<DeviceAuthorizationResponse> => {
+		const params = new URLSearchParams();
+		params.append('client_id', SELF_LOGIN_CLIENT_ID);
+		params.append('scope', 'openid profile email');
+		const { data } = await this.api.post('/oidc/device/authorize', params);
+		return data;
+	};
+
+	exchangeDeviceTokenForSession = async (deviceCode: string) => {
+		const params = new URLSearchParams();
+		params.append('device_code', deviceCode);
+		params.append('client_id', SELF_LOGIN_CLIENT_ID);
+		return this.api.post('/oidc/device/exchange-session', params);
 	};
 }
 

@@ -22,13 +22,13 @@ import (
 
 // NewOidcController creates a new controller for OIDC related endpoints
 // @Summary OIDC controller
-// @Description Initializes all OIDC-related API endpoints for authentication and client management
 // @Tags OIDC
-func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, oidcService *service.OidcService, jwtService *service.JwtService) {
+func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, oidcService *service.OidcService, jwtService *service.JwtService, appConfigService *service.AppConfigService) {
 	oc := &OidcController{
-		oidcService:  oidcService,
-		jwtService:   jwtService,
-		createTokens: oidcService.CreateTokens,
+		oidcService:      oidcService,
+		jwtService:       jwtService,
+		appConfigService: appConfigService,
+		createTokens:     oidcService.CreateTokens,
 	}
 
 	group.POST("/oidc/authorize", authMiddleware.WithAdminNotRequired().Add(), oc.authorizeHandler)
@@ -61,6 +61,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/oidc/device/authorize", oc.deviceAuthorizationHandler)
 	group.POST("/oidc/device/verify", authMiddleware.WithAdminNotRequired().Add(), oc.verifyDeviceCodeHandler)
 	group.GET("/oidc/device/info", authMiddleware.WithAdminNotRequired().Add(), oc.getDeviceCodeInfoHandler)
+	group.POST("/oidc/device/exchange-session", oc.exchangeDeviceSessionHandler)
 
 	group.GET("/oidc/users/me/authorized-clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
 	group.GET("/oidc/users/:id/authorized-clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
@@ -74,9 +75,38 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 }
 
 type OidcController struct {
-	oidcService  *service.OidcService
-	jwtService   *service.JwtService
-	createTokens func(context.Context, dto.OidcCreateTokensDto) (service.CreatedTokens, error)
+	oidcService      *service.OidcService
+	jwtService       *service.JwtService
+	appConfigService *service.AppConfigService
+	createTokens     func(context.Context, dto.OidcCreateTokensDto) (service.CreatedTokens, error)
+}
+
+func (oc *OidcController) requireQrLogin(c *gin.Context) bool {
+	if oc.appConfigService.GetDbConfig().QrLoginEnabled.Value != "true" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "qr_login_disabled"})
+		return false
+	}
+	return true
+}
+
+func handleDeviceFlowError(c *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, &common.OidcAuthorizationPendingError{}):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "authorization_pending"})
+	case errors.Is(err, &common.OidcSlowDownError{}):
+		var slowDownErr *common.OidcSlowDownError
+		errors.As(err, &slowDownErr)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "slow_down", "interval": slowDownErr.Interval})
+	case errors.Is(err, &common.OidcDeviceCodeExpiredError{}):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "expired_token"})
+	case errors.Is(err, &common.OidcInvalidDeviceCodeError{}):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_grant"})
+	case errors.Is(err, &common.OidcAccessDeniedError{}):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "access_denied"})
+	default:
+		return false
+	}
+	return true
 }
 
 // authorizeHandler godoc
@@ -203,33 +233,39 @@ func (oc *OidcController) createTokensHandler(c *gin.Context) {
 		return
 	}
 
+	if input.GrantType == service.GrantTypeDeviceCode {
+		if !oc.requireQrLogin(c) {
+			return
+		}
+		if input.DeviceCode == "" {
+			_ = c.Error(&common.OidcInvalidDeviceCodeError{})
+			return
+		}
+	}
+
 	// Check if the client ID / secret are passed in the Authorization header (RFC 6749)
 	parseBasicAuth(c.Request, &input.ClientSecret, &input.ClientID)
 
 	tokens, err := oc.createTokens(c.Request.Context(), input)
 
-	switch {
-	case errors.Is(err, &common.OidcAuthorizationPendingError{}):
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "authorization_pending",
-		})
+	if handleDeviceFlowError(c, err) {
 		return
-	case errors.Is(err, &common.OidcSlowDownError{}):
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "slow_down",
-		})
-		return
-	case err != nil:
+	}
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
+
+	// RFC 6749 Section 5.1: token responses MUST include these cache headers
+	c.Header("Cache-Control", "no-store no-cache")
+	c.Header("Pragma", "no-cache")
 
 	c.JSON(http.StatusOK, dto.OidcTokenResponseDto{
 		AccessToken:  tokens.AccessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    int(tokens.ExpiresIn.Seconds()),
-		IdToken:      tokens.IdToken,      // May be empty
-		RefreshToken: tokens.RefreshToken, // May be empty
+		IdToken:      tokens.IdToken,
+		RefreshToken: tokens.RefreshToken,
 	})
 }
 
@@ -369,21 +405,6 @@ func (oc *OidcController) EndSessionHandler(c *gin.Context) {
 	}
 
 	c.Redirect(http.StatusFound, logoutCallbackURL.String())
-}
-
-// EndSessionHandler godoc (POST method)
-// @Summary End OIDC session (POST method)
-// @Description End user session and handle OIDC logout using POST
-// @Tags OIDC
-// @Accept application/x-www-form-urlencoded
-// @Produce html
-// @Param id_token_hint formData string false "ID token"
-// @Param post_logout_redirect_uri formData string false "URL to redirect to after logout"
-// @Param state formData string false "State parameter to include in the redirect"
-// @Success 302 "Redirect to post-logout URL or application logout page"
-// @Router /api/oidc/end-session [post]
-func (oc *OidcController) EndSessionHandlerPost(c *gin.Context) {
-	// Implementation is the same as GET
 }
 
 // introspectToken godoc
@@ -756,7 +777,20 @@ func parseBasicAuth(r *http.Request, clientSecret *string, clientID *string) {
 	}
 }
 
+// deviceAuthorizationHandler godoc
+// @Summary Start device authorization flow
+// @Description Initiate the OAuth 2.0 Device Authorization Grant (RFC 8628) by requesting a device and user code
+// @Tags OIDC
+// @Accept x-www-form-urlencoded
+// @Produce json
+// @Param request body dto.OidcDeviceAuthorizationRequestDto true "Device authorization request parameters"
+// @Success 200 {object} dto.OidcDeviceAuthorizationResponseDto "Device code, user code, and verification URI"
+// @Router /api/oidc/device/authorize [post]
 func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
+	if !oc.requireQrLogin(c) {
+		return
+	}
+
 	// Per RFC 8628 (OAuth 2.0 Device Authorization Grant), parameters for the device authorization request MUST be sent in the body of the POST request
 	// Gin's "ShouldBind" by default reads from the query string too, so we need to reset all query string args before invoking ShouldBind
 	c.Request.URL.RawQuery = ""
@@ -776,6 +810,10 @@ func (oc *OidcController) deviceAuthorizationHandler(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+
+	// RFC 6749 Section 5.1: token responses MUST include these cache headers
+	c.Header("Cache-Control", "no-store no-cache")
+	c.Header("Pragma", "no-cache")
 
 	c.JSON(http.StatusOK, response)
 }
@@ -881,25 +919,36 @@ func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) {
 	})
 }
 
+// verifyDeviceCodeHandler godoc
+// @Summary Verify and authorize a device code
+// @Description Allows an authenticated user to verify a device user code and authorize the associated device
+// @Tags OIDC
+// @Param code query string true "User code displayed on the device"
+// @Success 204 "Device code verified and authorized"
+// @Router /api/oidc/device/verify [post]
 func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
-	userCode := c.Query("code")
-	if userCode == "" {
-		_ = c.Error(&common.ValidationError{Message: "code is required"})
+	if !oc.requireQrLogin(c) {
 		return
 	}
 
-	// Get IP address and user agent from the request context
-	ipAddress := c.ClientIP()
-	userAgent := c.Request.UserAgent()
+	var input struct {
+		Code string `json:"code" form:"code" binding:"required"`
+	}
+	err := c.ShouldBind(&input)
+	if err != nil {
+		_ = c.Error(&common.ValidationError{Message: "code is required"})
+		return
+	}
+	userCode := strings.ToUpper(strings.TrimSpace(input.Code))
 
-	err := oc.oidcService.VerifyDeviceCode(
+	err = oc.oidcService.VerifyDeviceCode(
 		c.Request.Context(),
 		userCode,
 		c.GetString("userID"),
 		c.GetString("authenticationMethod"),
-		ipAddress,
-		userAgent)
-
+		c.ClientIP(),
+		c.Request.UserAgent(),
+	)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -908,8 +957,20 @@ func (oc *OidcController) verifyDeviceCodeHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// getDeviceCodeInfoHandler godoc
+// @Summary Get device code information
+// @Description Retrieves scope and client details for a given user code so the user can confirm authorization
+// @Tags OIDC
+// @Produce json
+// @Param code query string true "User code displayed on the device"
+// @Success 200 {object} dto.DeviceCodeInfoDto "Device code details including scope and client info"
+// @Router /api/oidc/device/code-info [get]
 func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
-	userCode := c.Query("code")
+	if !oc.requireQrLogin(c) {
+		return
+	}
+
+	userCode := strings.ToUpper(strings.TrimSpace(c.Query("code")))
 	if userCode == "" {
 		_ = c.Error(&common.ValidationError{Message: "code is required"})
 		return
@@ -922,6 +983,69 @@ func (oc *OidcController) getDeviceCodeInfoHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, deviceCodeInfo)
+}
+
+// exchangeDeviceSessionHandler godoc
+// @Summary Exchange authorized device code for a session
+// @Description Polls for device authorization status and sets a session cookie once the device code has been verified
+// @Tags OIDC
+// @Accept x-www-form-urlencoded
+// @Produce json
+// @Param request body dto.OidcExchangeDeviceSessionRequestDto true "Device code and client ID"
+// @Success 200 {object} dto.UserDto "Authenticated user with session cookie set"
+// @Router /api/oidc/device/exchange-session [post]
+func (oc *OidcController) exchangeDeviceSessionHandler(c *gin.Context) {
+	if !oc.requireQrLogin(c) {
+		return
+	}
+
+	// Per RFC-6749, parameters passed to the /token endpoint MUST be passed in the body of the request
+	// Gin's "ShouldBind" by default reads from the query string too, so we need to reset all query string args before invoking ShouldBind
+	c.Request.URL.RawQuery = ""
+
+	var input dto.OidcExchangeDeviceSessionRequestDto
+	err := c.ShouldBind(&input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	user, authMethod, err := oc.oidcService.ExchangeDeviceTokenForSession(
+		c.Request.Context(),
+		input.DeviceCode,
+		input.ClientID,
+		c.ClientIP(),
+		c.Request.UserAgent(),
+	)
+	if handleDeviceFlowError(c, err) {
+		return
+	}
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	token, err := oc.jwtService.GenerateAccessToken(*user, authMethod)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	maxAge := int(oc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	cookie.AddAccessTokenCookie(c, maxAge, token)
+
+	var userDto dto.UserDto
+	err = dto.MapStruct(user, &userDto)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+
+	c.Header("Cache-Control", "no-store no-cache")
+	c.Header("Pragma", "no-cache")
+
+	c.JSON(http.StatusOK, userDto)
 }
 
 // getClientPreviewHandler godoc

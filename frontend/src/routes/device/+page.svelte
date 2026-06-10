@@ -8,7 +8,9 @@
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
+	import { goto } from '$app/navigation';
 	import type { OidcDeviceCodeInfo } from '$lib/types/oidc.type';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
@@ -31,6 +33,10 @@
 	let authorizationRequired = $state(false);
 
 	onMount(() => {
+		if (!$appConfigStore.qrLoginEnabled) {
+			goto('/');
+			return;
+		}
 		if (data.code && $userStore) {
 			authorize();
 		}
