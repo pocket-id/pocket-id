@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260518222000,
+	"version": 20260601154900,
 	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens"],
 	"tables": {
 		"api_keys": [
@@ -82,6 +82,7 @@
 				"logout_callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkL2F1dGgvbG9nb3V0L2NhbGxiYWNrIl0=",
 				"name": "Nextcloud",
 				"pkce_enabled": false,
+				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC"
 			},
@@ -99,6 +100,7 @@
 				"logout_callback_urls": "bnVsbA==",
 				"name": "Immich",
 				"pkce_enabled": false,
+				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe"
 			},
@@ -116,6 +118,7 @@
 				"logout_callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlL2F1dGgvbG9nb3V0L2NhbGxiYWNrIl0=",
 				"name": "Tailscale",
 				"pkce_enabled": false,
+				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a"
 			},
@@ -133,6 +136,7 @@
 				"logout_callback_urls": "bnVsbA==",
 				"name": "Federated",
 				"pkce_enabled": false,
+				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe"
 			},
@@ -149,8 +153,27 @@
 				"logout_callback_urls": "bnVsbA==",
 				"name": "SCIM Client",
 				"pkce_enabled": false,
+				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK"
+			},
+			{
+				"callback_urls": "WyJodHRwOi8vcGFyLWNsaWVudC9hdXRoL2NhbGxiYWNrIl0=",
+				"created_at": "2025-11-25T12:39:02Z",
+				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
+				"credentials": "e30=",
+				"dark_image_type": null,
+				"id": "a1b2c3d4-e5f6-7890-abcd-ef0000000001",
+				"image_type": null,
+				"is_group_restricted": false,
+				"is_public": false,
+				"launch_url": null,
+				"logout_callback_urls": "bnVsbA==",
+				"name": "PAR Test Client",
+				"pkce_enabled": false,
+				"requires_pushed_authorization_requests": false,
+				"requires_reauthentication": false,
+				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC"
 			}
 		],
 		"oidc_clients_allowed_user_groups": [
@@ -256,6 +279,12 @@
 			{
 				"client_id": "7c21a609-96b5-4011-9900-272b8d31a9d1",
 				"last_used_at": "2025-08-10T14:00:00Z",
+				"scope": "openid profile email",
+				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
+			},
+			{
+				"client_id": "a1b2c3d4-e5f6-7890-abcd-ef0000000001",
+				"last_used_at": "2024-01-01T00:00:00Z",
 				"scope": "openid profile email",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},

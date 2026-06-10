@@ -63,6 +63,40 @@ export async function exchangeCode(
 		.then((r) => r.json());
 }
 
+export async function pushAuthorizationRequest(
+	page: Page,
+	params: {
+		clientId: string;
+		clientSecret?: string;
+		scope?: string;
+		redirectUri?: string;
+		responseType?: string;
+		codeChallenge?: string;
+		codeChallengeMethod?: string;
+		nonce?: string;
+		state?: string;
+	}
+): Promise<{ request_uri?: string; expires_in?: number; error?: string; error_description?: string }> {
+	const form: Record<string, string> = {
+		client_id: params.clientId,
+		response_type: params.responseType ?? 'code',
+		scope: params.scope ?? 'openid profile email'
+	};
+	if (params.redirectUri) form.redirect_uri = params.redirectUri;
+	if (params.clientSecret) form.client_secret = params.clientSecret;
+	if (params.codeChallenge) form.code_challenge = params.codeChallenge;
+	if (params.codeChallengeMethod) form.code_challenge_method = params.codeChallengeMethod;
+	if (params.nonce) form.nonce = params.nonce;
+	if (params.state) form.state = params.state;
+
+	return page.request
+		.post('/api/oidc/par', {
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			form
+		})
+		.then((r) => r.json());
+}
+
 export async function getClientAssertion(
 	page: Page,
 	data: { issuer: string; audience: string; subject: string }

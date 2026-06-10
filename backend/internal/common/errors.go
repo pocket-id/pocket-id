@@ -354,6 +354,29 @@ func (e ImageNotFoundError) Error() string { return "Image not found" }
 
 func (e ImageNotFoundError) HttpStatusCode() int { return http.StatusNotFound }
 
+type OidcPARNotSupportedForPublicClientsError struct{}
+
+func (e OidcPARNotSupportedForPublicClientsError) Error() string {
+	return "pushed authorization requests are not supported for public clients"
+}
+func (e OidcPARNotSupportedForPublicClientsError) HttpStatusCode() int {
+	return http.StatusBadRequest
+}
+
+type OidcInvalidRequestURIError struct{}
+
+func (e OidcInvalidRequestURIError) Error() string {
+	return "invalid or expired request_uri"
+}
+func (e OidcInvalidRequestURIError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type OidcPARRequiredError struct{}
+
+func (e OidcPARRequiredError) Error() string {
+	return "this client requires pushed authorization requests"
+}
+func (e OidcPARRequiredError) HttpStatusCode() int { return http.StatusBadRequest }
+
 type InvalidEmailVerificationTokenError struct{}
 
 func (e InvalidEmailVerificationTokenError) Error() string { return "Invalid email verification token" }
