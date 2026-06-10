@@ -5,13 +5,15 @@
 	const SELF_LOGIN_SCOPE = 'openid profile email';
 	const API_BASE = '/api/oidc/device';
 
+	// Standalone bundle, no shared imports: keep in sync with qr-login-flow.svelte.
 	const POLL_INTERVAL_INIT_S = 5;
 	const POLL_INTERVAL_MAX_S = 60;
 	const POLL_INTERVAL_INCREMENT_S = 5;
 	const REQUEST_TIMEOUT_MS = 15000;
 	const REQUEST_RETRY_DELAY_MS = 2000;
 	const AUTHORIZED_REDIRECT_DELAY_MS = 3000;
-	const DEFAULT_EXPIRES_IN_S = 300;
+	// Fallback only; the server always sends expires_in. Matches the backend DeviceCodeDuration (15 min).
+	const DEFAULT_EXPIRES_IN_S = 900;
 	const NETWORK_ERROR_MAX_RETRIES = 5;
 	const TV_BREAKPOINT_PX = 1200;
 	const QR_SIZE_PX = 200;
@@ -52,8 +54,9 @@
 		}
 	});
 
+	// Mirrors redirection-util.ts (standalone bundle, no imports).
 	function isSafeRedirect(url: string): boolean {
-		return url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\');
+		return !!url && url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\');
 	}
 
 	function getRedirectParam(): string {
@@ -68,11 +71,24 @@
 	}
 
 	function cleanup() {
-		if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-		if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-		if (redirectTimer) { clearTimeout(redirectTimer); redirectTimer = null; }
+		if (pollTimer) {
+			clearTimeout(pollTimer);
+			pollTimer = null;
+		}
+		if (countdownTimer) {
+			clearInterval(countdownTimer);
+			countdownTimer = null;
+		}
+		if (redirectTimer) {
+			clearTimeout(redirectTimer);
+			redirectTimer = null;
+		}
 		if (activeXhr) {
-			try { activeXhr.abort(); } catch { /* ignore */ }
+			try {
+				activeXhr.abort();
+			} catch {
+				/* ignore */
+			}
 			activeXhr = null;
 		}
 	}
@@ -91,14 +107,18 @@
 		const canvas = document.getElementById('qr-canvas') as HTMLCanvasElement | null;
 		if (!canvas || !url) return;
 		const QRCode = (window as any).QRCode;
-		if (!QRCode) { console.error('QRCode library not loaded'); return; }
+		if (!QRCode) {
+			console.error('QRCode library not loaded');
+			return;
+		}
 		const size = window.innerWidth >= TV_BREAKPOINT_PX ? QR_SIZE_TV_PX : QR_SIZE_PX;
 		QRCode.toCanvas(canvas, url, { width: size, margin: 0 }, (err: unknown) => {
 			if (err) console.error('QR render failed:', err);
 		});
 	}
 
-	// Custom XHR wrapper: older Smart-TV / WebOS browsers lack reliable fetch()/AbortController.
+	// XHR rather than fetch: older Smart-TV / WebOS browsers lack reliable fetch()/AbortController.
+	// One-shot calls pass retries=1; the polling loop passes 0 and uses its own backoff instead.
 	function request(
 		method: string,
 		url: string,
@@ -149,7 +169,11 @@
 				return;
 			}
 			let response = null;
-			try { response = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+			try {
+				response = JSON.parse(xhr.responseText);
+			} catch {
+				/* ignore */
+			}
 			settle(xhr.status, response);
 		};
 
@@ -160,80 +184,85 @@
 		if (myFlowId !== flowId) return;
 		const params = `device_code=${encodeURIComponent(deviceCode)}&client_id=${encodeURIComponent(SELF_LOGIN_CLIENT_ID)}`;
 
-		request('POST', `${API_BASE}/exchange-session`, params, (status, data) => {
-			if (myFlowId !== flowId) return;
+		request(
+			'POST',
+			`${API_BASE}/exchange-session`,
+			params,
+			(status, data) => {
+				if (myFlowId !== flowId) return;
 
-			if (status >= 200 && status < 300) {
-				cleanup();
-				view = 'authorized';
-				redirectTimer = setTimeout(() => {
-					if (myFlowId !== flowId) return;
-					window.location.href = redirectUrl || '/';
-				}, AUTHORIZED_REDIRECT_DELAY_MS);
-				return;
-			}
-
-			// Any response with a parsed body counts as "server reachable" → reset network counter.
-			if (data) networkErrorCount = 0;
-
-			if (data?.error) {
-				if (data.error === 'authorization_pending') {
-					pollTimer = setTimeout(() => poll(myFlowId), pollingInterval * 1000);
+				if (status >= 200 && status < 300) {
+					cleanup();
+					view = 'authorized';
+					redirectTimer = setTimeout(() => {
+						if (myFlowId !== flowId) return;
+						window.location.href = redirectUrl || '/';
+					}, AUTHORIZED_REDIRECT_DELAY_MS);
 					return;
 				}
-				if (data.error === 'slow_down') {
-					// RFC 8628 §3.5: interval MUST be increased by at least 5s; never decrease.
-					const serverInterval = typeof data.interval === 'number' ? data.interval : 0;
-					pollingInterval = Math.min(
+
+				// Any response with a parsed body counts as "server reachable" → reset network counter.
+				if (data) networkErrorCount = 0;
+
+				if (data?.error) {
+					if (data.error === 'authorization_pending') {
+						pollTimer = setTimeout(() => poll(myFlowId), pollingInterval * 1000);
+						return;
+					}
+					if (data.error === 'slow_down') {
+						// RFC 8628 §3.5: interval MUST be increased by at least 5s; never decrease.
+						const serverInterval = typeof data.interval === 'number' ? data.interval : 0;
+						pollingInterval = Math.min(
+							POLL_INTERVAL_MAX_S,
+							Math.max(pollingInterval + POLL_INTERVAL_INCREMENT_S, serverInterval)
+						);
+						pollTimer = setTimeout(() => poll(myFlowId), pollingInterval * 1000);
+						return;
+					}
+					if (data.error === 'expired_token') {
+						cleanup();
+						view = 'expired';
+						return;
+					}
+					if (data.error === 'access_denied') {
+						cleanup();
+						errorMessage = 'Login was denied on the other device.';
+						view = 'error';
+						return;
+					}
+					if (data.error === 'invalid_grant') {
+						cleanup();
+						errorMessage = 'Invalid or unknown device code. Please try again.';
+						view = 'error';
+						return;
+					}
+				}
+
+				if (status === 0) {
+					networkErrorCount++;
+					if (networkErrorCount >= NETWORK_ERROR_MAX_RETRIES) {
+						cleanup();
+						errorMessage = 'Cannot reach the server. Please check your connection and try again.';
+						view = 'error';
+						return;
+					}
+					// Exponential backoff for transient network failures, separate from the RFC 8628
+					// slow_down interval; not persisted into pollingInterval.
+					const backoff = Math.min(
 						POLL_INTERVAL_MAX_S,
-						Math.max(pollingInterval + POLL_INTERVAL_INCREMENT_S, serverInterval)
+						pollingInterval * Math.pow(2, networkErrorCount - 1)
 					);
-					pollTimer = setTimeout(() => poll(myFlowId), pollingInterval * 1000);
+					pollTimer = setTimeout(() => poll(myFlowId), backoff * 1000);
 					return;
 				}
-				if (data.error === 'expired_token') {
-					cleanup();
-					view = 'expired';
-					return;
-				}
-				if (data.error === 'access_denied') {
-					cleanup();
-					errorMessage = 'Login was denied on the other device.';
-					view = 'error';
-					return;
-				}
-				if (data.error === 'invalid_grant') {
-					cleanup();
-					errorMessage = 'Invalid or unknown device code. Please try again.';
-					view = 'error';
-					return;
-				}
-			}
 
-			if (status === 0) {
-				networkErrorCount++;
-				if (networkErrorCount >= NETWORK_ERROR_MAX_RETRIES) {
-					cleanup();
-					errorMessage = 'Cannot reach the server. Please check your connection and try again.';
-					view = 'error';
-					return;
-				}
-				// Local exponential backoff for transient network failures. This is independent of
-				// RFC 8628's slow_down/interval mechanism, which only applies to successful HTTP
-				// responses with an error code. We never persist this backoff into pollingInterval.
-				const backoff = Math.min(
-					POLL_INTERVAL_MAX_S,
-					pollingInterval * Math.pow(2, networkErrorCount - 1)
-				);
-				pollTimer = setTimeout(() => poll(myFlowId), backoff * 1000);
-				return;
-			}
-
-			cleanup();
-			if (data?.error) console.error('Device flow error:', data.error);
-			errorMessage = 'An unexpected error occurred. Please try again.';
-			view = 'error';
-		});
+				cleanup();
+				if (data?.error) console.error('Device flow error:', data.error);
+				errorMessage = 'An unexpected error occurred. Please try again.';
+				view = 'error';
+			},
+			0
+		);
 	}
 
 	function startFlow() {
@@ -299,7 +328,9 @@
 	// aria-label mirrors the visible code (with dash separator) so WCAG 2.5.3 (Label in Name) holds.
 	const userCodeAriaLabel = $derived(
 		userCodeChars.length
-			? userCodeChars.slice(0, codeSplitIndex).join('') + '-' + userCodeChars.slice(codeSplitIndex).join('')
+			? userCodeChars.slice(0, codeSplitIndex).join('') +
+					'-' +
+					userCodeChars.slice(codeSplitIndex).join('')
 			: ''
 	);
 
@@ -318,14 +349,13 @@
 			<div class="spinner" aria-hidden="true"></div>
 			<p class="muted">Preparing sign-in...</p>
 		</div>
-
 	{:else if view === 'showing'}
 		<div class="state" tabindex="-1" bind:this={stateEl}>
 			<h1>{appName}</h1>
 			<p class="subtitle">Sign in with another device</p>
 			<p class="muted">
-				Scan the QR code with your phone or enter the code below
-				on a device where you are already signed in.
+				Scan the QR code with your phone or enter the code below on a device where you are already
+				signed in.
 			</p>
 
 			<div id="qr-container">
@@ -344,24 +374,49 @@
 				</div>
 			</div>
 
-			<p class="muted small" role="timer" aria-label="Sign-in code expiry countdown" aria-live="off">{countdown}</p>
+			<p
+				class="muted small"
+				role="timer"
+				aria-label="Sign-in code expiry countdown"
+				aria-live="off"
+			>
+				{countdown}
+			</p>
 		</div>
-
 	{:else if view === 'authorized'}
 		<div class="state" tabindex="-1" aria-live="assertive" aria-atomic="true" bind:this={stateEl}>
 			<div class="status-icon status-success">
-				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg
+					aria-hidden="true"
+					width="32"
+					height="32"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
 					<polyline points="20 6 9 17 4 12"></polyline>
 				</svg>
 			</div>
 			<h1>Authorized</h1>
 			<p class="muted">You are signed in. Redirecting...</p>
 		</div>
-
 	{:else if view === 'expired'}
 		<div class="state" tabindex="-1" aria-live="polite" aria-atomic="true" bind:this={stateEl}>
 			<div class="status-icon status-warning">
-				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg
+					aria-hidden="true"
+					width="32"
+					height="32"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
 					<circle cx="12" cy="12" r="10"></circle>
 					<polyline points="12 6 12 12 16 14"></polyline>
 				</svg>
@@ -370,11 +425,20 @@
 			<p class="muted">The sign-in code has expired. Please generate a new one.</p>
 			<button type="button" onclick={startFlow}>Generate New Code</button>
 		</div>
-
 	{:else if view === 'error'}
 		<div class="state" tabindex="-1" aria-live="assertive" aria-atomic="true" bind:this={stateEl}>
 			<div class="status-icon status-error">
-				<svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg
+					aria-hidden="true"
+					width="32"
+					height="32"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
 					<circle cx="12" cy="12" r="10"></circle>
 					<line x1="15" y1="9" x2="9" y2="15"></line>
 					<line x1="9" y1="9" x2="15" y2="15"></line>

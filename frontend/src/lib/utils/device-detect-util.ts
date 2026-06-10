@@ -4,7 +4,6 @@ const LIMITED_DEVICE_PATTERNS = [
 	'SmartTV',
 	'webOS',
 	'Web0S',
-	'webOS.TV',
 	'NetCast',
 	'Tizen',
 	'BRAVIA',
@@ -45,10 +44,8 @@ const LIMITED_DEVICE_PATTERNS = [
 	'Silk'
 ];
 
-// All client-detection helpers default to "no redirect" during SSR (typeof window === 'undefined')
-// so that the SvelteKit app is rendered server-side and the actual capability check runs in the
-// browser. supportsOklch returns true on SSR for the same reason: we assume modern UI is fine
-// until proven otherwise.
+// During SSR these helpers default to the non-redirecting answer so the real capability check
+// runs in the browser.
 
 export function isLimitedDevice(): boolean {
 	if (typeof window === 'undefined') return false;

@@ -18,7 +18,7 @@
 
 	type FlowState = 'loading' | 'showing' | 'authorized' | 'expired' | 'error';
 
-	let state: FlowState = $state('loading');
+	let flowState: FlowState = $state('loading');
 	let userCode: string = $state('');
 	let verificationUriComplete: string = $state('');
 	let deviceCode: string = $state('');
@@ -52,14 +52,14 @@
 		const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
 		remainingSeconds = remaining;
 		if (remaining <= 0) {
-			// Stop the interval unconditionally, regardless of current state. Otherwise it keeps
-			// firing forever after state becomes 'authorized' (countdown leak).
+			// Stop the interval unconditionally, regardless of current flowState. Otherwise it keeps
+			// firing forever after flowState becomes 'authorized' (countdown leak).
 			if (countdownInterval) {
 				clearInterval(countdownInterval);
 				countdownInterval = null;
 			}
-			if (state === 'showing') {
-				state = 'expired';
+			if (flowState === 'showing') {
+				flowState = 'expired';
 				abortController?.abort();
 				abortController = null;
 			}
@@ -68,7 +68,7 @@
 
 	async function startFlow() {
 		cleanup();
-		state = 'loading';
+		flowState = 'loading';
 		errorMessage = '';
 		userCode = '';
 		verificationUriComplete = '';
@@ -87,14 +87,14 @@
 			syncRemainingSeconds();
 			countdownInterval = setInterval(syncRemainingSeconds, 1000);
 
-			state = 'showing';
+			flowState = 'showing';
 
 			abortController = new AbortController();
 			pollAndExchange(abortController.signal);
 		} catch (e: any) {
 			cleanup();
 			errorMessage = e?.message || m.qr_login_failed_to_create_code();
-			state = 'error';
+			flowState = 'error';
 		}
 	}
 
@@ -123,7 +123,7 @@
 				await oidcService.exchangeDeviceTokenForSession(deviceCode);
 				if (signal.aborted) return;
 				cleanup();
-				state = 'authorized';
+				flowState = 'authorized';
 				onauthorized();
 				return;
 			} catch (e: any) {
@@ -142,24 +142,24 @@
 				}
 				if (errorCode === 'expired_token') {
 					cleanup();
-					state = 'expired';
+					flowState = 'expired';
 					return;
 				}
 				if (errorCode === 'access_denied') {
 					cleanup();
 					errorMessage = m.qr_login_access_denied();
-					state = 'error';
+					flowState = 'error';
 					return;
 				}
 				if (errorCode === 'invalid_grant') {
 					cleanup();
 					errorMessage = m.qr_login_invalid_grant();
-					state = 'error';
+					flowState = 'error';
 					return;
 				}
 				cleanup();
 				errorMessage = e?.message || m.qr_login_unexpected_error();
-				state = 'error';
+				flowState = 'error';
 				return;
 			}
 		}
@@ -167,11 +167,11 @@
 </script>
 
 <div class="flex flex-col items-center gap-4">
-	{#if state === 'loading'}
+	{#if flowState === 'loading'}
 		<div class="flex items-center justify-center py-10">
 			<Spinner class="size-8" />
 		</div>
-	{:else if state === 'showing'}
+	{:else if flowState === 'showing'}
 		<div class="rounded-lg bg-white p-3">
 			<QRCode value={verificationUriComplete} size={200} />
 		</div>
@@ -184,12 +184,12 @@
 		<p class="text-muted-foreground text-sm">
 			{m.expires_in_time({ time: formattedTime })}
 		</p>
-	{:else if state === 'expired'}
+	{:else if flowState === 'expired'}
 		<p class="text-muted-foreground">{m.code_has_expired()}</p>
 		<Button onclick={startFlow}>{m.refresh()}</Button>
-	{:else if state === 'authorized'}
+	{:else if flowState === 'authorized'}
 		<p class="text-muted-foreground">{m.authorized_redirecting()}</p>
-	{:else if state === 'error'}
+	{:else if flowState === 'error'}
 		<p class="text-destructive">{errorMessage}</p>
 		<Button onclick={startFlow}>{m.try_again()}</Button>
 	{/if}

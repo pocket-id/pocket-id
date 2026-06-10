@@ -112,8 +112,7 @@ const selfLoginClientName = "PocketID QR Login"
 const deviceCodeDefaultIntervalSeconds = 5
 
 func (s *OidcService) ensureSelfLoginClient() error {
-	// Atomic insert-if-not-exists so concurrent server starts (multi-replica deployments) don't
-	// race on the primary key. Both Postgres and SQLite back this with INSERT ... ON CONFLICT.
+	// ON CONFLICT DO NOTHING keeps concurrent server starts from racing on the primary key.
 	client := model.OidcClient{
 		Name:     selfLoginClientName,
 		IsPublic: true,
@@ -129,8 +128,7 @@ func (s *OidcService) ensureSelfLoginClient() error {
 		return err
 	}
 
-	// Self-heal critical fields if an admin (or a buggy migration) altered them. Without this,
-	// a flipped IsPublic would silently break the QR login flow.
+	// Restore name/IsPublic if they were changed via the admin UI; a non-public client breaks QR login.
 	updates := map[string]any{}
 	if existing.Name != selfLoginClientName {
 		updates["name"] = selfLoginClientName
@@ -412,6 +410,9 @@ func (s *OidcService) CreateTokens(ctx context.Context, input dto.OidcCreateToke
 	}
 }
 
+// checkDeviceCodePollRate enforces the RFC 8628 polling interval. On a slow_down or pending
+// result it commits tx itself so the rate-limit bookkeeping survives the caller's error return;
+// on the happy path it returns nil without committing.
 func (s *OidcService) checkDeviceCodePollRate(ctx context.Context, tx *gorm.DB, deviceAuth *model.OidcDeviceCode) error {
 	now := time.Now()
 	if deviceAuth.LastPolledAt != nil {
@@ -1853,16 +1854,14 @@ func (s *OidcService) ExchangeDeviceTokenForSession(ctx context.Context, deviceC
 		return nil, "", &common.UserDisabledError{}
 	}
 
-	// Capture the authentication method before deleting the record so we never read from a struct
-	// whose backing row has been removed (and to keep the post-commit return value intact).
+	// Read before the delete removes the row.
 	authMethod := deviceAuth.AuthenticationMethod
 
 	delResult := tx.WithContext(ctx).Delete(&deviceAuth)
 	if delResult.Error != nil {
 		return nil, "", delResult.Error
 	}
-	// Defense-in-depth: another in-flight exchange call may have already consumed the code under
-	// the FOR UPDATE lock above. RowsAffected==0 means we lost the race; reject as invalid.
+	// RowsAffected==0 means a concurrent exchange already consumed the code; reject it.
 	if delResult.RowsAffected == 0 {
 		return nil, "", &common.OidcInvalidDeviceCodeError{}
 	}

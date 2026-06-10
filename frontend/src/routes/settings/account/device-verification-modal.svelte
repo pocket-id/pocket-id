@@ -18,9 +18,10 @@
 
 	const oidcService = new OIDCService();
 
-	type ModalState = 'enter' | 'loading' | 'authorize-scopes' | 'success' | 'error';
+	type ModalState = 'enter' | 'authorize-scopes' | 'success' | 'error';
 
-	let state: ModalState = $state('enter');
+	let modalState: ModalState = $state('enter');
+	let isLoading = $state(false);
 	let userCode = $state('');
 	let errorMessage: string | null = $state(null);
 	let deviceInfo: OidcDeviceCodeInfo | undefined = $state();
@@ -28,38 +29,45 @@
 	let codeComplete = $derived(userCode.replace(/[^a-zA-Z0-9]/g, '').length >= 8);
 
 	async function submit() {
-		if (!codeComplete) return;
-		state = 'loading';
+		// Guard against a second Enter press (CodeInput.onsubmit) firing while a request is in flight.
+		if (isLoading || !codeComplete) return;
+		isLoading = true;
 		errorMessage = null;
 		try {
 			deviceInfo = await oidcService.getDeviceCodeInfo(userCode);
 
 			if (deviceInfo.authorizationRequired) {
-				state = 'authorize-scopes';
+				modalState = 'authorize-scopes';
 				return;
 			}
 
 			await oidcService.verifyDeviceCode(userCode);
-			state = 'success';
+			modalState = 'success';
 		} catch (e) {
 			errorMessage = getAxiosErrorMessage(e);
-			state = 'error';
+			modalState = 'error';
+		} finally {
+			isLoading = false;
 		}
 	}
 
 	async function authorizeScopes() {
-		state = 'loading';
+		if (isLoading) return;
+		isLoading = true;
 		try {
 			await oidcService.verifyDeviceCode(userCode);
-			state = 'success';
+			modalState = 'success';
 		} catch (e) {
 			errorMessage = getAxiosErrorMessage(e);
-			state = 'error';
+			modalState = 'error';
+		} finally {
+			isLoading = false;
 		}
 	}
 
 	function reset() {
-		state = 'enter';
+		modalState = 'enter';
+		isLoading = false;
 		userCode = '';
 		errorMessage = null;
 		deviceInfo = undefined;
@@ -80,19 +88,14 @@
 			<Dialog.Description>{m.enter_code_displayed_in_previous_step()}</Dialog.Description>
 		</Dialog.Header>
 
-		{#if state === 'enter' || (state === 'loading' && !deviceInfo)}
+		{#if modalState === 'enter'}
 			<div class="flex flex-col items-center gap-4 py-2">
 				<CodeInput bind:value={userCode} autofocus onsubmit={submit} />
-				<Button
-					class="w-full"
-					disabled={!codeComplete}
-					onclick={submit}
-					isLoading={state === 'loading'}
-				>
+				<Button class="w-full" disabled={!codeComplete} onclick={submit} {isLoading}>
 					{m.authorize()}
 				</Button>
 			</div>
-		{:else if state === 'authorize-scopes'}
+		{:else if modalState === 'authorize-scopes'}
 			<div class="flex flex-col items-center gap-4 py-2">
 				<Card.Root class="w-full">
 					<Card.Header class="pb-3">
@@ -110,16 +113,16 @@
 				</Card.Root>
 				<div class="flex w-full gap-2">
 					<Button class="flex-1" variant="secondary" onclick={reset}>{m.cancel()}</Button>
-					<Button class="flex-1" onclick={authorizeScopes} isLoading={state === 'loading'}>
+					<Button class="flex-1" onclick={authorizeScopes} {isLoading}>
 						{m.authorize()}
 					</Button>
 				</div>
 			</div>
-		{:else if state === 'success'}
+		{:else if modalState === 'success'}
 			<p class="text-muted-foreground py-4 text-center">
 				{m.the_device_has_been_authorized()}
 			</p>
-		{:else if state === 'error'}
+		{:else if modalState === 'error'}
 			<div class="flex flex-col items-center gap-4 py-2">
 				<p class="text-destructive text-center text-sm">{errorMessage}</p>
 				<Button class="w-full" variant="outline" onclick={reset}>{m.try_again()}</Button>

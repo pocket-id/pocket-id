@@ -159,16 +159,29 @@
 			let reauthToken: string | undefined;
 			if (client?.requiresReauthentication || hasPromptLogin) {
 				let reauthResponse: AuthenticationResponseJSON | undefined;
+				// The QR-login flow sends the user back here with `reauth=1` after a fresh sign-in on
+				// another device. Only trust the marker on devices that actually took that path
+				// (limited devices), so it can't be appended manually on a capable device to bypass
+				// reauthentication. Consume it immediately by stripping it from the URL, so a reload
+				// can never re-trust a stale marker.
+				const onLimitedDevice = $appConfigStore.qrLoginEnabled && needsAlternativeLogin();
 				const params = new URLSearchParams(window.location.search);
-				const justReauthedViaAlt = params.get('reauth') === '1';
+				const justReauthedViaAlt = onLimitedDevice && params.get('reauth') === '1';
+				if (justReauthedViaAlt) {
+					params.delete('reauth');
+					const query = params.toString();
+					history.replaceState(
+						history.state,
+						'',
+						window.location.pathname + (query ? `?${query}` : '')
+					);
+				}
 				const signedInRecently =
 					(userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000) ||
 					justReauthedViaAlt;
 				if (!signedInRecently) {
 					// On limited devices (TVs etc.) a WebAuthn prompt would fail; route to QR login instead.
-					// reauth=1 marker prevents looping back here after the alternative-login flow returns.
-					if ($appConfigStore.qrLoginEnabled && needsAlternativeLogin()) {
-						userStore.clearUser();
+					if (onLimitedDevice) {
 						const currentUrl = window.location.pathname + window.location.search;
 						const separator = currentUrl.includes('?') ? '&' : '?';
 						const returnUrl = currentUrl + separator + 'reauth=1';
