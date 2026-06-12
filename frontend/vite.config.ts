@@ -33,6 +33,16 @@ export default defineConfig((mode) => {
 			})
 		],
 
+		build: {
+			assetsInlineLimit: (filePath: string): boolean | undefined => {
+				const path = filePath.toLowerCase();
+				if (path.endsWith('.woff') || path.endsWith('.woff2')) {
+					return false
+				}
+				return undefined
+			}
+		},
+
 		server: {
 			host: process.env.HOST,
 			proxy: {
