@@ -61,9 +61,6 @@ importers:
 
   frontend:
     dependencies:
-      '@fontsource/gloock':
-        specifier: ^5.2.8
-        version: 5.2.8
       '@simplewebauthn/browser':
         specifier: ^13.3.0
         version: 13.3.0
@@ -635,9 +632,6 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
-
-  '@fontsource/gloock@5.2.8':
-    resolution: {integrity: sha512-2qh1h3uC8bY93r2zuX3a0Q2IoGUf4vc1qxM0DUqoNVxwqDkXIOhGS7/0EEYNBLfSWO7ABfi/qkVmzedkj2jSZA==}
 
   '@hapi/hoek@9.3.0':
     resolution: {integrity: sha512-/c6rf4UJlmHlC9b5BaNvzAcFv7HZ2QHaV0D4/HNlBdvFnvQq8RI4kYdhyPCl7Xj+oWvTWQ8ujhqS53LIgAe6KQ==}
@@ -3588,8 +3582,6 @@ snapshots:
       '@floating-ui/utils': 0.2.11
 
   '@floating-ui/utils@0.2.11': {}
-
-  '@fontsource/gloock@5.2.8': {}
 
   '@hapi/hoek@9.3.0':
     optional: true
