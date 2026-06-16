@@ -27,37 +27,41 @@ import (
 )
 
 type UserService struct {
-	db                 *gorm.DB
-	jwtService         *JwtService
-	auditLogService    *AuditLogService
-	emailService       *EmailService
-	appConfigService   *AppConfigService
-	customClaimService *CustomClaimService
-	appImagesService   *AppImagesService
-	scimService        *ScimService
-	fileStorage        storage.FileStorage
+	db                      *gorm.DB
+	jwtService              *JwtService
+	auditLogService         *AuditLogService
+	emailService            *EmailService
+	appConfigService        *AppConfigService
+	customFieldValueService *CustomFieldValueService
+	appImagesService        *AppImagesService
+	scimService             *ScimService
+	fileStorage             storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customFieldValueService *CustomFieldValueService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
-		db:                 db,
-		jwtService:         jwtService,
-		auditLogService:    auditLogService,
-		emailService:       emailService,
-		appConfigService:   appConfigService,
-		customClaimService: customClaimService,
-		appImagesService:   appImagesService,
-		scimService:        scimService,
-		fileStorage:        fileStorage,
+		db:                      db,
+		jwtService:              jwtService,
+		auditLogService:         auditLogService,
+		emailService:            emailService,
+		appConfigService:        appConfigService,
+		customFieldValueService: customFieldValueService,
+		appImagesService:        appImagesService,
+		scimService:             scimService,
+		fileStorage:             fileStorage,
 	}
 }
 
 func (s *UserService) ListUsers(ctx context.Context, searchTerm string, listRequestOptions utils.ListRequestOptions) ([]model.User, utils.PaginationResponse, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var users []model.User
-	query := s.db.WithContext(ctx).
+	query := tx.WithContext(ctx).
 		Model(&model.User{}).
-		Preload("UserGroups").
-		Preload("CustomClaims")
+		Preload("UserGroups")
 
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
@@ -67,6 +71,16 @@ func (s *UserService) ListUsers(ctx context.Context, searchTerm string, listRequ
 	}
 
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &users)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	for i := range users {
+		users[i].CustomFieldValues, err = s.customFieldValueService.GetCustomFieldValuesForUser(ctx, users[i].ID, tx)
+		if err != nil {
+			return nil, utils.PaginationResponse{}, err
+		}
+	}
 
 	return users, pagination, err
 }
@@ -80,10 +94,17 @@ func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *go
 	err := tx.
 		WithContext(ctx).
 		Preload("UserGroups").
-		Preload("CustomClaims").
 		Where("id = ?", userID).
 		First(&user).
 		Error
+	if err != nil {
+		return model.User{}, err
+	}
+
+	user.CustomFieldValues, err = s.customFieldValueService.GetCustomFieldValuesForUser(ctx, user.ID, tx)
+	if err != nil {
+		return model.User{}, err
+	}
 	return user, err
 }
 
@@ -301,15 +322,17 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		return model.User{}, err
 	}
 
-	// Apply default groups and claims for new non-LDAP users
+	// Apply default groups and custom fields for new non-LDAP users.
 	if !isLdapSync {
 		if len(input.UserGroupIds) == 0 {
 			if err := s.applyDefaultGroups(ctx, &user, tx); err != nil {
 				return model.User{}, err
 			}
 		}
-
-		if err := s.applyDefaultCustomClaims(ctx, &user, tx); err != nil {
+	}
+	if !isLdapSync {
+		user.CustomFieldValues, err = s.customFieldValueService.updateCustomFieldValuesInternal(ctx, UserID, user.ID, input.CustomFieldValues, tx)
+		if err != nil {
 			return model.User{}, err
 		}
 	}
@@ -350,27 +373,6 @@ func (s *UserService) applyDefaultGroups(ctx context.Context, user *model.User, 
 			}
 		}
 	}
-	return nil
-}
-
-func (s *UserService) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB) error {
-	config := s.appConfigService.GetDbConfig()
-
-	var claims []dto.CustomClaimCreateDto
-	v := config.SignupDefaultCustomClaims.Value
-	if v != "" && v != "[]" {
-		err := json.Unmarshal([]byte(v), &claims)
-		if err != nil {
-			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
-		}
-		if len(claims) > 0 {
-			_, err = s.customClaimService.updateCustomClaimsInternal(ctx, UserID, user.ID, claims, tx)
-			if err != nil {
-				return fmt.Errorf("failed to apply default custom claims: %w", err)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -460,6 +462,15 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 
 		return user, err
 	} else if err != nil {
+		return user, err
+	}
+
+	if updateOwnUser {
+		user.CustomFieldValues, err = s.customFieldValueService.updateSelfEditableCustomFieldValuesForUser(ctx, user.ID, updatedUser.CustomFieldValues, tx)
+	} else {
+		user.CustomFieldValues, err = s.customFieldValueService.updateCustomFieldValuesInternal(ctx, UserID, user.ID, updatedUser.CustomFieldValues, tx)
+	}
+	if err != nil {
 		return user, err
 	}
 

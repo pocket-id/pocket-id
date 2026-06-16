@@ -8,6 +8,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"path"
@@ -17,6 +18,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -574,6 +576,56 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 
 	// Manually set instance ID
 	err = s.appConfigService.UpdateAppConfigValues(ctx, "instanceId", "test-instance-id")
+	if err != nil {
+		return err
+	}
+
+	// Add custom fields
+	customFields := []dto.CustomFieldDto{
+		{
+			ID:                     "189356b1-57f3-4c14-bd59-3ae1132a36d1",
+			Key:                    "department",
+			Type:                   "string",
+			UserEditable:           true,
+			DisplayName:            "Department",
+			Target:                 "user",
+			ValidationRegex:        "^[A-Za-z]+$",
+			ValidationErrorMessage: "Department must only contain letters",
+		},
+		{
+			ID:           "0b68d19a-bb72-4750-84b4-2f0992f5200c",
+			Key:          "nickname",
+			Type:         "string",
+			UserEditable: true,
+			Required:     true,
+			DisplayName:  "Nickname",
+			Target:       "user",
+			DefaultValue: "to-remove",
+		},
+		{
+			ID:          "8d081fd8-6a51-45a1-8051-04c3b043f5bd",
+			Key:         "elevatedRights",
+			Type:        "boolean",
+			DisplayName: "Elevated Rights",
+			Target:      "group",
+		},
+		{
+			ID:           "3d7c6054-e146-48cb-b2d3-7d7897dcbc51",
+			Key:          "internalId",
+			Type:         "number",
+			DefaultValue: "0",
+			UserEditable: false,
+			DisplayName:  "Internal ID",
+			Target:       "both",
+			Required:     true,
+		},
+	}
+
+	customFieldsJSON, err := json.Marshal(&customFields)
+	if err != nil {
+		return err
+	}
+	err = s.appConfigService.UpdateAppConfigValues(ctx, "customFields", string(customFieldsJSON))
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,5 @@
 import type { Locale } from '$lib/paraglide/runtime';
-import type { CustomClaim } from './custom-claim.type';
+import type { CustomFieldValue } from './custom-field.type';
 import type { UserGroup } from './user-group.type';
 
 export type User = {
@@ -12,15 +12,20 @@ export type User = {
 	displayName: string;
 	isAdmin: boolean;
 	userGroups: UserGroup[];
-	customClaims: CustomClaim[];
+	customFieldValues: CustomFieldValue[];
 	locale?: Locale;
 	ldapId?: string;
 	disabled?: boolean;
 };
 
-export type UserCreate = Omit<User, 'id' | 'customClaims' | 'ldapId' | 'userGroups'>;
+export type UserCreate = Omit<User, 'id' | 'customFieldValues' | 'ldapId' | 'userGroups'> & {
+	customFieldValues?: CustomFieldValue[];
+};
 
-export type AccountUpdate = Omit<UserCreate, 'isAdmin' | 'disabled' | 'emailVerified'>;
+export type AccountUpdate = Omit<
+	UserCreate,
+	'isAdmin' | 'disabled' | 'emailVerified'
+>;
 
 export type UserSignUp = Omit<
 	UserCreate,

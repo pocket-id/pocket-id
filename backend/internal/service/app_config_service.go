@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -67,7 +68,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		AllowOwnAccountEdit:       model.AppConfigVariable{Value: "true"},
 		AllowUserSignups:          model.AppConfigVariable{Value: "disabled"},
 		SignupDefaultUserGroupIDs: model.AppConfigVariable{Value: "[]"},
-		SignupDefaultCustomClaims: model.AppConfigVariable{Value: "[]"},
+		CustomFields:              model.AppConfigVariable{Value: "[]"},
 		AccentColor:               model.AppConfigVariable{Value: "default"},
 		// Internal
 		InstanceID: model.AppConfigVariable{Value: ""},
@@ -158,6 +159,87 @@ func (s *AppConfigService) updateAppConfigUpdateDatabase(ctx context.Context, tx
 	return nil
 }
 
+func (s *AppConfigService) normalizeCustomFieldConfigUpdate(ctx context.Context, tx *gorm.DB, oldValue, newValue string) (string, error) {
+	if newValue == "" {
+		return "", nil
+	}
+
+	oldFields, err := ParseCustomFieldDefinitions(oldValue)
+	if err != nil {
+		return "", err
+	}
+	newFields, err := ParseCustomFieldDefinitions(newValue)
+	if err != nil {
+		return "", err
+	}
+
+	oldFieldsByID := make(map[string]dto.CustomFieldDto, len(oldFields))
+	for _, oldField := range oldFields {
+		oldFieldsByID[oldField.ID] = oldField
+	}
+
+	newFieldsByID := make(map[string]dto.CustomFieldDto, len(newFields))
+	for _, newField := range newFields {
+		newFieldsByID[newField.ID] = newField
+		oldField, ok := oldFieldsByID[newField.ID]
+		if !ok {
+			continue
+		}
+
+		if oldField.Type != newField.Type {
+			return "", &common.CustomFieldValidationError{Message: fmt.Sprintf("custom field %s type can't be changed", oldField.Key)}
+		}
+
+		// If the field existed before, but the appliesTo was changed so that it no longer applies to users/groups,
+		// then we need to delete the corresponding values on users/groups
+		for _, idType := range []idType{UserID, UserGroupID} {
+			oldApplies := customFieldAppliesTo(oldField, idType)
+			newApplies := customFieldAppliesTo(newField, idType)
+			if oldApplies && !newApplies {
+				if err := s.deleteCustomFieldValuesForFieldID(ctx, tx, idType, oldField.ID); err != nil {
+					return "", err
+				}
+			}
+		}
+	}
+
+	// Check if any fields were removed, and if so delete the corresponding values on users/groups
+	for _, oldField := range oldFields {
+		if _, ok := newFieldsByID[oldField.ID]; ok {
+			continue
+		}
+		for _, idType := range []idType{UserID, UserGroupID} {
+			if !customFieldAppliesTo(oldField, idType) {
+				continue
+			}
+			if err := s.deleteCustomFieldValuesForFieldID(ctx, tx, idType, oldField.ID); err != nil {
+				return "", err
+			}
+		}
+	}
+
+	normalizedValue, err := json.Marshal(newFields)
+	if err != nil {
+		return "", fmt.Errorf("failed to normalize custom fields JSON: %w", err)
+	}
+	return string(normalizedValue), nil
+}
+
+func (s *AppConfigService) deleteCustomFieldValuesForFieldID(ctx context.Context, tx *gorm.DB, idType idType, customFieldID string) error {
+	query := tx.WithContext(ctx).Model(&model.CustomFieldValue{})
+	switch idType {
+	case UserID:
+		query = query.Where("user_id IS NOT NULL")
+	case UserGroupID:
+		query = query.Where("user_group_id IS NOT NULL")
+	}
+
+	if err := query.Where("custom_field_id = ?", customFieldID).Delete(&model.CustomFieldValue{}).Error; err != nil {
+		return fmt.Errorf("failed to delete custom field values for field %s: %w", customFieldID, err)
+	}
+	return nil
+}
+
 func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, &common.UiConfigDisabledError{}
@@ -177,6 +259,11 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	cfg, err := s.loadDbConfigInternal(ctx, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reload config from database: %w", err)
+	}
+
+	input.CustomFields, err = s.normalizeCustomFieldConfigUpdate(ctx, tx, cfg.CustomFields.Value, input.CustomFields)
+	if err != nil {
+		return nil, err
 	}
 
 	defaultCfg := s.getDefaultDbConfig()

@@ -11,7 +11,7 @@ type UserGroupDto struct {
 	ID                 string                  `json:"id"`
 	FriendlyName       string                  `json:"friendlyName"`
 	Name               string                  `json:"name"`
-	CustomClaims       []CustomClaimDto        `json:"customClaims"`
+	CustomFieldValues  []CustomFieldValueDto   `json:"customFieldValues"`
 	LdapID             *string                 `json:"ldapId"`
 	CreatedAt          datatype.DateTime       `json:"createdAt"`
 	Users              []UserDto               `json:"users"`
@@ -22,7 +22,6 @@ type UserGroupMinimalDto struct {
 	ID           string            `json:"id"`
 	FriendlyName string            `json:"friendlyName"`
 	Name         string            `json:"name"`
-	CustomClaims []CustomClaimDto  `json:"customClaims"`
 	UserCount    int64             `json:"userCount"`
 	LdapID       *string           `json:"ldapId"`
 	CreatedAt    datatype.DateTime `json:"createdAt"`
@@ -33,9 +32,10 @@ type UserGroupUpdateAllowedOidcClientsDto struct {
 }
 
 type UserGroupCreateDto struct {
-	FriendlyName string `json:"friendlyName" binding:"required,min=2,max=50" unorm:"nfc"`
-	Name         string `json:"name" binding:"required,min=2,max=255" unorm:"nfc"`
-	LdapID       string `json:"-"`
+	FriendlyName      string                      `json:"friendlyName" binding:"required,min=2,max=50" unorm:"nfc"`
+	Name              string                      `json:"name" binding:"required,min=2,max=255" unorm:"nfc"`
+	CustomFieldValues []CustomFieldValueCreateDto `json:"customFieldValues"`
+	LdapID            string                      `json:"-"`
 }
 
 func (g UserGroupCreateDto) Validate() error {

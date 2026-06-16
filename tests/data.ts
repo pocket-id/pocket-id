@@ -167,3 +167,41 @@ export const signupTokens = {
 		createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
 	}
 };
+
+export const customFields = {
+	department: {
+		id: '189356b1-57f3-4c14-bd59-3ae1132a36d1',
+		key: 'department',
+		type: 'string',
+		userEditable: true,
+		displayName: 'Department',
+		target: 'user',
+		validationRegex: '^[A-Za-z]+$',
+		validationErrorMessage: 'Department must only contain letters'
+	},
+	elevatedRights: {
+		id: '8d081fd8-6a51-45a1-8051-04c3b043f5bd',
+		key: 'elevatedRights',
+		type: 'boolean',
+		displayName: 'Elevated Rights',
+		target: 'group'
+	},
+	internalId: {
+		id: '3d7c6054-e146-48cb-b2d3-7d7897dcbc51',
+		key: 'internalId',
+		type: 'number',
+		userEditable: false,
+		displayName: 'Internal ID',
+		target: 'both',
+		required: true
+	},
+	nickname: {
+		id: '0b68d19a-bb72-4750-84b4-2f0992f5200c',
+		key: 'department',
+		type: 'string',
+		userEditable: true,
+		required: true,
+		displayName: 'Nickname',
+		target: 'user'
+	}
+};

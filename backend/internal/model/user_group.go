@@ -13,7 +13,7 @@ type UserGroup struct {
 	LdapID             *string
 	UpdatedAt          *datatype.DateTime
 	Users              []User `gorm:"many2many:user_groups_users;"`
-	CustomClaims       []CustomClaim
+	CustomFieldValues  []CustomFieldValue
 	AllowedOidcClients []OidcClient `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 }
 

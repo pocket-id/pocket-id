@@ -43,7 +43,7 @@ type AppConfig struct {
 	AllowOwnAccountEdit       AppConfigVariable `key:"allowOwnAccountEdit,public"` // Public
 	AllowUserSignups          AppConfigVariable `key:"allowUserSignups,public"`    // Public
 	SignupDefaultUserGroupIDs AppConfigVariable `key:"signupDefaultUserGroupIDs"`
-	SignupDefaultCustomClaims AppConfigVariable `key:"signupDefaultCustomClaims"`
+	CustomFields              AppConfigVariable `key:"customFields,public"` // Public
 	// Internal
 	InstanceID AppConfigVariable `key:"instanceId,internal"` // Internal
 	// Email

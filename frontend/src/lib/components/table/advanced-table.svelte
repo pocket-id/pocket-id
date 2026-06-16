@@ -25,6 +25,7 @@
 		selectedIds = $bindable(),
 		withoutSearch = false,
 		selectionDisabled = false,
+		paginationDisabled = false,
 		rowSelectionDisabled,
 		fetchCallback,
 		defaultSort,
@@ -35,6 +36,7 @@
 		selectedIds?: string[];
 		withoutSearch?: boolean;
 		selectionDisabled?: boolean;
+		paginationDisabled?: boolean;
 		rowSelectionDisabled?: (item: T) => boolean;
 		fetchCallback: (requestOptions: ListRequestOptions) => Promise<Paginated<T>>;
 		defaultSort?: SortRequest;
@@ -178,8 +180,10 @@
 
 	export async function refresh() {
 		items = await fetchCallback(requestOptions);
-		changePageState(items.pagination.currentPage);
-		updateListLength(items.pagination.totalItems);
+		if (!paginationDisabled) {
+			changePageState(items.pagination.currentPage);
+			updateListLength(items.pagination.totalItems);
+		}
 	}
 </script>
 
@@ -329,51 +333,52 @@
 			</Table.Root>
 		</div>
 	{/if}
-
-	<div class="mt-5 flex flex-col-reverse items-center justify-between gap-3 sm:flex-row">
-		<div class="flex items-center space-x-2">
-			<p class="text-sm font-medium">{m.items_per_page()}</p>
-			<Select.Root
-				type="single"
-				value={items?.pagination.itemsPerPage.toString()}
-				onValueChange={(v) => onPageSizeChange(Number(v))}
+	{#if !paginationDisabled}
+		<div class="mt-5 flex flex-col-reverse items-center justify-between gap-3 sm:flex-row">
+			<div class="flex items-center space-x-2">
+				<p class="text-sm font-medium">{m.items_per_page()}</p>
+				<Select.Root
+					type="single"
+					value={items?.pagination.itemsPerPage.toString()}
+					onValueChange={(v) => onPageSizeChange(Number(v))}
+				>
+					<Select.Trigger class="w-20">
+						{items?.pagination.itemsPerPage}
+					</Select.Trigger>
+					<Select.Content>
+						{#each availablePageSizes as size}
+							<Select.Item value={size.toString()}>{size}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<Pagination.Root
+				class="mx-0 w-auto"
+				count={items?.pagination.totalItems || 0}
+				perPage={items?.pagination.itemsPerPage}
+				{onPageChange}
+				page={items?.pagination.currentPage}
 			>
-				<Select.Trigger class="w-20">
-					{items?.pagination.itemsPerPage}
-				</Select.Trigger>
-				<Select.Content>
-					{#each availablePageSizes as size}
-						<Select.Item value={size.toString()}>{size}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
+				{#snippet children({ pages })}
+					<Pagination.Content class="flex justify-end">
+						<Pagination.Item>
+							<Pagination.PrevButton />
+						</Pagination.Item>
+						{#each pages as page (page.key)}
+							{#if page.type !== 'ellipsis' && page.value != 0}
+								<Pagination.Item>
+									<Pagination.Link {page} isActive={items?.pagination.currentPage === page.value}>
+										{page.value}
+									</Pagination.Link>
+								</Pagination.Item>
+							{/if}
+						{/each}
+						<Pagination.Item>
+							<Pagination.NextButton />
+						</Pagination.Item>
+					</Pagination.Content>
+				{/snippet}
+			</Pagination.Root>
 		</div>
-		<Pagination.Root
-			class="mx-0 w-auto"
-			count={items?.pagination.totalItems || 0}
-			perPage={items?.pagination.itemsPerPage}
-			{onPageChange}
-			page={items?.pagination.currentPage}
-		>
-			{#snippet children({ pages })}
-				<Pagination.Content class="flex justify-end">
-					<Pagination.Item>
-						<Pagination.PrevButton />
-					</Pagination.Item>
-					{#each pages as page (page.key)}
-						{#if page.type !== 'ellipsis' && page.value != 0}
-							<Pagination.Item>
-								<Pagination.Link {page} isActive={items?.pagination.currentPage === page.value}>
-									{page.value}
-								</Pagination.Link>
-							</Pagination.Item>
-						{/if}
-					{/each}
-					<Pagination.Item>
-						<Pagination.NextButton />
-					</Pagination.Item>
-				</Pagination.Content>
-			{/snippet}
-		</Pagination.Root>
-	</div>
+	{/if}
 {/if}

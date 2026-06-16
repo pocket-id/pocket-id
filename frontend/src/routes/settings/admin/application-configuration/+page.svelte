@@ -1,12 +1,14 @@
 <script lang="ts">
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
 	import * as Alert from '$lib/components/ui/alert';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import { m } from '$lib/paraglide/messages';
 	import AppConfigService from '$lib/services/app-config-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import {
+		ListChecks,
 		LucideImage,
 		LucideInfo,
 		Mail,
@@ -15,6 +17,7 @@
 		Users
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import CustomFieldsTable from './custom-fields-table.svelte';
 	import AppConfigEmailForm from './forms/app-config-email-form.svelte';
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
@@ -101,57 +104,67 @@
 		</Alert.Description>
 	</Alert.Root>
 {/if}
-<div>
-	<CollapsibleCard
-		id="application-configuration-general"
-		icon={SlidersHorizontal}
-		title={m.general()}
-		defaultExpanded
-	>
-		<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
-	</CollapsibleCard>
-</div>
 
-<div>
-	<CollapsibleCard
-		id="application-configuration-signup-defaults"
-		icon={Users}
-		title={m.user_creation()}
-		description={m.configure_user_creation()}
-	>
-		<AppConfigSignupDefaultsForm {appConfig} callback={updateAppConfig} />
-	</CollapsibleCard>
-</div>
+<Tabs.Root value="general" useHash>
+	<Tabs.List class="mb-3">
+		<Tabs.Trigger value="general">{m.general()}</Tabs.Trigger>
+		<Tabs.Trigger value="user-and-groups">{m.users_and_groups()}</Tabs.Trigger>
+		<Tabs.Trigger value="email">{m.email()}</Tabs.Trigger>
+	</Tabs.List>
+	<Tabs.Content value="general" class="flex flex-col gap-5">
+		<CollapsibleCard
+			id="application-configuration-general"
+			icon={SlidersHorizontal}
+			title={m.general()}
+			defaultExpanded
+		>
+			<AppConfigGeneralForm {appConfig} callback={updateAppConfig} />
+		</CollapsibleCard>
+		<CollapsibleCard
+			id="application-configuration-images"
+			icon={LucideImage}
+			title={m.images()}
+			description={m.configure_application_images()}
+		>
+			<UpdateApplicationImages callback={updateImages} />
+		</CollapsibleCard>
+	</Tabs.Content>
+	<Tabs.Content value="user-and-groups" class="flex flex-col gap-5">
+		<CollapsibleCard
+			id="application-configuration-signup-defaults"
+			icon={Users}
+			title={m.user_creation()}
+			description={m.configure_user_creation()}
+		>
+			<AppConfigSignupDefaultsForm {appConfig} callback={updateAppConfig} />
+		</CollapsibleCard>
 
-<div>
-	<CollapsibleCard
-		id="application-configuration-email"
-		icon={Mail}
-		title={m.email()}
-		description={m.configure_smtp_to_send_emails()}
-	>
-		<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
-	</CollapsibleCard>
-</div>
-
-<div>
-	<CollapsibleCard
-		id="application-configuration-ldap"
-		icon={UserSearch}
-		title={m.ldap()}
-		description={m.configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server()}
-	>
-		<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
-	</CollapsibleCard>
-</div>
-
-<div>
-	<CollapsibleCard
-		id="application-configuration-images"
-		icon={LucideImage}
-		title={m.images()}
-		description={m.configure_application_images()}
-	>
-		<UpdateApplicationImages callback={updateImages} />
-	</CollapsibleCard>
-</div>
+		<CollapsibleCard
+			id="application-configuration-custom-fields"
+			icon={ListChecks}
+			title={m.custom_fields()}
+			description={m.configure_custom_fields()}
+			noHeaderMargin
+		>
+			<CustomFieldsTable {appConfig} callback={updateAppConfig} />
+		</CollapsibleCard>
+		<CollapsibleCard
+			id="application-configuration-ldap"
+			icon={UserSearch}
+			title={m.ldap()}
+			description={m.configure_ldap_settings_to_sync_users_and_groups_from_an_ldap_server()}
+		>
+			<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
+		</CollapsibleCard>
+	</Tabs.Content>
+	<Tabs.Content value="email">
+		<CollapsibleCard
+			id="application-configuration-email"
+			icon={Mail}
+			title={m.email()}
+			description={m.configure_smtp_to_send_emails()}
+		>
+			<AppConfigEmailForm {appConfig} callback={updateAppConfig} />
+		</CollapsibleCard>
+	</Tabs.Content>
+</Tabs.Root>

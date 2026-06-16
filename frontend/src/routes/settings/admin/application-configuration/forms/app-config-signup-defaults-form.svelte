@@ -1,5 +1,4 @@
 <script lang="ts">
-	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import UserGroupInput from '$lib/components/form/user-group-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
@@ -19,7 +18,6 @@
 	} = $props();
 
 	let selectedGroupIds = $state<string[]>(appConfig.signupDefaultUserGroupIDs || []);
-	let customClaims = $state(appConfig.signupDefaultCustomClaims || []);
 	let allowUserSignups = $state(appConfig.allowUserSignups);
 	let isLoading = $state(false);
 
@@ -42,15 +40,13 @@
 		isLoading = true;
 		await callback({
 			allowUserSignups: allowUserSignups,
-			signupDefaultUserGroupIDs: selectedGroupIds,
-			signupDefaultCustomClaims: customClaims
+			signupDefaultUserGroupIDs: selectedGroupIds
 		});
 		toast.success(m.user_creation_updated_successfully());
 		isLoading = false;
 	}
 
 	$effect(() => {
-		customClaims = appConfig.signupDefaultCustomClaims || [];
 		allowUserSignups = appConfig.allowUserSignups;
 	});
 </script>
@@ -112,13 +108,6 @@
 				{m.user_creation_groups_description()}
 			</Field.Description>
 			<UserGroupInput bind:selectedGroupIds />
-		</Field.Field>
-		<Field.Field>
-			<Field.Label>{m.custom_claims()}</Field.Label>
-			<Field.Description>
-				{m.user_creation_claims_description()}
-			</Field.Description>
-			<CustomClaimsInput bind:customClaims />
 		</Field.Field>
 
 		<div class="flex justify-end pt-2">

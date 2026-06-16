@@ -1,11 +1,9 @@
 <script lang="ts">
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
-	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
-	import CustomClaimService from '$lib/services/custom-claim-service';
 	import UserGroupService from '$lib/services/user-group-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserGroupCreate } from '$lib/types/user-group.type';
@@ -27,7 +25,6 @@
 	let oidcClientSelectionRef: OidcClientSelection;
 
 	const userGroupService = new UserGroupService();
-	const customClaimService = new CustomClaimService();
 	const backNavigation = backNavigate('/settings/admin/user-groups');
 
 	async function updateUserGroup(updatedUserGroup: UserGroupCreate) {
@@ -47,15 +44,6 @@
 		await userGroupService
 			.updateUsers(userGroup.id, userIds)
 			.then(() => toast.success(m.users_updated_successfully()))
-			.catch((e) => {
-				axiosErrorToast(e);
-			});
-	}
-
-	async function updateCustomClaims() {
-		await customClaimService
-			.updateUserGroupCustomClaims(userGroup.id, userGroup.customClaims)
-			.then(() => toast.success(m.custom_claims_updated_successfully()))
 			.catch((e) => {
 				axiosErrorToast(e);
 			});
@@ -115,17 +103,6 @@
 		</div>
 	</Card.Content>
 </Card.Root>
-
-<CollapsibleCard
-	id="user-group-custom-claims"
-	title={m.custom_claims()}
-	description={m.custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user_prioritized()}
->
-	<CustomClaimsInput bind:customClaims={userGroup.customClaims} />
-	<div class="mt-5 flex justify-end">
-		<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
-	</div>
-</CollapsibleCard>
 
 <CollapsibleCard
 	id="user-group-oidc-clients"

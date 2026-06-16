@@ -1,5 +1,5 @@
 import test, { expect } from '@playwright/test';
-import { oidcClients, userGroups, users } from '../data';
+import { customFields, oidcClients, userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -74,56 +74,29 @@ test('Delete user group', async ({ page }) => {
 	await expect(page.getByRole('row', { name: group.name })).not.toBeVisible();
 });
 
-test('Update user group custom claims', async ({ page }) => {
+test('Update user group custom fields', async ({ page }) => {
 	await page.goto(`/settings/admin/user-groups/${userGroups.designers.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).first().click();
+	await expect(
+		page.getByRole('switch', { name: customFields.elevatedRights.displayName })
+	).not.toBeChecked();
 
-	// Add two custom claims
-	await page.getByRole('button', { name: 'Add custom claim' }).click();
+	await page.getByRole('switch', { name: customFields.elevatedRights.displayName }).click();
+	await page.getByRole('button', { name: 'Save' }).first().click();
 
-	await page.getByPlaceholder('Key').fill('customClaim1');
-	await page.getByPlaceholder('Value').fill('customClaim1_value');
-
-	await page.getByRole('button', { name: 'Add another' }).click();
-	await page.getByPlaceholder('Key').nth(1).fill('customClaim2');
-	await page.getByPlaceholder('Value').nth(1).fill('customClaim2_value');
-
-	await page.getByRole('button', { name: 'Save' }).nth(2).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Custom claims updated successfully'
-	);
+	await expect(page.locator('[data-type="success"]')).toHaveText('User group updated successfully');
 
 	await page.reload();
-	await page.waitForLoadState('networkidle');
 
-	// Check if custom claims are saved
-	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim1');
-	await expect(page.getByPlaceholder('Value').first()).toHaveValue('customClaim1_value');
-	await expect(page.getByPlaceholder('Key').nth(1)).toHaveValue('customClaim2');
-	await expect(page.getByPlaceholder('Value').nth(1)).toHaveValue('customClaim2_value');
-
-	// Remove one custom claim
-	await page.getByLabel('Remove custom claim').first().click();
-	await page.getByRole('button', { name: 'Save' }).nth(2).click();
-
-	await expect(page.locator('[data-type="success"]')).toHaveText(
-		'Custom claims updated successfully'
-	);
-
-	await page.reload();
-	await page.waitForLoadState('networkidle');
-
-	// Check if custom claim is removed
-	await expect(page.getByPlaceholder('Key').first()).toHaveValue('customClaim2');
-	await expect(page.getByPlaceholder('Value').first()).toHaveValue('customClaim2_value');
+	await expect(
+		page.getByRole('switch', { name: customFields.elevatedRights.displayName })
+	).toBeChecked();
 });
 
 test('Update user group allowed user groups', async ({ page }) => {
 	await page.goto(`/settings/admin/user-groups/${userGroups.designers.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByRole('button', { name: 'Expand card' }).click();
 
 	// Unrestricted OIDC clients should be checked and disabled
 	const nextcloudRow = page

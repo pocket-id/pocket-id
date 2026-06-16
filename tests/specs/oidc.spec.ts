@@ -1,6 +1,11 @@
 import test, { expect, type Page, type Request } from '@playwright/test';
-import { oidcClients, refreshTokens, users } from '../data';
+import * as jose from 'jose';
+import { customFields, oidcClients, refreshTokens, userGroups, users } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
+import {
+	updateUserCustomFieldsViaApi,
+	updateUserGroupCustomFieldsViaApi
+} from '../utils/custom-fields.util';
 import { generateIdToken, generateOauthAccessToken } from '../utils/jwt.util';
 import * as oidcUtil from '../utils/oidc.util';
 import passkeyUtil from '../utils/passkey.util';
@@ -149,6 +154,51 @@ test('Successfully refresh tokens with valid refresh token', async ({ request })
 
 	// The new refresh token should be different from the old one
 	expect(tokenData.refresh_token).not.toBe(token);
+});
+
+test('ID token includes configured custom fields when profile scope is requested', async ({
+	page
+}) => {
+	await updateUserCustomFieldsViaApi(page, users.tim.id, [
+		{ customFieldId: customFields.department.id, value: 'Engineering' },
+		{ customFieldId: customFields.nickname.id, value: 'Timi' }
+	]);
+	await updateUserGroupCustomFieldsViaApi(page, userGroups.designers.id, [
+		{ customFieldId: customFields.elevatedRights.id, value: 'true' }
+	]);
+
+	const { token, clientId, userId } = refreshTokens.filter(
+		(refreshToken) => !refreshToken.expired
+	)[0];
+	const refreshToken = await page.request
+		.post('/api/test/refreshtoken', {
+			data: {
+				rt: token,
+				client: clientId,
+				user: userId
+			}
+		})
+		.then((r) => r.text());
+
+	const refreshResponse = await page.request.post('/api/oidc/token', {
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded'
+		},
+		form: {
+			grant_type: 'refresh_token',
+			client_id: clientId,
+			refresh_token: refreshToken,
+			client_secret: oidcClients.nextcloud.secret
+		}
+	});
+
+	expect(refreshResponse.ok()).toBeTruthy();
+	const tokenData = await refreshResponse.json();
+	const idToken = jose.decodeJwt(tokenData.id_token);
+
+	expect(idToken.department).toBe('Engineering');
+	expect(idToken.nickname).toBe('Timi');
+	expect(idToken.elevatedRights).toBe(true);
 });
 
 test('Refresh token fails when used for the wrong client', async ({ request }) => {

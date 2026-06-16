@@ -6,7 +6,6 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -54,13 +53,13 @@ const (
 )
 
 type OidcService struct {
-	db                 *gorm.DB
-	jwtService         *JwtService
-	appConfigService   *AppConfigService
-	auditLogService    *AuditLogService
-	customClaimService *CustomClaimService
-	webAuthnService    *WebAuthnService
-	scimService        *ScimService
+	db                      *gorm.DB
+	jwtService              *JwtService
+	appConfigService        *AppConfigService
+	auditLogService         *AuditLogService
+	customFieldValueService *CustomFieldValueService
+	webAuthnService         *WebAuthnService
+	scimService             *ScimService
 
 	httpClient  *http.Client
 	jwkCache    *jwk.Cache
@@ -73,22 +72,22 @@ func NewOidcService(
 	jwtService *JwtService,
 	appConfigService *AppConfigService,
 	auditLogService *AuditLogService,
-	customClaimService *CustomClaimService,
+	customFieldValueService *CustomFieldValueService,
 	webAuthnService *WebAuthnService,
 	scimService *ScimService,
 	httpClient *http.Client,
 	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
 	s = &OidcService{
-		db:                 db,
-		jwtService:         jwtService,
-		appConfigService:   appConfigService,
-		auditLogService:    auditLogService,
-		customClaimService: customClaimService,
-		webAuthnService:    webAuthnService,
-		scimService:        scimService,
-		httpClient:         httpClient,
-		fileStorage:        fileStorage,
+		db:                      db,
+		jwtService:              jwtService,
+		appConfigService:        appConfigService,
+		auditLogService:         auditLogService,
+		customFieldValueService: customFieldValueService,
+		webAuthnService:         webAuthnService,
+		scimService:             scimService,
+		httpClient:              httpClient,
+		fileStorage:             fileStorage,
 	}
 
 	// Note: we don't pass the HTTP Client with OTel instrumented to this because requests are always made in background and not tied to a specific trace
@@ -2207,23 +2206,51 @@ func (s *OidcService) getUserClaims(ctx context.Context, user *model.User, scope
 	}
 
 	if slices.Contains(scopes, "profile") {
-		// Add custom claims
-		customClaims, err := s.customClaimService.GetCustomClaimsForUserWithUserGroups(ctx, user.ID, tx)
+		// We need to fetch the user and group fields first because we need the key of the custom key later
+		userFields, err := s.customFieldValueService.GetConfiguredCustomFieldsForTarget(UserID)
+		if err != nil {
+			return nil, err
+		}
+		userFieldsByID := make(map[string]dto.CustomFieldDto, len(userFields))
+		for _, customField := range userFields {
+			userFieldsByID[customField.ID] = customField
+		}
+
+		groupFields, err := s.customFieldValueService.GetConfiguredCustomFieldsForTarget(UserGroupID)
+		if err != nil {
+			return nil, err
+		}
+		groupFieldsByID := make(map[string]dto.CustomFieldDto, len(groupFields))
+		for _, customField := range groupFields {
+			groupFieldsByID[customField.ID] = customField
+		}
+
+		// Fetch the actual values of the custom fields
+		customFieldValues, err := s.customFieldValueService.GetCustomFieldValuesForUserWithUserGroups(ctx, user.ID, tx)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, customClaim := range customClaims {
-			// The value of the custom claim can be a JSON object or a string
-			var jsonValue any
-			err := json.Unmarshal([]byte(customClaim.Value), &jsonValue)
-			if err == nil {
-				// It's JSON, so we store it as an object
-				claims[customClaim.Key] = jsonValue
-			} else {
-				// Marshaling failed, so we store it as a string
-				claims[customClaim.Key] = customClaim.Value
+		for _, customFieldValue := range customFieldValues {
+			var customField *dto.CustomFieldDto
+			var claimKey string
+			if customFieldValue.UserID != nil {
+				if field, ok := userFieldsByID[customFieldValue.CustomFieldID]; ok {
+					customField = &field
+					claimKey = field.Key
+				}
+			} else if customFieldValue.UserGroupID != nil {
+				if field, ok := groupFieldsByID[customFieldValue.CustomFieldID]; ok {
+					customField = &field
+					claimKey = field.Key
+				}
 			}
+
+			value, err := customFieldValueTokenValue(customFieldValue, customField)
+			if err != nil {
+				return nil, err
+			}
+			claims[claimKey] = value
 		}
 
 		// Add profile claims

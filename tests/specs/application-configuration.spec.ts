@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async ({ page }) => {
@@ -30,14 +30,15 @@ test('Update general configuration', async ({ page }) => {
 
 test.describe('Update user creation configuration', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+		await page.getByRole('tab', { name: 'Users and groups' }).click();
+		await page.getByRole('button', { name: 'Expand card' }).first().click();
 	});
 
 	test('should save sign up mode', async ({ page }) => {
 		await page.getByRole('button', { name: 'Enable User Signups' }).click();
 		await page.getByRole('option', { name: 'Open Signup' }).click();
 
-		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+		await page.getByRole('button', { name: 'Save' }).last().click();
 
 		await expect(page.locator('[data-type="success"]').last()).toHaveText(
 			'User creation settings updated successfully.'
@@ -54,7 +55,7 @@ test.describe('Update user creation configuration', () => {
 		await page.getByRole('option', { name: 'Designers' }).click();
 		await page.getByRole('combobox', { name: 'User Groups' }).click();
 
-		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+		await page.getByRole('button', { name: 'Save' }).last().click();
 
 		await expect(page.locator('[data-type="success"]').last()).toHaveText(
 			'User creation settings updated successfully.'
@@ -68,31 +69,131 @@ test.describe('Update user creation configuration', () => {
 		await expect(page.getByRole('option', { name: 'Designers' })).toBeChecked();
 	});
 
-	test('should save default custom claims for new signups', async ({ page }) => {
-		await page.getByRole('button', { name: 'Add custom claim' }).click();
-		await page.getByPlaceholder('Key').fill('test-claim');
-		await page.getByPlaceholder('Value').fill('test-value');
-		await page.getByRole('button', { name: 'Add another' }).click();
-		await page.getByPlaceholder('Key').nth(1).fill('another-claim');
-		await page.getByPlaceholder('Value').nth(1).fill('another-value');
+	test('should create, edit, validate, and delete custom fields', async ({ page }) => {
+		await openCustomFieldsCard(page);
 
-		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+		await addCustomField(page, {
+			displayName: 'Employee code',
+			key: 'employeeCode',
+			defaultValue: 'WRONG',
+			validationRegex: '^EMP-[0-9]+$',
+			validationErrorMessage: 'Use EMP-###'
+		});
+		await expect(page.getByText('Use EMP-###')).toBeVisible();
+		await page.getByLabel('Default value').fill('EMP-001');
+		await page.getByRole('button', { name: 'Save' }).last().click();
 
 		await expect(page.locator('[data-type="success"]').last()).toHaveText(
-			'User creation settings updated successfully.'
+			'Custom fields updated successfully'
+		);
+
+		await addCustomField(page, {
+			displayName: 'Weekly hours',
+			key: 'weeklyHours',
+			type: 'Number',
+			target: 'Users and groups',
+			required: true,
+			defaultValue: '40'
+		});
+
+		await expect(page.locator('[data-type="success"]').last()).toHaveText(
+			'Custom fields updated successfully'
+		);
+		await expect(page.getByRole('row', { name: /Employee code/ })).toBeVisible();
+		await expect(page.getByRole('row', { name: /Weekly hours/ })).toBeVisible();
+
+		await page.getByRole('row', { name: /Employee code/ }).click();
+		await expect(page.getByLabel('Type')).toBeDisabled();
+		await page.getByLabel('Display Name').fill('Employee code updated');
+		await page.getByRole('button', { name: 'Save' }).last().click();
+
+		await expect(page.locator('[data-type="success"]').last()).toHaveText(
+			'Custom fields updated successfully'
+		);
+
+		const weeklyHoursRow = page.getByRole('row', { name: /Weekly hours/ });
+		await weeklyHoursRow.getByRole('button').click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
+		await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+		await expect(page.locator('[data-type="success"]').last()).toHaveText(
+			'Custom fields updated successfully'
 		);
 
 		await page.reload();
 
-		await expect(page.getByPlaceholder('Key').first()).toHaveValue('test-claim');
-		await expect(page.getByPlaceholder('Value').first()).toHaveValue('test-value');
-		await expect(page.getByPlaceholder('Key').nth(1)).toHaveValue('another-claim');
-		await expect(page.getByPlaceholder('Value').nth(1)).toHaveValue('another-value');
+		await page.getByRole('tab', { name: 'Users and groups' }).click();
+		await openCustomFieldsCard(page, false);
+		await expect(page.getByText('Employee code updated')).toBeVisible();
+		await expect(page.getByText('Weekly hours')).not.toBeVisible();
 	});
 });
 
+async function openCustomFieldsCard(page: Page, navigate = true) {
+	if (navigate) {
+		await page.goto('/settings/admin/application-configuration');
+		await page.getByRole('tab', { name: 'Users and groups' }).click();
+	}
+	const addButton = page.getByRole('button', { name: 'Add custom field' });
+	if (!(await addButton.isVisible().catch(() => false))) {
+		await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	}
+	await expect(addButton).toBeVisible();
+}
+
+async function addCustomField(
+	page: Page,
+	field: {
+		displayName: string;
+		key: string;
+		type?: 'Text' | 'Number' | 'Boolean';
+		target?: 'Users' | 'Groups' | 'Users and groups';
+		required?: boolean;
+		userEditable?: boolean;
+		defaultValue?: string;
+		validationRegex?: string;
+		validationErrorMessage?: string;
+	}
+) {
+	await page.getByRole('button', { name: 'Add custom field' }).click();
+	await page.getByLabel('Display Name').fill(field.displayName);
+	await page.getByLabel('Key').fill(field.key);
+
+	if (field.type && field.type !== 'Text') {
+		await page.getByLabel('Type').click();
+		await page.getByRole('option', { name: field.type, exact: true }).click();
+	}
+	if (field.target && field.target !== 'Users') {
+		await page.getByLabel('Available for').click();
+		await page.getByRole('option', { name: field.target, exact: true }).click();
+	}
+	if (field.required) {
+		await page.getByLabel('Required').click();
+	}
+	if (field.userEditable) {
+		await page.getByLabel('User editable').click();
+	}
+	if (field.defaultValue !== undefined) {
+		if (field.type === 'Boolean') {
+			await page.getByLabel('Default value').click();
+			await page
+				.getByRole('option', { name: field.defaultValue === 'true' ? 'Yes' : 'No', exact: true })
+				.click();
+		} else {
+			await page.getByLabel('Default value').fill(field.defaultValue);
+		}
+	}
+	if (field.validationRegex) {
+		await page.getByLabel('Validation regex').fill(field.validationRegex);
+	}
+	if (field.validationErrorMessage) {
+		await page.getByLabel('Validation error message').fill(field.validationErrorMessage);
+	}
+	await page.getByRole('button', { name: 'Save' }).last().click();
+}
+
 test('Update email configuration', async ({ page }) => {
-	await page.getByRole('button', { name: 'Expand card' }).nth(2).click();
+	await page.getByRole('tab', { name: 'Email' }).click();
+	await page.getByRole('button', { name: 'Expand card' }).first().click();
 
 	await page.getByLabel('SMTP Host').fill('smtp.gmail.com');
 	await page.getByLabel('SMTP Port').fill('587');
@@ -104,7 +205,7 @@ test('Update email configuration', async ({ page }) => {
 	await page.getByLabel('Email Login Code from Admin').click();
 	await page.getByLabel('API Key Expiration').click();
 
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).last().click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Email configuration updated successfully'
@@ -125,7 +226,7 @@ test('Update email configuration', async ({ page }) => {
 
 test.describe('Update application images', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.getByRole('button', { name: 'Expand card' }).nth(4).click();
+		await page.getByRole('button', { name: 'Expand card' }).last().click();
 	});
 
 	test('should upload images', async ({ page }) => {

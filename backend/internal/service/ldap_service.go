@@ -216,8 +216,69 @@ func (s *LdapService) applyAdminGroupMembership(desiredUsers []ldapDesiredUser, 
 	}
 }
 
+func (s *LdapService) getLDAPCustomFields(idType idType) ([]dto.CustomFieldDto, error) {
+	fields, err := ParseCustomFieldDefinitions(s.appConfigService.GetDbConfig().CustomFields.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	ldapFields := make([]dto.CustomFieldDto, 0, len(fields))
+	for _, field := range fields {
+		if !customFieldAppliesTo(field, idType) {
+			continue
+		}
+		ldapFields = append(ldapFields, field)
+	}
+
+	return ldapFields, nil
+}
+
+func appendLDAPCustomFieldAttributes(searchAttrs []string, fields []dto.CustomFieldDto) []string {
+	seenAttrs := make(map[string]struct{}, len(searchAttrs)+len(fields))
+	for _, attr := range searchAttrs {
+		if attr == "" {
+			continue
+		}
+		seenAttrs[attr] = struct{}{}
+	}
+
+	for _, field := range fields {
+		if _, ok := seenAttrs[field.Key]; ok {
+			continue
+		}
+		searchAttrs = append(searchAttrs, field.Key)
+		seenAttrs[field.Key] = struct{}{}
+	}
+
+	return searchAttrs
+}
+
+func customFieldValuesFromLDAPEntry(entry *ldap.Entry, fields []dto.CustomFieldDto) []dto.CustomFieldValueCreateDto {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	customFieldValues := make([]dto.CustomFieldValueCreateDto, 0, len(fields))
+	for _, field := range fields {
+		value := entry.GetAttributeValue(field.Key)
+		if value == "" {
+			continue
+		}
+		customFieldValues = append(customFieldValues, dto.CustomFieldValueCreateDto{
+			CustomFieldID: field.ID,
+			Value:         value,
+		})
+	}
+
+	return customFieldValues
+}
+
 func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, usernamesByDN map[string]string) (desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, err error) {
 	dbConfig := s.appConfigService.GetDbConfig()
+	customFields, err := s.getLDAPCustomFields(UserGroupID)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Query LDAP for all groups we want to manage
 	searchAttrs := []string{
@@ -225,6 +286,7 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient
 		dbConfig.LdapAttributeGroupUniqueIdentifier.Value,
 		dbConfig.LdapAttributeGroupMember.Value,
 	}
+	searchAttrs = appendLDAPCustomFieldAttributes(searchAttrs, customFields)
 
 	searchReq := ldap.NewSearchRequest(
 		dbConfig.LdapBase.Value,
@@ -267,9 +329,10 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient
 		}
 
 		syncGroup := dto.UserGroupCreateDto{
-			Name:         value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
-			FriendlyName: value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
-			LdapID:       ldapID,
+			Name:              value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
+			FriendlyName:      value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
+			LdapID:            ldapID,
+			CustomFieldValues: customFieldValuesFromLDAPEntry(value, customFields),
 		}
 		dto.Normalize(&syncGroup)
 
@@ -291,6 +354,10 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient
 
 func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient) (desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, usernamesByDN map[string]string, err error) {
 	dbConfig := s.appConfigService.GetDbConfig()
+	customFields, err := s.getLDAPCustomFields(UserID)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	// Query LDAP for all users we want to manage
 	searchAttrs := []string{
@@ -304,6 +371,7 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient)
 		dbConfig.LdapAttributeUserProfilePicture.Value,
 		dbConfig.LdapAttributeUserDisplayName.Value,
 	}
+	searchAttrs = appendLDAPCustomFieldAttributes(searchAttrs, customFields)
 
 	// Filters must start and finish with ()!
 	searchReq := ldap.NewSearchRequest(
@@ -342,12 +410,13 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient)
 		ldapUserIDs[ldapID] = struct{}{}
 
 		newUser := dto.UserCreateDto{
-			Username:      value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
-			Email:         utils.PtrOrNil(value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value)),
-			EmailVerified: true,
-			FirstName:     value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
-			LastName:      value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
-			DisplayName:   value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.Value),
+			Username:          value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
+			Email:             utils.PtrOrNil(value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value)),
+			EmailVerified:     true,
+			FirstName:         value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
+			LastName:          value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
+			DisplayName:       value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.Value),
+			CustomFieldValues: customFieldValuesFromLDAPEntry(value, customFields),
 			// Admin status is computed after groups are loaded so it can use the
 			// configured group member attribute instead of a hard-coded memberOf.
 			IsAdmin: false,
@@ -423,6 +492,11 @@ func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client lda
 }
 
 func (s *LdapService) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}) error {
+	customFields, err := s.getLDAPCustomFields(UserGroupID)
+	if err != nil {
+		return err
+	}
+
 	// Load the current LDAP-managed state from the database
 	ldapGroupsInDB, ldapGroupsByID, err := s.loadLDAPGroupsInDB(ctx, tx)
 	if err != nil {
@@ -448,28 +522,38 @@ func (s *LdapService) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredG
 		}
 
 		databaseGroup := ldapGroupsByID[desiredGroup.ldapID]
+		var groupID string
 		if databaseGroup.ID == "" {
 			newGroup, err := s.groupService.createInternal(ctx, desiredGroup.input, tx)
 			if err != nil {
 				return fmt.Errorf("failed to create group '%s': %w", desiredGroup.input.Name, err)
 			}
 			ldapGroupsByID[desiredGroup.ldapID] = newGroup
+			groupID = newGroup.ID
 
 			_, err = s.groupService.updateUsersInternal(ctx, newGroup.ID, memberUserIDs, tx)
 			if err != nil {
 				return fmt.Errorf("failed to sync users for group '%s': %w", desiredGroup.input.Name, err)
 			}
-			continue
+		} else {
+			groupID = databaseGroup.ID
+
+			_, err = s.groupService.updateInternal(ctx, databaseGroup.ID, desiredGroup.input, true, tx)
+			if err != nil {
+				return fmt.Errorf("failed to update group '%s': %w", desiredGroup.input.Name, err)
+			}
+
+			_, err = s.groupService.updateUsersInternal(ctx, databaseGroup.ID, memberUserIDs, tx)
+			if err != nil {
+				return fmt.Errorf("failed to sync users for group '%s': %w", desiredGroup.input.Name, err)
+			}
 		}
 
-		_, err = s.groupService.updateInternal(ctx, databaseGroup.ID, desiredGroup.input, true, tx)
-		if err != nil {
-			return fmt.Errorf("failed to update group '%s': %w", desiredGroup.input.Name, err)
-		}
-
-		_, err = s.groupService.updateUsersInternal(ctx, databaseGroup.ID, memberUserIDs, tx)
-		if err != nil {
-			return fmt.Errorf("failed to sync users for group '%s': %w", desiredGroup.input.Name, err)
+		if len(customFields) > 0 {
+			_, err = s.groupService.customFieldValueService.updateCustomFieldValuesForFields(ctx, UserGroupID, groupID, desiredGroup.input.CustomFieldValues, customFields, tx)
+			if err != nil {
+				return fmt.Errorf("failed to sync custom fields for group '%s': %w", desiredGroup.input.Name, err)
+			}
 		}
 	}
 
@@ -500,6 +584,10 @@ func (s *LdapService) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredG
 //nolint:gocognit
 func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}) (savePictures []savePicture, deleteFiles []string, err error) {
 	dbConfig := s.appConfigService.GetDbConfig()
+	customFields, err := s.getLDAPCustomFields(UserID)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Load the current LDAP-managed state from the database
 	ldapUsersInDB, ldapUsersByID, _, err := s.loadLDAPUsersInDB(ctx, tx)
@@ -549,6 +637,11 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 			} else if err != nil {
 				return nil, nil, fmt.Errorf("error updating user '%s': %w", desiredUser.input.Username, err)
 			}
+		}
+
+		_, err = s.userService.customFieldValueService.updateCustomFieldValuesForFields(ctx, UserID, userID, desiredUser.input.CustomFieldValues, customFields, tx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to sync custom fields for user '%s': %w", desiredUser.input.Username, err)
 		}
 
 		if desiredUser.picture != "" {

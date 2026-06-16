@@ -171,23 +171,30 @@ type MissingSessionIdError struct{}
 func (e MissingSessionIdError) Error() string       { return "Missing session id" }
 func (e MissingSessionIdError) HttpStatusCode() int { return http.StatusBadRequest }
 
-type ReservedClaimError struct {
+type ReservedCustomFieldError struct {
 	Key string
 }
 
-func (e ReservedClaimError) Error() string {
-	return fmt.Sprintf("Claim %s is reserved and can't be used", e.Key)
+func (e ReservedCustomFieldError) Error() string {
+	return fmt.Sprintf("Custom field %s is reserved and can't be used", e.Key)
 }
-func (e ReservedClaimError) HttpStatusCode() int { return http.StatusBadRequest }
+func (e ReservedCustomFieldError) HttpStatusCode() int { return http.StatusBadRequest }
 
-type DuplicateClaimError struct {
+type DuplicateCustomFieldError struct {
 	Key string
 }
 
-func (e DuplicateClaimError) Error() string {
-	return fmt.Sprintf("Claim %s is already defined", e.Key)
+func (e DuplicateCustomFieldError) Error() string {
+	return fmt.Sprintf("Custom field %s is already defined", e.Key)
 }
-func (e DuplicateClaimError) HttpStatusCode() int { return http.StatusBadRequest }
+func (e DuplicateCustomFieldError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type CustomFieldValidationError struct {
+	Message string
+}
+
+func (e CustomFieldValidationError) Error() string       { return e.Message }
+func (e CustomFieldValidationError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type OidcInvalidCodeVerifierError struct{}
 

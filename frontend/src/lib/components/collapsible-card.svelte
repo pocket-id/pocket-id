@@ -13,6 +13,7 @@
 		title,
 		description,
 		defaultExpanded = false,
+		noHeaderMargin = false,
 		forcedExpanded,
 		button,
 		icon,
@@ -22,6 +23,7 @@
 		title: string;
 		description?: string;
 		defaultExpanded?: boolean;
+		noHeaderMargin?: boolean;
 		forcedExpanded?: boolean;
 		icon?: typeof IconType;
 		button?: Snippet;
@@ -60,7 +62,11 @@
 	});
 </script>
 
-<Card.Root>
+<Card.Root
+	class={{
+		'gap-0': noHeaderMargin
+	}}
+>
 	<Card.Header class="bg-card cursor-pointer" onclick={toggleExpanded}>
 		<div class="flex items-center justify-between">
 			<div>

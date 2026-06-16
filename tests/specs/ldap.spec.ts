@@ -1,4 +1,5 @@
 import test, { expect } from '@playwright/test';
+import { customFields } from 'data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 test.beforeEach(async () => await cleanupBackend());
@@ -12,7 +13,8 @@ test.describe('LDAP Integration', () => {
 	test('LDAP configuration is working properly', async ({ page }) => {
 		await page.goto('/settings/admin/application-configuration');
 
-		await page.getByRole('button', { name: 'Expand card' }).nth(3).click();
+		await page.getByRole('tab', { name: 'Users and groups' }).click();
+		await page.getByRole('button', { name: 'Expand card' }).nth(2).click();
 
 		await expect(page.getByRole('button', { name: 'Disable', exact: true })).toBeVisible();
 		await expect(page.getByLabel('LDAP URL')).toHaveValue(/ldap:\/\/.*/);
@@ -64,6 +66,25 @@ test.describe('LDAP Integration', () => {
 
 		// Verify group source is LDAP
 		await expect(page.getByText('LDAP').first()).toBeVisible();
+	});
+
+	test('LDAP custom fields are synced into users and groups', async ({ page }) => {
+		await page.goto('/settings/admin/users');
+		await page.getByRole('row', { name: 'testuser1' }).getByRole('button').click();
+		await page.getByRole('menuitem', { name: 'Edit' }).click();
+
+		await expect(page.getByLabel(customFields.department.displayName)).toHaveValue('Engineering');
+
+		await page.goto('/settings/admin/user-groups');
+		await page
+			.getByRole('row', { name: 'admin_group' })
+			.getByRole('button', { name: 'Toggle menu' })
+			.click();
+		await page.getByRole('menuitem', { name: 'Edit' }).click();
+
+		await expect(
+			page.getByRole('switch', { name: customFields.elevatedRights.displayName })
+		).toBeChecked();
 	});
 
 	test('LDAP users cannot be modified in PocketID', async ({ page }) => {
