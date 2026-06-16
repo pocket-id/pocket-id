@@ -47,7 +47,9 @@
 				>
 			</div>
 			{#if !expandAddApiKey}
-				<Button class="w-full md:w-auto" onclick={() => (expandAddApiKey = true)}>{m.add_api_key()}</Button>
+				<Button class="w-full md:w-auto" onclick={() => (expandAddApiKey = true)}
+					>{m.add_api_key()}</Button
+				>
 			{:else}
 				<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddApiKey = false)}>
 					<LucideMinus class="size-5" />
