@@ -1,5 +1,5 @@
 # Modified version of lldap/lldap that seeds lldap with test data
-FROM lldap/lldap:2025-05-19
+FROM lldap/lldap:2025-12-24
 
 WORKDIR /app
 
