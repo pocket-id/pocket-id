@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/build/frontend/node_modules/.vite \
   BUILD_OUTPUT_PATH=dist pnpm --filter pocket-id-frontend run build
 
 # Stage 2: Build Backend
-FROM golang:1.26-alpine AS backend-builder
+FROM golang:1.26.4-alpine AS backend-builder
 ARG BUILD_TAGS
 WORKDIR /build
 COPY ./backend/go.mod ./backend/go.sum ./
@@ -48,7 +48,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     .
 
 # Stage 3: Production Image
-FROM alpine:3.23.4
+FROM alpine:3.24.1
 WORKDIR /app
 
 RUN apk add --no-cache curl su-exec
