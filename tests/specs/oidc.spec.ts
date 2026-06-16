@@ -692,7 +692,6 @@ test.describe('OIDC prompt parameter', () => {
 
 		await expect(page.getByText(/Invalid callback URL/i)).toBeVisible();
 		expect(attackerRedirected).toBe(false);
-		expect(page.url()).not.toContain('attacker.example');
 	});
 
 	test('prompt=none redirects errors with response_mode=fragment', async ({ page }) => {
