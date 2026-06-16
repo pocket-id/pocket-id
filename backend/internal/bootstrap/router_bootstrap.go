@@ -109,7 +109,7 @@ func registerGlobalMiddleware(r *gin.Engine) {
 
 func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 
-	err := frontend.RegisterFrontend(r, svc.oidcService)
+	err := frontend.RegisterFrontend(r)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
 		slog.Warn("Frontend is not included in the build. Skipping frontend registration.")
 	} else if err != nil {
@@ -122,9 +122,11 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
 
 	apiGroup := r.Group("/api", apiRateLimitMiddleware)
+	baseGroup := r.Group("/", apiRateLimitMiddleware)
+
 	controller.NewApiKeyController(apiGroup, authMiddleware, svc.apiKeyService)
 	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.webauthnService, svc.appConfigService)
-	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService, svc.jwtService)
+	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
 	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.webauthnService, svc.appConfigService)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
@@ -135,9 +137,12 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)
 	controller.NewUserSignupController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userSignUpService, svc.appConfigService)
 
+	optionalBrowserAuth := authMiddleware.WithAdminNotRequired().WithSuccessOptional().WithApiKeyAuthDisabled().Add()
+	browserAuth := authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add()
+	svc.oidcModule.RegisterRoutes(baseGroup, apiGroup, optionalBrowserAuth, browserAuth)
+
 	registerTestRoutes(apiGroup, db, svc)
 
-	baseGroup := r.Group("/", apiRateLimitMiddleware)
 	controller.NewWellKnownController(baseGroup, svc.jwtService)
 
 	// These are not rate-limited.

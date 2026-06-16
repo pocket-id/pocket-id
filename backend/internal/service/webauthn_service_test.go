@@ -2,12 +2,15 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
@@ -65,4 +68,38 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorAs(t, err, new(*common.ReauthenticationRequiredError))
 	})
+}
+
+func TestConsumeReauthenticationTokenReturnsTokenCreationTime(t *testing.T) {
+	mockConfig := NewTestAppConfigService(&model.AppConfig{
+		SessionDuration: model.AppConfigVariable{Value: "60"},
+	})
+	jwtService, db, _ := setupJwtService(t, mockConfig)
+	service := &WebAuthnService{
+		db:         db,
+		jwtService: jwtService,
+	}
+
+	const (
+		userID = "reauth-user"
+		token  = "reauthentication-token"
+	)
+	require.NoError(t, db.Create(&model.User{
+		Base: model.Base{ID: userID},
+	}).Error)
+	require.NoError(t, db.Create(&model.ReauthenticationToken{
+		Token:     utils.CreateSha256Hash(token),
+		ExpiresAt: datatype.DateTime(time.Now().Add(time.Minute)),
+		UserID:    userID,
+	}).Error)
+
+	var storedToken model.ReauthenticationToken
+	require.NoError(t, db.First(&storedToken, "user_id = ?", userID).Error)
+
+	tx := db.Begin()
+	reauthenticatedAt, err := service.ConsumeReauthenticationToken(t.Context(), tx, token, userID)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit().Error)
+
+	require.Equal(t, storedToken.CreatedAt.UTC(), reauthenticatedAt)
 }

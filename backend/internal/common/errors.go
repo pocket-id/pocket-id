@@ -62,43 +62,6 @@ type OidcMissingAuthorizationError struct{}
 func (e OidcMissingAuthorizationError) Error() string       { return "missing authorization" }
 func (e OidcMissingAuthorizationError) HttpStatusCode() int { return http.StatusForbidden }
 
-type OidcGrantTypeNotSupportedError struct{}
-
-func (e OidcGrantTypeNotSupportedError) Error() string       { return "grant type not supported" }
-func (e OidcGrantTypeNotSupportedError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcMissingClientCredentialsError struct{}
-
-func (e OidcMissingClientCredentialsError) Error() string       { return "client id or secret not provided" }
-func (e OidcMissingClientCredentialsError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcClientSecretInvalidError struct{}
-
-func (e OidcClientSecretInvalidError) Error() string       { return "invalid client secret" }
-func (e OidcClientSecretInvalidError) HttpStatusCode() int { return http.StatusUnauthorized }
-
-type OidcClientAssertionInvalidError struct{}
-
-func (e OidcClientAssertionInvalidError) Error() string       { return "invalid client assertion" }
-func (e OidcClientAssertionInvalidError) HttpStatusCode() int { return http.StatusUnauthorized }
-
-type OidcInvalidAuthorizationCodeError struct{}
-
-func (e OidcInvalidAuthorizationCodeError) Error() string       { return "invalid authorization code" }
-func (e OidcInvalidAuthorizationCodeError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcClientNotFoundError struct{}
-
-func (e OidcClientNotFoundError) Error() string       { return "client not found" }
-func (e OidcClientNotFoundError) HttpStatusCode() int { return http.StatusNotFound }
-
-type OidcMissingCallbackURLError struct{}
-
-func (e OidcMissingCallbackURLError) Error() string {
-	return "unable to detect callback url, it might be necessary for an admin to fix this"
-}
-func (e OidcMissingCallbackURLError) HttpStatusCode() int { return http.StatusBadRequest }
-
 type OidcInvalidCallbackURLError struct{}
 
 func (e OidcInvalidCallbackURLError) Error() string {
@@ -189,16 +152,6 @@ func (e DuplicateClaimError) Error() string {
 }
 func (e DuplicateClaimError) HttpStatusCode() int { return http.StatusBadRequest }
 
-type OidcInvalidCodeVerifierError struct{}
-
-func (e OidcInvalidCodeVerifierError) Error() string       { return "Invalid code verifier" }
-func (e OidcInvalidCodeVerifierError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcMissingCodeChallengeError struct{}
-
-func (e OidcMissingCodeChallengeError) Error() string       { return "Missing code challenge" }
-func (e OidcMissingCodeChallengeError) HttpStatusCode() int { return http.StatusBadRequest }
-
 type LdapUserUpdateError struct{}
 
 func (e LdapUserUpdateError) Error() string       { return "LDAP users can't be updated" }
@@ -220,13 +173,6 @@ func (e OidcClientIdNotMatchingError) Error() string {
 	return "Client id in request doesn't match client id in token"
 }
 func (e OidcClientIdNotMatchingError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcNoCallbackURLError struct{}
-
-func (e OidcNoCallbackURLError) Error() string {
-	return "No callback URL provided"
-}
-func (e OidcNoCallbackURLError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type UiConfigDisabledError struct{}
 
@@ -279,21 +225,6 @@ func (e APIKeyAuthNotAllowedError) Error() string {
 }
 func (e APIKeyAuthNotAllowedError) HttpStatusCode() int { return http.StatusForbidden }
 
-type OidcInvalidRefreshTokenError struct{}
-
-func (e OidcInvalidRefreshTokenError) Error() string       { return "refresh token is invalid or expired" }
-func (e OidcInvalidRefreshTokenError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcMissingRefreshTokenError struct{}
-
-func (e OidcMissingRefreshTokenError) Error() string       { return "refresh token is required" }
-func (e OidcMissingRefreshTokenError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcMissingAuthorizationCodeError struct{}
-
-func (e OidcMissingAuthorizationCodeError) Error() string       { return "authorization code is required" }
-func (e OidcMissingAuthorizationCodeError) HttpStatusCode() int { return http.StatusBadRequest }
-
 type UserDisabledError struct{}
 
 func (e UserDisabledError) Error() string       { return "User account is disabled" }
@@ -314,16 +245,6 @@ type OidcInvalidDeviceCodeError struct{}
 
 func (e OidcInvalidDeviceCodeError) Error() string       { return "invalid device code" }
 func (e OidcInvalidDeviceCodeError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcSlowDownError struct{}
-
-func (e OidcSlowDownError) Error() string       { return "polling too frequently" }
-func (e OidcSlowDownError) HttpStatusCode() int { return http.StatusTooManyRequests }
-
-type OidcAuthorizationPendingError struct{}
-
-func (e OidcAuthorizationPendingError) Error() string       { return "authorization is still pending" }
-func (e OidcAuthorizationPendingError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type ReauthenticationRequiredError struct{}
 
@@ -354,22 +275,6 @@ func (e ImageNotFoundError) Error() string { return "Image not found" }
 
 func (e ImageNotFoundError) HttpStatusCode() int { return http.StatusNotFound }
 
-type OidcPARNotSupportedForPublicClientsError struct{}
-
-func (e OidcPARNotSupportedForPublicClientsError) Error() string {
-	return "pushed authorization requests are not supported for public clients"
-}
-func (e OidcPARNotSupportedForPublicClientsError) HttpStatusCode() int {
-	return http.StatusBadRequest
-}
-
-type OidcInvalidRequestURIError struct{}
-
-func (e OidcInvalidRequestURIError) Error() string {
-	return "invalid or expired request_uri"
-}
-func (e OidcInvalidRequestURIError) HttpStatusCode() int { return http.StatusBadRequest }
-
 type OidcPARRequiredError struct{}
 
 func (e OidcPARRequiredError) Error() string {
@@ -382,35 +287,3 @@ type InvalidEmailVerificationTokenError struct{}
 func (e InvalidEmailVerificationTokenError) Error() string { return "Invalid email verification token" }
 
 func (e InvalidEmailVerificationTokenError) HttpStatusCode() int { return http.StatusBadRequest }
-
-// OIDC prompt parameter errors - used for redirect error responses
-
-type OidcLoginRequiredError struct{}
-
-func (e OidcLoginRequiredError) Error() string       { return "login_required" }
-func (e OidcLoginRequiredError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcConsentRequiredError struct{}
-
-func (e OidcConsentRequiredError) Error() string       { return "consent_required" }
-func (e OidcConsentRequiredError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcInteractionRequiredError struct{}
-
-func (e OidcInteractionRequiredError) Error() string       { return "interaction_required" }
-func (e OidcInteractionRequiredError) HttpStatusCode() int { return http.StatusBadRequest }
-
-type OidcInvalidRequestError struct{ description string }
-
-func NewOidcInvalidRequestError(description string) *OidcInvalidRequestError {
-	return &OidcInvalidRequestError{description: description}
-}
-
-func (e OidcInvalidRequestError) Error() string       { return "invalid_request" }
-func (e OidcInvalidRequestError) HttpStatusCode() int { return http.StatusBadRequest }
-func (e OidcInvalidRequestError) Description() string { return e.description }
-
-type OidcAccountSelectionRequiredError struct{}
-
-func (e OidcAccountSelectionRequiredError) Error() string       { return "account_selection_required" }
-func (e OidcAccountSelectionRequiredError) HttpStatusCode() int { return http.StatusBadRequest }

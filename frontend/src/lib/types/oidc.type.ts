@@ -57,28 +57,27 @@ export type OidcClientCreateWithLogo = OidcClientCreate & {
 };
 
 export type OidcDeviceCodeInfo = {
-	scope: string;
+	scope: string[];
 	authorizationRequired: boolean;
+	reauthenticationRequired: boolean;
 	client: OidcClientMetaData;
-};
-
-export type AuthorizeResponse = {
-	code?: string;
-	callbackURL?: string;
-	issuer?: string;
-	error?: string;
-	requiresRedirect?: boolean;
 };
 
 export type AccessibleOidcClient = OidcClientMetaData & {
 	lastUsedAt: Date | null;
 };
 
-export type OidcAuthorizeRequestInfo = {
-	scope: string;
-	redirectURI: string;
-	state?: string;
-	nonce?: string;
-	responseMode?: string;
-	prompt?: string;
+export type InteractionStep = 'authenticate' | 'select_account' | 'reauthenticate' | 'consent';
+
+export type InteractionSession = {
+	id: string;
+	scopes: string[];
+	client: OidcClientMetaData;
+	currentStep?: InteractionStep;
+	requiredSteps: InteractionStep[];
+};
+
+export type CompleteInteractionResponse = {
+	interaction?: InteractionSession;
+	redirectUrl?: string;
 };

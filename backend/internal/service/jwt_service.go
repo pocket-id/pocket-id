@@ -29,29 +29,14 @@ const (
 	// TokenTypeClaim is the claim used to identify the type of token
 	TokenTypeClaim = "type"
 
-	// RefreshTokenClaim is the claim used for the refresh token's value
-	RefreshTokenClaim = "rt"
-
-	// AuthenticationMethodsClaim is the claim used to identify how the user authenticated
-	AuthenticationMethodsClaim = "amr"
-
 	// AuthenticationMethodPhishingResistant identifies phishing-resistant authentication, such as passkeys
 	AuthenticationMethodPhishingResistant = "phr"
 
 	// AuthenticationMethodOneTimePassword identifies one-time password/code authentication
 	AuthenticationMethodOneTimePassword = "otp"
 
-	// OAuthAccessTokenJWTType identifies a JWT as an OAuth access token
-	OAuthAccessTokenJWTType = "oauth-access-token" //nolint:gosec
-
-	// OAuthRefreshTokenJWTType identifies a JWT as an OAuth refresh token
-	OAuthRefreshTokenJWTType = "refresh-token"
-
 	// AccessTokenJWTType identifies a JWT as an access token used by Pocket ID
 	AccessTokenJWTType = "access-token"
-
-	// IDTokenJWTType identifies a JWT as an ID token used by Pocket ID
-	IDTokenJWTType = "id-token"
 
 	// Acceptable clock skew for verifying tokens
 	clockSkew = time.Minute
@@ -227,7 +212,7 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 
 	err = SetAuthenticationMethods(token, authenticationMethod)
 	if err != nil {
-		return "", fmt.Errorf("failed to set '%s' claim in token: %w", AuthenticationMethodsClaim, err)
+		return "", fmt.Errorf("failed to set '%s' claim in token: %w", common.AuthenticationMethodsClaim, err)
 	}
 
 	alg, _ := s.privateKey.Algorithm()
@@ -255,256 +240,6 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 	}
 
 	return token, nil
-}
-
-// BuildIDToken creates an ID token with all claims
-func (s *JwtService) BuildIDToken(userClaims map[string]any, clientID string, nonce string, authenticationMethod string) (jwt.Token, string, error) {
-	now := time.Now()
-	jti := uuid.New().String()
-	token, err := jwt.NewBuilder().
-		Expiration(now.Add(1 * time.Hour)).
-		IssuedAt(now).
-		Issuer(s.envConfig.AppURL).
-		JwtID(jti).
-		Build()
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to build token: %w", err)
-	}
-
-	err = SetAudienceString(token, clientID)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
-	}
-
-	err = SetTokenType(token, IDTokenJWTType)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
-	}
-
-	err = SetAuthenticationMethods(token, authenticationMethod)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to set '%s' claim in token: %w", AuthenticationMethodsClaim, err)
-	}
-
-	for k, v := range userClaims {
-		err = token.Set(k, v)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to set claim '%s': %w", k, err)
-		}
-	}
-
-	if nonce != "" {
-		err = token.Set("nonce", nonce)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to set claim 'nonce': %w", err)
-		}
-	}
-
-	return token, jti, nil
-}
-
-// GenerateIDToken creates and signs an ID token
-func (s *JwtService) GenerateIDToken(userClaims map[string]any, clientID string, nonce string, authenticationMethod string) (signedToken, jti string, err error) {
-	token, jti, err := s.BuildIDToken(userClaims, clientID, nonce, authenticationMethod)
-	if err != nil {
-		return "", "", err
-	}
-
-	alg, _ := s.privateKey.Algorithm()
-	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
-	if err != nil {
-		return "", "", fmt.Errorf("failed to sign token: %w", err)
-	}
-
-	return string(signed), jti, nil
-}
-
-func (s *JwtService) VerifyIdToken(tokenString string, acceptExpiredTokens bool) (jwt.Token, error) {
-	alg, _ := s.privateKey.Algorithm()
-
-	opts := make([]jwt.ParseOption, 0)
-
-	// These options are always present
-	opts = append(opts,
-		jwt.WithValidate(true),
-		jwt.WithKey(alg, s.privateKey),
-		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithIssuer(s.envConfig.AppURL),
-		jwt.WithValidator(TokenTypeValidator(IDTokenJWTType)),
-	)
-
-	// By default, jwt.Parse includes 3 default validators for "nbf", "iat", and "exp"
-	// In case we want to accept expired tokens (during logout), we need to set the validators explicitly without validating "exp"
-	if acceptExpiredTokens {
-		// This is equivalent to the default validators except it doesn't validate "exp"
-		opts = append(opts,
-			jwt.WithResetValidators(true),
-			jwt.WithValidator(jwt.IsIssuedAtValid()),
-			jwt.WithValidator(jwt.IsNbfValid()),
-		)
-	}
-
-	token, err := jwt.ParseString(tokenString, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	return token, nil
-}
-
-// BuildOAuthAccessToken creates an OAuth access token with all claims
-func (s *JwtService) BuildOAuthAccessToken(user model.User, clientID string, authenticationMethod string) (jwt.Token, error) {
-	now := time.Now()
-	token, err := jwt.NewBuilder().
-		Subject(user.ID).
-		Expiration(now.Add(1 * time.Hour)).
-		IssuedAt(now).
-		Issuer(s.envConfig.AppURL).
-		JwtID(uuid.New().String()).
-		Build()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build token: %w", err)
-	}
-
-	err = SetAudienceString(token, clientID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set 'aud' claim in token: %w", err)
-	}
-
-	err = SetTokenType(token, OAuthAccessTokenJWTType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set 'type' claim in token: %w", err)
-	}
-
-	err = SetAuthenticationMethods(token, authenticationMethod)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set '%s' claim in token: %w", AuthenticationMethodsClaim, err)
-	}
-
-	return token, nil
-}
-
-// GenerateOAuthAccessToken creates and signs an OAuth access token
-func (s *JwtService) GenerateOAuthAccessToken(user model.User, clientID string, authenticationMethod string) (string, error) {
-	token, err := s.BuildOAuthAccessToken(user, clientID, authenticationMethod)
-	if err != nil {
-		return "", err
-	}
-
-	alg, _ := s.privateKey.Algorithm()
-	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
-	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
-	}
-
-	return string(signed), nil
-}
-
-func (s *JwtService) VerifyOAuthAccessToken(tokenString string) (jwt.Token, error) {
-	alg, _ := s.privateKey.Algorithm()
-	token, err := jwt.ParseString(
-		tokenString,
-		jwt.WithValidate(true),
-		jwt.WithKey(alg, s.privateKey),
-		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithIssuer(s.envConfig.AppURL),
-		jwt.WithValidator(TokenTypeValidator(OAuthAccessTokenJWTType)),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	return token, nil
-}
-
-func (s *JwtService) GenerateOAuthRefreshToken(userID string, clientID string, refreshToken string) (string, error) {
-	now := time.Now()
-	token, err := jwt.NewBuilder().
-		Subject(userID).
-		Expiration(now.Add(RefreshTokenDuration)).
-		IssuedAt(now).
-		Issuer(s.envConfig.AppURL).
-		Build()
-	if err != nil {
-		return "", fmt.Errorf("failed to build token: %w", err)
-	}
-
-	err = token.Set(RefreshTokenClaim, refreshToken)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'rt' claim in token: %w", err)
-	}
-
-	err = SetAudienceString(token, clientID)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
-	}
-
-	err = SetTokenType(token, OAuthRefreshTokenJWTType)
-	if err != nil {
-		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
-	}
-
-	alg, _ := s.privateKey.Algorithm()
-	signed, err := jwt.Sign(token, jwt.WithKey(alg, s.privateKey))
-	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
-	}
-
-	return string(signed), nil
-}
-
-func (s *JwtService) VerifyOAuthRefreshToken(tokenString string) (userID, clientID, rt string, err error) {
-	alg, _ := s.privateKey.Algorithm()
-	token, err := jwt.ParseString(
-		tokenString,
-		jwt.WithValidate(true),
-		jwt.WithKey(alg, s.privateKey),
-		jwt.WithAcceptableSkew(clockSkew),
-		jwt.WithIssuer(s.envConfig.AppURL),
-		jwt.WithValidator(TokenTypeValidator(OAuthRefreshTokenJWTType)),
-	)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	err = token.Get(RefreshTokenClaim, &rt)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to get '%s' claim from token: %w", RefreshTokenClaim, err)
-	}
-
-	audiences, ok := token.Audience()
-	if !ok || len(audiences) != 1 || audiences[0] == "" {
-		return "", "", "", errors.New("failed to get 'aud' claim from token")
-	}
-	clientID = audiences[0]
-
-	userID, ok = token.Subject()
-	if !ok {
-		return "", "", "", errors.New("failed to get 'sub' claim from token")
-	}
-
-	return userID, clientID, rt, nil
-}
-
-// GetTokenType returns the type of the JWT token issued by Pocket ID, but **does not validate it**.
-func (s *JwtService) GetTokenType(tokenString string) (string, jwt.Token, error) {
-	// Disable validation and verification to parse the token without checking it
-	token, err := jwt.ParseString(
-		tokenString,
-		jwt.WithValidate(false),
-		jwt.WithVerify(false),
-	)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	var tokenType string
-	err = token.Get(TokenTypeClaim, &tokenType)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to get token type claim: %w", err)
-	}
-
-	return tokenType, token, nil
 }
 
 // GetPublicJWK returns the JSON Web Key (JWK) for the public key.
@@ -547,6 +282,14 @@ func (s *JwtService) GetKeyAlg() (jwa.KeyAlgorithm, error) {
 	return alg, nil
 }
 
+// GetKeyID returns the key ID (kid) of the signing key, if one is set.
+func (s *JwtService) GetKeyID() (string, bool) {
+	if s.privateKey == nil {
+		return "", false
+	}
+	return s.privateKey.KeyID()
+}
+
 // GetIsAdmin returns the value of the "isAdmin" claim in the token
 func GetIsAdmin(token jwt.Token) (bool, error) {
 	if !token.Has(IsAdminClaim) {
@@ -562,13 +305,13 @@ func GetIsAdmin(token jwt.Token) (bool, error) {
 
 // GetAuthenticationMethod returns the first authentication method in the "amr" claim in the token
 func GetAuthenticationMethod(token jwt.Token) (string, error) {
-	if !token.Has(AuthenticationMethodsClaim) {
+	if !token.Has(common.AuthenticationMethodsClaim) {
 		return "", nil
 	}
 	var rawAuthenticationMethods []any
-	err := token.Get(AuthenticationMethodsClaim, &rawAuthenticationMethods)
+	err := token.Get(common.AuthenticationMethodsClaim, &rawAuthenticationMethods)
 	if err != nil {
-		return "", fmt.Errorf("failed to get '%s' claim from token: %w", AuthenticationMethodsClaim, err)
+		return "", fmt.Errorf("failed to get '%s' claim from token: %w", common.AuthenticationMethodsClaim, err)
 	}
 
 	if len(rawAuthenticationMethods) == 0 {
@@ -576,7 +319,7 @@ func GetAuthenticationMethod(token jwt.Token) (string, error) {
 	}
 	authenticationMethod, ok := rawAuthenticationMethods[0].(string)
 	if !ok {
-		return "", fmt.Errorf("invalid '%s' claim in token: expected array of strings", AuthenticationMethodsClaim)
+		return "", fmt.Errorf("invalid '%s' claim in token: expected array of strings", common.AuthenticationMethodsClaim)
 	}
 	return authenticationMethod, nil
 }
@@ -603,7 +346,7 @@ func SetAuthenticationMethods(token jwt.Token, authenticationMethod string) erro
 	if authenticationMethod == "" {
 		return nil
 	}
-	return token.Set(AuthenticationMethodsClaim, []string{authenticationMethod})
+	return token.Set(common.AuthenticationMethodsClaim, []string{authenticationMethod})
 }
 
 // SetAudienceString sets the "aud" claim with a value that is a string, and not an array
@@ -625,4 +368,10 @@ func TokenTypeValidator(expectedTokenType string) jwt.ValidatorFunc {
 		}
 		return nil
 	}
+}
+
+func (s *JwtService) GetPrivateKey() any {
+	var privateKey any
+	_ = jwk.Export(s.privateKey, &privateKey)
+	return privateKey
 }

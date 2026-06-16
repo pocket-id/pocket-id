@@ -13,7 +13,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
-	import { callbackUrlSchema, emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
+	import { emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
 	import { LucideChevronDown, LucideMoon, LucideSun } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
@@ -71,8 +71,8 @@
 				.optional()
 		),
 		name: z.string().min(2).max(50),
-		callbackURLs: z.array(callbackUrlSchema).default([]),
-		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
+		callbackURLs: z.array(z.url()).default([]),
+		logoutCallbackURLs:  z.array(z.url()).default([]),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
@@ -208,7 +208,6 @@
 			onCheckedChange={(v) => {
 				if (v) {
 					$inputs.pkceEnabled.value = true;
-					$inputs.requiresPushedAuthorizationRequests.value = false;
 				}
 			}}
 			bind:checked={$inputs.isPublic.value}
@@ -278,7 +277,6 @@
 				id="requires-par"
 				label={m.requires_pushed_authorization_requests()}
 				description={m.requires_pushed_authorization_requests_description()}
-				disabled={$inputs.isPublic.value}
 				bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
 			/>
 			{#if mode == 'create'}

@@ -9,25 +9,6 @@ export const optionalUrl = z
 	.optional()
 	.or(z.literal('').transform(() => undefined));
 
-export const callbackUrlSchema = z
-	.string()
-	.nonempty()
-	.refine(
-		(val) => {
-			if (val.includes('*')) {
-				return true;
-			}
-			try {
-				new URL(val);
-				return true;
-			} catch {
-				return false;
-			}
-		},
-		{
-			message: m.invalid_redirect_url()
-		}
-	);
 
 export const usernameSchema = z
 	.string()

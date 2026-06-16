@@ -4,21 +4,21 @@
 	import { LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
 	import ScopeItem from './scope-item.svelte';
 
-	let { scope }: { scope: string } = $props();
+	let { scopes }: { scopes: string[] } = $props();
 </script>
 
 <Item.Group data-testid="scopes">
-	{#if scope!.includes('email')}
+	{#if scopes.includes('email')}
 		<ScopeItem icon={LucideMail} name={m.email()} description={m.view_your_email_address()} />
 	{/if}
-	{#if scope!.includes('profile')}
+	{#if scopes.includes('profile')}
 		<ScopeItem
 			icon={LucideUser}
 			name={m.profile()}
 			description={m.view_your_profile_information()}
 		/>
 	{/if}
-	{#if scope!.includes('groups')}
+	{#if scopes.includes('groups')}
 		<ScopeItem
 			icon={LucideUsers}
 			name={m.groups()}

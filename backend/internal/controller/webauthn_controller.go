@@ -203,5 +203,6 @@ func (wc *WebauthnController) reauthenticateHandler(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"reauthenticationToken": token})
+	cookie.AddReauthenticationTokenCookie(c, token)
+	c.Status(http.StatusNoContent)
 }

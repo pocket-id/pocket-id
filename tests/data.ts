@@ -28,27 +28,27 @@ export const oidcClients = {
 	nextcloud: {
 		id: '3654a746-35d4-4321-ac61-0bdcff2b4055',
 		name: 'Nextcloud',
-		callbackUrl: 'http://nextcloud/auth/callback',
-		logoutCallbackUrl: 'http://nextcloud/auth/logout/callback',
+		callbackUrl: 'http://nextcloud.localhost/auth/callback',
+		logoutCallbackUrl: 'http://nextcloud.localhost/auth/logout/callback',
 		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY',
 		launchURL: 'https://nextcloud.local'
 	},
 	immich: {
 		id: '606c7782-f2b1-49e5-8ea9-26eb1b06d018',
 		name: 'Immich',
-		callbackUrl: 'http://immich/auth/callback',
+		callbackUrl: 'http://immich.localhost/auth/callback',
 		secret: 'PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x'
 	},
 	tailscale: {
 		id: '7c21a609-96b5-4011-9900-272b8d31a9d1',
 		name: 'Tailscale',
-		callbackUrl: 'http://tailscale/auth/callback',
+		callbackUrl: 'http://tailscale.localhost/auth/callback',
 		secret: 'n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo'
 	},
 	federated: {
 		id: 'c48232ff-ff65-45ed-ae96-7afa8a9b443b',
 		name: 'Federated',
-		callbackUrl: 'http://federated/auth/callback',
+		callbackUrl: 'http://federated.localhost/auth/callback',
 		federatedJWT: {
 			issuer: 'https://external-idp.local',
 			audience: 'api://PocketID',
@@ -59,19 +59,19 @@ export const oidcClients = {
 	scim: {
 		id: 'c46d2090-37a0-4f2b-8748-6aa53b0c1afa',
 		name: 'SCIM Client',
-		callbackUrl: 'http://scim.client/auth/callback',
+		callbackUrl: 'http://scimclient.localhost/auth/callback',
 		secret: 'nQbiuMRG7FpdK2EnDd5MBivWQeKFXohn'
 	},
 	pingvinShare: {
 		name: 'Pingvin Share',
-		callbackUrl: 'http://pingvin.share/auth/callback',
-		secondCallbackUrl: 'http://pingvin.share/auth/callback2',
+		callbackUrl: 'http://pingvin-share.localhost/auth/callback',
+		secondCallbackUrl: 'http://pingvin-share.localhost/auth/callback2',
 		launchURL: 'https://pingvin-share.local'
 	},
 	parClient: {
 		id: 'a1b2c3d4-e5f6-7890-abcd-ef0000000001',
 		name: 'PAR Test Client',
-		callbackUrl: 'http://par-client/auth/callback',
+		callbackUrl: 'http://par-client.localhost/auth/callback',
 		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
 	}
 };

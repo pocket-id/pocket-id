@@ -7,26 +7,14 @@ export async function interceptCallbackRedirect(
 	timeoutMs: number = 10000
 ): Promise<URL> {
 	const routeMatcher = (url: URL) => url.pathname === callbackPath;
+	const callbackPromise = page
+		.waitForRequest((request) => routeMatcher(new URL(request.url())), { timeout: timeoutMs })
+		.then((request) => new URL(request.url()));
 
-	const callbackPromise = new Promise<URL>((resolve, reject) => {
-		const timer = setTimeout(
-			() => reject(new Error(`Timed out waiting for redirect to ${callbackPath}`)),
-			timeoutMs
-		);
-
-		page.route(routeMatcher, async (route) => {
-			clearTimeout(timer);
-			resolve(new URL(route.request().url()));
-			await route.abort();
-		});
-	});
-
-	try {
-		await action();
-		return await callbackPromise;
-	} finally {
-		await page.unroute(routeMatcher);
-	}
+	const actionPromise = action().catch((error) => error);
+	const callbackUrl = await callbackPromise;
+	await actionPromise;
+	return callbackUrl;
 }
 
 export async function getUserCode(
@@ -86,7 +74,8 @@ export async function pushAuthorizationRequest(
 	const form: Record<string, string> = {
 		client_id: params.clientId,
 		response_type: params.responseType ?? 'code',
-		scope: params.scope ?? 'openid profile email'
+		scope: params.scope ?? 'openid profile email',
+		state: params.state ?? 'nXx-6Qr-owc1SHBa'
 	};
 	if (params.redirectUri) form.redirect_uri = params.redirectUri;
 	if (params.clientSecret) form.client_secret = params.clientSecret;

@@ -58,26 +58,6 @@ func TestValidateClientID(t *testing.T) {
 	}
 }
 
-func TestValidateResponseMode(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected bool
-	}{
-		{"valid form_post", "form_post", true},
-		{"valid query", "query", true},
-		{"valid fragment", "fragment", true},
-		{"valid empty", "", true},
-		{"invalid unknown", "unknown", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, ValidateResponseMode(tt.input))
-		})
-	}
-}
-
 func TestValidateCallbackURL(t *testing.T) {
 	tests := []struct {
 		name     string
