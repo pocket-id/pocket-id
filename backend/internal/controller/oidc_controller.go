@@ -32,6 +32,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	}
 
 	group.POST("/oidc/authorize", authMiddleware.WithAdminNotRequired().Add(), oc.authorizeHandler)
+	group.POST("/oidc/authorize/callback-url", oc.authorizeCallbackURLHandler)
 	group.POST("/oidc/authorization-required", authMiddleware.WithAdminNotRequired().Add(), oc.authorizationConfirmationRequiredHandler)
 	group.GET("/oidc/par-request-info", authMiddleware.WithAdminNotRequired().Add(), oc.parRequestInfoHandler)
 
@@ -111,6 +112,7 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"error":            err.Error(),
 				"requiresRedirect": true,
+				"callbackURL":      callbackURL,
 			})
 			return
 		}
@@ -125,6 +127,36 @@ func (oc *OidcController) authorizeHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// authorizeCallbackURLHandler godoc
+// @Summary Resolve a validated callback URL for an OIDC authorization request
+// @Description Resolves the redirect URI against the client's configured callback URLs without consuming PAR records.
+// @Tags OIDC
+// @Accept json
+// @Produce json
+// @Param request body dto.AuthorizeOidcClientCallbackRequestDto true "Authorization callback parameters"
+// @Success 200 {object} dto.AuthorizeOidcClientCallbackResponseDto "Resolved callback URL"
+// @Router /api/oidc/authorize/callback-url [post]
+func (oc *OidcController) authorizeCallbackURLHandler(c *gin.Context) {
+	var input dto.AuthorizeOidcClientCallbackRequestDto
+	if err := c.ShouldBindJSON(&input); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	callbackURL, err := oc.oidcService.ResolveAuthorizeCallbackURL(
+		c.Request.Context(),
+		input.ClientID,
+		input.CallbackURL,
+		input.RequestURI,
+	)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AuthorizeOidcClientCallbackResponseDto{CallbackURL: callbackURL})
 }
 
 // isOidcPromptError checks if an error is a prompt-related OIDC error that should trigger a redirect

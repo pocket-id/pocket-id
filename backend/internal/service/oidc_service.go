@@ -216,7 +216,7 @@ func (s *OidcService) Authorize(ctx context.Context, input dto.AuthorizeOidcClie
 			return "", "", err
 		}
 		if !hasAlreadyAuthorized {
-			return "", "", &common.OidcConsentRequiredError{}
+			return "", callbackURL, &common.OidcConsentRequiredError{}
 		}
 	}
 
@@ -820,7 +820,41 @@ func (s *OidcService) ResolveAllowedCallbackURL(ctx context.Context, clientID, i
 		return "", err
 	}
 
-	if inputCallbackURL == "" || len(client.CallbackURLs) == 0 {
+	return resolveConfiguredCallbackURL(&client, inputCallbackURL)
+}
+
+// ResolveAuthorizeCallbackURL resolves the callback URL for a browser authorization
+// request without authorizing the user or consuming PAR state.
+func (s *OidcService) ResolveAuthorizeCallbackURL(ctx context.Context, clientID, inputCallbackURL, requestURI string) (string, error) {
+	client, err := s.GetClient(ctx, clientID)
+	if err != nil {
+		return "", err
+	}
+
+	if client.RequiresPushedAuthorizationRequests && requestURI == "" {
+		return "", &common.OidcPARRequiredError{}
+	}
+
+	if requestURI != "" {
+		par, err := s.GetPushedAuthorizationRequest(ctx, clientID, requestURI)
+		if err != nil {
+			return "", err
+		}
+		inputCallbackURL = par.Parameters.RedirectURI
+	}
+
+	return resolveConfiguredCallbackURL(&client, inputCallbackURL)
+}
+
+func resolveConfiguredCallbackURL(client *model.OidcClient, inputCallbackURL string) (string, error) {
+	if inputCallbackURL == "" {
+		if len(client.CallbackURLs) > 0 {
+			return client.CallbackURLs[0], nil
+		}
+		return "", &common.OidcMissingCallbackURLError{}
+	}
+
+	if len(client.CallbackURLs) == 0 {
 		return "", &common.OidcMissingCallbackURLError{}
 	}
 

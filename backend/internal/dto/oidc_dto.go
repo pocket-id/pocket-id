@@ -105,6 +105,16 @@ type AuthorizeOidcClientResponseDto struct {
 	Issuer      string `json:"issuer"`
 }
 
+type AuthorizeOidcClientCallbackRequestDto struct {
+	ClientID    string `json:"clientID" binding:"required"`
+	CallbackURL string `json:"callbackURL"`
+	RequestURI  string `json:"requestURI"`
+}
+
+type AuthorizeOidcClientCallbackResponseDto struct {
+	CallbackURL string `json:"callbackURL"`
+}
+
 type AuthorizationRequiredDto struct {
 	ClientID   string `json:"clientID" binding:"required"`
 	Scope      string `json:"scope"`
