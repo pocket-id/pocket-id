@@ -71,6 +71,10 @@ export type AuthorizeResponse = {
 	requiresRedirect?: boolean;
 };
 
+export type AuthorizeCallbackResponse = {
+	callbackURL: string;
+};
+
 export type AccessibleOidcClient = OidcClientMetaData & {
 	lastUsedAt: Date | null;
 };

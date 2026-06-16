@@ -1,6 +1,7 @@
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type {
 	AccessibleOidcClient,
+	AuthorizeCallbackResponse,
 	AuthorizeResponse,
 	OidcClient,
 	OidcClientCreate,
@@ -42,6 +43,20 @@ class OidcService extends APIService {
 		});
 
 		return res.data as AuthorizeResponse;
+	};
+
+	resolveAuthorizeCallbackURL = async (
+		clientId: string,
+		callbackURL: string,
+		requestURI?: string
+	) => {
+		const res = await this.api.post('/oidc/authorize/callback-url', {
+			clientId,
+			callbackURL,
+			requestURI
+		});
+
+		return res.data as AuthorizeCallbackResponse;
 	};
 
 	isAuthorizationRequired = async (clientId: string, scope: string, requestURI?: string) => {
