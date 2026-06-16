@@ -66,8 +66,8 @@ func TestAppendStateToURL(t *testing.T) {
 
 // TestEndSessionService exercises the RP-initiated logout validation and the session
 // revocation it triggers. The ID token hint must be a valid, first-party token whose
-// subject matches the logged-in user and whose audience matches the client; only then is
-// the client's registered post-logout URL returned and the user/client sessions revoked.
+// subject identifies the logged-out user and whose audience matches the client; only then
+// is the client's registered post-logout URL returned and the user/client sessions revoked.
 func TestEndSessionService(t *testing.T) {
 	const (
 		baseURL  = "https://issuer.example.com"
@@ -225,6 +225,30 @@ func TestEndSessionService(t *testing.T) {
 		var accessCount int64
 		require.NoError(t, service.db.Model(&OAuth2Session{}).
 			Where("kind = ? AND key = ?", sessionKindAccessToken, "at-sig").
+			Count(&accessCount).Error)
+		require.Zero(t, accessCount, "access token must be deleted on logout")
+	})
+
+	t.Run("valid logout without UI session derives the user from id_token_hint", func(t *testing.T) {
+		service, store := newService(t)
+
+		// The OP browser session is absent, but the ID token hint still identifies the
+		// End-User and RP session that should be logged out.
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "rt-no-session", "at-no-session", newTestRequester("logout-req", clientID, userID, jti)))
+		require.NoError(t, store.CreateAccessTokenSession(t.Context(), "at-no-session", newTestRequester("logout-req", clientID, userID, jti)))
+
+		token := signToken(t, validToken)
+		callback, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, "")
+		require.NoError(t, err)
+		require.Equal(t, "https://app.example/logout", callback)
+
+		var refresh OAuth2Session
+		require.NoError(t, service.db.First(&refresh, "kind = ? AND key = ?", sessionKindRefreshToken, "rt-no-session").Error)
+		require.False(t, refresh.Active, "refresh token must be revoked on logout")
+
+		var accessCount int64
+		require.NoError(t, service.db.Model(&OAuth2Session{}).
+			Where("kind = ? AND key = ?", sessionKindAccessToken, "at-no-session").
 			Count(&accessCount).Error)
 		require.Zero(t, accessCount, "access token must be deleted on logout")
 	})

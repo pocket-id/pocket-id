@@ -133,6 +133,25 @@ test('End session with id token hint redirects to callback URL', async ({ page }
 	);
 });
 
+test('End session with id token hint redirects to callback URL without UI session', async ({
+	page
+}) => {
+	const client = oidcClients.nextcloud;
+	const idToken = await generateIdToken(
+		'fe81c12a-7336-4aee-bebc-d901a873bf48',
+		users.tim,
+		client.id
+	);
+	await page.context().clearCookies();
+
+	const callbackUrl = await expectCallbackRedirect(page, client.logoutCallbackUrl, () =>
+		page.goto(
+			`/api/oidc/end-session?id_token_hint=${idToken}&post_logout_redirect_uri=${client.logoutCallbackUrl}&state=logout-state`
+		)
+	);
+	expect(callbackUrl.searchParams.get('state')).toBe('logout-state');
+});
+
 test('End session ignores an unregistered post_logout_redirect_uri', async ({ page }) => {
 	// A post_logout_redirect_uri the client never registered must not be honored, otherwise
 	// RP-initiated logout becomes an open redirect. The handler falls back to the in-app

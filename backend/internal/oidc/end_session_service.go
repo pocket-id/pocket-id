@@ -50,9 +50,13 @@ func (s *endSessionService) endSession(ctx context.Context, input dto.OidcLogout
 	}
 
 	subject, ok := token.Subject()
-	if !ok || subject != userID {
+	if !ok || subject == "" {
 		return "", &common.TokenInvalidError{}
 	}
+	if userID != "" && subject != userID {
+		return "", &common.TokenInvalidError{}
+	}
+	userID = subject
 
 	idTokenJTI, ok := token.JwtID()
 	if !ok {
