@@ -285,7 +285,7 @@
 	"public_client": "공개 클라이언트",
 	"public_clients_description": "공개 클라이언트는 클라이언트 시크릿이 없습니다. 이들은 시크릿을 안전하게 보관할 수 없는 모바일, 웹, 네이티브 애플리케이션을 위해 설계되었습니다.",
 	"pkce": "PKCE",
-	"public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "PKCE(공개 키 코드 교환)는 CSRF 및 승인 코드 가로채기 공격을 방지하기 위한 보안 기능입니다.",
+	"proof_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks": "PKCE(공개 키 코드 교환)는 CSRF 및 승인 코드 가로채기 공격을 방지하기 위한 보안 기능입니다.",
 	"requires_reauthentication": "재인증 요구",
 	"requires_users_to_authenticate_again_on_each_authorization": "사용자가 이미 로그인한 상태에서도 승인할 때마다 다시 인증을 요구합니다.",
 	"par": "PAR",
