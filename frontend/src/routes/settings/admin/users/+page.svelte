@@ -82,7 +82,9 @@
 							</DropdownButton.Content>
 						</DropdownButton.DropdownRoot>
 					{:else}
-						<Button class="w-full md:w-auto" onclick={() => (expandAddUser = true)}>{m.add_user()}</Button>
+						<Button class="w-full md:w-auto" onclick={() => (expandAddUser = true)}
+							>{m.add_user()}</Button
+						>
 					{/if}
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUser = false)}>

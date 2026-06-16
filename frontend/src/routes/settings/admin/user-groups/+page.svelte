@@ -49,7 +49,9 @@
 					>
 				</div>
 				{#if !expandAddUserGroup}
-					<Button class="w-full md:w-auto" onclick={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
+					<Button class="w-full md:w-auto" onclick={() => (expandAddUserGroup = true)}
+						>{m.add_group()}</Button
+					>
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUserGroup = false)}>
 						<LucideMinus class="size-5" />
