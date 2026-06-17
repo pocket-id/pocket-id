@@ -11,7 +11,7 @@ on:
       - "frontend/tsconfig.json"
       - "frontend/svelte.config.js"
   pull_request:
-    branches: [main]
+    branches: [main, breaking/**]
     paths:
       - "frontend/src/**"
       - ".github/svelte-check-matcher.json"

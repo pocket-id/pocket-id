@@ -890,6 +890,28 @@ test.describe('OIDC prompt parameter', () => {
 		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
 	});
 
+	test('prompt=none does not redirect login_required to an unregistered redirect_uri', async ({
+		page
+	}) => {
+		await page.context().clearCookies();
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('redirect_uri', 'https://attacker.example/collect');
+
+		let attackerRedirected = false;
+		await page.route('https://attacker.example/**', async (route) => {
+			attackerRedirected = true;
+			await route.fulfill({ status: 200, body: 'attacker' });
+		});
+
+		const response = await page.goto(`/authorize?${urlParams.toString()}`);
+
+		expect(response?.status()).toBe(400);
+		await expect(page.locator('body')).toContainText('invalid_request');
+		expect(attackerRedirected).toBe(false);
+	});
+
 	test('prompt=none redirects errors with response_mode=fragment', async ({ page }) => {
 		await page.context().clearCookies();
 		const oidcClient = oidcClients.nextcloud;
@@ -921,6 +943,27 @@ test.describe('OIDC prompt parameter', () => {
 
 		expect(redirectUrl.searchParams.get('error')).toBe('consent_required');
 		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none does not redirect consent_required to an unregistered redirect_uri', async ({
+		page
+	}) => {
+		const oidcClient = oidcClients.immich;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('redirect_uri', 'https://attacker.example/collect');
+
+		let attackerRedirected = false;
+		await page.route('https://attacker.example/**', async (route) => {
+			attackerRedirected = true;
+			await route.fulfill({ status: 200, body: 'attacker' });
+		});
+
+		const response = await page.goto(`/authorize?${urlParams.toString()}`);
+
+		expect(response?.status()).toBe(400);
+		await expect(page.locator('body')).toContainText('invalid_request');
+		expect(attackerRedirected).toBe(false);
 	});
 
 	test('prompt=none succeeds when user is authenticated and authorized', async ({ page }) => {

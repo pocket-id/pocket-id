@@ -8,6 +8,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -90,7 +91,7 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
 	req := httptest.NewRequest(
-		"GET",
+		http.MethodGet,
 		"/api/oidc/authorize?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
 		nil,
 	)
@@ -122,7 +123,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
 	req := httptest.NewRequest(
-		"POST",
+		http.MethodPost,
 		"/api/oidc/par?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
 		nil,
 	)
@@ -153,7 +154,7 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 
 	const requestedRedirectURI = "https://evil.example.net/callback"
 	req := httptest.NewRequest(
-		"GET",
+		http.MethodGet,
 		"/api/oidc/authorize?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
 		nil,
 	)
