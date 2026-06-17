@@ -90,7 +90,8 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
-	req := httptest.NewRequest(
+	req := httptest.NewRequestWithContext(
+		t.Context(),
 		http.MethodGet,
 		"/api/oidc/authorize?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
 		nil,
@@ -122,7 +123,8 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
-	req := httptest.NewRequest(
+	req := httptest.NewRequestWithContext(
+		t.Context(),
 		http.MethodPost,
 		"/api/oidc/par?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
 		nil,
@@ -153,7 +155,8 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://evil.example.net/callback"
-	req := httptest.NewRequest(
+	req := httptest.NewRequestWithContext(
+		t.Context(),
 		http.MethodGet,
 		"/api/oidc/authorize?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
 		nil,
