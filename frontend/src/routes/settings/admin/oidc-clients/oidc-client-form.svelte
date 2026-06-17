@@ -13,7 +13,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { cn } from '$lib/utils/style';
-	import { emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
+	import { callbackUrlSchema, emptyToUndefined, optionalUrl } from '$lib/utils/zod-util';
 	import { LucideChevronDown, LucideMoon, LucideSun } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { z } from 'zod/v4';
@@ -71,8 +71,8 @@
 				.optional()
 		),
 		name: z.string().min(2).max(50),
-		callbackURLs: z.array(z.url()).default([]),
-		logoutCallbackURLs:  z.array(z.url()).default([]),
+		callbackURLs: z.array(callbackUrlSchema).default([]),
+		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
 		isPublic: z.boolean(),
 		pkceEnabled: z.boolean(),
 		requiresReauthentication: z.boolean(),
@@ -215,7 +215,7 @@
 		<SwitchWithLabel
 			id="pkce"
 			label={m.pkce()}
-			description={m.public_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
+			description={m.proof_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
 			disabled={$inputs.isPublic.value}
 			bind:checked={$inputs.pkceEnabled.value}
 		/>

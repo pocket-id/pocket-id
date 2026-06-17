@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"io"
+	"log/slog"
+	"net/url"
 	"time"
 
 	"github.com/ory/fosite"
@@ -11,6 +13,7 @@ import (
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	"github.com/ory/fosite/handler/openid"
 	"github.com/ory/fosite/handler/rfc8628"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -43,6 +46,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		TokenURL:                       config.TokenBaseURL + "/api/oidc/token",
 		ScopeStrategy:                  fosite.ExactScopeStrategy,
 		AudienceMatchingStrategy:       fosite.ExactAudienceMatchingStrategy,
+		RedirectURIMatcher:             matchRedirectURI,
 		EnforcePKCEForPublicClients:    true,
 		EnablePKCEPlainChallengeMethod: true,
 		RefreshTokenScopes:             []string{},
@@ -104,6 +108,28 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 			config:      fositeConfig,
 		},
 	}, nil
+}
+
+func matchRedirectURI(rawurl string, client fosite.Client) (*url.URL, error) {
+	redirectURI, err := fosite.MatchRedirectURIWithClientRedirectURIs(rawurl, client)
+	if err == nil || rawurl == "" {
+		return redirectURI, err
+	}
+
+	invalidRedirectErr := err
+	matchedURL, matchErr := utils.GetCallbackURLFromList(client.GetRedirectURIs(), rawurl)
+	if matchErr != nil || matchedURL == "" {
+		slog.Debug("Redirect URI does not match any of the registered callback URLs", "rawurl", rawurl, "client_id", client.GetID(), "error", matchErr)
+		return nil, invalidRedirectErr
+	}
+
+	redirectURI, err = url.Parse(matchedURL)
+	if err != nil || !fosite.IsValidRedirectURI(redirectURI) {
+		slog.Debug("Matched callback URL is invalid", "matchedURL", matchedURL, "client_id", client.GetID(), "error", err)
+		return nil, invalidRedirectErr
+	}
+
+	return redirectURI, nil
 }
 
 // DeriveGlobalSecret derives a 32-byte secret from the provided secret.

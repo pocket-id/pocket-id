@@ -8,6 +8,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +69,97 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 	// select the verification key from the published JWKS (esp. after key rotation).
 	header := decodeJWTPart(t, response.GetAccessToken(), 0)
 	require.Equal(t, "test-key-id", header["kid"])
+}
+
+func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:         model.Base{ID: "test-client"},
+		Name:         "Test Client",
+		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+	}).Error)
+
+	provider, err := newProvider(NewStore(db), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+		BaseURL:      "https://issuer.example.com",
+		TokenBaseURL: "https://issuer.example.com",
+		Secret:       "test-secret",
+	})
+	require.NoError(t, err)
+
+	const requestedRedirectURI = "https://tenant.example.com/callback"
+	req := httptest.NewRequest(
+		"GET",
+		"/api/oidc/authorize?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
+		nil,
+	)
+
+	ar, err := provider.NewAuthorizeRequest(req.Context(), req)
+	require.NoError(t, err)
+	require.Equal(t, requestedRedirectURI, ar.GetRedirectURI().String())
+	require.True(t, ar.IsRedirectURIValid())
+	require.NotContains(t, ar.GetClient().GetRedirectURIs(), requestedRedirectURI)
+}
+
+func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:         model.Base{ID: "test-client"},
+		Name:         "Test Client",
+		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		IsPublic:     true,
+	}).Error)
+
+	provider, err := newProvider(NewStore(db), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+		BaseURL:      "https://issuer.example.com",
+		TokenBaseURL: "https://issuer.example.com",
+		Secret:       "test-secret",
+	})
+	require.NoError(t, err)
+
+	const requestedRedirectURI = "https://tenant.example.com/callback"
+	req := httptest.NewRequest(
+		"POST",
+		"/api/oidc/par?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
+		nil,
+	)
+
+	ar, err := provider.NewPushedAuthorizeRequest(req.Context(), req)
+	require.NoError(t, err)
+	require.Equal(t, requestedRedirectURI, ar.GetRedirectURI().String())
+	require.True(t, ar.IsRedirectURIValid())
+	require.NotContains(t, ar.GetClient().GetRedirectURIs(), requestedRedirectURI)
+}
+
+func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:         model.Base{ID: "test-client"},
+		Name:         "Test Client",
+		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+	}).Error)
+
+	provider, err := newProvider(NewStore(db), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+		BaseURL:      "https://issuer.example.com",
+		TokenBaseURL: "https://issuer.example.com",
+		Secret:       "test-secret",
+	})
+	require.NoError(t, err)
+
+	const requestedRedirectURI = "https://evil.example.net/callback"
+	req := httptest.NewRequest(
+		"GET",
+		"/api/oidc/authorize?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri="+requestedRedirectURI,
+		nil,
+	)
+
+	_, err = provider.NewAuthorizeRequest(req.Context(), req)
+	require.ErrorIs(t, err, fosite.ErrInvalidRequest)
 }
 
 // decodeJWTPart base64url-decodes the header (index 0) or claims (index 1) segment of a

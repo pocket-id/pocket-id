@@ -26,6 +26,7 @@ func TestLogoutCallbackURL(t *testing.T) {
 	withURLs := &model.OidcClient{Base: model.Base{ID: "c"}, LogoutCallbackURLs: model.UrlList{
 		"https://app.example/logout",
 		"https://app.example/logout2",
+		"https://*.example/logout",
 	}}
 
 	t.Run("no configured logout URLs yields no callback", func(t *testing.T) {
@@ -44,6 +45,12 @@ func TestLogoutCallbackURL(t *testing.T) {
 		got, err := logoutCallbackURL(withURLs, "https://app.example/logout2")
 		require.NoError(t, err)
 		require.Equal(t, "https://app.example/logout2", got)
+	})
+
+	t.Run("wildcard match is honored with the requested URL", func(t *testing.T) {
+		got, err := logoutCallbackURL(withURLs, "https://tenant.example/logout")
+		require.NoError(t, err)
+		require.Equal(t, "https://tenant.example/logout", got)
 	})
 
 	t.Run("unregistered URL is rejected (no open redirect)", func(t *testing.T) {

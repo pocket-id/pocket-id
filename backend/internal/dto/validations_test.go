@@ -82,3 +82,26 @@ func TestValidateCallbackURL(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCallbackURLPattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"valid exact URL", "https://example.com/callback", true},
+		{"valid wildcard URL", "https://*.example.com/callback", true},
+		{"valid custom scheme", "pocketid://callback", true},
+		{"valid global wildcard", "*", true},
+		{"invalid relative URL", "/callback", false},
+		{"invalid malformed URL", "http://[::1", false},
+		{"rejects javascript scheme", "javascript:alert(1)", false},
+		{"rejects data scheme", "data:text/html;base64,PGgxPkhlbGxvPC9oMT4=", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ValidateCallbackURLPattern(tt.input))
+		})
+	}
+}

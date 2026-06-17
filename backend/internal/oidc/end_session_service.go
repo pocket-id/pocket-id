@@ -9,6 +9,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -126,15 +127,8 @@ func logoutCallbackURL(client *model.OidcClient, inputLogoutCallbackURL string) 
 		return client.LogoutCallbackURLs[0], nil
 	}
 
-	var matched string
-	for _, logoutCallbackURL := range client.LogoutCallbackURLs {
-		if logoutCallbackURL == inputLogoutCallbackURL {
-			matched = logoutCallbackURL
-			break
-		}
-	}
-
-	if matched == "" {
+	matched, err := utils.GetCallbackURLFromList(client.LogoutCallbackURLs, inputLogoutCallbackURL)
+	if err != nil || matched == "" {
 		return "", &common.OidcInvalidCallbackURLError{}
 	}
 

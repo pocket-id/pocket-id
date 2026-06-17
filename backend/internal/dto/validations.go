@@ -44,6 +44,9 @@ func init() {
 		"callback_url": func(fl validator.FieldLevel) bool {
 			return ValidateCallbackURL(fl.Field().String())
 		},
+		"callback_url_pattern": func(fl validator.FieldLevel) bool {
+			return ValidateCallbackURLPattern(fl.Field().String())
+		},
 	}
 	for k, v := range validators {
 		err := engine.RegisterValidation(k, v)
@@ -77,4 +80,9 @@ func ValidateCallbackURL(str string) bool {
 	default:
 		return true
 	}
+}
+
+// ValidateCallbackURLPattern validates callback URL patterns, with support for wildcards.
+func ValidateCallbackURLPattern(raw string) bool {
+	return utils.ValidateCallbackURLPattern(raw) == nil
 }
