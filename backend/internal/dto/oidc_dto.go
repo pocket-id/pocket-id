@@ -182,7 +182,7 @@ type OidcIntrospectionResponseDto struct {
 
 type OidcDeviceAuthorizationRequestDto struct {
 	ClientID            string `form:"client_id" binding:"required"`
-	Scope               string `form:"scope" binding:"required"`
+	Scope               string `form:"scope"`
 	ClientSecret        string `form:"client_secret"`
 	ClientAssertion     string `form:"client_assertion"`
 	ClientAssertionType string `form:"client_assertion_type"`
@@ -196,14 +196,11 @@ type OidcDeviceAuthorizationResponseDto struct {
 	VerificationURIComplete string `json:"verification_uri_complete"`
 	ExpiresIn               int    `json:"expires_in"`
 	Interval                int    `json:"interval"`
-	RequiresAuthorization   bool   `json:"requires_authorization"`
 }
 
-type OidcDeviceTokenRequestDto struct {
-	GrantType    string `form:"grant_type" binding:"required,eq=urn:ietf:params:oauth:grant-type:device_code"`
-	DeviceCode   string `form:"device_code" binding:"required"`
-	ClientID     string `form:"client_id"`
-	ClientSecret string `form:"client_secret"`
+type OidcExchangeDeviceSessionRequestDto struct {
+	DeviceCode string `json:"device_code" form:"device_code" binding:"required"`
+	ClientID   string `json:"client_id" form:"client_id" binding:"required"`
 }
 
 type DeviceCodeInfoDto struct {

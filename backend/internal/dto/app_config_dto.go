@@ -18,6 +18,7 @@ type AppConfigUpdateDto struct {
 	EmailsVerified                             string `json:"emailsVerified" binding:"required"`
 	DisableAnimations                          string `json:"disableAnimations" binding:"required"`
 	AllowOwnAccountEdit                        string `json:"allowOwnAccountEdit" binding:"required"`
+	QrLoginEnabled                             string `json:"qrLoginEnabled" binding:"required"`
 	AllowUserSignups                           string `json:"allowUserSignups" binding:"required,oneof=disabled withToken open"`
 	SignupDefaultUserGroupIDs                  string `json:"signupDefaultUserGroupIDs" binding:"omitempty,json"`
 	SignupDefaultCustomClaims                  string `json:"signupDefaultCustomClaims" binding:"omitempty,json"`

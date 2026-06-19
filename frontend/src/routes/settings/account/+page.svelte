@@ -23,6 +23,7 @@
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
+	import DeviceVerificationModal from './device-verification-modal.svelte';
 	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
@@ -32,6 +33,7 @@
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
 	let showLoginCodeModal: boolean = $state(false);
+	let showDeviceVerificationModal: boolean = $state(false);
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
@@ -116,9 +118,16 @@
 			</Item.Description>
 		</Item.Content>
 		<Item.Actions class="w-full sm:w-auto">
-			<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
-				{m.create()}
-			</Button>
+			<div class="flex w-full gap-2">
+				<Button variant="outline" class="flex-1" onclick={() => (showLoginCodeModal = true)}>
+					{m.create()}
+				</Button>
+				{#if $appConfigStore.qrLoginEnabled}
+					<Button variant="outline" class="flex-1" onclick={() => (showDeviceVerificationModal = true)}>
+						{m.enter_code()}
+					</Button>
+				{/if}
+			</div>
 		</Item.Actions>
 	</Item.Root>
 </div>
@@ -175,9 +184,16 @@
 			</Item.Description>
 		</Item.Content>
 		<Item.Actions>
-			<Button variant="outline" onclick={() => (showLoginCodeModal = true)}>
-				{m.create()}
-			</Button>
+			<div class="flex gap-2">
+				<Button variant="outline" onclick={() => (showLoginCodeModal = true)}>
+					{m.create()}
+				</Button>
+				{#if $appConfigStore.qrLoginEnabled}
+					<Button variant="outline" onclick={() => (showDeviceVerificationModal = true)}>
+						{m.enter_code()}
+					</Button>
+				{/if}
+			</div>
 		</Item.Actions>
 	</Item.Root>
 </div>
@@ -204,3 +220,4 @@
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
 />
 <LoginCodeModal bind:show={showLoginCodeModal} />
+<DeviceVerificationModal bind:show={showDeviceVerificationModal} />

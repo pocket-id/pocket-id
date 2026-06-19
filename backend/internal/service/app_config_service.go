@@ -65,6 +65,7 @@ func (s *AppConfigService) getDefaultDbConfig() *model.AppConfig {
 		EmailsVerified:            model.AppConfigVariable{Value: "false"},
 		DisableAnimations:         model.AppConfigVariable{Value: "false"},
 		AllowOwnAccountEdit:       model.AppConfigVariable{Value: "true"},
+		QrLoginEnabled:            model.AppConfigVariable{Value: "true"},
 		AllowUserSignups:          model.AppConfigVariable{Value: "disabled"},
 		SignupDefaultUserGroupIDs: model.AppConfigVariable{Value: "[]"},
 		SignupDefaultCustomClaims: model.AppConfigVariable{Value: "[]"},

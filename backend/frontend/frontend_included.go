@@ -74,8 +74,15 @@ func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) erro
 	handler := func(c *gin.Context) {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 
+		// Trailing-slash: serve directory index.html or strip the slash
 		if strings.HasSuffix(path, "/") {
-			c.Redirect(http.StatusMovedPermanently, strings.TrimRight(c.Request.URL.String(), "/"))
+			indexPath := path + "index.html"
+			if _, err := fs.Stat(distFS, indexPath); err == nil {
+				c.Request.URL.Path = "/" + path
+				fileServer.ServeHTTP(c.Writer, c.Request)
+				return
+			}
+			c.Redirect(http.StatusMovedPermanently, strings.TrimSuffix(c.Request.URL.String(), "/"))
 			return
 		}
 

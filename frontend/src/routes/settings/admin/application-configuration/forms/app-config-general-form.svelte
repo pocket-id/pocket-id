@@ -33,6 +33,7 @@
 		homePageUrl: appConfig.homePageUrl,
 		sessionDuration: appConfig.sessionDuration,
 		allowOwnAccountEdit: appConfig.allowOwnAccountEdit,
+		qrLoginEnabled: appConfig.qrLoginEnabled,
 		disableAnimations: appConfig.disableAnimations,
 		accentColor: appConfig.accentColor
 	};
@@ -42,6 +43,7 @@
 		homePageUrl: z.string(),
 		sessionDuration: z.number().min(1).max(43200),
 		allowOwnAccountEdit: z.boolean(),
+		qrLoginEnabled: z.boolean(),
 		disableAnimations: z.boolean(),
 		accentColor: z.string()
 	});
@@ -96,6 +98,12 @@
 				label={m.enable_self_account_editing()}
 				description={m.whether_the_users_should_be_able_to_edit_their_own_account_details()}
 				bind:checked={$inputs.allowOwnAccountEdit.value}
+			/>
+			<SwitchWithLabel
+				id="qr-login-enabled"
+				label={m.enable_qr_login()}
+				description={m.enable_qr_login_description()}
+				bind:checked={$inputs.qrLoginEnabled.value}
 			/>
 			<SwitchWithLabel
 				id="disable-animations"

@@ -38,6 +38,7 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 		s.RegisterJob(ctx, "ClearOidcRefreshTokens", jobDefWithJitter(24*time.Hour), jobs.clearOidcRefreshTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearReauthenticationTokens", jobDefWithJitter(24*time.Hour), jobs.clearReauthenticationTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearAuditLogs", jobDefWithJitter(24*time.Hour), jobs.clearAuditLogs, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
+		s.RegisterJob(ctx, "ClearExpiredDeviceCodes", jobDefWithJitter(24*time.Hour), jobs.clearExpiredDeviceCodes, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearOidcPushedAuthorizationRequests", jobDefWithJitter(24*time.Hour), jobs.clearOidcPushedAuthorizationRequests, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 	)
 }
@@ -143,6 +144,20 @@ func (j *DbCleanupJobs) clearAuditLogs(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "Deleted old audit logs", slog.Int64("count", st.RowsAffected))
+
+	return nil
+}
+
+// clearExpiredDeviceCodes deletes device codes that have expired
+func (j *DbCleanupJobs) clearExpiredDeviceCodes(ctx context.Context) error {
+	st := j.db.
+		WithContext(ctx).
+		Delete(&model.OidcDeviceCode{}, "expires_at < ?", datatype.DateTime(time.Now()))
+	if st.Error != nil {
+		return fmt.Errorf("failed to clean expired device codes: %w", st.Error)
+	}
+
+	slog.InfoContext(ctx, "Cleaned expired device codes", slog.Int64("count", st.RowsAffected))
 
 	return nil
 }

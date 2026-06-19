@@ -14,6 +14,8 @@
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 	import { getAxiosErrorMessage, getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
+	import { goto } from '$app/navigation';
+	import { needsAlternativeLogin, navigateToAlternativeLogin } from '$lib/utils/device-detect-util';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -77,6 +79,19 @@
 		// If prompt=none and user is not signed in, redirect immediately with login_required
 		if (hasPromptNone && !$userStore) {
 			await redirectWithError('login_required');
+			return;
+		}
+
+		// Redirect limited devices / no WebAuthn to alternative login.
+		// `loop=1` query param breaks the cycle if the alternative-login page sends us back here
+		// while the user is still not signed in (e.g. user cancelled).
+		const alreadyRedirected = new URLSearchParams(window.location.search).get('loop') === '1';
+		const needsAltLogin = !$userStore && $appConfigStore.qrLoginEnabled && needsAlternativeLogin();
+		if (needsAltLogin && !alreadyRedirected) {
+			const currentUrl = window.location.pathname + window.location.search;
+			const separator = currentUrl.includes('?') ? '&' : '?';
+			const returnUrl = currentUrl + separator + 'loop=1';
+			navigateToAlternativeLogin(`?redirect=${encodeURIComponent(returnUrl)}`, goto);
 			return;
 		}
 
@@ -147,14 +162,40 @@
 
 			let reauthToken: string | undefined;
 			if (client?.requiresReauthentication || hasPromptLogin) {
-				let authResponse;
-				const signedInRecently =
-					userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000;
-				if (!signedInRecently) {
-					const loginOptions = await webauthnService.getLoginOptions();
-					authResponse = await startAuthentication({ optionsJSON: loginOptions });
+				let reauthResponse: AuthenticationResponseJSON | undefined;
+				// The QR-login flow sends the user back here with `reauth=1` after a fresh sign-in on
+				// another device. Only trust the marker on devices that actually took that path
+				// (limited devices), so it can't be appended manually on a capable device to bypass
+				// reauthentication. Consume it immediately by stripping it from the URL, so a reload
+				// can never re-trust a stale marker.
+				const onLimitedDevice = $appConfigStore.qrLoginEnabled && needsAlternativeLogin();
+				const params = new URLSearchParams(window.location.search);
+				const justReauthedViaAlt = onLimitedDevice && params.get('reauth') === '1';
+				if (justReauthedViaAlt) {
+					params.delete('reauth');
+					const query = params.toString();
+					history.replaceState(
+						history.state,
+						'',
+						window.location.pathname + (query ? `?${query}` : '')
+					);
 				}
-				reauthToken = await webauthnService.reauthenticate(authResponse);
+				const signedInRecently =
+					(userSignedInAt && userSignedInAt.getTime() > Date.now() - 60 * 1000) ||
+					justReauthedViaAlt;
+				if (!signedInRecently) {
+					// On limited devices (TVs etc.) a WebAuthn prompt would fail; route to QR login instead.
+					if (onLimitedDevice) {
+						const currentUrl = window.location.pathname + window.location.search;
+						const separator = currentUrl.includes('?') ? '&' : '?';
+						const returnUrl = currentUrl + separator + 'reauth=1';
+						navigateToAlternativeLogin(`?redirect=${encodeURIComponent(returnUrl)}`, goto);
+						return;
+					}
+					const loginOptions = await webauthnService.getLoginOptions();
+					reauthResponse = await startAuthentication({ optionsJSON: loginOptions });
+				}
+				reauthToken = await webauthnService.reauthenticate(reauthResponse);
 			}
 
 			const result = await oidService.authorize(
@@ -366,7 +407,7 @@
 					{m.try_again()}
 				</Button>
 			{/if}
-			<Button href={document.referrer || '/'} class="flex-1" variant="secondary">
+			<Button href={'/'} class="flex-1" variant="secondary">
 				{m.cancel()}
 			</Button>
 		</div>

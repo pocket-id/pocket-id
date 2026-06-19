@@ -152,6 +152,8 @@ type OidcDeviceCode struct {
 	Nonce                string
 	ExpiresAt            datatype.DateTime
 	IsAuthorized         bool
+	IntervalSeconds      int `gorm:"default:5"`
+	LastPolledAt         *datatype.DateTime
 
 	UserID   *string
 	User     User

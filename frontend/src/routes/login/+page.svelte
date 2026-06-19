@@ -6,8 +6,12 @@
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
+
+	import { needsAlternativeLogin, navigateToAlternativeLogin } from '$lib/utils/device-detect-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
+	import { isSafeRedirect } from '$lib/utils/redirection-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
+	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { cn } from 'tailwind-variants';
 	import LoginLogoErrorSuccessIndicator from './components/login-logo-error-success-indicator.svelte';
@@ -19,6 +23,31 @@
 	let isLoading = $state(false);
 	let error: string | undefined = $state(undefined);
 
+	onMount(() => {
+		const params = new URLSearchParams(window.location.search);
+		const method = params.get('method');
+
+		if (method === 'code' || method === 'email') {
+			params.delete('method');
+			const remaining = params.toString();
+			goto(`/login/alternative/${method}` + (remaining ? `?${remaining}` : ''));
+			return;
+		}
+
+		if (method === 'qr' && $appConfigStore.qrLoginEnabled) {
+			params.delete('method');
+			const remaining = params.toString();
+			navigateToAlternativeLogin(remaining ? `?${remaining}` : '', goto);
+			return;
+		}
+
+		if ($appConfigStore.qrLoginEnabled && method !== 'passkey' && needsAlternativeLogin()) {
+			const remaining = params.toString();
+			navigateToAlternativeLogin(remaining ? `?${remaining}` : '', goto);
+			return;
+		}
+	});
+
 	async function authenticate() {
 		error = undefined;
 		isLoading = true;
@@ -28,7 +57,12 @@
 			const user = await webauthnService.finishLogin(authResponse);
 
 			await userStore.setUser(user);
-			goto(data.redirect || '/settings');
+			const target = data.redirect;
+			if (isSafeRedirect(target)) {
+				goto(target);
+			} else {
+				goto('/settings');
+			}
 		} catch (e) {
 			error = getWebauthnErrorMessage(e);
 		}
