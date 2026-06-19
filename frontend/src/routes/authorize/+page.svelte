@@ -12,7 +12,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
-	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
+	import { getAxiosErrorMessage, getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication, type AuthenticationResponseJSON } from '@simplewebauthn/browser';
 	import { goto } from '$app/navigation';
 	import { needsAlternativeLogin, navigateToAlternativeLogin } from '$lib/utils/device-detect-util';
@@ -66,15 +66,19 @@
 	const hasPromptSelectAccount = promptValues.includes('select_account');
 
 	onMount(() => {
+		void handleInitialAuthorization();
+	});
+
+	async function handleInitialAuthorization() {
 		// Conflicting prompt values - none can't be combined with any interactive prompt
 		if (hasPromptNone && (hasPromptConsent || hasPromptLogin || hasPromptSelectAccount)) {
-			redirectWithError('interaction_required');
+			await redirectWithError('interaction_required');
 			return;
 		}
 
 		// If prompt=none and user is not signed in, redirect immediately with login_required
 		if (hasPromptNone && !$userStore) {
-			redirectWithError('login_required');
+			await redirectWithError('login_required');
 			return;
 		}
 
@@ -100,9 +104,9 @@
 		}
 
 		if ($userStore) {
-			authorize();
+			await authorize();
 		}
-	});
+	}
 
 	async function useDifferentAccount() {
 		try {
@@ -145,7 +149,7 @@
 
 				// If prompt=none and consent required, redirect with error
 				if (hasPromptNone && authorizationRequired) {
-					redirectWithError('consent_required');
+					await redirectWithError('consent_required');
 					return;
 				}
 
@@ -210,7 +214,7 @@
 			// Check if backend returned a redirect error
 			if (result.requiresRedirect && result.error) {
 				if (hasPromptNone) {
-					redirectWithError(result.error);
+					await redirectWithError(result.error, result.callbackURL);
 				} else {
 					errorMessage = result.error;
 					isLoading = false;
@@ -225,16 +229,27 @@
 		}
 	}
 
-	function redirectWithError(error: string) {
-		const redirectURL = new URL(callbackURL);
-		if (redirectURL.protocol == 'javascript:' || redirectURL.protocol == 'data:') {
-			throw new Error('Invalid redirect URL protocol');
-		}
+	async function redirectWithError(error: string, validatedCallbackURL?: string) {
+		isLoading = true;
 
-		window.location.href = createRedirectURL(callbackURL, {
-			error,
-			state: authorizeState
-		});
+		try {
+			const safeCallbackURL =
+				validatedCallbackURL ||
+				(await oidService.resolveAuthorizeCallbackURL(client!.id, callbackURL, requestURI))
+					.callbackURL;
+			const redirectURL = new URL(safeCallbackURL);
+			if (redirectURL.protocol == 'javascript:' || redirectURL.protocol == 'data:') {
+				throw new Error('Invalid redirect URL protocol');
+			}
+
+			window.location.href = createRedirectURL(safeCallbackURL, {
+				error,
+				state: authorizeState
+			});
+		} catch (e) {
+			errorMessage = getAxiosErrorMessage(e);
+			isLoading = false;
+		}
 	}
 
 	function onSuccess(code: string, callbackURL: string, issuer: string) {

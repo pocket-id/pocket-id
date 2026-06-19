@@ -91,6 +91,7 @@ type OidcPARRequestDto struct {
 	CodeChallenge       string `form:"code_challenge"`
 	CodeChallengeMethod string `form:"code_challenge_method"`
 	Prompt              string `form:"prompt"`
+	ResponseMode        string `form:"response_mode" binding:"omitempty,response_mode"`
 }
 
 type OidcPARResponseDto struct {
@@ -104,10 +105,29 @@ type AuthorizeOidcClientResponseDto struct {
 	Issuer      string `json:"issuer"`
 }
 
+type AuthorizeOidcClientCallbackRequestDto struct {
+	ClientID    string `json:"clientID" binding:"required"`
+	CallbackURL string `json:"callbackURL"`
+	RequestURI  string `json:"requestURI"`
+}
+
+type AuthorizeOidcClientCallbackResponseDto struct {
+	CallbackURL string `json:"callbackURL"`
+}
+
 type AuthorizationRequiredDto struct {
 	ClientID   string `json:"clientID" binding:"required"`
 	Scope      string `json:"scope"`
 	RequestURI string `json:"requestURI"`
+}
+
+type OidcAuthorizeRequestInfoDto struct {
+	Scope        string `json:"scope"`
+	RedirectURI  string `json:"redirectURI"`
+	State        string `json:"state,omitempty"`
+	Nonce        string `json:"nonce,omitempty"`
+	ResponseMode string `json:"responseMode,omitempty"`
+	Prompt       string `json:"prompt,omitempty"`
 }
 
 type OidcCreateTokensDto struct {

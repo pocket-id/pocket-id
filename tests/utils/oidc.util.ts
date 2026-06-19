@@ -75,8 +75,14 @@ export async function pushAuthorizationRequest(
 		codeChallengeMethod?: string;
 		nonce?: string;
 		state?: string;
+		responseMode?: string;
 	}
-): Promise<{ request_uri?: string; expires_in?: number; error?: string; error_description?: string }> {
+): Promise<{
+	request_uri?: string;
+	expires_in?: number;
+	error?: string;
+	error_description?: string;
+}> {
 	const form: Record<string, string> = {
 		client_id: params.clientId,
 		response_type: params.responseType ?? 'code',
@@ -88,6 +94,7 @@ export async function pushAuthorizationRequest(
 	if (params.codeChallengeMethod) form.code_challenge_method = params.codeChallengeMethod;
 	if (params.nonce) form.nonce = params.nonce;
 	if (params.state) form.state = params.state;
+	if (params.responseMode) form.response_mode = params.responseMode;
 
 	return page.request
 		.post('/api/oidc/par', {
