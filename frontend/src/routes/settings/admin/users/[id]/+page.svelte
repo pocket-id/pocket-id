@@ -132,7 +132,7 @@
 	</div>
 </CollapsibleCard>
 
-<Item.Group class="bg-card border p-4 shadow-sm">
+<Item.Group class="bg-card border shadow-sm rounded-4xl p-5">
 	<Item.Root class="border-none bg-transparent p-0">
 		<Item.Media class="text-primary/80">
 			<KeyRound class="size-5" />

@@ -49,7 +49,7 @@
 <div>
 	<Card.Root>
 		<Card.Header>
-			<div class="flex items-center justify-between">
+			<div class="flex flex-wrap items-center justify-between md:flex-nowrap gap-4">
 				<div>
 					<Card.Title>
 						<ShieldPlus class="text-primary/80 size-5" />
@@ -62,7 +62,9 @@
 					>
 				</div>
 				{#if !expandAddClient}
-					<Button onclick={() => (expandAddClient = true)}>{m.add_oidc_client()}</Button>
+					<Button class="w-full md:w-auto" onclick={() => (expandAddClient = true)}
+						>{m.add_oidc_client()}</Button
+					>
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddClient = false)}>
 						<LucideMinus class="size-5" />

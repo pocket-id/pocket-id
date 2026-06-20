@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import '@fontsource/gloock';
 
 @variant dark (&:where(.dark, .dark *));
 
@@ -149,6 +148,11 @@
 
 	button {
 		@apply cursor-pointer;
+	}
+
+	@font-face {
+		font-family: 'Gloock';
+		src: url('/fonts/Gloock-Regular.woff') format('woff');
 	}
 }
 
