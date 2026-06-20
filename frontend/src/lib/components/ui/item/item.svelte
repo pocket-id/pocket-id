@@ -2,18 +2,19 @@
 	import { tv, type VariantProps } from 'tailwind-variants';
 
 	export const itemVariants = tv({
-		base: 'group/item focus-visible:border-ring focus-visible:ring-ring/50 flex flex-wrap items-center rounded-4xl border border-transparent text-sm outline-none transition-colors duration-100 focus-visible:ring-[3px]',
+		base: '[a]:hover:bg-muted rounded-2xl border text-sm group/item focus-visible:border-ring focus-visible:ring-ring/50 flex w-full flex-wrap items-center transition-colors duration-100 outline-none focus-visible:ring-[3px] [a]:transition-colors',
 		variants: {
 			variant: {
-				default: 'bg-transparent [a&]:hover:bg-accent/50 [a&]:transition-colors',
-				outline: 'border-border [a&]:hover:bg-accent/50 [a&]:transition-colors',
-				muted: 'bg-muted/50 [a&]:hover:bg-accent/50 [a&]:transition-colors',
-				card: 'bg-card shadow-sm [a&]:hover:bg-accent/50 [a&]:transition-colors',
-				transparent: 'bg-transparent'
+				default: 'border-transparent',
+				outline: 'border-border',
+				muted: 'bg-muted/50 border-transparent',
+				card: 'bg-card shadow-sm border-transparent',
+				transparent: 'bg-transparent border-transparent'
 			},
 			size: {
-				default: 'gap-4 p-6',
-				sm: 'gap-2.5 px-4 py-4'
+				default: 'gap-3.5 px-4 py-3.5',
+				sm: 'gap-3.5 px-3.5 py-3',
+				xs: 'gap-2.5 px-3 py-2.5 in-data-[slot=dropdown-menu-content]:p-0'
 			}
 		},
 		defaultVariants: {

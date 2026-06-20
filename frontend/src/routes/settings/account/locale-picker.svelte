@@ -49,7 +49,7 @@
 	<Select.Trigger class="max-w-[200px]" aria-label="Select locale">
 		{locales[currentLocale]}
 	</Select.Trigger>
-	<Select.Content>
+	<Select.Content class="max-h-100">
 		{#each Object.entries(locales) as [value, label]}
 			<Select.Item {value}>{label}</Select.Item>
 		{/each}

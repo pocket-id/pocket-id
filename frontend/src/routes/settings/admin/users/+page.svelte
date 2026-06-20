@@ -2,14 +2,15 @@
 	import SignupTokenListModal from '$lib/components/signup/signup-token-list-modal.svelte';
 	import SignupTokenModal from '$lib/components/signup/signup-token-modal.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as ButtonGroup from '$lib/components/ui/button-group';
 	import * as Card from '$lib/components/ui/card';
-	import * as DropdownButton from '$lib/components/ui/dropdown-button';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { UserCreate } from '$lib/types/user.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideMinus, UserPen, UserPlus } from '@lucide/svelte';
+	import { ChevronDown, LucideMinus, UserPen, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
@@ -62,25 +63,28 @@
 				</div>
 				{#if !expandAddUser}
 					{#if $appConfigStore.allowUserSignups !== 'disabled'}
-						<DropdownButton.DropdownRoot>
-							<DropdownButton.Root>
-								<DropdownButton.Main disabled={false} onclick={() => (expandAddUser = true)}>
-									{selectedCreateOptions}
-								</DropdownButton.Main>
-								<DropdownButton.DropdownTrigger aria-label="Create options">
-									<DropdownButton.Trigger class="border-l" />
-								</DropdownButton.DropdownTrigger>
-							</DropdownButton.Root>
-
-							<DropdownButton.Content align="end">
-								<DropdownButton.Item onclick={() => (signupTokenModalOpen = true)}>
-									{m.create_signup_token()}
-								</DropdownButton.Item>
-								<DropdownButton.Item onclick={() => (signupTokenListModalOpen = true)}>
-									{m.view_active_signup_tokens()}
-								</DropdownButton.Item>
-							</DropdownButton.Content>
-						</DropdownButton.DropdownRoot>
+						<ButtonGroup.Root>
+							<Button onclick={() => (expandAddUser = true)}>
+								{selectedCreateOptions}
+							</Button>
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger>
+									{#snippet child({ props })}
+										<Button {...props} size="icon" aria-label="Create options">
+											<ChevronDown />
+										</Button>
+									{/snippet}
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Item onclick={() => (signupTokenModalOpen = true)}>
+										{m.create_signup_token()}
+									</DropdownMenu.Item>
+									<DropdownMenu.Item onclick={() => (signupTokenListModalOpen = true)}>
+										{m.view_active_signup_tokens()}
+									</DropdownMenu.Item>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						</ButtonGroup.Root>
 					{:else}
 						<Button class="w-full md:w-auto" onclick={() => (expandAddUser = true)}
 							>{m.add_user()}</Button
