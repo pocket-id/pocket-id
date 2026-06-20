@@ -673,6 +673,27 @@ test.describe('OIDC prompt parameter', () => {
 		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
 	});
 
+	test('prompt=none does not redirect login_required to an unregistered redirect_uri', async ({
+		page
+	}) => {
+		await page.context().clearCookies();
+		const oidcClient = oidcClients.nextcloud;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('redirect_uri', 'https://attacker.example/collect');
+
+		let attackerRedirected = false;
+		await page.route('https://attacker.example/**', async (route) => {
+			attackerRedirected = true;
+			await route.fulfill({ status: 200, body: 'attacker' });
+		});
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		await expect(page.getByText(/Invalid callback URL/i)).toBeVisible();
+		expect(attackerRedirected).toBe(false);
+	});
+
 	test('prompt=none redirects errors with response_mode=fragment', async ({ page }) => {
 		await page.context().clearCookies();
 		const oidcClient = oidcClients.nextcloud;
@@ -704,6 +725,26 @@ test.describe('OIDC prompt parameter', () => {
 
 		expect(redirectUrl.searchParams.get('error')).toBe('consent_required');
 		expect(redirectUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+	});
+
+	test('prompt=none does not redirect consent_required to an unregistered redirect_uri', async ({
+		page
+	}) => {
+		const oidcClient = oidcClients.immich;
+		const urlParams = createUrlParams(oidcClient);
+		urlParams.set('prompt', 'none');
+		urlParams.set('redirect_uri', 'https://attacker.example/collect');
+
+		let attackerRedirected = false;
+		await page.route('https://attacker.example/**', async (route) => {
+			attackerRedirected = true;
+			await route.fulfill({ status: 200, body: 'attacker' });
+		});
+
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		await expect(page.getByText(/Invalid callback URL/i)).toBeVisible();
+		expect(attackerRedirected).toBe(false);
 	});
 
 	test('prompt=none succeeds when user is authenticated and authorized', async ({ page }) => {
@@ -938,6 +979,55 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		expect(tokenResult.access_token).toBeTruthy();
 		expect(tokenResult.token_type).toBe('Bearer');
 		expect(tokenResult.error).toBeUndefined();
+	});
+
+	test('par-request-info resolves the stored request parameters', async ({ page }) => {
+		const state = 'par-info-state-9f3a';
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			scope: 'openid profile',
+			state,
+			responseMode: 'form_post'
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		const res = await page.request.get('/api/oidc/par-request-info', {
+			params: { client_id: client.id, request_uri: parResult.request_uri! }
+		});
+		expect(res.ok()).toBe(true);
+
+		const body = await res.json();
+		expect(body.scope).toBe('openid profile');
+		expect(body.redirectURI).toBe(client.callbackUrl);
+		expect(body.state).toBe(state);
+		expect(body.responseMode).toBe('form_post');
+	});
+
+	test('PAR full flow carries the resolved state into the callback redirect', async ({ page }) => {
+		const state = 'par-flow-state-7b21';
+		const parResult = await oidcUtil.pushAuthorizationRequest(page, {
+			clientId: client.id,
+			clientSecret: client.secret,
+			redirectUri: client.callbackUrl,
+			state,
+			responseMode: 'form_post'
+		});
+		expect(parResult.request_uri).toBeDefined();
+
+		const urlParams = new URLSearchParams({
+			client_id: client.id,
+			request_uri: parResult.request_uri!
+		});
+
+		const formPostRequestPromise = waitForFormPostRequest(page, client.callbackUrl);
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		const request = await formPostRequestPromise;
+		const formData = new URLSearchParams(request.postData() ?? '');
+		expect(formData.get('code')).toBeTruthy();
+		expect(formData.get('state')).toBe(state);
 	});
 
 	test('PAR full flow shows consent screen when authorization is required', async ({ page }) => {
