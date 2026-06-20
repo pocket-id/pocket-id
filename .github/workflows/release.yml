@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -48,7 +47,6 @@ jobs:
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4
-        if: github.event_name != 'workflow_dispatch'
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -59,11 +57,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: "~> v2"
-          args: >-
-            release
-            --clean
-            --parallelism=4
-            ${{ github.event_name == 'workflow_dispatch' && '--snapshot --skip=publish,announce,validate' || '--skip=validate' }}
+          args: release --clean --skip=validate --parallelism=4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
@@ -77,18 +71,15 @@ jobs:
 
       - name: Binary attestation
         uses: actions/attest@v4
-        if: github.event_name != 'workflow_dispatch'
         with:
           subject-checksums: ./dist/checksums.txt
 
       - name: Container image attestation
         uses: actions/attest@v4
-        if: github.event_name != 'workflow_dispatch'
         with:
           subject-checksums: ./dist/digests.txt
 
       - name: Publish release
-        if: github.event_name != 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release edit ${{ github.ref_name }} --draft=false
