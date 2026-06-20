@@ -11,6 +11,9 @@
 
 <CalendarPrimitive.HeadCell
 	bind:ref
-	class={cn('text-muted-foreground w-8 rounded-md text-[0.8rem] font-normal', className)}
+	class={cn(
+		'text-muted-foreground w-(--cell-size) rounded-md text-[0.8rem] font-normal',
+		className
+	)}
 	{...restProps}
 />

@@ -17,7 +17,10 @@
 <CommandPrimitive.Group
 	bind:ref
 	data-slot="command-group"
-	class={cn('text-foreground overflow-hidden p-1', className)}
+	class={cn(
+		'text-foreground **:[[cmdk-group-heading]]:text-muted-foreground overflow-hidden py-2 px-1 **:[[cmdk-group-heading]]:px-3 **:[[cmdk-group-heading]]:py-2 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium',
+		className
+	)}
 	value={value ?? heading ?? `----${useId()}`}
 	{...restProps}
 >

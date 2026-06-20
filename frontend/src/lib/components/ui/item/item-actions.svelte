@@ -5,22 +5,15 @@
 	let {
 		ref = $bindable(null),
 		class: className,
-		wrapOnMobile,
 		children,
 		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
-		wrapOnMobile?: boolean;
-	} = $props();
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
 
 <div
 	bind:this={ref}
 	data-slot="item-actions"
-	class={cn(
-		'flex items-center gap-2',
-		wrapOnMobile && 'w-full pl-8 sm:w-auto sm:pl-0 pt-1',
-		className
-	)}
+	class={cn('gap-2 flex items-center', className)}
 	{...restProps}
 >
 	{@render children?.()}
