@@ -67,7 +67,13 @@ archives:
       - pocket-id
     formats:
       - binary
-    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ if .Ext }}{{ .Ext }}{{ end }}"
+    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
+
+checksum:
+  name_template: checksums.txt
+
+docker_digest:
+  name_template: digests.txt
 
 dockers_v2:
   - id: pocket-id
@@ -96,6 +102,8 @@ dockers_v2:
       "org.opencontainers.image.title": "Pocket ID"
     disable: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
     sbom: true
+    extra_files:
+      - scripts/docker
 
   - id: pocket-id-distroless
     ids:
@@ -148,6 +156,8 @@ dockers_v2:
       "org.opencontainers.image.title": "Pocket ID"
     disable: '{{ if not (index .Env "BUILD_NEXT") }}true{{ end }}'
     sbom: true
+    extra_files:
+      - scripts/docker
 
   - id: pocket-id-next-distroless
     ids:

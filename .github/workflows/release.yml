@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,8 +16,6 @@ permissions:
 jobs:
   release:
     runs-on: depot-ubuntu-24.04-16
-    env:
-      CONTAINER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/pocket-id
 
     steps:
       - name: Checkout code
@@ -49,57 +48,22 @@ jobs:
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4
+        if: github.event_name != 'workflow_dispatch'
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.CONTAINER_IMAGE_NAME }}
-          tags: |
-            type=semver,pattern={{version}},prefix=v
-            type=semver,pattern={{major}}.{{minor}},prefix=v
-            type=semver,pattern={{major}},prefix=v
-          labels: |
-            org.opencontainers.image.authors=Pocket ID
-            org.opencontainers.image.url=https://github.com/pocket-id/pocket-id
-            org.opencontainers.image.documentation=https://github.com/pocket-id/pocket-id/blob/main/README.md
-            org.opencontainers.image.source=https://github.com/pocket-id/pocket-id
-            org.opencontainers.image.version=next
-            org.opencontainers.image.licenses=BSD-2-Clause
-            org.opencontainers.image.ref.name=pocket-id
-            org.opencontainers.image.title=Pocket ID
-
-      - name: Build and push container image
-        uses: depot/build-push-action@v1
-        id: container-build-push
-        with:
-          context: .
-          file: docker/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          sbom: false
-          provenance: true
-
-      - name: Container image attestation
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: "${{ env.CONTAINER_IMAGE_NAME }}"
-          subject-digest: ${{ steps.container-build-push.outputs.digest }}
-          push-to-registry: true
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser-pro
           version: "~> v2"
-          args: release --clean --skip=validate --parallelism=4
+          args: >-
+            release
+            --clean
+            --parallelism=4
+            ${{ github.event_name == 'workflow_dispatch' && '--snapshot --skip=publish,announce,validate' || '--skip=validate' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
@@ -108,14 +72,23 @@ jobs:
           MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
           MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_WEBHOOK_ID: ${{ secrets.DISCORD_WEBHOOK_ID }}
+          DISCORD_WEBHOOK_TOKEN: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
 
       - name: Binary attestation
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest@v4
+        if: github.event_name != 'workflow_dispatch'
         with:
-          subject-path: "dist/pocket-id_**"
+          subject-checksums: ./dist/checksums.txt
+
+      - name: Container image attestation
+        uses: actions/attest@v4
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          subject-checksums: ./dist/digests.txt
 
       - name: Publish release
+        if: github.event_name != 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release edit ${{ github.ref_name }} --draft=false

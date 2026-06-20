@@ -15,6 +15,7 @@ permissions:
   packages: write
   id-token: write
   attestations: write
+  artifact-metadata: write
 
 jobs:
   build-next:
@@ -78,9 +79,13 @@ jobs:
           MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
           MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
       - name: Binary attestation
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest@v4
         with:
-          subject-path: "dist/pocket-id_**"
+          subject-checksums: ./dist/checksums.txt
+
+      - name: Container image attestation
+        uses: actions/attest@v4
+        with:
+          subject-checksums: ./dist/digests.txt
