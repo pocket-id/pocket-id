@@ -2,6 +2,8 @@ package oidc
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 
 	"gorm.io/gorm"
 )
@@ -34,7 +36,12 @@ func withTx(ctx context.Context, db *gorm.DB, fn func(ctx context.Context) error
 	if tx.Error != nil {
 		return tx.Error
 	}
-	defer tx.Rollback()
+	defer func() {
+		err := tx.Rollback().Error
+		if err != nil && !errors.Is(err, gorm.ErrInvalidTransaction) {
+			slog.ErrorContext(ctx, "Failed to rollback transaction", "error", err)
+		}
+	}()
 
 	if err := fn(contextWithTx(ctx, tx)); err != nil {
 		return err
