@@ -1,5 +1,5 @@
 // frontend/tests/api-key.spec.ts
-import { expect, Page, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { apiKeys } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
@@ -17,9 +17,14 @@ test.describe('API Key Management', () => {
 		await page.getByLabel('Name').fill(name);
 		await page.getByLabel('Description').fill('Created by automated test');
 
-		// Choose the date
-		const currentDate = new Date();
-		await selectDate(page, currentDate.getFullYear() + 1, currentDate.getMonth(), 1);
+		const expectedDate = getDefaultApiKeyExpirationDate();
+		await expect(page.getByRole('button', { name: 'Select a date' })).toHaveText(
+			expectedDate.toLocaleDateString('en-US', {
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric'
+			})
+		);
 
 		// Submit the form
 		await page.getByRole('button', { name: 'Save' }).click();
@@ -41,6 +46,9 @@ test.describe('API Key Management', () => {
 
 		// Verify the key appears in the list
 		await expect(page.getByRole('cell', { name }).first()).toContainText(name);
+		await expect(
+			page.getByRole('row', { name }).getByRole('cell', { name: expectedDate.toLocaleString() })
+		).toBeVisible();
 	});
 
 	test('Renew API key', async ({ page }) => {
@@ -53,9 +61,15 @@ test.describe('API Key Management', () => {
 
 		await page.getByRole('menuitem', { name: 'Renew' }).click();
 
-		// Choose the date
-		const currentDate = new Date();
-		await selectDate(page, currentDate.getFullYear() + 1, currentDate.getMonth(), 1);
+		const expectedDate = getDefaultApiKeyExpirationDate();
+		await selectApiKeyExpirationDate(page, expectedDate);
+		await expect(page.getByRole('button', { name: 'Select a date' })).toHaveText(
+			expectedDate.toLocaleDateString('en-US', {
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric'
+			})
+		);
 
 		await page.getByRole('button', { name: 'Renew' }).click();
 
@@ -63,8 +77,9 @@ test.describe('API Key Management', () => {
 
 		// Verify the new expiration date is shown
 		const row = page.getByRole('row', { name: apiKey.name });
-		const expectedDate = new Date(currentDate.getFullYear() + 1, currentDate.getMonth(), 1);
-		await expect(row.getByRole('cell', { name: expectedDate.toLocaleString() })).toBeVisible();
+		await expect(
+			row.getByRole('cell', { name: new RegExp(escapeRegExp(expectedDate.toLocaleDateString())) })
+		).toBeVisible();
 	});
 
 	test('Revoke API key', async ({ page }) => {
@@ -87,32 +102,28 @@ test.describe('API Key Management', () => {
 	});
 });
 
-async function selectDate(page: Page, year: number, month: number, day: number) {
-	// Open the date picker
-	await page.getByRole('button', { name: 'Select a date' }).click();
-	// Select the year
-	await page.getByLabel('Select year').click();
-	await page.getByRole('option', { name: year.toString() }).click();
-	// Select the month and day
-	const monthNames = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December'
-	];
-	const monthName = monthNames[month];
-	await page.getByRole('button', { name: 'Select month' }).click();
-	await page.getByRole('option', { name: monthName }).click();
+function getDefaultApiKeyExpirationDate() {
+	const date = new Date();
+	date.setDate(date.getDate() + 30);
+	date.setHours(0, 0, 0, 0);
+	return date;
+}
 
-	await page
-		.getByRole('button', { name: new RegExp(`([A-Z][a-z]+), ([A-Z][a-z]+) ${day}, (\\d{4})`) }).first()
-		.click();
+async function selectApiKeyExpirationDate(page: Page, date: Date) {
+	await page.getByRole('button', { name: 'Select a date' }).click();
+	await page.getByRole('button', { name: 'Next', exact: true }).click();
+	await page.getByRole('button', { name: getCalendarDayName(date) }).click();
+}
+
+function getCalendarDayName(date: Date) {
+	return new Intl.DateTimeFormat('en-US', {
+		weekday: 'long',
+		month: 'long',
+		day: 'numeric',
+		year: 'numeric'
+	}).format(date);
+}
+
+function escapeRegExp(value: string) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

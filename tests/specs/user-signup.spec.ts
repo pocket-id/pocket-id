@@ -34,7 +34,7 @@ test.describe('Signup Token Creation', () => {
 	test('Create signup token', async ({ page }) => {
 		await page.goto('/settings/admin/users');
 
-		await page.getByLabel('Create options').getByRole('button').click();
+		await page.getByRole('button', { name: 'Create options' }).click();
 		await page.getByRole('menuitem', { name: 'Create Signup Token' }).click();
 		await page.getByLabel('Expiration').click();
 		await page.getByRole('option', { name: 'week' }).click();
@@ -49,7 +49,7 @@ test.describe('Signup Token Creation', () => {
 		await page.getByRole('button', { name: 'Create', exact: true }).click();
 		await page.getByRole('button', { name: 'Close' }).click();
 
-		await page.getByLabel('Create options').getByRole('button').click();
+		await page.getByRole('button', { name: 'Create options' }).click();
 		await page.getByRole('menuitem', { name: 'View Active Signup Tokens' }).click();
 		await page.getByLabel('Manage Signup Tokens').getByRole('button', { name: 'View' }).click();
 

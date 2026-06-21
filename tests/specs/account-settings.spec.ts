@@ -107,7 +107,7 @@ test('Delete passkey from account', async ({ page }) => {
 	await page.goto('/settings/account');
 
 	await page.getByLabel('Delete').first().click();
-	await page.getByText('Delete', { exact: true }).click();
+	await page.getByLabel('Delete Passkey').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');
 });
