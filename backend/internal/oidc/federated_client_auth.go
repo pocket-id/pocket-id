@@ -2,13 +2,17 @@ package oidc
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/httprc/v3"
+	"github.com/lestrrat-go/httprc/v3/errsink"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -19,12 +23,9 @@ const clientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-typ
 
 var errNoFederatedClientAssertion = errors.New("no federated client assertion")
 
-// federatedClientStore is the subset of the store the federated authenticator needs:
-// loading clients and tracking client-assertion JTIs for single-use replay protection.
+// federatedClientStore is the subset of the store the federated authenticator needs.
 type federatedClientStore interface {
 	GetClient(ctx context.Context, id string) (fosite.Client, error)
-	ClientAssertionJWTValid(ctx context.Context, jti string) error
-	SetClientAssertionJWT(ctx context.Context, jti string, exp time.Time) error
 }
 
 // federatedClientAuthenticator authenticates clients via JWT bearer assertions issued
@@ -32,18 +33,50 @@ type federatedClientStore interface {
 type federatedClientAuthenticator struct {
 	clients         federatedClientStore
 	httpClient      *http.Client
+	jwksCache       *jwk.Cache
 	defaultAudience string
 }
 
-func newFederatedClientAuthenticator(clients federatedClientStore, httpClient *http.Client, defaultAudience string) *federatedClientAuthenticator {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	return &federatedClientAuthenticator{
+func newFederatedClientAuthenticator(ctx context.Context, clients federatedClientStore, httpClient *http.Client, defaultAudience string) (*federatedClientAuthenticator, error) {
+	authenticator := &federatedClientAuthenticator{
 		clients:         clients,
 		httpClient:      httpClient,
 		defaultAudience: defaultAudience,
 	}
+
+	jwksCache, err := authenticator.getJWKCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+	authenticator.jwksCache = jwksCache
+
+	return authenticator, nil
+}
+
+func (a *federatedClientAuthenticator) getJWKCache(ctx context.Context) (*jwk.Cache, error) {
+	// We need to create a custom HTTP client to set a timeout.
+	client := a.httpClient
+	if client == nil {
+		client = &http.Client{
+			Timeout: 10 * time.Second,
+		}
+
+		defaultTransport, ok := http.DefaultTransport.(*http.Transport)
+		if !ok {
+			// Indicates a development-time error
+			panic("Default transport is not of type *http.Transport")
+		}
+		transport := defaultTransport.Clone()
+		transport.TLSClientConfig.MinVersion = tls.VersionTLS12
+		client.Transport = transport
+	}
+
+	return jwk.NewCache(ctx,
+		httprc.NewClient(
+			httprc.WithErrorSink(errsink.NewSlog(slog.Default())),
+			httprc.WithHTTPClient(client),
+		),
+	)
 }
 
 // newClientAuthenticationStrategy accepts federated client assertions before falling
@@ -127,7 +160,7 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 		subject = client.GetID()
 	}
 
-	parsed, err := jwt.Parse(rawAssertion,
+	_, err = jwt.Parse(rawAssertion,
 		jwt.WithValidate(true),
 		jwt.WithAcceptableSkew(30*time.Second),
 		jwt.WithRequiredClaim(jwt.ExpirationKey),
@@ -140,37 +173,36 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 		return nil, fosite.ErrInvalidClient.WithHint("Invalid client assertion.").WithWrap(err)
 	}
 
-	// Enforce single use of the assertion to prevent replay
-	jti, ok := parsed.JwtID()
-	if !ok || jti == "" {
-		return nil, fosite.ErrInvalidClient.WithHint("Client assertion is missing the 'jti' claim.")
-	}
-	if err := a.clients.ClientAssertionJWTValid(ctx, jti); err != nil {
-		return nil, fosite.ErrInvalidClient.WithHint("Client assertion has already been used.").WithWrap(err)
-	}
-	exp, _ := parsed.Expiration()
-	if err := a.clients.SetClientAssertionJWT(ctx, jti, exp); err != nil {
-		return nil, fosite.ErrInvalidClient.WithWrap(err)
-	}
-
 	return client, nil
 }
 
 func (a *federatedClientAuthenticator) fetchJWKSet(ctx context.Context, jwksURL string) (jwk.Set, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jwksURL, nil)
+	if !a.jwksCache.IsRegistered(ctx, jwksURL) {
+		// We set a timeout because otherwise Register will keep trying in case of errors
+		registerCtx, registerCancel := context.WithTimeout(ctx, 15*time.Second)
+		defer registerCancel()
+
+		registerOptions := []jwk.RegisterOption{
+			jwk.WithMaxInterval(24 * time.Hour),
+			jwk.WithMinInterval(15 * time.Minute),
+			jwk.WithWaitReady(true),
+		}
+		if a.httpClient != nil {
+			registerOptions = append(registerOptions, jwk.WithHTTPClient(a.httpClient))
+		}
+
+		// We need to register the URL
+		err := a.jwksCache.Register(registerCtx, jwksURL, registerOptions...)
+		// In case of race conditions (two goroutines calling jwkCache.Register at the same time), it's possible we can get a conflict anyways, so we ignore that error
+		if err != nil && !errors.Is(err, httprc.ErrResourceAlreadyExists()) {
+			return nil, fmt.Errorf("failed to register JWK set: %w", err)
+		}
+	}
+
+	jwks, err := a.jwksCache.CachedSet(jwksURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cached JWK set: %w", err)
 	}
 
-	resp, err := a.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("jwks endpoint returned status %d", resp.StatusCode)
-	}
-
-	return jwk.ParseReader(resp.Body)
+	return jwks, nil
 }

@@ -64,7 +64,10 @@ type Module struct {
 
 func New(deps Dependencies) (*Module, error) {
 	store := NewStore(deps.DB)
-	authenticator := newFederatedClientAuthenticator(store, deps.HTTPClient, deps.Config.BaseURL)
+	authenticator, err := newFederatedClientAuthenticator(context.Background(), store, deps.HTTPClient, deps.Config.BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
+	}
 	provider, err := newProvider(store, authenticator, deps.Signer, deps.Config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OAuth2 provider: %w", err)

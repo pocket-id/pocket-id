@@ -97,7 +97,7 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	require.Equal(t, true, same["active"])
 }
 
-func TestIntrospectionHandlerRejectsReplayedFederatedClientAssertion(t *testing.T) {
+func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	const (
@@ -134,7 +134,8 @@ func TestIntrospectionHandlerRejectsReplayedFederatedClientAssertion(t *testing.
 	}).Error)
 
 	store := NewStore(db)
-	authenticator := newFederatedClientAuthenticator(store, newJWKSetHTTPClient(t, jwks), baseURL)
+	authenticator, err := newFederatedClientAuthenticator(t.Context(), store, newJWKSetHTTPClient(t, jwks), baseURL)
+	require.NoError(t, err)
 
 	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -167,7 +168,7 @@ func TestIntrospectionHandlerRejectsReplayedFederatedClientAssertion(t *testing.
 		Audience([]string{audience}).
 		IssuedAt(time.Now()).
 		Expiration(time.Now().Add(5 * time.Minute)).
-		JwtID("endpoint-replay-jti").
+		JwtID("cached-provider-token").
 		Build()
 	require.NoError(t, err)
 	signedAssertion, err := jwt.Sign(assertionToken, jwt.WithKey(signingAlg, signingKey))
@@ -199,6 +200,6 @@ func TestIntrospectionHandlerRejectsReplayedFederatedClientAssertion(t *testing.
 	require.Equal(t, true, body["active"])
 
 	status, body = introspect(t)
-	require.Equal(t, http.StatusUnauthorized, status)
-	require.Equal(t, "request_unauthorized", body["error"])
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, true, body["active"])
 }
