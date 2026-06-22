@@ -62,9 +62,9 @@ type Module struct {
 	deviceHandler        *deviceHandler
 }
 
-func New(deps Dependencies) (*Module, error) {
+func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	store := NewStore(deps.DB)
-	authenticator, err := newFederatedClientAuthenticator(context.Background(), store, deps.HTTPClient, deps.Config.BaseURL)
+	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
 	}

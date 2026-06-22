@@ -71,7 +71,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
 
-	svc.oidcModule, err = oidc.New(oidc.Dependencies{
+	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
 		DB:         db,
 		HTTPClient: httpClient,
 		Config: oidc.Config{
