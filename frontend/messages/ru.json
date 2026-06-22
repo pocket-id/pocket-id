@@ -37,8 +37,6 @@
 	"expiration": "Срок действия",
 	"generate_code": "Сгенерировать код",
 	"name": "Имя",
-	"browser_unsupported": "Браузер не поддерживается",
-	"this_browser_does_not_support_passkeys": "Этот браузер не поддерживает ключи доступа. Пожалуйста, воспользуйтесь альтернативным способом входа.",
 	"an_unknown_error_occurred": "Произошла неизвестная ошибка",
 	"authentication_process_was_aborted": "Процесс аутентификации был прерван",
 	"error_occurred_with_authenticator": "Произошла ошибка аутентификатора",
