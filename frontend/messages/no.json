@@ -37,8 +37,6 @@
 	"expiration": "Utløper",
 	"generate_code": "Generer kode",
 	"name": "Navn",
-	"browser_unsupported": "Nettleser ikke støttet",
-	"this_browser_does_not_support_passkeys": "Denne nettleseren støtter ikke passnøkler. Vennligst bruk en annen metode for å logge inn.",
 	"an_unknown_error_occurred": "En ukjent feil oppstod",
 	"authentication_process_was_aborted": "Autentiseringsprosessen ble avbrutt",
 	"error_occurred_with_authenticator": "En feil oppsto med autentisering",
