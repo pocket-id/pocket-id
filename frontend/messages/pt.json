@@ -37,8 +37,6 @@
 	"expiration": "Expiração",
 	"generate_code": "Gerar código",
 	"name": "Nome",
-	"browser_unsupported": "Navegador não suportado",
-	"this_browser_does_not_support_passkeys": "Este navegador não suporta chaves-passe. Por favor, usa um método de início de sessão alternativo.",
 	"an_unknown_error_occurred": "Ocorreu um erro desconhecido",
 	"authentication_process_was_aborted": "O processo de autenticação foi interrompido",
 	"error_occurred_with_authenticator": "Ocorreu um erro com o autenticador",
