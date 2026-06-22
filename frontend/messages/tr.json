@@ -55,7 +55,6 @@
 	"sign_in_to": "{name} hesabına giriş yap",
 	"account_selection_signin_confirmation": "Devam etmek için aşağıdaki hesabı kullanmak ister misiniz <b>{name}</b>?",
 	"use_a_different_account": "Başka bir hesap kullanın",
-	"client_not_found": "İstemci bulunamadı",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> aşağıdaki bilgilere erişmek istiyor:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "{appName} hesabınla <b>{client}</b> uygulamasına giriş yapmak istiyor musun?",
 	"email": "E-posta",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Kullanıcıların her yetkilendirmede tekrar kimlik doğrulaması yapmasını gerektirir, oturum açmış olsalar bile",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Önceden Gönderilmiş Yetkilendirme İstekleri Gerekiyor",
-	"requires_pushed_authorization_requests_description": "İstemcilerin, akışı başlatmadan önce yetkilendirme parametrelerini önceden kaydetmek için PAR uç noktasını (/api/oidc/par) kullanması gerekir. Genel istemciler için kullanılamaz.",
+	"requires_pushed_authorization_requests_description": "İstemcilerin, akışı başlatmadan önce yetkilendirme parametrelerini önceden kaydetmek için PAR uç noktasını kullanmalarını gerektirir.",
 	"name_logo": "{name} logosu",
 	"change_logo": "Logoyu Değiştir",
 	"upload_logo": "Logo Yükle",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "Doğrulama e-postası başarıyla gönderildi.",
 	"emails_verified_by_default": "Varsayılan olarak doğrulanmış e-postalar",
 	"emails_verified_by_default_description": "Etkinleştirildiğinde, kullanıcıların e-posta adresleri kayıt sırasında veya e-posta adresleri değiştirildiğinde varsayılan olarak doğrulanmış olarak işaretlenecektir.",
-	"user_has_no_passkeys_yet": "Bu kullanıcının henüz şifre anahtarı yok."
+	"user_has_no_passkeys_yet": "Bu kullanıcının henüz şifre anahtarı yok.",
+	"replay_protection": "Tekrar Oynatma Koruması",
+	"replay_protection_description": "Bu seçenek etkinleştirildiğinde, sağlanan jeton yalnızca bir kez kullanılabilir. Sağlayıcınız aynı jetonu birden fazla kez kullanıyorsa, bu seçeneği devre dışı bırakmanız gerekebilir."
 }
