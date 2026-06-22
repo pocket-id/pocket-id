@@ -37,8 +37,6 @@
 	"expiration": "Zeitspanne",
 	"generate_code": "Code erzeugen",
 	"name": "Name",
-	"browser_unsupported": "Browser wird nicht unterstützt",
-	"this_browser_does_not_support_passkeys": "Dieser Browser unterstützt keine Passkeys. Bitte verwende eine alternative Anmeldemethode.",
 	"an_unknown_error_occurred": "Ein unbekannter Fehler ist aufgetreten",
 	"authentication_process_was_aborted": "Der Authentifizierungsprozess wurde abgebrochen",
 	"error_occurred_with_authenticator": "Beim Authentifikator ist ein Fehler aufgetreten",
