@@ -37,8 +37,6 @@
 	"expiration": "Термін дії",
 	"generate_code": "Генерувати код",
 	"name": "Назва",
-	"browser_unsupported": "Браузер не підтримується",
-	"this_browser_does_not_support_passkeys": "Цей браузер не підтримує ключі доступу. Будь ласка, скористайтеся іншим способом входу.",
 	"an_unknown_error_occurred": "Сталася невідома помилка",
 	"authentication_process_was_aborted": "Процес автентифікації було перервано",
 	"error_occurred_with_authenticator": "Сталася помилка з автентифікатором",
