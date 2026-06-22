@@ -55,7 +55,6 @@
 	"sign_in_to": "Anmelden bei {name}",
 	"account_selection_signin_confirmation": "Möchtest du mit dem folgenden Konto zu <b>{name}</b> fortfahren?",
 	"use_a_different_account": "Ein anderes Konto verwenden",
-	"client_not_found": "Client nicht gefunden",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> möchte auf die folgenden Informationen zugreifen:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Möchtest du dich bei <b>{client}</b> mit deinem {appName} Konto anmelden?",
 	"email": "E-Mail",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Erfordert eine neue Authentifizierung bei jeder Autorisierung, auch wenn der Benutzer bereits angemeldet ist",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Erfordert gesendete Autorisierungsanfragen",
-	"requires_pushed_authorization_requests_description": "Clients müssen den PAR-Endpoint (/api/oidc/par) verwenden, um Autorisierungsparameter vor dem Start des Flows zu registrieren. Nicht für öffentliche Clients verfügbar.",
+	"requires_pushed_authorization_requests_description": "Clients müssen den PAR-Endpunkt nutzen, um Autorisierungsparameter vorab zu registrieren, bevor sie den Ablauf starten.",
 	"name_logo": "{name} Logo",
 	"change_logo": "Logo ändern",
 	"upload_logo": "Logo hochladen",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "Bestätigungs-E-Mail erfolgreich verschickt.",
 	"emails_verified_by_default": "E-Mails sind standardmäßig bestätigt",
 	"emails_verified_by_default_description": "Wenn diese Option aktiviert ist, werden die E-Mail-Adressen der Nutzer bei der Anmeldung oder bei einer Änderung ihrer E-Mail-Adresse standardmäßig als bestätigt markiert.",
-	"user_has_no_passkeys_yet": "Dieser Benutzer hat noch keine Passkeys."
+	"user_has_no_passkeys_yet": "Dieser Benutzer hat noch keine Passkeys.",
+	"replay_protection": "Wiedergabeschutz",
+	"replay_protection_description": "Wenn diese Option aktiviert ist, kann das angegebene Token nur einmal verwendet werden. Falls dein Anbieter dasselbe Token mehrmals verwendet, musst du diese Option möglicherweise deaktivieren."
 }
