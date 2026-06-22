@@ -37,8 +37,6 @@
 	"expiration": "到期時間",
 	"generate_code": "產生代碼",
 	"name": "名稱",
-	"browser_unsupported": "瀏覽器不支援",
-	"this_browser_does_not_support_passkeys": "此瀏覽器不支援密碼金鑰。請使用其他登入方式。",
 	"an_unknown_error_occurred": "發生未知的錯誤",
 	"authentication_process_was_aborted": "驗證程序已中止",
 	"error_occurred_with_authenticator": "驗證器發生錯誤",
