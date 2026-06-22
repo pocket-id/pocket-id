@@ -37,8 +37,6 @@
 	"expiration": "Vanhentuminen",
 	"generate_code": "Luo koodi",
 	"name": "Nimi",
-	"browser_unsupported": "Selainta ei tueta",
-	"this_browser_does_not_support_passkeys": "Tämä selain ei tue pääsyavaimia. Käytä vaihtoehtoista kirjautumistapaa.",
 	"an_unknown_error_occurred": "Tapahtui tuntematon virhe",
 	"authentication_process_was_aborted": "Todentamisprosessi keskeytettiin",
 	"error_occurred_with_authenticator": "Todentajan kanssa tapahtui virhe",
