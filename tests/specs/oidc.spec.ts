@@ -50,8 +50,7 @@ test('Authorize new client', async ({ page }) => {
 	const urlParams = createUrlParams(oidcClient);
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+	await expectScopes(page, ['Email', 'Profile']);
 
 	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: 'Sign in' }).click()
@@ -67,8 +66,7 @@ test('Authorize new client while not signed in', async ({ page }) => {
 	await (await passkeyUtil.init(page)).addPasskey();
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+	await expectScopes(page, ['Email', 'Profile']);
 
 	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: 'Sign in' }).click()
@@ -85,8 +83,7 @@ test('Authorize new client fails with user group not allowed', async ({ page }) 
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+	await expectScopes(page, ['Email', 'Profile']);
 
 	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 		page.getByRole('button', { name: 'Sign in' }).click()
@@ -108,6 +105,15 @@ function createUrlParams(oidcClient: { id: string; callbackUrl: string }) {
 		state: 'nXx-6Qr-owc1SHBa',
 		nonce: 'P1gN3PtpKHJgKUVcLpLjm'
 	});
+}
+
+async function expectScopes(page: Page, scopes: string[]) {
+	const scopeList = page.getByTestId('scopes').filter({ hasText: scopes[0] }).last();
+	await expect(scopeList).toBeVisible();
+
+	for (const scope of scopes) {
+		await expect(scopeList.getByText(scope, { exact: true })).toBeVisible();
+	}
 }
 
 test('End session without id token hint shows confirmation page', async ({ page }) => {
@@ -590,8 +596,7 @@ test('Authorize new client with device authorization flow', async ({ page }) => 
 
 	await page.goto(`/device?user_code=${userCode}`);
 
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+	await expectScopes(page, ['Email', 'Profile']);
 
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
@@ -612,8 +617,7 @@ test('Authorize new client with device authorization flow while not signed in', 
 	await (await passkeyUtil.init(page)).addPasskey();
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+	await expectScopes(page, ['Email', 'Profile']);
 
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
@@ -715,8 +719,7 @@ test('Authorize new client with device authorization with user group not allowed
 	await (await passkeyUtil.init(page)).addPasskey('craig');
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
-	await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })).toBeVisible();
+	await expectScopes(page, ['Email', 'Profile']);
 
 	await page.getByRole('button', { name: 'Authorize' }).click();
 
@@ -984,10 +987,7 @@ test.describe('OIDC prompt parameter', () => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
 		// Should show consent UI even though client was already authorized
-		await expect(
-			page.getByTestId('scopes').getByRole('heading', { name: 'Profile' })
-		).toBeVisible();
-		await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Email' })).toBeVisible();
+		await expectScopes(page, ['Profile', 'Email']);
 
 		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
 			page.getByRole('button', { name: 'Sign in' }).click()
@@ -1275,7 +1275,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
 		// Consent screen with the requested scope (resolved from the PAR) must be shown
-		await expect(page.getByTestId('scopes').getByRole('heading', { name: 'Groups' })).toBeVisible();
+		await expectScopes(page, ['Groups']);
 
 		// Confirming proceeds with the authorization
 		await expectCallbackRedirect(page, client.callbackUrl, () =>

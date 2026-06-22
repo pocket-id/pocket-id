@@ -11,6 +11,11 @@ import GridHead from './calendar-grid-head.svelte';
 import HeadCell from './calendar-head-cell.svelte';
 import NextButton from './calendar-next-button.svelte';
 import PrevButton from './calendar-prev-button.svelte';
+import MonthSelect from './calendar-month-select.svelte';
+import YearSelect from './calendar-year-select.svelte';
+import Month from './calendar-month.svelte';
+import Nav from './calendar-nav.svelte';
+import Caption from './calendar-caption.svelte';
 
 export {
 	Day,
@@ -25,6 +30,11 @@ export {
 	HeadCell,
 	NextButton,
 	PrevButton,
+	Nav,
+	Month,
+	YearSelect,
+	MonthSelect,
+	Caption,
 	//
 	Root as Calendar
 };

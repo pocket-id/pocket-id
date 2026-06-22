@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
 	import { Calendar } from '$lib/components/ui/calendar';
 	import * as Popover from '$lib/components/ui/popover';
 	import { m } from '$lib/paraglide/messages';
@@ -68,11 +67,10 @@
 	<Popover.Root bind:open>
 		<Popover.Trigger {id} class="w-full">
 			{#snippet child({ props })}
-				<Button
+				<button
 					{...props}
-					variant="outline"
 					class={cn(
-						'w-full justify-start text-left font-normal',
+						'w-full flex justify-start items-center font-normal h-9 bg-input/50 rounded-full p-3',
 						!value && 'text-muted-foreground'
 					)}
 					aria-label={m.select_a_date()}
@@ -81,7 +79,7 @@
 					{calendarDisplayDate
 						? df.format(calendarDisplayDate.toDate(getLocalTimeZone()))
 						: m.select_a_date()}
-				</Button>
+				</button>
 			{/snippet}
 		</Popover.Trigger>
 		<Popover.Content class="w-auto p-0" align="start">

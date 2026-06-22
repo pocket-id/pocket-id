@@ -1,6 +1,5 @@
 {
 	"$schema": "https://shadcn-svelte.com/schema.json",
-	"style": "default",
 	"tailwind": {
 		"css": "src/app.css",
 		"baseColor": "neutral"
@@ -13,5 +12,9 @@
 		"lib": "$lib"
 	},
 	"typescript": true,
-	"registry": "https://shadcn-svelte.com/registry"
+	"registry": "https://shadcn-svelte.com/registry",
+	"style": "luma",
+	"iconLibrary": "lucide",
+	"menuColor": "default-translucent",
+	"menuAccent": "subtle"
 }
