@@ -37,8 +37,6 @@
 	"expiration": "Scadenza",
 	"generate_code": "Genera Codice",
 	"name": "Nome",
-	"browser_unsupported": "Browser non supportato",
-	"this_browser_does_not_support_passkeys": "Questo browser non supporta le passkey. Si prega di utilizzare un metodo di accesso alternativo.",
 	"an_unknown_error_occurred": "Si è verificato un errore sconosciuto",
 	"authentication_process_was_aborted": "Il processo di autenticazione è stato interrotto",
 	"error_occurred_with_authenticator": "Si è verificato un errore con l'autenticatore",
