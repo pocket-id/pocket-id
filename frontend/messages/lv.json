@@ -55,7 +55,6 @@
 	"sign_in_to": "Pierakstīties {name}",
 	"account_selection_signin_confirmation": "Vai vēlaties izmantot šo kontu, lai turpinātu <b>{name}</b>?",
 	"use_a_different_account": "Izmanto citu kontu",
-	"client_not_found": "Klients nav atrasts",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> vēlas piekļūt šādai informācijai:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Vai vēlaties pierakstīties <b>{client}</b> ar savu {appName} kontu?",
 	"email": "E-pasts",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Pieprasa lietotājiem autentificēties atkārtoti katrā autorizācijas reizē, pat ja viņi jau ir pierakstījušies",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Nepieciešami nosūtīti autorizācijas pieprasījumi",
-	"requires_pushed_authorization_requests_description": "Klientiem ir jāizmanto PAR galapunkts (/api/oidc/par), lai pirms procesa uzsākšanas iepriekš reģistrētu autorizācijas parametrus. Nav pieejams publiskajiem klientiem.",
+	"requires_pushed_authorization_requests_description": "Prasa, lai klienti izmantotu PAR galapunktu, lai iepriekš reģistrētu autorizācijas parametrus pirms procesa uzsākšanas.",
 	"name_logo": "{name} logotips",
 	"change_logo": "Mainīt logotipu",
 	"upload_logo": "Augšupielādēt logotipu",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "Apstiprinājuma e-pasts veiksmīgi nosūtīts.",
 	"emails_verified_by_default": "E-pasti pēc noklusējuma ir apstiprināti",
 	"emails_verified_by_default_description": "Ja iespējots, lietotāju e-pasta adreses pēc noklusējuma tiks atzīmētas kā apstiprinātas reģistrācijas laikā vai pēc e-pasta adreses maiņas.",
-	"user_has_no_passkeys_yet": "Šim lietotājam vēl nav piekļuves atslēgu."
+	"user_has_no_passkeys_yet": "Šim lietotājam vēl nav piekļuves atslēgu.",
+	"replay_protection": "Aizsardzība pret atkārtošanu",
+	"replay_protection_description": "Ja šī opcija ir ieslēgta, norādīto tokenu var izmantot tikai vienu reizi. Ja jūsu pakalpojuma sniedzējs izmanto to pašu tokenu vairākas reizes, iespējams, šī opcija būs jāatslēdz."
 }
