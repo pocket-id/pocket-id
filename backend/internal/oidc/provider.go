@@ -51,14 +51,6 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		EnablePKCEPlainChallengeMethod: true,
 		RefreshTokenScopes:             []string{},
 		GlobalSecret:                   secret,
-		SanitationWhiteList: []string{
-			"nonce",
-			"code_challenge",
-			"code_challenge_method",
-			"prompt",
-			"response_mode",
-			"audience",
-		},
 	}
 
 	keyGetter := func(context.Context) (interface{}, error) {
