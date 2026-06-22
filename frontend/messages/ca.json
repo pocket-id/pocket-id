@@ -37,8 +37,6 @@
 	"expiration": "Expiració",
 	"generate_code": "Genera Codi",
 	"name": "Nom",
-	"browser_unsupported": "Navegador no compatible",
-	"this_browser_does_not_support_passkeys": "Aquest navegador no admet claus d'accés. Utilitza un mètode alternatiu per iniciar la sessió.",
 	"an_unknown_error_occurred": "S'ha produït un error desconegut",
 	"authentication_process_was_aborted": "El procés d'autenticació s'ha cancel·lat",
 	"error_occurred_with_authenticator": "S'ha produït un error amb l'autenticador",
