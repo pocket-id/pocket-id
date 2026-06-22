@@ -319,9 +319,11 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin, err := GetIsAdmin(claims)
-		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
-			assert.False(t, isAdmin, "isAdmin should be false")
+		isAdmin := false
+		if claims.Has(IsAdminClaim) {
+			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+		}
+		assert.False(t, isAdmin, "isAdmin should be false")
 		authenticationMethod, err := GetAuthenticationMethod(claims)
 		_ = assert.NoError(t, err, "Failed to get amr claim") &&
 			assert.Empty(t, authenticationMethod, "amr should be empty when not specified")
@@ -354,9 +356,11 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		claims, err := service.VerifyAccessToken(tokenString)
 		require.NoError(t, err, "Failed to verify generated token")
 
-		isAdmin, err := GetIsAdmin(claims)
-		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
-			assert.True(t, isAdmin, "isAdmin should be true")
+		isAdmin := false
+		if claims.Has(IsAdminClaim) {
+			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+		}
+		assert.True(t, isAdmin, "isAdmin should be true")
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, adminUser.ID, subject, "Token subject should match user ID")
@@ -428,9 +432,11 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin, err := GetIsAdmin(claims)
-		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
-			assert.True(t, isAdmin, "isAdmin should be true")
+		isAdmin := false
+		if claims.Has(IsAdminClaim) {
+			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+		}
+		assert.True(t, isAdmin, "isAdmin should be true")
 
 		publicKey, err := service.GetPublicJWK()
 		require.NoError(t, err)
@@ -465,9 +471,11 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin, err := GetIsAdmin(claims)
-		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
-			assert.True(t, isAdmin, "isAdmin should be true")
+		isAdmin := false
+		if claims.Has(IsAdminClaim) {
+			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+		}
+		assert.True(t, isAdmin, "isAdmin should be true")
 
 		publicKey, err := service.GetPublicJWK()
 		require.NoError(t, err)
@@ -502,9 +510,11 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		subject, ok := claims.Subject()
 		_ = assert.True(t, ok, "User ID not found in token") &&
 			assert.Equal(t, user.ID, subject, "Token subject should match user ID")
-		isAdmin, err := GetIsAdmin(claims)
-		_ = assert.NoError(t, err, "Failed to get isAdmin claim") &&
-			assert.True(t, isAdmin, "isAdmin should be true")
+		isAdmin := false
+		if claims.Has(IsAdminClaim) {
+			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
+		}
+		assert.True(t, isAdmin, "isAdmin should be true")
 
 		publicKey, err := service.GetPublicJWK()
 		require.NoError(t, err)

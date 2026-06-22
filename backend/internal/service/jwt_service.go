@@ -290,19 +290,6 @@ func (s *JwtService) GetKeyID() (string, bool) {
 	return s.privateKey.KeyID()
 }
 
-// GetIsAdmin returns the value of the "isAdmin" claim in the token
-func GetIsAdmin(token jwt.Token) (bool, error) {
-	if !token.Has(IsAdminClaim) {
-		return false, nil
-	}
-	var isAdmin bool
-	err := token.Get(IsAdminClaim, &isAdmin)
-	if err != nil {
-		return false, fmt.Errorf("failed to get 'isAdmin' claim from token: %w", err)
-	}
-	return isAdmin, nil
-}
-
 // GetAuthenticationMethod returns the first authentication method in the "amr" claim in the token
 func GetAuthenticationMethod(token jwt.Token) (string, error) {
 	if !token.Has(common.AuthenticationMethodsClaim) {

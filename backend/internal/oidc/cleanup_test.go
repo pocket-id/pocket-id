@@ -18,11 +18,10 @@ import (
 func TestCleanupExpiredOAuth2SessionsKeepsInvalidatedButUnexpiredSessions(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	past := datatype.DateTime(time.Now().Add(-time.Hour))
 	future := datatype.DateTime(time.Now().Add(time.Hour))
 
 	rows := []OAuth2Session{
-		{Base: model.Base{ID: "expired"}, Kind: "access_token", Key: "k-expired", RequestID: "r1", Active: true, RequestData: "{}", ExpiresAt: &past},
+		{Base: model.Base{ID: "expired"}, Kind: "access_token", Key: "k-expired", RequestID: "r1", Active: true, RequestData: "{}", ExpiresAt: new(datatype.DateTime(time.Now().Add(-time.Hour)))},
 		{Base: model.Base{ID: "rotated"}, Kind: "refresh_token", Key: "k-rotated", RequestID: "r2", Active: false, RequestData: "{}", ExpiresAt: &future},
 		{Base: model.Base{ID: "active"}, Kind: "refresh_token", Key: "k-active", RequestID: "r3", Active: true, RequestData: "{}", ExpiresAt: &future},
 	}

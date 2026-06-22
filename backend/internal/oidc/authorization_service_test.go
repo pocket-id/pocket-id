@@ -304,13 +304,12 @@ func TestAuthorizationServiceAuthorizeSwitchesUserAndResetsRequirements(t *testi
 		ClientID: clientID,
 		Scope:    datatype.StringList{"openid"},
 	}).Error)
-	reauthenticatedAt := datatype.DateTime(time.Now().Add(-time.Minute).UTC())
 	require.NoError(t, db.Create(&InteractionSession{
 		Base:                     model.Base{ID: interactionID},
 		Scopes:                   datatype.StringList{"openid"},
 		ClientID:                 clientID,
 		UserID:                   stringPointer(userID),
-		ReauthenticatedAt:        &reauthenticatedAt,
+		ReauthenticatedAt:        new(datatype.DateTime(time.Now().Add(-time.Minute).UTC())),
 		ReauthenticationRequired: false,
 		RequestedAt:              datatype.DateTime(time.Now().UTC()),
 		Parameters: map[string]string{
@@ -766,13 +765,12 @@ func TestAuthorizationServiceAuthorizeUsesCompletedReauthenticationTime(t *testi
 		ClientID: clientID,
 		Scope:    datatype.StringList{"openid"},
 	}).Error)
-	reauthenticatedAtValue := datatype.DateTime(reauthenticatedAt)
 	require.NoError(t, db.Create(&InteractionSession{
 		Base:                     model.Base{ID: interactionID},
 		Scopes:                   datatype.StringList{"openid"},
 		ClientID:                 clientID,
 		ReauthenticationRequired: false,
-		ReauthenticatedAt:        &reauthenticatedAtValue,
+		ReauthenticatedAt:        new(datatype.DateTime(reauthenticatedAt)),
 		Parameters: map[string]string{
 			"max_age": "1",
 		},
@@ -815,14 +813,13 @@ func TestAuthorizationServiceAuthorizeUsesOriginalInteractionRequestTime(t *test
 		ClientID: clientID,
 		Scope:    datatype.StringList{"openid"},
 	}).Error)
-	reauthenticatedAtValue := datatype.DateTime(reauthenticatedAt)
 	require.NoError(t, db.Create(&InteractionSession{
 		Base:                     model.Base{ID: interactionID},
 		Scopes:                   datatype.StringList{"openid"},
 		ClientID:                 clientID,
 		ReauthenticationRequired: false,
 		RequestedAt:              datatype.DateTime(originalRequestedAt),
-		ReauthenticatedAt:        &reauthenticatedAtValue,
+		ReauthenticatedAt:        new(datatype.DateTime(reauthenticatedAt)),
 		Parameters: map[string]string{
 			"prompt": "login",
 		},

@@ -88,11 +88,6 @@ type NotSignedInError struct{}
 func (e NotSignedInError) Error() string       { return "You are not signed in" }
 func (e NotSignedInError) HttpStatusCode() int { return http.StatusUnauthorized }
 
-type MissingAccessToken struct{}
-
-func (e MissingAccessToken) Error() string       { return "Missing access token" }
-func (e MissingAccessToken) HttpStatusCode() int { return http.StatusUnauthorized }
-
 type MissingPermissionError struct{}
 
 func (e MissingPermissionError) Error() string {
@@ -114,11 +109,6 @@ type UserNotFoundError struct{}
 
 func (e UserNotFoundError) Error() string       { return "User not found" }
 func (e UserNotFoundError) HttpStatusCode() int { return http.StatusNotFound }
-
-type ClientIdOrSecretNotProvidedError struct{}
-
-func (e ClientIdOrSecretNotProvidedError) Error() string       { return "Client id or secret not provided" }
-func (e ClientIdOrSecretNotProvidedError) HttpStatusCode() int { return http.StatusBadRequest }
 
 type WrongFileTypeError struct {
 	ExpectedFileType string
