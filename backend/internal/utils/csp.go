@@ -28,6 +28,10 @@ func SetCSPNonce(c *gin.Context, nonce string) {
 
 func BuildCSP(nonce string, formActionExtra ...string) string {
 	formAction := "'self'"
+	scriptSrc := "script-src 'self'"
+	if nonce != "" {
+		scriptSrc += " 'nonce-" + nonce + "'"
+	}
 
 	if len(formActionExtra) > 0 {
 		b := strings.Builder{}
@@ -50,7 +54,7 @@ func BuildCSP(nonce string, formActionExtra ...string) string {
 		"img-src * blob:;" +
 		"font-src 'self'; " +
 		"style-src 'self' 'unsafe-inline'; " +
-		"script-src 'self' 'nonce-" + nonce + "'"
+		scriptSrc
 }
 
 // GenerateCSPNonce returns a random base64 nonce for use in a CSP header.

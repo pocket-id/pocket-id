@@ -436,7 +436,6 @@ func (s *Store) AcceptDeviceCodeSessionByUserCodeSignature(ctx context.Context, 
 		Where("kind IN ? AND request_id = ?", []string{sessionKindDeviceCode, sessionKindUserCode}, userCodeSession.RequestID).
 		Updates(map[string]any{
 			"request_data": requestData,
-			"active":       true,
 		}).
 		Error
 	if err != nil {

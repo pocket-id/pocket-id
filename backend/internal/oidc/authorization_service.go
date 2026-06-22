@@ -519,8 +519,7 @@ func (s *authorizationService) completeReauthenticationStep(ctx context.Context,
 	}
 
 	interactionSession.ReauthenticationRequired = false
-	reauthenticatedAtValue := datatype.DateTime(reauthenticatedAt)
-	interactionSession.ReauthenticatedAt = &reauthenticatedAtValue
+	interactionSession.ReauthenticatedAt = new(datatype.DateTime(reauthenticatedAt))
 	return nil
 }
 

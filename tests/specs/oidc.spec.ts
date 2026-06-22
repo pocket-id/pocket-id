@@ -764,8 +764,8 @@ test('Authorize existing client with federated identity', async ({ page }) => {
 		client_assertion: clientAssertion
 	});
 
-	expect(res.access_token).not.toBeNull;
-	expect(res.expires_in).not.toBeNull;
+	expect(res.access_token).not.toBeNull();
+	expect(res.expires_in).not.toBeNull();
 	expect(res.token_type).toBe('bearer');
 });
 

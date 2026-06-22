@@ -70,7 +70,7 @@ func (s *Session) GetUsername() string {
 }
 
 func (s *Session) GetExtraClaims() map[string]interface{} {
-	if s == nil || s.Claims.Issuer == "" {
+	if s == nil || s.Claims == nil || s.Claims.Issuer == "" {
 		return map[string]interface{}{}
 	}
 

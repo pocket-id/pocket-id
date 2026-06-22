@@ -239,6 +239,8 @@ func TestProviderIssuesAndValidatesTokensForSupportedAlgorithms(t *testing.T) {
 
 			accessToken := response.GetAccessToken()
 			require.Len(t, strings.Split(accessToken, "."), 3)
+			header := decodeJWTPart(t, accessToken, 0)
+			require.Equal(t, tc.alg.String(), header["alg"])
 
 			tokenUse, introspected, err := provider.IntrospectToken(t.Context(), accessToken, fosite.AccessToken, NewEmptySession())
 			require.NoError(t, err)

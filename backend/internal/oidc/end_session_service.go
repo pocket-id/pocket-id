@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"time"
 
@@ -72,7 +73,10 @@ func (s *endSessionService) endSession(ctx context.Context, input dto.OidcLogout
 			First(&authorizedClient, "client_id = ? AND user_id = ?", clientID, userID).
 			Error
 		if err != nil {
-			return &common.OidcMissingAuthorizationError{}
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return &common.OidcMissingAuthorizationError{}
+			}
+			return err
 		}
 
 		callbackURL, err = logoutCallbackURL(&authorizedClient.Client, input.PostLogoutRedirectUri)
