@@ -197,17 +197,12 @@ func (s *Store) RevokeAccessToken(ctx context.Context, requestID string) error {
 }
 
 func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientID, idTokenJTI string) error {
-	candidateRequestIDs, matchingRequestIDs, err := s.findUserClientRequestIDs(ctx, userID, clientID, idTokenJTI)
+	_, jtiMatches, err := s.findUserClientRequestIDs(ctx, userID, clientID, idTokenJTI)
 	if err != nil {
 		return err
 	}
 
-	requestIDs := matchingRequestIDs
-	if len(requestIDs) == 0 {
-		requestIDs = candidateRequestIDs
-	}
-
-	return s.revokeRequestIDs(ctx, requestIDs)
+	return s.revokeRequestIDs(ctx, jtiMatches)
 }
 
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
@@ -241,7 +236,9 @@ func (s *Store) findUserClientRequestIDs(ctx context.Context, userID, clientID, 
 			continue
 		}
 
+		// Add all sessions that match the user and client
 		candidateRequestIDs[session.RequestID] = struct{}{}
+		// Only add sessions that also match the ID token hint JTI
 		if storedSession, ok := requestSession.(*Session); ok && idTokenJTI != "" && storedSession.IDTokenClaims().JTI == idTokenJTI {
 			matchingRequestIDs[session.RequestID] = struct{}{}
 		}

@@ -149,7 +149,7 @@ func TestStoreRevokeSessionsByIDTokenHintRevokesMatchingFositeSessions(t *testin
 	assert.True(t, accessKeys["other-client-access"])
 }
 
-func TestStoreRevokeSessionsByIDTokenHintFallsBackToClientSessionsWhenJTIMissing(t *testing.T) {
+func TestStoreRevokeSessionsByIDTokenHintSkipsSessionsWithoutMatchingJTI(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	store := NewStore(db)
 
@@ -189,9 +189,9 @@ func TestStoreRevokeSessionsByIDTokenHintFallsBackToClientSessionsWhenJTIMissing
 		}
 	}
 
-	assert.False(t, activeRefreshByKey["same-client-refresh"])
+	assert.True(t, activeRefreshByKey["same-client-refresh"])
 	assert.True(t, activeRefreshByKey["other-client-refresh"])
-	assert.False(t, accessKeys["same-client-access"])
+	assert.True(t, accessKeys["same-client-access"])
 	assert.True(t, accessKeys["other-client-access"])
 }
 

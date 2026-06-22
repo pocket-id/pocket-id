@@ -236,6 +236,40 @@ func TestEndSessionService(t *testing.T) {
 		require.Zero(t, accessCount, "access token must be deleted on logout")
 	})
 
+	t.Run("valid logout revokes only the session matching the id_token_hint", func(t *testing.T) {
+		service, store := newService(t)
+
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "rt-matching", "at-matching", newTestRequester("matching-req", clientID, userID, jti)))
+		require.NoError(t, store.CreateAccessTokenSession(t.Context(), "at-matching", newTestRequester("matching-req", clientID, userID, jti)))
+		require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "rt-other", "at-other", newTestRequester("other-req", clientID, userID, "other-id-token-jti")))
+		require.NoError(t, store.CreateAccessTokenSession(t.Context(), "at-other", newTestRequester("other-req", clientID, userID, "other-id-token-jti")))
+
+		token := signToken(t, validToken)
+		callback, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
+		require.NoError(t, err)
+		require.Equal(t, "https://app.example/logout", callback)
+
+		var matchingRefresh OAuth2Session
+		require.NoError(t, service.db.First(&matchingRefresh, "kind = ? AND key = ?", sessionKindRefreshToken, "rt-matching").Error)
+		require.False(t, matchingRefresh.Active, "refresh token matching id_token_hint must be revoked on logout")
+
+		var otherRefresh OAuth2Session
+		require.NoError(t, service.db.First(&otherRefresh, "kind = ? AND key = ?", sessionKindRefreshToken, "rt-other").Error)
+		require.True(t, otherRefresh.Active, "unrelated refresh token for the same user/client must remain active")
+
+		var matchingAccessCount int64
+		require.NoError(t, service.db.Model(&OAuth2Session{}).
+			Where("kind = ? AND key = ?", sessionKindAccessToken, "at-matching").
+			Count(&matchingAccessCount).Error)
+		require.Zero(t, matchingAccessCount, "access token matching id_token_hint must be deleted on logout")
+
+		var otherAccessCount int64
+		require.NoError(t, service.db.Model(&OAuth2Session{}).
+			Where("kind = ? AND key = ?", sessionKindAccessToken, "at-other").
+			Count(&otherAccessCount).Error)
+		require.Equal(t, int64(1), otherAccessCount, "unrelated access token for the same user/client must remain active")
+	})
+
 	t.Run("valid logout without UI session derives the user from id_token_hint", func(t *testing.T) {
 		service, store := newService(t)
 

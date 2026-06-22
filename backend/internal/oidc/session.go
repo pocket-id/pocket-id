@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/ory/fosite"
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	"github.com/ory/fosite/handler/openid"
@@ -47,6 +48,7 @@ func NewAuthenticatedSession(subject, authenticationMethod string, authenticatio
 	session.Claims.Subject = subject
 	session.Claims.AuthTime = authenticationTime.UTC()
 	session.Claims.RequestedAt = requestedAt.UTC()
+	session.Claims.JTI = uuid.NewString()
 
 	return session
 }
