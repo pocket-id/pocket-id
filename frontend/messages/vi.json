@@ -37,8 +37,6 @@
 	"expiration": "Hết hiệu lực",
 	"generate_code": "Tạo mã",
 	"name": "Tên",
-	"browser_unsupported": "Trình duyệt không được hỗ trợ",
-	"this_browser_does_not_support_passkeys": "Trình duyệt này không hỗ trợ passkeys. Vui lòng sử dụng phương thức đăng nhập khác.",
 	"an_unknown_error_occurred": "Một lỗi chưa biết đã xảy ra",
 	"authentication_process_was_aborted": "Quá trình xác thực đã bị hủy bỏ",
 	"error_occurred_with_authenticator": "Đã xảy ra lỗi với trình xác thực",
