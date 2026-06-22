@@ -37,8 +37,6 @@
 	"expiration": "만료",
 	"generate_code": "코드 생성",
 	"name": "이름",
-	"browser_unsupported": "지원되지 않는 브라우저",
-	"this_browser_does_not_support_passkeys": "이 브라우저는 패스키를 지원하지 않습니다. 다른 로그인 방법을 사용하세요.",
 	"an_unknown_error_occurred": "알 수 없는 오류 발생",
 	"authentication_process_was_aborted": "인증 프로세스가 중단되었습니다",
 	"error_occurred_with_authenticator": "인증기에서 오류가 발생했습니다",
