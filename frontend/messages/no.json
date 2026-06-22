@@ -55,7 +55,6 @@
 	"sign_in_to": "Logg inn til {name}",
 	"account_selection_signin_confirmation": "Vil du bruke følgende konto for å fortsette til <b>{name}</b>?",
 	"use_a_different_account": "Bruk en annen konto",
-	"client_not_found": "Fant ikke klient",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> ønsker tilgang til følgende informasjon:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Vil du logge inn på <b>{client}</b> med din {appName} konto?",
 	"email": "E-post",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Requires users to authenticate again on each authorization, even if already signed in",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Requires Pushed Authorization Requests",
-	"requires_pushed_authorization_requests_description": "Requires clients to use the PAR endpoint (/api/oidc/par) to pre-register authorization parameters before initiating the flow. Not available for public clients.",
+	"requires_pushed_authorization_requests_description": "Requires clients to use the PAR endpoint to pre-register authorization parameters before initiating the flow.",
 	"name_logo": "{name} logo",
 	"change_logo": "Bytt logo",
 	"upload_logo": "Last opp logo",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "E-postbekreftelse sendt.",
 	"emails_verified_by_default": "E-post verifisert som standard",
 	"emails_verified_by_default_description": "Når aktivert vil brukernes e-postadresser bli markert som bekreftet som standard ved registrering, eller når e-postadressen deres blir endret.",
-	"user_has_no_passkeys_yet": "Denne brukeren har ingen tilgangsnøkler ennå."
+	"user_has_no_passkeys_yet": "Denne brukeren har ingen tilgangsnøkler ennå.",
+	"replay_protection": "Replay Protection",
+	"replay_protection_description": "If enabled the provided token can only be used once. If your provider uses the same token multiple times, you may need to disable this option."
 }
