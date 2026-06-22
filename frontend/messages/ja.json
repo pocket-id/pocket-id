@@ -37,8 +37,6 @@
 	"expiration": "有効期限",
 	"generate_code": "コードの生成",
 	"name": "名前",
-	"browser_unsupported": "ブラウザ未対応",
-	"this_browser_does_not_support_passkeys": "このブラウザはパスキーをサポートしていません。別のサインイン方法を使用してください。",
 	"an_unknown_error_occurred": "不明なエラーが発生しました",
 	"authentication_process_was_aborted": "認証プロセスが中止されました",
 	"error_occurred_with_authenticator": "認証ツールでエラーが発生しました",
