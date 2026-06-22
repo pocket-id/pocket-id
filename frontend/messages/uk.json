@@ -55,7 +55,6 @@
 	"sign_in_to": "Увійти в {name}",
 	"account_selection_signin_confirmation": "Ви хочете продовжити, використовуючи цей обліковий запис <b>{name}</b>?",
 	"use_a_different_account": "Використовуйте інший обліковий запис",
-	"client_not_found": "Клієнт не знайдений",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> хоче отримати доступ до наступної інформації:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Бажаєте увійти до <b>{client}</b> за допомогою облікового запису {appName}?",
 	"email": "Електронна пошта",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Вимагає від користувачів повторної автентифікації при кожній авторизації, навіть якщо вони вже ввійшли в систему.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Потрібні запити на авторизацію, надіслані методом PUSH",
-	"requires_pushed_authorization_requests_description": "Вимагає від клієнтів використання кінцевої точки PAR (/api/oidc/par) для попередньої реєстрації параметрів авторизації перед початком процесу. Недоступно для загальнодоступних клієнтів.",
+	"requires_pushed_authorization_requests_description": "Вимагає від клієнтів використовувати кінцеву точку PAR для попередньої реєстрації параметрів авторизації перед початком процесу.",
 	"name_logo": "Логотип {name}",
 	"change_logo": "Змінити логотип",
 	"upload_logo": "Вивантажити логотип",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "Електронний лист для підтвердження успішно надіслано.",
 	"emails_verified_by_default": "Електронні адреси підтверджені за замовчуванням",
 	"emails_verified_by_default_description": "Якщо увімкнено, електронні адреси користувачів будуть автоматично позначатися як підтверджені під час реєстрації або зміни електронної адреси.",
-	"user_has_no_passkeys_yet": "Цей користувач ще не має паролів."
+	"user_has_no_passkeys_yet": "Цей користувач ще не має паролів.",
+	"replay_protection": "Захист від повторного відтворення",
+	"replay_protection_description": "Якщо ця опція увімкнена, вказаний токен можна використати лише один раз. Якщо ваш провайдер використовує один і той самий токен кілька разів, можливо, вам доведеться вимкнути цю опцію."
 }
