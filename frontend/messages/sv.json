@@ -37,8 +37,6 @@
 	"expiration": "Upphör",
 	"generate_code": "Generera kod",
 	"name": "Namn",
-	"browser_unsupported": "Webbläsaren stöds ej",
-	"this_browser_does_not_support_passkeys": "Denna webbläsare stöder inte passkeys. Använd en alternativ inloggningsmetod.",
 	"an_unknown_error_occurred": "Ett okänt fel har uppstått",
 	"authentication_process_was_aborted": "Autentiseringsprocessen avbröts",
 	"error_occurred_with_authenticator": "Ett fel uppstod med autentiseraren",
