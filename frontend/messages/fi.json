@@ -55,7 +55,6 @@
 	"sign_in_to": "Kirjaudu palveluun {name}",
 	"account_selection_signin_confirmation": "Haluatko jatkaa seuraavalla tilillä <b>{name}</b>?",
 	"use_a_different_account": "Käytä toista tiliä",
-	"client_not_found": "Asiakasta ei löydy",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> haluaa käyttää seuraavia tietoja:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Haluatko kirjautua sisään palveluun <b>{client}</b> {appName} -tililläsi?",
 	"email": "Sähköposti",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Vaatii käyttäjiltä uuden todennuksen jokaisella valtuutuksella, vaikka he olisivat jo kirjautuneet sisään",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Vaatii lähetettyjä valtuutuspyyntöjä",
-	"requires_pushed_authorization_requests_description": "Asiakkaiden on käytettävä PAR-päätettä (/api/oidc/par) valtuutusparametrien ennakkorekisteröintiin ennen prosessin aloittamista. Ei käytettävissä julkisille asiakkaille.",
+	"requires_pushed_authorization_requests_description": "Vaatii asiakkaita käyttämään PAR-päätettä valtuutusparametrien ennakkorekisteröintiin ennen prosessin aloittamista.",
 	"name_logo": "{name} logo",
 	"change_logo": "Vaihda logo",
 	"upload_logo": "Lataa logo",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "Vahvistussähköposti lähetetty onnistuneesti.",
 	"emails_verified_by_default": "Sähköpostit vahvistettu oletuksena",
 	"emails_verified_by_default_description": "Kun tämä toiminto on käytössä, käyttäjien sähköpostiosoitteet merkitään oletusarvoisesti vahvistetuiksi rekisteröitymisen yhteydessä tai kun heidän sähköpostiosoitteensa muuttuu.",
-	"user_has_no_passkeys_yet": "Tällä käyttäjällä ei ole vielä salasanakoodeja."
+	"user_has_no_passkeys_yet": "Tällä käyttäjällä ei ole vielä salasanakoodeja.",
+	"replay_protection": "Toistosuojaus",
+	"replay_protection_description": "Jos tämä asetus on käytössä, annettua tunnusta voidaan käyttää vain kerran. Jos palveluntarjoajasi käyttää samaa tunnusta useita kertoja, sinun on ehkä poistettava tämä asetus käytöstä."
 }
