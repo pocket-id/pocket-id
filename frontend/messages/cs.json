@@ -37,8 +37,6 @@
 	"expiration": "Expirace",
 	"generate_code": "Vygenerovat kód",
 	"name": "Jméno",
-	"browser_unsupported": "Prohlížeč nepodporován",
-	"this_browser_does_not_support_passkeys": "Tento prohlížeč nepodporuje přístupové klíče. Zkuste prosím alternativní způsob přihlášení.",
 	"an_unknown_error_occurred": "Došlo k neznámé chybě",
 	"authentication_process_was_aborted": "Proces přihlášení byl přerušen",
 	"error_occurred_with_authenticator": "Došlo k chybě s autentifikátorem",
