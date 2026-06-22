@@ -37,8 +37,6 @@
 	"expiration": "Vervaldatum",
 	"generate_code": "Genereer code",
 	"name": "Naam",
-	"browser_unsupported": "Browser niet ondersteund",
-	"this_browser_does_not_support_passkeys": "Deze browser ondersteunt geen passkeys. Gebruik een alternatieve aanmeldmethode.",
 	"an_unknown_error_occurred": "Er is een onbekende fout opgetreden",
 	"authentication_process_was_aborted": "Het authenticatieproces is afgebroken",
 	"error_occurred_with_authenticator": "Er is een fout opgetreden met de authenticator",
