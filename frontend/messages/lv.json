@@ -37,8 +37,6 @@
 	"expiration": "Derīguma termiņš",
 	"generate_code": "Ģenerēt kodu",
 	"name": "Nosaukums",
-	"browser_unsupported": "Pārlūks netiek atbalstīts",
-	"this_browser_does_not_support_passkeys": "Šis pārlūks neatbalsta piekļuves atslēgas. Lūdzu, izmantojiet alternatīvu pierakstīšanās metodi.",
 	"an_unknown_error_occurred": "Radās nezināma kļūda",
 	"authentication_process_was_aborted": "Autentifikācijas process tika pārtraukts",
 	"error_occurred_with_authenticator": "Radās kļūda ar autentifikatoru",
