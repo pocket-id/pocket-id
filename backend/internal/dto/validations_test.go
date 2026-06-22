@@ -58,26 +58,6 @@ func TestValidateClientID(t *testing.T) {
 	}
 }
 
-func TestValidateResponseMode(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected bool
-	}{
-		{"valid form_post", "form_post", true},
-		{"valid query", "query", true},
-		{"valid fragment", "fragment", true},
-		{"valid empty", "", true},
-		{"invalid unknown", "unknown", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, ValidateResponseMode(tt.input))
-		})
-	}
-}
-
 func TestValidateCallbackURL(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -99,6 +79,29 @@ func TestValidateCallbackURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, ValidateCallbackURL(tt.input))
+		})
+	}
+}
+
+func TestValidateCallbackURLPattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"valid exact URL", "https://example.com/callback", true},
+		{"valid wildcard URL", "https://*.example.com/callback", true},
+		{"valid custom scheme", "pocketid://callback", true},
+		{"valid global wildcard", "*", true},
+		{"invalid relative URL", "/callback", false},
+		{"invalid malformed URL", "http://[::1", false},
+		{"rejects javascript scheme", "javascript:alert(1)", false},
+		{"rejects data scheme", "data:text/html;base64,PGgxPkhlbGxvPC9oMT4=", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ValidateCallbackURLPattern(tt.input))
 		})
 	}
 }

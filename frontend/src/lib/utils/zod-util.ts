@@ -14,6 +14,9 @@ export const callbackUrlSchema = z
 	.nonempty()
 	.refine(
 		(val) => {
+			if (/^(javascript|data):/i.test(val)) {
+				return false;
+			}
 			if (val.includes('*')) {
 				return true;
 			}

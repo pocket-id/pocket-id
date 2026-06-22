@@ -18,7 +18,7 @@ export function getAuthRedirectPath(url: URL, user: User | null) {
 
 	const isPublicPath =
 		path.startsWith('/lc/') ||
-		['/authorize', '/login/alternative/code', '/device', '/health', '/healthz'].includes(path);
+		['/interaction', '/login/alternative/code', '/device', '/health', '/healthz'].includes(path);
 
 	const isAdminPath = path == '/settings/admin' || path.startsWith('/settings/admin/');
 

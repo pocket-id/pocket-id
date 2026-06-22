@@ -47,9 +47,6 @@ func init() {
 		"callback_url_pattern": func(fl validator.FieldLevel) bool {
 			return ValidateCallbackURLPattern(fl.Field().String())
 		},
-		"response_mode": func(fl validator.FieldLevel) bool {
-			return ValidateResponseMode(fl.Field().String())
-		},
 	}
 	for k, v := range validators {
 		err := engine.RegisterValidation(k, v)
@@ -85,22 +82,7 @@ func ValidateCallbackURL(str string) bool {
 	}
 }
 
-// ValidateCallbackURLPattern validates callback URL patterns, with support for wildcards
+// ValidateCallbackURLPattern validates callback URL patterns, with support for wildcards.
 func ValidateCallbackURLPattern(raw string) bool {
-	err := utils.ValidateCallbackURLPattern(raw)
-	return err == nil
-}
-
-// ValidateResponseMode validates response_mode parameter
-// If responseMode is present, it must be "form_post", "query", or "fragment"
-// Empty responseMode is allowed (field not provided, use default)
-func ValidateResponseMode(responseMode string) bool {
-	switch responseMode {
-	case "form_post", "query", "fragment":
-		return true
-	case "":
-		return true
-	default:
-		return false
-	}
+	return utils.ValidateCallbackURLPattern(raw) == nil
 }

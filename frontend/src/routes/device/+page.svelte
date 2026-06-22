@@ -8,9 +8,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import OIDCService from '$lib/services/oidc-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import type { OidcDeviceCodeInfo } from '$lib/types/oidc.type';
-	import { getAxiosErrorMessage } from '$lib/utils/error-util';
+	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { onMount } from 'svelte';
@@ -29,6 +30,8 @@
 	let success = $state(false);
 	let errorMessage: string | null = $state(null);
 	let authorizationRequired = $state(false);
+	let reauthenticationRequired = $state(false);
+	let reauthenticated = $state(false);
 
 	onMount(() => {
 		if (data.code && $userStore) {
@@ -56,13 +59,34 @@
 				return;
 			}
 
+			if (info.reauthenticationRequired && !reauthenticationRequired && !authorizationRequired) {
+				reauthenticationRequired = true;
+				isLoading = false;
+				return;
+			}
+
+			if (info.reauthenticationRequired && !reauthenticated) {
+				await reauthenticate();
+				reauthenticated = true;
+			}
+
 			await oidcService.verifyDeviceCode(userCode);
 
 			success = true;
 		} catch (e) {
-			errorMessage = getAxiosErrorMessage(e);
+			errorMessage = getWebauthnErrorMessage(e);
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	async function reauthenticate() {
+		try {
+			await webauthnService.reauthenticate();
+		} catch {
+			const loginOptions = await webauthnService.getLoginOptions();
+			const authResponse = await startAuthentication({ optionsJSON: loginOptions });
+			await webauthnService.reauthenticate(authResponse);
 		}
 	}
 </script>
@@ -86,6 +110,15 @@
 		</p>
 	{:else if success}
 		<p class="text-muted-foreground mt-2">{m.the_device_has_been_authorized()}</p>
+	{:else if reauthenticationRequired && deviceInfo?.client}
+		<p class="text-muted-foreground mt-2">
+			<FormattedMessage
+				m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
+					client: deviceInfo.client.name,
+					appName: $appConfigStore.appName
+				})}
+			/>
+		</p>
 	{:else if authorizationRequired}
 		<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
 			<Card.Root class="mt-6">
@@ -99,7 +132,7 @@
 					</p>
 				</Card.Header>
 				<Card.Content data-testid="scopes">
-					<ScopeList scope={deviceInfo!.scope} />
+					<ScopeList scopes={deviceInfo!.scope} />
 				</Card.Content>
 			</Card.Root>
 		</div>

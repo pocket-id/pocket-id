@@ -55,7 +55,6 @@
 	"sign_in_to": "Sign in to {name}",
 	"account_selection_signin_confirmation": "Do you want to use the following account to continue to <b>{name}</b>?",
 	"use_a_different_account": "Use a different account",
-	"client_not_found": "Client not found",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> wants to access the following information:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Do you want to sign in to <b>{client}</b> with your {appName} account?",
 	"email": "Email",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Requires users to authenticate again on each authorization, even if already signed in",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Requires Pushed Authorization Requests",
-	"requires_pushed_authorization_requests_description": "Requires clients to use the PAR endpoint (/api/oidc/par) to pre-register authorization parameters before initiating the flow. Not available for public clients.",
+	"requires_pushed_authorization_requests_description": "Requires clients to use the PAR endpoint to pre-register authorization parameters before initiating the flow.",
 	"name_logo": "{name} logo",
 	"change_logo": "Change Logo",
 	"upload_logo": "Upload Logo",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "Verification email sent successfully.",
 	"emails_verified_by_default": "Emails verified by default",
 	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed.",
-	"user_has_no_passkeys_yet": "This user has no passkeys yet."
+	"user_has_no_passkeys_yet": "This user has no passkeys yet.",
+	"replay_protection": "Replay Protection",
+	"replay_protection_description": "If enabled the provided token can only be used once. If your provider uses the same token multiple times, you may need to disable this option."
 }

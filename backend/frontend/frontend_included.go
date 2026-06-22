@@ -16,8 +16,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"golang.org/x/time/rate"
 )
 
 //go:embed all:dist/*
@@ -55,7 +53,7 @@ func init() {
 	}
 }
 
-func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) error {
+func RegisterFrontend(router *gin.Engine) error {
 	distFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
 		return fmt.Errorf("failed to create sub FS: %w", err)
@@ -87,19 +85,6 @@ func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) erro
 		if isSPARequest(path, distFS) {
 			nonce := middleware.GetCSPNonce(c)
 
-			// For an authorization request that responds via response_mode=form_post, the
-			// consent page auto-submits a form to the client's callback, so that callback
-			// must be allowed in the CSP form-action directive
-			isAuthPostRequest, redirectURI := isOAuth2AuthorizationPostRequest(c, oidcService)
-			if isAuthPostRequest {
-				clientID := c.Query("client_id")
-				// In that case, we need to validate and allow form submissions to the redirect_uri
-				validatedRedirectURI, err := oidcService.ResolveAllowedCallbackURL(c.Request.Context(), clientID, redirectURI)
-				if err == nil {
-					c.Header("Content-Security-Policy", middleware.BuildCSP(nonce, validatedRedirectURI))
-				}
-			}
-
 			// Do not cache the HTML shell, as it embeds a per-request nonce
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.Header("Cache-Control", "no-store")
@@ -115,53 +100,9 @@ func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) erro
 		fileServer.ServeHTTP(c.Writer, c.Request)
 	}
 
-	rateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(300*time.Millisecond), 50)
-	router.NoRoute(rateLimitOnlyForOAuth2AuthorizationPostRequest(rateLimitMiddleware, oidcService, distFS), handler)
+	router.NoRoute(handler)
 
 	return nil
-}
-
-func rateLimitOnlyForOAuth2AuthorizationPostRequest(rateLimitMiddleware gin.HandlerFunc, oidcService *service.OidcService, distFS fs.FS) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		path := strings.TrimPrefix(c.Request.URL.Path, "/")
-
-		if isSPARequest(path, distFS) {
-			isAuthPostRequest, _ := isOAuth2AuthorizationPostRequest(c, oidcService)
-			if isAuthPostRequest {
-				rateLimitMiddleware(c)
-				return
-			}
-		}
-
-		c.Next()
-	}
-}
-
-// isOAuth2AuthorizationRequest checks if this is an OAuth2 authorization request with response_mode=form_post
-// In that case, we need to validate and allow form submissions to the redirect_uri
-func isOAuth2AuthorizationPostRequest(c *gin.Context, oidcService *service.OidcService) (bool, string) {
-	responseMode := c.Query("response_mode")
-	redirectURI := c.Query("redirect_uri")
-	clientID := c.Query("client_id")
-	requestUri := c.Query("request_uri")
-
-	if c.Request.URL.Path != "/authorize" {
-		return false, ""
-	}
-
-	if requestUri != "" && clientID != "" {
-		par, err := oidcService.GetPushedAuthorizationRequest(c.Request.Context(), clientID, requestUri)
-		if err != nil {
-			return false, ""
-		}
-
-		responseMode = par.Parameters.ResponseMode
-		redirectURI = par.Parameters.RedirectURI
-
-	}
-
-	ok := responseMode == "form_post" && redirectURI != "" && clientID != ""
-	return ok, redirectURI
 }
 
 func isSPARequest(path string, distFS fs.FS) bool {
