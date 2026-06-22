@@ -1,3 +1,6 @@
+PRAGMA foreign_keys= OFF;
+BEGIN;
+
 CREATE TABLE oidc_authorization_codes
 (
     id                           TEXT NOT NULL PRIMARY KEY,
@@ -93,3 +96,7 @@ DROP INDEX IF EXISTS idx_oauth2_sessions_expires_at;
 DROP INDEX IF EXISTS idx_oauth2_sessions_kind_request;
 DROP INDEX IF EXISTS idx_oauth2_sessions_kind_key;
 DROP TABLE IF EXISTS oauth2_sessions;
+
+COMMIT;
+PRAGMA foreign_keys= ON;
+

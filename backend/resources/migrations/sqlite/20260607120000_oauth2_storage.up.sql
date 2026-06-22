@@ -1,3 +1,6 @@
+PRAGMA foreign_keys= OFF;
+BEGIN;
+
 CREATE TABLE oauth2_sessions (
     id TEXT NOT NULL PRIMARY KEY,
     created_at INTEGER NOT NULL,
@@ -78,3 +81,7 @@ DROP TABLE IF EXISTS oidc_pushed_authorization_requests;
 DROP TABLE IF EXISTS oidc_device_codes;
 DROP TABLE IF EXISTS oidc_refresh_tokens;
 DROP TABLE IF EXISTS oidc_authorization_codes;
+
+COMMIT;
+PRAGMA foreign_keys= ON;
+
