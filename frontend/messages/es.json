@@ -55,7 +55,6 @@
 	"sign_in_to": "Iniciar sesión en {name}",
 	"account_selection_signin_confirmation": "¿Quieres usar la siguiente cuenta para seguir <b>{name}</b>?",
 	"use_a_different_account": "Usa otra cuenta",
-	"client_not_found": "Cliente no encontrado",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> quiere acceder a la siguiente información:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "¿Quieres iniciar sesión en <b>{client}</b> con tu cuenta {appName}?",
 	"email": "Correo electrónico",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Requiere que los usuarios se autentiquen de nuevo en cada autorización, incluso si ya han iniciado sesión.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Requiere solicitudes de autorización enviadas",
-	"requires_pushed_authorization_requests_description": "Requiere que los clientes utilicen el punto final PAR (/api/oidc/par) para pre-registrar los parámetros de autorización antes de iniciar el flujo. No está disponible para clientes públicos.",
+	"requires_pushed_authorization_requests_description": "Exige a los clientes que utilicen el punto final PAR para pre-registrar los parámetros de autorización antes de iniciar el flujo.",
 	"name_logo": "{name} logotipo",
 	"change_logo": "Cambiar logotipo",
 	"upload_logo": "Subir Logo",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "El correo electrónico de verificación se ha enviado correctamente.",
 	"emails_verified_by_default": "Correos electrónicos verificados de forma predeterminada",
 	"emails_verified_by_default_description": "Cuando esta opción está activada, las direcciones de correo electrónico de los usuarios se marcarán como verificadas de forma predeterminada al registrarse o cuando se modifique su dirección de correo electrónico.",
-	"user_has_no_passkeys_yet": "Este usuario aún no tiene claves de acceso."
+	"user_has_no_passkeys_yet": "Este usuario aún no tiene claves de acceso.",
+	"replay_protection": "Protección contra la reproducción",
+	"replay_protection_description": "Si está activada, el token proporcionado solo se puede usar una vez. Si tu proveedor utiliza el mismo token varias veces, puede que tengas que desactivar esta opción."
 }
