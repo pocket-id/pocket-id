@@ -37,8 +37,6 @@
 	"expiration": "Son Geçerlilik Tarihi",
 	"generate_code": "Kod Oluştur",
 	"name": "İsim",
-	"browser_unsupported": "Desteklenmeyen tarayıcı",
-	"this_browser_does_not_support_passkeys": "Bu tarayıcı geçiş anahtarlarını desteklemiyor. Lütfen alternatif bir oturum açma yöntemi kullanın.",
 	"an_unknown_error_occurred": "Bilinmeyen bir hata oluştu",
 	"authentication_process_was_aborted": "Kimlik doğrulama süreci iptal edildi",
 	"error_occurred_with_authenticator": "Kimlik doğrulayıcıda bir hata oluştu",
