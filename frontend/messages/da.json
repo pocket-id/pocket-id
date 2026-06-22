@@ -55,7 +55,6 @@
 	"sign_in_to": "Log ind på {name}",
 	"account_selection_signin_confirmation": "Vil du bruge følgende konto til at fortsætte <b>{name}</b>?",
 	"use_a_different_account": "Brug en anden konto",
-	"client_not_found": "Klient ikke fundet",
 	"client_wants_to_access_the_following_information": "{client} ønsker at få adgang til følgende oplysninger:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Vil du logge ind på {client} med din {appName}-konto?",
 	"email": "E-mail",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Kræver, at brugerne skal godkende igen ved hver autorisation, selvom de allerede er logget ind.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Kræver godkendelsesanmodninger, der sendes",
-	"requires_pushed_authorization_requests_description": "Krav om, at klienter skal bruge PAR-endpointet (/api/oidc/par) til at forhåndsregistrere autorisationsparametre, inden de starter godkendelsesforløbet. Ikke tilgængeligt for offentlige klienter.",
+	"requires_pushed_authorization_requests_description": "Kræver, at klienter bruger PAR-endpointet til at forhåndsregistrere autorisationsparametre, inden de starter forløbet.",
 	"name_logo": "Logo for {name}",
 	"change_logo": "Skift logo",
 	"upload_logo": "Upload logo",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "Bekræftelses-e-mail sendt med succes.",
 	"emails_verified_by_default": "E-mails verificeret som standard",
 	"emails_verified_by_default_description": "Når denne funktion er aktiveret, vil brugernes e-mailadresser som standard blive markeret som verificerede ved tilmelding eller når deres e-mailadresse ændres.",
-	"user_has_no_passkeys_yet": "Denne bruger har endnu ingen adgangsnøgler."
+	"user_has_no_passkeys_yet": "Denne bruger har endnu ingen adgangsnøgler.",
+	"replay_protection": "Beskyttelse mod gentagelse",
+	"replay_protection_description": "Hvis denne indstilling er aktiveret, kan det angivne token kun bruges én gang. Hvis din udbyder bruger det samme token flere gange, kan det være nødvendigt at deaktivere denne indstilling."
 }
