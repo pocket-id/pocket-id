@@ -908,10 +908,11 @@ test.describe('OIDC prompt parameter', () => {
 			await route.fulfill({ status: 200, body: 'attacker' });
 		});
 
-		const response = await page.goto(`/authorize?${urlParams.toString()}`);
+		await page.goto(`/authorize?${urlParams.toString()}`);
 
-		expect(response?.status()).toBe(400);
-		await expect(page.locator('body')).toContainText('invalid_request');
+		await expect(page.locator('body')).toContainText(
+			"The 'redirect_uri' parameter does not match any of the OAuth 2.0 Client's pre-registered redirect urls."
+		);
 		expect(attackerRedirected).toBe(false);
 	});
 
@@ -962,10 +963,12 @@ test.describe('OIDC prompt parameter', () => {
 			await route.fulfill({ status: 200, body: 'attacker' });
 		});
 
-		const response = await page.goto(`/authorize?${urlParams.toString()}`);
+		await page.goto(`/authorize?${urlParams.toString()}`);
 
-		expect(response?.status()).toBe(400);
-		await expect(page.locator('body')).toContainText('invalid_request');
+		await expect(page.locator('body')).toContainText(
+			"The 'redirect_uri' parameter does not match any of the OAuth 2.0 Client's pre-registered redirect urls."
+		);
+
 		expect(attackerRedirected).toBe(false);
 	});
 
@@ -1303,7 +1306,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		expect(firstCallbackUrl.searchParams.get('code')).toBeTruthy();
 
 		await page.goto(`/authorize?${urlParams.toString()}`);
-		await expect(page.getByText('invalid_request_uri')).toBeVisible();
+		await expect(page.locator('body')).toContainText('Invalid PAR session');
 	});
 
 	test('PAR endpoint rejects confidential client request without client credentials', async ({

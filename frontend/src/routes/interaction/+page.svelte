@@ -170,7 +170,7 @@
 		</div>
 	{:else if currentStep === 'consent'}
 		<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
-			<Card.Root class="mt-6 mb-10">
+			<Card.Root class="mb-10">
 				<Card.Header>
 					<p class="text-muted-foreground text-start">
 						<FormattedMessage

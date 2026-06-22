@@ -1,6 +1,8 @@
 package oidc
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -49,7 +51,7 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 		query, err := h.authorizationService.interactionRequestQuery(ctx, interactionID)
 		if err != nil {
 			slog.WarnContext(ctx, "Failed to restore authorize request from interaction session", "error", err.Error())
-			h.provider.WriteAuthorizeError(ctx, c.Writer, fosite.NewAuthorizeRequest(), err)
+			h.writeAuthorizeError(ctx, c, fosite.NewAuthorizeRequest(), err)
 			return
 		}
 		c.Request.URL.RawQuery = query.Encode()
@@ -63,7 +65,7 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	ar, err := h.provider.NewAuthorizeRequest(ctx, c.Request)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to create authorize request", "error", err.Error())
-		h.provider.WriteAuthorizeError(ctx, c.Writer, ar, err)
+		h.writeAuthorizeError(ctx, c, ar, err)
 		return
 	}
 
@@ -80,7 +82,7 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to authorize request", "error", err.Error())
-		h.provider.WriteAuthorizeError(ctx, c.Writer, ar, err)
+		h.writeAuthorizeError(ctx, c, ar, err)
 		return
 	}
 
@@ -92,7 +94,7 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	response, err := h.provider.NewAuthorizeResponse(ctx, ar, authorization.Session)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to create authorize response", "error", err.Error())
-		h.provider.WriteAuthorizeError(ctx, c.Writer, ar, err)
+		h.writeAuthorizeError(ctx, c, ar, err)
 		return
 	}
 
@@ -101,25 +103,6 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 		c.Header("Content-Security-Policy", utils.BuildCSP(utils.GetCSPNonce(c), ar.GetRedirectURI().String()))
 	}
 	h.provider.WriteAuthorizeResponse(ctx, c.Writer, ar, response)
-}
-
-func requestMetaFromGin(c *gin.Context) requestMeta {
-	return requestMeta{
-		IPAddress: c.ClientIP(),
-		UserAgent: c.Request.UserAgent(),
-	}
-}
-
-func authorizeRequestParams(requester fosite.AuthorizeRequester) map[string]string {
-	params := make(map[string]string)
-	for key, values := range requester.GetRequestForm() {
-		if len(values) == 0 || key == "request_uri" || key == "interaction" {
-			continue
-		}
-		params[key] = values[0]
-	}
-
-	return params
 }
 
 func (h *authorizationHandler) getInteractionSession(c *gin.Context) {
@@ -153,4 +136,44 @@ func (h *authorizationHandler) completeInteraction(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.Context, ar fosite.AuthorizeRequester, err error) {
+	if ar.IsRedirectURIValid() {
+		// Send the error to the client
+		h.provider.WriteAuthorizeError(ctx, c.Writer, ar, err)
+		return
+	}
+
+	// If no redirect URI is available, we can't send the error to the client,
+	// so we redirect to a generic error page instead.
+	errorMessage := "An unknown error occurred during the authorization request."
+	if err, ok := errors.AsType[*fosite.RFC6749Error](err); ok {
+		if err.HintField != "" {
+			errorMessage = err.HintField
+		} else if err.DescriptionField != "" {
+			errorMessage = err.DescriptionField
+		}
+	}
+
+	c.Redirect(http.StatusFound, "/interaction/error?error="+errorMessage)
+}
+
+func requestMetaFromGin(c *gin.Context) requestMeta {
+	return requestMeta{
+		IPAddress: c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+	}
+}
+
+func authorizeRequestParams(requester fosite.AuthorizeRequester) map[string]string {
+	params := make(map[string]string)
+	for key, values := range requester.GetRequestForm() {
+		if len(values) == 0 || key == "request_uri" || key == "interaction" {
+			continue
+		}
+		params[key] = values[0]
+	}
+
+	return params
 }

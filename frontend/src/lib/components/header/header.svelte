@@ -9,6 +9,7 @@
 
 	const authUrls = [
 		/^\/interaction$/,
+		/^\/interaction\/error$/,
 		/^\/device$/,
 		/^\/login(?:\/.*)?$/,
 		/^\/logout$/,
