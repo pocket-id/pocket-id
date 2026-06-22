@@ -14,6 +14,7 @@ export type OidcClientFederatedIdentity = {
 	subject?: string;
 	audience?: string;
 	jwks?: string | undefined;
+	replayProtection: boolean;
 };
 
 export type OidcClientCredentials = {

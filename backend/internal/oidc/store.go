@@ -109,12 +109,7 @@ func (s *Store) ClientAssertionJWTValid(ctx context.Context, jti string) error {
 }
 
 func (s *Store) SetClientAssertionJWT(ctx context.Context, jti string, exp time.Time) error {
-	db := s.dbFor(ctx)
-	if err := db.Delete(&clientAssertionJTI{}, "expires_at <= ?", datatype.DateTime(time.Now())).Error; err != nil {
-		return err
-	}
-
-	err := db.Create(&clientAssertionJTI{
+	err := s.dbFor(ctx).Create(&clientAssertionJTI{
 		JTI:       jti,
 		ExpiresAt: datatype.DateTime(exp),
 	}).Error

@@ -120,15 +120,17 @@ func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) 
 	require.NoError(t, jwks.AddKey(publicKey))
 
 	db := testutils.NewDatabaseForTest(t)
+	replayProtection := false
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base: model.Base{ID: clientID},
 		Name: "Federated Client",
 		Credentials: model.OidcClientCredentials{
 			FederatedIdentities: []model.OidcClientFederatedIdentity{{
-				Issuer:   issuer,
-				Subject:  subject,
-				Audience: audience,
-				JWKS:     jwksURL,
+				Issuer:           issuer,
+				Subject:          subject,
+				Audience:         audience,
+				JWKS:             jwksURL,
+				ReplayProtection: replayProtection,
 			}},
 		},
 	}).Error)

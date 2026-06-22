@@ -26,6 +26,8 @@ var errNoFederatedClientAssertion = errors.New("no federated client assertion")
 // federatedClientStore is the subset of the store the federated authenticator needs.
 type federatedClientStore interface {
 	GetClient(ctx context.Context, id string) (fosite.Client, error)
+	ClientAssertionJWTValid(ctx context.Context, jti string) error
+	SetClientAssertionJWT(ctx context.Context, jti string, exp time.Time) error
 }
 
 // federatedClientAuthenticator authenticates clients via JWT bearer assertions issued
@@ -160,7 +162,7 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 		subject = client.GetID()
 	}
 
-	_, err = jwt.Parse(rawAssertion,
+	parsed, err := jwt.Parse(rawAssertion,
 		jwt.WithValidate(true),
 		jwt.WithAcceptableSkew(30*time.Second),
 		jwt.WithRequiredClaim(jwt.ExpirationKey),
@@ -171,6 +173,24 @@ func (a *federatedClientAuthenticator) authenticateAssertion(ctx context.Context
 	)
 	if err != nil {
 		return nil, fosite.ErrInvalidClient.WithHint("Invalid client assertion.").WithWrap(err)
+	}
+
+	if federatedIdentity.ReplayProtection {
+		jti, ok := parsed.JwtID()
+		if !ok || jti == "" {
+			return nil, fosite.ErrInvalidClient.WithHint("Client assertion is missing jti claim, which is required for replay protection.")
+		}
+
+		// Check if the jti has been used before
+		if err := a.clients.ClientAssertionJWTValid(ctx, jti); err != nil {
+			return nil, fosite.ErrInvalidClient.WithHint("Client assertion has already been used.").WithWrap(err)
+		}
+		// Store the jti to prevent future reuse
+		exp, _ := parsed.Expiration()
+		if err := a.clients.SetClientAssertionJWT(ctx, jti, exp); err != nil {
+			return nil, fosite.ErrInvalidClient.WithWrap(err)
+		}
+
 	}
 
 	return client, nil

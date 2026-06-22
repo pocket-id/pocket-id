@@ -23,6 +23,7 @@ import (
 
 type fakeFederatedStore struct {
 	client fosite.Client
+	jtis   map[string]time.Time
 }
 
 func (f *fakeFederatedStore) GetClient(_ context.Context, id string) (fosite.Client, error) {
@@ -30,6 +31,18 @@ func (f *fakeFederatedStore) GetClient(_ context.Context, id string) (fosite.Cli
 		return nil, fosite.ErrNotFound
 	}
 	return f.client, nil
+}
+
+func (f *fakeFederatedStore) ClientAssertionJWTValid(_ context.Context, jti string) error {
+	if exp, ok := f.jtis[jti]; ok && exp.After(time.Now()) {
+		return fosite.ErrJTIKnown
+	}
+	return nil
+}
+
+func (f *fakeFederatedStore) SetClientAssertionJWT(_ context.Context, jti string, exp time.Time) error {
+	f.jtis[jti] = exp
+	return nil
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -86,20 +99,26 @@ func TestFederatedClientAuthenticatorAssertionValidation(t *testing.T) {
 		jwksURL  = "https://idp.example.com/jwks.json"
 	)
 
-	store := &fakeFederatedStore{
-		client: Client{OidcClient: model.OidcClient{
-			Base: model.Base{ID: clientID},
-			Name: "Federated Client",
-			Credentials: model.OidcClientCredentials{
-				FederatedIdentities: []model.OidcClientFederatedIdentity{{
-					Issuer: issuer,
-					JWKS:   jwksURL,
-				}},
-			},
-		}},
+	newAuthenticator := func(t *testing.T, replayProtection bool) (*federatedClientAuthenticator, *fakeFederatedStore) {
+		t.Helper()
+		store := &fakeFederatedStore{
+			client: Client{OidcClient: model.OidcClient{
+				Base: model.Base{ID: clientID},
+				Name: "Federated Client",
+				Credentials: model.OidcClientCredentials{
+					FederatedIdentities: []model.OidcClientFederatedIdentity{{
+						Issuer:           issuer,
+						JWKS:             jwksURL,
+						ReplayProtection: replayProtection,
+					}},
+				},
+			}},
+			jtis: map[string]time.Time{},
+		}
+		authenticator, err := newFederatedClientAuthenticator(t.Context(), store, newJWKSetHTTPClient(t, jwks), audience)
+		require.NoError(t, err)
+		return authenticator, store
 	}
-	authenticator, err := newFederatedClientAuthenticator(t.Context(), store, newJWKSetHTTPClient(t, jwks), audience)
-	require.NoError(t, err)
 
 	signAssertion := func(t *testing.T, mutate func(b *jwt.Builder) *jwt.Builder) string {
 		t.Helper()
@@ -115,7 +134,22 @@ func TestFederatedClientAuthenticatorAssertionValidation(t *testing.T) {
 		return string(signed)
 	}
 
-	t.Run("valid assertion with jti can be reused", func(t *testing.T) {
+	t.Run("valid assertion with jti authenticates once when replay protection is enabled", func(t *testing.T) {
+		authenticator, _ := newAuthenticator(t, true)
+		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
+			return b.JwtID("replay-protected-token").Expiration(time.Now().Add(5 * time.Minute))
+		})
+
+		client, err := authenticator.authenticateAssertion(t.Context(), assertion, clientID)
+		require.NoError(t, err)
+		require.Equal(t, clientID, client.GetID())
+
+		_, err = authenticator.authenticateAssertion(t.Context(), assertion, clientID)
+		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+	})
+
+	t.Run("valid assertion with jti can be reused when replay protection is disabled", func(t *testing.T) {
+		authenticator, store := newAuthenticator(t, false)
 		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
 			return b.JwtID("cached-provider-token").Expiration(time.Now().Add(5 * time.Minute))
 		})
@@ -127,9 +161,11 @@ func TestFederatedClientAuthenticatorAssertionValidation(t *testing.T) {
 		client, err = authenticator.authenticateAssertion(t.Context(), assertion, clientID)
 		require.NoError(t, err)
 		require.Equal(t, clientID, client.GetID())
+		require.Empty(t, store.jtis)
 	})
 
 	t.Run("assertion without exp is rejected", func(t *testing.T) {
+		authenticator, _ := newAuthenticator(t, true)
 		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
 			return b.JwtID("jti-no-exp")
 		})
@@ -137,13 +173,24 @@ func TestFederatedClientAuthenticatorAssertionValidation(t *testing.T) {
 		require.ErrorIs(t, err, fosite.ErrInvalidClient)
 	})
 
-	t.Run("assertion without jti authenticates", func(t *testing.T) {
+	t.Run("assertion without jti is rejected when replay protection is enabled", func(t *testing.T) {
+		authenticator, _ := newAuthenticator(t, true)
+		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
+			return b.Expiration(time.Now().Add(5 * time.Minute))
+		})
+		_, err := authenticator.authenticateAssertion(t.Context(), assertion, clientID)
+		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+	})
+
+	t.Run("assertion without jti authenticates when replay protection is disabled", func(t *testing.T) {
+		authenticator, store := newAuthenticator(t, false)
 		assertion := signAssertion(t, func(b *jwt.Builder) *jwt.Builder {
 			return b.Expiration(time.Now().Add(5 * time.Minute))
 		})
 		client, err := authenticator.authenticateAssertion(t.Context(), assertion, clientID)
 		require.NoError(t, err)
 		require.Equal(t, clientID, client.GetID())
+		require.Empty(t, store.jtis)
 	})
 }
 
@@ -179,6 +226,7 @@ func TestFederatedClientAuthenticatorAllowsConfiguredSubjectDifferentFromClientI
 				}},
 			},
 		}},
+		jtis: map[string]time.Time{},
 	}
 	authenticator, err := newFederatedClientAuthenticator(t.Context(), store, newJWKSetHTTPClient(t, jwks), "unused-default-audience")
 	require.NoError(t, err)
@@ -230,6 +278,7 @@ func TestFederatedClientAuthenticatorCachesJWKS(t *testing.T) {
 				}},
 			},
 		}},
+		jtis: map[string]time.Time{},
 	}
 	authenticator, err := newFederatedClientAuthenticator(t.Context(), store, httpClient, audience)
 	require.NoError(t, err)

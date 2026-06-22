@@ -528,5 +528,7 @@
 	"email_verification_sent": "Verification email sent successfully.",
 	"emails_verified_by_default": "Emails verified by default",
 	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed.",
-	"user_has_no_passkeys_yet": "This user has no passkeys yet."
+	"user_has_no_passkeys_yet": "This user has no passkeys yet.",
+	"replay_protection": "Replay Protection",
+	"replay_protection_description": "If enabled the provided token can only be used once. If your provider uses the same token multiple times, you may need to disable this option."
 }

@@ -55,10 +55,11 @@ type OidcClientCredentials struct { //nolint:recvcheck
 }
 
 type OidcClientFederatedIdentity struct {
-	Issuer   string `json:"issuer"`
-	Subject  string `json:"subject,omitempty"`
-	Audience string `json:"audience,omitempty"`
-	JWKS     string `json:"jwks,omitempty"` // URL of the JWKS
+	Issuer           string `json:"issuer"`
+	Subject          string `json:"subject,omitempty"`
+	Audience         string `json:"audience,omitempty"`
+	JWKS             string `json:"jwks,omitempty"` // URL of the JWKS
+	ReplayProtection bool   `json:"replayProtection,omitempty"`
 }
 
 func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (OidcClientFederatedIdentity, bool) {

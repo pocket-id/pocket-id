@@ -59,10 +59,11 @@ type OidcClientCredentialsDto struct {
 }
 
 type OidcClientFederatedIdentityDto struct {
-	Issuer   string `json:"issuer"`
-	Subject  string `json:"subject,omitempty"`
-	Audience string `json:"audience,omitempty"`
-	JWKS     string `json:"jwks,omitempty"`
+	Issuer           string `json:"issuer"`
+	Subject          string `json:"subject,omitempty"`
+	Audience         string `json:"audience,omitempty"`
+	JWKS             string `json:"jwks,omitempty"`
+	ReplayProtection bool   `json:"replayProtection"`
 }
 
 type OidcUpdateAllowedUserGroupsDto struct {

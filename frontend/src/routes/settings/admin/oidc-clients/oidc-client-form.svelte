@@ -86,7 +86,8 @@
 					issuer: z.url(),
 					subject: z.string().optional(),
 					audience: z.string().optional(),
-					jwks: z.url().optional().or(z.literal(''))
+					jwks: z.url().optional().or(z.literal('')),
+					replayProtection: z.boolean().default(true)
 				})
 			)
 		})
