@@ -37,8 +37,6 @@
 	"expiration": "到期时间",
 	"generate_code": "生成登录码",
 	"name": "名称",
-	"browser_unsupported": "浏览器不支持",
-	"this_browser_does_not_support_passkeys": "此浏览器不支持通行密钥。请使用其他登录方式。",
 	"an_unknown_error_occurred": "发生未知错误",
 	"authentication_process_was_aborted": "认证过程被中止",
 	"error_occurred_with_authenticator": "认证器发生错误",
