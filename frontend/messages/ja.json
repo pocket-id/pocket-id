@@ -289,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "すでにログイン済みの場合でも、認証のたびにユーザーに再認証を求めます",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "プッシュ型認証リクエストが必要",
-	"requires_pushed_authorization_requests_description": "Requires clients to use the PAR endpoint to pre-register authorization parameters before initiating the flow.",
+	"requires_pushed_authorization_requests_description": "クライアントは、フローを開始する前に、PARエンドポイントを使用して認証パラメータを事前登録する必要があります。",
 	"name_logo": "{name} ロゴ",
 	"change_logo": "ロゴの変更",
 	"upload_logo": "ロゴをアップロード",
@@ -529,6 +529,6 @@
 	"emails_verified_by_default": "メールはデフォルトで検証済み",
 	"emails_verified_by_default_description": "有効化すると、ユーザーが登録時またはメールアドレスを変更した際に、デフォルトでメールアドレスが確認済みとしてマークされます。",
 	"user_has_no_passkeys_yet": "このユーザーにはまだパスキーがありません。",
-	"replay_protection": "Replay Protection",
-	"replay_protection_description": "If enabled the provided token can only be used once. If your provider uses the same token multiple times, you may need to disable this option."
+	"replay_protection": "リプレイ防止機能",
+	"replay_protection_description": "このオプションを有効にすると、指定されたトークンは1回のみ使用可能になります。ご利用のプロバイダーが同じトークンを複数回使用する場合、このオプションを無効にする必要があるかもしれません。"
 }
