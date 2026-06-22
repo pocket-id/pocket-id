@@ -37,8 +37,6 @@
 	"expiration": "Udløbstid",
 	"generate_code": "Generer kode",
 	"name": "Navn",
-	"browser_unsupported": "Browseren understøttes ikke",
-	"this_browser_does_not_support_passkeys": "Denne browser understøtter ikke adgangsnøgler. Benyt venligst en alternativ login metode.",
 	"an_unknown_error_occurred": "En ukendt fejl opstod",
 	"authentication_process_was_aborted": "Godkendelsesprocessen blev afbrudt",
 	"error_occurred_with_authenticator": "Der opstod en fejl med godkendelsesenheden",
