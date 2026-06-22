@@ -37,8 +37,6 @@
 	"expiration": "Wygaśnięcie",
 	"generate_code": "Wygeneruj kod",
 	"name": "Nazwa",
-	"browser_unsupported": "Przeglądarka nieobsługiwana",
-	"this_browser_does_not_support_passkeys": "Ta przeglądarka nie obsługuje kluczy. Użyj innej metody logowania.",
 	"an_unknown_error_occurred": "Wystąpił nieznany błąd",
 	"authentication_process_was_aborted": "Proces uwierzytelniania został przerwany",
 	"error_occurred_with_authenticator": "Wystąpił błąd z autoryzatorem",
