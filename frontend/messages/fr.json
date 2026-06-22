@@ -37,8 +37,6 @@
 	"expiration": "Expiration",
 	"generate_code": "Générer un code",
 	"name": "Nom",
-	"browser_unsupported": "Navigateur non pris en charge",
-	"this_browser_does_not_support_passkeys": "Ce navigateur ne supporte pas les clés d'accès. Veuillez utiliser une autre méthode d'authentification.",
 	"an_unknown_error_occurred": "Une erreur inconnue est survenue",
 	"authentication_process_was_aborted": "Le processus d'authentification a été interrompu",
 	"error_occurred_with_authenticator": "Une erreur est survenue pendant l'authentification",
