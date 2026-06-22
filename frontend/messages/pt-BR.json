@@ -55,7 +55,6 @@
 	"sign_in_to": "Entrar em {name}",
 	"account_selection_signin_confirmation": "Queres usar a seguinte conta para continuar <b>{name}</b>?",
 	"use_a_different_account": "Usa outra conta",
-	"client_not_found": "Cliente não encontrado",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> quer acessar as seguintes informações:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Deseja entrar em <b>{client}</b> com a sua conta {appName}?",
 	"email": "E-mail",
@@ -290,7 +289,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Pede que os usuários se autentiquem novamente em cada autorização, mesmo que já estejam conectados",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Requer solicitações de autorização enviadas",
-	"requires_pushed_authorization_requests_description": "Exige que os clientes usem o endpoint PAR (/api/oidc/par) para pré-registrar os parâmetros de autorização antes de iniciar o fluxo. Não está disponível para clientes públicos.",
+	"requires_pushed_authorization_requests_description": "Exige que os clientes usem o endpoint PAR para pré-registrar os parâmetros de autorização antes de iniciar o fluxo.",
 	"name_logo": "{name} logotipo",
 	"change_logo": "Alterar logotipo",
 	"upload_logo": "Carregar logotipo",
@@ -529,5 +528,7 @@
 	"email_verification_sent": "E-mail de verificação enviado com sucesso.",
 	"emails_verified_by_default": "E-mails verificados por padrão",
 	"emails_verified_by_default_description": "Quando ativado, os endereços de e-mail dos usuários serão marcados como verificados por padrão no momento da inscrição ou quando o endereço de e-mail for alterado.",
-	"user_has_no_passkeys_yet": "Esse usuário ainda não tem senhas."
+	"user_has_no_passkeys_yet": "Esse usuário ainda não tem senhas.",
+	"replay_protection": "Proteção contra repetição",
+	"replay_protection_description": "Se estiver ativada, o token fornecido só poderá ser usado uma vez. Se o seu provedor usar o mesmo token várias vezes, talvez você precise desativar essa opção."
 }
