@@ -1,12 +1,11 @@
 package oidc
 
 import (
-	"log/slog"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 type userInfoHandler struct {
@@ -32,26 +31,19 @@ func newUserInfoHandler(provider fosite.OAuth2Provider, claimsService *ClaimsSer
 // @Router /api/oidc/userinfo [get]
 func (h *userInfoHandler) userInfo(c *gin.Context) {
 	ctx := c.Request.Context()
-	token := fosite.AccessTokenFromRequest(c.Request)
-	if token == "" {
-		_ = c.Error(&common.MissingAccessToken{})
-		return
-	}
-
-	tokenUse, accessRequest, err := h.provider.IntrospectToken(ctx, token, fosite.AccessToken, NewEmptySession())
+	tokenType, accessRequest, err := h.provider.IntrospectToken(ctx, fosite.AccessTokenFromRequest(c.Request), fosite.AccessToken, NewEmptySession())
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to introspect token", "error", err)
-		_ = c.Error(err)
+		writeUserInfoError(c, err)
 		return
 	}
-	if tokenUse != fosite.AccessToken {
-		_ = c.Error(&common.TokenInvalidError{})
+	if tokenType != fosite.AccessToken {
+		writeUserInfoError(c, fosite.ErrRequestUnauthorized.WithDescription("Only access tokens are allowed in the authorization header."))
 		return
 	}
 
 	session, ok := accessRequest.GetSession().(*Session)
 	if !ok || session.GetSubject() == "" {
-		_ = c.Error(&common.TokenInvalidError{})
+		writeUserInfoError(c, fosite.ErrRequestUnauthorized.WithDescription("The access token is invalid"))
 		return
 	}
 
@@ -62,4 +54,13 @@ func (h *userInfoHandler) userInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, claims)
+}
+
+func writeUserInfoError(c *gin.Context, err error) {
+	rfcErr := fosite.ErrorToRFC6749Error(err)
+	if rfcErr.StatusCode() == http.StatusUnauthorized {
+		c.Header("WWW-Authenticate", fmt.Sprintf(`Bearer error="%s", error_description="%s"`, rfcErr.ErrorField, rfcErr.GetDescription()))
+	}
+
+	c.JSON(rfcErr.StatusCode(), rfcErr)
 }

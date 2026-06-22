@@ -13,7 +13,6 @@ import (
 	"github.com/ory/fosite"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -105,23 +104,25 @@ func TestUserInfoHandler(t *testing.T) {
 	})
 
 	t.Run("missing access token is rejected", func(t *testing.T) {
-		_, c := call(t, "")
-		require.NotEmpty(t, c.Errors)
-		var target *common.MissingAccessToken
-		require.ErrorAs(t, c.Errors[0].Err, &target)
+		rec, c := call(t, "")
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Header().Get("WWW-Authenticate"), `Bearer error="request_unauthorized"`)
 	})
 
 	t.Run("garbage access token is rejected", func(t *testing.T) {
-		_, c := call(t, "garbage.token.value")
-		require.NotEmpty(t, c.Errors)
+		rec, c := call(t, "garbage.token.value")
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Header().Get("WWW-Authenticate"), `Bearer error=`)
 	})
 
 	t.Run("token without a resource owner is rejected", func(t *testing.T) {
 		// client_credentials-style token: valid, but no subject -> must not return PII.
 		token := issueAccessToken(t, "req-no-subject", "", "openid")
-		_, c := call(t, token)
-		require.NotEmpty(t, c.Errors)
-		var target *common.TokenInvalidError
-		require.ErrorAs(t, c.Errors[0].Err, &target)
+		rec, c := call(t, token)
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Header().Get("WWW-Authenticate"), `Bearer error="request_unauthorized"`)
 	})
 }
