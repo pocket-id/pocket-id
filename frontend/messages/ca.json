@@ -37,8 +37,6 @@
 	"expiration": "Expiració",
 	"generate_code": "Genera Codi",
 	"name": "Nom",
-	"browser_unsupported": "Navegador no compatible",
-	"this_browser_does_not_support_passkeys": "Aquest navegador no admet claus d'accés. Utilitza un mètode alternatiu per iniciar la sessió.",
 	"an_unknown_error_occurred": "S'ha produït un error desconegut",
 	"authentication_process_was_aborted": "El procés d'autenticació s'ha cancel·lat",
 	"error_occurred_with_authenticator": "S'ha produït un error amb l'autenticador",
@@ -55,7 +53,6 @@
 	"sign_in_to": "Inicia la sessió a {name}",
 	"account_selection_signin_confirmation": "Vols utilitzar el compte següent per continuar a <b>{name}</b>?",
 	"use_a_different_account": "Utilitza un compte diferent",
-	"client_not_found": "Client no trobat",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> vol accedir a la informació següent:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Vols iniciar la sessió a <b>{client}</b> amb el teu compte de {appName}?",
 	"email": "Correu electrònic",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Requereix que els usuaris s'autentiquin de nou en cada autorització, encara que ja estiguin connectats",
 	"par": "Par",
 	"requires_pushed_authorization_requests": "Requereix sol·licituds d'autorització enviades",
-	"requires_pushed_authorization_requests_description": "Exigeix als clients que utilitzin el punt final PAR (/api/oidc/par) per pre-registrar els paràmetres d'autorització abans d'iniciar el flux. No està disponible per a clients públics.",
+	"requires_pushed_authorization_requests_description": "Exigeix als clients que utilitzin el punt final PAR per pre-registrar els paràmetres d'autorització abans d'iniciar el flux.",
 	"name_logo": "Logotip de {name}",
 	"change_logo": "Canvia el logotip",
 	"upload_logo": "Puja logotip",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "Correu de verificació enviat correctament.",
 	"emails_verified_by_default": "Correus verificats per defecte",
 	"emails_verified_by_default_description": "Quan està habilitat, les adreces de correu dels usuaris seran marcades com verificades per defecte durant l'alta o en canviar la seva adreça.",
-	"user_has_no_passkeys_yet": "Aquest usuari encara no té claus d'accés."
+	"user_has_no_passkeys_yet": "Aquest usuari encara no té claus d'accés.",
+	"replay_protection": "Protecció de reproducció",
+	"replay_protection_description": "Si s'activa, el token proporcionat només es pot utilitzar una vegada. Si el vostre proveïdor utilitza el mateix token diverses vegades, potser haureu de desactivar aquesta opció."
 }

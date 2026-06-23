@@ -37,8 +37,6 @@
 	"expiration": "Upphör",
 	"generate_code": "Generera kod",
 	"name": "Namn",
-	"browser_unsupported": "Webbläsaren stöds ej",
-	"this_browser_does_not_support_passkeys": "Denna webbläsare stöder inte passkeys. Använd en alternativ inloggningsmetod.",
 	"an_unknown_error_occurred": "Ett okänt fel har uppstått",
 	"authentication_process_was_aborted": "Autentiseringsprocessen avbröts",
 	"error_occurred_with_authenticator": "Ett fel uppstod med autentiseraren",
@@ -55,7 +53,6 @@
 	"sign_in_to": "Logga in på {name}",
 	"account_selection_signin_confirmation": "Vill du använda följande konto för att fortsätta till <b>{name}</b>?",
 	"use_a_different_account": "Använd ett annat konto",
-	"client_not_found": "Klienten hittades inte",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> vill få åtkomst till följande information:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Vill du logga in på <b>{client}</b> med ditt {appName} -konto?",
 	"email": "E-post",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Kräver att användare autentiserar sig igen vid varje auktorisering, även om de redan är inloggade",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Kräver skickade auktoriseringsförfrågningar",
-	"requires_pushed_authorization_requests_description": "Kräver att klienter använder PAR-slutpunkten (/api/oidc/par) för att förregistrera auktoriseringsparametrar innan flödet inleds. Ej tillgängligt för allmänna klienter.",
+	"requires_pushed_authorization_requests_description": "Kräver att klienter använder PAR-ändpunkten för att förregistrera auktoriseringsparametrar innan flödet inleds.",
 	"name_logo": "{name} -logotyp",
 	"change_logo": "Ändra logotyp",
 	"upload_logo": "Ladda upp logotyp",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "Verifieringsmeddelandet har skickats.",
 	"emails_verified_by_default": "E-postmeddelanden verifierade som standard",
 	"emails_verified_by_default_description": "När funktionen är aktiverad kommer användarnas e-postadresser att markeras som verifierade som standard vid registrering eller när deras e-postadress ändras.",
-	"user_has_no_passkeys_yet": "Den här användaren har inga lösenord ännu."
+	"user_has_no_passkeys_yet": "Den här användaren har inga lösenord ännu.",
+	"replay_protection": "Skydd mot uppspelning",
+	"replay_protection_description": "Om denna funktion är aktiverad kan det angivna tokenet endast användas en gång. Om din leverantör använder samma token flera gånger kan du behöva inaktivera detta alternativ."
 }

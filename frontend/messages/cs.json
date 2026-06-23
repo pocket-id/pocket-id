@@ -37,8 +37,6 @@
 	"expiration": "Expirace",
 	"generate_code": "Vygenerovat kód",
 	"name": "Jméno",
-	"browser_unsupported": "Prohlížeč nepodporován",
-	"this_browser_does_not_support_passkeys": "Tento prohlížeč nepodporuje přístupové klíče. Zkuste prosím alternativní způsob přihlášení.",
 	"an_unknown_error_occurred": "Došlo k neznámé chybě",
 	"authentication_process_was_aborted": "Proces přihlášení byl přerušen",
 	"error_occurred_with_authenticator": "Došlo k chybě s autentifikátorem",
@@ -55,7 +53,6 @@
 	"sign_in_to": "Přihlásit se k {name}",
 	"account_selection_signin_confirmation": "Chcete pokračovat pomocí následujícího účtu <b>{name}</b>?",
 	"use_a_different_account": "Použijte jiný účet",
-	"client_not_found": "Klient nebyl nalezen",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> chce získat přístup k následujícím informacím:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Chcete se přihlásit do <b>{client}</b> s vaším {appName} účtem?",
 	"email": "E-mail",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Vyžaduje, aby se uživatelé při každém autorizačním pokusu znovu ověřili, i když jsou již přihlášeni.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Vyžaduje odeslané žádosti o autorizaci",
-	"requires_pushed_authorization_requests_description": "Vyžaduje, aby klienti před zahájením procesu autorizace použili koncový bod PAR (/api/oidc/par) k předběžné registraci autorizačních parametrů. Není k dispozici pro veřejné klienty.",
+	"requires_pushed_authorization_requests_description": "Vyžaduje, aby klienti před zahájením procesu použili koncový bod PAR k předběžné registraci autorizačních parametrů.",
 	"name_logo": "Logo {name}",
 	"change_logo": "Změnit logo",
 	"upload_logo": "Nahrát logo",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "Ověřovací e-mail byl úspěšně odeslán.",
 	"emails_verified_by_default": "E-maily ověřené ve výchozím nastavení",
 	"emails_verified_by_default_description": "Pokud je tato funkce povolena, budou e-mailové adresy uživatelů při registraci nebo při změně e-mailové adresy automaticky označeny jako ověřené.",
-	"user_has_no_passkeys_yet": "Tento uživatel zatím nemá žádné přístupové klíče."
+	"user_has_no_passkeys_yet": "Tento uživatel zatím nemá žádné přístupové klíče.",
+	"replay_protection": "Ochrana proti opakovanému přehrání",
+	"replay_protection_description": "Je-li tato možnost zapnutá, lze zadaný token použít pouze jednou. Pokud váš poskytovatel používá stejný token vícekrát, možná budete muset tuto možnost vypnout."
 }

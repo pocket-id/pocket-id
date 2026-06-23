@@ -37,8 +37,6 @@
 	"expiration": "到期时间",
 	"generate_code": "生成登录码",
 	"name": "名称",
-	"browser_unsupported": "浏览器不支持",
-	"this_browser_does_not_support_passkeys": "此浏览器不支持通行密钥。请使用其他登录方式。",
 	"an_unknown_error_occurred": "发生未知错误",
 	"authentication_process_was_aborted": "认证过程被中止",
 	"error_occurred_with_authenticator": "认证器发生错误",
@@ -55,7 +53,6 @@
 	"sign_in_to": "登录到 {name}",
 	"account_selection_signin_confirmation": "您是否要使用以下账户继续 <b>{name}</b>？",
 	"use_a_different_account": "请使用另一个账户",
-	"client_not_found": "客户端未找到",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> 希望访问以下信息：",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "您是否希望使用您的 {appName} 账户登录到 <b>{client}</b>？",
 	"email": "电子邮件",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "要求用户在每次授权时重新进行身份验证，即使用户已登录。",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "需要推送授权请求",
-	"requires_pushed_authorization_requests_description": "要求客户端在启动授权流程前，使用 PAR 端点 (/api/oidc/par) 预先注册授权参数。此功能不适用于公共客户端。",
+	"requires_pushed_authorization_requests_description": "要求客户端在启动授权流程之前，使用 PAR 端点预先注册授权参数。",
 	"name_logo": "{name} Logo",
 	"change_logo": "更改 Logo",
 	"upload_logo": "上传 Logo",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "验证邮件已成功发送。",
 	"emails_verified_by_default": "电子邮件默认已验证",
 	"emails_verified_by_default_description": "启用后，用户的电子邮件地址将在注册时或更改电子邮件地址时默认标记为已验证。",
-	"user_has_no_passkeys_yet": "该用户目前还没有密钥。"
+	"user_has_no_passkeys_yet": "该用户目前还没有密钥。",
+	"replay_protection": "回放保护",
+	"replay_protection_description": "如果启用此选项，提供的令牌只能使用一次。如果您的服务提供商多次使用同一令牌，您可能需要禁用此选项。"
 }
