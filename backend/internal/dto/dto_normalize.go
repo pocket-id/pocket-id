@@ -1,7 +1,6 @@
 package dto
 
 import (
-	"net/http"
 	"reflect"
 
 	"github.com/gin-gonic/gin"
@@ -72,23 +71,4 @@ loop:
 
 func ShouldBindWithNormalizedJSON(ctx *gin.Context, obj any) error {
 	return ctx.ShouldBindWith(obj, binding.JSON)
-}
-
-type NormalizerJSONBinding struct{}
-
-func (NormalizerJSONBinding) Name() string {
-	return "json"
-}
-
-func (NormalizerJSONBinding) Bind(req *http.Request, obj any) error {
-	// Use the default JSON binder
-	err := binding.JSON.Bind(req, obj)
-	if err != nil {
-		return err
-	}
-
-	// Perform normalization
-	Normalize(obj)
-
-	return nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -34,11 +35,11 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 		s.RegisterJob(ctx, "ClearOneTimeAccessTokens", jobDefWithJitter(24*time.Hour), jobs.clearOneTimeAccessTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearSignupTokens", jobDefWithJitter(24*time.Hour), jobs.clearSignupTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearEmailVerificationTokens", jobDefWithJitter(24*time.Hour), jobs.clearEmailVerificationTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
-		s.RegisterJob(ctx, "ClearOidcAuthorizationCodes", jobDefWithJitter(24*time.Hour), jobs.clearOidcAuthorizationCodes, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
-		s.RegisterJob(ctx, "ClearOidcRefreshTokens", jobDefWithJitter(24*time.Hour), jobs.clearOidcRefreshTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
+		s.RegisterJob(ctx, "ClearOAuth2Sessions", jobDefWithJitter(24*time.Hour), jobs.clearOAuth2Sessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
+		s.RegisterJob(ctx, "ClearOAuth2JTIs", jobDefWithJitter(24*time.Hour), jobs.clearOAuth2JTIs, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
+		s.RegisterJob(ctx, "ClearInteractionSessions", jobDefWithJitter(24*time.Hour), jobs.clearInteractionSessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearReauthenticationTokens", jobDefWithJitter(24*time.Hour), jobs.clearReauthenticationTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearAuditLogs", jobDefWithJitter(24*time.Hour), jobs.clearAuditLogs, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
-		s.RegisterJob(ctx, "ClearOidcPushedAuthorizationRequests", jobDefWithJitter(24*time.Hour), jobs.clearOidcPushedAuthorizationRequests, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 	)
 }
 
@@ -89,30 +90,39 @@ func (j *DbCleanupJobs) clearSignupTokens(ctx context.Context) error {
 	return nil
 }
 
-// ClearOidcAuthorizationCodes deletes OIDC authorization codes that have expired
-func (j *DbCleanupJobs) clearOidcAuthorizationCodes(ctx context.Context) error {
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.OidcAuthorizationCode{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired OIDC authorization codes: %w", st.Error)
+// clearOAuth2Sessions deletes expired and invalidated OAuth2 sessions. What counts as
+// expired is owned by the oidc module.
+func (j *DbCleanupJobs) clearOAuth2Sessions(ctx context.Context) error {
+	count, err := oidc.CleanupExpiredOAuth2Sessions(ctx, j.db)
+	if err != nil {
+		return fmt.Errorf("failed to clean OAuth2 sessions: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Cleaned expired OIDC authorization codes", slog.Int64("count", st.RowsAffected))
+	slog.InfoContext(ctx, "Cleaned OAuth2 sessions", slog.Int64("count", count))
 
 	return nil
 }
 
-// ClearOidcAuthorizationCodes deletes OIDC authorization codes that have expired
-func (j *DbCleanupJobs) clearOidcRefreshTokens(ctx context.Context) error {
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.OidcRefreshToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired OIDC refresh tokens: %w", st.Error)
+// clearOAuth2JTIs deletes expired JWT IDs used for client assertion replay protection.
+func (j *DbCleanupJobs) clearOAuth2JTIs(ctx context.Context) error {
+	count, err := oidc.CleanupExpiredClientAssertionJTIs(ctx, j.db)
+	if err != nil {
+		return fmt.Errorf("failed to clean OAuth2 client assertion JTIs: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Cleaned expired OIDC refresh tokens", slog.Int64("count", st.RowsAffected))
+	slog.InfoContext(ctx, "Cleaned OAuth2 client assertion JTIs", slog.Int64("count", count))
+
+	return nil
+}
+
+// clearInteractionSessions deletes abandoned OIDC interaction sessions.
+func (j *DbCleanupJobs) clearInteractionSessions(ctx context.Context) error {
+	count, err := oidc.CleanupAbandonedInteractionSessions(ctx, j.db)
+	if err != nil {
+		return fmt.Errorf("failed to clean interaction sessions: %w", err)
+	}
+
+	slog.InfoContext(ctx, "Cleaned interaction sessions", slog.Int64("count", count))
 
 	return nil
 }
@@ -143,20 +153,6 @@ func (j *DbCleanupJobs) clearAuditLogs(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "Deleted old audit logs", slog.Int64("count", st.RowsAffected))
-
-	return nil
-}
-
-// clearOidcPushedAuthorizationRequests deletes PAR records that have expired without being consumed
-func (j *DbCleanupJobs) clearOidcPushedAuthorizationRequests(ctx context.Context) error {
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.OidcPushedAuthorizationRequest{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired pushed authorization requests: %w", st.Error)
-	}
-
-	slog.InfoContext(ctx, "Cleaned expired pushed authorization requests", slog.Int64("count", st.RowsAffected))
 
 	return nil
 }

@@ -479,19 +479,20 @@ func (s *WebAuthnService) CreateReauthenticationTokenWithWebauthn(ctx context.Co
 	return token, nil
 }
 
-func (s *WebAuthnService) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) error {
+func (s *WebAuthnService) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) (time.Time, error) {
 	hashedToken := utils.CreateSha256Hash(token)
+	var reauthToken model.ReauthenticationToken
 	result := tx.WithContext(ctx).
 		Clauses(clause.Returning{}).
-		Delete(&model.ReauthenticationToken{}, "token = ? AND user_id = ? AND expires_at > ?", hashedToken, userID, datatype.DateTime(time.Now()))
+		Delete(&reauthToken, "token = ? AND user_id = ? AND expires_at > ?", hashedToken, userID, datatype.DateTime(time.Now()))
 
 	if result.Error != nil {
-		return result.Error
+		return time.Time{}, result.Error
 	}
 	if result.RowsAffected == 0 {
-		return &common.ReauthenticationRequiredError{}
+		return time.Time{}, &common.ReauthenticationRequiredError{}
 	}
-	return nil
+	return reauthToken.CreatedAt.UTC(), nil
 }
 
 func (s *WebAuthnService) createReauthenticationToken(ctx context.Context, tx *gorm.DB, userID string) (string, error) {

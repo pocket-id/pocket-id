@@ -37,8 +37,6 @@
 	"expiration": "Wygaśnięcie",
 	"generate_code": "Wygeneruj kod",
 	"name": "Nazwa",
-	"browser_unsupported": "Przeglądarka nieobsługiwana",
-	"this_browser_does_not_support_passkeys": "Ta przeglądarka nie obsługuje kluczy. Użyj innej metody logowania.",
 	"an_unknown_error_occurred": "Wystąpił nieznany błąd",
 	"authentication_process_was_aborted": "Proces uwierzytelniania został przerwany",
 	"error_occurred_with_authenticator": "Wystąpił błąd z autoryzatorem",
@@ -55,7 +53,6 @@
 	"sign_in_to": "Zaloguj się do {name}",
 	"account_selection_signin_confirmation": "Czy chcesz użyć poniższego konta, aby kontynuować <b>{name}</b>?",
 	"use_a_different_account": "Zaloguj się na inne konto",
-	"client_not_found": "Nie znaleziono klienta",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> chce uzyskać dostęp do następujących informacji:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Czy chcesz zalogować się do <b>{client}</b> używając konta {appName}?",
 	"email": "E-mail",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Wymaga od użytkowników ponownego uwierzytelniania przy każdej autoryzacji, nawet jeśli są już zalogowani.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Wymaga przesłania żądania autoryzacji",
-	"requires_pushed_authorization_requests_description": "Wymaga od klientów użycia punktu końcowego PAR (/api/oidc/par) do wstępnej rejestracji parametrów autoryzacji przed rozpoczęciem procesu. Niedostępne dla klientów publicznych.",
+	"requires_pushed_authorization_requests_description": "Wymaga od klientów, żeby przed rozpoczęciem procesu korzystali z punktu końcowego PAR w celu wstępnej rejestracji parametrów autoryzacji.",
 	"name_logo": "Logo {name}",
 	"change_logo": "Zmień logo",
 	"upload_logo": "Prześlij logo",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "Wiadomość e-mail z linkiem weryfikacyjnym została wysłana.",
 	"emails_verified_by_default": "E-maile weryfikowane domyślnie",
 	"emails_verified_by_default_description": "Po włączeniu tej opcji adresy e-mail użytkowników będą domyślnie oznaczane jako zweryfikowane podczas rejestracji lub zmiany adresu e-mail.",
-	"user_has_no_passkeys_yet": "Ten użytkownik nie ma jeszcze żadnych kluczy dostępu."
+	"user_has_no_passkeys_yet": "Ten użytkownik nie ma jeszcze żadnych kluczy dostępu.",
+	"replay_protection": "Ochrona przed odtworzeniem",
+	"replay_protection_description": "Jeśli ta opcja jest włączona, podany token można wykorzystać tylko raz. Jeśli twój dostawca używa tego samego tokenu wielokrotnie, może być konieczne wyłączenie tej opcji."
 }

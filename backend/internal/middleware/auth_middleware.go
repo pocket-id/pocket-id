@@ -74,11 +74,12 @@ func (m *AuthMiddleware) WithApiKeyAuthDisabled() *AuthMiddleware {
 
 func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, isAdmin, authenticationMethod, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
+		userID, isAdmin, authenticationMethod, authenticationTime, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
 		if err == nil {
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
 			c.Set("authenticationMethod", authenticationMethod)
+			c.Set("authenticationTime", authenticationTime)
 			if c.IsAborted() {
 				return
 			}

@@ -1,80 +1,33 @@
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type {
 	AccessibleOidcClient,
-	AuthorizeCallbackResponse,
-	AuthorizeResponse,
+	CompleteInteractionResponse,
+	InteractionSession,
+	InteractionStep,
 	OidcClient,
 	OidcClientCreate,
 	OidcClientMetaData,
 	OidcClientUpdate,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
-	OidcDeviceCodeInfo,
-	OidcAuthorizeRequestInfo
+	OidcDeviceCodeInfo
 } from '$lib/types/oidc.type';
 import type { ScimServiceProvider } from '$lib/types/scim.type';
 import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 import APIService from './api-service';
 
 class OidcService extends APIService {
-	authorize = async (
-		clientId: string,
-		scope: string,
-		callbackURL: string,
-		nonce?: string,
-		codeChallenge?: string,
-		codeChallengeMethod?: string,
-		reauthenticationToken?: string,
-		responseMode?: string,
-		prompt?: string,
-		requestURI?: string
-	) => {
-		const res = await this.api.post('/oidc/authorize', {
-			scope,
-			nonce,
-			callbackURL,
-			clientId,
-			codeChallenge,
-			codeChallengeMethod,
-			reauthenticationToken,
-			responseMode,
-			prompt,
-			requestURI
-		});
-
-		return res.data as AuthorizeResponse;
+	getAuthorizeInteraction = async (id: string) => {
+		const { data } = await this.api.get<InteractionSession>(`/oidc/interactions/${id}`);
+		return data;
 	};
 
-	resolveAuthorizeCallbackURL = async (
-		clientId: string,
-		callbackURL: string,
-		requestURI?: string
-	) => {
-		const res = await this.api.post('/oidc/authorize/callback-url', {
-			clientId,
-			callbackURL,
-			requestURI
-		});
-
-		return res.data as AuthorizeCallbackResponse;
-	};
-
-	isAuthorizationRequired = async (clientId: string, scope: string, requestURI?: string) => {
-		const res = await this.api.post('/oidc/authorization-required', {
-			scope,
-			clientId,
-			requestURI
-		});
-
-		return res.data as { authorizationRequired: boolean; scope: string };
-	};
-
-	getParRequestInfo = async (clientId: string, requestURI: string) => {
-		const res = await this.api.get('/oidc/par-request-info', {
-			params: { client_id: clientId, request_uri: requestURI }
-		});
-
-		return res.data as OidcAuthorizeRequestInfo;
+	completeAuthorizeInteractionStep = async (id: string, step: InteractionStep) => {
+		const { data } = await this.api.post<CompleteInteractionResponse>(
+			`/oidc/interactions/${id}/complete`,
+			{ step }
+		);
+		return data;
 	};
 
 	listClients = async (options?: ListRequestOptions) => {

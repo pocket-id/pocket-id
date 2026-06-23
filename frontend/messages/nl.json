@@ -37,8 +37,6 @@
 	"expiration": "Vervaldatum",
 	"generate_code": "Genereer code",
 	"name": "Naam",
-	"browser_unsupported": "Browser niet ondersteund",
-	"this_browser_does_not_support_passkeys": "Deze browser ondersteunt geen passkeys. Gebruik een alternatieve aanmeldmethode.",
 	"an_unknown_error_occurred": "Er is een onbekende fout opgetreden",
 	"authentication_process_was_aborted": "Het authenticatieproces is afgebroken",
 	"error_occurred_with_authenticator": "Er is een fout opgetreden met de authenticator",
@@ -55,7 +53,6 @@
 	"sign_in_to": "Meld je aan bij {name}",
 	"account_selection_signin_confirmation": "Wil je met het volgende account verdergaan <b>{name}</b>?",
 	"use_a_different_account": "Gebruik een ander account",
-	"client_not_found": "Client niet gevonden",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> wil toegang tot de volgende informatie:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Wil je je aanmelden bij <b>{client}</b> met je {appName} account?",
 	"email": "E-mail",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Gebruikers moeten bij elke autorisatie opnieuw inloggen, zelfs als ze al ingelogd zijn.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Vereist verzonden autorisatieverzoeken",
-	"requires_pushed_authorization_requests_description": "Klanten moeten het PAR-eindpunt (/api/oidc/par) gebruiken om autorisatieparameters vooraf te registreren voordat ze de procedure starten. Niet beschikbaar voor openbare clients.",
+	"requires_pushed_authorization_requests_description": "Clients moeten het PAR-eindpunt gebruiken om autorisatieparameters vooraf te registreren voordat ze de flow starten.",
 	"name_logo": "{name} logo",
 	"change_logo": "Logo wijzigen",
 	"upload_logo": "Logo uploaden",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "Verificatiemail is goed verstuurd.",
 	"emails_verified_by_default": "E-mails standaard geverifieerd",
 	"emails_verified_by_default_description": "Als je dit aan zet, worden de e-mailadressen van gebruikers standaard gemarkeerd als geverifieerd bij het aanmelden of als hun e-mailadres verandert.",
-	"user_has_no_passkeys_yet": "Deze gebruiker heeft nog geen toegangscodes."
+	"user_has_no_passkeys_yet": "Deze gebruiker heeft nog geen toegangscodes.",
+	"replay_protection": "Bescherming tegen herhaling",
+	"replay_protection_description": "Als deze optie is ingeschakeld, kan het opgegeven token maar één keer worden gebruikt. Als je provider hetzelfde token meerdere keren gebruikt, moet je deze optie misschien uitschakelen."
 }

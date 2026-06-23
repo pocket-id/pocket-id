@@ -37,8 +37,6 @@
 	"expiration": "Expiration",
 	"generate_code": "Generate Code",
 	"name": "Name",
-	"browser_unsupported": "Browser unsupported",
-	"this_browser_does_not_support_passkeys": "This browser doesn't support passkeys. Please use an alternative sign in method.",
 	"an_unknown_error_occurred": "An unknown error occurred",
 	"authentication_process_was_aborted": "The authentication process was aborted",
 	"error_occurred_with_authenticator": "An error occurred with the authenticator",
@@ -55,7 +53,6 @@
 	"sign_in_to": "Sign in to {name}",
 	"account_selection_signin_confirmation": "Kas soovite jätkata järgmise kontoga <b>{name}</b>?",
 	"use_a_different_account": "Kasuta teist kontot",
-	"client_not_found": "Client not found",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> wants to access the following information:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Do you want to sign in to <b>{client}</b> with your {appName} account?",
 	"email": "Email",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Requires users to authenticate again on each authorization, even if already signed in",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Nõuab edastatud autoriseerimistaotlusi",
-	"requires_pushed_authorization_requests_description": "Nõuab, et kliendid kasutaksid PAR-liidest (/api/oidc/par) autoriseerimisparameetrite eelregistreerimiseks enne protsessi algatamist. Ei ole avalikele klientidele kättesaadav.",
+	"requires_pushed_authorization_requests_description": "Nõuab, et kliendid kasutaksid PAR-liidest autoriseerimisparameetrite eelregistreerimiseks enne protsessi algatamist.",
 	"name_logo": "{name} logo",
 	"change_logo": "Change Logo",
 	"upload_logo": "Upload Logo",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "Verification email sent successfully.",
 	"emails_verified_by_default": "Emails verified by default",
 	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed.",
-	"user_has_no_passkeys_yet": "Sellel kasutajal pole veel paroolivõtmeid."
+	"user_has_no_passkeys_yet": "Sellel kasutajal pole veel paroolivõtmeid.",
+	"replay_protection": "Kordusmängu kaitse",
+	"replay_protection_description": "Kui see valik on aktiveeritud, saab antud tokenit kasutada ainult ühe korra. Kui teie teenusepakkuja kasutab sama tokenit mitu korda, võib teil olla vaja see valik deaktiveerida."
 }

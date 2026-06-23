@@ -81,18 +81,6 @@ func GetImageExtensionFromMimeType(mimeType string) string {
 	}
 }
 
-// FileExists returns true if a file exists on disk and is a regular file
-func FileExists(path string) (bool, error) {
-	s, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			err = nil
-		}
-		return false, err
-	}
-	return !s.IsDir(), nil
-}
-
 // IsWritableDir checks if a directory exists and is writable
 func IsWritableDir(dir string) (bool, error) {
 	// Check if directory exists and it's actually a directory

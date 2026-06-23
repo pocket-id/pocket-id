@@ -14,6 +14,7 @@ func NewTestController(group *gin.RouterGroup, testService *service.TestService)
 	testController := &TestController{TestService: testService}
 
 	group.POST("/test/reset", testController.resetAndSeedHandler)
+	group.POST("/test/accesstoken", testController.signAccessToken)
 	group.POST("/test/refreshtoken", testController.signRefreshToken)
 
 	group.GET("/externalidp/jwks.json", testController.externalIdPJWKS)
@@ -108,6 +109,27 @@ func (tc *TestController) externalIdPSignToken(c *gin.Context) {
 	c.Writer.WriteString(token)
 }
 
+func (tc *TestController) signAccessToken(c *gin.Context) {
+	var input struct {
+		UserID   string `json:"user"`
+		ClientID string `json:"client"`
+		Expired  bool   `json:"expired"`
+	}
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	token, err := tc.TestService.SignAccessToken(c.Request.Context(), input.UserID, input.ClientID, input.Expired)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Writer.WriteString(token)
+}
+
 func (tc *TestController) signRefreshToken(c *gin.Context) {
 	var input struct {
 		UserID       string `json:"user"`
@@ -120,7 +142,7 @@ func (tc *TestController) signRefreshToken(c *gin.Context) {
 		return
 	}
 
-	token, err := tc.TestService.SignRefreshToken(input.UserID, input.ClientID, input.RefreshToken)
+	token, err := tc.TestService.SignRefreshToken(c.Request.Context(), input.UserID, input.ClientID, input.RefreshToken)
 	if err != nil {
 		_ = c.Error(err)
 		return

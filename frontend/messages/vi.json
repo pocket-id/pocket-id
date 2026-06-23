@@ -37,8 +37,6 @@
 	"expiration": "Hết hiệu lực",
 	"generate_code": "Tạo mã",
 	"name": "Tên",
-	"browser_unsupported": "Trình duyệt không được hỗ trợ",
-	"this_browser_does_not_support_passkeys": "Trình duyệt này không hỗ trợ passkeys. Vui lòng sử dụng phương thức đăng nhập khác.",
 	"an_unknown_error_occurred": "Một lỗi chưa biết đã xảy ra",
 	"authentication_process_was_aborted": "Quá trình xác thực đã bị hủy bỏ",
 	"error_occurred_with_authenticator": "Đã xảy ra lỗi với trình xác thực",
@@ -55,7 +53,6 @@
 	"sign_in_to": "Đăng nhập {name}",
 	"account_selection_signin_confirmation": "Bạn có muốn sử dụng tài khoản sau đây để tiếp tục <b>{name}</b>?",
 	"use_a_different_account": "Sử dụng tài khoản khác",
-	"client_not_found": "Không tìm thấy client.",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> muốn truy cập các thông tin sau:",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Bạn có muốn đăng nhập vào <b>{client}</b> với tài khoản {appName} của bạn?",
 	"email": "Email",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Yêu cầu người dùng xác thực lại mỗi lần ủy quyền, ngay cả khi đã đăng nhập.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Yêu cầu các yêu cầu ủy quyền được gửi đi",
-	"requires_pushed_authorization_requests_description": "Yêu cầu khách hàng sử dụng điểm cuối PAR (/api/oidc/par) để đăng ký trước các tham số ủy quyền trước khi bắt đầu quy trình. Tính năng này không khả dụng đối với khách hàng công khai.",
+	"requires_pushed_authorization_requests_description": "Yêu cầu khách hàng phải sử dụng điểm cuối PAR để đăng ký trước các tham số ủy quyền trước khi bắt đầu quy trình.",
 	"name_logo": "{name} logo",
 	"change_logo": "Đổi Logo",
 	"upload_logo": "Tải logo",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "Email xác minh đã được gửi thành công.",
 	"emails_verified_by_default": "Email được xác minh theo mặc định",
 	"emails_verified_by_default_description": "Khi tính năng này được kích hoạt, địa chỉ email của người dùng sẽ được đánh dấu là đã xác minh theo mặc định khi đăng ký hoặc khi địa chỉ email của họ được thay đổi.",
-	"user_has_no_passkeys_yet": "Người dùng này hiện chưa có khóa truy cập nào."
+	"user_has_no_passkeys_yet": "Người dùng này hiện chưa có khóa truy cập nào.",
+	"replay_protection": "Bảo vệ chống phát lại",
+	"replay_protection_description": "Nếu tùy chọn này được bật, mã thông báo được cung cấp chỉ có thể được sử dụng một lần. Nếu nhà cung cấp của bạn sử dụng cùng một mã thông báo nhiều lần, bạn có thể cần phải tắt tùy chọn này."
 }

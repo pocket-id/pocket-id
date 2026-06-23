@@ -37,8 +37,6 @@
 	"expiration": "Expiration",
 	"generate_code": "Générer un code",
 	"name": "Nom",
-	"browser_unsupported": "Navigateur non pris en charge",
-	"this_browser_does_not_support_passkeys": "Ce navigateur ne supporte pas les clés d'accès. Veuillez utiliser une autre méthode d'authentification.",
 	"an_unknown_error_occurred": "Une erreur inconnue est survenue",
 	"authentication_process_was_aborted": "Le processus d'authentification a été interrompu",
 	"error_occurred_with_authenticator": "Une erreur est survenue pendant l'authentification",
@@ -55,7 +53,6 @@
 	"sign_in_to": "Connexion à {name}",
 	"account_selection_signin_confirmation": "Veux-tu utiliser le compte suivant pour continuer <b>{name}</b>?",
 	"use_a_different_account": "Utilise un autre compte",
-	"client_not_found": "Client introuvable",
 	"client_wants_to_access_the_following_information": "<b>{client}</b> souhaite accéder aux informations suivantes :",
 	"do_you_want_to_sign_in_to_client_with_your_app_name_account": "Voulez-vous vous connecter à <b>{client}</b> avec votre compte {appName}?",
 	"email": "E-mail",
@@ -290,7 +287,7 @@
 	"requires_users_to_authenticate_again_on_each_authorization": "Demande aux utilisateurs de se connecter à nouveau à chaque autorisation, même s'ils sont déjà connectés.",
 	"par": "PAR",
 	"requires_pushed_authorization_requests": "Nécessite Pushed Authorization Requests (PAR)",
-	"requires_pushed_authorization_requests_description": "Les clients doivent utiliser le point de terminaison PAR (/api/oidc/par) pour préenregistrer les paramètres d'autorisation avant de démarrer le flux. Non disponible pour les clients publics.",
+	"requires_pushed_authorization_requests_description": "Oblige les clients à utiliser le point de terminaison PAR pour préenregistrer les paramètres d'autorisation avant de lancer le flux.",
 	"name_logo": "Logo {name}",
 	"change_logo": "Changer le logo",
 	"upload_logo": "Télécharger un logo",
@@ -529,5 +526,7 @@
 	"email_verification_sent": "L'e-mail de vérification a été envoyé sans problème.",
 	"emails_verified_by_default": "E-mails vérifiés par défaut",
 	"emails_verified_by_default_description": "Quand cette option est activée, les adresses e-mail des utilisateurs seront marquées comme vérifiées par défaut lors de leur inscription ou quand ils changent d'adresse e-mail.",
-	"user_has_no_passkeys_yet": "Cet utilisateur n'a pas encore de mots de passe."
+	"user_has_no_passkeys_yet": "Cet utilisateur n'a pas encore de mots de passe.",
+	"replay_protection": "Protection contre la relecture",
+	"replay_protection_description": "Si cette option est activée, le jeton fourni ne peut être utilisé qu'une seule fois. Si ton fournisseur utilise le même jeton plusieurs fois, tu devras peut-être désactiver cette option."
 }

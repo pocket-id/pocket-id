@@ -88,7 +88,8 @@
 					issuer: z.url(),
 					subject: z.string().optional(),
 					audience: z.string().optional(),
-					jwks: z.url().optional().or(z.literal(''))
+					jwks: z.url().optional().or(z.literal('')),
+					replayProtection: z.boolean().default(true)
 				})
 			)
 		})
@@ -213,7 +214,6 @@
 			onCheckedChange={(v) => {
 				if (v) {
 					$inputs.pkceEnabled.value = true;
-					$inputs.requiresPushedAuthorizationRequests.value = false;
 				}
 			}}
 			bind:checked={$inputs.isPublic.value}
@@ -293,7 +293,6 @@
 				id="requires-par"
 				label={m.requires_pushed_authorization_requests()}
 				description={m.requires_pushed_authorization_requests_description()}
-				disabled={$inputs.isPublic.value}
 				bind:checked={$inputs.requiresPushedAuthorizationRequests.value}
 			/>
 			{#if mode == 'create'}

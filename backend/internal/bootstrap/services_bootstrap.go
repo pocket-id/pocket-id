@@ -8,6 +8,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
@@ -32,6 +34,8 @@ type services struct {
 	appLockService       *service.AppLockService
 	userSignUpService    *service.UserSignUpService
 	oneTimeAccessService *service.OneTimeAccessService
+
+	oidcModule *oidc.Module
 }
 
 // Initializes all services
@@ -67,7 +71,24 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
 
-	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService, svc.scimService, httpClient, fileStorage)
+	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
+		DB:         db,
+		HTTPClient: httpClient,
+		Config: oidc.Config{
+			BaseURL:      common.EnvConfig.AppURL,
+			TokenBaseURL: common.EnvConfig.AppURL,
+			Secret:       string(common.EnvConfig.EncryptionKey),
+		},
+		Signer:       svc.jwtService,
+		CustomClaims: svc.customClaimService,
+		Reauth:       svc.webauthnService,
+		AuditLog:     svc.auditLogService,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
+	}
+
+	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.appConfigService, svc.oidcModule.Preview, svc.scimService, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}

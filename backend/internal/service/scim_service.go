@@ -20,6 +20,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 )
@@ -364,7 +365,7 @@ func (s *ScimService) syncUser(ctx context.Context,
 	userResource *dto.ScimUser,
 ) (scimSyncAction, *dto.ScimUser, error) {
 	// If user is not allowed for the client, delete it from SCIM provider
-	if userResource != nil && !IsUserGroupAllowedToAuthorize(user, provider.OidcClient) {
+	if userResource != nil && !oidc.IsUserGroupAllowedToAuthorize(user, provider.OidcClient) {
 		return scimActionDeleted, nil, s.deleteScimResource(ctx, provider, fmt.Sprintf("/Users/%s", url.PathEscape(userResource.ID)))
 	}
 
