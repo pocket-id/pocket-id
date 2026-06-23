@@ -140,9 +140,7 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 
 			tx := dbFromContext(ctx, s.db)
 
-			if err := flagPkceSupportedClient(ctx, client.GetID(), tx); err != nil {
-				log.Printf("PKCE update failed: %v", err)
-			}
+			_ = flagPkceSupportedClient(ctx, client.GetID(), tx)
 		}
 
 		return nil
