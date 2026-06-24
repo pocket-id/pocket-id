@@ -63,10 +63,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set Short Git Commit SHA
-        id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -78,7 +74,6 @@ jobs:
           BUILD_NEXT: "true"
           SKIP_RELEASE: "true"
           SKIP_CHANGELOG: "true"
-          GORELEASER_CURRENT_TAG: next-static-${{ steps.vars.outputs.sha_short }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
           MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
