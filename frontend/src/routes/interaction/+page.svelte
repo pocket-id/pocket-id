@@ -115,6 +115,9 @@
 	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
 		{m.sign_in_to({ name: interactionSession.client.name })}
 	</h1>
+	{#if interactionSession.client.isMetadataDocument && interactionSession.client.clientIdHost}
+		<p class="text-muted-foreground mt-1 text-sm">{interactionSession.client.clientIdHost}</p>
+	{/if}
 	<p class="text-muted-foreground mt-2 mb-10">
 		{#if errorMessage}
 			{errorMessage}.

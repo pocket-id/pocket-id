@@ -7,6 +7,8 @@ export type OidcClientMetaData = {
 	hasDarkLogo: boolean;
 	requiresReauthentication: boolean;
 	launchURL?: string;
+	isMetadataDocument: boolean;
+	clientIdHost?: string;
 };
 
 export type OidcClientFederatedIdentity = {
@@ -41,7 +43,10 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo'>;
+export type OidcClientUpdate = Omit<
+	OidcClient,
+	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'isMetadataDocument' | 'clientIdHost'
+>;
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };

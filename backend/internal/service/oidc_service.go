@@ -625,11 +625,13 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 		}
 		dtos[i] = dto.AccessibleOidcClientDto{
 			OidcClientMetaDataDto: dto.OidcClientMetaDataDto{
-				ID:          client.ID,
-				Name:        client.Name,
-				LaunchURL:   client.LaunchURL,
-				HasLogo:     client.HasLogo(),
-				HasDarkLogo: client.HasDarkLogo(),
+				ID:                 client.ID,
+				Name:               client.Name,
+				LaunchURL:          client.LaunchURL,
+				HasLogo:            client.HasLogo(),
+				HasDarkLogo:        client.HasDarkLogo(),
+				IsMetadataDocument: client.IsMetadataDocument,
+				ClientIdHost:       client.ClientIDHost(),
 			},
 			LastUsedAt: lastUsedAt,
 		}

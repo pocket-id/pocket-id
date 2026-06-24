@@ -11,6 +11,7 @@
 	} from '$lib/types/advanced-table.type';
 	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+	import { encodeClientIdParam } from '$lib/utils/client-id-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { mode } from 'mode-watcher';
@@ -84,7 +85,7 @@
 			label: m.edit(),
 			primary: true,
 			icon: LucidePencil,
-			onClick: (client) => goto(`/settings/admin/oidc-clients/${client.id}`)
+			onClick: (client) => goto(`/settings/admin/oidc-clients/${encodeClientIdParam(client.id)}`)
 		},
 		{
 			label: m.delete(),

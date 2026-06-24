@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -43,12 +44,36 @@ var (
 
 // NewStore creates the fosite storage. Exported for packages that need to seed or
 // revoke sessions (e.g. the e2e test service).
-func NewStore(db *gorm.DB) *Store {
-	return &Store{db: db}
+func NewStore(db *gorm.DB, opts ...StoreOption) *Store {
+	s := &Store{db: db}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+type StoreOption func(*Store)
+
+// WithAuditLogger sets the audit logger used to record metadata-document changes.
+func WithAuditLogger(auditLog AuditLogger) StoreOption {
+	return func(s *Store) { s.auditLog = auditLog }
+}
+
+// WithCIMDEnabled enables the use of OAuth Client ID Metadata Documents.
+func WithCIMDEnabled(cimdEnabled bool) StoreOption {
+	return func(s *Store) { s.cimdEnabled = cimdEnabled }
+}
+
+// WithHTTPClient sets the HTTP client used by OAuth Client ID Metadata Documents.
+func WithHTTPClient(httpClient *http.Client) StoreOption {
+	return func(s *Store) { s.httpClient = httpClient }
 }
 
 type Store struct {
-	db *gorm.DB
+	db          *gorm.DB
+	httpClient  *http.Client
+	auditLog    AuditLogger
+	cimdEnabled bool
 }
 
 type storedRequester struct {
@@ -77,11 +102,18 @@ type storedRequester struct {
 // Satisfies fosite.Storage
 
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
-	var client model.OidcClient
-	err := s.dbFor(ctx).
-		Preload("AllowedUserGroups").
-		First(&client, "id = ?", id).
-		Error
+	if s.cimdEnabled && looksLikeClientIDMetadataDocumentURL(id) {
+		client, err := s.resolveMetadataClient(ctx, id)
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return nil, fosite.ErrNotFound
+		case err != nil:
+			return nil, fosite.ErrInvalidClient.WithHint("The client metadata document could not be resolved.").WithWrap(err).WithDebug(err.Error())
+		}
+		return Client{OidcClient: client}, nil
+	}
+
+	client, err := s.firstClientByID(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fosite.ErrNotFound
 	}
@@ -117,6 +149,18 @@ func (s *Store) SetClientAssertionJWT(ctx context.Context, jti string, exp time.
 		return fosite.ErrJTIKnown
 	}
 	return err
+}
+
+func (s *Store) firstClientByID(ctx context.Context, id string) (model.OidcClient, error) {
+	var client model.OidcClient
+	err := s.dbFor(ctx).
+		Preload("AllowedUserGroups").
+		First(&client, "id = ?", id).
+		Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+	return client, nil
 }
 
 // Satisfies fositeoauth2.CoreStorage
