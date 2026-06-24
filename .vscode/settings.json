@@ -1,4 +1,4 @@
 {
-    "go.buildTags": "e2etest",
-    "prettier.documentSelectors": ["**/*.svelte"],
+  "go.buildTags": "e2etest",
+  "prettier.documentSelectors": ["**/*.svelte"]
 }
