@@ -46,7 +46,7 @@
 				/>
 			</div>
 			<div class="flex w-full justify-between gap-3">
-				<div>
+				<div class="min-w-0">
 					<div class="mb-1 flex items-start gap-2">
 						<h3
 							class="text-foreground line-clamp-2 leading-tight font-semibold break-words break-all text-ellipsis"
@@ -54,7 +54,13 @@
 							{client.name}
 						</h3>
 					</div>
-					{#if client.launchURL}
+					{#if client.description}
+						<p
+							class="text-muted-foreground line-clamp-1 text-xs break-words break-all text-ellipsis"
+						>
+							{client.description}
+						</p>
+					{:else if client.launchURL}
 						<p
 							class="text-muted-foreground line-clamp-1 text-xs break-words break-all text-ellipsis"
 						>
@@ -75,52 +81,52 @@
 										onclick={() => goto(`/settings/admin/oidc-clients/${client.id}`)}
 										><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
 									>
-								{/if}
+									{/if}
 								{#if client.lastUsedAt}
 									<DropdownMenu.Item
 										class="text-red-500 focus:!text-red-700"
 										onclick={() => onRevoke(client)}
 										><LucideBan class="mr-2 size-4" />{m.revoke()}</DropdownMenu.Item
 									>
-								{/if}
-							</DropdownMenu.Content>
-						</DropdownMenu.Root>
-					</div>
-				{/if}
+									{/if}
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						</div>
+					{/if}
+				</div>
 			</div>
-		</div>
 
-		<div class="mt-2 flex items-end justify-between">
-			{#if client.lastUsedAt}
-				<Tooltip.Provider>
-					<Tooltip.Root>
-						<Tooltip.Trigger>
-							<p class="text-muted-foreground flex items-center text-xs">
-								<LucideLogIn class="mr-1 size-3" />
-								{formatDistanceToNow(client.lastUsedAt, { addSuffix: true })}
-							</p>
-						</Tooltip.Trigger>
-						<Tooltip.Content
-							>{m.last_signed_in_ago({
-								time: formatDistanceToNow(client.lastUsedAt)
-							})}</Tooltip.Content
-						>
-					</Tooltip.Root></Tooltip.Provider
+			<div class="mt-2 flex items-end justify-between">
+				{#if client.lastUsedAt}
+					<Tooltip.Provider>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								<p class="text-muted-foreground flex items-center text-xs">
+									<LucideLogIn class="mr-1 size-3" />
+									{formatDistanceToNow(client.lastUsedAt, { addSuffix: true })}
+								</p>
+							</Tooltip.Trigger>
+							<Tooltip.Content
+								>{m.last_signed_in_ago({
+									time: formatDistanceToNow(client.lastUsedAt)
+								})}</Tooltip.Content
+							>
+						</Tooltip.Root></Tooltip.Provider
+					>
+				{:else}
+					<div></div>
+				{/if}
+				<Button
+					href={client.launchURL}
+					target="_blank"
+					size="sm"
+					class="h-8 text-xs"
+					rel="noopener noreferrer"
+					disabled={!client.launchURL}
 				>
-			{:else}
-				<div></div>
-			{/if}
-			<Button
-				href={client.launchURL}
-				target="_blank"
-				size="sm"
-				class="h-8 text-xs"
-				rel="noopener noreferrer"
-				disabled={!client.launchURL}
-			>
-				{m.launch()}
-				<LucideExternalLink class="ml-1 size-3" />
-			</Button>
-		</div>
-	</Card.Content>
-</Card.Root>
+					{m.launch()}
+					<LucideExternalLink class="ml-1 size-3" />
+				</Button>
+			</div>
+		</Card.Content>
+	</Card.Root>

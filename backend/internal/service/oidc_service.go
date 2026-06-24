@@ -213,6 +213,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
 	// Base fields
 	client.Name = input.Name
+	client.Description = input.Description
 	client.CallbackURLs = input.CallbackURLs
 	client.LogoutCallbackURLs = input.LogoutCallbackURLs
 	client.IsPublic = input.IsPublic

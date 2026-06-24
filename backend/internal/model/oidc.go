@@ -23,6 +23,7 @@ type OidcClient struct {
 	Base
 
 	Name                                string `sortable:"true"`
+	Description                         *string `sortable:"true"`
 	Secret                              string
 	CallbackURLs                        UrlList
 	LogoutCallbackURLs                  UrlList
