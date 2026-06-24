@@ -3,6 +3,7 @@ import type { UserGroup } from './user-group.type';
 export type OidcClientMetaData = {
 	id: string;
 	name: string;
+	description?: string;
 	hasLogo: boolean;
 	hasDarkLogo: boolean;
 	requiresReauthentication: boolean;

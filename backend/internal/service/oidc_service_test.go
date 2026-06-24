@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -448,4 +449,92 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "failed to look up client")
 	})
+}
+
+func TestOidcService_CreateClient_withDescription(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	description := "A test client description"
+	input := dto.OidcClientCreateDto{
+		OidcClientUpdateDto: dto.OidcClientUpdateDto{
+			Name:         "Test Client",
+			Description:  &description,
+			CallbackURLs: []string{"https://example.com/callback"},
+		},
+	}
+
+	client, err := s.CreateClient(t.Context(), input, "user-id")
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	require.NotNil(t, fetched.Description)
+	assert.Equal(t, description, *fetched.Description)
+}
+
+func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	input := dto.OidcClientCreateDto{
+		OidcClientUpdateDto: dto.OidcClientUpdateDto{
+			Name:         "Test Client",
+			CallbackURLs: []string{"https://example.com/callback"},
+		},
+	}
+
+	client, err := s.CreateClient(t.Context(), input, "user-id")
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	assert.Nil(t, fetched.Description)
+}
+
+func TestOidcService_UpdateClient_description(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Create a client without a description
+	client := model.OidcClient{
+		Name:         "Test Client",
+		CallbackURLs: model.UrlList{"https://example.com/callback"},
+	}
+	err = db.Create(&client).Error
+	require.NoError(t, err)
+
+	// Update with a description
+	description := "Updated description"
+	input := dto.OidcClientUpdateDto{
+		Name:         "Test Client",
+		Description:  &description,
+		CallbackURLs: []string{"https://example.com/callback"},
+	}
+
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	require.NotNil(t, fetched.Description)
+	assert.Equal(t, description, *fetched.Description)
+
+	// Update to clear the description
+	input.Description = nil
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	assert.Nil(t, fetched.Description)
 }
