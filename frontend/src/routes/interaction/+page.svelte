@@ -110,7 +110,7 @@
 	<title>{m.sign_in_to({ name: interactionSession.client.name })}</title>
 </svelte:head>
 
-<SignInWrapper showAlternativeSignInMethodButton={$userStore == null}>
+<SignInWrapper showAlternativeSignInMethodButton={$userStore == null} hasClient={!!interactionSession?.client?.id}>
 	<ClientProviderImages client={interactionSession.client} {success} error={!!errorMessage} />
 	<h1 class="font-gloock mt-5 text-3xl font-bold sm:text-4xl">
 		{m.sign_in_to({ name: interactionSession.client.name })}
