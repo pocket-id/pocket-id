@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS 选项",
 	"email_tls_option": "电子邮件 TLS 选项",
 	"skip_certificate_verification": "跳过证书验证",
+	"skip_consent": "跳过同意页面",
+	"skip_consent_description": "请勿要求用户批准此客户端及其请求的权限范围。仅对可信的第一方客户端启用此功能。",
 	"this_can_be_useful_for_selfsigned_certificates": "这对于自签证书很有用。",
 	"enabled_emails": "启用的电子邮件",
 	"email_login_notification": "登录时的电子邮件通知",
