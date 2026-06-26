@@ -35,6 +35,9 @@ func newInteractionSessionForUser(interactionSession InteractionSession) (intera
 	if err := dto.MapStruct(interactionSession.Client, &client); err != nil {
 		return interactionSessionForUser{}, err
 	}
+	// ClientIdHost is derived from the client_id URL, so it is not mapped by MapStruct.
+	client.IsMetadataDocument = interactionSession.Client.IsMetadataDocument
+	client.ClientIdHost = interactionSession.Client.ClientIDHost()
 
 	requiredSteps := requiredInteractionSteps(interactionSession)
 	var currentStep interactionStep

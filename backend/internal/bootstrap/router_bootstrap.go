@@ -122,6 +122,8 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
 
 	apiGroup := r.Group("/api", apiRateLimitMiddleware)
+	// Decode "~<base64url>" client ID path params (used for CIMD URL client IDs).
+	apiGroup.Use(middleware.NewClientIDParamMiddleware().Add())
 	baseGroup := r.Group("/", apiRateLimitMiddleware)
 
 	controller.NewApiKeyController(apiGroup, authMiddleware, svc.apiKeyService)

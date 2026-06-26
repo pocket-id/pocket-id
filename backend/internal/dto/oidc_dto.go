@@ -9,6 +9,11 @@ type OidcClientMetaDataDto struct {
 	HasDarkLogo              bool    `json:"hasDarkLogo"`
 	LaunchURL                *string `json:"launchURL"`
 	RequiresReauthentication bool    `json:"requiresReauthentication"`
+	// IsMetadataDocument and ClientIdHost describe clients synthesized from an
+	// OAuth Client ID Metadata Document. ClientIdHost is the host of the client_id
+	// URL, shown in the authorization UI so users can verify the client's origin.
+	IsMetadataDocument bool   `json:"isMetadataDocument"`
+	ClientIdHost       string `json:"clientIdHost,omitempty"`
 }
 
 type OidcClientDto struct {

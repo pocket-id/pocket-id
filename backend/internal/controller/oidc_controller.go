@@ -75,6 +75,8 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	err = dto.MapStruct(client, &clientDto)
 	if err == nil {
 		clientDto.HasDarkLogo = client.HasDarkLogo()
+		clientDto.IsMetadataDocument = client.IsMetadataDocument
+		clientDto.ClientIdHost = client.ClientIDHost()
 		c.JSON(http.StatusOK, clientDto)
 		return
 	}

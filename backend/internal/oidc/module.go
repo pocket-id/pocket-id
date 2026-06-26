@@ -16,6 +16,7 @@ type Config struct {
 	BaseURL      string
 	TokenBaseURL string
 	Secret       string
+	CIMDEnabled  bool
 }
 
 type TokenSigner interface {
@@ -63,7 +64,11 @@ type Module struct {
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	store := NewStore(deps.DB)
+	storeOpts := []StoreOption{}
+	if deps.Config.CIMDEnabled && deps.HTTPClient != nil && deps.AuditLog != nil {
+		storeOpts = append(storeOpts, WithCIMDEnabled(true), WithHTTPClient(deps.HTTPClient), WithAuditLogger(deps.AuditLog))
+	}
+	store := NewStore(deps.DB, storeOpts...)
 	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)

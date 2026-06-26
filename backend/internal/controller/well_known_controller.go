@@ -95,6 +95,7 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		"token_endpoint_auth_methods_supported":          []string{"client_secret_basic", "client_secret_post", "none"},
 		"pushed_authorization_request_endpoint":          internalAppUrl + "/api/oidc/par",
 		"require_pushed_authorization_requests":          false,
+		"client_id_metadata_document_supported":          common.EnvConfig.CIMDEnabled,
 	}
 	return json.Marshal(config)
 }

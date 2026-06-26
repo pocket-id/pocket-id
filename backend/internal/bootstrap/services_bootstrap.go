@@ -78,6 +78,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 			BaseURL:      common.EnvConfig.AppURL,
 			TokenBaseURL: common.EnvConfig.AppURL,
 			Secret:       string(common.EnvConfig.EncryptionKey),
+			CIMDEnabled:  common.EnvConfig.CIMDEnabled,
 		},
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,

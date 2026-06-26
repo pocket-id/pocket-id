@@ -168,6 +168,8 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 			HasDarkLogo:              client.HasDarkLogo(),
 			LaunchURL:                client.LaunchURL,
 			RequiresReauthentication: client.RequiresReauthentication,
+			IsMetadataDocument:       client.IsMetadataDocument,
+			ClientIdHost:             client.ClientIDHost(),
 		},
 		Scope:                    request.GetRequestedScopes(),
 		AuthorizationRequired:    authorizationRequired,
