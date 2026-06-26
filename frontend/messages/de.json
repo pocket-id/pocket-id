@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP-TLS-Option",
 	"email_tls_option": "E-Mail-TLS-Option",
 	"skip_certificate_verification": "Zertifikatsüberprüfung überspringen",
+	"skip_consent": "Einwilligungsbildschirm überspringen",
+	"skip_consent_description": "Bitte die Nutzer nicht, diesen Client und die von ihm angeforderten Zugriffsbereiche zu genehmigen. Aktiviere dies nur für vertrauenswürdige First-Party-Clients.",
 	"this_can_be_useful_for_selfsigned_certificates": "Das kann nützlich für selbstsignierte Zertifikate sein.",
 	"enabled_emails": "E-Mails aktivieren",
 	"email_login_notification": "E-Mail-Benachrichtigung bei Login",
