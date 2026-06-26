@@ -913,3 +913,89 @@ func newTestAuthorizeRequesterWithForm(requestID, clientID string, form url.Valu
 func stringPointer(value string) *string {
 	return &value
 }
+
+func TestConsentRequired(t *testing.T) {
+	tests := []struct {
+		name                 string
+		hasAlreadyAuthorized bool
+		skipConsent          bool
+		prompt               string
+		want                 bool
+	}{
+		{"new client without skip requires consent", false, false, "", true},
+		{"returning client without skip skips consent", true, false, "", false},
+		{"new client with skip skips consent", false, true, "", false},
+		{"returning client with skip skips consent", true, true, "", false},
+		{"prompt=consent forces consent despite skip", false, true, "consent", true},
+		{"prompt=consent forces consent for returning client", true, false, "consent", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := consentRequired(tt.hasAlreadyAuthorized, tt.skipConsent, newPromptValues(tt.prompt))
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// A client with SkipConsent must be granted without a consent interaction even on the first authorization, while consent is still recorded so the user can later see and revoke the client
+func TestAuthorizationServiceSkipConsentGrantsWithoutInteraction(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	auditLogger := &fakeAuditLogger{}
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger)
+
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client", SkipConsent: true}).Error)
+
+	// No prior UserAuthorizedOidcClient record exists, so a client without skip-consent would require the consent screen here
+	requester := newTestAuthorizeRequester("skip-consent-request", clientID, "")
+	requester.(*fosite.AuthorizeRequest).Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client", SkipConsent: true}}
+
+	authorization, err := service.authorize(t.Context(), authorizeInput{
+		userID:             userID,
+		authenticationTime: time.Now().UTC(),
+		requester:          requester,
+		meta:               requestMeta{IPAddress: "203.0.113.1", UserAgent: "test-agent"},
+	})
+	require.NoError(t, err)
+	require.False(t, authorization.RequiresInteraction)
+	require.NotNil(t, authorization.Session)
+
+	var count int64
+	require.NoError(t, db.Model(&model.UserAuthorizedOidcClient{}).Where("user_id = ? AND client_id = ?", userID, clientID).Count(&count).Error)
+	require.Equal(t, int64(1), count)
+
+	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventNewClientAuthorization}, auditLogger.events)
+}
+
+// A client with SkipConsent must still show the consent screen when the request explicitly asks for it with prompt=consent
+func TestAuthorizationServiceSkipConsentHonorsPromptConsent(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client", SkipConsent: true}).Error)
+
+	requester := newTestAuthorizeRequester("skip-consent-prompt-request", clientID, "consent")
+	requester.(*fosite.AuthorizeRequest).Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client", SkipConsent: true}}
+
+	authorization, err := service.authorize(t.Context(), authorizeInput{
+		userID:             userID,
+		authenticationTime: time.Now().UTC(),
+		requester:          requester,
+		meta:               requestMeta{},
+	})
+	require.NoError(t, err)
+	require.True(t, authorization.RequiresInteraction)
+
+	interactionSession, err := newInteractionSessionService(db).get(t.Context(), authorization.InteractionID)
+	require.NoError(t, err)
+	require.True(t, interactionSession.ConsentRequired)
+}

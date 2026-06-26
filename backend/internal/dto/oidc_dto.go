@@ -18,6 +18,7 @@ type OidcClientDto struct {
 	IsPublic                            bool                     `json:"isPublic"`
 	PkceEnabled                         bool                     `json:"pkceEnabled"`
 	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests"`
+	SkipConsent                         bool                     `json:"skipConsent"`
 	Credentials                         OidcClientCredentialsDto `json:"credentials"`
 	IsGroupRestricted                   bool                     `json:"isGroupRestricted"`
 }
@@ -40,6 +41,7 @@ type OidcClientUpdateDto struct {
 	PkceEnabled                         bool                     `json:"pkceEnabled"`
 	RequiresReauthentication            bool                     `json:"requiresReauthentication"`
 	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests"`
+	SkipConsent                         bool                     `json:"skipConsent"`
 	Credentials                         OidcClientCredentialsDto `json:"credentials"`
 	LaunchURL                           *string                  `json:"launchURL" binding:"omitempty,url"`
 	HasLogo                             bool                     `json:"hasLogo"`
