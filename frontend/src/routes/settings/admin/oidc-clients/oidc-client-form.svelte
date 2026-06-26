@@ -20,7 +20,6 @@
 	import FederatedIdentitiesInput from './federated-identities-input.svelte';
 	import OidcCallbackUrlInput from './oidc-callback-url-input.svelte';
 	import OidcClientImageInput from './oidc-client-image-input.svelte';
-	import { Root, Trigger, Content } from '$lib/components/ui/tooltip';
 
 	let {
 		callback,
@@ -97,9 +96,8 @@
 
 	type FormSchema = typeof formSchema;
 	const { inputs, errors, ...form } = createForm<FormSchema>(formSchema, client);
-	
+
 	const pkcePromptNeeded = $derived(!$inputs.pkceEnabled.value && client.pkceSupported);
-	const basePkceDescription = m.proof_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()
 
 	async function onSubmit() {
 		const data = form.validate();
@@ -221,16 +219,12 @@
 		<div
 			class="rounded-lg transition-all duration-200"
 			class:[&_[data-switch-root]]:ring-2={pkcePromptNeeded}
-			class:[&_[data-switch-root]]:ring-yellow-500={pkcePromptNeeded}
+			class:[&_[data-switch-root]]:ring-blue-500={pkcePromptNeeded}
 		>
 			<SwitchWithLabel
 				id="pkce"
 				label={m.pkce()}
-				description={
-					pkcePromptNeeded
-						? `${m.pkce_supported_client()} ${basePkceDescription}`
-						: basePkceDescription
-				}
+				description={m.proof_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
 				disabled={$inputs.isPublic.value}
 				bind:checked={$inputs.pkceEnabled.value}
 			/>
