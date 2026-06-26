@@ -57,6 +57,23 @@ test('Authorize new client', async ({ page }) => {
 	);
 });
 
+test('Authorize client requesting offline_access scope', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('scope', 'openid profile email offline_access');
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	// offline_access is a valid OIDC scope: the flow must reach the consent screen rather than
+	// being rejected with invalid_scope (offline_access itself has no displayable scope item)
+	await expectScopes(page, ['Email', 'Profile']);
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
+	expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	expect(callbackUrl.searchParams.get('error')).toBeNull();
+});
+
 test('Authorize new client while not signed in', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
 	const urlParams = createUrlParams(oidcClient);
