@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP тип TLS",
 	"email_tls_option": "Тип TLS",
 	"skip_certificate_verification": "Пропустить верификацию сертификата",
+	"skip_consent": "Пропустить экран с запросом согласия",
+	"skip_consent_description": "Не проси пользователей подтверждать этот клиент и запрашиваемые им области доступа. Включай эту функцию только для доверенных клиентов первой стороны.",
 	"this_can_be_useful_for_selfsigned_certificates": "Это может быть полезно для самоподписанных сертификатов.",
 	"enabled_emails": "Отправляемые письма",
 	"email_login_notification": "Уведомление о логине по электронной почте",
