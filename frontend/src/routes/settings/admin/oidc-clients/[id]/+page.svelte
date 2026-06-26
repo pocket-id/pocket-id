@@ -22,6 +22,7 @@
 	import { backNavigate } from '../../users/navigate-back-util';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
+	import ApiAccessCard from './api-access-card.svelte';
 	import ScimResourceProviderForm from './scim-resource-provider-form.svelte';
 
 	let { data } = $props();
@@ -299,6 +300,9 @@
 			>{m.save()}</Button
 		>
 	</div>
+</CollapsibleCard>
+<CollapsibleCard id="api-access" title={m.api_access()} description={m.api_access_description()}>
+	<ApiAccessCard clientId={client.id} />
 </CollapsibleCard>
 <CollapsibleCard
 	id="scim-provisioning"

@@ -54,13 +54,13 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 		IsPublic: false,
 	}).Error)
 
-	provider, err := newProvider(NewStore(db), nil, testTokenSigner{key: key}, Config{
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       secret,
 	})
 	require.NoError(t, err)
-	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil))
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
 
 	form := url.Values{"grant_type": {"client_credentials"}}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
@@ -77,7 +77,63 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 	require.NotEmpty(t, body["access_token"], "client_credentials must issue a token, got error: %v", body["error"])
 
 	claims := decodeJWTPart(t, body["access_token"].(string), 1)
+	// With no resource requested, the client_credentials token is a plain token bound to the requesting client
 	require.Contains(t, jwtAudience(claims), clientID, "access token must be audience-bound to the client")
+}
+
+// TestTokenHandlerClientCredentialsDropsIdentityScopes guards that a machine token never
+// carries identity scopes. A client_credentials grant has a synthetic subject and no real
+// user, so if it could keep the openid scope it would slip past the userinfo endpoint
+// (which gates on openid) and probe for user PII. The handler must strip identity scopes.
+func TestTokenHandlerClientCredentialsDropsIdentityScopes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const (
+		baseURL     = "https://issuer.example.com"
+		secret      = "test-secret"
+		clientID    = "cc-client"
+		clientPlain = "cc-secret-value"
+	)
+
+	db := testutils.NewDatabaseForTest(t)
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:     model.Base{ID: clientID},
+		Name:     "Client Credentials Client",
+		Secret:   string(hashed),
+		IsPublic: false,
+	}).Error)
+
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
+		BaseURL:      baseURL,
+		TokenBaseURL: baseURL,
+		Secret:       secret,
+	})
+	require.NoError(t, err)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+
+	form := url.Values{"grant_type": {"client_credentials"}, "scope": {"openid"}}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(clientID, clientPlain)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	handler.token(c)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.NotEmpty(t, body["access_token"], "client_credentials must issue a token, got error: %v", body["error"])
+
+	// Introspect the issued token the same way the userinfo endpoint does: openid must be gone.
+	_, accessRequest, err := provider.IntrospectToken(t.Context(), body["access_token"].(string), fosite.AccessToken, NewEmptySession())
+	require.NoError(t, err)
+	require.False(t, accessRequest.GetGrantedScopes().Has("openid"), "client_credentials token must not carry the openid scope")
 }
 
 // jwtAudience normalizes the `aud` claim (string or []string) into a slice.
@@ -155,19 +211,19 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 		request.GrantedAudience = fosite.Arguments{clientID}
 		request.Session = session
 
-		require.NoError(t, NewStore(db).CreateRefreshTokenSession(t.Context(), signature, "", request))
+		require.NoError(t, NewStore(db, nil).CreateRefreshTokenSession(t.Context(), signature, "", request))
 		return token
 	}
 
 	doRefresh := func(t *testing.T, db *gorm.DB, clientID, refreshToken string) map[string]any {
 		t.Helper()
-		provider, err := newProvider(NewStore(db), nil, signer, Config{
+		provider, err := newProvider(NewStore(db, nil), nil, signer, Config{
 			BaseURL:      baseURL,
 			TokenBaseURL: baseURL,
 			Secret:       secret,
 		})
 		require.NoError(t, err)
-		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil))
+		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
 
 		form := url.Values{
 			"grant_type":    {"refresh_token"},

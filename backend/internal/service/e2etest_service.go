@@ -23,6 +23,7 @@ import (
 	fositejwt "github.com/ory/fosite/token/jwt"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -301,6 +302,56 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		}
 		for _, userAuthorizedClient := range userAuthorizedClients {
 			if err := tx.Create(&userAuthorizedClient).Error; err != nil {
+				return err
+			}
+		}
+
+		ordersAPI := api.API{
+			Base: model.Base{
+				ID: "f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d",
+			},
+			Name:     "Orders API",
+			Audience: "https://api.orders.test",
+		}
+		if err := tx.Create(&ordersAPI).Error; err != nil {
+			return err
+		}
+
+		apiPermissions := []api.Permission{
+			{
+				Base: model.Base{
+					ID: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+				},
+				APIID:       ordersAPI.ID,
+				Key:         "read:orders",
+				Name:        "Read orders",
+				Description: new("Read order data"),
+			},
+			{
+				Base: model.Base{
+					ID: "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+				},
+				APIID:       ordersAPI.ID,
+				Key:         "write:orders",
+				Name:        "Write orders",
+				Description: new("Create and modify orders"),
+			},
+		}
+		for _, permission := range apiPermissions {
+			if err := tx.Create(&permission).Error; err != nil {
+				return err
+			}
+		}
+
+		// Immich is allowed to request the read:orders permission on behalf of users
+		allowedAPIPermissions := []api.OidcClientAllowedAPIPermission{
+			{
+				OidcClientID:    oidcClients[1].ID,
+				APIPermissionID: apiPermissions[0].ID,
+			},
+		}
+		for _, allowed := range allowedAPIPermissions {
+			if err := tx.Create(&allowed).Error; err != nil {
 				return err
 			}
 		}
@@ -749,7 +800,7 @@ type fositeTokenSession struct {
 func (s *TestService) seedFositeTokenSession(ctx context.Context, session fositeTokenSession) error {
 	request := s.newFositeTokenRequest(session)
 
-	store := oidc.NewStore(s.db)
+	store := oidc.NewStore(s.db, nil)
 	switch session.Kind {
 	case "access_token":
 		return store.CreateAccessTokenSession(ctx, session.Signature, request)
@@ -770,7 +821,7 @@ func (s *TestService) newFositeTokenRequest(session fositeTokenSession) *fosite.
 			RequestedAt: requestedAt,
 			AuthTime:    requestedAt,
 			Subject:     session.UserID,
-			Issuer: common.EnvConfig.AppURL,
+			Issuer:      common.EnvConfig.AppURL,
 		},
 	}
 	oidcSession.SetExpiresAt(session.TokenType, session.ExpiresAt)

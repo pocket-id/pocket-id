@@ -70,9 +70,16 @@ export type AccessibleOidcClient = OidcClientMetaData & {
 
 export type InteractionStep = 'authenticate' | 'select_account' | 'reauthenticate' | 'consent';
 
+export type InteractionScopeInfo = {
+	key: string;
+	name: string;
+	description?: string;
+};
+
 export type InteractionSession = {
 	id: string;
 	scopes: string[];
+	scopeInfo: InteractionScopeInfo[];
 	client: OidcClientMetaData;
 	currentStep?: InteractionStep;
 	requiredSteps: InteractionStep[];

@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"log/slog"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
@@ -10,12 +11,14 @@ import (
 type tokenHandler struct {
 	provider      fosite.OAuth2Provider
 	claimsService *ClaimsService
+	apiAccess     APIAccessProvider
 }
 
-func newTokenHandler(provider fosite.OAuth2Provider, claimsService *ClaimsService) *tokenHandler {
+func newTokenHandler(provider fosite.OAuth2Provider, claimsService *ClaimsService, apiAccess APIAccessProvider) *tokenHandler {
 	return &tokenHandler{
 		provider:      provider,
 		claimsService: claimsService,
+		apiAccess:     apiAccess,
 	}
 }
 
@@ -48,8 +51,24 @@ func (h *tokenHandler) token(c *gin.Context) {
 			return
 		}
 
-		// Bind every issued JWT access token to the requesting client so it always carries an aud claim.
-		accessRequest.GrantAudience(client.GetID())
+		// The client credentials grant has no authorize step so the RFC 8707 resource is resolved here to stamp the API audience and limit the granted scope to what the client is allowed for that API
+		// The other grants had their audience and scope resolved at authorize or device time and restored from storage, so they must be left untouched
+		if accessRequest.GetGrantTypes().Has(string(fosite.GrantTypeClientCredentials)) {
+			resource := accessRequest.GetRequestForm().Get("resource")
+			audience, grantedScopes, err := resolveResource(ctx, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes())
+			if err != nil {
+				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
+				return
+			}
+			// A client credentials token has no resource owner, so it must never carry identity scopes such as openid or profile
+			// Dropping them keeps machine tokens out of the userinfo endpoint, which is gated on the openid scope
+			grantedScopes = slices.DeleteFunc(grantedScopes, isStandardScope)
+			if accessReq, ok := accessRequest.(*fosite.AccessRequest); ok {
+				accessReq.GrantedScope = fosite.Arguments(grantedScopes)
+				accessReq.GrantedAudience = nil
+			}
+			accessRequest.GrantAudience(audience)
+		}
 	}
 
 	if err := h.claimsService.applyIDTokenClaims(ctx, requestSession, accessRequest.GetGrantedScopes()); err != nil {

@@ -30,7 +30,7 @@ func (f *fakeAuditLogger) Create(_ context.Context, event model.AuditLogEvent, _
 func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogger := &fakeAuditLogger{}
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger, nil)
 
 	const (
 		userID   = "test-user"
@@ -63,10 +63,39 @@ func TestAuthorizationServiceAuthorizeLogsClientAuthorization(t *testing.T) {
 	require.Equal(t, model.AuditLogData{"clientName": "Test Client"}, auditLogger.data[0])
 }
 
+func TestAuthorizationServiceRejectsCustomScopeWithoutResource(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+	)
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+
+	// A custom permission requested with no resource must be rejected at the
+	// authorize endpoint, not displayed on the consent screen.
+	requester := newTestAuthorizeRequesterWithForm("bad-scope-request", clientID, url.Values{})
+	requester.(*fosite.AuthorizeRequest).RequestedScope = fosite.Arguments{"openid", "users:read"}
+
+	_, err := service.authorize(t.Context(), authorizeInput{
+		userID:             userID,
+		authenticationTime: time.Now().UTC(),
+		requester:          requester,
+		meta:               requestMeta{},
+	})
+	require.Error(t, err)
+
+	var rfcErr *fosite.RFC6749Error
+	require.ErrorAs(t, err, &rfcErr)
+	require.Equal(t, "invalid_scope", rfcErr.ErrorField)
+}
+
 func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogger := &fakeAuditLogger{}
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger, nil)
 
 	const (
 		userID        = "test-user"
@@ -100,7 +129,7 @@ func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T)
 
 func TestAuthorizationServiceAuthorizeConsumesInteractionSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -184,7 +213,7 @@ func TestInteractionSessionServiceGetRejectsExpiredSession(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizeBindsScopesToInteractionSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -239,7 +268,7 @@ func TestAuthorizationServiceAuthorizeBindsScopesToInteractionSession(t *testing
 
 func TestAuthorizationServiceAuthorizeRejectsInteractionSessionOfOtherClient(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -278,7 +307,7 @@ func TestAuthorizationServiceAuthorizeRejectsInteractionSessionOfOtherClient(t *
 
 func TestAuthorizationServiceAuthorizeSwitchesUserAndResetsRequirements(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -338,7 +367,7 @@ func TestAuthorizationServiceAuthorizeSwitchesUserAndResetsRequirements(t *testi
 
 func TestAuthorizationServiceAuthorizeRequiresLoginForUserBoundInteraction(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -371,7 +400,7 @@ func TestAuthorizationServiceAuthorizeRequiresLoginForUserBoundInteraction(t *te
 
 func TestAuthorizationServiceCompleteInteractionBindsUserToSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -407,7 +436,7 @@ func TestAuthorizationServiceCompleteInteractionBindsUserToSession(t *testing.T)
 
 func TestAuthorizationServiceCompleteInteractionSwitchesUserAndResetsRequirements(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -460,7 +489,7 @@ func TestAuthorizationServiceCompleteInteractionSwitchesUserAndResetsRequirement
 // still be required for that user rather than being inherited from the initiator.
 func TestAuthorizationServiceSelectAccountRecomputesConsentForSelectedUser(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		initiatorID = "initiator-user"
@@ -522,7 +551,7 @@ func TestValidateClientPKCERequirement(t *testing.T) {
 // flag is honored for confidential clients (fosite only enforces PKCE for public clients).
 func TestAuthorizationServiceAuthorizeEnforcesPerClientPKCE(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -558,7 +587,7 @@ func TestAuthorizationServiceAuthorizeEnforcesPerClientPKCE(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizePARRequiredClient(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -624,7 +653,7 @@ func TestAuthorizationServiceAuthorizePARRequiredClient(t *testing.T) {
 
 func TestAuthorizationServiceInteractionRequestQuery(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		clientID      = "test-client"
@@ -664,7 +693,7 @@ func TestAuthorizationServiceInteractionRequestQuery(t *testing.T) {
 
 func TestAuthorizationServiceAuthorizeUsesLoginAuthenticationTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -706,7 +735,7 @@ func TestAuthorizationServiceAuthorizeUsesLoginAuthenticationTime(t *testing.T) 
 
 func TestAuthorizationServiceAuthorizeRequiresReauthenticationWhenMaxAgeExceeded(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
@@ -743,7 +772,7 @@ func TestAuthorizationServiceAuthorizeRequiresReauthenticationWhenMaxAgeExceeded
 
 func TestAuthorizationServiceAuthorizeUsesCompletedReauthenticationTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"
@@ -790,7 +819,7 @@ func TestAuthorizationServiceAuthorizeUsesCompletedReauthenticationTime(t *testi
 
 func TestAuthorizationServiceAuthorizeUsesOriginalInteractionRequestTime(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID        = "test-user"

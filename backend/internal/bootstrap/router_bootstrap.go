@@ -132,6 +132,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
 	controller.NewUserGroupController(apiGroup, authMiddleware, svc.userGroupService)
+	svc.apiModule.RegisterRoutes(apiGroup, authMiddleware.Add())
 	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
 	controller.NewVersionController(apiGroup, authMiddleware, svc.versionService)
 	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)

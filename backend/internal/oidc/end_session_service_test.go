@@ -132,7 +132,7 @@ func TestEndSessionService(t *testing.T) {
 		}).Error)
 		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "tim"}).Error)
 		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: userID, ClientID: clientID}).Error)
-		store := NewStore(db)
+		store := NewStore(db, nil)
 		return newEndSessionService(db, store, signer, baseURL), store
 	}
 
