@@ -21,12 +21,8 @@ func (m *CspMiddleware) Add() gin.HandlerFunc {
 		// Generate a random base64 nonce for this request
 		nonce := utils.GenerateCSPNonce()
 		utils.SetCSPNonce(c, nonce)
-		c.Writer.Header().Set("Content-Security-Policy", BuildCSP(nonce))
+		c.Writer.Header().Set("Content-Security-Policy", utils.BuildCSP(nonce))
 
 		c.Next()
 	}
-}
-
-func BuildCSP(nonce string, formActionExtra ...string) string {
-	return utils.BuildCSP(nonce, formActionExtra...)
 }

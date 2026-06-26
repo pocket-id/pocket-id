@@ -49,6 +49,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		RedirectURIMatcher:             matchRedirectURI,
 		EnforcePKCEForPublicClients:    true,
 		EnablePKCEPlainChallengeMethod: true,
+		FormPostHTMLTemplate:           formPostTemplate,
 		RefreshTokenScopes:             []string{},
 		GlobalSecret:                   secret,
 	}

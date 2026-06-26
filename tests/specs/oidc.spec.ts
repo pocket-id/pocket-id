@@ -838,9 +838,10 @@ test('Authorize existing client while not signed in with response_mode=form_post
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	await (await passkeyUtil.init(page)).addPasskey();
-	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await expectFormPostResponse(page, oidcClient.callbackUrl);
+	await expectFormPostCallback(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
 });
 
 test('Authorize existing client with response_mode=form_post', async ({ page }) => {
@@ -848,9 +849,9 @@ test('Authorize existing client with response_mode=form_post', async ({ page }) 
 	const urlParams = createUrlParams(oidcClient);
 	urlParams.set('response_mode', 'form_post');
 
-	await page.goto(`/authorize?${urlParams.toString()}`);
-
-	await expectFormPostResponse(page, oidcClient.callbackUrl);
+	await expectFormPostCallback(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
 });
 
 test('Authorize existing client with response_mode=fragment', async ({ page }) => {
@@ -869,27 +870,37 @@ test('Authorize existing client with response_mode=fragment', async ({ page }) =
 	expect(fragmentParams.get('iss')).toBeTruthy();
 });
 
-async function expectFormPostResponse(
+async function expectFormPostCallback(
 	page: Page,
 	callbackUrl: string,
+	action: () => Promise<unknown>,
 	expectedState = 'nXx-6Qr-owc1SHBa'
 ): Promise<URLSearchParams> {
-	const form = page.locator('form[method="post"]');
-	await expect(form).toHaveAttribute('action', callbackUrl);
-	const formData = new URLSearchParams(
-		await form.locator('input[type="hidden"]').evaluateAll((inputs) => {
-			const params = new URLSearchParams();
-			for (const input of inputs) {
-				params.append(input.name, input.value);
-			}
-			return params.toString();
-		})
-	);
+	const isCallbackURL = callbackURLMatcher(callbackUrl);
+	const callbackRouteMatcher = await routeCallbackPage(page, callbackUrl);
 
-	expect(formData.get('code')).toBeTruthy();
-	expect(formData.get('state')).toBe(expectedState);
-	expect(formData.get('iss')).toBeTruthy();
-	return formData;
+	try {
+		const requestPromise = page.waitForRequest(
+			(request) => request.method() === 'POST' && isCallbackURL(new URL(request.url())),
+			{ timeout: 5000 }
+		);
+		const actionPromise = action().then(
+			() => undefined,
+			(error) => error
+		);
+		const request = await requestPromise;
+		await actionPromise;
+
+		const formData = new URLSearchParams(request.postData() ?? '');
+		expect(formData.get('code')).toBeTruthy();
+		expect(formData.get('state')).toBe(expectedState);
+		expect(formData.get('iss')).toBeTruthy();
+		return formData;
+	} finally {
+		if (!page.isClosed()) {
+			await page.unroute(callbackRouteMatcher).catch(() => {});
+		}
+	}
 }
 
 test.describe('OIDC prompt parameter', () => {
@@ -1269,9 +1280,12 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 			request_uri: parResult.request_uri!
 		});
 
-		await page.goto(`/authorize?${urlParams.toString()}`);
-
-		const formData = await expectFormPostResponse(page, client.callbackUrl, state);
+		const formData = await expectFormPostCallback(
+			page,
+			client.callbackUrl,
+			() => page.goto(`/authorize?${urlParams.toString()}`),
+			state
+		);
 		expect(formData.get('code')).toBeTruthy();
 		expect(formData.get('state')).toBe(state);
 	});
