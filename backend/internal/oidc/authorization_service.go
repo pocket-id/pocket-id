@@ -68,6 +68,15 @@ func (p promptValues) has(value string) bool {
 	return slices.Contains(p, value)
 }
 
+// consentRequired reports whether the user has to be shown the consent screen
+// A client can be configured to skip consent so trusted first-party apps are not prompted on every new authorization, but an explicit prompt=consent always forces the screen regardless of that setting
+func consentRequired(hasAlreadyAuthorizedClient, clientSkipsConsent bool, prompt promptValues) bool {
+	if prompt.has("consent") {
+		return true
+	}
+	return !hasAlreadyAuthorizedClient && !clientSkipsConsent
+}
+
 // authorizeInput is the authorization request as provided by the handler.
 type authorizeInput struct {
 	userID                        string
@@ -266,7 +275,7 @@ func (s *authorizationService) resolveRequirements(ctx context.Context, req auth
 	}
 
 	requirements := interactionRequirements{
-		ConsentRequired:          !hasAlreadyAuthorizedClient || req.prompt.has("consent"),
+		ConsentRequired:          consentRequired(hasAlreadyAuthorizedClient, req.client.SkipConsent, req.prompt),
 		ReauthenticationRequired: req.prompt.has("login") || req.client.RequiresReauthentication || maxAgeReauthenticationRequired,
 		AccountSelectionRequired: req.prompt.has("select_account"),
 		AuthenticationRequired:   false,
@@ -663,7 +672,7 @@ func (s *authorizationService) interactionRequirementsForUser(ctx context.Contex
 	}
 
 	return interactionRequirements{
-		ConsentRequired:          !hasAlreadyAuthorizedClient || prompt.has("consent"),
+		ConsentRequired:          consentRequired(hasAlreadyAuthorizedClient, interactionSession.Client.SkipConsent, prompt),
 		ReauthenticationRequired: prompt.has("login") || interactionSession.Client.RequiresReauthentication || maxAgeReauthenticationRequired,
 		AccountSelectionRequired: prompt.has("select_account"),
 		AuthenticationRequired:   false,

@@ -220,6 +220,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.RequiresPushedAuthorizationRequests = input.RequiresPushedAuthorizationRequests
+	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
 

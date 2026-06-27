@@ -32,6 +32,7 @@ type OidcClient struct {
 	PkceEnabled                         bool `sortable:"true" filterable:"true"`
 	RequiresReauthentication            bool `sortable:"true" filterable:"true"`
 	RequiresPushedAuthorizationRequests bool `sortable:"true" filterable:"true"`
+	SkipConsent                         bool `sortable:"true" filterable:"true"`
 	Credentials                         OidcClientCredentials
 	LaunchURL                           *string
 	IsGroupRestricted                   bool `sortable:"true" filterable:"true"`

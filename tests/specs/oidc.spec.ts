@@ -1440,3 +1440,49 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		await expect(savedToggle).toBeChecked();
 	});
 });
+
+test.describe('OIDC skip consent', () => {
+	// This seeded client has skip-consent enabled and is not pre-authorized for the signed-in
+	// user, so the consent screen would normally be shown on first authorization.
+	const client = oidcClients.skipConsent;
+
+	test('skips the consent screen on first authorization', async ({ page }) => {
+		// The flow must go straight through to the callback instead of stopping at the consent screen
+		const urlParams = createUrlParams(client);
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+
+		expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+		expect(callbackUrl.searchParams.get('error')).toBeNull();
+	});
+
+	test('still shows the consent screen when prompt=consent is requested', async ({ page }) => {
+		const urlParams = createUrlParams(client);
+		urlParams.set('prompt', 'consent');
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// prompt=consent overrides the client's skip-consent setting, so the scopes must still be shown
+		await expectScopes(page, ['Email', 'Profile']);
+
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.getByRole('button', { name: 'Sign in' }).click()
+		);
+		expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	});
+
+	test('Admin UI: skip consent toggle reflects the seeded value and persists', async ({ page }) => {
+		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+
+		// The seeded client has skip-consent enabled, so the toggle loads checked
+		const toggle = page.getByRole('switch', { name: 'Skip Consent Screen' });
+		await expect(toggle).toBeChecked();
+
+		// Disabling it and saving must persist across a reload
+		await toggle.click();
+		await page.getByRole('button', { name: /save/i }).click();
+		await page.reload();
+
+		await expect(page.getByRole('switch', { name: 'Skip Consent Screen' })).not.toBeChecked();
+	});
+});

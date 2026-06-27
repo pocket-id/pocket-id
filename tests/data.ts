@@ -73,6 +73,12 @@ export const oidcClients = {
 		name: 'PAR Test Client',
 		callbackUrl: 'http://par-client.localhost/auth/callback',
 		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
+	},
+	skipConsent: {
+		id: 'e1f2a3b4-c5d6-7890-abcd-ef0000000002',
+		name: 'Skip Consent Client',
+		callbackUrl: 'http://skip-consent.localhost/auth/callback',
+		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
 	}
 };
 

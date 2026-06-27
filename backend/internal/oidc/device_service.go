@@ -165,7 +165,8 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		if err != nil {
 			return nil, err
 		}
-		authorizationRequired = !hasAuthorizedClient
+		// The device flow has no per-request prompt parameter, so consent depends only on prior authorization and the client's skip-consent setting
+		authorizationRequired = consentRequired(hasAuthorizedClient, client.SkipConsent, nil)
 	}
 
 	return &dto.DeviceCodeInfoDto{

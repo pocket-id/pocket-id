@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260624120000,
+	"version": 20260626120000,
 	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens", "apis", "api_permissions", "oidc_clients_allowed_api_permissions"],
 	"tables": {
 		"apis": [
@@ -89,7 +89,8 @@
 				"pkce_enabled": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
-				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC"
+				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC",
+				"skip_consent": false
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vaW1taWNoLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
@@ -107,7 +108,8 @@
 				"pkce_enabled": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
-				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe"
+				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe",
+				"skip_consent": false
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
@@ -125,7 +127,8 @@
 				"pkce_enabled": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
-				"secret": "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a"
+				"secret": "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a",
+				"skip_consent": false
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vZmVkZXJhdGVkLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
@@ -143,7 +146,8 @@
 				"pkce_enabled": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
-				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe"
+				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe",
+				"skip_consent": false
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vc2NpbWNsaWVudC5sb2NhbGhvc3QvYXV0aC9jYWxsYmFjayJd",
@@ -160,7 +164,8 @@
 				"pkce_enabled": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
-				"secret": "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK"
+				"secret": "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK",
+				"skip_consent": false
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vcGFyLWNsaWVudC5sb2NhbGhvc3QvYXV0aC9jYWxsYmFjayJd",
@@ -178,7 +183,27 @@
 				"pkce_enabled": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
-				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC"
+				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC",
+				"skip_consent": false
+			},
+			{
+				"callback_urls": "WyJodHRwOi8vc2tpcC1jb25zZW50LmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
+				"created_at": "2025-11-25T12:39:02Z",
+				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
+				"credentials": "e30=",
+				"dark_image_type": null,
+				"id": "e1f2a3b4-c5d6-7890-abcd-ef0000000002",
+				"image_type": null,
+				"is_group_restricted": false,
+				"is_public": false,
+				"launch_url": null,
+				"logout_callback_urls": "bnVsbA==",
+				"name": "Skip Consent Client",
+				"pkce_enabled": false,
+				"requires_pushed_authorization_requests": false,
+				"requires_reauthentication": false,
+				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC",
+				"skip_consent": true
 			}
 		],
 		"oidc_clients_allowed_user_groups": [
