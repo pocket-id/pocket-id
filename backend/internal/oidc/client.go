@@ -41,7 +41,7 @@ func (c Client) GetResponseTypes() fosite.Arguments {
 }
 
 func (c Client) GetScopes() fosite.Arguments {
-	return fosite.Arguments{"openid", "profile", "email", "groups"}
+	return fosite.Arguments{"openid", "profile", "email", "groups", "offline_access"}
 }
 
 func (c Client) IsPublic() bool {

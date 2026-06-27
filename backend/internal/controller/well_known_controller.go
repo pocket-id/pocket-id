@@ -84,7 +84,7 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
 		"jwks_uri":                                       internalAppUrl + "/.well-known/jwks.json",
 		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode, service.GrantTypeClientCredentials},
-		"scopes_supported":                               []string{"openid", "profile", "email", "groups"},
+		"scopes_supported":                               []string{"openid", "profile", "email", "groups", "offline_access"},
 		"claims_supported":                               []string{"sub", "given_name", "family_name", "name", "display_name", "email", "email_verified", "preferred_username", "picture", "groups", "auth_time", "amr"},
 		"response_types_supported":                       []string{"code", "id_token"},
 		"subject_types_supported":                        []string{"public"},

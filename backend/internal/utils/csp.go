@@ -26,11 +26,26 @@ func SetCSPNonce(c *gin.Context, nonce string) {
 	c.Set(cspNonceContextKey, nonce)
 }
 
-func BuildCSP(nonce string, formActionExtra ...string) string {
+func BuildCSP(nonce string) string {
+	return buildCSP(nonce, nil, nil)
+}
+
+// BuildFormPostCSP builds the Content-Security-Policy for an OIDC response_mode=form_post page
+func BuildFormPostCSP(nonce, redirectURI, scriptHash string) string {
+	return buildCSP(nonce, []string{redirectURI}, []string{scriptHash})
+}
+
+func buildCSP(nonce string, formActionExtra, scriptSrcExtra []string) string {
 	formAction := "'self'"
 	scriptSrc := "script-src 'self'"
 	if nonce != "" {
 		scriptSrc += " 'nonce-" + nonce + "'"
+	}
+
+	for _, extra := range scriptSrcExtra {
+		if extra != "" {
+			scriptSrc += " " + extra
+		}
 	}
 
 	if len(formActionExtra) > 0 {
