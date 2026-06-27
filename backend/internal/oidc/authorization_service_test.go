@@ -970,7 +970,7 @@ func TestConsentRequired(t *testing.T) {
 func TestAuthorizationServiceSkipConsentGrantsWithoutInteraction(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogger := &fakeAuditLogger{}
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger, nil)
 
 	const (
 		userID   = "test-user"
@@ -1003,7 +1003,7 @@ func TestAuthorizationServiceSkipConsentGrantsWithoutInteraction(t *testing.T) {
 // A client with SkipConsent must still show the consent screen when the request explicitly asks for it with prompt=consent
 func TestAuthorizationServiceSkipConsentHonorsPromptConsent(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
 
 	const (
 		userID   = "test-user"
