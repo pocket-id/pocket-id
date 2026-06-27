@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS volba",
 	"email_tls_option": "Email TLS volba",
 	"skip_certificate_verification": "Přeskočit ověření certifikátu",
+	"skip_consent": "Přeskočit obrazovku s žádostí o souhlas",
+	"skip_consent_description": "Nežádejte uživatele o schválení tohoto klienta a oprávnění, o která žádá. Tuto možnost povolte pouze u důvěryhodných klientů první strany.",
 	"this_can_be_useful_for_selfsigned_certificates": "To může být užitečné pro certifikáty s vlastními podpisy.",
 	"enabled_emails": "Povolené e-maily",
 	"email_login_notification": "E-mailovová oznámení o přihlášení",

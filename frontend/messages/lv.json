@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS opcija",
 	"email_tls_option": "E-pasta TLS opcija",
 	"skip_certificate_verification": "Izlaist sertifikāta pārbaudi",
+	"skip_consent": "Aizvērt piekrišanas logu",
+	"skip_consent_description": "Nelūdziet lietotājiem apstiprināt šo klientu un tā pieprasītās piekļuves jomas. Šo funkciju aktivizējiet tikai uzticamiem pirmās puses klientiem.",
 	"this_can_be_useful_for_selfsigned_certificates": "Tas var būt noderīgi pašparakstītiem sertifikātiem.",
 	"enabled_emails": "Iespējotie e-pasti",
 	"email_login_notification": "Paziņojums par pieteikšanos pa e-pastu",

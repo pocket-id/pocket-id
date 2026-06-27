@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS 選項",
 	"email_tls_option": "Email TLS 選項",
 	"skip_certificate_verification": "略過憑證檢查",
+	"skip_consent": "跳過同意畫面",
+	"skip_consent_description": "請勿要求使用者批准此客戶端及其所請求的權限範圍。僅應對可信的第一方客戶端啟用此功能。",
 	"this_can_be_useful_for_selfsigned_certificates": "這在使用自簽憑證時可能會很有用。",
 	"enabled_emails": "啟用電子郵件",
 	"email_login_notification": "電子郵件登入通知",

@@ -182,6 +182,8 @@
 	"smtp_tls_option": "Opción SMTP TLS",
 	"email_tls_option": "Opción TLS para correo electrónico",
 	"skip_certificate_verification": "Omitir la verificación del certificado",
+	"skip_consent": "Saltar la pantalla de consentimiento",
+	"skip_consent_description": "No pidas a los usuarios que aprueben este cliente ni los ámbitos que solicita. Actívalo solo para clientes propios de confianza.",
 	"this_can_be_useful_for_selfsigned_certificates": "Esto puede ser útil para certificados autofirmados.",
 	"enabled_emails": "Correos electrónicos habilitados",
 	"email_login_notification": "Notificación de inicio de sesión por correo electrónico",

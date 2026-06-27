@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS-optie",
 	"email_tls_option": "E-mail TLS-optie",
 	"skip_certificate_verification": "Certificaatverificatie overslaan",
+	"skip_consent": "Toestemmingsscherm overslaan",
+	"skip_consent_description": "Vraag gebruikers niet om deze client en de gevraagde scopes goed te keuren. Schakel dit alleen in voor betrouwbare first-party clients.",
 	"this_can_be_useful_for_selfsigned_certificates": "Dit kan handig zijn voor zelfondertekende certificaten.",
 	"enabled_emails": "Ingeschakelde e-mails",
 	"email_login_notification": "E-mail-inlogmelding",

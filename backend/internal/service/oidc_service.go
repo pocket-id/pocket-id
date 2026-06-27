@@ -224,6 +224,7 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	}
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.RequiresPushedAuthorizationRequests = input.RequiresPushedAuthorizationRequests
+	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
 

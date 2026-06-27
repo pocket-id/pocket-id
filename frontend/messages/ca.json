@@ -182,6 +182,8 @@
 	"smtp_tls_option": "Opció TLS SMTP",
 	"email_tls_option": "Opció TLS del correu",
 	"skip_certificate_verification": "Omet la verificació del certificat",
+	"skip_consent": "Omet la pantalla de consentiment",
+	"skip_consent_description": "No demanis als usuaris que aprovin aquest client ni els escops que sol·licita. Només activa-ho per a clients de primera part de confiança.",
 	"this_can_be_useful_for_selfsigned_certificates": "Això pot ser útil per certificats autosignats.",
 	"enabled_emails": "Correus habilitats",
 	"email_login_notification": "Notificació d'inici de sessió per correu",

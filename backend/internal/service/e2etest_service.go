@@ -257,6 +257,17 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				CallbackURLs: model.UrlList{"http://par-client.localhost/auth/callback"},
 				CreatedByID:  new(users[0].ID),
 			},
+			{
+				Base: model.Base{
+					ID: "e1f2a3b4-c5d6-7890-abcd-ef0000000002",
+				},
+				Name:         "Skip Consent Client",
+				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
+				CallbackURLs: model.UrlList{"http://skip-consent.localhost/auth/callback"},
+				CreatedByID:  new(users[0].ID),
+				// Trusted client that bypasses the consent screen by default
+				SkipConsent: true,
+			},
 		}
 		for _, client := range oidcClients {
 			if err := tx.Create(&client).Error; err != nil {
@@ -770,7 +781,7 @@ func (s *TestService) newFositeTokenRequest(session fositeTokenSession) *fosite.
 			RequestedAt: requestedAt,
 			AuthTime:    requestedAt,
 			Subject:     session.UserID,
-			Issuer: common.EnvConfig.AppURL,
+			Issuer:      common.EnvConfig.AppURL,
 		},
 	}
 	oidcSession.SetExpiresAt(session.TokenType, session.ExpiresAt)
