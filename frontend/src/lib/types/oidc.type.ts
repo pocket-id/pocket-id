@@ -32,6 +32,7 @@ export type OidcClient = OidcClientMetaData & {
 	credentials?: OidcClientCredentials;
 	launchURL?: string;
 	isGroupRestricted: boolean;
+	pkceSupported: boolean;
 };
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {
@@ -42,7 +43,7 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo'>;
+export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'>;
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };

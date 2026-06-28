@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS Seçeneği",
 	"email_tls_option": "E-posta TLS Seçeneği",
 	"skip_certificate_verification": "Sertifika Doğrulamasını Atla",
+	"skip_consent": "Onay Ekranını Atla",
+	"skip_consent_description": "Kullanıcılardan bu istemciyi ve talep ettiği erişim kapsamlarını onaylamalarını istemeyin. Bunu yalnızca güvenilir birinci taraf istemciler için etkinleştirin.",
 	"this_can_be_useful_for_selfsigned_certificates": "Bu, kendi imzaladığınız sertifikalar için yararlı olabilir.",
 	"enabled_emails": "Etkin E-postalar",
 	"email_login_notification": "E-posta Giriş Bildirimi",

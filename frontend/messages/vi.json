@@ -182,6 +182,8 @@
 	"smtp_tls_option": "Tùy Chọn TLS Cho SMTP",
 	"email_tls_option": "Tùy Chọn TLS Cho email",
 	"skip_certificate_verification": "Bỏ Qua Xác Minh Chứng Chỉ (Certificate Verification)",
+	"skip_consent": "Bỏ qua màn hình yêu cầu đồng ý",
+	"skip_consent_description": "Đừng yêu cầu người dùng chấp thuận ứng dụng này và các phạm vi quyền mà nó yêu cầu. Chỉ nên kích hoạt tính năng này cho các ứng dụng bên thứ nhất đáng tin cậy.",
 	"this_can_be_useful_for_selfsigned_certificates": "Điều này có thể hữu ích cho chứng chỉ tự ký.",
 	"enabled_emails": "Email đã bật",
 	"email_login_notification": "Thông Báo Đăng Nhập Email",

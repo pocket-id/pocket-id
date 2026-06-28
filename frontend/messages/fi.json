@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS -valinta",
 	"email_tls_option": "Sähköpostin TLS-valinta",
 	"skip_certificate_verification": "Ohita varmenteen vahvistus",
+	"skip_consent": "Ohita suostumusnäyttö",
+	"skip_consent_description": "Älä pyydä käyttäjiä hyväksymään tätä asiakassovellusta ja sen pyytämiä käyttöoikeuksia. Salli tämä vain luotettaville omille asiakassovelluksille.",
 	"this_can_be_useful_for_selfsigned_certificates": "Tämä voi olla hyödyllistä itse-allekirjoitetuille varmenteille.",
 	"enabled_emails": "Käytössä olevat sähköpostit",
 	"email_login_notification": "Sähköposti-ilmoitus kirjautumisesta",

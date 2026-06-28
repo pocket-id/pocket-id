@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS-alternativ",
 	"email_tls_option": "E-post TLS-alternativ",
 	"skip_certificate_verification": "Hoppa över certifikatverifiering",
+	"skip_consent": "Hoppa över samtyckesskärmen",
+	"skip_consent_description": "Be inte användarna att godkänna den här klienten och de behörighetsområden den begär. Aktivera detta endast för betrodda förstaparts-klienter.",
 	"this_can_be_useful_for_selfsigned_certificates": "Detta kan vara användbart för självsignerade certifikat.",
 	"enabled_emails": "Aktiverade e-postadresser",
 	"email_login_notification": "E-postmeddelande om inloggning",
