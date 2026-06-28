@@ -56,7 +56,7 @@ func TestAPICrudAndPermissionDiff(t *testing.T) {
 	require.NotNil(t, renamed.UpdatedAt)
 
 	require.NoError(t, svc.Delete(t.Context(), created.ID))
-	_, err = svc.Get(t.Context(), created.ID)
+	_, err = svc.Get(t.Context(), nil, created.ID)
 	require.Error(t, err)
 }
 

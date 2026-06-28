@@ -7,13 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
-
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // isPermissionKeyReserved reports whether the key is a scope or claim name owned by Pocket ID's built-in identity layer
@@ -79,9 +78,14 @@ func (s *Service) List(ctx context.Context, search string, listRequestOptions ut
 	return apis, response, err
 }
 
-func (s *Service) Get(ctx context.Context, id string) (api API, err error) {
-	err = s.db.
-		WithContext(ctx).
+// Get loads an API and its permissions
+func (s *Service) Get(ctx context.Context, tx *gorm.DB, id string) (api API, err error) {
+	query := s.db.WithContext(ctx)
+	if tx != nil {
+		query = tx.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"})
+	}
+
+	err = query.
 		Preload("Permissions").
 		Where("id = ?", id).
 		First(&api).
@@ -117,7 +121,7 @@ func (s *Service) Update(ctx context.Context, id string, input apiUpdateDto) (ap
 		tx.Rollback()
 	}()
 
-	api, err = s.getInternal(ctx, id, tx)
+	api, err = s.Get(ctx, tx, id)
 	if err != nil {
 		return API{}, err
 	}
@@ -143,12 +147,12 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 		tx.Rollback()
 	}()
 
-	api, err := s.getInternal(ctx, id, tx)
+	api, err := s.Get(ctx, tx, id)
 	if err != nil {
 		return err
 	}
 
-	if err = s.deletePermissionsInternal(ctx, tx, collectIDs(api.Permissions)); err != nil {
+	if err = s.deletePermissions(ctx, tx, collectIDs(api.Permissions)); err != nil {
 		return err
 	}
 
@@ -167,7 +171,7 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 		tx.Rollback()
 	}()
 
-	api, err = s.getInternal(ctx, id, tx)
+	api, err = s.Get(ctx, tx, id)
 	if err != nil {
 		return API{}, err
 	}
@@ -199,7 +203,7 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 			removedIDs = append(removedIDs, p.ID)
 		}
 	}
-	if err = s.deletePermissionsInternal(ctx, tx, removedIDs); err != nil {
+	if err = s.deletePermissions(ctx, tx, removedIDs); err != nil {
 		return API{}, err
 	}
 
@@ -237,11 +241,16 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 		return API{}, err
 	}
 
+	api, err = s.Get(ctx, tx, id)
+	if err != nil {
+		return API{}, err
+	}
+
 	if err = tx.Commit().Error; err != nil {
 		return API{}, err
 	}
 
-	return s.Get(ctx, id)
+	return api, nil
 }
 
 // GetClientAllowedPermissionIDs returns the IDs of the API permissions a client is allowed to request
@@ -412,22 +421,12 @@ func (s *Service) filterAssignablePermissionIDs(ctx context.Context, tx *gorm.DB
 	return valid, nil
 }
 
-// getInternal loads an API and its permissions inside the given transaction
-// It acquires a row lock because every caller goes on to update or delete the row
-func (s *Service) getInternal(ctx context.Context, id string, tx *gorm.DB) (api API, err error) {
-	err = tx.
-		WithContext(ctx).
-		Clauses(clause.Locking{Strength: "UPDATE"}).
-		Preload("Permissions").
-		Where("id = ?", id).
-		First(&api).
-		Error
-	return api, err
-}
-
-// deletePermissionsInternal removes permissions by ID along with any client allow-list grants that reference them
+// deletePermissions removes permissions by ID along with any client allow-list grants that reference them
 // The explicit grant delete keeps this correct even when the database does not enforce ON DELETE CASCADE at runtime
-func (s *Service) deletePermissionsInternal(ctx context.Context, tx *gorm.DB, permissionIDs []string) error {
+func (s *Service) deletePermissions(ctx context.Context, tx *gorm.DB, permissionIDs []string) error {
+	if tx == nil {
+		tx = s.db
+	}
 	if len(permissionIDs) == 0 {
 		return nil
 	}

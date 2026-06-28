@@ -66,7 +66,7 @@ func (h *handler) list(c *gin.Context) {
 // @Success 200 {object} apiResponseDto
 // @Router /api/apis/{id} [get]
 func (h *handler) get(c *gin.Context) {
-	api, err := h.service.Get(c.Request.Context(), c.Param("id"))
+	api, err := h.service.Get(c.Request.Context(), nil, c.Param("id"))
 	if err != nil {
 		_ = c.Error(err)
 		return
