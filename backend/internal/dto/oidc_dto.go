@@ -21,6 +21,7 @@ type OidcClientDto struct {
 	SkipConsent                         bool                     `json:"skipConsent"`
 	Credentials                         OidcClientCredentialsDto `json:"credentials"`
 	IsGroupRestricted                   bool                     `json:"isGroupRestricted"`
+	PkceSupported                       bool                     `json:"pkceSupported,omitempty"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {

@@ -36,6 +36,7 @@ type OidcClient struct {
 	Credentials                         OidcClientCredentials
 	LaunchURL                           *string
 	IsGroupRestricted                   bool `sortable:"true" filterable:"true"`
+	PkceSupported                       bool `sortable:"true" filterable:"true"`
 
 	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID               *string

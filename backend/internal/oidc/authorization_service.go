@@ -133,12 +133,28 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 		now:                time.Now().UTC(),
 	}
 
+	codeChallenge := input.requester.GetRequestForm().Get("code_challenge")
+
 	var result authorizationResult
 	err = withTx(ctx, s.db, func(ctx context.Context) error {
 		var err error
 		result, err = s.authorizeAuthenticated(ctx, req)
-		return err
+		if err != nil {
+			return err
+		}
+
+		if codeChallenge != "" &&
+			!client.PkceEnabled &&
+			!client.PkceSupported {
+
+			tx := dbFromContext(ctx, s.db)
+
+			_ = flagPkceSupportedClient(ctx, client.GetID(), tx)
+		}
+
+		return nil
 	})
+
 	if err != nil {
 		return authorizationResult{}, err
 	}
@@ -227,6 +243,20 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 	}
 
 	return authorizationResult{Session: session}, nil
+}
+
+func flagPkceSupportedClient(ctx context.Context, clientID string, tx *gorm.DB) error {
+	err := tx.
+		WithContext(ctx).
+		Model(&model.OidcClient{}).
+		Where("id = ?", clientID).
+		Update("pkce_supported", true).
+		Error
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return nil
 }
 
 // resolveRequirements determines the interaction steps still required; the requirements
