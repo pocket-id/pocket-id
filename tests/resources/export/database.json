@@ -173,6 +173,7 @@
 				"logout_callback_urls": "bnVsbA==",
 				"name": "Skip Consent Client",
 				"pkce_enabled": false,
+				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
 				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC",
