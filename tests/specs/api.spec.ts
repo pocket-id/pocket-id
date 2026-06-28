@@ -31,7 +31,7 @@ test('Lists the preseeded API', async ({ page }) => {
 
 	const row = page.getByRole('row', { name: apis.orders.name });
 	await expect(row).toBeVisible();
-	await expect(row).toContainText(apis.orders.audience);
+	await expect(row).toContainText(apis.orders.resource);
 });
 
 test('Create API', async ({ page }) => {
@@ -39,17 +39,17 @@ test('Create API', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Add API' }).click();
 	await page.getByLabel('Name', { exact: true }).fill('Billing API');
-	await page.getByLabel('Audience').fill('https://api.billing.test');
+	await page.getByLabel('Resource').fill('https://api.billing.test');
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('API created successfully');
 	await page.waitForURL('/settings/admin/apis/*');
 
 	await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Billing API');
-	await expect(page.getByLabel('Audience')).toHaveValue('https://api.billing.test');
+	await expect(page.getByLabel('Resource')).toHaveValue('https://api.billing.test');
 });
 
-test('Cannot create an API with the issuer as audience', async ({ page }) => {
+test('Cannot create an API with the issuer as resource', async ({ page }) => {
 	const { issuer } = await page.request
 		.get('/.well-known/openid-configuration')
 		.then((r) => r.json());
@@ -57,7 +57,7 @@ test('Cannot create an API with the issuer as audience', async ({ page }) => {
 	await page.goto('/settings/admin/apis');
 	await page.getByRole('button', { name: 'Add API' }).click();
 	await page.getByLabel('Name', { exact: true }).fill('Reserved API');
-	await page.getByLabel('Audience').fill(issuer);
+	await page.getByLabel('Resource').fill(issuer);
 	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="error"]')).toContainText('reserved');
@@ -140,7 +140,7 @@ test('Authorization with a resource parameter issues a token audienced to that A
 		client_id: client.id,
 		response_type: 'code',
 		scope: 'openid email read:orders',
-		resource: api.audience,
+		resource: api.resource,
 		redirect_uri: client.callbackUrl,
 		state: 'nXx-6Qr-owc1SHBa',
 		nonce: 'P1gN3PtpKHJgKUVcLpLjm'
@@ -167,7 +167,7 @@ test('Authorization with a resource parameter issues a token audienced to that A
 	expect(res.access_token).toBeTruthy();
 
 	const claims = jose.decodeJwt(res.access_token!);
-	expect(tokenAudiences(claims)).toContain(api.audience);
+	expect(tokenAudiences(claims)).toContain(api.resource);
 	expect(tokenScopes(claims)).toContain(api.permissions.readOrders.key);
 });
 
@@ -181,7 +181,7 @@ test('Consent screen shows the friendly permission name for a resource request',
 		client_id: client.id,
 		response_type: 'code',
 		scope: 'openid read:orders',
-		resource: api.audience,
+		resource: api.resource,
 		redirect_uri: client.callbackUrl,
 		state: 'nXx-6Qr-owc1SHBa'
 	});

@@ -15,12 +15,12 @@ func TestAPICrudAndPermissionDiff(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := New(Dependencies{DB: db}).service
 
-	created, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders API", Audience: "https://api.orders.example.com"})
+	created, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders API", Resource: "https://api.orders.example.com"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, created.ID)
 
-	// The audience is unique.
-	_, err = svc.Create(t.Context(), apiCreateDto{Name: "Dup", Audience: "https://api.orders.example.com"})
+	// The resource is unique.
+	_, err = svc.Create(t.Context(), apiCreateDto{Name: "Dup", Resource: "https://api.orders.example.com"})
 	require.ErrorIs(t, err, &common.AlreadyInUseError{})
 
 	desc := "Read orders"
@@ -66,7 +66,7 @@ func TestClientApiAccessAllowList(t *testing.T) {
 
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-1"}, Name: "Client 1"}).Error)
 
-	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Audience: "https://api.orders.example.com"})
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
 	require.NoError(t, err)
 	orders, err = svc.UpdatePermissions(t.Context(), orders.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{
 		{Key: "read:orders", Name: "Read"},
@@ -108,7 +108,7 @@ func TestUpdatePermissionsRejectsReservedKeys(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := New(Dependencies{DB: db}).service
 
-	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Audience: "https://api.orders.example.com"})
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
 	require.NoError(t, err)
 
 	for _, key := range []string{"openid", "profile", "email", "email_verified", "groups", "offline_access", "Email"} {
@@ -125,7 +125,7 @@ func TestUpdatePermissionsRejectsInvalidKeyCharacters(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := New(Dependencies{DB: db}).service
 
-	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Audience: "https://api.orders.example.com"})
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
 	require.NoError(t, err)
 
 	// A space corrupts the space-delimited scope claim, and the unit separator is the consent delimiter
@@ -145,21 +145,21 @@ func TestUpdatePermissionsRejectsInvalidKeyCharacters(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestCreateRejectsIssuerAudience(t *testing.T) {
+func TestCreateRejectsIssuerResource(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	const issuer = "https://id.example.com"
 	svc := New(Dependencies{DB: db, Issuer: issuer}).service
 
 	// The issuer itself, a trailing-slash variant, and a different-cased variant are all reserved
-	for _, audience := range []string{issuer, issuer + "/", "https://ID.example.com"} {
-		_, err := svc.Create(t.Context(), apiCreateDto{Name: "Reserved", Audience: audience})
-		require.Error(t, err, "audience %q must be rejected", audience)
+	for _, resource := range []string{issuer, issuer + "/", "https://ID.example.com"} {
+		_, err := svc.Create(t.Context(), apiCreateDto{Name: "Reserved", Resource: resource})
+		require.Error(t, err, "resource %q must be rejected", resource)
 		var validationErr *common.ValidationError
 		require.ErrorAs(t, err, &validationErr)
 	}
 
-	// A normal audience is accepted
-	_, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Audience: "https://api.orders.example.com"})
+	// A normal resource is accepted
+	_, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
 	require.NoError(t, err)
 }
 
@@ -167,7 +167,7 @@ func TestDescribePermissions(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := New(Dependencies{DB: db}).service
 
-	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Audience: "https://api.orders.example.com"})
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
 	require.NoError(t, err)
 	desc := "Read orders"
 	_, err = svc.UpdatePermissions(t.Context(), orders.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{

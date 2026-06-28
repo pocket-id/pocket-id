@@ -86,9 +86,9 @@
 						<div class="flex flex-col gap-1">
 							<span class="font-medium">{api.name}</span>
 							<div>
-								<CopyToClipboard value={api.audience}>
+								<CopyToClipboard value={api.resource}>
 									<span class="text-muted-foreground font-mono text-xs break-all"
-										>{api.audience}</span
+										>{api.resource}</span
 									>
 								</CopyToClipboard>
 							</div>

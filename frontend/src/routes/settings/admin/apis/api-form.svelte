@@ -20,12 +20,12 @@
 
 	const api = {
 		name: existingApi?.name || '',
-		audience: existingApi?.audience || '',
+		resource: existingApi?.resource || ''
 	};
 
 	const formSchema = z.object({
 		name: z.string().min(1).max(50),
-		audience: z.url().min(1).max(350),
+		resource: z.url().min(1).max(350)
 	});
 	type FormSchema = typeof formSchema;
 
@@ -47,9 +47,9 @@
 	<div class="flex flex-col gap-3">
 		<FormInput label={m.name()} bind:input={$inputs.name} />
 		<FormInput
-			label={m.api_audience()}
-			description={m.api_audience_description()}
-			bind:input={$inputs.audience}
+			label={m.api_resource()}
+			description={m.api_resource_description()}
+			bind:input={$inputs.resource}
 			readonly={isEdit}
 		/>
 	</div>

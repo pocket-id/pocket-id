@@ -8,7 +8,7 @@ import (
 type apiResponseDto struct {
 	ID          string                     `json:"id"`
 	Name        string                     `json:"name"`
-	Audience    string                     `json:"audience"`
+	Resource    string                     `json:"resource"`
 	CreatedAt   datatype.DateTime          `json:"createdAt"`
 	Permissions []apiPermissionResponseDto `json:"permissions"`
 }
@@ -24,20 +24,20 @@ type apiPermissionResponseDto struct {
 type apiListItemDto struct {
 	ID              string            `json:"id"`
 	Name            string            `json:"name"`
-	Audience        string            `json:"audience"`
+	Resource        string            `json:"resource"`
 	CreatedAt       datatype.DateTime `json:"createdAt"`
 	PermissionCount int               `json:"permissionCount"`
 }
 
 // apiCreateDto is the payload for creating an API
-// The audience is only accepted here because changing it later would invalidate every token already minted for the API
+// The resource identifier is only accepted here because changing it later would invalidate every token already minted for the API
 type apiCreateDto struct {
 	Name     string `json:"name" binding:"required,min=1,max=50" unorm:"nfc"`
-	Audience string `json:"audience" binding:"required,uri,max=350" unorm:"nfc"`
+	Resource string `json:"resource" binding:"required,uri,max=350" unorm:"nfc"`
 }
 
 // apiUpdateDto is the payload for updating an API
-// The audience is intentionally not updatable
+// The resource identifier is intentionally not updatable
 type apiUpdateDto struct {
 	Name string `json:"name" binding:"required,min=1,max=50" unorm:"nfc"`
 }

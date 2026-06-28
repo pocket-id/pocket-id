@@ -53,6 +53,10 @@ func (s *Service) List(ctx context.Context, search string, listRequestOptions ut
 		Preload("Permissions").
 		Model(&API{})
 
+	if listRequestOptions.Sort.Column == "resource" {
+		listRequestOptions.Sort.Column = "audience"
+	}
+
 	if search != "" {
 		like := "%" + search + "%"
 		query = query.Where("name LIKE ? OR audience LIKE ?", like, like)
@@ -74,19 +78,19 @@ func (s *Service) Get(ctx context.Context, id string) (api API, err error) {
 
 func (s *Service) Create(ctx context.Context, input apiCreateDto) (api API, err error) {
 	// Reject the issuer as an audience so a custom API cannot impersonate Pocket ID's own identity tokens
-	if isIssuerAudience(input.Audience, s.issuer) {
-		return API{}, &common.ValidationError{Message: "the audience is reserved by Pocket ID and cannot be used for a custom API"}
+	if isIssuerAudience(input.Resource, s.issuer) {
+		return API{}, &common.ValidationError{Message: "the resource is reserved by Pocket ID and cannot be used for a custom API"}
 	}
 
 	api = API{
 		Name:     input.Name,
-		Audience: input.Audience,
+		Audience: input.Resource,
 	}
 
 	err = s.db.WithContext(ctx).Create(&api).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return API{}, &common.AlreadyInUseError{Property: "audience"}
+			return API{}, &common.AlreadyInUseError{Property: "resource"}
 		}
 		return API{}, err
 	}

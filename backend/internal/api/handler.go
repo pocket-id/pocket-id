@@ -22,7 +22,7 @@ func newHandler(service *Service) *handler {
 // @Description Get a paginated list of APIs with optional search and sorting
 // @Tags APIs
 // @Produce json
-// @Param search query string false "Search term to filter APIs by name or audience"
+// @Param search query string false "Search term to filter APIs by name or resource"
 // @Param pagination[page] query int false "Page number for pagination" default(1)
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
@@ -46,6 +46,7 @@ func (h *handler) list(c *gin.Context) {
 			_ = c.Error(err)
 			return
 		}
+		item.Resource = api.Audience
 		item.PermissionCount = len(api.Permissions)
 		items[i] = item
 	}
@@ -223,5 +224,6 @@ func (h *handler) respond(c *gin.Context, status int, api API) {
 		_ = c.Error(err)
 		return
 	}
+	responseDto.Resource = api.Audience
 	c.JSON(status, responseDto)
 }

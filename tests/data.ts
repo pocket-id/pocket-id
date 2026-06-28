@@ -86,7 +86,7 @@ export const apis = {
 	orders: {
 		id: 'f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d',
 		name: 'Orders API',
-		audience: 'https://api.orders.test',
+		resource: 'https://api.orders.test',
 		permissions: {
 			readOrders: {
 				id: '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d',

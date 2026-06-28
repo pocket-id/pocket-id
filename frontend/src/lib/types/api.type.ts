@@ -8,7 +8,7 @@ export type ApiPermission = {
 export type Api = {
 	id: string;
 	name: string;
-	audience: string;
+	resource: string;
 	createdAt: string;
 	permissions: ApiPermission[];
 };
@@ -19,7 +19,7 @@ export type ApiListItem = Omit<Api, 'permissions'> & {
 
 export type ApiCreate = {
 	name: string;
-	audience: string;
+	resource: string;
 };
 
 export type ApiUpdate = {

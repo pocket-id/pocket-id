@@ -23,7 +23,7 @@
 	const columns: AdvancedTableColumn<ApiListItem>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.name(), column: 'name', sortable: true },
-		{ label: m.api_audience(), column: 'audience', sortable: true },
+		{ label: m.api_resource(), column: 'resource', sortable: true },
 		{ label: m.api_permissions(), key: 'permissionCount', value: (item) => item.permissionCount }
 	];
 
