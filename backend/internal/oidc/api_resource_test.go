@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 // fakeAPIAccess implements APIAccessProvider from an audience -> allowed-scopes map.
@@ -14,7 +15,7 @@ type fakeAPIAccess struct {
 	allowed map[string][]string
 }
 
-func (f fakeAPIAccess) ClientAPIScopes(_ context.Context, _ string) ([]string, []string, error) {
+func (f fakeAPIAccess) ClientAPIScopes(_ context.Context, _ *gorm.DB, _ string) ([]string, []string, error) {
 	seen := map[string]struct{}{}
 	var scopes, audiences []string
 	for audience, scopeKeys := range f.allowed {

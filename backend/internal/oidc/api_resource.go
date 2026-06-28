@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/ory/fosite"
+	"gorm.io/gorm"
 )
 
 // standardScopes are the built-in identity scopes that any client may request
@@ -26,7 +27,7 @@ type PermissionInfo struct {
 // It lets the OIDC module widen per-client scope and audience validation and resolve RFC 8707 resources to the permission keys a client may be granted
 type APIAccessProvider interface {
 	// ClientAPIScopes returns the custom-API permission keys and the distinct API audiences a client is allowed to request
-	ClientAPIScopes(ctx context.Context, clientID string) (scopes []string, audiences []string, err error)
+	ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID string) (scopes []string, audiences []string, err error)
 	// AllowedScopesForAudience returns the permission keys the client is allowed for the API identified by the given audience, and whether such an API exists
 	AllowedScopesForAudience(ctx context.Context, clientID, audience string) (scopes []string, apiExists bool, err error)
 	// DescribePermissions returns the display information for the given permission keys of the API identified by audience

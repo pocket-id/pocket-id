@@ -29,8 +29,8 @@ func New(deps Dependencies) *Module {
 }
 
 // ClientAPIScopes implements the OIDC module's APIAccessProvider interface
-func (m *Module) ClientAPIScopes(ctx context.Context, clientID string) (scopes []string, audiences []string, err error) {
-	return m.service.ClientAPIScopesAndAudiences(ctx, clientID)
+func (m *Module) ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID string) (scopes []string, audiences []string, err error) {
+	return m.service.ClientAPIScopesAndAudiences(ctx, tx, clientID)
 }
 
 // AllowedScopesForAudience implements the OIDC module's APIAccessProvider interface
@@ -62,20 +62,16 @@ func (m *Module) DescribePermissions(ctx context.Context, audience string, keys 
 func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, adminAuth gin.HandlerFunc) {
 	apis := apiGroup.Group("/apis")
 	apis.Use(adminAuth)
-	{
-		apis.GET("", m.handler.list)
-		apis.POST("", m.handler.create)
-		apis.GET("/:id", m.handler.get)
-		apis.PUT("/:id", m.handler.update)
-		apis.DELETE("/:id", m.handler.delete)
-		apis.PUT("/:id/permissions", m.handler.updatePermissions)
-	}
+	apis.GET("", m.handler.list)
+	apis.POST("", m.handler.create)
+	apis.GET("/:id", m.handler.get)
+	apis.PUT("/:id", m.handler.update)
+	apis.DELETE("/:id", m.handler.delete)
+	apis.PUT("/:id/permissions", m.handler.updatePermissions)
 
 	// The per-client API-access allow-list lives on a separate path so it does not collide with the /apis/:id wildcard
 	access := apiGroup.Group("/api-access")
 	access.Use(adminAuth)
-	{
-		access.GET("/:clientId", m.handler.getClientAccess)
-		access.PUT("/:clientId", m.handler.updateClientAccess)
-	}
+	access.GET("/:clientId", m.handler.getClientAccess)
+	access.PUT("/:clientId", m.handler.updateClientAccess)
 }

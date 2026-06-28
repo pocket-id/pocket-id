@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -16,20 +16,33 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// reservedPermissionKeys are the scope and claim names owned by Pocket ID's built-in identity layer
+// isPermissionKeyReserved reports whether the key is a scope or claim name owned by Pocket ID's built-in identity layer
 // A custom API permission must not reuse one, otherwise its scope string would collide with a standard OIDC scope or claim
-var reservedPermissionKeys = map[string]struct{}{
-	"openid":         {},
-	"profile":        {},
-	"email":          {},
-	"email_verified": {},
-	"groups":         {},
-	"offline_access": {},
+func isPermissionKeyReserved(key string) bool {
+	switch strings.ToLower(key) {
+	case "openid", "profile", "email", "email_verified", "groups", "offline_access":
+		return true
+	default:
+		return false
+	}
 }
 
-// permissionKeyPattern restricts permission keys to RFC 6749 scope-token characters, which are printable ASCII without space, double-quote or backslash
+// isValidPermissionKey reports whether the key consists only of RFC 6749 scope-token characters, which are printable ASCII without space, double-quote or backslash
 // This keeps a key safe as a space-delimited value in the token scope claim and free of the control character used to qualify consent records
-var permissionKeyPattern = regexp.MustCompile(`^[\x21\x23-\x5B\x5D-\x7E]+$`)
+func isValidPermissionKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i := 0; i < len(key); i++ {
+		c := key[i]
+		// Allow 0x21, 0x23-0x5B and 0x5D-0x7E, which excludes space (0x20), double-quote (0x22) and backslash (0x5C)
+		if c == 0x21 || (c >= 0x23 && c <= 0x5B) || (c >= 0x5D && c <= 0x7E) {
+			continue
+		}
+		return false
+	}
+	return true
+}
 
 // Service holds the business logic for managing APIs and their permissions
 type Service struct {
@@ -44,7 +57,7 @@ func newService(db *gorm.DB, issuer string) *Service {
 // isIssuerAudience reports whether the audience refers to Pocket ID itself (the issuer)
 // A custom API must not claim the issuer as its audience, otherwise its tokens would be indistinguishable from Pocket ID's own identity tokens
 func isIssuerAudience(audience, issuer string) bool {
-	return issuer != "" && strings.EqualFold(strings.TrimRight(audience, "/"), strings.TrimRight(issuer, "/"))
+	return issuer != "" && strings.ToLower(strings.TrimRight(audience, "/")) == issuer
 }
 
 func (s *Service) List(ctx context.Context, search string, listRequestOptions utils.ListRequestOptions) (apis []API, response utils.PaginationResponse, err error) {
@@ -161,10 +174,10 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 
 	// Reject keys with invalid characters or that collide with Pocket ID's reserved scopes and claims before persisting anything
 	for _, permission := range input.Permissions {
-		if !permissionKeyPattern.MatchString(permission.Key) {
+		if !isValidPermissionKey(permission.Key) {
 			return API{}, &common.ValidationError{Message: fmt.Sprintf("the permission key %q contains invalid characters", permission.Key)}
 		}
-		if _, reserved := reservedPermissionKeys[strings.ToLower(permission.Key)]; reserved {
+		if isPermissionKeyReserved(permission.Key) {
 			return API{}, &common.ValidationError{Message: fmt.Sprintf("the permission key %q is reserved by Pocket ID", permission.Key)}
 		}
 	}
@@ -291,12 +304,16 @@ func (s *Service) SetClientAllowedPermissions(ctx context.Context, clientID stri
 
 // ClientAPIScopesAndAudiences returns the permission keys a client may request and the distinct audiences of the custom APIs those permissions belong to
 // The OIDC module uses this to widen fosite's scope and audience validation for the client
-func (s *Service) ClientAPIScopesAndAudiences(ctx context.Context, clientID string) (scopes []string, audiences []string, err error) {
+func (s *Service) ClientAPIScopesAndAudiences(ctx context.Context, tx *gorm.DB, clientID string) (scopes []string, audiences []string, err error) {
+	if tx == nil {
+		tx = s.db
+	}
+
 	var rows []struct {
 		Key      string
 		Audience string
 	}
-	err = s.db.WithContext(ctx).
+	err = tx.WithContext(ctx).
 		Table("oidc_clients_allowed_api_permissions AS g").
 		Select("api_permissions.key AS key, apis.audience AS audience").
 		Joins("JOIN api_permissions ON api_permissions.id = g.api_permission_id").
@@ -310,6 +327,8 @@ func (s *Service) ClientAPIScopesAndAudiences(ctx context.Context, clientID stri
 
 	scopeSeen := make(map[string]struct{}, len(rows))
 	audienceSeen := make(map[string]struct{}, len(rows))
+	scopes = make([]string, 0, len(rows))
+	audiences = make([]string, 0, len(rows))
 	for _, row := range rows {
 		if _, ok := scopeSeen[row.Key]; !ok {
 			scopeSeen[row.Key] = struct{}{}
@@ -393,9 +412,12 @@ func (s *Service) filterAssignablePermissionIDs(ctx context.Context, tx *gorm.DB
 	return valid, nil
 }
 
+// getInternal loads an API and its permissions inside the given transaction
+// It acquires a row lock because every caller goes on to update or delete the row
 func (s *Service) getInternal(ctx context.Context, id string, tx *gorm.DB) (api API, err error) {
 	err = tx.
 		WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Preload("Permissions").
 		Where("id = ?", id).
 		First(&api).

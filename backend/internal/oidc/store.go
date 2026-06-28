@@ -78,28 +78,39 @@ type storedRequester struct {
 // Satisfies fosite.Storage
 
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
-	var clientModel model.OidcClient
-	err := s.dbFor(ctx).
-		Preload("AllowedUserGroups").
-		First(&clientModel, "id = ?", id).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fosite.ErrNotFound
-	}
+	var client Client
+	err := withTx(ctx, s.db, func(ctx context.Context) error {
+		// withTx guarantees a transaction in the context, so dbFor resolves to it
+		tx := s.dbFor(ctx)
+
+		var clientModel model.OidcClient
+		err := tx.
+			Preload("AllowedUserGroups").
+			First(&clientModel, "id = ?", id).
+			Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fosite.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+
+		client = Client{OidcClient: clientModel}
+
+		// Populate the API scopes and audiences for the client if the API access provider is available
+		if s.apiAccess != nil {
+			apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			client.apiScopes = apiScopes
+			client.apiAudiences = apiAudiences
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
-	}
-
-	client := Client{OidcClient: clientModel}
-
-	//  Populate the API scopes and audiences for the client if the API access provider is available
-	if s.apiAccess != nil {
-		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		client.apiScopes = apiScopes
-		client.apiAudiences = apiAudiences
 	}
 
 	return client, nil
