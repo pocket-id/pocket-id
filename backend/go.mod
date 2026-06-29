@@ -19,8 +19,6 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-contrib/slog v1.2.1
 	github.com/gin-gonic/gin v1.12.0
-	github.com/glebarez/go-sqlite v1.22.0
-	github.com/glebarez/sqlite v1.11.0
 	github.com/go-co-op/gocron/v2 v2.21.2
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/go-ldap/ldap/v3 v3.4.13
@@ -35,6 +33,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lestrrat-go/httprc/v3 v3.0.6
 	github.com/lestrrat-go/jwx/v3 v3.1.1
+	github.com/libtnb/sqlite v1.1.2
 	github.com/lmittmann/tint v1.1.3
 	github.com/mattn/go-isatty v0.0.22
 	github.com/mileusna/useragent v1.3.5
@@ -62,6 +61,7 @@ require (
 	golang.org/x/time v0.15.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
+	modernc.org/sqlite v1.53.0
 )
 
 require (
@@ -234,7 +234,6 @@ require (
 	modernc.org/libc v1.73.5 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.53.0 // indirect
 )
 
 replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260617200813-dd5303674b39

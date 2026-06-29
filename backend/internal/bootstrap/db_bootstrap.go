@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/libtnb/sqlite"
 	slogGorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
