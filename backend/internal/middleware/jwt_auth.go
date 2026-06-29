@@ -52,7 +52,7 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 	if err != nil {
 		return "", false, "", time.Time{}, &common.NotSignedInError{}
 	}
-	authenticationMethod, err = service.GetAuthenticationMethod(token)
+	authenticationMethod, err = m.jwtService.GetAuthenticationMethod(token)
 	if err != nil {
 		return "", false, "", time.Time{}, &common.NotSignedInError{}
 	}

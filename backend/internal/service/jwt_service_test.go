@@ -324,7 +324,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			require.NoError(t, claims.Get(IsAdminClaim, &isAdmin), "Failed to get isAdmin claim")
 		}
 		assert.False(t, isAdmin, "isAdmin should be false")
-		authenticationMethod, err := GetAuthenticationMethod(claims)
+		authenticationMethod, err := service.GetAuthenticationMethod(claims)
 		_ = assert.NoError(t, err, "Failed to get amr claim") &&
 			assert.Empty(t, authenticationMethod, "amr should be empty when not specified")
 		audience, ok := claims.Audience()
@@ -379,7 +379,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		claims, err := service.VerifyAccessToken(tokenString)
 		require.NoError(t, err, "Failed to verify generated token")
 
-		authenticationMethod, err := GetAuthenticationMethod(claims)
+		authenticationMethod, err := service.GetAuthenticationMethod(claims)
 		_ = assert.NoError(t, err, "Failed to get amr claim") &&
 			assert.Equal(t, AuthenticationMethodPhishingResistant, authenticationMethod, "amr should match")
 	})

@@ -31,6 +31,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
@@ -347,11 +348,11 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		webauthnSession := model.WebauthnSession{
+		webauthnSession := webauthn.WebauthnSession{
 			Challenge:        "challenge",
 			ExpiresAt:        datatype.DateTime(time.Now().Add(1 * time.Hour)),
 			UserVerification: "preferred",
-			CredentialParams: model.CredentialParameters{
+			CredentialParams: webauthn.CredentialParameters{
 				{Type: "public-key", Algorithm: -7},
 				{Type: "public-key", Algorithm: -257},
 			},

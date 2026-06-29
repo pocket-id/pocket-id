@@ -128,9 +128,14 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 		authMiddleware.WithAdminNotRequired().Add(),
 		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(),
 	)
-	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.webauthnService, svc.appConfigService)
+	webauthnRateLimitMiddleware := middleware.NewRateLimitMiddleware()
+	svc.webauthnModule.RegisterRoutes(apiGroup,
+		authMiddleware.WithAdminNotRequired().Add(),
+		webauthnRateLimitMiddleware.Add(rate.Every(10*time.Second), 5),
+		webauthnRateLimitMiddleware.Add(rate.Every(10*time.Second), 5),
+	)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
-	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.webauthnService, svc.appConfigService)
+	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.webauthnModule, svc.appConfigService)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
