@@ -72,9 +72,11 @@ func DeriveEncryptedStringKey(master []byte) ([]byte, error) {
 	r := hkdf.New(sha256.New, master, nil, []byte(info))
 
 	key := make([]byte, 32)
-	if _, err := io.ReadFull(r, key); err != nil {
+	_, err := io.ReadFull(r, key)
+	if err != nil {
 		return nil, err
 	}
+
 	return key, nil
 }
 

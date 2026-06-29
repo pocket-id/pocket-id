@@ -631,7 +631,7 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 }
 
 func (s *TestService) SignRefreshToken(ctx context.Context, userID, clientID, fixtureRefreshToken string) (string, error) {
-	globalSecret, err := oidc.DeriveGlobalSecret(string(common.EnvConfig.EncryptionKey))
+	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
 	if err != nil {
 		return "", err
 	}
@@ -699,7 +699,7 @@ func seededRefreshTokenFixture(userID string, clientID string, fixtureRefreshTok
 }
 
 func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID string, expired bool) (string, error) {
-	globalSecret, err := oidc.DeriveGlobalSecret(string(common.EnvConfig.EncryptionKey))
+	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
 	if err != nil {
 		return "", err
 	}

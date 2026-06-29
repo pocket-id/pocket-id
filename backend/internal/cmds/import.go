@@ -73,7 +73,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 	}
 	defer zipReader.Close()
 
-	db, err := bootstrap.ConnectDatabase()
+	db, _, err := bootstrap.ConnectDatabase(ctx)
 	if err != nil {
 		return err
 	}

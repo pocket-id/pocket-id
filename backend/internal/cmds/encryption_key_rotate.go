@@ -30,7 +30,7 @@ func init() {
 		Use:   "encryption-key-rotate",
 		Short: "Re-encrypts data using a new encryption key",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := bootstrap.NewDatabase()
+			db, _, err := bootstrap.NewDatabase(cmd.Context())
 			if err != nil {
 				return err
 			}

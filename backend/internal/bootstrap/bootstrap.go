@@ -33,23 +33,44 @@ func Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize OpenTelemetry: %w", err)
 	}
+
 	slog.InfoContext(ctx, "Pocket ID is starting")
 
-	db, err := NewDatabase()
+	// Init database
+	db, pg, err := NewDatabase(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
+	// Init storage
 	fileStorage, err := InitStorage(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
 	}
 
+	// Init the actors
+	actorsOpts := NewActorsOpts{
+		EnvConfig: &common.EnvConfig,
+		Postgres:  pg,
+	}
+	if pg == nil {
+		actorsOpts.SQLite, err = db.DB()
+		if err != nil {
+			return fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
+		}
+	}
+	actors, err := NewActors(actorsOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize actors: %w", err)
+	}
+
+	// Init application images
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize application images: %w", err)
 	}
 
+	// Init the scheduler
 	scheduler, err := job.NewScheduler()
 	if err != nil {
 		return fmt.Errorf("failed to create job scheduler: %w", err)
@@ -97,7 +118,7 @@ func Bootstrap(ctx context.Context) error {
 
 	// Run all background services
 	// This call blocks until the context is canceled
-	services := []utils.Service{svc.appLockService.RunRenewal, router}
+	services := []utils.Service{svc.appLockService.RunRenewal, actors.Run, router}
 
 	if common.EnvConfig.AppEnv != "test" {
 		services = append(services, scheduler.Run)

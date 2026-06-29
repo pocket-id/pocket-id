@@ -5,21 +5,19 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha3"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash"
 	"io"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
 )
 
 const (
@@ -52,13 +50,8 @@ func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) 
 	}
 
 	// We need a 256-bit key for encryption with AES-GCM-256
-	// We use HMAC with SHA3-256 here to derive the key from the one passed as input
 	// The key is tied to a specific instance of Pocket ID
-	h := hmac.New(func() hash.Hash { return sha3.New256() }, []byte(envConfig.EncryptionKey))
-	fmt.Fprint(h, "pocketid/"+instanceID+"/jwk-kek")
-	kek = h.Sum(nil)
-
-	return kek, nil
+	return crypto.DeriveKey(envConfig, "pocketid/"+instanceID+"/jwk-kek")
 }
 
 // ImportRawKey imports a crypto key in "raw" format (e.g. crypto.PrivateKey) into a jwk.Key.
