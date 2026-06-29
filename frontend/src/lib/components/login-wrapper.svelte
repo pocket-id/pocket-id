@@ -17,12 +17,10 @@
 	let {
 		children,
 		showAlternativeSignInMethodButton = false,
-		isWide = false,
 		hasClient = false
 	}: {
 		children: Snippet;
 		showAlternativeSignInMethodButton?: boolean;
-		isWide?: boolean;
 		hasClient?: boolean;
 	} = $props();
 
@@ -77,9 +75,8 @@
 			: 'justify-center'}"
 	>
 		<div
-			class="relative z-10 flex h-full w-full p-16 transition-all duration-300 {cn(
-				showAlternativeSignInMethodButton && 'pb-0',
-				isWide ? 'max-w-[850px] 2xl:max-w-[1000px]' : 'max-w-[650px] 2xl:max-w-[800px]'
+			class="relative z-10 flex h-full w-full max-w-[650px] 2xl:max-w-[800px] p-16 {cn(
+				showAlternativeSignInMethodButton && 'pb-0'
 			)}"
 		>
 			<div class="flex h-full w-full flex-col overflow-hidden">
@@ -102,17 +99,13 @@
 		{#if backgroundImageExists}
 			<!-- Background image -->
 			<div
-				class="absolute top-0 right-0 bottom-0 z-0 m-6 overflow-hidden rounded-[40px] transition-all duration-300 {isWide
-					? 'left-[850px] 2xl:left-[1000px]'
-					: 'left-[650px] 2xl:left-[800px]'}"
+				class="absolute top-0 right-0 bottom-0 left-[650px] z-0 m-6 overflow-hidden rounded-[40px] 2xl:left-[800px]"
 			>
 				<img
 					src={cachedBackgroundImage.getUrl()}
 					class="{cn(
 						animate && 'animate-bg-zoom'
-					)} h-screen object-cover transition-all duration-300 {isWide
-						? 'w-[calc(100vw-850px)] 2xl:w-[calc(100vw-1000px)]'
-						: 'w-[calc(100vw-650px)] 2xl:w-[calc(100vw-800px)]'}"
+					)} h-screen object-cover w-[calc(100vw-650px)] 2xl:w-[calc(100vw-800px)]"
 					alt={m.login_background()}
 				/>
 			</div>
@@ -120,14 +113,12 @@
 	</div>
 {:else}
 	<div
-		class="flex h-screen items-center justify-center bg-cover bg-center text-center"
+		class="flex min-h-dvh items-center justify-center bg-cover bg-center text-center"
 		style="background-image: url({cachedBackgroundImage.getUrl()});"
 	>
 		<Card.Root
 			class={{
-				'mx-3 w-full transition-all duration-300': true,
-				'max-w-2xl': isWide,
-				'max-w-md': !isWide,
+				'mx-3 w-full max-w-md': true,
 				'bg-transparent border-0': !backgroundImageExists
 			}}
 		>
