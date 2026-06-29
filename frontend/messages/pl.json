@@ -530,5 +530,7 @@
 	"emails_verified_by_default_description": "Po włączeniu tej opcji adresy e-mail użytkowników będą domyślnie oznaczane jako zweryfikowane podczas rejestracji lub zmiany adresu e-mail.",
 	"user_has_no_passkeys_yet": "Ten użytkownik nie ma jeszcze żadnych kluczy dostępu.",
 	"replay_protection": "Ochrona przed odtworzeniem",
-	"replay_protection_description": "Jeśli ta opcja jest włączona, podany token można wykorzystać tylko raz. Jeśli twój dostawca używa tego samego tokenu wielokrotnie, może być konieczne wyłączenie tej opcji."
+	"replay_protection_description": "Jeśli ta opcja jest włączona, podany token można wykorzystać tylko raz. Jeśli twój dostawca używa tego samego tokenu wielokrotnie, może być konieczne wyłączenie tej opcji.",
+	"pkce_supported_client_title": "Ten klient obsługuje PKCE",
+	"pkce_supported_client_description": "Ten klient obsługuje funkcję Proof Key for Code Exchange (PKCE). PKCE to funkcja zabezpieczająca, która pomaga chronić przed niektórymi atakami podczas procesu autoryzacji OAuth 2.0. Zaleca się jej włączenie."
 }
