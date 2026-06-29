@@ -166,7 +166,7 @@ func (s *UserSignUpService) IsInitialAdminSetupCompleted(ctx context.Context) (b
 func (s *UserSignUpService) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
 	var userCount int64
 	if err := db.WithContext(ctx).Model(&model.User{}).
-		Where("id != ?", staticApiKeyUserID).
+		Where("id != ?", common.StaticApiKeyUserID).
 		Count(&userCount).Error; err != nil {
 		return false, err
 	}
