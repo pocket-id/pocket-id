@@ -461,7 +461,7 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	input := dto.OidcClientCreateDto{
 		OidcClientUpdateDto: dto.OidcClientUpdateDto{
 			Name:         "Test Client",
-			Description:  &description,
+			Description:  description,
 			CallbackURLs: []string{"https://example.com/callback"},
 		},
 	}
@@ -472,8 +472,8 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	var fetched model.OidcClient
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
-	require.NotNil(t, fetched.Description)
-	assert.Equal(t, description, *fetched.Description)
+	require.NotEmpty(t, fetched.Description)
+	assert.Equal(t, description, fetched.Description)
 }
 
 func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
@@ -495,7 +495,7 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 	var fetched model.OidcClient
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
-	assert.Nil(t, fetched.Description)
+	assert.Empty(t, fetched.Description)
 }
 
 func TestOidcService_UpdateClient_description(t *testing.T) {
@@ -516,7 +516,7 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	description := "Updated description"
 	input := dto.OidcClientUpdateDto{
 		Name:         "Test Client",
-		Description:  &description,
+		Description:  description,
 		CallbackURLs: []string{"https://example.com/callback"},
 	}
 
@@ -526,15 +526,15 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	var fetched model.OidcClient
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
-	require.NotNil(t, fetched.Description)
-	assert.Equal(t, description, *fetched.Description)
+	require.NotEmpty(t, fetched.Description)
+	assert.Equal(t, description, fetched.Description)
 
 	// Update to clear the description
-	input.Description = nil
+	input.Description = ""
 	_, err = s.UpdateClient(t.Context(), client.ID, input)
 	require.NoError(t, err)
 
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
-	assert.Nil(t, fetched.Description)
+	assert.Empty(t, fetched.Description)
 }

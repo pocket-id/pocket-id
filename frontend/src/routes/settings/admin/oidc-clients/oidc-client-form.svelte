@@ -72,7 +72,7 @@
 				.optional()
 		),
 		name: z.string().min(2).max(50),
-		description: z.string().max(90).optional(),
+		description: z.string().max(90),
 		callbackURLs: z.array(callbackUrlSchema).default([]),
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
 		isPublic: z.boolean(),
