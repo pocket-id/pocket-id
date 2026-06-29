@@ -18,7 +18,7 @@
 	let isLoading = $state(false);
 	let error: string | undefined = $state();
 	let backHref = $state('/login/alternative');
-	let longCodeRequested = $state(false);
+	let longCodeRequested = $state(code.length > 6);
 	let codeComplete = $derived(longCodeRequested ? code.length === 16 : code.length === 6);
 	const userService = new UserService();
 
