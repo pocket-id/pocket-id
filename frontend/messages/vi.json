@@ -182,6 +182,8 @@
 	"smtp_tls_option": "Tùy Chọn TLS Cho SMTP",
 	"email_tls_option": "Tùy Chọn TLS Cho email",
 	"skip_certificate_verification": "Bỏ Qua Xác Minh Chứng Chỉ (Certificate Verification)",
+	"skip_consent": "Bỏ qua màn hình yêu cầu đồng ý",
+	"skip_consent_description": "Đừng yêu cầu người dùng chấp thuận ứng dụng này và các phạm vi quyền mà nó yêu cầu. Chỉ nên kích hoạt tính năng này cho các ứng dụng bên thứ nhất đáng tin cậy.",
 	"this_can_be_useful_for_selfsigned_certificates": "Điều này có thể hữu ích cho chứng chỉ tự ký.",
 	"enabled_emails": "Email đã bật",
 	"email_login_notification": "Thông Báo Đăng Nhập Email",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "Khi tính năng này được kích hoạt, địa chỉ email của người dùng sẽ được đánh dấu là đã xác minh theo mặc định khi đăng ký hoặc khi địa chỉ email của họ được thay đổi.",
 	"user_has_no_passkeys_yet": "Người dùng này hiện chưa có khóa truy cập nào.",
 	"replay_protection": "Bảo vệ chống phát lại",
-	"replay_protection_description": "Nếu tùy chọn này được bật, mã thông báo được cung cấp chỉ có thể được sử dụng một lần. Nếu nhà cung cấp của bạn sử dụng cùng một mã thông báo nhiều lần, bạn có thể cần phải tắt tùy chọn này."
+	"replay_protection_description": "Nếu tùy chọn này được bật, mã thông báo được cung cấp chỉ có thể được sử dụng một lần. Nếu nhà cung cấp của bạn sử dụng cùng một mã thông báo nhiều lần, bạn có thể cần phải tắt tùy chọn này.",
+	"pkce_supported_client_title": "Khách hàng này hỗ trợ PKCE",
+	"pkce_supported_client_description": "Ứng dụng khách này hỗ trợ tính năng Proof Key for Code Exchange (PKCE). PKCE là một tính năng bảo mật giúp bảo vệ khỏi một số cuộc tấn công nhất định trong quá trình ủy quyền OAuth 2.0. Bạn nên bật tính năng này."
 }

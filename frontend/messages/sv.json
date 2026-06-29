@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS-alternativ",
 	"email_tls_option": "E-post TLS-alternativ",
 	"skip_certificate_verification": "Hoppa över certifikatverifiering",
+	"skip_consent": "Hoppa över samtyckesskärmen",
+	"skip_consent_description": "Be inte användarna att godkänna den här klienten och de behörighetsområden den begär. Aktivera detta endast för betrodda förstaparts-klienter.",
 	"this_can_be_useful_for_selfsigned_certificates": "Detta kan vara användbart för självsignerade certifikat.",
 	"enabled_emails": "Aktiverade e-postadresser",
 	"email_login_notification": "E-postmeddelande om inloggning",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "När funktionen är aktiverad kommer användarnas e-postadresser att markeras som verifierade som standard vid registrering eller när deras e-postadress ändras.",
 	"user_has_no_passkeys_yet": "Den här användaren har inga lösenord ännu.",
 	"replay_protection": "Skydd mot uppspelning",
-	"replay_protection_description": "Om denna funktion är aktiverad kan det angivna tokenet endast användas en gång. Om din leverantör använder samma token flera gånger kan du behöva inaktivera detta alternativ."
+	"replay_protection_description": "Om denna funktion är aktiverad kan det angivna tokenet endast användas en gång. Om din leverantör använder samma token flera gånger kan du behöva inaktivera detta alternativ.",
+	"pkce_supported_client_title": "Denna klient stöder PKCE",
+	"pkce_supported_client_description": "Denna klient stöder Proof Key for Code Exchange (PKCE). PKCE är en säkerhetsfunktion som bidrar till att skydda mot vissa attacker under OAuth 2.0-auktoriseringsprocessen. Det rekommenderas att aktivera den."
 }

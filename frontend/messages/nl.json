@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS-optie",
 	"email_tls_option": "E-mail TLS-optie",
 	"skip_certificate_verification": "Certificaatverificatie overslaan",
+	"skip_consent": "Toestemmingsscherm overslaan",
+	"skip_consent_description": "Vraag gebruikers niet om deze client en de gevraagde scopes goed te keuren. Schakel dit alleen in voor betrouwbare first-party clients.",
 	"this_can_be_useful_for_selfsigned_certificates": "Dit kan handig zijn voor zelfondertekende certificaten.",
 	"enabled_emails": "Ingeschakelde e-mails",
 	"email_login_notification": "E-mail-inlogmelding",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "Als je dit aan zet, worden de e-mailadressen van gebruikers standaard gemarkeerd als geverifieerd bij het aanmelden of als hun e-mailadres verandert.",
 	"user_has_no_passkeys_yet": "Deze gebruiker heeft nog geen toegangscodes.",
 	"replay_protection": "Bescherming tegen herhaling",
-	"replay_protection_description": "Als deze optie is ingeschakeld, kan het opgegeven token maar één keer worden gebruikt. Als je provider hetzelfde token meerdere keren gebruikt, moet je deze optie misschien uitschakelen."
+	"replay_protection_description": "Als deze optie is ingeschakeld, kan het opgegeven token maar één keer worden gebruikt. Als je provider hetzelfde token meerdere keren gebruikt, moet je deze optie misschien uitschakelen.",
+	"pkce_supported_client_title": "Deze client ondersteunt PKCE",
+	"pkce_supported_client_description": "Deze client ondersteunt Proof Key for Code Exchange (PKCE). PKCE is een beveiligingsfunctie die bescherming biedt tegen bepaalde aanvallen tijdens het OAuth 2.0-autorisatieproces. Het wordt aanbevolen om deze functie in te schakelen."
 }

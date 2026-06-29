@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS-indstilling",
 	"email_tls_option": "E-mail TLS-indstilling",
 	"skip_certificate_verification": "Spring certifikatverificering over",
+	"skip_consent": "Spring samtykkeskærmen over",
+	"skip_consent_description": "Brugerne bør ikke blive bedt om at godkende denne klient og de anmodede anvendelsesområder. Dette bør kun aktiveres for pålidelige førsteparts-klienter.",
 	"this_can_be_useful_for_selfsigned_certificates": "Dette kan være nyttigt ved selvsignerede certifikater.",
 	"enabled_emails": "Aktiverede e-mails",
 	"email_login_notification": "Notifikation om login via e-mail",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "Når denne funktion er aktiveret, vil brugernes e-mailadresser som standard blive markeret som verificerede ved tilmelding eller når deres e-mailadresse ændres.",
 	"user_has_no_passkeys_yet": "Denne bruger har endnu ingen adgangsnøgler.",
 	"replay_protection": "Beskyttelse mod gentagelse",
-	"replay_protection_description": "Hvis denne indstilling er aktiveret, kan det angivne token kun bruges én gang. Hvis din udbyder bruger det samme token flere gange, kan det være nødvendigt at deaktivere denne indstilling."
+	"replay_protection_description": "Hvis denne indstilling er aktiveret, kan det angivne token kun bruges én gang. Hvis din udbyder bruger det samme token flere gange, kan det være nødvendigt at deaktivere denne indstilling.",
+	"pkce_supported_client_title": "Denne klient understøtter PKCE",
+	"pkce_supported_client_description": "Denne klient understøtter Proof Key for Code Exchange (PKCE). PKCE er en sikkerhedsfunktion, der hjælper med at beskytte mod visse angreb under OAuth 2.0-godkendelsesprocessen. Det anbefales at aktivere den."
 }

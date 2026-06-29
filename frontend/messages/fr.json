@@ -182,6 +182,8 @@
 	"smtp_tls_option": "Option TLS SMTP",
 	"email_tls_option": "Option TLS",
 	"skip_certificate_verification": "Passer la vérification de certificat",
+	"skip_consent": "Passer l'écran de consentement",
+	"skip_consent_description": "Ne demande pas aux utilisateurs d'approuver ce client et les périmètres d'accès qu'il sollicite. N'active cette option que pour les clients de première partie de confiance.",
 	"this_can_be_useful_for_selfsigned_certificates": "Cela peut être utile pour les certificats autosignés.",
 	"enabled_emails": "Emails activés",
 	"email_login_notification": "Notification de connexion par e-mail",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "Quand cette option est activée, les adresses e-mail des utilisateurs seront marquées comme vérifiées par défaut lors de leur inscription ou quand ils changent d'adresse e-mail.",
 	"user_has_no_passkeys_yet": "Cet utilisateur n'a pas encore de mots de passe.",
 	"replay_protection": "Protection contre la relecture",
-	"replay_protection_description": "Si cette option est activée, le jeton fourni ne peut être utilisé qu'une seule fois. Si ton fournisseur utilise le même jeton plusieurs fois, tu devras peut-être désactiver cette option."
+	"replay_protection_description": "Si cette option est activée, le jeton fourni ne peut être utilisé qu'une seule fois. Si ton fournisseur utilise le même jeton plusieurs fois, tu devras peut-être désactiver cette option.",
+	"pkce_supported_client_title": "Ce client prend en charge PKCE",
+	"pkce_supported_client_description": "Ce client prend en charge la fonctionnalité « Proof Key for Code Exchange » (PKCE). Le PKCE est une fonctionnalité de sécurité qui permet de se protéger contre certaines attaques pendant le processus d'autorisation OAuth 2.0. Il est recommandé de l'activer."
 }

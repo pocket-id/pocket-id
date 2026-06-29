@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS Option",
 	"email_tls_option": "Email TLS Option",
 	"skip_certificate_verification": "Skip Certificate Verification",
+	"skip_consent": "Jäta nõusoleku ekraan vahele",
+	"skip_consent_description": "Ära palu kasutajatel seda klienti ja selle taotletavaid volitusi heaks kiita. Luba seda ainult usaldusväärsete esmapoolsetele klientidele.",
 	"this_can_be_useful_for_selfsigned_certificates": "This can be useful for self-signed certificates.",
 	"enabled_emails": "Enabled Emails",
 	"email_login_notification": "Email Login Notification",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "When enabled, users' email addresses will be marked as verified by default upon signup or when their email address is changed.",
 	"user_has_no_passkeys_yet": "Sellel kasutajal pole veel paroolivõtmeid.",
 	"replay_protection": "Kordusmängu kaitse",
-	"replay_protection_description": "Kui see valik on aktiveeritud, saab antud tokenit kasutada ainult ühe korra. Kui teie teenusepakkuja kasutab sama tokenit mitu korda, võib teil olla vaja see valik deaktiveerida."
+	"replay_protection_description": "Kui see valik on aktiveeritud, saab antud tokenit kasutada ainult ühe korra. Kui teie teenusepakkuja kasutab sama tokenit mitu korda, võib teil olla vaja see valik deaktiveerida.",
+	"pkce_supported_client_title": "See klient toetab PKCE-d",
+	"pkce_supported_client_description": "See klient toetab funktsiooni „Proof Key for Code Exchange“ (PKCE). PKCE on turvaelement, mis aitab kaitsta teatud rünnakute eest OAuth 2.0 autoriseerimisprotsessi käigus. Soovitame selle sisse lülitada."
 }

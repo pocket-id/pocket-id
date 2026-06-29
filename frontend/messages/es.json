@@ -182,6 +182,8 @@
 	"smtp_tls_option": "Opción SMTP TLS",
 	"email_tls_option": "Opción TLS para correo electrónico",
 	"skip_certificate_verification": "Omitir la verificación del certificado",
+	"skip_consent": "Saltar la pantalla de consentimiento",
+	"skip_consent_description": "No pidas a los usuarios que aprueben este cliente ni los ámbitos que solicita. Actívalo solo para clientes propios de confianza.",
 	"this_can_be_useful_for_selfsigned_certificates": "Esto puede ser útil para certificados autofirmados.",
 	"enabled_emails": "Correos electrónicos habilitados",
 	"email_login_notification": "Notificación de inicio de sesión por correo electrónico",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "Cuando esta opción está activada, las direcciones de correo electrónico de los usuarios se marcarán como verificadas de forma predeterminada al registrarse o cuando se modifique su dirección de correo electrónico.",
 	"user_has_no_passkeys_yet": "Este usuario aún no tiene claves de acceso.",
 	"replay_protection": "Protección contra la reproducción",
-	"replay_protection_description": "Si está activada, el token proporcionado solo se puede usar una vez. Si tu proveedor utiliza el mismo token varias veces, puede que tengas que desactivar esta opción."
+	"replay_protection_description": "Si está activada, el token proporcionado solo se puede usar una vez. Si tu proveedor utiliza el mismo token varias veces, puede que tengas que desactivar esta opción.",
+	"pkce_supported_client_title": "Este cliente es compatible con PKCE",
+	"pkce_supported_client_description": "Este cliente es compatible con Proof Key for Code Exchange (PKCE). PKCE es una función de seguridad que ayuda a protegerte contra ciertos ataques durante el proceso de autorización de OAuth 2.0. Te recomendamos que la actives."
 }

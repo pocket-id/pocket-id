@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS オプション",
 	"email_tls_option": "メール TLS オプション",
 	"skip_certificate_verification": "証明書検証をスキップ",
+	"skip_consent": "同意画面をスキップする",
+	"skip_consent_description": "ユーザーに、このクライアントおよびその要求するスコープの承認を求めることはしないでください。信頼できるファーストパーティのクライアントに対してのみ、これを有効にしてください。",
 	"this_can_be_useful_for_selfsigned_certificates": "これは自己署名証明書の場合に有用です。",
 	"enabled_emails": "有効なメール",
 	"email_login_notification": "メールログイン通知",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "有効化すると、ユーザーが登録時またはメールアドレスを変更した際に、デフォルトでメールアドレスが確認済みとしてマークされます。",
 	"user_has_no_passkeys_yet": "このユーザーにはまだパスキーがありません。",
 	"replay_protection": "リプレイ防止機能",
-	"replay_protection_description": "このオプションを有効にすると、指定されたトークンは1回のみ使用可能になります。ご利用のプロバイダーが同じトークンを複数回使用する場合、このオプションを無効にする必要があるかもしれません。"
+	"replay_protection_description": "このオプションを有効にすると、指定されたトークンは1回のみ使用可能になります。ご利用のプロバイダーが同じトークンを複数回使用する場合、このオプションを無効にする必要があるかもしれません。",
+	"pkce_supported_client_title": "このクライアントはPKCEに対応しています",
+	"pkce_supported_client_description": "このクライアントは、Proof Key for Code Exchange（PKCE）に対応しています。PKCEは、OAuth 2.0の認証プロセス中に発生する特定の攻撃から保護するためのセキュリティ機能です。この機能を有効にすることをお勧めします。"
 }

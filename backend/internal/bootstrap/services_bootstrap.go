@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"gorm.io/gorm"
 
@@ -28,14 +29,14 @@ type services struct {
 	oidcService          *service.OidcService
 	userGroupService     *service.UserGroupService
 	ldapService          *service.LdapService
-	apiKeyService        *service.ApiKeyService
 	versionService       *service.VersionService
 	fileStorage          storage.FileStorage
 	appLockService       *service.AppLockService
 	userSignUpService    *service.UserSignUpService
 	oneTimeAccessService *service.OneTimeAccessService
 
-	oidcModule *oidc.Module
+	apiKeyModule *apikey.Module
+	oidcModule   *oidc.Module
 }
 
 // Initializes all services
@@ -97,9 +98,12 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService, fileStorage)
 
-	svc.apiKeyService, err = service.NewApiKeyService(ctx, db, svc.emailService)
+	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
+		DB:           db,
+		StaticApiKey: common.EnvConfig.StaticApiKey,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create API key service: %w", err)
+		return nil, fmt.Errorf("failed to create API key module: %w", err)
 	}
 
 	svc.userSignUpService = service.NewUserSignupService(db, svc.jwtService, svc.auditLogService, svc.appConfigService, svc.userService)

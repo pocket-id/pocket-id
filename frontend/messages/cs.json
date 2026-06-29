@@ -182,6 +182,8 @@
 	"smtp_tls_option": "SMTP TLS volba",
 	"email_tls_option": "Email TLS volba",
 	"skip_certificate_verification": "Přeskočit ověření certifikátu",
+	"skip_consent": "Přeskočit obrazovku s žádostí o souhlas",
+	"skip_consent_description": "Nežádejte uživatele o schválení tohoto klienta a oprávnění, o která žádá. Tuto možnost povolte pouze u důvěryhodných klientů první strany.",
 	"this_can_be_useful_for_selfsigned_certificates": "To může být užitečné pro certifikáty s vlastními podpisy.",
 	"enabled_emails": "Povolené e-maily",
 	"email_login_notification": "E-mailovová oznámení o přihlášení",
@@ -528,5 +530,7 @@
 	"emails_verified_by_default_description": "Pokud je tato funkce povolena, budou e-mailové adresy uživatelů při registraci nebo při změně e-mailové adresy automaticky označeny jako ověřené.",
 	"user_has_no_passkeys_yet": "Tento uživatel zatím nemá žádné přístupové klíče.",
 	"replay_protection": "Ochrana proti opakovanému přehrání",
-	"replay_protection_description": "Je-li tato možnost zapnutá, lze zadaný token použít pouze jednou. Pokud váš poskytovatel používá stejný token vícekrát, možná budete muset tuto možnost vypnout."
+	"replay_protection_description": "Je-li tato možnost zapnutá, lze zadaný token použít pouze jednou. Pokud váš poskytovatel používá stejný token vícekrát, možná budete muset tuto možnost vypnout.",
+	"pkce_supported_client_title": "Tento klient podporuje PKCE",
+	"pkce_supported_client_description": "Tento klient podporuje funkci Proof Key for Code Exchange (PKCE). PKCE je bezpečnostní funkce, která pomáhá chránit před určitými útoky během procesu autorizace OAuth 2.0. Doporučujeme ji povolit."
 }

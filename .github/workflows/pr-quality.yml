@@ -80,7 +80,7 @@ jobs:
                       dependabot[bot]
                       renovate[bot]
                       github-actions[bot]
-                  exempt-users: ""
+                  exempt-users: "James18232"
                   exempt-author-association: "OWNER,MEMBER,COLLABORATOR"
                   exempt-label: "quality/exempt"
                   exempt-pr-label: ""

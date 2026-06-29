@@ -117,14 +117,17 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	}
 
 	// Initialize middleware for specific routes
-	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)
+	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyModule, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
 
 	apiGroup := r.Group("/api", apiRateLimitMiddleware)
 	baseGroup := r.Group("/", apiRateLimitMiddleware)
 
-	controller.NewApiKeyController(apiGroup, authMiddleware, svc.apiKeyService)
+	svc.apiKeyModule.RegisterRoutes(apiGroup,
+		authMiddleware.WithAdminNotRequired().Add(),
+		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(),
+	)
 	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.webauthnService, svc.appConfigService)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
 	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.webauthnService, svc.appConfigService)
