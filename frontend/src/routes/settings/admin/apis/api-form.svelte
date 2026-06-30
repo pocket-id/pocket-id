@@ -25,7 +25,13 @@
 
 	const formSchema = z.object({
 		name: z.string().min(1).max(50),
-		resource: z.url().min(1).max(350)
+		resource: z
+			.url()
+			.min(1)
+			.max(350)
+			.refine((value) => !/[#\s]/.test(value), {
+				message: 'Resource must not include whitespace or a fragment'
+			})
 	});
 	type FormSchema = typeof formSchema;
 

@@ -163,6 +163,16 @@ func TestCreateRejectsIssuerResource(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCreateAcceptsAbsoluteResourceURIs(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db}).service
+
+	for _, resource := range []string{"https://api.orders.example.com", "api://PocketID", "urn:my-app"} {
+		_, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: resource})
+		require.NoError(t, err, "resource %q must be accepted", resource)
+	}
+}
+
 func TestDescribePermissions(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := New(Dependencies{DB: db}).service

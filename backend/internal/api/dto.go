@@ -33,7 +33,7 @@ type apiListItemDto struct {
 // The resource identifier is only accepted here because changing it later would invalidate every token already minted for the API
 type apiCreateDto struct {
 	Name     string `json:"name" binding:"required,min=1,max=50" unorm:"nfc"`
-	Resource string `json:"resource" binding:"required,uri,max=350" unorm:"nfc"`
+	Resource string `json:"resource" binding:"required,resource_uri,max=350" unorm:"nfc"`
 }
 
 // apiUpdateDto is the payload for updating an API
