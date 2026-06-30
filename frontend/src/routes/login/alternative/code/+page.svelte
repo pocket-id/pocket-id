@@ -2,6 +2,7 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
@@ -10,8 +11,6 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { onMount } from 'svelte';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
-	import * as Item from '$lib/components/ui/item/index.js';
-	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
 
 	let { data } = $props();
 	let code = $state(data.code ?? '');
@@ -72,25 +71,12 @@
 	{:else}
 		<p class="text-muted-foreground mt-2">{m.enter_the_code_you_received_to_sign_in()}</p>
 	{/if}
-	<form onsubmit={preventDefault(authenticate)} class="flex w-full flex-col items-center">
-		<div
-			class="flex flex-col w-full justify-center items-center {data.shortCode || longCodeRequested? 'pt-4': ''}"
-		>
-			{#if !data.shortCode && !longCodeRequested}
-				<Item.Root variant="transparent">
-					{#snippet child({ props })}
-						<button type="button" onclick={() => (longCodeRequested = true)} {...props}>
-							<Item.Content class="w-full items-center text-center">
-								<Item.Title class="text-center">{m.i_have_a_longer_code()}</Item.Title>
-							</Item.Content>
-						</button>
-					{/snippet}
-				</Item.Root>
-			{/if}
+	<form onsubmit={preventDefault(authenticate)} class="flex w-full flex-col items-center mt-8">
+		<div class="flex flex-col w-full justify-center items-center">
 			{#if longCodeRequested}
 				<Input
 					id="Code"
-					class="mt-7 w-[80%]"
+					class="w-[80%]"
 					placeholder={m.code()}
 					aria-label={m.code()}
 					bind:value={code}
@@ -107,8 +93,21 @@
 					{/snippet}
 				</InputOTP.Root>
 			{/if}
+			{#if !data.shortCode && !longCodeRequested}
+				<div class="flex justify-center">
+					<Button
+						class="mt-2 text-muted-foreground text-xs"
+						size="sm"
+						variant="ghost"
+						type="button"
+						onclick={() => (longCodeRequested = true)}
+					>
+						{m.i_have_a_longer_code()}
+					</Button>
+				</div>
+			{/if}
 		</div>
-		<div class="w-full max-w-[450px] flex gap-4 pt-4">
+		<div class="w-full max-w-[450px] flex gap-4 pt-7">
 			<Button class="flex-1" variant="secondary" href={backHref}>
 				{m.go_back()}
 			</Button>
