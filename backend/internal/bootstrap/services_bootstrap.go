@@ -13,6 +13,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
 type services struct {
@@ -22,7 +23,6 @@ type services struct {
 	geoLiteService       *service.GeoLiteService
 	auditLogService      *service.AuditLogService
 	jwtService           *service.JwtService
-	webauthnService      *service.WebAuthnService
 	scimService          *service.ScimService
 	userService          *service.UserService
 	customClaimService   *service.CustomClaimService
@@ -35,8 +35,9 @@ type services struct {
 	userSignUpService    *service.UserSignUpService
 	oneTimeAccessService *service.OneTimeAccessService
 
-	apiKeyModule *apikey.Module
-	oidcModule   *oidc.Module
+	apiKeyModule   *apikey.Module
+	oidcModule     *oidc.Module
+	webauthnModule *webauthn.Module
 }
 
 // Initializes all services
@@ -65,9 +66,15 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	}
 
 	svc.customClaimService = service.NewCustomClaimService(db)
-	svc.webauthnService, err = service.NewWebAuthnService(db, svc.jwtService, svc.auditLogService, svc.appConfigService)
+	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
+		DB:        db,
+		AppURL:    common.EnvConfig.AppURL,
+		Signer:    svc.jwtService,
+		AuditLog:  svc.auditLogService,
+		AppConfig: svc.appConfigService,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
+		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
 	}
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
@@ -82,7 +89,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		},
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,
-		Reauth:       svc.webauthnService,
+		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogService,
 	})
 	if err != nil {
