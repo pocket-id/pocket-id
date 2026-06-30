@@ -21,6 +21,7 @@ import (
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
 	fositejwt "github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
@@ -29,8 +30,10 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
@@ -397,11 +400,11 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		webauthnSession := model.WebauthnSession{
+		webauthnSession := webauthn.WebauthnSession{
 			Challenge:        "challenge",
 			ExpiresAt:        datatype.DateTime(time.Now().Add(1 * time.Hour)),
 			UserVerification: "preferred",
-			CredentialParams: model.CredentialParameters{
+			CredentialParams: webauthn.CredentialParameters{
 				{Type: "public-key", Algorithm: -7},
 				{Type: "public-key", Algorithm: -257},
 			},
@@ -410,7 +413,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
-		apiKeys := []model.ApiKey{
+		apiKeys := []apikey.ApiKey{
 			{
 				Base: model.Base{
 					ID: "5f1fa856-c164-4295-961e-175a0d22d725",
@@ -436,7 +439,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		signupTokens := []model.SignupToken{
+		signupTokens := []usersignup.SignupToken{
 			{
 				Base: model.Base{
 					ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",

@@ -530,5 +530,7 @@
 	"emails_verified_by_default_description": "Etkinleştirildiğinde, kullanıcıların e-posta adresleri kayıt sırasında veya e-posta adresleri değiştirildiğinde varsayılan olarak doğrulanmış olarak işaretlenecektir.",
 	"user_has_no_passkeys_yet": "Bu kullanıcının henüz şifre anahtarı yok.",
 	"replay_protection": "Tekrar Oynatma Koruması",
-	"replay_protection_description": "Bu seçenek etkinleştirildiğinde, sağlanan jeton yalnızca bir kez kullanılabilir. Sağlayıcınız aynı jetonu birden fazla kez kullanıyorsa, bu seçeneği devre dışı bırakmanız gerekebilir."
+	"replay_protection_description": "Bu seçenek etkinleştirildiğinde, sağlanan jeton yalnızca bir kez kullanılabilir. Sağlayıcınız aynı jetonu birden fazla kez kullanıyorsa, bu seçeneği devre dışı bırakmanız gerekebilir.",
+	"pkce_supported_client_title": "Bu istemci PKCE'yi desteklemektedir",
+	"pkce_supported_client_description": "Bu istemci, Kod Değişimi için Kanıt Anahtarı (PKCE) özelliğini desteklemektedir. PKCE, OAuth 2.0 yetkilendirme süreci sırasında belirli saldırılara karşı koruma sağlayan bir güvenlik özelliğidir. Bu özelliğin etkinleştirilmesi tavsiye edilir."
 }

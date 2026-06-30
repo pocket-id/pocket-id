@@ -530,5 +530,7 @@
 	"emails_verified_by_default_description": "Quan està habilitat, les adreces de correu dels usuaris seran marcades com verificades per defecte durant l'alta o en canviar la seva adreça.",
 	"user_has_no_passkeys_yet": "Aquest usuari encara no té claus d'accés.",
 	"replay_protection": "Protecció de reproducció",
-	"replay_protection_description": "Si s'activa, el token proporcionat només es pot utilitzar una vegada. Si el vostre proveïdor utilitza el mateix token diverses vegades, potser haureu de desactivar aquesta opció."
+	"replay_protection_description": "Si s'activa, el token proporcionat només es pot utilitzar una vegada. Si el vostre proveïdor utilitza el mateix token diverses vegades, potser haureu de desactivar aquesta opció.",
+	"pkce_supported_client_title": "Aquest client admet PKCE.",
+	"pkce_supported_client_description": "Aquest client admet Proof Key for Code Exchange (PKCE). PKCE és una característica de seguretat que ajuda a protegir contra certs atacs durant el procés d'autorització OAuth 2.0. Es recomana habilitar-la."
 }

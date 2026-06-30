@@ -15,6 +15,8 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
 func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) error {
@@ -47,16 +49,14 @@ type DbCleanupJobs struct {
 	db *gorm.DB
 }
 
-// ClearWebauthnSessions deletes WebAuthn sessions that have expired
+// clearWebauthnSessions deletes expired WebAuthn challenge sessions.
 func (j *DbCleanupJobs) clearWebauthnSessions(ctx context.Context) error {
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.WebauthnSession{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired WebAuthn sessions: %w", st.Error)
+	count, err := webauthn.CleanupExpiredSessions(ctx, j.db)
+	if err != nil {
+		return fmt.Errorf("failed to clean expired WebAuthn sessions: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Cleaned expired WebAuthn sessions", slog.Int64("count", st.RowsAffected))
+	slog.InfoContext(ctx, "Cleaned expired WebAuthn sessions", slog.Int64("count", count))
 
 	return nil
 }
@@ -75,23 +75,19 @@ func (j *DbCleanupJobs) clearOneTimeAccessTokens(ctx context.Context) error {
 	return nil
 }
 
-// ClearSignupTokens deletes signup tokens that have expired
+// clearSignupTokens deletes signup tokens that have expired
 func (j *DbCleanupJobs) clearSignupTokens(ctx context.Context) error {
-	// Delete tokens that are expired OR have reached their usage limit
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.SignupToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired tokens: %w", st.Error)
+	count, err := usersignup.CleanupExpiredSignupTokens(ctx, j.db)
+	if err != nil {
+		return fmt.Errorf("failed to clean expired signup tokens: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Cleaned expired tokens", slog.Int64("count", st.RowsAffected))
+	slog.InfoContext(ctx, "Cleaned expired signup tokens", slog.Int64("count", count))
 
 	return nil
 }
 
-// clearOAuth2Sessions deletes expired and invalidated OAuth2 sessions. What counts as
-// expired is owned by the oidc module.
+// clearOAuth2Sessions deletes expired and invalidated OAuth2 sessions.
 func (j *DbCleanupJobs) clearOAuth2Sessions(ctx context.Context) error {
 	count, err := oidc.CleanupExpiredOAuth2Sessions(ctx, j.db)
 	if err != nil {
@@ -127,16 +123,15 @@ func (j *DbCleanupJobs) clearInteractionSessions(ctx context.Context) error {
 	return nil
 }
 
-// ClearReauthenticationTokens deletes reauthentication tokens that have expired
+// clearReauthenticationTokens deletes expired reauthentication tokens. What counts as
+// expired is owned by the webauthn module.
 func (j *DbCleanupJobs) clearReauthenticationTokens(ctx context.Context) error {
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.ReauthenticationToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired reauthentication tokens: %w", st.Error)
+	count, err := webauthn.CleanupExpiredReauthenticationTokens(ctx, j.db)
+	if err != nil {
+		return fmt.Errorf("failed to clean expired reauthentication tokens: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Cleaned expired reauthentication tokens", slog.Int64("count", st.RowsAffected))
+	slog.InfoContext(ctx, "Cleaned expired reauthentication tokens", slog.Int64("count", count))
 
 	return nil
 }

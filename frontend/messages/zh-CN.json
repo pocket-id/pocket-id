@@ -530,5 +530,7 @@
 	"emails_verified_by_default_description": "启用后，用户的电子邮件地址将在注册时或更改电子邮件地址时默认标记为已验证。",
 	"user_has_no_passkeys_yet": "该用户目前还没有密钥。",
 	"replay_protection": "回放保护",
-	"replay_protection_description": "如果启用此选项，提供的令牌只能使用一次。如果您的服务提供商多次使用同一令牌，您可能需要禁用此选项。"
+	"replay_protection_description": "如果启用此选项，提供的令牌只能使用一次。如果您的服务提供商多次使用同一令牌，您可能需要禁用此选项。",
+	"pkce_supported_client_title": "该客户端支持 PKCE",
+	"pkce_supported_client_description": "此客户端支持“代码交换证明密钥”（PKCE）。PKCE 是一项安全功能，有助于在 OAuth 2.0 授权过程中防范某些攻击。建议启用该功能。"
 }
