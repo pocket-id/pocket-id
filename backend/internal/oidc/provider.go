@@ -46,7 +46,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		TokenURL:                       config.TokenBaseURL + "/api/oidc/token",
 		ScopeStrategy:                  fosite.ExactScopeStrategy,
 		AudienceMatchingStrategy:       fosite.ExactAudienceMatchingStrategy,
-		RedirectURIMatcher:             matchRedirectURI,
+		RedirectURIMatcher:             MatchRedirectURI,
 		EnforcePKCEForPublicClients:    true,
 		EnablePKCEPlainChallengeMethod: true,
 		FormPostHTMLTemplate:           formPostTemplate,
@@ -103,7 +103,8 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 	}, nil
 }
 
-func matchRedirectURI(rawurl string, client fosite.Client) (*url.URL, error) {
+// MatchRedirectURI validates a requested redirect URI against a client's registered redirect URIs
+func MatchRedirectURI(rawurl string, client fosite.Client) (*url.URL, error) {
 	redirectURI, err := fosite.MatchRedirectURIWithClientRedirectURIs(rawurl, client)
 	if err == nil || rawurl == "" {
 		return redirectURI, err

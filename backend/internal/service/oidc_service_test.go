@@ -186,7 +186,7 @@ func TestOidcService_GetRegisteredCallbackURL(t *testing.T) {
 			input: "https://evil.example/steal",
 		},
 		{
-			name:  "callback URL with fragment is rejected before matcher ignores it",
+			name:  "callback URL with fragment is rejected by the OIDC redirect matcher",
 			input: "https://example.com/callback#fragment",
 		},
 		{
@@ -203,7 +203,7 @@ func TestOidcService_GetRegisteredCallbackURL(t *testing.T) {
 		})
 	}
 
-	t.Run("relative URL is rejected before a global wildcard can match it", func(t *testing.T) {
+	t.Run("relative URL is rejected by the OIDC redirect matcher even with a global wildcard", func(t *testing.T) {
 		require.NoError(t, db.Create(&model.OidcClient{
 			Base:         model.Base{ID: "wildcard-client"},
 			Name:         "Wildcard Client",

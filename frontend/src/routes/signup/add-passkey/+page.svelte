@@ -60,7 +60,7 @@
 	}
 
 	async function redirectAfterSkippingPasskeySetup() {
-		const redirectPath = await getValidatedCallbackURLFromQueryParam('cancel_url');
+		const redirectPath = await getValidatedCallbackURLFromQueryParam('cancel_uri');
 		if (redirectPath === accountSettingsPath) {
 			await goto(redirectPath);
 			return;
