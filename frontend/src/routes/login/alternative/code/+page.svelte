@@ -113,7 +113,7 @@
 				{m.go_back()}
 			</Button>
 			<Button class="flex-1" type="submit" disabled={!codeComplete} {isLoading}>
-				{m.authorize()}
+				{m.submit()}
 			</Button>
 		</div>
 	</form>
