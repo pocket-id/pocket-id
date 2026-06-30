@@ -40,7 +40,7 @@ type services struct {
 	oidcModule       *oidc.Module
 	webauthnModule   *webauthn.Module
 	userSignUpModule *usersignup.Module
-	apiModule  *api.Module
+	apiModule        *api.Module
 }
 
 // Initializes all services
