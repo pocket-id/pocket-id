@@ -73,6 +73,11 @@ type OidcUpdateAllowedUserGroupsDto struct {
 	UserGroupIDs []string `json:"userGroupIds" binding:"required"`
 }
 
+type OidcRegisteredCallbackURLDto struct {
+	Registered  bool   `json:"registered"`
+	RedirectURI string `json:"redirectURI,omitempty"`
+}
+
 type OidcLogoutDto struct {
 	IdTokenHint           string `form:"id_token_hint"`
 	ClientId              string `form:"client_id"`

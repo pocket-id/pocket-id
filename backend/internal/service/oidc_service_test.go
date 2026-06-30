@@ -148,6 +148,74 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 	})
 }
 
+func TestOidcService_GetRegisteredCallbackURL(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s := &OidcService{db: db}
+
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: "client-one"},
+		Name: "Client One",
+		CallbackURLs: model.UrlList{
+			"https://example.com/callback",
+			"https://*.example.org/callback",
+		},
+	}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:         model.Base{ID: "client-two"},
+		Name:         "Client Two",
+		CallbackURLs: model.UrlList{"https://client.example.net/oauth/callback"},
+	}).Error)
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "exact callback URL is returned",
+			input:    "https://example.com/callback",
+			expected: "https://example.com/callback",
+		},
+		{
+			name:     "wildcard matching delegates to the shared callback URL matcher",
+			input:    "https://tenant.example.org/callback",
+			expected: "https://tenant.example.org/callback",
+		},
+		{
+			name:  "unknown external URL is rejected",
+			input: "https://evil.example/steal",
+		},
+		{
+			name:  "callback URL with fragment is rejected before matcher ignores it",
+			input: "https://example.com/callback#fragment",
+		},
+		{
+			name:  "missing URL is rejected",
+			input: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := s.GetRegisteredCallbackURL(t.Context(), tt.input)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, got)
+		})
+	}
+
+	t.Run("relative URL is rejected before a global wildcard can match it", func(t *testing.T) {
+		require.NoError(t, db.Create(&model.OidcClient{
+			Base:         model.Base{ID: "wildcard-client"},
+			Name:         "Wildcard Client",
+			CallbackURLs: model.UrlList{"*"},
+		}).Error)
+
+		got, err := s.GetRegisteredCallbackURL(t.Context(), "/settings/account")
+		require.NoError(t, err)
+		require.Empty(t, got)
+	})
+}
+
 func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 	const publicLogoHost = "https://8.8.8.8"
 

@@ -10,7 +10,8 @@ import type {
 	OidcClientUpdate,
 	OidcClientWithAllowedUserGroups,
 	OidcClientWithAllowedUserGroupsCount,
-	OidcDeviceCodeInfo
+	OidcDeviceCodeInfo,
+	RegisteredCallbackURL
 } from '$lib/types/oidc.type';
 import type { ScimServiceProvider } from '$lib/types/scim.type';
 import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
@@ -35,6 +36,13 @@ class OidcService extends APIService {
 			params: options
 		});
 		return res.data as Paginated<OidcClientWithAllowedUserGroupsCount>;
+	};
+
+	getRegisteredCallbackURL = async (redirectURI: string) => {
+		const res = await this.api.get('/oidc/redirect-uri/registered', {
+			params: { redirect_uri: redirectURI }
+		});
+		return res.data as RegisteredCallbackURL;
 	};
 
 	createClient = async (client: OidcClientCreate) =>

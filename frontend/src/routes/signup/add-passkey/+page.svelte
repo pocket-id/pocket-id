@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
+	import OIDCService from '$lib/services/oidc-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { tryCatch } from '$lib/utils/try-catch-util';
@@ -11,6 +13,8 @@
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../../login/components/login-logo-error-success-indicator.svelte';
 
+	const accountSettingsPath = '/settings/account';
+	const oidcService = new OIDCService();
 	const webauthnService = new WebAuthnService();
 
 	let isLoading = $state(false);
@@ -41,8 +45,42 @@
 			return;
 		}
 
-		goto('/settings/account');
+		await redirectAfterSuccessfulPasskeySetup();
 		isLoading = false;
+	}
+
+	async function redirectAfterSuccessfulPasskeySetup() {
+		const redirectPath = await getValidatedCallbackURLFromQueryParam('redirect_uri');
+		if (redirectPath === accountSettingsPath) {
+			await goto(redirectPath);
+			return;
+		}
+
+		window.location.href = redirectPath;
+	}
+
+	async function redirectAfterSkippingPasskeySetup() {
+		const redirectPath = await getValidatedCallbackURLFromQueryParam('cancel_url');
+		if (redirectPath === accountSettingsPath) {
+			await goto(redirectPath);
+			return;
+		}
+
+		window.location.href = redirectPath;
+	}
+
+	async function getValidatedCallbackURLFromQueryParam(queryParam: string) {
+		const callbackURL = page.url.searchParams.get(queryParam);
+		if (!callbackURL) {
+			return accountSettingsPath;
+		}
+
+		const result = await tryCatch(oidcService.getRegisteredCallbackURL(callbackURL));
+		if (result.error || !result.data.registered || !result.data.redirectURI) {
+			return accountSettingsPath;
+		}
+
+		return result.data.redirectURI;
 	}
 
 	function skipForNow() {
@@ -53,7 +91,7 @@
 				label: m.skip_for_now(),
 				destructive: true,
 				action: () => {
-					goto('/settings/account');
+					void redirectAfterSkippingPasskeySetup();
 				}
 			}
 		});

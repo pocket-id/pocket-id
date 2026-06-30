@@ -43,7 +43,10 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'>;
+export type OidcClientUpdate = Omit<
+	OidcClient,
+	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'
+>;
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };
@@ -83,4 +86,9 @@ export type InteractionSession = {
 export type CompleteInteractionResponse = {
 	interaction?: InteractionSession;
 	redirectUrl?: string;
+};
+
+export type RegisteredCallbackURL = {
+	registered: boolean;
+	redirectURI?: string;
 };

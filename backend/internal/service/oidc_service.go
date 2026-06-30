@@ -120,6 +120,56 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 	return clients, response, err
 }
 
+func (s *OidcService) GetRegisteredCallbackURL(ctx context.Context, redirectURI string) (string, error) {
+	if redirectURI == "" {
+		return "", nil
+	}
+
+	if !isValidRequestedCallbackURL(redirectURI) {
+		return "", nil
+	}
+
+	var clients []model.OidcClient
+	err = s.db.
+		WithContext(ctx).
+		Select("callback_urls").
+		Find(&clients).
+		Error
+	if err != nil {
+		return "", err
+	}
+
+	for _, client := range clients {
+		matchedURL, err := utils.GetCallbackURLFromList(client.CallbackURLs, redirectURI)
+		if err != nil {
+			return "", err
+		}
+		if matchedURL != "" {
+			return matchedURL, nil
+		}
+	}
+
+	return "", nil
+}
+
+func isValidRequestedCallbackURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Scheme == "" || u.Fragment != "" {
+		return false
+	}
+
+	switch strings.ToLower(u.Scheme) {
+	case "javascript", "data":
+		return false
+	}
+
+	if (u.Scheme == "http" || u.Scheme == "https") && u.Host == "" {
+		return false
+	}
+
+	return true
+}
+
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
 	client := model.OidcClient{
 		Base: model.Base{
