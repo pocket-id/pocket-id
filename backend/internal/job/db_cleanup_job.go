@@ -15,6 +15,7 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
@@ -74,17 +75,14 @@ func (j *DbCleanupJobs) clearOneTimeAccessTokens(ctx context.Context) error {
 	return nil
 }
 
-// ClearSignupTokens deletes signup tokens that have expired
+// clearSignupTokens deletes signup tokens that have expired
 func (j *DbCleanupJobs) clearSignupTokens(ctx context.Context) error {
-	// Delete tokens that are expired OR have reached their usage limit
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.SignupToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired tokens: %w", st.Error)
+	count, err := usersignup.CleanupExpiredSignupTokens(ctx, j.db)
+	if err != nil {
+		return fmt.Errorf("failed to clean expired signup tokens: %w", err)
 	}
 
-	slog.InfoContext(ctx, "Cleaned expired tokens", slog.Int64("count", st.RowsAffected))
+	slog.InfoContext(ctx, "Cleaned expired signup tokens", slog.Int64("count", count))
 
 	return nil
 }

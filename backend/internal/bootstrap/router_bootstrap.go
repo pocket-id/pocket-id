@@ -143,7 +143,10 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
 	controller.NewVersionController(apiGroup, authMiddleware, svc.versionService)
 	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)
-	controller.NewUserSignupController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userSignUpService, svc.appConfigService)
+	svc.userSignUpModule.RegisterRoutes(apiGroup,
+		authMiddleware.Add(),
+		middleware.NewRateLimitMiddleware().Add(rate.Every(1*time.Minute), 10),
+	)
 
 	optionalBrowserAuth := authMiddleware.WithAdminNotRequired().WithSuccessOptional().WithApiKeyAuthDisabled().Add()
 	browserAuth := authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add()

@@ -29,6 +29,7 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
@@ -387,7 +388,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		signupTokens := []model.SignupToken{
+		signupTokens := []usersignup.SignupToken{
 			{
 				Base: model.Base{
 					ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
