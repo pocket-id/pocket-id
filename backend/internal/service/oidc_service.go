@@ -130,7 +130,7 @@ func (s *OidcService) GetRegisteredCallbackURL(ctx context.Context, redirectURI 
 	}
 
 	var clients []model.OidcClient
-	err = s.db.
+	err := s.db.
 		WithContext(ctx).
 		Select("callback_urls").
 		Find(&clients).
