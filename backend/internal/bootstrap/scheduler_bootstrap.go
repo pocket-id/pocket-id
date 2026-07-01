@@ -31,10 +31,6 @@ func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, http
 	if err != nil {
 		return fmt.Errorf("failed to register API key expiration jobs in scheduler: %w", err)
 	}
-	err = scheduler.RegisterAnalyticsJob(ctx, svc.appConfigService, httpClient)
-	if err != nil {
-		return fmt.Errorf("failed to register analytics job in scheduler: %w", err)
-	}
 	err = scheduler.RegisterScimJobs(ctx, svc.scimService)
 	if err != nil {
 		return fmt.Errorf("failed to register SCIM scheduler job: %w", err)

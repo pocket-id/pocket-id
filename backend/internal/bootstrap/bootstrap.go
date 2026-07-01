@@ -48,22 +48,6 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
 	}
 
-	// Init the actors
-	actorsOpts := NewActorsOpts{
-		EnvConfig: &common.EnvConfig,
-		Postgres:  pg,
-	}
-	if pg == nil {
-		actorsOpts.SQLite, err = db.DB()
-		if err != nil {
-			return fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
-		}
-	}
-	actors, err := NewActors(actorsOpts)
-	if err != nil {
-		return fmt.Errorf("failed to initialize actors: %w", err)
-	}
-
 	// Init application images
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
@@ -82,6 +66,7 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
 
+	// Acquire the lock from the app lock service
 	waitUntil, err := svc.appLockService.Acquire(ctx, false)
 	if errors.Is(err, service.ErrLockUnavailable) {
 		return errors.New("it appears that there's already one instance of Pocket ID running; running multiple replicas of Pocket ID is currently not supported")
@@ -104,6 +89,24 @@ func Bootstrap(ctx context.Context) error {
 	}
 	shutdownFns = append(shutdownFns, shutdownFn)
 
+	// Init the actors
+	actorsOpts := NewActorsOpts{
+		EnvConfig:  &common.EnvConfig,
+		Postgres:   pg,
+		AppConfig:  svc.appConfigService,
+		HttpClient: httpClient,
+	}
+	if pg == nil {
+		actorsOpts.SQLite, err = db.DB()
+		if err != nil {
+			return fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
+		}
+	}
+	actors, err := NewActors(actorsOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize actors: %w", err)
+	}
+
 	// Register scheduled jobs
 	err = registerScheduledJobs(ctx, db, svc, httpClient, scheduler)
 	if err != nil {
@@ -118,7 +121,11 @@ func Bootstrap(ctx context.Context) error {
 
 	// Run all background services
 	// This call blocks until the context is canceled
-	services := []utils.Service{svc.appLockService.RunRenewal, actors.Run, router}
+	services := []utils.Service{
+		svc.appLockService.RunRenewal,
+		actors.Run,
+		router,
+	}
 
 	if common.EnvConfig.AppEnv != "test" {
 		services = append(services, scheduler.Run)
