@@ -2,6 +2,11 @@ package middleware
 
 import (
 	"context"
+	"errors"
+	"log/slog"
+	"math"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -9,11 +14,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
-
-// rateLimitWaitTimeout bounds how long a request waits for the rate-limit actor to admit it
-// The Francis rate limiter blocks until the key's leaky bucket admits the call: in-budget bursts are admitted instantly, while an over-budget call would otherwise sleep for at least the smallest throttle interval (1s)
-// Capping the wait well below that interval makes over-the-limit requests hit the deadline and get rejected with a 429, preserving the previous non-blocking behavior
-const rateLimitWaitTimeout = 250 * time.Millisecond
 
 // Rate-limit policy names
 // Each constant names a limiter registered on the actor host and is the value passed to Add to select that limiter
@@ -37,21 +37,22 @@ type RateLimitPolicy struct {
 	Rate int
 	// Per is the window the rate applies over
 	Per time.Duration
-	// Slack is the burst allowance, i.e. how many unspent calls may accumulate
-	Slack int
+	// Burst is the token bucket's capacity, i.e. how many calls may be admitted instantly before throttling kicks in
+	Burst int
 }
 
 // RateLimitPolicies returns the configuration for every rate-limit policy
+// The slice is built on each call so the policies are not retained at the package level, and the actor host registers one limiter per entry
 func RateLimitPolicies() []RateLimitPolicy {
 	return []RateLimitPolicy{
-		{Name: RateLimitAPI, Rate: 1, Per: time.Second, Slack: 100},
-		{Name: RateLimitSignup, Rate: 1, Per: time.Minute, Slack: 10},
-		{Name: RateLimitWebauthnLogin, Rate: 1, Per: 10 * time.Second, Slack: 5},
-		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Slack: 5},
-		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Slack: 5},
-		{Name: RateLimitOneTimeAccessEmail, Rate: 1, Per: 10 * time.Minute, Slack: 3},
-		{Name: RateLimitSendEmailVerification, Rate: 1, Per: 10 * time.Minute, Slack: 3},
-		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Slack: 5},
+		{Name: RateLimitAPI, Rate: 1, Per: time.Second, Burst: 100},
+		{Name: RateLimitSignup, Rate: 1, Per: time.Minute, Burst: 10},
+		{Name: RateLimitWebauthnLogin, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitOneTimeAccessEmail, Rate: 1, Per: 10 * time.Minute, Burst: 3},
+		{Name: RateLimitSendEmailVerification, Rate: 1, Per: 10 * time.Minute, Burst: 3},
+		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Burst: 5},
 	}
 }
 
@@ -72,10 +73,11 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 		}
 	}
 
+	// A missing service means the policy was never registered on the actor host, which is a development-time errror
 	svc := m.services[policy]
 	if svc == nil {
 		return func(c *gin.Context) {
-			c.AbortWithStatus(500)
+			c.AbortWithStatus(http.StatusInternalServerError)
 		}
 	}
 
@@ -89,13 +91,23 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 			return
 		}
 
-		// Bound the wait so an over-the-limit request hits the deadline and is rejected instead of blocking until the next slot
-		ctx, cancel := context.WithTimeout(c.Request.Context(), rateLimitWaitTimeout)
-		defer cancel()
-
-		// Take admits this key against the policy's limiter, blocking until admitted or the context expires
-		err := svc.Take(ctx, ip)
+		// Allow is a non-blocking token-bucket check keyed by client IP: it consumes a slot and reports whether the call is admitted right now
+		allowed, retryAfter, err := svc.Allow(c.Request.Context(), ip)
 		if err != nil {
+			// Fail open so a limiter error does not turn away otherwise-valid traffic
+			if !errors.Is(err, context.Canceled) {
+				// A cancelled context just means the client went away, so it is not worth logging
+				slog.WarnContext(c.Request.Context(), "Rate limiter unavailable, allowing request", slog.String("policy", policy), slog.Any("error", err))
+			}
+			c.Next()
+			return
+		}
+
+		if !allowed {
+			// Advertise when the caller may retry, mapping the limiter's delay onto a Retry-After header
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(int(math.Ceil(retryAfter.Seconds()))))
+			}
 			_ = c.Error(&common.TooManyRequestsError{})
 			c.Abort()
 			return

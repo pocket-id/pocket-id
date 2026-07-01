@@ -143,7 +143,7 @@ func (o *NewActorsOpts) getRateLimiters() (actors map[string]*ratelimit.RateLimi
 			p.Name,
 			ratelimit.WithRate(p.Rate),
 			ratelimit.WithPer(p.Per),
-			ratelimit.WithSlack(p.Slack),
+			ratelimit.WithBurst(p.Burst),
 		)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error creating rate limiter %q: %w", p.Name, err)

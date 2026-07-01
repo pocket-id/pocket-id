@@ -27,7 +27,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-uuid v1.0.3
-	github.com/italypaleale/francis v0.1.0-beta.4
+	github.com/italypaleale/francis v0.1.0-beta.4.0.20260701143253-cda9cda19800
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
@@ -80,7 +80,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.31.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.6 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.43.3 // indirect
-	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
@@ -215,7 +214,6 @@ require (
 	go.opentelemetry.io/otel/exporters/zipkin v1.44.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.uber.org/mock v0.6.0 // indirect
-	go.uber.org/ratelimit v0.3.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.27.0 // indirect
@@ -224,6 +222,7 @@ require (
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/tools v0.46.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260608224507-4308a22a1bab // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260608224507-4308a22a1bab // indirect

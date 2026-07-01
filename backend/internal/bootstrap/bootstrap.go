@@ -120,7 +120,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	// Init the router
-	// The rate-limit middleware derives its own per-request contexts, so the setup context is intentionally not threaded through the router
+	// The rate-limit middleware invokes the actor host with each request's own context, so the setup context is intentionally not threaded through the router
 	//nolint:contextcheck
 	router, err := initRouter(db, svc, rateLimitServices)
 	if err != nil {
