@@ -1,34 +1,78 @@
 package middleware
 
 import (
-	"sync"
+	"context"
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-
 	"github.com/gin-gonic/gin"
-	"golang.org/x/time/rate"
+	"github.com/italypaleale/francis/builtin/ratelimit"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
-type RateLimitMiddleware struct{}
+// rateLimitWaitTimeout bounds how long a request waits for the rate-limit actor to admit it
+// The Francis rate limiter blocks until the key's leaky bucket admits the call: in-budget bursts are admitted instantly, while an over-budget call would otherwise sleep for at least the smallest throttle interval (1s)
+// Capping the wait well below that interval makes over-the-limit requests hit the deadline and get rejected with a 429, preserving the previous non-blocking behavior
+const rateLimitWaitTimeout = 250 * time.Millisecond
 
-func NewRateLimitMiddleware() *RateLimitMiddleware {
-	return &RateLimitMiddleware{}
+// Rate-limit policy names
+// Each constant names a limiter registered on the actor host and is the value passed to Add to select that limiter
+const (
+	RateLimitAPI                    = "api"
+	RateLimitSignup                 = "signup"
+	RateLimitWebauthnLogin          = "webauthn-login"
+	RateLimitWebauthnReauthenticate = "webauthn-reauthenticate"
+	RateLimitOneTimeAccessToken     = "one-time-access-token"
+	RateLimitOneTimeAccessEmail     = "one-time-access-email"
+	RateLimitSendEmailVerification  = "send-email-verification"
+	RateLimitVerifyEmail            = "verify-email"
+)
+
+// RateLimitPolicy is the configuration for a single rate-limit actor
+// Each policy maps to one Francis rate-limit actor type and requests are keyed by client IP, so every IP is limited independently and per-route limits stay isolated from each other
+type RateLimitPolicy struct {
+	// Name must be unique across policies and must not contain '/'
+	Name string
+	// Rate is the number of calls admitted per Per window
+	Rate int
+	// Per is the window the rate applies over
+	Per time.Duration
+	// Slack is the burst allowance, i.e. how many unspent calls may accumulate
+	Slack int
 }
 
-func (m *RateLimitMiddleware) Add(limit rate.Limit, burst int) gin.HandlerFunc {
+// RateLimitPolicies returns the configuration for every rate-limit policy
+func RateLimitPolicies() []RateLimitPolicy {
+	return []RateLimitPolicy{
+		{Name: RateLimitAPI, Rate: 1, Per: time.Second, Slack: 100},
+		{Name: RateLimitSignup, Rate: 1, Per: time.Minute, Slack: 10},
+		{Name: RateLimitWebauthnLogin, Rate: 1, Per: 10 * time.Second, Slack: 5},
+		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Slack: 5},
+		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Slack: 5},
+		{Name: RateLimitOneTimeAccessEmail, Rate: 1, Per: 10 * time.Minute, Slack: 3},
+		{Name: RateLimitSendEmailVerification, Rate: 1, Per: 10 * time.Minute, Slack: 3},
+		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Slack: 5},
+	}
+}
+
+type RateLimitMiddleware struct {
+	services map[string]*ratelimit.RateLimitService
+}
+
+func NewRateLimitMiddleware(services map[string]*ratelimit.RateLimitService) *RateLimitMiddleware {
+	return &RateLimitMiddleware{
+		services: services,
+	}
+}
+
+func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 	if common.EnvConfig.DisableRateLimiting {
 		return func(c *gin.Context) {
 			c.Next()
 		}
 	}
 
-	// Map to store the rate limiters per IP
-	var clients = make(map[string]*client)
-	var mu sync.Mutex
-
-	// Start the cleanup routine
-	go cleanupClients(&mu, clients)
+	svc := m.services[policy]
 
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
@@ -40,8 +84,13 @@ func (m *RateLimitMiddleware) Add(limit rate.Limit, burst int) gin.HandlerFunc {
 			return
 		}
 
-		limiter := getLimiter(ip, limit, burst, &mu, clients)
-		if !limiter.Allow() {
+		// Bound the wait so an over-the-limit request hits the deadline and is rejected instead of blocking until the next slot
+		ctx, cancel := context.WithTimeout(c.Request.Context(), rateLimitWaitTimeout)
+		defer cancel()
+
+		// Take admits this key against the policy's limiter, blocking until admitted or the context expires
+		err := svc.Take(ctx, ip)
+		if err != nil {
 			_ = c.Error(&common.TooManyRequestsError{})
 			c.Abort()
 			return
@@ -49,38 +98,4 @@ func (m *RateLimitMiddleware) Add(limit rate.Limit, burst int) gin.HandlerFunc {
 
 		c.Next()
 	}
-}
-
-type client struct {
-	limiter  *rate.Limiter
-	lastSeen time.Time
-}
-
-// Cleanup routine to remove stale clients that haven't been seen for a while
-func cleanupClients(mu *sync.Mutex, clients map[string]*client) {
-	for {
-		time.Sleep(time.Minute)
-		mu.Lock()
-		for ip, client := range clients {
-			if time.Since(client.lastSeen) > 3*time.Minute {
-				delete(clients, ip)
-			}
-		}
-		mu.Unlock()
-	}
-}
-
-// getLimiter retrieves the rate limiter for a given IP address, creating one if it doesn't exist
-func getLimiter(ip string, limit rate.Limit, burst int, mu *sync.Mutex, clients map[string]*client) *rate.Limiter {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if client, exists := clients[ip]; exists {
-		client.lastSeen = time.Now()
-		return client.limiter
-	}
-
-	limiter := rate.NewLimiter(limit, burst)
-	clients[ip] = &client{limiter: limiter, lastSeen: time.Now()}
-	return limiter
 }

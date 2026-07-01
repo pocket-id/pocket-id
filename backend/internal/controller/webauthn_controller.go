@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"golang.org/x/time/rate"
 )
 
 func NewWebauthnController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, webauthnService *service.WebAuthnService, appConfigService *service.AppConfigService) {
@@ -21,11 +19,11 @@ func NewWebauthnController(group *gin.RouterGroup, authMiddleware *middleware.Au
 	group.POST("/webauthn/register/finish", authMiddleware.WithAdminNotRequired().Add(), wc.verifyRegistrationHandler)
 
 	group.GET("/webauthn/login/start", wc.beginLoginHandler)
-	group.POST("/webauthn/login/finish", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), wc.verifyLoginHandler)
+	group.POST("/webauthn/login/finish", rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin), wc.verifyLoginHandler)
 
 	group.POST("/webauthn/logout", authMiddleware.WithAdminNotRequired().Add(), wc.logoutHandler)
 
-	group.POST("/webauthn/reauthenticate", authMiddleware.WithAdminNotRequired().Add(), rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), wc.reauthenticateHandler)
+	group.POST("/webauthn/reauthenticate", authMiddleware.WithAdminNotRequired().Add(), rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate), wc.reauthenticateHandler)
 
 	group.GET("/webauthn/credentials", authMiddleware.WithAdminNotRequired().Add(), wc.listCredentialsHandler)
 	group.PATCH("/webauthn/credentials/:id", authMiddleware.WithAdminNotRequired().Add(), wc.updateCredentialHandler)

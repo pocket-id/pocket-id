@@ -12,7 +12,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"golang.org/x/time/rate"
 )
 
 const defaultSignupTokenDuration = time.Hour
@@ -30,7 +29,7 @@ func NewUserSignupController(group *gin.RouterGroup, authMiddleware *middleware.
 	group.POST("/signup-tokens", authMiddleware.Add(), usc.createSignupTokenHandler)
 	group.GET("/signup-tokens", authMiddleware.Add(), usc.listSignupTokensHandler)
 	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), usc.deleteSignupTokenHandler)
-	group.POST("/signup", rateLimitMiddleware.Add(rate.Every(1*time.Minute), 10), usc.signupHandler)
+	group.POST("/signup", rateLimitMiddleware.Add(middleware.RateLimitSignup), usc.signupHandler)
 	group.GET("/signup/setup", usc.checkInitialAdminSetupAvailable)
 	group.POST("/signup/setup", usc.signUpInitialAdmin)
 

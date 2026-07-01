@@ -45,6 +45,7 @@ func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error)
 	return db, pg, nil
 }
 
+//nolint:gocognit
 func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error) {
 	var dialector gorm.Dialector
 
@@ -105,7 +106,7 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 			return nil, nil, fmt.Errorf("failed to create Postgres pool: %w", err)
 		}
 
-		//...test it with a ping...
+		// ...test it with a ping...
 		pingCtx, pingCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer pingCancel()
 		err = pg.Ping(pingCtx)

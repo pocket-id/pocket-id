@@ -105,7 +105,7 @@ func Bootstrap(ctx context.Context) error {
 			return fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
 		}
 	}
-	actors, err := NewActors(actorsOpts)
+	actors, rateLimitServices, err := NewActors(actorsOpts)
 	if err != nil {
 		return fmt.Errorf("failed to initialize actors: %w", err)
 	}
@@ -117,7 +117,9 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	// Init the router
-	router, err := initRouter(db, svc)
+	// The rate-limit middleware derives its own per-request contexts, so the setup context is intentionally not threaded through the router
+	//nolint:contextcheck
+	router, err := initRouter(db, svc, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize router: %w", err)
 	}

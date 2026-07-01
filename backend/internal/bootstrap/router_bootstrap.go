@@ -17,8 +17,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/builtin/ratelimit"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
@@ -32,12 +32,12 @@ import (
 // This is used to register additional controllers for tests
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
 
-func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
+func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (utils.Service, error) {
 	r, err := initEngine()
 	if err != nil {
 		return nil, err
 	}
-	err = registerRoutes(r, db, svc)
+	err = registerRoutes(r, db, svc, rateLimitServices)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func registerGlobalMiddleware(r *gin.Engine) {
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 }
 
-func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
+func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
 	err := frontend.RegisterFrontend(r)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
@@ -119,15 +119,16 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
-	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
+	rateLimitMiddleware := middleware.NewRateLimitMiddleware(rateLimitServices)
+	apiRateLimitMiddleware := rateLimitMiddleware.Add(middleware.RateLimitAPI)
 
 	apiGroup := r.Group("/api", apiRateLimitMiddleware)
 	baseGroup := r.Group("/", apiRateLimitMiddleware)
 
 	controller.NewApiKeyController(apiGroup, authMiddleware, svc.apiKeyService)
-	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.webauthnService, svc.appConfigService)
+	controller.NewWebauthnController(apiGroup, authMiddleware, rateLimitMiddleware, svc.webauthnService, svc.appConfigService)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
-	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.webauthnService, svc.appConfigService)
+	controller.NewUserController(apiGroup, authMiddleware, rateLimitMiddleware, svc.userService, svc.oneTimeAccessService, svc.webauthnService, svc.appConfigService)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
@@ -135,7 +136,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
 	controller.NewVersionController(apiGroup, authMiddleware, svc.versionService)
 	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)
-	controller.NewUserSignupController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userSignUpService, svc.appConfigService)
+	controller.NewUserSignupController(apiGroup, authMiddleware, rateLimitMiddleware, svc.userSignUpService, svc.appConfigService)
 
 	optionalBrowserAuth := authMiddleware.WithAdminNotRequired().WithSuccessOptional().WithApiKeyAuthDisabled().Add()
 	browserAuth := authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add()
