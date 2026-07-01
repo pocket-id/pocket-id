@@ -111,7 +111,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 
 	// Register scheduled jobs
-	err = registerScheduledJobs(ctx, db, svc, httpClient, scheduler)
+	err = registerScheduledJobs(ctx, db, svc, scheduler)
 	if err != nil {
 		return fmt.Errorf("failed to register scheduled jobs: %w", err)
 	}

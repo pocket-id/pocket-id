@@ -1,9 +1,13 @@
-package model
+package apikey
 
-import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+import (
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+)
 
+// ApiKey is a personal access token a user can use to authenticate against the API
 type ApiKey struct {
-	Base
+	model.Base
 
 	Name                string `sortable:"true"`
 	Key                 string
@@ -13,5 +17,5 @@ type ApiKey struct {
 	ExpirationEmailSent bool
 
 	UserID string
-	User   User
+	User   model.User
 }

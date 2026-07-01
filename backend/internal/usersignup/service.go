@@ -1,4 +1,4 @@
-package service
+package usersignup
 
 import (
 	"context"
@@ -6,34 +6,39 @@ import (
 	"strings"
 	"time"
 
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
-type UserSignUpService struct {
-	db               *gorm.DB
-	userService      *UserService
-	jwtService       *JwtService
-	auditLogService  *AuditLogService
-	appConfigService *AppConfigService
+// authenticationMethodOneTimePassword identifies one-time-password authentication, used for the initial admin setup token
+// It must match the value emitted by the JWT service in the access token's "amr" claim
+const authenticationMethodOneTimePassword = "otp"
+
+type Service struct {
+	db          *gorm.DB
+	userCreator UserCreator
+	signer      TokenService
+	auditLog    AuditLogger
+	appConfig   AppConfigProvider
 }
 
-func NewUserSignupService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, appConfigService *AppConfigService, userService *UserService) *UserSignUpService {
-	return &UserSignUpService{
-		db:               db,
-		jwtService:       jwtService,
-		auditLogService:  auditLogService,
-		appConfigService: appConfigService,
-		userService:      userService,
+func newService(deps Dependencies) *Service {
+	return &Service{
+		db:          deps.DB,
+		userCreator: deps.UserCreator,
+		signer:      deps.Signer,
+		auditLog:    deps.AuditLog,
+		appConfig:   deps.AppConfig,
 	}
 }
 
-func (s *UserSignUpService) SignUp(ctx context.Context, signupData dto.SignUpDto, ipAddress, userAgent string) (model.User, string, error) {
+func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -41,12 +46,12 @@ func (s *UserSignUpService) SignUp(ctx context.Context, signupData dto.SignUpDto
 
 	tokenProvided := signupData.Token != ""
 
-	config := s.appConfigService.GetDbConfig()
+	config := s.appConfig.GetDbConfig()
 	if config.AllowUserSignups.Value != "open" && !tokenProvided {
 		return model.User{}, "", &common.OpenSignupDisabledError{}
 	}
 
-	var signupToken model.SignupToken
+	var signupToken SignupToken
 	var userGroupIDs []string
 	if tokenProvided {
 		err := tx.
@@ -79,21 +84,21 @@ func (s *UserSignUpService) SignUp(ctx context.Context, signupData dto.SignUpDto
 		LastName:      signupData.LastName,
 		DisplayName:   strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
 		UserGroupIds:  userGroupIDs,
-		EmailVerified: s.appConfigService.GetDbConfig().EmailsVerified.IsTrue(),
+		EmailVerified: s.appConfig.GetDbConfig().EmailsVerified.IsTrue(),
 	}
 
-	user, err := s.userService.createUserInternal(ctx, userToCreate, false, tx)
+	user, err := s.userCreator.CreateUserInternal(ctx, userToCreate, false, tx)
 	if err != nil {
 		return model.User{}, "", err
 	}
 
-	accessToken, err := s.jwtService.GenerateAccessToken(user, "")
+	accessToken, err := s.signer.GenerateAccessToken(user, "")
 	if err != nil {
 		return model.User{}, "", err
 	}
 
 	if tokenProvided {
-		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
+		s.auditLog.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
 			"signupToken": signupToken.Token,
 		}, tx)
 
@@ -102,10 +107,9 @@ func (s *UserSignUpService) SignUp(ctx context.Context, signupData dto.SignUpDto
 		err = tx.WithContext(ctx).Save(&signupToken).Error
 		if err != nil {
 			return model.User{}, "", err
-
 		}
 	} else {
-		s.auditLogService.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
+		s.auditLog.Create(ctx, model.AuditLogEventAccountCreated, ipAddress, userAgent, user.ID, model.AuditLogData{
 			"method": "open_signup",
 		}, tx)
 	}
@@ -118,7 +122,7 @@ func (s *UserSignUpService) SignUp(ctx context.Context, signupData dto.SignUpDto
 	return user, accessToken, nil
 }
 
-func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData dto.SignUpDto) (model.User, string, error) {
+func (s *Service) SignUpInitialAdmin(ctx context.Context, signUpData signUpDto) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -141,12 +145,12 @@ func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData d
 		IsAdmin:     true,
 	}
 
-	user, err := s.userService.createUserInternal(ctx, userToCreate, false, tx)
+	user, err := s.userCreator.CreateUserInternal(ctx, userToCreate, false, tx)
 	if err != nil {
 		return model.User{}, "", err
 	}
 
-	token, err := s.jwtService.GenerateAccessToken(user, AuthenticationMethodOneTimePassword)
+	token, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -159,14 +163,14 @@ func (s *UserSignUpService) SignUpInitialAdmin(ctx context.Context, signUpData d
 	return user, token, nil
 }
 
-func (s *UserSignUpService) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error) {
+func (s *Service) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error) {
 	return s.isInitialAdminSetupCompleted(ctx, s.db)
 }
 
-func (s *UserSignUpService) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
+func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB) (bool, error) {
 	var userCount int64
 	if err := db.WithContext(ctx).Model(&model.User{}).
-		Where("id != ?", staticApiKeyUserID).
+		Where("id != ?", common.StaticApiKeyUserID).
 		Count(&userCount).Error; err != nil {
 		return false, err
 	}
@@ -174,22 +178,22 @@ func (s *UserSignUpService) isInitialAdminSetupCompleted(ctx context.Context, db
 	return userCount != 0, nil
 }
 
-func (s *UserSignUpService) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]model.SignupToken, utils.PaginationResponse, error) {
-	var tokens []model.SignupToken
-	query := s.db.WithContext(ctx).Preload("UserGroups").Model(&model.SignupToken{})
+func (s *Service) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]SignupToken, utils.PaginationResponse, error) {
+	var tokens []SignupToken
+	query := s.db.WithContext(ctx).Preload("UserGroups").Model(&SignupToken{})
 
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &tokens)
 	return tokens, pagination, err
 }
 
-func (s *UserSignUpService) DeleteSignupToken(ctx context.Context, tokenID string) error {
-	return s.db.WithContext(ctx).Delete(&model.SignupToken{}, "id = ?", tokenID).Error
+func (s *Service) DeleteSignupToken(ctx context.Context, tokenID string) error {
+	return s.db.WithContext(ctx).Delete(&SignupToken{}, "id = ?", tokenID).Error
 }
 
-func (s *UserSignUpService) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (model.SignupToken, error) {
-	signupToken, err := NewSignupToken(ttl, usageLimit)
+func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (SignupToken, error) {
+	signupToken, err := newSignupToken(ttl, usageLimit)
 	if err != nil {
-		return model.SignupToken{}, err
+		return SignupToken{}, err
 	}
 
 	var userGroups []model.UserGroup
@@ -198,19 +202,19 @@ func (s *UserSignUpService) CreateSignupToken(ctx context.Context, ttl time.Dura
 		Find(&userGroups).
 		Error
 	if err != nil {
-		return model.SignupToken{}, err
+		return SignupToken{}, err
 	}
 	signupToken.UserGroups = userGroups
 
 	err = s.db.WithContext(ctx).Create(signupToken).Error
 	if err != nil {
-		return model.SignupToken{}, err
+		return SignupToken{}, err
 	}
 
 	return *signupToken, nil
 }
 
-func NewSignupToken(ttl time.Duration, usageLimit int) (*model.SignupToken, error) {
+func newSignupToken(ttl time.Duration, usageLimit int) (*SignupToken, error) {
 	// Generate a random token
 	randomString, err := utils.GenerateRandomAlphanumericString(16)
 	if err != nil {
@@ -218,7 +222,7 @@ func NewSignupToken(ttl time.Duration, usageLimit int) (*model.SignupToken, erro
 	}
 
 	now := time.Now().Round(time.Second)
-	token := &model.SignupToken{
+	token := &SignupToken{
 		Token:      randomString,
 		ExpiresAt:  datatype.DateTime(now.Add(ttl)),
 		UsageLimit: usageLimit,

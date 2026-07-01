@@ -1,33 +1,32 @@
-package service
+package apikey
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
-	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
-
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-const staticApiKeyUserID = "00000000-0000-0000-0000-000000000000"
-
-type ApiKeyService struct {
+// Service holds the business logic for managing user API keys
+type Service struct {
 	db           *gorm.DB
-	emailService *EmailService
+	staticApiKey string
 }
 
-func NewApiKeyService(ctx context.Context, db *gorm.DB, emailService *EmailService) (*ApiKeyService, error) {
-	s := &ApiKeyService{db: db, emailService: emailService}
+func newService(ctx context.Context, db *gorm.DB, staticApiKey string) (*Service, error) {
+	s := &Service{
+		db:           db,
+		staticApiKey: staticApiKey,
+	}
 
-	if common.EnvConfig.StaticApiKey == "" {
+	if staticApiKey == "" {
 		err := s.deleteStaticApiKeyUser(ctx)
 		if err != nil {
 			return nil, err
@@ -35,16 +34,15 @@ func NewApiKeyService(ctx context.Context, db *gorm.DB, emailService *EmailServi
 	}
 
 	return s, nil
-
 }
 
-func (s *ApiKeyService) ListApiKeys(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.ApiKey, utils.PaginationResponse, error) {
+func (s *Service) ListApiKeys(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]ApiKey, utils.PaginationResponse, error) {
 	query := s.db.
 		WithContext(ctx).
 		Where("user_id = ?", userID).
-		Model(&model.ApiKey{})
+		Model(&ApiKey{})
 
-	var apiKeys []model.ApiKey
+	var apiKeys []ApiKey
 	pagination, err := utils.PaginateFilterAndSort(listRequestOptions, query, &apiKeys)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, err
@@ -53,19 +51,19 @@ func (s *ApiKeyService) ListApiKeys(ctx context.Context, userID string, listRequ
 	return apiKeys, pagination, nil
 }
 
-func (s *ApiKeyService) CreateApiKey(ctx context.Context, userID string, input dto.ApiKeyCreateDto) (model.ApiKey, string, error) {
+func (s *Service) CreateApiKey(ctx context.Context, userID string, input apiKeyCreateDto) (ApiKey, string, error) {
 	// Check if expiration is in the future
 	if !input.ExpiresAt.ToTime().After(time.Now()) {
-		return model.ApiKey{}, "", &common.APIKeyExpirationDateError{}
+		return ApiKey{}, "", &common.APIKeyExpirationDateError{}
 	}
 
 	// Generate a secure random API key
 	token, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
-		return model.ApiKey{}, "", err
+		return ApiKey{}, "", err
 	}
 
-	apiKey := model.ApiKey{
+	apiKey := ApiKey{
 		Name:        input.Name,
 		Key:         utils.CreateSha256Hash(token), // Hash the token for storage
 		Description: input.Description,
@@ -79,48 +77,48 @@ func (s *ApiKeyService) CreateApiKey(ctx context.Context, userID string, input d
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return model.ApiKey{}, "", &common.AlreadyInUseError{Property: "API key name"}
+			return ApiKey{}, "", &common.AlreadyInUseError{Property: "API key name"}
 		}
-		return model.ApiKey{}, "", err
+		return ApiKey{}, "", err
 	}
 
 	// Return the raw token only once - it cannot be retrieved later
 	return apiKey, token, nil
 }
 
-func (s *ApiKeyService) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time) (model.ApiKey, string, error) {
+func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time) (ApiKey, string, error) {
 	// Check if expiration is in the future
 	if !expiration.After(time.Now()) {
-		return model.ApiKey{}, "", &common.APIKeyExpirationDateError{}
+		return ApiKey{}, "", &common.APIKeyExpirationDateError{}
 	}
 
 	tx := s.db.Begin()
 	defer tx.Rollback()
 
-	var apiKey model.ApiKey
+	var apiKey ApiKey
 	err := tx.
 		WithContext(ctx).
-		Model(&model.ApiKey{}).
+		Model(&ApiKey{}).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
 		First(&apiKey).
 		Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.ApiKey{}, "", &common.APIKeyNotFoundError{}
+			return ApiKey{}, "", &common.APIKeyNotFoundError{}
 		}
-		return model.ApiKey{}, "", err
+		return ApiKey{}, "", err
 	}
 
 	// Only allow renewal if the key has already expired
 	if apiKey.ExpiresAt.ToTime().After(time.Now()) {
-		return model.ApiKey{}, "", &common.APIKeyNotExpiredError{}
+		return ApiKey{}, "", &common.APIKeyNotExpiredError{}
 	}
 
 	// Generate a secure random API key
 	token, err := utils.GenerateRandomAlphanumericString(32)
 	if err != nil {
-		return model.ApiKey{}, "", err
+		return ApiKey{}, "", err
 	}
 
 	apiKey.Key = utils.CreateSha256Hash(token)
@@ -128,18 +126,18 @@ func (s *ApiKeyService) RenewApiKey(ctx context.Context, userID, apiKeyID string
 
 	err = tx.WithContext(ctx).Save(&apiKey).Error
 	if err != nil {
-		return model.ApiKey{}, "", err
+		return ApiKey{}, "", err
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return model.ApiKey{}, "", err
+		return ApiKey{}, "", err
 	}
 
 	return apiKey, token, nil
 }
 
-func (s *ApiKeyService) RevokeApiKey(ctx context.Context, userID, apiKeyID string) error {
-	var apiKey model.ApiKey
+func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string) error {
+	var apiKey ApiKey
 	err := s.db.
 		WithContext(ctx).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
@@ -155,25 +153,25 @@ func (s *ApiKeyService) RevokeApiKey(ctx context.Context, userID, apiKeyID strin
 	return nil
 }
 
-func (s *ApiKeyService) ValidateApiKey(ctx context.Context, apiKey string) (model.User, error) {
+func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (model.User, error) {
 	if apiKey == "" {
 		return model.User{}, &common.NoAPIKeyProvidedError{}
 	}
 
-	if common.EnvConfig.StaticApiKey != "" && apiKey == common.EnvConfig.StaticApiKey {
+	if s.staticApiKey != "" && apiKey == s.staticApiKey {
 		return s.initStaticApiKeyUser(ctx)
 	}
 
 	now := time.Now()
 	hashedKey := utils.CreateSha256Hash(apiKey)
 
-	var key model.ApiKey
+	var key ApiKey
 	err := s.db.
 		WithContext(ctx).
-		Model(&model.ApiKey{}).
+		Model(&ApiKey{}).
 		Clauses(clause.Returning{}).
 		Where("key = ? AND expires_at > ?", hashedKey, datatype.DateTime(now)).
-		Updates(&model.ApiKey{
+		Updates(&ApiKey{
 			LastUsedAt: new(datatype.DateTime(now)),
 		}).
 		Preload("User").
@@ -190,8 +188,8 @@ func (s *ApiKeyService) ValidateApiKey(ctx context.Context, apiKey string) (mode
 	return key.User, nil
 }
 
-func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) ([]model.ApiKey, error) {
-	var keys []model.ApiKey
+func (s *Service) ListExpiringApiKeys(ctx context.Context, daysAhead int) ([]ApiKey, error) {
+	var keys []ApiKey
 	now := time.Now()
 	cutoff := now.AddDate(0, 0, daysAhead)
 
@@ -205,40 +203,19 @@ func (s *ApiKeyService) ListExpiringApiKeys(ctx context.Context, daysAhead int) 
 	return keys, err
 }
 
-func (s *ApiKeyService) SendApiKeyExpiringSoonEmail(ctx context.Context, apiKey model.ApiKey) error {
-	if apiKey.User.Email == nil {
-		return &common.UserEmailNotSetError{}
-	}
-
-	err := SendEmail(ctx, s.emailService, email.Address{
-		Name:  apiKey.User.FullName(),
-		Email: *apiKey.User.Email,
-	}, ApiKeyExpiringSoonTemplate, &ApiKeyExpiringSoonTemplateData{
-		ApiKeyName: apiKey.Name,
-		ExpiresAt:  apiKey.ExpiresAt.ToTime(),
-		Name:       apiKey.User.FirstName,
-	})
-	if err != nil {
-		return fmt.Errorf("error sending notification email: %w", err)
-	}
-
-	// Mark the API key as having had an expiration email sent
-	err = s.db.WithContext(ctx).
-		Model(&model.ApiKey{}).
-		Where("id = ?", apiKey.ID).
+// MarkExpirationEmailSent records that the expiration notification email was sent for the given API key
+func (s *Service) MarkExpirationEmailSent(ctx context.Context, apiKeyID string) error {
+	return s.db.WithContext(ctx).
+		Model(&ApiKey{}).
+		Where("id = ?", apiKeyID).
 		Update("expiration_email_sent", true).
 		Error
-	if err != nil {
-		return fmt.Errorf("error recording expiration sent email in database: %w", err)
-	}
-
-	return nil
 }
 
-func (s *ApiKeyService) initStaticApiKeyUser(ctx context.Context) (user model.User, err error) {
+func (s *Service) initStaticApiKeyUser(ctx context.Context) (user model.User, err error) {
 	err = s.db.
 		WithContext(ctx).
-		First(&user, "id = ?", staticApiKeyUserID).
+		First(&user, "id = ?", common.StaticApiKeyUserID).
 		Error
 
 	if err == nil {
@@ -256,7 +233,7 @@ func (s *ApiKeyService) initStaticApiKeyUser(ctx context.Context) (user model.Us
 
 	user = model.User{
 		Base: model.Base{
-			ID: staticApiKeyUserID,
+			ID: common.StaticApiKeyUserID,
 		},
 		FirstName:   "Static API User",
 		Username:    "static-api-user-" + usernameSuffix,
@@ -272,9 +249,9 @@ func (s *ApiKeyService) initStaticApiKeyUser(ctx context.Context) (user model.Us
 	return user, err
 }
 
-func (s *ApiKeyService) deleteStaticApiKeyUser(ctx context.Context) error {
+func (s *Service) deleteStaticApiKeyUser(ctx context.Context) error {
 	return s.db.
 		WithContext(ctx).
-		Delete(&model.User{}, "id = ?", staticApiKeyUserID).
+		Delete(&model.User{}, "id = ?", common.StaticApiKeyUserID).
 		Error
 }

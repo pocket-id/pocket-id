@@ -531,7 +531,7 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 
 		userID := databaseUser.ID
 		if databaseUser.ID == "" {
-			createdUser, err := s.userService.createUserInternal(ctx, desiredUser.input, true, tx)
+			createdUser, err := s.userService.CreateUserInternal(ctx, desiredUser.input, true, tx)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
 				slog.Warn("Skipping creating LDAP user", slog.String("username", desiredUser.input.Username), slog.Any("error", err))
 				continue

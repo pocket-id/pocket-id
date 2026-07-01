@@ -1,47 +1,30 @@
-package controller
+package usersignup
 
 import (
 	"net/http"
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
-
 	"github.com/gin-gonic/gin"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
 const defaultSignupTokenDuration = time.Hour
 
-// NewUserSignupController creates a new controller for user signup and signup token management
-// @Summary User signup and signup token management controller
-// @Description Initializes all user signup-related API endpoints
-// @Tags Users
-func NewUserSignupController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userSignUpService *service.UserSignUpService, appConfigService *service.AppConfigService) {
-	usc := UserSignupController{
-		userSignUpService: userSignUpService,
-		appConfigService:  appConfigService,
-	}
-
-	group.POST("/signup-tokens", authMiddleware.Add(), usc.createSignupTokenHandler)
-	group.GET("/signup-tokens", authMiddleware.Add(), usc.listSignupTokensHandler)
-	group.DELETE("/signup-tokens/:id", authMiddleware.Add(), usc.deleteSignupTokenHandler)
-	group.POST("/signup", rateLimitMiddleware.Add(middleware.RateLimitSignup), usc.signupHandler)
-	group.GET("/signup/setup", usc.checkInitialAdminSetupAvailable)
-	group.POST("/signup/setup", usc.signUpInitialAdmin)
-
+type handler struct {
+	service   *Service
+	appConfig AppConfigProvider
 }
 
-type UserSignupController struct {
-	userSignUpService *service.UserSignUpService
-	appConfigService  *service.AppConfigService
+func newHandler(service *Service, appConfig AppConfigProvider) *handler {
+	return &handler{service: service, appConfig: appConfig}
 }
 
-func (usc *UserSignupController) checkInitialAdminSetupAvailable(c *gin.Context) {
-	setupCompleted, err := usc.userSignUpService.IsInitialAdminSetupCompleted(c.Request.Context())
+func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) {
+	setupCompleted, err := h.service.IsInitialAdminSetupCompleted(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -61,17 +44,17 @@ func (usc *UserSignupController) checkInitialAdminSetupAvailable(c *gin.Context)
 // @Tags Users
 // @Accept json
 // @Produce json
-// @Param body body dto.SignUpDto true "User information"
+// @Param body body signUpDto true "User information"
 // @Success 200 {object} dto.UserDto
 // @Router /api/signup/setup [post]
-func (usc *UserSignupController) signUpInitialAdmin(c *gin.Context) {
-	var input dto.SignUpDto
+func (h *handler) signUpInitialAdmin(c *gin.Context) {
+	var input signUpDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	user, token, err := usc.userSignUpService.SignUpInitialAdmin(c.Request.Context(), input)
+	user, token, err := h.service.SignUpInitialAdmin(c.Request.Context(), input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -83,7 +66,7 @@ func (usc *UserSignupController) signUpInitialAdmin(c *gin.Context) {
 		return
 	}
 
-	maxAge := int(usc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
@@ -95,11 +78,11 @@ func (usc *UserSignupController) signUpInitialAdmin(c *gin.Context) {
 // @Tags Users
 // @Accept json
 // @Produce json
-// @Param token body dto.SignupTokenCreateDto true "Signup token information"
-// @Success 201 {object} dto.SignupTokenDto
+// @Param token body signupTokenCreateDto true "Signup token information"
+// @Success 201 {object} signupTokenDto
 // @Router /api/signup-tokens [post]
-func (usc *UserSignupController) createSignupTokenHandler(c *gin.Context) {
-	var input dto.SignupTokenCreateDto
+func (h *handler) createSignupToken(c *gin.Context) {
+	var input signupTokenCreateDto
 	if err := c.ShouldBindJSON(&input); err != nil {
 		_ = c.Error(err)
 		return
@@ -110,13 +93,13 @@ func (usc *UserSignupController) createSignupTokenHandler(c *gin.Context) {
 		ttl = defaultSignupTokenDuration
 	}
 
-	signupToken, err := usc.userSignUpService.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
+	signupToken, err := h.service.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	var tokenDto dto.SignupTokenDto
+	var tokenDto signupTokenDto
 	err = dto.MapStruct(signupToken, &tokenDto)
 	if err != nil {
 		_ = c.Error(err)
@@ -134,24 +117,24 @@ func (usc *UserSignupController) createSignupTokenHandler(c *gin.Context) {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.SignupTokenDto]
+// @Success 200 {object} dto.Paginated[signupTokenDto]
 // @Router /api/signup-tokens [get]
-func (usc *UserSignupController) listSignupTokensHandler(c *gin.Context) {
+func (h *handler) listSignupTokens(c *gin.Context) {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
-	tokens, pagination, err := usc.userSignUpService.ListSignupTokens(c.Request.Context(), listRequestOptions)
+	tokens, pagination, err := h.service.ListSignupTokens(c.Request.Context(), listRequestOptions)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	var tokensDto []dto.SignupTokenDto
+	var tokensDto []signupTokenDto
 	if err := dto.MapStructList(tokens, &tokensDto); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.SignupTokenDto]{
+	c.JSON(http.StatusOK, dto.Paginated[signupTokenDto]{
 		Data:       tokensDto,
 		Pagination: pagination,
 	})
@@ -164,10 +147,10 @@ func (usc *UserSignupController) listSignupTokensHandler(c *gin.Context) {
 // @Param id path string true "Token ID"
 // @Success 204 "No Content"
 // @Router /api/signup-tokens/{id} [delete]
-func (usc *UserSignupController) deleteSignupTokenHandler(c *gin.Context) {
+func (h *handler) deleteSignupToken(c *gin.Context) {
 	tokenID := c.Param("id")
 
-	err := usc.userSignUpService.DeleteSignupToken(c.Request.Context(), tokenID)
+	err := h.service.DeleteSignupToken(c.Request.Context(), tokenID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -176,17 +159,17 @@ func (usc *UserSignupController) deleteSignupTokenHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// signupWithTokenHandler godoc
+// signupHandler godoc
 // @Summary Sign up
 // @Description Create a new user account
 // @Tags Users
 // @Accept json
 // @Produce json
-// @Param user body dto.SignUpDto true "User information"
-// @Success 201 {object} dto.SignUpDto
+// @Param user body signUpDto true "User information"
+// @Success 201 {object} dto.UserDto
 // @Router /api/signup [post]
-func (usc *UserSignupController) signupHandler(c *gin.Context) {
-	var input dto.SignUpDto
+func (h *handler) signup(c *gin.Context) {
+	var input signUpDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
@@ -195,13 +178,13 @@ func (usc *UserSignupController) signupHandler(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	user, accessToken, err := usc.userSignUpService.SignUp(c.Request.Context(), input, ipAddress, userAgent)
+	user, accessToken, err := h.service.SignUp(c.Request.Context(), input, ipAddress, userAgent)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	maxAge := int(usc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
 
 	var userDto dto.UserDto

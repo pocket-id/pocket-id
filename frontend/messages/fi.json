@@ -530,5 +530,7 @@
 	"emails_verified_by_default_description": "Kun tämä toiminto on käytössä, käyttäjien sähköpostiosoitteet merkitään oletusarvoisesti vahvistetuiksi rekisteröitymisen yhteydessä tai kun heidän sähköpostiosoitteensa muuttuu.",
 	"user_has_no_passkeys_yet": "Tällä käyttäjällä ei ole vielä salasanakoodeja.",
 	"replay_protection": "Toistosuojaus",
-	"replay_protection_description": "Jos tämä asetus on käytössä, annettua tunnusta voidaan käyttää vain kerran. Jos palveluntarjoajasi käyttää samaa tunnusta useita kertoja, sinun on ehkä poistettava tämä asetus käytöstä."
+	"replay_protection_description": "Jos tämä asetus on käytössä, annettua tunnusta voidaan käyttää vain kerran. Jos palveluntarjoajasi käyttää samaa tunnusta useita kertoja, sinun on ehkä poistettava tämä asetus käytöstä.",
+	"pkce_supported_client_title": "Tämä asiakasohjelma tukee PKCE:tä",
+	"pkce_supported_client_description": "Tämä asiakasohjelma tukee Proof Key for Code Exchange (PKCE) -ominaisuutta. PKCE on turvallisuusominaisuus, joka auttaa suojautumaan tietyiltä hyökkäyksiltä OAuth 2.0 -valtuutusprosessin aikana. On suositeltavaa ottaa se käyttöön."
 }
