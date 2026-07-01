@@ -111,6 +111,7 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 		defer pingCancel()
 		err = pg.Ping(pingCtx)
 		if err != nil {
+			pg.Close()
 			return nil, nil, fmt.Errorf("failed to ping Postgres database: %w", err)
 		}
 
@@ -147,6 +148,10 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 	}
 
 	slog.Error("Failed to connect to database after 3 attempts", slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
+
+	if pg != nil {
+		pg.Close()
+	}
 
 	return nil, nil, err
 }

@@ -73,6 +73,11 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 	}
 
 	svc := m.services[policy]
+	if svc == nil {
+		return func(c *gin.Context) {
+			c.AbortWithStatus(500)
+		}
+	}
 
 	return func(c *gin.Context) {
 		ip := c.ClientIP()

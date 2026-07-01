@@ -41,6 +41,9 @@ func Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
+	if pg != nil {
+		defer pg.Close()
+	}
 
 	// Init storage
 	fileStorage, err := InitStorage(ctx, db)

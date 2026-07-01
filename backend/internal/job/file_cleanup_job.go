@@ -46,7 +46,7 @@ func GetFileCleanupJobs(db *gorm.DB, fileStorage storage.FileStorage) (cjs []*cr
 			cronjob.WithLogger(slog.Default()),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("error creating ClearUnusedDefaultProfilePictures job: %w", err)
+			return nil, fmt.Errorf("error creating ClearOrphanedTempFiles job: %w", err)
 		}
 		cjs = append(cjs, cj)
 	}
