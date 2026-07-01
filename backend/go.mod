@@ -27,7 +27,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-uuid v1.0.3
-	github.com/italypaleale/francis v0.1.0-beta.3
+	github.com/italypaleale/francis v0.1.0-beta.4
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
@@ -238,5 +238,3 @@ require (
 )
 
 replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260617200813-dd5303674b39
-
-replace github.com/italypaleale/francis => ../../actors
