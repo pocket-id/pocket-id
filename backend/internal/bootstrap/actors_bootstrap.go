@@ -12,19 +12,24 @@ import (
 	"github.com/italypaleale/francis/components/postgres"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
 )
 
 type NewActorsOpts struct {
-	EnvConfig  *common.EnvConfigSchema
-	SQLite     *sql.DB
-	Postgres   *pgxpool.Pool
-	AppConfig  *service.AppConfigService
-	HttpClient *http.Client
+	SQLite   *sql.DB
+	Postgres *pgxpool.Pool
+
+	EnvConfig   *common.EnvConfigSchema
+	AppConfig   *service.AppConfigService
+	HttpClient  *http.Client
+	DB          *gorm.DB
+	FileStorage storage.FileStorage
 }
 
 func NewActors(o NewActorsOpts) (*local.Host, error) {
@@ -87,11 +92,11 @@ func (o *NewActorsOpts) getProvider() (local.HostOption, error) {
 
 func (o *NewActorsOpts) getCronJobs() (opts []local.HostOption, err error) {
 	// In test mode, we do not register anything
-	if common.EnvConfig.AppEnv != "test" {
+	if common.EnvConfig.AppEnv == "test" {
 		return opts, nil
 	}
 
-	// Register the analytics cron job
+	// Register the analytics job
 	analyticsJob, err := job.GetAnalyticsJob(o.AppConfig, o.HttpClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get analytics cron job: %w", err)
@@ -99,6 +104,15 @@ func (o *NewActorsOpts) getCronJobs() (opts []local.HostOption, err error) {
 	if analyticsJob != nil {
 		// This could be nil if analytics are disabled
 		opts = append(opts, local.WithBuiltInActor(analyticsJob))
+	}
+
+	// Register the file cleanup jobs
+	fileCleanupJobs, err := job.GetFileCleanupJobs(o.DB, o.FileStorage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file cleanup cron jobs: %w", err)
+	}
+	for _, j := range fileCleanupJobs {
+		opts = append(opts, local.WithBuiltInActor(j))
 	}
 
 	return opts, nil

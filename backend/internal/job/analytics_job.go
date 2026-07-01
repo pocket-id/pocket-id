@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -34,15 +35,16 @@ func GetAnalyticsJob(appConfig *service.AppConfigService, httpClient *http.Clien
 
 	// Create the built-in actor
 	cj, err := cronjob.New(
-		"analytics",
+		"Analytics",
 		cronjob.WithJob(job.sendHeartbeat),
-		// Send every 24 hours
+		// Run every 24 hours
 		cronjob.WithInterval(24*time.Hour),
-		// Send immediately upon registration too
+		// Run immediately upon registration too
 		cronjob.WithImmediate(),
+		cronjob.WithLogger(slog.Default()),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error creating cron job: %w", err)
+		return nil, fmt.Errorf("error creating Analytics job: %w", err)
 	}
 
 	return cj, nil

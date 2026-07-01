@@ -237,3 +237,5 @@ require (
 )
 
 replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260617200813-dd5303674b39
+
+replace github.com/italypaleale/francis => ../../actors

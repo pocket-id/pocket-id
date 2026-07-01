@@ -91,10 +91,13 @@ func Bootstrap(ctx context.Context) error {
 
 	// Init the actors
 	actorsOpts := NewActorsOpts{
-		EnvConfig:  &common.EnvConfig,
-		Postgres:   pg,
-		AppConfig:  svc.appConfigService,
-		HttpClient: httpClient,
+		Postgres: pg,
+
+		EnvConfig:   &common.EnvConfig,
+		AppConfig:   svc.appConfigService,
+		HttpClient:  httpClient,
+		DB:          db,
+		FileStorage: fileStorage,
 	}
 	if pg == nil {
 		actorsOpts.SQLite, err = db.DB()
