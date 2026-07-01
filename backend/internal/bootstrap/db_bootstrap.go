@@ -123,6 +123,7 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 		return nil, nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}
 
+	// Try connecting up to 3 times
 	for i := 1; i <= 3; i++ {
 		db, err = gorm.Open(dialector, &gorm.Config{
 			TranslateError: true,
@@ -131,18 +132,23 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 		if err == nil {
 			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
 
+			// Invoke the onConnFn callback if any
 			if onConnFn != nil {
 				conn, err := db.DB()
 				if err != nil {
-					slog.Warn("Failed to get database connection, will retry in 3s", slog.Int("attempt", i), slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
-					time.Sleep(3 * time.Second)
+					if pg != nil {
+						pg.Close()
+					}
+					return nil, nil, fmt.Errorf("failed to get database connection for onConnFn callback: %w", err)
 				}
+
 				onConnFn(conn)
 			}
 
 			return db, pg, nil
 		}
 
+		// If we're here, the connection failed
 		slog.Warn("Failed to connect to database, will retry in 3s", slog.Int("attempt", i), slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 		time.Sleep(3 * time.Second)
 	}
