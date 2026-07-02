@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Tällä käyttäjällä ei ole vielä salasanakoodeja.",
 	"replay_protection": "Toistosuojaus",
 	"replay_protection_description": "Jos tämä asetus on käytössä, annettua tunnusta voidaan käyttää vain kerran. Jos palveluntarjoajasi käyttää samaa tunnusta useita kertoja, sinun on ehkä poistettava tämä asetus käytöstä.",
+	"i_have_a_longer_code": "Minulla on pidempi koodi",
 	"pkce_supported_client_title": "Tämä asiakasohjelma tukee PKCE:tä",
 	"pkce_supported_client_description": "Tämä asiakasohjelma tukee Proof Key for Code Exchange (PKCE) -ominaisuutta. PKCE on turvallisuusominaisuus, joka auttaa suojautumaan tietyiltä hyökkäyksiltä OAuth 2.0 -valtuutusprosessin aikana. On suositeltavaa ottaa se käyttöön."
 }
