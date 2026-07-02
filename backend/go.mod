@@ -27,7 +27,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-uuid v1.0.3
-	github.com/italypaleale/francis v0.1.0-beta.4.0.20260702021535-38b658ae43a3
+	github.com/italypaleale/francis v0.1.0-beta.5
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1

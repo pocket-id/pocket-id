@@ -247,8 +247,8 @@ github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/italypaleale/francis v0.1.0-beta.4.0.20260702021535-38b658ae43a3 h1:befkCYjis2biqsUWu7iKs3TUMoFJiSL2vZkLx4yvDXM=
-github.com/italypaleale/francis v0.1.0-beta.4.0.20260702021535-38b658ae43a3/go.mod h1:4Nh71hHH2wvavuORqYDFxuZ46yPo+K4MF0XCHkrRBFY=
+github.com/italypaleale/francis v0.1.0-beta.5 h1:cKFdgViObzB8N1Ga2yzZp3e3o7azviU1giD7E7I6pWk=
+github.com/italypaleale/francis v0.1.0-beta.5/go.mod h1:4Nh71hHH2wvavuORqYDFxuZ46yPo+K4MF0XCHkrRBFY=
 github.com/italypaleale/go-kit v0.0.0-20260620130522-3cb485fabbc9 h1:69qxkeq9KizYIV5PvBScUvhJxQu7ZFg+A2uCmhGPqh0=
 github.com/italypaleale/go-kit v0.0.0-20260620130522-3cb485fabbc9/go.mod h1:BSDA6tYbFSyg2YkH4jdhbJaEpKx83qaO6Kn51jeElA0=
 github.com/italypaleale/go-sql-utils v0.2.4-0.20260702021114-e1dfdfb67d0e h1:HDhmMkWAlLy/Elr/+T7diAZgAI+sDY2hYAyIAyefUYk=
