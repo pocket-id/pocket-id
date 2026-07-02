@@ -283,9 +283,8 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 		tables = append(tables, dbData.TableOrder...)
 
 		for t := range dbData.Tables {
-			// Skip tables already present where the order matters
-			// Also skip the schema_migrations table
-			if slices.Contains(dbData.TableOrder, t) || t == "schema_migrations" {
+			// Skip tables already present where the order matters, the schema_migrations table, and the actor host's own "francis_" tables in case they were included
+			if slices.Contains(dbData.TableOrder, t) || t == "schema_migrations" || strings.HasPrefix(t, "francis_") {
 				continue
 			}
 			tables = append(tables, t)
