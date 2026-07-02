@@ -362,7 +362,7 @@
 	"login_code_email_success": "Přihlašovací kód byl odeslán uživateli.",
 	"send_email": "Odeslat e-mail",
 	"show_code": "Zobrazit kód",
-	"callback_url_description": "URL adresy poskytnuté vaším klientem. Pokud pole ponecháte prázdné, budou automaticky přidány. Podporovány jsou <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>zástupné znaky</link>.",
+	"callback_url_description": "URL adresy zadané vaším klientem. Podporovány jsou <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>zástupné znaky</link>.",
 	"logout_callback_url_description": "URL adresy poskytnuté vaším klientem pro odhlášení. Podporovány jsou <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>zástupné znaky</link>.",
 	"api_key_expiration": "Vypršení platnosti API klíče",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Pošlete uživateli e-mail, jakmile jejich API klíč brzy vyprší.",
