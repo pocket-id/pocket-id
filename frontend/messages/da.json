@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Denne bruger har endnu ingen adgangsnøgler.",
 	"replay_protection": "Beskyttelse mod gentagelse",
 	"replay_protection_description": "Hvis denne indstilling er aktiveret, kan det angivne token kun bruges én gang. Hvis din udbyder bruger det samme token flere gange, kan det være nødvendigt at deaktivere denne indstilling.",
+	"i_have_a_longer_code": "Jeg har en længere kodestykke",
 	"pkce_supported_client_title": "Denne klient understøtter PKCE",
 	"pkce_supported_client_description": "Denne klient understøtter Proof Key for Code Exchange (PKCE). PKCE er en sikkerhedsfunktion, der hjælper med at beskytte mod visse angreb under OAuth 2.0-godkendelsesprocessen. Det anbefales at aktivere den."
 }
