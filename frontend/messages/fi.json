@@ -362,7 +362,7 @@
 	"login_code_email_success": "Pääsyavain poistettiin",
 	"send_email": "Lähetä sähköposti",
 	"show_code": "Näytä koodi",
-	"callback_url_description": "Asiakkaasi toimittamat URL-osoitteet. Lisätään automaattisesti, jos kenttä jätetään tyhjäksi. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Villikortit</link> ovat tuettuja.",
+	"callback_url_description": "Asiakkaasi toimittamat URL-osoitteet. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Yleismerkkejä</link> tuetaan.",
 	"logout_callback_url_description": "Asiakkaasi antamat URL-osoitteet kirjautumista varten. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Villikortit</link> ovat tuettuja.",
 	"api_key_expiration": "API-avaimen voimassaolon päättyminen",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Lähetä käyttäjälle sähköpostiviesti, kun hänen API-avaimensa on vanhentumassa.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Tällä käyttäjällä ei ole vielä salasanakoodeja.",
 	"replay_protection": "Toistosuojaus",
 	"replay_protection_description": "Jos tämä asetus on käytössä, annettua tunnusta voidaan käyttää vain kerran. Jos palveluntarjoajasi käyttää samaa tunnusta useita kertoja, sinun on ehkä poistettava tämä asetus käytöstä.",
+	"i_have_a_longer_code": "Minulla on pidempi koodi",
 	"pkce_supported_client_title": "Tämä asiakasohjelma tukee PKCE:tä",
 	"pkce_supported_client_description": "Tämä asiakasohjelma tukee Proof Key for Code Exchange (PKCE) -ominaisuutta. PKCE on turvallisuusominaisuus, joka auttaa suojautumaan tietyiltä hyökkäyksiltä OAuth 2.0 -valtuutusprosessin aikana. On suositeltavaa ottaa se käyttöön."
 }

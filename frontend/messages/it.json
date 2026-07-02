@@ -362,7 +362,7 @@
 	"login_code_email_success": "Il codice di accesso è stato inviato all'utente.",
 	"send_email": "Invia email",
 	"show_code": "Mostra codice",
-	"callback_url_description": "URL forniti dal tuo cliente. Se lasci vuoto, verranno aggiunti automaticamente. Puoi usare <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>i caratteri jolly</link>.",
+	"callback_url_description": "URL forniti dal tuo cliente. Sono supportati <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>i caratteri jolly</link>.",
 	"logout_callback_url_description": "URL forniti dal tuo cliente per il logout. Si possono usare <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>i caratteri jolly</link>.",
 	"api_key_expiration": "Scadenza Chiave API",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Invia un'email all'utente quando la sua chiave API sta per scadere.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Questo utente non ha ancora nessuna chiave di accesso.",
 	"replay_protection": "Protezione dalla riproduzione",
 	"replay_protection_description": "Se abilitata, il token fornito può essere utilizzato solo una volta. Se il tuo provider utilizza lo stesso token più volte, potrebbe essere necessario disabilitare questa opzione.",
+	"i_have_a_longer_code": "Ho un codice più lungo",
 	"pkce_supported_client_title": "Questo client supporta PKCE",
 	"pkce_supported_client_description": "Questo client supporta la funzione Proof Key for Code Exchange (PKCE). Il PKCE è una funzionalità di sicurezza che aiuta a proteggerti da determinati attacchi durante il processo di autorizzazione OAuth 2.0. Ti consigliamo di attivarla."
 }
