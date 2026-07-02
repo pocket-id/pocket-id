@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Người dùng này hiện chưa có khóa truy cập nào.",
 	"replay_protection": "Bảo vệ chống phát lại",
 	"replay_protection_description": "Nếu tùy chọn này được bật, mã thông báo được cung cấp chỉ có thể được sử dụng một lần. Nếu nhà cung cấp của bạn sử dụng cùng một mã thông báo nhiều lần, bạn có thể cần phải tắt tùy chọn này.",
+	"i_have_a_longer_code": "Tôi có một đoạn mã dài hơn",
 	"pkce_supported_client_title": "Khách hàng này hỗ trợ PKCE",
 	"pkce_supported_client_description": "Ứng dụng khách này hỗ trợ tính năng Proof Key for Code Exchange (PKCE). PKCE là một tính năng bảo mật giúp bảo vệ khỏi một số cuộc tấn công nhất định trong quá trình ủy quyền OAuth 2.0. Bạn nên bật tính năng này."
 }
