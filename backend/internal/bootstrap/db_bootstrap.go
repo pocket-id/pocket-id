@@ -37,7 +37,7 @@ func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error)
 	}
 
 	// Run migrations
-	err = utils.MigrateDatabase(sqlDb)
+	err = utils.MigrateDatabase(ctx, sqlDb)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to run migrations: %w", err)
 	}

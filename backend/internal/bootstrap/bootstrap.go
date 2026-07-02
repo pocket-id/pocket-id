@@ -18,13 +18,21 @@ import (
 )
 
 func Bootstrap(ctx context.Context) error {
-	var shutdownFns []utils.Service
+	var (
+		shutdownFns       []utils.Service
+		closeDatabasePool func()
+	)
 	defer func() { //nolint:contextcheck
 		// Invoke all shutdown functions on exit
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		if err := utils.NewServiceRunner(shutdownFns...).Run(shutdownCtx); err != nil {
-			slog.Error("Error during graceful shutdown", "error", err)
+		shutdownErr := utils.NewServiceRunner(shutdownFns...).Run(shutdownCtx)
+		if shutdownErr != nil {
+			slog.Error("Error during graceful shutdown", "error", shutdownErr)
+		}
+		// Close the database connection pool only after the shutdown functions have run: some of them (e.g. releasing the application lock) still need to query the database.
+		if closeDatabasePool != nil {
+			closeDatabasePool()
 		}
 	}()
 
@@ -42,7 +50,7 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 	if pg != nil {
-		defer pg.Close()
+		closeDatabasePool = pg.Close
 	}
 
 	// Init storage

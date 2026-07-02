@@ -485,23 +485,37 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 }
 
 func (s *TestService) ResetDatabase() error {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	return s.db.Transaction(func(tx *gorm.DB) (err error) {
 		var tables []string
 
+		// The "francis_" tables belong to the actor host and must be preserved: wiping them out from under the running host breaks it
 		switch common.EnvConfig.DbProvider {
 		case common.DbProviderSqlite:
 			// Query to get all tables for SQLite
-			if err := tx.Raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations';").Scan(&tables).Error; err != nil {
-				return err
+			err = tx.
+				Raw(`SELECT name
+					FROM sqlite_master
+					WHERE type='table'
+						AND name NOT LIKE 'sqlite_%'
+						AND name NOT LIKE 'francis_%'
+						AND name != 'schema_migrations'`).
+				Scan(&tables).
+				Error
+			if err != nil {
+				return fmt.Errorf("error loading table list: %w", err)
 			}
 		case common.DbProviderPostgres:
 			// Query to get all tables for PostgreSQL
-			if err := tx.Raw(`
-                SELECT tablename 
-                FROM pg_tables 
-                WHERE schemaname = 'public' AND tablename != 'schema_migrations';
-            `).Scan(&tables).Error; err != nil {
-				return err
+			err = tx.
+				Raw(`SELECT tablename
+					FROM pg_tables
+					WHERE schemaname = 'public'
+						AND tablename NOT LIKE 'francis_%'
+						AND tablename != 'schema_migrations'`).
+				Scan(&tables).
+				Error
+			if err != nil {
+				return fmt.Errorf("error loading table list: %w", err)
 			}
 		default:
 			return fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
@@ -509,15 +523,14 @@ func (s *TestService) ResetDatabase() error {
 
 		// Delete all rows from all tables
 		for _, table := range tables {
-			if err := tx.Exec(fmt.Sprintf("DELETE FROM %s;", table)).Error; err != nil {
-				return err
+			err = tx.Exec("DELETE FROM " + table).Error
+			if err != nil {
+				return fmt.Errorf("error deleting from table '%s': %w", table, err)
 			}
 		}
 
 		return nil
 	})
-
-	return err
 }
 
 func (s *TestService) ResetApplicationImages(ctx context.Context) error {

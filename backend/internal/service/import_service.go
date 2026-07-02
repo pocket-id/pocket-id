@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -46,7 +47,7 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 		return err
 	}
 
-	err = s.ImportDatabase(dbData)
+	err = s.ImportDatabase(ctx, dbData)
 	if err != nil {
 		return err
 	}
@@ -60,8 +61,8 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 }
 
 // ImportDatabase only imports the database data from the given DatabaseExport struct.
-func (s *ImportService) ImportDatabase(dbData DatabaseExport) error {
-	err := s.resetSchema(dbData.Version)
+func (s *ImportService) ImportDatabase(ctx context.Context, dbData DatabaseExport) error {
+	err := s.resetSchema(ctx, dbData.Version)
 	if err != nil {
 		return err
 	}
@@ -144,39 +145,89 @@ func (s *ImportService) importUploads(ctx context.Context, files []*zip.File) er
 }
 
 // resetSchema drops the existing schema and migrates to the target version
-func (s *ImportService) resetSchema(targetVersion uint) error {
+func (s *ImportService) resetSchema(ctx context.Context, targetVersion uint) error {
 	sqlDb, err := s.db.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
-	m, err := utils.GetEmbeddedMigrateInstance(sqlDb)
+	// Drop the existing schema
+	if s.db.Name() == "sqlite" {
+		// On SQLite, the connection pool forces `foreign_keys(1)` on every connection, so DROP TABLE performs an implicit DELETE that fires foreign-key cascades/triggers and fails depending on the drop order
+		// golang-migrate's Drop() runs across the pool, so disabling foreign keys on a single Gorm connection wouldn't reach the connection it uses
+		// Instead, drop every table on a single dedicated connection with foreign keys disabled
+		err = dropAllTablesSQLite(ctx, sqlDb)
+		if err != nil {
+			return fmt.Errorf("failed to drop existing schema: %w", err)
+		}
+	} else {
+		m, cleanup, err := utils.GetEmbeddedMigrateInstance(ctx, sqlDb)
+		if err != nil {
+			return fmt.Errorf("failed to get migrate instance: %w", err)
+		}
+		err = m.Drop()
+		cleanup()
+		if err != nil {
+			return fmt.Errorf("failed to drop existing schema: %w", err)
+		}
+	}
+
+	// Re-create the schema by migrating to the target version
+	// The migration files manage their own foreign-key state where needed
+	m, cleanup, err := utils.GetEmbeddedMigrateInstance(ctx, sqlDb)
 	if err != nil {
 		return fmt.Errorf("failed to get migrate instance: %w", err)
 	}
-
-	if s.db.Name() == "sqlite" {
-		s.db.Exec("PRAGMA foreign_keys = OFF;")
-	}
-
-	err = m.Drop()
-	if err != nil {
-		return fmt.Errorf("failed to drop existing schema: %w", err)
-	}
-
-	if s.db.Name() == "sqlite" {
-		defer s.db.Exec("PRAGMA foreign_keys = ON;")
-	}
-
-	// Needs to be called again to re-create the schema_migrations table
-	m, err = utils.GetEmbeddedMigrateInstance(sqlDb)
-	if err != nil {
-		return fmt.Errorf("failed to get migrate instance: %w", err)
-	}
+	defer cleanup()
 
 	err = m.Migrate(targetVersion)
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
+	}
+
+	return nil
+}
+
+// dropAllTablesSQLite drops every user table using a single dedicated connection with foreign-key enforcement disabled, so DROP TABLE doesn't trip foreign-key cascades or triggers
+// foreign_keys is a per-connection pragma, so pinning to one connection guarantees it stays disabled for every drop
+func dropAllTablesSQLite(ctx context.Context, sqlDb *sql.DB) error {
+	conn, err := sqlDb.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = conn.ExecContext(ctx, "PRAGMA foreign_keys = OFF")
+	if err != nil {
+		return fmt.Errorf("failed to disable foreign keys: %w", err)
+	}
+
+	rows, err := conn.QueryContext(ctx, "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+	if err != nil {
+		return fmt.Errorf("failed to list tables: %w", err)
+	}
+	var tables []string
+	for rows.Next() {
+		var name string
+		err = rows.Scan(&name)
+		if err != nil {
+			// We cannot defer as that would block the DROP TABLE queries
+			//nolint:sqlclosecheck
+			_ = rows.Close()
+			return err
+		}
+		tables = append(tables, name)
+	}
+	err = errors.Join(rows.Err(), rows.Close())
+	if err != nil {
+		return err
+	}
+
+	for _, t := range tables {
+		_, err = conn.ExecContext(ctx, `DROP TABLE IF EXISTS "`+t+`"`)
+		if err != nil {
+			return fmt.Errorf("failed to drop table %q: %w", t, err)
+		}
 	}
 
 	return nil
