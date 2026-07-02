@@ -18,13 +18,21 @@ import (
 )
 
 func Bootstrap(ctx context.Context) error {
-	var shutdownFns []utils.Service
+	var (
+		shutdownFns       []utils.Service
+		closeDatabasePool func()
+	)
 	defer func() { //nolint:contextcheck
 		// Invoke all shutdown functions on exit
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		if err := utils.NewServiceRunner(shutdownFns...).Run(shutdownCtx); err != nil {
-			slog.Error("Error during graceful shutdown", "error", err)
+		shutdownErr := utils.NewServiceRunner(shutdownFns...).Run(shutdownCtx)
+		if shutdownErr != nil {
+			slog.Error("Error during graceful shutdown", "error", shutdownErr)
+		}
+		// Close the database connection pool only after the shutdown functions have run: some of them (e.g. releasing the application lock) still need to query the database.
+		if closeDatabasePool != nil {
+			closeDatabasePool()
 		}
 	}()
 
@@ -33,23 +41,31 @@ func Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize OpenTelemetry: %w", err)
 	}
+
 	slog.InfoContext(ctx, "Pocket ID is starting")
 
-	db, err := NewDatabase()
+	// Init database
+	db, pg, err := NewDatabase(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
+	if pg != nil {
+		closeDatabasePool = pg.Close
+	}
 
+	// Init storage
 	fileStorage, err := InitStorage(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
 	}
 
+	// Init application images
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize application images: %w", err)
 	}
 
+	// Init the scheduler
 	scheduler, err := job.NewScheduler()
 	if err != nil {
 		return fmt.Errorf("failed to create job scheduler: %w", err)
@@ -61,6 +77,7 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
 
+	// Acquire the lock from the app lock service
 	waitUntil, err := svc.appLockService.Acquire(ctx, false)
 	if errors.Is(err, service.ErrLockUnavailable) {
 		return errors.New("it appears that there's already one instance of Pocket ID running; running multiple replicas of Pocket ID is currently not supported")
@@ -83,21 +100,48 @@ func Bootstrap(ctx context.Context) error {
 	}
 	shutdownFns = append(shutdownFns, shutdownFn)
 
+	// Init the actors
+	actorsOpts := NewActorsOpts{
+		Postgres: pg,
+
+		EnvConfig:   &common.EnvConfig,
+		AppConfig:   svc.appConfigService,
+		HttpClient:  httpClient,
+		DB:          db,
+		FileStorage: fileStorage,
+	}
+	if pg == nil {
+		actorsOpts.SQLite, err = db.DB()
+		if err != nil {
+			return fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
+		}
+	}
+	actors, rateLimitServices, err := NewActors(actorsOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize actors: %w", err)
+	}
+
 	// Register scheduled jobs
-	err = registerScheduledJobs(ctx, db, svc, httpClient, scheduler)
+	err = registerScheduledJobs(ctx, db, svc, scheduler)
 	if err != nil {
 		return fmt.Errorf("failed to register scheduled jobs: %w", err)
 	}
 
 	// Init the router
-	router, err := initRouter(db, svc)
+	// The rate-limit middleware invokes the actor host with each request's own context, so the setup context is intentionally not threaded through the router
+	//nolint:contextcheck
+	router, err := initRouter(db, svc, rateLimitServices)
 	if err != nil {
 		return fmt.Errorf("failed to initialize router: %w", err)
 	}
 
 	// Run all background services
 	// This call blocks until the context is canceled
-	services := []utils.Service{svc.appLockService.RunRenewal, router}
+	services := []utils.Service{
+		svc.appLockService.RunRenewal,
+		actors.Run,
+		router,
+	}
 
 	if common.EnvConfig.AppEnv != "test" {
 		services = append(services, scheduler.Run)

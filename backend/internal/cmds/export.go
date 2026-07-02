@@ -33,7 +33,7 @@ func init() {
 
 // runExport orchestrates the export flow
 func runExport(ctx context.Context, flags exportFlags) error {
-	db, err := bootstrap.NewDatabase()
+	db, _, err := bootstrap.NewDatabase(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}

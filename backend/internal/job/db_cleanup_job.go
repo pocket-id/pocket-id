@@ -123,8 +123,8 @@ func (j *DbCleanupJobs) clearInteractionSessions(ctx context.Context) error {
 	return nil
 }
 
-// clearReauthenticationTokens deletes expired reauthentication tokens. What counts as
-// expired is owned by the webauthn module.
+// clearReauthenticationTokens deletes expired reauthentication tokens.
+// What counts as expired is owned by the webauthn module.
 func (j *DbCleanupJobs) clearReauthenticationTokens(ctx context.Context) error {
 	count, err := webauthn.CleanupExpiredReauthenticationTokens(ctx, j.db)
 	if err != nil {

@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -11,8 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/libtnb/sqlite"
 	slogGorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -23,51 +26,51 @@ import (
 	sqliteutil "github.com/pocket-id/pocket-id/backend/internal/utils/sqlite"
 )
 
-func NewDatabase() (db *gorm.DB, err error) {
-	db, err = ConnectDatabase()
+func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error) {
+	db, pg, err = ConnectDatabase(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 	sqlDb, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
+		return nil, nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
 	// Run migrations
-	err = utils.MigrateDatabase(sqlDb)
+	err = utils.MigrateDatabase(ctx, sqlDb)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+		return nil, nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	return db, nil
+	return db, pg, nil
 }
 
-func ConnectDatabase() (db *gorm.DB, err error) {
-	var (
-		dialector               gorm.Dialector
-		sqliteNetworkFilesystem bool
-	)
+//nolint:gocognit
+func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error) {
+	var dialector gorm.Dialector
 
 	// Choose the correct database provider
 	var onConnFn func(conn *sql.DB)
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
 		if common.EnvConfig.DbConnectionString == "" {
-			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for SQLite database")
+			return nil, nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for SQLite database")
 		}
 
 		sqliteutil.RegisterSqliteFunctions()
 
 		connString, dbPath, isMemoryDB, err := parseSqliteConnectionString(common.EnvConfig.DbConnectionString)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if !isMemoryDB {
-			if err := ensureSqliteDatabaseDir(dbPath); err != nil {
-				return nil, err
+			err = ensureSqliteDatabaseDir(dbPath)
+			if err != nil {
+				return nil, nil, err
 			}
 
+			var sqliteNetworkFilesystem bool
 			sqliteNetworkFilesystem, err = utils.IsNetworkedFileSystem(filepath.Dir(dbPath))
 			if err != nil {
 				// Log the error only
@@ -80,7 +83,7 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 		// Before we connect, also make sure that there's a temporary folder for SQLite to write its data
 		err = ensureSqliteTempDir(filepath.Dir(dbPath))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if isMemoryDB {
@@ -94,13 +97,33 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 		dialector = sqlite.Open(connString)
 	case common.DbProviderPostgres:
 		if common.EnvConfig.DbConnectionString == "" {
-			return nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
+			return nil, nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
 		}
-		dialector = postgres.Open(common.EnvConfig.DbConnectionString)
+
+		// We need a pgxpool object for francis, so we open this as a pgxpool...
+		pg, err = pgxpool.New(ctx, common.EnvConfig.DbConnectionString)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create Postgres pool: %w", err)
+		}
+
+		// ...test it with a ping...
+		pingCtx, pingCancel := context.WithTimeout(ctx, 10*time.Second)
+		defer pingCancel()
+		err = pg.Ping(pingCtx)
+		if err != nil {
+			pg.Close()
+			return nil, nil, fmt.Errorf("failed to ping Postgres database: %w", err)
+		}
+
+		// ...then create the dialector by adapting it to *sql.DB
+		dialector = postgres.New(postgres.Config{
+			Conn: stdlib.OpenDBFromPool(pg),
+		})
 	default:
-		return nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
+		return nil, nil, fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
 	}
 
+	// Try connecting up to 3 times
 	for i := 1; i <= 3; i++ {
 		db, err = gorm.Open(dialector, &gorm.Config{
 			TranslateError: true,
@@ -109,25 +132,34 @@ func ConnectDatabase() (db *gorm.DB, err error) {
 		if err == nil {
 			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
 
+			// Invoke the onConnFn callback if any
 			if onConnFn != nil {
 				conn, err := db.DB()
 				if err != nil {
-					slog.Warn("Failed to get database connection, will retry in 3s", slog.Int("attempt", i), slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
-					time.Sleep(3 * time.Second)
+					if pg != nil {
+						pg.Close()
+					}
+					return nil, nil, fmt.Errorf("failed to get database connection for onConnFn callback: %w", err)
 				}
+
 				onConnFn(conn)
 			}
 
-			return db, nil
+			return db, pg, nil
 		}
 
+		// If we're here, the connection failed
 		slog.Warn("Failed to connect to database, will retry in 3s", slog.Int("attempt", i), slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 		time.Sleep(3 * time.Second)
 	}
 
 	slog.Error("Failed to connect to database after 3 attempts", slog.String("provider", string(common.EnvConfig.DbProvider)), slog.Any("error", err))
 
-	return nil, err
+	if pg != nil {
+		pg.Close()
+	}
+
+	return nil, nil, err
 }
 
 func parseSqliteConnectionString(connString string) (parsedConnString string, dbPath string, isMemoryDB bool, err error) {
