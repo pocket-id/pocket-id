@@ -362,7 +362,7 @@
 	"login_code_email_success": "Код для входу було надіслано користувачеві.",
 	"send_email": "Надіслати електронного листа",
 	"show_code": "Показати код",
-	"callback_url_description": "URL-адреси, надані вашим клієнтом. Будуть додані автоматично, якщо залишити поле порожнім. Підтримуються <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>символи-замінники</link>.",
+	"callback_url_description": "URL-адреси, надані вашим клієнтом. Підтримується використання <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>символів-замінників</link>.",
 	"logout_callback_url_description": "URL-адреси, надані вашим клієнтом для виходу з системи. Підтримуються <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>символи-замінники</link>.",
 	"api_key_expiration": "Термін дії API-ключа",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Надіслати користувачу електронного листа, коли термін дії його API-ключа наближається до завершення.",
