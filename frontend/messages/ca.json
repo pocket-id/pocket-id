@@ -362,7 +362,7 @@
 	"login_code_email_success": "El codi d'inici de sessió s'ha enviat a l'usuari.",
 	"send_email": "Envia correu",
 	"show_code": "Mostra codi",
-	"callback_url_description": "URL(s) proporcionada(s) pel teu client. S'afegiran automàticament si es deixa en blanc. S'admeten <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>comodins</link>.",
+	"callback_url_description": "URL proporcionades pel vostre client. Es suporten <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>caràcters comodí</link>.",
 	"logout_callback_url_description": "URL(s) proporcionada(s) pel teu client per tancar la sessió. S'admeten <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>comodins</link>.",
 	"api_key_expiration": "Caducitat de la clau API",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Envia un correu a l'usuari quan la seva clau API estigui a punt de caducar.",
