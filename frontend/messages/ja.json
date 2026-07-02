@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "このユーザーにはまだパスキーがありません。",
 	"replay_protection": "リプレイ防止機能",
 	"replay_protection_description": "このオプションを有効にすると、指定されたトークンは1回のみ使用可能になります。ご利用のプロバイダーが同じトークンを複数回使用する場合、このオプションを無効にする必要があるかもしれません。",
+	"i_have_a_longer_code": "もっと長いコードがあるのですが",
 	"pkce_supported_client_title": "このクライアントはPKCEに対応しています",
 	"pkce_supported_client_description": "このクライアントは、Proof Key for Code Exchange（PKCE）に対応しています。PKCEは、OAuth 2.0の認証プロセス中に発生する特定の攻撃から保護するためのセキュリティ機能です。この機能を有効にすることをお勧めします。"
 }
