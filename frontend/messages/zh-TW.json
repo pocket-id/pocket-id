@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "此使用者目前尚未擁有任何密鑰。",
 	"replay_protection": "重播保護",
 	"replay_protection_description": "若啟用此功能，所提供的憑證僅能使用一次。若您的服務供應商多次使用同一張憑證，您可能需要停用此選項。",
+	"i_have_a_longer_code": "我有一段較長的程式碼",
 	"pkce_supported_client_title": "此客戶端支援 PKCE",
 	"pkce_supported_client_description": "此客戶端支援「代碼交換證明金鑰」（Proof Key for Code Exchange，簡稱 PKCE）。PKCE 是一項安全功能，有助於在 OAuth 2.0 授權過程中防範特定攻擊。建議啟用此功能。"
 }
