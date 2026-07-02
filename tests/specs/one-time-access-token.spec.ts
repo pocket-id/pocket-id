@@ -17,7 +17,9 @@ test('Sign in with login code', async ({ page }) => {
 test('Sign in with login code entered manually', async ({ page }) => {
 	const token = oneTimeAccessTokens.filter((t) => !t.expired)[0];
 	await page.goto('/lc');
-
+	
+	await page.getByText('I have a longer code').click();
+	
 	await page.getByPlaceholder('Code').first().fill(token.token);
 
 	await page.getByText('Submit').first().click();
@@ -37,6 +39,8 @@ test('Sign in with expired login code fails', async ({ page }) => {
 test('Sign in with login code entered manually fails', async ({ page }) => {
 	const token = oneTimeAccessTokens.filter((t) => t.expired)[0];
 	await page.goto('/lc');
+
+	await page.getByText('I have a longer code').click();
 
 	await page.getByPlaceholder('Code').first().fill(token.token);
 
