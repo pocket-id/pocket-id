@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Šim lietotājam vēl nav piekļuves atslēgu.",
 	"replay_protection": "Aizsardzība pret atkārtošanu",
 	"replay_protection_description": "Ja šī opcija ir ieslēgta, norādīto tokenu var izmantot tikai vienu reizi. Ja jūsu pakalpojuma sniedzējs izmanto to pašu tokenu vairākas reizes, iespējams, šī opcija būs jāatslēdz.",
+	"i_have_a_longer_code": "Man ir garāks kods",
 	"pkce_supported_client_title": "Šis klients atbalsta PKCE",
 	"pkce_supported_client_description": "Šis klients atbalsta „Proof Key for Code Exchange“ (PKCE). PKCE ir drošības funkcija, kas palīdz aizsargāties pret noteiktiem uzbrukumiem OAuth 2.0 autorizācijas procesa laikā. Ieteicams to ieslēgt."
 }
