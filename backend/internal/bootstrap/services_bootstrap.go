@@ -9,6 +9,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -39,6 +40,7 @@ type services struct {
 	oidcModule       *oidc.Module
 	webauthnModule   *webauthn.Module
 	userSignUpModule *usersignup.Module
+	apiModule        *api.Module
 }
 
 // Initializes all services
@@ -80,6 +82,8 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
 
+	svc.apiModule = api.New(api.Dependencies{DB: db, Issuer: common.EnvConfig.AppURL})
+
 	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
 		DB:         db,
 		HTTPClient: httpClient,
@@ -92,6 +96,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		CustomClaims: svc.customClaimService,
 		Reauth:       svc.webauthnModule,
 		AuditLog:     svc.auditLogService,
+		APIAccess:    svc.apiModule,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)

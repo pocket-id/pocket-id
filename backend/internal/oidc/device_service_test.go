@@ -95,7 +95,7 @@ func newTestDeviceServiceWithCode(t *testing.T, clientID, userID string, require
 		RequiresReauthentication: requiresReauthentication,
 	}).Error)
 
-	store := NewStore(db)
+	store := NewStore(db, nil)
 	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	provider, err := newProvider(store, nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -106,7 +106,7 @@ func newTestDeviceServiceWithCode(t *testing.T, clientID, userID string, require
 	require.NoError(t, err)
 
 	claimsService := newClaimsService(db, nil, "", nil)
-	authorizationService := newAuthorizationService(db, newInteractionSessionService(db), claimsService, reauth, &fakeAuditLogger{})
+	authorizationService := newAuthorizationService(db, newInteractionSessionService(db), claimsService, reauth, &fakeAuditLogger{}, nil)
 	service := newDeviceService(provider, store, provider.deviceStrategy, authorizationService, claimsService, &fakeAuditLogger{}, db)
 
 	form := url.Values{

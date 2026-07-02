@@ -88,12 +88,15 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
-	for _, scope := range request.GetRequestedScopes() {
+	resource := request.GetRequestForm().Get("resource")
+	audience, grantedScopes, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+	if err != nil {
+		return err
+	}
+	for _, scope := range grantedScopes {
 		request.GrantScope(scope)
 	}
-	for _, audience := range request.GetRequestedAudience() {
-		request.GrantAudience(audience)
-	}
+	request.GrantAudience(audience)
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
 		if client.RequiresReauthentication {
@@ -118,7 +121,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		}
 		request.SetSession(session)
 
-		hasAlreadyAuthorizedClient, err := s.authorizationService.consent(ctx, userID, client.GetID(), request.GetRequestedScopes())
+		hasAlreadyAuthorizedClient, err := s.authorizationService.consent(ctx, userID, client.GetID(), consentKeys)
 		if err != nil {
 			return err
 		}
@@ -153,7 +156,12 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 	client := request.GetClient().(Client)
 	authorizationRequired := true
 	if userID != "" {
-		hasAuthorizedClient, err := s.authorizationService.hasAuthorizedClient(ctx, client.GetID(), userID, request.GetRequestedScopes())
+		resource := request.GetRequestForm().Get("resource")
+		_, _, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+		if err != nil {
+			return nil, err
+		}
+		hasAuthorizedClient, err := s.authorizationService.hasAuthorizedClient(ctx, client.GetID(), userID, consentKeys)
 		if err != nil {
 			return nil, err
 		}

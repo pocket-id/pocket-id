@@ -1,11 +1,13 @@
 package oidc
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
+	"gorm.io/gorm"
 )
 
 type userInfoHandler struct {
@@ -47,8 +49,20 @@ func (h *userInfoHandler) userInfo(c *gin.Context) {
 		return
 	}
 
+	// userinfo serves OIDC identity tokens, which are exactly the ones granted the openid scope
+	// An access token issued purely for a custom API never carries openid and is rejected here regardless of its audience
+	if !accessRequest.GetGrantedScopes().Has("openid") {
+		writeUserInfoError(c, fosite.ErrAccessDenied.WithDescription("The access token is missing the openid scope."))
+		return
+	}
+
 	claims, err := h.claimsService.GetUserClaims(ctx, session.GetSubject(), accessRequest.GetGrantedScopes())
 	if err != nil {
+		// A token whose subject no longer resolves to a user is an authentication failure, not a missing resource
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			writeUserInfoError(c, fosite.ErrRequestUnauthorized.WithDescription("The access token is invalid"))
+			return
+		}
 		_ = c.Error(err)
 		return
 	}

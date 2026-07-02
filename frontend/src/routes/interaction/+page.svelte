@@ -170,7 +170,7 @@
 		</div>
 	{:else if currentStep === 'consent'}
 		<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
-			<Card.Root class="mb-10">
+			<Card.Root class="mb-10 gap-3">
 				<Card.Header>
 					<p class="text-muted-foreground text-start">
 						<FormattedMessage
@@ -181,7 +181,7 @@
 					</p>
 				</Card.Header>
 				<Card.Content>
-					<ScopeList scopes={interactionSession.scopes} />
+					<ScopeList scopes={interactionSession.scopes} scopeInfo={interactionSession.scopeInfo} />
 				</Card.Content>
 			</Card.Root>
 		</div>

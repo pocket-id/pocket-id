@@ -13,6 +13,7 @@ import (
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	"github.com/ory/fosite/handler/openid"
 	"github.com/ory/fosite/handler/rfc8628"
+	"github.com/ory/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"golang.org/x/crypto/hkdf"
 )
@@ -52,6 +53,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		FormPostHTMLTemplate:           formPostTemplate,
 		RefreshTokenScopes:             []string{},
 		GlobalSecret:                   secret,
+		JWTScopeClaimKey:               jwt.JWTScopeFieldBoth,
 	}
 
 	keyGetter := func(context.Context) (interface{}, error) {

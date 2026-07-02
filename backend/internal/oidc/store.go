@@ -43,12 +43,13 @@ var (
 
 // NewStore creates the fosite storage. Exported for packages that need to seed or
 // revoke sessions (e.g. the e2e test service).
-func NewStore(db *gorm.DB) *Store {
-	return &Store{db: db}
+func NewStore(db *gorm.DB, apiAccess APIAccessProvider) *Store {
+	return &Store{db: db, apiAccess: apiAccess}
 }
 
 type Store struct {
-	db *gorm.DB
+	db        *gorm.DB
+	apiAccess APIAccessProvider
 }
 
 type storedRequester struct {
@@ -77,19 +78,42 @@ type storedRequester struct {
 // Satisfies fosite.Storage
 
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
-	var client model.OidcClient
-	err := s.dbFor(ctx).
-		Preload("AllowedUserGroups").
-		First(&client, "id = ?", id).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fosite.ErrNotFound
-	}
+	var client Client
+	err := withTx(ctx, s.db, func(ctx context.Context) error {
+		// withTx guarantees a transaction in the context, so dbFor resolves to it
+		tx := s.dbFor(ctx)
+
+		var clientModel model.OidcClient
+		err := tx.
+			Preload("AllowedUserGroups").
+			First(&clientModel, "id = ?", id).
+			Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fosite.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+
+		client = Client{OidcClient: clientModel}
+
+		// Populate the API scopes and audiences for the client if the API access provider is available
+		if s.apiAccess != nil {
+			apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			client.apiScopes = apiScopes
+			client.apiAudiences = apiAudiences
+		}
+
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	return Client{OidcClient: client}, nil
+	return client, nil
 }
 
 func (s *Store) ClientAssertionJWTValid(ctx context.Context, jti string) error {
@@ -206,7 +230,7 @@ func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientI
 }
 
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
-	s := NewStore(db)
+	s := NewStore(db, nil)
 	requestIDs, _, err := s.findUserClientRequestIDs(ctx, userID, clientID, "")
 	if err != nil {
 		return err

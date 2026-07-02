@@ -46,7 +46,7 @@ func TestUserInfoHandler(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 
-	provider, err := newProvider(NewStore(db), nil, testTokenSigner{key: key}, Config{
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       "test-secret",
@@ -67,6 +67,7 @@ func TestUserInfoHandler(t *testing.T) {
 		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
 		request.RequestedScope = fosite.Arguments(scopes)
 		request.GrantedScope = fosite.Arguments(scopes)
+		// A login token is audienced to the requesting client; userinfo gates on the openid scope, not the audience
 		request.RequestedAudience = fosite.Arguments{clientID}
 		request.GrantedAudience = fosite.Arguments{clientID}
 
@@ -101,6 +102,38 @@ func TestUserInfoHandler(t *testing.T) {
 		require.Equal(t, "tim@example.com", claims["email"])
 		// profile was not granted, so profile claims must be absent
 		require.NotContains(t, claims, "given_name")
+	})
+
+	t.Run("token without the openid scope is rejected", func(t *testing.T) {
+		// A token issued purely for a custom API carries no openid scope and must not read profile claims
+		session := NewEmptySession()
+		session.Subject = userID
+		session.SetExpiresAt(fosite.AccessToken, time.Now().UTC().Add(time.Hour))
+
+		request := fosite.NewAccessRequest(session)
+		request.ID = "req-no-openid"
+		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}}}
+		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
+		request.RequestedScope = fosite.Arguments{"read:orders"}
+		request.GrantedScope = fosite.Arguments{"read:orders"}
+		request.RequestedAudience = fosite.Arguments{"https://api.example.com"}
+		request.GrantedAudience = fosite.Arguments{"https://api.example.com"}
+
+		response, err := provider.NewAccessResponse(t.Context(), request)
+		require.NoError(t, err)
+
+		rec, c := call(t, response.GetAccessToken())
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("token whose user no longer exists is rejected with 401", func(t *testing.T) {
+		// A valid token whose subject was deleted is an auth failure, not a 404
+		token := issueAccessToken(t, "req-ghost", "ghost-user", "openid")
+		rec, c := call(t, token)
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Header().Get("WWW-Authenticate"), `Bearer error="request_unauthorized"`)
 	})
 
 	t.Run("missing access token is rejected", func(t *testing.T) {

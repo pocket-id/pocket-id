@@ -1,13 +1,19 @@
 <script lang="ts">
 	import * as Item from '$lib/components/ui/item/index.js';
 	import { m } from '$lib/paraglide/messages';
-	import { LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
+	import type { InteractionScopeInfo } from '$lib/types/oidc.type';
+	import { LucideKeyRound, LucideMail, LucideUser, LucideUsers } from '@lucide/svelte';
 	import ScopeItem from './scope-item.svelte';
 
-	let { scopes }: { scopes: string[] } = $props();
+	let { scopes, scopeInfo = [] }: { scopes: string[]; scopeInfo?: InteractionScopeInfo[] } =
+		$props();
+
+	const standardScopes = ['openid', 'profile', 'email', 'groups'];
+	const infoByKey = $derived(new Map(scopeInfo.map((info) => [info.key, info])));
+	const customScopes = $derived(scopes.filter((scope) => !standardScopes.includes(scope)));
 </script>
 
-<Item.Group data-testid="scopes">
+<Item.Group data-testid="scopes" class="gap-1">
 	{#if scopes.includes('email')}
 		<ScopeItem icon={LucideMail} name={m.email()} description={m.view_your_email_address()} />
 	{/if}
@@ -25,4 +31,11 @@
 			description={m.view_the_groups_you_are_a_member_of()}
 		/>
 	{/if}
+	{#each customScopes as scope}
+		<ScopeItem
+			icon={LucideKeyRound}
+			name={infoByKey.get(scope)?.name ?? scope}
+			description={infoByKey.get(scope)?.description || m.access_an_api_on_your_behalf()}
+		/>
+	{/each}
 </Item.Group>

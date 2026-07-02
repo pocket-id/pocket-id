@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 
@@ -47,6 +48,9 @@ func init() {
 		"callback_url_pattern": func(fl validator.FieldLevel) bool {
 			return ValidateCallbackURLPattern(fl.Field().String())
 		},
+		"resource_uri": func(fl validator.FieldLevel) bool {
+			return ValidateResourceURI(fl.Field().String())
+		},
 	}
 	for k, v := range validators {
 		err := engine.RegisterValidation(k, v)
@@ -64,6 +68,20 @@ func ValidateUsername(username string) bool {
 // ValidateClientID validates client ID inputs
 func ValidateClientID(clientID string) bool {
 	return validateClientIDRegex.MatchString(clientID)
+}
+
+// ValidateResourceURI validates RFC 8707 resource identifiers
+func ValidateResourceURI(str string) bool {
+	if strings.Contains(str, "#") || strings.ContainsFunc(str, unicode.IsSpace) {
+		return false
+	}
+
+	u, err := url.Parse(str)
+	if err != nil {
+		return false
+	}
+
+	return u.IsAbs()
 }
 
 // ValidateCallbackURL validates the input callback URL

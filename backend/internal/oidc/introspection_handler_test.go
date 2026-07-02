@@ -37,7 +37,7 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 
-	provider, err := newProvider(NewStore(db), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       "test-secret",
@@ -135,7 +135,7 @@ func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) 
 		},
 	}).Error)
 
-	store := NewStore(db)
+	store := NewStore(db, nil)
 	authenticator, err := newFederatedClientAuthenticator(t.Context(), store, newJWKSetHTTPClient(t, jwks), baseURL)
 	require.NoError(t, err)
 
