@@ -227,4 +227,4 @@ require (
 	modernc.org/sqlite v1.48.2 // indirect
 )
 
-replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260617200813-dd5303674b39
+replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260702114848-b55fb7985fde
