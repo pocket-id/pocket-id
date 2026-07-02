@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -35,6 +36,18 @@ func (s testTokenSigner) GetKeyAlg() (jwa.KeyAlgorithm, error) {
 
 func (s testTokenSigner) GetKeyID() (string, bool) {
 	return "test-key-id", true
+}
+
+func TestDeriveGlobalSecretUsesStableValue(t *testing.T) {
+	masterSecret := []byte("test-secret")
+
+	expectedHex := "82de1690a30923a038d722a72e9599087484732bf9c1e8af5fc620f8fa87c08b"
+	expected, err := hex.DecodeString(expectedHex)
+	require.NoError(t, err)
+
+	actual, err := DeriveGlobalSecret(masterSecret)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 }
 
 func TestProviderIssuesJWTAccessTokens(t *testing.T) {

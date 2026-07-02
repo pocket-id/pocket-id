@@ -67,6 +67,7 @@ func (e EncryptedString) String() string {
 }
 
 // DeriveEncryptedStringKey derives a key for encrypting EncryptedString values from the master key.
+// Note: changing this function in any is considered a breaking change that will make all encrypted stored data irrecoverable.
 func DeriveEncryptedStringKey(master []byte) ([]byte, error) {
 	const info = "pocketid/encrypted_string"
 	r := hkdf.New(sha256.New, master, nil, []byte(info))

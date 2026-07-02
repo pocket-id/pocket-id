@@ -51,7 +51,8 @@ func LoadKeyEncryptionKey(envConfig *common.EnvConfigSchema, instanceID string) 
 
 	// We need a 256-bit key for encryption with AES-GCM-256
 	// The key is tied to a specific instance of Pocket ID
-	return crypto.DeriveKey(envConfig, "pocketid/"+instanceID+"/jwk-kek")
+	// Note: changing the key derivation or the seed is a breaking change
+	return crypto.DeriveKey(envConfig.EncryptionKey, "pocketid/"+instanceID+"/jwk-kek")
 }
 
 // ImportRawKey imports a crypto key in "raw" format (e.g. crypto.PrivateKey) into a jwk.Key.

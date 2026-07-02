@@ -39,7 +39,7 @@ func NewActors(o NewActorsOpts) (*local.Host, map[string]*ratelimit.RateLimitSer
 
 	// Derive a PSK from the global encryption key
 	// The runtime PSK derives the cluster CA used for host-to-host mTLS
-	psk, err := crypto.DeriveKey(o.EnvConfig, "pocketid/actors-psk")
+	psk, err := o.getPSK()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to derive PSK: %w", err)
 	}
@@ -86,6 +86,12 @@ func NewActors(o NewActorsOpts) (*local.Host, map[string]*ratelimit.RateLimitSer
 	}
 
 	return h, rateLimitServices, nil
+}
+
+// Derive a PSK from the global encryption key
+func (o *NewActorsOpts) getPSK() ([]byte, error) {
+	// Note: changing the key derivation or the seed is a breaking change
+	return crypto.DeriveKey(o.EnvConfig.EncryptionKey, "pocketid/actors-psk")
 }
 
 func (o *NewActorsOpts) getProvider() (local.HostOption, error) {
