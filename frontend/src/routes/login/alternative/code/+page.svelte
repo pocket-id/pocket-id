@@ -17,8 +17,11 @@
 	let isLoading = $state(false);
 	let error: string | undefined = $state();
 	let backHref = $state('/login/alternative');
+
 	let longCodeRequested = $state(code.length > 6);
+	let showLongCodeOption = $state(true);
 	let codeComplete = $derived(longCodeRequested ? code.length === 16 : code.length === 6);
+
 	const userService = new UserService();
 
 	// If the previous page is a Pocket ID page, go back there instead of the generic alternative login page
@@ -51,6 +54,10 @@
 	onMount(() => {
 		if (code) {
 			authenticate();
+		}
+
+		if (data.redirect.startsWith('/interaction')) {
+			showLongCodeOption = false;
 		}
 	});
 </script>
@@ -93,7 +100,7 @@
 					{/snippet}
 				</InputOTP.Root>
 			{/if}
-			{#if !data.shortCode && !longCodeRequested}
+			{#if !longCodeRequested && showLongCodeOption}
 				<div class="flex justify-center">
 					<Button
 						class="mt-2 text-muted-foreground text-xs"
