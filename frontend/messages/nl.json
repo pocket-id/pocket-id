@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Deze gebruiker heeft nog geen toegangscodes.",
 	"replay_protection": "Bescherming tegen herhaling",
 	"replay_protection_description": "Als deze optie is ingeschakeld, kan het opgegeven token maar één keer worden gebruikt. Als je provider hetzelfde token meerdere keren gebruikt, moet je deze optie misschien uitschakelen.",
+	"i_have_a_longer_code": "Ik heb een langere code",
 	"pkce_supported_client_title": "Deze client ondersteunt PKCE",
 	"pkce_supported_client_description": "Deze client ondersteunt Proof Key for Code Exchange (PKCE). PKCE is een beveiligingsfunctie die bescherming biedt tegen bepaalde aanvallen tijdens het OAuth 2.0-autorisatieproces. Het wordt aanbevolen om deze functie in te schakelen."
 }
