@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Este usuario aún no tiene claves de acceso.",
 	"replay_protection": "Protección contra la reproducción",
 	"replay_protection_description": "Si está activada, el token proporcionado solo se puede usar una vez. Si tu proveedor utiliza el mismo token varias veces, puede que tengas que desactivar esta opción.",
+	"i_have_a_longer_code": "Tengo un código más largo",
 	"pkce_supported_client_title": "Este cliente es compatible con PKCE",
 	"pkce_supported_client_description": "Este cliente es compatible con Proof Key for Code Exchange (PKCE). PKCE es una función de seguridad que ayuda a protegerte contra ciertos ataques durante el proceso de autorización de OAuth 2.0. Te recomendamos que la actives."
 }
