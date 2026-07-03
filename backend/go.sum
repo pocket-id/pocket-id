@@ -390,8 +390,8 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/pocket-id/fosite v0.0.0-20260617200813-dd5303674b39 h1:+gvFcRlW9RprrtKe0ltCWERkFkKlEBdFaQWMwBWGznQ=
-github.com/pocket-id/fosite v0.0.0-20260617200813-dd5303674b39/go.mod h1:KeQ7tTIBm3DyeBnKcKLnPbSdrd6ttM6w3TD3yy9x8rM=
+github.com/pocket-id/fosite v0.0.0-20260702114848-b55fb7985fde h1:cJZogAqQhjgDL0hj4hhJ2l5ppLvK8Vx38bJusOrHPyU=
+github.com/pocket-id/fosite v0.0.0-20260702114848-b55fb7985fde/go.mod h1:KeQ7tTIBm3DyeBnKcKLnPbSdrd6ttM6w3TD3yy9x8rM=
 github.com/prometheus/client_golang v1.23.2 h1:Je96obch5RDVy3FDMndoUsjAhG5Edi49h0RJWRi/o0o=
 github.com/prometheus/client_golang v1.23.2/go.mod h1:Tb1a6LWHB3/SPIzCoaDXI4I8UHKeFTEQ1YCr+0Gyqmg=
 github.com/prometheus/client_model v0.6.2 h1:oBsgwpGs7iVziMvrGhE53c/GrLUsZdHnqNwqPLxwZyk=
