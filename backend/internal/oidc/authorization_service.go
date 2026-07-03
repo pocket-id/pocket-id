@@ -529,17 +529,22 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 // resolveScopeInfo resolves display names and descriptions for the requested non-standard scopes, looked up against the API targeted by the request's RFC 8707 resource
 // Standard identity scopes are rendered by the client
 func (s *authorizationService) resolveScopeInfo(ctx context.Context, interactionSession InteractionSession) ([]scopeInfoDto, error) {
+	return s.resolveScopeInfoForRequest(ctx, interactionSession.Parameters["resource"], interactionSession.Scopes)
+}
+
+// resolveScopeInfoForRequest resolves display names and descriptions for the requested non-standard scopes against the API identified by resource
+// The browser and device consent flows share it so both show friendly permission names instead of raw scope keys
+func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, resource string, scopes []string) ([]scopeInfoDto, error) {
 	if s.apiAccess == nil {
 		return nil, nil
 	}
 
-	resource := interactionSession.Parameters["resource"]
 	if resource == "" {
 		return nil, nil
 	}
 
-	var customKeys []string
-	for _, scope := range interactionSession.Scopes {
+	customKeys := make([]string, 0, len(scopes))
+	for _, scope := range scopes {
 		if !isStandardScope(scope) {
 			customKeys = append(customKeys, scope)
 		}

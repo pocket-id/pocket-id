@@ -43,7 +43,10 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 	allowedUserGroupsCount: number;
 };
 
-export type OidcClientUpdate = Omit<OidcClient, 'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'>;
+export type OidcClientUpdate = Omit<
+	OidcClient,
+	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'
+>;
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
 };
@@ -61,6 +64,7 @@ export type OidcClientCreateWithLogo = OidcClientCreate & {
 
 export type OidcDeviceCodeInfo = {
 	scope: string[];
+	scopeInfo: InteractionScopeInfo[];
 	authorizationRequired: boolean;
 	reauthenticationRequired: boolean;
 	client: OidcClientMetaData;
