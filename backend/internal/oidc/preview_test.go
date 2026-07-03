@@ -1,8 +1,9 @@
 package oidc
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ import (
 
 func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -60,7 +61,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 
 func TestClientPreviewBuilderRejectsInvalidScope(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret

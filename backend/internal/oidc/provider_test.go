@@ -23,7 +23,7 @@ import (
 )
 
 type testTokenSigner struct {
-	key *rsa.PrivateKey
+	key *ecdsa.PrivateKey
 }
 
 func (s testTokenSigner) GetPrivateKey() any {
@@ -31,7 +31,7 @@ func (s testTokenSigner) GetPrivateKey() any {
 }
 
 func (s testTokenSigner) GetKeyAlg() (jwa.KeyAlgorithm, error) {
-	return jwa.RS256(), nil
+	return jwa.ES256(), nil
 }
 
 func (s testTokenSigner) GetKeyID() (string, bool) {
@@ -52,7 +52,7 @@ func TestDeriveGlobalSecretUsesStableValue(t *testing.T) {
 
 func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -87,7 +87,7 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 
 func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
@@ -119,7 +119,7 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 
 func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
@@ -152,7 +152,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 
 func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
