@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/url"
 	"slices"
 	"strconv"
@@ -105,7 +106,8 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 	client := input.requester.GetClient().(Client)
 	prompt := newPromptValues(input.requester.GetRequestForm().Get("prompt"))
 
-	if err := validateClientPKCERequirement(client, input.requester); err != nil {
+	err := validateClientPKCERequirement(client, input.requester)
+	if err != nil {
 		return authorizationResult{}, err
 	}
 
@@ -114,7 +116,7 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 		return authorizationResult{}, err
 	}
 
-	// Reject authorization requests that require PAR when the request is not a resumed interaction and doesn't have a valid PAR.
+	// Reject authorization requests that require PAR when the request is not a resumed interaction and doesn't have a valid PAR
 	if client.RequiresPushedAuthorizationRequests && !input.hasPushedAuthorizationRequest && interactionSession == nil {
 		return authorizationResult{}, &common.OidcPARRequiredError{}
 	}
@@ -122,7 +124,17 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 	// Validate the requested scopes against the targeted API up front, before the user authenticates or reaches the consent screen
 	// This rejects a custom permission requested without, or with the wrong, resource at the authorize endpoint itself
 	resource := input.requester.GetRequestForm().Get("resource")
-	if _, _, _, err := s.resolveGrant(ctx, client.GetID(), resource, input.requester.GetRequestedScopes()); err != nil {
+	_, _, _, err = s.resolveGrant(ctx, client.GetID(), resource, input.requester.GetRequestedScopes())
+	if err != nil {
+		// resolveGrant distinguishes an unknown API, an API this client is not granted, and a scope not allowed for the API
+		// This validation runs before authentication, so returning those distinct errors would let anyone holding a public client_id diff the responses to enumerate which API audiences exist and which ones the client may request
+		// Collapse every resource-targeted failure into one generic invalid_request so the pre-auth response reveals no backend state, while keeping the underlying reason in the server log for operators
+		// A request that names no resource cannot leak API topology, so its scope error is returned unchanged to help legitimate integrations
+		if resource != "" {
+			slog.DebugContext(ctx, "Rejected authorize request with an invalid or unauthorized resource or scope", "client_id", client.GetID(), "error", err.Error())
+			return authorizationResult{}, fosite.ErrInvalidRequest.WithHint("The 'resource' or 'scope' parameter is invalid.")
+		}
+
 		return authorizationResult{}, err
 	}
 
@@ -156,24 +168,19 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 
 	var result authorizationResult
 	err = withTx(ctx, s.db, func(ctx context.Context) error {
-		var err error
-		result, err = s.authorizeAuthenticated(ctx, req)
-		if err != nil {
-			return err
+		var txErr error
+		result, txErr = s.authorizeAuthenticated(ctx, req)
+		if txErr != nil {
+			return txErr
 		}
 
-		if codeChallenge != "" &&
-			!client.PkceEnabled &&
-			!client.PkceSupported {
-
+		if codeChallenge != "" && !client.PkceEnabled && !client.PkceSupported {
 			tx := dbFromContext(ctx, s.db)
-
 			_ = flagPkceSupportedClient(ctx, client.GetID(), tx)
 		}
 
 		return nil
 	})
-
 	if err != nil {
 		return authorizationResult{}, err
 	}
@@ -182,7 +189,8 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 		return result, nil
 	}
 
-	if err := s.claimsService.applyIDTokenClaims(ctx, result.Session, input.requester.GetGrantedScopes()); err != nil {
+	err = s.claimsService.applyIDTokenClaims(ctx, result.Session, input.requester.GetGrantedScopes())
+	if err != nil {
 		return authorizationResult{}, err
 	}
 

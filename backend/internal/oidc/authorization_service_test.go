@@ -92,6 +92,50 @@ func TestAuthorizationServiceRejectsCustomScopeWithoutResource(t *testing.T) {
 	require.Equal(t, "invalid_scope", rfcErr.ErrorField)
 }
 
+// TestAuthorizationServiceCollapsesResourceErrorsBeforeAuthentication guards the pre-authentication resource validation against API enumeration.
+// An unknown API and an API the client is simply not granted are different backend states, but the authorize endpoint runs before the user logs in, so both must surface the exact same generic error; otherwise anyone holding a public client_id could diff the responses to map which API audiences exist and which ones the client may request.
+func TestAuthorizationServiceCollapsesResourceErrorsBeforeAuthentication(t *testing.T) {
+	const (
+		clientID   = "test-client"
+		knownAPI   = "https://api.orders.example.com"
+		unknownAPI = "https://api.unknown.example.com"
+	)
+
+	authorizeWithResource := func(t *testing.T, apiAccess APIAccessProvider, resource string) error {
+		t.Helper()
+		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Test Client"}).Error)
+		service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, apiAccess)
+
+		requester := newTestAuthorizeRequesterWithForm("resource-probe", clientID, url.Values{"resource": {resource}})
+		_, err := service.authorize(t.Context(), authorizeInput{
+			userID:             "test-user",
+			authenticationTime: time.Now().UTC(),
+			requester:          requester,
+		})
+		return err
+	}
+
+	// The targeted API does not exist at all
+	unknownErr := authorizeWithResource(t, fakeAPIAccess{allowed: map[string][]string{}}, unknownAPI)
+	// The targeted API exists but this client has been granted none of its permissions
+	ungrantedErr := authorizeWithResource(t, fakeAPIAccess{allowed: map[string][]string{knownAPI: {}}}, knownAPI)
+
+	require.Error(t, unknownErr)
+	require.Error(t, ungrantedErr)
+
+	var unknownRFC, ungrantedRFC *fosite.RFC6749Error
+	require.ErrorAs(t, unknownErr, &unknownRFC)
+	require.ErrorAs(t, ungrantedErr, &ungrantedRFC)
+
+	// Both states collapse to the identical generic error, so an anonymous caller cannot tell an unknown API from an ungranted one
+	require.Equal(t, "invalid_request", unknownRFC.ErrorField)
+	require.Equal(t, unknownRFC.ErrorField, ungrantedRFC.ErrorField)
+	require.Equal(t, unknownRFC.GetDescription(), ungrantedRFC.GetDescription())
+	// The ungranted case must not leak fosite's access_denied, which would reveal that the API exists
+	require.NotEqual(t, "access_denied", ungrantedRFC.ErrorField)
+}
+
 func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogger := &fakeAuditLogger{}
