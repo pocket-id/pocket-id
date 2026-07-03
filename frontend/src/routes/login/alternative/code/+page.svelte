@@ -21,8 +21,10 @@
 	let longCodeRequested = $state(code.length > 6);
 	let showLongCodeOption = $state(true);
 	let codeComplete = $derived(longCodeRequested ? code.length === 16 : code.length === 6);
+	let interactionSession = data.interactionSession;
 
 	const userService = new UserService();
+	const clientID = interactionSession?.client?.id ?? '';
 
 	// If the previous page is a Pocket ID page, go back there instead of the generic alternative login page
 	afterNavigate((e) => {
@@ -31,12 +33,20 @@
 		}
 	});
 
-	async function authenticate() {
+	async function authenticate(mode: 'normal' | 'incognito') {
 		if (!code?.trim()) return;
 		if (!codeComplete) return;
 		isLoading = true;
 		try {
-			const user = await userService.exchangeOneTimeAccessToken(code);
+			const payload: { token: string; permittedClient?: string } = {
+				token: code
+			};
+
+			if (mode === 'incognito') {
+				payload.permittedClient = clientID;
+			}
+
+			const user = await userService.exchangeOneTimeAccessToken(payload);
 			await userStore.setUser(user);
 
 			try {
@@ -53,7 +63,7 @@
 
 	onMount(() => {
 		if (code) {
-			authenticate();
+			authenticate('normal');
 		}
 
 		if (data.redirect.startsWith('/interaction')) {
@@ -78,7 +88,10 @@
 	{:else}
 		<p class="text-muted-foreground mt-2">{m.enter_the_code_you_received_to_sign_in()}</p>
 	{/if}
-	<form onsubmit={preventDefault(authenticate)} class="flex w-full flex-col items-center mt-8">
+	<form
+		onsubmit={preventDefault(() => authenticate('normal'))}
+		class="flex w-full flex-col items-center mt-8"
+	>
 		<div class="flex flex-col w-full justify-center items-center">
 			{#if longCodeRequested}
 				<Input
@@ -114,13 +127,28 @@
 				</div>
 			{/if}
 		</div>
-		<div class="w-full max-w-[450px] flex gap-4 pt-7">
+		<div class="w-full max-w-[450px] flex gap-2 pt-7">
 			<Button class="flex-1" variant="secondary" href={backHref}>
 				{m.go_back()}
 			</Button>
-			<Button class="flex-1" type="submit" disabled={!codeComplete} {isLoading}>
+			<Button
+				class="flex-1"
+				disabled={!codeComplete}
+				{isLoading}
+				onclick={() => authenticate('normal')}
+			>
 				{m.submit()}
 			</Button>
+			{#if clientID}
+				<Button
+					class="flex-1 bg-purple-600 hover:bg-purple-700 "
+					disabled={!codeComplete}
+					{isLoading}
+					onclick={() => authenticate('incognito')}
+				>
+					{m.incognito()}
+				</Button>
+			{/if}
 		</div>
 	</form>
 </SignInWrapper>

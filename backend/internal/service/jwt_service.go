@@ -38,6 +38,9 @@ const (
 	// AccessTokenJWTType identifies a JWT as an access token used by Pocket ID
 	AccessTokenJWTType = "access-token"
 
+	// AccessTokenJWTTypeIsolated identifies a JWT as an isolated access token used by Pocket ID
+	AccessTokenJWTTypeIsolated = "isolated-token"
+
 	// Acceptable clock skew for verifying tokens
 	clockSkew = time.Minute
 )
@@ -182,15 +185,29 @@ func (s *JwtService) SetKey(privateKey jwk.Key) error {
 }
 
 func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod string) (string, error) {
+	return s.GenerateAccessTokenForClient(user, authenticationMethod, "")
+}
+
+func (s *JwtService) GenerateAccessTokenForClient(user model.User, authenticationMethod, incognitoClientID string) (string, error) {
+	tokenType := AccessTokenJWTType
+
+	if incognitoClientID != "" {
+		tokenType = AccessTokenJWTTypeIsolated
+	}
 
 	now := time.Now()
-	token, err := jwt.NewBuilder().
+	builder := jwt.NewBuilder().
 		Subject(user.ID).
 		Expiration(now.Add(s.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes())).
 		IssuedAt(now).
 		Issuer(s.envConfig.AppURL).
-		JwtID(uuid.New().String()).
-		Build()
+		JwtID(uuid.New().String())
+
+	if incognitoClientID != "" {
+		builder.Claim("permitted_clients", incognitoClientID)
+	}
+
+	token, err := builder.Build()
 	if err != nil {
 		return "", fmt.Errorf("failed to build token: %w", err)
 	}
@@ -200,7 +217,7 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 		return "", fmt.Errorf("failed to set 'aud' claim in token: %w", err)
 	}
 
-	err = SetTokenType(token, AccessTokenJWTType)
+	err = SetTokenType(token, tokenType)
 	if err != nil {
 		return "", fmt.Errorf("failed to set 'type' claim in token: %w", err)
 	}
@@ -223,8 +240,10 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 
 	return string(signed), nil
 }
-
 func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
+	return s.VerifyAccessTokenWithIsolated(tokenString, false)
+}
+func (s *JwtService) VerifyAccessTokenWithIsolated(tokenString string, includeIsolated bool) (jwt.Token, error) {
 	alg, _ := s.privateKey.Algorithm()
 	token, err := jwt.ParseString(
 		tokenString,
@@ -233,13 +252,19 @@ func (s *JwtService) VerifyAccessToken(tokenString string) (jwt.Token, error) {
 		jwt.WithAcceptableSkew(clockSkew),
 		jwt.WithAudience(s.envConfig.AppURL),
 		jwt.WithIssuer(s.envConfig.AppURL),
-		jwt.WithValidator(TokenTypeValidator(AccessTokenJWTType)),
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
+	var tokenType string
+	_ = token.Get(TokenTypeClaim, &tokenType)
 
-	return token, nil
+	if tokenType == AccessTokenJWTType || (includeIsolated && tokenType == AccessTokenJWTTypeIsolated) {
+		return token, nil
+	}
+
+	return nil, fmt.Errorf("invalid token type: %s", tokenType)
 }
 
 // GetPublicJWK returns the JSON Web Key (JWK) for the public key.
@@ -309,6 +334,22 @@ func (s *JwtService) GetAuthenticationMethod(token jwt.Token) (string, error) {
 		return "", fmt.Errorf("invalid '%s' claim in token: expected array of strings", common.AuthenticationMethodsClaim)
 	}
 	return authenticationMethod, nil
+}
+
+// GetPermittedClients returns the value in the "permitted_clients" claim in the token
+func (s *JwtService) GetPermittedClients(token jwt.Token) (string, error) {
+	const permittedClientsClaim = "permitted_clients"
+
+	if !token.Has(permittedClientsClaim) {
+		return "", nil
+	}
+
+	var permittedClients string
+	err := token.Get(permittedClientsClaim, &permittedClients)
+	if err != nil {
+		return "", fmt.Errorf("failed to get '%s' claim from token: %w", permittedClientsClaim, err)
+	}
+	return permittedClients, nil
 }
 
 // SetTokenType sets the "type" claim in the token

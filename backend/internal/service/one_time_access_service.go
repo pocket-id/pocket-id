@@ -173,7 +173,7 @@ func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Cont
 	return oneTimeAccessToken.Token, oneTimeAccessToken.DeviceToken, nil
 }
 
-func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
+func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent, incognitoClientID string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -197,7 +197,7 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 		return model.User{}, "", &common.DeviceCodeInvalid{}
 	}
 
-	accessToken, err := s.jwtService.GenerateAccessToken(oneTimeAccessToken.User, AuthenticationMethodOneTimePassword)
+	accessToken, err := s.jwtService.GenerateAccessTokenForClient(oneTimeAccessToken.User, AuthenticationMethodOneTimePassword, incognitoClientID)
 	if err != nil {
 		return model.User{}, "", err
 	}

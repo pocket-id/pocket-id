@@ -38,6 +38,7 @@ func newAuthorizationHandler(
 func (h *authorizationHandler) authorize(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := c.GetString("userID")
+	permittedClients := c.GetString("permittedClients")
 	authenticationMethod := c.GetString("authenticationMethod")
 	authenticationTime, _ := c.Get("authenticationTime")
 	typedAuthenticationTime, _ := authenticationTime.(time.Time)
@@ -68,7 +69,11 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 		h.writeAuthorizeError(ctx, c, ar, err)
 		return
 	}
+	requestedClientID := ar.GetClient().GetID()
 
+	if permittedClients != "" && permittedClients != requestedClientID {
+		userID = ""
+	}
 	authorization, err := h.authorizationService.authorize(ctx, authorizeInput{
 		userID:                        userID,
 		authenticationMethod:          authenticationMethod,
