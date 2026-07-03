@@ -67,9 +67,10 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		HMACSHAStrategy: coreStrategy,
 		Config:          fositeConfig,
 	}
-	// Wrap the access token strategy so an access token audienced to a custom API never carries identity scopes on the token itself
-	// The ID token still receives them from the untouched grant.
-	apiAccessTokenStrategy := apiAudienceAccessTokenStrategy{CoreStrategy: accessTokenStrategy}
+
+	// Wrap the access token strategy so an access token granted an identity scope also lists the issuer in its audience
+	// This lets it be presented to Pocket ID's own identity endpoints such as /userinfo, while a token audienced only to a custom API is not accepted there
+	apiAccessTokenStrategy := identityAudienceAccessTokenStrategy{CoreStrategy: accessTokenStrategy, issuer: config.BaseURL}
 	idTokenStrategy := &openid.DefaultStrategy{
 		Signer: sig,
 		Config: fositeConfig,

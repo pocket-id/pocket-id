@@ -21,29 +21,47 @@ func newScopeTestRequester(clientID string, granted fosite.Arguments, audience f
 	return request
 }
 
-func TestTargetsCustomAPI(t *testing.T) {
-	// A login token is audienced only to the requesting client
-	assert.False(t, targetsCustomAPI(newScopeTestRequester("client-1", nil, fosite.Arguments{"client-1"})))
-	// No audience at all is not a custom API
-	assert.False(t, targetsCustomAPI(newScopeTestRequester("client-1", nil, nil)))
-	// Any audience other than the client itself means the token targets a custom API
-	assert.True(t, targetsCustomAPI(newScopeTestRequester("client-1", nil, fosite.Arguments{"https://api.example.com"})))
-	assert.True(t, targetsCustomAPI(newScopeTestRequester("client-1", nil, fosite.Arguments{"client-1", "https://api.example.com"})))
-}
+func TestWithIdentityAudienceAddsIssuerForIdentityScopes(t *testing.T) {
+	const issuer = "https://issuer.example.com"
 
-func TestWithAccessTokenScopesStripsIdentityScopesForCustomAPI(t *testing.T) {
-	// An access token audienced to a custom API keeps only the API scopes
-	// Because identity scopes are dropped, the token cannot be used at /userinfo
+	// A token granted an identity scope alongside a custom API also lists the issuer so it can be presented to /userinfo
 	apiRequest := newScopeTestRequester("client-1",
-		fosite.Arguments{"openid", "profile", "email", "groups", "offline_access", "read:orders"},
+		fosite.Arguments{"openid", "read:orders"},
 		fosite.Arguments{"https://api.orders.example.com"},
 	)
-	assert.Equal(t, fosite.Arguments{"read:orders"}, withAccessTokenScopes(apiRequest).GetGrantedScopes())
+	assert.ElementsMatch(t,
+		fosite.Arguments{"https://api.orders.example.com", issuer},
+		withIdentityAudience(apiRequest, issuer).GetGrantedAudience(),
+	)
 
-	// A login token audienced to the client keeps all its scopes untouched.
+	// A plain login token gains the issuer audience alongside the client it was bound to
 	loginRequest := newScopeTestRequester("client-1",
 		fosite.Arguments{"openid", "profile", "email"},
 		fosite.Arguments{"client-1"},
 	)
-	assert.Equal(t, fosite.Arguments{"openid", "profile", "email"}, withAccessTokenScopes(loginRequest).GetGrantedScopes())
+	assert.ElementsMatch(t,
+		fosite.Arguments{"client-1", issuer},
+		withIdentityAudience(loginRequest, issuer).GetGrantedAudience(),
+	)
+}
+
+func TestWithIdentityAudienceLeavesNonIdentityTokensUntouched(t *testing.T) {
+	const issuer = "https://issuer.example.com"
+
+	// A token audienced only to a custom API with no identity scope never gains the issuer, so it cannot reach /userinfo
+	apiOnly := newScopeTestRequester("client-1",
+		fosite.Arguments{"read:orders"},
+		fosite.Arguments{"https://api.orders.example.com"},
+	)
+	assert.Equal(t, fosite.Arguments{"https://api.orders.example.com"}, withIdentityAudience(apiOnly, issuer).GetGrantedAudience())
+
+	// offline_access alone is not an identity scope, so it does not add the issuer either
+	offlineOnly := newScopeTestRequester("client-1",
+		fosite.Arguments{"offline_access", "read:orders"},
+		fosite.Arguments{"https://api.orders.example.com"},
+	)
+	assert.Equal(t, fosite.Arguments{"https://api.orders.example.com"}, withIdentityAudience(offlineOnly, issuer).GetGrantedAudience())
+
+	// An empty issuer disables the behavior entirely, leaving the audience untouched
+	assert.Equal(t, fosite.Arguments{"client-1"}, withIdentityAudience(newScopeTestRequester("client-1", fosite.Arguments{"openid"}, fosite.Arguments{"client-1"}), "").GetGrantedAudience())
 }

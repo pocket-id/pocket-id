@@ -833,7 +833,9 @@ type fositeTokenSession struct {
 func (s *TestService) seedFositeTokenSession(ctx context.Context, session fositeTokenSession) error {
 	request := s.newFositeTokenRequest(session)
 
-	store := oidc.NewStore(s.db, nil)
+	store := oidc.
+		NewStore(s.db, nil).
+		WithIssuer(common.EnvConfig.AppURL)
 	switch session.Kind {
 	case "access_token":
 		return store.CreateAccessTokenSession(ctx, session.Signature, request)

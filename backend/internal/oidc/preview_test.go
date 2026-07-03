@@ -46,7 +46,8 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 
 	require.Equal(t, "https://issuer.example.com", preview.AccessToken["iss"])
 	require.ElementsMatch(t, []string{"openid", "email"}, stringSliceClaim(t, preview.AccessToken["scp"]))
-	require.ElementsMatch(t, []string{clientID}, stringSliceClaim(t, preview.AccessToken["aud"]))
+	// The identity scopes add the issuer to the audience so the previewed token would also work at /userinfo
+	require.ElementsMatch(t, []string{clientID, "https://issuer.example.com"}, stringSliceClaim(t, preview.AccessToken["aud"]))
 	require.NotContains(t, preview.AccessToken, "type")
 
 	require.Equal(t, userID, preview.IDToken["sub"])

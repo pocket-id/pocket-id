@@ -50,6 +50,14 @@ func NewStore(db *gorm.DB, apiAccess APIAccessProvider) *Store {
 type Store struct {
 	db        *gorm.DB
 	apiAccess APIAccessProvider
+	issuer    string
+}
+
+// WithIssuer sets the issuer that is added as an extra audience to access tokens carrying an identity scope, so they can be presented to Pocket ID's own endpoints such as /userinfo
+// It returns the store to allow chaining at construction
+func (s *Store) WithIssuer(issuer string) *Store {
+	s.issuer = issuer
+	return s
 }
 
 type storedRequester struct {
@@ -156,8 +164,9 @@ func (s *Store) InvalidateAuthorizeCodeSession(ctx context.Context, code string)
 }
 
 func (s *Store) CreateAccessTokenSession(ctx context.Context, signature string, request fosite.Requester) error {
-	// userinfo and introspection read the granted scopes from the persisted access token session, so an access token audienced to a custom API must be stored without identity scopes to keep it from being replayed as an identity token. The ID token is issued from the untouched live request.
-	return s.upsertSession(ctx, sessionKindAccessToken, signature, withAccessTokenScopes(request), "", true, fosite.AccessToken)
+	// userinfo and introspection read the granted audience from the persisted access token session, so an access token granted an identity scope is stored with the issuer added to its audience, letting it be presented to Pocket ID's own identity endpoints
+	// A token audienced only to a custom API carries no identity scope here and so never gains the issuer audience
+	return s.upsertSession(ctx, sessionKindAccessToken, signature, withIdentityAudience(request, s.issuer), "", true, fosite.AccessToken)
 }
 
 func (s *Store) GetAccessTokenSession(ctx context.Context, signature string, _ fosite.Session) (fosite.Requester, error) {

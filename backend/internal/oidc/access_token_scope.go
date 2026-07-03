@@ -2,65 +2,58 @@ package oidc
 
 import (
 	"context"
+	"slices"
 
 	"github.com/ory/fosite"
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 )
 
-// targetsCustomAPI reports whether the token being materialized is audienced to a custom API rather than (only) the requesting client itself
-// Such a token is an API access token: it is handed to a third-party resource server and therefore must not carry Pocket ID's own identity scopes.
-func targetsCustomAPI(requester fosite.Requester) bool {
-	client := requester.GetClient()
-	if client == nil {
-		return false
-	}
-
-	clientID := client.GetID()
-	for _, audience := range requester.GetGrantedAudience() {
-		if audience != clientID {
-			return true
-		}
-	}
-
-	return false
+// isIdentityScope reports whether the scope is an OIDC identity scope whose presence lets a token be presented to Pocket ID's own identity endpoints such as /userinfo
+// offline_access is deliberately excluded: it only requests a refresh token and is not tied to any resource server
+func isIdentityScope(scope string) bool {
+	return scope != "offline_access" && isStandardScope(scope)
 }
 
-// withAccessTokenScopes returns a view of the requester whose granted scopes are limited to what may
-// appear on the access token
-// Identity scopes stay on the underlying grant so the ID token and consent keep working, but they are stripped from an access token audienced to a custom API: those identity claims are delivered through the ID token, and keeping them off the API access token stops it from being replayed against Pocket ID's own identity endpoints such as /userinfo.
-//
-// The returned requester leaves every other field untouched, so callers that need the full grant (e.g. ID token issuance) are unaffected.
-func withAccessTokenScopes(requester fosite.Requester) fosite.Requester {
-	if !targetsCustomAPI(requester) {
+// hasIdentityScope reports whether any of the granted scopes is an OIDC identity scope
+func hasIdentityScope(scopes fosite.Arguments) bool {
+	return slices.ContainsFunc(scopes, isIdentityScope)
+}
+
+// withIdentityAudience returns a view of the requester whose granted audience additionally includes the issuer when the token carries an identity scope
+// This lets an access token that was granted an identity scope be presented to Pocket ID's own identity endpoints such as /userinfo, even when it was also audienced to a custom API
+// The issuer is added only to the materialized access token and never to the underlying grant, so a refresh does not have to re-whitelist the issuer against the client and a machine token whose identity scopes were stripped never receives it
+func withIdentityAudience(requester fosite.Requester, issuer string) fosite.Requester {
+	if issuer == "" || !hasIdentityScope(requester.GetGrantedScopes()) {
 		return requester
 	}
 
-	granted := requester.GetGrantedScopes()
-	filtered := make(fosite.Arguments, 0, len(granted))
-	for _, scope := range granted {
-		if !isStandardScope(scope) {
-			filtered = append(filtered, scope)
-		}
+	granted := requester.GetGrantedAudience()
+	if granted.Has(issuer) {
+		return requester
 	}
 
-	return accessTokenRequester{Requester: requester, grantedScopes: filtered}
+	audience := make(fosite.Arguments, 0, len(granted)+1)
+	audience = append(audience, granted...)
+	audience = append(audience, issuer)
+	return identityAudienceRequester{Requester: requester, grantedAudience: audience}
 }
 
-// accessTokenRequester overrides only the granted scopes of the wrapped requester.
-type accessTokenRequester struct {
+// identityAudienceRequester overrides only the granted audience of the wrapped requester
+type identityAudienceRequester struct {
 	fosite.Requester
-	grantedScopes fosite.Arguments
+	grantedAudience fosite.Arguments
 }
 
-func (r accessTokenRequester) GetGrantedScopes() fosite.Arguments {
-	return r.grantedScopes
+func (r identityAudienceRequester) GetGrantedAudience() fosite.Arguments {
+	return r.grantedAudience
 }
 
-// apiAudienceAccessTokenStrategy wraps the access token strategy so the scope claim on an access token audienced to a custom API excludes identity scopes, keeping the self-contained JWT consistent with what is persisted for introspection.
-type apiAudienceAccessTokenStrategy struct {
+// identityAudienceAccessTokenStrategy wraps the access token strategy so an access token granted an identity scope also lists the issuer in its audience, keeping the self-contained JWT consistent with what is persisted for introspection and userinfo
+type identityAudienceAccessTokenStrategy struct {
 	fositeoauth2.CoreStrategy
+	issuer string
 }
 
-func (s apiAudienceAccessTokenStrategy) GenerateAccessToken(ctx context.Context, requester fosite.Requester) (string, string, error) {
-	return s.CoreStrategy.GenerateAccessToken(ctx, withAccessTokenScopes(requester))
+func (s identityAudienceAccessTokenStrategy) GenerateAccessToken(ctx context.Context, requester fosite.Requester) (string, string, error) {
+	return s.CoreStrategy.GenerateAccessToken(ctx, withIdentityAudience(requester, s.issuer))
 }

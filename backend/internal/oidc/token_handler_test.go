@@ -503,7 +503,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		require.NoError(t, rErr)
 	}
 
-	t.Run("refresh keeps the API audience and the access token carries only the API scope", func(t *testing.T) {
+	t.Run("refresh keeps the API audience and adds the issuer so the token still reaches userinfo", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
 		const clientID, userID = "client-api", "user-api"
 		seedUserAndClient(t, db, clientID, userID)
@@ -518,10 +518,10 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		require.NotEmpty(t, body["id_token"])
 
 		claims := decodeJWTPart(t, body["access_token"].(string), 1)
-		// The refreshed access token stays bound to the original API audience and never widens it
-		require.Equal(t, []string{apiResource}, jwtAudience(claims))
-		// A token audienced to a custom API keeps only the API scope; identity scopes are stripped from the access token
-		require.Equal(t, []string{"read:orders"}, jwtScopes(claims))
+		// The refreshed access token stays bound to the original API audience and re-adds the issuer so it keeps working at userinfo, never widening to any other API
+		require.ElementsMatch(t, []string{apiResource, baseURL}, jwtAudience(claims))
+		// A token that requested openid alongside the API keeps the identity scope on the access token, matching what it was granted
+		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
 	})
 
 	t.Run("refresh cannot upscope beyond the original grant via the scope parameter", func(t *testing.T) {
@@ -538,9 +538,9 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		require.NotEmpty(t, body["access_token"], "expected a new access token, got error: %v", body["error"])
 
 		claims := decodeJWTPart(t, body["access_token"].(string), 1)
-		require.Equal(t, []string{apiResource}, jwtAudience(claims))
+		require.ElementsMatch(t, []string{apiResource, baseURL}, jwtAudience(claims))
 		// write:orders never appears on the refreshed token even though it was requested
-		require.Equal(t, []string{"read:orders"}, jwtScopes(claims))
+		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
 	})
 
 	t.Run("revoking the client API grant makes the next refresh fail", func(t *testing.T) {

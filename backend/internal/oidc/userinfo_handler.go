@@ -13,12 +13,14 @@ import (
 type userInfoHandler struct {
 	provider      fosite.OAuth2Provider
 	claimsService *ClaimsService
+	issuer        string
 }
 
-func newUserInfoHandler(provider fosite.OAuth2Provider, claimsService *ClaimsService) *userInfoHandler {
+func newUserInfoHandler(provider fosite.OAuth2Provider, claimsService *ClaimsService, issuer string) *userInfoHandler {
 	return &userInfoHandler{
 		provider:      provider,
 		claimsService: claimsService,
+		issuer:        issuer,
 	}
 }
 
@@ -49,10 +51,10 @@ func (h *userInfoHandler) userInfo(c *gin.Context) {
 		return
 	}
 
-	// userinfo is one of Pocket ID's own identity endpoints so it must only serve tokens audienced to Pocket ID itself
-	// A token audienced to a custom API belongs to that third-party resource server and must never be replayed here to read the user's profile, independent of the identity scopes already stripped from such a token
-	if targetsCustomAPI(accessRequest) {
-		writeUserInfoError(c, fosite.ErrAccessDenied.WithDescription("The access token is audienced to a custom API and cannot be used to access user information."))
+	// userinfo is one of Pocket ID's own identity endpoints, so the presented token must be audienced to Pocket ID itself (the issuer)
+	// A token granted an identity scope carries the issuer audience and is accepted here even when it also targets a custom API, while a token audienced only to a custom API belongs to that third-party resource server and cannot be replayed here to read the user's profile
+	if !accessRequest.GetGrantedAudience().Has(h.issuer) {
+		writeUserInfoError(c, fosite.ErrAccessDenied.WithDescription("The access token is not audienced to this server and cannot be used to access user information."))
 		return
 	}
 
