@@ -154,7 +154,7 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 	)
 
 	db := testutils.NewDatabaseForTest(t)
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
@@ -202,14 +202,14 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 		return body
 	}
 
-	// The client-subject grant is issued and audienced to the API.
-	body := requestToken(t, "write:orders")
+	// The client-subject grant is issued and audienced to the API
+	body := requestToken(t, "openid write:orders")
 	require.NotEmpty(t, body["access_token"], "client-granted scope must be issued, got error: %v (%v)", body["error"], body["error_description"])
 	claims := decodeJWTPart(t, body["access_token"].(string), 1)
-	require.Contains(t, jwtAudience(claims), apiAudience, "access token must be audience-bound to the API")
-	require.Contains(t, claims["scope"], "write:orders")
+	require.Equal(t, []string{apiAudience}, jwtAudience(claims), "access token must be audience-bound to the API")
+	require.Equal(t, []string{"write:orders"}, jwtScopes(claims), "identity scopes must be stripped from machine tokens")
 
-	// The permission users may delegate is not available to the client itself.
+	// The permission users may delegate is not available to the client itself
 	body = requestToken(t, "read:orders")
 	require.Empty(t, body["access_token"], "user-delegated permission must not be mintable machine-to-machine")
 	require.Equal(t, "invalid_scope", body["error"])
