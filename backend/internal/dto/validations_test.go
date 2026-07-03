@@ -75,6 +75,8 @@ func TestValidateResourceURI(t *testing.T) {
 		{"invalid unescaped path space", "https://api.example.com/a b", false},
 		{"invalid unescaped opaque space", "urn:my app", false},
 		{"invalid malformed URI", "http://[::1", false},
+		{"invalid javascript scheme", "javascript:alert(1)", false},
+		{"invalid data scheme", "data:text/html,<script>alert(1)</script>", false},
 		{"empty", "", false},
 	}
 

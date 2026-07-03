@@ -121,9 +121,14 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 		return authorizationResult{}, &common.OidcPARRequiredError{}
 	}
 
+	// Only a single RFC 8707 resource is supported, so reject a request that carries more than one rather than silently honoring the first
+	resource, err := resourceFromForm(input.requester.GetRequestForm())
+	if err != nil {
+		return authorizationResult{}, err
+	}
+
 	// Validate the requested scopes against the targeted API up front, before the user authenticates or reaches the consent screen
 	// This rejects a custom permission requested without, or with the wrong, resource at the authorize endpoint itself
-	resource := input.requester.GetRequestForm().Get("resource")
 	_, _, _, err = s.resolveGrant(ctx, client.GetID(), resource, input.requester.GetRequestedScopes())
 	if err != nil {
 		// resolveGrant distinguishes an unknown API, an API this client is not granted, and a scope not allowed for the API

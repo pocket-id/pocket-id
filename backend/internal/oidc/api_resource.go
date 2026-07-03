@@ -2,11 +2,35 @@ package oidc
 
 import (
 	"context"
+	"net/http"
+	"net/url"
 	"slices"
 
 	"github.com/ory/fosite"
 	"gorm.io/gorm"
 )
+
+// errMultipleResources is the RFC 8707 invalid_target error returned when a request carries more than one resource parameter
+// The fork does not predefine invalid_target, so it is built here to match how fosite constructs its own errors
+var errMultipleResources = &fosite.RFC6749Error{
+	ErrorField:       "invalid_target",
+	DescriptionField: "The requested resource is invalid, missing, unknown, or malformed.",
+	HintField:        "Only a single 'resource' parameter is supported.",
+	CodeField:        http.StatusBadRequest,
+}
+
+// resourceFromForm extracts the single RFC 8707 resource identifier from a request form
+// A token is audienced to exactly one API, so a request that carries more than one resource is rejected rather than silently narrowed to the first value
+func resourceFromForm(form url.Values) (string, error) {
+	values := form["resource"]
+	if len(values) > 1 {
+		return "", errMultipleResources
+	}
+	if len(values) == 0 {
+		return "", nil
+	}
+	return values[0], nil
+}
 
 func isStandardScope(scope string) bool {
 	// standardScopes are the built-in identity scopes that any client may request

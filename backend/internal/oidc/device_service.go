@@ -50,6 +50,12 @@ func (s *deviceService) createDeviceAuthorization(ctx context.Context, req *http
 		return nil, request, err
 	}
 
+	// Only a single RFC 8707 resource is supported, so reject a device authorization that carries more than one before a user code is minted
+	_, err = resourceFromForm(request.GetRequestForm())
+	if err != nil {
+		return nil, request, err
+	}
+
 	session := NewEmptySession()
 	response, err := s.provider.NewDeviceResponse(ctx, request, session)
 	if err != nil {
