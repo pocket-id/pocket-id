@@ -362,7 +362,7 @@
 	"login_code_email_success": "Inloggningskoden har skickats till användaren.",
 	"send_email": "Skicka e-postmeddelande",
 	"show_code": "Visa kod",
-	"callback_url_description": "URL-adresser som tillhandahålls av din klient. Läggs till automatiskt om fältet lämnas tomt. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Jokertecken</link> stöds.",
+	"callback_url_description": "URL-adresser som tillhandahålls av din klient. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Jokertecken</link> stöds.",
 	"logout_callback_url_description": "URL-adresser som din klient tillhandahåller för utloggning. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Jokertecken</link> stöds.",
 	"api_key_expiration": "API-nyckelns giltighetstid",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Skicka ett e-postmeddelande till användaren när deras API-nyckel håller på att upphöra.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Den här användaren har inga lösenord ännu.",
 	"replay_protection": "Skydd mot uppspelning",
 	"replay_protection_description": "Om denna funktion är aktiverad kan det angivna tokenet endast användas en gång. Om din leverantör använder samma token flera gånger kan du behöva inaktivera detta alternativ.",
+	"i_have_a_longer_code": "Jag har en längre kod",
 	"pkce_supported_client_title": "Denna klient stöder PKCE",
 	"pkce_supported_client_description": "Denna klient stöder Proof Key for Code Exchange (PKCE). PKCE är en säkerhetsfunktion som bidrar till att skydda mot vissa attacker under OAuth 2.0-auktoriseringsprocessen. Det rekommenderas att aktivera den."
 }

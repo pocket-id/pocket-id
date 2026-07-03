@@ -362,7 +362,7 @@
 	"login_code_email_success": "The login code has been sent to the user.",
 	"send_email": "Send Email",
 	"show_code": "Show Code",
-	"callback_url_description": "URL(s) provided by your client. Will be automatically added if left blank. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Wildcards</link> are supported.",
+	"callback_url_description": "Teie kliendi poolt esitatud URL-id. Toetatakse <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>metamärke</link>.",
 	"logout_callback_url_description": "URL(s) provided by your client for logout. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Wildcards</link> are supported.",
 	"api_key_expiration": "API Key Expiration",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Send an email to the user when their API key is about to expire.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Sellel kasutajal pole veel paroolivõtmeid.",
 	"replay_protection": "Kordusmängu kaitse",
 	"replay_protection_description": "Kui see valik on aktiveeritud, saab antud tokenit kasutada ainult ühe korra. Kui teie teenusepakkuja kasutab sama tokenit mitu korda, võib teil olla vaja see valik deaktiveerida.",
+	"i_have_a_longer_code": "Mul on pikem kood",
 	"pkce_supported_client_title": "See klient toetab PKCE-d",
 	"pkce_supported_client_description": "See klient toetab funktsiooni „Proof Key for Code Exchange“ (PKCE). PKCE on turvaelement, mis aitab kaitsta teatud rünnakute eest OAuth 2.0 autoriseerimisprotsessi käigus. Soovitame selle sisse lülitada."
 }
