@@ -8,12 +8,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// standardScopes are the built-in identity scopes that any client may request
-// They are released as ID-token and userinfo claims and are always available without targeting an API
-var standardScopes = []string{"openid", "profile", "email", "groups", "offline_access"}
-
 func isStandardScope(scope string) bool {
-	return slices.Contains(standardScopes, scope)
+	// standardScopes are the built-in identity scopes that any client may request
+	switch scope {
+	case "openid", "profile", "email", "groups", "offline_access":
+		return true
+	default:
+		return false
+	}
 }
 
 // PermissionInfo is the display information for an API permission used to show friendly names and descriptions on the consent screen
@@ -50,12 +52,19 @@ type APIAccessProvider interface {
 // An empty resource is a plain login token bound to the requesting client and yields only identity scopes
 // The subject type selects which of the client's grants apply: user-delegated flows only see user grants, the client credentials grant only sees client grants
 func resolveResource(ctx context.Context, provider APIAccessProvider, clientID, resource string, requestedScopes []string, subjectType SubjectType) (audience string, grantedScopes []string, err error) {
-	var grantable []string
+	// Include the standard scopes by default
+	// These are released as ID-token and userinfo claims and are always available without targeting an API
+	grantable := map[string]struct{}{
+		"openid":         {},
+		"profile":        {},
+		"email":          {},
+		"groups":         {},
+		"offline_access": {},
+	}
 
 	if resource == "" {
 		// A plain login token is audienced to the requesting client and carries only identity scopes
 		audience = clientID
-		grantable = standardScopes
 	} else {
 		if provider == nil {
 			return "", nil, fosite.ErrInvalidRequest.WithHintf("The resource %q is not a known API.", resource)
@@ -78,28 +87,26 @@ func resolveResource(ctx context.Context, provider APIAccessProvider, clientID, 
 		audience = resource
 		// Identity scopes stay grantable alongside a custom API so the ID token and its claims still work when openid or profile are requested
 		// Custom scopes are limited to what the client is allowed for this specific API
-		grantable = append(append([]string{}, standardScopes...), allowed...)
+		for _, a := range allowed {
+			grantable[a] = struct{}{}
+		}
 	}
 
 	// Every requested scope must belong to the targeted API, though identity scopes are always allowed
 	// A custom scope requested without its API, or for a different API than the one targeted, is rejected rather than silently dropped
+	granted := make([]string, 0, len(requestedScopes))
 	for _, scope := range requestedScopes {
-		if !slices.Contains(grantable, scope) {
+		_, ok := grantable[scope]
+		if !ok {
 			return "", nil, fosite.ErrInvalidScope.WithHintf("The scope %q is not available for the requested resource.", scope)
 		}
-	}
 
-	return audience, intersectScopes(requestedScopes, grantable), nil
-}
-
-func intersectScopes(requested, allowed []string) []string {
-	result := make([]string, 0, len(requested))
-	for _, scope := range requested {
-		if slices.Contains(allowed, scope) && !slices.Contains(result, scope) {
-			result = append(result, scope)
+		if !slices.Contains(granted, scope) {
+			granted = append(granted, scope)
 		}
 	}
-	return result
+
+	return audience, granted, nil
 }
 
 // consentScopeKey qualifies a custom-API scope by its audience so the same permission key on two different APIs is consented to separately

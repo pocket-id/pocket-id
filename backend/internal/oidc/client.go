@@ -5,9 +5,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
-var _ fosite.Client = (*Client)(nil)
-var _ fosite.ResponseModeClient = (*Client)(nil)
-
 type Client struct {
 	model.OidcClient
 
@@ -44,8 +41,12 @@ func (c Client) GetResponseTypes() fosite.Arguments {
 }
 
 func (c Client) GetScopes() fosite.Arguments {
-	scopes := make(fosite.Arguments, 0, len(standardScopes)+len(c.apiScopes))
-	scopes = append(scopes, standardScopes...)
+	scopes := make(fosite.Arguments, 5, 5+len(c.apiScopes))
+	scopes[0] = "openid"
+	scopes[1] = "profile"
+	scopes[2] = "email"
+	scopes[3] = "groups"
+	scopes[4] = "offline_access"
 	scopes = append(scopes, c.apiScopes...)
 	return scopes
 }
