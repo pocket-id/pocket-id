@@ -2,37 +2,56 @@ package job
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"path"
 	"strings"
 	"time"
 
-	"github.com/go-co-op/gocron/v2"
+	"github.com/italypaleale/francis/builtin/cronjob"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
-func (s *Scheduler) RegisterFileCleanupJobs(ctx context.Context, db *gorm.DB, fileStorage storage.FileStorage) error {
-	jobs := &FileCleanupJobs{db: db, fileStorage: fileStorage}
-
-	var errs []error
-	errs = append(errs,
-		s.RegisterJob(ctx, "ClearUnusedDefaultProfilePictures", gocron.DurationJob(24*time.Hour), jobs.clearUnusedDefaultProfilePictures, service.RegisterJobOpts{}),
-	)
-
-	// Only necessary for file system storage
-	if fileStorage.Type() == storage.TypeFileSystem {
-		errs = append(errs,
-			s.RegisterJob(ctx, "ClearOrphanedTempFiles", gocron.DurationJob(12*time.Hour), jobs.clearOrphanedTempFiles, service.RegisterJobOpts{RunImmediately: true}),
-		)
+// GetFileCleanupJobs returns the CronJob actors
+func GetFileCleanupJobs(db *gorm.DB, fileStorage storage.FileStorage) (cjs []*cronjob.CronJob, err error) {
+	job := &FileCleanupJobs{
+		db:          db,
+		fileStorage: fileStorage,
 	}
 
-	return errors.Join(errs...)
+	// Create the built-in actor for the ClearUnusedDefaultProfilePictures job
+	cj, err := cronjob.New(
+		"ClearUnusedDefaultProfilePictures",
+		cronjob.WithJob(job.clearUnusedDefaultProfilePictures),
+		// Run every 24 hours
+		cronjob.WithInterval(24*time.Hour),
+		cronjob.WithLogger(slog.Default()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error creating ClearUnusedDefaultProfilePictures job: %w", err)
+	}
+	cjs = append(cjs, cj)
+
+	// Create the built-in actor for the ClearOrphanedTempFiles job
+	// Only necessary for file system storage
+	if fileStorage.Type() == storage.TypeFileSystem {
+		cj, err := cronjob.New(
+			"ClearOrphanedTempFiles",
+			cronjob.WithJob(job.clearOrphanedTempFiles),
+			// Run every 12 hours
+			cronjob.WithInterval(12*time.Hour),
+			cronjob.WithLogger(slog.Default()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error creating ClearOrphanedTempFiles job: %w", err)
+		}
+		cjs = append(cjs, cj)
+	}
+
+	return cjs, nil
 }
 
 type FileCleanupJobs struct {
@@ -91,7 +110,7 @@ func (j *FileCleanupJobs) clearUnusedDefaultProfilePictures(ctx context.Context)
 func (j *FileCleanupJobs) clearOrphanedTempFiles(ctx context.Context) error {
 	const minAge = 10 * time.Minute
 
-	var deleted int
+	deleted := 0
 	err := j.fileStorage.Walk(ctx, "/", func(p storage.ObjectInfo) error {
 		// Only temp files
 		if !strings.HasSuffix(p.Path, "-tmp") {
@@ -110,7 +129,6 @@ func (j *FileCleanupJobs) clearOrphanedTempFiles(ctx context.Context) error {
 		deleted++
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to scan storage: %w", err)
 	}

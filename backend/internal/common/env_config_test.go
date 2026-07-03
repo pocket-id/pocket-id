@@ -175,6 +175,8 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("UNIX_SOCKET", "/tmp/app.sock")
 		t.Setenv("MAXMIND_LICENSE_KEY", "test-license")
 		t.Setenv("GEOLITE_DB_PATH", "/custom/geolite.mmdb")
+		t.Setenv("ACTORS_PORT", "9999")
+		t.Setenv("ACTORS_HOST", "LOCALHOST")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
@@ -182,6 +184,8 @@ func TestParseEnvConfig(t *testing.T) {
 		assert.Equal(t, "/custom/uploads", EnvConfig.UploadPath)
 		assert.Equal(t, "8080", EnvConfig.Port)
 		assert.Equal(t, "localhost", EnvConfig.Host) // lowercased
+		assert.Equal(t, "9999", EnvConfig.ActorsPort)
+		assert.Equal(t, "localhost", EnvConfig.ActorsHost) // lowercased
 	})
 
 	t.Run("should normalize file backend and default upload path", func(t *testing.T) {

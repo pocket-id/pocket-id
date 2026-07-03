@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -60,7 +61,8 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 	}
 
 	for table := range schema {
-		if table == "storage" || table == "schema_migrations" {
+		// Skip internal tables and the actor host's own "francis_" tables
+		if table == "storage" || table == "schema_migrations" || strings.HasPrefix(table, "francis_") {
 			continue
 		}
 		err = s.dumpTable(table, schema[table], &out)
@@ -74,7 +76,8 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 
 func (s *ExportService) schemaVersion() (uint, error) {
 	var version uint
-	if err := s.db.Raw("SELECT version FROM schema_migrations").Row().Scan(&version); err != nil {
+	err := s.db.Raw("SELECT version FROM schema_migrations").Row().Scan(&version)
+	if err != nil {
 		return 0, fmt.Errorf("failed to query schema version: %w", err)
 	}
 	return version, nil
@@ -108,7 +111,8 @@ func (s *ExportService) dumpTable(table string, types utils.DBSchemaTableTypes, 
 
 		// Skip the app lock row in the kv table
 		if table == "kv" {
-			if keyPtr, ok := rowMap["key"].(*string); ok && keyPtr != nil && *keyPtr == lockKey {
+			keyPtr, ok := rowMap["key"].(*string)
+			if ok && keyPtr != nil && *keyPtr == lockKey {
 				continue
 			}
 		}
@@ -181,16 +185,23 @@ func (s *ExportService) writeExportZipStream(ctx context.Context, w io.Writer, d
 	jsonEncoder := json.NewEncoder(jsonWriter)
 	jsonEncoder.SetEscapeHTML(false)
 
-	if err := jsonEncoder.Encode(dbData); err != nil {
+	err = jsonEncoder.Encode(dbData)
+	if err != nil {
 		return fmt.Errorf("failed to encode database.json: %w", err)
 	}
 
 	// Add uploaded files
-	if err := s.addUploadsToZip(ctx, zipWriter); err != nil {
-		return err
+	err = s.addUploadsToZip(ctx, zipWriter)
+	if err != nil {
+		return fmt.Errorf("error adding uploads to the export zip: %w", err)
 	}
 
-	return zipWriter.Close()
+	err = zipWriter.Close()
+	if err != nil {
+		return fmt.Errorf("error closing the zip writer: %w", err)
+	}
+
+	return nil
 }
 
 // addUploadsToZip adds all files from the storage to the ZIP archive under the "uploads/" directory
@@ -200,17 +211,18 @@ func (s *ExportService) addUploadsToZip(ctx context.Context, zipWriter *zip.Writ
 
 		w, err := zipWriter.Create(zipPath)
 		if err != nil {
-			return fmt.Errorf("failed to create zip entry for %s: %w", zipPath, err)
+			return fmt.Errorf("failed to create zip entry for '%s': %w", zipPath, err)
 		}
 
 		f, _, err := s.storage.Open(ctx, p.Path)
 		if err != nil {
-			return fmt.Errorf("failed to open file %s: %w", zipPath, err)
+			return fmt.Errorf("failed to open file '%s': %w", zipPath, err)
 		}
 		defer f.Close()
 
-		if _, err := io.Copy(w, f); err != nil {
-			return fmt.Errorf("failed to copy file %s into zip: %w", zipPath, err)
+		_, err = io.Copy(w, f)
+		if err != nil {
+			return fmt.Errorf("failed to copy file '%s' into zip: %w", zipPath, err)
 		}
 		return nil
 	})

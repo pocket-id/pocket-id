@@ -90,7 +90,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		Config: oidc.Config{
 			BaseURL:      common.EnvConfig.AppURL,
 			TokenBaseURL: common.EnvConfig.AppURL,
-			Secret:       string(common.EnvConfig.EncryptionKey),
+			Secret:       common.EnvConfig.EncryptionKey,
 		},
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,

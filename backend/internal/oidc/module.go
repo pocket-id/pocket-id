@@ -15,7 +15,7 @@ import (
 type Config struct {
 	BaseURL      string
 	TokenBaseURL string
-	Secret       string
+	Secret       []byte
 }
 
 type TokenSigner interface {

@@ -13,7 +13,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
-	"golang.org/x/time/rate"
 )
 
 const defaultOneTimeAccessTokenDuration = 15 * time.Minute
@@ -51,14 +50,14 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/users/me/one-time-access-token", authMiddleware.WithAdminNotRequired().Add(), uc.createOwnOneTimeAccessTokenHandler)
 	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(), uc.createAdminOneTimeAccessTokenHandler)
 	group.POST("/users/:id/one-time-access-email", authMiddleware.Add(), uc.RequestOneTimeAccessEmailAsAdminHandler)
-	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
-	group.POST("/one-time-access-email", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), uc.RequestOneTimeAccessEmailAsUnauthenticatedUserHandler)
+	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken), uc.exchangeOneTimeAccessTokenHandler)
+	group.POST("/one-time-access-email", rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail), uc.RequestOneTimeAccessEmailAsUnauthenticatedUserHandler)
 
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
 
-	group.POST("/users/me/send-email-verification", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), authMiddleware.WithAdminNotRequired().Add(), uc.sendEmailVerificationHandler)
-	group.POST("/users/me/verify-email", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), authMiddleware.WithAdminNotRequired().Add(), uc.verifyEmailHandler)
+	group.POST("/users/me/send-email-verification", rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification), authMiddleware.WithAdminNotRequired().Add(), uc.sendEmailVerificationHandler)
+	group.POST("/users/me/verify-email", rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail), authMiddleware.WithAdminNotRequired().Add(), uc.verifyEmailHandler)
 }
 
 type UserController struct {

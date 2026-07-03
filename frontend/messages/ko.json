@@ -362,7 +362,7 @@
 	"login_code_email_success": "로그인 코드가 사용자에게 전송되었습니다.",
 	"send_email": "이메일 전송",
 	"show_code": "코드 표시",
-	"callback_url_description": "클라이언트에서 제공된 URL입니다. 비워두면 자동으로 추가됩니다. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>와일드카드</link>가 지원됩니다.",
+	"callback_url_description": "클라이언트가 제공한 URL. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>와일드카드가</link> 지원됩니다.",
 	"logout_callback_url_description": "클라이언트에서 제공된 로그아웃 URL입니다. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>와일드카드</link>가 지원됩니다.",
 	"api_key_expiration": "API 키 만료",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "API 키가 만료되기 전에 사용자에게 이메일을 전송합니다.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "이 사용자는 아직 패스키가 없습니다.",
 	"replay_protection": "재재생 방지",
 	"replay_protection_description": "이 옵션이 활성화되면 제공된 토큰은 한 번만 사용할 수 있습니다. 사용 중인 서비스 제공자가 동일한 토큰을 여러 번 사용하는 경우, 이 옵션을 비활성화해야 할 수도 있습니다.",
+	"i_have_a_longer_code": "코드가 좀 더 길어요",
 	"pkce_supported_client_title": "이 클라이언트는 PKCE를 지원합니다.",
 	"pkce_supported_client_description": "이 클라이언트는 PKCE(Proof Key for Code Exchange)를 지원합니다. PKCE는 OAuth 2.0 인증 과정에서 발생할 수 있는 특정 공격으로부터 보호하는 데 도움이 되는 보안 기능입니다. 이 기능을 활성화하는 것이 좋습니다."
 }

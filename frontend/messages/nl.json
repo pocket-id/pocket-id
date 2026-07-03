@@ -362,7 +362,7 @@
 	"login_code_email_success": "De inlogcode is naar de gebruiker gestuurd.",
 	"send_email": "Verstuur e-mail",
 	"show_code": "Toon code",
-	"callback_url_description": "URL(s) die je klant heeft gegeven. Als je dit veld leeg laat, worden ze automatisch toegevoegd. Je kunt <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>jokertekens</link> gebruiken.",
+	"callback_url_description": "URL('s) die door je klant zijn opgegeven. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Jokertekens</link> worden ondersteund.",
 	"logout_callback_url_description": "URL(s) die je klant geeft om uit te loggen. Je kunt ook <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>jokertekens</link> gebruiken.",
 	"api_key_expiration": "API-sleutel verloopt",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Stuur een e-mail naar de gebruiker als de geldigheid van hun API-sleutel bijna verloopt.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Deze gebruiker heeft nog geen toegangscodes.",
 	"replay_protection": "Bescherming tegen herhaling",
 	"replay_protection_description": "Als deze optie is ingeschakeld, kan het opgegeven token maar één keer worden gebruikt. Als je provider hetzelfde token meerdere keren gebruikt, moet je deze optie misschien uitschakelen.",
+	"i_have_a_longer_code": "Ik heb een langere code",
 	"pkce_supported_client_title": "Deze client ondersteunt PKCE",
 	"pkce_supported_client_description": "Deze client ondersteunt Proof Key for Code Exchange (PKCE). PKCE is een beveiligingsfunctie die bescherming biedt tegen bepaalde aanvallen tijdens het OAuth 2.0-autorisatieproces. Het wordt aanbevolen om deze functie in te schakelen."
 }

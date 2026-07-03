@@ -128,13 +128,16 @@ func matchRedirectURI(rawurl string, client fosite.Client) (*url.URL, error) {
 }
 
 // DeriveGlobalSecret derives a 32-byte secret from the provided secret.
-func DeriveGlobalSecret(secret string) ([]byte, error) {
+// Note: changing this function in any is considered a breaking change.
+func DeriveGlobalSecret(secret []byte) ([]byte, error) {
 	const info = "pocketid/fosite_global_secret"
-	r := hkdf.New(sha256.New, []byte(secret), nil, []byte(info))
+	r := hkdf.New(sha256.New, secret, nil, []byte(info))
 
 	key := make([]byte, 32)
-	if _, err := io.ReadFull(r, key); err != nil {
+	_, err := io.ReadFull(r, key)
+	if err != nil {
 		return nil, err
 	}
+
 	return key, nil
 }
