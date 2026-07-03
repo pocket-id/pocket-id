@@ -28,6 +28,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/italypaleale/francis v0.1.0-beta.6
+	github.com/italypaleale/go-kit v0.0.0-20260703002252-b413738a463f
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
@@ -130,7 +131,6 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/italypaleale/go-kit v0.0.0-20260703002252-b413738a463f // indirect
 	github.com/italypaleale/go-sql-utils v0.2.4-0.20260702021114-e1dfdfb67d0e // indirect
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

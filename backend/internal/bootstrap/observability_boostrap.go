@@ -9,7 +9,7 @@ import (
 	"time"
 
 	sloggin "github.com/gin-contrib/slog"
-
+	"github.com/italypaleale/go-kit/servicerunner"
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
@@ -27,7 +27,6 @@ import (
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 func defaultResource() (*resource.Resource, error) {
@@ -40,13 +39,13 @@ func defaultResource() (*resource.Resource, error) {
 	)
 }
 
-func initObservability(ctx context.Context, metrics, traces bool) (shutdownFns []utils.Service, httpClient *http.Client, err error) {
+func initObservability(ctx context.Context, metrics, traces bool) (shutdownFns []servicerunner.Service, httpClient *http.Client, err error) {
 	resource, err := defaultResource()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create OpenTelemetry resource: %w", err)
 	}
 
-	shutdownFns = make([]utils.Service, 0, 2)
+	shutdownFns = make([]servicerunner.Service, 0, 2)
 
 	httpClient = &http.Client{}
 	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
@@ -132,7 +131,7 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 	return nil
 }
 
-func initOtelTracing(ctx context.Context, traces bool, resource *resource.Resource, httpClient *http.Client) (shutdownFn utils.Service, err error) {
+func initOtelTracing(ctx context.Context, traces bool, resource *resource.Resource, httpClient *http.Client) (shutdownFn servicerunner.Service, err error) {
 	if !traces {
 		otel.SetTracerProvider(tracenoop.NewTracerProvider())
 		return nil, nil
@@ -171,7 +170,7 @@ func initOtelTracing(ctx context.Context, traces bool, resource *resource.Resour
 	return shutdownFn, nil
 }
 
-func initOtelMetrics(ctx context.Context, metrics bool, resource *resource.Resource) (shutdownFn utils.Service, err error) {
+func initOtelMetrics(ctx context.Context, metrics bool, resource *resource.Resource) (shutdownFn servicerunner.Service, err error) {
 	if !metrics {
 		otel.SetMeterProvider(metricnoop.NewMeterProvider())
 		return nil, nil

@@ -8,25 +8,26 @@ import (
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+
+	"github.com/italypaleale/go-kit/servicerunner"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 func Bootstrap(ctx context.Context) error {
 	var (
-		shutdownFns       []utils.Service
+		shutdownFns       []servicerunner.Service
 		closeDatabasePool func()
 	)
 	defer func() { //nolint:contextcheck
 		// Invoke all shutdown functions on exit
 		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		shutdownErr := utils.NewServiceRunner(shutdownFns...).Run(shutdownCtx)
+		shutdownErr := servicerunner.NewServiceRunner(shutdownFns...).Run(shutdownCtx)
 		if shutdownErr != nil {
 			slog.Error("Error during graceful shutdown", "error", shutdownErr)
 		}
@@ -137,7 +138,7 @@ func Bootstrap(ctx context.Context) error {
 
 	// Run all background services
 	// This call blocks until the context is canceled
-	services := []utils.Service{
+	services := []servicerunner.Service{
 		svc.appLockService.RunRenewal,
 		actors.Run,
 		router,
@@ -147,7 +148,7 @@ func Bootstrap(ctx context.Context) error {
 		services = append(services, scheduler.Run)
 	}
 
-	err = utils.NewServiceRunner(services...).Run(ctx)
+	err = servicerunner.NewServiceRunner(services...).Run(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to run services: %w", err)
 	}

@@ -18,6 +18,7 @@ import (
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"github.com/italypaleale/francis/builtin/ratelimit"
+	"github.com/italypaleale/go-kit/servicerunner"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/gorm"
 
@@ -25,14 +26,13 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
 // This is used to register additional controllers for tests
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
 
-func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (utils.Service, error) {
+func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
 	r, err := initEngine()
 	if err != nil {
 		return nil, err
