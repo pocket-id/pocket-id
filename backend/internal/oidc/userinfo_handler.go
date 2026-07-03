@@ -49,6 +49,13 @@ func (h *userInfoHandler) userInfo(c *gin.Context) {
 		return
 	}
 
+	// userinfo is one of Pocket ID's own identity endpoints so it must only serve tokens audienced to Pocket ID itself
+	// A token audienced to a custom API belongs to that third-party resource server and must never be replayed here to read the user's profile, independent of the identity scopes already stripped from such a token
+	if targetsCustomAPI(accessRequest) {
+		writeUserInfoError(c, fosite.ErrAccessDenied.WithDescription("The access token is audienced to a custom API and cannot be used to access user information."))
+		return
+	}
+
 	// userinfo serves OIDC identity tokens, which are exactly the ones granted the openid scope
 	// An access token issued purely for a custom API never carries openid and is rejected here regardless of its audience
 	if !accessRequest.GetGrantedScopes().Has("openid") {

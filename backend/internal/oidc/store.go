@@ -165,7 +165,8 @@ func (s *Store) InvalidateAuthorizeCodeSession(ctx context.Context, code string)
 }
 
 func (s *Store) CreateAccessTokenSession(ctx context.Context, signature string, request fosite.Requester) error {
-	return s.upsertSession(ctx, sessionKindAccessToken, signature, request, "", true, fosite.AccessToken)
+	// userinfo and introspection read the granted scopes from the persisted access token session, so an access token audienced to a custom API must be stored without identity scopes to keep it from being replayed as an identity token. The ID token is issued from the untouched live request.
+	return s.upsertSession(ctx, sessionKindAccessToken, signature, withAccessTokenScopes(request), "", true, fosite.AccessToken)
 }
 
 func (s *Store) GetAccessTokenSession(ctx context.Context, signature string, _ fosite.Session) (fosite.Requester, error) {

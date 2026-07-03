@@ -127,6 +127,30 @@ func TestUserInfoHandler(t *testing.T) {
 		require.Equal(t, http.StatusForbidden, rec.Code)
 	})
 
+	t.Run("token audienced to a custom API cannot read userinfo even when openid was granted", func(t *testing.T) {
+		session := NewEmptySession()
+		session.Subject = userID
+		session.SetExpiresAt(fosite.AccessToken, time.Now().UTC().Add(time.Hour))
+
+		request := fosite.NewAccessRequest(session)
+		request.ID = "req-api-audience"
+		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}}}
+		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
+		request.RequestedScope = fosite.Arguments{"openid", "email", "read:orders"}
+		request.GrantedScope = fosite.Arguments{"openid", "email", "read:orders"}
+		request.RequestedAudience = fosite.Arguments{"https://api.orders.example.com"}
+		request.GrantedAudience = fosite.Arguments{"https://api.orders.example.com"}
+
+		response, err := provider.NewAccessResponse(t.Context(), request)
+		require.NoError(t, err)
+
+		rec, c := call(t, response.GetAccessToken())
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+		// The audience guard rejects it independently of the stripped identity scopes
+		require.Contains(t, rec.Body.String(), "audienced to a custom API")
+	})
+
 	t.Run("token whose user no longer exists is rejected with 401", func(t *testing.T) {
 		// A valid token whose subject was deleted is an auth failure, not a 404
 		token := issueAccessToken(t, "req-ghost", "ghost-user", "openid")

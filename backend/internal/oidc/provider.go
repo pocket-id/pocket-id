@@ -67,6 +67,9 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		HMACSHAStrategy: coreStrategy,
 		Config:          fositeConfig,
 	}
+	// Wrap the access token strategy so an access token audienced to a custom API never carries identity scopes on the token itself
+	// The ID token still receives them from the untouched grant.
+	apiAccessTokenStrategy := apiAudienceAccessTokenStrategy{CoreStrategy: accessTokenStrategy}
 	idTokenStrategy := &openid.DefaultStrategy{
 		Signer: sig,
 		Config: fositeConfig,
@@ -75,7 +78,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		fositeConfig,
 		store,
 		&compose.CommonStrategy{
-			CoreStrategy:               accessTokenStrategy,
+			CoreStrategy:               apiAccessTokenStrategy,
 			RFC8628CodeStrategy:        deviceStrategy,
 			OpenIDConnectTokenStrategy: idTokenStrategy,
 			Signer:                     sig,
@@ -98,7 +101,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		OAuth2Provider: provider,
 		deviceStrategy: deviceStrategy,
 		tokenStrategies: tokenStrategies{
-			accessToken: accessTokenStrategy,
+			accessToken: apiAccessTokenStrategy,
 			idToken:     idTokenStrategy,
 			config:      fositeConfig,
 		},
