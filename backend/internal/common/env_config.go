@@ -78,6 +78,9 @@ type EnvConfigSchema struct {
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
 	GeoLiteDBUrl      string `env:"GEOLITE_DB_URL"`
 
+	ActorsPort string `env:"ACTORS_PORT"`
+	ActorsHost string `env:"ACTORS_HOST" options:"toLower"`
+
 	LogLevel       string `env:"LOG_LEVEL" options:"toLower"`
 	MetricsEnabled bool   `env:"METRICS_ENABLED"`
 	TracingEnabled bool   `env:"TRACING_ENABLED"`
@@ -104,6 +107,8 @@ func defaultConfig() EnvConfigSchema {
 		AppURL:                AppUrl,
 		Port:                  "1411",
 		Host:                  "0.0.0.0",
+		ActorsPort:            "1414",
+		ActorsHost:            "0.0.0.0",
 		GeoLiteDBPath:         "data/GeoLite2-City.mmdb",
 		GeoLiteDBUrl:          MaxMindGeoLiteCityUrl,
 	}
@@ -138,27 +143,18 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 		return nil
 	}
 
-	if _, err := sloggin.ParseLevel(config.LogLevel); err != nil {
+	_, err := sloggin.ParseLevel(config.LogLevel)
+	if err != nil {
 		return errors.New("invalid LOG_LEVEL value. Must be 'debug', 'info', 'warn' or 'error'")
 	}
 
+	// Check required properties
 	if len(config.EncryptionKey) < 16 {
 		return errors.New("ENCRYPTION_KEY must be at least 16 bytes long")
 	}
 
-	prepareDbConfig(config)
-
-	if err := validateAppURLs(config); err != nil {
-		return err
-	}
-	if err := validateFileBackend(config); err != nil {
-		return err
-	}
 	if config.SystemdSocket && config.UnixSocket != "" {
 		return errors.New("SYSTEMD_SOCKET and UNIX_SOCKET are mutually exclusive")
-	}
-	if err := validateLocalIPv6Ranges(config.LocalIPv6Ranges); err != nil {
-		return err
 	}
 
 	if config.AuditLogRetentionDays <= 0 {
@@ -166,11 +162,34 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 	}
 
 	if config.StaticApiKey != "" && len(config.StaticApiKey) < 16 {
-		return errors.New("STATIC_API_KEY must be at least 16 characters long")
+		return errors.New("when set, STATIC_API_KEY must be at least 16 characters long")
 	}
 
-	return validateTLSConfig(config)
+	// Prepare the DB config
+	prepareDbConfig(config)
 
+	// Validate other required options
+	err = validateAppURLs(config)
+	if err != nil {
+		return err
+	}
+
+	err = validateFileBackend(config)
+	if err != nil {
+		return err
+	}
+
+	err = validateLocalIPv6Ranges(config.LocalIPv6Ranges)
+	if err != nil {
+		return err
+	}
+
+	err = validateTLSConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func prepareDbConfig(config *EnvConfigSchema) {

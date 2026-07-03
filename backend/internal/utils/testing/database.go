@@ -8,10 +8,10 @@ import (
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
-	"github.com/glebarez/sqlite"
 	"github.com/golang-migrate/migrate/v4"
 	sqliteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/libtnb/sqlite"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

@@ -49,7 +49,7 @@ func TestUserInfoHandler(t *testing.T) {
 	provider, err := newProvider(NewStore(db), nil, testTokenSigner{key: key}, Config{
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
-		Secret:       "test-secret",
+		Secret:       []byte("test-secret"),
 	})
 	require.NoError(t, err)
 

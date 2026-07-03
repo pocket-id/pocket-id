@@ -31,7 +31,7 @@ func init() {
 		Use:   "key-rotate",
 		Short: "Generates a new token signing key and replaces the current one",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := bootstrap.NewDatabase()
+			db, _, err := bootstrap.NewDatabase(cmd.Context())
 			if err != nil {
 				return err
 			}

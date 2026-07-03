@@ -101,7 +101,7 @@ func newTestDeviceServiceWithCode(t *testing.T, clientID, userID string, require
 	provider, err := newProvider(store, nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
-		Secret:       "test-secret",
+		Secret:       []byte("test-secret"),
 	})
 	require.NoError(t, err)
 

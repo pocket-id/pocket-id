@@ -6,13 +6,30 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/hex"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
+
+func TestLoadKeyEncryptionKeyUsesStableValue(t *testing.T) {
+	envConfig := &common.EnvConfigSchema{
+		EncryptionKey: []byte("test-encryption-key"),
+	}
+
+	expectedHex := "8e7610a60551627e8bfff3a120513ed18e8176e821214d9c58e6dcb1918f7636"
+	expected, err := hex.DecodeString(expectedHex)
+	require.NoError(t, err)
+
+	actual, err := LoadKeyEncryptionKey(envConfig, "instance-123")
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
 
 func TestGenerateKey(t *testing.T) {
 	tests := []struct {

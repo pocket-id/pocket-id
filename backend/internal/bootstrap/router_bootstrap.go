@@ -17,27 +17,27 @@ import (
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/builtin/ratelimit"
+	"github.com/italypaleale/go-kit/servicerunner"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
 // This is used to register additional controllers for tests
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
 
-func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
+func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
 	r, err := initEngine()
 	if err != nil {
 		return nil, err
 	}
-	err = registerRoutes(r, db, svc)
+	err = registerRoutes(r, db, svc, rateLimitServices)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func registerGlobalMiddleware(r *gin.Engine) {
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 }
 
-func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
+func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
 	err := frontend.RegisterFrontend(r)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
@@ -119,7 +119,8 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	// Initialize middleware for specific routes
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyModule, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
-	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
+	rateLimitMiddleware := middleware.NewRateLimitMiddleware(rateLimitServices)
+	apiRateLimitMiddleware := rateLimitMiddleware.Add(middleware.RateLimitAPI)
 
 	apiGroup := r.Group("/api", apiRateLimitMiddleware)
 	baseGroup := r.Group("/", apiRateLimitMiddleware)
@@ -128,14 +129,13 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 		authMiddleware.WithAdminNotRequired().Add(),
 		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(),
 	)
-	webauthnRateLimitMiddleware := middleware.NewRateLimitMiddleware()
 	svc.webauthnModule.RegisterRoutes(apiGroup,
 		authMiddleware.WithAdminNotRequired().Add(),
-		webauthnRateLimitMiddleware.Add(rate.Every(10*time.Second), 5),
-		webauthnRateLimitMiddleware.Add(rate.Every(10*time.Second), 5),
+		rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin),
+		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
 	)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
-	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.webauthnModule, svc.appConfigService)
+	controller.NewUserController(apiGroup, authMiddleware, rateLimitMiddleware, svc.userService, svc.oneTimeAccessService, svc.webauthnModule, svc.appConfigService)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
@@ -145,7 +145,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)
 	svc.userSignUpModule.RegisterRoutes(apiGroup,
 		authMiddleware.Add(),
-		middleware.NewRateLimitMiddleware().Add(rate.Every(1*time.Minute), 10),
+		rateLimitMiddleware.Add(middleware.RateLimitSignup),
 	)
 
 	optionalBrowserAuth := authMiddleware.WithAdminNotRequired().WithSuccessOptional().WithApiKeyAuthDisabled().Add()
