@@ -182,6 +182,23 @@ func TestUpdatePermissionsRejectsReservedKeys(t *testing.T) {
 	}
 }
 
+func TestUpdatePermissionsRejectsDuplicateKeys(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db}).service
+
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
+	require.NoError(t, err)
+
+	// Two rows with the same key must be rejected rather than silently coalesced last-wins
+	_, err = svc.UpdatePermissions(t.Context(), orders.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{
+		{Key: "read:orders", Name: "Read"},
+		{Key: "read:orders", Name: "Read again"},
+	}})
+	require.Error(t, err)
+	var validationErr *common.ValidationError
+	require.ErrorAs(t, err, &validationErr)
+}
+
 func TestUpdatePermissionsRejectsInvalidKeyCharacters(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc := New(Dependencies{DB: db}).service

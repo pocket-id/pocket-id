@@ -177,7 +177,9 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 		return API{}, err
 	}
 
-	// Reject keys with invalid characters or that collide with Pocket ID's reserved scopes and claims before persisting anything
+	// Reject keys with invalid characters, that collide with Pocket ID's reserved scopes and claims, or that repeat within the request before persisting anything
+	// A duplicate key would otherwise be silently coalesced last-wins into the map below, dropping a row behind a 200
+	seen := make(map[string]struct{}, len(input.Permissions))
 	for _, permission := range input.Permissions {
 		if !isValidPermissionKey(permission.Key) {
 			return API{}, &common.ValidationError{Message: fmt.Sprintf("the permission key %q contains invalid characters", permission.Key)}
@@ -185,6 +187,11 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 		if isPermissionKeyReserved(permission.Key) {
 			return API{}, &common.ValidationError{Message: fmt.Sprintf("the permission key %q is reserved by Pocket ID", permission.Key)}
 		}
+		_, ok := seen[permission.Key]
+		if ok {
+			return API{}, &common.ValidationError{Message: fmt.Sprintf("the permission key %q is listed more than once", permission.Key)}
+		}
+		seen[permission.Key] = struct{}{}
 	}
 
 	existing := make(map[string]Permission, len(api.Permissions))
