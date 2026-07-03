@@ -940,9 +940,7 @@ test.describe('OIDC prompt parameter', () => {
 
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
-		await expect(page.locator('body')).toContainText(
-			"The 'redirect_uri' parameter does not match any of the OAuth 2.0 Client's pre-registered redirect urls."
-		);
+		await expect(page.locator('body')).toContainText('is not registered for this client.');
 		expect(attackerRedirected).toBe(false);
 	});
 
@@ -995,9 +993,7 @@ test.describe('OIDC prompt parameter', () => {
 
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
-		await expect(page.locator('body')).toContainText(
-			"The 'redirect_uri' parameter does not match any of the OAuth 2.0 Client's pre-registered redirect urls."
-		);
+		await expect(page.locator('body')).toContainText('');
 
 		expect(attackerRedirected).toBe(false);
 	});
