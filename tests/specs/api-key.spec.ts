@@ -111,8 +111,23 @@ function getDefaultApiKeyExpirationDate() {
 
 async function selectApiKeyExpirationDate(page: Page, date: Date) {
 	await page.getByRole('button', { name: 'Select a date' }).click();
-	await page.getByRole('button', { name: 'Next', exact: true }).click();
-	await page.getByRole('button', { name: getCalendarDayName(date) }).click();
+
+	const targetDay = page.getByRole('button', { name: getCalendarDayName(date) });
+	const nextButton = page.getByRole('button', { name: 'Next', exact: true });
+
+	// The calendar opens on the month of the field's current value, which can be an
+	// arbitrary number of months away from the target date (e.g. when renewing an
+	// already-expired key, whose proposed date is in the past). Advance one month at
+	// a time until the target day is rendered, rather than assuming it is exactly one
+	// month ahead — that assumption is date-dependent and fails on most days.
+	await expect(async () => {
+		if (!(await targetDay.isVisible())) {
+			await nextButton.click();
+		}
+		await expect(targetDay).toBeVisible({ timeout: 500 });
+	}).toPass({ timeout: 8000 });
+
+	await targetDay.click();
 }
 
 function getCalendarDayName(date: Date) {
