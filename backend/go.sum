@@ -253,6 +253,10 @@ github.com/italypaleale/go-kit v0.0.0-20260703002252-b413738a463f h1:cyvaGWNg9Ai
 github.com/italypaleale/go-kit v0.0.0-20260703002252-b413738a463f/go.mod h1:pl0r3F+thZIyDsyDo8aOUsAIVcsRuAeP1bB4GuAHLoY=
 github.com/italypaleale/go-sql-utils v0.2.4-0.20260702021114-e1dfdfb67d0e h1:HDhmMkWAlLy/Elr/+T7diAZgAI+sDY2hYAyIAyefUYk=
 github.com/italypaleale/go-sql-utils v0.2.4-0.20260702021114-e1dfdfb67d0e/go.mod h1:BJStxMfB6fzYVcOe0oZQCjGIPZQu76UBmg1Wuy6Z/7I=
+github.com/italypaleale/go-sql-utils v0.2.4-0.20260703205853-9dc103a534d1 h1:CDADsLwr2e2tj0mlckw6TXyLp0oYmTKeBqDsA6ZJBLQ=
+github.com/italypaleale/go-sql-utils v0.2.4-0.20260703205853-9dc103a534d1/go.mod h1:BJStxMfB6fzYVcOe0oZQCjGIPZQu76UBmg1Wuy6Z/7I=
+github.com/italypaleale/go-sql-utils v0.2.4 h1:6CN8y3qEdNzvYlS/JK6N65E8cL9F8a6OBCJjzaQIv3c=
+github.com/italypaleale/go-sql-utils v0.2.4/go.mod h1:BJStxMfB6fzYVcOe0oZQCjGIPZQu76UBmg1Wuy6Z/7I=
 github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 h1:D/V0gu4zQ3cL2WKeVNVM4r2gLxGGf6McLwgXzRTo2RQ=
 github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6/go.mod h1:a/s9Lp5W7n/DD0VrVoyJ00FbP2ytTPDVOivvn2bMlds=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
