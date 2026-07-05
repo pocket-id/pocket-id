@@ -94,8 +94,24 @@ func configureEngine(r *gin.Engine) {
 		r.TrustedPlatform = common.EnvConfig.TrustedPlatform
 	}
 
-	if common.EnvConfig.TracingEnabled {
-		r.Use(otelgin.Middleware(common.Name))
+	r.Use(otelgin.Middleware(
+		common.Name,
+		otelgin.WithFilter(shouldTraceRequest)),
+	)
+}
+
+// shouldTraceRequest reports whether an incoming request should be traced.
+// It traces only requests handled by real backend routes (the API, the OIDC/OAuth endpoints, and the well-known documents).
+// Everything else falls through to the frontend NoRoute handler, which serves the SPA shell and static assets; tracing those would produce noisy, unparented spans named just "GET" with an empty http.route.
+func shouldTraceRequest(r *http.Request) bool {
+	p := r.URL.Path
+	switch {
+	case strings.HasPrefix(p, "/api/"),
+		strings.HasPrefix(p, "/.well-known/"),
+		p == "/authorize":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -158,6 +174,10 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)
+
+	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
+	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.
+	controller.NewTelemetryController(r, rateLimitMiddleware.Add(middleware.RateLimitInternal))
 
 	return nil
 }

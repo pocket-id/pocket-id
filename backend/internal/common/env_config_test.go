@@ -123,8 +123,6 @@ func TestParseEnvConfig(t *testing.T) {
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.True(t, EnvConfig.UiConfigDisabled)
-		assert.True(t, EnvConfig.MetricsEnabled)
-		assert.False(t, EnvConfig.TracingEnabled)
 		assert.True(t, EnvConfig.TrustProxy)
 		assert.False(t, EnvConfig.AnalyticsDisabled)
 	})

@@ -18,6 +18,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
+	tracingGorm "gorm.io/plugin/opentelemetry/tracing"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -129,6 +130,12 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 		})
 		if err == nil {
 			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
+
+			// Configure tracing and metrics
+			err = db.Use(tracingGorm.NewPlugin())
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to configure tracing for DB: %w", err)
+			}
 
 			// Invoke the onConnFn callback if any
 			if onConnFn != nil {
