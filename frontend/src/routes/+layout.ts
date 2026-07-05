@@ -4,6 +4,7 @@ import appConfigStore from '$lib/stores/application-configuration-store';
 import userStore from '$lib/stores/user-store';
 import { setLocaleForLibraries } from '$lib/utils/locale.util';
 import { getAuthRedirectPath } from '$lib/utils/redirection-util';
+import { setTracingEnabled } from '$lib/utils/tracing-util';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
@@ -36,6 +37,9 @@ export const load: LayoutLoad = async ({ url }) => {
 	if (appConfig) {
 		appConfigStore.set(appConfig);
 	}
+
+	// Only export traces when the backend is configured to forward them; otherwise the SPA would POST spans to an unregistered endpoint.
+	setTracingEnabled(appConfig?.tracingEnabled ?? false);
 
 	await setLocaleForLibraries();
 

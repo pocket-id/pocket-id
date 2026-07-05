@@ -31,13 +31,26 @@ export type HeaderCarrier = { set(name: string, value: string): void };
 
 let initialized = false;
 
+// Whether the backend is configured to receive traces (OTEL_TRACES_EXPORTER=otlp with a resolvable collector endpoint).
+// It stays false until the app configuration is loaded, so nothing is exported to `/internal/telemetry/traces` when tracing is disabled (that route isn't even registered then).
+let tracingEnabled = false;
+
 // The current page-level span and a Context carrying it.
 // API request spans are created as its children so a page view groups everything it triggers into one trace.
 let pageSpan: Span | undefined;
 let pageContext: Context = ROOT_CONTEXT;
 
+/**
+ * Enables or disables frontend tracing based on the backend configuration.
+ * Called from the root layout once the application configuration is loaded.
+ * When disabled, no provider is created and no spans are started, so nothing is sent to the backend telemetry endpoint.
+ */
+export function setTracingEnabled(enabled: boolean): void {
+	tracingEnabled = enabled;
+}
+
 function ensureProvider(): void {
-	if (initialized || !browser) {
+	if (initialized || !browser || !tracingEnabled) {
 		return;
 	}
 	initialized = true;
@@ -71,7 +84,7 @@ function endPageSpan(): void {
  * Called on each navigation from the root +layout.
  */
 export function startPageTrace(path?: string): void {
-	if (!browser) {
+	if (!browser || !tracingEnabled) {
 		return;
 	}
 	ensureProvider();
@@ -87,7 +100,14 @@ export function startPageTrace(path?: string): void {
  * Creates a CLIENT span for an outgoing API request (as a child of the current page span) and injects the W3C trace headers into `carrier`.
  * The returned span must be ended with  {@link endRequestSpan} once the response (or error) is available.
  */
-export function startRequestSpan(method: string, url: string, carrier: HeaderCarrier): Span {
+export function startRequestSpan(
+	method: string,
+	url: string,
+	carrier: HeaderCarrier
+): Span | undefined {
+	if (!tracingEnabled) {
+		return undefined;
+	}
 	ensureProvider();
 
 	// If no navigation has happened yet (e.g. the initial page load), start the page trace lazily so the initial requests are grouped under it too.

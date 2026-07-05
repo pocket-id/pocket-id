@@ -17,7 +17,11 @@ abstract class APIService {
 		this.api.interceptors.request.use((config) => {
 			const method = (config.method ?? 'get').toUpperCase();
 			const url = `${config.baseURL ?? ''}${config.url ?? ''}`;
-			requestSpans.set(config, startRequestSpan(method, url, config.headers));
+			// startRequestSpan returns undefined when tracing is disabled, so only track a span when one was created.
+			const span = startRequestSpan(method, url, config.headers);
+			if (span) {
+				requestSpans.set(config, span);
+			}
 			return config;
 		});
 		this.api.interceptors.response.use(

@@ -66,6 +66,13 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 		Type:  "boolean",
 	})
 
+	// Manually add tracingEnabled, derived from the OTel environment, so the frontend only exports traces when the backend can forward them to a collector
+	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
+		Key:   "tracingEnabled",
+		Value: strconv.FormatBool(frontendTracingEnabled()),
+		Type:  "boolean",
+	})
+
 	c.JSON(http.StatusOK, configVariablesDto)
 }
 

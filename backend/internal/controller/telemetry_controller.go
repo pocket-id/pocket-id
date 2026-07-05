@@ -26,16 +26,23 @@ type telemetryController struct {
 //
 // The route is only registered when the backend is configured to export traces via OTLP to a resolved collector endpoint; otherwise it's left unregistered and requests return 404.
 func NewTelemetryController(router gin.IRouter, rateLimit gin.HandlerFunc) {
-	targetURL := otlpTracesEndpoint()
-	if os.Getenv("OTEL_TRACES_EXPORTER") != "otlp" {
+	// Only register the route when the browser's traces can actually be forwarded to a collector.
+	if !frontendTracingEnabled() {
 		return
 	}
 
 	tc := &telemetryController{
-		targetURL: targetURL,
+		targetURL: otlpTracesEndpoint(),
 		client:    &http.Client{Timeout: 10 * time.Second},
 	}
 	router.POST("/internal/telemetry/traces", rateLimit, tc.forwardTraces)
+}
+
+// frontendTracingEnabled reports whether the browser SPA should export traces.
+// It's true only when trace export over OTLP is enabled and an OTLP/HTTP collector endpoint is resolvable: browser spans are forwarded to that collector by the telemetry endpoint, so without it there's nowhere to send them.
+// The frontend reads this flag (via the public app config) to decide whether to start tracing at all, instead of POSTing spans to an endpoint that isn't registered.
+func frontendTracingEnabled() bool {
+	return os.Getenv("OTEL_TRACES_EXPORTER") == "otlp" && otlpTracesEndpoint() != ""
 }
 
 func (tc *telemetryController) forwardTraces(c *gin.Context) {
