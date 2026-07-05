@@ -3,14 +3,13 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"strings"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type UserAuthorizedOidcClient struct {
-	Scope      string
+	Scope      datatype.StringList
 	LastUsedAt datatype.DateTime `sortable:"true"`
 
 	UserID string `gorm:"primary_key;"`
@@ -18,31 +17,6 @@ type UserAuthorizedOidcClient struct {
 
 	ClientID string `gorm:"primary_key;"`
 	Client   OidcClient
-}
-
-func (c UserAuthorizedOidcClient) Scopes() []string {
-	if len(c.Scope) == 0 {
-		return []string{}
-	}
-
-	return strings.Split(c.Scope, " ")
-}
-
-type OidcAuthorizationCode struct {
-	Base
-
-	Code                      string
-	Scope                     string
-	AuthenticationMethod      string
-	Nonce                     string
-	CodeChallenge             *string
-	CodeChallengeMethodSha256 *bool
-	ExpiresAt                 datatype.DateTime
-
-	UserID string
-	User   User
-
-	ClientID string
 }
 
 type OidcClient struct {
@@ -58,9 +32,11 @@ type OidcClient struct {
 	PkceEnabled                         bool `sortable:"true" filterable:"true"`
 	RequiresReauthentication            bool `sortable:"true" filterable:"true"`
 	RequiresPushedAuthorizationRequests bool `sortable:"true" filterable:"true"`
+	SkipConsent                         bool `sortable:"true" filterable:"true"`
 	Credentials                         OidcClientCredentials
 	LaunchURL                           *string
 	IsGroupRestricted                   bool `sortable:"true" filterable:"true"`
+	PkceSupported                       bool `sortable:"true" filterable:"true"`
 
 	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID               *string
@@ -76,39 +52,16 @@ func (c OidcClient) HasDarkLogo() bool {
 	return c.DarkImageType != nil && *c.DarkImageType != ""
 }
 
-type OidcRefreshToken struct {
-	Base
-
-	Token                string
-	IdTokenJti           *string
-	ExpiresAt            datatype.DateTime
-	Scope                string
-	AuthenticationMethod string
-
-	UserID string
-	User   User
-
-	ClientID string
-	Client   OidcClient
-}
-
-func (c OidcRefreshToken) Scopes() []string {
-	if len(c.Scope) == 0 {
-		return []string{}
-	}
-
-	return strings.Split(c.Scope, " ")
-}
-
 type OidcClientCredentials struct { //nolint:recvcheck
 	FederatedIdentities []OidcClientFederatedIdentity `json:"federatedIdentities,omitempty"`
 }
 
 type OidcClientFederatedIdentity struct {
-	Issuer   string `json:"issuer"`
-	Subject  string `json:"subject,omitempty"`
-	Audience string `json:"audience,omitempty"`
-	JWKS     string `json:"jwks,omitempty"` // URL of the JWKS
+	Issuer           string `json:"issuer"`
+	Subject          string `json:"subject,omitempty"`
+	Audience         string `json:"audience,omitempty"`
+	JWKS             string `json:"jwks,omitempty"` // URL of the JWKS
+	ReplayProtection bool   `json:"replayProtection,omitempty"`
 }
 
 func (occ OidcClientCredentials) FederatedIdentityForIssuer(issuer string) (OidcClientFederatedIdentity, bool) {
@@ -141,36 +94,4 @@ func (cu *UrlList) Scan(value any) error {
 
 func (cu UrlList) Value() (driver.Value, error) {
 	return json.Marshal(cu)
-}
-
-type OidcDeviceCode struct {
-	Base
-	DeviceCode           string
-	UserCode             string
-	Scope                string
-	AuthenticationMethod string
-	Nonce                string
-	ExpiresAt            datatype.DateTime
-	IsAuthorized         bool
-
-	UserID   *string
-	User     User
-	ClientID string
-	Client   OidcClient
-}
-
-type OidcPushedAuthorizationRequest struct {
-	Base
-
-	RequestURI          string
-	ClientID            string
-	Scope               string
-	RedirectURI         string
-	State               string
-	Nonce               string
-	CodeChallenge       *string
-	CodeChallengeMethod *string
-	ResponseType        string
-	Prompt              string
-	ExpiresAt           datatype.DateTime
 }

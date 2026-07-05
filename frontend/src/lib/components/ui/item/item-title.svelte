@@ -12,10 +12,11 @@
 
 <div
 	bind:this={ref}
-	role="heading"
-	aria-level="3"
 	data-slot="item-title"
-	class={cn('flex w-fit items-center gap-2 font-semibold leading-snug', className)}
+	class={cn(
+		'gap-2 text-sm leading-snug font-semibold underline-offset-4 line-clamp-1 flex w-fit items-center',
+		className
+	)}
 	{...restProps}
 >
 	{@render children?.()}

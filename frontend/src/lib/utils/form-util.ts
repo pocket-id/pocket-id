@@ -127,7 +127,7 @@ export function createForm<T extends z.ZodType<any, any>>(schema: T, initialValu
 			return fieldSchema.minLength !== null && fieldSchema.minLength > 0;
 		}
 
-		// Handle unions like callbackUrlSchema
+		// Handle unions
 		if (fieldSchema instanceof z.ZodUnion) {
 			return !fieldSchema.def.options.some((o: any) => {
 				return o.def.type == 'optional';

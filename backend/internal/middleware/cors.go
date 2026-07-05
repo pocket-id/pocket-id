@@ -43,7 +43,7 @@ func isCorsPath(path string) bool {
 	switch path {
 	case "/api/oidc/token",
 		"/api/oidc/userinfo",
-		"/oidc/end-session",
+		"/api/oidc/end-session",
 		"/api/oidc/introspect",
 		"/.well-known/jwks.json",
 		"/.well-known/openid-configuration":

@@ -68,9 +68,8 @@
 			: 'justify-center'}"
 	>
 		<div
-			class="relative z-10 flex h-full p-16 {cn(
-				showAlternativeSignInMethodButton && 'pb-0',
-				backgroundImageExists && 'w-[650px] 2xl:w-[800px]'
+			class="relative z-10 flex h-full w-full max-w-[650px] 2xl:max-w-[800px] p-16 {cn(
+				showAlternativeSignInMethodButton && 'pb-0'
 			)}"
 		>
 			<div class="flex h-full w-full flex-col overflow-hidden">

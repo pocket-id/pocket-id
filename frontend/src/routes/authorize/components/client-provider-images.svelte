@@ -13,18 +13,16 @@
 		error,
 		client
 	}: {
-		success: boolean;
-		error: boolean;
-		client: OidcClientMetaData;
+		success?: boolean;
+		error?: boolean;
+		client?: OidcClientMetaData;
 	} = $props();
 
 	let animationDone = $state(false);
 
 	$effect(() => {
 		if (success || error) {
-			setTimeout(() => {
-				animationDone = true;
-			}, 500);
+			setTimeout(() => (animationDone = true), client ? 500 : 0);
 		} else {
 			animationDone = false;
 		}
@@ -61,14 +59,14 @@
 			<div class="flex size-10 items-center justify-center">
 				<CrossAnimated class="size-5" />
 			</div>
-		{:else if client.hasLogo}
+		{:else if client?.hasLogo}
 			<img
 				class="aspect-square size-10 object-contain"
 				src={cachedOidcClientLogo.getUrl(client.id, isLightMode)}
 				draggable={false}
 				alt={m.client_logo()}
 			/>
-		{:else}
+		{:else if client?.name}
 			<div class="flex size-10 items-center justify-center text-3xl font-bold">
 				{client.name.charAt(0).toUpperCase()}
 			</div>

@@ -13,7 +13,7 @@
 <p
 	bind:this={ref}
 	data-slot="card-description"
-	class={cn('text-muted-foreground mt-1 text-sm', className)}
+	class={cn('text-muted-foreground text-sm', className)}
 	{...restProps}
 >
 	{@render children?.()}

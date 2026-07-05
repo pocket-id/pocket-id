@@ -5,10 +5,10 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/italypaleale/go-kit/signals"
 	"github.com/spf13/cobra"
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/signals"
 )
 
 var rootCmd = &cobra.Command{

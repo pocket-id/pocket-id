@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
@@ -22,13 +23,13 @@ type AuthOptions struct {
 }
 
 func NewAuthMiddleware(
-	apiKeyService *service.ApiKeyService,
+	apiKeyModule *apikey.Module,
 	userService *service.UserService,
 	jwtService *service.JwtService,
 	auditLogService *service.AuditLogService,
 ) *AuthMiddleware {
 	return &AuthMiddleware{
-		apiKeyMiddleware: NewApiKeyAuthMiddleware(apiKeyService, jwtService),
+		apiKeyMiddleware: NewApiKeyAuthMiddleware(apiKeyModule, jwtService),
 		jwtMiddleware:    NewJwtAuthMiddleware(jwtService, userService, auditLogService),
 		options: AuthOptions{
 			AdminRequired:   true,
@@ -75,11 +76,12 @@ func (m *AuthMiddleware) WithApiKeyAuthDisabled() *AuthMiddleware {
 
 func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, isAdmin, authenticationMethod, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
+		userID, isAdmin, authenticationMethod, authenticationTime, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
 		if err == nil {
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
 			c.Set("authenticationMethod", authenticationMethod)
+			c.Set("authenticationTime", authenticationTime)
 			if c.IsAborted() {
 				return
 			}

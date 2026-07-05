@@ -39,7 +39,7 @@
 <div>
 	<Card.Root>
 		<Card.Header>
-			<div class="flex items-center justify-between">
+			<div class="flex flex-wrap items-center justify-between md:flex-nowrap gap-4">
 				<div>
 					<Card.Title>
 						<UserPlus class="text-primary/80 size-5" />
@@ -49,7 +49,9 @@
 					>
 				</div>
 				{#if !expandAddUserGroup}
-					<Button onclick={() => (expandAddUserGroup = true)}>{m.add_group()}</Button>
+					<Button class="w-full md:w-auto" onclick={() => (expandAddUserGroup = true)}
+						>{m.add_group()}</Button
+					>
 				{:else}
 					<Button class="h-8 p-3" variant="ghost" onclick={() => (expandAddUserGroup = false)}>
 						<LucideMinus class="size-5" />

@@ -58,6 +58,21 @@ func TestValidateCallbackURLPattern(t *testing.T) {
 			pattern:     "https://exa[mple.com/callback",
 			shouldError: true,
 		},
+		{
+			name:        "malformed IPv6 host",
+			pattern:     "http://[::1",
+			shouldError: true,
+		},
+		{
+			name:        "javascript scheme",
+			pattern:     "javascript:alert(1)",
+			shouldError: true,
+		},
+		{
+			name:        "data scheme",
+			pattern:     "data:text/html;base64,PGgxPkhlbGxvPC9oMT4=",
+			shouldError: true,
+		},
 	}
 
 	for _, tt := range tests {

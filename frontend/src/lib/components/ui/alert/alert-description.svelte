@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from '$lib/utils/style.js';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn, type WithElementRef } from '$lib/utils/style.js';
 
 	let {
 		ref = $bindable(null),
@@ -13,7 +13,10 @@
 <div
 	bind:this={ref}
 	data-slot="alert-description"
-	class={cn('col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed', className)}
+	class={cn(
+		'text-muted-foreground text-sm text-balance md:text-pretty [&_p:not(:last-child)]:mb-4 [&_a]:hover:text-foreground [&_a]:underline [&_a]:underline-offset-3',
+		className
+	)}
 	{...restProps}
 >
 	{@render children?.()}

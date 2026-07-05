@@ -42,6 +42,7 @@
 			case 'Enter':
 				if (selectedIndex >= 0) {
 					handleSuggestionClick(filteredSuggestions[selectedIndex]);
+					e.preventDefault();
 				}
 				break;
 			case 'Escape':
@@ -80,8 +81,8 @@
 	<Popover.Root open={isOpen}>
 		<Popover.Trigger tabindex={-1} class="h-0 w-full" aria-hidden />
 		<Popover.Content
+			class="gap-0! px-1 py-2"
 			sameWidth
-			class="p-0"
 			sideOffset={5}
 			trapFocus={false}
 			interactOutsideBehavior="ignore"
@@ -98,7 +99,7 @@
 					onkeydown={(e) => {
 						if (e.key === 'Enter') handleSuggestionClick(suggestion);
 					}}
-					class="hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 {selectedIndex ===
+					class="hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center rounded-full py-1.5 pr-2 pl-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 {selectedIndex ===
 					index
 						? 'bg-accent text-accent-foreground'
 						: ''}"

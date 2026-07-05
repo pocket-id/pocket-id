@@ -9,7 +9,6 @@
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { fade } from 'svelte/transition';
-	import { cn } from 'tailwind-variants';
 	import LoginLogoErrorSuccessIndicator from './components/login-logo-error-success-indicator.svelte';
 
 	let { data } = $props();
@@ -63,7 +62,7 @@
 			</Button>
 		{/if}
 		<Button
-			class={cn($appConfigStore.allowUserSignups === 'open' && 'w-[50%]')}
+			class={$appConfigStore.allowUserSignups === 'open' ? 'w-[50%]' : 'w-[80%] sm:w-[40%]'}
 			{isLoading}
 			onclick={authenticate}
 			autofocus={true}

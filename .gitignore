@@ -60,3 +60,5 @@ yarn-error.log*
 
 #Debug
 backend/cmd/__debug_*
+# Added by goreleaser init:
+dist/

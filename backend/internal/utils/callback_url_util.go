@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"log/slog"
 	"net"
 	"net/url"
@@ -19,10 +20,71 @@ func ValidateCallbackURLPattern(pattern string) error {
 	}
 
 	pattern, _, _ = strings.Cut(pattern, "#")
+	if err := validateCallbackURLPatternURL(pattern); err != nil {
+		return err
+	}
+
 	pattern = normalizeToURLPatternStandard(pattern)
 
 	_, err := urlpattern.New(pattern, "", nil)
 	return err
+}
+
+func validateCallbackURLPatternURL(pattern string) error {
+	parseablePattern := callbackURLPatternForURLParse(pattern)
+	u, err := url.Parse(parseablePattern)
+	if err != nil {
+		return err
+	}
+	if u.Scheme == "" {
+		return errors.New("callback URL pattern must include a scheme")
+	}
+
+	switch strings.ToLower(u.Scheme) {
+	case "javascript", "data":
+		return errors.New("callback URL pattern scheme is not allowed")
+	default:
+		return nil
+	}
+}
+
+func callbackURLPatternForURLParse(pattern string) string {
+	if strings.HasPrefix(pattern, "*://") {
+		pattern = "https://" + strings.TrimPrefix(pattern, "*://")
+	}
+
+	scheme, rest, ok := strings.Cut(pattern, "://")
+	if !ok {
+		return pattern
+	}
+
+	authority := rest
+	suffix := ""
+	if i := strings.IndexAny(rest, "/?#"); i >= 0 {
+		authority = rest[:i]
+		suffix = rest[i:]
+	}
+
+	userinfo := ""
+	hostport := authority
+	if i := strings.LastIndex(authority, "@"); i >= 0 {
+		userinfo = authority[:i+1]
+		hostport = authority[i+1:]
+	}
+
+	if strings.HasPrefix(hostport, "[") {
+		end := strings.Index(hostport, "]")
+		if end == -1 {
+			return pattern
+		}
+		if len(hostport) > end+1 && hostport[end+1] == ':' && strings.Contains(hostport[end+2:], "*") {
+			hostport = hostport[:end+2] + "443"
+		}
+	} else if i := strings.LastIndex(hostport, ":"); i >= 0 && strings.Contains(hostport[i+1:], "*") {
+		hostport = hostport[:i+1] + "443"
+	}
+
+	return scheme + "://" + userinfo + hostport + suffix
 }
 
 // GetCallbackURLFromList returns the first callback URL that matches the input callback URL.

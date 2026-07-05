@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import '@fontsource/gloock';
+@import 'shadcn-svelte/tailwind.css';
 
 @variant dark (&:where(.dark, .dark *));
 
@@ -8,7 +8,7 @@
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
   looks the same as it did with Tailwind CSS v3.
- 
+
   If we ever want to remove these styles, we need to add an explicit border
   color utility to any element that depends on these defaults.
 */
@@ -20,10 +20,19 @@
 	::file-selector-button {
 		border-color: var(--color-gray-200, currentcolor);
 	}
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+	html {
+		@apply font-sans;
+	}
 }
 
 :root {
-	--radius: 1rem;
+	--radius: 0.625rem;
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);
 	--card: oklch(1 0 0);
@@ -136,6 +145,15 @@
 
 	/* Font */
 	--font-gloock: 'gloock', serif;
+	--color-sidebar: var(--sidebar);
+	--color-chart-5: var(--chart-5);
+	--color-chart-4: var(--chart-4);
+	--color-chart-3: var(--chart-3);
+	--color-chart-2: var(--chart-2);
+	--color-chart-1: var(--chart-1);
+	--radius-2xl: calc(var(--radius) * 1.8);
+	--radius-3xl: calc(var(--radius) * 2.2);
+	--radius-4xl: calc(var(--radius) * 2.6);
 }
 
 @layer base {
@@ -149,6 +167,11 @@
 
 	button {
 		@apply cursor-pointer;
+	}
+
+	@font-face {
+		font-family: 'Gloock';
+		src: url('/fonts/Gloock-Regular.woff') format('woff');
 	}
 }
 

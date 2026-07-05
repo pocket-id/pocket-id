@@ -21,6 +21,7 @@ func NewErrorHandlerMiddleware() *ErrorHandlerMiddleware {
 	return &ErrorHandlerMiddleware{}
 }
 
+//nolint:gocognit
 func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()

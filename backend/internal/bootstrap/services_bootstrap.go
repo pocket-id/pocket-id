@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
 type services struct {
@@ -19,19 +24,21 @@ type services struct {
 	geoLiteService       *service.GeoLiteService
 	auditLogService      *service.AuditLogService
 	jwtService           *service.JwtService
-	webauthnService      *service.WebAuthnService
 	scimService          *service.ScimService
 	userService          *service.UserService
 	customClaimService   *service.CustomClaimService
 	oidcService          *service.OidcService
 	userGroupService     *service.UserGroupService
 	ldapService          *service.LdapService
-	apiKeyService        *service.ApiKeyService
 	versionService       *service.VersionService
 	fileStorage          storage.FileStorage
 	appLockService       *service.AppLockService
-	userSignUpService    *service.UserSignUpService
 	oneTimeAccessService *service.OneTimeAccessService
+
+	apiKeyModule     *apikey.Module
+	oidcModule       *oidc.Module
+	webauthnModule   *webauthn.Module
+	userSignUpModule *usersignup.Module
 }
 
 // Initializes all services
@@ -60,14 +67,37 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	}
 
 	svc.customClaimService = service.NewCustomClaimService(db)
-	svc.webauthnService, err = service.NewWebAuthnService(db, svc.jwtService, svc.auditLogService, svc.appConfigService)
+	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
+		DB:        db,
+		AppURL:    common.EnvConfig.AppURL,
+		Signer:    svc.jwtService,
+		AuditLog:  svc.auditLogService,
+		AppConfig: svc.appConfigService,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create WebAuthn service: %w", err)
+		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
 	}
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
 
-	svc.oidcService, err = service.NewOidcService(ctx, db, svc.jwtService, svc.appConfigService, svc.auditLogService, svc.customClaimService, svc.webauthnService, svc.scimService, httpClient, fileStorage)
+	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
+		DB:         db,
+		HTTPClient: httpClient,
+		Config: oidc.Config{
+			BaseURL:      common.EnvConfig.AppURL,
+			TokenBaseURL: common.EnvConfig.AppURL,
+			Secret:       common.EnvConfig.EncryptionKey,
+		},
+		Signer:       svc.jwtService,
+		CustomClaims: svc.customClaimService,
+		Reauth:       svc.webauthnModule,
+		AuditLog:     svc.auditLogService,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
+	}
+
+	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.appConfigService, svc.oidcModule.Preview, svc.scimService, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
@@ -76,12 +106,21 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService, fileStorage)
 
-	svc.apiKeyService, err = service.NewApiKeyService(ctx, db, svc.emailService)
+	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
+		DB:           db,
+		StaticApiKey: common.EnvConfig.StaticApiKey,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create API key service: %w", err)
+		return nil, fmt.Errorf("failed to create API key module: %w", err)
 	}
 
-	svc.userSignUpService = service.NewUserSignupService(db, svc.jwtService, svc.auditLogService, svc.appConfigService, svc.userService)
+	svc.userSignUpModule = usersignup.New(usersignup.Dependencies{
+		DB:          db,
+		Signer:      svc.jwtService,
+		AuditLog:    svc.auditLogService,
+		AppConfig:   svc.appConfigService,
+		UserCreator: svc.userService,
+	})
 	svc.oneTimeAccessService = service.NewOneTimeAccessService(db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
 
 	svc.versionService = service.NewVersionService(httpClient)

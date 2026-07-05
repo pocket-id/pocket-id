@@ -38,10 +38,7 @@ updates:
       default-days: 7
 
   - package-ecosystem: "npm"
-    directories:
-      - "/frontend"
-      - "/tests"
-      - "/email-templates"
+    directory: "/"
     patterns: ["*"]
     multi-ecosystem-group: "all-dependencies"
     versioning-strategy: "increase-if-necessary"

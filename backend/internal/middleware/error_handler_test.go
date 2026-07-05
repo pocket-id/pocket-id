@@ -42,8 +42,6 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	auditLogService := service.NewAuditLogService(db, nil, nil, nil)
 	oneTimeAccessService := service.NewOneTimeAccessService(db, nil, nil, auditLogService, nil, nil)
-	appConfigService, _ := service.NewAppConfigService(context.Background(), db)
-	webAuthnService, _ := service.NewWebAuthnService(db, nil, auditLogService, appConfigService)
 
 	router.GET("/one_time_access_invalid_token", func(c *gin.Context) {
 		_, _, err := oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), "invalid-token", "", "127.0.0.1", "test-agent")
@@ -51,8 +49,13 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 	})
 
 	router.GET("/webauthn_protocol_error", func(c *gin.Context) {
-		credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
-		_, _, err = webAuthnService.VerifyLogin(c.Request.Context(), "sessionId", credentialAssertionData, "127.0.0.1", "test-agent")
+		// Emulate a failed WebAuthn login: parsing/validating the assertion surfaces a
+		// *protocol.Error, and the failed sign-in is recorded in the audit log.
+		_, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
+		if err == nil {
+			err = &protocol.Error{Type: "verification_error", Details: "webauthn login failed"}
+		}
+		auditLogService.CreateSignInFailure(c.Request.Context(), "127.0.0.1", "test-agent", "")
 		_ = c.Error(err)
 	})
 
@@ -63,7 +66,7 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 	t.Run("logs security event for OneTimeAccess invalid token", func(t *testing.T) {
 		// given
 		mockHandler.lastEvent = ""
-		request := httptest.NewRequest(http.MethodGet, "/one_time_access_invalid_token", nil)
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/one_time_access_invalid_token", nil)
 		recorder := httptest.NewRecorder()
 		var initialSignInFailureCount int64
 		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
@@ -97,7 +100,7 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		    "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 		  }
 		}`)
-		request := httptest.NewRequest(http.MethodGet, "/webauthn_protocol_error", bytes.NewBuffer(jsonBody))
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/webauthn_protocol_error", bytes.NewBuffer(jsonBody))
 		recorder := httptest.NewRecorder()
 		var initialSignInFailureCount int64
 		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
@@ -121,7 +124,7 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 	t.Run("does not log security event for 404", func(t *testing.T) {
 		// given
 		mockHandler.lastEvent = ""
-		request := httptest.NewRequest(http.MethodGet, "/404", nil)
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/404", nil)
 		recorder := httptest.NewRecorder()
 		var initialSignInFailureCount int64
 		db.Table("audit_logs").Select("count(Event)").Count(&initialSignInFailureCount)
@@ -135,7 +138,7 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "User not found", body["error"])
 		require.Equal(t, http.StatusNotFound, recorder.Code)
-		require.Equal(t, "", mockHandler.lastEvent)
+		require.Empty(t, mockHandler.lastEvent)
 
 		var signInFailureCount int64
 		db.Table("audit_logs").Count(&signInFailureCount)

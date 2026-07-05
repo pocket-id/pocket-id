@@ -1,16 +1,17 @@
 # This Dockerfile embeds a pre-built binary for the given Linux architecture
-# Binaries must be built using "./scripts/development/build-binaries.sh --docker-only"
+# Binaries are supplied by GoReleaser.
 
-FROM alpine:3.23.4
+FROM alpine:3.24.1
 
 # TARGETARCH can be "amd64" or "arm64"
 ARG TARGETARCH
+ARG TARGETVARIANT
 
 WORKDIR /app
 
 RUN apk add --no-cache curl su-exec
 
-COPY ./backend/.bin/pocket-id-linux-${TARGETARCH} /app/pocket-id
+COPY linux/${TARGETARCH}/${TARGETVARIANT}/pocket-id /app/pocket-id
 COPY ./scripts/docker /app/docker
 
 EXPOSE 1411

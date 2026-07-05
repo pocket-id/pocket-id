@@ -49,10 +49,15 @@ test.describe('Update user creation configuration', () => {
 	});
 
 	test('should save default user groups for new signups', async ({ page }) => {
+		const developersOption = page.getByRole('option', { name: 'Developers' });
+		const designersOption = page.getByRole('option', { name: 'Designers' });
+
 		await page.getByRole('combobox', { name: 'User Groups' }).click();
-		await page.getByRole('option', { name: 'Developers' }).click();
-		await page.getByRole('option', { name: 'Designers' }).click();
-		await page.getByRole('combobox', { name: 'User Groups' }).click();
+		await developersOption.click();
+		await expect(developersOption).toBeChecked();
+		await designersOption.click();
+		await expect(designersOption).toBeChecked();
+		await page.keyboard.press('Escape');
 
 		await page.getByRole('button', { name: 'Save' }).nth(1).click();
 

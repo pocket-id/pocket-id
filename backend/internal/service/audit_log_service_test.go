@@ -26,7 +26,7 @@ func TestAuditLogService_CreateSignInFailed(t *testing.T) {
 	createdLog := service.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
 
 	// Then
-	require.NotZero(t, createdLog.ID)
+	require.NotEmpty(t, createdLog.ID)
 	require.Equal(t, model.AuditLogEventSignInFailed, createdLog.Event)
 	require.Equal(t, userID, createdLog.UserID)
 	require.Equal(t, ipAddress, *createdLog.IpAddress)

@@ -11,11 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -44,20 +45,23 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	require.NoError(t, err)
 
 	userService := service.NewUserService(db, jwtService, nil, nil, appConfigService, nil, nil, nil, nil)
-	apiKeyService, err := service.NewApiKeyService(t.Context(), db, nil)
+	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db})
 	require.NoError(t, err)
 
-	authMiddleware := NewAuthMiddleware(apiKeyService, userService, jwtService, auditLogService)
+	authMiddleware := NewAuthMiddleware(apiKeyModule, userService, jwtService, auditLogService)
 
 	user := createUserForAuthMiddlewareTest(t, db)
 	jwtToken, err := jwtService.GenerateAccessToken(user, "")
 	require.NoError(t, err)
 
-	_, apiKeyToken, err := apiKeyService.CreateApiKey(t.Context(), user.ID, dto.ApiKeyCreateDto{
+	apiKeyToken := "middleware-test-api-key-raw-token"
+	apiKeyRecord := apikey.ApiKey{
 		Name:      "Middleware API Key",
+		Key:       utils.CreateSha256Hash(apiKeyToken),
+		UserID:    user.ID,
 		ExpiresAt: datatype.DateTime(time.Now().Add(24 * time.Hour)),
-	})
-	require.NoError(t, err)
+	}
+	require.NoError(t, db.Create(&apiKeyRecord).Error)
 
 	router := gin.New()
 	router.Use(NewErrorHandlerMiddleware().Add())

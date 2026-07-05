@@ -1,5 +1,6 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
@@ -30,7 +31,8 @@
 				issuer: '',
 				subject: '',
 				audience: '',
-				jwks: ''
+				jwks: '',
+				replayProtection: true
 			}
 		];
 	}
@@ -39,10 +41,10 @@
 		federatedIdentities = federatedIdentities.filter((_, i) => i !== index);
 	}
 
-	function updateFederatedIdentity(
+	function updateFederatedIdentity<K extends keyof OidcClientFederatedIdentity>(
 		index: number,
-		field: keyof OidcClientFederatedIdentity,
-		value: string
+		field: K,
+		value: OidcClientFederatedIdentity[K]
 	) {
 		federatedIdentities[index] = {
 			...federatedIdentities[index],
@@ -80,7 +82,7 @@
 						{/if}
 					</div>
 
-					<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+					<div class="grid grid-cols-1 gap-5 md:grid-cols-2">
 						<Field.Field>
 							<Field.Label required for="issuer-{i}">Issuer</Field.Label>
 							<Input
@@ -136,6 +138,13 @@
 								<Field.Error>{getFieldError(i, 'jwks')}</Field.Error>
 							{/if}
 						</Field.Field>
+						<SwitchWithLabel
+							id="replay-protection-{i}"
+							label={m.replay_protection()}
+							description={m.replay_protection_description()}
+							checked={identity.replayProtection}
+							onCheckedChange={(checked) => updateFederatedIdentity(i, 'replayProtection', checked)}
+						/>
 					</div>
 				</div>
 			{/each}

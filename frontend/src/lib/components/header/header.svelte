@@ -8,7 +8,8 @@
 	import ModeSwitcher from './mode-switcher.svelte';
 
 	const authUrls = [
-		/^\/authorize$/,
+		/^\/interaction$/,
+		/^\/interaction\/error$/,
 		/^\/device$/,
 		/^\/login(?:\/.*)?$/,
 		/^\/logout$/,

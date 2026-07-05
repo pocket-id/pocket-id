@@ -24,7 +24,7 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		userArg := args[0]
 
 		// Connect to the database
-		db, err := bootstrap.NewDatabase()
+		db, _, err := bootstrap.NewDatabase(cmd.Context())
 		if err != nil {
 			return err
 		}

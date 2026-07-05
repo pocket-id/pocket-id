@@ -14,17 +14,25 @@ import (
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/ory/fosite"
+	"github.com/ory/fosite/compose"
+	fositejwt "github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
@@ -37,6 +45,13 @@ type TestService struct {
 	appLockService   *AppLockService
 	externalIdPKey   jwk.Key
 }
+
+const (
+	e2eRefreshTokenUserID              = "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
+	e2eRefreshTokenClientID            = "3654a746-35d4-4321-ac61-0bdcff2b4055"
+	e2eRefreshTokenValidFixtureToken   = "ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo"
+	e2eRefreshTokenExpiredFixtureToken = "X4vqwtRyCUaq51UafHea4Fsg8Km6CAns6vp3tuX4"
+)
 
 func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
@@ -173,8 +188,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Name:               "Nextcloud",
 				LaunchURL:          new("https://nextcloud.local"),
 				Secret:             "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
-				CallbackURLs:       model.UrlList{"http://nextcloud/auth/callback"},
-				LogoutCallbackURLs: model.UrlList{"http://nextcloud/auth/logout/callback"},
+				CallbackURLs:       model.UrlList{"http://nextcloud.localhost/auth/callback"},
+				LogoutCallbackURLs: model.UrlList{"http://nextcloud.localhost/auth/logout/callback"},
 				ImageType:          new("png"),
 				CreatedByID:        new(users[0].ID),
 			},
@@ -184,7 +199,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:              "Immich",
 				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
-				CallbackURLs:      model.UrlList{"http://immich/auth/callback"},
+				CallbackURLs:      model.UrlList{"http://immich.localhost/auth/callback"},
 				CreatedByID:       new(users[1].ID),
 				IsGroupRestricted: true,
 				AllowedUserGroups: []model.UserGroup{
@@ -197,8 +212,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:               "Tailscale",
 				Secret:             "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a", // n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo
-				CallbackURLs:       model.UrlList{"http://tailscale/auth/callback"},
-				LogoutCallbackURLs: model.UrlList{"http://tailscale/auth/logout/callback"},
+				CallbackURLs:       model.UrlList{"http://tailscale.localhost/auth/callback"},
+				LogoutCallbackURLs: model.UrlList{"http://tailscale.localhost/auth/logout/callback"},
 				IsGroupRestricted:  true,
 				CreatedByID:        new(users[0].ID),
 			},
@@ -208,7 +223,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:              "Federated",
 				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
-				CallbackURLs:      model.UrlList{"http://federated/auth/callback"},
+				CallbackURLs:      model.UrlList{"http://federated.localhost/auth/callback"},
 				CreatedByID:       new(users[1].ID),
 				AllowedUserGroups: []model.UserGroup{},
 				Credentials: model.OidcClientCredentials{
@@ -228,7 +243,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:              "SCIM Client",
 				Secret:            "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK", // nQbiuMRG7FpdK2EnDd5MBivWQeKFXohn
-				CallbackURLs:      model.UrlList{"http://scimclient/auth/callback"},
+				CallbackURLs:      model.UrlList{"http://scimclient.localhost/auth/callback"},
 				CreatedByID:       new(users[0].ID),
 				IsGroupRestricted: true,
 				AllowedUserGroups: []model.UserGroup{
@@ -242,53 +257,25 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:         "PAR Test Client",
 				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
-				CallbackURLs: model.UrlList{"http://par-client/auth/callback"},
+				CallbackURLs: model.UrlList{"http://par-client.localhost/auth/callback"},
 				CreatedByID:  new(users[0].ID),
+			},
+			{
+				Base: model.Base{
+					ID: "e1f2a3b4-c5d6-7890-abcd-ef0000000002",
+				},
+				Name:         "Skip Consent Client",
+				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
+				CallbackURLs: model.UrlList{"http://skip-consent.localhost/auth/callback"},
+				CreatedByID:  new(users[0].ID),
+				// Trusted client that bypasses the consent screen by default
+				SkipConsent: true,
 			},
 		}
 		for _, client := range oidcClients {
 			if err := tx.Create(&client).Error; err != nil {
 				return err
 			}
-		}
-
-		authCodes := []model.OidcAuthorizationCode{
-			{
-				Code:                 "auth-code",
-				Scope:                "openid profile",
-				Nonce:                "nonce",
-				AuthenticationMethod: AuthenticationMethodPhishingResistant,
-				ExpiresAt:            datatype.DateTime(time.Now().Add(1 * time.Hour)),
-				UserID:               users[0].ID,
-				ClientID:             oidcClients[0].ID,
-			},
-			{
-				Code:                 "federated",
-				Scope:                "openid profile",
-				Nonce:                "nonce",
-				AuthenticationMethod: AuthenticationMethodPhishingResistant,
-				ExpiresAt:            datatype.DateTime(time.Now().Add(1 * time.Hour)),
-				UserID:               users[1].ID,
-				ClientID:             oidcClients[3].ID,
-			},
-		}
-		for _, authCode := range authCodes {
-			if err := tx.Create(&authCode).Error; err != nil {
-				return err
-			}
-		}
-
-		refreshToken := model.OidcRefreshToken{
-			Token:                utils.CreateSha256Hash("ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo"),
-			IdTokenJti:           new("dd75f6f6-ce0a-44b7-a645-7de390ccd2fa"),
-			AuthenticationMethod: AuthenticationMethodPhishingResistant,
-			ExpiresAt:            datatype.DateTime(time.Now().Add(24 * time.Hour)),
-			Scope:                "openid profile email",
-			UserID:               users[0].ID,
-			ClientID:             oidcClients[0].ID,
-		}
-		if err := tx.Create(&refreshToken).Error; err != nil {
-			return err
 		}
 
 		accessToken := model.OneTimeAccessToken{
@@ -302,25 +289,25 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 
 		userAuthorizedClients := []model.UserAuthorizedOidcClient{
 			{
-				Scope:      "openid profile email",
+				Scope:      datatype.StringList{"openid", "profile", "email"},
 				UserID:     users[0].ID,
 				ClientID:   oidcClients[0].ID,
 				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 1, 13, 0, 0, 0, time.UTC)),
 			},
 			{
-				Scope:      "openid profile email",
+				Scope:      datatype.StringList{"openid", "profile", "email"},
 				UserID:     users[0].ID,
 				ClientID:   oidcClients[2].ID,
 				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 10, 14, 0, 0, 0, time.UTC)),
 			},
 			{
-				Scope:      "openid profile email",
+				Scope:      datatype.StringList{"openid", "profile", "email"},
 				UserID:     users[1].ID,
 				ClientID:   oidcClients[3].ID,
 				LastUsedAt: datatype.DateTime(time.Date(2025, 8, 12, 12, 0, 0, 0, time.UTC)),
 			},
 			{
-				Scope:      "openid profile email",
+				Scope:      datatype.StringList{"openid", "profile", "email"},
 				UserID:     users[0].ID,
 				ClientID:   oidcClients[5].ID,
 				LastUsedAt: datatype.DateTime(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
@@ -362,11 +349,11 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		webauthnSession := model.WebauthnSession{
+		webauthnSession := webauthn.WebauthnSession{
 			Challenge:        "challenge",
 			ExpiresAt:        datatype.DateTime(time.Now().Add(1 * time.Hour)),
 			UserVerification: "preferred",
-			CredentialParams: model.CredentialParameters{
+			CredentialParams: webauthn.CredentialParameters{
 				{Type: "public-key", Algorithm: -7},
 				{Type: "public-key", Algorithm: -257},
 			},
@@ -375,7 +362,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
-		apiKeys := []model.ApiKey{
+		apiKeys := []apikey.ApiKey{
 			{
 				Base: model.Base{
 					ID: "5f1fa856-c164-4295-961e-175a0d22d725",
@@ -401,7 +388,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		signupTokens := []model.SignupToken{
+		signupTokens := []usersignup.SignupToken{
 			{
 				Base: model.Base{
 					ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -498,23 +485,37 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 }
 
 func (s *TestService) ResetDatabase() error {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	return s.db.Transaction(func(tx *gorm.DB) (err error) {
 		var tables []string
 
+		// The "francis_" tables belong to the actor host and must be preserved: wiping them out from under the running host breaks it
 		switch common.EnvConfig.DbProvider {
 		case common.DbProviderSqlite:
 			// Query to get all tables for SQLite
-			if err := tx.Raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations';").Scan(&tables).Error; err != nil {
-				return err
+			err = tx.
+				Raw(`SELECT name
+					FROM sqlite_master
+					WHERE type='table'
+						AND name NOT LIKE 'sqlite_%'
+						AND name NOT LIKE 'francis_%'
+						AND name != 'schema_migrations'`).
+				Scan(&tables).
+				Error
+			if err != nil {
+				return fmt.Errorf("error loading table list: %w", err)
 			}
 		case common.DbProviderPostgres:
 			// Query to get all tables for PostgreSQL
-			if err := tx.Raw(`
-                SELECT tablename 
-                FROM pg_tables 
-                WHERE schemaname = 'public' AND tablename != 'schema_migrations';
-            `).Scan(&tables).Error; err != nil {
-				return err
+			err = tx.
+				Raw(`SELECT tablename
+					FROM pg_tables
+					WHERE schemaname = 'public'
+						AND tablename NOT LIKE 'francis_%'
+						AND tablename != 'schema_migrations'`).
+				Scan(&tables).
+				Error
+			if err != nil {
+				return fmt.Errorf("error loading table list: %w", err)
 			}
 		default:
 			return fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
@@ -522,15 +523,14 @@ func (s *TestService) ResetDatabase() error {
 
 		// Delete all rows from all tables
 		for _, table := range tables {
-			if err := tx.Exec(fmt.Sprintf("DELETE FROM %s;", table)).Error; err != nil {
-				return err
+			err = tx.Exec("DELETE FROM " + table).Error
+			if err != nil {
+				return fmt.Errorf("error deleting from table '%s': %w", table, err)
 			}
 		}
 
 		return nil
 	})
-
-	return err
 }
 
 func (s *TestService) ResetApplicationImages(ctx context.Context) error {
@@ -646,8 +646,173 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 	return nil
 }
 
-func (s *TestService) SignRefreshToken(userID, clientID, refreshToken string) (string, error) {
-	return s.jwtService.GenerateOAuthRefreshToken(userID, clientID, refreshToken)
+func (s *TestService) SignRefreshToken(ctx context.Context, userID, clientID, fixtureRefreshToken string) (string, error) {
+	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
+	if err != nil {
+		return "", err
+	}
+	strategy := compose.NewOAuth2HMACStrategy(&fosite.Config{
+		GlobalSecret:         globalSecret,
+		RefreshTokenLifespan: RefreshTokenDuration,
+	})
+
+	token, signature, err := strategy.GenerateRefreshToken(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+
+	// The e2e API always returns a newly generated fosite token. The legacy fixture
+	// token only selects whether to seed the matching stored session as valid/expired.
+	session, ok := seededRefreshTokenSession(userID, clientID, fixtureRefreshToken)
+	if !ok {
+		return token, nil
+	}
+	session.Signature = signature
+
+	if err := s.seedFositeTokenSession(ctx, session); err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func seededRefreshTokenSession(userID string, clientID string, fixtureRefreshToken string) (fositeTokenSession, bool) {
+	expired, ok := seededRefreshTokenFixture(userID, clientID, fixtureRefreshToken)
+	if !ok {
+		return fositeTokenSession{}, false
+	}
+
+	expiresAt := time.Now().UTC().Add(24 * time.Hour)
+	if expired {
+		expiresAt = time.Now().UTC().Add(-24 * time.Hour)
+	}
+
+	return fositeTokenSession{
+		Kind:                 "refresh_token",
+		RequestID:            "e2e-refresh-" + utils.CreateSha256Hash(fixtureRefreshToken),
+		UserID:               userID,
+		ClientID:             clientID,
+		AuthenticationMethod: AuthenticationMethodPhishingResistant,
+		Scopes:               []string{"openid", "profile", "email"},
+		TokenType:            fosite.RefreshToken,
+		ExpiresAt:            expiresAt,
+	}, true
+}
+
+func seededRefreshTokenFixture(userID string, clientID string, fixtureRefreshToken string) (expired bool, ok bool) {
+	if userID != e2eRefreshTokenUserID || clientID != e2eRefreshTokenClientID {
+		return false, false
+	}
+
+	switch fixtureRefreshToken {
+	case e2eRefreshTokenValidFixtureToken:
+		return false, true
+	case e2eRefreshTokenExpiredFixtureToken:
+		return true, true
+	default:
+		return false, false
+	}
+}
+
+func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID string, expired bool) (string, error) {
+	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
+	if err != nil {
+		return "", err
+	}
+	fositeConfig := &fosite.Config{
+		GlobalSecret:        globalSecret,
+		AccessTokenLifespan: AccessTokenDuration,
+		AccessTokenIssuer:   common.EnvConfig.AppURL,
+	}
+	coreStrategy := compose.NewOAuth2HMACStrategy(fositeConfig)
+	keyGetter := func(context.Context) (interface{}, error) {
+		return oidc.SigningKeyFromSigner(s.jwtService)
+	}
+	strategy := compose.NewOAuth2JWTStrategy(keyGetter, coreStrategy, fositeConfig)
+
+	expiresAt := time.Now().UTC().Add(AccessTokenDuration)
+	if expired {
+		expiresAt = time.Now().UTC().Add(-time.Minute)
+	}
+
+	session := fositeTokenSession{
+		Kind:                 "access_token",
+		RequestID:            "e2e-access-" + uuid.NewString(),
+		UserID:               userID,
+		ClientID:             clientID,
+		AuthenticationMethod: AuthenticationMethodPhishingResistant,
+		Scopes:               []string{"openid", "profile", "email"},
+		TokenType:            fosite.AccessToken,
+		ExpiresAt:            expiresAt,
+	}
+
+	request := s.newFositeTokenRequest(session)
+	token, signature, err := strategy.GenerateAccessToken(ctx, request)
+	if err != nil {
+		return "", err
+	}
+
+	session.Signature = signature
+	err = s.seedFositeTokenSession(ctx, session)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+type fositeTokenSession struct {
+	Kind                 string
+	Signature            string
+	RequestID            string
+	UserID               string
+	ClientID             string
+	AuthenticationMethod string
+	Scopes               []string
+	TokenType            fosite.TokenType
+	ExpiresAt            time.Time
+}
+
+func (s *TestService) seedFositeTokenSession(ctx context.Context, session fositeTokenSession) error {
+	request := s.newFositeTokenRequest(session)
+
+	store := oidc.NewStore(s.db)
+	switch session.Kind {
+	case "access_token":
+		return store.CreateAccessTokenSession(ctx, session.Signature, request)
+	case "refresh_token":
+		return store.CreateRefreshTokenSession(ctx, session.Signature, "", request)
+	default:
+		return fmt.Errorf("unsupported token session kind %q", session.Kind)
+	}
+}
+
+func (s *TestService) newFositeTokenRequest(session fositeTokenSession) *fosite.Request {
+	requestedAt := time.Now().UTC()
+
+	oidcSession := &oidc.Session{
+		Subject:              session.UserID,
+		AuthenticationMethod: session.AuthenticationMethod,
+		Claims: &fositejwt.IDTokenClaims{
+			RequestedAt: requestedAt,
+			AuthTime:    requestedAt,
+			Subject:     session.UserID,
+			Issuer:      common.EnvConfig.AppURL,
+		},
+	}
+	oidcSession.SetExpiresAt(session.TokenType, session.ExpiresAt)
+
+	request := fosite.NewRequest()
+	request.ID = session.RequestID
+	request.RequestedAt = requestedAt
+	request.Client = oidc.Client{OidcClient: model.OidcClient{Base: model.Base{ID: session.ClientID}}}
+	request.RequestedScope = session.Scopes
+	request.GrantedScope = session.Scopes
+	request.RequestedAudience = fosite.Arguments{session.ClientID}
+	request.GrantedAudience = fosite.Arguments{session.ClientID}
+	request.Session = oidcSession
+
+	return request
 }
 
 // GetExternalIdPJWKS returns the JWKS for the "external IdP".
@@ -672,6 +837,7 @@ func (s *TestService) SignExternalIdPToken(iss, sub, aud string) (string, error)
 		Subject(sub).
 		Expiration(now.Add(time.Hour)).
 		IssuedAt(now).
+		JwtID(uuid.NewString()).
 		Issuer(iss).
 		Audience([]string{aud}).
 		Build()

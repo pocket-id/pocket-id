@@ -1,8 +1,9 @@
+import userStore from '$lib/stores/user-store';
 import type { Passkey } from '$lib/types/passkey.type';
 import type { User } from '$lib/types/user.type';
-import APIService from './api-service';
-import userStore from '$lib/stores/user-store';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/browser';
+import APIService from './api-service';
+
 class WebAuthnService extends APIService {
 	getRegistrationOptions = async () => (await this.api.get(`/webauthn/register/start`)).data;
 
@@ -30,8 +31,7 @@ class WebAuthnService extends APIService {
 	};
 
 	reauthenticate = async (body?: AuthenticationResponseJSON) => {
-		const res = await this.api.post('/webauthn/reauthenticate', body);
-		return res.data.reauthenticationToken as string;
+		await this.api.post('/webauthn/reauthenticate', body);
 	};
 }
 

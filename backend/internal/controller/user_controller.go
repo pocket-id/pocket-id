@@ -12,7 +12,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"golang.org/x/time/rate"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
 const defaultOneTimeAccessTokenDuration = 15 * time.Minute
@@ -21,7 +21,7 @@ const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *service.WebAuthnService, appConfigService *service.AppConfigService) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *service.AppConfigService) {
 	uc := UserController{
 		userService:          userService,
 		oneTimeAccessService: oneTimeAccessService,
@@ -50,20 +50,20 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.POST("/users/me/one-time-access-token", authMiddleware.WithAdminNotRequired().Add(), uc.createOwnOneTimeAccessTokenHandler)
 	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(), uc.createAdminOneTimeAccessTokenHandler)
 	group.POST("/users/:id/one-time-access-email", authMiddleware.Add(), uc.RequestOneTimeAccessEmailAsAdminHandler)
-	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), uc.exchangeOneTimeAccessTokenHandler)
-	group.POST("/one-time-access-email", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), uc.RequestOneTimeAccessEmailAsUnauthenticatedUserHandler)
+	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken), uc.exchangeOneTimeAccessTokenHandler)
+	group.POST("/one-time-access-email", rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail), uc.RequestOneTimeAccessEmailAsUnauthenticatedUserHandler)
 
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
 
-	group.POST("/users/me/send-email-verification", rateLimitMiddleware.Add(rate.Every(10*time.Minute), 3), authMiddleware.WithAdminNotRequired().Add(), uc.sendEmailVerificationHandler)
-	group.POST("/users/me/verify-email", rateLimitMiddleware.Add(rate.Every(10*time.Second), 5), authMiddleware.WithAdminNotRequired().Add(), uc.verifyEmailHandler)
+	group.POST("/users/me/send-email-verification", rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification), authMiddleware.WithAdminNotRequired().Add(), uc.sendEmailVerificationHandler)
+	group.POST("/users/me/verify-email", rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail), authMiddleware.WithAdminNotRequired().Add(), uc.verifyEmailHandler)
 }
 
 type UserController struct {
 	userService          *service.UserService
 	oneTimeAccessService *service.OneTimeAccessService
-	webAuthnService      *service.WebAuthnService
+	webAuthnService      *webauthn.Module
 	appConfigService     *service.AppConfigService
 }
 
@@ -508,8 +508,15 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 // @Success 200 {object} dto.UserDto
 // @Router /api/one-time-access-token/{token} [post]
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
+	loginCode := c.Param("token")
+	// reject invalid length login codes
+	if len(loginCode) != 6 && len(loginCode) != 16 {
+		_ = c.Error(&common.TokenInvalidOrExpiredError{})
+		return
+	}
+
 	deviceToken, _ := c.Cookie(cookie.DeviceTokenCookieName)
-	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), c.Param("token"), deviceToken, c.ClientIP(), c.Request.UserAgent())
+	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return

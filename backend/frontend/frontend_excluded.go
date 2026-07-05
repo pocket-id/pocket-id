@@ -4,9 +4,8 @@ package frontend
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
-func RegisterFrontend(router *gin.Engine, oidcService *service.OidcService) error {
+func RegisterFrontend(router *gin.Engine) error {
 	return ErrFrontendNotIncluded
 }

@@ -1,0 +1,247 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema-pro.json
+# vim: set ts=2 sw=2 tw=0 fo=jcroql
+version: 2
+pro: true
+
+project_name: pocket-id
+
+before:
+  hooks:
+    - pnpm install --frozen-lockfile
+    - pnpm -C frontend build
+
+builds:
+  - id: pocket-id
+    main: ./cmd
+    dir: backend
+    binary: pocket-id
+    env:
+      - CGO_ENABLED=0
+      - GOMAXPROCS=2
+    goos:
+      - linux
+      - darwin
+      - windows
+      - freebsd
+      - openbsd
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+      - arm
+    goarm:
+      - "7"
+    goamd64:
+      - v1
+    go386:
+      - sse2
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: "386"
+      - goos: windows
+        goarch: arm
+      - goos: freebsd
+        goarch: "386"
+      - goos: freebsd
+        goarch: arm
+      - goos: openbsd
+        goarch: "386"
+      - goos: openbsd
+        goarch: arm
+    ldflags:
+      - -w -s
+      - -buildid={{ .Version }}
+      - -X github.com/pocket-id/pocket-id/backend/internal/common.Version={{ .Version }}
+    flags:
+      - -trimpath
+      - -p=2
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    skip: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
+
+  - id: pocket-id-next
+    main: ./cmd
+    dir: backend
+    binary: pocket-id
+    env:
+      - CGO_ENABLED=0
+      - GOMAXPROCS=2
+    targets:
+      - linux_amd64_v1
+      - linux_arm64_v8.0
+    ldflags:
+      - -w -s
+      - -buildid={{ .Version }}
+      - -X github.com/pocket-id/pocket-id/backend/internal/common.Version={{ .Version }}
+    flags:
+      - -trimpath
+      - -p=2
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    skip: '{{ if not (index .Env "BUILD_NEXT") }}true{{ end }}'
+
+archives:
+  - id: default
+    formats:
+      - binary
+    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
+
+checksum:
+  name_template: checksums.txt
+
+docker_digest:
+  name_template: digests.txt
+
+dockers_v2:
+  - id: pocket-id
+    ids:
+      - pocket-id
+    dockerfile: docker/Dockerfile-prebuilt
+    images:
+      - "pocketid/pocket-id"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/pocket-id"
+    tags:
+      - "{{ .Tag }}"
+      - "v{{ .Major }}"
+      - "v{{ .Major }}.{{ .Minor }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.authors": "Pocket ID"
+      "org.opencontainers.image.url": "https://github.com/pocket-id/pocket-id"
+      "org.opencontainers.image.documentation": "https://github.com/pocket-id/pocket-id/blob/main/README.md"
+      "org.opencontainers.image.source": "https://github.com/pocket-id/pocket-id"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.licenses": "BSD-2-Clause"
+      "org.opencontainers.image.ref.name": "pocket-id"
+      "org.opencontainers.image.title": "Pocket ID"
+    disable: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
+    sbom: true
+    extra_files:
+      - scripts/docker
+
+  - id: pocket-id-distroless
+    ids:
+      - pocket-id
+    dockerfile: docker/Dockerfile-distroless
+    images:
+      - "pocketid/pocket-id"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/pocket-id"
+    tags:
+      - "{{ .Tag }}-distroless"
+      - "v{{ .Major }}-distroless"
+      - "v{{ .Major }}.{{ .Minor }}-distroless"
+      - "latest-distroless"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.authors": "Pocket ID"
+      "org.opencontainers.image.url": "https://github.com/pocket-id/pocket-id"
+      "org.opencontainers.image.documentation": "https://github.com/pocket-id/pocket-id/blob/main/README.md"
+      "org.opencontainers.image.source": "https://github.com/pocket-id/pocket-id"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.licenses": "BSD-2-Clause"
+      "org.opencontainers.image.ref.name": "pocket-id"
+      "org.opencontainers.image.title": "Pocket ID"
+    disable: '{{ if index .Env "BUILD_NEXT" }}true{{ end }}'
+    sbom: true
+
+  - id: pocket-id-next
+    ids:
+      - pocket-id-next
+    dockerfile: docker/Dockerfile-prebuilt
+    images:
+      - "pocketid/pocket-id"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/pocket-id"
+    tags:
+      - "next"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.authors": "Pocket ID"
+      "org.opencontainers.image.url": "https://github.com/pocket-id/pocket-id"
+      "org.opencontainers.image.documentation": "https://github.com/pocket-id/pocket-id/blob/main/README.md"
+      "org.opencontainers.image.source": "https://github.com/pocket-id/pocket-id"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.licenses": "BSD-2-Clause"
+      "org.opencontainers.image.ref.name": "pocket-id"
+      "org.opencontainers.image.title": "Pocket ID"
+    disable: '{{ if not (index .Env "BUILD_NEXT") }}true{{ end }}'
+    sbom: true
+    extra_files:
+      - scripts/docker
+
+  - id: pocket-id-next-distroless
+    ids:
+      - pocket-id-next
+    dockerfile: docker/Dockerfile-distroless
+    images:
+      - "pocketid/pocket-id"
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/pocket-id"
+    tags:
+      - "next-distroless"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.authors": "Pocket ID"
+      "org.opencontainers.image.url": "https://github.com/pocket-id/pocket-id"
+      "org.opencontainers.image.documentation": "https://github.com/pocket-id/pocket-id/blob/main/README.md"
+      "org.opencontainers.image.source": "https://github.com/pocket-id/pocket-id"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.licenses": "BSD-2-Clause"
+      "org.opencontainers.image.ref.name": "pocket-id"
+      "org.opencontainers.image.title": "Pocket ID"
+    disable: '{{ if not (index .Env "BUILD_NEXT") }}true{{ end }}'
+    sbom: true
+
+notarize:
+  macos:
+    - enabled: '{{ if and (isEnvSet "MACOS_SIGN_P12") (not (index .Env "BUILD_NEXT")) }}true{{ end }}'
+      ids:
+        - pocket-id
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 20m
+
+changelog:
+  disable: true
+
+announce:
+  discord:
+    enabled: true
+    message_template: "Pocket ID version {{ .Tag }} has been released! Checkout the changelog at {{ .ReleaseURL }}"
+    author: "GitHub Actions"
+    # Color code of the embed. You have to use decimal numeral system, not hexadecimal.
+    # color: "9320959"
+    icon_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+
+release:
+  github:
+    owner: pocket-id
+    name: pocket-id
+  disable: '{{ if index .Env "SKIP_RELEASE" }}true{{ end }}'
+  draft: true
+  replace_existing_draft: false
+  use_existing_draft: true
+  replace_existing_artifacts: true
+  prerelease: auto
+  make_latest: true
+  mode: keep-existing
+  name_template: "{{ .Tag }}"

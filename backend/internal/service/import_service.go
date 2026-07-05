@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -46,7 +47,7 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 		return err
 	}
 
-	err = s.ImportDatabase(dbData)
+	err = s.ImportDatabase(ctx, dbData)
 	if err != nil {
 		return err
 	}
@@ -60,8 +61,8 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 }
 
 // ImportDatabase only imports the database data from the given DatabaseExport struct.
-func (s *ImportService) ImportDatabase(dbData DatabaseExport) error {
-	err := s.resetSchema(dbData.Version)
+func (s *ImportService) ImportDatabase(ctx context.Context, dbData DatabaseExport) error {
+	err := s.resetSchema(ctx, dbData.Version)
 	if err != nil {
 		return err
 	}
@@ -143,40 +144,126 @@ func (s *ImportService) importUploads(ctx context.Context, files []*zip.File) er
 	return nil
 }
 
-// resetSchema drops the existing schema and migrates to the target version
-func (s *ImportService) resetSchema(targetVersion uint) error {
+// resetSchema drops the existing Pocket ID schema and migrates it to the target version.
+//
+// It deliberately preserves the actor host's own tables (those with the "francis_" prefix): the actor host owns and migrates them, they are not part of a Pocket ID export, and dropping them here would break the actor host on the next startup.
+func (s *ImportService) resetSchema(ctx context.Context, targetVersion uint) error {
 	sqlDb, err := s.db.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
-	m, err := utils.GetEmbeddedMigrateInstance(sqlDb)
-	if err != nil {
-		return fmt.Errorf("failed to get migrate instance: %w", err)
+	// Drop the existing Pocket ID tables
+	switch s.db.Name() {
+	case "sqlite":
+		err = dropPocketIDTablesSQLite(ctx, sqlDb)
+	case "postgres":
+		err = dropPocketIDTablesPostgres(ctx, sqlDb)
+	default:
+		err = fmt.Errorf("unsupported database dialect: %s", s.db.Name())
 	}
-
-	if s.db.Name() == "sqlite" {
-		s.db.Exec("PRAGMA foreign_keys = OFF;")
-	}
-
-	err = m.Drop()
 	if err != nil {
 		return fmt.Errorf("failed to drop existing schema: %w", err)
 	}
 
-	if s.db.Name() == "sqlite" {
-		defer s.db.Exec("PRAGMA foreign_keys = ON;")
-	}
-
-	// Needs to be called again to re-create the schema_migrations table
-	m, err = utils.GetEmbeddedMigrateInstance(sqlDb)
+	// Re-create the schema by migrating to the target version
+	// The migration files manage their own foreign-key state where needed
+	m, cleanup, err := utils.GetEmbeddedMigrateInstance(ctx, sqlDb)
 	if err != nil {
 		return fmt.Errorf("failed to get migrate instance: %w", err)
 	}
+	defer cleanup()
 
 	err = m.Migrate(targetVersion)
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
+	}
+
+	return nil
+}
+
+// dropPocketIDTablesSQLite drops every Pocket ID table (everything except the actor host's "francis_" tables and SQLite's internal tables) on a single dedicated connection with foreign keys disabled.
+// foreign_keys is a per-connection pragma, and DROP TABLE with it enabled performs an implicit DELETE that fires foreign-key cascades/triggers and can fail depending on the drop order, so pinning to one connection keeps enforcement off for every drop.
+func dropPocketIDTablesSQLite(ctx context.Context, sqlDb *sql.DB) error {
+	conn, err := sqlDb.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = conn.ExecContext(ctx, "PRAGMA foreign_keys = OFF")
+	if err != nil {
+		return fmt.Errorf("failed to disable foreign keys: %w", err)
+	}
+
+	var tables []string
+	rows, err := conn.QueryContext(ctx, `
+		SELECT name
+		FROM sqlite_master
+		WHERE type = 'table'
+			AND name NOT LIKE 'sqlite_%'
+			AND name NOT LIKE 'francis_%'`)
+	if err != nil {
+		return fmt.Errorf("failed to list tables: %w", err)
+	}
+	for rows.Next() {
+		var name string
+		err = rows.Scan(&name)
+		if err != nil {
+			// We cannot defer as that would block the subsequent DROP queries
+			//nolint:sqlclosecheck
+			_ = rows.Close()
+			return err
+		}
+		tables = append(tables, name)
+	}
+	err = errors.Join(rows.Err(), rows.Close())
+	if err != nil {
+		return err
+	}
+
+	for _, t := range tables {
+		_, err = conn.ExecContext(ctx, `DROP TABLE IF EXISTS "`+t+`"`)
+		if err != nil {
+			return fmt.Errorf("failed to drop table %q: %w", t, err)
+		}
+	}
+
+	return nil
+}
+
+// dropPocketIDTablesPostgres drops every Pocket ID table (everything except the actor host's "francis_" tables)
+// CASCADE removes dependent objects such as foreign keys.
+func dropPocketIDTablesPostgres(ctx context.Context, sqlDb *sql.DB) error {
+	var tables []string
+	rows, err := sqlDb.QueryContext(ctx, `
+		SELECT tablename
+		FROM pg_tables
+		WHERE schemaname = current_schema()
+			AND tablename NOT LIKE 'francis_%'`)
+	if err != nil {
+		return fmt.Errorf("failed to list tables: %w", err)
+	}
+	for rows.Next() {
+		var name string
+		err = rows.Scan(&name)
+		if err != nil {
+			//nolint:sqlclosecheck
+			_ = rows.Close()
+			return err
+		}
+		tables = append(tables, name)
+	}
+	err = errors.Join(rows.Err(), rows.Close())
+	if err != nil {
+		return err
+	}
+
+	for _, t := range tables {
+		_, err = sqlDb.ExecContext(ctx, `DROP TABLE IF EXISTS "`+t+`" CASCADE`)
+		if err != nil {
+			return fmt.Errorf("failed to drop table %q: %w", t, err)
+		}
 	}
 
 	return nil
@@ -196,9 +283,8 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 		tables = append(tables, dbData.TableOrder...)
 
 		for t := range dbData.Tables {
-			// Skip tables already present where the order matters
-			// Also skip the schema_migrations table
-			if slices.Contains(dbData.TableOrder, t) || t == "schema_migrations" {
+			// Skip tables already present where the order matters, the schema_migrations table, and the actor host's own "francis_" tables in case they were included
+			if slices.Contains(dbData.TableOrder, t) || t == "schema_migrations" || strings.HasPrefix(t, "francis_") {
 				continue
 			}
 			tables = append(tables, t)
