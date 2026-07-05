@@ -47,14 +47,14 @@ type RateLimitPolicy struct {
 func RateLimitPolicies() []RateLimitPolicy {
 	return []RateLimitPolicy{
 		{Name: RateLimitAPI, Rate: 100, Per: time.Second},
-		{Name: RateLimitSignup, Rate: 10, Per: time.Minute},
-		{Name: RateLimitWebauthnLogin, Rate: 5, Per: 10 * time.Second},
-		{Name: RateLimitWebauthnReauthenticate, Rate: 5, Per: 10 * time.Second},
-		{Name: RateLimitOneTimeAccessToken, Rate: 5, Per: 10 * time.Second},
-		{Name: RateLimitOneTimeAccessEmail, Rate: 3, Per: 10 * time.Minute},
-		{Name: RateLimitSendEmailVerification, Rate: 3, Per: 10 * time.Minute},
-		{Name: RateLimitVerifyEmail, Rate: 5, Per: 10 * time.Second},
-		{Name: RateLimitInternal, Rate: 30, Per: time.Second},
+		{Name: RateLimitSignup, Rate: 2, Per: time.Minute, Burst: 10},
+		{Name: RateLimitWebauthnLogin, Rate: 1, Per: 5 * time.Second, Burst: 10},
+		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitOneTimeAccessEmail, Rate: 2, Per: 10 * time.Minute, Burst: 5},
+		{Name: RateLimitSendEmailVerification, Rate: 2, Per: 10 * time.Minute, Burst: 1},
+		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitInternal, Rate: 20, Per: time.Second, Burst: 20},
 	}
 }
 
