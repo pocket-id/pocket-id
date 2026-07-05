@@ -362,7 +362,7 @@
 	"login_code_email_success": "Код для входу було надіслано користувачеві.",
 	"send_email": "Надіслати електронного листа",
 	"show_code": "Показати код",
-	"callback_url_description": "URL-адреси, надані вашим клієнтом. Будуть додані автоматично, якщо залишити поле порожнім. Підтримуються <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>символи-замінники</link>.",
+	"callback_url_description": "URL-адреси, надані вашим клієнтом. Підтримується використання <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>символів-замінників</link>.",
 	"logout_callback_url_description": "URL-адреси, надані вашим клієнтом для виходу з системи. Підтримуються <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>символи-замінники</link>.",
 	"api_key_expiration": "Термін дії API-ключа",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Надіслати користувачу електронного листа, коли термін дії його API-ключа наближається до завершення.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Цей користувач ще не має паролів.",
 	"replay_protection": "Захист від повторного відтворення",
 	"replay_protection_description": "Якщо ця опція увімкнена, вказаний токен можна використати лише один раз. Якщо ваш провайдер використовує один і той самий токен кілька разів, можливо, вам доведеться вимкнути цю опцію.",
+	"i_have_a_longer_code": "У мене є довший код",
 	"pkce_supported_client_title": "Цей клієнт підтримує PKCE",
 	"pkce_supported_client_description": "Цей клієнт підтримує функцію Proof Key for Code Exchange (PKCE). PKCE — це функція безпеки, яка допомагає захиститися від певних атак під час процесу авторизації за протоколом OAuth 2.0. Рекомендується увімкнути цю функцію."
 }

@@ -57,7 +57,7 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
-		Secret:       secret,
+		Secret:       []byte(secret),
 	})
 	require.NoError(t, err)
 	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
@@ -256,7 +256,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 	// real refresh grant resolves it.
 	mintRefreshToken := func(t *testing.T, db *gorm.DB, clientID, userID string) string {
 		t.Helper()
-		globalSecret, err := DeriveGlobalSecret(secret)
+		globalSecret, err := DeriveGlobalSecret([]byte(secret))
 		require.NoError(t, err)
 		strategy := compose.NewOAuth2HMACStrategy(&fosite.Config{
 			GlobalSecret:         globalSecret,
@@ -296,7 +296,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 		provider, err := newProvider(NewStore(db, nil), nil, signer, Config{
 			BaseURL:      baseURL,
 			TokenBaseURL: baseURL,
-			Secret:       secret,
+			Secret:       []byte(secret),
 		})
 		require.NoError(t, err)
 		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)

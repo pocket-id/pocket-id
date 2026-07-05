@@ -362,7 +362,7 @@
 	"login_code_email_success": "Pieteikšanās kods ir nosūtīts lietotājam.",
 	"send_email": "Sūtīt e-pastu",
 	"show_code": "Rādīt kodu",
-	"callback_url_description": "Jūsu klienta norādītais URL(s). Ja atstāsit tukšu, tas tiks pievienots automātiski. Tiek atbalstīti arī <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>wildcard</link> URL.",
+	"callback_url_description": "Jūsu klienta norādītā(-ās) URL. Tiek atbalstīti <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>aizstājējzīmes</link>.",
 	"logout_callback_url_description": "Jūsu klienta logout URL(s). Tiek atbalstīti arī <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>wildcard</link> URL.",
 	"api_key_expiration": "API atslēgas derīguma termiņš",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "Nosūtīt e-pastu lietotājam, kad viņa API atslēgai drīz beigsies derīguma termiņš.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Šim lietotājam vēl nav piekļuves atslēgu.",
 	"replay_protection": "Aizsardzība pret atkārtošanu",
 	"replay_protection_description": "Ja šī opcija ir ieslēgta, norādīto tokenu var izmantot tikai vienu reizi. Ja jūsu pakalpojuma sniedzējs izmanto to pašu tokenu vairākas reizes, iespējams, šī opcija būs jāatslēdz.",
+	"i_have_a_longer_code": "Man ir garāks kods",
 	"pkce_supported_client_title": "Šis klients atbalsta PKCE",
 	"pkce_supported_client_description": "Šis klients atbalsta „Proof Key for Code Exchange“ (PKCE). PKCE ir drošības funkcija, kas palīdz aizsargāties pret noteiktiem uzbrukumiem OAuth 2.0 autorizācijas procesa laikā. Ieteicams to ieslēgt."
 }

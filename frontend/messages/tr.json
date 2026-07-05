@@ -362,7 +362,7 @@
 	"login_code_email_success": "Giriş kodu kullanıcıya gönderildi.",
 	"send_email": "E-posta Gönder",
 	"show_code": "Kodu Göster",
-	"callback_url_description": "Müşteriniz tarafından sağlanan URL'ler. Boş bırakılırsa otomatik olarak eklenir. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Joker karakterler</link> desteklenir.",
+	"callback_url_description": "Müşteriniz tarafından sağlanan URL'ler. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Joker karakterler</link> desteklenmektedir.",
 	"logout_callback_url_description": "Müşteriniz tarafından oturumu kapatmak için sağlanan URL'ler. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Joker karakterler</link> desteklenir.",
 	"api_key_expiration": "API Anahtarının Geçerlilik Süresi",
 	"send_an_email_to_the_user_when_their_api_key_is_about_to_expire": "API anahtarları sona ermek üzere olduğunda kullanıcıya bir e-posta gönderin.",
@@ -531,6 +531,7 @@
 	"user_has_no_passkeys_yet": "Bu kullanıcının henüz şifre anahtarı yok.",
 	"replay_protection": "Tekrar Oynatma Koruması",
 	"replay_protection_description": "Bu seçenek etkinleştirildiğinde, sağlanan jeton yalnızca bir kez kullanılabilir. Sağlayıcınız aynı jetonu birden fazla kez kullanıyorsa, bu seçeneği devre dışı bırakmanız gerekebilir.",
+	"i_have_a_longer_code": "Elimde daha uzun bir kod var",
 	"pkce_supported_client_title": "Bu istemci PKCE'yi desteklemektedir",
 	"pkce_supported_client_description": "Bu istemci, Kod Değişimi için Kanıt Anahtarı (PKCE) özelliğini desteklemektedir. PKCE, OAuth 2.0 yetkilendirme süreci sırasında belirli saldırılara karşı koruma sağlayan bir güvenlik özelliğidir. Bu özelliğin etkinleştirilmesi tavsiye edilir."
 }

@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"strings"
 
-	sqlitelib "github.com/glebarez/go-sqlite"
 	"golang.org/x/text/unicode/norm"
+	"modernc.org/sqlite"
 )
 
 func RegisterSqliteFunctions() {
 	// Register the `normalize(text, form)` function, which performs Unicode normalization on the text
 	// This is currently only used in migration functions
-	sqlitelib.MustRegisterDeterministicScalarFunction("normalize", 2, func(ctx *sqlitelib.FunctionContext, args []driver.Value) (driver.Value, error) {
+	sqlite.MustRegisterDeterministicScalarFunction("normalize", 2, func(ctx *sqlite.FunctionContext, args []driver.Value) (driver.Value, error) {
 		if len(args) != 2 {
 			return nil, errors.New("normalize requires 2 arguments")
 		}
