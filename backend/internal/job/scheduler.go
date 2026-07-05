@@ -103,17 +103,14 @@ type (
 func jobWithObservability(jobName string, job jobFn) jobFn {
 	return func(ctx context.Context) error {
 		// Generate a random job ID
-		jobIDObj, err := uuid.NewRandom()
-		if err != nil {
-			return fmt.Errorf("failed to generate job ID: %w", err)
-		}
-		jobID := jobIDObj.String()
+		jobID := uuid.NewString()
 
 		// Save in the context
 		ctx = context.WithValue(ctx, jobNameKey{}, jobName)
 		ctx = context.WithValue(ctx, jobIDKey{}, jobID)
 
 		// Create a new context with the span
+		var err error
 		ctx, span := tracing.Start(ctx, "pocketid.job."+jobName,
 			trace.WithSpanKind(trace.SpanKindInternal),
 			trace.WithAttributes(
