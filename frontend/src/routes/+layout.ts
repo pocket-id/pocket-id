@@ -39,7 +39,8 @@ export const load: LayoutLoad = async ({ url }) => {
 	}
 
 	// Only export traces when the backend is configured to forward them; otherwise the SPA would POST spans to an unregistered endpoint.
-	setTracingEnabled(appConfig?.tracingEnabled ?? false);
+	// When enabled this dynamically imports the OpenTelemetry libraries, so awaiting it ensures the tracer provider is ready before any traced navigation or request.
+	await setTracingEnabled(appConfig?.tracingEnabled ?? false);
 
 	await setLocaleForLibraries();
 
