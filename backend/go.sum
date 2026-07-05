@@ -133,10 +133,6 @@ github.com/dunglas/httpsfv v1.1.0 h1:Jw76nAyKWKZKFrpMMcL76y35tOpYHqQPzHQiwDvpe54
 github.com/dunglas/httpsfv v1.1.0/go.mod h1:zID2mqw9mFsnt7YC3vYQ9/cjq30q41W+1AnDwH8TiMg=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
-github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6 h1:oP4q0fw+fOSWn3DfFi4EXdT+B+gTtzx8GC9xsc26Znk=
-github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6/go.mod h1:iL2twTeMvZnrg54ZoPDNfJaJaqy0xIQFuBdrLsmspwQ=
-github.com/emersion/go-smtp v0.24.0 h1:g6AfoF140mvW0vLNPD/LuCBLEAdlxOjIXqbIkJIS6Wk=
-github.com/emersion/go-smtp v0.24.0/go.mod h1:ZtRRkbTyp2XTHCA+BmyTFTrj8xY4I+b4McvHxCU2gsQ=
 github.com/fatih/color v1.19.0 h1:Zp3PiM21/9Ld6FzSKyL5c/BULoe/ONr9KlbYVOfG8+w=
 github.com/fatih/color v1.19.0/go.mod h1:zNk67I0ZUT1bEGsSGyCZYZNrHuTkJJB+r6Q9VuMi0LE=
 github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=
@@ -249,8 +245,8 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/italypaleale/francis v0.1.0-beta.6 h1:88XGnFMwQEMsGSJvI9vrGGvp//WKipXH8YPnfNHDStQ=
 github.com/italypaleale/francis v0.1.0-beta.6/go.mod h1:3QQ1iSRGzvxJZ5gfVlVR1RyPDUAgzyN+m2vHeeR7OVs=
-github.com/italypaleale/go-kit v0.0.0-20260703002252-b413738a463f h1:cyvaGWNg9AisrfG2guQspCawM6HhLaqbpHAppsePyH4=
-github.com/italypaleale/go-kit v0.0.0-20260703002252-b413738a463f/go.mod h1:pl0r3F+thZIyDsyDo8aOUsAIVcsRuAeP1bB4GuAHLoY=
+github.com/italypaleale/go-kit v0.0.0-20260705144331-cc6661f9a8cf h1:8tk4010URtPgVqwZb7CDiNsuQI71qc8t7VSS4IaxoTY=
+github.com/italypaleale/go-kit v0.0.0-20260705144331-cc6661f9a8cf/go.mod h1:pl0r3F+thZIyDsyDo8aOUsAIVcsRuAeP1bB4GuAHLoY=
 github.com/italypaleale/go-sql-utils v0.2.4-0.20260702021114-e1dfdfb67d0e h1:HDhmMkWAlLy/Elr/+T7diAZgAI+sDY2hYAyIAyefUYk=
 github.com/italypaleale/go-sql-utils v0.2.4-0.20260702021114-e1dfdfb67d0e/go.mod h1:BJStxMfB6fzYVcOe0oZQCjGIPZQu76UBmg1Wuy6Z/7I=
 github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 h1:D/V0gu4zQ3cL2WKeVNVM4r2gLxGGf6McLwgXzRTo2RQ=
