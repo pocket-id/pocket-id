@@ -43,7 +43,7 @@ func initObservability(ctx context.Context) (shutdownFns []servicerunner.Service
 		return nil, nil, fmt.Errorf("failed to create OpenTelemetry resource: %w", err)
 	}
 
-	shutdownFns = make([]servicerunner.Service, 0, 2)
+	shutdownFns = make([]servicerunner.Service, 0, 3)
 
 	httpClient = &http.Client{}
 	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
@@ -54,9 +54,11 @@ func initObservability(ctx context.Context) (shutdownFns []servicerunner.Service
 	httpClient.Transport = defaultTransport.Clone()
 
 	// Logging
-	err = initOtelLogging(ctx, resource)
+	loggingShutdownFn, err := initOtelLogging(ctx, resource)
 	if err != nil {
 		return nil, nil, err
+	} else if loggingShutdownFn != nil {
+		shutdownFns = append(shutdownFns, loggingShutdownFn)
 	}
 
 	// Tracing
@@ -78,19 +80,19 @@ func initObservability(ctx context.Context) (shutdownFns []servicerunner.Service
 	return shutdownFns, httpClient, nil
 }
 
-func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
+func initOtelLogging(ctx context.Context, resource *resource.Resource) (shutdownFn servicerunner.Service, err error) {
 	// If the env var OTEL_LOGS_EXPORTER is empty, we set it to "none", for autoexport to work
 	if os.Getenv("OTEL_LOGS_EXPORTER") == "" {
 		os.Setenv("OTEL_LOGS_EXPORTER", "none")
 	}
 	exp, err := autoexport.NewLogExporter(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to initialize OpenTelemetry log exporter: %w", err)
+		return nil, fmt.Errorf("failed to initialize OpenTelemetry log exporter: %w", err)
 	}
 
 	level, _ := sloggin.ParseLevel(common.EnvConfig.LogLevel)
 
-	// Create the handler
+	// Create the console handler
 	var handler slog.Handler
 	if common.EnvConfig.LogJSON {
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -104,21 +106,35 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 		})
 	}
 
-	// Create the logger provider
-	provider := sdklog.NewLoggerProvider(
-		sdklog.WithProcessor(
-			sdklog.NewBatchProcessor(exp),
-		),
-		sdklog.WithResource(resource),
-	)
+	// When log export is enabled, also send logs to OpenTelemetry through a batch processor.
+	// When it's disabled (the exporter is a no-op), we skip the OTel handler entirely so we don't convert and buffer every log record just to drop it.
+	if !autoexport.IsNoneLogExporter(exp) {
+		// Create the logger provider
+		provider := sdklog.NewLoggerProvider(
+			sdklog.WithProcessor(
+				sdklog.NewBatchProcessor(exp),
+			),
+			sdklog.WithResource(resource),
+		)
 
-	// Set the logger provider globally
-	globallog.SetLoggerProvider(provider)
+		// Set the logger provider globally
+		globallog.SetLoggerProvider(provider)
 
-	handler = slog.NewMultiHandler(
-		handler,
-		otelslog.NewHandler(common.Name, otelslog.WithLoggerProvider(provider)),
-	)
+		handler = slog.NewMultiHandler(
+			handler,
+			otelslog.NewHandler(common.Name, otelslog.WithLoggerProvider(provider)),
+		)
+
+		shutdownFn = func(shutdownCtx context.Context) error { //nolint:contextcheck
+			lpCtx, lpCancel := context.WithTimeout(shutdownCtx, 10*time.Second)
+			defer lpCancel()
+			shutdownErr := provider.Shutdown(lpCtx)
+			if shutdownErr != nil {
+				return fmt.Errorf("failed to gracefully shut down logs exporter: %w", shutdownErr)
+			}
+			return nil
+		}
+	}
 
 	// Set the default slog to send logs to OTel and add the app name
 	log := slog.New(handler).
@@ -126,7 +142,7 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 		With(slog.String("version", common.Version))
 	slog.SetDefault(log)
 
-	return nil
+	return shutdownFn, nil
 }
 
 func initOtelTracing(ctx context.Context, resource *resource.Resource, httpClient *http.Client) (shutdownFn servicerunner.Service, err error) {
