@@ -146,7 +146,8 @@ test('Grant a client user-delegated and client access to API permissions', async
 // ---------------------------------------------------------------------------
 
 test('Authorization with a resource parameter issues a token audienced to that API', async ({
-	page
+	page,
+	baseURL
 }) => {
 	const client = oidcClients.immich;
 	const api = apis.orders;
@@ -183,7 +184,15 @@ test('Authorization with a resource parameter issues a token audienced to that A
 
 	const claims = jose.decodeJwt(res.access_token!);
 	expect(tokenAudiences(claims)).toContain(api.resource);
+	// Because openid was requested alongside the resource, the token also carries the issuer audience so it can still reach /userinfo
+	expect(tokenAudiences(claims)).toContain(baseURL);
 	expect(tokenScopes(claims)).toContain(api.permissions.readOrders.key);
+
+	// The same token can be presented at userinfo, by the client's explicit opt-in of requesting openid
+	const userinfo = await page.request.get('/api/oidc/userinfo', {
+		headers: { Authorization: 'Bearer ' + res.access_token }
+	});
+	expect(userinfo.status()).toBe(200);
 });
 
 test('Consent screen shows the friendly permission name for a resource request', async ({

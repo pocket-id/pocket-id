@@ -89,8 +89,15 @@ type OidcDeviceAuthorizationResponseDto struct {
 	Interval                int    `json:"interval"`
 }
 
+type ScopeInfoDto struct {
+	Key         string `json:"key"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 type DeviceCodeInfoDto struct {
 	Scope                    []string              `json:"scope"`
+	ScopeInfo                []ScopeInfoDto        `json:"scopeInfo"`
 	AuthorizationRequired    bool                  `json:"authorizationRequired"`
 	ReauthenticationRequired bool                  `json:"reauthenticationRequired"`
 	Client                   OidcClientMetaDataDto `json:"client"`

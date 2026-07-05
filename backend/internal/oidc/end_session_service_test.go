@@ -1,6 +1,8 @@
 package oidc
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"net/url"
@@ -83,7 +85,7 @@ func TestEndSessionService(t *testing.T) {
 		jti      = "id-token-jti"
 	)
 
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	signer := testTokenSigner{key: key}
 
@@ -117,7 +119,7 @@ func TestEndSessionService(t *testing.T) {
 		}
 		token, err := builder.Build()
 		require.NoError(t, err)
-		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), key))
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.ES256(), key))
 		require.NoError(t, err)
 		return string(signed)
 	}

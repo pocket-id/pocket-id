@@ -1,8 +1,9 @@
 package oidc
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -34,7 +35,7 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-a"}, Name: "Client A"}).Error)
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-b"}, Name: "Client B"}).Error)
 
-	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -139,7 +140,7 @@ func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) 
 	authenticator, err := newFederatedClientAuthenticator(t.Context(), store, newJWKSetHTTPClient(t, jwks), baseURL)
 	require.NoError(t, err)
 
-	signerKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	provider, err := newProvider(store, authenticator, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
 		BaseURL:      baseURL,

@@ -70,6 +70,16 @@ func ValidateClientID(clientID string) bool {
 	return validateClientIDRegex.MatchString(clientID)
 }
 
+// isActiveContentScheme reports whether the URL scheme can carry executable content, so it must never be accepted where a URL might later be rendered as a link
+func isActiveContentScheme(scheme string) bool {
+	switch strings.ToLower(scheme) {
+	case "javascript", "data":
+		return true
+	default:
+		return false
+	}
+}
+
 // ValidateResourceURI validates RFC 8707 resource identifiers
 func ValidateResourceURI(str string) bool {
 	if strings.Contains(str, "#") || strings.ContainsFunc(str, unicode.IsSpace) {
@@ -78,6 +88,11 @@ func ValidateResourceURI(str string) bool {
 
 	u, err := url.Parse(str)
 	if err != nil {
+		return false
+	}
+
+	// Reject active-content schemes so a resource identifier can never carry executable content if it is ever surfaced as a link
+	if isActiveContentScheme(u.Scheme) {
 		return false
 	}
 
@@ -92,12 +107,7 @@ func ValidateCallbackURL(str string) bool {
 		return false
 	}
 
-	switch strings.ToLower(u.Scheme) {
-	case "javascript", "data":
-		return false
-	default:
-		return true
-	}
+	return !isActiveContentScheme(u.Scheme)
 }
 
 // ValidateCallbackURLPattern validates callback URL patterns, with support for wildcards.

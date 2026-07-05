@@ -8,7 +8,7 @@
 	let { scopes, scopeInfo = [] }: { scopes: string[]; scopeInfo?: InteractionScopeInfo[] } =
 		$props();
 
-	const standardScopes = ['openid', 'profile', 'email', 'groups'];
+	const standardScopes = ['openid', 'profile', 'email', 'groups', 'offline_access'];
 	const infoByKey = $derived(new Map(scopeInfo.map((info) => [info.key, info])));
 	const customScopes = $derived(scopes.filter((scope) => !standardScopes.includes(scope)));
 </script>

@@ -50,6 +50,12 @@ func (s *deviceService) createDeviceAuthorization(ctx context.Context, req *http
 		return nil, request, err
 	}
 
+	// Only a single RFC 8707 resource is supported, so reject a device authorization that carries more than one before a user code is minted
+	_, err = resourceFromForm(request.GetRequestForm())
+	if err != nil {
+		return nil, request, err
+	}
+
 	session := NewEmptySession()
 	response, err := s.provider.NewDeviceResponse(ctx, request, session)
 	if err != nil {
@@ -154,9 +160,9 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 	}
 
 	client := request.GetClient().(Client)
+	resource := request.GetRequestForm().Get("resource")
 	authorizationRequired := true
 	if userID != "" {
-		resource := request.GetRequestForm().Get("resource")
 		_, _, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
 		if err != nil {
 			return nil, err
@@ -169,6 +175,21 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		authorizationRequired = consentRequired(hasAuthorizedClient, client.SkipConsent, nil)
 	}
 
+	// Resolve friendly names for the requested custom-API permissions so the device consent screen matches the browser flow
+	scopeInfo, err := s.authorizationService.resolveScopeInfoForRequest(ctx, resource, request.GetRequestedScopes())
+	if err != nil {
+		return nil, err
+	}
+	// Always serialize a possibly empty array rather than null
+	scopeInfoDtos := make([]dto.ScopeInfoDto, len(scopeInfo))
+	for i, info := range scopeInfo {
+		scopeInfoDtos[i] = dto.ScopeInfoDto{
+			Key:         info.Key,
+			Name:        info.Name,
+			Description: info.Description,
+		}
+	}
+
 	return &dto.DeviceCodeInfoDto{
 		Client: dto.OidcClientMetaDataDto{
 			ID:                       client.ID,
@@ -179,6 +200,7 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 			RequiresReauthentication: client.RequiresReauthentication,
 		},
 		Scope:                    request.GetRequestedScopes(),
+		ScopeInfo:                scopeInfoDtos,
 		AuthorizationRequired:    authorizationRequired,
 		ReauthenticationRequired: client.RequiresReauthentication,
 	}, nil

@@ -1,12 +1,15 @@
 package oidc
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -42,7 +45,7 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 	)
 
 	db := testutils.NewDatabaseForTest(t)
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
@@ -96,7 +99,7 @@ func TestTokenHandlerClientCredentialsDropsIdentityScopes(t *testing.T) {
 	)
 
 	db := testutils.NewDatabaseForTest(t)
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
@@ -151,7 +154,7 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 	)
 
 	db := testutils.NewDatabaseForTest(t)
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
@@ -199,14 +202,14 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 		return body
 	}
 
-	// The client-subject grant is issued and audienced to the API.
-	body := requestToken(t, "write:orders")
+	// The client-subject grant is issued and audienced to the API
+	body := requestToken(t, "openid write:orders")
 	require.NotEmpty(t, body["access_token"], "client-granted scope must be issued, got error: %v (%v)", body["error"], body["error_description"])
 	claims := decodeJWTPart(t, body["access_token"].(string), 1)
-	require.Contains(t, jwtAudience(claims), apiAudience, "access token must be audience-bound to the API")
-	require.Contains(t, claims["scope"], "write:orders")
+	require.Equal(t, []string{apiAudience}, jwtAudience(claims), "access token must be audience-bound to the API")
+	require.Equal(t, []string{"write:orders"}, jwtScopes(claims), "identity scopes must be stripped from machine tokens")
 
-	// The permission users may delegate is not available to the client itself.
+	// The permission users may delegate is not available to the client itself
 	body = requestToken(t, "read:orders")
 	require.Empty(t, body["access_token"], "user-delegated permission must not be mintable machine-to-machine")
 	require.Equal(t, "invalid_scope", body["error"])
@@ -230,6 +233,32 @@ func jwtAudience(claims map[string]any) []string {
 	}
 }
 
+// jwtScopes extracts the scope claim from a decoded access token JWT as a sorted slice
+// It reads the RFC 9068 `scp` list claim and falls back to the space-delimited `scope` string
+func jwtScopes(claims map[string]any) []string {
+	var out []string
+	scp, ok := claims["scp"].([]any)
+	if ok {
+		for _, s := range scp {
+			str, ok := s.(string)
+			if ok {
+				out = append(out, str)
+			}
+		}
+	}
+
+	if out == nil {
+		scope, ok := claims["scope"].(string)
+		if ok && scope != "" {
+			out = strings.Fields(scope)
+		}
+	}
+
+	sort.Strings(out)
+
+	return out
+}
+
 // TestTokenHandlerRefreshGrantRevalidatesUser is the regression guard for the most
 // security-sensitive part of the fosite migration: fosite's refresh-token grant replays
 // the stored session without reloading the user, so the token handler must re-check the
@@ -246,7 +275,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 		secret  = "test-secret"
 	)
 
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	signer := testTokenSigner{key: key}
 
@@ -371,5 +400,162 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 
 		require.Empty(t, body["access_token"])
 		require.Equal(t, "access_denied", body["error"])
+	})
+}
+
+func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const (
+		baseURL     = "https://issuer.example.com"
+		secret      = "test-secret"
+		apiResource = "https://api.orders.example.com"
+	)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	signer := testTokenSigner{key: key}
+
+	// grantedAPI is a client that has been granted read:orders on the Orders API
+	grantedAPI := userAccess(map[string][]string{apiResource: {"read:orders"}})
+	// revokedAPI stands in for the same client after its API grant was removed: no APIs, no scopes
+	revokedAPI := userAccess(map[string][]string{})
+
+	// mintRefreshToken stores an active refresh-token session with the given granted scope and audience, standing in for a token issued by an earlier authorize, and returns the opaque token
+	mintRefreshToken := func(t *testing.T, db *gorm.DB, clientID, userID string, grantedScope, grantedAudience fosite.Arguments) string {
+		t.Helper()
+		globalSecret, err := DeriveGlobalSecret([]byte(secret))
+		require.NoError(t, err)
+		strategy := compose.NewOAuth2HMACStrategy(&fosite.Config{
+			GlobalSecret:         globalSecret,
+			RefreshTokenLifespan: 30 * 24 * time.Hour,
+		})
+		token, signature, err := strategy.GenerateRefreshToken(t.Context(), nil)
+		require.NoError(t, err)
+
+		now := time.Now().UTC()
+		session := NewEmptySession()
+		session.Subject = userID
+		session.Claims = &fositejwt.IDTokenClaims{
+			Subject:     userID,
+			RequestedAt: now,
+			AuthTime:    now,
+			Extra:       map[string]any{},
+		}
+		session.SetExpiresAt(fosite.RefreshToken, now.Add(30*24*time.Hour))
+		session.SetExpiresAt(fosite.AccessToken, now.Add(time.Hour))
+
+		request := fosite.NewRequest()
+		request.ID = "refresh-req-" + userID
+		request.RequestedAt = now
+		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}, IsPublic: true}}
+		request.RequestedScope = grantedScope
+		request.GrantedScope = grantedScope
+		request.RequestedAudience = grantedAudience
+		request.GrantedAudience = grantedAudience
+		request.Session = session
+
+		err = NewStore(db, nil).CreateRefreshTokenSession(t.Context(), signature, "", request)
+		require.NoError(t, err)
+
+		return token
+	}
+
+	// doRefresh runs the refresh grant through the real HTTP handler; apiAccess widens the client's
+	// allowed scopes and audiences the same way the api module does in production, and extra merges
+	// additional form parameters (such as a widened scope) over the base refresh request
+	doRefresh := func(t *testing.T, db *gorm.DB, apiAccess APIAccessProvider, clientID, refreshToken string, extra url.Values) map[string]any {
+		t.Helper()
+		provider, err := newProvider(NewStore(db, apiAccess), nil, signer, Config{
+			BaseURL:      baseURL,
+			TokenBaseURL: baseURL,
+			Secret:       []byte(secret),
+		})
+		require.NoError(t, err)
+		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+
+		form := url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {refreshToken},
+			"client_id":     {clientID},
+		}
+		maps.Copy(form, extra)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = req
+		handler.token(c)
+
+		var body map[string]any
+		err = json.Unmarshal(rec.Body.Bytes(), &body)
+		require.NoError(t, err)
+
+		return body
+	}
+
+	seedUserAndClient := func(t *testing.T, db *gorm.DB, clientID, userID string) {
+		t.Helper()
+		rErr := db.Create(&model.OidcClient{Base: model.Base{ID: clientID}, Name: "Client", IsPublic: true}).Error
+		require.NoError(t, rErr)
+		rErr = db.Create(&model.User{Base: model.Base{ID: userID}, Username: "tim"}).Error
+		require.NoError(t, rErr)
+	}
+
+	t.Run("refresh keeps the API audience and adds the issuer so the token still reaches userinfo", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		const clientID, userID = "client-api", "user-api"
+		seedUserAndClient(t, db, clientID, userID)
+
+		token := mintRefreshToken(t, db, clientID, userID,
+			fosite.Arguments{"openid", "read:orders"},
+			fosite.Arguments{apiResource},
+		)
+		body := doRefresh(t, db, grantedAPI, clientID, token, nil)
+		require.NotEmpty(t, body["access_token"], "expected a new access token, got error: %v", body["error"])
+		// The grant still carries openid, so the identity side keeps issuing an ID token on refresh
+		require.NotEmpty(t, body["id_token"])
+
+		claims := decodeJWTPart(t, body["access_token"].(string), 1)
+		// The refreshed access token stays bound to the original API audience and re-adds the issuer so it keeps working at userinfo, never widening to any other API
+		require.ElementsMatch(t, []string{apiResource, baseURL}, jwtAudience(claims))
+		// A token that requested openid alongside the API keeps the identity scope on the access token, matching what it was granted
+		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
+	})
+
+	t.Run("refresh cannot upscope beyond the original grant via the scope parameter", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		const clientID, userID = "client-upscope", "user-upscope"
+		seedUserAndClient(t, db, clientID, userID)
+
+		token := mintRefreshToken(t, db, clientID, userID,
+			fosite.Arguments{"openid", "read:orders"},
+			fosite.Arguments{apiResource},
+		)
+		// The refresh handler ignores the scope parameter and replays the stored grant, so asking for write:orders is a no-op rather than an escalation
+		body := doRefresh(t, db, grantedAPI, clientID, token, url.Values{"scope": {"openid read:orders write:orders"}})
+		require.NotEmpty(t, body["access_token"], "expected a new access token, got error: %v", body["error"])
+
+		claims := decodeJWTPart(t, body["access_token"].(string), 1)
+		require.ElementsMatch(t, []string{apiResource, baseURL}, jwtAudience(claims))
+		// write:orders never appears on the refreshed token even though it was requested
+		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
+	})
+
+	t.Run("revoking the client API grant makes the next refresh fail", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		const clientID, userID = "client-revoked", "user-revoked"
+		seedUserAndClient(t, db, clientID, userID)
+
+		token := mintRefreshToken(t, db, clientID, userID,
+			fosite.Arguments{"openid", "read:orders"},
+			fosite.Arguments{apiResource},
+		)
+		// With the grant revoked the client no longer advertises read:orders, so the refresh handler rejects replaying that stored scope
+		// Revocation is therefore enforced on the very next refresh rather than lingering until the refresh token expires
+		body := doRefresh(t, db, revokedAPI, clientID, token, nil)
+		require.Empty(t, body["access_token"])
+		require.Equal(t, "invalid_scope", body["error"])
 	})
 }

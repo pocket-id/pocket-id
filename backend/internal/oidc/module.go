@@ -64,7 +64,7 @@ type Module struct {
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	store := NewStore(deps.DB, deps.APIAccess)
+	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
 	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
@@ -89,7 +89,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 
 		authorizationHandler: newAuthorizationHandler(provider, authorizationService, deps.Config.BaseURL),
 		tokenHandler:         newTokenHandler(provider, claimsService, deps.APIAccess),
-		userInfoHandler:      newUserInfoHandler(provider, claimsService),
+		userInfoHandler:      newUserInfoHandler(provider, claimsService, deps.Config.BaseURL),
 		parHandler:           newPARHandler(provider),
 		introspectionHandler: newIntrospectionHandler(provider, authenticator, deps.Config.BaseURL),
 		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Config.BaseURL),
