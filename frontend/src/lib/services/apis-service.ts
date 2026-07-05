@@ -49,8 +49,8 @@ export default class ApisService extends APIService {
 		return res.data as ClientApiAccess;
 	};
 
-	updateClientAccess = async (clientId: string, allowedPermissionIds: string[]) => {
-		const res = await this.api.put(`/api-access/${clientId}`, { allowedPermissionIds });
+	updateClientAccess = async (clientId: string, access: ClientApiAccess) => {
+		const res = await this.api.put(`/api-access/${clientId}`, access);
 		return res.data as ClientApiAccess;
 	};
 }

@@ -136,6 +136,82 @@ func TestTokenHandlerClientCredentialsDropsIdentityScopes(t *testing.T) {
 	require.False(t, accessRequest.GetGrantedScopes().Has("openid"), "client_credentials token must not carry the openid scope")
 }
 
+// TestTokenHandlerClientCredentialsUsesClientSubjectGrants guards the user/client grant
+// separation on the machine-to-machine path: a permission granted only for user-delegated
+// access must not be mintable via client_credentials, while a client-subject grant must be.
+func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const (
+		baseURL     = "https://issuer.example.com"
+		secret      = "test-secret"
+		clientID    = "cc-client"
+		clientPlain = "cc-secret-value"
+		apiAudience = "https://api.orders.example.com"
+	)
+
+	db := testutils.NewDatabaseForTest(t)
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:     model.Base{ID: clientID},
+		Name:     "Client Credentials Client",
+		Secret:   string(hashed),
+		IsPublic: false,
+	}).Error)
+
+	apiAccess := fakeAPIAccess{allowed: map[string]map[SubjectType][]string{
+		apiAudience: {
+			SubjectTypeUser:   {"read:orders"},
+			SubjectTypeClient: {"write:orders"},
+		},
+	}}
+
+	provider, err := newProvider(NewStore(db, apiAccess), nil, testTokenSigner{key: key}, Config{
+		BaseURL:      baseURL,
+		TokenBaseURL: baseURL,
+		Secret:       secret,
+	})
+	require.NoError(t, err)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
+
+	requestToken := func(t *testing.T, scope string) map[string]any {
+		t.Helper()
+		form := url.Values{
+			"grant_type": {"client_credentials"},
+			"scope":      {scope},
+			"resource":   {apiAudience},
+		}
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/oidc/token", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.SetBasicAuth(clientID, clientPlain)
+
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = req
+		handler.token(c)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		return body
+	}
+
+	// The client-subject grant is issued and audienced to the API.
+	body := requestToken(t, "write:orders")
+	require.NotEmpty(t, body["access_token"], "client-granted scope must be issued, got error: %v (%v)", body["error"], body["error_description"])
+	claims := decodeJWTPart(t, body["access_token"].(string), 1)
+	require.Contains(t, jwtAudience(claims), apiAudience, "access token must be audience-bound to the API")
+	require.Contains(t, claims["scope"], "write:orders")
+
+	// The permission users may delegate is not available to the client itself.
+	body = requestToken(t, "read:orders")
+	require.Empty(t, body["access_token"], "user-delegated permission must not be mintable machine-to-machine")
+	require.Equal(t, "invalid_scope", body["error"])
+}
+
 // jwtAudience normalizes the `aud` claim (string or []string) into a slice.
 func jwtAudience(claims map[string]any) []string {
 	switch aud := claims["aud"].(type) {

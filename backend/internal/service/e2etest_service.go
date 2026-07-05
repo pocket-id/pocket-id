@@ -357,11 +357,17 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		// Immich is allowed to request the read:orders permission on behalf of users
+		// Immich is allowed to request read:orders on behalf of users and to obtain write:orders for itself via the client credentials grant
 		allowedAPIPermissions := []api.OidcClientAllowedAPIPermission{
 			{
 				OidcClientID:    oidcClients[1].ID,
 				APIPermissionID: apiPermissions[0].ID,
+				SubjectType:     oidc.SubjectTypeUser,
+			},
+			{
+				OidcClientID:    oidcClients[1].ID,
+				APIPermissionID: apiPermissions[1].ID,
+				SubjectType:     oidc.SubjectTypeClient,
 			},
 		}
 		for _, allowed := range allowedAPIPermissions {

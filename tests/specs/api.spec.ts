@@ -104,7 +104,7 @@ test('Delete an API', async ({ page }) => {
 	await expect(page.getByRole('row', { name: apis.orders.name })).not.toBeVisible();
 });
 
-test('Grant a client access to an API permission', async ({ page }) => {
+test('Grant a client user-delegated and client access to API permissions', async ({ page }) => {
 	// Nextcloud has no API access granted by default
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 
@@ -115,15 +115,30 @@ test('Grant a client access to an API permission', async ({ page }) => {
 		.getByRole('button', { name: 'Edit' })
 		.click();
 
+	// Grant read:orders and write:orders on behalf of users, but only write:orders for the client itself
 	const dialog = page.getByRole('dialog');
 	await dialog
-		.getByRole('row', { name: apis.orders.permissions.readOrders.name })
-		.getByRole('checkbox')
+		.getByRole('checkbox', {
+			name: `User-delegated access: ${apis.orders.permissions.readOrders.name}`
+		})
+		.click();
+	await dialog
+		.getByRole('checkbox', {
+			name: `User-delegated access: ${apis.orders.permissions.writeOrders.name}`
+		})
+		.click();
+	await dialog
+		.getByRole('checkbox', {
+			name: `Client access (M2M): ${apis.orders.permissions.writeOrders.name}`
+		})
 		.click();
 	await dialog.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('API access updated successfully');
-	await expect(page.getByRole('row', { name: apis.orders.name })).toContainText('1 / 2');
+	// Both subject types keep their own count: 2 / 2 user-delegated, 1 / 2 client access
+	const row = page.getByRole('row', { name: apis.orders.name });
+	await expect(row).toContainText('2 / 2');
+	await expect(row).toContainText('1 / 2');
 });
 
 // ---------------------------------------------------------------------------
@@ -203,6 +218,76 @@ test('Requesting a custom scope without its resource is rejected with invalid_sc
 		client_id: client.id,
 		response_type: 'code',
 		scope: 'openid read:orders',
+		redirect_uri: client.callbackUrl,
+		state: 'nXx-6Qr-owc1SHBa'
+	});
+
+	const callbackUrl = await oidcUtil.interceptCallbackRedirect(
+		page,
+		new URL(client.callbackUrl).pathname,
+		async () => {
+			await page.goto(`/authorize?${params.toString()}`);
+		}
+	);
+
+	expect(callbackUrl.searchParams.get('error')).toBe('invalid_scope');
+	expect(callbackUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
+});
+
+// ---------------------------------------------------------------------------
+// Separation of user-delegated and client (machine-to-machine) access
+// ---------------------------------------------------------------------------
+
+test('Client credentials issues a token for a client-granted permission', async ({ page }) => {
+	const client = oidcClients.immich;
+	const api = apis.orders;
+
+	// write:orders is granted to Immich for client access
+	const res = await oidcUtil.exchangeCode(page, {
+		grant_type: 'client_credentials',
+		client_id: client.id,
+		client_secret: client.secret,
+		scope: api.permissions.writeOrders.key,
+		resource: api.resource
+	});
+	expect(res.access_token).toBeTruthy();
+
+	const claims = jose.decodeJwt(res.access_token!);
+	expect(tokenAudiences(claims)).toContain(api.resource);
+	expect(tokenScopes(claims)).toContain(api.permissions.writeOrders.key);
+});
+
+test('Client credentials cannot mint a permission that is only user-delegated', async ({
+	page
+}) => {
+	const client = oidcClients.immich;
+	const api = apis.orders;
+
+	// read:orders is only granted for user-delegated access
+	const res = await oidcUtil.exchangeCode(page, {
+		grant_type: 'client_credentials',
+		client_id: client.id,
+		client_secret: client.secret,
+		scope: api.permissions.readOrders.key,
+		resource: api.resource
+	});
+
+	expect(res.access_token).toBeFalsy();
+	expect(res.error).toBe('invalid_scope');
+});
+
+test('Authorization on behalf of a user cannot request a client-only permission', async ({
+	page
+}) => {
+	const client = oidcClients.immich;
+	const api = apis.orders;
+
+	// write:orders is only granted for client access, so users cannot be asked to delegate it
+	const params = new URLSearchParams({
+		client_id: client.id,
+		response_type: 'code',
+		scope: `openid ${api.permissions.writeOrders.key}`,
+		resource: api.resource,
 		redirect_uri: client.callbackUrl,
 		state: 'nXx-6Qr-owc1SHBa'
 	});

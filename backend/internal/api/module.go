@@ -34,8 +34,8 @@ func (m *Module) ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID stri
 }
 
 // AllowedScopesForAudience implements the OIDC module's APIAccessProvider interface
-func (m *Module) AllowedScopesForAudience(ctx context.Context, clientID, audience string) (scopes []string, apiExists bool, err error) {
-	return m.service.AllowedScopesForAudience(ctx, clientID, audience)
+func (m *Module) AllowedScopesForAudience(ctx context.Context, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, err error) {
+	return m.service.AllowedScopesForAudience(ctx, clientID, audience, subjectType)
 }
 
 // DescribePermissions implements the OIDC module's APIAccessProvider interface

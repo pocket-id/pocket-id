@@ -317,7 +317,7 @@
 	</div>
 </CollapsibleCard>
 <CollapsibleCard id="api-access" title={m.api_access()} description={m.api_access_description()}>
-	<ApiAccessCard clientId={client.id} />
+	<ApiAccessCard clientId={client.id} isPublicClient={client.isPublic} />
 </CollapsibleCard>
 <CollapsibleCard
 	id="scim-provisioning"

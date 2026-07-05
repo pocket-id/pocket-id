@@ -52,10 +52,11 @@ func (h *tokenHandler) token(c *gin.Context) {
 		}
 
 		// The client credentials grant has no authorize step so the RFC 8707 resource is resolved here to stamp the API audience and limit the granted scope to what the client is allowed for that API
+		// It resolves against the client-subject grants: a permission delegated by users does not let the client act as itself
 		// The other grants had their audience and scope resolved at authorize or device time and restored from storage, so they must be left untouched
 		if accessRequest.GetGrantTypes().Has(string(fosite.GrantTypeClientCredentials)) {
 			resource := accessRequest.GetRequestForm().Get("resource")
-			audience, grantedScopes, err := resolveResource(ctx, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes())
+			audience, grantedScopes, err := resolveResource(ctx, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient)
 			if err != nil {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return

@@ -21,5 +21,6 @@ CREATE INDEX idx_api_permissions_api_id ON api_permissions(api_id);
 CREATE TABLE oidc_clients_allowed_api_permissions (
     oidc_client_id TEXT NOT NULL REFERENCES oidc_clients(id) ON DELETE CASCADE,
     api_permission_id UUID NOT NULL REFERENCES api_permissions(id) ON DELETE CASCADE,
-    PRIMARY KEY (oidc_client_id, api_permission_id)
+    subject_type TEXT NOT NULL CHECK (subject_type IN ('user', 'client')),
+    PRIMARY KEY (oidc_client_id, api_permission_id, subject_type)
 );

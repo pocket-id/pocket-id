@@ -39,8 +39,9 @@ type authorizationService struct {
 }
 
 // resolveGrant resolves the RFC 8707 resource of a request into the token audience, the scopes that may actually be granted, and the audience-qualified keys used to record and check consent
+// It always resolves against the client's user-delegated grants because every flow that passes through here acts on behalf of a user
 func (s *authorizationService) resolveGrant(ctx context.Context, clientID, resource string, requestedScopes []string) (audience string, grantedScopes []string, consentKeys []string, err error) {
-	audience, grantedScopes, err = resolveResource(ctx, s.apiAccess, clientID, resource, requestedScopes)
+	audience, grantedScopes, err = resolveResource(ctx, s.apiAccess, clientID, resource, requestedScopes, SubjectTypeUser)
 	if err != nil {
 		return "", nil, nil, err
 	}

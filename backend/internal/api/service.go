@@ -10,6 +10,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -253,22 +254,41 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 	return api, nil
 }
 
-// GetClientAllowedPermissionIDs returns the IDs of the API permissions a client is allowed to request
-// Only custom-API permissions are tracked here because the identity scopes are freely requestable by every client
-func (s *Service) GetClientAllowedPermissionIDs(ctx context.Context, clientID string) ([]string, error) {
-	var ids []string
-	err := s.db.WithContext(ctx).
-		Model(&OidcClientAllowedAPIPermission{}).
-		Where("oidc_client_id = ?", clientID).
-		Pluck("api_permission_id", &ids).
-		Error
-	return ids, err
+// ClientAPIAccess is the set of API permissions granted to a client, split by the subject the resulting tokens act for
+// User-delegated permissions may be requested on behalf of a signed-in user, client permissions may be obtained by the client itself through the client credentials grant
+type ClientAPIAccess struct {
+	UserDelegatedPermissionIDs []string
+	ClientPermissionIDs        []string
 }
 
-// SetClientAllowedPermissions replaces the client's API-access allow-list with the given permission IDs
+// GetClientAPIAccess returns the API permissions a client is allowed to request, split by subject type
+// Only custom-API permissions are tracked here because the identity scopes are freely requestable by every client
+func (s *Service) GetClientAPIAccess(ctx context.Context, clientID string) (access ClientAPIAccess, err error) {
+	var rows []OidcClientAllowedAPIPermission
+	err = s.db.WithContext(ctx).
+		Where("oidc_client_id = ?", clientID).
+		Find(&rows).
+		Error
+	if err != nil {
+		return ClientAPIAccess{}, err
+	}
+
+	for _, row := range rows {
+		switch row.SubjectType {
+		case oidc.SubjectTypeClient:
+			access.ClientPermissionIDs = append(access.ClientPermissionIDs, row.APIPermissionID)
+		default:
+			access.UserDelegatedPermissionIDs = append(access.UserDelegatedPermissionIDs, row.APIPermissionID)
+		}
+	}
+
+	return access, nil
+}
+
+// SetClientAPIAccess replaces the client's API-access grants for both subject types with the given permission IDs
 // Unknown permission IDs are ignored
-// It returns the IDs that were actually applied
-func (s *Service) SetClientAllowedPermissions(ctx context.Context, clientID string, permissionIDs []string) (applied []string, err error) {
+// It returns the access that was actually applied
+func (s *Service) SetClientAPIAccess(ctx context.Context, clientID string, access ClientAPIAccess) (applied ClientAPIAccess, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -277,42 +297,49 @@ func (s *Service) SetClientAllowedPermissions(ctx context.Context, clientID stri
 	// Ensure the client exists so callers get a 404 for an unknown client
 	var client model.OidcClient
 	if err = tx.WithContext(ctx).Select("id").Where("id = ?", clientID).First(&client).Error; err != nil {
-		return nil, err
+		return ClientAPIAccess{}, err
 	}
 
-	applied, err = s.filterAssignablePermissionIDs(ctx, tx, permissionIDs)
+	applied.UserDelegatedPermissionIDs, err = s.filterAssignablePermissionIDs(ctx, tx, access.UserDelegatedPermissionIDs)
 	if err != nil {
-		return nil, err
+		return ClientAPIAccess{}, err
+	}
+	applied.ClientPermissionIDs, err = s.filterAssignablePermissionIDs(ctx, tx, access.ClientPermissionIDs)
+	if err != nil {
+		return ClientAPIAccess{}, err
 	}
 
-	// Replace the allow-list for this client
+	// Replace the grants for this client
 	err = tx.WithContext(ctx).
 		Where("oidc_client_id = ?", clientID).
 		Delete(&OidcClientAllowedAPIPermission{}).
 		Error
 	if err != nil {
-		return nil, err
+		return ClientAPIAccess{}, err
 	}
 
-	if len(applied) > 0 {
-		rows := make([]OidcClientAllowedAPIPermission, len(applied))
-		for i, permissionID := range applied {
-			rows[i] = OidcClientAllowedAPIPermission{OidcClientID: clientID, APIPermissionID: permissionID}
-		}
+	rows := make([]OidcClientAllowedAPIPermission, 0, len(applied.UserDelegatedPermissionIDs)+len(applied.ClientPermissionIDs))
+	for _, permissionID := range applied.UserDelegatedPermissionIDs {
+		rows = append(rows, OidcClientAllowedAPIPermission{OidcClientID: clientID, APIPermissionID: permissionID, SubjectType: oidc.SubjectTypeUser})
+	}
+	for _, permissionID := range applied.ClientPermissionIDs {
+		rows = append(rows, OidcClientAllowedAPIPermission{OidcClientID: clientID, APIPermissionID: permissionID, SubjectType: oidc.SubjectTypeClient})
+	}
+	if len(rows) > 0 {
 		if err = tx.WithContext(ctx).Create(&rows).Error; err != nil {
-			return nil, err
+			return ClientAPIAccess{}, err
 		}
 	}
 
 	if err = tx.Commit().Error; err != nil {
-		return nil, err
+		return ClientAPIAccess{}, err
 	}
 
 	return applied, nil
 }
 
-// ClientAPIScopesAndAudiences returns the permission keys a client may request and the distinct audiences of the custom APIs those permissions belong to
-// The OIDC module uses this to widen fosite's scope and audience validation for the client
+// ClientAPIScopesAndAudiences returns the permission keys a client may request and the distinct audiences of the custom APIs those permissions belong to, across both subject types
+// The OIDC module uses this to widen fosite's scope and audience validation for the client; the per-flow subject-type enforcement happens when the resource is resolved
 func (s *Service) ClientAPIScopesAndAudiences(ctx context.Context, tx *gorm.DB, clientID string) (scopes []string, audiences []string, err error) {
 	if tx == nil {
 		tx = s.db
@@ -352,8 +379,8 @@ func (s *Service) ClientAPIScopesAndAudiences(ctx context.Context, tx *gorm.DB, 
 	return scopes, audiences, nil
 }
 
-// AllowedScopesForAudience returns the permission keys the client is allowed for the API identified by the given audience, plus whether such an API exists
-func (s *Service) AllowedScopesForAudience(ctx context.Context, clientID, audience string) (scopes []string, apiExists bool, err error) {
+// AllowedScopesForAudience returns the permission keys the client is allowed for the API identified by the given audience and subject type, plus whether such an API exists
+func (s *Service) AllowedScopesForAudience(ctx context.Context, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, err error) {
 	var api API
 	err = s.db.WithContext(ctx).
 		Select("id").
@@ -370,7 +397,7 @@ func (s *Service) AllowedScopesForAudience(ctx context.Context, clientID, audien
 	err = s.db.WithContext(ctx).
 		Table("api_permissions").
 		Select("api_permissions.key").
-		Joins("JOIN oidc_clients_allowed_api_permissions g ON g.api_permission_id = api_permissions.id AND g.oidc_client_id = ?", clientID).
+		Joins("JOIN oidc_clients_allowed_api_permissions g ON g.api_permission_id = api_permissions.id AND g.oidc_client_id = ? AND g.subject_type = ?", clientID, subjectType).
 		Where("api_permissions.api_id = ?", api.ID).
 		Pluck("api_permissions.key", &scopes).
 		Error

@@ -12,12 +12,13 @@
 	import { toast } from 'svelte-sonner';
 	import ApiPermissionsModal from './api-permissions-modal.svelte';
 
-	let { clientId }: { clientId: string } = $props();
+	let { clientId, isPublicClient }: { clientId: string; isPublicClient: boolean } = $props();
 
 	const apisService = new ApisService();
 
 	let apis = $state<Api[]>([]);
-	let selected = $state<Set<string>>(new Set());
+	let userSelected = $state<Set<string>>(new Set());
+	let clientSelected = $state<Set<string>>(new Set());
 	let loading = $state(true);
 
 	let editingApi = $state<Api | null>(null);
@@ -30,7 +31,8 @@
 				apisService.getClientAccess(clientId)
 			]);
 			apis = await Promise.all(list.map((a) => apisService.get(a.id)));
-			selected = new Set(access.allowedPermissionIds);
+			userSelected = new Set(access.userDelegatedPermissionIds);
+			clientSelected = new Set(access.clientPermissionIds);
 		} catch (e) {
 			axiosErrorToast(e);
 		} finally {
@@ -38,7 +40,7 @@
 		}
 	});
 
-	function grantedCount(api: Api) {
+	function grantedCount(api: Api, selected: Set<string>) {
 		return api.permissions.filter((p) => selected.has(p.id)).length;
 	}
 
@@ -47,14 +49,22 @@
 		modalOpen = true;
 	}
 
-	function allowedIdsFor(api: Api) {
+	function allowedIdsFor(api: Api, selected: Set<string>) {
 		return api.permissions.filter((p) => selected.has(p.id)).map((p) => p.id);
 	}
 
-	async function saveApi(api: Api, apiSelectedIds: string[]) {
-		const others = [...selected].filter((id) => !api.permissions.some((p) => p.id === id));
-		const res = await apisService.updateClientAccess(clientId, [...others, ...apiSelectedIds]);
-		selected = new Set(res.allowedPermissionIds);
+	async function saveApi(api: Api, userIds: string[], clientIds: string[]) {
+		// Grants of other APIs stay untouched, and for public clients the (never editable) client grants are sent back unchanged
+		const otherUser = [...userSelected].filter((id) => !api.permissions.some((p) => p.id === id));
+		const otherClient = [...clientSelected].filter(
+			(id) => !api.permissions.some((p) => p.id === id)
+		);
+		const res = await apisService.updateClientAccess(clientId, {
+			userDelegatedPermissionIds: [...otherUser, ...userIds],
+			clientPermissionIds: isPublicClient ? [...clientSelected] : [...otherClient, ...clientIds]
+		});
+		userSelected = new Set(res.userDelegatedPermissionIds);
+		clientSelected = new Set(res.clientPermissionIds);
 		toast.success(m.api_access_updated_successfully());
 	}
 </script>
@@ -75,7 +85,10 @@
 		<Table.Header>
 			<Table.Row>
 				<Table.Head>{m.api_name()}</Table.Head>
-				<Table.Head>{m.access()}</Table.Head>
+				<Table.Head>{m.user_delegated_access()}</Table.Head>
+				{#if !isPublicClient}
+					<Table.Head>{m.client_access()}</Table.Head>
+				{/if}
 				<Table.Head class="w-20"></Table.Head>
 			</Table.Row>
 		</Table.Header>
@@ -96,10 +109,18 @@
 					</Table.Cell>
 					<Table.Cell class="text-muted-foreground text-sm">
 						{m.permissions_granted_count({
-							granted: String(grantedCount(api)),
+							granted: String(grantedCount(api, userSelected)),
 							total: String(api.permissions.length)
 						})}
 					</Table.Cell>
+					{#if !isPublicClient}
+						<Table.Cell class="text-muted-foreground text-sm">
+							{m.permissions_granted_count({
+								granted: String(grantedCount(api, clientSelected)),
+								total: String(api.permissions.length)
+							})}
+						</Table.Cell>
+					{/if}
 					<Table.Cell class="text-right">
 						<Button
 							variant="outline"
@@ -118,7 +139,9 @@
 	<ApiPermissionsModal
 		bind:open={modalOpen}
 		api={editingApi}
-		allowedIds={allowedIdsFor(editingApi)}
-		onSave={(ids) => saveApi(editingApi!, ids)}
+		userAllowedIds={allowedIdsFor(editingApi, userSelected)}
+		clientAllowedIds={allowedIdsFor(editingApi, clientSelected)}
+		showClientAccess={!isPublicClient}
+		onSave={(userIds, clientIds) => saveApi(editingApi!, userIds, clientIds)}
 	/>
 {/if}

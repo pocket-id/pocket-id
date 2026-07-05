@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AdvancedTable from '$lib/components/table/advanced-table.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { m } from '$lib/paraglide/messages';
 	import type { AdvancedTableColumn } from '$lib/types/advanced-table.type';
@@ -11,29 +12,46 @@
 	let {
 		open = $bindable(),
 		api,
-		allowedIds,
+		userAllowedIds,
+		clientAllowedIds,
+		showClientAccess,
 		onSave
 	}: {
 		open: boolean;
 		api: Api;
-		allowedIds: string[];
-		onSave: (permissionIds: string[]) => Promise<void>;
+		userAllowedIds: string[];
+		clientAllowedIds: string[];
+		showClientAccess: boolean;
+		onSave: (userPermissionIds: string[], clientPermissionIds: string[]) => Promise<void>;
 	} = $props();
 
-	let working = $state<string[]>([]);
+	let workingUser = $state<string[]>([]);
+	let workingClient = $state<string[]>([]);
 	let saving = $state(false);
 
 	$effect(() => {
 		if (open) {
-			working = [...allowedIds];
+			workingUser = [...userAllowedIds];
+			workingClient = [...clientAllowedIds];
 		}
 	});
 
-	const columns: AdvancedTableColumn<ApiPermission>[] = [
+	const columns: AdvancedTableColumn<ApiPermission>[] = $derived([
 		{ label: m.name(), column: 'name', sortable: true },
 		{ label: m.key(), key: 'key', cell: KeyCell },
-		{ label: m.description(), key: 'description', value: (p) => p.description ?? '' }
-	];
+		{ label: m.description(), key: 'description', value: (p) => p.description ?? '' },
+		{ label: m.user_delegated_access(), key: 'userDelegated', cell: UserDelegatedCell },
+		...(showClientAccess
+			? [{ label: m.client_access(), key: 'clientAccess', cell: ClientAccessCell }]
+			: [])
+	]);
+
+	function toggle(ids: string[], id: string, checked: boolean) {
+		if (checked) {
+			return ids.includes(id) ? ids : [...ids, id];
+		}
+		return ids.filter((existing) => existing !== id);
+	}
 
 	function fetchCallback(options: ListRequestOptions): Promise<Paginated<ApiPermission>> {
 		let data = api.permissions;
@@ -77,7 +95,7 @@
 	async function save() {
 		saving = true;
 		try {
-			await onSave(working);
+			await onSave(workingUser, workingClient);
 			open = false;
 		} catch (e) {
 			axiosErrorToast(e);
@@ -91,18 +109,39 @@
 	<span class="font-mono text-xs">{item.key}</span>
 {/snippet}
 
+{#snippet UserDelegatedCell({ item }: { item: ApiPermission })}
+	<Checkbox
+		aria-label={`${m.user_delegated_access()}: ${item.name}`}
+		checked={workingUser.includes(item.id)}
+		onCheckedChange={(checked: boolean) => (workingUser = toggle(workingUser, item.id, checked))}
+	/>
+{/snippet}
+
+{#snippet ClientAccessCell({ item }: { item: ApiPermission })}
+	<Checkbox
+		aria-label={`${m.client_access()}: ${item.name}`}
+		checked={workingClient.includes(item.id)}
+		onCheckedChange={(checked: boolean) =>
+			(workingClient = toggle(workingClient, item.id, checked))}
+	/>
+{/snippet}
+
 <Dialog.Root bind:open>
 	<Dialog.Content class="max-h-[90vh] min-w-[90vw] overflow-auto lg:min-w-250">
 		<Dialog.Header>
 			<Dialog.Title>{api.name}</Dialog.Title>
-			<Dialog.Description>{m.select_the_permissions_this_client_may_request()}</Dialog.Description>
+			<Dialog.Description>
+				{m.select_the_permissions_this_client_may_request()}
+				{#if !showClientAccess}
+					{m.client_access_unavailable_for_public_clients()}
+				{/if}
+			</Dialog.Description>
 		</Dialog.Header>
 
 		<AdvancedTable
-			id={`api-access-${api.id}`}
+			id={`api-access-grants-${api.id}`}
 			{columns}
 			{fetchCallback}
-			bind:selectedIds={working}
 			defaultSort={{ column: 'name', direction: 'asc' }}
 		/>
 

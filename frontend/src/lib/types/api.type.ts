@@ -33,5 +33,6 @@ export type ApiPermissionInput = {
 };
 
 export type ClientApiAccess = {
-	allowedPermissionIds: string[];
+	userDelegatedPermissionIds: string[];
+	clientPermissionIds: string[];
 };

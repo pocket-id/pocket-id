@@ -170,33 +170,30 @@ func (h *handler) updatePermissions(c *gin.Context) {
 
 // getClientAccess godoc
 // @Summary Get client API access
-// @Description Get the API permissions an OIDC client is allowed to request
+// @Description Get the API permissions an OIDC client is allowed to request, split into user-delegated and client (machine-to-machine) access
 // @Tags APIs
 // @Produce json
 // @Param clientId path string true "OIDC Client ID"
 // @Success 200 {object} clientApiAccessDto
 // @Router /api/api-access/{clientId} [get]
 func (h *handler) getClientAccess(c *gin.Context) {
-	ids, err := h.service.GetClientAllowedPermissionIDs(c.Request.Context(), c.Param("clientId"))
+	access, err := h.service.GetClientAPIAccess(c.Request.Context(), c.Param("clientId"))
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
-	if ids == nil {
-		ids = []string{}
-	}
 
-	c.JSON(http.StatusOK, clientApiAccessDto{AllowedPermissionIDs: ids})
+	c.JSON(http.StatusOK, newClientApiAccessDto(access))
 }
 
 // updateClientAccess godoc
 // @Summary Update client API access
-// @Description Replace the set of API permissions an OIDC client is allowed to request
+// @Description Replace the API permissions an OIDC client is allowed to request, split into user-delegated and client (machine-to-machine) access
 // @Tags APIs
 // @Accept json
 // @Produce json
 // @Param clientId path string true "OIDC Client ID"
-// @Param access body clientApiAccessUpdateDto true "Allowed permission IDs"
+// @Param access body clientApiAccessUpdateDto true "Allowed permission IDs per subject type"
 // @Success 200 {object} clientApiAccessDto
 // @Router /api/api-access/{clientId} [put]
 func (h *handler) updateClientAccess(c *gin.Context) {
@@ -206,16 +203,31 @@ func (h *handler) updateClientAccess(c *gin.Context) {
 		return
 	}
 
-	applied, err := h.service.SetClientAllowedPermissions(c.Request.Context(), c.Param("clientId"), input.AllowedPermissionIDs)
+	applied, err := h.service.SetClientAPIAccess(c.Request.Context(), c.Param("clientId"), ClientAPIAccess{
+		UserDelegatedPermissionIDs: input.UserDelegatedPermissionIDs,
+		ClientPermissionIDs:        input.ClientPermissionIDs,
+	})
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
-	if applied == nil {
-		applied = []string{}
-	}
 
-	c.JSON(http.StatusOK, clientApiAccessDto{AllowedPermissionIDs: applied})
+	c.JSON(http.StatusOK, newClientApiAccessDto(applied))
+}
+
+// newClientApiAccessDto always serializes both permission lists as arrays rather than null
+func newClientApiAccessDto(access ClientAPIAccess) clientApiAccessDto {
+	dto := clientApiAccessDto{
+		UserDelegatedPermissionIDs: access.UserDelegatedPermissionIDs,
+		ClientPermissionIDs:        access.ClientPermissionIDs,
+	}
+	if dto.UserDelegatedPermissionIDs == nil {
+		dto.UserDelegatedPermissionIDs = []string{}
+	}
+	if dto.ClientPermissionIDs == nil {
+		dto.ClientPermissionIDs = []string{}
+	}
+	return dto
 }
 
 func (h *handler) respond(c *gin.Context, status int, api API) {

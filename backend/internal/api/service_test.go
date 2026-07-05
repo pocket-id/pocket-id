@@ -8,6 +8,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -31,12 +32,13 @@ func TestAPICrudAndPermissionDiff(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, updated.Permissions, 2)
 
-	// Grant a client the read:orders permission, then remove that permission and
-	// confirm the grant is cleaned up while write:orders (and its key) survives.
+	// Grant a client the read:orders permission for both subject types, then remove that permission
+	// and confirm the grants are cleaned up while write:orders (and its key) survives.
 	readPerm := findPermission(updated, "read:orders")
 	require.NotNil(t, readPerm)
 	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-1"}, Name: "Client 1"}).Error)
-	require.NoError(t, db.Create(&OidcClientAllowedAPIPermission{OidcClientID: "client-1", APIPermissionID: readPerm.ID}).Error)
+	require.NoError(t, db.Create(&OidcClientAllowedAPIPermission{OidcClientID: "client-1", APIPermissionID: readPerm.ID, SubjectType: oidc.SubjectTypeUser}).Error)
+	require.NoError(t, db.Create(&OidcClientAllowedAPIPermission{OidcClientID: "client-1", APIPermissionID: readPerm.ID, SubjectType: oidc.SubjectTypeClient}).Error)
 
 	updated, err = svc.UpdatePermissions(t.Context(), created.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{
 		{Key: "write:orders", Name: "Write orders (renamed)"},
@@ -76,32 +78,91 @@ func TestClientApiAccessAllowList(t *testing.T) {
 	readID := findPermission(orders, "read:orders").ID
 	writeID := findPermission(orders, "write:orders").ID
 
-	// Unknown IDs are filtered out.
-	applied, err := svc.SetClientAllowedPermissions(t.Context(), "client-1", []string{readID, "does-not-exist"})
+	// Unknown IDs are filtered out, and the subject types are stored independently.
+	applied, err := svc.SetClientAPIAccess(t.Context(), "client-1", ClientAPIAccess{
+		UserDelegatedPermissionIDs: []string{readID, "does-not-exist"},
+		ClientPermissionIDs:        []string{writeID, "does-not-exist"},
+	})
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{readID}, applied)
+	assert.ElementsMatch(t, []string{readID}, applied.UserDelegatedPermissionIDs)
+	assert.ElementsMatch(t, []string{writeID}, applied.ClientPermissionIDs)
 
-	got, err := svc.GetClientAllowedPermissionIDs(t.Context(), "client-1")
+	got, err := svc.GetClientAPIAccess(t.Context(), "client-1")
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{readID}, got)
+	assert.ElementsMatch(t, []string{readID}, got.UserDelegatedPermissionIDs)
+	assert.ElementsMatch(t, []string{writeID}, got.ClientPermissionIDs)
 
-	// The set is fully replaced on each call.
-	_, err = svc.SetClientAllowedPermissions(t.Context(), "client-1", []string{readID, writeID})
+	// The same permission can be granted for both subject types, and both sets are fully replaced on each call.
+	_, err = svc.SetClientAPIAccess(t.Context(), "client-1", ClientAPIAccess{
+		UserDelegatedPermissionIDs: []string{readID, writeID},
+		ClientPermissionIDs:        []string{readID},
+	})
 	require.NoError(t, err)
-	got, err = svc.GetClientAllowedPermissionIDs(t.Context(), "client-1")
+	got, err = svc.GetClientAPIAccess(t.Context(), "client-1")
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{readID, writeID}, got)
+	assert.ElementsMatch(t, []string{readID, writeID}, got.UserDelegatedPermissionIDs)
+	assert.ElementsMatch(t, []string{readID}, got.ClientPermissionIDs)
 
-	// Clearing the allow-list.
-	_, err = svc.SetClientAllowedPermissions(t.Context(), "client-1", nil)
+	// Clearing one subject type leaves the other untouched.
+	_, err = svc.SetClientAPIAccess(t.Context(), "client-1", ClientAPIAccess{ClientPermissionIDs: []string{readID}})
 	require.NoError(t, err)
-	got, err = svc.GetClientAllowedPermissionIDs(t.Context(), "client-1")
+	got, err = svc.GetClientAPIAccess(t.Context(), "client-1")
 	require.NoError(t, err)
-	assert.Empty(t, got)
+	assert.Empty(t, got.UserDelegatedPermissionIDs)
+	assert.ElementsMatch(t, []string{readID}, got.ClientPermissionIDs)
+
+	// Clearing everything.
+	_, err = svc.SetClientAPIAccess(t.Context(), "client-1", ClientAPIAccess{})
+	require.NoError(t, err)
+	got, err = svc.GetClientAPIAccess(t.Context(), "client-1")
+	require.NoError(t, err)
+	assert.Empty(t, got.UserDelegatedPermissionIDs)
+	assert.Empty(t, got.ClientPermissionIDs)
 
 	// An unknown client is rejected (surfaces as 404 at the HTTP layer).
-	_, err = svc.SetClientAllowedPermissions(t.Context(), "nope", []string{readID})
+	_, err = svc.SetClientAPIAccess(t.Context(), "nope", ClientAPIAccess{UserDelegatedPermissionIDs: []string{readID}})
 	require.Error(t, err)
+}
+
+// TestAllowedScopesForAudienceFiltersBySubjectType guards that the scopes resolved for a flow
+// only come from the grants of that flow's subject type.
+func TestAllowedScopesForAudienceFiltersBySubjectType(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := New(Dependencies{DB: db}).service
+
+	require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "client-1"}, Name: "Client 1"}).Error)
+
+	orders, err := svc.Create(t.Context(), apiCreateDto{Name: "Orders", Resource: "https://api.orders.example.com"})
+	require.NoError(t, err)
+	orders, err = svc.UpdatePermissions(t.Context(), orders.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{
+		{Key: "read:orders", Name: "Read"},
+		{Key: "write:orders", Name: "Write"},
+	}})
+	require.NoError(t, err)
+	readID := findPermission(orders, "read:orders").ID
+	writeID := findPermission(orders, "write:orders").ID
+
+	_, err = svc.SetClientAPIAccess(t.Context(), "client-1", ClientAPIAccess{
+		UserDelegatedPermissionIDs: []string{readID},
+		ClientPermissionIDs:        []string{writeID},
+	})
+	require.NoError(t, err)
+
+	userScopes, exists, err := svc.AllowedScopesForAudience(t.Context(), "client-1", "https://api.orders.example.com", oidc.SubjectTypeUser)
+	require.NoError(t, err)
+	require.True(t, exists)
+	assert.ElementsMatch(t, []string{"read:orders"}, userScopes)
+
+	clientScopes, exists, err := svc.AllowedScopesForAudience(t.Context(), "client-1", "https://api.orders.example.com", oidc.SubjectTypeClient)
+	require.NoError(t, err)
+	require.True(t, exists)
+	assert.ElementsMatch(t, []string{"write:orders"}, clientScopes)
+
+	// The fosite widening still sees the union of both subject types.
+	scopes, audiences, err := svc.ClientAPIScopesAndAudiences(t.Context(), nil, "client-1")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"read:orders", "write:orders"}, scopes)
+	assert.ElementsMatch(t, []string{"https://api.orders.example.com"}, audiences)
 }
 
 func TestUpdatePermissionsRejectsReservedKeys(t *testing.T) {

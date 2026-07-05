@@ -53,11 +53,14 @@ type apiPermissionsUpdateDto struct {
 	Permissions []apiPermissionInputDto `json:"permissions" binding:"omitempty,dive"`
 }
 
-// clientApiAccessDto is the set of API permissions a client is allowed to request
+// clientApiAccessDto is the set of API permissions a client is allowed to request, split by subject type
+// User-delegated permissions may be requested on behalf of a signed-in user, client permissions may be obtained by the client itself through the client credentials grant
 type clientApiAccessDto struct {
-	AllowedPermissionIDs []string `json:"allowedPermissionIds"`
+	UserDelegatedPermissionIDs []string `json:"userDelegatedPermissionIds"`
+	ClientPermissionIDs        []string `json:"clientPermissionIds"`
 }
 
 type clientApiAccessUpdateDto struct {
-	AllowedPermissionIDs []string `json:"allowedPermissionIds" binding:"omitempty,dive,required"`
+	UserDelegatedPermissionIDs []string `json:"userDelegatedPermissionIds" binding:"omitempty,dive,required"`
+	ClientPermissionIDs        []string `json:"clientPermissionIds" binding:"omitempty,dive,required"`
 }

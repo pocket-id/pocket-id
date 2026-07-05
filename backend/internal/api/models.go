@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 )
 
 type API struct {
@@ -27,8 +28,9 @@ type Permission struct {
 func (Permission) TableName() string { return "api_permissions" }
 
 type OidcClientAllowedAPIPermission struct {
-	OidcClientID    string `gorm:"column:oidc_client_id;primaryKey"`
-	APIPermissionID string `gorm:"column:api_permission_id;primaryKey"`
+	OidcClientID    string
+	APIPermissionID string
+	SubjectType     oidc.SubjectType
 }
 
 func (OidcClientAllowedAPIPermission) TableName() string {

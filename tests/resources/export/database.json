@@ -33,7 +33,13 @@
 		"oidc_clients_allowed_api_permissions": [
 			{
 				"oidc_client_id": "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
-				"api_permission_id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d"
+				"api_permission_id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+				"subject_type": "user"
+			},
+			{
+				"oidc_client_id": "606c7782-f2b1-49e5-8ea9-26eb1b06d018",
+				"api_permission_id": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+				"subject_type": "client"
 			}
 		],
 		"api_keys": [

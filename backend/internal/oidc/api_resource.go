@@ -23,13 +23,24 @@ type PermissionInfo struct {
 	Description string
 }
 
+// SubjectType qualifies for whom an API grant applies, mirroring Auth0's client grant subject types
+// A permission granted to a client for one subject type says nothing about the other, so user-delegated access and machine-to-machine access are configured independently
+type SubjectType string
+
+const (
+	// SubjectTypeUser covers user-delegated access: every flow whose access token acts on behalf of an end user
+	SubjectTypeUser SubjectType = "user"
+	// SubjectTypeClient covers client access: the client credentials grant, where the client acts as itself without a user
+	SubjectTypeClient SubjectType = "client"
+)
+
 // APIAccessProvider is implemented by the api feature module
 // It lets the OIDC module widen per-client scope and audience validation and resolve RFC 8707 resources to the permission keys a client may be granted
 type APIAccessProvider interface {
-	// ClientAPIScopes returns the custom-API permission keys and the distinct API audiences a client is allowed to request
+	// ClientAPIScopes returns the custom-API permission keys and the distinct API audiences a client is allowed to request across all subject types
 	ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID string) (scopes []string, audiences []string, err error)
-	// AllowedScopesForAudience returns the permission keys the client is allowed for the API identified by the given audience, and whether such an API exists
-	AllowedScopesForAudience(ctx context.Context, clientID, audience string) (scopes []string, apiExists bool, err error)
+	// AllowedScopesForAudience returns the permission keys the client is allowed for the API identified by the given audience and subject type, and whether such an API exists
+	AllowedScopesForAudience(ctx context.Context, clientID, audience string, subjectType SubjectType) (scopes []string, apiExists bool, err error)
 	// DescribePermissions returns the display information for the given permission keys of the API identified by audience
 	// Unknown keys are omitted
 	DescribePermissions(ctx context.Context, audience string, keys []string) ([]PermissionInfo, error)
@@ -37,7 +48,8 @@ type APIAccessProvider interface {
 
 // resolveResource maps an RFC 8707 resource, which may be empty, to the audience to stamp on the issued token and the subset of requestedScopes that may be granted
 // An empty resource is a plain login token bound to the requesting client and yields only identity scopes
-func resolveResource(ctx context.Context, provider APIAccessProvider, clientID, resource string, requestedScopes []string) (audience string, grantedScopes []string, err error) {
+// The subject type selects which of the client's grants apply: user-delegated flows only see user grants, the client credentials grant only sees client grants
+func resolveResource(ctx context.Context, provider APIAccessProvider, clientID, resource string, requestedScopes []string, subjectType SubjectType) (audience string, grantedScopes []string, err error) {
 	var grantable []string
 
 	if resource == "" {
@@ -49,7 +61,7 @@ func resolveResource(ctx context.Context, provider APIAccessProvider, clientID, 
 			return "", nil, fosite.ErrInvalidRequest.WithHintf("The resource %q is not a known API.", resource)
 		}
 
-		allowed, exists, allowErr := provider.AllowedScopesForAudience(ctx, clientID, resource)
+		allowed, exists, allowErr := provider.AllowedScopesForAudience(ctx, clientID, resource, subjectType)
 		if allowErr != nil {
 			return "", nil, allowErr
 		}
@@ -57,7 +69,10 @@ func resolveResource(ctx context.Context, provider APIAccessProvider, clientID, 
 			return "", nil, fosite.ErrInvalidRequest.WithHintf("The resource %q is not a known API.", resource)
 		}
 		if len(allowed) == 0 {
-			return "", nil, fosite.ErrAccessDenied.WithHintf("This client is not allowed to request the API %q.", resource)
+			if subjectType == SubjectTypeClient {
+				return "", nil, fosite.ErrAccessDenied.WithHintf("This client is not allowed machine-to-machine access to the API %q.", resource)
+			}
+			return "", nil, fosite.ErrAccessDenied.WithHintf("This client is not allowed to access the API %q on behalf of users.", resource)
 		}
 
 		audience = resource
