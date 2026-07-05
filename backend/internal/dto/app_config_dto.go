@@ -55,4 +55,6 @@ type AppConfigUpdateDto struct {
 	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" binding:"required"`
 	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" binding:"required"`
 	EmailVerificationEnabled                   string `json:"emailVerificationEnabled" binding:"required"`
+	CIMDURLAllowlist                           string `json:"cimdUrlAllowlist" binding:"omitempty,json"`
+	DynamicClientRetentionDays                 string `json:"dynamicClientRetentionDays" binding:"omitempty,number"`
 }

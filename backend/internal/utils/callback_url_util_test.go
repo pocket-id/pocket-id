@@ -699,6 +699,29 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 	}
 }
 
+func TestMatchesAnyURLPattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		patterns []string
+		input    string
+		want     bool
+	}{
+		{"empty list denies", nil, "https://app.example.com/oauth/client", false},
+		{"empty slice denies", []string{}, "https://app.example.com/oauth/client", false},
+		{"exact match", []string{"https://app.example.com/oauth/client"}, "https://app.example.com/oauth/client", true},
+		{"wildcard path", []string{"https://app.example.com/**"}, "https://app.example.com/oauth/client", true},
+		{"wildcard host segment", []string{"https://*.example.com/oauth/client"}, "https://app.example.com/oauth/client", true},
+		{"star matches all", []string{"*"}, "https://anything.example.com/x", true},
+		{"no match", []string{"https://other.example.com/**"}, "https://app.example.com/oauth/client", false},
+		{"second pattern matches", []string{"https://a.example.com/**", "https://app.example.com/**"}, "https://app.example.com/oauth/client", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, MatchesAnyURLPattern(tt.patterns, tt.input))
+		})
+	}
+}
+
 func TestLoopbackURLWithWildcardPort(t *testing.T) {
 	tests := []struct {
 		name   string

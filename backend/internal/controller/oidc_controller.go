@@ -29,6 +29,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.GET("/oidc/clients/:id", authMiddleware.Add(), oc.getClientHandler)
 	group.GET("/oidc/clients/:id/meta", oc.getClientMetaDataHandler)
 	group.PUT("/oidc/clients/:id", authMiddleware.Add(), oc.updateClientHandler)
+	group.POST("/oidc/clients/:id/refresh", authMiddleware.Add(), oc.refreshClientMetadataHandler)
 	group.DELETE("/oidc/clients/:id", authMiddleware.Add(), oc.deleteClientHandler)
 
 	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), oc.updateAllowedUserGroupsHandler)
@@ -75,6 +76,8 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	err = dto.MapStruct(client, &clientDto)
 	if err == nil {
 		clientDto.HasDarkLogo = client.HasDarkLogo()
+		clientDto.ClientType = string(client.ClientType)
+		clientDto.ClientIdHost = client.ClientIDHost()
 		c.JSON(http.StatusOK, clientDto)
 		return
 	}
@@ -218,6 +221,30 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 	}
 
 	client, err := oc.oidcService.UpdateClient(c.Request.Context(), c.Param("id"), input)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	var clientDto dto.OidcClientWithAllowedUserGroupsDto
+	if err := dto.MapStruct(client, &clientDto); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, clientDto)
+}
+
+// refreshClientMetadataHandler godoc
+// @Summary Refresh client metadata document
+// @Description Force a re-fetch of the OAuth Client ID Metadata Document for a CIMD client
+// @Tags OIDC
+// @Produce json
+// @Param id path string true "Client ID"
+// @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Refreshed client"
+// @Router /api/oidc/clients/{id}/refresh [post]
+func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) {
+	client, err := oc.oidcService.RefreshClientMetadata(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		_ = c.Error(err)
 		return

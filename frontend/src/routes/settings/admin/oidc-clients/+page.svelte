@@ -7,6 +7,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import clientSecretStore from '$lib/stores/client-secret-store';
 	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import { encodeClientIdParam } from '$lib/utils/client-id-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideMinus, ShieldCheck, ShieldPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -32,7 +33,7 @@
 
 			const clientSecret = await oidcService.createClientSecret(createdClient.id);
 			clientSecretStore.set(clientSecret);
-			goto(`/settings/admin/oidc-clients/${createdClient.id}`);
+			goto(`/settings/admin/oidc-clients/${encodeClientIdParam(createdClient.id)}`);
 			toast.success(m.oidc_client_created_successfully());
 			return true;
 		} catch (e) {

@@ -69,6 +69,15 @@ func (e OidcInvalidCallbackURLError) Error() string {
 }
 func (e OidcInvalidCallbackURLError) HttpStatusCode() int { return http.StatusBadRequest }
 
+type InvalidCIMDURLPatternError struct {
+	Pattern string
+}
+
+func (e InvalidCIMDURLPatternError) Error() string {
+	return "invalid metadata document URL pattern: " + e.Pattern
+}
+func (e InvalidCIMDURLPatternError) HttpStatusCode() int { return http.StatusBadRequest }
+
 type FileTypeNotSupportedError struct{}
 
 func (e FileTypeNotSupportedError) Error() string       { return "file type not supported" }

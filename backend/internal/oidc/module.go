@@ -17,6 +17,7 @@ type Config struct {
 	TokenBaseURL              string
 	Secret                    []byte
 	AllowInsecureCallbackURLs bool
+	CIMDEnabled               bool
 }
 
 type TokenSigner interface {
@@ -42,6 +43,8 @@ type Dependencies struct {
 	Config     Config
 	HTTPClient *http.Client
 
+	GetCIMDURLAllowlist func() []string
+
 	Signer       TokenSigner
 	CustomClaims CustomClaimSource
 	Reauth       ReauthenticationTokenConsumer
@@ -66,6 +69,13 @@ type Module struct {
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
+	if deps.Config.CIMDEnabled && deps.HTTPClient != nil && deps.AuditLog != nil {
+		store.
+			WithAuditLogger(deps.AuditLog).
+			WithCIMDEnabled(true).
+			WithGetCIMDURLAllowlist(deps.GetCIMDURLAllowlist).
+			WithHTTPClient(deps.HTTPClient)
+	}
 	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
@@ -96,6 +106,11 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Config.BaseURL),
 		deviceHandler:        newDeviceHandler(provider, deviceService),
 	}, nil
+}
+
+// RefreshClientMetadata forces a re-fetch of the OAuth Client ID Metadata Document.
+func (m *Module) RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error) {
+	return m.store.RefreshMetadataClient(ctx, clientID)
 }
 
 func (m *Module) RegisterRoutes(rootGroup *gin.RouterGroup, apiGroup *gin.RouterGroup, optionalBrowserAuth gin.HandlerFunc, browserAuth gin.HandlerFunc) {

@@ -316,11 +316,13 @@
 			</Card.Content>
 		</Card.Root>
 
-		<Card.Root>
-			<Card.Content>
-				<OidcForm mode="update" existingClient={client} callback={updateClient} />
-			</Card.Content>
-		</Card.Root>
+		{#if client.clientType === 'standard'}
+			<Card.Root>
+				<Card.Content>
+					<OidcForm mode="update" existingClient={client} callback={updateClient} />
+				</Card.Content>
+			</Card.Root>
+		{/if}
 	</Tabs.Content>
 
 	<Tabs.Content value="user-groups" id="allowed-user-groups">
