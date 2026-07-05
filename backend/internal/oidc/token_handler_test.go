@@ -111,7 +111,7 @@ func TestTokenHandlerClientCredentialsDropsIdentityScopes(t *testing.T) {
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
-		Secret:       secret,
+		Secret:       []byte(secret),
 	})
 	require.NoError(t, err)
 	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
@@ -173,7 +173,7 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 	provider, err := newProvider(NewStore(db, apiAccess), nil, testTokenSigner{key: key}, Config{
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
-		Secret:       secret,
+		Secret:       []byte(secret),
 	})
 	require.NoError(t, err)
 	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
