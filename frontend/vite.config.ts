@@ -39,6 +39,9 @@ export default defineConfig((mode) => {
 				'/api': {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
 				},
+				'/internal': {
+					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
+				},
 				'/.well-known': {
 					target: process.env.DEVELOPMENT_BACKEND_URL || 'http://localhost:1411'
 				},

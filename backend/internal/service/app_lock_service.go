@@ -10,9 +10,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 )
 
 var (
@@ -73,13 +76,24 @@ func (lv *lockValue) Unmarshal(raw string) error {
 // Acquire obtains the lock. When force is true, the lock is stolen from any existing owner.
 // If the lock is forcefully acquired, it blocks until the previous lock has expired.
 func (s *AppLockService) Acquire(ctx context.Context, force bool) (waitUntil time.Time, err error) {
-	tx := s.db.WithContext(ctx).Begin()
-	if tx.Error != nil {
-		return time.Time{}, fmt.Errorf("begin lock transaction: %w", tx.Error)
+	ctx, span := tracing.Start(ctx, "pocketid.applock.acquire", trace.WithSpanKind(trace.SpanKindInternal))
+	waitUntil, err = s.acquire(ctx, force)
+	if err != nil {
+		tracing.End(span, err)
+		return waitUntil, err
 	}
-	defer func() {
-		tx.Rollback()
-	}()
+
+	span.End()
+	return waitUntil, nil
+}
+
+func (s *AppLockService) acquire(ctx context.Context, force bool) (waitUntil time.Time, err error) {
+	tx := s.db.WithContext(ctx).Begin()
+	err = tx.Error
+	if err != nil {
+		return time.Time{}, fmt.Errorf("begin lock transaction: %w", err)
+	}
+	defer tx.Rollback()
 
 	var prevLockRaw string
 	err = tx.
@@ -150,7 +164,8 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) (waitUntil tim
 
 	// If there is a lock that is not expired and force is false, no rows will be affected
 	if res.RowsAffected == 0 {
-		return time.Time{}, ErrLockUnavailable
+		err = ErrLockUnavailable
+		return time.Time{}, err
 	}
 
 	if force && prevLock.ExpiresAt > nowUnix && prevLock.LockID != s.lockID {
@@ -161,10 +176,11 @@ func (s *AppLockService) Acquire(ctx context.Context, force bool) (waitUntil tim
 		slog.Int64("process_id", s.processID),
 		slog.String("host_id", s.hostID),
 	}
-	if wait := time.Until(waitUntil); wait > 0 {
+	wait := time.Until(waitUntil)
+	if wait > 0 {
 		attrs = append(attrs, slog.Duration("wait_before_proceeding", wait))
 	}
-	slog.Info("Acquired application lock", attrs...)
+	slog.InfoContext(ctx, "Acquired application lock", attrs...)
 
 	return waitUntil, nil
 }
@@ -179,7 +195,9 @@ func (s *AppLockService) RunRenewal(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			err := s.renew(ctx)
+			renewCtx, span := tracing.Start(ctx, "pocketid.applock.renew", trace.WithSpanKind(trace.SpanKindInternal))
+			err := s.renew(renewCtx)
+			tracing.End(span, err)
 			if err != nil {
 				return fmt.Errorf("renew lock: %w", err)
 			}
@@ -188,7 +206,19 @@ func (s *AppLockService) RunRenewal(ctx context.Context) error {
 }
 
 // Release releases the lock if it is held by this process.
-func (s *AppLockService) Release(ctx context.Context) error {
+func (s *AppLockService) Release(ctx context.Context) (err error) {
+	ctx, span := tracing.Start(ctx, "pocketid.applock.release", trace.WithSpanKind(trace.SpanKindInternal))
+	err = s.release(ctx)
+	if err != nil {
+		tracing.End(span, err)
+		return err
+	}
+
+	span.End()
+	return nil
+}
+
+func (s *AppLockService) release(ctx context.Context) error {
 	db, err := s.db.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get DB connection: %w", err)
@@ -226,13 +256,15 @@ WHERE key = $1
 	}
 
 	if count == 0 {
-		slog.Warn("Application lock not held by this process, cannot release",
+		// Treat this as a warning, not an error
+		slog.WarnContext(ctx, "Application lock not held by this process, cannot release",
 			slog.Int64("process_id", s.processID),
 			slog.String("host_id", s.hostID),
 		)
+		return nil
 	}
 
-	slog.Info("Released application lock",
+	slog.InfoContext(ctx, "Released application lock",
 		slog.Int64("process_id", s.processID),
 		slog.String("host_id", s.hostID),
 	)
@@ -302,7 +334,7 @@ WHERE key = $2
 			}
 
 			// All good
-			slog.Debug("Renewed application lock",
+			slog.DebugContext(ctx, "Renewed application lock",
 				slog.Int64("process_id", s.processID),
 				slog.String("host_id", s.hostID),
 				slog.Duration("duration", time.Since(now)),
@@ -311,7 +343,7 @@ WHERE key = $2
 		}
 
 		// If we're here, we have an error that can be retried
-		slog.Debug("Application lock renewal attempt failed",
+		slog.DebugContext(ctx, "Application lock renewal attempt failed",
 			slog.Any("error", err),
 			slog.Duration("duration", time.Since(now)),
 		)
