@@ -81,10 +81,8 @@ type EnvConfigSchema struct {
 	ActorsPort string `env:"ACTORS_PORT"`
 	ActorsHost string `env:"ACTORS_HOST" options:"toLower"`
 
-	LogLevel       string `env:"LOG_LEVEL" options:"toLower"`
-	MetricsEnabled bool   `env:"METRICS_ENABLED"`
-	TracingEnabled bool   `env:"TRACING_ENABLED"`
-	LogJSON        bool   `env:"LOG_JSON"`
+	LogLevel string `env:"LOG_LEVEL" options:"toLower"`
+	LogJSON  bool   `env:"LOG_JSON"`
 }
 
 var EnvConfig = defaultConfig()

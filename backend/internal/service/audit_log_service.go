@@ -9,7 +9,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
-	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 )
 
@@ -92,11 +91,10 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 
 	// If the user hasn't logged in from the same device before and email notifications are enabled, send an email
 	if s.appConfigService.GetDbConfig().EmailLoginNotificationEnabled.IsTrue() && count <= 1 {
-		// #nosec G118 - We use a background context here as this is running in a goroutine
-		//nolint:contextcheck
 		go func() {
-			span := trace.SpanFromContext(ctx)
-			innerCtx := trace.ContextWithSpan(context.Background(), span)
+			// This runs in background, so use a context without cancellation (or it would be stopped when the request ends)
+			// We still want to have a context derived from the request's to carry over tracing info
+			innerCtx := context.WithoutCancel(ctx)
 
 			// Note we don't use the transaction here because this is running in background
 			var user model.User
