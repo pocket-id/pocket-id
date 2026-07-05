@@ -417,14 +417,14 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 	signer := testTokenSigner{key: key}
 
 	// grantedAPI is a client that has been granted read:orders on the Orders API
-	grantedAPI := fakeAPIAccess{allowed: map[string][]string{apiResource: {"read:orders"}}}
+	grantedAPI := userAccess(map[string][]string{apiResource: {"read:orders"}})
 	// revokedAPI stands in for the same client after its API grant was removed: no APIs, no scopes
-	revokedAPI := fakeAPIAccess{allowed: map[string][]string{}}
+	revokedAPI := userAccess(map[string][]string{})
 
 	// mintRefreshToken stores an active refresh-token session with the given granted scope and audience, standing in for a token issued by an earlier authorize, and returns the opaque token
 	mintRefreshToken := func(t *testing.T, db *gorm.DB, clientID, userID string, grantedScope, grantedAudience fosite.Arguments) string {
 		t.Helper()
-		globalSecret, err := DeriveGlobalSecret(secret)
+		globalSecret, err := DeriveGlobalSecret([]byte(secret))
 		require.NoError(t, err)
 		strategy := compose.NewOAuth2HMACStrategy(&fosite.Config{
 			GlobalSecret:         globalSecret,
@@ -469,7 +469,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		provider, err := newProvider(NewStore(db, apiAccess), nil, signer, Config{
 			BaseURL:      baseURL,
 			TokenBaseURL: baseURL,
-			Secret:       secret,
+			Secret:       []byte(secret),
 		})
 		require.NoError(t, err)
 		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)

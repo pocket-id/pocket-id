@@ -117,9 +117,9 @@ func TestAuthorizationServiceCollapsesResourceErrorsBeforeAuthentication(t *test
 	}
 
 	// The targeted API does not exist at all
-	unknownErr := authorizeWithResource(t, fakeAPIAccess{allowed: map[string][]string{}}, unknownAPI)
+	unknownErr := authorizeWithResource(t, userAccess(map[string][]string{}), unknownAPI)
 	// The targeted API exists but this client has been granted none of its permissions
-	ungrantedErr := authorizeWithResource(t, fakeAPIAccess{allowed: map[string][]string{knownAPI: {}}}, knownAPI)
+	ungrantedErr := authorizeWithResource(t, userAccess(map[string][]string{knownAPI: {}}), knownAPI)
 
 	require.Error(t, unknownErr)
 	require.Error(t, ungrantedErr)
