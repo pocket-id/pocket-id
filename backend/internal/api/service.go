@@ -284,8 +284,10 @@ func (s *Service) GetClientAPIAccess(ctx context.Context, clientID string) (acce
 		switch row.SubjectType {
 		case oidc.SubjectTypeClient:
 			access.ClientPermissionIDs = append(access.ClientPermissionIDs, row.APIPermissionID)
-		default:
+		case oidc.SubjectTypeUser:
 			access.UserDelegatedPermissionIDs = append(access.UserDelegatedPermissionIDs, row.APIPermissionID)
+		default:
+			// Nop - ignore
 		}
 	}
 

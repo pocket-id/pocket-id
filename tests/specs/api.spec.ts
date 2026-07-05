@@ -309,6 +309,7 @@ test('Authorization on behalf of a user cannot request a client-only permission'
 		}
 	);
 
-	expect(callbackUrl.searchParams.get('error')).toBe('invalid_scope');
+	// The authorize endpoint collapses every resource-targeted scope/resource failure into a generic invalid_request
+	expect(callbackUrl.searchParams.get('error')).toBe('invalid_request');
 	expect(callbackUrl.searchParams.get('state')).toBe('nXx-6Qr-owc1SHBa');
 });

@@ -198,15 +198,13 @@ func (h *handler) getClientAccess(c *gin.Context) {
 // @Router /api/api-access/{clientId} [put]
 func (h *handler) updateClientAccess(c *gin.Context) {
 	var input clientApiAccessUpdateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	applied, err := h.service.SetClientAPIAccess(c.Request.Context(), c.Param("clientId"), ClientAPIAccess{
-		UserDelegatedPermissionIDs: input.UserDelegatedPermissionIDs,
-		ClientPermissionIDs:        input.ClientPermissionIDs,
-	})
+	applied, err := h.service.SetClientAPIAccess(c.Request.Context(), c.Param("clientId"), ClientAPIAccess(input))
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -217,10 +215,7 @@ func (h *handler) updateClientAccess(c *gin.Context) {
 
 // newClientApiAccessDto always serializes both permission lists as arrays rather than null
 func newClientApiAccessDto(access ClientAPIAccess) clientApiAccessDto {
-	dto := clientApiAccessDto{
-		UserDelegatedPermissionIDs: access.UserDelegatedPermissionIDs,
-		ClientPermissionIDs:        access.ClientPermissionIDs,
-	}
+	dto := clientApiAccessDto(access)
 	if dto.UserDelegatedPermissionIDs == nil {
 		dto.UserDelegatedPermissionIDs = []string{}
 	}
