@@ -271,6 +271,8 @@ github.com/italypaleale/francis v0.1.0-beta.6 h1:88XGnFMwQEMsGSJvI9vrGGvp//WKipX
 github.com/italypaleale/francis v0.1.0-beta.6/go.mod h1:3QQ1iSRGzvxJZ5gfVlVR1RyPDUAgzyN+m2vHeeR7OVs=
 github.com/italypaleale/go-kit v0.0.0-20260705021056-8d9be7a8f432 h1:2p2awbMIuYus9oe52aAvnIMoK4QaXDY5BsupwRTbC8M=
 github.com/italypaleale/go-kit v0.0.0-20260705021056-8d9be7a8f432/go.mod h1:pl0r3F+thZIyDsyDo8aOUsAIVcsRuAeP1bB4GuAHLoY=
+github.com/italypaleale/go-kit v0.0.0-20260705144331-cc6661f9a8cf h1:8tk4010URtPgVqwZb7CDiNsuQI71qc8t7VSS4IaxoTY=
+github.com/italypaleale/go-kit v0.0.0-20260705144331-cc6661f9a8cf/go.mod h1:pl0r3F+thZIyDsyDo8aOUsAIVcsRuAeP1bB4GuAHLoY=
 github.com/italypaleale/go-sql-utils v0.2.4 h1:6CN8y3qEdNzvYlS/JK6N65E8cL9F8a6OBCJjzaQIv3c=
 github.com/italypaleale/go-sql-utils v0.2.4/go.mod h1:BJStxMfB6fzYVcOe0oZQCjGIPZQu76UBmg1Wuy6Z/7I=
 github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 h1:D/V0gu4zQ3cL2WKeVNVM4r2gLxGGf6McLwgXzRTo2RQ=

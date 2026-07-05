@@ -28,7 +28,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/italypaleale/francis v0.1.0-beta.6
-	github.com/italypaleale/go-kit v0.0.0-20260705021056-8d9be7a8f432
+	github.com/italypaleale/go-kit v0.0.0-20260705144331-cc6661f9a8cf
 	github.com/italypaleale/go-sql-utils v0.2.4
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
