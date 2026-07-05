@@ -37,8 +37,7 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 
 	emailService, err := service.NewEmailService(db, appConfigService)
 	require.NoError(t, err)
-	httpClient := &http.Client{}
-	geoLiteService := service.NewGeoLiteService(httpClient)
+	geoLiteService := service.NewGeoLiteService(nil)
 	auditLogService := service.NewAuditLogService(db, appConfigService, emailService, geoLiteService)
 
 	jwtService, err := service.NewJwtService(t.Context(), db, appConfigService)

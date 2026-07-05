@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -17,13 +16,12 @@ func TestAuditLogService_CreateSignInFailed(t *testing.T) {
 	service := NewAuditLogService(db, nil, nil, nil)
 
 	// Test data
-	ctx := context.Background()
 	ipAddress := "127.0.0.1"
 	userAgent := "test-agent"
 	userID := "test-user"
 
 	// When
-	createdLog := service.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
+	createdLog := service.CreateSignInFailure(t.Context(), ipAddress, userAgent, userID)
 
 	// Then
 	require.NotEmpty(t, createdLog.ID)

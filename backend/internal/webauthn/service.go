@@ -227,25 +227,30 @@ func (s *Service) BeginLogin(ctx context.Context) (*PublicKeyCredentialRequestOp
 	}, nil
 }
 
-func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (retUser model.User, retToken string, retErr error) {
+func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (retUser model.User, retToken string, err error) {
 	var userID string
 	tx := s.db.Begin()
+
+	// With a deferred call, check if the error indicates a sign in failure that needs to be logged
+	// Important: in this method, do not created "err" variables with a narrower scope (e.g. avoid `if err := ...; err {` constructs)
 	defer func() {
 		tx.Rollback()
-		if retErr != nil {
+
+		if err != nil {
 			s.auditLog.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
 		}
 	}()
 
 	// Load & delete the session row
 	var storedSession WebauthnSession
-	err := tx.
+	err = tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
 		Delete(&storedSession, "id = ?", sessionID).
 		Error
 	if err != nil {
-		return model.User{}, "", fmt.Errorf("failed to load WebAuthn session: %w", err)
+		err = fmt.Errorf("failed to load WebAuthn session: %w", err)
+		return model.User{}, "", err
 	}
 
 	session := gowebauthn.SessionData{
@@ -254,24 +259,31 @@ func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialA
 	}
 
 	var user *model.User
-	_, err = s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
-		innerErr := tx.
-			WithContext(ctx).
-			Preload("Credentials").
-			First(&user, "id = ?", string(userHandle)).
-			Error
-		if innerErr != nil {
-			return nil, innerErr
-		}
-		return user, nil
-	}, session, credentialAssertionData)
-
+	_, err = s.webAuthn.ValidateDiscoverableLogin(
+		func(_, userHandle []byte) (gowebauthn.User, error) {
+			innerErr := tx.
+				WithContext(ctx).
+				Preload("Credentials").
+				First(&user, "id = ?", string(userHandle)).
+				Error
+			if innerErr != nil {
+				return nil, innerErr
+			}
+			return user, nil
+		},
+		session,
+		credentialAssertionData,
+	)
 	if err != nil {
 		return model.User{}, "", err
 	}
+
+	// Assign the user ID to the userID variable that can be used for logs
 	userID = user.ID
 	if user.Disabled {
-		return model.User{}, "", &common.UserDisabledError{}
+		// Need to assign to err
+		err = &common.UserDisabledError{}
+		return model.User{}, "", err
 	}
 
 	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant)
@@ -384,6 +396,9 @@ func (s *Service) updateWebAuthnConfig() {
 func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string, ipAddress string, userAgent string) (retToken string, retErr error) {
 	var userID string
 	tx := s.db.Begin()
+
+	// With a deferred call, check if the error indicates a sign in failure that needs to be logged
+	// Important: in this method, do not created "err" variables with a narrower scope (e.g. avoid `if err := ...; err {` constructs)
 	defer func() {
 		tx.Rollback()
 		if retErr != nil {
@@ -393,12 +408,16 @@ func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context
 
 	token, err := s.signer.VerifyAccessToken(accessToken)
 	if err != nil {
-		return "", fmt.Errorf("invalid access token: %w", err)
+		// Need to assign to err
+		err = fmt.Errorf("invalid access token: %w", err)
+		return "", err
 	}
 
 	userID, ok := token.Subject()
 	if !ok {
-		return "", errors.New("access token does not contain user ID")
+		// Need to assign to err
+		err = errors.New("access token does not contain user ID")
+		return "", err
 	}
 
 	authenticationMethod, err := s.signer.GetAuthenticationMethod(token)
@@ -406,13 +425,17 @@ func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context
 		return "", err
 	}
 	if authenticationMethod != authenticationMethodPhishingResistant {
-		return "", &common.ReauthenticationRequiredError{}
+		// Need to assign to err
+		err = &common.ReauthenticationRequiredError{}
+		return "", err
 	}
 
 	// Check if token is issued less than a minute ago
 	tokenExpiration, ok := token.IssuedAt()
 	if !ok || time.Since(tokenExpiration) > time.Minute {
-		return "", &common.ReauthenticationRequiredError{}
+		// Need to assign to err
+		err = &common.ReauthenticationRequiredError{}
+		return "", err
 	}
 
 	var user model.User
@@ -421,7 +444,9 @@ func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context
 		First(&user, "id = ?", userID).
 		Error
 	if err != nil {
-		return "", fmt.Errorf("failed to load user: %w", err)
+		// Need to assign to err
+		err = fmt.Errorf("failed to load user: %w", err)
+		return "", err
 	}
 
 	reauthToken, err := s.createReauthenticationToken(ctx, tx, user.ID)

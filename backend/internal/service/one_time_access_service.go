@@ -173,33 +173,39 @@ func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Cont
 	return oneTimeAccessToken.Token, oneTimeAccessToken.DeviceToken, nil
 }
 
-func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (retUser model.User, retToken string, retErr error) {
+func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (retUser model.User, retToken string, err error) {
 	var userID string
 	tx := s.db.Begin()
+
+	// With a deferred call, check if the error indicates a sign in failure that needs to be logged
+	// Important: in this method, do not created "err" variables with a narrower scope (e.g. avoid `if err := ...; err {` constructs)
 	defer func() {
 		tx.Rollback()
-		if retErr != nil {
+		if err != nil {
 			s.auditLogService.CreateSignInFailure(ctx, ipAddress, userAgent, userID)
 		}
 	}()
 
 	var oneTimeAccessToken model.OneTimeAccessToken
-	err := tx.
+	err = tx.
 		WithContext(ctx).
 		Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).
 		Preload("User").
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&oneTimeAccessToken).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
-		}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Need to assign to err
+		err = &common.TokenInvalidOrExpiredError{}
+		return model.User{}, "", err
+	} else if err != nil {
 		return model.User{}, "", err
 	}
 	userID = oneTimeAccessToken.UserID
 	if oneTimeAccessToken.DeviceToken != nil && deviceToken != *oneTimeAccessToken.DeviceToken {
-		return model.User{}, "", &common.DeviceCodeInvalid{}
+		// Need to assign to err
+		err = &common.DeviceCodeInvalid{}
+		return model.User{}, "", err
 	}
 
 	accessToken, err := s.jwtService.GenerateAccessToken(oneTimeAccessToken.User, AuthenticationMethodOneTimePassword)

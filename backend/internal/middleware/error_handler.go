@@ -11,8 +11,9 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	"github.com/go-webauthn/webauthn/protocol"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"gorm.io/gorm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 type ErrorHandlerMiddleware struct{}
@@ -87,30 +88,42 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 	}
 }
 
-// webAuthnProtocolErrorHTTPStatus maps WebAuthn protocol error types to HTTP status codes.
-var webAuthnProtocolErrorHTTPStatus = map[string]int{
-	"invalid_request":           http.StatusBadRequest,
-	"policy_restriction":        http.StatusForbidden,
-	"challenge_mismatch":        http.StatusBadRequest,
-	"parse_error":               http.StatusBadRequest,
-	"auth_data":                 http.StatusBadRequest,
-	"verification_error":        http.StatusBadRequest,
-	"attestation_error":         http.StatusBadRequest,
-	"invalid_attestation":       http.StatusBadRequest,
-	"invalid_metadata":          http.StatusBadRequest,
-	"invalid_certificate":       http.StatusBadRequest,
-	"invalid_signature":         http.StatusBadRequest,
-	"invalid_key_type":          http.StatusBadRequest,
-	"unsupported_key_algorithm": http.StatusBadRequest,
-	"spec_unimplemented":        http.StatusNotImplemented,
-	"not_implemented":           http.StatusNotImplemented,
-}
-
+// webAuthnErrorToHTTPStatus maps WebAuthn protocol error types to HTTP status codes
 func webAuthnErrorToHTTPStatus(errorType string) int {
-	if code, ok := webAuthnProtocolErrorHTTPStatus[errorType]; ok {
-		return code
+	switch errorType {
+	case "invalid_request":
+		return http.StatusBadRequest
+	case "policy_restriction":
+		return http.StatusForbidden
+	case "challenge_mismatch":
+		return http.StatusBadRequest
+	case "parse_error":
+		return http.StatusBadRequest
+	case "auth_data":
+		return http.StatusBadRequest
+	case "verification_error":
+		return http.StatusBadRequest
+	case "attestation_error":
+		return http.StatusBadRequest
+	case "invalid_attestation":
+		return http.StatusBadRequest
+	case "invalid_metadata":
+		return http.StatusBadRequest
+	case "invalid_certificate":
+		return http.StatusBadRequest
+	case "invalid_signature":
+		return http.StatusBadRequest
+	case "invalid_key_type":
+		return http.StatusBadRequest
+	case "unsupported_key_algorithm":
+		return http.StatusBadRequest
+	case "spec_unimplemented":
+		return http.StatusNotImplemented
+	case "not_implemented":
+		return http.StatusNotImplemented
+	default:
+		return http.StatusBadRequest
 	}
-	return http.StatusBadRequest
 }
 
 func isSecurityError(statusCode int) bool {

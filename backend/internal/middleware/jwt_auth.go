@@ -18,7 +18,11 @@ type JwtAuthMiddleware struct {
 }
 
 func NewJwtAuthMiddleware(jwtService *service.JwtService, userService *service.UserService, auditLogService *service.AuditLogService) *JwtAuthMiddleware {
-	return &JwtAuthMiddleware{jwtService: jwtService, userService: userService, auditLogService: auditLogService}
+	return &JwtAuthMiddleware{
+		jwtService:      jwtService,
+		userService:     userService,
+		auditLogService: auditLogService,
+	}
 }
 
 func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
@@ -40,11 +44,14 @@ func (m *JwtAuthMiddleware) Add(adminRequired bool) gin.HandlerFunc {
 
 func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject string, isAdmin bool, authenticationMethod string, authenticationTime time.Time, err error) {
 	var userID string
+	// With a deferred call, check if the error indicates a sign in failure that needs to be logged
+	// Important: in this method, do not created "err" variables with a narrower scope (e.g. avoid `if err := ...; err {` constructs)
 	defer func() {
 		if err != nil && !errors.Is(err, &common.NotSignedInError{}) {
 			m.auditLogService.CreateSignInFailure(c, c.ClientIP(), c.Request.UserAgent(), userID)
 		}
 	}()
+
 	// Extract the token from the cookie
 	accessToken, err := c.Cookie(cookie.AccessTokenCookieName)
 	if err != nil {
@@ -76,6 +83,8 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 	if err != nil {
 		return "", false, "", time.Time{}, &common.NotSignedInError{}
 	}
+
+	// Assign the user ID to the userID variable that can be used for logs
 	userID = user.ID
 	if user.Disabled {
 		return "", false, "", time.Time{}, &common.UserDisabledError{}
