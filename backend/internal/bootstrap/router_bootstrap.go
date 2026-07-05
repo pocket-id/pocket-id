@@ -26,6 +26,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
+	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
@@ -177,7 +178,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 
 	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
 	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.
-	controller.NewTelemetryController(r, rateLimitMiddleware.Add(middleware.RateLimitInternal))
+	tracing.NewTelemetryController(r, rateLimitMiddleware.Add(middleware.RateLimitInternal))
 
 	return nil
 }
