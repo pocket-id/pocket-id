@@ -105,6 +105,8 @@ func handleValidationError(validationErrors validator.ValidationErrors) string {
 			errorMessage = fmt.Sprintf("%s must only contain letters, numbers, underscores, dots, hyphens, and '@' symbols and not start or end with a special character", fieldName)
 		case "url":
 			errorMessage = fmt.Sprintf("%s must be a valid URL", fieldName)
+		case "resource_uri":
+			errorMessage = fmt.Sprintf("%s must be an absolute URI without whitespace or a fragment", fieldName)
 		case "min":
 			errorMessage = fmt.Sprintf("%s must be at least %s characters long", fieldName, ve.Param())
 		case "max":
