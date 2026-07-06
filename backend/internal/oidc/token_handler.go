@@ -56,12 +56,7 @@ func (h *tokenHandler) token(c *gin.Context) {
 		// It resolves against the client-subject grants: a permission delegated by users does not let the client act as itself
 		// The other grants had their audience and scope resolved at authorize or device time and restored from storage, so they must be left untouched
 		if accessRequest.GetGrantTypes().Has(string(fosite.GrantTypeClientCredentials)) {
-			// Only a single RFC 8707 resource is supported, so reject a request that carries more than one rather than silently honoring the first
-			resource, err := resourceFromForm(accessRequest.GetRequestForm())
-			if err != nil {
-				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
-				return
-			}
+			resource := accessRequest.GetRequestForm().Get("resource")
 			audience, grantedScopes, err := resolveResource(ctx, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient)
 			if err != nil {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
@@ -75,7 +70,10 @@ func (h *tokenHandler) token(c *gin.Context) {
 				accessReq.GrantedScope = fosite.Arguments(grantedScopes)
 				accessReq.GrantedAudience = nil
 			}
-			accessRequest.GrantAudience(audience)
+			fosite.GrantResourceIndicator(accessRequest, fosite.ResourceIndicatorGrant{
+				Audience: audience,
+				Scopes:   fosite.Arguments(grantedScopes),
+			})
 		}
 	}
 

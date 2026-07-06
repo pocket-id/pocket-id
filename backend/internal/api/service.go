@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -30,18 +31,7 @@ func isPermissionKeyReserved(key string) bool {
 // isValidPermissionKey reports whether the key consists only of RFC 6749 scope-token characters, which are printable ASCII without space, double-quote or backslash
 // This keeps a key safe as a space-delimited value in the token scope claim and free of the control character used to qualify consent records
 func isValidPermissionKey(key string) bool {
-	if key == "" {
-		return false
-	}
-	for i := 0; i < len(key); i++ {
-		c := key[i]
-		// Allow 0x21, 0x23-0x5B and 0x5D-0x7E, which excludes space (0x20), double-quote (0x22) and backslash (0x5C)
-		if c == 0x21 || (c >= 0x23 && c <= 0x5B) || (c >= 0x5D && c <= 0x7E) {
-			continue
-		}
-		return false
-	}
-	return true
+	return fosite.IsValidScopeToken(key)
 }
 
 // Service holds the business logic for managing APIs and their permissions

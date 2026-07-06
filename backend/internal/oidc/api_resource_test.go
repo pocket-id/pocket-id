@@ -2,7 +2,6 @@ package oidc
 
 import (
 	"context"
-	"net/url"
 	"slices"
 	"testing"
 
@@ -161,22 +160,6 @@ func TestResolveResourceClientWithoutClientGrantsIsDenied(t *testing.T) {
 
 	_, _, err := resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", nil, SubjectTypeClient)
 	require.Error(t, err)
-}
-
-func TestResourceFromForm(t *testing.T) {
-	// No resource yields an empty value with no error
-	resource, err := resourceFromForm(url.Values{})
-	require.NoError(t, err)
-	assert.Empty(t, resource)
-
-	// A single resource is returned as-is
-	resource, err = resourceFromForm(url.Values{"resource": {"https://api.orders.example.com"}})
-	require.NoError(t, err)
-	assert.Equal(t, "https://api.orders.example.com", resource)
-
-	// More than one resource is rejected rather than silently narrowed to the first
-	_, err = resourceFromForm(url.Values{"resource": {"https://api.orders.example.com", "https://api.billing.example.com"}})
-	require.ErrorIs(t, err, errMultipleResources)
 }
 
 func TestConsentScopeKeyQualifiesCustomScopesOnly(t *testing.T) {

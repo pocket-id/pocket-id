@@ -121,11 +121,7 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 		return authorizationResult{}, &common.OidcPARRequiredError{}
 	}
 
-	// Only a single RFC 8707 resource is supported, so reject a request that carries more than one rather than silently honoring the first
-	resource, err := resourceFromForm(input.requester.GetRequestForm())
-	if err != nil {
-		return authorizationResult{}, err
-	}
+	resource := input.requester.GetRequestForm().Get("resource")
 
 	// Validate the requested scopes against the targeted API up front, before the user authenticates or reaches the consent screen
 	// This rejects a custom permission requested without, or with the wrong, resource at the authorize endpoint itself
@@ -268,10 +264,10 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 
 	session := s.buildAuthorizedSession(req, interactionSession, authenticationTime)
 
-	for _, scope := range grantedScopes {
-		req.requester.GrantScope(scope)
-	}
-	req.requester.GrantAudience(audience)
+	fosite.GrantResourceIndicator(req.requester, fosite.ResourceIndicatorGrant{
+		Audience: audience,
+		Scopes:   fosite.Arguments(grantedScopes),
+	})
 
 	authorizationEvent := model.AuditLogEventClientAuthorization
 	if !hasAlreadyAuthorizedClient {

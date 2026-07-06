@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"unicode"
 
+	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 
 	"github.com/gin-gonic/gin/binding"
@@ -82,21 +82,13 @@ func isActiveContentScheme(scheme string) bool {
 
 // ValidateResourceURI validates RFC 8707 resource identifiers
 func ValidateResourceURI(str string) bool {
-	if strings.Contains(str, "#") || strings.ContainsFunc(str, unicode.IsSpace) {
-		return false
-	}
-
-	u, err := url.Parse(str)
-	if err != nil {
+	if !fosite.IsValidResourceIndicatorURI(str) {
 		return false
 	}
 
 	// Reject active-content schemes so a resource identifier can never carry executable content if it is ever surfaced as a link
-	if isActiveContentScheme(u.Scheme) {
-		return false
-	}
-
-	return u.IsAbs()
+	u, _ := url.Parse(str)
+	return !isActiveContentScheme(u.Scheme)
 }
 
 // ValidateCallbackURL validates the input callback URL

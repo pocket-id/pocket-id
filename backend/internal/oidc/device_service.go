@@ -50,12 +50,6 @@ func (s *deviceService) createDeviceAuthorization(ctx context.Context, req *http
 		return nil, request, err
 	}
 
-	// Only a single RFC 8707 resource is supported, so reject a device authorization that carries more than one before a user code is minted
-	_, err = resourceFromForm(request.GetRequestForm())
-	if err != nil {
-		return nil, request, err
-	}
-
 	session := NewEmptySession()
 	response, err := s.provider.NewDeviceResponse(ctx, request, session)
 	if err != nil {
@@ -99,10 +93,10 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	if err != nil {
 		return err
 	}
-	for _, scope := range grantedScopes {
-		request.GrantScope(scope)
-	}
-	request.GrantAudience(audience)
+	fosite.GrantResourceIndicator(request, fosite.ResourceIndicatorGrant{
+		Audience: audience,
+		Scopes:   fosite.Arguments(grantedScopes),
+	})
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
 		if client.RequiresReauthentication {

@@ -2,44 +2,25 @@ package oidc
 
 import (
 	"context"
-	"net/http"
-	"net/url"
 	"slices"
 
 	"github.com/ory/fosite"
 	"gorm.io/gorm"
 )
 
-// errMultipleResources is the RFC 8707 invalid_target error returned when a request carries more than one resource parameter
-// The fork does not predefine invalid_target, so it is built here to match how fosite constructs its own errors
-var errMultipleResources = &fosite.RFC6749Error{
-	ErrorField:       "invalid_target",
-	DescriptionField: "The requested resource is invalid, missing, unknown, or malformed.",
-	HintField:        "Only a single 'resource' parameter is supported.",
-	CodeField:        http.StatusBadRequest,
-}
+type SubjectType = fosite.ResourceIndicatorSubjectType
 
-// resourceFromForm extracts the single RFC 8707 resource identifier from a request form
-// A token is audienced to exactly one API, so a request that carries more than one resource is rejected rather than silently narrowed to the first value
-func resourceFromForm(form url.Values) (string, error) {
-	values := form["resource"]
-	if len(values) > 1 {
-		return "", errMultipleResources
-	}
-	if len(values) == 0 {
-		return "", nil
-	}
-	return values[0], nil
-}
+const (
+	// SubjectTypeUser covers user-delegated access: every flow whose access token acts on behalf of an end user
+	SubjectTypeUser = fosite.ResourceOwnerSubject
+	// SubjectTypeClient covers client access: the client credentials grant, where the client acts as itself without a user
+	SubjectTypeClient = fosite.ClientSubject
+)
+
+var standardScopes = fosite.Arguments{"openid", "profile", "email", "groups", "offline_access"}
 
 func isStandardScope(scope string) bool {
-	// standardScopes are the built-in identity scopes that any client may request
-	switch scope {
-	case "openid", "profile", "email", "groups", "offline_access":
-		return true
-	default:
-		return false
-	}
+	return slices.Contains(standardScopes, scope)
 }
 
 // PermissionInfo is the display information for an API permission used to show friendly names and descriptions on the consent screen
@@ -48,17 +29,6 @@ type PermissionInfo struct {
 	Name        string
 	Description string
 }
-
-// SubjectType qualifies for whom an API grant applies, mirroring Auth0's client grant subject types
-// A permission granted to a client for one subject type says nothing about the other, so user-delegated access and machine-to-machine access are configured independently
-type SubjectType string
-
-const (
-	// SubjectTypeUser covers user-delegated access: every flow whose access token acts on behalf of an end user
-	SubjectTypeUser SubjectType = "user"
-	// SubjectTypeClient covers client access: the client credentials grant, where the client acts as itself without a user
-	SubjectTypeClient SubjectType = "client"
-)
 
 // APIAccessProvider is implemented by the api feature module
 // It lets the OIDC module widen per-client scope and audience validation and resolve RFC 8707 resources to the permission keys a client may be granted
@@ -72,65 +42,32 @@ type APIAccessProvider interface {
 	DescribePermissions(ctx context.Context, audience string, keys []string) ([]PermissionInfo, error)
 }
 
+type resourceAccessProvider struct {
+	provider APIAccessProvider
+}
+
+func fositeResourceAccess(provider APIAccessProvider) fosite.ResourceIndicatorAccessProvider {
+	if provider == nil {
+		return nil
+	}
+	return resourceAccessProvider{provider: provider}
+}
+
+func (p resourceAccessProvider) AllowedScopesForResource(ctx context.Context, client fosite.Client, resource string, subjectType fosite.ResourceIndicatorSubjectType) (fosite.Arguments, bool, error) {
+	scopes, exists, err := p.provider.AllowedScopesForAudience(ctx, client.GetID(), resource, subjectType)
+	return scopes, exists, err
+}
+
 // resolveResource maps an RFC 8707 resource, which may be empty, to the audience to stamp on the issued token and the subset of requestedScopes that may be granted
 // An empty resource is a plain login token bound to the requesting client and yields only identity scopes
 // The subject type selects which of the client's grants apply: user-delegated flows only see user grants, the client credentials grant only sees client grants
 func resolveResource(ctx context.Context, provider APIAccessProvider, clientID, resource string, requestedScopes []string, subjectType SubjectType) (audience string, grantedScopes []string, err error) {
-	// Include the standard scopes by default
-	// These are released as ID-token and userinfo claims and are always available without targeting an API
-	grantable := map[string]struct{}{
-		"openid":         {},
-		"profile":        {},
-		"email":          {},
-		"groups":         {},
-		"offline_access": {},
+	grant, err := fosite.ResolveResourceIndicatorGrant(ctx, fositeResourceAccess(provider), &fosite.DefaultClient{ID: clientID}, resource, requestedScopes, standardScopes, subjectType)
+	if err != nil {
+		return "", nil, err
 	}
 
-	if resource == "" {
-		// A plain login token is audienced to the requesting client and carries only identity scopes
-		audience = clientID
-	} else {
-		if provider == nil {
-			return "", nil, fosite.ErrInvalidRequest.WithHintf("The resource %q is not a known API.", resource)
-		}
-
-		allowed, exists, allowErr := provider.AllowedScopesForAudience(ctx, clientID, resource, subjectType)
-		if allowErr != nil {
-			return "", nil, allowErr
-		}
-		if !exists {
-			return "", nil, fosite.ErrInvalidRequest.WithHintf("The resource %q is not a known API.", resource)
-		}
-		if len(allowed) == 0 {
-			if subjectType == SubjectTypeClient {
-				return "", nil, fosite.ErrAccessDenied.WithHintf("This client is not allowed machine-to-machine access to the API %q.", resource)
-			}
-			return "", nil, fosite.ErrAccessDenied.WithHintf("This client is not allowed to access the API %q on behalf of users.", resource)
-		}
-
-		audience = resource
-		// Identity scopes stay grantable alongside a custom API so the ID token and its claims still work when openid or profile are requested
-		// Custom scopes are limited to what the client is allowed for this specific API
-		for _, a := range allowed {
-			grantable[a] = struct{}{}
-		}
-	}
-
-	// Every requested scope must belong to the targeted API, though identity scopes are always allowed
-	// A custom scope requested without its API, or for a different API than the one targeted, is rejected rather than silently dropped
-	granted := make([]string, 0, len(requestedScopes))
-	for _, scope := range requestedScopes {
-		_, ok := grantable[scope]
-		if !ok {
-			return "", nil, fosite.ErrInvalidScope.WithHintf("The scope %q is not available for the requested resource.", scope)
-		}
-
-		if !slices.Contains(granted, scope) {
-			granted = append(granted, scope)
-		}
-	}
-
-	return audience, granted, nil
+	return grant.Audience, grant.Scopes, nil
 }
 
 // consentScopeKey qualifies a custom-API scope by its audience so the same permission key on two different APIs is consented to separately
