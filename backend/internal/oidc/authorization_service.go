@@ -121,7 +121,10 @@ func (s *authorizationService) authorize(ctx context.Context, input authorizeInp
 		return authorizationResult{}, &common.OidcPARRequiredError{}
 	}
 
-	resource := input.requester.GetRequestForm().Get("resource")
+	resource, err := input.requester.GetResource()
+	if err != nil {
+		return authorizationResult{}, err
+	}
 
 	// Validate the requested scopes against the targeted API up front, before the user authenticates or reaches the consent screen
 	// This rejects a custom permission requested without, or with the wrong, resource at the authorize endpoint itself
@@ -251,7 +254,10 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 		}
 	}
 
-	resource := req.requester.GetRequestForm().Get("resource")
+	resource, err := req.requester.GetResource()
+	if err != nil {
+		return authorizationResult{}, err
+	}
 	audience, grantedScopes, consentKeys, err := s.resolveGrant(ctx, req.client.GetID(), resource, req.requester.GetRequestedScopes())
 	if err != nil {
 		return authorizationResult{}, err
@@ -264,10 +270,7 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 
 	session := s.buildAuthorizedSession(req, interactionSession, authenticationTime)
 
-	fosite.GrantResourceIndicator(req.requester, fosite.ResourceIndicatorGrant{
-		Audience: audience,
-		Scopes:   fosite.Arguments(grantedScopes),
-	})
+	req.requester.GrantResourceIndicator(audience, grantedScopes)
 
 	authorizationEvent := model.AuditLogEventClientAuthorization
 	if !hasAlreadyAuthorizedClient {
@@ -299,7 +302,10 @@ func flagPkceSupportedClient(ctx context.Context, clientID string, tx *gorm.DB) 
 func (s *authorizationService) resolveRequirements(ctx context.Context, req authorizeRequest, interactionSession *InteractionSession) (interactionRequirements, time.Time, error) {
 	authenticationTime := req.authenticationTime
 
-	resource := req.requester.GetRequestForm().Get("resource")
+	resource, err := req.requester.GetResource()
+	if err != nil {
+		return interactionRequirements{}, authenticationTime, err
+	}
 	_, _, consentKeys, err := s.resolveGrant(ctx, req.client.GetID(), resource, req.requester.GetRequestedScopes())
 	if err != nil {
 		return interactionRequirements{}, authenticationTime, err

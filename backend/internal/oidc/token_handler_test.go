@@ -215,6 +215,85 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 	require.Equal(t, "invalid_scope", body["error"])
 }
 
+func TestTokenHandlerClientCredentialsDefaultsResourceScopes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const (
+		baseURL     = "https://issuer.example.com"
+		secret      = "test-secret"
+		clientID    = "cc-client"
+		clientPlain = "cc-secret-value"
+		apiAudience = "https://api.orders.example.com"
+	)
+
+	db := testutils.NewDatabaseForTest(t)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(clientPlain), bcrypt.DefaultCost)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:     model.Base{ID: clientID},
+		Name:     "Client Credentials Client",
+		Secret:   string(hashed),
+		IsPublic: false,
+	}).Error)
+
+	apiAccess := fakeAPIAccess{allowed: map[string]map[SubjectType][]string{
+		apiAudience: {
+			SubjectTypeUser:   {"read:profile"},
+			SubjectTypeClient: {"read:orders", "write:orders"},
+		},
+	}}
+
+	provider, err := newProvider(NewStore(db, apiAccess), nil, testTokenSigner{key: key}, Config{
+		BaseURL:      baseURL,
+		TokenBaseURL: baseURL,
+		Secret:       []byte(secret),
+	})
+	require.NoError(t, err)
+	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
+
+	requestToken := func(t *testing.T, target string, form url.Values) map[string]any {
+		t.Helper()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, target, strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.SetBasicAuth(clientID, clientPlain)
+
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = req
+		handler.token(c)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		require.NotEmpty(t, body["access_token"], "client credentials request must issue a token, got error: %v (%v)", body["error"], body["error_description"])
+		return body
+	}
+
+	for _, tc := range []struct {
+		name   string
+		target string
+		form   url.Values
+	}{
+		{
+			name:   "resource parameter",
+			target: "/api/oidc/token",
+			form: url.Values{
+				"grant_type": {"client_credentials"},
+				"resource":   {apiAudience},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := requestToken(t, tc.target, tc.form)
+			claims := decodeJWTPart(t, body["access_token"].(string), 1)
+			require.Equal(t, []string{apiAudience}, jwtAudience(claims), "access token must be audience-bound to the API")
+			require.Equal(t, []string{"read:orders", "write:orders"}, jwtScopes(claims), "all client-subject API scopes must be granted by default")
+		})
+	}
+}
+
 // jwtAudience normalizes the `aud` claim (string or []string) into a slice.
 func jwtAudience(claims map[string]any) []string {
 	switch aud := claims["aud"].(type) {

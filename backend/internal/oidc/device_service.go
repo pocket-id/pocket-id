@@ -88,15 +88,15 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
-	resource := request.GetRequestForm().Get("resource")
+	resource, err := request.GetResource()
+	if err != nil {
+		return err
+	}
 	audience, grantedScopes, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
 	if err != nil {
 		return err
 	}
-	fosite.GrantResourceIndicator(request, fosite.ResourceIndicatorGrant{
-		Audience: audience,
-		Scopes:   fosite.Arguments(grantedScopes),
-	})
+	request.GrantResourceIndicator(audience, grantedScopes)
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
 		if client.RequiresReauthentication {
@@ -154,7 +154,10 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 	}
 
 	client := request.GetClient().(Client)
-	resource := request.GetRequestForm().Get("resource")
+	resource, err := request.GetResource()
+	if err != nil {
+		return nil, err
+	}
 	authorizationRequired := true
 	if userID != "" {
 		_, _, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
