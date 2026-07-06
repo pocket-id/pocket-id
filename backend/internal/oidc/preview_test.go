@@ -60,7 +60,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	require.Equal(t, true, preview.UserInfo["email_verified"])
 }
 
-func TestClientPreviewBuilderRejectsInvalidScope(t *testing.T) {
+func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -72,13 +72,20 @@ func TestClientPreviewBuilderRejectsInvalidScope(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	require.NoError(t, db.Create(&model.User{
+		Base:     model.Base{ID: "test-user"},
+		Username: "test-user",
+	}).Error)
+
+	// The preview mirrors the authorize endpoint: unknown scopes are dropped
+	// from the previewed tokens instead of failing the preview.
 	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil), provider.tokenStrategies)
-	_, err = builder.BuildClientPreview(t.Context(), model.OidcClient{
+	preview, err := builder.BuildClientPreview(t.Context(), model.OidcClient{
 		Base: model.Base{ID: "test-client"},
 		Name: "Test Client",
 	}, "test-user", []string{"openid", "unknown"}, "")
-	require.Error(t, err)
-	require.ErrorContains(t, err, "invalid_scope")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"openid"}, stringSliceClaim(t, preview.AccessToken["scp"]))
 }
 
 func stringSliceClaim(t *testing.T, value any) []string {

@@ -283,3 +283,34 @@ func generateEd25519TestKey(t *testing.T) any {
 	require.NoError(t, err)
 	return key
 }
+
+func TestProviderIgnoresUnknownScopes(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base:         model.Base{ID: "test-client"},
+		Name:         "Test Client",
+		CallbackURLs: model.UrlList{"https://app.example.com/callback"},
+	}).Error)
+
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+		BaseURL:      "https://issuer.example.com",
+		TokenBaseURL: "https://issuer.example.com",
+		Secret:       []byte("test-secret"),
+	})
+	require.NoError(t, err)
+
+	// Clients such as MCP clients blindly request scopes Pocket ID does not support, like
+	// "phone". These are dropped instead of failing the request with invalid_scope.
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/api/oidc/authorize?client_id=test-client&response_type=code&scope=openid+email+phone&state=state-with-enough-entropy&redirect_uri=https://app.example.com/callback",
+		nil,
+	)
+
+	ar, err := provider.NewAuthorizeRequest(req.Context(), req)
+	require.NoError(t, err)
+	require.Equal(t, fosite.Arguments{"openid", "email"}, ar.GetRequestedScopes())
+}
