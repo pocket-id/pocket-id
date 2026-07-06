@@ -8,13 +8,14 @@ import (
 	"gorm.io/gorm"
 )
 
-type SubjectType = fosite.ResourceIndicatorSubjectType
+// SubjectType identifies the subject the requested access token will represent
+type SubjectType string
 
 const (
 	// SubjectTypeUser covers user-delegated access: every flow whose access token acts on behalf of an end user
-	SubjectTypeUser = fosite.ResourceOwnerSubject
+	SubjectTypeUser SubjectType = "user"
 	// SubjectTypeClient covers client access: the client credentials grant, where the client acts as itself without a user
-	SubjectTypeClient = fosite.ClientSubject
+	SubjectTypeClient SubjectType = "client"
 )
 
 var standardScopes = fosite.Arguments{"openid", "profile", "email", "groups", "offline_access"}
@@ -42,32 +43,65 @@ type APIAccessProvider interface {
 	DescribePermissions(ctx context.Context, audience string, keys []string) ([]PermissionInfo, error)
 }
 
-type resourceAccessProvider struct {
-	provider APIAccessProvider
-}
-
-func fositeResourceAccess(provider APIAccessProvider) fosite.ResourceIndicatorAccessProvider {
-	if provider == nil {
-		return nil
-	}
-	return resourceAccessProvider{provider: provider}
-}
-
-func (p resourceAccessProvider) AllowedScopesForResource(ctx context.Context, client fosite.Client, resource string, subjectType fosite.ResourceIndicatorSubjectType) (fosite.Arguments, bool, error) {
-	scopes, exists, err := p.provider.AllowedScopesForAudience(ctx, client.GetID(), resource, subjectType)
-	return scopes, exists, err
-}
-
 // resolveResource maps an RFC 8707 resource, which may be empty, to the audience to stamp on the issued token and the subset of requestedScopes that may be granted
 // An empty resource is a plain login token bound to the requesting client and yields only identity scopes
 // The subject type selects which of the client's grants apply: user-delegated flows only see user grants, the client credentials grant only sees client grants
 func resolveResource(ctx context.Context, provider APIAccessProvider, clientID, resource string, requestedScopes []string, subjectType SubjectType) (audience string, grantedScopes []string, err error) {
-	grant, err := fosite.ResolveResourceIndicatorGrant(ctx, fositeResourceAccess(provider), &fosite.DefaultClient{ID: clientID}, resource, requestedScopes, standardScopes, subjectType)
-	if err != nil {
-		return "", nil, err
+	grantable := make(map[string]struct{}, len(standardScopes))
+	for _, scope := range standardScopes {
+		grantable[scope] = struct{}{}
 	}
 
-	return grant.Audience, grant.Scopes, nil
+	if resource == "" {
+		// A plain login token is audienced to the requesting client
+		audience = clientID
+	} else {
+		if !fosite.IsValidResourceIndicatorURI(resource) || provider == nil {
+			return "", nil, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
+		}
+
+		allowedScopes, apiExists, err := provider.AllowedScopesForAudience(ctx, clientID, resource, subjectType)
+		if err != nil {
+			return "", nil, err
+		}
+		if !apiExists {
+			return "", nil, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
+		}
+		if len(allowedScopes) == 0 {
+			return "", nil, fosite.ErrAccessDenied.WithHintf("The OAuth 2.0 Client is not allowed to access resource '%s'.", resource)
+		}
+
+		audience = resource
+		for _, scope := range allowedScopes {
+			grantable[scope] = struct{}{}
+		}
+		// A client credentials request without explicit scopes gets everything the client is granted for the API
+		if subjectType == SubjectTypeClient && len(requestedScopes) == 0 {
+			requestedScopes = allowedScopes
+		}
+	}
+
+	granted := make(fosite.Arguments, 0, len(requestedScopes))
+	for _, scope := range requestedScopes {
+		if _, ok := grantable[scope]; !ok {
+			return "", nil, fosite.ErrInvalidScope.WithHintf("The scope '%s' is not available for the requested resource.", scope)
+		}
+		if !granted.Has(scope) {
+			granted = append(granted, scope)
+		}
+	}
+
+	return audience, granted, nil
+}
+
+// grantResourceIndicator applies a resolved resource audience and scopes to the request
+func grantResourceIndicator(requester fosite.Requester, audience string, scopes []string) {
+	for _, scope := range scopes {
+		requester.GrantScope(scope)
+	}
+	if audience != "" {
+		requester.GrantAudience(audience)
+	}
 }
 
 // consentScopeKey qualifies a custom-API scope by its audience so the same permission key on two different APIs is consented to separately

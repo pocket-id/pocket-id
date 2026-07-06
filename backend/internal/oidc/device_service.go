@@ -96,7 +96,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	if err != nil {
 		return err
 	}
-	request.GrantResourceIndicator(audience, grantedScopes)
+	grantResourceIndicator(request, audience, grantedScopes)
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
 		if client.RequiresReauthentication {

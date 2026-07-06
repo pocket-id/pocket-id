@@ -74,7 +74,7 @@ func (h *tokenHandler) token(c *gin.Context) {
 				accessReq.GrantedScope = grantedScopes
 				accessReq.GrantedAudience = nil
 			}
-			accessRequest.GrantResourceIndicator(audience, grantedScopes)
+			grantResourceIndicator(accessRequest, audience, grantedScopes)
 		}
 	}
 

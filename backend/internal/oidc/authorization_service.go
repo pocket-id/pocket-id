@@ -270,7 +270,7 @@ func (s *authorizationService) authorizeAuthenticated(ctx context.Context, req a
 
 	session := s.buildAuthorizedSession(req, interactionSession, authenticationTime)
 
-	req.requester.GrantResourceIndicator(audience, grantedScopes)
+	grantResourceIndicator(req.requester, audience, grantedScopes)
 
 	authorizationEvent := model.AuditLogEventClientAuthorization
 	if !hasAlreadyAuthorizedClient {
