@@ -551,7 +551,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 			Secret:       []byte(secret),
 		})
 		require.NoError(t, err)
-		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
+		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
 
 		form := url.Values{
 			"grant_type":    {"refresh_token"},
@@ -634,6 +634,49 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		// With the grant revoked the client no longer advertises read:orders, so the refresh handler rejects replaying that stored scope
 		// Revocation is therefore enforced on the very next refresh rather than lingering until the refresh token expires
 		body := doRefresh(t, db, revokedAPI, clientID, token, nil)
+		require.Empty(t, body["access_token"])
+		require.Equal(t, "invalid_scope", body["error"])
+	})
+
+	t.Run("revoking only the user-delegated API grant makes the next refresh fail", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		const clientID, userID = "client-user-revoked", "user-user-revoked"
+		seedUserAndClient(t, db, clientID, userID)
+
+		clientOnlyAPI := fakeAPIAccess{allowed: map[string]map[SubjectType][]string{
+			apiResource: {
+				SubjectTypeClient: {"read:orders"},
+			},
+		}}
+
+		token := mintRefreshToken(t, db, clientID, userID,
+			fosite.Arguments{"openid", "read:orders"},
+			fosite.Arguments{apiResource},
+		)
+		body := doRefresh(t, db, clientOnlyAPI, clientID, token, nil)
+		require.Empty(t, body["access_token"])
+		require.Equal(t, "access_denied", body["error"])
+	})
+
+	t.Run("refresh rechecks the granted scope against the granted API audience", func(t *testing.T) {
+		db := testutils.NewDatabaseForTest(t)
+		const clientID, userID = "client-split-grant", "user-split-grant"
+		seedUserAndClient(t, db, clientID, userID)
+
+		splitGrantAPI := fakeAPIAccess{allowed: map[string]map[SubjectType][]string{
+			apiResource: {
+				SubjectTypeUser: {"write:orders"},
+			},
+			"https://api.inventory.example.com": {
+				SubjectTypeUser: {"read:orders"},
+			},
+		}}
+
+		token := mintRefreshToken(t, db, clientID, userID,
+			fosite.Arguments{"openid", "read:orders"},
+			fosite.Arguments{apiResource},
+		)
+		body := doRefresh(t, db, splitGrantAPI, clientID, token, nil)
 		require.Empty(t, body["access_token"])
 		require.Equal(t, "invalid_scope", body["error"])
 	})
