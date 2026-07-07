@@ -39,19 +39,18 @@ func (h *handler) list(c *gin.Context) {
 		return
 	}
 
-	items := make([]apiListItemDto, len(apis))
+	items := make([]apiResponseDto, len(apis))
 	for i, api := range apis {
-		var item apiListItemDto
+		var item apiResponseDto
 		if err := dto.MapStruct(api, &item); err != nil {
 			_ = c.Error(err)
 			return
 		}
 		item.Resource = api.Audience
-		item.PermissionCount = len(api.Permissions)
 		items[i] = item
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[apiListItemDto]{
+	c.JSON(http.StatusOK, dto.Paginated[apiResponseDto]{
 		Data:       items,
 		Pagination: pagination,
 	})

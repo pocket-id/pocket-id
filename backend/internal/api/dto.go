@@ -20,15 +20,6 @@ type apiPermissionResponseDto struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// apiListItemDto is the lightweight representation used in list responses
-type apiListItemDto struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	Resource        string            `json:"resource"`
-	CreatedAt       datatype.DateTime `json:"createdAt"`
-	PermissionCount int               `json:"permissionCount"`
-}
-
 // apiCreateDto is the payload for creating an API
 // The resource identifier is only accepted here because changing it later would invalidate every token already minted for the API
 type apiCreateDto struct {

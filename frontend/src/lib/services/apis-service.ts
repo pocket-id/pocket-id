@@ -1,7 +1,6 @@
 import type {
 	Api,
 	ApiCreate,
-	ApiListItem,
 	ApiPermissionInput,
 	ApiUpdate,
 	ClientApiAccess
@@ -12,12 +11,12 @@ import APIService from './api-service';
 export default class ApisService extends APIService {
 	list = async (options?: ListRequestOptions) => {
 		const res = await this.api.get('/apis', { params: options });
-		return res.data as Paginated<ApiListItem>;
+		return res.data as Paginated<Api>;
 	};
 
 	listAll = async () => {
 		const res = await this.api.get('/apis', { params: { pagination: { page: 1, limit: 1000 } } });
-		return (res.data as Paginated<ApiListItem>).data;
+		return (res.data as Paginated<Api>).data;
 	};
 
 	get = async (id: string) => {

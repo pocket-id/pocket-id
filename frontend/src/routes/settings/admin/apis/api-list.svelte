@@ -8,26 +8,26 @@
 		AdvancedTableColumn,
 		CreateAdvancedTableActions
 	} from '$lib/types/advanced-table.type';
-	import type { ApiListItem } from '$lib/types/api.type';
+	import type { Api } from '$lib/types/api.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucidePencil, LucideTrash } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	const apisService = new ApisService();
-	let tableRef: AdvancedTable<ApiListItem>;
+	let tableRef: AdvancedTable<Api>;
 
 	export function refresh() {
 		return tableRef?.refresh();
 	}
 
-	const columns: AdvancedTableColumn<ApiListItem>[] = [
+	const columns: AdvancedTableColumn<Api>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.name(), column: 'name', sortable: true },
 		{ label: m.api_resource(), column: 'resource', sortable: true },
-		{ label: m.api_permissions(), key: 'permissionCount', value: (item) => item.permissionCount }
+		{ label: m.api_permissions(), key: 'permissions', value: (item) => item.permissions.length }
 	];
 
-	const actions: CreateAdvancedTableActions<ApiListItem> = (api) => [
+	const actions: CreateAdvancedTableActions<Api> = (api) => [
 		{
 			label: m.edit(),
 			primary: true,
@@ -43,7 +43,7 @@
 		}
 	];
 
-	async function deleteApi(api: ApiListItem) {
+	async function deleteApi(api: Api) {
 		openConfirmDialog({
 			title: m.delete_name({ name: api.name }),
 			message: m.are_you_sure_you_want_to_delete_this_api(),

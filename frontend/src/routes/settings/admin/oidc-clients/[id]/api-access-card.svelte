@@ -30,7 +30,7 @@
 				apisService.listAll(),
 				apisService.getClientAccess(clientId)
 			]);
-			apis = await Promise.all(list.map((a) => apisService.get(a.id)));
+			apis = list;
 			userSelected = new Set(access.userDelegatedPermissionIds);
 			clientSelected = new Set(access.clientPermissionIds);
 		} catch (e) {
