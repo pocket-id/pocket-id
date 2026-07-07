@@ -50,6 +50,20 @@ func (s *deviceService) createDeviceAuthorization(ctx context.Context, req *http
 		return nil, request, err
 	}
 
+	client := request.GetClient().(Client)
+	resource, err := request.GetResource()
+	if err != nil {
+		return nil, request, err
+	}
+	audience, grantedScopes, _, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+	if err != nil {
+		if resource != "" && errors.Is(err, fosite.ErrAccessDenied) {
+			return nil, request, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
+		}
+		return nil, request, err
+	}
+	grantResourceIndicator(request, audience, grantedScopes)
+
 	session := NewEmptySession()
 	response, err := s.provider.NewDeviceResponse(ctx, request, session)
 	if err != nil {
