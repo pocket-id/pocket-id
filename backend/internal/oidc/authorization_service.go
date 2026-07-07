@@ -16,7 +16,6 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func newAuthorizationService(db *gorm.DB, interactionSessionService *interactionSessionService, claimsService *ClaimsService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, apiAccess APIAccessProvider) *authorizationService {
@@ -768,41 +767,53 @@ func requiresReauthenticationForMaxAge(maxAgeRaw string, authenticationTime time
 func (s *authorizationService) consent(ctx context.Context, userID string, clientID string, scope []string) (hasAlreadyAuthorizedClient bool, err error) {
 	db := dbFromContext(ctx, s.db)
 
-	hasAlreadyAuthorizedClient, err = s.hasAuthorizedClient(ctx, clientID, userID, scope)
-	if err != nil {
-		return false, err
-	}
+	now := datatype.DateTime(time.Now())
 
-	if hasAlreadyAuthorizedClient {
-		err = db.
-			Model(&model.UserAuthorizedOidcClient{}).
-			Where("user_id = ? AND client_id = ?", userID, clientID).
-			Update("last_used_at", datatype.DateTime(time.Now())).
-			Error
+	var existing model.UserAuthorizedOidcClient
+	err = db.
+		First(&existing, "client_id = ? AND user_id = ?", clientID, userID).
+		Error
+	if err == nil {
+		// If the user has already authorized the client with the same or a superset of the requested scopes, we just update the last_used_at timestamp and return
+		hasAlreadyAuthorizedClient = consentScopesInclude(existing.Scope, scope)
+		if hasAlreadyAuthorizedClient {
+			err = db.
+				Model(&model.UserAuthorizedOidcClient{}).
+				Where("user_id = ? AND client_id = ?", userID, clientID).
+				Update("last_used_at", now).
+				Error
 
-		if err != nil {
 			return hasAlreadyAuthorizedClient, err
 		}
 
-		return hasAlreadyAuthorizedClient, nil
+		// If the user has already authorized the client but with a different set of scopes, we merge the scopes and update the record
+		err = db.
+			Model(&model.UserAuthorizedOidcClient{}).
+			Where("user_id = ? AND client_id = ?", userID, clientID).
+			Updates(map[string]any{
+				"scope":        mergeConsentScopes(existing.Scope, scope),
+				"last_used_at": now,
+			}).
+			Error
+
+		return hasAlreadyAuthorizedClient, err
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, err
 	}
 
-	userAuthorizedClient := model.UserAuthorizedOidcClient{
+	// The user has not authorized the client yet, so we create a new record
+	err = db.Create(&model.UserAuthorizedOidcClient{
 		UserID:     userID,
 		ClientID:   clientID,
-		Scope:      scope,
-		LastUsedAt: datatype.DateTime(time.Now()),
+		Scope:      mergeConsentScopes(nil, scope),
+		LastUsedAt: now,
+	}).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return s.consent(ctx, userID, clientID, scope)
 	}
 
-	err = db.
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "user_id"}, {Name: "client_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"scope"}),
-		}).
-		Create(&userAuthorizedClient).
-		Error
-
-	return hasAlreadyAuthorizedClient, err
+	return false, err
 }
 
 func (s *authorizationService) hasAuthorizedClient(ctx context.Context, clientID, userID string, scope []string) (bool, error) {
@@ -817,14 +828,41 @@ func (s *authorizationService) hasAuthorizedClient(ctx context.Context, clientID
 		return false, err
 	}
 
-	authorizedScopes := userAuthorizedOidcClient.Scope
-	for _, requestedScope := range scope {
+	return consentScopesInclude(userAuthorizedOidcClient.Scope, scope), nil
+}
+
+func consentScopesInclude(authorizedScopes []string, requestedScopes []string) bool {
+	for _, requestedScope := range requestedScopes {
 		if !slices.Contains(authorizedScopes, requestedScope) {
-			return false, nil
+			return false
 		}
 	}
 
-	return true, nil
+	return true
+}
+
+// mergeConsentScopes merges the authorized scopes with the requested scopes, ensuring that there are no duplicates.
+// Merging is necessary because the user may authorize scopes for multiple resources.
+// If we would just replace the authorized scopes with the requested scopes, we would lose the previously authorized scopes for other resources.
+func mergeConsentScopes(authorizedScopes []string, requestedScopes []string) datatype.StringList {
+	merged := make(datatype.StringList, 0, len(authorizedScopes)+len(requestedScopes))
+	seen := make(map[string]struct{}, len(authorizedScopes)+len(requestedScopes))
+	for _, scope := range authorizedScopes {
+		if _, ok := seen[scope]; ok {
+			continue
+		}
+		seen[scope] = struct{}{}
+		merged = append(merged, scope)
+	}
+	for _, scope := range requestedScopes {
+		if _, ok := seen[scope]; ok {
+			continue
+		}
+		seen[scope] = struct{}{}
+		merged = append(merged, scope)
+	}
+
+	return merged
 }
 
 // IsUserGroupAllowedToAuthorize reports whether the user may use the group-restricted client.
