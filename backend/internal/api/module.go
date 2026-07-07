@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 )
 
@@ -39,19 +40,19 @@ func (m *Module) AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clie
 }
 
 // DescribePermissions implements the OIDC module's APIAccessProvider interface
-func (m *Module) DescribePermissions(ctx context.Context, audience string, keys []string) ([]oidc.PermissionInfo, error) {
+func (m *Module) DescribePermissions(ctx context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error) {
 	permissions, err := m.service.DescribePermissions(ctx, audience, keys)
 	if err != nil {
 		return nil, err
 	}
 
-	infos := make([]oidc.PermissionInfo, len(permissions))
+	infos := make([]dto.ScopeInfoDto, len(permissions))
 	for i, permission := range permissions {
 		description := ""
 		if permission.Description != nil {
 			description = *permission.Description
 		}
-		infos[i] = oidc.PermissionInfo{Key: permission.Key, Name: permission.Name, Description: description}
+		infos[i] = dto.ScopeInfoDto{Key: permission.Key, Name: permission.Name, Description: description}
 	}
 
 	return infos, nil

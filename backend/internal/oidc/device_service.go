@@ -50,6 +50,7 @@ func (s *deviceService) createDeviceAuthorization(ctx context.Context, req *http
 		return nil, request, err
 	}
 
+	// Validate the requested scopes and resolve the resource indicator to an audience and the subset of requested scopes that may be granted
 	client := request.GetClient().(Client)
 	resource, err := request.GetResource()
 	if err != nil {
@@ -192,13 +193,8 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		return nil, err
 	}
 	// Always serialize a possibly empty array rather than null
-	scopeInfoDtos := make([]dto.ScopeInfoDto, len(scopeInfo))
-	for i, info := range scopeInfo {
-		scopeInfoDtos[i] = dto.ScopeInfoDto{
-			Key:         info.Key,
-			Name:        info.Name,
-			Description: info.Description,
-		}
+	if scopeInfo == nil {
+		scopeInfo = []dto.ScopeInfoDto{}
 	}
 
 	return &dto.DeviceCodeInfoDto{
@@ -211,7 +207,7 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 			RequiresReauthentication: client.RequiresReauthentication,
 		},
 		Scope:                    request.GetRequestedScopes(),
-		ScopeInfo:                scopeInfoDtos,
+		ScopeInfo:                scopeInfo,
 		AuthorizationRequired:    authorizationRequired,
 		ReauthenticationRequired: client.RequiresReauthentication,
 	}, nil

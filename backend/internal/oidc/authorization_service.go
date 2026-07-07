@@ -12,6 +12,7 @@ import (
 
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -525,7 +526,7 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 	}
 	// Always serialize a possibly empty array rather than null
 	if scopeInfo == nil {
-		scopeInfo = []scopeInfoDto{}
+		scopeInfo = []dto.ScopeInfoDto{}
 	}
 	result.ScopeInfo = scopeInfo
 
@@ -534,13 +535,13 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 
 // resolveScopeInfo resolves display names and descriptions for the requested non-standard scopes, looked up against the API targeted by the request's RFC 8707 resource
 // Standard identity scopes are rendered by the client
-func (s *authorizationService) resolveScopeInfo(ctx context.Context, interactionSession InteractionSession) ([]scopeInfoDto, error) {
+func (s *authorizationService) resolveScopeInfo(ctx context.Context, interactionSession InteractionSession) ([]dto.ScopeInfoDto, error) {
 	return s.resolveScopeInfoForRequest(ctx, interactionSession.Parameters["resource"], interactionSession.Scopes)
 }
 
 // resolveScopeInfoForRequest resolves display names and descriptions for the requested non-standard scopes against the API identified by resource
 // The browser and device consent flows share it so both show friendly permission names instead of raw scope keys
-func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, resource string, scopes []string) ([]scopeInfoDto, error) {
+func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, resource string, scopes []string) ([]dto.ScopeInfoDto, error) {
 	if s.apiAccess == nil {
 		return nil, nil
 	}
@@ -564,12 +565,7 @@ func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, r
 		return nil, err
 	}
 
-	scopeInfo := make([]scopeInfoDto, len(infos))
-	for i, info := range infos {
-		scopeInfo[i] = scopeInfoDto(info)
-	}
-
-	return scopeInfo, nil
+	return infos, nil
 }
 
 func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {

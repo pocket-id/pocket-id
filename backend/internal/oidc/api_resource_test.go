@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 // fakeAPIAccess implements APIAccessProvider from an audience -> subject type -> allowed-scopes map.
@@ -50,16 +52,16 @@ func (f fakeAPIAccess) AllowedScopesForAudience(_ context.Context, _ *gorm.DB, _
 	return bySubject[subjectType], true, nil
 }
 
-func (f fakeAPIAccess) DescribePermissions(_ context.Context, audience string, keys []string) ([]PermissionInfo, error) {
+func (f fakeAPIAccess) DescribePermissions(_ context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error) {
 	bySubject, ok := f.allowed[audience]
 	if !ok {
 		return nil, nil
 	}
-	var infos []PermissionInfo
+	var infos []dto.ScopeInfoDto
 	for _, key := range keys {
 		for _, allowed := range bySubject {
 			if slices.Contains(allowed, key) {
-				infos = append(infos, PermissionInfo{Key: key, Name: key})
+				infos = append(infos, dto.ScopeInfoDto{Key: key, Name: key})
 				break
 			}
 		}

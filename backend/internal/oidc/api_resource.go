@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/ory/fosite"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"gorm.io/gorm"
 )
 
@@ -24,13 +25,6 @@ func isStandardScope(scope string) bool {
 	return slices.Contains(standardScopes, scope)
 }
 
-// PermissionInfo is the display information for an API permission used to show friendly names and descriptions on the consent screen
-type PermissionInfo struct {
-	Key         string
-	Name        string
-	Description string
-}
-
 // APIAccessProvider is implemented by the api feature module
 // It lets the OIDC module widen per-client scope and audience validation and resolve RFC 8707 resources to the permission keys a client may be granted
 type APIAccessProvider interface {
@@ -40,7 +34,7 @@ type APIAccessProvider interface {
 	AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clientID, audience string, subjectType SubjectType) (scopes []string, apiExists bool, err error)
 	// DescribePermissions returns the display information for the given permission keys of the API identified by audience
 	// Unknown keys are omitted
-	DescribePermissions(ctx context.Context, audience string, keys []string) ([]PermissionInfo, error)
+	DescribePermissions(ctx context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error)
 }
 
 // resolveResource maps an RFC 8707 resource, which may be empty, to the audience to stamp on the issued token and the subset of requestedScopes that may be granted
