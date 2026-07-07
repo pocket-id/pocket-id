@@ -13,6 +13,7 @@ import (
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	"github.com/ory/fosite/handler/openid"
 	"github.com/ory/fosite/handler/rfc8628"
+	"github.com/ory/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"golang.org/x/crypto/hkdf"
 )
@@ -45,6 +46,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		AccessTokenIssuer:              config.BaseURL,
 		TokenURL:                       config.TokenBaseURL + "/api/oidc/token",
 		ScopeStrategy:                  fosite.ExactScopeStrategy,
+		IgnoreUnknownScopes:            true,
 		AudienceMatchingStrategy:       fosite.ExactAudienceMatchingStrategy,
 		RedirectURIMatcher:             matchRedirectURI,
 		EnforcePKCEForPublicClients:    true,
@@ -52,6 +54,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		FormPostHTMLTemplate:           formPostTemplate,
 		RefreshTokenScopes:             []string{},
 		GlobalSecret:                   secret,
+		JWTScopeClaimKey:               jwt.JWTScopeFieldBoth,
 	}
 
 	keyGetter := func(context.Context) (interface{}, error) {
@@ -65,6 +68,10 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		HMACSHAStrategy: coreStrategy,
 		Config:          fositeConfig,
 	}
+
+	// Wrap the access token strategy so an access token granted an identity scope also lists the issuer in its audience
+	// This lets it be presented to Pocket ID's own identity endpoints such as /userinfo, while a token audienced only to a custom API is not accepted there
+	apiAccessTokenStrategy := identityAudienceAccessTokenStrategy{CoreStrategy: accessTokenStrategy, issuer: config.BaseURL}
 	idTokenStrategy := &openid.DefaultStrategy{
 		Signer: sig,
 		Config: fositeConfig,
@@ -73,7 +80,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		fositeConfig,
 		store,
 		&compose.CommonStrategy{
-			CoreStrategy:               accessTokenStrategy,
+			CoreStrategy:               apiAccessTokenStrategy,
 			RFC8628CodeStrategy:        deviceStrategy,
 			OpenIDConnectTokenStrategy: idTokenStrategy,
 			Signer:                     sig,
@@ -96,7 +103,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		OAuth2Provider: provider,
 		deviceStrategy: deviceStrategy,
 		tokenStrategies: tokenStrategies{
-			accessToken: accessTokenStrategy,
+			accessToken: apiAccessTokenStrategy,
 			idToken:     idTokenStrategy,
 			config:      fositeConfig,
 		},

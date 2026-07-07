@@ -88,12 +88,15 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
-	for _, scope := range request.GetRequestedScopes() {
-		request.GrantScope(scope)
+	resource, err := request.GetResource()
+	if err != nil {
+		return err
 	}
-	for _, audience := range request.GetRequestedAudience() {
-		request.GrantAudience(audience)
+	audience, grantedScopes, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+	if err != nil {
+		return err
 	}
+	grantResourceIndicator(request, audience, grantedScopes)
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
 		if client.RequiresReauthentication {
@@ -118,7 +121,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		}
 		request.SetSession(session)
 
-		hasAlreadyAuthorizedClient, err := s.authorizationService.consent(ctx, userID, client.GetID(), request.GetRequestedScopes())
+		hasAlreadyAuthorizedClient, err := s.authorizationService.consent(ctx, userID, client.GetID(), consentKeys)
 		if err != nil {
 			return err
 		}
@@ -151,14 +154,37 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 	}
 
 	client := request.GetClient().(Client)
+	resource, err := request.GetResource()
+	if err != nil {
+		return nil, err
+	}
 	authorizationRequired := true
 	if userID != "" {
-		hasAuthorizedClient, err := s.authorizationService.hasAuthorizedClient(ctx, client.GetID(), userID, request.GetRequestedScopes())
+		_, _, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+		if err != nil {
+			return nil, err
+		}
+		hasAuthorizedClient, err := s.authorizationService.hasAuthorizedClient(ctx, client.GetID(), userID, consentKeys)
 		if err != nil {
 			return nil, err
 		}
 		// The device flow has no per-request prompt parameter, so consent depends only on prior authorization and the client's skip-consent setting
 		authorizationRequired = consentRequired(hasAuthorizedClient, client.SkipConsent, nil)
+	}
+
+	// Resolve friendly names for the requested custom-API permissions so the device consent screen matches the browser flow
+	scopeInfo, err := s.authorizationService.resolveScopeInfoForRequest(ctx, resource, request.GetRequestedScopes())
+	if err != nil {
+		return nil, err
+	}
+	// Always serialize a possibly empty array rather than null
+	scopeInfoDtos := make([]dto.ScopeInfoDto, len(scopeInfo))
+	for i, info := range scopeInfo {
+		scopeInfoDtos[i] = dto.ScopeInfoDto{
+			Key:         info.Key,
+			Name:        info.Name,
+			Description: info.Description,
+		}
 	}
 
 	return &dto.DeviceCodeInfoDto{
@@ -171,6 +197,7 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 			RequiresReauthentication: client.RequiresReauthentication,
 		},
 		Scope:                    request.GetRequestedScopes(),
+		ScopeInfo:                scopeInfoDtos,
 		AuthorizationRequired:    authorizationRequired,
 		ReauthenticationRequired: client.RequiresReauthentication,
 	}, nil
