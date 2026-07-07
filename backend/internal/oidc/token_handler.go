@@ -69,7 +69,7 @@ func (h *tokenHandler) token(c *gin.Context) {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return
 			}
-			audience, grantedScopes, err := resolveResource(ctx, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient)
+			audience, grantedScopes, err := resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient)
 			if err != nil {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return
@@ -127,7 +127,7 @@ func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Clien
 		return err
 	}
 
-	_, _, err = resolveResource(ctx, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser)
+	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser)
 	return err
 }
 

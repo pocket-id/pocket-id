@@ -42,7 +42,7 @@ func (f fakeAPIAccess) ClientAPIScopes(_ context.Context, _ *gorm.DB, _ string) 
 	return scopes, audiences, nil
 }
 
-func (f fakeAPIAccess) AllowedScopesForAudience(_ context.Context, _ string, audience string, subjectType SubjectType) ([]string, bool, error) {
+func (f fakeAPIAccess) AllowedScopesForAudience(_ context.Context, _ *gorm.DB, _ string, audience string, subjectType SubjectType) ([]string, bool, error) {
 	bySubject, exists := f.allowed[audience]
 	if !exists {
 		return nil, false, nil
@@ -69,7 +69,7 @@ func (f fakeAPIAccess) DescribePermissions(_ context.Context, audience string, k
 
 func TestResolveResourceDefaultIsLoginToken(t *testing.T) {
 	// With no resource the token is a plain login token audienced to the requesting client
-	audience, granted, err := resolveResource(t.Context(), nil, "client-1", "", []string{"openid", "profile"}, SubjectTypeUser)
+	audience, granted, err := resolveResource(t.Context(), nil, nil, "client-1", "", []string{"openid", "profile"}, SubjectTypeUser)
 	require.NoError(t, err)
 	assert.Equal(t, "client-1", audience)
 	assert.Equal(t, []string{"openid", "profile"}, granted)
@@ -77,7 +77,7 @@ func TestResolveResourceDefaultIsLoginToken(t *testing.T) {
 
 func TestResolveResourceRejectsCustomScopeWithoutResource(t *testing.T) {
 	// Requesting a custom scope without targeting its API must be rejected, not dropped.
-	_, _, err := resolveResource(t.Context(), nil, "client-1", "", []string{"openid", "read:orders"}, SubjectTypeUser)
+	_, _, err := resolveResource(t.Context(), nil, nil, "client-1", "", []string{"openid", "read:orders"}, SubjectTypeUser)
 	require.Error(t, err)
 }
 
@@ -86,7 +86,7 @@ func TestResolveResourceCustomAPIGrantsValidScopes(t *testing.T) {
 		"https://api.orders.example.com": {"read:orders", "write:orders"},
 	})
 
-	audience, granted, err := resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", []string{"openid", "read:orders"}, SubjectTypeUser)
+	audience, granted, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"openid", "read:orders"}, SubjectTypeUser)
 	require.NoError(t, err)
 	assert.Equal(t, "https://api.orders.example.com", audience)
 	// openid stays (identity, for the ID token); read:orders is allowed for this API.
@@ -98,13 +98,13 @@ func TestResolveResourceRejectsScopeFromAnotherAPI(t *testing.T) {
 		"https://api.orders.example.com": {"read:orders", "write:orders"},
 	})
 	// write:billing belongs to a different API than the one targeted -> rejected.
-	_, _, err := resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", []string{"openid", "write:billing"}, SubjectTypeUser)
+	_, _, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"openid", "write:billing"}, SubjectTypeUser)
 	require.Error(t, err)
 }
 
 func TestResolveResourceUnknownIsRejected(t *testing.T) {
 	provider := userAccess(map[string][]string{})
-	_, _, err := resolveResource(t.Context(), provider, "client-1", "https://api.unknown.example.com", []string{"read"}, SubjectTypeUser)
+	_, _, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.unknown.example.com", []string{"read"}, SubjectTypeUser)
 	require.Error(t, err)
 }
 
@@ -113,7 +113,7 @@ func TestResolveResourceUnauthorizedClientIsRejected(t *testing.T) {
 	provider := userAccess(map[string][]string{
 		"https://api.orders.example.com": {},
 	})
-	_, _, err := resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeUser)
+	_, _, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeUser)
 	require.Error(t, err)
 }
 
@@ -129,23 +129,23 @@ func TestResolveResourceSubjectTypesAreIndependent(t *testing.T) {
 	}}
 
 	// The user-delegated grant works for user flows...
-	audience, granted, err := resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeUser)
+	audience, granted, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeUser)
 	require.NoError(t, err)
 	assert.Equal(t, "https://api.orders.example.com", audience)
 	assert.ElementsMatch(t, []string{"read:orders"}, granted)
 
 	// ...but not for the client itself.
-	_, _, err = resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeClient)
+	_, _, err = resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"read:orders"}, SubjectTypeClient)
 	require.Error(t, err)
 
 	// The client grant works machine-to-machine...
-	audience, granted, err = resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", []string{"write:orders"}, SubjectTypeClient)
+	audience, granted, err = resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"write:orders"}, SubjectTypeClient)
 	require.NoError(t, err)
 	assert.Equal(t, "https://api.orders.example.com", audience)
 	assert.ElementsMatch(t, []string{"write:orders"}, granted)
 
 	// ...but users cannot be asked to delegate it.
-	_, _, err = resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", []string{"write:orders"}, SubjectTypeUser)
+	_, _, err = resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", []string{"write:orders"}, SubjectTypeUser)
 	require.Error(t, err)
 }
 
@@ -158,7 +158,7 @@ func TestResolveResourceClientWithoutClientGrantsIsDenied(t *testing.T) {
 		},
 	}}
 
-	_, _, err := resolveResource(t.Context(), provider, "client-1", "https://api.orders.example.com", nil, SubjectTypeClient)
+	_, _, err := resolveResource(t.Context(), nil, provider, "client-1", "https://api.orders.example.com", nil, SubjectTypeClient)
 	require.Error(t, err)
 }
 
