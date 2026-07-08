@@ -455,6 +455,8 @@
 	"client_launch_url": "İstemci Başlatma URL'si",
 	"client_launch_url_description": "Kullanıcıların Uygulamalarım sayfasından uygulamayı başlattığında açılacak URL.",
 	"client_name_description": "Pocket ID arayüzünde gösterilen istemci adı.",
+	"client_description": "Açıklama",
+	"client_description_description": "Pocket ID kullanıcı arayüzünde görüntülenen, istemciye ilişkin isteğe bağlı bir açıklama.",
 	"revoke_access": "Erişimi iptal et",
 	"revoke_access_description": "Erişimi <b>{clientName}</b> için iptal et. <b>{clientName}</b> artık hesap bilgilerinize erişemeyecek.",
 	"revoke_access_successful": "Erişim {clientName} başarıyla iptal edildi.",
