@@ -172,7 +172,10 @@ func requestMetaFromGin(c *gin.Context) requestMeta {
 func authorizeRequestParams(requester fosite.AuthorizeRequester) map[string]string {
 	params := make(map[string]string)
 	for key, values := range requester.GetRequestForm() {
-		if len(values) == 0 || key == "request_uri" || key == "interaction" {
+		// The raw "request" object is dropped alongside "request_uri": its claims are already merged
+		// into the form, and replaying the JWT on interaction resume would re-validate its "exp"
+		// against the resume time, failing logins that took longer than the object's lifetime.
+		if len(values) == 0 || key == "request" || key == "request_uri" || key == "interaction" {
 			continue
 		}
 		params[key] = values[0]
