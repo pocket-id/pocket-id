@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260726153900,
+	"version": 20260707170000,
 	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens", "apis", "api_permissions", "oidc_clients_allowed_api_permissions"],
 	"tables": {
 		"apis": [
