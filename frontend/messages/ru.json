@@ -455,6 +455,8 @@
 	"client_launch_url": "Клиентский URL для запуска",
 	"client_launch_url_description": "URL-адрес, который откроется, когда кто-то запустит приложение со страницы «Мои приложения».",
 	"client_name_description": "Имя клиента, которое отображается в интерфейсе Pocket ID.",
+	"client_description": "Описание",
+	"client_description_description": "Необязательное описание клиента, которое отображается в интерфейсе Pocket ID.",
 	"revoke_access": "Отозвать доступ",
 	"revoke_access_description": "Отозвать доступ к <b>{clientName}</b>. <b>{clientName}</b> больше не сможет получить доступ к информации вашей учетной записи.",
 	"revoke_access_successful": "Доступ к {clientName} успешно отозван.",
