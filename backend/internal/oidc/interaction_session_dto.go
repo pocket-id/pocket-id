@@ -43,9 +43,17 @@ func newInteractionSessionForUser(interactionSession InteractionSession) (intera
 		currentStep = requiredSteps[0]
 	}
 
+	scopes := interactionSession.Scopes
+	if scopes == nil {
+		scopes = []string{}
+	}
+	if requiredSteps == nil {
+		requiredSteps = []interactionStep{}
+	}
+
 	return interactionSessionForUser{
 		ID:            interactionSession.ID,
-		Scopes:        interactionSession.Scopes,
+		Scopes:        scopes,
 		Client:        client,
 		CurrentStep:   currentStep,
 		RequiredSteps: requiredSteps,

@@ -187,8 +187,13 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 		authorizationRequired = consentRequired(hasAuthorizedClient, client.SkipConsent, nil)
 	}
 
+	scope := request.GetRequestedScopes()
+	if scope == nil {
+		scope = []string{}
+	}
+
 	// Resolve friendly names for the requested custom-API permissions so the device consent screen matches the browser flow
-	scopeInfo, err := s.authorizationService.resolveScopeInfoForRequest(ctx, resource, request.GetRequestedScopes())
+	scopeInfo, err := s.authorizationService.resolveScopeInfoForRequest(ctx, resource, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +211,7 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 			LaunchURL:                client.LaunchURL,
 			RequiresReauthentication: client.RequiresReauthentication,
 		},
-		Scope:                    request.GetRequestedScopes(),
+		Scope:                    scope,
 		ScopeInfo:                scopeInfo,
 		AuthorizationRequired:    authorizationRequired,
 		ReauthenticationRequired: client.RequiresReauthentication,

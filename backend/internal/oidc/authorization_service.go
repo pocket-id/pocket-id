@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/url"
 	"slices"
 	"strconv"
@@ -451,15 +452,18 @@ func (r interactionRequirements) any() bool {
 
 func (s *authorizationService) createInteractionSession(ctx context.Context, requester fosite.AuthorizeRequester, requestParams map[string]string, userID string, requirements interactionRequirements) (InteractionSession, error) {
 	parameters := make(map[string]string, len(requestParams))
-	for key, value := range requestParams {
-		parameters[key] = value
+	maps.Copy(parameters, requestParams)
+
+	scopes := requester.GetRequestedScopes()
+	if scopes == nil {
+		scopes = []string{}
 	}
 
 	return s.interactionSessionService.create(ctx, InteractionSession{
 		Base: model.Base{
 			ID: requester.GetID(),
 		},
-		Scopes:                   datatype.StringList(requester.GetRequestedScopes()),
+		Scopes:                   datatype.StringList(scopes),
 		ClientID:                 requester.GetClient().GetID(),
 		UserID:                   utils.PtrOrNil(userID),
 		ConsentRequired:          requirements.ConsentRequired,
