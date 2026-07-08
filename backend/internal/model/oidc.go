@@ -33,9 +33,11 @@ type OidcClient struct {
 	PkceEnabled                         bool `sortable:"true" filterable:"true"`
 	RequiresReauthentication            bool `sortable:"true" filterable:"true"`
 	RequiresPushedAuthorizationRequests bool `sortable:"true" filterable:"true"`
+	SkipConsent                         bool `sortable:"true" filterable:"true"`
 	Credentials                         OidcClientCredentials
 	LaunchURL                           *string
 	IsGroupRestricted                   bool `sortable:"true" filterable:"true"`
+	PkceSupported                       bool `sortable:"true" filterable:"true"`
 
 	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID               *string

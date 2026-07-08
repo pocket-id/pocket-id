@@ -9,7 +9,7 @@ import (
 	"time"
 
 	sloggin "github.com/gin-contrib/slog"
-
+	"github.com/italypaleale/go-kit/servicerunner"
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
@@ -17,17 +17,14 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	globallog "go.opentelemetry.io/otel/log/global"
-	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
-	tracenoop "go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 func defaultResource() (*resource.Resource, error) {
@@ -40,13 +37,13 @@ func defaultResource() (*resource.Resource, error) {
 	)
 }
 
-func initObservability(ctx context.Context, metrics, traces bool) (shutdownFns []utils.Service, httpClient *http.Client, err error) {
+func initObservability(ctx context.Context) (shutdownFns []servicerunner.Service, httpClient *http.Client, err error) {
 	resource, err := defaultResource()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create OpenTelemetry resource: %w", err)
 	}
 
-	shutdownFns = make([]utils.Service, 0, 2)
+	shutdownFns = make([]servicerunner.Service, 0, 3)
 
 	httpClient = &http.Client{}
 	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
@@ -57,13 +54,15 @@ func initObservability(ctx context.Context, metrics, traces bool) (shutdownFns [
 	httpClient.Transport = defaultTransport.Clone()
 
 	// Logging
-	err = initOtelLogging(ctx, resource)
+	loggingShutdownFn, err := initOtelLogging(ctx, resource)
 	if err != nil {
 		return nil, nil, err
+	} else if loggingShutdownFn != nil {
+		shutdownFns = append(shutdownFns, loggingShutdownFn)
 	}
 
 	// Tracing
-	tracingShutdownFn, err := initOtelTracing(ctx, traces, resource, httpClient)
+	tracingShutdownFn, err := initOtelTracing(ctx, resource, httpClient)
 	if err != nil {
 		return nil, nil, err
 	} else if tracingShutdownFn != nil {
@@ -71,7 +70,7 @@ func initObservability(ctx context.Context, metrics, traces bool) (shutdownFns [
 	}
 
 	// Metrics
-	metricsShutdownFn, err := initOtelMetrics(ctx, metrics, resource)
+	metricsShutdownFn, err := initOtelMetrics(ctx, resource)
 	if err != nil {
 		return nil, nil, err
 	} else if metricsShutdownFn != nil {
@@ -81,19 +80,19 @@ func initObservability(ctx context.Context, metrics, traces bool) (shutdownFns [
 	return shutdownFns, httpClient, nil
 }
 
-func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
+func initOtelLogging(ctx context.Context, resource *resource.Resource) (shutdownFn servicerunner.Service, err error) {
 	// If the env var OTEL_LOGS_EXPORTER is empty, we set it to "none", for autoexport to work
 	if os.Getenv("OTEL_LOGS_EXPORTER") == "" {
 		os.Setenv("OTEL_LOGS_EXPORTER", "none")
 	}
 	exp, err := autoexport.NewLogExporter(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to initialize OpenTelemetry log exporter: %w", err)
+		return nil, fmt.Errorf("failed to initialize OpenTelemetry log exporter: %w", err)
 	}
 
 	level, _ := sloggin.ParseLevel(common.EnvConfig.LogLevel)
 
-	// Create the handler
+	// Create the console handler
 	var handler slog.Handler
 	if common.EnvConfig.LogJSON {
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -107,21 +106,35 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 		})
 	}
 
-	// Create the logger provider
-	provider := sdklog.NewLoggerProvider(
-		sdklog.WithProcessor(
-			sdklog.NewBatchProcessor(exp),
-		),
-		sdklog.WithResource(resource),
-	)
+	// When log export is enabled, also send logs to OpenTelemetry through a batch processor.
+	// When it's disabled (the exporter is a no-op), we skip the OTel handler entirely so we don't convert and buffer every log record just to drop it.
+	if !autoexport.IsNoneLogExporter(exp) {
+		// Create the logger provider
+		provider := sdklog.NewLoggerProvider(
+			sdklog.WithProcessor(
+				sdklog.NewBatchProcessor(exp),
+			),
+			sdklog.WithResource(resource),
+		)
 
-	// Set the logger provider globally
-	globallog.SetLoggerProvider(provider)
+		// Set the logger provider globally
+		globallog.SetLoggerProvider(provider)
 
-	handler = slog.NewMultiHandler(
-		handler,
-		otelslog.NewHandler(common.Name, otelslog.WithLoggerProvider(provider)),
-	)
+		handler = slog.NewMultiHandler(
+			handler,
+			otelslog.NewHandler(common.Name, otelslog.WithLoggerProvider(provider)),
+		)
+
+		shutdownFn = func(shutdownCtx context.Context) error { //nolint:contextcheck
+			lpCtx, lpCancel := context.WithTimeout(shutdownCtx, 10*time.Second)
+			defer lpCancel()
+			shutdownErr := provider.Shutdown(lpCtx)
+			if shutdownErr != nil {
+				return fmt.Errorf("failed to gracefully shut down logs exporter: %w", shutdownErr)
+			}
+			return nil
+		}
+	}
 
 	// Set the default slog to send logs to OTel and add the app name
 	log := slog.New(handler).
@@ -129,13 +142,13 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) error {
 		With(slog.String("version", common.Version))
 	slog.SetDefault(log)
 
-	return nil
+	return shutdownFn, nil
 }
 
-func initOtelTracing(ctx context.Context, traces bool, resource *resource.Resource, httpClient *http.Client) (shutdownFn utils.Service, err error) {
-	if !traces {
-		otel.SetTracerProvider(tracenoop.NewTracerProvider())
-		return nil, nil
+func initOtelTracing(ctx context.Context, resource *resource.Resource, httpClient *http.Client) (shutdownFn servicerunner.Service, err error) {
+	// If the env var OTEL_TRACES_EXPORTER is empty, we set it to "none"
+	if os.Getenv("OTEL_TRACES_EXPORTER") == "" {
+		os.Setenv("OTEL_TRACES_EXPORTER", "none")
 	}
 
 	tr, err := autoexport.NewSpanExporter(ctx)
@@ -171,10 +184,10 @@ func initOtelTracing(ctx context.Context, traces bool, resource *resource.Resour
 	return shutdownFn, nil
 }
 
-func initOtelMetrics(ctx context.Context, metrics bool, resource *resource.Resource) (shutdownFn utils.Service, err error) {
-	if !metrics {
-		otel.SetMeterProvider(metricnoop.NewMeterProvider())
-		return nil, nil
+func initOtelMetrics(ctx context.Context, resource *resource.Resource) (shutdownFn servicerunner.Service, err error) {
+	// If the env var OTEL_METRICS_EXPORTER is empty, we set it to "none"
+	if os.Getenv("OTEL_METRICS_EXPORTER") == "" {
+		os.Setenv("OTEL_METRICS_EXPORTER", "none")
 	}
 
 	mr, err := autoexport.NewMetricReader(ctx)

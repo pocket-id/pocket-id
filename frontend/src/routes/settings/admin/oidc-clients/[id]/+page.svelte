@@ -4,6 +4,7 @@
 	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
+	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as Field from '$lib/components/ui/field';
@@ -16,12 +17,13 @@
 	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft, LucideRefreshCcw } from '@lucide/svelte';
+	import { LucideChevronLeft, LucideInfo, LucideRefreshCcw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
+	import ApiAccessCard from './api-access-card.svelte';
 	import ScimResourceProviderForm from './scim-resource-provider-form.svelte';
 
 	let { data } = $props();
@@ -89,6 +91,9 @@
 				}
 				if (updatedClient.darkLogo !== undefined || updatedClient.darkLogoUrl !== undefined) {
 					client.hasDarkLogo = updatedClient.darkLogo !== null || !!updatedClient.darkLogoUrl;
+				}
+				if (updatedClient.pkceEnabled) {
+					client.pkceEnabled = updatedClient.pkceEnabled;
 				}
 				toast.success(m.oidc_client_updated_successfully());
 			})
@@ -209,11 +214,22 @@
 	>
 {/snippet}
 
+{#if client.pkceSupported && !client.pkceEnabled}
+	<Alert.Root variant="info">
+		<LucideInfo class="size-4" />
+		<Alert.Title>{m.pkce_supported_client_title()}</Alert.Title>
+		<Alert.Description>
+			{m.pkce_supported_client_description()}
+		</Alert.Description>
+	</Alert.Root>
+{/if}
+
 <div>
 	<button type="button" class="text-muted-foreground flex text-sm" onclick={backNavigation.go}
 		><LucideChevronLeft class="size-5" /> {m.back()}</button
 	>
 </div>
+
 <Card.Root>
 	<Card.Header>
 		<Card.Title>{client.name}</Card.Title>
@@ -299,6 +315,9 @@
 			>{m.save()}</Button
 		>
 	</div>
+</CollapsibleCard>
+<CollapsibleCard id="api-access" title={m.api_access()} description={m.api_access_description()}>
+	<ApiAccessCard clientId={client.id} isPublicClient={client.isPublic} />
 </CollapsibleCard>
 <CollapsibleCard
 	id="scim-provisioning"

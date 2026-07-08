@@ -19,8 +19,10 @@ type OidcClientDto struct {
 	IsPublic                            bool                     `json:"isPublic"`
 	PkceEnabled                         bool                     `json:"pkceEnabled"`
 	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests"`
+	SkipConsent                         bool                     `json:"skipConsent"`
 	Credentials                         OidcClientCredentialsDto `json:"credentials"`
 	IsGroupRestricted                   bool                     `json:"isGroupRestricted"`
+	PkceSupported                       bool                     `json:"pkceSupported,omitempty"`
 }
 
 type OidcClientWithAllowedUserGroupsDto struct {
@@ -42,6 +44,7 @@ type OidcClientUpdateDto struct {
 	PkceEnabled                         bool                     `json:"pkceEnabled"`
 	RequiresReauthentication            bool                     `json:"requiresReauthentication"`
 	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests"`
+	SkipConsent                         bool                     `json:"skipConsent"`
 	Credentials                         OidcClientCredentialsDto `json:"credentials"`
 	LaunchURL                           *string                  `json:"launchURL" binding:"omitempty,url"`
 	HasLogo                             bool                     `json:"hasLogo"`
@@ -88,8 +91,15 @@ type OidcDeviceAuthorizationResponseDto struct {
 	Interval                int    `json:"interval"`
 }
 
+type ScopeInfoDto struct {
+	Key         string `json:"key"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 type DeviceCodeInfoDto struct {
 	Scope                    []string              `json:"scope"`
+	ScopeInfo                []ScopeInfoDto        `json:"scopeInfo"`
 	AuthorizationRequired    bool                  `json:"authorizationRequired"`
 	ReauthenticationRequired bool                  `json:"reauthenticationRequired"`
 	Client                   OidcClientMetaDataDto `json:"client"`

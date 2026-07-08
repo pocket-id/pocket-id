@@ -20,7 +20,7 @@ import (
 // enforces this with a conditional UPDATE, so the second GetPARSession returns ErrNotFound.
 func TestStoreGetPARSessionIsSingleUse(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	store := NewStore(db)
+	store := NewStore(db, nil)
 
 	const (
 		clientID   = "par-client"
@@ -65,7 +65,7 @@ func TestStoreGetPARSessionIsSingleUse(t *testing.T) {
 // active fails closed (ErrNotFound) instead of minting a second token set from one code.
 func TestStoreInvalidateAuthorizeCodeSessionIsAtomic(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	store := NewStore(db)
+	store := NewStore(db, nil)
 
 	const (
 		clientID = "code-client"
@@ -99,7 +99,7 @@ func TestStoreInvalidateAuthorizeCodeSessionIsAtomic(t *testing.T) {
 
 func TestStoreRevokeSessionsByIDTokenHintRevokesMatchingFositeSessions(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	store := NewStore(db)
+	store := NewStore(db, nil)
 
 	const (
 		userID          = "test-user-123"
@@ -151,7 +151,7 @@ func TestStoreRevokeSessionsByIDTokenHintRevokesMatchingFositeSessions(t *testin
 
 func TestStoreRevokeSessionsByIDTokenHintSkipsSessionsWithoutMatchingJTI(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	store := NewStore(db)
+	store := NewStore(db, nil)
 
 	const (
 		userID        = "test-user-123"

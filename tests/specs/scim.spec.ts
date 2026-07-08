@@ -5,7 +5,7 @@ import { oidcClients, userGroups, users } from '../data';
 async function configureOidcClient(page: Page) {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByText('SCIM Provisioning', { exact: true }).click();
 
 	await page
 		.getByLabel('SCIM Endpoint')
@@ -29,7 +29,7 @@ test.describe('SCIM Configuration', () => {
 	test('Enable SCIM for OIDC client', async ({ page }) => {
 		await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
 
-		await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+		await page.getByText('SCIM Provisioning', { exact: true }).click();
 
 		await page.getByLabel('SCIM Endpoint').fill('http://scim.provider/api');
 		await page.getByLabel('SCIM Token').fill('supersecrettoken');

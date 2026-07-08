@@ -17,27 +17,28 @@ import (
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/builtin/ratelimit"
+	"github.com/italypaleale/go-kit/servicerunner"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
 // This is used to register additional controllers for tests
 var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
 
-func initRouter(db *gorm.DB, svc *services) (utils.Service, error) {
+func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
 	r, err := initEngine()
 	if err != nil {
 		return nil, err
 	}
-	err = registerRoutes(r, db, svc)
+	err = registerRoutes(r, db, svc, rateLimitServices)
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +95,24 @@ func configureEngine(r *gin.Engine) {
 		r.TrustedPlatform = common.EnvConfig.TrustedPlatform
 	}
 
-	if common.EnvConfig.TracingEnabled {
-		r.Use(otelgin.Middleware(common.Name))
+	r.Use(otelgin.Middleware(
+		common.Name,
+		otelgin.WithFilter(shouldTraceRequest)),
+	)
+}
+
+// shouldTraceRequest reports whether an incoming request should be traced.
+// It traces only requests handled by real backend routes (the API, the OIDC/OAuth endpoints, and the well-known documents).
+// Everything else falls through to the frontend NoRoute handler, which serves the SPA shell and static assets; tracing those would produce noisy, unparented spans named just "GET" with an empty http.route.
+func shouldTraceRequest(r *http.Request) bool {
+	p := r.URL.Path
+	switch {
+	case strings.HasPrefix(p, "/api/"),
+		strings.HasPrefix(p, "/.well-known/"),
+		p == "/authorize":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -107,7 +124,7 @@ func registerGlobalMiddleware(r *gin.Engine) {
 	r.Use(middleware.NewErrorHandlerMiddleware().Add())
 }
 
-func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
+func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) error {
 
 	err := frontend.RegisterFrontend(r)
 	if errors.Is(err, frontend.ErrFrontendNotIncluded) {
@@ -117,25 +134,37 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 	}
 
 	// Initialize middleware for specific routes
-	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyService, svc.userService, svc.jwtService)
+	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyModule, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
-	apiRateLimitMiddleware := middleware.NewRateLimitMiddleware().Add(rate.Every(time.Second), 100)
+	rateLimitMiddleware := middleware.NewRateLimitMiddleware(rateLimitServices)
+	apiRateLimitMiddleware := rateLimitMiddleware.Add(middleware.RateLimitAPI)
 
 	apiGroup := r.Group("/api", apiRateLimitMiddleware)
 	baseGroup := r.Group("/", apiRateLimitMiddleware)
 
-	controller.NewApiKeyController(apiGroup, authMiddleware, svc.apiKeyService)
-	controller.NewWebauthnController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.webauthnService, svc.appConfigService)
+	svc.apiKeyModule.RegisterRoutes(apiGroup,
+		authMiddleware.WithAdminNotRequired().Add(),
+		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(),
+	)
+	svc.webauthnModule.RegisterRoutes(apiGroup,
+		authMiddleware.WithAdminNotRequired().Add(),
+		rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin),
+		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
+	)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
-	controller.NewUserController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userService, svc.oneTimeAccessService, svc.webauthnService, svc.appConfigService)
+	controller.NewUserController(apiGroup, authMiddleware, rateLimitMiddleware, svc.userService, svc.oneTimeAccessService, svc.webauthnModule, svc.appConfigService)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
 	controller.NewUserGroupController(apiGroup, authMiddleware, svc.userGroupService)
+	svc.apiModule.RegisterRoutes(apiGroup, authMiddleware.Add())
 	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
 	controller.NewVersionController(apiGroup, authMiddleware, svc.versionService)
 	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)
-	controller.NewUserSignupController(apiGroup, authMiddleware, middleware.NewRateLimitMiddleware(), svc.userSignUpService, svc.appConfigService)
+	svc.userSignUpModule.RegisterRoutes(apiGroup,
+		authMiddleware.Add(),
+		rateLimitMiddleware.Add(middleware.RateLimitSignup),
+	)
 
 	optionalBrowserAuth := authMiddleware.WithAdminNotRequired().WithSuccessOptional().WithApiKeyAuthDisabled().Add()
 	browserAuth := authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add()
@@ -147,6 +176,10 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services) error {
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)
+
+	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
+	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.
+	tracing.NewTelemetryController(r, rateLimitMiddleware.Add(middleware.RateLimitInternal))
 
 	return nil
 }

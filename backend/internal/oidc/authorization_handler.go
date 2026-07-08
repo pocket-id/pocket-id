@@ -99,9 +99,10 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	}
 
 	response.AddParameter("iss", h.baseURL)
-	if ar.GetResponseMode() == fosite.ResponseModeFormPost && ar.GetRedirectURI() != nil {
-		c.Header("Content-Security-Policy", utils.BuildCSP(utils.GetCSPNonce(c), ar.GetRedirectURI().String()))
-	}
+
+	// fosite renders an auto-submitting HTML page for response_mode=form_post, which needs a relaxed CSP
+	h.relaxCSPForFormPost(c, ar)
+
 	h.provider.WriteAuthorizeResponse(ctx, c.Writer, ar, response)
 }
 
@@ -141,6 +142,8 @@ func (h *authorizationHandler) completeInteraction(c *gin.Context) {
 func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.Context, ar fosite.AuthorizeRequester, err error) {
 	if ar.IsRedirectURIValid() {
 		// Send the error to the client
+		// fosite delivers the error through response_mode=form_post as well, so it needs the same CSP relaxation as the success path
+		h.relaxCSPForFormPost(c, ar)
 		h.provider.WriteAuthorizeError(ctx, c.Writer, ar, err)
 		return
 	}
@@ -169,11 +172,22 @@ func requestMetaFromGin(c *gin.Context) requestMeta {
 func authorizeRequestParams(requester fosite.AuthorizeRequester) map[string]string {
 	params := make(map[string]string)
 	for key, values := range requester.GetRequestForm() {
-		if len(values) == 0 || key == "request_uri" || key == "interaction" {
+		// The raw "request" object is dropped alongside "request_uri": its claims are already merged
+		// into the form, and replaying the JWT on interaction resume would re-validate its "exp"
+		// against the resume time, failing logins that took longer than the object's lifetime.
+		if len(values) == 0 || key == "request" || key == "request_uri" || key == "interaction" {
 			continue
 		}
 		params[key] = values[0]
 	}
 
 	return params
+}
+
+// relaxCSPForFormPost loosens the per-request Content-Security-Policy when the response is delivered via response_mode=form_post
+func (h *authorizationHandler) relaxCSPForFormPost(c *gin.Context, ar fosite.AuthorizeRequester) {
+	if ar.GetResponseMode() != fosite.ResponseModeFormPost || ar.GetRedirectURI() == nil {
+		return
+	}
+	c.Header("Content-Security-Policy", utils.BuildFormPostCSP(utils.GetCSPNonce(c), ar.GetRedirectURI().String(), formPostScriptCSPHash))
 }

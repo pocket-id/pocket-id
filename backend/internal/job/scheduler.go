@@ -10,8 +10,10 @@ import (
 	backoff "github.com/cenkalti/backoff/v5"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 )
 
 type Scheduler struct {
@@ -65,52 +67,17 @@ func (s *Scheduler) Run(ctx context.Context) error {
 }
 
 func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.JobDefinition, jobFn func(ctx context.Context) error, opts service.RegisterJobOpts) error {
+	// Wrap the job in a handler that adds tracing and logging
+	jobFn = jobWithObservability(name, jobFn)
+
 	// If a BackOff strategy is provided, wrap the job with retry logic
 	if opts.BackOff != nil {
-		origJob := jobFn
-		jobFn = func(ctx context.Context) error {
-			_, err := backoff.Retry(
-				ctx,
-				func() (struct{}, error) {
-					return struct{}{}, origJob(ctx)
-				},
-				backoff.WithBackOff(opts.BackOff),
-				backoff.WithNotify(func(err error, d time.Duration) {
-					slog.WarnContext(ctx, "Job failed, retrying",
-						slog.String("name", name),
-						slog.Any("error", err),
-						slog.Duration("retryIn", d),
-					)
-				}),
-			)
-			return err
-		}
+		jobFn = jobWithBackOff(jobFn, opts.BackOff)
 	}
 
 	jobOptions := []gocron.JobOption{
 		gocron.WithContext(ctx),
 		gocron.WithName(name),
-		gocron.WithEventListeners(
-			gocron.BeforeJobRuns(func(jobID uuid.UUID, jobName string) {
-				slog.Info("Starting job",
-					slog.String("name", name),
-					slog.String("id", jobID.String()),
-				)
-			}),
-			gocron.AfterJobRuns(func(jobID uuid.UUID, jobName string) {
-				slog.Info("Job run successfully",
-					slog.String("name", name),
-					slog.String("id", jobID.String()),
-				)
-			}),
-			gocron.AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) {
-				slog.Error("Job failed with error",
-					slog.String("name", name),
-					slog.String("id", jobID.String()),
-					slog.Any("error", err),
-				)
-			}),
-		),
 	}
 
 	if opts.RunImmediately {
@@ -120,12 +87,81 @@ func (s *Scheduler) RegisterJob(ctx context.Context, name string, def gocron.Job
 	jobOptions = append(jobOptions, opts.ExtraOptions...)
 
 	_, err := s.scheduler.NewJob(def, gocron.NewTask(jobFn), jobOptions...)
-
 	if err != nil {
 		return fmt.Errorf("failed to register job %q: %w", name, err)
 	}
 
 	return nil
+}
+
+type (
+	jobNameKey struct{}
+	jobIDKey   struct{}
+	jobFn      = func(ctx context.Context) error
+)
+
+func jobWithObservability(jobName string, job jobFn) jobFn {
+	return func(ctx context.Context) error {
+		// Generate a random job ID
+		jobID := uuid.NewString()
+
+		// Save in the context
+		ctx = context.WithValue(ctx, jobNameKey{}, jobName)
+		ctx = context.WithValue(ctx, jobIDKey{}, jobID)
+
+		// Create a new context with the span
+		var err error
+		ctx, span := tracing.Start(ctx, "pocketid.job."+jobName,
+			trace.WithSpanKind(trace.SpanKindInternal),
+			trace.WithAttributes(
+				tracing.JobID(jobID),
+			),
+		)
+		defer tracing.End(span, err)
+
+		// Log the start
+		logger := slog.With(
+			slog.String("name", jobName),
+			slog.String("jobID", jobID),
+		)
+		start := time.Now()
+		logger.InfoContext(ctx, "Starting job")
+
+		// Run the job
+		err = job(ctx)
+		d := time.Since(start)
+		if err != nil {
+			logger.ErrorContext(ctx, "Job failed", slog.Any("error", err), slog.Duration("duration", d))
+			return err
+		}
+
+		logger.InfoContext(ctx, "Job run successfully", slog.Duration("duration", d))
+		return nil
+	}
+}
+
+func jobWithBackOff(job jobFn, bo backoff.BackOff) jobFn {
+	return func(ctx context.Context) error {
+		jobName, _ := (ctx.Value(jobNameKey{})).(string)
+		jobID, _ := (ctx.Value(jobIDKey{})).(string)
+
+		_, err := backoff.Retry(
+			ctx,
+			func() (struct{}, error) {
+				return struct{}{}, job(ctx)
+			},
+			backoff.WithBackOff(bo),
+			backoff.WithNotify(func(err error, d time.Duration) {
+				slog.WarnContext(ctx, "Job failed, retrying",
+					slog.String("name", jobName),
+					slog.String("jobID", jobID),
+					slog.Any("error", err),
+					slog.Duration("retryIn", d),
+				)
+			}),
+		)
+		return err
+	}
 }
 
 func jobDefWithJitter(interval time.Duration) gocron.JobDefinition {

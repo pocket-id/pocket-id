@@ -57,6 +57,23 @@ test('Authorize new client', async ({ page }) => {
 	);
 });
 
+test('Authorize client requesting offline_access scope', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = createUrlParams(oidcClient);
+	urlParams.set('scope', 'openid profile email offline_access');
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	// offline_access is a valid OIDC scope: the flow must reach the consent screen rather than
+	// being rejected with invalid_scope (offline_access itself has no displayable scope item)
+	await expectScopes(page, ['Email', 'Profile']);
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
+	expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	expect(callbackUrl.searchParams.get('error')).toBeNull();
+});
+
 test('Authorize new client while not signed in', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
 	const urlParams = createUrlParams(oidcClient);
@@ -381,7 +398,8 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionBody.active).toBe(true);
 		expect(introspectionBody.iss).toBe(baseURL);
 		expect(introspectionBody.sub).toBe(users.tim.id);
-		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id]);
+		// An identity access token is audienced to the client and additionally to the issuer, so it can be presented at /userinfo
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id, baseURL]);
 	});
 
 	test('succeeds with federated client credentials', async ({ page, request, baseURL }) => {
@@ -410,7 +428,8 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionBody.active).toBe(true);
 		expect(introspectionBody.iss).toBe(baseURL);
 		expect(introspectionBody.sub).toBe(users.tim.id);
-		expect(introspectionBody.aud).toStrictEqual([oidcClients.federated.id]);
+		// An identity access token is audienced to the client and additionally to the issuer, so it can be presented at /userinfo
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.federated.id, baseURL]);
 	});
 
 	test('fails with client credentials for wrong app', async ({ request }) => {
@@ -666,6 +685,7 @@ test('Device authorization flow forces reauthentication when client requires it'
 			logoutCallbackURLs: [client.logoutCallbackUrl],
 			isPublic: false,
 			pkceEnabled: false,
+			pkceSupported: false,
 			requiresReauthentication: true,
 			requiresPushedAuthorizationRequests: false,
 			credentials: { federatedIdentities: [] },
@@ -790,6 +810,7 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 			logoutCallbackURLs: [oidcClients.nextcloud.logoutCallbackUrl],
 			isPublic: false,
 			pkceEnabled: false,
+			pkceSupported: false,
 			requiresReauthentication: true,
 			requiresPushedAuthorizationRequests: false,
 			credentials: { federatedIdentities: [] },
@@ -821,9 +842,10 @@ test('Authorize existing client while not signed in with response_mode=form_post
 	await page.goto(`/authorize?${urlParams.toString()}`);
 
 	await (await passkeyUtil.init(page)).addPasskey();
-	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	await expectFormPostResponse(page, oidcClient.callbackUrl);
+	await expectFormPostCallback(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
 });
 
 test('Authorize existing client with response_mode=form_post', async ({ page }) => {
@@ -831,9 +853,9 @@ test('Authorize existing client with response_mode=form_post', async ({ page }) 
 	const urlParams = createUrlParams(oidcClient);
 	urlParams.set('response_mode', 'form_post');
 
-	await page.goto(`/authorize?${urlParams.toString()}`);
-
-	await expectFormPostResponse(page, oidcClient.callbackUrl);
+	await expectFormPostCallback(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
 });
 
 test('Authorize existing client with response_mode=fragment', async ({ page }) => {
@@ -852,27 +874,37 @@ test('Authorize existing client with response_mode=fragment', async ({ page }) =
 	expect(fragmentParams.get('iss')).toBeTruthy();
 });
 
-async function expectFormPostResponse(
+async function expectFormPostCallback(
 	page: Page,
 	callbackUrl: string,
+	action: () => Promise<unknown>,
 	expectedState = 'nXx-6Qr-owc1SHBa'
 ): Promise<URLSearchParams> {
-	const form = page.locator('form[method="post"]');
-	await expect(form).toHaveAttribute('action', callbackUrl);
-	const formData = new URLSearchParams(
-		await form.locator('input[type="hidden"]').evaluateAll((inputs) => {
-			const params = new URLSearchParams();
-			for (const input of inputs) {
-				params.append(input.name, input.value);
-			}
-			return params.toString();
-		})
-	);
+	const isCallbackURL = callbackURLMatcher(callbackUrl);
+	const callbackRouteMatcher = await routeCallbackPage(page, callbackUrl);
 
-	expect(formData.get('code')).toBeTruthy();
-	expect(formData.get('state')).toBe(expectedState);
-	expect(formData.get('iss')).toBeTruthy();
-	return formData;
+	try {
+		const requestPromise = page.waitForRequest(
+			(request) => request.method() === 'POST' && isCallbackURL(new URL(request.url())),
+			{ timeout: 5000 }
+		);
+		const actionPromise = action().then(
+			() => undefined,
+			(error) => error
+		);
+		const request = await requestPromise;
+		await actionPromise;
+
+		const formData = new URLSearchParams(request.postData() ?? '');
+		expect(formData.get('code')).toBeTruthy();
+		expect(formData.get('state')).toBe(expectedState);
+		expect(formData.get('iss')).toBeTruthy();
+		return formData;
+	} finally {
+		if (!page.isClosed()) {
+			await page.unroute(callbackRouteMatcher).catch(() => {});
+		}
+	}
 }
 
 test.describe('OIDC prompt parameter', () => {
@@ -910,9 +942,7 @@ test.describe('OIDC prompt parameter', () => {
 
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
-		await expect(page.locator('body')).toContainText(
-			"The 'redirect_uri' parameter does not match any of the OAuth 2.0 Client's pre-registered redirect urls."
-		);
+		await expect(page.locator('body')).toContainText('is not registered for this client.');
 		expect(attackerRedirected).toBe(false);
 	});
 
@@ -965,9 +995,7 @@ test.describe('OIDC prompt parameter', () => {
 
 		await page.goto(`/authorize?${urlParams.toString()}`);
 
-		await expect(page.locator('body')).toContainText(
-			"The 'redirect_uri' parameter does not match any of the OAuth 2.0 Client's pre-registered redirect urls."
-		);
+		await expect(page.locator('body')).toContainText('');
 
 		expect(attackerRedirected).toBe(false);
 	});
@@ -1252,9 +1280,12 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 			request_uri: parResult.request_uri!
 		});
 
-		await page.goto(`/authorize?${urlParams.toString()}`);
-
-		const formData = await expectFormPostResponse(page, client.callbackUrl, state);
+		const formData = await expectFormPostCallback(
+			page,
+			client.callbackUrl,
+			() => page.goto(`/authorize?${urlParams.toString()}`),
+			state
+		);
 		expect(formData.get('code')).toBeTruthy();
 		expect(formData.get('state')).toBe(state);
 	});
@@ -1332,6 +1363,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 				logoutCallbackURLs: [],
 				isPublic: true,
 				pkceEnabled: true,
+				pkceSupported: false,
 				requiresReauthentication: false,
 				requiresPushedAuthorizationRequests: false,
 				credentials: { federatedIdentities: [] },
@@ -1374,6 +1406,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 				logoutCallbackURLs: [],
 				isPublic: false,
 				pkceEnabled: false,
+				pkceSupported: false,
 				requiresReauthentication: false,
 				requiresPushedAuthorizationRequests: true,
 				credentials: { federatedIdentities: [] },
@@ -1407,5 +1440,51 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		await page.getByRole('button', { name: 'Show Advanced Options' }).click();
 		const savedToggle = page.getByRole('switch', { name: 'Requires Pushed Authorization' });
 		await expect(savedToggle).toBeChecked();
+	});
+});
+
+test.describe('OIDC skip consent', () => {
+	// This seeded client has skip-consent enabled and is not pre-authorized for the signed-in
+	// user, so the consent screen would normally be shown on first authorization.
+	const client = oidcClients.skipConsent;
+
+	test('skips the consent screen on first authorization', async ({ page }) => {
+		// The flow must go straight through to the callback instead of stopping at the consent screen
+		const urlParams = createUrlParams(client);
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.goto(`/authorize?${urlParams.toString()}`)
+		);
+
+		expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+		expect(callbackUrl.searchParams.get('error')).toBeNull();
+	});
+
+	test('still shows the consent screen when prompt=consent is requested', async ({ page }) => {
+		const urlParams = createUrlParams(client);
+		urlParams.set('prompt', 'consent');
+		await page.goto(`/authorize?${urlParams.toString()}`);
+
+		// prompt=consent overrides the client's skip-consent setting, so the scopes must still be shown
+		await expectScopes(page, ['Email', 'Profile']);
+
+		const callbackUrl = await expectCallbackRedirect(page, client.callbackUrl, () =>
+			page.getByRole('button', { name: 'Sign in' }).click()
+		);
+		expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	});
+
+	test('Admin UI: skip consent toggle reflects the seeded value and persists', async ({ page }) => {
+		await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+
+		// The seeded client has skip-consent enabled, so the toggle loads checked
+		const toggle = page.getByRole('switch', { name: 'Skip Consent Screen' });
+		await expect(toggle).toBeChecked();
+
+		// Disabling it and saving must persist across a reload
+		await toggle.click();
+		await page.getByRole('button', { name: /save/i }).click();
+		await page.reload();
+
+		await expect(page.getByRole('switch', { name: 'Skip Consent Screen' })).not.toBeChecked();
 	});
 });

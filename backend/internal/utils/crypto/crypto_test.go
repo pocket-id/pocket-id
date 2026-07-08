@@ -2,12 +2,26 @@ package crypto
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDeriveKeyUsesStableValueForCustomSeed(t *testing.T) {
+	masterKey := []byte("test-encryption-key")
+	seed := "custom-seed-for-derive-key-test"
+
+	expectedHex := "4711f51767f370cef92807634ab9b534476e7f91c1c9914fb681e9982badc646"
+	expected, err := hex.DecodeString(expectedHex)
+	require.NoError(t, err)
+
+	actual, err := DeriveKey(masterKey, seed)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
 
 func TestEncryptDecrypt(t *testing.T) {
 	tests := []struct {

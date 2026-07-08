@@ -219,8 +219,13 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.IsPublic = input.IsPublic
 	// PKCE is required for public clients
 	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	// Reset any pkce support prompt if previously flagged
+	if !input.PkceEnabled {
+		client.PkceSupported = false
+	}
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.RequiresPushedAuthorizationRequests = input.RequiresPushedAuthorizationRequests
+	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
 

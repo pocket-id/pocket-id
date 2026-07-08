@@ -1,8 +1,9 @@
 package oidc
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -43,17 +44,17 @@ func TestUserInfoHandler(t *testing.T) {
 		EmailVerified: true,
 	}).Error)
 
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	provider, err := newProvider(NewStore(db), nil, testTokenSigner{key: key}, Config{
+	provider, err := newProvider(NewStore(db, nil).WithIssuer(baseURL), nil, testTokenSigner{key: key}, Config{
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
-		Secret:       "test-secret",
+		Secret:       []byte("test-secret"),
 	})
 	require.NoError(t, err)
 
-	handler := newUserInfoHandler(provider, newClaimsService(db, nil, baseURL, nil))
+	handler := newUserInfoHandler(provider, newClaimsService(db, nil, baseURL, nil), baseURL)
 
 	issueAccessToken := func(t *testing.T, requestID, subject string, scopes ...string) string {
 		t.Helper()
@@ -67,6 +68,8 @@ func TestUserInfoHandler(t *testing.T) {
 		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
 		request.RequestedScope = fosite.Arguments(scopes)
 		request.GrantedScope = fosite.Arguments(scopes)
+		// The grant is bound to the requesting client
+		// The issuer store adds the issuer audience when the token carries an identity scope, which is what userinfo gates on
 		request.RequestedAudience = fosite.Arguments{clientID}
 		request.GrantedAudience = fosite.Arguments{clientID}
 
@@ -101,6 +104,90 @@ func TestUserInfoHandler(t *testing.T) {
 		require.Equal(t, "tim@example.com", claims["email"])
 		// profile was not granted, so profile claims must be absent
 		require.NotContains(t, claims, "given_name")
+	})
+
+	t.Run("token without the openid scope is rejected", func(t *testing.T) {
+		// A token issued purely for a custom API carries no openid scope and must not read profile claims
+		session := NewEmptySession()
+		session.Subject = userID
+		session.SetExpiresAt(fosite.AccessToken, time.Now().UTC().Add(time.Hour))
+
+		request := fosite.NewAccessRequest(session)
+		request.ID = "req-no-openid"
+		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}}}
+		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
+		request.RequestedScope = fosite.Arguments{"read:orders"}
+		request.GrantedScope = fosite.Arguments{"read:orders"}
+		request.RequestedAudience = fosite.Arguments{"https://api.example.com"}
+		request.GrantedAudience = fosite.Arguments{"https://api.example.com"}
+
+		response, err := provider.NewAccessResponse(t.Context(), request)
+		require.NoError(t, err)
+
+		rec, c := call(t, response.GetAccessToken())
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("token audienced to a custom API can read userinfo when openid was granted", func(t *testing.T) {
+		// A token that requested identity scopes alongside a custom API resource is materialized with the issuer added to its audience, so it may read userinfo by the client's explicit opt-in
+		session := NewEmptySession()
+		session.Subject = userID
+		session.SetExpiresAt(fosite.AccessToken, time.Now().UTC().Add(time.Hour))
+
+		request := fosite.NewAccessRequest(session)
+		request.ID = "req-api-audience"
+		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}}}
+		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
+		request.RequestedScope = fosite.Arguments{"openid", "email", "read:orders"}
+		request.GrantedScope = fosite.Arguments{"openid", "email", "read:orders"}
+		request.RequestedAudience = fosite.Arguments{"https://api.orders.example.com"}
+		request.GrantedAudience = fosite.Arguments{"https://api.orders.example.com"}
+
+		response, err := provider.NewAccessResponse(t.Context(), request)
+		require.NoError(t, err)
+
+		rec, c := call(t, response.GetAccessToken())
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var claims map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &claims))
+		require.Equal(t, userID, claims["sub"])
+		require.Equal(t, "tim@example.com", claims["email"])
+	})
+
+	t.Run("token audienced only to a custom API is rejected", func(t *testing.T) {
+		// A token that carries no identity scope never gains the issuer audience, so it cannot be replayed at userinfo even though it has a valid resource owner
+		session := NewEmptySession()
+		session.Subject = userID
+		session.SetExpiresAt(fosite.AccessToken, time.Now().UTC().Add(time.Hour))
+
+		request := fosite.NewAccessRequest(session)
+		request.ID = "req-api-only"
+		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}}}
+		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
+		request.RequestedScope = fosite.Arguments{"read:orders"}
+		request.GrantedScope = fosite.Arguments{"read:orders"}
+		request.RequestedAudience = fosite.Arguments{"https://api.orders.example.com"}
+		request.GrantedAudience = fosite.Arguments{"https://api.orders.example.com"}
+
+		response, err := provider.NewAccessResponse(t.Context(), request)
+		require.NoError(t, err)
+
+		rec, c := call(t, response.GetAccessToken())
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+		require.Contains(t, rec.Body.String(), "not audienced to this server")
+	})
+
+	t.Run("token whose user no longer exists is rejected with 401", func(t *testing.T) {
+		// A valid token whose subject was deleted is an auth failure, not a 404
+		token := issueAccessToken(t, "req-ghost", "ghost-user", "openid")
+		rec, c := call(t, token)
+		require.Empty(t, c.Errors)
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Header().Get("WWW-Authenticate"), `Bearer error="request_unauthorized"`)
 	})
 
 	t.Run("missing access token is rejected", func(t *testing.T) {

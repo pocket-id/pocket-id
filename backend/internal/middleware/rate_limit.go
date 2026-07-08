@@ -1,47 +1,116 @@
 package middleware
 
 import (
-	"sync"
+	"context"
+	"errors"
+	"log/slog"
+	"math"
+	"net"
+	"net/http"
+	"strconv"
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-
 	"github.com/gin-gonic/gin"
-	"golang.org/x/time/rate"
+	"github.com/italypaleale/francis/builtin/ratelimit"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
-type RateLimitMiddleware struct{}
+// Rate-limit policy names
+// Each constant names a limiter registered on the actor host and is the value passed to Add to select that limiter
+const (
+	RateLimitAPI                    = "api"
+	RateLimitSignup                 = "signup"
+	RateLimitWebauthnLogin          = "webauthn-login"
+	RateLimitWebauthnReauthenticate = "webauthn-reauthenticate"
+	RateLimitOneTimeAccessToken     = "one-time-access-token"
+	RateLimitOneTimeAccessEmail     = "one-time-access-email"
+	RateLimitSendEmailVerification  = "send-email-verification"
+	RateLimitVerifyEmail            = "verify-email"
+	RateLimitInternal               = "internal"
+)
 
-func NewRateLimitMiddleware() *RateLimitMiddleware {
-	return &RateLimitMiddleware{}
+// RateLimitPolicy is the configuration for a single rate-limit actor
+// Each policy maps to one Francis rate-limit actor type and requests are keyed by client IP, so every IP is limited independently and per-route limits stay isolated from each other
+type RateLimitPolicy struct {
+	// Name must be unique across policies and must not contain '/'
+	Name string
+	// Rate is the number of calls admitted per Per window
+	Rate int
+	// Per is the window the rate applies over
+	Per time.Duration
+	// Burst is the token bucket's capacity, i.e. how many calls may be admitted instantly before throttling kicks in
+	Burst int
 }
 
-func (m *RateLimitMiddleware) Add(limit rate.Limit, burst int) gin.HandlerFunc {
+// RateLimitPolicies returns the configuration for every rate-limit policy
+// The slice is built on each call so the policies are not retained at the package level, and the actor host registers one limiter per entry
+func RateLimitPolicies() []RateLimitPolicy {
+	return []RateLimitPolicy{
+		{Name: RateLimitAPI, Rate: 100, Per: time.Second, Burst: 300},
+		{Name: RateLimitSignup, Rate: 2, Per: time.Minute, Burst: 10},
+		{Name: RateLimitWebauthnLogin, Rate: 1, Per: 5 * time.Second, Burst: 10},
+		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitOneTimeAccessEmail, Rate: 2, Per: 10 * time.Minute, Burst: 5},
+		{Name: RateLimitSendEmailVerification, Rate: 2, Per: 10 * time.Minute, Burst: 1},
+		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitInternal, Rate: 20, Per: time.Second, Burst: 20},
+	}
+}
+
+type RateLimitMiddleware struct {
+	services map[string]*ratelimit.RateLimitService
+}
+
+func NewRateLimitMiddleware(services map[string]*ratelimit.RateLimitService) *RateLimitMiddleware {
+	return &RateLimitMiddleware{
+		services: services,
+	}
+}
+
+func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 	if common.EnvConfig.DisableRateLimiting {
 		return func(c *gin.Context) {
 			c.Next()
 		}
 	}
 
-	// Map to store the rate limiters per IP
-	var clients = make(map[string]*client)
-	var mu sync.Mutex
-
-	// Start the cleanup routine
-	go cleanupClients(&mu, clients)
+	// A missing service means the policy was never registered on the actor host, which is a development-time errror
+	svc := m.services[policy]
+	if svc == nil {
+		return func(c *gin.Context) {
+			c.AbortWithStatus(http.StatusInternalServerError)
+		}
+	}
 
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 
 		// Skip rate limiting for localhost and test environment
 		// If the client ip is localhost the request comes from the frontend
-		if ip == "" || ip == "127.0.0.1" || ip == "::1" || common.EnvConfig.AppEnv.IsTest() {
+		if common.EnvConfig.AppEnv == common.AppEnvTest || net.ParseIP(ip).IsLoopback() {
 			c.Next()
 			return
 		}
 
-		limiter := getLimiter(ip, limit, burst, &mu, clients)
-		if !limiter.Allow() {
+		// Allow is a non-blocking token-bucket check keyed by client IP: it consumes a slot and reports whether the call is admitted right now
+		allowed, retryAfter, err := svc.Allow(c.Request.Context(), ip)
+		if err != nil {
+			// Fail open so a limiter error does not turn away otherwise-valid traffic
+			if !errors.Is(err, context.Canceled) {
+				// A cancelled context just means the client went away, so it is not worth logging
+				slog.WarnContext(c.Request.Context(), "Rate limiter unavailable, allowing request", slog.String("policy", policy), slog.Any("error", err))
+			}
+			c.Next()
+			return
+		}
+
+		if !allowed {
+			// Advertise when the caller may retry, mapping the limiter's delay onto a Retry-After header
+			if retryAfter > 0 {
+				c.Header("Retry-After", strconv.Itoa(int(math.Ceil(retryAfter.Seconds()))))
+			}
 			_ = c.Error(&common.TooManyRequestsError{})
 			c.Abort()
 			return
@@ -49,38 +118,4 @@ func (m *RateLimitMiddleware) Add(limit rate.Limit, burst int) gin.HandlerFunc {
 
 		c.Next()
 	}
-}
-
-type client struct {
-	limiter  *rate.Limiter
-	lastSeen time.Time
-}
-
-// Cleanup routine to remove stale clients that haven't been seen for a while
-func cleanupClients(mu *sync.Mutex, clients map[string]*client) {
-	for {
-		time.Sleep(time.Minute)
-		mu.Lock()
-		for ip, client := range clients {
-			if time.Since(client.lastSeen) > 3*time.Minute {
-				delete(clients, ip)
-			}
-		}
-		mu.Unlock()
-	}
-}
-
-// getLimiter retrieves the rate limiter for a given IP address, creating one if it doesn't exist
-func getLimiter(ip string, limit rate.Limit, burst int, mu *sync.Mutex, clients map[string]*client) *rate.Limiter {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if client, exists := clients[ip]; exists {
-		client.lastSeen = time.Now()
-		return client.limiter
-	}
-
-	limiter := rate.NewLimiter(limit, burst)
-	clients[ip] = &client{limiter: limiter, lastSeen: time.Now()}
-	return limiter
 }

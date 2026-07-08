@@ -15,7 +15,7 @@ import (
 type Config struct {
 	BaseURL      string
 	TokenBaseURL string
-	Secret       string
+	Secret       []byte
 }
 
 type TokenSigner interface {
@@ -45,6 +45,7 @@ type Dependencies struct {
 	CustomClaims CustomClaimSource
 	Reauth       ReauthenticationTokenConsumer
 	AuditLog     AuditLogger
+	APIAccess    APIAccessProvider
 }
 
 type Module struct {
@@ -63,7 +64,7 @@ type Module struct {
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	store := NewStore(deps.DB)
+	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
 	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
@@ -76,7 +77,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	claimsService := newClaimsService(deps.DB, deps.CustomClaims, deps.Config.BaseURL, deps.Signer)
 	previewBuilder := newClientPreviewBuilder(claimsService, provider.tokenStrategies)
 	interactionSessionService := newInteractionSessionService(deps.DB)
-	authorizationService := newAuthorizationService(deps.DB, interactionSessionService, claimsService, deps.Reauth, deps.AuditLog)
+	authorizationService := newAuthorizationService(deps.DB, interactionSessionService, claimsService, deps.Reauth, deps.AuditLog, deps.APIAccess)
 	deviceService := newDeviceService(provider, store, provider.deviceStrategy, authorizationService, claimsService, deps.AuditLog, deps.DB)
 	endSessionService := newEndSessionService(deps.DB, store, deps.Signer, deps.Config.BaseURL)
 
@@ -87,8 +88,8 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		store:  store,
 
 		authorizationHandler: newAuthorizationHandler(provider, authorizationService, deps.Config.BaseURL),
-		tokenHandler:         newTokenHandler(provider, claimsService),
-		userInfoHandler:      newUserInfoHandler(provider, claimsService),
+		tokenHandler:         newTokenHandler(provider, claimsService, deps.APIAccess),
+		userInfoHandler:      newUserInfoHandler(provider, claimsService, deps.Config.BaseURL),
 		parHandler:           newPARHandler(provider),
 		introspectionHandler: newIntrospectionHandler(provider, authenticator, deps.Config.BaseURL),
 		endSessionHandler:    newEndSessionHandler(endSessionService, deps.Config.BaseURL),

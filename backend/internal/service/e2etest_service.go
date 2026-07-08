@@ -21,15 +21,19 @@ import (
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
 	fositejwt "github.com/ory/fosite/token/jwt"
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
+	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
@@ -257,6 +261,17 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				CallbackURLs: model.UrlList{"http://par-client.localhost/auth/callback"},
 				CreatedByID:  new(users[0].ID),
 			},
+			{
+				Base: model.Base{
+					ID: "e1f2a3b4-c5d6-7890-abcd-ef0000000002",
+				},
+				Name:         "Skip Consent Client",
+				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
+				CallbackURLs: model.UrlList{"http://skip-consent.localhost/auth/callback"},
+				CreatedByID:  new(users[0].ID),
+				// Trusted client that bypasses the consent screen by default
+				SkipConsent: true,
+			},
 		}
 		for _, client := range oidcClients {
 			if err := tx.Create(&client).Error; err != nil {
@@ -305,6 +320,62 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
+		ordersAPI := api.API{
+			Base: model.Base{
+				ID: "f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d",
+			},
+			Name:     "Orders API",
+			Audience: "https://api.orders.test",
+		}
+		if err := tx.Create(&ordersAPI).Error; err != nil {
+			return err
+		}
+
+		apiPermissions := []api.Permission{
+			{
+				Base: model.Base{
+					ID: "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+				},
+				APIID:       ordersAPI.ID,
+				Key:         "read:orders",
+				Name:        "Read orders",
+				Description: new("Read order data"),
+			},
+			{
+				Base: model.Base{
+					ID: "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+				},
+				APIID:       ordersAPI.ID,
+				Key:         "write:orders",
+				Name:        "Write orders",
+				Description: new("Create and modify orders"),
+			},
+		}
+		for _, permission := range apiPermissions {
+			if err := tx.Create(&permission).Error; err != nil {
+				return err
+			}
+		}
+
+		// Immich is allowed to request read:orders on behalf of users and to obtain write:orders for itself via the client credentials grant
+		allowedAPIPermissions := []api.OidcClientAllowedAPIPermission{
+			{
+				OidcClientID:    oidcClients[1].ID,
+				APIPermissionID: apiPermissions[0].ID,
+				SubjectType:     oidc.SubjectTypeUser,
+			},
+			{
+				OidcClientID:    oidcClients[1].ID,
+				APIPermissionID: apiPermissions[1].ID,
+				SubjectType:     oidc.SubjectTypeClient,
+			},
+		}
+		for _, allowed := range allowedAPIPermissions {
+			if err := tx.Create(&allowed).Error; err != nil {
+				return err
+			}
+		}
+
 		// To generate a new key pair, run the following command:
 		// openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 | \
 		// openssl pkcs8 -topk8 -nocrypt | tee >(openssl pkey -pubout)
@@ -335,11 +406,11 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		webauthnSession := model.WebauthnSession{
+		webauthnSession := webauthn.WebauthnSession{
 			Challenge:        "challenge",
 			ExpiresAt:        datatype.DateTime(time.Now().Add(1 * time.Hour)),
 			UserVerification: "preferred",
-			CredentialParams: model.CredentialParameters{
+			CredentialParams: webauthn.CredentialParameters{
 				{Type: "public-key", Algorithm: -7},
 				{Type: "public-key", Algorithm: -257},
 			},
@@ -348,7 +419,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
-		apiKeys := []model.ApiKey{
+		apiKeys := []apikey.ApiKey{
 			{
 				Base: model.Base{
 					ID: "5f1fa856-c164-4295-961e-175a0d22d725",
@@ -374,7 +445,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		signupTokens := []model.SignupToken{
+		signupTokens := []usersignup.SignupToken{
 			{
 				Base: model.Base{
 					ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -471,23 +542,37 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 }
 
 func (s *TestService) ResetDatabase() error {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	return s.db.Transaction(func(tx *gorm.DB) (err error) {
 		var tables []string
 
+		// The "francis_" tables belong to the actor host and must be preserved: wiping them out from under the running host breaks it
 		switch common.EnvConfig.DbProvider {
 		case common.DbProviderSqlite:
 			// Query to get all tables for SQLite
-			if err := tx.Raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_migrations';").Scan(&tables).Error; err != nil {
-				return err
+			err = tx.
+				Raw(`SELECT name
+					FROM sqlite_master
+					WHERE type='table'
+						AND name NOT LIKE 'sqlite_%'
+						AND name NOT LIKE 'francis_%'
+						AND name != 'schema_migrations'`).
+				Scan(&tables).
+				Error
+			if err != nil {
+				return fmt.Errorf("error loading table list: %w", err)
 			}
 		case common.DbProviderPostgres:
 			// Query to get all tables for PostgreSQL
-			if err := tx.Raw(`
-                SELECT tablename 
-                FROM pg_tables 
-                WHERE schemaname = 'public' AND tablename != 'schema_migrations';
-            `).Scan(&tables).Error; err != nil {
-				return err
+			err = tx.
+				Raw(`SELECT tablename
+					FROM pg_tables
+					WHERE schemaname = 'public'
+						AND tablename NOT LIKE 'francis_%'
+						AND tablename != 'schema_migrations'`).
+				Scan(&tables).
+				Error
+			if err != nil {
+				return fmt.Errorf("error loading table list: %w", err)
 			}
 		default:
 			return fmt.Errorf("unsupported database provider: %s", common.EnvConfig.DbProvider)
@@ -495,15 +580,14 @@ func (s *TestService) ResetDatabase() error {
 
 		// Delete all rows from all tables
 		for _, table := range tables {
-			if err := tx.Exec(fmt.Sprintf("DELETE FROM %s;", table)).Error; err != nil {
-				return err
+			err = tx.Exec("DELETE FROM " + table).Error
+			if err != nil {
+				return fmt.Errorf("error deleting from table '%s': %w", table, err)
 			}
 		}
 
 		return nil
 	})
-
-	return err
 }
 
 func (s *TestService) ResetApplicationImages(ctx context.Context) error {
@@ -620,7 +704,7 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 }
 
 func (s *TestService) SignRefreshToken(ctx context.Context, userID, clientID, fixtureRefreshToken string) (string, error) {
-	globalSecret, err := oidc.DeriveGlobalSecret(string(common.EnvConfig.EncryptionKey))
+	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
 	if err != nil {
 		return "", err
 	}
@@ -688,7 +772,7 @@ func seededRefreshTokenFixture(userID string, clientID string, fixtureRefreshTok
 }
 
 func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID string, expired bool) (string, error) {
-	globalSecret, err := oidc.DeriveGlobalSecret(string(common.EnvConfig.EncryptionKey))
+	globalSecret, err := oidc.DeriveGlobalSecret(common.EnvConfig.EncryptionKey)
 	if err != nil {
 		return "", err
 	}
@@ -749,7 +833,9 @@ type fositeTokenSession struct {
 func (s *TestService) seedFositeTokenSession(ctx context.Context, session fositeTokenSession) error {
 	request := s.newFositeTokenRequest(session)
 
-	store := oidc.NewStore(s.db)
+	store := oidc.
+		NewStore(s.db, nil).
+		WithIssuer(common.EnvConfig.AppURL)
 	switch session.Kind {
 	case "access_token":
 		return store.CreateAccessTokenSession(ctx, session.Signature, request)
@@ -770,7 +856,7 @@ func (s *TestService) newFositeTokenRequest(session fositeTokenSession) *fosite.
 			RequestedAt: requestedAt,
 			AuthTime:    requestedAt,
 			Subject:     session.UserID,
-			Issuer: common.EnvConfig.AppURL,
+			Issuer:      common.EnvConfig.AppURL,
 		},
 	}
 	oidcSession.SetExpiresAt(session.TokenType, session.ExpiresAt)

@@ -16,6 +16,7 @@ const (
 type interactionSessionForUser struct {
 	ID            string                    `json:"id"`
 	Scopes        []string                  `json:"scopes"`
+	ScopeInfo     []dto.ScopeInfoDto        `json:"scopeInfo"`
 	Client        dto.OidcClientMetaDataDto `json:"client"`
 	CurrentStep   interactionStep           `json:"currentStep,omitempty"`
 	RequiredSteps []interactionStep         `json:"requiredSteps"`

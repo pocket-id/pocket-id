@@ -132,6 +132,7 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 			logoutCallbackURLs: [],
 			isPublic: false,
 			pkceEnabled: false,
+			pkceSupported: false,
 			requiresReauthentication: false,
 			requiresPushedAuthorizationRequests: true,
 			credentials: { federatedIdentities: [] },

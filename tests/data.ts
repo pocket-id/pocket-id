@@ -74,6 +74,32 @@ export const oidcClients = {
 		name: 'PAR Test Client',
 		callbackUrl: 'http://par-client.localhost/auth/callback',
 		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
+	},
+	skipConsent: {
+		id: 'e1f2a3b4-c5d6-7890-abcd-ef0000000002',
+		name: 'Skip Consent Client',
+		callbackUrl: 'http://skip-consent.localhost/auth/callback',
+		secret: 'w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY'
+	}
+};
+
+export const apis = {
+	orders: {
+		id: 'f6a8b3c1-2d4e-4a6b-8c9d-0e1f2a3b4c5d',
+		name: 'Orders API',
+		resource: 'https://api.orders.test',
+		permissions: {
+			readOrders: {
+				id: '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
+				key: 'read:orders',
+				name: 'Read orders'
+			},
+			writeOrders: {
+				id: '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e',
+				key: 'write:orders',
+				name: 'Write orders'
+			}
+		}
 	}
 };
 

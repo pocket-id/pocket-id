@@ -239,7 +239,7 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 		tx.Rollback()
 	}()
 
-	user, err := s.createUserInternal(ctx, input, false, tx)
+	user, err := s.CreateUserInternal(ctx, input, false, tx)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -252,7 +252,7 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 	return user, nil
 }
 
-func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
+func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
 	if s.appConfigService.GetDbConfig().RequireUserEmail.IsTrue() && input.Email == nil {
 		return model.User{}, &common.UserEmailNotSetError{}
 	}

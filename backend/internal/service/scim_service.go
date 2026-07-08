@@ -319,7 +319,7 @@ func (s *ScimService) syncGroups(
 
 	// Update or create groups
 	for _, g := range groups {
-		existing := getResourceByExternalID[dto.ScimGroup](g.ID, remoteGroups)
+		existing := getResourceByExternalID(g.ID, remoteGroups)
 
 		action, err := s.syncGroup(ctx, provider, g, existing, userResources)
 		if err != nil {

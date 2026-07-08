@@ -291,7 +291,7 @@ func (s *JwtService) GetKeyID() (string, bool) {
 }
 
 // GetAuthenticationMethod returns the first authentication method in the "amr" claim in the token
-func GetAuthenticationMethod(token jwt.Token) (string, error) {
+func (s *JwtService) GetAuthenticationMethod(token jwt.Token) (string, error) {
 	if !token.Has(common.AuthenticationMethodsClaim) {
 		return "", nil
 	}
