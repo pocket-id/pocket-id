@@ -31,7 +31,7 @@
 </script>
 
 <Card.Root
-	class="border-muted group relative h-[140px] p-5 transition-all duration-200 hover:shadow-md sm:max-w-[50vw] md:max-w-[400px]"
+	class="border-muted group relative h-[160px] p-5 transition-all duration-200 hover:shadow-md sm:max-w-[50vw] md:max-w-[400px]"
 	data-testid="authorized-oidc-client-card"
 >
 	<Card.Content class=" p-0">
@@ -46,19 +46,26 @@
 				/>
 			</div>
 			<div class="flex w-full justify-between gap-3">
-				<div>
+				<div class="h-20">
 					<div class="mb-1 flex items-start gap-2">
 						<h3
-							class="text-foreground line-clamp-2 leading-tight font-semibold break-words break-all text-ellipsis"
+							class="text-foreground line-clamp-2 leading-tight font-semibold wrap-break-word break-all text-ellipsis"
 						>
 							{client.name}
 						</h3>
 					</div>
 					{#if client.launchURL}
 						<p
-							class="text-muted-foreground line-clamp-1 text-xs break-words break-all text-ellipsis"
+							class="text-muted-foreground line-clamp-1 text-xs wrap-break-word break-all text-ellipsis"
 						>
 							{new URL(client.launchURL).hostname}
+						</p>
+					{/if}
+					{#if client.description}
+						<p
+							class="text-muted-foreground line-clamp-3 wrap-break-word text-ellipsis text-xs mt-1"
+						>
+							{client.description}
 						</p>
 					{/if}
 				</div>

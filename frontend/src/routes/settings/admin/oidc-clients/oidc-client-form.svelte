@@ -44,6 +44,7 @@
 	const client = {
 		id: '',
 		name: existingClient?.name || '',
+		description: existingClient?.description || '',
 		callbackURLs: existingClient?.callbackURLs || [],
 		logoutCallbackURLs: existingClient?.logoutCallbackURLs || [],
 		isPublic: existingClient?.isPublic || false,
@@ -73,6 +74,7 @@
 				.optional()
 		),
 		name: z.string().min(2).max(50),
+		description: z.string().max(150),
 		callbackURLs: z.array(callbackUrlSchema).default([]),
 		logoutCallbackURLs: z.array(callbackUrlSchema).default([]),
 		isPublic: z.boolean(),
@@ -185,6 +187,12 @@
 			class="w-full"
 			description={m.client_name_description()}
 			bind:input={$inputs.name}
+		/>
+		<FormInput
+			label={m.client_description()}
+			class="w-full"
+			description={m.client_description_description()}
+			bind:input={$inputs.description}
 		/>
 		<FormInput
 			label={m.client_launch_url()}

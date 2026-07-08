@@ -187,6 +187,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 					ID: "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				},
 				Name:               "Nextcloud",
+				Description:        "This is an example description for Nextcloud",
 				LaunchURL:          new("https://nextcloud.local"),
 				Secret:             "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
 				CallbackURLs:       model.UrlList{"http://nextcloud.localhost/auth/callback"},
