@@ -455,6 +455,8 @@
 	"client_launch_url": "Klientens start-URL",
 	"client_launch_url_description": "Den URL som öppnas när en användare startar appen från sidan Mina appar.",
 	"client_name_description": "Namnet på klienten som visas i Pocket ID-användargränssnittet.",
+	"client_description": "Beskrivning",
+	"client_description_description": "En valfri beskrivning av klienten som visas i Pocket ID-gränssnittet.",
 	"revoke_access": "Återkalla åtkomst",
 	"revoke_access_description": "Återkalla åtkomst till <b>{clientName}</b>. <b>{clientName}</b> kommer inte längre att kunna komma åt din kontoinformation.",
 	"revoke_access_successful": "Åtkomsten till {clientName} har återkallats.",
