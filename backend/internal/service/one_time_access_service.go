@@ -194,6 +194,9 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 	if oneTimeAccessToken.DeviceToken != nil && deviceToken != *oneTimeAccessToken.DeviceToken {
 		return model.User{}, "", &common.DeviceCodeInvalid{}
 	}
+	if oneTimeAccessToken.User.Disabled {
+		return model.User{}, "", &common.UserDisabledError{}
+	}
 
 	accessToken, err := s.jwtService.GenerateAccessToken(oneTimeAccessToken.User, AuthenticationMethodOneTimePassword)
 	if err != nil {
