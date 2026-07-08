@@ -455,6 +455,8 @@
 	"client_launch_url": "Client Launch URL",
 	"client_launch_url_description": "ユーザーが「マイアプリ」ページからアプリを起動した際に開かれるURL。",
 	"client_name_description": "Pocket ID UIに表示されるクライアント名。",
+	"client_description": "説明",
+	"client_description_description": "Pocket IDのUIに表示される、クライアントに関する任意の説明文。",
 	"revoke_access": "アクセスを取り消す",
 	"revoke_access_description": "<b>{clientName}</b>へのアクセスを取り消します。 <b>{clientName}</b> はあなたのアカウント情報にアクセスできなくなります。",
 	"revoke_access_successful": "{clientName} へのアクセスは正常に取り消されました。",
