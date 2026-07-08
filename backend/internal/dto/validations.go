@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 
 	"github.com/gin-gonic/gin/binding"
@@ -47,6 +48,9 @@ func init() {
 		"callback_url_pattern": func(fl validator.FieldLevel) bool {
 			return ValidateCallbackURLPattern(fl.Field().String())
 		},
+		"resource_uri": func(fl validator.FieldLevel) bool {
+			return ValidateResourceURI(fl.Field().String())
+		},
 	}
 	for k, v := range validators {
 		err := engine.RegisterValidation(k, v)
@@ -66,6 +70,27 @@ func ValidateClientID(clientID string) bool {
 	return validateClientIDRegex.MatchString(clientID)
 }
 
+// isActiveContentScheme reports whether the URL scheme can carry executable content, so it must never be accepted where a URL might later be rendered as a link
+func isActiveContentScheme(scheme string) bool {
+	switch strings.ToLower(scheme) {
+	case "javascript", "data":
+		return true
+	default:
+		return false
+	}
+}
+
+// ValidateResourceURI validates RFC 8707 resource identifiers
+func ValidateResourceURI(str string) bool {
+	if !fosite.IsValidResourceIndicatorURI(str) {
+		return false
+	}
+
+	// Reject active-content schemes so a resource identifier can never carry executable content if it is ever surfaced as a link
+	u, _ := url.Parse(str)
+	return !isActiveContentScheme(u.Scheme)
+}
+
 // ValidateCallbackURL validates the input callback URL
 func ValidateCallbackURL(str string) bool {
 	// Ensure the URL is a valid one and that the protocol is not "javascript:" or "data:"
@@ -74,12 +99,7 @@ func ValidateCallbackURL(str string) bool {
 		return false
 	}
 
-	switch strings.ToLower(u.Scheme) {
-	case "javascript", "data":
-		return false
-	default:
-		return true
-	}
+	return !isActiveContentScheme(u.Scheme)
 }
 
 // ValidateCallbackURLPattern validates callback URL patterns, with support for wildcards.

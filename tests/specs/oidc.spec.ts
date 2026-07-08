@@ -398,7 +398,8 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionBody.active).toBe(true);
 		expect(introspectionBody.iss).toBe(baseURL);
 		expect(introspectionBody.sub).toBe(users.tim.id);
-		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id]);
+		// An identity access token is audienced to the client and additionally to the issuer, so it can be presented at /userinfo
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id, baseURL]);
 	});
 
 	test('succeeds with federated client credentials', async ({ page, request, baseURL }) => {
@@ -427,7 +428,8 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionBody.active).toBe(true);
 		expect(introspectionBody.iss).toBe(baseURL);
 		expect(introspectionBody.sub).toBe(users.tim.id);
-		expect(introspectionBody.aud).toStrictEqual([oidcClients.federated.id]);
+		// An identity access token is audienced to the client and additionally to the issuer, so it can be presented at /userinfo
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.federated.id, baseURL]);
 	});
 
 	test('fails with client credentials for wrong app', async ({ request }) => {

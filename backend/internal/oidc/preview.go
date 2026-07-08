@@ -74,14 +74,16 @@ func (b *ClientPreviewBuilder) BuildClientPreview(ctx context.Context, client mo
 }
 
 func (b *ClientPreviewBuilder) validatedScopes(ctx context.Context, client model.OidcClient, scopes []string) (fosite.Arguments, error) {
-	scopeStrategy := b.strategies.config.GetScopeStrategy(ctx)
-	clientScopes := Client{OidcClient: client}.GetScopes()
+	// Mirror the authorize endpoint's scope handling so the preview matches the tokens a real
+	// authorization would produce, including dropping unknown scopes when configured.
+	requested := fosite.Arguments(fosite.RemoveEmpty(scopes))
+	validated, err := fosite.FilterRequestedScopes(b.strategies.config.GetScopeStrategy(ctx), Client{OidcClient: client}, requested, b.strategies.config.GetIgnoreUnknownScopes(ctx))
+	if err != nil {
+		return nil, err
+	}
 
-	scopeArgs := make(fosite.Arguments, 0, len(scopes))
-	for _, scope := range fosite.RemoveEmpty(scopes) {
-		if !scopeStrategy(clientScopes, scope) {
-			return nil, fosite.ErrInvalidScope.WithHintf("The OAuth 2.0 Client is not allowed to request scope '%s'.", scope)
-		}
+	scopeArgs := make(fosite.Arguments, 0, len(validated))
+	for _, scope := range validated {
 		if !scopeArgs.Has(scope) {
 			scopeArgs = append(scopeArgs, scope)
 		}
