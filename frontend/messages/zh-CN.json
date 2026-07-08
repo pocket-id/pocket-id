@@ -455,6 +455,8 @@
 	"client_launch_url": "客户端启动网址",
 	"client_launch_url_description": "当用户从“我的应用”页面启动应用时将打开的 URL。",
 	"client_name_description": "在Pocket ID用户界面中显示的客户端名称。",
+	"client_description": "描述",
+	"client_description_description": "在 Pocket ID 用户界面中显示的客户端的可选描述。",
 	"revoke_access": "撤销访问权限",
 	"revoke_access_description": "撤销 <b>{clientName}</b>的访问权限。 <b>{clientName}</b>将无法再访问您的账户信息。",
 	"revoke_access_successful": "对 {clientName} 的访问权限已成功撤销。",
