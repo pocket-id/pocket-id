@@ -13,9 +13,9 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// importResetTargetVersion is a real migration version the import resets the schema to.
-// It only has to be at or beyond 20240817191051 (the rename_config_table migration that toggles foreign keys), so the reset exercises a foreign-key-sensitive migration.
-const importResetTargetVersion = 20260726153900
+// importResetTargetVersion is a real migration version the import resets the schema to
+// It only has to be at or beyond 20240817191051 (the rename_config_table migration that toggles foreign keys), so the reset exercises a foreign-key-sensitive migration
+const importResetTargetVersion = 20260708120000
 
 // openImportTestDB opens a Gorm SQLite pool on a file database using the same pragmas the application configures in production, most importantly foreign_keys(1) on every connection (normalize() is already registered by the service package's test setup)
 func openImportTestDB(t *testing.T, dbPath string, cfg func(*sql.DB)) *gorm.DB {
