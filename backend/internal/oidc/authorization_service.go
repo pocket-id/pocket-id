@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/url"
 	"slices"
 	"strconv"
@@ -12,11 +13,11 @@ import (
 
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func newAuthorizationService(db *gorm.DB, interactionSessionService *interactionSessionService, claimsService *ClaimsService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, apiAccess APIAccessProvider) *authorizationService {
@@ -42,7 +43,7 @@ type authorizationService struct {
 // resolveGrant resolves the RFC 8707 resource of a request into the token audience, the scopes that may actually be granted, and the audience-qualified keys used to record and check consent
 // It always resolves against the client's user-delegated grants because every flow that passes through here acts on behalf of a user
 func (s *authorizationService) resolveGrant(ctx context.Context, clientID, resource string, requestedScopes []string) (audience string, grantedScopes []string, consentKeys []string, err error) {
-	audience, grantedScopes, err = resolveResource(ctx, s.apiAccess, clientID, resource, requestedScopes, SubjectTypeUser)
+	audience, grantedScopes, err = resolveResource(ctx, dbFromContext(ctx, s.db), s.apiAccess, clientID, resource, requestedScopes, SubjectTypeUser)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -451,15 +452,18 @@ func (r interactionRequirements) any() bool {
 
 func (s *authorizationService) createInteractionSession(ctx context.Context, requester fosite.AuthorizeRequester, requestParams map[string]string, userID string, requirements interactionRequirements) (InteractionSession, error) {
 	parameters := make(map[string]string, len(requestParams))
-	for key, value := range requestParams {
-		parameters[key] = value
+	maps.Copy(parameters, requestParams)
+
+	scopes := requester.GetRequestedScopes()
+	if scopes == nil {
+		scopes = []string{}
 	}
 
 	return s.interactionSessionService.create(ctx, InteractionSession{
 		Base: model.Base{
 			ID: requester.GetID(),
 		},
-		Scopes:                   datatype.StringList(requester.GetRequestedScopes()),
+		Scopes:                   datatype.StringList(scopes),
 		ClientID:                 requester.GetClient().GetID(),
 		UserID:                   utils.PtrOrNil(userID),
 		ConsentRequired:          requirements.ConsentRequired,
@@ -526,7 +530,7 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 	}
 	// Always serialize a possibly empty array rather than null
 	if scopeInfo == nil {
-		scopeInfo = []scopeInfoDto{}
+		scopeInfo = []dto.ScopeInfoDto{}
 	}
 	result.ScopeInfo = scopeInfo
 
@@ -535,13 +539,13 @@ func (s *authorizationService) buildInteractionForUser(ctx context.Context, inte
 
 // resolveScopeInfo resolves display names and descriptions for the requested non-standard scopes, looked up against the API targeted by the request's RFC 8707 resource
 // Standard identity scopes are rendered by the client
-func (s *authorizationService) resolveScopeInfo(ctx context.Context, interactionSession InteractionSession) ([]scopeInfoDto, error) {
+func (s *authorizationService) resolveScopeInfo(ctx context.Context, interactionSession InteractionSession) ([]dto.ScopeInfoDto, error) {
 	return s.resolveScopeInfoForRequest(ctx, interactionSession.Parameters["resource"], interactionSession.Scopes)
 }
 
 // resolveScopeInfoForRequest resolves display names and descriptions for the requested non-standard scopes against the API identified by resource
 // The browser and device consent flows share it so both show friendly permission names instead of raw scope keys
-func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, resource string, scopes []string) ([]scopeInfoDto, error) {
+func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, resource string, scopes []string) ([]dto.ScopeInfoDto, error) {
 	if s.apiAccess == nil {
 		return nil, nil
 	}
@@ -565,12 +569,7 @@ func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, r
 		return nil, err
 	}
 
-	scopeInfo := make([]scopeInfoDto, len(infos))
-	for i, info := range infos {
-		scopeInfo[i] = scopeInfoDto(info)
-	}
-
-	return scopeInfo, nil
+	return infos, nil
 }
 
 func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
@@ -768,41 +767,53 @@ func requiresReauthenticationForMaxAge(maxAgeRaw string, authenticationTime time
 func (s *authorizationService) consent(ctx context.Context, userID string, clientID string, scope []string) (hasAlreadyAuthorizedClient bool, err error) {
 	db := dbFromContext(ctx, s.db)
 
-	hasAlreadyAuthorizedClient, err = s.hasAuthorizedClient(ctx, clientID, userID, scope)
-	if err != nil {
-		return false, err
-	}
+	now := datatype.DateTime(time.Now())
 
-	if hasAlreadyAuthorizedClient {
-		err = db.
-			Model(&model.UserAuthorizedOidcClient{}).
-			Where("user_id = ? AND client_id = ?", userID, clientID).
-			Update("last_used_at", datatype.DateTime(time.Now())).
-			Error
+	var existing model.UserAuthorizedOidcClient
+	err = db.
+		First(&existing, "client_id = ? AND user_id = ?", clientID, userID).
+		Error
+	if err == nil {
+		// If the user has already authorized the client with the same or a superset of the requested scopes, we just update the last_used_at timestamp and return
+		hasAlreadyAuthorizedClient = consentScopesInclude(existing.Scope, scope)
+		if hasAlreadyAuthorizedClient {
+			err = db.
+				Model(&model.UserAuthorizedOidcClient{}).
+				Where("user_id = ? AND client_id = ?", userID, clientID).
+				Update("last_used_at", now).
+				Error
 
-		if err != nil {
 			return hasAlreadyAuthorizedClient, err
 		}
 
-		return hasAlreadyAuthorizedClient, nil
+		// If the user has already authorized the client but with a different set of scopes, we merge the scopes and update the record
+		err = db.
+			Model(&model.UserAuthorizedOidcClient{}).
+			Where("user_id = ? AND client_id = ?", userID, clientID).
+			Updates(map[string]any{
+				"scope":        mergeConsentScopes(existing.Scope, scope),
+				"last_used_at": now,
+			}).
+			Error
+
+		return hasAlreadyAuthorizedClient, err
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, err
 	}
 
-	userAuthorizedClient := model.UserAuthorizedOidcClient{
+	// The user has not authorized the client yet, so we create a new record
+	err = db.Create(&model.UserAuthorizedOidcClient{
 		UserID:     userID,
 		ClientID:   clientID,
-		Scope:      scope,
-		LastUsedAt: datatype.DateTime(time.Now()),
+		Scope:      mergeConsentScopes(nil, scope),
+		LastUsedAt: now,
+	}).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return s.consent(ctx, userID, clientID, scope)
 	}
 
-	err = db.
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "user_id"}, {Name: "client_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"scope"}),
-		}).
-		Create(&userAuthorizedClient).
-		Error
-
-	return hasAlreadyAuthorizedClient, err
+	return false, err
 }
 
 func (s *authorizationService) hasAuthorizedClient(ctx context.Context, clientID, userID string, scope []string) (bool, error) {
@@ -817,14 +828,41 @@ func (s *authorizationService) hasAuthorizedClient(ctx context.Context, clientID
 		return false, err
 	}
 
-	authorizedScopes := userAuthorizedOidcClient.Scope
-	for _, requestedScope := range scope {
+	return consentScopesInclude(userAuthorizedOidcClient.Scope, scope), nil
+}
+
+func consentScopesInclude(authorizedScopes []string, requestedScopes []string) bool {
+	for _, requestedScope := range requestedScopes {
 		if !slices.Contains(authorizedScopes, requestedScope) {
-			return false, nil
+			return false
 		}
 	}
 
-	return true, nil
+	return true
+}
+
+// mergeConsentScopes merges the authorized scopes with the requested scopes, ensuring that there are no duplicates.
+// Merging is necessary because the user may authorize scopes for multiple resources.
+// If we would just replace the authorized scopes with the requested scopes, we would lose the previously authorized scopes for other resources.
+func mergeConsentScopes(authorizedScopes []string, requestedScopes []string) datatype.StringList {
+	merged := make(datatype.StringList, 0, len(authorizedScopes)+len(requestedScopes))
+	seen := make(map[string]struct{}, len(authorizedScopes)+len(requestedScopes))
+	for _, scope := range authorizedScopes {
+		if _, ok := seen[scope]; ok {
+			continue
+		}
+		seen[scope] = struct{}{}
+		merged = append(merged, scope)
+	}
+	for _, scope := range requestedScopes {
+		if _, ok := seen[scope]; ok {
+			continue
+		}
+		seen[scope] = struct{}{}
+		merged = append(merged, scope)
+	}
+
+	return merged
 }
 
 // IsUserGroupAllowedToAuthorize reports whether the user may use the group-restricted client.

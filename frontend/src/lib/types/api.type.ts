@@ -13,10 +13,6 @@ export type Api = {
 	permissions: ApiPermission[];
 };
 
-export type ApiListItem = Omit<Api, 'permissions'> & {
-	permissionCount: number;
-};
-
 export type ApiCreate = {
 	name: string;
 	resource: string;

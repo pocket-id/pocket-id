@@ -379,9 +379,13 @@ func (s *Service) ClientAPIScopesAndAudiences(ctx context.Context, tx *gorm.DB, 
 }
 
 // AllowedScopesForAudience returns the permission keys the client is allowed for the API identified by the given audience and subject type, plus whether such an API exists
-func (s *Service) AllowedScopesForAudience(ctx context.Context, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, err error) {
+func (s *Service) AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, err error) {
+	if tx == nil {
+		tx = s.db
+	}
+
 	var api API
-	err = s.db.WithContext(ctx).
+	err = tx.WithContext(ctx).
 		Select("id").
 		Where("audience = ?", audience).
 		First(&api).
@@ -393,7 +397,7 @@ func (s *Service) AllowedScopesForAudience(ctx context.Context, clientID, audien
 		return nil, false, err
 	}
 
-	err = s.db.WithContext(ctx).
+	err = tx.WithContext(ctx).
 		Table("api_permissions").
 		Select("api_permissions.key").
 		Joins("JOIN oidc_clients_allowed_api_permissions g ON g.api_permission_id = api_permissions.id AND g.oidc_client_id = ? AND g.subject_type = ?", clientID, subjectType).

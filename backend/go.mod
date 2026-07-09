@@ -248,4 +248,4 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260706212719-8e923341c5c1
+replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260708083902-56a3c0f378d6

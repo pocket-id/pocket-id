@@ -181,7 +181,10 @@
 					</p>
 				</Card.Header>
 				<Card.Content>
-					<ScopeList scopes={interactionSession.scopes} scopeInfo={interactionSession.scopeInfo} />
+					<ScopeList
+						scopes={(interactionSession.scopes || [])}
+						scopeInfo={interactionSession.scopeInfo ?? []}
+					/>
 				</Card.Content>
 			</Card.Root>
 		</div>

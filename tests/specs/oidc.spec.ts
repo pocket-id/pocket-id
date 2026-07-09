@@ -74,6 +74,44 @@ test('Authorize client requesting offline_access scope', async ({ page }) => {
 	expect(callbackUrl.searchParams.get('error')).toBeNull();
 });
 
+test('Authorize existing client without scopes', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = new URLSearchParams({
+		client_id: oidcClient.id,
+		response_type: 'code',
+		redirect_uri: oidcClient.callbackUrl,
+		state: 'no-scope-state',
+		nonce: 'no-scope-nonce'
+	});
+
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
+});
+
+test('Authorize new client without scopes', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = new URLSearchParams({
+		client_id: oidcClient.id,
+		response_type: 'code',
+		redirect_uri: oidcClient.callbackUrl,
+		state: 'no-scope-new-client',
+		nonce: 'no-scope-new-nonce'
+	});
+
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	// With no scopes there is nothing to display, but the page should still allow sign-in
+	await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
+	expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	expect(callbackUrl.searchParams.get('error')).toBeNull();
+	expect(callbackUrl.searchParams.get('state')).toBe('no-scope-new-client');
+});
+
 test('Authorize new client while not signed in', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
 	const urlParams = createUrlParams(oidcClient);

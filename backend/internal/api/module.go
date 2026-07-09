@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 )
 
@@ -34,24 +35,24 @@ func (m *Module) ClientAPIScopes(ctx context.Context, tx *gorm.DB, clientID stri
 }
 
 // AllowedScopesForAudience implements the OIDC module's APIAccessProvider interface
-func (m *Module) AllowedScopesForAudience(ctx context.Context, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, err error) {
-	return m.service.AllowedScopesForAudience(ctx, clientID, audience, subjectType)
+func (m *Module) AllowedScopesForAudience(ctx context.Context, tx *gorm.DB, clientID, audience string, subjectType oidc.SubjectType) (scopes []string, apiExists bool, err error) {
+	return m.service.AllowedScopesForAudience(ctx, tx, clientID, audience, subjectType)
 }
 
 // DescribePermissions implements the OIDC module's APIAccessProvider interface
-func (m *Module) DescribePermissions(ctx context.Context, audience string, keys []string) ([]oidc.PermissionInfo, error) {
+func (m *Module) DescribePermissions(ctx context.Context, audience string, keys []string) ([]dto.ScopeInfoDto, error) {
 	permissions, err := m.service.DescribePermissions(ctx, audience, keys)
 	if err != nil {
 		return nil, err
 	}
 
-	infos := make([]oidc.PermissionInfo, len(permissions))
+	infos := make([]dto.ScopeInfoDto, len(permissions))
 	for i, permission := range permissions {
 		description := ""
 		if permission.Description != nil {
 			description = *permission.Description
 		}
-		infos[i] = oidc.PermissionInfo{Key: permission.Key, Name: permission.Name, Description: description}
+		infos[i] = dto.ScopeInfoDto{Key: permission.Key, Name: permission.Name, Description: description}
 	}
 
 	return infos, nil

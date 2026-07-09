@@ -171,6 +171,68 @@ func TestAuthorizationServiceConsentStepLogsNewClientAuthorization(t *testing.T)
 	require.Equal(t, model.AuditLogData{"clientName": "Test Client"}, auditLogger.data[0])
 }
 
+func TestAuthorizationServiceConsentMergesAudienceQualifiedScopeKeys(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	auditLogger := &fakeAuditLogger{}
+
+	const (
+		userID   = "test-user"
+		clientID = "test-client"
+		apiA     = "https://api-a.example.com"
+		apiB     = "https://api-b.example.com"
+	)
+
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, auditLogger, userAccess(map[string][]string{
+		apiA: {"read"},
+		apiB: {"read"},
+	}))
+
+	require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}}).Error)
+	require.NoError(t, db.Create(&model.OidcClient{
+		Base: model.Base{ID: clientID},
+		Name: "Test Client",
+	}).Error)
+
+	apiAConsent := consentScopeKeys(apiA, []string{"openid", "read"})
+	apiBConsent := consentScopeKeys(apiB, []string{"openid", "read"})
+
+	hasAlreadyAuthorized, err := service.consent(t.Context(), userID, clientID, apiAConsent)
+	require.NoError(t, err)
+	require.False(t, hasAlreadyAuthorized)
+
+	hasAlreadyAuthorized, err = service.consent(t.Context(), userID, clientID, apiBConsent)
+	require.NoError(t, err)
+	require.False(t, hasAlreadyAuthorized)
+
+	var authorizedClient model.UserAuthorizedOidcClient
+	require.NoError(t, db.First(&authorizedClient, "user_id = ? AND client_id = ?", userID, clientID).Error)
+	require.ElementsMatch(t, []string{"openid", consentScopeKey(apiA, "read"), consentScopeKey(apiB, "read")}, authorizedClient.Scope)
+
+	hasAuthorizedAPIA, err := service.hasAuthorizedClient(t.Context(), clientID, userID, apiAConsent)
+	require.NoError(t, err)
+	require.True(t, hasAuthorizedAPIA)
+	hasAuthorizedAPIB, err := service.hasAuthorizedClient(t.Context(), clientID, userID, apiBConsent)
+	require.NoError(t, err)
+	require.True(t, hasAuthorizedAPIB)
+
+	form := url.Values{
+		"prompt":   {"none"},
+		"resource": {apiA},
+	}
+	requester := newTestAuthorizeRequesterWithForm("silent-api-a-request", clientID, form)
+	requester.(*fosite.AuthorizeRequest).RequestedScope = fosite.Arguments{"openid", "read"}
+
+	authorization, err := service.authorize(t.Context(), authorizeInput{
+		userID:             userID,
+		authenticationTime: time.Now().UTC(),
+		requester:          requester,
+		meta:               requestMeta{IPAddress: "203.0.113.1", UserAgent: "test-agent"},
+	})
+	require.NoError(t, err)
+	require.False(t, authorization.RequiresInteraction)
+	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventClientAuthorization}, auditLogger.events)
+}
+
 func TestAuthorizationServiceAuthorizeConsumesInteractionSession(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)

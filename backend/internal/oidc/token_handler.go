@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"log/slog"
 	"slices"
 
@@ -52,6 +53,13 @@ func (h *tokenHandler) token(c *gin.Context) {
 			return
 		}
 
+		err = h.validateRefreshAPIGrant(ctx, client, accessRequest)
+		if err != nil {
+			slog.WarnContext(ctx, "Rejected refresh token request: API grant is no longer allowed for the user subject", "error", err.Error())
+			h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
+			return
+		}
+
 		// The client credentials grant has no authorize step so the RFC 8707 resource is resolved here to stamp the API audience and limit the granted scope to what the client is allowed for that API
 		// It resolves against the client-subject grants: a permission delegated by users does not let the client act as itself
 		// The other grants had their audience and scope resolved at authorize or device time and restored from storage, so they must be left untouched
@@ -61,7 +69,7 @@ func (h *tokenHandler) token(c *gin.Context) {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return
 			}
-			audience, grantedScopes, err := resolveResource(ctx, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient)
+			audience, grantedScopes, err := resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetRequestedScopes(), SubjectTypeClient)
 			if err != nil {
 				h.provider.WriteAccessError(ctx, c.Writer, accessRequest, err)
 				return
@@ -102,4 +110,37 @@ func (h *tokenHandler) token(c *gin.Context) {
 	}
 
 	h.provider.WriteAccessResponse(ctx, c.Writer, accessRequest, response)
+}
+
+func (h *tokenHandler) validateRefreshAPIGrant(ctx context.Context, client Client, accessRequest fosite.AccessRequester) error {
+	if !accessRequest.GetGrantTypes().Has(string(fosite.GrantTypeRefreshToken)) {
+		return nil
+	}
+
+	issuer := ""
+	if h.claimsService != nil {
+		issuer = h.claimsService.baseURL
+	}
+
+	resource, err := refreshGrantResource(client.GetID(), issuer, accessRequest.GetGrantedAudience())
+	if err != nil {
+		return err
+	}
+
+	_, _, err = resolveResource(ctx, nil, h.apiAccess, client.GetID(), resource, accessRequest.GetGrantedScopes(), SubjectTypeUser)
+	return err
+}
+
+func refreshGrantResource(clientID, issuer string, grantedAudience fosite.Arguments) (string, error) {
+	resource := ""
+	for _, audience := range grantedAudience {
+		if audience == "" || audience == clientID || audience == issuer {
+			continue
+		}
+		if resource != "" && resource != audience {
+			return "", fosite.ErrInvalidTarget.WithHint("Refresh-token grants may only target one API resource.")
+		}
+		resource = audience
+	}
+	return resource, nil
 }

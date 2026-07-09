@@ -16,16 +16,10 @@ const (
 type interactionSessionForUser struct {
 	ID            string                    `json:"id"`
 	Scopes        []string                  `json:"scopes"`
-	ScopeInfo     []scopeInfoDto            `json:"scopeInfo"`
+	ScopeInfo     []dto.ScopeInfoDto        `json:"scopeInfo"`
 	Client        dto.OidcClientMetaDataDto `json:"client"`
 	CurrentStep   interactionStep           `json:"currentStep,omitempty"`
 	RequiredSteps []interactionStep         `json:"requiredSteps"`
-}
-
-type scopeInfoDto struct {
-	Key         string `json:"key"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
 }
 
 type completeInteractionRequest struct {
@@ -49,9 +43,17 @@ func newInteractionSessionForUser(interactionSession InteractionSession) (intera
 		currentStep = requiredSteps[0]
 	}
 
+	scopes := interactionSession.Scopes
+	if scopes == nil {
+		scopes = []string{}
+	}
+	if requiredSteps == nil {
+		requiredSteps = []interactionStep{}
+	}
+
 	return interactionSessionForUser{
 		ID:            interactionSession.ID,
-		Scopes:        interactionSession.Scopes,
+		Scopes:        scopes,
 		Client:        client,
 		CurrentStep:   currentStep,
 		RequiredSteps: requiredSteps,

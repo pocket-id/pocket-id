@@ -148,12 +148,12 @@ func TestAllowedScopesForAudienceFiltersBySubjectType(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	userScopes, exists, err := svc.AllowedScopesForAudience(t.Context(), "client-1", "https://api.orders.example.com", oidc.SubjectTypeUser)
+	userScopes, exists, err := svc.AllowedScopesForAudience(t.Context(), nil, "client-1", "https://api.orders.example.com", oidc.SubjectTypeUser)
 	require.NoError(t, err)
 	require.True(t, exists)
 	assert.ElementsMatch(t, []string{"read:orders"}, userScopes)
 
-	clientScopes, exists, err := svc.AllowedScopesForAudience(t.Context(), "client-1", "https://api.orders.example.com", oidc.SubjectTypeClient)
+	clientScopes, exists, err := svc.AllowedScopesForAudience(t.Context(), nil, "client-1", "https://api.orders.example.com", oidc.SubjectTypeClient)
 	require.NoError(t, err)
 	require.True(t, exists)
 	assert.ElementsMatch(t, []string{"write:orders"}, clientScopes)
