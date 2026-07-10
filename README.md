@@ -16,6 +16,10 @@ Pocket ID can be set up in multiple ways. The easiest and recommended way is to 
 
 Visit the [documentation](https://docs.pocket-id.org) for the setup guide and more information.
 
+Prefer not to self-host? You can also get a managed instance in one click:
+
+[![Deploy with Zenith](https://cdn.zenith.hosting/buttons/deploy-with-zenith.svg)](https://zenith.hosting/host/pocket-id)
+
 ## Contribute
 
 You're very welcome to contribute to Pocket ID! Please follow the [contribution guide](/CONTRIBUTING.md) to get started.
