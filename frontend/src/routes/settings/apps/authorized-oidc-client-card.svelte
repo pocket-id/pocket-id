@@ -31,7 +31,7 @@
 </script>
 
 <Card.Root
-	class="border-muted group relative h-[160px] p-5 transition-all duration-200 hover:shadow-md sm:max-w-[50vw] md:max-w-[400px]"
+	class="border-muted group relative h-[160px] p-5 transition-all duration-200 hover:shadow-md sm:max-w-[50vw] md:max-w-[430px]"
 	data-testid="authorized-oidc-client-card"
 >
 	<Card.Content class=" p-0">

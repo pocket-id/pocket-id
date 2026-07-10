@@ -28,7 +28,7 @@
 >
 	<div
 		class="{!isAuthPage
-			? 'max-w-410'
+			? 'max-w-[1720px]'
 			: ''} mx-auto flex w-full items-center justify-between px-4 md:px-10"
 	>
 		<div class="flex h-16 items-center">

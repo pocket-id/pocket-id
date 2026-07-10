@@ -1,11 +1,11 @@
 <script lang="ts">
-	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
 	import CustomClaimsInput from '$lib/components/form/custom-claims-input.svelte';
 	import ProfilePictureSettings from '$lib/components/form/profile-picture-settings.svelte';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as Item from '$lib/components/ui/item/index.js';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import CustomClaimService from '$lib/services/custom-claim-service';
@@ -94,70 +94,95 @@
 		<Badge class="rounded-full" variant="default">{m.ldap()}</Badge>
 	{/if}
 </div>
-<Card.Root>
-	<Card.Header>
-		<Card.Title>{m.general()}</Card.Title>
-	</Card.Header>
-	<Card.Content>
-		<UserForm existingUser={user} callback={updateUser} />
-	</Card.Content>
-</Card.Root>
-
-<Card.Root>
-	<Card.Content>
-		<ProfilePictureSettings
-			userId={user.id}
-			isLdapUser={!!user.ldapId}
-			updateCallback={updateProfilePicture}
-			resetCallback={resetProfilePicture}
-		/>
-	</Card.Content>
-</Card.Root>
-
-<CollapsibleCard
-	id="user-groups"
-	title={m.user_groups()}
-	description={m.manage_which_groups_this_user_belongs_to()}
->
-	<UserGroupSelection
-		bind:selectedGroupIds={user.userGroupIds}
-		selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
-	/>
-	<div class="mt-5 flex justify-end">
-		<Button
-			onclick={() => updateUserGroups(user.userGroupIds)}
-			disabled={!!user.ldapId && $appConfigStore.ldapEnabled}
-			type="submit">{m.save()}</Button
-		>
+<Tabs.Root value="general" useHash class="gap-4">
+	<div class="overflow-x-auto pb-1">
+		<Tabs.List variant="line" class="min-w-max">
+			<Tabs.Trigger value="general">{m.general()}</Tabs.Trigger>
+			<Tabs.Trigger value="groups">{m.user_groups()}</Tabs.Trigger>
+			<Tabs.Trigger value="passkeys">{m.passkeys()}</Tabs.Trigger>
+			<Tabs.Trigger value="custom-claims">{m.custom_claims()}</Tabs.Trigger>
+		</Tabs.List>
 	</div>
-</CollapsibleCard>
 
-<Item.Group class="bg-card border shadow-sm rounded-4xl p-5">
-	<Item.Root class="border-none bg-transparent p-0">
-		<Item.Media class="text-primary/80">
-			<KeyRound class="size-5" />
-		</Item.Media>
-		<Item.Content class="min-w-52">
-			<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
-			<Item.Description
-				>{passkeys.length > 0
-					? m.manage_this_users_passkeys()
-					: m.user_has_no_passkeys_yet()}</Item.Description
-			>
-		</Item.Content>
-	</Item.Root>
-	{#if passkeys.length > 0}
-		<AdminPasskeyList userId={user.id} bind:passkeys />
-	{/if}
-</Item.Group>
+	<Tabs.Content value="general" class="flex flex-col gap-4">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.general()}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<UserForm existingUser={user} callback={updateUser} />
+			</Card.Content>
+		</Card.Root>
 
-<CollapsibleCard
-	id="user-custom-claims"
-	title={m.custom_claims()}
-	description={m.custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user()}
->
-	<CustomClaimsInput bind:customClaims={user.customClaims} />
-	<div class="mt-5 flex justify-end">
-		<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
-	</div>
-</CollapsibleCard>
+		<Card.Root>
+			<Card.Content>
+				<ProfilePictureSettings
+					userId={user.id}
+					isLdapUser={!!user.ldapId}
+					updateCallback={updateProfilePicture}
+					resetCallback={resetProfilePicture}
+				/>
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
+
+	<Tabs.Content value="groups" id="user-groups">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.user_groups()}</Card.Title>
+				<Card.Description>{m.manage_which_groups_this_user_belongs_to()}</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<UserGroupSelection
+					bind:selectedGroupIds={user.userGroupIds}
+					selectionDisabled={!!user.ldapId && $appConfigStore.ldapEnabled}
+				/>
+				<div class="mt-5 flex justify-end">
+					<Button
+						onclick={() => updateUserGroups(user.userGroupIds)}
+						disabled={!!user.ldapId && $appConfigStore.ldapEnabled}
+						type="submit">{m.save()}</Button
+					>
+				</div>
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
+
+	<Tabs.Content value="passkeys">
+		<Item.Group class="bg-card rounded-4xl border p-5 shadow-sm">
+			<Item.Root class="border-none bg-transparent p-0">
+				<Item.Media class="text-primary/80">
+					<KeyRound class="size-5" />
+				</Item.Media>
+				<Item.Content class="min-w-52">
+					<Item.Title class="text-xl font-semibold">{m.passkeys()}</Item.Title>
+					<Item.Description
+						>{passkeys.length > 0
+							? m.manage_this_users_passkeys()
+							: m.user_has_no_passkeys_yet()}</Item.Description
+					>
+				</Item.Content>
+			</Item.Root>
+			{#if passkeys.length > 0}
+				<AdminPasskeyList userId={user.id} bind:passkeys />
+			{/if}
+		</Item.Group>
+	</Tabs.Content>
+
+	<Tabs.Content value="custom-claims" id="user-custom-claims">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.custom_claims()}</Card.Title>
+				<Card.Description>
+					{m.custom_claims_are_key_value_pairs_that_can_be_used_to_store_additional_information_about_a_user()}
+				</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<CustomClaimsInput bind:customClaims={user.customClaims} />
+				<div class="mt-5 flex justify-end">
+					<Button onclick={updateCustomClaims} type="submit">{m.save()}</Button>
+				</div>
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
+</Tabs.Root>

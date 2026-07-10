@@ -30,14 +30,14 @@ test('Update general configuration', async ({ page }) => {
 
 test.describe('Update user creation configuration', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+		await page.getByRole('tab', { name: 'User Creation' }).click();
 	});
 
 	test('should save sign up mode', async ({ page }) => {
 		await page.getByRole('button', { name: 'Enable User Signups' }).click();
 		await page.getByRole('option', { name: 'Open Signup' }).click();
 
-		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		await expect(page.locator('[data-type="success"]').last()).toHaveText(
 			'User creation settings updated successfully.'
@@ -59,7 +59,7 @@ test.describe('Update user creation configuration', () => {
 		await expect(designersOption).toBeChecked();
 		await page.keyboard.press('Escape');
 
-		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		await expect(page.locator('[data-type="success"]').last()).toHaveText(
 			'User creation settings updated successfully.'
@@ -81,7 +81,7 @@ test.describe('Update user creation configuration', () => {
 		await page.getByPlaceholder('Key').nth(1).fill('another-claim');
 		await page.getByPlaceholder('Value').nth(1).fill('another-value');
 
-		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		await expect(page.locator('[data-type="success"]').last()).toHaveText(
 			'User creation settings updated successfully.'
@@ -97,7 +97,7 @@ test.describe('Update user creation configuration', () => {
 });
 
 test('Update email configuration', async ({ page }) => {
-	await page.getByRole('button', { name: 'Expand card' }).nth(2).click();
+	await page.getByRole('tab', { name: 'Email' }).click();
 
 	await page.getByLabel('SMTP Host').fill('smtp.gmail.com');
 	await page.getByLabel('SMTP Port').fill('587');
@@ -109,7 +109,7 @@ test('Update email configuration', async ({ page }) => {
 	await page.getByLabel('Email Login Code from Admin').click();
 	await page.getByLabel('API Key Expiration').click();
 
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Email configuration updated successfully'
@@ -130,7 +130,7 @@ test('Update email configuration', async ({ page }) => {
 
 test.describe('Update application images', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.getByRole('button', { name: 'Expand card' }).nth(4).click();
+		await page.getByRole('tab', { name: 'Images' }).click();
 	});
 
 	test('should upload images', async ({ page }) => {
@@ -144,7 +144,7 @@ test.describe('Update application images', () => {
 			.getByLabel('Default Profile Picture')
 			.setInputFiles('resources/images/pingvin-share-logo.png');
 		await page.getByLabel('Background Image').setInputFiles('resources/images/clouds.jpg');
-		await page.getByRole('button', { name: 'Save' }).last().click();
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		await expect(page.locator('[data-type="success"]')).toHaveText(
 			'Images updated successfully. It may take a few minutes to update.'
@@ -171,7 +171,7 @@ test.describe('Update application images', () => {
 		const emailLogoInput = page.getByLabel('Email Logo');
 
 		await emailLogoInput.setInputFiles('resources/images/cloud-logo.svg');
-		await page.getByRole('button', { name: 'Save' }).last().click();
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		await expect(page.locator('[data-type="error"]')).toHaveText(
 			'File must be of type .png or .jpg/jpeg'

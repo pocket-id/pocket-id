@@ -1520,7 +1520,9 @@ test.describe('OIDC skip consent', () => {
 
 		// Disabling it and saving must persist across a reload
 		await toggle.click();
+		await expect(toggle).not.toBeChecked();
 		await page.getByRole('button', { name: /save/i }).click();
+		await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
 		await page.reload();
 
 		await expect(page.getByRole('switch', { name: 'Skip Consent Screen' })).not.toBeChecked();

@@ -108,8 +108,8 @@ test('Grant a client user-delegated and client access to API permissions', async
 	// Nextcloud has no API access granted by default
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
 
-	// Expand the API access card, then edit the Orders API row
-	await page.getByText('API access', { exact: true }).click();
+	// Open the API access tab, then edit the Orders API row
+	await page.getByRole('tab', { name: 'API access' }).click();
 	await page
 		.getByRole('row', { name: apis.orders.name })
 		.getByRole('button', { name: 'Edit' })
