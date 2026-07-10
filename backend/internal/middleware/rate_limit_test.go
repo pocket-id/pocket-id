@@ -23,15 +23,16 @@ func startRateLimitServices(t *testing.T, policies ...RateLimitPolicy) map[strin
 	t.Helper()
 
 	limiters := make(map[string]*ratelimit.RateLimit, len(policies))
-	opts := make([]local.HostOption, 0, len(policies))
-	for _, p := range policies {
-		rl, err := ratelimit.New(p.Name, ratelimit.WithRate(p.Rate), ratelimit.WithPer(p.Per), ratelimit.WithBurst(p.Burst))
-		require.NoError(t, err)
-		limiters[p.Name] = rl
-		opts = append(opts, local.WithBuiltInActor(rl))
-	}
+	h := testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
+		for _, p := range policies {
+			rl, err := ratelimit.New(p.Name, ratelimit.WithRate(p.Rate), ratelimit.WithPer(p.Per), ratelimit.WithBurst(p.Burst))
+			require.NoError(t, err)
+			limiters[p.Name] = rl
 
-	h := testutils.NewActorHostForTest(t, opts...)
+			err = h.RegisterBuiltInActor(rl)
+			require.NoError(t, err)
+		}
+	})
 
 	services := make(map[string]*ratelimit.RateLimitService, len(limiters))
 	svc := h.Service()

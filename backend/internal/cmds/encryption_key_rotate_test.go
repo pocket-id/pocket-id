@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 	testingutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -25,9 +25,8 @@ func TestEncryptionKeyRotate(t *testing.T) {
 
 	db := testingutils.NewDatabaseForTest(t)
 
-	appConfigService, err := service.NewAppConfigService(t.Context(), db)
+	instanceID, err := instanceid.Load(t.Context(), db)
 	require.NoError(t, err)
-	instanceID := appConfigService.GetDbConfig().InstanceID.Value
 
 	oldKek, err := jwkutils.LoadKeyEncryptionKey(envConfig, instanceID)
 	require.NoError(t, err)
@@ -61,7 +60,8 @@ func TestEncryptionKeyRotate(t *testing.T) {
 		NewKey: string(newKey),
 		Yes:    true,
 	}
-	require.NoError(t, encryptionKeyRotate(t.Context(), flags, db, envConfig))
+	err = encryptionKeyRotate(t.Context(), flags, db, instanceID, envConfig)
+	require.NoError(t, err)
 
 	newKek, err := jwkutils.LoadKeyEncryptionKey(&common.EnvConfigSchema{EncryptionKey: newKey}, instanceID)
 	require.NoError(t, err)
