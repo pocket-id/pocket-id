@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humagin"
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
@@ -12,6 +14,20 @@ type FileSizeLimitMiddleware struct{}
 
 func NewFileSizeLimitMiddleware() *FileSizeLimitMiddleware {
 	return &FileSizeLimitMiddleware{}
+}
+
+// Huma returns a multipart size-limit middleware that preserves the existing error message
+func (m *FileSizeLimitMiddleware) Huma(api huma.API, maxSize int64) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		ginCtx := humagin.Unwrap(ctx)
+		ginCtx.Request.Body = http.MaxBytesReader(ginCtx.Writer, ginCtx.Request.Body, maxSize)
+		if err := ginCtx.Request.ParseMultipartForm(maxSize); err != nil {
+			fileError := &common.FileTooLargeError{MaxSize: formatFileSize(maxSize)}
+			_ = huma.WriteErr(api, ctx, fileError.HttpStatusCode(), fileError.Error())
+			return
+		}
+		next(ctx)
+	}
 }
 
 func (m *FileSizeLimitMiddleware) Add(maxSize int64) gin.HandlerFunc {

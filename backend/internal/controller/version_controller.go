@@ -1,56 +1,64 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
-// NewVersionController registers version-related routes.
-func NewVersionController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, versionService *service.VersionService) {
+type versionOutput struct {
+	CacheControl string `header:"Cache-Control"`
+	Body         map[string]string
+}
+
+// NewVersionController registers version-related routes
+func NewVersionController(api huma.API, authMiddleware *middleware.AuthMiddleware, versionService *service.VersionService) {
 	vc := &VersionController{versionService: versionService}
-	group.GET("/version/latest", vc.getLatestVersionHandler)
-	group.GET("/version/current", authMiddleware.WithAdminNotRequired().Add(), vc.getCurrentVersionHandler)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-latest-version",
+		Method:      http.MethodGet,
+		Path:        "/api/version/latest",
+		Summary:     "Get latest available version of Pocket ID",
+		Tags:        []string{"Version"},
+	}, vc.getLatestVersionHandler)
+
+	currentOperation := huma.Operation{
+		OperationID: "get-current-version",
+		Method:      http.MethodGet,
+		Path:        "/api/version/current",
+		Summary:     "Get current deployed version of Pocket ID",
+		Tags:        []string{"Version"},
+	}
+	authMiddleware.WithAdminNotRequired().Huma(api)(&currentOperation)
+	httpapi.Register(api, currentOperation, vc.getCurrentVersionHandler)
 }
 
 type VersionController struct {
 	versionService *service.VersionService
 }
 
-// getLatestVersionHandler godoc
-// @Summary Get latest available version of Pocket ID
-// @Tags Version
-// @Produce json
-// @Success 200 {object} map[string]string "Latest version information"
-// @Router /api/version/latest [get]
-func (vc *VersionController) getLatestVersionHandler(c *gin.Context) {
-	tag, err := vc.versionService.GetLatestVersion(c.Request.Context())
+func (vc *VersionController) getLatestVersionHandler(ctx context.Context, _ *httpapi.EmptyInput) (*versionOutput, error) {
+	tag, err := vc.versionService.GetLatestVersion(ctx)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
 
-	utils.SetCacheControlHeader(c, 5*time.Minute, 15*time.Minute)
-
-	c.JSON(http.StatusOK, gin.H{
-		"latestVersion": tag,
-	})
+	cacheControl := ""
+	if !httpapi.QueryPresent(ctx, "skipCache") {
+		cacheControl = utils.CacheControlValue(5*time.Minute, 15*time.Minute)
+	}
+	return &versionOutput{CacheControl: cacheControl, Body: map[string]string{"latestVersion": tag}}, nil
 }
 
-// getCurrentVersionHandler godoc
-// @Summary Get current deployed version of Pocket ID
-// @Tags Version
-// @Produce json
-// @Success 200 {object} map[string]string "Current version information"
-// @Router /api/version/current [get]
-func (vc *VersionController) getCurrentVersionHandler(c *gin.Context) {
-
-	c.JSON(http.StatusOK, gin.H{
-		"currentVersion": common.Version,
-	})
+func (vc *VersionController) getCurrentVersionHandler(_ context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[map[string]string], error) {
+	return &httpapi.BodyOutput[map[string]string]{Body: map[string]string{"currentVersion": common.Version}}, nil
 }

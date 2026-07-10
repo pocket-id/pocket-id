@@ -35,11 +35,11 @@ func (s *UserGroupService) List(ctx context.Context, name string, listRequestOpt
 	}
 
 	// As userCount is not a column we need to manually sort it
-	if listRequestOptions.Sort.Column == "userCount" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.SortColumn == "userCount" && utils.IsValidSortDirection(listRequestOptions.SortDirection) {
 		query = query.Select("user_groups.*, COUNT(user_groups_users.user_id)").
 			Joins("LEFT JOIN user_groups_users ON user_groups.id = user_groups_users.user_group_id").
 			Group("user_groups.id").
-			Order("COUNT(user_groups_users.user_id) " + listRequestOptions.Sort.Direction)
+			Order("COUNT(user_groups_users.user_id) " + listRequestOptions.SortDirection)
 	}
 
 	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &groups)

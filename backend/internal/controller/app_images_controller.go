@@ -1,292 +1,219 @@
 package controller
 
 import (
+	"context"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
-func NewAppImagesController(
-	group *gin.RouterGroup,
-	authMiddleware *middleware.AuthMiddleware,
-	appImagesService *service.AppImagesService,
-) {
-	controller := &AppImagesController{
-		appImagesService: appImagesService,
+type imageGetInput struct {
+	Light string `query:"light" default:"true" required:"false"`
+}
+
+type imageUploadForm struct {
+	File huma.FormFile `form:"file" required:"true"`
+}
+
+type imageUploadInput struct {
+	RawBody huma.MultipartFormFiles[imageUploadForm]
+}
+
+type logoUploadInput struct {
+	Light   string `query:"light" default:"true" required:"false"`
+	RawBody huma.MultipartFormFiles[imageUploadForm]
+}
+
+type imageOutput struct {
+	ContentType   string `header:"Content-Type"`
+	ContentLength int64  `header:"Content-Length"`
+	CacheControl  string `header:"Cache-Control"`
+	Body          func(huma.Context)
+}
+
+func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddleware, appImagesService *service.AppImagesService) {
+	controller := &AppImagesController{appImagesService: appImagesService}
+
+	httpapi.Register(api, imageOperation("get-application-logo", http.MethodGet, "/api/application-images/logo", "Get logo image"), controller.getLogoHandler)
+	httpapi.Register(api, imageOperation("get-email-logo", http.MethodGet, "/api/application-images/email", "Get email logo image"), controller.getEmailLogoHandler)
+	httpapi.Register(api, imageOperation("get-background-image", http.MethodGet, "/api/application-images/background", "Get background image"), controller.getBackgroundImageHandler)
+	httpapi.Register(api, imageOperation("get-favicon", http.MethodGet, "/api/application-images/favicon", "Get favicon"), controller.getFaviconHandler)
+
+	auth := authMiddleware.Huma(api)
+	defaultPictureOperation := imageOperation("get-default-profile-picture", http.MethodGet, "/api/application-images/default-profile-picture", "Get default profile picture")
+	auth(&defaultPictureOperation)
+	httpapi.Register(api, defaultPictureOperation, controller.getDefaultProfilePicture)
+
+	logoOperation := imageOperation("update-application-logo", http.MethodPut, "/api/application-images/logo", "Update logo")
+	logoOperation.DefaultStatus = http.StatusNoContent
+	auth(&logoOperation)
+	httpapi.Register(api, logoOperation, controller.updateLogoHandler)
+
+	registerUpload := func(operation huma.Operation, handler func(context.Context, *imageUploadInput) (*httpapi.EmptyOutput, error)) {
+		operation.DefaultStatus = http.StatusNoContent
+		auth(&operation)
+		httpapi.Register(api, operation, handler)
 	}
+	registerUpload(imageOperation("update-email-logo", http.MethodPut, "/api/application-images/email", "Update email logo"), controller.updateEmailLogoHandler)
+	registerUpload(imageOperation("update-background-image", http.MethodPut, "/api/application-images/background", "Update background image"), controller.updateBackgroundImageHandler)
+	registerUpload(imageOperation("update-favicon", http.MethodPut, "/api/application-images/favicon", "Update favicon"), controller.updateFaviconHandler)
+	registerUpload(imageOperation("update-default-profile-picture", http.MethodPut, "/api/application-images/default-profile-picture", "Update default profile picture"), controller.updateDefaultProfilePicture)
 
-	group.GET("/application-images/logo", controller.getLogoHandler)
-	group.GET("/application-images/email", controller.getEmailLogoHandler)
-	group.GET("/application-images/background", controller.getBackgroundImageHandler)
-	group.GET("/application-images/favicon", controller.getFaviconHandler)
-	group.GET("/application-images/default-profile-picture", authMiddleware.Add(), controller.getDefaultProfilePicture)
+	registerDelete := func(operation huma.Operation, handler func(context.Context, *httpapi.EmptyInput) (*httpapi.EmptyOutput, error)) {
+		operation.DefaultStatus = http.StatusNoContent
+		auth(&operation)
+		httpapi.Register(api, operation, handler)
+	}
+	registerDelete(imageOperation("delete-background-image", http.MethodDelete, "/api/application-images/background", "Delete background image"), controller.deleteBackgroundImageHandler)
+	registerDelete(imageOperation("delete-default-profile-picture", http.MethodDelete, "/api/application-images/default-profile-picture", "Delete default profile picture"), controller.deleteDefaultProfilePicture)
+}
 
-	group.PUT("/application-images/logo", authMiddleware.Add(), controller.updateLogoHandler)
-	group.PUT("/application-images/email", authMiddleware.Add(), controller.updateEmailLogoHandler)
-	group.PUT("/application-images/background", authMiddleware.Add(), controller.updateBackgroundImageHandler)
-	group.PUT("/application-images/favicon", authMiddleware.Add(), controller.updateFaviconHandler)
-	group.PUT("/application-images/default-profile-picture", authMiddleware.Add(), controller.updateDefaultProfilePicture)
-
-	group.DELETE("/application-images/background", authMiddleware.Add(), controller.deleteBackgroundImageHandler)
-	group.DELETE("/application-images/default-profile-picture", authMiddleware.Add(), controller.deleteDefaultProfilePicture)
+func imageOperation(id, method, path, summary string) huma.Operation {
+	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"Application Images"}}
 }
 
 type AppImagesController struct {
 	appImagesService *service.AppImagesService
 }
 
-// getLogoHandler godoc
-// @Summary Get logo image
-// @Description Get the logo image for the application
-// @Tags Application Images
-// @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
-// @Produce image/png
-// @Produce image/jpeg
-// @Produce image/svg+xml
-// @Success 200 {file} binary "Logo image"
-// @Router /api/application-images/logo [get]
-func (c *AppImagesController) getLogoHandler(ctx *gin.Context) {
-	lightLogo, _ := strconv.ParseBool(ctx.DefaultQuery("light", "true"))
+func (c *AppImagesController) getLogoHandler(ctx context.Context, input *imageGetInput) (*imageOutput, error) {
+	lightLogo, _ := strconv.ParseBool(input.Light)
 	imageName := "logoLight"
 	if !lightLogo {
 		imageName = "logoDark"
 	}
-
-	c.getImage(ctx, imageName)
+	return c.getImage(ctx, imageName)
 }
 
-// getEmailLogoHandler godoc
-// @Summary Get email logo image
-// @Description Get the email logo image for use in emails
-// @Tags Application Images
-// @Produce image/png
-// @Produce image/jpeg
-// @Success 200 {file} binary "Email logo image"
-// @Router /api/application-images/email [get]
-func (c *AppImagesController) getEmailLogoHandler(ctx *gin.Context) {
-	c.getImage(ctx, "logoEmail")
+func (c *AppImagesController) getEmailLogoHandler(ctx context.Context, _ *httpapi.EmptyInput) (*imageOutput, error) {
+	return c.getImage(ctx, "logoEmail")
 }
 
-// getBackgroundImageHandler godoc
-// @Summary Get background image
-// @Description Get the background image for the application
-// @Tags Application Images
-// @Produce image/png
-// @Produce image/jpeg
-// @Success 200 {file} binary "Background image"
-// @Router /api/application-images/background [get]
-func (c *AppImagesController) getBackgroundImageHandler(ctx *gin.Context) {
-	c.getImage(ctx, "background")
+func (c *AppImagesController) getBackgroundImageHandler(ctx context.Context, _ *httpapi.EmptyInput) (*imageOutput, error) {
+	return c.getImage(ctx, "background")
 }
 
-// getFaviconHandler godoc
-// @Summary Get favicon
-// @Description Get the favicon for the application
-// @Tags Application Images
-// @Produce image/x-icon
-// @Success 200 {file} binary "Favicon image"
-// @Router /api/application-images/favicon [get]
-func (c *AppImagesController) getFaviconHandler(ctx *gin.Context) {
-	c.getImage(ctx, "favicon")
+func (c *AppImagesController) getFaviconHandler(ctx context.Context, _ *httpapi.EmptyInput) (*imageOutput, error) {
+	return c.getImage(ctx, "favicon")
 }
 
-// getDefaultProfilePicture godoc
-// @Summary Get default profile picture image
-// @Description Get the default profile picture image for the application
-// @Tags Application Images
-// @Produce image/png
-// @Produce image/jpeg
-// @Success 200 {file} binary "Default profile picture image"
-// @Router /api/application-images/default-profile-picture [get]
-func (c *AppImagesController) getDefaultProfilePicture(ctx *gin.Context) {
-	c.getImage(ctx, "default-profile-picture")
+func (c *AppImagesController) getDefaultProfilePicture(ctx context.Context, _ *httpapi.EmptyInput) (*imageOutput, error) {
+	return c.getImage(ctx, "default-profile-picture")
 }
 
-// updateLogoHandler godoc
-// @Summary Update logo
-// @Description Update the application logo
-// @Tags Application Images
-// @Accept multipart/form-data
-// @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
-// @Param file formData file true "Logo image file"
-// @Success 204 "No Content"
-// @Router /api/application-images/logo [put]
-func (c *AppImagesController) updateLogoHandler(ctx *gin.Context) {
-	file, err := ctx.FormFile("file")
+func (c *AppImagesController) updateLogoHandler(ctx context.Context, input *logoUploadInput) (*httpapi.EmptyOutput, error) {
+	file, err := uploadFile(input.RawBody.Form)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return nil, err
 	}
-
-	lightLogo, _ := strconv.ParseBool(ctx.DefaultQuery("light", "true"))
+	lightLogo, _ := strconv.ParseBool(input.Light)
 	imageName := "logoLight"
 	if !lightLogo {
 		imageName = "logoDark"
 	}
-
-	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, imageName); err != nil {
-		_ = ctx.Error(err)
-		return
+	if err := c.appImagesService.UpdateImage(ctx, file, imageName); err != nil {
+		return nil, err
 	}
-
-	ctx.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// updateEmailLogoHandler godoc
-// @Summary Update email logo
-// @Description Update the email logo for use in emails
-// @Tags Application Images
-// @Accept multipart/form-data
-// @Param file formData file true "Email logo image file"
-// @Success 204 "No Content"
-// @Router /api/application-images/email [put]
-func (c *AppImagesController) updateEmailLogoHandler(ctx *gin.Context) {
-	file, err := ctx.FormFile("file")
+func (c *AppImagesController) updateEmailLogoHandler(ctx context.Context, input *imageUploadInput) (*httpapi.EmptyOutput, error) {
+	file, err := uploadFile(input.RawBody.Form)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return nil, err
 	}
-
-	fileType := utils.GetFileExtension(file.Filename)
-	mimeType := utils.GetImageMimeType(fileType)
-
+	mimeType := utils.GetImageMimeType(utils.GetFileExtension(file.Filename))
 	if mimeType != "image/png" && mimeType != "image/jpeg" {
-		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: ".png or .jpg/jpeg"})
-		return
+		return nil, &common.WrongFileTypeError{ExpectedFileType: ".png or .jpg/jpeg"}
 	}
-
-	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "logoEmail"); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	ctx.Status(http.StatusNoContent)
+	return c.updateImage(ctx, file, "logoEmail")
 }
 
-// updateBackgroundImageHandler godoc
-// @Summary Update background image
-// @Description Update the application background image
-// @Tags Application Images
-// @Accept multipart/form-data
-// @Param file formData file true "Background image file"
-// @Success 204 "No Content"
-// @Router /api/application-images/background [put]
-func (c *AppImagesController) updateBackgroundImageHandler(ctx *gin.Context) {
-	file, err := ctx.FormFile("file")
+func (c *AppImagesController) updateBackgroundImageHandler(ctx context.Context, input *imageUploadInput) (*httpapi.EmptyOutput, error) {
+	file, err := uploadFile(input.RawBody.Form)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return nil, err
 	}
-
-	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "background"); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	ctx.Status(http.StatusNoContent)
+	return c.updateImage(ctx, file, "background")
 }
 
-// deleteBackgroundImageHandler godoc
-// @Summary Delete background image
-// @Description Delete the application background image
-// @Tags Application Images
-// @Success 204 "No Content"
-// @Router /api/application-images/background [delete]
-func (c *AppImagesController) deleteBackgroundImageHandler(ctx *gin.Context) {
-	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), "background"); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	ctx.Status(http.StatusNoContent)
-}
-
-// updateFaviconHandler godoc
-// @Summary Update favicon
-// @Description Update the application favicon
-// @Tags Application Images
-// @Accept multipart/form-data
-// @Param file formData file true "Favicon file (.svg/.png/.ico)"
-// @Success 204 "No Content"
-// @Router /api/application-images/favicon [put]
-func (c *AppImagesController) updateFaviconHandler(ctx *gin.Context) {
-	file, err := ctx.FormFile("file")
+func (c *AppImagesController) updateFaviconHandler(ctx context.Context, input *imageUploadInput) (*httpapi.EmptyOutput, error) {
+	file, err := uploadFile(input.RawBody.Form)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return nil, err
 	}
-
-	fileType := utils.GetFileExtension(file.Filename)
-	mimeType := utils.GetImageMimeType(strings.ToLower(fileType))
+	mimeType := utils.GetImageMimeType(strings.ToLower(utils.GetFileExtension(file.Filename)))
 	if !slices.Contains([]string{"image/svg+xml", "image/png", "image/x-icon"}, mimeType) {
-		_ = ctx.Error(&common.WrongFileTypeError{ExpectedFileType: ".svg or .png or .ico"})
-		return
+		return nil, &common.WrongFileTypeError{ExpectedFileType: ".svg or .png or .ico"}
 	}
-
-	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "favicon"); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	ctx.Status(http.StatusNoContent)
+	return c.updateImage(ctx, file, "favicon")
 }
 
-func (c *AppImagesController) getImage(ctx *gin.Context, name string) {
-	reader, size, mimeType, err := c.appImagesService.GetImage(ctx.Request.Context(), name)
+func (c *AppImagesController) updateDefaultProfilePicture(ctx context.Context, input *imageUploadInput) (*httpapi.EmptyOutput, error) {
+	file, err := uploadFile(input.RawBody.Form)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return nil, err
 	}
-	defer reader.Close()
-
-	ctx.Header("Content-Type", mimeType)
-	utils.SetCacheControlHeader(ctx, 15*time.Minute, 24*time.Hour)
-	ctx.DataFromReader(http.StatusOK, size, mimeType, reader, nil)
+	return c.updateImage(ctx, file, "default-profile-picture")
 }
 
-// updateDefaultProfilePicture godoc
-// @Summary Update default profile picture image
-// @Description Update the default profile picture image
-// @Tags Application Images
-// @Accept multipart/form-data
-// @Param file formData file true "Profile picture image file"
-// @Success 204 "No Content"
-// @Router /api/application-images/default-profile-picture [put]
-func (c *AppImagesController) updateDefaultProfilePicture(ctx *gin.Context) {
-	file, err := ctx.FormFile("file")
+func (c *AppImagesController) updateImage(ctx context.Context, file *multipart.FileHeader, name string) (*httpapi.EmptyOutput, error) {
+	if err := c.appImagesService.UpdateImage(ctx, file, name); err != nil {
+		return nil, err
+	}
+	return &httpapi.EmptyOutput{}, nil
+}
+
+func uploadFile(form *multipart.Form) (*multipart.FileHeader, error) {
+	files := form.File["file"]
+	if len(files) == 0 {
+		return nil, http.ErrMissingFile
+	}
+	return files[0], nil
+}
+
+func (c *AppImagesController) deleteBackgroundImageHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
+	if err := c.appImagesService.DeleteImage(ctx, "background"); err != nil {
+		return nil, err
+	}
+	return &httpapi.EmptyOutput{}, nil
+}
+
+func (c *AppImagesController) deleteDefaultProfilePicture(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
+	if err := c.appImagesService.DeleteImage(ctx, "default-profile-picture"); err != nil {
+		return nil, err
+	}
+	return &httpapi.EmptyOutput{}, nil
+}
+
+func (c *AppImagesController) getImage(ctx context.Context, name string) (*imageOutput, error) {
+	reader, size, mimeType, err := c.appImagesService.GetImage(ctx, name)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return nil, err
 	}
-
-	if err := c.appImagesService.UpdateImage(ctx.Request.Context(), file, "default-profile-picture"); err != nil {
-		_ = ctx.Error(err)
-		return
+	cacheControl := ""
+	if !httpapi.QueryPresent(ctx, "skipCache") {
+		cacheControl = utils.CacheControlValue(15*time.Minute, 24*time.Hour)
 	}
-
-	ctx.Status(http.StatusNoContent)
-}
-
-// deleteDefaultProfilePicture godoc
-// @Summary Delete default profile picture image
-// @Description Delete the default profile picture image
-// @Tags Application Images
-// @Success 204 "No Content"
-// @Router /api/application-images/default-profile-picture [delete]
-func (c *AppImagesController) deleteDefaultProfilePicture(ctx *gin.Context) {
-	if err := c.appImagesService.DeleteImage(ctx.Request.Context(), "default-profile-picture"); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	ctx.Status(http.StatusNoContent)
+	return &imageOutput{
+		ContentType:   mimeType,
+		ContentLength: size,
+		CacheControl:  cacheControl,
+		Body: func(streamCtx huma.Context) {
+			defer reader.Close()
+			_, _ = io.Copy(streamCtx.BodyWriter(), reader)
+		},
+	}, nil
 }

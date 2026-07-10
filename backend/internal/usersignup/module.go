@@ -2,12 +2,14 @@ package usersignup
 
 import (
 	"context"
+	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
 type TokenService interface {
@@ -50,11 +52,37 @@ func New(deps Dependencies) *Module {
 
 // RegisterRoutes mounts the signup and signup-token management endpoints
 // adminAuth guards the admin token-management routes; signupRateLimit throttles public self-signup
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, adminAuth, signupRateLimit gin.HandlerFunc) {
-	apiGroup.POST("/signup-tokens", adminAuth, m.handler.createSignupToken)
-	apiGroup.GET("/signup-tokens", adminAuth, m.handler.listSignupTokens)
-	apiGroup.DELETE("/signup-tokens/:id", adminAuth, m.handler.deleteSignupToken)
-	apiGroup.POST("/signup", signupRateLimit, m.handler.signup)
-	apiGroup.GET("/signup/setup", m.handler.checkInitialAdminSetupAvailable)
-	apiGroup.POST("/signup/setup", m.handler.signUpInitialAdmin)
+func (m *Module) RegisterRoutes(api huma.API, adminAuth func(*huma.Operation), signupRateLimit func(huma.Context, func(huma.Context))) {
+	createTokenOperation := signupOperation("create-signup-token", http.MethodPost, "/api/signup-tokens", "Create signup token")
+	createTokenOperation.DefaultStatus = http.StatusCreated
+	adminAuth(&createTokenOperation)
+	httpapi.Register(api, createTokenOperation, m.handler.createSignupToken)
+
+	listTokensOperation := signupOperation("list-signup-tokens", http.MethodGet, "/api/signup-tokens", "List signup tokens")
+	adminAuth(&listTokensOperation)
+	httpapi.Register(api, listTokensOperation, m.handler.listSignupTokens)
+
+	deleteTokenOperation := signupOperation("delete-signup-token", http.MethodDelete, "/api/signup-tokens/{id}", "Delete signup token")
+	deleteTokenOperation.DefaultStatus = http.StatusNoContent
+	adminAuth(&deleteTokenOperation)
+	httpapi.Register(api, deleteTokenOperation, m.handler.deleteSignupToken)
+
+	selfSignupOperation := signupOperation("signup", http.MethodPost, "/api/signup", "Sign up")
+	selfSignupOperation.DefaultStatus = http.StatusCreated
+	selfSignupOperation.Middlewares = append(selfSignupOperation.Middlewares, signupRateLimit)
+	httpapi.Register(api, selfSignupOperation, m.handler.signup)
+
+	setupAvailableOperation := signupOperation("check-initial-admin-setup", http.MethodGet, "/api/signup/setup", "Check initial admin setup availability")
+	setupAvailableOperation.DefaultStatus = http.StatusNoContent
+	httpapi.Register(api, setupAvailableOperation, m.handler.checkInitialAdminSetupAvailable)
+
+	httpapi.Register(api, signupOperationForInitialAdmin(), m.handler.signUpInitialAdmin)
+}
+
+func signupOperation(id, method, path, summary string) huma.Operation {
+	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"Users"}}
+}
+
+func signupOperationForInitialAdmin() huma.Operation {
+	return signupOperation("signup-initial-admin", http.MethodPost, "/api/signup/setup", "Sign up initial admin user")
 }

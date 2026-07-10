@@ -140,7 +140,7 @@
 	"name_passkey": "Name Passkey",
 	"name_your_passkey_to_easily_identify_it_later": "Name your passkey to easily identify it later.",
 	"create_api_key": "Create API Key",
-	"add_a_new_api_key_for_programmatic_access": "Add a new API key for programmatic access to the <link href='https://pocket-id.org/docs/api'>Pocket ID API</link>.",
+	"add_a_new_api_key_for_programmatic_access": "Add a new API key for programmatic access to the <link href='/api/docs'>Pocket ID API</link>.",
 	"add_api_key": "Add API Key",
 	"manage_api_keys": "Manage API Keys",
 	"api_key_created": "API Key Created",

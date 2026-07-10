@@ -1,5 +1,12 @@
 package dto
 
+import (
+	"encoding/json"
+	"net/mail"
+
+	"github.com/danielgtaylor/huma/v2"
+)
+
 type PublicAppConfigVariableDto struct {
 	Key   string `json:"key"`
 	Type  string `json:"type"`
@@ -12,47 +19,64 @@ type AppConfigVariableDto struct {
 }
 
 type AppConfigUpdateDto struct {
-	AppName                                    string `json:"appName" binding:"required,min=1,max=30" unorm:"nfc"`
-	SessionDuration                            string `json:"sessionDuration" binding:"required"`
-	HomePageURL                                string `json:"homePageUrl" binding:"required"`
-	EmailsVerified                             string `json:"emailsVerified" binding:"required"`
-	DisableAnimations                          string `json:"disableAnimations" binding:"required"`
-	AllowOwnAccountEdit                        string `json:"allowOwnAccountEdit" binding:"required"`
-	AllowUserSignups                           string `json:"allowUserSignups" binding:"required,oneof=disabled withToken open"`
-	SignupDefaultUserGroupIDs                  string `json:"signupDefaultUserGroupIDs" binding:"omitempty,json"`
-	SignupDefaultCustomClaims                  string `json:"signupDefaultCustomClaims" binding:"omitempty,json"`
-	AccentColor                                string `json:"accentColor"`
-	RequireUserEmail                           string `json:"requireUserEmail" binding:"required"`
-	SmtpHost                                   string `json:"smtpHost"`
-	SmtpPort                                   string `json:"smtpPort"`
-	SmtpFrom                                   string `json:"smtpFrom" binding:"omitempty,email"`
-	SmtpUser                                   string `json:"smtpUser"`
-	SmtpPassword                               string `json:"smtpPassword"`
-	SmtpTls                                    string `json:"smtpTls" binding:"required,oneof=none starttls tls"`
-	SmtpSkipCertVerify                         string `json:"smtpSkipCertVerify"`
-	LdapEnabled                                string `json:"ldapEnabled" binding:"required"`
-	LdapUrl                                    string `json:"ldapUrl"`
-	LdapBindDn                                 string `json:"ldapBindDn"`
-	LdapBindPassword                           string `json:"ldapBindPassword"`
-	LdapBase                                   string `json:"ldapBase"`
-	LdapUserSearchFilter                       string `json:"ldapUserSearchFilter"`
-	LdapUserGroupSearchFilter                  string `json:"ldapUserGroupSearchFilter"`
-	LdapSkipCertVerify                         string `json:"ldapSkipCertVerify"`
-	LdapAttributeUserUniqueIdentifier          string `json:"ldapAttributeUserUniqueIdentifier"`
-	LdapAttributeUserUsername                  string `json:"ldapAttributeUserUsername"`
-	LdapAttributeUserEmail                     string `json:"ldapAttributeUserEmail"`
-	LdapAttributeUserFirstName                 string `json:"ldapAttributeUserFirstName"`
-	LdapAttributeUserLastName                  string `json:"ldapAttributeUserLastName"`
-	LdapAttributeUserDisplayName               string `json:"ldapAttributeUserDisplayName"`
-	LdapAttributeUserProfilePicture            string `json:"ldapAttributeUserProfilePicture"`
-	LdapAttributeGroupMember                   string `json:"ldapAttributeGroupMember"`
-	LdapAttributeGroupUniqueIdentifier         string `json:"ldapAttributeGroupUniqueIdentifier"`
-	LdapAttributeGroupName                     string `json:"ldapAttributeGroupName"`
-	LdapAdminGroupName                         string `json:"ldapAdminGroupName"`
-	LdapSoftDeleteUsers                        string `json:"ldapSoftDeleteUsers"`
-	EmailOneTimeAccessAsAdminEnabled           string `json:"emailOneTimeAccessAsAdminEnabled" binding:"required"`
-	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" binding:"required"`
-	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" binding:"required"`
-	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" binding:"required"`
-	EmailVerificationEnabled                   string `json:"emailVerificationEnabled" binding:"required"`
+	AppName                                    string `json:"appName" required:"false" minLength:"1" maxLength:"30" unorm:"nfc"`
+	SessionDuration                            string `json:"sessionDuration" required:"false"`
+	HomePageURL                                string `json:"homePageUrl" required:"false"`
+	EmailsVerified                             string `json:"emailsVerified" required:"false"`
+	DisableAnimations                          string `json:"disableAnimations" required:"false"`
+	AllowOwnAccountEdit                        string `json:"allowOwnAccountEdit" required:"false"`
+	AllowUserSignups                           string `json:"allowUserSignups" required:"false" enum:"disabled,withToken,open"`
+	SignupDefaultUserGroupIDs                  string `json:"signupDefaultUserGroupIDs" required:"false"`
+	SignupDefaultCustomClaims                  string `json:"signupDefaultCustomClaims" required:"false"`
+	AccentColor                                string `json:"accentColor" required:"false"`
+	RequireUserEmail                           string `json:"requireUserEmail" required:"false"`
+	SmtpHost                                   string `json:"smtpHost" required:"false"`
+	SmtpPort                                   string `json:"smtpPort" required:"false"`
+	SmtpFrom                                   string `json:"smtpFrom" required:"false"`
+	SmtpUser                                   string `json:"smtpUser" required:"false"`
+	SmtpPassword                               string `json:"smtpPassword" required:"false"`
+	SmtpTls                                    string `json:"smtpTls" required:"false" enum:"none,starttls,tls"`
+	SmtpSkipCertVerify                         string `json:"smtpSkipCertVerify" required:"false"`
+	LdapEnabled                                string `json:"ldapEnabled" required:"false"`
+	LdapUrl                                    string `json:"ldapUrl" required:"false"`
+	LdapBindDn                                 string `json:"ldapBindDn" required:"false"`
+	LdapBindPassword                           string `json:"ldapBindPassword" required:"false"`
+	LdapBase                                   string `json:"ldapBase" required:"false"`
+	LdapUserSearchFilter                       string `json:"ldapUserSearchFilter" required:"false"`
+	LdapUserGroupSearchFilter                  string `json:"ldapUserGroupSearchFilter" required:"false"`
+	LdapSkipCertVerify                         string `json:"ldapSkipCertVerify" required:"false"`
+	LdapAttributeUserUniqueIdentifier          string `json:"ldapAttributeUserUniqueIdentifier" required:"false"`
+	LdapAttributeUserUsername                  string `json:"ldapAttributeUserUsername" required:"false"`
+	LdapAttributeUserEmail                     string `json:"ldapAttributeUserEmail" required:"false"`
+	LdapAttributeUserFirstName                 string `json:"ldapAttributeUserFirstName" required:"false"`
+	LdapAttributeUserLastName                  string `json:"ldapAttributeUserLastName" required:"false"`
+	LdapAttributeUserDisplayName               string `json:"ldapAttributeUserDisplayName" required:"false"`
+	LdapAttributeUserProfilePicture            string `json:"ldapAttributeUserProfilePicture" required:"false"`
+	LdapAttributeGroupMember                   string `json:"ldapAttributeGroupMember" required:"false"`
+	LdapAttributeGroupUniqueIdentifier         string `json:"ldapAttributeGroupUniqueIdentifier" required:"false"`
+	LdapAttributeGroupName                     string `json:"ldapAttributeGroupName" required:"false"`
+	LdapAdminGroupName                         string `json:"ldapAdminGroupName" required:"false"`
+	LdapSoftDeleteUsers                        string `json:"ldapSoftDeleteUsers" required:"false"`
+	EmailOneTimeAccessAsAdminEnabled           string `json:"emailOneTimeAccessAsAdminEnabled" required:"false"`
+	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" required:"false"`
+	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" required:"false"`
+	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" required:"false"`
+	EmailVerificationEnabled                   string `json:"emailVerificationEnabled" required:"false"`
+}
+
+func (d *AppConfigUpdateDto) Resolve(huma.Context) []error {
+	var errs []error
+	if d.SmtpFrom != "" {
+		address, err := mail.ParseAddress(d.SmtpFrom)
+		if err != nil || address.Address != d.SmtpFrom {
+			errs = append(errs, &huma.ErrorDetail{Location: "body.smtpFrom", Message: "Field validation for 'SmtpFrom' failed on the 'email' tag"})
+		}
+	}
+	if d.SignupDefaultUserGroupIDs != "" && !json.Valid([]byte(d.SignupDefaultUserGroupIDs)) {
+		errs = append(errs, &huma.ErrorDetail{Location: "body.signupDefaultUserGroupIDs", Message: "Signup default user group IDs must be valid JSON"})
+	}
+	if d.SignupDefaultCustomClaims != "" && !json.Valid([]byte(d.SignupDefaultCustomClaims)) {
+		errs = append(errs, &huma.ErrorDetail{Location: "body.signupDefaultCustomClaims", Message: "Signup default custom claims must be valid JSON"})
+	}
+	return errs
 }

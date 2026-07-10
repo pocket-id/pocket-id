@@ -1,122 +1,96 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
-func NewScimController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, scimService *service.ScimService) {
-	ugc := ScimController{
-		scimService: scimService,
-	}
+type scimIDInput struct {
+	ID string `path:"id"`
+}
 
-	group.POST("/scim/service-provider", authMiddleware.Add(), ugc.createServiceProviderHandler)
-	group.POST("/scim/service-provider/:id/sync", authMiddleware.Add(), ugc.syncServiceProviderHandler)
-	group.PUT("/scim/service-provider/:id", authMiddleware.Add(), ugc.updateServiceProviderHandler)
-	group.DELETE("/scim/service-provider/:id", authMiddleware.Add(), ugc.deleteServiceProviderHandler)
+type scimCreateInput struct {
+	Body dto.ScimServiceProviderCreateDTO
+}
+
+type scimUpdateInput struct {
+	ID   string `path:"id"`
+	Body dto.ScimServiceProviderCreateDTO
+}
+
+func NewScimController(api huma.API, authMiddleware *middleware.AuthMiddleware, scimService *service.ScimService) {
+	controller := &ScimController{scimService: scimService}
+	auth := authMiddleware.Huma(api)
+
+	createOperation := scimOperation("create-scim-service-provider", http.MethodPost, "/api/scim/service-provider", "Create SCIM service provider")
+	createOperation.DefaultStatus = http.StatusCreated
+	auth(&createOperation)
+	httpapi.Register(api, createOperation, controller.createServiceProviderHandler)
+
+	syncOperation := scimOperation("sync-scim-service-provider", http.MethodPost, "/api/scim/service-provider/{id}/sync", "Sync SCIM service provider")
+	syncOperation.DefaultStatus = http.StatusOK
+	auth(&syncOperation)
+	httpapi.Register(api, syncOperation, controller.syncServiceProviderHandler)
+
+	updateOperation := scimOperation("update-scim-service-provider", http.MethodPut, "/api/scim/service-provider/{id}", "Update SCIM service provider")
+	auth(&updateOperation)
+	httpapi.Register(api, updateOperation, controller.updateServiceProviderHandler)
+
+	deleteOperation := scimOperation("delete-scim-service-provider", http.MethodDelete, "/api/scim/service-provider/{id}", "Delete SCIM service provider")
+	deleteOperation.DefaultStatus = http.StatusNoContent
+	auth(&deleteOperation)
+	httpapi.Register(api, deleteOperation, controller.deleteServiceProviderHandler)
+}
+
+func scimOperation(id, method, path, summary string) huma.Operation {
+	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"SCIM"}}
 }
 
 type ScimController struct {
 	scimService *service.ScimService
 }
 
-// syncServiceProviderHandler godoc
-// @Summary Sync SCIM service provider
-// @Description Trigger synchronization for a SCIM service provider
-// @Tags SCIM
-// @Param id path string true "Service Provider ID"
-// @Success 200 "OK"
-// @Router /api/scim/service-provider/{id}/sync [post]
-func (c *ScimController) syncServiceProviderHandler(ctx *gin.Context) {
-	err := c.scimService.SyncServiceProvider(ctx.Request.Context(), ctx.Param("id"))
-	if err != nil {
-		_ = ctx.Error(err)
-		return
+func (c *ScimController) syncServiceProviderHandler(ctx context.Context, input *scimIDInput) (*httpapi.EmptyOutput, error) {
+	if err := c.scimService.SyncServiceProvider(ctx, input.ID); err != nil {
+		return nil, err
 	}
-
-	ctx.Status(http.StatusOK)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// createServiceProviderHandler godoc
-// @Summary Create SCIM service provider
-// @Description Create a new SCIM service provider
-// @Tags SCIM
-// @Accept json
-// @Produce json
-// @Param serviceProvider body dto.ScimServiceProviderCreateDTO true "SCIM service provider information"
-// @Success 201 {object} dto.ScimServiceProviderDTO "Created SCIM service provider"
-// @Router /api/scim/service-provider [post]
-func (c *ScimController) createServiceProviderHandler(ctx *gin.Context) {
-	var input dto.ScimServiceProviderCreateDTO
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	provider, err := c.scimService.CreateServiceProvider(ctx.Request.Context(), &input)
+func (c *ScimController) createServiceProviderHandler(ctx context.Context, input *scimCreateInput) (*httpapi.BodyOutput[dto.ScimServiceProviderDTO], error) {
+	provider, err := c.scimService.CreateServiceProvider(ctx, &input.Body)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return nil, err
 	}
-
-	var providerDTO dto.ScimServiceProviderDTO
-	if err := dto.MapStruct(provider, &providerDTO); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	ctx.JSON(http.StatusCreated, providerDTO)
+	return mapSCIMProvider(provider)
 }
 
-// updateServiceProviderHandler godoc
-// @Summary Update SCIM service provider
-// @Description Update an existing SCIM service provider
-// @Tags SCIM
-// @Accept json
-// @Produce json
-// @Param id path string true "Service Provider ID"
-// @Param serviceProvider body dto.ScimServiceProviderCreateDTO true "SCIM service provider information"
-// @Success 200 {object} dto.ScimServiceProviderDTO "Updated SCIM service provider"
-// @Router /api/scim/service-provider/{id} [put]
-func (c *ScimController) updateServiceProviderHandler(ctx *gin.Context) {
-	var input dto.ScimServiceProviderCreateDTO
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	provider, err := c.scimService.UpdateServiceProvider(ctx.Request.Context(), ctx.Param("id"), &input)
+func (c *ScimController) updateServiceProviderHandler(ctx context.Context, input *scimUpdateInput) (*httpapi.BodyOutput[dto.ScimServiceProviderDTO], error) {
+	provider, err := c.scimService.UpdateServiceProvider(ctx, input.ID, &input.Body)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return nil, err
 	}
-
-	var providerDTO dto.ScimServiceProviderDTO
-	if err := dto.MapStruct(provider, &providerDTO); err != nil {
-		_ = ctx.Error(err)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, providerDTO)
+	return mapSCIMProvider(provider)
 }
 
-// deleteServiceProviderHandler godoc
-// @Summary Delete SCIM service provider
-// @Description Delete a SCIM service provider by ID
-// @Tags SCIM
-// @Param id path string true "Service Provider ID"
-// @Success 204 "No Content"
-// @Router /api/scim/service-provider/{id} [delete]
-func (c *ScimController) deleteServiceProviderHandler(ctx *gin.Context) {
-	err := c.scimService.DeleteServiceProvider(ctx.Request.Context(), ctx.Param("id"))
-	if err != nil {
-		_ = ctx.Error(err)
-		return
+func (c *ScimController) deleteServiceProviderHandler(ctx context.Context, input *scimIDInput) (*httpapi.EmptyOutput, error) {
+	if err := c.scimService.DeleteServiceProvider(ctx, input.ID); err != nil {
+		return nil, err
 	}
+	return &httpapi.EmptyOutput{}, nil
+}
 
-	ctx.Status(http.StatusNoContent)
+func mapSCIMProvider(provider any) (*httpapi.BodyOutput[dto.ScimServiceProviderDTO], error) {
+	var output dto.ScimServiceProviderDTO
+	if err := dto.MapStruct(provider, &output); err != nil {
+		return nil, err
+	}
+	return &httpapi.BodyOutput[dto.ScimServiceProviderDTO]{Body: output}, nil
 }

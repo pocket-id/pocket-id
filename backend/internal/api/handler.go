@@ -1,13 +1,43 @@
 package api
 
 import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
+	"context"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
+
+type listInput struct {
+	httpapi.ListInput
+	Search string `query:"search" required:"false"`
+}
+
+type idInput struct {
+	ID string `path:"id"`
+}
+
+type createInput struct {
+	Body apiCreateDto
+}
+
+type updateInput struct {
+	ID   string `path:"id"`
+	Body apiUpdateDto
+}
+
+type permissionsInput struct {
+	ID   string `path:"id"`
+	Body apiPermissionsUpdateDto
+}
+
+type clientInput struct {
+	ClientID string `path:"clientId"`
+}
+
+type clientUpdateInput struct {
+	ClientID string `path:"clientId"`
+	Body     clientApiAccessUpdateDto
+}
 
 type handler struct {
 	service *Service
@@ -17,219 +47,93 @@ func newHandler(service *Service) *handler {
 	return &handler{service: service}
 }
 
-// list godoc
-// @Summary List APIs
-// @Description Get a paginated list of APIs with optional search and sorting
-// @Tags APIs
-// @Produce json
-// @Param search query string false "Search term to filter APIs by name or resource"
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[apiResponseDto]
-// @Router /api/apis [get]
-func (h *handler) list(c *gin.Context) {
-	search := c.Query("search")
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	apis, pagination, err := h.service.List(c.Request.Context(), search, listRequestOptions)
+func (h *handler) list(ctx context.Context, input *listInput) (*httpapi.BodyOutput[dto.Paginated[apiResponseDto]], error) {
+	apis, pagination, err := h.service.List(ctx, input.Search, input.ListRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
 
 	items := make([]apiResponseDto, len(apis))
-	for i, api := range apis {
-		var item apiResponseDto
-		if err := dto.MapStruct(api, &item); err != nil {
-			_ = c.Error(err)
-			return
+	for i := range apis {
+		if err := dto.MapStruct(apis[i], &items[i]); err != nil {
+			return nil, err
 		}
-		item.Resource = api.Audience
-		items[i] = item
+		items[i].Resource = apis[i].Audience
 	}
-
-	c.JSON(http.StatusOK, dto.Paginated[apiResponseDto]{
-		Data:       items,
-		Pagination: pagination,
-	})
+	return &httpapi.BodyOutput[dto.Paginated[apiResponseDto]]{Body: dto.Paginated[apiResponseDto]{Data: items, Pagination: pagination}}, nil
 }
 
-// get godoc
-// @Summary Get API by ID
-// @Description Retrieve a single API including its permissions
-// @Tags APIs
-// @Produce json
-// @Param id path string true "API ID"
-// @Success 200 {object} apiResponseDto
-// @Router /api/apis/{id} [get]
-func (h *handler) get(c *gin.Context) {
-	api, err := h.service.Get(c.Request.Context(), nil, c.Param("id"))
+func (h *handler) get(ctx context.Context, input *idInput) (*httpapi.BodyOutput[apiResponseDto], error) {
+	item, err := h.service.Get(ctx, nil, input.ID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	h.respond(c, http.StatusOK, api)
+	return mapAPI(item)
 }
 
-// create godoc
-// @Summary Create API
-// @Description Create a new API resource server
-// @Tags APIs
-// @Accept json
-// @Produce json
-// @Param api body apiCreateDto true "API information"
-// @Success 201 {object} apiResponseDto "Created API"
-// @Router /api/apis [post]
-func (h *handler) create(c *gin.Context) {
-	var input apiCreateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	api, err := h.service.Create(c.Request.Context(), input)
+func (h *handler) create(ctx context.Context, input *createInput) (*httpapi.BodyOutput[apiResponseDto], error) {
+	item, err := h.service.Create(ctx, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	h.respond(c, http.StatusCreated, api)
+	return mapAPI(item)
 }
 
-// update godoc
-// @Summary Update API
-// @Description Update an existing API by ID
-// @Tags APIs
-// @Accept json
-// @Produce json
-// @Param id path string true "API ID"
-// @Param api body apiUpdateDto true "API information"
-// @Success 200 {object} apiResponseDto "Updated API"
-// @Router /api/apis/{id} [put]
-func (h *handler) update(c *gin.Context) {
-	var input apiUpdateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	api, err := h.service.Update(c.Request.Context(), c.Param("id"), input)
+func (h *handler) update(ctx context.Context, input *updateInput) (*httpapi.BodyOutput[apiResponseDto], error) {
+	item, err := h.service.Update(ctx, input.ID, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	h.respond(c, http.StatusOK, api)
+	return mapAPI(item)
 }
 
-// delete godoc
-// @Summary Delete API
-// @Description Delete an API by ID
-// @Tags APIs
-// @Param id path string true "API ID"
-// @Success 204 "No Content"
-// @Router /api/apis/{id} [delete]
-func (h *handler) delete(c *gin.Context) {
-	if err := h.service.Delete(c.Request.Context(), c.Param("id")); err != nil {
-		_ = c.Error(err)
-		return
+func (h *handler) delete(ctx context.Context, input *idInput) (*httpapi.EmptyOutput, error) {
+	if err := h.service.Delete(ctx, input.ID); err != nil {
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// updatePermissions godoc
-// @Summary Update API permissions
-// @Description Replace the full set of permissions for an API
-// @Tags APIs
-// @Accept json
-// @Produce json
-// @Param id path string true "API ID"
-// @Param permissions body apiPermissionsUpdateDto true "Permissions to set"
-// @Success 200 {object} apiResponseDto "Updated API"
-// @Router /api/apis/{id}/permissions [put]
-func (h *handler) updatePermissions(c *gin.Context) {
-	var input apiPermissionsUpdateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	api, err := h.service.UpdatePermissions(c.Request.Context(), c.Param("id"), input)
+func (h *handler) updatePermissions(ctx context.Context, input *permissionsInput) (*httpapi.BodyOutput[apiResponseDto], error) {
+	item, err := h.service.UpdatePermissions(ctx, input.ID, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	h.respond(c, http.StatusOK, api)
+	return mapAPI(item)
 }
 
-// getClientAccess godoc
-// @Summary Get client API access
-// @Description Get the API permissions an OIDC client is allowed to request, split into user-delegated and client (machine-to-machine) access
-// @Tags APIs
-// @Produce json
-// @Param clientId path string true "OIDC Client ID"
-// @Success 200 {object} clientApiAccessDto
-// @Router /api/api-access/{clientId} [get]
-func (h *handler) getClientAccess(c *gin.Context) {
-	access, err := h.service.GetClientAPIAccess(c.Request.Context(), c.Param("clientId"))
+func (h *handler) getClientAccess(ctx context.Context, input *clientInput) (*httpapi.BodyOutput[clientApiAccessDto], error) {
+	access, err := h.service.GetClientAPIAccess(ctx, input.ClientID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, newClientApiAccessDto(access))
+	return &httpapi.BodyOutput[clientApiAccessDto]{Body: newClientAPIAccessDTO(access)}, nil
 }
 
-// updateClientAccess godoc
-// @Summary Update client API access
-// @Description Replace the API permissions an OIDC client is allowed to request, split into user-delegated and client (machine-to-machine) access
-// @Tags APIs
-// @Accept json
-// @Produce json
-// @Param clientId path string true "OIDC Client ID"
-// @Param access body clientApiAccessUpdateDto true "Allowed permission IDs per subject type"
-// @Success 200 {object} clientApiAccessDto
-// @Router /api/api-access/{clientId} [put]
-func (h *handler) updateClientAccess(c *gin.Context) {
-	var input clientApiAccessUpdateDto
-	err := c.ShouldBindJSON(&input)
+func (h *handler) updateClientAccess(ctx context.Context, input *clientUpdateInput) (*httpapi.BodyOutput[clientApiAccessDto], error) {
+	applied, err := h.service.SetClientAPIAccess(ctx, input.ClientID, ClientAPIAccess(input.Body))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	applied, err := h.service.SetClientAPIAccess(c.Request.Context(), c.Param("clientId"), ClientAPIAccess(input))
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, newClientApiAccessDto(applied))
+	return &httpapi.BodyOutput[clientApiAccessDto]{Body: newClientAPIAccessDTO(applied)}, nil
 }
 
-// newClientApiAccessDto always serializes both permission lists as arrays rather than null
-func newClientApiAccessDto(access ClientAPIAccess) clientApiAccessDto {
-	dto := clientApiAccessDto(access)
-	if dto.UserDelegatedPermissionIDs == nil {
-		dto.UserDelegatedPermissionIDs = []string{}
+func newClientAPIAccessDTO(access ClientAPIAccess) clientApiAccessDto {
+	output := clientApiAccessDto(access)
+	if output.UserDelegatedPermissionIDs == nil {
+		output.UserDelegatedPermissionIDs = []string{}
 	}
-	if dto.ClientPermissionIDs == nil {
-		dto.ClientPermissionIDs = []string{}
+	if output.ClientPermissionIDs == nil {
+		output.ClientPermissionIDs = []string{}
 	}
-	return dto
+	return output
 }
 
-func (h *handler) respond(c *gin.Context, status int, api API) {
-	var responseDto apiResponseDto
-	if err := dto.MapStruct(api, &responseDto); err != nil {
-		_ = c.Error(err)
-		return
+func mapAPI(item API) (*httpapi.BodyOutput[apiResponseDto], error) {
+	var output apiResponseDto
+	if err := dto.MapStruct(item, &output); err != nil {
+		return nil, err
 	}
-	responseDto.Resource = api.Audience
-	c.JSON(status, responseDto)
+	output.Resource = item.Audience
+	return &httpapi.BodyOutput[apiResponseDto]{Body: output}, nil
 }

@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humagin"
 	"github.com/gin-gonic/gin"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 
@@ -86,22 +88,8 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
-
-		// Skip rate limiting for localhost and test environment
-		// If the client ip is localhost the request comes from the frontend
-		if common.EnvConfig.AppEnv == common.AppEnvTest || net.ParseIP(ip).IsLoopback() {
-			c.Next()
-			return
-		}
-
-		// Allow is a non-blocking token-bucket check keyed by client IP: it consumes a slot and reports whether the call is admitted right now
-		allowed, retryAfter, err := svc.Allow(c.Request.Context(), ip)
+		allowed, retryAfter, err := allowRequest(c.Request.Context(), svc, policy, ip)
 		if err != nil {
-			// Fail open so a limiter error does not turn away otherwise-valid traffic
-			if !errors.Is(err, context.Canceled) {
-				// A cancelled context just means the client went away, so it is not worth logging
-				slog.WarnContext(c.Request.Context(), "Rate limiter unavailable, allowing request", slog.String("policy", policy), slog.Any("error", err))
-			}
 			c.Next()
 			return
 		}
@@ -118,4 +106,54 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// Huma returns a Huma middleware backed by the existing rate-limit service
+func (m *RateLimitMiddleware) Huma(api huma.API, policy string) func(huma.Context, func(huma.Context)) {
+	if common.EnvConfig.DisableRateLimiting {
+		return func(ctx huma.Context, next func(huma.Context)) { next(ctx) }
+	}
+
+	svc := m.services[policy]
+	return func(ctx huma.Context, next func(huma.Context)) {
+		if svc == nil {
+			_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "Something went wrong")
+			return
+		}
+
+		ginCtx := humagin.Unwrap(ctx)
+		allowed, retryAfter, err := allowRequest(ctx.Context(), svc, policy, ginCtx.ClientIP())
+		if err != nil {
+			next(ctx)
+			return
+		}
+		if !allowed {
+			if retryAfter > 0 {
+				ctx.SetHeader("Retry-After", strconv.Itoa(int(math.Ceil(retryAfter.Seconds()))))
+			}
+			_ = huma.WriteErr(api, ctx, http.StatusTooManyRequests, (&common.TooManyRequestsError{}).Error())
+			return
+		}
+		next(ctx)
+	}
+}
+
+func allowRequest(ctx context.Context, svc *ratelimit.RateLimitService, policy, ip string) (bool, time.Duration, error) {
+	// Skip rate limiting for localhost and test environment
+	// If the client ip is localhost the request comes from the frontend
+	if common.EnvConfig.AppEnv == common.AppEnvTest || net.ParseIP(ip).IsLoopback() {
+		return true, 0, nil
+	}
+
+	// Allow is a non-blocking token-bucket check keyed by client IP: it consumes a slot and reports whether the call is admitted right now
+	allowed, retryAfter, err := svc.Allow(ctx, ip)
+	if err != nil {
+		// Fail open so a limiter error does not turn away otherwise-valid traffic
+		if !errors.Is(err, context.Canceled) {
+			// A cancelled context just means the client went away, so it is not worth logging
+			slog.WarnContext(ctx, "Rate limiter unavailable, allowing request", slog.String("policy", policy), slog.Any("error", err))
+		}
+		return true, 0, err
+	}
+	return allowed, retryAfter, nil
 }

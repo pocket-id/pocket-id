@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
 const parRequestURIPrefix = "urn:ietf:params:oauth:request_uri:"
@@ -106,37 +106,33 @@ func (h *authorizationHandler) authorize(c *gin.Context) {
 	h.provider.WriteAuthorizeResponse(ctx, c.Writer, ar, response)
 }
 
-func (h *authorizationHandler) getInteractionSession(c *gin.Context) {
-	interactionID := c.Param("id")
-
-	interactionSession, err := h.authorizationService.getInteractionSession(c.Request.Context(), interactionID)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, interactionSession)
+type interactionIDInput struct {
+	ID string `path:"id"`
 }
 
-func (h *authorizationHandler) completeInteraction(c *gin.Context) {
-	interactionID := c.Param("id")
-	authenticationTime, _ := c.Get("authenticationTime")
-	typedAuthenticationTime, _ := authenticationTime.(time.Time)
+type completeInteractionInput struct {
+	ID   string `path:"id"`
+	Body completeInteractionRequest
+}
 
-	var request completeInteractionRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		_ = c.Error(&common.ValidationError{Message: "invalid interaction request"})
-		return
-	}
-
-	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
-	response, err := h.authorizationService.completeInteractionStep(c.Request.Context(), interactionID, c.GetString("userID"), request.Step, reauthenticationToken, typedAuthenticationTime, requestMetaFromGin(c))
+func (h *authorizationHandler) getInteractionSession(ctx context.Context, input *interactionIDInput) (*httpapi.BodyOutput[interactionSessionForUser], error) {
+	interactionSession, err := h.authorizationService.getInteractionSession(ctx, input.ID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
+	return &httpapi.BodyOutput[interactionSessionForUser]{Body: interactionSession}, nil
+}
 
-	c.JSON(http.StatusOK, response)
+func (h *authorizationHandler) completeInteraction(ctx context.Context, input *completeInteractionInput) (*httpapi.BodyOutput[completeInteractionResponse], error) {
+	reauthenticationToken := ""
+	if requestCookie, err := httpapi.Cookie(ctx, cookie.ReauthenticationTokenCookieName); err == nil {
+		reauthenticationToken = requestCookie.Value
+	}
+	response, err := h.authorizationService.completeInteractionStep(ctx, input.ID, httpapi.UserID(ctx), input.Body.Step, reauthenticationToken, httpapi.AuthenticationTime(ctx), requestMetaFromContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+	return &httpapi.BodyOutput[completeInteractionResponse]{Body: response}, nil
 }
 
 func (h *authorizationHandler) writeAuthorizeError(ctx context.Context, c *gin.Context, ar fosite.AuthorizeRequester, err error) {
@@ -167,6 +163,10 @@ func requestMetaFromGin(c *gin.Context) requestMeta {
 		IPAddress: c.ClientIP(),
 		UserAgent: c.Request.UserAgent(),
 	}
+}
+
+func requestMetaFromContext(ctx context.Context) requestMeta {
+	return requestMeta{IPAddress: httpapi.ClientIP(ctx), UserAgent: httpapi.UserAgent(ctx)}
 }
 
 func authorizeRequestParams(requester fosite.AuthorizeRequester) map[string]string {

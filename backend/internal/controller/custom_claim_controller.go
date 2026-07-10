@@ -1,115 +1,79 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
-// NewCustomClaimController creates a new controller for custom claim management
-// @Summary Custom claim management controller
-// @Description Initializes all custom claim-related API endpoints
-// @Tags Custom Claims
-func NewCustomClaimController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, customClaimService *service.CustomClaimService) {
-	wkc := &CustomClaimController{customClaimService: customClaimService}
+type customClaimUserInput struct {
+	UserID string                     `path:"userId"`
+	Body   []dto.CustomClaimCreateDto `required:"true"`
+}
 
-	customClaimsGroup := group.Group("/custom-claims")
-	customClaimsGroup.Use(authMiddleware.Add())
-	{
-		customClaimsGroup.GET("/suggestions", wkc.getSuggestionsHandler)
-		customClaimsGroup.PUT("/user/:userId", wkc.UpdateCustomClaimsForUserHandler)
-		customClaimsGroup.PUT("/user-group/:userGroupId", wkc.UpdateCustomClaimsForUserGroupHandler)
-	}
+type customClaimUserGroupInput struct {
+	UserGroupID string                     `path:"userGroupId"`
+	Body        []dto.CustomClaimCreateDto `required:"true"`
+}
+
+// NewCustomClaimController registers custom claim management routes
+func NewCustomClaimController(api huma.API, authMiddleware *middleware.AuthMiddleware, customClaimService *service.CustomClaimService) {
+	controller := &CustomClaimController{customClaimService: customClaimService}
+	auth := authMiddleware.Huma(api)
+
+	suggestionsOperation := huma.Operation{OperationID: "list-custom-claim-suggestions", Method: http.MethodGet, Path: "/api/custom-claims/suggestions", Summary: "Get custom claim suggestions", Tags: []string{"Custom Claims"}}
+	auth(&suggestionsOperation)
+	httpapi.Register(api, suggestionsOperation, controller.getSuggestionsHandler)
+
+	userOperation := huma.Operation{OperationID: "update-user-custom-claims", Method: http.MethodPut, Path: "/api/custom-claims/user/{userId}", Summary: "Update custom claims for a user", Tags: []string{"Custom Claims"}}
+	auth(&userOperation)
+	httpapi.Register(api, userOperation, controller.updateCustomClaimsForUserHandler)
+
+	userGroupOperation := huma.Operation{OperationID: "update-user-group-custom-claims", Method: http.MethodPut, Path: "/api/custom-claims/user-group/{userGroupId}", Summary: "Update custom claims for a user group", Tags: []string{"Custom Claims"}}
+	auth(&userGroupOperation)
+	httpapi.Register(api, userGroupOperation, controller.updateCustomClaimsForUserGroupHandler)
 }
 
 type CustomClaimController struct {
 	customClaimService *service.CustomClaimService
 }
 
-// getSuggestionsHandler godoc
-// @Summary Get custom claim suggestions
-// @Description Get a list of suggested custom claim names
-// @Tags Custom Claims
-// @Produce json
-// @Success 200 {array} string "List of suggested custom claim names"
-// @Router /api/custom-claims/suggestions [get]
-func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) {
-	claims, err := ccc.customClaimService.GetSuggestions(c.Request.Context())
+func (ccc *CustomClaimController) getSuggestionsHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[[]string], error) {
+	claims, err := ccc.customClaimService.GetSuggestions(ctx)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, claims)
+	return &httpapi.BodyOutput[[]string]{Body: claims}, nil
 }
 
-// UpdateCustomClaimsForUserHandler godoc
-// @Summary Update custom claims for a user
-// @Description Update or create custom claims for a specific user
-// @Tags Custom Claims
-// @Accept json
-// @Produce json
-// @Param userId path string true "User ID"
-// @Param claims body []dto.CustomClaimCreateDto true "List of custom claims to set for the user"
-// @Success 200 {array} dto.CustomClaimDto "Updated custom claims"
-// @Router /api/custom-claims/user/{userId} [put]
-func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Context) {
-	var input []dto.CustomClaimCreateDto
-
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	userId := c.Param("userId")
-	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(c.Request.Context(), userId, input)
+func (ccc *CustomClaimController) updateCustomClaimsForUserHandler(ctx context.Context, input *customClaimUserInput) (*httpapi.BodyOutput[[]dto.CustomClaimDto], error) {
+	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(ctx, input.UserID, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
 
-	var customClaimsDto []dto.CustomClaimDto
-	if err := dto.MapStructList(claims, &customClaimsDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.CustomClaimDto
+	if err := dto.MapStructList(claims, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, customClaimsDto)
+	return &httpapi.BodyOutput[[]dto.CustomClaimDto]{Body: output}, nil
 }
 
-// UpdateCustomClaimsForUserGroupHandler godoc
-// @Summary Update custom claims for a user group
-// @Description Update or create custom claims for a specific user group
-// @Tags Custom Claims
-// @Accept json
-// @Produce json
-// @Param userGroupId path string true "User Group ID"
-// @Param claims body []dto.CustomClaimCreateDto true "List of custom claims to set for the user group"
-// @Success 200 {array} dto.CustomClaimDto "Updated custom claims"
-// @Router /api/custom-claims/user-group/{userGroupId} [put]
-func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.Context) {
-	var input []dto.CustomClaimCreateDto
-
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	userGroupId := c.Param("userGroupId")
-	claims, err := ccc.customClaimService.UpdateCustomClaimsForUserGroup(c.Request.Context(), userGroupId, input)
+func (ccc *CustomClaimController) updateCustomClaimsForUserGroupHandler(ctx context.Context, input *customClaimUserGroupInput) (*httpapi.BodyOutput[[]dto.CustomClaimDto], error) {
+	claims, err := ccc.customClaimService.UpdateCustomClaimsForUserGroup(ctx, input.UserGroupID, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
 
-	var customClaimsDto []dto.CustomClaimDto
-	if err := dto.MapStructList(claims, &customClaimsDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.CustomClaimDto
+	if err := dto.MapStructList(claims, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, customClaimsDto)
+	return &httpapi.BodyOutput[[]dto.CustomClaimDto]{Body: output}, nil
 }

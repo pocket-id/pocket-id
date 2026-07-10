@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -17,6 +19,7 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -86,6 +89,41 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 		router.ServeHTTP(recorder, req)
 
 		require.Equal(t, http.StatusNoContent, recorder.Code)
+	})
+
+	t.Run("Huma decorator preserves JWT-only behavior and documentation", func(t *testing.T) {
+		humaRouter := gin.New()
+		api := httpapi.New(humaRouter, humaRouter.Group("/"))
+		operation := huma.Operation{OperationID: "huma-protected", Method: http.MethodGet, Path: "/api/huma-protected"}
+		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Huma(api)(&operation)
+		require.Equal(t, []map[string][]string{{"BearerAuth": {}}, {"SessionCookie": {}}}, operation.Security)
+		httpapi.Register(api, operation, func(context.Context, *struct{}) (*struct{}, error) { return &struct{}{}, nil })
+
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/huma-protected", nil)
+		request.Header.Set("X-API-Key", apiKeyToken)
+		response := httptest.NewRecorder()
+		humaRouter.ServeHTTP(response, request)
+		require.Equal(t, http.StatusForbidden, response.Code)
+		require.JSONEq(t, `{"error":"API key authentication is not allowed for this endpoint"}`, response.Body.String())
+
+		request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/huma-protected", nil)
+		request.Header.Set("Authorization", "Bearer "+jwtToken)
+		response = httptest.NewRecorder()
+		humaRouter.ServeHTTP(response, request)
+		require.Equal(t, http.StatusNoContent, response.Code)
+	})
+
+	t.Run("Huma admin decorator records admin authorization separately from security scopes", func(t *testing.T) {
+		humaRouter := gin.New()
+		api := httpapi.New(humaRouter, humaRouter.Group("/"))
+		operation := huma.Operation{}
+		authMiddleware.Huma(api)(&operation)
+		require.Equal(t, true, operation.Extensions["x-pocket-id-admin-required"])
+		for _, requirement := range operation.Security {
+			for _, scopes := range requirement {
+				require.Empty(t, scopes)
+			}
+		}
 	})
 }
 

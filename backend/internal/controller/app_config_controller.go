@@ -1,40 +1,58 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
-// NewAppConfigController creates a new controller for application configuration endpoints
-// @Summary Create a new application configuration controller
-// @Description Initialize routes for application configuration
-// @Tags Application Configuration
+type appConfigUpdateInput struct {
+	Body dto.AppConfigUpdateDto
+}
+
+// NewAppConfigController registers application configuration endpoints
 func NewAppConfigController(
-	group *gin.RouterGroup,
+	api huma.API,
 	authMiddleware *middleware.AuthMiddleware,
 	appConfigService *service.AppConfigService,
 	emailService *service.EmailService,
 	ldapService *service.LdapService,
 ) {
+	controller := &AppConfigController{appConfigService: appConfigService, emailService: emailService, ldapService: ldapService}
 
-	acc := &AppConfigController{
-		appConfigService: appConfigService,
-		emailService:     emailService,
-		ldapService:      ldapService,
-	}
-	group.GET("/application-configuration", acc.listAppConfigHandler)
-	group.GET("/application-configuration/all", authMiddleware.Add(), acc.listAllAppConfigHandler)
-	group.PUT("/application-configuration", authMiddleware.Add(), acc.updateAppConfigHandler)
+	httpapi.Register(api, appConfigOperation("list-public-application-configuration", http.MethodGet, "/api/application-configuration", "List public application configurations"), controller.listAppConfigHandler)
 
-	group.POST("/application-configuration/test-email", authMiddleware.Add(), acc.testEmailHandler)
-	group.POST("/application-configuration/sync-ldap", authMiddleware.Add(), acc.syncLdapHandler)
+	auth := authMiddleware.Huma(api)
+	allOperation := appConfigOperation("list-all-application-configuration", http.MethodGet, "/api/application-configuration/all", "List all application configurations")
+	auth(&allOperation)
+	httpapi.Register(api, allOperation, controller.listAllAppConfigHandler)
+
+	updateOperation := appConfigOperation("update-application-configuration", http.MethodPut, "/api/application-configuration", "Update application configurations")
+	auth(&updateOperation)
+	httpapi.Register(api, updateOperation, controller.updateAppConfigHandler)
+
+	testEmailOperation := appConfigOperation("test-email-configuration", http.MethodPost, "/api/application-configuration/test-email", "Send test email")
+	testEmailOperation.DefaultStatus = http.StatusNoContent
+	auth(&testEmailOperation)
+	httpapi.Register(api, testEmailOperation, controller.testEmailHandler)
+
+	syncLDAPOperation := appConfigOperation("sync-ldap", http.MethodPost, "/api/application-configuration/sync-ldap", "Synchronize LDAP")
+	syncLDAPOperation.DefaultStatus = http.StatusNoContent
+	auth(&syncLDAPOperation)
+	httpapi.Register(api, syncLDAPOperation, controller.syncLDAPHandler)
+}
+
+func appConfigOperation(id, method, path, summary string) huma.Operation {
+	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"Application Configuration"}}
 }
 
 type AppConfigController struct {
@@ -43,121 +61,51 @@ type AppConfigController struct {
 	ldapService      *service.LdapService
 }
 
-// listAppConfigHandler godoc
-// @Summary List public application configurations
-// @Description Get all public application configurations
-// @Tags Application Configuration
-// @Accept json
-// @Produce json
-// @Success 200 {array} dto.PublicAppConfigVariableDto
-// @Router /api/application-configuration [get]
-func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
+func (acc *AppConfigController) listAppConfigHandler(_ context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[[]dto.PublicAppConfigVariableDto], error) {
 	configuration := acc.appConfigService.ListAppConfig(false)
 
-	var configVariablesDto []dto.PublicAppConfigVariableDto
-	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.PublicAppConfigVariableDto
+	if err := dto.MapStructList(configuration, &output); err != nil {
+		return nil, err
 	}
-
-	// Manually add uiConfigDisabled which isn't in the database but defined with an environment variable
-	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
-		Key:   "uiConfigDisabled",
-		Value: strconv.FormatBool(common.EnvConfig.UiConfigDisabled),
-		Type:  "boolean",
-	})
-
-	// Manually add tracingEnabled, derived from the OTel environment, so the frontend only exports traces when the backend can forward them to a collector
-	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
-		Key:   "tracingEnabled",
-		Value: strconv.FormatBool(tracing.FrontendTracingEnabled()),
-		Type:  "boolean",
-	})
-
-	c.JSON(http.StatusOK, configVariablesDto)
+	output = append(output,
+		dto.PublicAppConfigVariableDto{Key: "uiConfigDisabled", Value: strconv.FormatBool(common.EnvConfig.UiConfigDisabled), Type: "boolean"},
+		dto.PublicAppConfigVariableDto{Key: "tracingEnabled", Value: strconv.FormatBool(tracing.FrontendTracingEnabled()), Type: "boolean"},
+	)
+	return &httpapi.BodyOutput[[]dto.PublicAppConfigVariableDto]{Body: output}, nil
 }
 
-// listAllAppConfigHandler godoc
-// @Summary List all application configurations
-// @Description Get all application configurations including private ones
-// @Tags Application Configuration
-// @Accept json
-// @Produce json
-// @Success 200 {array} dto.AppConfigVariableDto
-// @Router /api/application-configuration/all [get]
-func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
+func (acc *AppConfigController) listAllAppConfigHandler(_ context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[[]dto.AppConfigVariableDto], error) {
 	configuration := acc.appConfigService.ListAppConfig(true)
-
-	var configVariablesDto []dto.AppConfigVariableDto
-	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.AppConfigVariableDto
+	if err := dto.MapStructList(configuration, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, configVariablesDto)
+	return &httpapi.BodyOutput[[]dto.AppConfigVariableDto]{Body: output}, nil
 }
 
-// updateAppConfigHandler godoc
-// @Summary Update application configurations
-// @Description Update application configuration settings
-// @Tags Application Configuration
-// @Accept json
-// @Produce json
-// @Param body body dto.AppConfigUpdateDto true "Application Configuration"
-// @Success 200 {array} dto.AppConfigVariableDto
-// @Router /api/application-configuration [put]
-func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
-	var input dto.AppConfigUpdateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	savedConfigVariables, err := acc.appConfigService.UpdateAppConfig(c.Request.Context(), input)
+func (acc *AppConfigController) updateAppConfigHandler(ctx context.Context, input *appConfigUpdateInput) (*httpapi.BodyOutput[[]dto.AppConfigVariableDto], error) {
+	saved, err := acc.appConfigService.UpdateAppConfig(ctx, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var configVariablesDto []dto.AppConfigVariableDto
-	if err := dto.MapStructList(savedConfigVariables, &configVariablesDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.AppConfigVariableDto
+	if err := dto.MapStructList(saved, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, configVariablesDto)
+	return &httpapi.BodyOutput[[]dto.AppConfigVariableDto]{Body: output}, nil
 }
 
-// syncLdapHandler godoc
-// @Summary Synchronize LDAP
-// @Description Manually trigger LDAP synchronization
-// @Tags Application Configuration
-// @Success 204 "No Content"
-// @Router /api/application-configuration/sync-ldap [post]
-func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
-	err := acc.ldapService.SyncAll(c.Request.Context())
-	if err != nil {
-		_ = c.Error(err)
-		return
+func (acc *AppConfigController) syncLDAPHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
+	if err := acc.ldapService.SyncAll(ctx); err != nil {
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// testEmailHandler godoc
-// @Summary Send test email
-// @Description Send a test email to verify email configuration
-// @Tags Application Configuration
-// @Success 204 "No Content"
-// @Router /api/application-configuration/test-email [post]
-func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
-	userID := c.GetString("userID")
-
-	err := acc.emailService.SendTestEmail(c.Request.Context(), userID)
-	if err != nil {
-		_ = c.Error(err)
-		return
+func (acc *AppConfigController) testEmailHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
+	if err := acc.emailService.SendTestEmail(ctx, httpapi.UserID(ctx)); err != nil {
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }

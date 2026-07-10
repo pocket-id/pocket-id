@@ -16,9 +16,9 @@ type ScimServiceProviderDTO struct {
 }
 
 type ScimServiceProviderCreateDTO struct {
-	Endpoint     string `json:"endpoint" binding:"required,url"`
-	Token        string `json:"token"`
-	OidcClientID string `json:"oidcClientId" binding:"required"`
+	Endpoint     string `json:"endpoint" required:"true" format:"uri"`
+	Token        string `json:"token" required:"false"`
+	OidcClientID string `json:"oidcClientId" required:"true"`
 }
 
 type ScimUser struct {

@@ -35,6 +35,26 @@ func BuildFormPostCSP(nonce, redirectURI, scriptHash string) string {
 	return buildCSP(nonce, []string{redirectURI}, []string{scriptHash})
 }
 
+// BuildAPIDocsCSP allows the pinned Scalar bundle and the assets it creates
+func BuildAPIDocsCSP(nonce string) string {
+	scriptSrc := "script-src 'self' https://cdn.jsdelivr.net"
+	if nonce != "" {
+		scriptSrc += " 'nonce-" + nonce + "'"
+	}
+
+	return "default-src 'self'; " +
+		"base-uri 'self'; " +
+		"object-src 'none'; " +
+		"frame-ancestors 'none'; " +
+		"form-action 'self'; " +
+		"img-src * blob: data:; " +
+		"font-src 'self' https://cdn.jsdelivr.net data:; " +
+		"style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+		"worker-src blob:; " +
+		"connect-src 'self'; " +
+		scriptSrc
+}
+
 func buildCSP(nonce string, formActionExtra, scriptSrcExtra []string) string {
 	formAction := "'self'"
 	scriptSrc := "script-src 'self'"
