@@ -3,6 +3,7 @@
 package testing
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -29,6 +30,19 @@ func init() {
 // Each database connection is unique for the test.
 // All migrations are automatically performed.
 func NewDatabaseForTest(t *testing.T) *gorm.DB {
+	t.Helper()
+	return newDatabaseForTest(t, 0, nil)
+}
+
+// NewDatabaseForTestWithMigrationSeed behaves like NewDatabaseForTest, but pauses the migrations right after the migration whose version is stopAfterVersion has been applied.
+// It then invokes seed, so the test can insert data into the intermediate schema, before applying the remaining migrations.
+// This is meant to test data migrations, which operate on data that already exists in the database.
+func NewDatabaseForTestWithMigrationSeed(t *testing.T, stopAfterVersion uint, seed func(t *testing.T, db *gorm.DB)) *gorm.DB {
+	t.Helper()
+	return newDatabaseForTest(t, stopAfterVersion, seed)
+}
+
+func newDatabaseForTest(t *testing.T, stopAfterVersion uint, seed func(t *testing.T, db *gorm.DB)) *gorm.DB {
 	t.Helper()
 
 	// Get a name for this in-memory database that is specific to the test
@@ -68,8 +82,20 @@ func NewDatabaseForTest(t *testing.T) *gorm.DB {
 	require.NoError(t, err, "Failed to create embedded migration source")
 	m, err := migrate.NewWithInstance("iofs", source, "pocket-id", driver)
 	require.NoError(t, err, "Failed to create migration instance")
+
+	// If the test wants to seed data partway through the migrations, apply migrations up to and including stopAfterVersion first, then let it seed
+	if seed != nil {
+		err = m.Migrate(stopAfterVersion)
+		require.NoErrorf(t, err, "Failed to perform migrations up to version %d", stopAfterVersion)
+		seed(t, db)
+	}
+
+	// Apply all the remaining migrations
+	// ErrNoChange means we were already at the latest version, which is not an error here
 	err = m.Up()
-	require.NoError(t, err, "Failed to perform migrations")
+	if !errors.Is(err, migrate.ErrNoChange) {
+		require.NoError(t, err, "Failed to perform migrations")
+	}
 	_, err = sqlDB.Exec("PRAGMA foreign_keys = OFF;")
 	require.NoError(t, err, "Failed to disable foreign keys")
 
