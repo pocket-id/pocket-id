@@ -455,6 +455,8 @@
 	"client_launch_url": "클라이언트 실행 URL",
 	"client_launch_url_description": "사용자가 '내 앱' 페이지에서 앱을 실행할 때 열릴 URL입니다.",
 	"client_name_description": "Pocket ID UI에 표시되는 클라이언트의 이름입니다.",
+	"client_description": "설명",
+	"client_description_description": "Pocket ID UI에 표시되는 클라이언트에 대한 선택적 설명입니다.",
 	"revoke_access": "접근 권한 취소",
 	"revoke_access_description": "<b>{clientName}</b>의 접근 권한을 취소합니다. <b>{clientName}</b>은 더 이상 계정 정보에 접근할 수 없습니다.",
 	"revoke_access_successful": "{clientName}의 접근이 성공적으로 취소되었습니다.",

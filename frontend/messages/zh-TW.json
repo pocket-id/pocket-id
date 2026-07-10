@@ -455,6 +455,8 @@
 	"client_launch_url": "用戶端啟動 URL",
 	"client_launch_url_description": "當使用者從「我的應用程式」頁面啟動應用程式時將會開啟的 URL。",
 	"client_name_description": "顯示在 Pocket ID UI 中的用戶端名稱。",
+	"client_description": "說明",
+	"client_description_description": "關於該客戶的可選描述，此描述將顯示於 Pocket ID 使用者介面中。",
 	"revoke_access": "撤銷存取權",
 	"revoke_access_description": "撤銷存取 <b>{clientName}</b>. <b>{clientName}</b>將無法再存取您的帳戶資訊。",
 	"revoke_access_successful": "{clientName} 的存取權已成功取消。",
