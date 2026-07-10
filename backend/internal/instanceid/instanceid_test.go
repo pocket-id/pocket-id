@@ -78,9 +78,10 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("concurrent calls without an existing instance ID converge on a single value", func(t *testing.T) {
-		db := testutils.NewDatabaseForTest(t)
+		// This needs a database that allows concurrent access, so the goroutines race
+		db := testutils.NewConcurrentDatabaseForTest(t)
 
-		const parallel = 20
+		const parallel = 25
 
 		// Each goroutine writes to its own index, so no locking is needed to collect the results
 		ids := make([]string, parallel)
