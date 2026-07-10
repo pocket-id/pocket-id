@@ -7,9 +7,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration.type';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import {
-		LucideInfo
-	} from '@lucide/svelte';
+	import { LucideInfo } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import AppConfigEmailForm from './forms/app-config-email-form.svelte';
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';

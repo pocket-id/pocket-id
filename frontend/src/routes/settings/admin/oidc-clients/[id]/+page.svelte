@@ -18,7 +18,12 @@
 	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft, LucideInfo, LucideRefreshCcw, LucideTriangleAlert } from '@lucide/svelte';
+	import {
+		LucideChevronLeft,
+		LucideInfo,
+		LucideRefreshCcw,
+		LucideTriangleAlert
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import { backNavigate } from '../../users/navigate-back-util';
