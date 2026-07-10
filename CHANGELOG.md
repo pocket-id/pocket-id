@@ -1,3 +1,81 @@
+## v2.10.0
+
+### Bug Fixes
+
+- login code null submission and login code length check ([#1512](https://github.com/pocket-id/pocket-id/pull/1512) by @James18232)
+- don't reject `offline_access`scope ([2ed7035](https://github.com/pocket-id/pocket-id/commit/2ed703540d901eaf58427d0cf54fb0a5e68bc6a0) by @stonith404)
+- CSP error with `response_mode=form_post` ([16b5c16](https://github.com/pocket-id/pocket-id/commit/16b5c16a664a2f1b20ad824d907294de9cb60c9e) by @stonith404)
+- various bugs in observability / OTel ([#1564](https://github.com/pocket-id/pocket-id/pull/1564) by @ItalyPaleAle)
+- restore behavior that unknown scopes get ignored ([34e9a6d](https://github.com/pocket-id/pocket-id/commit/34e9a6d1982a3d50bb3874aff3316c3154113725) by @stonith404)
+- re-check api permissions on access token refresh ([e8cb0c8](https://github.com/pocket-id/pocket-id/commit/e8cb0c831ca914522babce101cf8533acbf94136) by @stonith404)
+- merge requested scopes instead of replacing them ([5e2cc6f](https://github.com/pocket-id/pocket-id/commit/5e2cc6f40e5c7139b122d8a59ca121af1fdbdceb) by @stonith404)
+- device authorization resolve resource creating device_code ([2f55b7c](https://github.com/pocket-id/pocket-id/commit/2f55b7cbc3d601128061dbc70014e77f5b1ec211) by @stonith404)
+- add missing burst to rate limit ([f3b6ceb](https://github.com/pocket-id/pocket-id/commit/f3b6ceb8768616fb155455cceb7a539c13c3da9f) by @stonith404)
+- disable one time access token exchange for disabled users ([c85a4e6](https://github.com/pocket-id/pocket-id/commit/c85a4e63dabcb2c71bbf35e03482969cb07a6df8) by @stonith404)
+- /authorize endpoint crashes when list of scopes is empty ([#1575](https://github.com/pocket-id/pocket-id/pull/1575) by @ItalyPaleAle)
+- mobile layout improvements ([2910c51](https://github.com/pocket-id/pocket-id/commit/2910c517bb7545f932c34321907299064b08bb10) by @stonith404)
+
+### Documentation
+
+- add link to API docs ([968d072](https://github.com/pocket-id/pocket-id/commit/968d07229eeefa763fe981e5c7e4970d5640c783) by @stonith404)
+- fix wrong OpenAPI documentation ([da3677f](https://github.com/pocket-id/pocket-id/commit/da3677f33d50c96f06ee1d8f65d9f802f67af270) by @stonith404)
+
+### Features
+
+- upgrade shadcn components ([80509c8](https://github.com/pocket-id/pocket-id/commit/80509c83ee0ce92b416286217c11f116d5b9fe2a) by @stonith404)
+- improve error handling on authorize page ([8689ddd](https://github.com/pocket-id/pocket-id/commit/8689ddd72b143ceac29adb63d624cc18585f580e) by @stonith404)
+- add ability to skip consent for client ([d467855](https://github.com/pocket-id/pocket-id/commit/d4678558708542719c5d3cc48c48d3053f37800c) by @stonith404)
+- prompt admin with PKCE client support hint ([#1499](https://github.com/pocket-id/pocket-id/pull/1499) by @James18232)
+- login code input boxes ([#1545](https://github.com/pocket-id/pocket-id/pull/1545) by @James18232)
+- drop TOFU support for callback URL ([931a6c2](https://github.com/pocket-id/pocket-id/commit/931a6c2adb39fb8cdfe18487f4206f8848b3d026) by @stonith404)
+- add OAuth APIs with scoped permissions ([#1542](https://github.com/pocket-id/pocket-id/pull/1542) by @stonith404)
+- add support for unencrypted OIDC request parameter ([25dcad7](https://github.com/pocket-id/pocket-id/commit/25dcad757a7d7670bfd8d4d4ac209e26dc919596) by @stonith404)
+- add description field to oidc clients ([#1547](https://github.com/pocket-id/pocket-id/pull/1547) by @seanmckenzie428)
+- add tab bar navigation for crowded pages ([28a553f](https://github.com/pocket-id/pocket-id/commit/28a553f63b85ecccaa764279af5f65ea1bf2d013) by @stonith404)
+
+### Other
+
+- close low-demand feature requests ([35987b9](https://github.com/pocket-id/pocket-id/commit/35987b9c8d44efb08928d031ab9f1e84eda9882f) by @stonith404)
+- Bump the "all-dependencies" group with 2 updates across multiple ecosystems ([#1528](https://github.com/pocket-id/pocket-id/pull/1528) by @dependabot[bot])
+- fix locators after shadcn upgrade ([dbbe2a4](https://github.com/pocket-id/pocket-id/commit/dbbe2a403aa6afc39e14cf559bd074c6640e3b0c) by @stonith404)
+- use fosite for OAuth 2.0 logic ([#1520](https://github.com/pocket-id/pocket-id/pull/1520) by @stonith404)
+- wrap last two migrations into transaction ([cf9a319](https://github.com/pocket-id/pocket-id/commit/cf9a31986f521451bc9e1c2754a09ee2d141cd57) by @stonith404)
+- remove dead code ([519cda0](https://github.com/pocket-id/pocket-id/commit/519cda0eef1083274deed9bf6c501b815986241a) by @stonith404)
+- update vulnerable dependencies ([e538ea0](https://github.com/pocket-id/pocket-id/commit/e538ea0bf1ba4d5f70f977c7021bfa4f4543070e) by @stonith404)
+- fix flaky test ([7eaaea7](https://github.com/pocket-id/pocket-id/commit/7eaaea717b418c167b733723eeb000073c6915fe) by @stonith404)
+- add AGENTS.md ([d0243fe](https://github.com/pocket-id/pocket-id/commit/d0243fe396fb4ae2ec8d66ab95c80c8a283a631b) by @stonith404)
+- use goreleaser for binaries and static image builds ([#1478](https://github.com/pocket-id/pocket-id/pull/1478) by @kmendell)
+- add support for Docker Hub ([99ab38d](https://github.com/pocket-id/pocket-id/commit/99ab38dc799d07d4d91863199b1350fb7d06e03e) by @stonith404)
+- remove static next image tag ([49305ed](https://github.com/pocket-id/pocket-id/commit/49305ed1f98d838167703d3dc2f6e3e5786fb9fc) by @stonith404)
+- don't build unnecessary binaries for `next` image ([4b957a0](https://github.com/pocket-id/pocket-id/commit/4b957a0106899666b55420b61d2bb12d08d82022) by @stonith404)
+- change Depot project ([cdc2374](https://github.com/pocket-id/pocket-id/commit/cdc23744ae1cb731184828afe326fc2a1712c02f) by @stonith404)
+- don't tag `next` image with current version ([cf54786](https://github.com/pocket-id/pocket-id/commit/cf54786cc3bfe59bd01e8d5cbb4a3ccabb7d6466) by @stonith404)
+- add exempt user to PR quality checks ([254ae88](https://github.com/pocket-id/pocket-id/commit/254ae88cda67ecc1095b0b738630388c93d90c44) by @stonith404)
+- migrate API key functionality to single `apikey` module ([9fce987](https://github.com/pocket-id/pocket-id/commit/9fce98710679e522233c3b7af8d3b6cd2ce5594c) by @stonith404)
+- migrate Webauthn functionality to single `webauthn` module ([58fcf7c](https://github.com/pocket-id/pocket-id/commit/58fcf7cbe665be8d7670170097735fe8efe31c6f) by @stonith404)
+- migrate signup functionality to single `usersignup` module ([ecad31c](https://github.com/pocket-id/pocket-id/commit/ecad31cae2dbbc51d15a7007601829c57accff75) by @stonith404)
+- make API key renewal date picker navigation date-independent ([#1560](https://github.com/pocket-id/pocket-id/pull/1560) by @ItalyPaleAle)
+- integrate Francis actor framework for background jobs, cron scheduling, and rate limiting ([#1556](https://github.com/pocket-id/pocket-id/pull/1556) by @ItalyPaleAle)
+- Bump the "all-dependencies" group with 3 updates across multiple ecosystems ([#1563](https://github.com/pocket-id/pocket-id/pull/1563) by @dependabot[bot])
+- use go-kit for sending emails ([#1565](https://github.com/pocket-id/pocket-id/pull/1565) by @ItalyPaleAle)
+- update AAGUIDs ([#1567](https://github.com/pocket-id/pocket-id/pull/1567) by @github-actions[bot])
+- move Pocket ID specific logic from Fosite into Pocket ID repo ([9a94aa0](https://github.com/pocket-id/pocket-id/commit/9a94aa0694abda5bdd7c9380cbadc1f080a8027e) by @stonith404)
+- update Fosite version ([337fc6f](https://github.com/pocket-id/pocket-id/commit/337fc6fd1ec53aa65275f5ad964869462664a194) by @stonith404)
+- pass transaction to `resolveResource` ([7667377](https://github.com/pocket-id/pocket-id/commit/7667377c98c01f45dc5e959c999c60143efca1ef) by @stonith404)
+- remove redundant dtos ([fa2d08c](https://github.com/pocket-id/pocket-id/commit/fa2d08cb6d60bc3c9d8865c36c07ef8868e8ed9e) by @stonith404)
+- rename migrations ([c72da58](https://github.com/pocket-id/pocket-id/commit/c72da58eaf45eafff3232bcc050fd87e84ae050f) by @stonith404)
+- remove duplicate fosite config properties ([190914f](https://github.com/pocket-id/pocket-id/commit/190914fd72481c2da7372215f369a5b96feed3f0) by @stonith404)
+- fix migration version in `database.json` ([a5f2192](https://github.com/pocket-id/pocket-id/commit/a5f2192d67045cca63a4e0038e118986754d4184) by @stonith404)
+- fix wrong migration name ([ce7d3a7](https://github.com/pocket-id/pocket-id/commit/ce7d3a7e1d6ab08696a149fa8805fcb99337afa9) by @stonith404)
+- run formatter ([59a6868](https://github.com/pocket-id/pocket-id/commit/59a6868ecdb017354d4dfd8d70c4ba0710f02f08) by @stonith404)
+- upgrade go version ([f62d476](https://github.com/pocket-id/pocket-id/commit/f62d476c56d39f7f20c443eb430462e9141d31fa) by @stonith404)
+
+### Performance Improvements
+
+- include permissions in api list response ([8035a4c](https://github.com/pocket-id/pocket-id/commit/8035a4c8d589109e767a031dae3c473ea3e77d75) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.9.0...v2.10.0
+
 ## v2.9.0
 
 ### Bug Fixes
