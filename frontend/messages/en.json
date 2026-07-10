@@ -535,7 +535,7 @@
 	"replay_protection_description": "If enabled the provided token can only be used once. If your provider uses the same token multiple times, you may need to disable this option.",
 	"apis": "APIs",
 	"create_api": "Create API",
-	"create_a_new_api_description": "Create a new API that clients can request access tokens for.",
+	"create_a_new_api_description": "Create a new API that clients can request access tokens for. You can learn more about APIs in the <link href='https://pocket-id.org/docs/guides/apis'>docs</link>.",
 	"add_api": "Add API",
 	"manage_apis": "Manage APIs",
 	"api_resource": "Resource",
