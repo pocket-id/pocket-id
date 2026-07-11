@@ -12,8 +12,8 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
@@ -35,7 +35,12 @@ func init() {
 				return err
 			}
 
-			return encryptionKeyRotate(cmd.Context(), flags, db, &common.EnvConfig)
+			instanceID, err := instanceid.Load(cmd.Context(), db)
+			if err != nil {
+				return err
+			}
+
+			return encryptionKeyRotate(cmd.Context(), flags, db, instanceID, &common.EnvConfig)
 		},
 	}
 
@@ -45,7 +50,7 @@ func init() {
 	rootCmd.AddCommand(encryptionKeyRotateCmd)
 }
 
-func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db *gorm.DB, envConfig *common.EnvConfigSchema) error {
+func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) error {
 	oldKey := envConfig.EncryptionKey
 	newKey := []byte(flags.NewKey)
 	if len(newKey) == 0 {
@@ -66,12 +71,6 @@ func encryptionKeyRotate(ctx context.Context, flags encryptionKeyRotateFlags, db
 			os.Exit(1)
 		}
 	}
-
-	appConfigService, err := service.NewAppConfigService(ctx, db)
-	if err != nil {
-		return fmt.Errorf("failed to create app config service: %w", err)
-	}
-	instanceID := appConfigService.GetDbConfig().InstanceID.Value
 
 	// Derive the encryption keys used for the JWK encryption
 	oldKek, err := jwkutils.LoadKeyEncryptionKey(&common.EnvConfigSchema{EncryptionKey: oldKey}, instanceID)

@@ -9,10 +9,12 @@ import (
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
+	"github.com/italypaleale/francis/host/local"
 	"github.com/italypaleale/go-kit/servicerunner"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
@@ -46,6 +48,13 @@ func Bootstrap(ctx context.Context) error {
 		}()
 	}
 
+	// Load the instance ID
+	// This is stored in the "kv" table, and generated on first startup
+	instanceID, err := instanceid.Load(ctx, db)
+	if err != nil {
+		return fmt.Errorf("failed to initialize instance ID: %w", err)
+	}
+
 	// Init storage
 	fileStorage, err := InitStorage(ctx, db)
 	if err != nil {
@@ -64,8 +73,34 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to create job scheduler: %w", err)
 	}
 
+	// Init the actors
+	// The actor host is created and started before the services, so services can depend on it once it's ready
+	actorsOpts := NewActorsOpts{
+		Postgres: pg,
+
+		EnvConfig:   &common.EnvConfig,
+		InstanceID:  instanceID,
+		HttpClient:  httpClient,
+		DB:          db,
+		FileStorage: fileStorage,
+	}
+	if pg == nil {
+		actorsOpts.SQLite, err = db.DB()
+		if err != nil {
+			return fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
+		}
+	}
+	actors, rateLimitServices, err := NewActors(actorsOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize actors: %w", err)
+	}
+
+	// Run the actor host as a background service and get a "ready" signal that other services can wait on
+	actorsRun, actorsReady := actorsRunServiceFn(actors)
+	services = append(services, actorsRun)
+
 	// Create all services
-	svc, err := initServices(ctx, db, httpClient, imageExtensions, fileStorage, scheduler)
+	svc, err := initServices(ctx, db, instanceID, httpClient, imageExtensions, fileStorage, scheduler)
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
@@ -93,28 +128,6 @@ func Bootstrap(ctx context.Context) error {
 		return nil
 	})
 
-	// Init the actors
-	actorsOpts := NewActorsOpts{
-		Postgres: pg,
-
-		EnvConfig:   &common.EnvConfig,
-		AppConfig:   svc.appConfigService,
-		HttpClient:  httpClient,
-		DB:          db,
-		FileStorage: fileStorage,
-	}
-	if pg == nil {
-		actorsOpts.SQLite, err = db.DB()
-		if err != nil {
-			return fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
-		}
-	}
-	actors, rateLimitServices, err := NewActors(actorsOpts)
-	if err != nil {
-		return fmt.Errorf("failed to initialize actors: %w", err)
-	}
-	services = append(services, actors.Run)
-
 	// Register scheduled jobs, only in non-test mode
 	if common.EnvConfig.AppEnv != "test" {
 		err = registerScheduledJobs(ctx, db, svc, scheduler)
@@ -131,7 +144,9 @@ func Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize router: %w", err)
 	}
-	services = append(services, router)
+
+	// The router must wait on the actor host being ready, since the rate-limit middleware invokes actors
+	services = append(services, actorsReady.Await(router))
 
 	// Run all background services
 	// This call blocks until the context is canceled
@@ -144,6 +159,37 @@ func Bootstrap(ctx context.Context) error {
 	shutdowns.Run(ctx)
 
 	return nil
+}
+
+// actorsRunServiceFn wraps the actor host's Run method in a background service and returns a "ready" signal that other services can wait on
+func actorsRunServiceFn(actors *local.Host) (servicerunner.Service, *servicerunner.Ready) {
+	actorsReady := servicerunner.NewReady()
+	fn := func(ctx context.Context) error {
+		runErrCh := make(chan error, 1)
+		go func() {
+			runErrCh <- actors.Run(ctx)
+		}()
+
+		// Wait for the right signal
+		select {
+		case <-actors.Ready():
+			// Actor host is ready, signal actorsReady
+			actorsReady.Signal()
+		case runErr := <-runErrCh:
+			// Run returned with an error
+			return runErr
+		case <-ctx.Done():
+			// Context canceled
+			return ctx.Err()
+		}
+
+		// Now the actor host is running
+		// This goroutine must stay up until the actor host returns
+		// Here, context cancellation will surface through this channel too
+		return <-runErrCh
+	}
+
+	return fn, actorsReady
 }
 
 func InitStorage(ctx context.Context, db *gorm.DB) (fileStorage storage.FileStorage, err error) {

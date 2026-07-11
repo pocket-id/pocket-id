@@ -1,3 +1,5 @@
+//go:build unit
+
 // This file is only imported by unit tests
 
 package testing
