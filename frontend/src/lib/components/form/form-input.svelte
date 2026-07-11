@@ -32,6 +32,7 @@
 		children,
 		onInput,
 		labelFor,
+		readonly = false,
 		inputClass,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> &
@@ -43,6 +44,7 @@
 			disabled?: boolean;
 			inputClass?: string;
 			type?: 'text' | 'password' | 'email' | 'number' | 'checkbox' | 'date' | 'url';
+			readonly?: boolean;
 			onInput?: (e: FormInputEvent) => void;
 		} = $props();
 
@@ -64,7 +66,7 @@
 				<FormattedMessage m={description} />
 				{#if docsLink}
 					<a
-						class="relative text-black after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:translate-y-[-1px] after:bg-white dark:text-white"
+						class="relative text-black after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:-translate-y-px after:bg-white dark:text-white"
 						href={docsLink}
 						target="_blank"
 					>
@@ -91,6 +93,7 @@
 					bind:value={input.value}
 					{disabled}
 					oninput={(e) => onInput?.(e)}
+					{readonly}
 				/>
 			{/if}
 		{/if}

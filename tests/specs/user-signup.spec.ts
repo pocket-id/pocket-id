@@ -10,10 +10,10 @@ async function setSignupMode(
 ) {
 	await page.goto('/settings/admin/application-configuration');
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByRole('tab', { name: 'User Creation' }).click();
 	await page.getByRole('button', { name: 'Enable User Signups' }).click();
 	await page.getByRole('option', { name: mode }).click();
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]').last()).toHaveText(
 		'User creation settings updated successfully.'

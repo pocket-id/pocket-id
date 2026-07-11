@@ -11,6 +11,7 @@ test.describe('Create OIDC client', () => {
 		await page.getByRole('button', { name: 'Add OIDC Client' }).click();
 
 		await page.getByLabel('Name').fill(oidcClient.name);
+		await page.getByLabel('Description').fill(oidcClient.description);
 		await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
 
 		await page.getByRole('button', { name: 'Add' }).first().click();
@@ -47,6 +48,7 @@ test.describe('Create OIDC client', () => {
 		expect(clientSecret).toMatch(/^\w{32}$/);
 
 		await expect(page.getByLabel('Name')).toHaveValue(oidcClient.name);
+		await expect(page.getByLabel('Description')).toHaveValue(oidcClient.description);
 		await expect(page.getByTestId('callback-url-1')).toHaveValue(oidcClient.callbackUrl);
 		await expect(page.getByTestId('callback-url-2')).toHaveValue(oidcClient.secondCallbackUrl);
 		await expect(page.getByRole('img', { name: `${oidcClient.name} logo` }).first()).toBeVisible();
@@ -69,6 +71,7 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);
 
 	await page.getByLabel('Name').fill('Nextcloud updated');
+	await page.getByLabel('Description').fill('Updated description');
 	await page.getByTestId('callback-url-1').first().fill('http://nextcloud-updated/auth/callback');
 	await page.locator('[role="tab"][data-value="light-logo"]').first().click();
 	await page.setInputFiles('#oidc-client-logo-light', 'resources/images/cloud-logo.png');
@@ -158,13 +161,14 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 
 test('Update OIDC client allowed user groups', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('tab', { name: 'Allowed user groups' }).click();
 
 	await page.getByRole('button', { name: 'Restrict' }).click();
 
 	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();
 
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.getByText('Allowed user groups updated successfully')).toBeVisible();
 

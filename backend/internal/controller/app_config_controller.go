@@ -9,6 +9,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 )
 
 // NewAppConfigController creates a new controller for application configuration endpoints
@@ -63,6 +64,13 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
 		Key:   "uiConfigDisabled",
 		Value: strconv.FormatBool(common.EnvConfig.UiConfigDisabled),
+		Type:  "boolean",
+	})
+
+	// Manually add tracingEnabled, derived from the OTel environment, so the frontend only exports traces when the backend can forward them to a collector
+	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
+		Key:   "tracingEnabled",
+		Value: strconv.FormatBool(tracing.FrontendTracingEnabled()),
 		Type:  "boolean",
 	})
 

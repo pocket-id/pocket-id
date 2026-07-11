@@ -4,10 +4,15 @@
 	import Header from '$lib/components/header/header.svelte';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import { m } from '$lib/paraglide/messages';
+	import { startPageTrace } from '$lib/utils/tracing-util';
+	import { beforeNavigate } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import { type Snippet } from 'svelte';
 	import '../app.css';
 	import type { LayoutData } from './$types';
+
+	// Start a new page-level trace on each navigation so a page view and the API calls it triggers are correlated as a single trace.
+	beforeNavigate((nav) => startPageTrace(nav.to?.url.pathname));
 
 	let {
 		data,

@@ -50,6 +50,21 @@ func (s *deviceService) createDeviceAuthorization(ctx context.Context, req *http
 		return nil, request, err
 	}
 
+	// Validate the requested scopes and resolve the resource indicator to an audience and the subset of requested scopes that may be granted
+	client := request.GetClient().(Client)
+	resource, err := request.GetResource()
+	if err != nil {
+		return nil, request, err
+	}
+	audience, grantedScopes, _, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+	if err != nil {
+		if resource != "" && errors.Is(err, fosite.ErrAccessDenied) {
+			return nil, request, fosite.ErrInvalidTarget.WithHintf("The requested resource '%s' is invalid, missing, unknown, or malformed.", resource)
+		}
+		return nil, request, err
+	}
+	grantResourceIndicator(request, audience, grantedScopes)
+
 	session := NewEmptySession()
 	response, err := s.provider.NewDeviceResponse(ctx, request, session)
 	if err != nil {
@@ -88,12 +103,15 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		return fosite.ErrAccessDenied.WithHint("You are not allowed to access this service.")
 	}
 
-	for _, scope := range request.GetRequestedScopes() {
-		request.GrantScope(scope)
+	resource, err := request.GetResource()
+	if err != nil {
+		return err
 	}
-	for _, audience := range request.GetRequestedAudience() {
-		request.GrantAudience(audience)
+	audience, grantedScopes, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+	if err != nil {
+		return err
 	}
+	grantResourceIndicator(request, audience, grantedScopes)
 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
 		if client.RequiresReauthentication {
@@ -118,7 +136,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 		}
 		request.SetSession(session)
 
-		hasAlreadyAuthorizedClient, err := s.authorizationService.consent(ctx, userID, client.GetID(), request.GetRequestedScopes())
+		hasAlreadyAuthorizedClient, err := s.authorizationService.consent(ctx, userID, client.GetID(), consentKeys)
 		if err != nil {
 			return err
 		}
@@ -151,14 +169,37 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 	}
 
 	client := request.GetClient().(Client)
+	resource, err := request.GetResource()
+	if err != nil {
+		return nil, err
+	}
 	authorizationRequired := true
 	if userID != "" {
-		hasAuthorizedClient, err := s.authorizationService.hasAuthorizedClient(ctx, client.GetID(), userID, request.GetRequestedScopes())
+		_, _, consentKeys, err := s.authorizationService.resolveGrant(ctx, client.GetID(), resource, request.GetRequestedScopes())
+		if err != nil {
+			return nil, err
+		}
+		hasAuthorizedClient, err := s.authorizationService.hasAuthorizedClient(ctx, client.GetID(), userID, consentKeys)
 		if err != nil {
 			return nil, err
 		}
 		// The device flow has no per-request prompt parameter, so consent depends only on prior authorization and the client's skip-consent setting
 		authorizationRequired = consentRequired(hasAuthorizedClient, client.SkipConsent, nil)
+	}
+
+	scope := request.GetRequestedScopes()
+	if scope == nil {
+		scope = []string{}
+	}
+
+	// Resolve friendly names for the requested custom-API permissions so the device consent screen matches the browser flow
+	scopeInfo, err := s.authorizationService.resolveScopeInfoForRequest(ctx, resource, scope)
+	if err != nil {
+		return nil, err
+	}
+	// Always serialize a possibly empty array rather than null
+	if scopeInfo == nil {
+		scopeInfo = []dto.ScopeInfoDto{}
 	}
 
 	return &dto.DeviceCodeInfoDto{
@@ -170,7 +211,8 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 			LaunchURL:                client.LaunchURL,
 			RequiresReauthentication: client.RequiresReauthentication,
 		},
-		Scope:                    request.GetRequestedScopes(),
+		Scope:                    scope,
+		ScopeInfo:                scopeInfo,
 		AuthorizationRequired:    authorizationRequired,
 		ReauthenticationRequired: client.RequiresReauthentication,
 	}, nil

@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import CollapsibleCard from '$lib/components/collapsible-card.svelte';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as Field from '$lib/components/ui/field';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
@@ -17,12 +18,18 @@
 	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucideChevronLeft, LucideInfo, LucideRefreshCcw } from '@lucide/svelte';
+	import {
+		LucideChevronLeft,
+		LucideInfo,
+		LucideRefreshCcw,
+		LucideTriangleAlert
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import { backNavigate } from '../../users/navigate-back-util';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
+	import ApiAccessCard from './api-access-card.svelte';
 	import ScimResourceProviderForm from './scim-resource-provider-form.svelte';
 
 	let { data } = $props();
@@ -229,119 +236,176 @@
 	>
 </div>
 
-<Card.Root>
-	<Card.Header>
-		<Card.Title>{client.name}</Card.Title>
-	</Card.Header>
-	<Card.Content>
-		<div class="flex flex-col">
-			<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
-				<Field.Label class="w-52">{m.client_id()}</Field.Label>
-				<CopyToClipboard value={client.id}>
-					<span class="text-muted-foreground text-sm" data-testid="client-id"> {client.id}</span>
-				</CopyToClipboard>
-			</div>
-			{#if !client.isPublic}
-				<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
-					<Field.Label class="w-52">{m.client_secret()}</Field.Label>
-					{#if $clientSecretStore}
-						<CopyToClipboard value={$clientSecretStore}>
-							<span class="text-muted-foreground text-sm" data-testid="client-secret">
-								{$clientSecretStore}
+<Tabs.Root value="general" useHash class="gap-4">
+	<div class="overflow-x-auto pb-1">
+		<Tabs.List variant="line" class="min-w-max">
+			<Tabs.Trigger value="general">{m.general()}</Tabs.Trigger>
+			<Tabs.Trigger value="user-groups">
+				{m.allowed_user_groups()}
+				{#if client.isGroupRestricted && client.allowedUserGroupIds.length === 0}
+					<LucideTriangleAlert class="ml-0.5 size-4 text-yellow-600 dark:text-yellow-400" />
+				{/if}</Tabs.Trigger
+			>
+			<Tabs.Trigger value="api-access">{m.api_access()}</Tabs.Trigger>
+			<Tabs.Trigger value="scim">{m.scim_provisioning()}</Tabs.Trigger>
+			<Tabs.Trigger value="preview">{m.oidc_data_preview()}</Tabs.Trigger>
+		</Tabs.List>
+	</div>
+
+	<Tabs.Content value="general" class="flex flex-col gap-4">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{client.name}</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<div class="flex flex-col">
+					<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
+						<Field.Label class="w-52">{m.client_id()}</Field.Label>
+						<CopyToClipboard value={client.id}>
+							<span class="text-muted-foreground text-sm" data-testid="client-id">
+								{client.id}
 							</span>
 						</CopyToClipboard>
-					{:else}
-						<div>
-							<span class="text-muted-foreground text-sm" data-testid="client-secret"
-								>••••••••••••••••••••••••••••••••</span
-							>
-							<Button
-								class="ml-2"
-								onclick={createClientSecret}
-								size="sm"
-								variant="ghost"
-								aria-label="Create new client secret"><LucideRefreshCcw class="size-3" /></Button
+					</div>
+					{#if !client.isPublic}
+						<div class="mt-1 mb-2 flex flex-col sm:flex-row sm:items-center">
+							<Field.Label class="w-52">{m.client_secret()}</Field.Label>
+							{#if $clientSecretStore}
+								<CopyToClipboard value={$clientSecretStore}>
+									<span class="text-muted-foreground text-sm" data-testid="client-secret">
+										{$clientSecretStore}
+									</span>
+								</CopyToClipboard>
+							{:else}
+								<div>
+									<span class="text-muted-foreground text-sm" data-testid="client-secret"
+										>••••••••••••••••••••••••••••••••</span
+									>
+									<Button
+										class="ml-2"
+										onclick={createClientSecret}
+										size="sm"
+										variant="ghost"
+										aria-label="Create new client secret"
+										><LucideRefreshCcw class="size-3" /></Button
+									>
+								</div>
+							{/if}
+						</div>
+					{/if}
+					{#if showAllDetails}
+						<div transition:slide>
+							{#each Object.entries(setupDetails) as [key, value]}
+								<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
+									<Field.Label class="w-52">{key}</Field.Label>
+									<CopyToClipboard {value}>
+										<span class="text-muted-foreground text-sm">{value}</span>
+									</CopyToClipboard>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					{#if !showAllDetails}
+						<div class="mt-4 flex justify-center">
+							<Button onclick={() => (showAllDetails = true)} size="sm" variant="ghost"
+								>{m.show_more_details()}</Button
 							>
 						</div>
 					{/if}
 				</div>
-			{/if}
-			{#if showAllDetails}
-				<div transition:slide>
-					{#each Object.entries(setupDetails) as [key, value]}
-						<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
-							<Field.Label class="w-52">{key}</Field.Label>
-							<CopyToClipboard {value}>
-								<span class="text-muted-foreground text-sm">{value}</span>
-							</CopyToClipboard>
-						</div>
-					{/each}
-				</div>
-			{/if}
+			</Card.Content>
+		</Card.Root>
 
-			{#if !showAllDetails}
-				<div class="mt-4 flex justify-center">
-					<Button onclick={() => (showAllDetails = true)} size="sm" variant="ghost"
-						>{m.show_more_details()}</Button
-					>
-				</div>
-			{/if}
-		</div>
-	</Card.Content>
-</Card.Root>
-<Card.Root>
-	<Card.Content>
-		<OidcForm mode="update" existingClient={client} callback={updateClient} />
-	</Card.Content>
-</Card.Root>
-<CollapsibleCard
-	id="allowed-user-groups"
-	title={m.allowed_user_groups()}
-	button={!client.isGroupRestricted ? UnrestrictButton : undefined}
-	forcedExpanded={client.isGroupRestricted ? undefined : false}
-	description={client.isGroupRestricted
-		? m.allowed_user_groups_description()
-		: m.allowed_user_groups_status_unrestricted_description()}
->
-	<UserGroupSelection
-		bind:selectedGroupIds={client.allowedUserGroupIds}
-		selectionDisabled={!client.isGroupRestricted}
-	/>
-	<div class="mt-5 flex justify-end gap-3">
-		<Button onclick={disableGroupRestriction} variant="secondary">{m.unrestrict()}</Button>
+		<Card.Root>
+			<Card.Content>
+				<OidcForm mode="update" existingClient={client} callback={updateClient} />
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
 
-		<Button usePromiseLoading onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}
-			>{m.save()}</Button
-		>
-	</div>
-</CollapsibleCard>
-<CollapsibleCard
-	id="scim-provisioning"
-	title={m.scim_provisioning()}
-	description={m.scim_provisioning_description()}
->
-	<ScimResourceProviderForm
-		oidcClientId={client.id}
-		existingProvider={scimServiceProvider}
-		onSave={saveScimServiceProvider}
-	/>
-</CollapsibleCard>
-<Card.Root>
-	<Card.Header>
-		<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-			<div>
-				<Card.Title>
-					{m.oidc_data_preview()}
-				</Card.Title>
+	<Tabs.Content value="user-groups" id="allowed-user-groups">
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between gap-4">
+					<div>
+						<Card.Title>{m.allowed_user_groups()}</Card.Title>
+						<Card.Description>
+							{client.isGroupRestricted
+								? m.allowed_user_groups_description()
+								: m.allowed_user_groups_status_unrestricted_description()}
+						</Card.Description>
+					</div>
+					{#if !client.isGroupRestricted}
+						{@render UnrestrictButton()}
+					{/if}
+				</div>
+			</Card.Header>
+			{#if client.isGroupRestricted}
+				<Card.Content>
+					<UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
+					<div class="mt-5 flex justify-end gap-3">
+						<Button onclick={disableGroupRestriction} variant="secondary">{m.unrestrict()}</Button>
+
+						<Button
+							usePromiseLoading
+							onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button
+						>
+					</div>
+				</Card.Content>
+			{/if}
+		</Card.Root>
+	</Tabs.Content>
+
+	<Tabs.Content value="api-access" id="api-access">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.api_access()}</Card.Title>
+				<Card.Description>{m.api_access_description()}</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<ApiAccessCard clientId={client.id} isPublicClient={client.isPublic} />
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
+
+	<Tabs.Content value="scim" id="scim-provisioning">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.scim_provisioning()}</Card.Title>
 				<Card.Description>
-					{m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
+					<FormattedMessage m={m.scim_provisioning_description()} />
 				</Card.Description>
-			</div>
+			</Card.Header>
+			<Card.Content>
+				<ScimResourceProviderForm
+					oidcClientId={client.id}
+					existingProvider={scimServiceProvider}
+					onSave={saveScimServiceProvider}
+				/>
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
 
-			<Button variant="outline" onclick={() => (showPreview = true)}>
-				{m.show()}
-			</Button>
-		</div>
-	</Card.Header>
-</Card.Root>
+	<Tabs.Content value="preview">
+		<Card.Root>
+			<Card.Header>
+				<div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+					<div>
+						<Card.Title>
+							{m.oidc_data_preview()}
+						</Card.Title>
+						<Card.Description>
+							{m.preview_the_oidc_data_that_would_be_sent_for_different_users()}
+						</Card.Description>
+					</div>
+
+					<Button variant="outline" onclick={() => (showPreview = true)}>
+						{m.show()}
+					</Button>
+				</div>
+			</Card.Header>
+		</Card.Root>
+	</Tabs.Content>
+</Tabs.Root>
 <OidcClientPreviewModal bind:open={showPreview} clientId={client.id} />

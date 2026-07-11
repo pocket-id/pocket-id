@@ -5,7 +5,7 @@ import { oidcClients, userGroups, users } from '../data';
 async function configureOidcClient(page: Page) {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
 
 	await page
 		.getByLabel('SCIM Endpoint')
@@ -16,6 +16,7 @@ async function configureOidcClient(page: Page) {
 
 async function syncScimServiceProvider(page: Page) {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
+	await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
 
 	await page.getByRole('button', { name: 'Sync now' }).click();
 	await page.waitForSelector('[data-type="success"]');
@@ -29,7 +30,7 @@ test.describe('SCIM Configuration', () => {
 	test('Enable SCIM for OIDC client', async ({ page }) => {
 		await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
 
-		await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+		await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
 
 		await page.getByLabel('SCIM Endpoint').fill('http://scim.provider/api');
 		await page.getByLabel('SCIM Token').fill('supersecrettoken');
@@ -48,11 +49,12 @@ test.describe('SCIM Configuration', () => {
 		await configureOidcClient(page);
 
 		await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
+		await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
 
 		await page.getByLabel('SCIM Endpoint').fill('http://new.scim.provider/api');
 		await page.getByLabel('SCIM Token').fill('evenmoresecrettoken');
 
-		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+		await page.getByRole('button', { name: 'Save' }).click();
 
 		await expect(page.locator('[data-type="success"]')).toHaveText(
 			'SCIM configuration updated successfully.'
@@ -68,6 +70,7 @@ test.describe('SCIM Configuration', () => {
 		await configureOidcClient(page);
 
 		await page.goto(`/settings/admin/oidc-clients/${oidcClients.scim.id}`);
+		await page.getByRole('tab', { name: 'SCIM Provisioning' }).click();
 
 		await page.getByRole('button', { name: 'Disable' }).click();
 		await page.getByRole('button', { name: 'Disable' }).nth(1).click();
@@ -123,15 +126,16 @@ test.describe('SCIM Sync', () => {
 	test('Remove allowed group and sync', async ({ page }) => {
 		await syncScimServiceProvider(page);
 
-		await page.getByRole('button', { name: 'Expand card' }).first().click();
+		await page.getByRole('tab', { name: 'Allowed user groups' }).click();
 
-		await page
+		const developersCheckbox = page
 			.getByRole('row', { name: userGroups.developers.name })
-			.getByRole('cell')
-			.first()
-			.click();
+			.getByRole('checkbox');
+		await developersCheckbox.click();
+		await expect(developersCheckbox).toHaveAttribute('data-state', 'unchecked');
 
-		await page.getByRole('button', { name: 'Save' }).nth(1).click();
+		await page.getByRole('button', { name: 'Save' }).click();
+		await expect(page.getByText('Allowed user groups updated successfully', { exact: true })).toBeVisible();
 
 		await syncScimServiceProvider(page);
 
@@ -149,7 +153,7 @@ test.describe('SCIM Sync', () => {
 	test('Remove group restrictions and sync', async ({ page }) => {
 		await syncScimServiceProvider(page);
 
-		await page.getByRole('button', { name: 'Expand card' }).first().click();
+		await page.getByRole('tab', { name: 'Allowed user groups' }).click();
 
 		await page.getByRole('button', { name: 'Unrestrict' }).click();
 		await page.getByRole('button', { name: 'Unrestrict' }).nth(1).click();

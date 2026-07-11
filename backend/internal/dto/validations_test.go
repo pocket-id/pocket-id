@@ -58,6 +58,35 @@ func TestValidateClientID(t *testing.T) {
 	}
 }
 
+func TestValidateResourceURI(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"valid https URI", "https://api.example.com", true},
+		{"valid custom scheme URI", "api://PocketID", true},
+		{"valid URN", "urn:my-app", true},
+		{"valid query component", "https://api.example.com?tenant=1", true},
+		{"invalid relative path", "/foo", false},
+		{"invalid plain string", "foo", false},
+		{"invalid fragment", "https://api.example.com#tokens", false},
+		{"invalid empty fragment", "https://api.example.com#", false},
+		{"invalid unescaped path space", "https://api.example.com/a b", false},
+		{"invalid unescaped opaque space", "urn:my app", false},
+		{"invalid malformed URI", "http://[::1", false},
+		{"invalid javascript scheme", "javascript:alert(1)", false},
+		{"invalid data scheme", "data:text/html,<script>alert(1)</script>", false},
+		{"empty", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ValidateResourceURI(tt.input))
+		})
+	}
+}
+
 func TestValidateCallbackURL(t *testing.T) {
 	tests := []struct {
 		name     string

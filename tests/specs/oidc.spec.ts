@@ -74,6 +74,44 @@ test('Authorize client requesting offline_access scope', async ({ page }) => {
 	expect(callbackUrl.searchParams.get('error')).toBeNull();
 });
 
+test('Authorize existing client without scopes', async ({ page }) => {
+	const oidcClient = oidcClients.nextcloud;
+	const urlParams = new URLSearchParams({
+		client_id: oidcClient.id,
+		response_type: 'code',
+		redirect_uri: oidcClient.callbackUrl,
+		state: 'no-scope-state',
+		nonce: 'no-scope-nonce'
+	});
+
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.goto(`/authorize?${urlParams.toString()}`)
+	);
+});
+
+test('Authorize new client without scopes', async ({ page }) => {
+	const oidcClient = oidcClients.immich;
+	const urlParams = new URLSearchParams({
+		client_id: oidcClient.id,
+		response_type: 'code',
+		redirect_uri: oidcClient.callbackUrl,
+		state: 'no-scope-new-client',
+		nonce: 'no-scope-new-nonce'
+	});
+
+	await page.goto(`/authorize?${urlParams.toString()}`);
+
+	// With no scopes there is nothing to display, but the page should still allow sign-in
+	await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+
+	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
+		page.getByRole('button', { name: 'Sign in' }).click()
+	);
+	expect(callbackUrl.searchParams.get('code')).toBeTruthy();
+	expect(callbackUrl.searchParams.get('error')).toBeNull();
+	expect(callbackUrl.searchParams.get('state')).toBe('no-scope-new-client');
+});
+
 test('Authorize new client while not signed in', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
 	const urlParams = createUrlParams(oidcClient);
@@ -398,7 +436,8 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionBody.active).toBe(true);
 		expect(introspectionBody.iss).toBe(baseURL);
 		expect(introspectionBody.sub).toBe(users.tim.id);
-		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id]);
+		// An identity access token is audienced to the client and additionally to the issuer, so it can be presented at /userinfo
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.nextcloud.id, baseURL]);
 	});
 
 	test('succeeds with federated client credentials', async ({ page, request, baseURL }) => {
@@ -427,7 +466,8 @@ test.describe('Introspection endpoint', () => {
 		expect(introspectionBody.active).toBe(true);
 		expect(introspectionBody.iss).toBe(baseURL);
 		expect(introspectionBody.sub).toBe(users.tim.id);
-		expect(introspectionBody.aud).toStrictEqual([oidcClients.federated.id]);
+		// An identity access token is audienced to the client and additionally to the issuer, so it can be presented at /userinfo
+		expect(introspectionBody.aud).toStrictEqual([oidcClients.federated.id, baseURL]);
 	});
 
 	test('fails with client credentials for wrong app', async ({ request }) => {
@@ -1480,7 +1520,9 @@ test.describe('OIDC skip consent', () => {
 
 		// Disabling it and saving must persist across a reload
 		await toggle.click();
+		await expect(toggle).not.toBeChecked();
 		await page.getByRole('button', { name: /save/i }).click();
+		await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
 		await page.reload();
 
 		await expect(page.getByRole('switch', { name: 'Skip Consent Screen' })).not.toBeChecked();

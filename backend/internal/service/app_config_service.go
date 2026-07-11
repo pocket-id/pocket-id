@@ -17,6 +17,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
@@ -25,12 +26,16 @@ type AppConfigService struct {
 	db       *gorm.DB
 }
 
-func NewAppConfigService(ctx context.Context, db *gorm.DB) (*AppConfigService, error) {
-	service := &AppConfigService{
+func NewAppConfigService(ctx context.Context, db *gorm.DB) (service *AppConfigService, err error) {
+	service = &AppConfigService{
 		db: db,
 	}
 
-	err := service.LoadDbConfig(ctx)
+	ctx, span := tracing.Start(ctx, "pocketid.appconfig.init")
+	defer tracing.End(span, err)
+
+	// We need to assign to the "err" variable, do not inline this into the "if"
+	err = service.LoadDbConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize app config service: %w", err)
 	}
@@ -168,9 +173,7 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		tx.Rollback()
-	}()
+	defer tx.Rollback()
 
 	// From here onwards, we know we are the only process/goroutine with exclusive access to the config
 	// Re-load the config from the database to be sure we have the correct data
@@ -248,9 +251,7 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 	if err != nil {
 		return err
 	}
-	defer func() {
-		tx.Rollback()
-	}()
+	defer tx.Rollback()
 
 	// From here onwards, we know we are the only process/goroutine with exclusive access to the config
 	// Re-load the config from the database to be sure we have the correct data

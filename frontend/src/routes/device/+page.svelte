@@ -121,8 +121,8 @@
 		</p>
 	{:else if authorizationRequired}
 		<div class="w-full max-w-[450px]" transition:slide={{ duration: 300 }}>
-			<Card.Root class="mt-6">
-				<Card.Header class="pb-5">
+			<Card.Root class="mt-6 gap-2">
+				<Card.Header>
 					<p class="text-muted-foreground text-start">
 						<FormattedMessage
 							m={m.client_wants_to_access_the_following_information({
@@ -132,7 +132,7 @@
 					</p>
 				</Card.Header>
 				<Card.Content data-testid="scopes">
-					<ScopeList scopes={deviceInfo!.scope} />
+					<ScopeList scopes={deviceInfo!.scope || []} scopeInfo={deviceInfo!.scopeInfo || []} />
 				</Card.Content>
 			</Card.Root>
 		</div>

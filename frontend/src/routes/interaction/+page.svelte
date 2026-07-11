@@ -140,7 +140,7 @@
 			data-testid="account-selection"
 		>
 			{#if $userStore}
-				<Card.Root class="mb-2 py-4 w-sm">
+				<Card.Root class="mb-2 py-4 sm:min-w-sm w-full mx-5">
 					<Card.Content class="flex items-center gap-4">
 						<Avatar.Root class="size-11 shrink-0">
 							<Avatar.Image src={cachedProfilePicture.getUrl($userStore.id)} />
@@ -170,7 +170,7 @@
 		</div>
 	{:else if currentStep === 'consent'}
 		<div class="w-full max-w-md" transition:slide={{ duration: 300 }}>
-			<Card.Root class="mb-10">
+			<Card.Root class="mb-10 gap-3">
 				<Card.Header>
 					<p class="text-muted-foreground text-start">
 						<FormattedMessage
@@ -181,7 +181,10 @@
 					</p>
 				</Card.Header>
 				<Card.Content>
-					<ScopeList scopes={interactionSession.scopes} />
+					<ScopeList
+						scopes={interactionSession.scopes || []}
+						scopeInfo={interactionSession.scopeInfo ?? []}
+					/>
 				</Card.Content>
 			</Card.Root>
 		</div>

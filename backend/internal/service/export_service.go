@@ -57,7 +57,7 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 		Tables:   map[string][]map[string]any{},
 		// These tables need to be inserted in a specific order because of foreign key constraints
 		// Not all tables are listed here, because not all tables are order-dependent
-		TableOrder: []string{"users", "user_groups", "oidc_clients", "signup_tokens"},
+		TableOrder: []string{"users", "user_groups", "oidc_clients", "signup_tokens", "apis", "api_permissions", "oidc_clients_allowed_api_permissions"},
 	}
 
 	for table := range schema {
