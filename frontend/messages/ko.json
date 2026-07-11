@@ -105,7 +105,7 @@
 	"ip_address": "IP 주소",
 	"device": "기기",
 	"client": "클라이언트",
-	"actor": "배우",
+	"actor": "작업자",
 	"unknown": "알 수 없음",
 	"account_details_updated_successfully": "계정 정보가 성공적으로 변경되었습니다",
 	"profile_picture_updated_successfully": "프로필 사진이 성공적으로 변경되었습니다. 변경 적용까지 몇 분 정도 걸릴 수 있습니다.",
