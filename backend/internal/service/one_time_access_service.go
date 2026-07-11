@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -20,13 +21,13 @@ import (
 type OneTimeAccessService struct {
 	db               *gorm.DB
 	userService      *UserService
-	appConfigService *AppConfigService
+	appConfigService *appconfig.AppConfigService
 	jwtService       *JwtService
 	auditLogService  *AuditLogService
 	emailService     *EmailService
 }
 
-func NewOneTimeAccessService(db *gorm.DB, userService *UserService, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService) *OneTimeAccessService {
+func NewOneTimeAccessService(db *gorm.DB, userService *UserService, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *appconfig.AppConfigService) *OneTimeAccessService {
 	return &OneTimeAccessService{
 		db:               db,
 		userService:      userService,

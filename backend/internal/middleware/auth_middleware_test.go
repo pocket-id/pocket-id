@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -33,8 +34,7 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	appConfigService, err := service.NewAppConfigService(t.Context(), db)
-	require.NoError(t, err)
+	appConfigService := appconfig.NewTestAppConfigService(nil)
 
 	instanceID, err := instanceid.Load(t.Context(), db)
 	require.NoError(t, err)

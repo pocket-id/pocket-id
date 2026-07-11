@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	userAgentParser "github.com/mileusna/useragent"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
@@ -14,12 +15,12 @@ import (
 
 type AuditLogService struct {
 	db               *gorm.DB
-	appConfigService *AppConfigService
+	appConfigService *appconfig.AppConfigService
 	emailService     *EmailService
 	geoliteService   *GeoLiteService
 }
 
-func NewAuditLogService(db *gorm.DB, appConfigService *AppConfigService, emailService *EmailService, geoliteService *GeoLiteService) *AuditLogService {
+func NewAuditLogService(db *gorm.DB, appConfigService *appconfig.AppConfigService, emailService *EmailService, geoliteService *GeoLiteService) *AuditLogService {
 	return &AuditLogService{
 		db:               db,
 		appConfigService: appConfigService,

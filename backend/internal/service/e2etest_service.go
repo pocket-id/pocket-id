@@ -22,6 +22,7 @@ import (
 	"github.com/ory/fosite/compose"
 	fositejwt "github.com/ory/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
@@ -40,7 +41,7 @@ import (
 type TestService struct {
 	db               *gorm.DB
 	jwtService       *JwtService
-	appConfigService *AppConfigService
+	appConfigService *appconfig.AppConfigService
 	ldapService      *LdapService
 	fileStorage      storage.FileStorage
 	appLockService   *AppLockService
@@ -54,7 +55,7 @@ const (
 	e2eRefreshTokenExpiredFixtureToken = "X4vqwtRyCUaq51UafHea4Fsg8Km6CAns6vp3tuX4"
 )
 
-func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
+func NewTestService(db *gorm.DB, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		appConfigService: appConfigService,

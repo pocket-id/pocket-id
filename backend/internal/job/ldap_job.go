@@ -4,15 +4,16 @@ import (
 	"context"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 type LdapJobs struct {
 	ldapService      *service.LdapService
-	appConfigService *service.AppConfigService
+	appConfigService *appconfig.AppConfigService
 }
 
-func (s *Scheduler) RegisterLdapJobs(ctx context.Context, ldapService *service.LdapService, appConfigService *service.AppConfigService) error {
+func (s *Scheduler) RegisterLdapJobs(ctx context.Context, ldapService *service.LdapService, appConfigService *appconfig.AppConfigService) error {
 	jobs := &LdapJobs{ldapService: ldapService, appConfigService: appConfigService}
 
 	// Register the job to run every hour (with some jitter)

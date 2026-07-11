@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
@@ -21,7 +22,7 @@ const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *service.AppConfigService) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *appconfig.AppConfigService) {
 	uc := UserController{
 		userService:          userService,
 		oneTimeAccessService: oneTimeAccessService,
@@ -64,7 +65,7 @@ type UserController struct {
 	userService          *service.UserService
 	oneTimeAccessService *service.OneTimeAccessService
 	webAuthnService      *webauthn.Module
-	appConfigService     *service.AppConfigService
+	appConfigService     *appconfig.AppConfigService
 }
 
 // getUserGroupsHandler godoc

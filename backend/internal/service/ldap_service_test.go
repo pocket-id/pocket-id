@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -316,7 +317,7 @@ func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *model.AppConf
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
 
-	appConfig := NewTestAppConfigService(appConfigModel)
+	appConfig := appconfig.NewTestAppConfigService(appConfigModel)
 
 	groupService := NewUserGroupService(db, appConfig, nil)
 	userService := NewUserService(

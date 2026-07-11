@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
 
@@ -17,10 +18,10 @@ import (
 type UserGroupService struct {
 	db               *gorm.DB
 	scimService      *ScimService
-	appConfigService *AppConfigService
+	appConfigService *appconfig.AppConfigService
 }
 
-func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService, scimService *ScimService) *UserGroupService {
+func NewUserGroupService(db *gorm.DB, appConfigService *appconfig.AppConfigService, scimService *ScimService) *UserGroupService {
 	return &UserGroupService{db: db, appConfigService: appConfigService, scimService: scimService}
 }
 

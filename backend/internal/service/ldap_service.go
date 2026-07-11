@@ -18,6 +18,7 @@ import (
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/google/uuid"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"golang.org/x/text/unicode/norm"
@@ -31,7 +32,7 @@ import (
 type LdapService struct {
 	db               *gorm.DB
 	httpClient       *http.Client
-	appConfigService *AppConfigService
+	appConfigService *appconfig.AppConfigService
 	userService      *UserService
 	groupService     *UserGroupService
 	fileStorage      storage.FileStorage
@@ -69,7 +70,7 @@ type ldapClient interface {
 	Close() error
 }
 
-func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *AppConfigService, userService *UserService, groupService *UserGroupService, fileStorage storage.FileStorage) *LdapService {
+func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *appconfig.AppConfigService, userService *UserService, groupService *UserGroupService, fileStorage storage.FileStorage) *LdapService {
 	service := &LdapService{
 		db:               db,
 		httpClient:       httpClient,

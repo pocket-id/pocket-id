@@ -8,17 +8,18 @@ import (
 	"github.com/go-co-op/gocron/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
 
 type ApiKeyEmailJobs struct {
 	apiKeyModule     *apikey.Module
-	appConfigService *service.AppConfigService
+	appConfigService *appconfig.AppConfigService
 	emailService     *service.EmailService
 }
 
-func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyModule *apikey.Module, appConfigService *service.AppConfigService, emailService *service.EmailService) error {
+func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyModule *apikey.Module, appConfigService *appconfig.AppConfigService, emailService *service.EmailService) error {
 	jobs := &ApiKeyEmailJobs{
 		apiKeyModule:     apiKeyModule,
 		appConfigService: appConfigService,

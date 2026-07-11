@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pocket-id/pocket-id/backend/internal/apikey"
-	"github.com/pocket-id/pocket-id/backend/internal/job"
+	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
+	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
@@ -19,7 +21,7 @@ import (
 )
 
 type services struct {
-	appConfigService     *service.AppConfigService
+	appConfigService     *appconfig.AppConfigService
 	appImagesService     *service.AppImagesService
 	emailService         *service.EmailService
 	geoLiteService       *service.GeoLiteService
@@ -44,10 +46,20 @@ type services struct {
 }
 
 // Initializes all services
-func initServices(ctx context.Context, db *gorm.DB, instanceID string, httpClient *http.Client, imageExtensions map[string]string, fileStorage storage.FileStorage, scheduler *job.Scheduler) (svc *services, err error) {
+func initServices(
+	ctx context.Context,
+	db *gorm.DB,
+	instanceID string,
+	actors *local.Host,
+	httpClient *http.Client,
+	imageExtensions map[string]string,
+	fileStorage storage.FileStorage,
+	scheduler *job.Scheduler,
+) (svc *services, err error) {
 	svc = &services{}
 
-	svc.appConfigService, err = service.NewAppConfigService(ctx, db)
+	// Init the app config service
+	svc.appConfigService, err = appconfig.NewService(ctx, actors, db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create app config service: %w", err)
 	}

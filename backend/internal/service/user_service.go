@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -31,14 +32,14 @@ type UserService struct {
 	jwtService         *JwtService
 	auditLogService    *AuditLogService
 	emailService       *EmailService
-	appConfigService   *AppConfigService
+	appConfigService   *appconfig.AppConfigService
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
 	scimService        *ScimService
 	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *appconfig.AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,

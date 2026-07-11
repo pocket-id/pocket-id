@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -86,7 +85,7 @@ func (c *AppConfig) ToAppConfigVariableSlice(showAll bool, redactSensitiveValues
 	cfgValue := reflect.ValueOf(c).Elem()
 	cfgType := cfgValue.Type()
 
-	var res []AppConfigVariable
+	res := make([]AppConfigVariable, 0, cfgType.NumField())
 
 	for i := range cfgType.NumField() {
 		field := cfgType.Field(i)
@@ -119,7 +118,7 @@ func (c *AppConfig) ToAppConfigVariableSlice(showAll bool, redactSensitiveValues
 	return res
 }
 
-func (c *AppConfig) FieldByKey(key string) (defaultValue string, isInternal bool, err error) {
+func (c *AppConfig) FieldByKey(key string) (defaultValue string, err error) {
 	rv := reflect.ValueOf(c).Elem()
 	rt := rv.Type()
 
@@ -128,34 +127,28 @@ func (c *AppConfig) FieldByKey(key string) (defaultValue string, isInternal bool
 		// Grab only the first part of the key, if there's a comma with additional properties
 		tagValue := strings.Split(rt.Field(i).Tag.Get("key"), ",")
 		keyFromTag := tagValue[0]
-		isInternal = slices.Contains(tagValue, "internal")
 		if keyFromTag != key {
 			continue
 		}
 
 		valueField := rv.Field(i).FieldByName("Value")
-		return valueField.String(), isInternal, nil
+		return valueField.String(), nil
 	}
 
 	// If we are here, the config key was not found
-	return "", false, AppConfigKeyNotFoundError{field: key}
+	return "", AppConfigKeyNotFoundError{field: key}
 }
 
-func (c *AppConfig) UpdateField(key string, value string, noInternal bool) error {
+func (c *AppConfig) UpdateField(key string, value string) error {
 	rv := reflect.ValueOf(c).Elem()
 	rt := rv.Type()
 
 	// Find the field in the struct whose "key" tag matches, then update that
 	for i := range rt.NumField() {
 		// Separate the key (before the comma) from any optional attributes after
-		tagValue, attrs, _ := strings.Cut(rt.Field(i).Tag.Get("key"), ",")
+		tagValue, _, _ := strings.Cut(rt.Field(i).Tag.Get("key"), ",")
 		if tagValue != key {
 			continue
-		}
-
-		// If the field is internal and noInternal is true, we skip that
-		if noInternal && attrs == "internal" {
-			return AppConfigInternalForbiddenError{field: key}
 		}
 
 		valueField := rv.Field(i).FieldByName("Value")
@@ -184,20 +177,6 @@ func (e AppConfigKeyNotFoundError) Error() string {
 
 func (e AppConfigKeyNotFoundError) Is(target error) bool {
 	// Ignore the field property when checking if an error is of the type AppConfigKeyNotFoundError
-	x := AppConfigKeyNotFoundError{}
-	return errors.As(target, &x)
-}
-
-type AppConfigInternalForbiddenError struct {
-	field string
-}
-
-func (e AppConfigInternalForbiddenError) Error() string {
-	return "field '" + e.field + "' is internal and can't be updated"
-}
-
-func (e AppConfigInternalForbiddenError) Is(target error) bool {
-	// Ignore the field property when checking if an error is of the type AppConfigInternalForbiddenError
-	x := AppConfigInternalForbiddenError{}
-	return errors.As(target, &x)
+	_, ok := errors.AsType[*AppConfigKeyNotFoundError](target)
+	return ok
 }

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
@@ -19,7 +20,7 @@ import (
 func NewAppConfigController(
 	group *gin.RouterGroup,
 	authMiddleware *middleware.AuthMiddleware,
-	appConfigService *service.AppConfigService,
+	appConfigService *appconfig.AppConfigService,
 	emailService *service.EmailService,
 	ldapService *service.LdapService,
 ) {
@@ -38,7 +39,7 @@ func NewAppConfigController(
 }
 
 type AppConfigController struct {
-	appConfigService *service.AppConfigService
+	appConfigService *appconfig.AppConfigService
 	emailService     *service.EmailService
 	ldapService      *service.LdapService
 }

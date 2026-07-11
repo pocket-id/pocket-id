@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -14,7 +15,7 @@ import (
 
 func TestExchangeOneTimeAccessTokenRejectsDisabledUser(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	appConfig := NewTestAppConfigService((&AppConfigService{}).getDefaultDbConfig())
+	appConfig := appconfig.NewTestAppConfigService(nil)
 	instanceID := newInstanceID(t, db)
 	jwtService := initJwtService(t, db, instanceID, appConfig, newTestEnvConfig())
 	auditLogService := NewAuditLogService(db, appConfig, nil, &GeoLiteService{})

@@ -13,19 +13,20 @@ import (
 	"github.com/italypaleale/go-kit/emailer"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
 
 type EmailService struct {
-	appConfigService *AppConfigService
+	appConfigService *appconfig.AppConfigService
 	db               *gorm.DB
 	htmlTemplates    map[string]*htemplate.Template
 	textTemplates    map[string]*ttemplate.Template
 }
 
-func NewEmailService(db *gorm.DB, appConfigService *AppConfigService) (*EmailService, error) {
+func NewEmailService(db *gorm.DB, appConfigService *appconfig.AppConfigService) (*EmailService, error) {
 	htmlTemplates, err := email.PrepareHTMLTemplates(emailTemplatesPaths)
 	if err != nil {
 		return nil, fmt.Errorf("prepare html templates: %w", err)
