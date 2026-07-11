@@ -38,6 +38,7 @@
 		try {
 			code = await userService.createOneTimeAccessToken(
 				userId!,
+				undefined,
 				availableExpirations[selectedExpiration]
 			);
 			oneTimeLink = `${page.url.origin}/lc/${code}`;

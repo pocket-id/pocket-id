@@ -10,20 +10,22 @@
 	import { mode } from 'mode-watcher';
 
 	let {
-		show = $bindable()
+		show = $bindable(),
+		clientId
 	}: {
 		show: boolean;
+		clientId?: string;
 	} = $props();
 
 	const userService = new UserService();
 
 	let code: string | null = $state(null);
 	let loginCodeLink: string | null = $state(null);
-
+	
 	$effect(() => {
 		if (show) {
 			userService
-				.createOneTimeAccessToken('me')
+				.createOneTimeAccessToken('me', clientId)
 				.then((c) => {
 					code = c;
 					loginCodeLink = page.url.origin + '/lc/' + code;

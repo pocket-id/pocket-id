@@ -81,8 +81,8 @@ export default class UserService extends APIService {
 		cachedProfilePicture.bustCache(userId);
 	};
 
-	createOneTimeAccessToken = async (userId: string = 'me', ttl?: string | number) => {
-		const res = await this.api.post(`/users/${userId}/one-time-access-token`, { ttl });
+	createOneTimeAccessToken = async (userId: string = 'me', permittedClientId?: string, ttl?: string | number) => {
+		const res = await this.api.post(`/users/${userId}/one-time-access-token`, { permittedClientId, ttl });
 		return res.data.token;
 	};
 
@@ -95,13 +95,8 @@ export default class UserService extends APIService {
 		return res.data.token;
 	};
 
-	exchangeOneTimeAccessToken = async ({ token, permittedClient }: { token: string; permittedClient?: string }) => {
-
-		let url = `/one-time-access-token/${token}`;
-		if (permittedClient) {
-			url += `?permittedClient=${permittedClient}`;
-		}
-		const res = await this.api.post(url);
+	exchangeOneTimeAccessToken = async (token: string) => {
+		const res = await this.api.post(`/one-time-access-token/${token}`);
 		return res.data as User;
 	};
 

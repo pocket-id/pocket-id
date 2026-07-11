@@ -8,6 +8,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as Field from '$lib/components/ui/field';
+	import * as Item from '$lib/components/ui/item/index.js';
+	import { RectangleEllipsis } from '@lucide/svelte';
 	import UserGroupSelection from '$lib/components/user-group-selection.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import OidcService from '$lib/services/oidc-service';
@@ -21,6 +23,7 @@
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 	import { backNavigate } from '../../users/navigate-back-util';
+	import LoginCodeModal from '$lib/components/login-code-modal.svelte';
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
 	import ApiAccessCard from './api-access-card.svelte';
@@ -35,6 +38,7 @@
 	let scimServiceProvider = $state(data.scimServiceProvider);
 	let showAllDetails = $state(false);
 	let showPreview = $state(false);
+	let showLoginCodeModal: boolean = $state(false);
 
 	const oidcService = new OidcService();
 	const scimService = new ScimService();
@@ -290,6 +294,26 @@
 		</div>
 	</Card.Content>
 </Card.Root>
+
+<div class="block">
+	<Item.Root variant="card" class="border-border">
+		<Item.Media class="text-primary/80">
+			<RectangleEllipsis class="size-5" />
+		</Item.Media>
+		<Item.Content>
+			<Item.Title>{m.login_code()}</Item.Title>
+			<Item.Description>
+				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+			</Item.Description>
+		</Item.Content>
+		<Item.Actions class="w-full sm:w-auto">
+			<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
+				{m.create()}
+			</Button>
+		</Item.Actions>
+	</Item.Root>
+</div>
+
 <Card.Root>
 	<Card.Content>
 		<OidcForm mode="update" existingClient={client} callback={updateClient} />
@@ -349,3 +373,4 @@
 	</Card.Header>
 </Card.Root>
 <OidcClientPreviewModal bind:open={showPreview} clientId={client.id} />
+<LoginCodeModal bind:show={showLoginCodeModal} clientId={client.id} />

@@ -188,10 +188,10 @@ func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod s
 	return s.GenerateAccessTokenForClient(user, authenticationMethod, "")
 }
 
-func (s *JwtService) GenerateAccessTokenForClient(user model.User, authenticationMethod, incognitoClientID string) (string, error) {
+func (s *JwtService) GenerateAccessTokenForClient(user model.User, authenticationMethod, permittedClientID string) (string, error) {
 	tokenType := AccessTokenJWTType
 
-	if incognitoClientID != "" {
+	if permittedClientID != "" {
 		tokenType = AccessTokenJWTTypeIsolated
 	}
 
@@ -203,8 +203,8 @@ func (s *JwtService) GenerateAccessTokenForClient(user model.User, authenticatio
 		Issuer(s.envConfig.AppURL).
 		JwtID(uuid.New().String())
 
-	if incognitoClientID != "" {
-		builder.Claim("permitted_clients", incognitoClientID)
+	if permittedClientID != "" {
+		builder.Claim("permitted_clients", permittedClientID)
 	}
 
 	token, err := builder.Build()

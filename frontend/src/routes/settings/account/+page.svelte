@@ -23,7 +23,7 @@
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
-	import LoginCodeModal from './login-code-modal.svelte';
+	import LoginCodeModal from '$lib/components/login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
