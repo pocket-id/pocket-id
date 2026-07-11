@@ -28,6 +28,7 @@ type AuditLogEvent string //nolint:recvcheck
 
 const (
 	AuditLogEventSignIn                     AuditLogEvent = "SIGN_IN"
+	AuditLogEventSignInFailed               AuditLogEvent = "SIGN_IN_FAILED"
 	AuditLogEventOneTimeAccessTokenSignIn   AuditLogEvent = "TOKEN_SIGN_IN"
 	AuditLogEventAccountCreated             AuditLogEvent = "ACCOUNT_CREATED"
 	AuditLogEventClientAuthorization        AuditLogEvent = "CLIENT_AUTHORIZATION"

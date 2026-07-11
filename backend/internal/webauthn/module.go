@@ -20,6 +20,7 @@ type TokenService interface {
 type AuditLogger interface {
 	Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) (model.AuditLog, bool)
 	CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog
+	CreateSignInFailure(ctx context.Context, ipAddress, userAgent, userID string) model.AuditLog
 }
 
 type AppConfigProvider interface {

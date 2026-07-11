@@ -3,14 +3,17 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/go-webauthn/webauthn/protocol"
 	"gorm.io/gorm"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 type ErrorHandlerMiddleware struct{}
@@ -19,6 +22,7 @@ func NewErrorHandlerMiddleware() *ErrorHandlerMiddleware {
 	return &ErrorHandlerMiddleware{}
 }
 
+//nolint:gocognit
 func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
@@ -50,14 +54,30 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			// AppError with description
 			appDescErr, ok := errors.AsType[common.AppErrorDescription](err)
 			if ok {
-				errorResponseWithDescription(c, appDescErr.HttpStatusCode(), appDescErr.Error(), appDescErr.Description())
+				statusCode := appDescErr.HttpStatusCode()
+				if isSecurityError(statusCode) {
+					logSecurityEvent(c, appDescErr.Error())
+				}
+				errorResponseWithDescription(c, statusCode, appDescErr.Error(), appDescErr.Description())
 				return
 			}
 
 			// AppError (without description)
 			appErr, ok := errors.AsType[common.AppError](err)
 			if ok {
-				errorResponse(c, appErr.HttpStatusCode(), appErr.Error())
+				statusCode := appErr.HttpStatusCode()
+				if isSecurityError(statusCode) {
+					logSecurityEvent(c, appErr.Error())
+				}
+				errorResponse(c, statusCode, appErr.Error())
+				return
+			}
+
+			protocolErr, ok := errors.AsType[*protocol.Error](err)
+			if ok {
+				statusCode := webAuthnErrorToHTTPStatus(protocolErr.Type)
+				logSecurityEvent(c, protocolErr.Error())
+				errorResponse(c, statusCode, "Something went wrong. Please try again later")
 				return
 			}
 
@@ -66,6 +86,58 @@ func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 			})
 		}
 	}
+}
+
+// webAuthnErrorToHTTPStatus maps WebAuthn protocol error types to HTTP status codes
+func webAuthnErrorToHTTPStatus(errorType string) int {
+	switch errorType {
+	case "invalid_request":
+		return http.StatusBadRequest
+	case "policy_restriction":
+		return http.StatusForbidden
+	case "challenge_mismatch":
+		return http.StatusBadRequest
+	case "parse_error":
+		return http.StatusBadRequest
+	case "auth_data":
+		return http.StatusBadRequest
+	case "verification_error":
+		return http.StatusBadRequest
+	case "attestation_error":
+		return http.StatusBadRequest
+	case "invalid_attestation":
+		return http.StatusBadRequest
+	case "invalid_metadata":
+		return http.StatusBadRequest
+	case "invalid_certificate":
+		return http.StatusBadRequest
+	case "invalid_signature":
+		return http.StatusBadRequest
+	case "invalid_key_type":
+		return http.StatusBadRequest
+	case "unsupported_key_algorithm":
+		return http.StatusBadRequest
+	case "spec_unimplemented":
+		return http.StatusNotImplemented
+	case "not_implemented":
+		return http.StatusNotImplemented
+	default:
+		return http.StatusBadRequest
+	}
+}
+
+func isSecurityError(statusCode int) bool {
+	return statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden
+}
+
+func logSecurityEvent(c *gin.Context, message string) {
+	slog.WarnContext(c.Request.Context(), "Security event",
+		slog.String("event", "auth_failure"),
+		slog.String("error", message),
+		slog.String("ip", c.ClientIP()),
+		slog.String("user_agent", c.Request.UserAgent()),
+		slog.String("path", c.Request.URL.Path),
+	)
 }
 
 type errorResponseBody struct {

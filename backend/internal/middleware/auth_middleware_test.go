@@ -35,6 +35,11 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	appConfigService, err := service.NewAppConfigService(t.Context(), db)
 	require.NoError(t, err)
 
+	emailService, err := service.NewEmailService(db, appConfigService)
+	require.NoError(t, err)
+	geoLiteService := service.NewGeoLiteService(nil)
+	auditLogService := service.NewAuditLogService(db, appConfigService, emailService, geoLiteService)
+
 	jwtService, err := service.NewJwtService(t.Context(), db, appConfigService)
 	require.NoError(t, err)
 
@@ -42,7 +47,7 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db})
 	require.NoError(t, err)
 
-	authMiddleware := NewAuthMiddleware(apiKeyModule, userService, jwtService)
+	authMiddleware := NewAuthMiddleware(apiKeyModule, userService, jwtService, auditLogService)
 
 	user := createUserForAuthMiddlewareTest(t, db)
 	jwtToken, err := jwtService.GenerateAccessToken(user, "")

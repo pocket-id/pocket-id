@@ -34,6 +34,10 @@ type GeoLiteService struct {
 
 // NewGeoLiteService initializes a new GeoLiteService instance and starts a goroutine to update the GeoLite2 City database.
 func NewGeoLiteService(httpClient *http.Client) *GeoLiteService {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+
 	service := &GeoLiteService{
 		httpClient: httpClient,
 	}

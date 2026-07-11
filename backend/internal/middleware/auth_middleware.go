@@ -26,10 +26,11 @@ func NewAuthMiddleware(
 	apiKeyModule *apikey.Module,
 	userService *service.UserService,
 	jwtService *service.JwtService,
+	auditLogService *service.AuditLogService,
 ) *AuthMiddleware {
 	return &AuthMiddleware{
 		apiKeyMiddleware: NewApiKeyAuthMiddleware(apiKeyModule, jwtService),
-		jwtMiddleware:    NewJwtAuthMiddleware(jwtService, userService),
+		jwtMiddleware:    NewJwtAuthMiddleware(jwtService, userService, auditLogService),
 		options: AuthOptions{
 			AdminRequired:   true,
 			SuccessOptional: false,

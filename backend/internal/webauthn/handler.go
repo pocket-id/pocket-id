@@ -179,7 +179,7 @@ func (h *handler) reauthenticate(c *gin.Context) {
 	} else {
 		// If WebAuthn fails, try to create a reauthentication token with the access token
 		accessToken, _ := c.Cookie(cookie.AccessTokenCookieName)
-		token, err = h.service.CreateReauthenticationTokenWithAccessToken(c.Request.Context(), accessToken)
+		token, err = h.service.CreateReauthenticationTokenWithAccessToken(c.Request.Context(), accessToken, c.ClientIP(), c.Request.UserAgent())
 		if err != nil {
 			_ = c.Error(err)
 			return

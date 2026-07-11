@@ -1,6 +1,7 @@
 package webauthn
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -68,6 +70,21 @@ func (s *fakeSigner) GetAuthenticationMethod(token jwt.Token) (string, error) {
 	return methods[0], nil
 }
 
+// fakeAuditLogger is a no-op AuditLogger for tests that don't assert on audit log entries
+type fakeAuditLogger struct{}
+
+func (fakeAuditLogger) Create(_ context.Context, _ model.AuditLogEvent, _, _, _ string, _ model.AuditLogData, _ *gorm.DB) (model.AuditLog, bool) {
+	return model.AuditLog{}, false
+}
+
+func (fakeAuditLogger) CreateNewSignInWithEmail(_ context.Context, _, _, _ string, _ *gorm.DB) model.AuditLog {
+	return model.AuditLog{}
+}
+
+func (fakeAuditLogger) CreateSignInFailure(_ context.Context, _, _, _ string) model.AuditLog {
+	return model.AuditLog{}
+}
+
 func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 	setupService := func(t *testing.T) (*Service, *fakeSigner, model.User) {
 		t.Helper()
@@ -80,7 +97,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		require.NoError(t, db.Create(&user).Error)
 
 		signer := newFakeSigner()
-		return &Service{db: db, signer: signer}, signer, user
+		return &Service{db: db, signer: signer, auditLog: fakeAuditLogger{}}, signer, user
 	}
 
 	t.Run("accepts a fresh access token from WebAuthn login", func(t *testing.T) {
@@ -88,7 +105,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		accessToken, err := signer.GenerateAccessToken(user, authenticationMethodPhishingResistant)
 		require.NoError(t, err)
 
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
+		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken, "127.0.0.1", "chrome")
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, reauthenticationToken)
@@ -99,7 +116,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		accessToken, err := signer.GenerateAccessToken(user, "otp")
 		require.NoError(t, err)
 
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
+		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken, "127.0.0.1", "chrome")
 
 		assert.Empty(t, reauthenticationToken)
 		require.Error(t, err)
@@ -111,7 +128,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		accessToken, err := signer.GenerateAccessToken(user, "")
 		require.NoError(t, err)
 
-		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
+		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken, "127.0.0.1", "chrome")
 
 		assert.Empty(t, reauthenticationToken)
 		require.Error(t, err)
