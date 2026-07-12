@@ -455,6 +455,8 @@
 	"client_launch_url": "Client Launch URL",
 	"client_launch_url_description": "The URL that will be opened when a user launches the app from the My Apps page.",
 	"client_name_description": "The name of the client that shows in the Pocket ID UI.",
+	"client_description": "Description",
+	"client_description_description": "An optional description of the client that shows in the Pocket ID UI.",
 	"revoke_access": "Opphev tilgang",
 	"revoke_access_description": "Opphev tilgang til <b>{clientName}</b>. <b>{clientName}</b> vil ikke lenger få tilgang til kontoinformasjonen.",
 	"revoke_access_successful": "Tilgang til {clientName} har blitt opphevet.",

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages';
@@ -45,7 +46,9 @@
 						<LucidePlus class="text-primary/80 size-5" />
 						{m.create_api()}
 					</Card.Title>
-					<Card.Description>{m.create_a_new_api_description()}</Card.Description>
+					<Card.Description
+						><FormattedMessage m={m.create_a_new_api_description()} /></Card.Description
+					>
 				</div>
 				{#if !expandAddApi}
 					<Button class="w-full md:w-auto" onclick={() => (expandAddApi = true)}

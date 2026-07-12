@@ -187,7 +187,7 @@ test('Update user fails with already taken username in different casing', async 
 test('Update user custom claims', async ({ page }) => {
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByRole('tab', { name: 'Custom Claims' }).click();
 
 	// Add two custom claims
 	await page.getByRole('button', { name: 'Add custom claim' }).click();
@@ -199,7 +199,7 @@ test('Update user custom claims', async ({ page }) => {
 	await page.getByPlaceholder('Key').nth(1).fill('customClaim2');
 	await page.getByPlaceholder('Value').nth(1).fill('customClaim2_value');
 
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Custom claims updated successfully'
@@ -215,7 +215,7 @@ test('Update user custom claims', async ({ page }) => {
 
 	// Remove one custom claim
 	await page.getByLabel('Remove custom claim').first().click();
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Custom claims updated successfully'
@@ -232,12 +232,12 @@ test('Update user group assignments', async ({ page }) => {
 	const user = users.craig;
 	await page.goto(`/settings/admin/users/${user.id}`);
 
-	page.getByRole('button', { name: 'Expand card' }).first().click();
+	await page.getByRole('tab', { name: 'User Groups' }).click();
 
 	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
 
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'User groups updated successfully'
@@ -255,6 +255,7 @@ test('Update user group assignments', async ({ page }) => {
 
 test('Admin can view another user passkeys', async ({ page }) => {
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
+	await page.getByRole('tab', { name: 'Passkeys' }).click();
 
 	await expect(page.getByText('Passkey 2')).toBeVisible();
 	await expect(page.getByText(/Added on/)).toBeVisible();
@@ -262,8 +263,13 @@ test('Admin can view another user passkeys', async ({ page }) => {
 
 test('Admin can delete another user passkey and audit log is created', async ({ page }) => {
 	await page.goto(`/settings/admin/users/${users.craig.id}`);
+	await page.getByRole('tab', { name: 'Passkeys' }).click();
 
-	await page.locator('[data-slot="item"]').filter({ hasText: 'Passkey 2' }).getByLabel('Delete').click();
+	await page
+		.locator('[data-slot="item"]')
+		.filter({ hasText: 'Passkey 2' })
+		.getByLabel('Delete')
+		.click();
 	await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Passkey deleted successfully');

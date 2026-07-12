@@ -455,6 +455,8 @@
 	"client_launch_url": "Asiakkaan käynnistys-URL",
 	"client_launch_url_description": "URL-osoite, joka avautuu, kun käyttäjä käynnistää sovelluksen Omat sovellukset -sivulta.",
 	"client_name_description": "Asiakkaan nimi, joka näkyy Pocket ID käyttöliittymässä.",
+	"client_description": "Kuvaus",
+	"client_description_description": "Valinnainen kuvaus asiakkaasta, joka näkyy Pocket ID -käyttöliittymässä.",
 	"revoke_access": "Peru käyttöoikeus",
 	"revoke_access_description": "Peruuta käyttöoikeus palveluun <b>{clientName}</b>. <b>{clientName}</b> palvelu ei voi enää käyttää tilisi tietoja.",
 	"revoke_access_successful": "Pääsy palveluun {clientName} on peruutettu onnistuneesti.",

@@ -215,17 +215,19 @@
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
 			bind:error={$inputs.logoutCallbackURLs.error}
 		/>
-		<SwitchWithLabel
-			id="public-client"
-			label={m.public_client()}
-			description={m.public_clients_description()}
-			onCheckedChange={(v) => {
-				if (v) {
-					$inputs.pkceEnabled.value = true;
-				}
-			}}
-			bind:checked={$inputs.isPublic.value}
-		/>
+		<div>
+			<SwitchWithLabel
+				id="public-client"
+				label={m.public_client()}
+				description={m.public_clients_description()}
+				onCheckedChange={(v) => {
+					if (v) {
+						$inputs.pkceEnabled.value = true;
+					}
+				}}
+				bind:checked={$inputs.isPublic.value}
+			/>
+		</div>
 		<div
 			class="rounded-lg transition-all duration-200"
 			class:[&_[data-switch-root]]:ring-2={pkcePromptNeeded}

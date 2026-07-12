@@ -117,12 +117,10 @@ export function startPageTrace(path?: string): void {
 	}
 	endPageSpan();
 
-	pageSpan = otel.trace
-		.getTracer(TRACER_NAME)
-		.startSpan(path ? `pageview ${path}` : 'pageview', {
-			root: true,
-			kind: otel.SpanKind.INTERNAL
-		});
+	pageSpan = otel.trace.getTracer(TRACER_NAME).startSpan(path ? `pageview ${path}` : 'pageview', {
+		root: true,
+		kind: otel.SpanKind.INTERNAL
+	});
 	pageContext = otel.trace.setSpan(otel.ROOT_CONTEXT, pageSpan);
 }
 

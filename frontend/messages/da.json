@@ -455,6 +455,8 @@
 	"client_launch_url": "Start-URL til klient",
 	"client_launch_url_description": "Den URL, der åbnes, når en bruger starter appen fra siden Mine apps.",
 	"client_name_description": "Navnet på den klient, der vises i Pocket ID-brugergrænsefladen.",
+	"client_description": "Beskrivelse",
+	"client_description_description": "En valgfri beskrivelse af klienten, der vises i Pocket ID-brugergrænsefladen.",
 	"revoke_access": "Tilbagekald adgang",
 	"revoke_access_description": "Tilbagekald adgang til <b>{clientName}</b>. <b>{clientName}</b> vil ikke længere kunne få adgang til dine kontooplysninger.",
 	"revoke_access_successful": "Adgangen til {clientName} er blevet ophævet.",

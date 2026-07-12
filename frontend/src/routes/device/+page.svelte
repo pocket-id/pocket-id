@@ -132,10 +132,7 @@
 					</p>
 				</Card.Header>
 				<Card.Content data-testid="scopes">
-					<ScopeList
-						scopes={deviceInfo!.scope || []}
-						scopeInfo={deviceInfo!.scopeInfo || []}
-					/>
+					<ScopeList scopes={deviceInfo!.scope || []} scopeInfo={deviceInfo!.scopeInfo || []} />
 				</Card.Content>
 			</Card.Root>
 		</div>

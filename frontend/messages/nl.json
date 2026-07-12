@@ -455,6 +455,8 @@
 	"client_launch_url": "URL voor openen door gebruiker",
 	"client_launch_url_description": "De URL die wordt geopend als iemand de app start vanaf de pagina Mijn apps.",
 	"client_name_description": "De naam van de client die wordt getoond in de Pocket ID UI.",
+	"client_description": "Beschrijving",
+	"client_description_description": "Een optionele beschrijving van de client die in de Pocket ID-gebruikersinterface wordt weergegeven.",
 	"revoke_access": "Toegang intrekken",
 	"revoke_access_description": "Toegang intrekken tot <b>{clientName}</b>. <b>{clientName}</b> kan je accountgegevens niet meer gebruiken.",
 	"revoke_access_successful": "De toegang tot {clientName} is nu succesvol geblokkeerd.",

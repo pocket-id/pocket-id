@@ -161,13 +161,14 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 
 test('Update OIDC client allowed user groups', async ({ page }) => {
 	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('tab', { name: 'Allowed user groups' }).click();
 
 	await page.getByRole('button', { name: 'Restrict' }).click();
 
 	await page.getByRole('row', { name: userGroups.designers.name }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: userGroups.developers.name }).getByRole('checkbox').click();
 
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.getByText('Allowed user groups updated successfully')).toBeVisible();
 

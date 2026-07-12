@@ -455,6 +455,8 @@
 	"client_launch_url": "Klienta palaišanas URL",
 	"client_launch_url_description": "URL, kas tiks atvērts, kad lietotājs palaiž lietotni no lapas Manas lietotnes.",
 	"client_name_description": "Klienta nosaukums, kas tiek rādīts Pocket ID saskarnē.",
+	"client_description": "Apraksts",
+	"client_description_description": "Neobligāts klienta apraksts, kas tiek parādīts lietotnes „Pocket ID“ lietotāja saskarnē.",
 	"revoke_access": "Atsaukt piekļuvi",
 	"revoke_access_description": "Atsaukt piekļuvi <b>{clientName}</b>. <b>{clientName}</b> vairs nevarēs piekļūt jūsu konta informācijai.",
 	"revoke_access_successful": "Piekļuve {clientName} veiksmīgi atsaukta.",

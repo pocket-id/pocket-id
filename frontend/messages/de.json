@@ -455,6 +455,8 @@
 	"client_launch_url": "Client-Start-URL",
 	"client_launch_url_description": "Die URL, die aufgerufen wird, wenn ein Nutzer diese App von „Meine Apps“ aus öffnet.",
 	"client_name_description": "Der Name des Clients, der in der Pocket ID-Benutzeroberfläche angezeigt wird.",
+	"client_description": "Beschreibung",
+	"client_description_description": "Eine optionale Beschreibung des Clients, die in der Benutzeroberfläche von Pocket ID angezeigt wird.",
 	"revoke_access": "Zugriff widerrufen",
 	"revoke_access_description": "Zugriff von <b>{clientName}</b> widerrufen. <b>{clientName}</b> kann nicht mehr auf deine Kontoinformationen zugreifen.",
 	"revoke_access_successful": "Der Zugriff von „{clientName}“ wurde erfolgreich widerrufen.",

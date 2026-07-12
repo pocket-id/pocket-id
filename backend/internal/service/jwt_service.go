@@ -51,13 +51,14 @@ type JwtService struct {
 	privateKey       jwk.Key
 	keyId            string
 	appConfigService *AppConfigService
+	instanceID       string
 	jwksEncoded      []byte
 }
 
-func NewJwtService(ctx context.Context, db *gorm.DB, appConfigService *AppConfigService) (*JwtService, error) {
+func NewJwtService(ctx context.Context, db *gorm.DB, instanceID string, appConfigService *AppConfigService) (*JwtService, error) {
 	service := &JwtService{}
 
-	err := service.init(ctx, db, appConfigService, &common.EnvConfig)
+	err := service.init(ctx, db, instanceID, appConfigService, &common.EnvConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -65,10 +66,11 @@ func NewJwtService(ctx context.Context, db *gorm.DB, appConfigService *AppConfig
 	return service, nil
 }
 
-func (s *JwtService) init(ctx context.Context, db *gorm.DB, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
+func (s *JwtService) init(ctx context.Context, db *gorm.DB, instanceID string, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
 	s.appConfigService = appConfigService
 	s.envConfig = envConfig
 	s.db = db
+	s.instanceID = instanceID
 
 	// Ensure keys are generated or loaded
 	return s.LoadOrGenerateKey(ctx)
@@ -76,7 +78,7 @@ func (s *JwtService) init(ctx context.Context, db *gorm.DB, appConfigService *Ap
 
 func (s *JwtService) LoadOrGenerateKey(ctx context.Context) error {
 	// Get the key provider
-	keyProvider, err := jwkutils.GetKeyProvider(s.db, s.envConfig, s.appConfigService.GetDbConfig().InstanceID.Value)
+	keyProvider, err := jwkutils.GetKeyProvider(s.db, s.envConfig, s.instanceID)
 	if err != nil {
 		return fmt.Errorf("failed to get key provider: %w", err)
 	}

@@ -44,11 +44,12 @@ test('Edit user group', async ({ page }) => {
 test('Update user group users', async ({ page }) => {
 	const group = userGroups.designers;
 	await page.goto(`/settings/admin/user-groups/${group.id}`);
+	await page.getByRole('tab', { name: 'Users' }).click();
 
 	await page.getByRole('row', { name: users.tim.username }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: users.craig.username }).getByRole('checkbox').click();
 
-	await page.getByRole('button', { name: 'Save' }).nth(1).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText('Users updated successfully');
 
@@ -77,7 +78,7 @@ test('Delete user group', async ({ page }) => {
 test('Update user group custom claims', async ({ page }) => {
 	await page.goto(`/settings/admin/user-groups/${userGroups.designers.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).first().click();
+	await page.getByRole('tab', { name: 'Custom Claims' }).click();
 
 	// Add two custom claims
 	await page.getByRole('button', { name: 'Add custom claim' }).click();
@@ -89,7 +90,7 @@ test('Update user group custom claims', async ({ page }) => {
 	await page.getByPlaceholder('Key').nth(1).fill('customClaim2');
 	await page.getByPlaceholder('Value').nth(1).fill('customClaim2_value');
 
-	await page.getByRole('button', { name: 'Save' }).nth(2).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Custom claims updated successfully'
@@ -106,7 +107,7 @@ test('Update user group custom claims', async ({ page }) => {
 
 	// Remove one custom claim
 	await page.getByLabel('Remove custom claim').first().click();
-	await page.getByRole('button', { name: 'Save' }).nth(2).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Custom claims updated successfully'
@@ -123,7 +124,7 @@ test('Update user group custom claims', async ({ page }) => {
 test('Update user group allowed user groups', async ({ page }) => {
 	await page.goto(`/settings/admin/user-groups/${userGroups.designers.id}`);
 
-	await page.getByRole('button', { name: 'Expand card' }).nth(1).click();
+	await page.getByRole('tab', { name: 'Allowed OIDC Clients' }).click();
 
 	// Unrestricted OIDC clients should be checked and disabled
 	const nextcloudRow = page
@@ -135,7 +136,7 @@ test('Update user group allowed user groups', async ({ page }) => {
 	await page.getByRole('row', { name: oidcClients.tailscale.name }).getByRole('checkbox').click();
 	await page.getByRole('row', { name: oidcClients.immich.name }).getByRole('checkbox').click();
 
-	await page.getByRole('button', { name: 'Save' }).nth(2).click();
+	await page.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'Allowed OIDC clients updated successfully'

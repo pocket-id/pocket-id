@@ -27,7 +27,7 @@ func newHandler(service *Service) *handler {
 // @Param pagination[limit] query int false "Number of items per page" default(20)
 // @Param sort[column] query string false "Column to sort by"
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[apiListItemDto]
+// @Success 200 {object} dto.Paginated[apiResponseDto]
 // @Router /api/apis [get]
 func (h *handler) list(c *gin.Context) {
 	search := c.Query("search")
