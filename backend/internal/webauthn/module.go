@@ -56,47 +56,80 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the WebAuthn registration, login and reauthentication endpoints
 func (m *Module) RegisterRoutes(api huma.API, userAuth func(*huma.Operation), loginRateLimit, reauthRateLimit func(huma.Context, func(huma.Context))) {
-	beginRegistration := webauthnOperation("begin-webauthn-registration", http.MethodGet, "/api/webauthn/register/start", "Begin WebAuthn registration")
-	userAuth(&beginRegistration)
-	httpapi.Register(api, beginRegistration, m.handler.beginRegistration)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "begin-webauthn-registration",
+		Method:      http.MethodGet,
+		Path:        "/api/webauthn/register/start",
+		Summary:     "Begin WebAuthn registration",
+		Tags:        []string{"WebAuthn"},
+	}, m.handler.beginRegistration, userAuth)
 
-	verifyRegistration := webauthnOperation("finish-webauthn-registration", http.MethodPost, "/api/webauthn/register/finish", "Finish WebAuthn registration")
-	userAuth(&verifyRegistration)
-	httpapi.Register(api, verifyRegistration, m.handler.verifyRegistration)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "finish-webauthn-registration",
+		Method:      http.MethodPost,
+		Path:        "/api/webauthn/register/finish",
+		Summary:     "Finish WebAuthn registration",
+		Tags:        []string{"WebAuthn"},
+	}, m.handler.verifyRegistration, userAuth)
 
-	httpapi.Register(api, webauthnOperation("begin-webauthn-login", http.MethodGet, "/api/webauthn/login/start", "Begin WebAuthn login"), m.handler.beginLogin)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "begin-webauthn-login",
+		Method:      http.MethodGet,
+		Path:        "/api/webauthn/login/start",
+		Summary:     "Begin WebAuthn login",
+		Tags:        []string{"WebAuthn"},
+	}, m.handler.beginLogin)
 
-	verifyLogin := webauthnOperation("finish-webauthn-login", http.MethodPost, "/api/webauthn/login/finish", "Finish WebAuthn login")
-	verifyLogin.Middlewares = append(verifyLogin.Middlewares, loginRateLimit)
-	httpapi.Register(api, verifyLogin, m.handler.verifyLogin)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "finish-webauthn-login",
+		Method:      http.MethodPost,
+		Path:        "/api/webauthn/login/finish",
+		Summary:     "Finish WebAuthn login",
+		Tags:        []string{"WebAuthn"},
+	}, m.handler.verifyLogin, httpapi.WithMiddleware(loginRateLimit))
 
-	logout := webauthnOperation("webauthn-logout", http.MethodPost, "/api/webauthn/logout", "Log out")
-	logout.DefaultStatus = http.StatusNoContent
-	userAuth(&logout)
-	httpapi.Register(api, logout, m.handler.logout)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "webauthn-logout",
+		Method:        http.MethodPost,
+		Path:          "/api/webauthn/logout",
+		Summary:       "Log out",
+		Tags:          []string{"WebAuthn"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.logout, userAuth)
 
-	reauthenticate := webauthnOperation("webauthn-reauthenticate", http.MethodPost, "/api/webauthn/reauthenticate", "Reauthenticate")
-	reauthenticate.DefaultStatus = http.StatusNoContent
-	userAuth(&reauthenticate)
-	reauthenticate.Middlewares = append(reauthenticate.Middlewares, reauthRateLimit)
-	httpapi.Register(api, reauthenticate, m.handler.reauthenticate)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "webauthn-reauthenticate",
+		Method:        http.MethodPost,
+		Path:          "/api/webauthn/reauthenticate",
+		Summary:       "Reauthenticate",
+		Tags:          []string{"WebAuthn"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.reauthenticate, userAuth, httpapi.WithMiddleware(reauthRateLimit))
 
-	listCredentials := webauthnOperation("list-webauthn-credentials", http.MethodGet, "/api/webauthn/credentials", "List WebAuthn credentials")
-	userAuth(&listCredentials)
-	httpapi.Register(api, listCredentials, m.handler.listCredentials)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-webauthn-credentials",
+		Method:      http.MethodGet,
+		Path:        "/api/webauthn/credentials",
+		Summary:     "List WebAuthn credentials",
+		Tags:        []string{"WebAuthn"},
+	}, m.handler.listCredentials, userAuth)
 
-	updateCredential := webauthnOperation("update-webauthn-credential", http.MethodPatch, "/api/webauthn/credentials/{id}", "Update WebAuthn credential")
-	userAuth(&updateCredential)
-	httpapi.Register(api, updateCredential, m.handler.updateCredential)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-webauthn-credential",
+		Method:      http.MethodPatch,
+		Path:        "/api/webauthn/credentials/{id}",
+		Summary:     "Update WebAuthn credential",
+		Tags:        []string{"WebAuthn"},
+	}, m.handler.updateCredential, userAuth)
 
-	deleteCredential := webauthnOperation("delete-webauthn-credential", http.MethodDelete, "/api/webauthn/credentials/{id}", "Delete WebAuthn credential")
-	deleteCredential.DefaultStatus = http.StatusNoContent
-	userAuth(&deleteCredential)
-	httpapi.Register(api, deleteCredential, m.handler.deleteCredential)
-}
-
-func webauthnOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"WebAuthn"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-webauthn-credential",
+		Method:        http.MethodDelete,
+		Path:          "/api/webauthn/credentials/{id}",
+		Summary:       "Delete WebAuthn credential",
+		Tags:          []string{"WebAuthn"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.deleteCredential, userAuth)
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface

@@ -36,27 +36,39 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 // RegisterRoutes mounts the API key management endpoints
 // authWithoutApiKey disables API key authentication so an API key cannot be used to mint or renew further API keys
 func (m *Module) RegisterRoutes(api huma.API, auth, authWithoutAPIKey func(*huma.Operation)) {
-	listOperation := apiKeyOperation("list-api-keys", http.MethodGet, "/api/api-keys", "List API keys")
-	auth(&listOperation)
-	httpapi.Register(api, listOperation, m.handler.list)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-api-keys",
+		Method:      http.MethodGet,
+		Path:        "/api/api-keys",
+		Summary:     "List API keys",
+		Tags:        []string{"API Keys"},
+	}, m.handler.list, auth)
 
-	createOperation := apiKeyOperation("create-api-key", http.MethodPost, "/api/api-keys", "Create API key")
-	createOperation.DefaultStatus = http.StatusCreated
-	authWithoutAPIKey(&createOperation)
-	httpapi.Register(api, createOperation, m.handler.create)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-api-key",
+		Method:        http.MethodPost,
+		Path:          "/api/api-keys",
+		Summary:       "Create API key",
+		Tags:          []string{"API Keys"},
+		DefaultStatus: http.StatusCreated,
+	}, m.handler.create, authWithoutAPIKey)
 
-	renewOperation := apiKeyOperation("renew-api-key", http.MethodPost, "/api/api-keys/{id}/renew", "Renew API key")
-	authWithoutAPIKey(&renewOperation)
-	httpapi.Register(api, renewOperation, m.handler.renew)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "renew-api-key",
+		Method:      http.MethodPost,
+		Path:        "/api/api-keys/{id}/renew",
+		Summary:     "Renew API key",
+		Tags:        []string{"API Keys"},
+	}, m.handler.renew, authWithoutAPIKey)
 
-	revokeOperation := apiKeyOperation("revoke-api-key", http.MethodDelete, "/api/api-keys/{id}", "Revoke API key")
-	revokeOperation.DefaultStatus = http.StatusNoContent
-	auth(&revokeOperation)
-	httpapi.Register(api, revokeOperation, m.handler.revoke)
-}
-
-func apiKeyOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"API Keys"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "revoke-api-key",
+		Method:        http.MethodDelete,
+		Path:          "/api/api-keys/{id}",
+		Summary:       "Revoke API key",
+		Tags:          []string{"API Keys"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.revoke, auth)
 }
 
 // ValidateApiKey resolves the user that owns the given raw API key

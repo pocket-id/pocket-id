@@ -28,31 +28,49 @@ func NewAppConfigController(
 	ldapService *service.LdapService,
 ) {
 	controller := &AppConfigController{appConfigService: appConfigService, emailService: emailService, ldapService: ldapService}
-
-	httpapi.Register(api, appConfigOperation("list-public-application-configuration", http.MethodGet, "/api/application-configuration", "List public application configurations"), controller.listAppConfigHandler)
-
 	auth := authMiddleware.Huma(api)
-	allOperation := appConfigOperation("list-all-application-configuration", http.MethodGet, "/api/application-configuration/all", "List all application configurations")
-	auth(&allOperation)
-	httpapi.Register(api, allOperation, controller.listAllAppConfigHandler)
 
-	updateOperation := appConfigOperation("update-application-configuration", http.MethodPut, "/api/application-configuration", "Update application configurations")
-	auth(&updateOperation)
-	httpapi.Register(api, updateOperation, controller.updateAppConfigHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-public-application-configuration",
+		Method:      http.MethodGet,
+		Path:        "/api/application-configuration",
+		Summary:     "List public application configurations",
+		Tags:        []string{"Application Configuration"},
+	}, controller.listAppConfigHandler)
 
-	testEmailOperation := appConfigOperation("test-email-configuration", http.MethodPost, "/api/application-configuration/test-email", "Send test email")
-	testEmailOperation.DefaultStatus = http.StatusNoContent
-	auth(&testEmailOperation)
-	httpapi.Register(api, testEmailOperation, controller.testEmailHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-all-application-configuration",
+		Method:      http.MethodGet,
+		Path:        "/api/application-configuration/all",
+		Summary:     "List all application configurations",
+		Tags:        []string{"Application Configuration"},
+	}, controller.listAllAppConfigHandler, auth)
 
-	syncLDAPOperation := appConfigOperation("sync-ldap", http.MethodPost, "/api/application-configuration/sync-ldap", "Synchronize LDAP")
-	syncLDAPOperation.DefaultStatus = http.StatusNoContent
-	auth(&syncLDAPOperation)
-	httpapi.Register(api, syncLDAPOperation, controller.syncLDAPHandler)
-}
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-application-configuration",
+		Method:      http.MethodPut,
+		Path:        "/api/application-configuration",
+		Summary:     "Update application configurations",
+		Tags:        []string{"Application Configuration"},
+	}, controller.updateAppConfigHandler, auth)
 
-func appConfigOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"Application Configuration"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "test-email-configuration",
+		Method:        http.MethodPost,
+		Path:          "/api/application-configuration/test-email",
+		Summary:       "Send test email",
+		Tags:          []string{"Application Configuration"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.testEmailHandler, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "sync-ldap",
+		Method:        http.MethodPost,
+		Path:          "/api/application-configuration/sync-ldap",
+		Summary:       "Synchronize LDAP",
+		Tags:          []string{"Application Configuration"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.syncLDAPHandler, auth)
 }
 
 type AppConfigController struct {

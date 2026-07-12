@@ -22,6 +22,7 @@ type versionOutput struct {
 // NewVersionController registers version-related routes
 func NewVersionController(api huma.API, authMiddleware *middleware.AuthMiddleware, versionService *service.VersionService) {
 	vc := &VersionController{versionService: versionService}
+	userAuth := authMiddleware.WithAdminNotRequired().Huma(api)
 
 	httpapi.Register(api, huma.Operation{
 		OperationID: "get-latest-version",
@@ -31,15 +32,13 @@ func NewVersionController(api huma.API, authMiddleware *middleware.AuthMiddlewar
 		Tags:        []string{"Version"},
 	}, vc.getLatestVersionHandler)
 
-	currentOperation := huma.Operation{
+	httpapi.Register(api, huma.Operation{
 		OperationID: "get-current-version",
 		Method:      http.MethodGet,
 		Path:        "/api/version/current",
 		Summary:     "Get current deployed version of Pocket ID",
 		Tags:        []string{"Version"},
-	}
-	authMiddleware.WithAdminNotRequired().Huma(api)(&currentOperation)
-	httpapi.Register(api, currentOperation, vc.getCurrentVersionHandler)
+	}, vc.getCurrentVersionHandler, userAuth)
 }
 
 type VersionController struct {

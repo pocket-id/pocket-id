@@ -177,7 +177,13 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)
-	httpapi.AddRawOperation(api, "healthz", http.MethodGet, "/healthz", "Health check", []string{"Health"}, nil, http.StatusNoContent)
+	httpapi.AddRawOperation(api, huma.Operation{
+		OperationID: "healthz",
+		Method:      http.MethodGet,
+		Path:        "/healthz",
+		Summary:     "Health check",
+		Tags:        []string{"Health"},
+	}, http.StatusNoContent)
 
 	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
 	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.

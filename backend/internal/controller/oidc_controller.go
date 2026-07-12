@@ -85,79 +85,146 @@ func NewOidcController(api huma.API, authMiddleware *middleware.AuthMiddleware, 
 	adminAuth := authMiddleware.Huma(api)
 	userAuth := authMiddleware.WithAdminNotRequired().Huma(api)
 
-	listClients := oidcOperation("list-oidc-clients", http.MethodGet, "/api/oidc/clients", "List OIDC clients")
-	adminAuth(&listClients)
-	httpapi.Register(api, listClients, controller.listClientsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-oidc-clients",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/clients",
+		Summary:     "List OIDC clients",
+		Tags:        []string{"OIDC"},
+	}, controller.listClientsHandler, adminAuth)
 
-	createClient := oidcOperation("create-oidc-client", http.MethodPost, "/api/oidc/clients", "Create OIDC client")
-	createClient.DefaultStatus = http.StatusCreated
-	adminAuth(&createClient)
-	httpapi.Register(api, createClient, controller.createClientHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-oidc-client",
+		Method:        http.MethodPost,
+		Path:          "/api/oidc/clients",
+		Summary:       "Create OIDC client",
+		Tags:          []string{"OIDC"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.createClientHandler, adminAuth)
 
-	getClient := oidcOperation("get-oidc-client", http.MethodGet, "/api/oidc/clients/{id}", "Get OIDC client")
-	adminAuth(&getClient)
-	httpapi.Register(api, getClient, controller.getClientHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-oidc-client",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/clients/{id}",
+		Summary:     "Get OIDC client",
+		Tags:        []string{"OIDC"},
+	}, controller.getClientHandler, adminAuth)
 
-	httpapi.Register(api, oidcOperation("get-oidc-client-metadata", http.MethodGet, "/api/oidc/clients/{id}/meta", "Get OIDC client metadata"), controller.getClientMetaDataHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-oidc-client-metadata",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/clients/{id}/meta",
+		Summary:     "Get OIDC client metadata",
+		Tags:        []string{"OIDC"},
+	}, controller.getClientMetaDataHandler)
 
-	updateClient := oidcOperation("update-oidc-client", http.MethodPut, "/api/oidc/clients/{id}", "Update OIDC client")
-	adminAuth(&updateClient)
-	httpapi.Register(api, updateClient, controller.updateClientHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-oidc-client",
+		Method:      http.MethodPut,
+		Path:        "/api/oidc/clients/{id}",
+		Summary:     "Update OIDC client",
+		Tags:        []string{"OIDC"},
+	}, controller.updateClientHandler, adminAuth)
 
-	deleteClient := oidcOperation("delete-oidc-client", http.MethodDelete, "/api/oidc/clients/{id}", "Delete OIDC client")
-	deleteClient.DefaultStatus = http.StatusNoContent
-	adminAuth(&deleteClient)
-	httpapi.Register(api, deleteClient, controller.deleteClientHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-oidc-client",
+		Method:        http.MethodDelete,
+		Path:          "/api/oidc/clients/{id}",
+		Summary:       "Delete OIDC client",
+		Tags:          []string{"OIDC"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteClientHandler, adminAuth)
 
-	allowedGroups := oidcOperation("update-oidc-client-allowed-user-groups", http.MethodPut, "/api/oidc/clients/{id}/allowed-user-groups", "Update allowed user groups")
-	adminAuth(&allowedGroups)
-	httpapi.Register(api, allowedGroups, controller.updateAllowedUserGroupsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-oidc-client-allowed-user-groups",
+		Method:      http.MethodPut,
+		Path:        "/api/oidc/clients/{id}/allowed-user-groups",
+		Summary:     "Update allowed user groups",
+		Tags:        []string{"OIDC"},
+	}, controller.updateAllowedUserGroupsHandler, adminAuth)
 
-	createSecret := oidcOperation("create-oidc-client-secret", http.MethodPost, "/api/oidc/clients/{id}/secret", "Create client secret")
-	adminAuth(&createSecret)
-	httpapi.Register(api, createSecret, controller.createClientSecretHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "create-oidc-client-secret",
+		Method:      http.MethodPost,
+		Path:        "/api/oidc/clients/{id}/secret",
+		Summary:     "Create client secret",
+		Tags:        []string{"OIDC"},
+	}, controller.createClientSecretHandler, adminAuth)
 
-	httpapi.Register(api, oidcOperation("get-oidc-client-logo", http.MethodGet, "/api/oidc/clients/{id}/logo", "Get client logo"), controller.getClientLogoHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-oidc-client-logo",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/clients/{id}/logo",
+		Summary:     "Get client logo",
+		Tags:        []string{"OIDC"},
+	}, controller.getClientLogoHandler)
 
-	deleteLogo := oidcOperation("delete-oidc-client-logo", http.MethodDelete, "/api/oidc/clients/{id}/logo", "Delete client logo")
-	deleteLogo.DefaultStatus = http.StatusNoContent
-	adminAuth(&deleteLogo)
-	httpapi.Register(api, deleteLogo, controller.deleteClientLogoHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-oidc-client-logo",
+		Method:        http.MethodDelete,
+		Path:          "/api/oidc/clients/{id}/logo",
+		Summary:       "Delete client logo",
+		Tags:          []string{"OIDC"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteClientLogoHandler, adminAuth)
 
-	updateLogo := oidcOperation("update-oidc-client-logo", http.MethodPost, "/api/oidc/clients/{id}/logo", "Update client logo")
-	updateLogo.DefaultStatus = http.StatusNoContent
-	adminAuth(&updateLogo)
-	updateLogo.Middlewares = append(updateLogo.Middlewares, fileSizeLimitMiddleware.Huma(api, 2<<20))
-	httpapi.Register(api, updateLogo, controller.updateClientLogoHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-oidc-client-logo",
+		Method:        http.MethodPost,
+		Path:          "/api/oidc/clients/{id}/logo",
+		Summary:       "Update client logo",
+		Tags:          []string{"OIDC"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateClientLogoHandler, adminAuth, httpapi.WithMiddleware(fileSizeLimitMiddleware.Huma(api, 2<<20)))
 
-	preview := oidcOperation("preview-oidc-client-data", http.MethodGet, "/api/oidc/clients/{id}/preview/{userId}", "Preview OIDC client data for user")
-	adminAuth(&preview)
-	httpapi.Register(api, preview, controller.getClientPreviewHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "preview-oidc-client-data",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/clients/{id}/preview/{userId}",
+		Summary:     "Preview OIDC client data for user",
+		Tags:        []string{"OIDC"},
+	}, controller.getClientPreviewHandler, adminAuth)
 
-	ownAuthorized := oidcOperation("list-own-authorized-oidc-clients", http.MethodGet, "/api/oidc/users/me/authorized-clients", "List authorized clients for current user")
-	userAuth(&ownAuthorized)
-	httpapi.Register(api, ownAuthorized, controller.listOwnAuthorizedClientsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-own-authorized-oidc-clients",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/users/me/authorized-clients",
+		Summary:     "List authorized clients for current user",
+		Tags:        []string{"OIDC"},
+	}, controller.listOwnAuthorizedClientsHandler, userAuth)
 
-	userAuthorized := oidcOperation("list-user-authorized-oidc-clients", http.MethodGet, "/api/oidc/users/{id}/authorized-clients", "List authorized clients for a user")
-	adminAuth(&userAuthorized)
-	httpapi.Register(api, userAuthorized, controller.listAuthorizedClientsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-user-authorized-oidc-clients",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/users/{id}/authorized-clients",
+		Summary:     "List authorized clients for a user",
+		Tags:        []string{"OIDC"},
+	}, controller.listAuthorizedClientsHandler, adminAuth)
 
-	revokeAuthorization := oidcOperation("revoke-own-oidc-client-authorization", http.MethodDelete, "/api/oidc/users/me/authorized-clients/{clientId}", "Revoke authorization for an OIDC client")
-	revokeAuthorization.DefaultStatus = http.StatusNoContent
-	userAuth(&revokeAuthorization)
-	httpapi.Register(api, revokeAuthorization, controller.revokeOwnClientAuthorizationHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "revoke-own-oidc-client-authorization",
+		Method:        http.MethodDelete,
+		Path:          "/api/oidc/users/me/authorized-clients/{clientId}",
+		Summary:       "Revoke authorization for an OIDC client",
+		Tags:          []string{"OIDC"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.revokeOwnClientAuthorizationHandler, userAuth)
 
-	accessibleClients := oidcOperation("list-own-accessible-oidc-clients", http.MethodGet, "/api/oidc/users/me/clients", "List accessible OIDC clients for current user")
-	userAuth(&accessibleClients)
-	httpapi.Register(api, accessibleClients, controller.listOwnAccessibleClientsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-own-accessible-oidc-clients",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/users/me/clients",
+		Summary:     "List accessible OIDC clients for current user",
+		Tags:        []string{"OIDC"},
+	}, controller.listOwnAccessibleClientsHandler, userAuth)
 
-	clientSCIM := oidcOperation("get-oidc-client-scim-service-provider", http.MethodGet, "/api/oidc/clients/{id}/scim-service-provider", "Get SCIM service provider")
-	adminAuth(&clientSCIM)
-	httpapi.Register(api, clientSCIM, controller.getClientScimServiceProviderHandler)
-}
-
-func oidcOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"OIDC"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-oidc-client-scim-service-provider",
+		Method:      http.MethodGet,
+		Path:        "/api/oidc/clients/{id}/scim-service-provider",
+		Summary:     "Get SCIM service provider",
+		Tags:        []string{"OIDC"},
+	}, controller.getClientScimServiceProviderHandler, adminAuth)
 }
 
 type OidcController struct {

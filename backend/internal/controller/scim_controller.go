@@ -29,28 +29,40 @@ func NewScimController(api huma.API, authMiddleware *middleware.AuthMiddleware, 
 	controller := &ScimController{scimService: scimService}
 	auth := authMiddleware.Huma(api)
 
-	createOperation := scimOperation("create-scim-service-provider", http.MethodPost, "/api/scim/service-provider", "Create SCIM service provider")
-	createOperation.DefaultStatus = http.StatusCreated
-	auth(&createOperation)
-	httpapi.Register(api, createOperation, controller.createServiceProviderHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-scim-service-provider",
+		Method:        http.MethodPost,
+		Path:          "/api/scim/service-provider",
+		Summary:       "Create SCIM service provider",
+		Tags:          []string{"SCIM"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.createServiceProviderHandler, auth)
 
-	syncOperation := scimOperation("sync-scim-service-provider", http.MethodPost, "/api/scim/service-provider/{id}/sync", "Sync SCIM service provider")
-	syncOperation.DefaultStatus = http.StatusOK
-	auth(&syncOperation)
-	httpapi.Register(api, syncOperation, controller.syncServiceProviderHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "sync-scim-service-provider",
+		Method:        http.MethodPost,
+		Path:          "/api/scim/service-provider/{id}/sync",
+		Summary:       "Sync SCIM service provider",
+		Tags:          []string{"SCIM"},
+		DefaultStatus: http.StatusOK,
+	}, controller.syncServiceProviderHandler, auth)
 
-	updateOperation := scimOperation("update-scim-service-provider", http.MethodPut, "/api/scim/service-provider/{id}", "Update SCIM service provider")
-	auth(&updateOperation)
-	httpapi.Register(api, updateOperation, controller.updateServiceProviderHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-scim-service-provider",
+		Method:      http.MethodPut,
+		Path:        "/api/scim/service-provider/{id}",
+		Summary:     "Update SCIM service provider",
+		Tags:        []string{"SCIM"},
+	}, controller.updateServiceProviderHandler, auth)
 
-	deleteOperation := scimOperation("delete-scim-service-provider", http.MethodDelete, "/api/scim/service-provider/{id}", "Delete SCIM service provider")
-	deleteOperation.DefaultStatus = http.StatusNoContent
-	auth(&deleteOperation)
-	httpapi.Register(api, deleteOperation, controller.deleteServiceProviderHandler)
-}
-
-func scimOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"SCIM"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-scim-service-provider",
+		Method:        http.MethodDelete,
+		Path:          "/api/scim/service-provider/{id}",
+		Summary:       "Delete SCIM service provider",
+		Tags:          []string{"SCIM"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteServiceProviderHandler, auth)
 }
 
 type ScimController struct {

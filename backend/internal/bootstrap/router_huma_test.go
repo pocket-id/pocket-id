@@ -28,7 +28,7 @@ func TestHumaRouterOpenAPI(t *testing.T) {
 	require.NoError(t, err)
 	scheduler, err := job.NewScheduler()
 	require.NoError(t, err)
-	services, err := initServices(t.Context(), db, http.DefaultClient, map[string]string{}, fileStorage, scheduler)
+	services, err := initServices(t.Context(), db, "test-instance", http.DefaultClient, map[string]string{}, fileStorage, scheduler)
 	require.NoError(t, err)
 	router, err := initEngine()
 	require.NoError(t, err)

@@ -26,7 +26,11 @@ func TestRequestWithBodyReconstructsUnderlyingRequest(t *testing.T) {
 	type output struct {
 		Body map[string]string
 	}
-	httpapi.Register(api, huma.Operation{OperationID: "reconstruct-request", Method: http.MethodPost, Path: "/api/reconstruct"}, func(ctx context.Context, _ *input) (*output, error) {
+	httpapi.Register(api, huma.Operation{
+		OperationID: "reconstruct-request",
+		Method:      http.MethodPost,
+		Path:        "/api/reconstruct",
+	}, func(ctx context.Context, _ *input) (*output, error) {
 		request := requestWithBody(ctx, []byte(`{"credential":"value"}`))
 		body, err := io.ReadAll(request.Body)
 		require.NoError(t, err)

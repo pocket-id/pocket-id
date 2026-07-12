@@ -50,17 +50,46 @@ type testBytesOutput struct {
 func NewTestController(api huma.API, testService *service.TestService) {
 	controller := &TestController{TestService: testService}
 
-	resetOperation := testOperation("test-reset", http.MethodPost, "/api/test/reset")
-	resetOperation.DefaultStatus = http.StatusNoContent
-	httpapi.Register(api, resetOperation, controller.resetAndSeedHandler)
-	httpapi.Register(api, testOperation("test-sign-access-token", http.MethodPost, "/api/test/accesstoken"), controller.signAccessToken)
-	httpapi.Register(api, testOperation("test-sign-refresh-token", http.MethodPost, "/api/test/refreshtoken"), controller.signRefreshToken)
-	httpapi.Register(api, testOperation("test-external-idp-jwks", http.MethodGet, "/api/externalidp/jwks.json"), controller.externalIDPJWKS)
-	httpapi.Register(api, testOperation("test-external-idp-sign", http.MethodPost, "/api/externalidp/sign"), controller.externalIDPSignToken)
-}
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "test-reset",
+		Method:        http.MethodPost,
+		Path:          "/api/test/reset",
+		Tags:          []string{"E2E Test"},
+		Hidden:        true,
+		DefaultStatus: http.StatusNoContent,
+	}, controller.resetAndSeedHandler)
 
-func testOperation(id, method, path string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Tags: []string{"E2E Test"}, Hidden: true}
+	httpapi.Register(api, huma.Operation{
+		OperationID: "test-sign-access-token",
+		Method:      http.MethodPost,
+		Path:        "/api/test/accesstoken",
+		Tags:        []string{"E2E Test"},
+		Hidden:      true,
+	}, controller.signAccessToken)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "test-sign-refresh-token",
+		Method:      http.MethodPost,
+		Path:        "/api/test/refreshtoken",
+		Tags:        []string{"E2E Test"},
+		Hidden:      true,
+	}, controller.signRefreshToken)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "test-external-idp-jwks",
+		Method:      http.MethodGet,
+		Path:        "/api/externalidp/jwks.json",
+		Tags:        []string{"E2E Test"},
+		Hidden:      true,
+	}, controller.externalIDPJWKS)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "test-external-idp-sign",
+		Method:      http.MethodPost,
+		Path:        "/api/externalidp/sign",
+		Tags:        []string{"E2E Test"},
+		Hidden:      true,
+	}, controller.externalIDPSignToken)
 }
 
 type TestController struct {

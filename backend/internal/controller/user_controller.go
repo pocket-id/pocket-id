@@ -106,114 +106,202 @@ func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, 
 	adminAuth := authMiddleware.Huma(api)
 	userAuth := authMiddleware.WithAdminNotRequired().Huma(api)
 
-	listUsers := userOperation("list-users", http.MethodGet, "/api/users", "List users")
-	adminAuth(&listUsers)
-	httpapi.Register(api, listUsers, controller.listUsersHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-users",
+		Method:      http.MethodGet,
+		Path:        "/api/users",
+		Summary:     "List users",
+		Tags:        []string{"Users"},
+	}, controller.listUsersHandler, adminAuth)
 
-	getCurrentUser := userOperation("get-current-user", http.MethodGet, "/api/users/me", "Get current user")
-	userAuth(&getCurrentUser)
-	httpapi.Register(api, getCurrentUser, controller.getCurrentUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-current-user",
+		Method:      http.MethodGet,
+		Path:        "/api/users/me",
+		Summary:     "Get current user",
+		Tags:        []string{"Users"},
+	}, controller.getCurrentUserHandler, userAuth)
 
-	getUser := userOperation("get-user", http.MethodGet, "/api/users/{id}", "Get user by ID")
-	adminAuth(&getUser)
-	httpapi.Register(api, getUser, controller.getUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-user",
+		Method:      http.MethodGet,
+		Path:        "/api/users/{id}",
+		Summary:     "Get user by ID",
+		Tags:        []string{"Users"},
+	}, controller.getUserHandler, adminAuth)
 
-	createUser := userOperation("create-user", http.MethodPost, "/api/users", "Create user")
-	createUser.DefaultStatus = http.StatusCreated
-	adminAuth(&createUser)
-	httpapi.Register(api, createUser, controller.createUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-user",
+		Method:        http.MethodPost,
+		Path:          "/api/users",
+		Summary:       "Create user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.createUserHandler, adminAuth)
 
-	updateUser := userOperation("update-user", http.MethodPut, "/api/users/{id}", "Update user")
-	adminAuth(&updateUser)
-	httpapi.Register(api, updateUser, controller.updateUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user",
+		Method:      http.MethodPut,
+		Path:        "/api/users/{id}",
+		Summary:     "Update user",
+		Tags:        []string{"Users"},
+	}, controller.updateUserHandler, adminAuth)
 
-	updateCurrentUser := userOperation("update-current-user", http.MethodPut, "/api/users/me", "Update current user")
-	userAuth(&updateCurrentUser)
-	httpapi.Register(api, updateCurrentUser, controller.updateCurrentUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-current-user",
+		Method:      http.MethodPut,
+		Path:        "/api/users/me",
+		Summary:     "Update current user",
+		Tags:        []string{"Users"},
+	}, controller.updateCurrentUserHandler, userAuth)
 
-	getGroups := userOperation("get-user-groups", http.MethodGet, "/api/users/{id}/groups", "Get user groups")
-	adminAuth(&getGroups)
-	httpapi.Register(api, getGroups, controller.getUserGroupsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-user-groups",
+		Method:      http.MethodGet,
+		Path:        "/api/users/{id}/groups",
+		Summary:     "Get user groups",
+		Tags:        []string{"Users"},
+	}, controller.getUserGroupsHandler, adminAuth)
 
-	listCredentials := userOperation("list-user-webauthn-credentials", http.MethodGet, "/api/users/{id}/webauthn-credentials", "List user passkeys")
-	adminAuth(&listCredentials)
-	httpapi.Register(api, listCredentials, controller.listUserWebauthnCredentialsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-user-webauthn-credentials",
+		Method:      http.MethodGet,
+		Path:        "/api/users/{id}/webauthn-credentials",
+		Summary:     "List user passkeys",
+		Tags:        []string{"Users"},
+	}, controller.listUserWebauthnCredentialsHandler, adminAuth)
 
-	deleteUser := userOperation("delete-user", http.MethodDelete, "/api/users/{id}", "Delete user")
-	deleteUser.DefaultStatus = http.StatusNoContent
-	adminAuth(&deleteUser)
-	httpapi.Register(api, deleteUser, controller.deleteUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-user",
+		Method:        http.MethodDelete,
+		Path:          "/api/users/{id}",
+		Summary:       "Delete user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteUserHandler, adminAuth)
 
-	deleteCredential := userOperation("delete-user-webauthn-credential", http.MethodDelete, "/api/users/{id}/webauthn-credentials/{credentialId}", "Delete user passkey")
-	deleteCredential.DefaultStatus = http.StatusNoContent
-	adminAuth(&deleteCredential)
-	httpapi.Register(api, deleteCredential, controller.deleteUserWebauthnCredentialHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-user-webauthn-credential",
+		Method:        http.MethodDelete,
+		Path:          "/api/users/{id}/webauthn-credentials/{credentialId}",
+		Summary:       "Delete user passkey",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteUserWebauthnCredentialHandler, adminAuth)
 
-	updateGroups := userOperation("update-user-groups", http.MethodPut, "/api/users/{id}/user-groups", "Update user groups")
-	adminAuth(&updateGroups)
-	httpapi.Register(api, updateGroups, controller.updateUserGroups)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-groups",
+		Method:      http.MethodPut,
+		Path:        "/api/users/{id}/user-groups",
+		Summary:     "Update user groups",
+		Tags:        []string{"Users"},
+	}, controller.updateUserGroups, adminAuth)
 
-	httpapi.Register(api, userOperation("get-user-profile-picture", http.MethodGet, "/api/users/{id}/profile-picture.png", "Get user profile picture"), controller.getUserProfilePictureHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-user-profile-picture",
+		Method:      http.MethodGet,
+		Path:        "/api/users/{id}/profile-picture.png",
+		Summary:     "Get user profile picture",
+		Tags:        []string{"Users"},
+	}, controller.getUserProfilePictureHandler)
 
-	updatePicture := userOperation("update-user-profile-picture", http.MethodPut, "/api/users/{id}/profile-picture", "Update user profile picture")
-	updatePicture.DefaultStatus = http.StatusNoContent
-	adminAuth(&updatePicture)
-	httpapi.Register(api, updatePicture, controller.updateUserProfilePictureHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-user-profile-picture",
+		Method:        http.MethodPut,
+		Path:          "/api/users/{id}/profile-picture",
+		Summary:       "Update user profile picture",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateUserProfilePictureHandler, adminAuth)
 
-	updateCurrentPicture := userOperation("update-current-user-profile-picture", http.MethodPut, "/api/users/me/profile-picture", "Update current user profile picture")
-	updateCurrentPicture.DefaultStatus = http.StatusNoContent
-	userAuth(&updateCurrentPicture)
-	httpapi.Register(api, updateCurrentPicture, controller.updateCurrentUserProfilePictureHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-current-user-profile-picture",
+		Method:        http.MethodPut,
+		Path:          "/api/users/me/profile-picture",
+		Summary:       "Update current user profile picture",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateCurrentUserProfilePictureHandler, userAuth)
 
-	createOwnToken := userOperation("create-own-one-time-access-token", http.MethodPost, "/api/users/me/one-time-access-token", "Create one-time access token for current user")
-	createOwnToken.DefaultStatus = http.StatusCreated
-	userAuth(&createOwnToken)
-	httpapi.Register(api, createOwnToken, controller.createOwnOneTimeAccessTokenHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-own-one-time-access-token",
+		Method:        http.MethodPost,
+		Path:          "/api/users/me/one-time-access-token",
+		Summary:       "Create one-time access token for current user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.createOwnOneTimeAccessTokenHandler, userAuth)
 
-	createAdminToken := userOperation("create-user-one-time-access-token", http.MethodPost, "/api/users/{id}/one-time-access-token", "Create one-time access token for user")
-	createAdminToken.DefaultStatus = http.StatusCreated
-	adminAuth(&createAdminToken)
-	httpapi.Register(api, createAdminToken, controller.createAdminOneTimeAccessTokenHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-user-one-time-access-token",
+		Method:        http.MethodPost,
+		Path:          "/api/users/{id}/one-time-access-token",
+		Summary:       "Create one-time access token for user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.createAdminOneTimeAccessTokenHandler, adminAuth)
 
-	adminEmail := userOperation("request-user-one-time-access-email", http.MethodPost, "/api/users/{id}/one-time-access-email", "Request one-time access email for user")
-	adminEmail.DefaultStatus = http.StatusNoContent
-	adminAuth(&adminEmail)
-	httpapi.Register(api, adminEmail, controller.requestOneTimeAccessEmailAsAdminHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "request-user-one-time-access-email",
+		Method:        http.MethodPost,
+		Path:          "/api/users/{id}/one-time-access-email",
+		Summary:       "Request one-time access email for user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.requestOneTimeAccessEmailAsAdminHandler, adminAuth)
 
-	exchangeToken := userOperation("exchange-one-time-access-token", http.MethodPost, "/api/one-time-access-token/{token}", "Exchange one-time access token")
-	exchangeToken.Middlewares = append(exchangeToken.Middlewares, rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessToken))
-	httpapi.Register(api, exchangeToken, controller.exchangeOneTimeAccessTokenHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "exchange-one-time-access-token",
+		Method:      http.MethodPost,
+		Path:        "/api/one-time-access-token/{token}",
+		Summary:     "Exchange one-time access token",
+		Tags:        []string{"Users"},
+	}, controller.exchangeOneTimeAccessTokenHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessToken)))
 
-	requestEmail := userOperation("request-one-time-access-email", http.MethodPost, "/api/one-time-access-email", "Request one-time access email")
-	requestEmail.DefaultStatus = http.StatusNoContent
-	requestEmail.Middlewares = append(requestEmail.Middlewares, rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessEmail))
-	httpapi.Register(api, requestEmail, controller.requestOneTimeAccessEmailAsUnauthenticatedUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "request-one-time-access-email",
+		Method:        http.MethodPost,
+		Path:          "/api/one-time-access-email",
+		Summary:       "Request one-time access email",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.requestOneTimeAccessEmailAsUnauthenticatedUserHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessEmail)))
 
-	resetPicture := userOperation("reset-user-profile-picture", http.MethodDelete, "/api/users/{id}/profile-picture", "Reset user profile picture")
-	resetPicture.DefaultStatus = http.StatusNoContent
-	adminAuth(&resetPicture)
-	httpapi.Register(api, resetPicture, controller.resetUserProfilePictureHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "reset-user-profile-picture",
+		Method:        http.MethodDelete,
+		Path:          "/api/users/{id}/profile-picture",
+		Summary:       "Reset user profile picture",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.resetUserProfilePictureHandler, adminAuth)
 
-	resetCurrentPicture := userOperation("reset-current-user-profile-picture", http.MethodDelete, "/api/users/me/profile-picture", "Reset current user profile picture")
-	resetCurrentPicture.DefaultStatus = http.StatusNoContent
-	userAuth(&resetCurrentPicture)
-	httpapi.Register(api, resetCurrentPicture, controller.resetCurrentUserProfilePictureHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "reset-current-user-profile-picture",
+		Method:        http.MethodDelete,
+		Path:          "/api/users/me/profile-picture",
+		Summary:       "Reset current user profile picture",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.resetCurrentUserProfilePictureHandler, userAuth)
 
-	sendVerification := userOperation("send-email-verification", http.MethodPost, "/api/users/me/send-email-verification", "Send email verification")
-	sendVerification.DefaultStatus = http.StatusNoContent
-	sendVerification.Middlewares = append(sendVerification.Middlewares, rateLimitMiddleware.Huma(api, middleware.RateLimitSendEmailVerification))
-	userAuth(&sendVerification)
-	httpapi.Register(api, sendVerification, controller.sendEmailVerificationHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "send-email-verification",
+		Method:        http.MethodPost,
+		Path:          "/api/users/me/send-email-verification",
+		Summary:       "Send email verification",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.sendEmailVerificationHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitSendEmailVerification)), userAuth)
 
-	verifyEmail := userOperation("verify-email", http.MethodPost, "/api/users/me/verify-email", "Verify email")
-	verifyEmail.DefaultStatus = http.StatusNoContent
-	verifyEmail.Middlewares = append(verifyEmail.Middlewares, rateLimitMiddleware.Huma(api, middleware.RateLimitVerifyEmail))
-	userAuth(&verifyEmail)
-	httpapi.Register(api, verifyEmail, controller.verifyEmailHandler)
-}
-
-func userOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"Users"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "verify-email",
+		Method:        http.MethodPost,
+		Path:          "/api/users/me/verify-email",
+		Summary:       "Verify email",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.verifyEmailHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitVerifyEmail)), userAuth)
 }
 
 type UserController struct {

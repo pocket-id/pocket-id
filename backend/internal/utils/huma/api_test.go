@@ -132,7 +132,13 @@ func TestCookiesStreamingAndOpenAPI(t *testing.T) {
 			_, _ = io.Copy(ctx.BodyWriter(), reader)
 		}}, nil
 	})
-	AddRawOperation(api, "test-raw", http.MethodPost, "/api/test-raw", "Raw test", []string{"Test"}, nil)
+	AddRawOperation(api, huma.Operation{
+		OperationID: "test-raw",
+		Method:      http.MethodPost,
+		Path:        "/api/test-raw",
+		Summary:     "Raw test",
+		Tags:        []string{"Test"},
+	})
 
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/test-cookies", nil))
@@ -159,4 +165,35 @@ func TestCookiesStreamingAndOpenAPI(t *testing.T) {
 	require.Contains(t, response.Body.String(), "@scalar/api-reference@1.62.5")
 	require.Contains(t, response.Header().Get("Content-Security-Policy"), "worker-src blob:")
 	require.NotContains(t, response.Header().Get("Content-Security-Policy"), "script-src 'unsafe-inline'")
+}
+
+func TestRegisterAppliesDecoratorsInOrder(t *testing.T) {
+	router, api := newTestAPI(t)
+	var order []string
+
+	first := func(operation *huma.Operation) {
+		operation.Middlewares = append(operation.Middlewares, func(ctx huma.Context, next func(huma.Context)) {
+			order = append(order, "first")
+			next(ctx)
+		})
+	}
+	second := func(ctx huma.Context, next func(huma.Context)) {
+		order = append(order, "second")
+		next(ctx)
+	}
+
+	Register(api, huma.Operation{
+		OperationID:   "test-decorator-order",
+		Method:        http.MethodGet,
+		Path:          "/api/test-decorator-order",
+		DefaultStatus: http.StatusNoContent,
+	}, func(context.Context, *struct{}) (*struct{}, error) {
+		order = append(order, "handler")
+		return &struct{}{}, nil
+	}, first, WithMiddleware(second))
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/test-decorator-order", nil))
+	require.Equal(t, http.StatusNoContent, response.Code)
+	require.Equal(t, []string{"first", "second", "handler"}, order)
 }

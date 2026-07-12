@@ -46,39 +46,63 @@ func NewUserGroupController(api huma.API, authMiddleware *middleware.AuthMiddlew
 	controller := &UserGroupController{UserGroupService: userGroupService}
 	auth := authMiddleware.Huma(api)
 
-	listOperation := userGroupOperation("list-user-groups", http.MethodGet, "/api/user-groups", "List user groups")
-	auth(&listOperation)
-	httpapi.Register(api, listOperation, controller.list)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-user-groups",
+		Method:      http.MethodGet,
+		Path:        "/api/user-groups",
+		Summary:     "List user groups",
+		Tags:        []string{"User Groups"},
+	}, controller.list, auth)
 
-	getOperation := userGroupOperation("get-user-group", http.MethodGet, "/api/user-groups/{id}", "Get user group by ID")
-	auth(&getOperation)
-	httpapi.Register(api, getOperation, controller.get)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-user-group",
+		Method:      http.MethodGet,
+		Path:        "/api/user-groups/{id}",
+		Summary:     "Get user group by ID",
+		Tags:        []string{"User Groups"},
+	}, controller.get, auth)
 
-	createOperation := userGroupOperation("create-user-group", http.MethodPost, "/api/user-groups", "Create user group")
-	createOperation.DefaultStatus = http.StatusCreated
-	auth(&createOperation)
-	httpapi.Register(api, createOperation, controller.create)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-user-group",
+		Method:        http.MethodPost,
+		Path:          "/api/user-groups",
+		Summary:       "Create user group",
+		Tags:          []string{"User Groups"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.create, auth)
 
-	updateOperation := userGroupOperation("update-user-group", http.MethodPut, "/api/user-groups/{id}", "Update user group")
-	auth(&updateOperation)
-	httpapi.Register(api, updateOperation, controller.update)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-group",
+		Method:      http.MethodPut,
+		Path:        "/api/user-groups/{id}",
+		Summary:     "Update user group",
+		Tags:        []string{"User Groups"},
+	}, controller.update, auth)
 
-	deleteOperation := userGroupOperation("delete-user-group", http.MethodDelete, "/api/user-groups/{id}", "Delete user group")
-	deleteOperation.DefaultStatus = http.StatusNoContent
-	auth(&deleteOperation)
-	httpapi.Register(api, deleteOperation, controller.delete)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-user-group",
+		Method:        http.MethodDelete,
+		Path:          "/api/user-groups/{id}",
+		Summary:       "Delete user group",
+		Tags:          []string{"User Groups"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.delete, auth)
 
-	usersOperation := userGroupOperation("update-user-group-users", http.MethodPut, "/api/user-groups/{id}/users", "Update users in a group")
-	auth(&usersOperation)
-	httpapi.Register(api, usersOperation, controller.updateUsers)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-group-users",
+		Method:      http.MethodPut,
+		Path:        "/api/user-groups/{id}/users",
+		Summary:     "Update users in a group",
+		Tags:        []string{"User Groups"},
+	}, controller.updateUsers, auth)
 
-	clientsOperation := userGroupOperation("update-user-group-allowed-oidc-clients", http.MethodPut, "/api/user-groups/{id}/allowed-oidc-clients", "Update allowed OIDC clients")
-	auth(&clientsOperation)
-	httpapi.Register(api, clientsOperation, controller.updateAllowedOIDCClients)
-}
-
-func userGroupOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"User Groups"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-group-allowed-oidc-clients",
+		Method:      http.MethodPut,
+		Path:        "/api/user-groups/{id}/allowed-oidc-clients",
+		Summary:     "Update allowed OIDC clients",
+		Tags:        []string{"User Groups"},
+	}, controller.updateAllowedOIDCClients, auth)
 }
 
 type UserGroupController struct {

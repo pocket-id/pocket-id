@@ -16,22 +16,40 @@ import (
 // NewAuditLogController registers audit log routes
 func NewAuditLogController(api huma.API, auditLogService *service.AuditLogService, authMiddleware *middleware.AuthMiddleware) {
 	controller := &AuditLogController{auditLogService: auditLogService}
+	adminAuth := authMiddleware.Huma(api)
+	userAuth := authMiddleware.WithAdminNotRequired().Huma(api)
 
-	allOperation := huma.Operation{OperationID: "list-all-audit-logs", Method: http.MethodGet, Path: "/api/audit-logs/all", Summary: "List all audit logs", Tags: []string{"Audit Logs"}}
-	authMiddleware.Huma(api)(&allOperation)
-	httpapi.Register(api, allOperation, controller.listAllAuditLogsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-all-audit-logs",
+		Method:      http.MethodGet,
+		Path:        "/api/audit-logs/all",
+		Summary:     "List all audit logs",
+		Tags:        []string{"Audit Logs"},
+	}, controller.listAllAuditLogsHandler, adminAuth)
 
-	userOperation := huma.Operation{OperationID: "list-current-user-audit-logs", Method: http.MethodGet, Path: "/api/audit-logs", Summary: "List audit logs for the current user", Tags: []string{"Audit Logs"}}
-	authMiddleware.WithAdminNotRequired().Huma(api)(&userOperation)
-	httpapi.Register(api, userOperation, controller.listAuditLogsForUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-current-user-audit-logs",
+		Method:      http.MethodGet,
+		Path:        "/api/audit-logs",
+		Summary:     "List audit logs for the current user",
+		Tags:        []string{"Audit Logs"},
+	}, controller.listAuditLogsForUserHandler, userAuth)
 
-	clientsOperation := huma.Operation{OperationID: "list-audit-log-client-names", Method: http.MethodGet, Path: "/api/audit-logs/filters/client-names", Summary: "List client names", Tags: []string{"Audit Logs"}}
-	authMiddleware.Huma(api)(&clientsOperation)
-	httpapi.Register(api, clientsOperation, controller.listClientNamesHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-audit-log-client-names",
+		Method:      http.MethodGet,
+		Path:        "/api/audit-logs/filters/client-names",
+		Summary:     "List client names",
+		Tags:        []string{"Audit Logs"},
+	}, controller.listClientNamesHandler, adminAuth)
 
-	usersOperation := huma.Operation{OperationID: "list-audit-log-users", Method: http.MethodGet, Path: "/api/audit-logs/filters/users", Summary: "List users with IDs", Tags: []string{"Audit Logs"}}
-	authMiddleware.Huma(api)(&usersOperation)
-	httpapi.Register(api, usersOperation, controller.listUserNamesWithIDsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-audit-log-users",
+		Method:      http.MethodGet,
+		Path:        "/api/audit-logs/filters/users",
+		Summary:     "List users with IDs",
+		Tags:        []string{"Audit Logs"},
+	}, controller.listUserNamesWithIDsHandler, adminAuth)
 }
 
 type AuditLogController struct {

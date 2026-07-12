@@ -53,36 +53,55 @@ func New(deps Dependencies) *Module {
 // RegisterRoutes mounts the signup and signup-token management endpoints
 // adminAuth guards the admin token-management routes; signupRateLimit throttles public self-signup
 func (m *Module) RegisterRoutes(api huma.API, adminAuth func(*huma.Operation), signupRateLimit func(huma.Context, func(huma.Context))) {
-	createTokenOperation := signupOperation("create-signup-token", http.MethodPost, "/api/signup-tokens", "Create signup token")
-	createTokenOperation.DefaultStatus = http.StatusCreated
-	adminAuth(&createTokenOperation)
-	httpapi.Register(api, createTokenOperation, m.handler.createSignupToken)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-signup-token",
+		Method:        http.MethodPost,
+		Path:          "/api/signup-tokens",
+		Summary:       "Create signup token",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+	}, m.handler.createSignupToken, adminAuth)
 
-	listTokensOperation := signupOperation("list-signup-tokens", http.MethodGet, "/api/signup-tokens", "List signup tokens")
-	adminAuth(&listTokensOperation)
-	httpapi.Register(api, listTokensOperation, m.handler.listSignupTokens)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-signup-tokens",
+		Method:      http.MethodGet,
+		Path:        "/api/signup-tokens",
+		Summary:     "List signup tokens",
+		Tags:        []string{"Users"},
+	}, m.handler.listSignupTokens, adminAuth)
 
-	deleteTokenOperation := signupOperation("delete-signup-token", http.MethodDelete, "/api/signup-tokens/{id}", "Delete signup token")
-	deleteTokenOperation.DefaultStatus = http.StatusNoContent
-	adminAuth(&deleteTokenOperation)
-	httpapi.Register(api, deleteTokenOperation, m.handler.deleteSignupToken)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-signup-token",
+		Method:        http.MethodDelete,
+		Path:          "/api/signup-tokens/{id}",
+		Summary:       "Delete signup token",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.deleteSignupToken, adminAuth)
 
-	selfSignupOperation := signupOperation("signup", http.MethodPost, "/api/signup", "Sign up")
-	selfSignupOperation.DefaultStatus = http.StatusCreated
-	selfSignupOperation.Middlewares = append(selfSignupOperation.Middlewares, signupRateLimit)
-	httpapi.Register(api, selfSignupOperation, m.handler.signup)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "signup",
+		Method:        http.MethodPost,
+		Path:          "/api/signup",
+		Summary:       "Sign up",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+	}, m.handler.signup, httpapi.WithMiddleware(signupRateLimit))
 
-	setupAvailableOperation := signupOperation("check-initial-admin-setup", http.MethodGet, "/api/signup/setup", "Check initial admin setup availability")
-	setupAvailableOperation.DefaultStatus = http.StatusNoContent
-	httpapi.Register(api, setupAvailableOperation, m.handler.checkInitialAdminSetupAvailable)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "check-initial-admin-setup",
+		Method:        http.MethodGet,
+		Path:          "/api/signup/setup",
+		Summary:       "Check initial admin setup availability",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.checkInitialAdminSetupAvailable)
 
-	httpapi.Register(api, signupOperationForInitialAdmin(), m.handler.signUpInitialAdmin)
-}
-
-func signupOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"Users"}}
-}
-
-func signupOperationForInitialAdmin() huma.Operation {
-	return signupOperation("signup-initial-admin", http.MethodPost, "/api/signup/setup", "Sign up initial admin user")
+	httpapi.Register(api, huma.Operation{
+		OperationID: "signup-initial-admin",
+		Method:      http.MethodPost,
+		Path:        "/api/signup/setup",
+		Summary:     "Sign up initial admin user",
+		Tags:        []string{"Users"},
+	}, m.handler.signUpInitialAdmin)
 }

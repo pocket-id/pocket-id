@@ -45,43 +45,110 @@ type imageOutput struct {
 
 func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddleware, appImagesService *service.AppImagesService) {
 	controller := &AppImagesController{appImagesService: appImagesService}
-
-	httpapi.Register(api, imageOperation("get-application-logo", http.MethodGet, "/api/application-images/logo", "Get logo image"), controller.getLogoHandler)
-	httpapi.Register(api, imageOperation("get-email-logo", http.MethodGet, "/api/application-images/email", "Get email logo image"), controller.getEmailLogoHandler)
-	httpapi.Register(api, imageOperation("get-background-image", http.MethodGet, "/api/application-images/background", "Get background image"), controller.getBackgroundImageHandler)
-	httpapi.Register(api, imageOperation("get-favicon", http.MethodGet, "/api/application-images/favicon", "Get favicon"), controller.getFaviconHandler)
-
 	auth := authMiddleware.Huma(api)
-	defaultPictureOperation := imageOperation("get-default-profile-picture", http.MethodGet, "/api/application-images/default-profile-picture", "Get default profile picture")
-	auth(&defaultPictureOperation)
-	httpapi.Register(api, defaultPictureOperation, controller.getDefaultProfilePicture)
 
-	logoOperation := imageOperation("update-application-logo", http.MethodPut, "/api/application-images/logo", "Update logo")
-	logoOperation.DefaultStatus = http.StatusNoContent
-	auth(&logoOperation)
-	httpapi.Register(api, logoOperation, controller.updateLogoHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-application-logo",
+		Method:      http.MethodGet,
+		Path:        "/api/application-images/logo",
+		Summary:     "Get logo image",
+		Tags:        []string{"Application Images"},
+	}, controller.getLogoHandler)
 
-	registerUpload := func(operation huma.Operation, handler func(context.Context, *imageUploadInput) (*httpapi.EmptyOutput, error)) {
-		operation.DefaultStatus = http.StatusNoContent
-		auth(&operation)
-		httpapi.Register(api, operation, handler)
-	}
-	registerUpload(imageOperation("update-email-logo", http.MethodPut, "/api/application-images/email", "Update email logo"), controller.updateEmailLogoHandler)
-	registerUpload(imageOperation("update-background-image", http.MethodPut, "/api/application-images/background", "Update background image"), controller.updateBackgroundImageHandler)
-	registerUpload(imageOperation("update-favicon", http.MethodPut, "/api/application-images/favicon", "Update favicon"), controller.updateFaviconHandler)
-	registerUpload(imageOperation("update-default-profile-picture", http.MethodPut, "/api/application-images/default-profile-picture", "Update default profile picture"), controller.updateDefaultProfilePicture)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-email-logo",
+		Method:      http.MethodGet,
+		Path:        "/api/application-images/email",
+		Summary:     "Get email logo image",
+		Tags:        []string{"Application Images"},
+	}, controller.getEmailLogoHandler)
 
-	registerDelete := func(operation huma.Operation, handler func(context.Context, *httpapi.EmptyInput) (*httpapi.EmptyOutput, error)) {
-		operation.DefaultStatus = http.StatusNoContent
-		auth(&operation)
-		httpapi.Register(api, operation, handler)
-	}
-	registerDelete(imageOperation("delete-background-image", http.MethodDelete, "/api/application-images/background", "Delete background image"), controller.deleteBackgroundImageHandler)
-	registerDelete(imageOperation("delete-default-profile-picture", http.MethodDelete, "/api/application-images/default-profile-picture", "Delete default profile picture"), controller.deleteDefaultProfilePicture)
-}
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-background-image",
+		Method:      http.MethodGet,
+		Path:        "/api/application-images/background",
+		Summary:     "Get background image",
+		Tags:        []string{"Application Images"},
+	}, controller.getBackgroundImageHandler)
 
-func imageOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"Application Images"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-favicon",
+		Method:      http.MethodGet,
+		Path:        "/api/application-images/favicon",
+		Summary:     "Get favicon",
+		Tags:        []string{"Application Images"},
+	}, controller.getFaviconHandler)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-default-profile-picture",
+		Method:      http.MethodGet,
+		Path:        "/api/application-images/default-profile-picture",
+		Summary:     "Get default profile picture",
+		Tags:        []string{"Application Images"},
+	}, controller.getDefaultProfilePicture, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-application-logo",
+		Method:        http.MethodPut,
+		Path:          "/api/application-images/logo",
+		Summary:       "Update logo",
+		Tags:          []string{"Application Images"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateLogoHandler, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-email-logo",
+		Method:        http.MethodPut,
+		Path:          "/api/application-images/email",
+		Summary:       "Update email logo",
+		Tags:          []string{"Application Images"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateEmailLogoHandler, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-background-image",
+		Method:        http.MethodPut,
+		Path:          "/api/application-images/background",
+		Summary:       "Update background image",
+		Tags:          []string{"Application Images"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateBackgroundImageHandler, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-favicon",
+		Method:        http.MethodPut,
+		Path:          "/api/application-images/favicon",
+		Summary:       "Update favicon",
+		Tags:          []string{"Application Images"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateFaviconHandler, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-default-profile-picture",
+		Method:        http.MethodPut,
+		Path:          "/api/application-images/default-profile-picture",
+		Summary:       "Update default profile picture",
+		Tags:          []string{"Application Images"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateDefaultProfilePicture, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-background-image",
+		Method:        http.MethodDelete,
+		Path:          "/api/application-images/background",
+		Summary:       "Delete background image",
+		Tags:          []string{"Application Images"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteBackgroundImageHandler, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-default-profile-picture",
+		Method:        http.MethodDelete,
+		Path:          "/api/application-images/default-profile-picture",
+		Summary:       "Delete default profile picture",
+		Tags:          []string{"Application Images"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteDefaultProfilePicture, auth)
 }
 
 type AppImagesController struct {

@@ -27,17 +27,29 @@ func NewCustomClaimController(api huma.API, authMiddleware *middleware.AuthMiddl
 	controller := &CustomClaimController{customClaimService: customClaimService}
 	auth := authMiddleware.Huma(api)
 
-	suggestionsOperation := huma.Operation{OperationID: "list-custom-claim-suggestions", Method: http.MethodGet, Path: "/api/custom-claims/suggestions", Summary: "Get custom claim suggestions", Tags: []string{"Custom Claims"}}
-	auth(&suggestionsOperation)
-	httpapi.Register(api, suggestionsOperation, controller.getSuggestionsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-custom-claim-suggestions",
+		Method:      http.MethodGet,
+		Path:        "/api/custom-claims/suggestions",
+		Summary:     "Get custom claim suggestions",
+		Tags:        []string{"Custom Claims"},
+	}, controller.getSuggestionsHandler, auth)
 
-	userOperation := huma.Operation{OperationID: "update-user-custom-claims", Method: http.MethodPut, Path: "/api/custom-claims/user/{userId}", Summary: "Update custom claims for a user", Tags: []string{"Custom Claims"}}
-	auth(&userOperation)
-	httpapi.Register(api, userOperation, controller.updateCustomClaimsForUserHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-custom-claims",
+		Method:      http.MethodPut,
+		Path:        "/api/custom-claims/user/{userId}",
+		Summary:     "Update custom claims for a user",
+		Tags:        []string{"Custom Claims"},
+	}, controller.updateCustomClaimsForUserHandler, auth)
 
-	userGroupOperation := huma.Operation{OperationID: "update-user-group-custom-claims", Method: http.MethodPut, Path: "/api/custom-claims/user-group/{userGroupId}", Summary: "Update custom claims for a user group", Tags: []string{"Custom Claims"}}
-	auth(&userGroupOperation)
-	httpapi.Register(api, userGroupOperation, controller.updateCustomClaimsForUserGroupHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-group-custom-claims",
+		Method:      http.MethodPut,
+		Path:        "/api/custom-claims/user-group/{userGroupId}",
+		Summary:     "Update custom claims for a user group",
+		Tags:        []string{"Custom Claims"},
+	}, controller.updateCustomClaimsForUserGroupHandler, auth)
 }
 
 type CustomClaimController struct {

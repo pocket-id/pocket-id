@@ -32,8 +32,21 @@ func NewWellKnownController(api huma.API, jwtService *service.JwtService) {
 		return
 	}
 
-	httpapi.Register(api, huma.Operation{OperationID: "get-jwks", Method: http.MethodGet, Path: "/.well-known/jwks.json", Summary: "Get JSON Web Key Set", Tags: []string{"Well Known"}}, controller.jwksHandler)
-	httpapi.Register(api, huma.Operation{OperationID: "get-openid-configuration", Method: http.MethodGet, Path: "/.well-known/openid-configuration", Summary: "Get OpenID Connect discovery configuration", Tags: []string{"Well Known"}}, controller.openIDConfigurationHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-jwks",
+		Method:      http.MethodGet,
+		Path:        "/.well-known/jwks.json",
+		Summary:     "Get JSON Web Key Set",
+		Tags:        []string{"Well Known"},
+	}, controller.jwksHandler)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-openid-configuration",
+		Method:      http.MethodGet,
+		Path:        "/.well-known/openid-configuration",
+		Summary:     "Get OpenID Connect discovery configuration",
+		Tags:        []string{"Well Known"},
+	}, controller.openIDConfigurationHandler)
 }
 
 type WellKnownController struct {

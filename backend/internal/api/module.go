@@ -62,25 +62,69 @@ func (m *Module) DescribePermissions(ctx context.Context, audience string, keys 
 
 // RegisterRoutes mounts the admin CRUD endpoints
 func (m *Module) RegisterRoutes(api huma.API, adminAuth func(*huma.Operation)) {
-	register := func(operation huma.Operation, registerHandler func(huma.Operation)) {
-		adminAuth(&operation)
-		registerHandler(operation)
-	}
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-apis",
+		Method:      http.MethodGet,
+		Path:        "/api/apis",
+		Summary:     "List APIs",
+		Tags:        []string{"APIs"},
+	}, m.handler.list, adminAuth)
 
-	register(apiOperation("list-apis", http.MethodGet, "/api/apis", "List APIs"), func(operation huma.Operation) { httpapi.Register(api, operation, m.handler.list) })
-	createOperation := apiOperation("create-api", http.MethodPost, "/api/apis", "Create API")
-	createOperation.DefaultStatus = http.StatusCreated
-	register(createOperation, func(operation huma.Operation) { httpapi.Register(api, operation, m.handler.create) })
-	register(apiOperation("get-api", http.MethodGet, "/api/apis/{id}", "Get API by ID"), func(operation huma.Operation) { httpapi.Register(api, operation, m.handler.get) })
-	register(apiOperation("update-api", http.MethodPut, "/api/apis/{id}", "Update API"), func(operation huma.Operation) { httpapi.Register(api, operation, m.handler.update) })
-	deleteOperation := apiOperation("delete-api", http.MethodDelete, "/api/apis/{id}", "Delete API")
-	deleteOperation.DefaultStatus = http.StatusNoContent
-	register(deleteOperation, func(operation huma.Operation) { httpapi.Register(api, operation, m.handler.delete) })
-	register(apiOperation("update-api-permissions", http.MethodPut, "/api/apis/{id}/permissions", "Update API permissions"), func(operation huma.Operation) { httpapi.Register(api, operation, m.handler.updatePermissions) })
-	register(apiOperation("get-client-api-access", http.MethodGet, "/api/api-access/{clientId}", "Get client API access"), func(operation huma.Operation) { httpapi.Register(api, operation, m.handler.getClientAccess) })
-	register(apiOperation("update-client-api-access", http.MethodPut, "/api/api-access/{clientId}", "Update client API access"), func(operation huma.Operation) { httpapi.Register(api, operation, m.handler.updateClientAccess) })
-}
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-api",
+		Method:        http.MethodPost,
+		Path:          "/api/apis",
+		Summary:       "Create API",
+		Tags:          []string{"APIs"},
+		DefaultStatus: http.StatusCreated,
+	}, m.handler.create, adminAuth)
 
-func apiOperation(id, method, path, summary string) huma.Operation {
-	return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, Tags: []string{"APIs"}}
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-api",
+		Method:      http.MethodGet,
+		Path:        "/api/apis/{id}",
+		Summary:     "Get API by ID",
+		Tags:        []string{"APIs"},
+	}, m.handler.get, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-api",
+		Method:      http.MethodPut,
+		Path:        "/api/apis/{id}",
+		Summary:     "Update API",
+		Tags:        []string{"APIs"},
+	}, m.handler.update, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-api",
+		Method:        http.MethodDelete,
+		Path:          "/api/apis/{id}",
+		Summary:       "Delete API",
+		Tags:          []string{"APIs"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.delete, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-api-permissions",
+		Method:      http.MethodPut,
+		Path:        "/api/apis/{id}/permissions",
+		Summary:     "Update API permissions",
+		Tags:        []string{"APIs"},
+	}, m.handler.updatePermissions, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-client-api-access",
+		Method:      http.MethodGet,
+		Path:        "/api/api-access/{clientId}",
+		Summary:     "Get client API access",
+		Tags:        []string{"APIs"},
+	}, m.handler.getClientAccess, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-client-api-access",
+		Method:      http.MethodPut,
+		Path:        "/api/api-access/{clientId}",
+		Summary:     "Update client API access",
+		Tags:        []string{"APIs"},
+	}, m.handler.updateClientAccess, adminAuth)
 }
