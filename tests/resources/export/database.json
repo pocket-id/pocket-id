@@ -244,6 +244,7 @@
 				"expires_at": "2025-11-25T13:39:02Z",
 				"id": "bf877753-4ea4-4c9c-bbbd-e198bb201cb8",
 				"token": "HPe6k6uiDRRVuAQV",
+				"permitted_client_id": "",
 				"device_token": null,
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
@@ -252,6 +253,7 @@
 				"expires_at": "2025-11-25T12:39:01Z",
 				"id": "d3afae24-fe2d-4a98-abec-cf0b8525096a",
 				"token": "YCGDtftvsvYWiXd0",
+				"permitted_client_id": "",
 				"device_token": null,
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			},
@@ -260,6 +262,7 @@
 				"expires_at": "2025-11-25T13:39:02Z",
 				"id": "defd5164-9d9b-4228-bbce-708e33f49360",
 				"token": "one-time-token",
+				"permitted_client_id": "",
 				"device_token": null,
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			}
