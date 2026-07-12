@@ -15,7 +15,8 @@ import (
 func TestExchangeOneTimeAccessTokenRejectsDisabledUser(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	appConfig := NewTestAppConfigService((&AppConfigService{}).getDefaultDbConfig())
-	jwtService := initJwtService(t, db, appConfig, newTestEnvConfig())
+	instanceID := newInstanceID(t, db)
+	jwtService := initJwtService(t, db, instanceID, appConfig, newTestEnvConfig())
 	auditLogService := NewAuditLogService(db, appConfig, nil, &GeoLiteService{})
 	oneTimeAccessService := NewOneTimeAccessService(db, nil, jwtService, auditLogService, nil, appConfig)
 

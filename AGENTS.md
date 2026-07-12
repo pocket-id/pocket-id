@@ -12,10 +12,10 @@ the binary for production). This file lists what isn't obvious from reading the 
 ## Build / test / lint
 
 ```sh
-# backend/   — the exclude_frontend tag is mandatory locally; CI uses it too
-go test -tags=exclude_frontend ./...                          # unit/integration tests
-go test -tags=exclude_frontend -run TestName ./internal/...   # a single test
-golangci-lint run --build-tags=exclude_frontend               # lint (config: backend/.golangci.yml)
+# backend/   — the exclude_frontend and unit tags are mandatory locally; CI uses them too
+go test -tags=exclude_frontend,unit ./...                          # unit/integration tests
+go test -tags=exclude_frontend,unit -run TestName ./internal/...   # a single test
+golangci-lint run  # lint (config: backend/.golangci.yml - includes build tags)
 
 # frontend/  (or root)
 pnpm check        # svelte-check — the ONLY frontend type gate (no unit tests exist)
@@ -32,9 +32,8 @@ cd ../.. && pnpm test                            # = playwright test in tests/
 
 ## Critical gotchas
 
-- **`exclude_frontend` build tag.** `backend/frontend/` embeds `dist/` via `go:embed`. Without
-  a built frontend present, plain `go run`/`go test`/`golangci-lint` fail to compile. Always pass
-  `-tags exclude_frontend` for backend dev/test/lint. Production builds omit it to embed the SPA.
+- **`exclude_frontend` and `unit` build tags.** Without them plain `go run`/`go test`/`golangci-lint` fail
+  to run. Always pass `-tags exclude_frontend,unit` for backend dev/test/lint.
 - **Never edit generated files:** `frontend/src/lib/paraglide/**` (Paraglide i18n output) and
   `backend/frontend/dist/**`. For i18n, only edit `frontend/messages/en.json`; other locales come
   from Crowdin.

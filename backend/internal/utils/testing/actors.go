@@ -1,3 +1,5 @@
+//go:build unit
+
 // This file is only imported by unit tests
 
 package testing
@@ -18,24 +20,26 @@ import (
 const testActorHostPSK = "pocket-id-test-actor-host-psk-32bytes"
 
 // NewActorHostForTest starts a single-host Francis cluster backed by the in-memory provider, runs it, and waits until it is ready to serve invocations
-// Pass built-in actors with local.WithBuiltInActor; the host is stopped when the test ends
+// The register callback, if not nil, runs after the host is created but before it starts, so callers can register actors with host.RegisterActor/host.RegisterBuiltInActor (must be called before the host is running)
+// The host is stopped when the test ends
 // The in-memory provider keeps no state on disk, so the test never touches a real database
-func NewActorHostForTest(t *testing.T, opts ...local.HostOption) *local.Host {
+func NewActorHostForTest(t *testing.T, register func(t *testing.T, h *local.Host)) *local.Host {
 	t.Helper()
 
-	// The defaults come first so callers can register their built-in actors (and override any default) through opts
-	hostOpts := append(
-		[]local.HostOption{
-			local.WithAddress(freeLoopbackAddr(t)),
-			local.WithRuntimePSKs([]byte(testActorHostPSK)),
-			local.WithStandaloneMemoryProvider(standalone.StandaloneMemoryOptions{}),
-			local.WithShutdownGracePeriod(time.Second),
-		},
-		opts...,
-	)
+	hostOpts := []local.HostOption{
+		local.WithAddress(freeLoopbackAddr(t)),
+		local.WithRuntimePSKs([]byte(testActorHostPSK)),
+		local.WithStandaloneMemoryProvider(standalone.StandaloneMemoryOptions{}),
+		local.WithShutdownGracePeriod(time.Second),
+	}
 
 	h, err := local.NewHost(hostOpts...)
 	require.NoError(t, err)
+
+	// Register built-in actors before the host starts
+	if register != nil {
+		register(t, h)
+	}
 
 	// Run the host in the background and stop it when the test ends
 	ctx, cancel := context.WithCancel(context.Background())

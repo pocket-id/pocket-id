@@ -125,4 +125,4 @@ If you make any changes to the application, you have to rebuild the test environ
 
 In the backend we are using unit tests with the built-in Go testing framework. The tests are located in the same folder as the code they are testing and have the `_test.go` suffix.
 
-To run the tests, simply run `go test ./...` from the root of the `backend` folder.
+To run the tests, simply run `go test -tags=exclude_frontend,unit ./...` from the root of the `backend` folder.
