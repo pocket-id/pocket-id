@@ -228,7 +228,7 @@ func NewOneTimeAccessToken(userID string, ttl time.Duration, withDeviceToken boo
 		tokenLength = 6
 	}
 
-	//lock to a specific client if requested
+	// lock to a specific client if requested
 	permittedClientValue := ""
 	if permittedClient != nil {
 		permittedClientValue = *permittedClient
@@ -249,10 +249,10 @@ func NewOneTimeAccessToken(userID string, ttl time.Duration, withDeviceToken boo
 
 	now := time.Now().Round(time.Second)
 	o := &model.OneTimeAccessToken{
-		UserID:          userID,
-		ExpiresAt:       datatype.DateTime(now.Add(ttl)),
-		Token:           token,
-		DeviceToken:     deviceToken,
+		UserID:            userID,
+		ExpiresAt:         datatype.DateTime(now.Add(ttl)),
+		Token:             token,
+		DeviceToken:       deviceToken,
 		PermittedClientId: permittedClientValue,
 	}
 
