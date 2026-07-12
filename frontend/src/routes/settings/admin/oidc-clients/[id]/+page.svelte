@@ -320,24 +320,24 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
-    <div class="block mt-4">
-        <Item.Root variant="card" class="border-border">
-            <Item.Media class="text-primary/80">
-                <RectangleEllipsis class="size-5" />
-            </Item.Media>
-            <Item.Content>
-                <Item.Title>{m.login_code()}</Item.Title>
-                <Item.Description>
-                    {m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
-                </Item.Description>
-            </Item.Content>
-            <Item.Actions class="w-full sm:w-auto">
-                <Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
-                    {m.create()}
-                </Button>
-           </Item.Actions>
-        </Item.Root>
-    </div>
+		<div>
+			<Item.Root variant="card" class="border-border">
+				<Item.Media class="text-primary/80">
+					<RectangleEllipsis class="size-5" />
+				</Item.Media>
+				<Item.Content>
+					<Item.Title>{m.login_code()}</Item.Title>
+					<Item.Description>
+						{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
+					</Item.Description>
+				</Item.Content>
+				<Item.Actions class="w-full sm:w-auto">
+					<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
+						{m.create()}
+					</Button>
+				</Item.Actions>
+			</Item.Root>
+		</div>
 		<Card.Root>
 			<Card.Content>
 				<OidcForm mode="update" existingClient={client} callback={updateClient} />
@@ -362,23 +362,23 @@
 					{/if}
 				</div>
 			</Card.Header>
-{#if client.isGroupRestricted}
-                <Card.Content>
-                    <UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
-                    <div class="mt-5 flex justify-end gap-3">
-                        <Button onclick={disableGroupRestriction} variant="secondary">{m.unrestrict()}</Button>
+			{#if client.isGroupRestricted}
+				<Card.Content>
+					<UserGroupSelection bind:selectedGroupIds={client.allowedUserGroupIds} />
+					<div class="mt-5 flex justify-end gap-3">
+						<Button onclick={disableGroupRestriction} variant="secondary">{m.unrestrict()}</Button>
 
-                        <Button
-                            usePromiseLoading
-                            onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button
-                        >
-                    </div>
-                </Card.Content>
-            {/if}
-        </Card.Root>
-    </Tabs.Content>
+						<Button
+							usePromiseLoading
+							onclick={() => updateUserGroupClients(client.allowedUserGroupIds)}>{m.save()}</Button
+						>
+					</div>
+				</Card.Content>
+			{/if}
+		</Card.Root>
+	</Tabs.Content>
 
-    <Tabs.Content value="api-access" id="api-access">
+	<Tabs.Content value="api-access" id="api-access">
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>{m.api_access()}</Card.Title>
