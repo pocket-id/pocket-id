@@ -630,11 +630,21 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 		return err
 	}
 
-	// Manually set instance ID
-	err = s.appConfigService.UpdateAppConfigValues(ctx, "instanceId", "test-instance-id")
+	// Manually set the instance ID used to derive the JWK encryption key, so the seeded JWK can be decrypted
+	// Persist the fixed test value so it survives an export/import round-trip
+	const testInstanceID = "test-instance-id"
+	err = s.db.WithContext(ctx).
+		Exec(
+			`INSERT INTO kv (key, value) VALUES ('instance_id', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+			testInstanceID,
+		).
+		Error
 	if err != nil {
 		return err
 	}
+
+	// The instance ID is loaded once at startup, so we also set it directly on the JWT service so it takes effect immediately
+	s.jwtService.instanceID = testInstanceID
 
 	// Reload the app config from the database after resetting the values
 	err = s.appConfigService.LoadDbConfig(ctx)

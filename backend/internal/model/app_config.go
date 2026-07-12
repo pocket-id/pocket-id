@@ -44,8 +44,6 @@ type AppConfig struct {
 	AllowUserSignups          AppConfigVariable `key:"allowUserSignups,public"`    // Public
 	SignupDefaultUserGroupIDs AppConfigVariable `key:"signupDefaultUserGroupIDs"`
 	SignupDefaultCustomClaims AppConfigVariable `key:"signupDefaultCustomClaims"`
-	// Internal
-	InstanceID AppConfigVariable `key:"instanceId,internal"` // Internal
 	// Email
 	RequireUserEmail                           AppConfigVariable `key:"requireUserEmail,public"` // Public
 	SmtpHost                                   AppConfigVariable `key:"smtpHost"`

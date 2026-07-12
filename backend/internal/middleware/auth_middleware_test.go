@@ -15,6 +15,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -38,7 +39,10 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	appConfigService, err := service.NewAppConfigService(t.Context(), db)
 	require.NoError(t, err)
 
-	jwtService, err := service.NewJwtService(t.Context(), db, appConfigService)
+	instanceID, err := instanceid.Load(t.Context(), db)
+	require.NoError(t, err)
+
+	jwtService, err := service.NewJwtService(t.Context(), db, instanceID, appConfigService)
 	require.NoError(t, err)
 
 	userService := service.NewUserService(db, jwtService, nil, nil, appConfigService, nil, nil, nil, nil)

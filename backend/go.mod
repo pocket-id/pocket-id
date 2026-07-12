@@ -24,9 +24,8 @@ require (
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/go-uuid v1.0.3
-	github.com/italypaleale/francis v0.1.0-beta.6
-	github.com/italypaleale/go-kit v0.0.0-20260705144331-cc6661f9a8cf
+	github.com/italypaleale/francis v0.1.0-beta.10
+	github.com/italypaleale/go-kit v0.0.0-20260708054611-e276b65dd3be
 	github.com/italypaleale/go-sql-utils v0.2.4
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
@@ -183,7 +182,7 @@ require (
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.60.0 // indirect
-	github.com/quic-go/webtransport-go v0.10.0 // indirect
+	github.com/quic-go/webtransport-go v0.11.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect

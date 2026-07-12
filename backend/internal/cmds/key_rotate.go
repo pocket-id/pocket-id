@@ -13,7 +13,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	jwkutils "github.com/pocket-id/pocket-id/backend/internal/utils/jwk"
 )
@@ -36,7 +36,12 @@ func init() {
 				return err
 			}
 
-			return keyRotate(cmd.Context(), flags, db, &common.EnvConfig)
+			instanceID, err := instanceid.Load(cmd.Context(), db)
+			if err != nil {
+				return err
+			}
+
+			return keyRotate(cmd.Context(), flags, db, instanceID, &common.EnvConfig)
 		},
 	}
 
@@ -47,7 +52,7 @@ func init() {
 	rootCmd.AddCommand(keyRotateCmd)
 }
 
-func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, envConfig *common.EnvConfigSchema) error {
+func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) error {
 	// Validate the flags
 	switch strings.ToUpper(flags.Alg) {
 	case jwa.RS256().String(), jwa.RS384().String(), jwa.RS512().String(),
@@ -83,14 +88,8 @@ func keyRotate(ctx context.Context, flags keyRotateFlags, db *gorm.DB, envConfig
 		}
 	}
 
-	// Init the services we need
-	appConfigService, err := service.NewAppConfigService(ctx, db)
-	if err != nil {
-		return fmt.Errorf("failed to create app config service: %w", err)
-	}
-
 	// Get the key provider
-	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, appConfigService.GetDbConfig().InstanceID.Value)
+	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, instanceID)
 	if err != nil {
 		return fmt.Errorf("failed to get key provider: %w", err)
 	}
