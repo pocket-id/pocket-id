@@ -106,7 +106,7 @@
 	</div>
 {:else}
 	<div
-		class="flex h-screen items-center justify-center bg-cover bg-center text-center"
+		class="flex min-h-dvh items-center justify-center bg-cover bg-center text-center"
 		style="background-image: url({cachedBackgroundImage.getUrl()});"
 	>
 		<Card.Root

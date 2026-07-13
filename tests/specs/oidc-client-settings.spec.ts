@@ -89,6 +89,27 @@ test('Edit OIDC client', async ({ page }) => {
 		.then((res) => expect.soft(res.status()).toBe(200));
 });
 
+test('Displays OIDC client endpoints from discovery configuration', async ({ page }) => {
+	const oidcConfiguration = {
+		issuer: 'https://id.example.com',
+		authorization_endpoint: 'https://id.example.com/authorize',
+		token_endpoint: 'http://pocket-id:1411/api/oidc/token',
+		userinfo_endpoint: 'http://pocket-id:1411/api/oidc/userinfo',
+		end_session_endpoint: 'https://id.example.com/api/oidc/end-session',
+		jwks_uri: 'http://pocket-id:1411/.well-known/jwks.json'
+	};
+
+	await page.route('**/.well-known/openid-configuration', async (route) => {
+		await route.fulfill({ json: oidcConfiguration });
+	});
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+	await page.getByRole('button', { name: 'Show more details' }).click();
+
+	await expect(page.getByText(oidcConfiguration.token_endpoint, { exact: true })).toBeVisible();
+	await expect(page.getByText(oidcConfiguration.userinfo_endpoint, { exact: true })).toBeVisible();
+	await expect(page.getByText(oidcConfiguration.jwks_uri, { exact: true })).toBeVisible();
+});
+
 test('Create new OIDC client secret', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	await page.goto(`/settings/admin/oidc-clients/${oidcClient.id}`);

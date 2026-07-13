@@ -172,6 +172,7 @@
 				id="signup-token-list"
 				withoutSearch={true}
 				fetchCallback={userService.listSignupTokens}
+				defaultSort={{ column: 'createdAt', direction: 'asc' }}
 				bind:this={tableRef}
 				{columns}
 				{actions}

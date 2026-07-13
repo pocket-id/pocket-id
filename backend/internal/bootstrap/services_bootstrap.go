@@ -100,9 +100,10 @@ func initServices(
 		DB:         db,
 		HTTPClient: httpClient,
 		Config: oidc.Config{
-			BaseURL:      common.EnvConfig.AppURL,
-			TokenBaseURL: common.EnvConfig.AppURL,
-			Secret:       common.EnvConfig.EncryptionKey,
+			BaseURL:                   common.EnvConfig.AppURL,
+			TokenBaseURL:              common.EnvConfig.AppURL,
+			Secret:                    common.EnvConfig.EncryptionKey,
+			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
 		},
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,
