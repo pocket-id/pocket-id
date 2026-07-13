@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
@@ -17,6 +18,7 @@ import (
 
 type AppEnv string
 type DbProvider string
+type TrustProxyConfig []string
 
 const (
 	// TracerName should be passed to otel.Tracer, trace.SpanFromContext when creating custom spans.
@@ -42,18 +44,18 @@ type EnvConfigSchema struct {
 	EncryptionKey             []byte `env:"ENCRYPTION_KEY" options:"file"`
 	AppURL                    string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
 	DbProvider                DbProvider
-	DbConnectionString        string `env:"DB_CONNECTION_STRING" options:"file"`
-	TrustProxy                bool   `env:"TRUST_PROXY"`
-	TrustedPlatform           string `env:"TRUSTED_PLATFORM"`
-	AuditLogRetentionDays     int    `env:"AUDIT_LOG_RETENTION_DAYS"`
-	AnalyticsDisabled         bool   `env:"ANALYTICS_DISABLED"`
-	AllowDowngrade            bool   `env:"ALLOW_DOWNGRADE"`
-	AllowInsecureCallbackURLs bool   `env:"ALLOW_INSECURE_CALLBACK_URLS"`
-	InternalAppURL            string `env:"INTERNAL_APP_URL"`
-	UiConfigDisabled          bool   `env:"UI_CONFIG_DISABLED"`
-	DisableRateLimiting       bool   `env:"DISABLE_RATE_LIMITING"`
-	VersionCheckDisabled      bool   `env:"VERSION_CHECK_DISABLED"`
-	StaticApiKey              string `env:"STATIC_API_KEY" options:"file"`
+	DbConnectionString        string           `env:"DB_CONNECTION_STRING" options:"file"`
+	TrustProxy                TrustProxyConfig `env:"TRUST_PROXY"`
+	TrustedPlatform           string           `env:"TRUSTED_PLATFORM"`
+	AuditLogRetentionDays     int              `env:"AUDIT_LOG_RETENTION_DAYS"`
+	AnalyticsDisabled         bool             `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade            bool             `env:"ALLOW_DOWNGRADE"`
+	AllowInsecureCallbackURLs bool             `env:"ALLOW_INSECURE_CALLBACK_URLS"`
+	InternalAppURL            string           `env:"INTERNAL_APP_URL"`
+	UiConfigDisabled          bool             `env:"UI_CONFIG_DISABLED"`
+	DisableRateLimiting       bool             `env:"DISABLE_RATE_LIMITING"`
+	VersionCheckDisabled      bool             `env:"VERSION_CHECK_DISABLED"`
+	StaticApiKey              string           `env:"STATIC_API_KEY" options:"file"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
@@ -391,4 +393,30 @@ func (a AppEnv) IsProduction() bool {
 
 func (a AppEnv) IsTest() bool {
 	return a == AppEnvTest
+}
+
+func (config *TrustProxyConfig) UnmarshalText(text []byte) error {
+	value := strings.TrimSpace(string(text))
+
+	// Support boolean values for completely enabling or disabling trust proxy
+	enabled, err := strconv.ParseBool(value)
+	if err == nil {
+		if enabled {
+			*config = TrustProxyConfig{"0.0.0.0/0", "::/0"}
+		} else {
+			*config = nil
+		}
+
+		return nil
+	}
+
+	// Normalize and validate each explicit proxy before the server starts
+	proxies := strings.Split(value, ",")
+	for i, proxy := range proxies {
+		proxy = strings.TrimSpace(proxy)
+		proxies[i] = proxy
+	}
+
+	*config = proxies
+	return nil
 }
