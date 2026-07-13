@@ -64,17 +64,6 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			wantErr: "Field validation for 'Username' failed on the 'username' tag",
 		},
 		{
-			name: "invalid email",
-			input: UserCreateDto{
-				Username:    "testuser",
-				Email:       new("not-an-email"),
-				FirstName:   "John",
-				LastName:    "Doe",
-				DisplayName: "John Doe",
-			},
-			wantErr: "Field validation for 'Email' failed on the 'email' tag",
-		},
-		{
 			name: "first name too short",
 			input: UserCreateDto{
 				Username:    "testuser",
@@ -109,6 +98,31 @@ func TestUserCreateDto_Validate(t *testing.T) {
 
 			require.Error(t, err)
 			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
+func TestUserCreateDtoResolveEmail(t *testing.T) {
+	testCases := []struct {
+		name    string
+		email   *string
+		wantErr bool
+	}{
+		{name: "empty email", email: nil},
+		{name: "exact address", email: new("test@example.com")},
+		{name: "invalid address", email: new("not-an-email"), wantErr: true},
+		{name: "display name is not an exact address", email: new("Test User <test@example.com>"), wantErr: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			errs := (&UserCreateDto{Email: testCase.email}).Resolve(nil)
+			if testCase.wantErr {
+				require.Len(t, errs, 1)
+				require.ErrorContains(t, errs[0], "Field validation for 'Email' failed on the 'email' tag")
+				return
+			}
+			require.Empty(t, errs)
 		})
 	}
 }

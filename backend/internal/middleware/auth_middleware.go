@@ -131,14 +131,18 @@ type authenticationResult struct {
 }
 
 func (m *AuthMiddleware) authenticate(c *gin.Context) (authenticationResult, error) {
+	// Return immediately after successful JWT authentication
 	userID, isAdmin, authenticationMethod, authenticationTime, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
 	if err == nil {
 		return authenticationResult{userID, isAdmin, authenticationMethod, authenticationTime}, nil
 	}
+
+	// Fall back only when JWT verification reports that the request is not signed in
 	if !errors.Is(err, &common.NotSignedInError{}) {
 		return authenticationResult{}, err
 	}
 
+	// Handle API-key-disabled routes before considering API-key authentication
 	if !m.options.AllowApiKeyAuth {
 		if m.options.SuccessOptional {
 			return authenticationResult{}, nil
@@ -149,6 +153,7 @@ func (m *AuthMiddleware) authenticate(c *gin.Context) (authenticationResult, err
 		return authenticationResult{}, err
 	}
 
+	// Attempt API-key authentication after JWT reports that the request is not signed in
 	userID, isAdmin, err = m.apiKeyMiddleware.Verify(c, m.options.AdminRequired)
 	if err == nil {
 		return authenticationResult{UserID: userID, IsAdmin: isAdmin}, nil

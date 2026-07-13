@@ -143,20 +143,20 @@ func (h *handler) updateCredential(ctx context.Context, input *credentialUpdateI
 }
 
 func (h *handler) logout(_ context.Context, _ *httpapi.EmptyInput) (*emptyOutput, error) {
-	return &emptyOutput{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(0, "")}}, nil
+	return &emptyOutput{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(-1, "")}}, nil
 }
 
 func (h *handler) reauthenticate(ctx context.Context, input *optionalCredentialBodyInput) (*emptyOutput, error) {
-	sessionID, err := sessionID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	var token string
+	var err error
 	if input.Body != nil {
 		assertion, parseErr := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(*input.Body))
 		if parseErr == nil {
-			token, err = h.service.CreateReauthenticationTokenWithWebauthn(ctx, sessionID, assertion)
+			sessionCookieID, sessionErr := sessionID(ctx)
+			if sessionErr != nil {
+				return nil, sessionErr
+			}
+			token, err = h.service.CreateReauthenticationTokenWithWebauthn(ctx, sessionCookieID, assertion)
 		} else {
 			token, err = h.reauthenticateWithAccessToken(ctx)
 		}

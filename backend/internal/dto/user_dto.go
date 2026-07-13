@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/mail"
 	"unicode/utf8"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 type UserDto struct {
@@ -36,6 +38,17 @@ type UserCreateDto struct {
 	LdapID        string   `json:"-"`
 }
 
+func (u UserCreateDto) Resolve(huma.Context) []error {
+	if u.Email == nil {
+		return nil
+	}
+	address, err := mail.ParseAddress(*u.Email)
+	if err != nil || address.Address != *u.Email {
+		return []error{&huma.ErrorDetail{Location: "body.email", Message: "Field validation for 'Email' failed on the 'email' tag"}}
+	}
+	return nil
+}
+
 //nolint:staticcheck // LDAP callers and their tests rely on the existing capitalized validation text
 func (u UserCreateDto) Validate() error {
 	if u.Username == "" {
@@ -46,12 +59,6 @@ func (u UserCreateDto) Validate() error {
 	}
 	if utf8.RuneCountInString(u.Username) > 50 {
 		return errors.New("Field validation for 'Username' failed on the 'max' tag")
-	}
-	if u.Email != nil {
-		address, err := mail.ParseAddress(*u.Email)
-		if err != nil || address.Address != *u.Email {
-			return errors.New("Field validation for 'Email' failed on the 'email' tag")
-		}
 	}
 	if utf8.RuneCountInString(u.FirstName) > 50 {
 		return errors.New("Field validation for 'FirstName' failed on the 'max' tag")

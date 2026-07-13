@@ -35,7 +35,7 @@ func (h *endSessionHandler) endSession(c *gin.Context) {
 		return
 	}
 
-	http.SetCookie(c.Writer, cookie.NewAccessTokenCookie(0, ""))
+	http.SetCookie(c.Writer, cookie.NewAccessTokenCookie(-1, ""))
 	if callbackURL == "" {
 		c.Redirect(http.StatusFound, h.baseURL+"/logout")
 		return
