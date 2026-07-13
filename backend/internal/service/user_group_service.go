@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -64,13 +65,18 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 }
 
 func (s *UserGroupService) Delete(ctx context.Context, id string) error {
+	cfg, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	var group model.UserGroup
-	err := tx.
+	err = tx.
 		WithContext(ctx).
 		Where("id = ?", id).
 		First(&group).
@@ -80,7 +86,7 @@ func (s *UserGroupService) Delete(ctx context.Context, id string) error {
 	}
 
 	// Disallow deleting the group if it is an LDAP group and LDAP is enabled
-	if group.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	if group.LdapID != nil && cfg.LdapEnabled.IsTrue() {
 		return &common.LdapUserGroupUpdateError{}
 	}
 
@@ -123,10 +129,9 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 		Preload("Users").
 		Create(&group).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
-		}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
+	} else if err != nil {
 		return model.UserGroup{}, err
 	}
 
@@ -162,8 +167,13 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 		return model.UserGroup{}, err
 	}
 
+	cfg, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return model.UserGroup{}, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	// Disallow updating the group if it is an LDAP group and LDAP is enabled
-	if !isLdapSync && group.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	if !isLdapSync && group.LdapID != nil && cfg.LdapEnabled.IsTrue() {
 		return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
 	}
 
@@ -217,7 +227,7 @@ func (s *UserGroupService) updateUsersInternal(ctx context.Context, id string, u
 	// Fetch the users based on the userIds
 	var users []model.User
 	if len(userIds) > 0 {
-		err := tx.
+		err = tx.
 			WithContext(ctx).
 			Where("id IN (?)", userIds).
 			Find(&users).

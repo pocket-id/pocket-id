@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/italypaleale/go-kit/utils"
 
@@ -14,52 +15,74 @@ import (
 
 type AppConfigModel struct {
 	// General
-	AppName             string `json:"appName" public:"true"`
-	SessionDuration     string `json:"sessionDuration" type:"int"` // In minutes
-	HomePageURL         string `json:"homePageUrl" public:"true"`
-	EmailsVerified      string `json:"emailsVerified" type:"bool"`
-	AccentColor         string `json:"accentColor" public:"true"`
-	DisableAnimations   string `json:"disableAnimations" type:"bool" public:"true"`
-	AllowOwnAccountEdit string `json:"allowOwnAccountEdit" type:"bool" public:"true"`
-	AllowUserSignups    string `json:"allowUserSignups" public:"true"`
+	AppName             AppConfigValue `json:"appName" public:"true"`
+	SessionDuration     AppConfigValue `json:"sessionDuration" type:"int"` // In minutes
+	HomePageURL         AppConfigValue `json:"homePageUrl" public:"true"`
+	EmailsVerified      AppConfigValue `json:"emailsVerified" type:"bool"`
+	AccentColor         AppConfigValue `json:"accentColor" public:"true"`
+	DisableAnimations   AppConfigValue `json:"disableAnimations" type:"bool" public:"true"`
+	AllowOwnAccountEdit AppConfigValue `json:"allowOwnAccountEdit" type:"bool" public:"true"`
+	AllowUserSignups    AppConfigValue `json:"allowUserSignups" public:"true"`
 
-	SignupDefaultUserGroupIDs string `json:"signupDefaultUserGroupIDs"` // JSON-encoded array of strings
-	SignupDefaultCustomClaims string `json:"signupDefaultCustomClaims"` // JSON-encoded array of {key:string,value:string}
+	SignupDefaultUserGroupIDs AppConfigValue `json:"signupDefaultUserGroupIDs"` // JSON-encoded array of strings
+	SignupDefaultCustomClaims AppConfigValue `json:"signupDefaultCustomClaims"` // JSON-encoded array of {key:string,value:string}
 	// Email
-	RequireUserEmail                           string `json:"requireUserEmail" type:"bool" public:"true"`
-	SmtpHost                                   string `json:"smtpHost"`
-	SmtpPort                                   string `json:"smtpPort"`
-	SmtpFrom                                   string `json:"smtpFrom"`
-	SmtpUser                                   string `json:"smtpUser"`
-	SmtpPassword                               string `json:"smtpPassword" sensitive:"true"`
-	SmtpTls                                    string `json:"smtpTls"`
-	SmtpSkipCertVerify                         string `json:"smtpSkipCertVerify" type:"bool"`
-	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" type:"bool"`
-	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" type:"bool" public:"true"`
-	EmailOneTimeAccessAsAdminEnabled           string `json:"emailOneTimeAccessAsAdminEnabled" type:"bool" public:"true"`
-	EmailApiKeyExpirationEnabled               string `json:"emailApiKeyExpirationEnabled" type:"bool"`
-	EmailVerificationEnabled                   string `json:"emailVerificationEnabled" type:"bool" public:"true"`
+	RequireUserEmail                           AppConfigValue `json:"requireUserEmail" type:"bool" public:"true"`
+	SmtpHost                                   AppConfigValue `json:"smtpHost"`
+	SmtpPort                                   AppConfigValue `json:"smtpPort"`
+	SmtpFrom                                   AppConfigValue `json:"smtpFrom"`
+	SmtpUser                                   AppConfigValue `json:"smtpUser"`
+	SmtpPassword                               AppConfigValue `json:"smtpPassword" sensitive:"true"`
+	SmtpTls                                    AppConfigValue `json:"smtpTls"`
+	SmtpSkipCertVerify                         AppConfigValue `json:"smtpSkipCertVerify" type:"bool"`
+	EmailLoginNotificationEnabled              AppConfigValue `json:"emailLoginNotificationEnabled" type:"bool"`
+	EmailOneTimeAccessAsUnauthenticatedEnabled AppConfigValue `json:"emailOneTimeAccessAsUnauthenticatedEnabled" type:"bool" public:"true"`
+	EmailOneTimeAccessAsAdminEnabled           AppConfigValue `json:"emailOneTimeAccessAsAdminEnabled" type:"bool" public:"true"`
+	EmailApiKeyExpirationEnabled               AppConfigValue `json:"emailApiKeyExpirationEnabled" type:"bool"`
+	EmailVerificationEnabled                   AppConfigValue `json:"emailVerificationEnabled" type:"bool" public:"true"`
 	// LDAP
-	LdapEnabled                        string `json:"ldapEnabled" type:"bool" public:"true"`
-	LdapUrl                            string `json:"ldapUrl"`
-	LdapBindDn                         string `json:"ldapBindDn"`
-	LdapBindPassword                   string `json:"ldapBindPassword" sensitive:"true"`
-	LdapBase                           string `json:"ldapBase"`
-	LdapUserSearchFilter               string `json:"ldapUserSearchFilter"`
-	LdapUserGroupSearchFilter          string `json:"ldapUserGroupSearchFilter"`
-	LdapSkipCertVerify                 string `json:"ldapSkipCertVerify" type:"bool"`
-	LdapAttributeUserUniqueIdentifier  string `json:"ldapAttributeUserUniqueIdentifier"`
-	LdapAttributeUserUsername          string `json:"ldapAttributeUserUsername"`
-	LdapAttributeUserEmail             string `json:"ldapAttributeUserEmail"`
-	LdapAttributeUserFirstName         string `json:"ldapAttributeUserFirstName"`
-	LdapAttributeUserLastName          string `json:"ldapAttributeUserLastName"`
-	LdapAttributeUserDisplayName       string `json:"ldapAttributeUserDisplayName"`
-	LdapAttributeUserProfilePicture    string `json:"ldapAttributeUserProfilePicture"`
-	LdapAttributeGroupMember           string `json:"ldapAttributeGroupMember"`
-	LdapAttributeGroupUniqueIdentifier string `json:"ldapAttributeGroupUniqueIdentifier"`
-	LdapAttributeGroupName             string `json:"ldapAttributeGroupName"`
-	LdapAdminGroupName                 string `json:"ldapAdminGroupName"`
-	LdapSoftDeleteUsers                string `json:"ldapSoftDeleteUsers" type:"bool"`
+	LdapEnabled                        AppConfigValue `json:"ldapEnabled" type:"bool" public:"true"`
+	LdapUrl                            AppConfigValue `json:"ldapUrl"`
+	LdapBindDn                         AppConfigValue `json:"ldapBindDn"`
+	LdapBindPassword                   AppConfigValue `json:"ldapBindPassword" sensitive:"true"`
+	LdapBase                           AppConfigValue `json:"ldapBase"`
+	LdapUserSearchFilter               AppConfigValue `json:"ldapUserSearchFilter"`
+	LdapUserGroupSearchFilter          AppConfigValue `json:"ldapUserGroupSearchFilter"`
+	LdapSkipCertVerify                 AppConfigValue `json:"ldapSkipCertVerify" type:"bool"`
+	LdapAttributeUserUniqueIdentifier  AppConfigValue `json:"ldapAttributeUserUniqueIdentifier"`
+	LdapAttributeUserUsername          AppConfigValue `json:"ldapAttributeUserUsername"`
+	LdapAttributeUserEmail             AppConfigValue `json:"ldapAttributeUserEmail"`
+	LdapAttributeUserFirstName         AppConfigValue `json:"ldapAttributeUserFirstName"`
+	LdapAttributeUserLastName          AppConfigValue `json:"ldapAttributeUserLastName"`
+	LdapAttributeUserDisplayName       AppConfigValue `json:"ldapAttributeUserDisplayName"`
+	LdapAttributeUserProfilePicture    AppConfigValue `json:"ldapAttributeUserProfilePicture"`
+	LdapAttributeGroupMember           AppConfigValue `json:"ldapAttributeGroupMember"`
+	LdapAttributeGroupUniqueIdentifier AppConfigValue `json:"ldapAttributeGroupUniqueIdentifier"`
+	LdapAttributeGroupName             AppConfigValue `json:"ldapAttributeGroupName"`
+	LdapAdminGroupName                 AppConfigValue `json:"ldapAdminGroupName"`
+	LdapSoftDeleteUsers                AppConfigValue `json:"ldapSoftDeleteUsers" type:"bool"`
+}
+
+// AppConfigValue holds a value
+type AppConfigValue string
+
+// IsTrue returns true if the value is a truthy string, such as "true", "t", "yes", "1", etc.
+func (a AppConfigValue) IsTrue() bool {
+	return utils.IsTruthy(string(a))
+}
+
+// AsDurationMinutes returns the value as a time.Duration, interpreting the string as a whole number of minutes.
+func (a AppConfigValue) AsDurationMinutes() time.Duration {
+	val, err := strconv.Atoi(string(a))
+	if err != nil {
+		return 0
+	}
+	return time.Duration(val) * time.Minute
+}
+
+// String implements fmt.Stringer
+func (a AppConfigValue) String() string {
+	return string(a)
 }
 
 func getDefaultConfig() *AppConfigModel {

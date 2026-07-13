@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -509,6 +510,12 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 // @Success 200 {object} dto.UserDto
 // @Router /api/one-time-access-token/{token} [post]
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
+	cfg, err := appconfig.FromCtx(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	loginCode := c.Param("token")
 	// reject invalid length login codes
 	if len(loginCode) != 6 && len(loginCode) != 16 {
@@ -524,12 +531,13 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 	}
 
 	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
+	err = dto.MapStruct(user, &userDto)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(cfg.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)

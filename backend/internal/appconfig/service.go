@@ -96,11 +96,6 @@ func (s *AppConfigService) GetConfig(parentCtx context.Context) (*AppConfigModel
 	return &cfg, nil
 }
 
-// DELETE
-func (s *AppConfigService) GetDbConfig() *model.AppConfig {
-	return nil
-}
-
 func (s *AppConfigService) updateAppConfigUpdateDatabase(ctx context.Context, tx *gorm.DB, dbUpdate *[]model.AppConfigVariable) error {
 	err := tx.
 		WithContext(ctx).

@@ -36,7 +36,7 @@ type LdapService struct {
 	userService      *UserService
 	groupService     *UserGroupService
 	fileStorage      storage.FileStorage
-	clientFactory    func() (ldapClient, error)
+	clientFactory    func(ctx context.Context) (ldapClient, error)
 }
 
 type savePicture struct {
@@ -84,15 +84,18 @@ func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *appc
 	return service
 }
 
-func (s *LdapService) createClient() (ldapClient, error) {
-	dbConfig := s.appConfigService.GetDbConfig()
+func (s *LdapService) createClient(ctx context.Context) (ldapClient, error) {
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
 
 	if !dbConfig.LdapEnabled.IsTrue() {
 		return nil, fmt.Errorf("LDAP is not enabled")
 	}
 
 	// Setup LDAP connection
-	client, err := ldap.DialURL(dbConfig.LdapUrl.Value, ldap.DialWithTLSConfig(&tls.Config{
+	client, err := ldap.DialURL(dbConfig.LdapUrl.String(), ldap.DialWithTLSConfig(&tls.Config{
 		InsecureSkipVerify: dbConfig.LdapSkipCertVerify.IsTrue(), //nolint:gosec
 	}))
 	if err != nil {
@@ -100,7 +103,7 @@ func (s *LdapService) createClient() (ldapClient, error) {
 	}
 
 	// Bind as service account
-	err = client.Bind(dbConfig.LdapBindDn.Value, dbConfig.LdapBindPassword.Value)
+	err = client.Bind(dbConfig.LdapBindDn.String(), dbConfig.LdapBindPassword.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to LDAP: %w", err)
 	}
@@ -196,13 +199,13 @@ func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient) 
 
 func (s *LdapService) applyAdminGroupMembership(desiredUsers []ldapDesiredUser, desiredGroups []ldapDesiredGroup) {
 	dbConfig := s.appConfigService.GetDbConfig()
-	if dbConfig.LdapAdminGroupName.Value == "" {
+	if dbConfig.LdapAdminGroupName == "" {
 		return
 	}
 
 	adminUsernames := make(map[string]struct{})
 	for _, group := range desiredGroups {
-		if group.input.Name != dbConfig.LdapAdminGroupName.Value {
+		if group.input.Name != dbConfig.LdapAdminGroupName {
 			continue
 		}
 
@@ -259,7 +262,7 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient
 		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
 		memberUsernames := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
-			username := s.resolveGroupMemberUsername(ctx, client, member, usernamesByDN)
+			username := s.resolveGroupMemberUsername(ctx, client, member, usernamesByDN, dbConfig.LdapAttributeUserUsername.Value)
 			if username == "" {
 				continue
 			}
@@ -291,27 +294,30 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient
 }
 
 func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient) (desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, usernamesByDN map[string]string, err error) {
-	dbConfig := s.appConfigService.GetDbConfig()
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
 
 	// Query LDAP for all users we want to manage
 	searchAttrs := []string{
 		"sn",
 		"cn",
-		dbConfig.LdapAttributeUserUniqueIdentifier.Value,
-		dbConfig.LdapAttributeUserUsername.Value,
-		dbConfig.LdapAttributeUserEmail.Value,
-		dbConfig.LdapAttributeUserFirstName.Value,
-		dbConfig.LdapAttributeUserLastName.Value,
-		dbConfig.LdapAttributeUserProfilePicture.Value,
-		dbConfig.LdapAttributeUserDisplayName.Value,
+		dbConfig.LdapAttributeUserUniqueIdentifier.String(),
+		dbConfig.LdapAttributeUserUsername.String(),
+		dbConfig.LdapAttributeUserEmail.String(),
+		dbConfig.LdapAttributeUserFirstName.String(),
+		dbConfig.LdapAttributeUserLastName.String(),
+		dbConfig.LdapAttributeUserProfilePicture.String(),
+		dbConfig.LdapAttributeUserDisplayName.String(),
 	}
 
 	// Filters must start and finish with ()!
 	searchReq := ldap.NewSearchRequest(
-		dbConfig.LdapBase.Value,
+		dbConfig.LdapBase.String(),
 		ldap.ScopeWholeSubtree,
 		0, 0, 0, false,
-		dbConfig.LdapUserSearchFilter.Value,
+		dbConfig.LdapUserSearchFilter.String(),
 		searchAttrs,
 		[]ldap.Control{},
 	)
@@ -327,28 +333,28 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient)
 	desiredUsers = make([]ldapDesiredUser, 0, len(result.Entries))
 
 	for _, value := range result.Entries {
-		username := norm.NFC.String(value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value))
+		username := norm.NFC.String(value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.String()))
 		if normalizedDN := normalizeLDAPDN(value.DN); normalizedDN != "" && username != "" {
 			usernamesByDN[normalizedDN] = username
 		}
 
-		ldapID := convertLdapIdToString(value.GetAttributeValue(dbConfig.LdapAttributeUserUniqueIdentifier.Value))
+		ldapID := convertLdapIdToString(value.GetAttributeValue(dbConfig.LdapAttributeUserUniqueIdentifier.String()))
 
 		// Skip users without a valid LDAP ID
 		if ldapID == "" {
-			slog.Warn("Skipping LDAP user without a valid unique identifier", slog.String("attribute", dbConfig.LdapAttributeUserUniqueIdentifier.Value))
+			slog.Warn("Skipping LDAP user without a valid unique identifier", slog.String("attribute", dbConfig.LdapAttributeUserUniqueIdentifier.String()))
 			continue
 		}
 
 		ldapUserIDs[ldapID] = struct{}{}
 
 		newUser := dto.UserCreateDto{
-			Username:      value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value),
-			Email:         utils.PtrOrNil(value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.Value)),
+			Username:      value.GetAttributeValue(dbConfig.LdapAttributeUserUsername.String()),
+			Email:         utils.PtrOrNil(value.GetAttributeValue(dbConfig.LdapAttributeUserEmail.String())),
 			EmailVerified: true,
-			FirstName:     value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.Value),
-			LastName:      value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.Value),
-			DisplayName:   value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.Value),
+			FirstName:     value.GetAttributeValue(dbConfig.LdapAttributeUserFirstName.String()),
+			LastName:      value.GetAttributeValue(dbConfig.LdapAttributeUserLastName.String()),
+			DisplayName:   value.GetAttributeValue(dbConfig.LdapAttributeUserDisplayName.String()),
 			// Admin status is computed after groups are loaded so it can use the
 			// configured group member attribute instead of a hard-coded memberOf.
 			IsAdmin: false,
@@ -370,16 +376,14 @@ func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient)
 		desiredUsers = append(desiredUsers, ldapDesiredUser{
 			ldapID:  ldapID,
 			input:   newUser,
-			picture: value.GetAttributeValue(dbConfig.LdapAttributeUserProfilePicture.Value),
+			picture: value.GetAttributeValue(dbConfig.LdapAttributeUserProfilePicture.String()),
 		})
 	}
 
 	return desiredUsers, ldapUserIDs, usernamesByDN, nil
 }
 
-func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client ldapClient, member string, usernamesByDN map[string]string) string {
-	dbConfig := s.appConfigService.GetDbConfig()
-
+func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client ldapClient, member string, usernamesByDN map[string]string, usernameAttr string) string {
 	// First try the DN cache we built while loading users
 	username, exists := usernamesByDN[normalizeLDAPDN(member)]
 	if exists && username != "" {
@@ -387,14 +391,15 @@ func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client lda
 	}
 
 	// Then try to extract the username directly from the DN
-	username = getDNProperty(dbConfig.LdapAttributeUserUsername.Value, member)
+	username = getDNProperty(usernameAttr, member)
 	if username != "" {
 		return norm.NFC.String(username)
 	}
 
 	// posixGroup (and similar) stores bare usernames in memberUid, not DNs. Treat any value
 	// that is not a valid DN as the username directly — see https://github.com/pocket-id/pocket-id/issues/1408
-	if _, err := ldap.ParseDN(member); err != nil {
+	_, err := ldap.ParseDN(member)
+	if err != nil {
 		return norm.NFC.String(member)
 	}
 
@@ -404,7 +409,7 @@ func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client lda
 		ldap.ScopeBaseObject,
 		0, 0, 0, false,
 		"(objectClass=*)",
-		[]string{dbConfig.LdapAttributeUserUsername.Value},
+		[]string{usernameAttr},
 		[]ldap.Control{},
 	)
 
@@ -414,7 +419,7 @@ func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client lda
 		return ""
 	}
 
-	username = userResult.Entries[0].GetAttributeValue(dbConfig.LdapAttributeUserUsername.Value)
+	username = userResult.Entries[0].GetAttributeValue(usernameAttr)
 	if username == "" {
 		slog.WarnContext(ctx, "Could not extract username from group member DN", slog.String("member", member))
 		return ""

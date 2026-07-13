@@ -13,17 +13,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 )
 
@@ -205,9 +205,13 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDe
 }
 
 func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userID string, allowLdapDelete bool) error {
-	var user model.User
+	cfg, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
 
-	err := tx.
+	var user model.User
+	err = tx.
 		WithContext(ctx).
 		Where("id = ?", userID).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -218,7 +222,7 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 	}
 
 	// Disallow deleting the user if it is an LDAP user, LDAP is enabled, and the user is not disabled
-	if !allowLdapDelete && !user.Disabled && user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	if !allowLdapDelete && !user.Disabled && user.LdapID != nil && cfg.LdapEnabled.IsTrue() {
 		return &common.LdapUserUpdateError{}
 	}
 
@@ -254,7 +258,12 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 }
 
 func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
-	if s.appConfigService.GetDbConfig().RequireUserEmail.IsTrue() && input.Email == nil {
+	cfg, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return model.User{}, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	if cfg.RequireUserEmail.IsTrue() && input.Email == nil {
 		return model.User{}, &common.UserEmailNotSetError{}
 	}
 
@@ -286,7 +295,7 @@ func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCrea
 		user.LdapID = &input.LdapID
 	}
 
-	err := tx.WithContext(ctx).Create(&user).Error
+	err = tx.WithContext(ctx).Create(&user).Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		// Do not follow this path if we're using LDAP, as we don't want to roll-back the transaction here
 		if !isLdapSync {
@@ -305,12 +314,14 @@ func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCrea
 	// Apply default groups and claims for new non-LDAP users
 	if !isLdapSync {
 		if len(input.UserGroupIds) == 0 {
-			if err := s.applyDefaultGroups(ctx, &user, tx); err != nil {
+			err = s.applyDefaultGroups(ctx, &user, tx)
+			if err != nil {
 				return model.User{}, err
 			}
 		}
 
-		if err := s.applyDefaultCustomClaims(ctx, &user, tx); err != nil {
+		err = s.applyDefaultCustomClaims(ctx, &user, tx)
+		if err != nil {
 			return model.User{}, err
 		}
 	}
@@ -323,12 +334,15 @@ func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCrea
 }
 
 func (s *UserService) applyDefaultGroups(ctx context.Context, user *model.User, tx *gorm.DB) error {
-	config := s.appConfigService.GetDbConfig()
+	cfg, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
 
 	var groupIDs []string
-	v := config.SignupDefaultUserGroupIDs.Value
+	v := cfg.SignupDefaultUserGroupIDs
 	if v != "" && v != "[]" {
-		err := json.Unmarshal([]byte(v), &groupIDs)
+		err = json.Unmarshal([]byte(v), &groupIDs)
 		if err != nil {
 			return fmt.Errorf("invalid SignupDefaultUserGroupIDs JSON: %w", err)
 		}
@@ -355,12 +369,15 @@ func (s *UserService) applyDefaultGroups(ctx context.Context, user *model.User, 
 }
 
 func (s *UserService) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB) error {
-	config := s.appConfigService.GetDbConfig()
+	cfg, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
 
 	var claims []dto.CustomClaimCreateDto
-	v := config.SignupDefaultCustomClaims.Value
+	v := cfg.SignupDefaultCustomClaims
 	if v != "" && v != "[]" {
-		err := json.Unmarshal([]byte(v), &claims)
+		err = json.Unmarshal([]byte(v), &claims)
 		if err != nil {
 			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
 		}
@@ -395,12 +412,17 @@ func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser
 }
 
 func (s *UserService) updateUserInternal(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB) (model.User, error) {
-	if s.appConfigService.GetDbConfig().RequireUserEmail.IsTrue() && updatedUser.Email == nil {
+	cfg, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return model.User{}, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil {
 		return model.User{}, &common.UserEmailNotSetError{}
 	}
 
 	var user model.User
-	err := tx.
+	err = tx.
 		WithContext(ctx).
 		Where("id = ?", userID).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -411,8 +433,8 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 	}
 
 	// Check if this is an LDAP user and LDAP is enabled
-	isLdapUser := user.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue()
-	allowOwnAccountEdit := s.appConfigService.GetDbConfig().AllowOwnAccountEdit.IsTrue()
+	isLdapUser := user.LdapID != nil && cfg.LdapEnabled.IsTrue()
+	allowOwnAccountEdit := cfg.AllowOwnAccountEdit.IsTrue()
 
 	if !isLdapSync && (isLdapUser || (!allowOwnAccountEdit && updateOwnUser)) {
 		// Restricted update: Only locale can be changed when:
@@ -430,7 +452,7 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 
 		if (user.Email == nil && updatedUser.Email != nil) || (user.Email != nil && updatedUser.Email != nil && *user.Email != *updatedUser.Email) {
 			// Email has changed, reset email verification status
-			user.EmailVerified = s.appConfigService.GetDbConfig().EmailsVerified.IsTrue()
+			user.EmailVerified = cfg.EmailsVerified.IsTrue()
 		}
 
 		user.Email = updatedUser.Email
