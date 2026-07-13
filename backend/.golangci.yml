@@ -2,6 +2,9 @@ version: "2"
 run:
   tests: true
   timeout: 5m
+  build-tags:
+    - unit
+    - exclude_frontend
 linters:
   default: none
   enable:

@@ -49,6 +49,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		IgnoreUnknownScopes:                     true,
 		AudienceMatchingStrategy:                fosite.ExactAudienceMatchingStrategy,
 		RedirectURIMatcher:                      matchRedirectURI,
+		RedirectSecureChecker:                   redirectSecureChecker(config.AllowInsecureCallbackURLs),
 		EnforcePKCEForPublicClients:             true,
 		EnablePKCEPlainChallengeMethod:          true,
 		SupportedRequestObjectSigningAlgorithms: []string{"none"},
@@ -109,6 +110,17 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 			config:      fositeConfig,
 		},
 	}, nil
+}
+
+func redirectSecureChecker(allowInsecureCallbackURLs bool) func(context.Context, *url.URL) bool {
+	return func(ctx context.Context, redirectURI *url.URL) bool {
+		if allowInsecureCallbackURLs || fosite.IsRedirectURISecure(ctx, redirectURI) {
+			return true
+		}
+
+		slog.InfoContext(ctx, "HTTP callback URL rejected; set ALLOW_INSECURE_CALLBACK_URLS=true to allow it", "callback_url", redirectURI.Redacted())
+		return false
+	}
 }
 
 func matchRedirectURI(rawurl string, client fosite.Client) (*url.URL, error) {

@@ -44,7 +44,7 @@ type services struct {
 }
 
 // Initializes all services
-func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, imageExtensions map[string]string, fileStorage storage.FileStorage, scheduler *job.Scheduler) (svc *services, err error) {
+func initServices(ctx context.Context, db *gorm.DB, instanceID string, httpClient *http.Client, imageExtensions map[string]string, fileStorage storage.FileStorage, scheduler *job.Scheduler) (svc *services, err error) {
 	svc = &services{}
 
 	svc.appConfigService, err = service.NewAppConfigService(ctx, db)
@@ -63,7 +63,7 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
 	svc.auditLogService = service.NewAuditLogService(db, svc.appConfigService, svc.emailService, svc.geoLiteService)
-	svc.jwtService, err = service.NewJwtService(ctx, db, svc.appConfigService)
+	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID, svc.appConfigService)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)
 	}
@@ -88,9 +88,10 @@ func initServices(ctx context.Context, db *gorm.DB, httpClient *http.Client, ima
 		DB:         db,
 		HTTPClient: httpClient,
 		Config: oidc.Config{
-			BaseURL:      common.EnvConfig.AppURL,
-			TokenBaseURL: common.EnvConfig.AppURL,
-			Secret:       common.EnvConfig.EncryptionKey,
+			BaseURL:                   common.EnvConfig.AppURL,
+			TokenBaseURL:              common.EnvConfig.AppURL,
+			Secret:                    common.EnvConfig.EncryptionKey,
+			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
 		},
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,

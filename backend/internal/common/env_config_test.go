@@ -119,12 +119,36 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("TRACING_ENABLED", "false")
 		t.Setenv("TRUST_PROXY", "true")
 		t.Setenv("ANALYTICS_DISABLED", "false")
+		t.Setenv("ALLOW_INSECURE_CALLBACK_URLS", "false")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.True(t, EnvConfig.UiConfigDisabled)
-		assert.True(t, EnvConfig.TrustProxy)
+		assert.Equal(t, TrustProxyConfig{"0.0.0.0/0", "::/0"}, EnvConfig.TrustProxy)
 		assert.False(t, EnvConfig.AnalyticsDisabled)
+		assert.False(t, EnvConfig.AllowInsecureCallbackURLs)
+	})
+
+	t.Run("should parse trusted proxy IP addresses and CIDR ranges", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("TRUST_PROXY", "10.0.0.0/8, 192.168.1.10, ::1/128")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Equal(t, TrustProxyConfig{"10.0.0.0/8", "192.168.1.10", "::1/128"}, EnvConfig.TrustProxy)
+	})
+
+	t.Run("should disable trusted proxies when set to false", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("TRUST_PROXY", "false")
+
+		err := parseAndValidateEnvConfig(t)
+		require.NoError(t, err)
+		assert.Nil(t, EnvConfig.TrustProxy)
+	})
+
+	t.Run("should allow insecure callback URLs by default", func(t *testing.T) {
+		assert.True(t, defaultConfig().AllowInsecureCallbackURLs)
 	})
 
 	t.Run("should default audit log retention days to 90", func(t *testing.T) {

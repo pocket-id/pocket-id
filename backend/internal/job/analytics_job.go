@@ -13,13 +13,12 @@ import (
 	"github.com/italypaleale/francis/builtin/cronjob"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
 const heartbeatUrl = "https://analytics.pocket-id.org/heartbeat"
 
 // GetAnalyticsJob returns the CronJob actor
-func GetAnalyticsJob(appConfig *service.AppConfigService, httpClient *http.Client) (*cronjob.CronJob, error) {
+func GetAnalyticsJob(httpClient *http.Client, instanceID string) (*cronjob.CronJob, error) {
 	// Skip if analytics are disabled or not in production environment
 	if common.EnvConfig.AnalyticsDisabled || !common.EnvConfig.AppEnv.IsProduction() {
 		return nil, nil
@@ -28,7 +27,7 @@ func GetAnalyticsJob(appConfig *service.AppConfigService, httpClient *http.Clien
 	job := &AnalyticsJob{
 		httpClient: httpClient,
 	}
-	err := job.createBody(appConfig)
+	err := job.createBody(instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("error pre-computing request body: %w", err)
 	}
@@ -56,13 +55,13 @@ type AnalyticsJob struct {
 }
 
 // createBody pre-computes the body for all requests
-func (j *AnalyticsJob) createBody(appConfig *service.AppConfigService) error {
+func (j *AnalyticsJob) createBody(instanceID string) error {
 	body, err := json.Marshal(struct {
 		Version    string `json:"version"`
 		InstanceID string `json:"instance_id"`
 	}{
 		Version:    common.Version,
-		InstanceID: appConfig.GetDbConfig().InstanceID.Value,
+		InstanceID: instanceID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to marshal heartbeat body: %w", err)
