@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
 	"net/url"
 	"strings"
 
@@ -56,7 +57,17 @@ func IsTailscaleIP(ip net.IP) bool {
 }
 
 func IsPrivateIP(ip net.IP) bool {
-	return IsLocalhostIP(ip) || IsPrivateLanIP(ip) || IsTailscaleIP(ip) || IsLocalIPv6(ip)
+	if IsLocalhostIP(ip) || IsPrivateLanIP(ip) || IsTailscaleIP(ip) || IsLocalIPv6(ip) {
+		return true
+	}
+
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return false
+	}
+
+	addr = addr.Unmap()
+	return addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsUnspecified()
 }
 
 func IsURLPrivate(ctx context.Context, u *url.URL) (bool, error) {
