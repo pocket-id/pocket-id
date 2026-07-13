@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
-	import { page } from '$app/state';
 	import { openConfirmDialog } from '$lib/components/confirm-dialog';
 	import CopyToClipboard from '$lib/components/copy-to-clipboard.svelte';
 	import FormattedMessage from '$lib/components/formatted-message.svelte';
@@ -47,13 +46,13 @@
 	const backNavigation = backNavigate('/settings/admin/oidc-clients');
 
 	const setupDetails = $state({
-		[m.issuer_url()]: `https://${page.url.host}`,
-		[m.authorization_url()]: `https://${page.url.host}/authorize`,
-		[m.oidc_discovery_url()]: `https://${page.url.host}/.well-known/openid-configuration`,
-		[m.token_url()]: `https://${page.url.host}/api/oidc/token`,
-		[m.userinfo_url()]: `https://${page.url.host}/api/oidc/userinfo`,
-		[m.logout_url()]: `https://${page.url.host}/api/oidc/end-session`,
-		[m.certificate_url()]: `https://${page.url.host}/.well-known/jwks.json`,
+		[m.issuer_url()]: data.oidcConfiguration.issuer,
+		[m.authorization_url()]: data.oidcConfiguration.authorization_endpoint,
+		[m.oidc_discovery_url()]: `${data.oidcConfiguration.issuer}/.well-known/openid-configuration`,
+		[m.token_url()]: data.oidcConfiguration.token_endpoint,
+		[m.userinfo_url()]: data.oidcConfiguration.userinfo_endpoint,
+		[m.logout_url()]: data.oidcConfiguration.end_session_endpoint,
+		[m.certificate_url()]: data.oidcConfiguration.jwks_uri,
 		[m.pkce()]: client.pkceEnabled ? m.enabled() : m.disabled(),
 		[m.requires_reauthentication()]: client.requiresReauthentication ? m.enabled() : m.disabled(),
 		[m.requires_pushed_authorization_requests()]: client.requiresPushedAuthorizationRequests
