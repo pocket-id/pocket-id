@@ -19,12 +19,6 @@ func Register[I, O any](api huma.API, operation huma.Operation, handler func(con
 		decorator(&operation)
 	}
 
-	if operation.MaxBodyBytes == 0 {
-		operation.MaxBodyBytes = -1
-	}
-	if operation.BodyReadTimeout == 0 {
-		operation.BodyReadTimeout = -1
-	}
 	huma.Register(api, operation, func(ctx context.Context, input *I) (*O, error) {
 		output, err := handler(ctx, input)
 		if err != nil {

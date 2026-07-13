@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
@@ -196,4 +197,41 @@ func TestRegisterAppliesDecoratorsInOrder(t *testing.T) {
 	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/test-decorator-order", nil))
 	require.Equal(t, http.StatusNoContent, response.Code)
 	require.Equal(t, []string{"first", "second", "handler"}, order)
+}
+
+func TestRegisterPreservesBodyLimitConfiguration(t *testing.T) {
+	router, api := newTestAPI(t)
+
+	Register(api, huma.Operation{
+		OperationID: "test-default-body-limits",
+		Method:      http.MethodPost,
+		Path:        "/api/test-default-body-limits",
+	}, func(context.Context, *testInput) (*testOutput, error) {
+		return &testOutput{}, nil
+	})
+
+	defaultOperation := api.OpenAPI().Paths["/api/test-default-body-limits"].Post
+	require.Equal(t, int64(1<<20), defaultOperation.MaxBodyBytes)
+	require.Equal(t, 5*time.Second, defaultOperation.BodyReadTimeout)
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/test-default-body-limits", strings.NewReader(`{"name":"`+strings.Repeat("x", 1<<20)+`"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusRequestEntityTooLarge, response.Code)
+	require.JSONEq(t, `{"error":"Request body is too large limit=1048576 bytes"}`, response.Body.String())
+
+	Register(api, huma.Operation{
+		OperationID:     "test-unlimited-body",
+		Method:          http.MethodPost,
+		Path:            "/api/test-unlimited-body",
+		MaxBodyBytes:    -1,
+		BodyReadTimeout: -1,
+	}, func(context.Context, *testInput) (*testOutput, error) {
+		return &testOutput{}, nil
+	})
+
+	unlimitedOperation := api.OpenAPI().Paths["/api/test-unlimited-body"].Post
+	require.Equal(t, int64(-1), unlimitedOperation.MaxBodyBytes)
+	require.Equal(t, time.Duration(-1), unlimitedOperation.BodyReadTimeout)
 }

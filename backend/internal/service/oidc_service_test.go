@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -457,10 +458,11 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
-	description := "A test client description"
+	name := norm.NFD.String("Tést Client")
+	description := norm.NFD.String("A café client description")
 	input := dto.OidcClientCreateDto{
 		OidcClientUpdateDto: dto.OidcClientUpdateDto{
-			Name:         "Test Client",
+			Name:         name,
 			Description:  description,
 			CallbackURLs: []string{"https://example.com/callback"},
 		},
@@ -473,7 +475,8 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
 	require.NotEmpty(t, fetched.Description)
-	assert.Equal(t, description, fetched.Description)
+	assert.Equal(t, norm.NFC.String(name), fetched.Name)
+	assert.Equal(t, norm.NFC.String(description), fetched.Description)
 }
 
 func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
@@ -513,7 +516,7 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	require.NoError(t, err)
 
 	// Update with a description
-	description := "Updated description"
+	description := norm.NFD.String("Updated café description")
 	input := dto.OidcClientUpdateDto{
 		Name:         "Test Client",
 		Description:  description,
@@ -527,7 +530,7 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
 	require.NotEmpty(t, fetched.Description)
-	assert.Equal(t, description, fetched.Description)
+	assert.Equal(t, norm.NFC.String(description), fetched.Description)
 
 	// Update to clear the description
 	input.Description = ""

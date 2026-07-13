@@ -43,9 +43,10 @@ type imageOutput struct {
 	Body          func(huma.Context)
 }
 
-func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddleware, appImagesService *service.AppImagesService) {
+func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddleware, fileSizeLimitMiddleware *middleware.FileSizeLimitMiddleware, appImagesService *service.AppImagesService) {
 	controller := &AppImagesController{appImagesService: appImagesService}
 	auth := authMiddleware.Huma(api)
+	uploadLimit := httpapi.WithMiddleware(fileSizeLimitMiddleware.Huma(api, 2<<20))
 
 	httpapi.Register(api, huma.Operation{
 		OperationID: "get-application-logo",
@@ -94,7 +95,7 @@ func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddlew
 		Summary:       "Update logo",
 		Tags:          []string{"Application Images"},
 		DefaultStatus: http.StatusNoContent,
-	}, controller.updateLogoHandler, auth)
+	}, controller.updateLogoHandler, auth, uploadLimit)
 
 	httpapi.Register(api, huma.Operation{
 		OperationID:   "update-email-logo",
@@ -103,7 +104,7 @@ func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddlew
 		Summary:       "Update email logo",
 		Tags:          []string{"Application Images"},
 		DefaultStatus: http.StatusNoContent,
-	}, controller.updateEmailLogoHandler, auth)
+	}, controller.updateEmailLogoHandler, auth, uploadLimit)
 
 	httpapi.Register(api, huma.Operation{
 		OperationID:   "update-background-image",
@@ -112,7 +113,7 @@ func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddlew
 		Summary:       "Update background image",
 		Tags:          []string{"Application Images"},
 		DefaultStatus: http.StatusNoContent,
-	}, controller.updateBackgroundImageHandler, auth)
+	}, controller.updateBackgroundImageHandler, auth, uploadLimit)
 
 	httpapi.Register(api, huma.Operation{
 		OperationID:   "update-favicon",
@@ -121,7 +122,7 @@ func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddlew
 		Summary:       "Update favicon",
 		Tags:          []string{"Application Images"},
 		DefaultStatus: http.StatusNoContent,
-	}, controller.updateFaviconHandler, auth)
+	}, controller.updateFaviconHandler, auth, uploadLimit)
 
 	httpapi.Register(api, huma.Operation{
 		OperationID:   "update-default-profile-picture",
@@ -130,7 +131,7 @@ func NewAppImagesController(api huma.API, authMiddleware *middleware.AuthMiddlew
 		Summary:       "Update default profile picture",
 		Tags:          []string{"Application Images"},
 		DefaultStatus: http.StatusNoContent,
-	}, controller.updateDefaultProfilePicture, auth)
+	}, controller.updateDefaultProfilePicture, auth, uploadLimit)
 
 	httpapi.Register(api, huma.Operation{
 		OperationID:   "delete-background-image",

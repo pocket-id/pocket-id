@@ -161,7 +161,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	controller.NewOidcController(api, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
 	controller.NewUserController(api, authMiddleware, rateLimitMiddleware, svc.userService, svc.oneTimeAccessService, svc.webauthnModule, svc.appConfigService)
 	controller.NewAppConfigController(api, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
-	controller.NewAppImagesController(api, authMiddleware, svc.appImagesService)
+	controller.NewAppImagesController(api, authMiddleware, fileSizeLimitMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(api, svc.auditLogService, authMiddleware)
 	controller.NewUserGroupController(api, authMiddleware, svc.userGroupService)
 	svc.apiModule.RegisterRoutes(api, authMiddleware.Huma(api))

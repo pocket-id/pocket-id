@@ -211,6 +211,8 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 }
 
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
+	dto.Normalize(input)
+
 	// Base fields
 	client.Name = input.Name
 	client.Description = input.Description
