@@ -70,7 +70,10 @@ func initEngine() (*gin.Engine, error) {
 
 	r := gin.New()
 	initLogger(r)
-	configureEngine(r)
+	err := configureEngine(r)
+	if err != nil {
+		return nil, err
+	}
 	registerGlobalMiddleware(r)
 
 	return r, nil
@@ -88,9 +91,10 @@ func setGinMode() {
 	}
 }
 
-func configureEngine(r *gin.Engine) {
-	if !common.EnvConfig.TrustProxy {
-		_ = r.SetTrustedProxies(nil)
+func configureEngine(r *gin.Engine) error {
+	err := r.SetTrustedProxies(common.EnvConfig.TrustProxy)
+	if err != nil {
+		return fmt.Errorf("failed to configure trusted proxies: %w", err)
 	}
 
 	if common.EnvConfig.TrustedPlatform != "" {
@@ -101,6 +105,8 @@ func configureEngine(r *gin.Engine) {
 		common.Name,
 		otelgin.WithFilter(shouldTraceRequest)),
 	)
+
+	return nil
 }
 
 // shouldTraceRequest reports whether an incoming request should be traced.

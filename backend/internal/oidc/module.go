@@ -15,9 +15,10 @@ import (
 )
 
 type Config struct {
-	BaseURL      string
-	TokenBaseURL string
-	Secret       []byte
+	BaseURL                   string
+	TokenBaseURL              string
+	Secret                    []byte
+	AllowInsecureCallbackURLs bool
 }
 
 type TokenSigner interface {
