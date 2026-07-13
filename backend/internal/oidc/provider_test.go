@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -83,6 +84,70 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 	// select the verification key from the published JWKS (esp. after key rotation).
 	header := decodeJWTPart(t, response.GetAccessToken(), 0)
 	require.Equal(t, "test-key-id", header["kid"])
+}
+
+func TestRedirectSecureChecker(t *testing.T) {
+	loopbackRedirectURI, err := url.Parse("http://127.0.0.1:49813/callback")
+	require.NoError(t, err)
+
+	checker := redirectSecureChecker(false)
+	require.True(t, checker(t.Context(), loopbackRedirectURI))
+}
+
+func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
+	tests := []struct {
+		name                      string
+		allowInsecureCallbackURLs bool
+		expectSuccess             bool
+	}{
+		{
+			name:                      "allows HTTP callback URLs when compatibility is enabled",
+			allowInsecureCallbackURLs: true,
+			expectSuccess:             true,
+		},
+		{
+			name:                      "rejects HTTP callback URLs when compatibility is disabled",
+			allowInsecureCallbackURLs: false,
+			expectSuccess:             false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			require.NoError(t, err)
+			require.NoError(t, db.Create(&model.OidcClient{
+				Base:         model.Base{ID: "test-client"},
+				Name:         "Test Client",
+				CallbackURLs: model.UrlList{"http://client.example.com/callback"},
+			}).Error)
+
+			provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+				BaseURL:                   "https://issuer.example.com",
+				TokenBaseURL:              "https://issuer.example.com",
+				Secret:                    []byte("test-secret"),
+				AllowInsecureCallbackURLs: tt.allowInsecureCallbackURLs,
+			})
+			require.NoError(t, err)
+
+			req := httptest.NewRequestWithContext(
+				t.Context(),
+				http.MethodGet,
+				"/api/oidc/authorize?client_id=test-client&response_type=code&scope=openid&state=state-with-enough-entropy&redirect_uri=http://client.example.com/callback",
+				nil,
+			)
+			authorizeRequest, err := provider.NewAuthorizeRequest(req.Context(), req)
+			require.NoError(t, err)
+
+			_, err = provider.NewAuthorizeResponse(t.Context(), authorizeRequest, NewEmptySession())
+			if tt.expectSuccess {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, fosite.ErrInvalidRequest)
+			}
+		})
+	}
 }
 
 func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {

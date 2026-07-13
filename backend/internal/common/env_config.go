@@ -38,21 +38,22 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv                AppEnv `env:"APP_ENV" options:"toLower"`
-	EncryptionKey         []byte `env:"ENCRYPTION_KEY" options:"file"`
-	AppURL                string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
-	DbProvider            DbProvider
-	DbConnectionString    string `env:"DB_CONNECTION_STRING" options:"file"`
-	TrustProxy            bool   `env:"TRUST_PROXY"`
-	TrustedPlatform       string `env:"TRUSTED_PLATFORM"`
-	AuditLogRetentionDays int    `env:"AUDIT_LOG_RETENTION_DAYS"`
-	AnalyticsDisabled     bool   `env:"ANALYTICS_DISABLED"`
-	AllowDowngrade        bool   `env:"ALLOW_DOWNGRADE"`
-	InternalAppURL        string `env:"INTERNAL_APP_URL"`
-	UiConfigDisabled      bool   `env:"UI_CONFIG_DISABLED"`
-	DisableRateLimiting   bool   `env:"DISABLE_RATE_LIMITING"`
-	VersionCheckDisabled  bool   `env:"VERSION_CHECK_DISABLED"`
-	StaticApiKey          string `env:"STATIC_API_KEY" options:"file"`
+	AppEnv                    AppEnv `env:"APP_ENV" options:"toLower"`
+	EncryptionKey             []byte `env:"ENCRYPTION_KEY" options:"file"`
+	AppURL                    string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
+	DbProvider                DbProvider
+	DbConnectionString        string `env:"DB_CONNECTION_STRING" options:"file"`
+	TrustProxy                bool   `env:"TRUST_PROXY"`
+	TrustedPlatform           string `env:"TRUSTED_PLATFORM"`
+	AuditLogRetentionDays     int    `env:"AUDIT_LOG_RETENTION_DAYS"`
+	AnalyticsDisabled         bool   `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade            bool   `env:"ALLOW_DOWNGRADE"`
+	AllowInsecureCallbackURLs bool   `env:"ALLOW_INSECURE_CALLBACK_URLS"`
+	InternalAppURL            string `env:"INTERNAL_APP_URL"`
+	UiConfigDisabled          bool   `env:"UI_CONFIG_DISABLED"`
+	DisableRateLimiting       bool   `env:"DISABLE_RATE_LIMITING"`
+	VersionCheckDisabled      bool   `env:"VERSION_CHECK_DISABLED"`
+	StaticApiKey              string `env:"STATIC_API_KEY" options:"file"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
@@ -97,18 +98,19 @@ func init() {
 
 func defaultConfig() EnvConfigSchema {
 	return EnvConfigSchema{
-		AppEnv:                AppEnvProduction,
-		LogLevel:              "info",
-		DbProvider:            "sqlite",
-		FileBackend:           "filesystem",
-		AuditLogRetentionDays: 90,
-		AppURL:                AppUrl,
-		Port:                  "1411",
-		Host:                  "0.0.0.0",
-		ActorsPort:            "1414",
-		ActorsHost:            "0.0.0.0",
-		GeoLiteDBPath:         "data/GeoLite2-City.mmdb",
-		GeoLiteDBUrl:          MaxMindGeoLiteCityUrl,
+		AppEnv:                    AppEnvProduction,
+		LogLevel:                  "info",
+		DbProvider:                "sqlite",
+		FileBackend:               "filesystem",
+		AuditLogRetentionDays:     90,
+		AllowInsecureCallbackURLs: true, // TODO: Default to false in major v3
+		AppURL:                    AppUrl,
+		Port:                      "1411",
+		Host:                      "0.0.0.0",
+		ActorsPort:                "1414",
+		ActorsHost:                "0.0.0.0",
+		GeoLiteDBPath:             "data/GeoLite2-City.mmdb",
+		GeoLiteDBUrl:              MaxMindGeoLiteCityUrl,
 	}
 }
 

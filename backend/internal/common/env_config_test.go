@@ -119,12 +119,14 @@ func TestParseEnvConfig(t *testing.T) {
 		t.Setenv("TRACING_ENABLED", "false")
 		t.Setenv("TRUST_PROXY", "true")
 		t.Setenv("ANALYTICS_DISABLED", "false")
+		t.Setenv("ALLOW_INSECURE_CALLBACK_URLS", "false")
 
 		err := parseAndValidateEnvConfig(t)
 		require.NoError(t, err)
 		assert.True(t, EnvConfig.UiConfigDisabled)
 		assert.True(t, EnvConfig.TrustProxy)
 		assert.False(t, EnvConfig.AnalyticsDisabled)
+		assert.False(t, EnvConfig.AllowInsecureCallbackURLs)
 	})
 
 	t.Run("should default audit log retention days to 90", func(t *testing.T) {
