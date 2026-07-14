@@ -31,9 +31,8 @@ type Dependencies struct {
 	DB     *gorm.DB
 	AppURL string
 
-	Signer    TokenService
-	AuditLog  AuditLogger
-	AppConfig AppConfigProvider
+	Signer   TokenService
+	AuditLog AuditLogger
 }
 
 type Module struct {
@@ -49,7 +48,7 @@ func New(deps Dependencies) (*Module, error) {
 
 	return &Module{
 		service: service,
-		handler: newHandler(service, deps.AppConfig),
+		handler: newHandler(service),
 	}, nil
 }
 

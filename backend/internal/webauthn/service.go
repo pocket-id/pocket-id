@@ -25,11 +25,10 @@ import (
 const authenticationMethodPhishingResistant = "phr"
 
 type Service struct {
-	db        *gorm.DB
-	webAuthn  *gowebauthn.WebAuthn
-	signer    TokenService
-	auditLog  AuditLogger
-	appConfig AppConfigProvider
+	db       *gorm.DB
+	webAuthn *gowebauthn.WebAuthn
+	signer   TokenService
+	auditLog AuditLogger
 }
 
 func newService(deps Dependencies) (*Service, error) {
@@ -58,11 +57,10 @@ func newService(deps Dependencies) (*Service, error) {
 	}
 
 	return &Service{
-		db:        deps.DB,
-		webAuthn:  wa,
-		signer:    deps.Signer,
-		auditLog:  deps.AuditLog,
-		appConfig: deps.AppConfig,
+		db:       deps.DB,
+		webAuthn: wa,
+		signer:   deps.Signer,
+		auditLog: deps.AuditLog,
 	}, nil
 }
 

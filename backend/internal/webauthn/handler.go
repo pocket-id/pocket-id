@@ -16,8 +16,8 @@ type handler struct {
 	appConfig AppConfigProvider
 }
 
-func newHandler(service *Service, appConfig AppConfigProvider) *handler {
-	return &handler{service: service, appConfig: appConfig}
+func newHandler(service *Service) *handler {
+	return &handler{service: service}
 }
 
 func (h *handler) beginRegistration(c *gin.Context) {
