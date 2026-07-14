@@ -31,8 +31,13 @@ func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyModule *a
 }
 
 func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) error {
+	dbConfig, err := j.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error load app config: %w", err)
+	}
+
 	// Skip if the feature is disabled
-	if !j.appConfigService.GetDbConfig().EmailApiKeyExpirationEnabled.IsTrue() {
+	if !dbConfig.EmailApiKeyExpirationEnabled.IsTrue() {
 		return nil
 	}
 

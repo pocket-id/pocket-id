@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -39,23 +40,31 @@ func NewOneTimeAccessService(db *gorm.DB, userService *UserService, jwtService *
 }
 
 func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, ttl time.Duration) error {
-	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsAdminEnabled.IsTrue()
-	if isDisabled {
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	if !dbConfig.EmailOneTimeAccessAsAdminEnabled.IsTrue() {
 		return &common.OneTimeAccessDisabledError{}
 	}
 
-	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false)
+	_, err = s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false)
 	return err
 }
 
 func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) (string, error) {
-	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue()
-	if isDisabled {
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	if !dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue() {
 		return "", &common.OneTimeAccessDisabledError{}
 	}
 
 	var userId string
-	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
+	err = s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Do not return error if user not found to prevent email enumeration
 		return "", nil
@@ -152,7 +161,7 @@ func (s *OneTimeAccessService) CreateOneTimeAccessToken(ctx context.Context, use
 	// Commit
 	err = tx.Commit().Error
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	return token, nil
@@ -173,13 +182,18 @@ func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Cont
 }
 
 func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return model.User{}, "", fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	var oneTimeAccessToken model.OneTimeAccessToken
-	err := tx.
+	err = tx.
 		WithContext(ctx).
 		Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).
 		Preload("User").
@@ -199,7 +213,11 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 		return model.User{}, "", &common.UserDisabledError{}
 	}
 
-	accessToken, err := s.jwtService.GenerateAccessToken(oneTimeAccessToken.User, AuthenticationMethodOneTimePassword)
+	accessToken, err := s.jwtService.GenerateAccessToken(
+		oneTimeAccessToken.User,
+		AuthenticationMethodOneTimePassword,
+		dbConfig.SessionDuration.AsDurationMinutes(),
+	)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -212,11 +230,16 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 		return model.User{}, "", err
 	}
 
-	s.auditLogService.Create(ctx, model.AuditLogEventOneTimeAccessTokenSignIn, ipAddress, userAgent, oneTimeAccessToken.User.ID, model.AuditLogData{}, tx)
+	s.auditLogService.Create(
+		ctx, model.AuditLogEventOneTimeAccessTokenSignIn,
+		ipAddress, userAgent,
+		oneTimeAccessToken.User.ID, model.AuditLogData{},
+		tx,
+	)
 
 	err = tx.Commit().Error
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, "", fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	return oneTimeAccessToken.User, accessToken, nil

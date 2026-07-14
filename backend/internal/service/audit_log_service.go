@@ -65,7 +65,7 @@ func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent,
 }
 
 // CreateNewSignInWithEmail creates a new audit log entry in the database and sends an email if the device hasn't been used before
-func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog {
+func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB, dbConfig *appconfig.AppConfigModel) model.AuditLog {
 	createdAuditLog, ok := s.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
 	if !ok {
 		// At this point the transaction has been canceled already, and error has been logged
@@ -91,7 +91,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 	}
 
 	// If the user hasn't logged in from the same device before and email notifications are enabled, send an email
-	if s.appConfigService.GetDbConfig().EmailLoginNotificationEnabled.IsTrue() && count <= 1 {
+	if dbConfig.EmailLoginNotificationEnabled.IsTrue() && count <= 1 {
 		go func() {
 			// This runs in background, so use a context without cancellation (or it would be stopped when the request ends)
 			// We still want to have a context derived from the request's to carry over tracing info

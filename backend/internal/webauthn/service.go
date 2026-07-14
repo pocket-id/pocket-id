@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -228,6 +229,11 @@ func (s *Service) BeginLogin(ctx context.Context) (*PublicKeyCredentialRequestOp
 }
 
 func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (model.User, string, error) {
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return model.User{}, "", fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -235,7 +241,7 @@ func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialA
 
 	// Load & delete the session row
 	var storedSession WebauthnSession
-	err := tx.
+	err = tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
 		Delete(&storedSession, "id = ?", sessionID).
@@ -275,7 +281,7 @@ func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialA
 		return model.User{}, "", err
 	}
 
-	s.auditLog.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx)
+	s.auditLog.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx, dbConfig)
 
 	err = tx.Commit().Error
 	if err != nil {

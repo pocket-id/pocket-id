@@ -184,12 +184,11 @@ func (s *JwtService) SetKey(privateKey jwk.Key) error {
 	return nil
 }
 
-func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod string) (string, error) {
-
+func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
-		Expiration(now.Add(s.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes())).
+		Expiration(now.Add(sessionDuration)).
 		IssuedAt(now).
 		Issuer(s.envConfig.AppURL).
 		JwtID(uuid.New().String()).

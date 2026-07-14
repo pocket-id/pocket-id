@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -21,7 +22,12 @@ func (s *Scheduler) RegisterLdapJobs(ctx context.Context, ldapService *service.L
 }
 
 func (j *LdapJobs) syncLdap(ctx context.Context) error {
-	if !j.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	dbConfig, err := j.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error load app config: %w", err)
+	}
+
+	if !dbConfig.LdapEnabled.IsTrue() {
 		return nil
 	}
 

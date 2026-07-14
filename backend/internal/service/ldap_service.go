@@ -36,7 +36,7 @@ type LdapService struct {
 	userService      *UserService
 	groupService     *UserGroupService
 	fileStorage      storage.FileStorage
-	clientFactory    func(ctx context.Context) (ldapClient, error)
+	clientFactory    func(dbConfig *appconfig.AppConfigModel) (ldapClient, error)
 }
 
 type savePicture struct {
@@ -84,12 +84,7 @@ func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *appc
 	return service
 }
 
-func (s *LdapService) createClient(ctx context.Context) (ldapClient, error) {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *LdapService) createClient(dbConfig *appconfig.AppConfigModel) (ldapClient, error) {
 	if !dbConfig.LdapEnabled.IsTrue() {
 		return nil, fmt.Errorf("LDAP is not enabled")
 	}
@@ -111,15 +106,20 @@ func (s *LdapService) createClient(ctx context.Context) (ldapClient, error) {
 }
 
 func (s *LdapService) SyncAll(ctx context.Context) error {
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	// Setup LDAP connection
-	client, err := s.clientFactory()
+	client, err := s.clientFactory(dbConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create LDAP client: %w", err)
 	}
 	defer client.Close()
 
 	// First, we fetch all users and group from LDAP, which is our "desired state"
-	desiredState, err := s.fetchDesiredState(ctx, client)
+	desiredState, err := s.fetchDesiredState(ctx, client, dbConfig)
 	if err != nil {
 		return fmt.Errorf("failed to fetch LDAP state: %w", err)
 	}
@@ -132,7 +132,7 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 	defer tx.Rollback()
 
 	// Reconcile users
-	savePictures, deleteFiles, err := s.reconcileUsers(ctx, tx, desiredState.users, desiredState.userIDs)
+	savePictures, deleteFiles, err := s.reconcileUsers(ctx, tx, desiredState.users, desiredState.userIDs, dbConfig)
 	if err != nil {
 		return fmt.Errorf("failed to sync users: %w", err)
 	}
@@ -171,7 +171,7 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 	return nil
 }
 
-func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient) (ldapDesiredState, error) {
+func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient, dbConfig *appconfig.AppConfigModel) (ldapDesiredState, error) {
 	// Fetch users first so we can use their DNs when resolving group members
 	users, userIDs, usernamesByDN, err := s.fetchUsersFromLDAP(ctx, client)
 	if err != nil {
@@ -179,7 +179,7 @@ func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient) 
 	}
 
 	// Then fetch groups to complete the desired LDAP state snapshot
-	groups, groupIDs, err := s.fetchGroupsFromLDAP(ctx, client, usernamesByDN)
+	groups, groupIDs, err := s.fetchGroupsFromLDAP(ctx, client, usernamesByDN, dbConfig)
 	if err != nil {
 		return ldapDesiredState{}, err
 	}
@@ -187,7 +187,7 @@ func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient) 
 	// Apply user admin flags from the desired group membership snapshot.
 	// This intentionally uses the configured group member attribute rather than
 	// relying on a user-side reverse-membership attribute such as memberOf.
-	s.applyAdminGroupMembership(users, groups)
+	s.applyAdminGroupMembership(users, groups, dbConfig)
 
 	return ldapDesiredState{
 		users:    users,
@@ -197,15 +197,14 @@ func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient) 
 	}, nil
 }
 
-func (s *LdapService) applyAdminGroupMembership(desiredUsers []ldapDesiredUser, desiredGroups []ldapDesiredGroup) {
-	dbConfig := s.appConfigService.GetDbConfig()
+func (s *LdapService) applyAdminGroupMembership(desiredUsers []ldapDesiredUser, desiredGroups []ldapDesiredGroup, dbConfig *appconfig.AppConfigModel) {
 	if dbConfig.LdapAdminGroupName == "" {
 		return
 	}
 
 	adminUsernames := make(map[string]struct{})
 	for _, group := range desiredGroups {
-		if group.input.Name != dbConfig.LdapAdminGroupName {
+		if group.input.Name != string(dbConfig.LdapAdminGroupName) {
 			continue
 		}
 
@@ -220,21 +219,19 @@ func (s *LdapService) applyAdminGroupMembership(desiredUsers []ldapDesiredUser, 
 	}
 }
 
-func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, usernamesByDN map[string]string) (desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, err error) {
-	dbConfig := s.appConfigService.GetDbConfig()
-
+func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient, usernamesByDN map[string]string, dbConfig *appconfig.AppConfigModel) (desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, err error) {
 	// Query LDAP for all groups we want to manage
 	searchAttrs := []string{
-		dbConfig.LdapAttributeGroupName.Value,
-		dbConfig.LdapAttributeGroupUniqueIdentifier.Value,
-		dbConfig.LdapAttributeGroupMember.Value,
+		dbConfig.LdapAttributeGroupName.String(),
+		dbConfig.LdapAttributeGroupUniqueIdentifier.String(),
+		dbConfig.LdapAttributeGroupMember.String(),
 	}
 
 	searchReq := ldap.NewSearchRequest(
-		dbConfig.LdapBase.Value,
+		dbConfig.LdapBase.String(),
 		ldap.ScopeWholeSubtree,
 		0, 0, 0, false,
-		dbConfig.LdapUserGroupSearchFilter.Value,
+		dbConfig.LdapUserGroupSearchFilter.String(),
 		searchAttrs,
 		[]ldap.Control{},
 	)
@@ -248,21 +245,21 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient
 	desiredGroups = make([]ldapDesiredGroup, 0, len(result.Entries))
 
 	for _, value := range result.Entries {
-		ldapID := convertLdapIdToString(value.GetAttributeValue(dbConfig.LdapAttributeGroupUniqueIdentifier.Value))
+		ldapID := convertLdapIdToString(value.GetAttributeValue(dbConfig.LdapAttributeGroupUniqueIdentifier.String()))
 
 		// Skip groups without a valid LDAP ID
 		if ldapID == "" {
-			slog.Warn("Skipping LDAP group without a valid unique identifier", slog.String("attribute", dbConfig.LdapAttributeGroupUniqueIdentifier.Value))
+			slog.Warn("Skipping LDAP group without a valid unique identifier", slog.String("attribute", dbConfig.LdapAttributeGroupUniqueIdentifier.String()))
 			continue
 		}
 
 		ldapGroupIDs[ldapID] = struct{}{}
 
 		// Get group members and add to the correct Group
-		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.Value)
+		groupMembers := value.GetAttributeValues(dbConfig.LdapAttributeGroupMember.String())
 		memberUsernames := make([]string, 0, len(groupMembers))
 		for _, member := range groupMembers {
-			username := s.resolveGroupMemberUsername(ctx, client, member, usernamesByDN, dbConfig.LdapAttributeUserUsername.Value)
+			username := s.resolveGroupMemberUsername(ctx, client, member, usernamesByDN, dbConfig.LdapAttributeUserUsername.String())
 			if username == "" {
 				continue
 			}
@@ -271,8 +268,8 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient
 		}
 
 		syncGroup := dto.UserGroupCreateDto{
-			Name:         value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
-			FriendlyName: value.GetAttributeValue(dbConfig.LdapAttributeGroupName.Value),
+			Name:         value.GetAttributeValue(dbConfig.LdapAttributeGroupName.String()),
+			FriendlyName: value.GetAttributeValue(dbConfig.LdapAttributeGroupName.String()),
 			LdapID:       ldapID,
 		}
 		dto.Normalize(&syncGroup)
@@ -504,9 +501,7 @@ func (s *LdapService) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredG
 }
 
 //nolint:gocognit
-func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}) (savePictures []savePicture, deleteFiles []string, err error) {
-	dbConfig := s.appConfigService.GetDbConfig()
-
+func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, dbConfig *appconfig.AppConfigModel) (savePictures []savePicture, deleteFiles []string, err error) {
 	// Load the current LDAP-managed state from the database
 	ldapUsersInDB, ldapUsersByID, _, err := s.loadLDAPUsersInDB(ctx, tx)
 	if err != nil {

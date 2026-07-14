@@ -145,8 +145,8 @@ func TestLdapServiceSyncAllReconcilesUsersAndGroups(t *testing.T) {
 // Regression: posixGroup uses memberUid (bare uid values), not member DNs — issue #1408.
 func TestLdapServiceSyncAllMapsPosixGroupMemberUid(t *testing.T) {
 	appCfg := defaultTestLDAPAppConfig()
-	appCfg.LdapUserGroupSearchFilter = model.AppConfigVariable{Value: "(objectClass=posixGroup)"}
-	appCfg.LdapAttributeGroupMember = model.AppConfigVariable{Value: "memberUid"}
+	appCfg.LdapUserGroupSearchFilter = "(objectClass=posixGroup)"
+	appCfg.LdapAttributeGroupMember = "memberUid"
 
 	service, db := newTestLdapServiceWithAppConfig(t, appCfg, newFakeLDAPClient(
 		ldapSearchResult(
@@ -238,7 +238,7 @@ func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 	tests := []struct {
 		name        string
-		appConfig   *model.AppConfig
+		appConfig   *appconfig.AppConfigModel
 		groupEntry  *ldap.Entry
 		groupName   string
 		groupLookup string
@@ -256,10 +256,10 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 		},
 		{
 			name: "configured group name attribute differs from DN RDN",
-			appConfig: func() *model.AppConfig {
+			appConfig: func() *appconfig.AppConfigModel {
 				cfg := defaultTestLDAPAppConfig()
-				cfg.LdapAttributeGroupName = model.AppConfigVariable{Value: "displayName"}
-				cfg.LdapAdminGroupName = model.AppConfigVariable{Value: "pocketid.admin"}
+				cfg.LdapAttributeGroupName = "displayName"
+				cfg.LdapAdminGroupName = "pocketid.admin"
 				return cfg
 			}(),
 			groupEntry: ldapEntry("cn=admins,ou=groups,dc=example,dc=com", map[string][]string{
@@ -309,7 +309,7 @@ func newTestLdapService(t *testing.T, client ldapClient) (*LdapService, *gorm.DB
 	return newTestLdapServiceWithAppConfig(t, defaultTestLDAPAppConfig(), client)
 }
 
-func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *model.AppConfig, client ldapClient) (*LdapService, *gorm.DB) {
+func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *appconfig.AppConfigModel, client ldapClient) (*LdapService, *gorm.DB) {
 	t.Helper()
 
 	db := testutils.NewDatabaseForTest(t)
@@ -333,32 +333,32 @@ func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *model.AppConf
 	)
 
 	service := NewLdapService(db, &http.Client{}, appConfig, userService, groupService, fileStorage)
-	service.clientFactory = func() (ldapClient, error) {
+	service.clientFactory = func(dbConfig *appconfig.AppConfigModel) (ldapClient, error) {
 		return client, nil
 	}
 
 	return service, db
 }
 
-func defaultTestLDAPAppConfig() *model.AppConfig {
-	return &model.AppConfig{
-		RequireUserEmail:                   model.AppConfigVariable{Value: "false"},
-		LdapEnabled:                        model.AppConfigVariable{Value: "true"},
-		LdapBase:                           model.AppConfigVariable{Value: "dc=example,dc=com"},
-		LdapUserSearchFilter:               model.AppConfigVariable{Value: "(objectClass=person)"},
-		LdapUserGroupSearchFilter:          model.AppConfigVariable{Value: "(objectClass=groupOfNames)"},
-		LdapAttributeUserUniqueIdentifier:  model.AppConfigVariable{Value: "entryUUID"},
-		LdapAttributeUserUsername:          model.AppConfigVariable{Value: "uid"},
-		LdapAttributeUserEmail:             model.AppConfigVariable{Value: "mail"},
-		LdapAttributeUserFirstName:         model.AppConfigVariable{Value: "givenName"},
-		LdapAttributeUserLastName:          model.AppConfigVariable{Value: "sn"},
-		LdapAttributeUserDisplayName:       model.AppConfigVariable{Value: "displayName"},
-		LdapAttributeUserProfilePicture:    model.AppConfigVariable{Value: "jpegPhoto"},
-		LdapAttributeGroupMember:           model.AppConfigVariable{Value: "member"},
-		LdapAttributeGroupUniqueIdentifier: model.AppConfigVariable{Value: "entryUUID"},
-		LdapAttributeGroupName:             model.AppConfigVariable{Value: "cn"},
-		LdapAdminGroupName:                 model.AppConfigVariable{Value: "admins"},
-		LdapSoftDeleteUsers:                model.AppConfigVariable{Value: "true"},
+func defaultTestLDAPAppConfig() *appconfig.AppConfigModel {
+	return &appconfig.AppConfigModel{
+		RequireUserEmail:                   "false",
+		LdapEnabled:                        "true",
+		LdapBase:                           "dc=example,dc=com",
+		LdapUserSearchFilter:               "(objectClass=person)",
+		LdapUserGroupSearchFilter:          "(objectClass=groupOfNames)",
+		LdapAttributeUserUniqueIdentifier:  "entryUUID",
+		LdapAttributeUserUsername:          "uid",
+		LdapAttributeUserEmail:             "mail",
+		LdapAttributeUserFirstName:         "givenName",
+		LdapAttributeUserLastName:          "sn",
+		LdapAttributeUserDisplayName:       "displayName",
+		LdapAttributeUserProfilePicture:    "jpegPhoto",
+		LdapAttributeGroupMember:           "member",
+		LdapAttributeGroupUniqueIdentifier: "entryUUID",
+		LdapAttributeGroupName:             "cn",
+		LdapAdminGroupName:                 "admins",
+		LdapSoftDeleteUsers:                "true",
 	}
 }
 

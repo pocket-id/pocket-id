@@ -88,9 +88,7 @@ func saveKeyToDatabase(t *testing.T, db *gorm.DB, instanceID string, envConfig *
 }
 
 func TestJwtService_Init(t *testing.T) {
-	mockConfig := appconfig.NewTestAppConfigService(&model.AppConfig{
-		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
-	})
+	mockConfig := appconfig.NewTestAppConfigService(nil)
 
 	t.Run("should generate new key when none exists", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
@@ -193,9 +191,7 @@ func TestJwtService_Init(t *testing.T) {
 }
 
 func TestJwtService_GetPublicJWK(t *testing.T) {
-	mockConfig := appconfig.NewTestAppConfigService(&model.AppConfig{
-		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
-	})
+	mockConfig := appconfig.NewTestAppConfigService(nil)
 	db := testutils.NewDatabaseForTest(t)
 	mockEnvConfig := newTestEnvConfig()
 	instanceID := newInstanceID(t, db)
@@ -311,9 +307,8 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 }
 
 func TestGenerateVerifyAccessToken(t *testing.T) {
-	mockConfig := appconfig.NewTestAppConfigService(&model.AppConfig{
-		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
-	})
+	const sessionDuration = time.Hour
+	mockConfig := appconfig.NewTestAppConfigService(nil)
 	db, envConfig := newTestDbAndEnv(t)
 	instanceID := newInstanceID(t, db)
 
@@ -326,7 +321,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: false,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, "")
+		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -367,7 +362,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(adminUser, "")
+		tokenString, err := service.GenerateAccessToken(adminUser, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token")
 
 		claims, err := service.VerifyAccessToken(tokenString)
@@ -390,7 +385,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			Base: model.Base{ID: "user-with-auth-method"},
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, AuthenticationMethodPhishingResistant)
+		tokenString, err := service.GenerateAccessToken(user, AuthenticationMethodPhishingResistant, sessionDuration)
 		require.NoError(t, err, "Failed to generate access token")
 
 		claims, err := service.VerifyAccessToken(tokenString)
@@ -399,29 +394,6 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		authenticationMethod, err := service.GetAuthenticationMethod(claims)
 		_ = assert.NoError(t, err, "Failed to get amr claim") &&
 			assert.Equal(t, AuthenticationMethodPhishingResistant, authenticationMethod, "amr should match")
-	})
-
-	t.Run("uses session duration from config", func(t *testing.T) {
-		customMockConfig := appconfig.NewTestAppConfigService(&model.AppConfig{
-			SessionDuration: model.AppConfigVariable{Value: "30"}, // 30 minutes
-		})
-		service, _, _ := setupJwtService(t, instanceID, customMockConfig)
-
-		user := model.User{
-			Base: model.Base{ID: "user456"},
-		}
-
-		tokenString, err := service.GenerateAccessToken(user, "")
-		require.NoError(t, err, "Failed to generate access token")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Failed to verify generated token")
-
-		expectedExp := time.Now().Add(30 * time.Minute)
-		expiration, ok := claims.Expiration()
-		assert.True(t, ok, "Expiration not found in token")
-		timeDiff := expectedExp.Sub(expiration).Minutes()
-		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 30 minutes")
 	})
 
 	t.Run("works with Ed25519 keys", func(t *testing.T) {
@@ -438,7 +410,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, "")
+		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token with Ed25519 key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -476,7 +448,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, "")
+		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token with ECDSA key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -514,7 +486,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, "")
+		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token with RSA key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
