@@ -27,8 +27,9 @@ type completeInteractionRequest struct {
 }
 
 type completeInteractionResponse struct {
-	Interaction *interactionSessionForUser `json:"interaction,omitempty"`
-	RedirectURL string                     `json:"redirectUrl,omitempty"`
+	Interaction          *interactionSessionForUser `json:"interaction,omitempty"`
+	RedirectURL          string                     `json:"redirectUrl,omitempty"`
+	InvalidTokenDetected bool                       `json:"invalidTokenDetected,omitempty"`
 }
 
 func newInteractionSessionForUser(interactionSession InteractionSession) (interactionSessionForUser, error) {
@@ -50,7 +51,7 @@ func newInteractionSessionForUser(interactionSession InteractionSession) (intera
 	if requiredSteps == nil {
 		requiredSteps = []interactionStep{}
 	}
-
+	
 	return interactionSessionForUser{
 		ID:            interactionSession.ID,
 		Scopes:        scopes,

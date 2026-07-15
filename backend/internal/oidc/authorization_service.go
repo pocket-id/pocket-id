@@ -572,7 +572,7 @@ func (s *authorizationService) resolveScopeInfoForRequest(ctx context.Context, r
 	return infos, nil
 }
 
-func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, step interactionStep, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
+func (s *authorizationService) completeInteractionStep(ctx context.Context, interactionSessionID, userID string, permittedClients string, step interactionStep, reauthenticationToken string, authenticationTime time.Time, meta requestMeta) (completeInteractionResponse, error) {
 	var interactionSession InteractionSession
 	var response completeInteractionResponse
 	err := withTx(ctx, s.db, func(ctx context.Context) error {
@@ -580,6 +580,14 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 		interactionSession, err = s.interactionSessionService.get(ctx, interactionSessionID)
 		if err != nil {
 			return err
+		}
+
+		if permittedClients != "" && permittedClients != interactionSession.Client.ID {
+
+			response = completeInteractionResponse{
+				InvalidTokenDetected: true,
+			}
+			return nil
 		}
 
 		if interactionSession.UserID != nil && *interactionSession.UserID != userID {
@@ -610,6 +618,9 @@ func (s *authorizationService) completeInteractionStep(ctx context.Context, inte
 	})
 	if err != nil {
 		return completeInteractionResponse{}, err
+	}
+	if response.InvalidTokenDetected {
+		return response, nil
 	}
 	if response.RedirectURL != "" {
 		return response, nil

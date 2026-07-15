@@ -564,6 +564,5 @@
 	"select_the_permissions_this_client_may_request": "Select the permissions this client may request on behalf of the signed-in user (user-delegated access) and for itself without a user via the client credentials grant (client access).",
 	"i_have_a_longer_code": "I have a longer code",
 	"pkce_supported_client_title": "This client supports PKCE",
-	"pkce_supported_client_description": "This client supports Proof Key for Code Exchange (PKCE). PKCE is a security feature that helps protect against certain attacks during the OAuth 2.0 authorization process. It's recommended to enable it.",
-	"incognito": "Incognito"
+	"pkce_supported_client_description": "This client supports Proof Key for Code Exchange (PKCE). PKCE is a security feature that helps protect against certain attacks during the OAuth 2.0 authorization process. It's recommended to enable it."
 }
