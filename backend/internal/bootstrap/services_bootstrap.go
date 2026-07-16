@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"gorm.io/gorm"
 
@@ -36,11 +37,12 @@ type services struct {
 	appLockService       *service.AppLockService
 	oneTimeAccessService *service.OneTimeAccessService
 
-	apiKeyModule     *apikey.Module
-	oidcModule       *oidc.Module
-	webauthnModule   *webauthn.Module
-	userSignUpModule *usersignup.Module
-	apiModule        *api.Module
+	apiKeyModule      *apikey.Module
+	deviceLoginModule *devicelogin.Module
+	oidcModule        *oidc.Module
+	webauthnModule    *webauthn.Module
+	userSignUpModule  *usersignup.Module
+	apiModule         *api.Module
 }
 
 // Initializes all services
@@ -79,6 +81,14 @@ func initServices(ctx context.Context, db *gorm.DB, instanceID string, httpClien
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
 	}
+	svc.deviceLoginModule = devicelogin.New(devicelogin.Dependencies{
+		DB:        db,
+		BaseURL:   common.EnvConfig.AppURL,
+		Signer:    svc.jwtService,
+		Reauth:    svc.webauthnModule,
+		AuditLog:  svc.auditLogService,
+		AppConfig: svc.appConfigService,
+	})
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
 

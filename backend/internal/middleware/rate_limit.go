@@ -19,15 +19,17 @@ import (
 // Rate-limit policy names
 // Each constant names a limiter registered on the actor host and is the value passed to Add to select that limiter
 const (
-	RateLimitAPI                    = "api"
-	RateLimitSignup                 = "signup"
-	RateLimitWebauthnLogin          = "webauthn-login"
-	RateLimitWebauthnReauthenticate = "webauthn-reauthenticate"
-	RateLimitOneTimeAccessToken     = "one-time-access-token"
-	RateLimitOneTimeAccessEmail     = "one-time-access-email"
-	RateLimitSendEmailVerification  = "send-email-verification"
-	RateLimitVerifyEmail            = "verify-email"
-	RateLimitInternal               = "internal"
+	RateLimitAPI                     = "api"
+	RateLimitSignup                  = "signup"
+	RateLimitWebauthnLogin           = "webauthn-login"
+	RateLimitWebauthnReauthenticate  = "webauthn-reauthenticate"
+	RateLimitOneTimeAccessToken      = "one-time-access-token"
+	RateLimitOneTimeAccessEmail      = "one-time-access-email"
+	RateLimitDeviceLoginCreate       = "device-login-create"
+	RateLimitDeviceLoginVerification = "device-login-verification"
+	RateLimitSendEmailVerification   = "send-email-verification"
+	RateLimitVerifyEmail             = "verify-email"
+	RateLimitInternal                = "internal"
 )
 
 // RateLimitPolicy is the configuration for a single rate-limit actor
@@ -53,6 +55,8 @@ func RateLimitPolicies() []RateLimitPolicy {
 		{Name: RateLimitWebauthnReauthenticate, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitOneTimeAccessEmail, Rate: 2, Per: 10 * time.Minute, Burst: 5},
+		{Name: RateLimitDeviceLoginCreate, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitDeviceLoginVerification, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitSendEmailVerification, Rate: 2, Per: 10 * time.Minute, Burst: 1},
 		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitInternal, Rate: 20, Per: time.Second, Burst: 20},

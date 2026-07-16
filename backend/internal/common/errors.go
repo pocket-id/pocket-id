@@ -181,6 +181,20 @@ type OneTimeAccessDisabledError struct{}
 func (e OneTimeAccessDisabledError) Error() string       { return "One-time access is disabled" }
 func (e OneTimeAccessDisabledError) HttpStatusCode() int { return http.StatusBadRequest }
 
+type DeviceLoginRequestInvalidOrExpiredError struct{}
+
+func (e DeviceLoginRequestInvalidOrExpiredError) Error() string {
+	return "Device login request is invalid or expired"
+}
+func (e DeviceLoginRequestInvalidOrExpiredError) HttpStatusCode() int {
+	return http.StatusUnauthorized
+}
+
+type DeviceLoginDeniedError struct{}
+
+func (e DeviceLoginDeniedError) Error() string       { return "Device login request was denied" }
+func (e DeviceLoginDeniedError) HttpStatusCode() int { return http.StatusForbidden }
+
 type InvalidAPIKeyError struct{}
 
 func (e InvalidAPIKeyError) Error() string       { return "Invalid Api Key" }
