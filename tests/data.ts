@@ -192,5 +192,14 @@ export const signupTokens = {
 		usageLimit: 1,
 		usageCount: 1,
 		createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
+	},
+	domainRestricted: {
+		id: 'b2c3d4e5-f6a7-4890-bcde-f01234567891',
+		token: 'DOMAIN1234567890',
+		expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+		usageLimit: 5,
+		usageCount: 0,
+		emailDomain: 'example.com',
+		createdAt: new Date().toISOString()
 	}
 };

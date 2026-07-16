@@ -55,6 +55,7 @@ func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, adminAuth, signupRate
 	apiGroup.GET("/signup-tokens", adminAuth, m.handler.listSignupTokens)
 	apiGroup.DELETE("/signup-tokens/:id", adminAuth, m.handler.deleteSignupToken)
 	apiGroup.POST("/signup", signupRateLimit, m.handler.signup)
+	apiGroup.GET("/signup/token/:token", signupRateLimit, m.handler.signupTokenInfo)
 	apiGroup.GET("/signup/setup", m.handler.checkInitialAdminSetupAvailable)
 	apiGroup.POST("/signup/setup", m.handler.signUpInitialAdmin)
 }

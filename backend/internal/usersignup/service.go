@@ -72,6 +72,16 @@ func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, u
 			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
 		}
 
+		if signupToken.HasEmailDomainRestriction() {
+			email := ""
+			if signupData.Email != nil {
+				email = *signupData.Email
+			}
+			if !signupToken.EmailMatchesDomain(email) {
+				return model.User{}, "", &common.EmailDomainNotAllowedError{Domain: *signupToken.EmailDomain}
+			}
+		}
+
 		for _, group := range signupToken.UserGroups {
 			userGroupIDs = append(userGroupIDs, group.ID)
 		}
@@ -190,8 +200,26 @@ func (s *Service) DeleteSignupToken(ctx context.Context, tokenID string) error {
 	return s.db.WithContext(ctx).Delete(&SignupToken{}, "id = ?", tokenID).Error
 }
 
-func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (SignupToken, error) {
-	signupToken, err := newSignupToken(ttl, usageLimit)
+// GetSignupTokenInfo returns a signup token by its token string.
+// It's used to expose the limited, public metadata (such as the required email domain) needed to render the signup form.
+func (s *Service) GetSignupTokenInfo(ctx context.Context, token string) (SignupToken, error) {
+	var signupToken SignupToken
+	err := s.db.
+		WithContext(ctx).
+		Where("token = ?", token).
+		First(&signupToken).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return SignupToken{}, &common.TokenInvalidOrExpiredError{}
+	} else if err != nil {
+		return SignupToken{}, err
+	}
+
+	return signupToken, nil
+}
+
+func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string, emailDomain *string) (SignupToken, error) {
+	signupToken, err := newSignupToken(ttl, usageLimit, emailDomain)
 	if err != nil {
 		return SignupToken{}, err
 	}
@@ -214,7 +242,7 @@ func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usag
 	return *signupToken, nil
 }
 
-func newSignupToken(ttl time.Duration, usageLimit int) (*SignupToken, error) {
+func newSignupToken(ttl time.Duration, usageLimit int, emailDomain *string) (*SignupToken, error) {
 	// Generate a random token
 	randomString, err := utils.GenerateRandomAlphanumericString(16)
 	if err != nil {
@@ -223,10 +251,11 @@ func newSignupToken(ttl time.Duration, usageLimit int) (*SignupToken, error) {
 
 	now := time.Now().Round(time.Second)
 	token := &SignupToken{
-		Token:      randomString,
-		ExpiresAt:  datatype.DateTime(now.Add(ttl)),
-		UsageLimit: usageLimit,
-		UsageCount: 0,
+		Token:       randomString,
+		ExpiresAt:   datatype.DateTime(now.Add(ttl)),
+		UsageLimit:  usageLimit,
+		UsageCount:  0,
+		EmailDomain: emailDomain,
 	}
 
 	return token, nil

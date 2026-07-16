@@ -112,6 +112,42 @@ func TestValidateCallbackURL(t *testing.T) {
 	}
 }
 
+func TestValidateEmailDomain(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{"valid simple", "example.com", true},
+		{"valid with leading at", "@example.com", true},
+		{"valid subdomain", "mail.example.co.uk", true},
+		{"valid uppercase", "EXAMPLE.COM", true},
+		{"valid with at and uppercase", "@Example.Com", true},
+		{"valid with hyphen", "my-domain.com", true},
+		{"valid with digits", "example123.com", true},
+		{"valid single char label", "a.com", true},
+		{"empty", "", false},
+		{"only at", "@", false},
+		{"no tld", "example", false},
+		{"tld too short", "example.c", false},
+		{"trailing dot", "example.com.", false},
+		{"leading dot", ".example.com", false},
+		{"double dot", "example..com", false},
+		{"label starts with hyphen", "-example.com", false},
+		{"label ends with hyphen", "example-.com", false},
+		{"numeric tld", "example.123", false},
+		{"contains space", "exa mple.com", false},
+		{"double at", "@@example.com", false},
+		{"trailing space", "example.com ", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ValidateEmailDomain(tt.input))
+		})
+	}
+}
+
 func TestValidateCallbackURLPattern(t *testing.T) {
 	tests := []struct {
 		name     string

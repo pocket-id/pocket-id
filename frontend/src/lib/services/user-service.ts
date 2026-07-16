@@ -1,7 +1,7 @@
 import userStore from '$lib/stores/user-store';
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
 import type { Passkey } from '$lib/types/passkey.type';
-import type { SignupToken } from '$lib/types/signup-token.type';
+import type { SignupToken, SignupTokenInfo } from '$lib/types/signup-token.type';
 import type { UserGroup } from '$lib/types/user-group.type';
 import type { AccountUpdate, User, UserCreate, UserSignUp } from '$lib/types/user.type';
 import { cachedProfilePicture } from '$lib/utils/cached-image-util';
@@ -89,10 +89,21 @@ export default class UserService extends APIService {
 	createSignupToken = async (
 		ttl: string | number,
 		usageLimit: number,
-		userGroupIds: string[] = []
+		userGroupIds: string[] = [],
+		emailDomain?: string | null
 	) => {
-		const res = await this.api.post(`/signup-tokens`, { ttl, usageLimit, userGroupIds });
+		const res = await this.api.post(`/signup-tokens`, {
+			ttl,
+			usageLimit,
+			userGroupIds,
+			emailDomain: emailDomain || undefined
+		});
 		return res.data.token;
+	};
+
+	getSignupTokenInfo = async (token: string) => {
+		const res = await this.api.get(`/signup/token/${token}`);
+		return res.data as SignupTokenInfo;
 	};
 
 	exchangeOneTimeAccessToken = async (token: string) => {

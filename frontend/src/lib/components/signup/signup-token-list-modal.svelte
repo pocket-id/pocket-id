@@ -107,6 +107,11 @@
 			value: (item) => formatDate(item.expiresAt)
 		},
 		{
+			key: 'emailDomain',
+			label: m.email_domain(),
+			value: (item) => (item.emailDomain ? `@${item.emailDomain}` : '—')
+		},
+		{
 			key: 'userGroups',
 			label: m.user_groups(),
 			value: (item) => item.userGroups.map((g) => g.name).join(', '),

@@ -6,6 +6,11 @@ export interface SignupToken {
 	expiresAt: string;
 	usageLimit: number;
 	usageCount: number;
+	emailDomain?: string | null;
 	userGroups: UserGroup[];
 	createdAt: string;
+}
+
+export interface SignupTokenInfo {
+	emailDomain?: string | null;
 }

@@ -93,7 +93,7 @@ func (h *handler) createSignupToken(c *gin.Context) {
 		ttl = defaultSignupTokenDuration
 	}
 
-	signupToken, err := h.service.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
+	signupToken, err := h.service.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs, input.EmailDomain)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -157,6 +157,28 @@ func (h *handler) deleteSignupToken(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// signupTokenInfoHandler godoc
+// @Summary Get signup token info
+// @Description Get the public metadata (such as the required email domain) of a signup token
+// @Tags Users
+// @Produce json
+// @Param token path string true "Signup token"
+// @Success 200 {object} signupTokenInfoDto
+// @Router /api/signup/token/{token} [get]
+func (h *handler) signupTokenInfo(c *gin.Context) {
+	token := c.Param("token")
+
+	signupToken, err := h.service.GetSignupTokenInfo(c.Request.Context(), token)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, signupTokenInfoDto{
+		EmailDomain: signupToken.EmailDomain,
+	})
 }
 
 // signupHandler godoc

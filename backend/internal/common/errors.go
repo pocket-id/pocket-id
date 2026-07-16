@@ -277,3 +277,13 @@ type InvalidEmailVerificationTokenError struct{}
 func (e InvalidEmailVerificationTokenError) Error() string { return "Invalid email verification token" }
 
 func (e InvalidEmailVerificationTokenError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type EmailDomainNotAllowedError struct {
+	Domain string
+}
+
+func (e EmailDomainNotAllowedError) Error() string {
+	return fmt.Sprintf("The email address must use the domain @%s", e.Domain)
+}
+
+func (e EmailDomainNotAllowedError) HttpStatusCode() int { return http.StatusBadRequest }
