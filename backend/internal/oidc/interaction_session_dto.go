@@ -51,7 +51,7 @@ func newInteractionSessionForUser(interactionSession InteractionSession) (intera
 	if requiredSteps == nil {
 		requiredSteps = []interactionStep{}
 	}
-	
+
 	return interactionSessionForUser{
 		ID:            interactionSession.ID,
 		Scopes:        scopes,
