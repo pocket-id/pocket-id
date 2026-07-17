@@ -22,6 +22,15 @@ export type OidcClientCredentials = {
 	federatedIdentities: OidcClientFederatedIdentity[];
 };
 
+export type OidcDiscoveryConfiguration = {
+	issuer: string;
+	authorization_endpoint: string;
+	token_endpoint: string;
+	userinfo_endpoint: string;
+	end_session_endpoint: string;
+	jwks_uri: string;
+};
+
 export type OidcClient = OidcClientMetaData & {
 	callbackURLs: string[];
 	logoutCallbackURLs: string[];

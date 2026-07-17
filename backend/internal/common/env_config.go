@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
@@ -17,6 +18,7 @@ import (
 
 type AppEnv string
 type DbProvider string
+type TrustProxyConfig []string
 
 const (
 	// TracerName should be passed to otel.Tracer, trace.SpanFromContext when creating custom spans.
@@ -38,21 +40,23 @@ const (
 )
 
 type EnvConfigSchema struct {
-	AppEnv                AppEnv `env:"APP_ENV" options:"toLower"`
-	EncryptionKey         []byte `env:"ENCRYPTION_KEY" options:"file"`
-	AppURL                string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
-	DbProvider            DbProvider
-	DbConnectionString    string `env:"DB_CONNECTION_STRING" options:"file"`
-	TrustProxy            bool   `env:"TRUST_PROXY"`
-	TrustedPlatform       string `env:"TRUSTED_PLATFORM"`
-	AuditLogRetentionDays int    `env:"AUDIT_LOG_RETENTION_DAYS"`
-	AnalyticsDisabled     bool   `env:"ANALYTICS_DISABLED"`
-	AllowDowngrade        bool   `env:"ALLOW_DOWNGRADE"`
-	InternalAppURL        string `env:"INTERNAL_APP_URL"`
-	UiConfigDisabled      bool   `env:"UI_CONFIG_DISABLED"`
-	DisableRateLimiting   bool   `env:"DISABLE_RATE_LIMITING"`
-	VersionCheckDisabled  bool   `env:"VERSION_CHECK_DISABLED"`
-	StaticApiKey          string `env:"STATIC_API_KEY" options:"file"`
+	AppEnv                    AppEnv `env:"APP_ENV" options:"toLower"`
+	EncryptionKey             []byte `env:"ENCRYPTION_KEY" options:"file"`
+	AppURL                    string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
+	DbProvider                DbProvider
+	DbConnectionString        string           `env:"DB_CONNECTION_STRING" options:"file"`
+	TrustProxy                TrustProxyConfig `env:"TRUST_PROXY"`
+	ProxyProtocol             TrustProxyConfig `env:"PROXY_PROTOCOL"`
+	TrustedPlatform           string           `env:"TRUSTED_PLATFORM"`
+	AuditLogRetentionDays     int              `env:"AUDIT_LOG_RETENTION_DAYS"`
+	AnalyticsDisabled         bool             `env:"ANALYTICS_DISABLED"`
+	AllowDowngrade            bool             `env:"ALLOW_DOWNGRADE"`
+	AllowInsecureCallbackURLs bool             `env:"ALLOW_INSECURE_CALLBACK_URLS"`
+	InternalAppURL            string           `env:"INTERNAL_APP_URL"`
+	UiConfigDisabled          bool             `env:"UI_CONFIG_DISABLED"`
+	DisableRateLimiting       bool             `env:"DISABLE_RATE_LIMITING"`
+	VersionCheckDisabled      bool             `env:"VERSION_CHECK_DISABLED"`
+	StaticApiKey              string           `env:"STATIC_API_KEY" options:"file"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
@@ -97,18 +101,19 @@ func init() {
 
 func defaultConfig() EnvConfigSchema {
 	return EnvConfigSchema{
-		AppEnv:                AppEnvProduction,
-		LogLevel:              "info",
-		DbProvider:            "sqlite",
-		FileBackend:           "filesystem",
-		AuditLogRetentionDays: 90,
-		AppURL:                AppUrl,
-		Port:                  "1411",
-		Host:                  "0.0.0.0",
-		ActorsPort:            "1414",
-		ActorsHost:            "0.0.0.0",
-		GeoLiteDBPath:         "data/GeoLite2-City.mmdb",
-		GeoLiteDBUrl:          MaxMindGeoLiteCityUrl,
+		AppEnv:                    AppEnvProduction,
+		LogLevel:                  "info",
+		DbProvider:                "sqlite",
+		FileBackend:               "filesystem",
+		AuditLogRetentionDays:     90,
+		AllowInsecureCallbackURLs: true, // TODO: Default to false in major v3
+		AppURL:                    AppUrl,
+		Port:                      "1411",
+		Host:                      "0.0.0.0",
+		ActorsPort:                "1414",
+		ActorsHost:                "0.0.0.0",
+		GeoLiteDBPath:             "data/GeoLite2-City.mmdb",
+		GeoLiteDBUrl:              MaxMindGeoLiteCityUrl,
 	}
 }
 
@@ -153,6 +158,9 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 
 	if config.SystemdSocket && config.UnixSocket != "" {
 		return errors.New("SYSTEMD_SOCKET and UNIX_SOCKET are mutually exclusive")
+	}
+	if len(config.ProxyProtocol) > 0 && config.UnixSocket != "" {
+		return errors.New("PROXY_PROTOCOL and UNIX_SOCKET are mutually exclusive")
 	}
 
 	if config.AuditLogRetentionDays <= 0 {
@@ -389,4 +397,35 @@ func (a AppEnv) IsProduction() bool {
 
 func (a AppEnv) IsTest() bool {
 	return a == AppEnvTest
+}
+
+func (config *TrustProxyConfig) UnmarshalText(text []byte) error {
+	value := strings.TrimSpace(string(text))
+
+	// Support boolean values for completely enabling or disabling trust proxy
+	enabled, err := strconv.ParseBool(value)
+	if err == nil {
+		if enabled {
+			*config = TrustProxyConfig{"0.0.0.0/0", "::/0"}
+		} else {
+			*config = nil
+		}
+
+		return nil
+	}
+
+	// Normalize and validate each explicit proxy before the server starts
+	proxies := strings.Split(value, ",")
+	for i, proxy := range proxies {
+		proxy = strings.TrimSpace(proxy)
+		if net.ParseIP(proxy) == nil {
+			if _, _, err := net.ParseCIDR(proxy); err != nil {
+				return fmt.Errorf("invalid proxy IP address or CIDR %q", proxy)
+			}
+		}
+		proxies[i] = proxy
+	}
+
+	*config = proxies
+	return nil
 }

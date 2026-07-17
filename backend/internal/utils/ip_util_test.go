@@ -110,12 +110,19 @@ func TestIsPrivateIP(t *testing.T) {
 		ip       string
 		expected bool
 	}{
-		{"127.0.0.1", true},             // localhost
-		{"192.168.1.1", true},           // private LAN
-		{"100.64.0.1", true},            // Tailscale
-		{"fd00::1", true},               // local IPv6
-		{"8.8.8.8", false},              // public IPv4
-		{"2001:4860:4860::8888", false}, // public IPv6
+		{"127.0.0.1", true},              // localhost
+		{"192.168.1.1", true},            // private LAN
+		{"100.64.0.1", true},             // Tailscale
+		{"169.254.169.254", true},        // IPv4 link-local
+		{"169.254.170.2", true},          // IPv4 link-local
+		{"::ffff:169.254.169.254", true}, // IPv4-mapped link-local
+		{"fe80::1", true},                // IPv6 link-local
+		{"ff02::1", true},                // IPv6 link-local multicast
+		{"0.0.0.0", true},                // IPv4 unspecified
+		{"::", true},                     // IPv6 unspecified
+		{"fd00::1", true},                // private IPv6
+		{"8.8.8.8", false},               // public IPv4
+		{"2001:4860:4860::8888", false},  // public IPv6
 	}
 
 	for _, tt := range tests {
@@ -228,6 +235,36 @@ func TestIsURLPrivate(t *testing.T) {
 		{
 			name:        "Tailscale IP",
 			urlStr:      "http://100.64.0.1",
+			expectPriv:  true,
+			expectError: false,
+		},
+		{
+			name:        "IPv4 link-local metadata IP",
+			urlStr:      "http://169.254.169.254",
+			expectPriv:  true,
+			expectError: false,
+		},
+		{
+			name:        "IPv4-mapped link-local metadata IP",
+			urlStr:      "http://[::ffff:169.254.169.254]",
+			expectPriv:  true,
+			expectError: false,
+		},
+		{
+			name:        "IPv6 link-local IP",
+			urlStr:      "http://[fe80::1]",
+			expectPriv:  true,
+			expectError: false,
+		},
+		{
+			name:        "IPv4 unspecified IP",
+			urlStr:      "http://0.0.0.0",
+			expectPriv:  true,
+			expectError: false,
+		},
+		{
+			name:        "IPv6 unspecified IP",
+			urlStr:      "http://[::]",
 			expectPriv:  true,
 			expectError: false,
 		},

@@ -1,3 +1,31 @@
+## v2.11.0
+
+### Bug Fixes
+
+- postgres migration 20250822 remove public schema references ([#1582](https://github.com/pocket-id/pocket-id/pull/1582) by @MarcoScabbiolo)
+- allow insecure callback URLs by default until next major release ([d9ead47](https://github.com/pocket-id/pocket-id/commit/d9ead47d19451b256336b7d0eb46606a236928f3) by @stonith404)
+- sort signup tokens by creation date explicitly ([77398a5](https://github.com/pocket-id/pocket-id/commit/77398a558df45e1e332316afbb0f0c5e416350ea) by @stonith404)
+- login code mobile ux ([#1584](https://github.com/pocket-id/pocket-id/pull/1584) by @James18232)
+- `INTERNAL_APP_URL` not reflected in UI URLs ([316cf47](https://github.com/pocket-id/pocket-id/commit/316cf47cebdb7337cef13a533a8105ef4364b6f5) by @stonith404)
+- ignore tab URL hashes in navigation history ([a3f27ec](https://github.com/pocket-id/pocket-id/commit/a3f27ec2ec1ce784ca11e5fb41f92a0367715393) by @stonith404)
+- block link-local addresses in SSRF protection ([9714296](https://github.com/pocket-id/pocket-id/commit/9714296efb3768e4f29479f48628318565a3bed7) by @stonith404)
+
+### Documentation
+
+- update README ([ff5e565](https://github.com/pocket-id/pocket-id/commit/ff5e565eebbba0dba991cf06ad76249b7af26432) by @stonith404)
+
+### Features
+
+- add support for CIDR and IP address lists in `TRUST_PROXY` ([187cd8d](https://github.com/pocket-id/pocket-id/commit/187cd8ddcd4d6babec73bdf7e81eab2dee1ade04) by @stonith404)
+
+### Other
+
+- manage instance ID in the KV table ([#1579](https://github.com/pocket-id/pocket-id/pull/1579) by @ItalyPaleAle)
+- Bump the "all-dependencies" group with 3 updates across multiple ecosystems ([#1578](https://github.com/pocket-id/pocket-id/pull/1578) by @dependabot[bot])
+- remove low demand issue closer ([bb03660](https://github.com/pocket-id/pocket-id/commit/bb03660bd7d48dfd0b022936dabd2b2880c9b382) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.10.0...v2.11.0
+
 ## v2.10.0
 
 ### Bug Fixes
