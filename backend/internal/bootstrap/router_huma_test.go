@@ -35,7 +35,7 @@ func TestHumaRouterOpenAPI(t *testing.T) {
 	require.NoError(t, registerRoutes(router, db, services, nil))
 
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/openapi.json", nil))
+	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/openai.json", nil))
 	require.Equal(t, http.StatusOK, response.Code)
 
 	var document struct {
@@ -97,10 +97,7 @@ func TestHumaRouterOpenAPI(t *testing.T) {
 
 	response = httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/docs", nil))
-	require.Equal(t, http.StatusOK, response.Code)
-	require.Contains(t, response.Header().Get("Content-Security-Policy"), "https://cdn.jsdelivr.net")
-	require.NotContains(t, response.Header().Get("Content-Security-Policy"), "script-src 'unsafe-inline'")
-	require.Contains(t, response.Body.String(), "@scalar/api-reference@1.62.5")
+	require.Equal(t, http.StatusNotFound, response.Code)
 
 	response = httptest.NewRecorder()
 	newHTTPServer(router, nil).Handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodHead, "/healthz", nil))

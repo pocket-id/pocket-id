@@ -154,7 +154,7 @@ func TestCookiesStreamingAndOpenAPI(t *testing.T) {
 	require.True(t, reader.closed)
 
 	response = httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/openapi.json", nil))
+	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/openai.json", nil))
 	require.Equal(t, http.StatusOK, response.Code)
 	require.Contains(t, response.Body.String(), `"/api/test-raw"`)
 	require.NotContains(t, response.Body.String(), `"422"`)
@@ -162,10 +162,7 @@ func TestCookiesStreamingAndOpenAPI(t *testing.T) {
 
 	response = httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/docs", nil))
-	require.Equal(t, http.StatusOK, response.Code)
-	require.Contains(t, response.Body.String(), "@scalar/api-reference@1.62.5")
-	require.Contains(t, response.Header().Get("Content-Security-Policy"), "worker-src blob:")
-	require.NotContains(t, response.Header().Get("Content-Security-Policy"), "script-src 'unsafe-inline'")
+	require.Equal(t, http.StatusNotFound, response.Code)
 }
 
 func TestRegisterAppliesDecoratorsInOrder(t *testing.T) {

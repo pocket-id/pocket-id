@@ -3,32 +3,14 @@ package humautils
 import (
 	"encoding/json"
 	"io"
-	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humagin"
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
-
-const scalarDocsHTML = `<!doctype html>
-<html>
-  <head>
-    <title>Pocket ID API Reference</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body>
-    <script
-      id="api-reference"
-      data-url="/api/openapi.json"
-      data-configuration='{"theme":"purple","darkMode":true,"layout":"modern","hiddenClients":["unirest"],"defaultHttpClient":{"targetKey":"shell","clientKey":"curl"}}'></script>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.62.5" integrity="sha384-jVBCKhcCfx34USN27x4iQK1SBNdL/HxKq3KuBAxTS4WPaP5w80K4fjpwB+DezJL5" crossorigin="anonymous"></script>
-  </body>
-</html>`
 
 var ginCompatibleJSONFormat = huma.Format{
 	Marshal: func(w io.Writer, value any) error {
@@ -47,7 +29,7 @@ func New(r *gin.Engine, group *gin.RouterGroup) huma.API {
 	config := huma.DefaultConfig("Pocket ID API", common.Version)
 	config.CreateHooks = nil
 	config.DocsPath = ""
-	config.OpenAPIPath = "/api/openapi"
+	config.OpenAPIPath = "/api/openai"
 	config.SchemasPath = "/api/schemas"
 	config.AllowAdditionalPropertiesByDefault = true
 	config.Security = nil
@@ -94,7 +76,6 @@ func New(r *gin.Engine, group *gin.RouterGroup) huma.API {
 	humagin.MultipartMaxMemory = r.MaxMultipartMemory
 	api := humagin.NewWithGroup(r, group, config)
 	api.UseMiddleware(CaptureRequestContext)
-	registerScalarDocs(group)
 	return api
 }
 
@@ -107,12 +88,4 @@ func rewriteValidationResponse(_ *huma.OpenAPI, operation *huma.Operation) {
 		operation.Responses["400"] = response
 	}
 	delete(operation.Responses, "422")
-}
-
-func registerScalarDocs(group *gin.RouterGroup) {
-	group.GET("/api/docs", func(ctx *gin.Context) {
-		nonce := utils.GetCSPNonce(ctx)
-		ctx.Header("Content-Security-Policy", utils.BuildAPIDocsCSP(nonce))
-		ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(scalarDocsHTML))
-	})
 }
