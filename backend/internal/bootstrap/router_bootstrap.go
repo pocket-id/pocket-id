@@ -230,7 +230,18 @@ func initServer(r *gin.Engine) (*serverConfig, error) {
 	}
 
 	addr := socket.addr
+
 	listener := socket.listener
+
+	// Wrap the listener with a proxy protocol listener if configured and not using a Unix socket
+	if len(common.EnvConfig.ProxyProtocol) > 0 && common.EnvConfig.UnixSocket == "" {
+		listener, err = newProxyProtocolListener(socket.listener, common.EnvConfig.ProxyProtocol)
+		if err != nil {
+			_ = socket.listener.Close()
+			return nil, err
+		}
+	}
+
 	server := newHTTPServer(r, protocols)
 
 	return &serverConfig{addr, certProvider, listener, server, tlsConfig}, nil

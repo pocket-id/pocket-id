@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net"
@@ -64,11 +65,25 @@ func init() {
 		},
 	}
 
-	healthcheckCmd.Flags().StringVarP(&flags.Endpoint, "endpoint", "e", "http://localhost:"+common.EnvConfig.Port, "Endpoint for Pocket ID")
+	healthcheckCmd.Flags().StringVarP(&flags.Endpoint, "endpoint", "e", defaultEndpoint(), "Endpoint for Pocket ID")
 	healthcheckCmd.Flags().StringVar(&flags.UnixSocket, "unix-socket", "", "UNIX socket path for Pocket ID")
 	healthcheckCmd.Flags().BoolVarP(&flags.Verbose, "verbose", "v", false, "Enable verbose mode")
 
 	rootCmd.AddCommand(healthcheckCmd)
+}
+
+// The server only serves TLS when both a certificate and a key file are configured
+func tlsEnabled() bool {
+	return common.EnvConfig.TLSCertFile != "" && common.EnvConfig.TLSKeyFile != ""
+}
+
+func defaultEndpoint() string {
+	scheme := "http"
+	if tlsEnabled() {
+		scheme = "https"
+	}
+
+	return scheme + "://localhost:" + common.EnvConfig.Port
 }
 
 func healthcheck(ctx context.Context, flags healthcheckFlags) (*healthcheckResult, error) {
@@ -78,16 +93,24 @@ func healthcheck(ctx context.Context, flags healthcheckFlags) (*healthcheckResul
 		return nil, fmt.Errorf("failed to create request object for %q: %w", url, err)
 	}
 
-	client := http.DefaultClient
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+
 	if flags.UnixSocket != "" {
-		transport := http.DefaultTransport.(*http.Transport).Clone()
 		transport.Proxy = nil
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			dialer := net.Dialer{}
 			return dialer.DialContext(ctx, "unix", flags.UnixSocket)
 		}
-		client = &http.Client{Transport: transport}
 	}
+
+	// If TLS cert and key files are provided, there is a high chance that the server is using a self-signed certificate
+	if tlsEnabled() {
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec // no sensitive data is transmitted in healthcheck
+		}
+	}
+
+	client := &http.Client{Transport: transport}
 
 	res, err := client.Do(req)
 	if err != nil {
