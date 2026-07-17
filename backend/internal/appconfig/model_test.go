@@ -29,8 +29,7 @@ func TestAppConfigModel_Replace(t *testing.T) {
 		input := dtoWithMarkerValues()
 
 		var m AppConfigModel
-		err := m.Replace(input)
-		require.NoError(t, err)
+		m.Replace(input)
 
 		// Each model property must hold the marker built from its own "json" key.
 		// This also asserts that the model and the DTO share the same set of keys.
@@ -53,8 +52,7 @@ func TestAppConfigModel_Replace(t *testing.T) {
 		input.LdapUserSearchFilter = ""
 
 		var m AppConfigModel
-		err := m.Replace(input)
-		require.NoError(t, err)
+		m.Replace(input)
 
 		// Blanked properties are reset to their default
 		assert.Equal(t, defaults.AppName, m.AppName)
@@ -74,8 +72,7 @@ func TestAppConfigModel_Replace(t *testing.T) {
 			SmtpHost:    "smtp.example.com",
 		}
 
-		err := m.Replace(dto.AppConfigUpdateDto{})
-		require.NoError(t, err)
+		m.Replace(dto.AppConfigUpdateDto{})
 
 		assert.Equal(t, *getDefaultConfig(), m)
 	})
@@ -88,8 +85,7 @@ func TestAppConfigModel_Replace(t *testing.T) {
 		input := dto.AppConfigUpdateDto{}
 		input.AppName = "New Name"
 
-		err := m.Replace(input)
-		require.NoError(t, err)
+		m.Replace(input)
 
 		// Explicitly provided value wins
 		assert.Equal(t, "New Name", m.AppName)
@@ -103,11 +99,60 @@ func TestAppConfigModel_Replace(t *testing.T) {
 		input.LdapEnabled = "true"    // bool-tagged property
 
 		var m AppConfigModel
-		err := m.Replace(input)
-		require.NoError(t, err)
+		m.Replace(input)
 
 		assert.Equal(t, "120", m.SessionDuration)
 		assert.Equal(t, "true", m.LdapEnabled)
+	})
+}
+
+func TestAppConfigModel_Clone(t *testing.T) {
+	t.Run("clones every property", func(t *testing.T) {
+		// Populate every property with a unique marker so we can assert each one is copied
+		var original AppConfigModel
+		rv := reflect.ValueOf(&original).Elem()
+		rt := rv.Type()
+		for i := range rt.NumField() {
+			key, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
+			rv.Field(i).SetString("marker-" + key)
+		}
+
+		clone := original.Clone()
+
+		require.NotNil(t, clone)
+		// The clone must be a distinct object with equal contents
+		assert.NotSame(t, &original, clone)
+		assert.Equal(t, original, *clone)
+	})
+
+	t.Run("mutating the clone does not affect the original", func(t *testing.T) {
+		original := getDefaultConfig()
+
+		clone := original.Clone()
+		clone.AppName = "Changed"
+		clone.LdapEnabled = "true"
+
+		// The original keeps its values
+		assert.Equal(t, getDefaultConfig().AppName, original.AppName)
+		assert.Equal(t, getDefaultConfig().LdapEnabled, original.LdapEnabled)
+
+		// The clone holds the new values
+		assert.Equal(t, AppConfigValue("Changed"), clone.AppName)
+		assert.Equal(t, AppConfigValue("true"), clone.LdapEnabled)
+	})
+
+	t.Run("mutating the original does not affect the clone", func(t *testing.T) {
+		original := getDefaultConfig()
+
+		clone := original.Clone()
+		original.AppName = "Changed"
+
+		assert.Equal(t, getDefaultConfig().AppName, clone.AppName)
+	})
+
+	t.Run("cloning a nil receiver returns nil", func(t *testing.T) {
+		var m *AppConfigModel
+		assert.Nil(t, m.Clone())
 	})
 }
 
@@ -115,7 +160,7 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("updates a single property", func(t *testing.T) {
 		m := getDefaultConfig()
 
-		err := m.Update("appName", "My App")
+		err := m.Update(map[string]string{"appName": "My App"})
 		require.NoError(t, err)
 
 		assert.Equal(t, "My App", m.AppName)
@@ -124,7 +169,7 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("updates multiple properties and leaves others untouched", func(t *testing.T) {
 		m := getDefaultConfig()
 
-		err := m.Update("appName", "My App", "homePageUrl", "/home", "ldapEnabled", "true")
+		err := m.Update(map[string]string{"appName": "My App", "homePageUrl": "/home", "ldapEnabled": "true"})
 		require.NoError(t, err)
 
 		assert.Equal(t, "My App", m.AppName)
@@ -139,7 +184,7 @@ func TestAppConfigModel_Update(t *testing.T) {
 		m.SmtpTls = "tls"         // default is "none"
 		m.SessionDuration = "120" // default is "60"
 
-		err := m.Update("smtpTls", "", "sessionDuration", "")
+		err := m.Update(map[string]string{"smtpTls": "", "sessionDuration": ""})
 		require.NoError(t, err)
 
 		assert.Equal(t, getDefaultConfig().SmtpTls, m.SmtpTls)
@@ -149,48 +194,27 @@ func TestAppConfigModel_Update(t *testing.T) {
 	t.Run("stores raw string values without type coercion", func(t *testing.T) {
 		m := getDefaultConfig()
 
-		err := m.Update("sessionDuration", "120", "disableAnimations", "true")
+		err := m.Update(map[string]string{"sessionDuration": "120", "disableAnimations": "true"})
 		require.NoError(t, err)
 
 		assert.Equal(t, "120", m.SessionDuration)
 		assert.Equal(t, "true", m.DisableAnimations)
 	})
 
-	t.Run("later value wins for a repeated key", func(t *testing.T) {
-		m := getDefaultConfig()
-
-		err := m.Update("appName", "First", "appName", "Second")
-		require.NoError(t, err)
-
-		assert.Equal(t, "Second", m.AppName)
-	})
-
-	t.Run("no arguments is a no-op", func(t *testing.T) {
+	t.Run("an empty map is a no-op", func(t *testing.T) {
 		m := getDefaultConfig()
 		before := *m
 
-		err := m.Update()
+		err := m.Update(nil)
 		require.NoError(t, err)
 
-		assert.Equal(t, before, *m)
-	})
-
-	t.Run("an odd number of arguments returns an error", func(t *testing.T) {
-		m := getDefaultConfig()
-		before := *m
-
-		err := m.Update("appName")
-		require.Error(t, err)
-		assert.EqualError(t, err, "invalid number of arguments received")
-
-		// The config must not have been modified
 		assert.Equal(t, before, *m)
 	})
 
 	t.Run("an unknown key returns AppConfigKeyNotFoundError", func(t *testing.T) {
 		m := getDefaultConfig()
 
-		err := m.Update("thisKeyDoesNotExist", "value")
+		err := m.Update(map[string]string{"thisKeyDoesNotExist": "value"})
 		require.Error(t, err)
 		assert.EqualError(t, err, "cannot find config key 'thisKeyDoesNotExist'")
 

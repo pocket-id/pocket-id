@@ -12,7 +12,6 @@ import (
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -96,24 +95,8 @@ func (s *AppConfigService) GetConfig(parentCtx context.Context) (*AppConfigModel
 	return &cfg, nil
 }
 
-func (s *AppConfigService) updateAppConfigUpdateDatabase(ctx context.Context, tx *gorm.DB, dbUpdate *[]model.AppConfigVariable) error {
-	err := tx.
-		WithContext(ctx).
-		Clauses(clause.OnConflict{
-			// Perform an "upsert" if the key already exists, replacing the value
-			Columns:   []clause.Column{{Name: "key"}},
-			DoUpdates: clause.AssignmentColumns([]string{"value"}),
-		}).
-		Create(&dbUpdate).
-		Error
-	if err != nil {
-		return fmt.Errorf("failed to update config in database: %w", err)
-	}
-
-	return nil
-}
-
 func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
+	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, &common.UiConfigDisabledError{}
 	}
@@ -185,6 +168,7 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 		return errors.New("invalid number of arguments received")
 	}
 
+	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return &common.UiConfigDisabledError{}
 	}
@@ -254,10 +238,6 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 	s.dbConfig.Store(cfg)
 
 	return nil
-}
-
-func (s *AppConfigService) ListAppConfig(showAll bool) []model.AppConfigVariable {
-	return s.GetDbConfig().ToAppConfigVariableSlice(showAll, true)
 }
 
 func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {

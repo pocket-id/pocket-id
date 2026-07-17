@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/italypaleale/francis/actor"
+
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
 // The AppConfig singleton actor maintains the dynamic configuration for the Pocket ID cluster
@@ -105,6 +107,84 @@ func (a *appConfigActor) Peek(parentCtx context.Context, method string, data act
 	state, err := a.client.GetState(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving actor state: %w", err)
+	}
+
+	// Return the state
+	return state, nil
+}
+
+func (a *appConfigActor) Invoke(parentCtx context.Context, method string, data actor.Envelope) (any, error) {
+	// Check the method first
+	switch method {
+	case "get", "update", "replace":
+		// All good
+		// Note: we support "get" also via Invoke and not just Peek
+	default:
+		return nil, common.ErrUnsupportedActorMethod{Method: method}
+	}
+
+	// Load the actor state
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
+	defer cancel()
+	state, err := a.client.GetState(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving actor state: %w", err)
+	}
+
+	switch method {
+	case "get":
+		// If the method is "get", just return the actor state, we're done
+		// This switch case is a no-op
+
+	case "replace":
+		// Replace the entire config
+		// The input data must be a dto.AppConfigUpdateDto
+		payload := dto.AppConfigUpdateDto{}
+		if data == nil {
+			return nil, fmt.Errorf("request body is empty for method 'replace': %w", err)
+		}
+		err = data.Decode(&payload)
+		if err != nil {
+			return nil, fmt.Errorf("request body is not valid for method 'replace': %w", err)
+		}
+
+		// Update the in-memory data
+		// Work on a clone to avoid touching the cached object in case of errors (we'll update after we've committed the state)
+		newState := state.Clone()
+		newState.Replace(payload)
+
+		// Save the updated state
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
+		defer cancel()
+		err = a.client.SetState(ctx, state, nil)
+
+		// Update the cached state too
+		*state = *newState
+
+	case "update":
+		// Update the config
+		// The input data must be a map[string]string
+		var payload map[string]string
+		if data == nil {
+			return nil, fmt.Errorf("request body is empty for method 'update': %w", err)
+		}
+		err = data.Decode(&payload)
+		if err != nil {
+			return nil, fmt.Errorf("request body is not valid for method 'update': %w", err)
+		}
+
+		// Update the in-memory data
+		// Work on a clone to avoid touching the cached object in case of errors (we'll update after we've committed the state)
+		newState := state.Clone()
+		newState.Update(payload)
+
+		// Save the updated state
+		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
+		defer cancel()
+		err = a.client.SetState(ctx, state, nil)
+
+		// Update the cached state too
+		*state = *newState
 	}
 
 	// Return the state

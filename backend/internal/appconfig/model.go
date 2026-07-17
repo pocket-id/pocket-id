@@ -63,6 +63,17 @@ type AppConfigModel struct {
 	LdapSoftDeleteUsers                AppConfigValue `json:"ldapSoftDeleteUsers" type:"bool"`
 }
 
+// Clone returns a deep copy of the AppConfigModel.
+func (m *AppConfigModel) Clone() *AppConfigModel {
+	if m == nil {
+		return nil
+	}
+
+	// All fields are value types (AppConfigValue is a string), so copying the struct is sufficient for a deep copy.
+	clone := *m
+	return &clone
+}
+
 // AppConfigValue holds a value
 type AppConfigValue string
 
@@ -182,7 +193,7 @@ func fromLegacyConfig(legacyCfg map[string]string) (*AppConfigModel, error) {
 
 // Replace updates every configuration property with the values from the input DTO
 // An empty string value resets the corresponding property to its default value
-func (m *AppConfigModel) Replace(input dto.AppConfigUpdateDto) error {
+func (m *AppConfigModel) Replace(input dto.AppConfigUpdateDto) {
 	// Collect the values from the input DTO into a map, keyed by the "json" tag
 	inRv := reflect.ValueOf(input)
 	inRt := inRv.Type()
@@ -208,29 +219,18 @@ func (m *AppConfigModel) Replace(input dto.AppConfigUpdateDto) error {
 
 		rv.Field(i).SetString(value)
 	}
-
-	return nil
 }
 
 // Update sets configuration properties from the provided key-value pairs
 // Keys correspond to the "json" tags on the model
 // An empty string value resets the property to its default value
-func (m *AppConfigModel) Update(keysAndValues ...string) error {
-	// Count of keysAndValues must be even
-	if len(keysAndValues)%2 != 0 {
-		return errors.New("invalid number of arguments received")
-	}
-
+func (m *AppConfigModel) Update(values map[string]string) error {
 	rv := reflect.ValueOf(m).Elem()
 	rt := rv.Type()
 	defaults := reflect.ValueOf(getDefaultConfig()).Elem()
 
 	// Iterate through the key-value pairs
-	// (Note the += 2, as we are iterating through key-value pairs)
-	for i := 1; i < len(keysAndValues); i += 2 {
-		key := keysAndValues[i-1]
-		value := keysAndValues[i]
-
+	for key, value := range values {
 		// Find the field in the struct whose "json" tag matches
 		fieldIdx := -1
 		for j := range rt.NumField() {
