@@ -46,6 +46,7 @@ type EnvConfigSchema struct {
 	DbProvider                DbProvider
 	DbConnectionString        string           `env:"DB_CONNECTION_STRING" options:"file"`
 	TrustProxy                TrustProxyConfig `env:"TRUST_PROXY"`
+	ProxyProtocol             TrustProxyConfig `env:"PROXY_PROTOCOL"`
 	TrustedPlatform           string           `env:"TRUSTED_PLATFORM"`
 	AuditLogRetentionDays     int              `env:"AUDIT_LOG_RETENTION_DAYS"`
 	AnalyticsDisabled         bool             `env:"ANALYTICS_DISABLED"`
@@ -157,6 +158,9 @@ func ValidateEnvConfig(config *EnvConfigSchema) error {
 
 	if config.SystemdSocket && config.UnixSocket != "" {
 		return errors.New("SYSTEMD_SOCKET and UNIX_SOCKET are mutually exclusive")
+	}
+	if len(config.ProxyProtocol) > 0 && config.UnixSocket != "" {
+		return errors.New("PROXY_PROTOCOL and UNIX_SOCKET are mutually exclusive")
 	}
 
 	if config.AuditLogRetentionDays <= 0 {
@@ -414,6 +418,11 @@ func (config *TrustProxyConfig) UnmarshalText(text []byte) error {
 	proxies := strings.Split(value, ",")
 	for i, proxy := range proxies {
 		proxy = strings.TrimSpace(proxy)
+		if net.ParseIP(proxy) == nil {
+			if _, _, err := net.ParseCIDR(proxy); err != nil {
+				return fmt.Errorf("invalid proxy IP address or CIDR %q", proxy)
+			}
+		}
 		proxies[i] = proxy
 	}
 

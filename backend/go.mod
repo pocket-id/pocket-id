@@ -39,6 +39,7 @@ require (
 	github.com/orandin/slog-gorm v1.4.0
 	github.com/ory/fosite v0.49.1-0.20250703093431-a5f0b09bf31c
 	github.com/oschwald/maxminddb-golang/v2 v2.4.1
+	github.com/pires/go-proxyproto v0.15.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/zitadel/exifremove v0.1.0
