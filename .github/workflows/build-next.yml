@@ -33,7 +33,7 @@ jobs:
           run_install: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: 24
           cache: pnpm
@@ -82,11 +82,11 @@ jobs:
           MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
 
       - name: Binary attestation
-        uses: actions/attest@v4
+        uses: actions/attest@v4.1.1
         with:
           subject-checksums: ./dist/checksums.txt
 
       - name: Container image attestation
-        uses: actions/attest@v4
+        uses: actions/attest@v4.1.1
         with:
           subject-checksums: ./dist/digests.txt
