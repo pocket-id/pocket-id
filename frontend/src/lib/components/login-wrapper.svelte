@@ -41,7 +41,7 @@
 	let alternativeSignInButton = $derived({
 		href:
 			page.url.pathname === '/login'
-				? '/login/alternative'
+				? `/login/alternative${page.url.search}`
 				: `/login/alternative?redirect=${encodeURIComponent(page.url.pathname + page.url.search)}`,
 		label: m.alternative_sign_in_methods()
 	});
