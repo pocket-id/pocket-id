@@ -23,11 +23,21 @@ func GenerateRandomUnambiguousString(length int) (string, error) {
 	return GenerateRandomString(length, charset)
 }
 
+// GenerateRandomUppercaseUnambiguousString generates a random uppercase string of the given length using unambiguous characters
+func GenerateRandomUppercaseUnambiguousString(length int) (string, error) {
+	const charset = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+	return GenerateRandomString(length, charset)
+}
+
 // GenerateRandomString generates a random string of the given length using the provided character set
 func GenerateRandomString(length int, charset string) (string, error) {
 
 	if length <= 0 {
 		return "", errors.New("length must be a positive integer")
+	}
+
+	if len(charset) == 0 {
+		return "", errors.New("character set must not be empty")
 	}
 
 	// The algorithm below is adapted from https://stackoverflow.com/a/35615565

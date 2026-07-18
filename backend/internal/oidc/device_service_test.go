@@ -61,6 +61,14 @@ func TestDeviceServiceAcceptRequiresReauthenticationTokenWhenClientRequiresIt(t 
 	require.Equal(t, 1, reauth.calls)
 }
 
+func TestDeviceServiceCreatesUserCodeWithOAuthPrefix(t *testing.T) {
+	service, _, _, userCode, _ := newTestDeviceServiceWithCode(t, "test-client", "test-user", false, nil)
+
+	require.Regexp(t, `^E[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{7}$`, userCode)
+	_, _, err := service.deviceRequestFromUserCode(t.Context(), strings.ToLower(userCode))
+	require.NoError(t, err)
+}
+
 func TestDeviceServiceAcceptUsesReauthenticationTimeForDeviceSession(t *testing.T) {
 	const (
 		userID   = "test-user"

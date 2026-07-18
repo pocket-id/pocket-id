@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ory/fosite"
@@ -219,6 +220,8 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 }
 
 func (s *deviceService) deviceRequestFromUserCode(ctx context.Context, userCode string) (fosite.DeviceRequester, string, error) {
+	userCode = strings.ToUpper(strings.TrimSpace(userCode))
+
 	userCodeSignature, err := s.userCodeStrategy.UserCodeSignature(ctx, userCode)
 	if err != nil {
 		return nil, "", err

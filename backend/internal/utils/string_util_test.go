@@ -86,6 +86,20 @@ func TestGenerateRandomUnambiguousString(t *testing.T) {
 	})
 }
 
+func TestGenerateRandomUppercaseUnambiguousString(t *testing.T) {
+	const length = 10
+	str, err := GenerateRandomUppercaseUnambiguousString(length)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if len(str) != length {
+		t.Errorf("Expected length %d, got %d", length, len(str))
+	}
+	if !regexp.MustCompile(`^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]+$`).MatchString(str) {
+		t.Errorf("String contains lowercase or ambiguous characters: %s", str)
+	}
+}
+
 func TestGenerateRandomString(t *testing.T) {
 	t.Run("valid length returns characters from charset", func(t *testing.T) {
 		const length = 20
@@ -119,6 +133,14 @@ func TestGenerateRandomString(t *testing.T) {
 			t.Error("Expected error for negative length, got nil")
 		}
 	})
+
+	t.Run("empty charset returns error", func(t *testing.T) {
+		_, err := GenerateRandomString(10, "")
+		if err == nil {
+			t.Error("Expected error for empty charset, got nil")
+		}
+	})
+
 }
 
 func TestCapitalizeFirstLetter(t *testing.T) {

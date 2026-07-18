@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -35,6 +36,7 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 	return errors.Join(
 		s.RegisterJob(ctx, "ClearWebauthnSessions", jobDefWithJitter(24*time.Hour), jobs.clearWebauthnSessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearOneTimeAccessTokens", jobDefWithJitter(24*time.Hour), jobs.clearOneTimeAccessTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
+		s.RegisterJob(ctx, "ClearDeviceLoginRequests", jobDefWithJitter(24*time.Hour), jobs.clearDeviceLoginRequests, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearSignupTokens", jobDefWithJitter(24*time.Hour), jobs.clearSignupTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearEmailVerificationTokens", jobDefWithJitter(24*time.Hour), jobs.clearEmailVerificationTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearOAuth2Sessions", jobDefWithJitter(24*time.Hour), jobs.clearOAuth2Sessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
@@ -71,6 +73,18 @@ func (j *DbCleanupJobs) clearOneTimeAccessTokens(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "Cleaned expired one-time access tokens", slog.Int64("count", st.RowsAffected))
+
+	return nil
+}
+
+// clearDeviceLoginRequests deletes device login requests that have expired
+func (j *DbCleanupJobs) clearDeviceLoginRequests(ctx context.Context) error {
+	count, err := devicelogin.CleanupExpiredRequests(ctx, j.db)
+	if err != nil {
+		return fmt.Errorf("failed to clean expired device login requests: %w", err)
+	}
+
+	slog.InfoContext(ctx, "Cleaned expired device login requests", slog.Int64("count", count))
 
 	return nil
 }
