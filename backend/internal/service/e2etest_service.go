@@ -696,7 +696,7 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 		}
 
 		for key, value := range ldapConfigs {
-			configVar := model.AppConfigVariable{Key: key, Value: value}
+			configVar := appconfig.AppConfigVariable{Key: key, Value: value}
 			if err := tx.Create(&configVar).Error; err != nil {
 				return fmt.Errorf("failed to create config variable '%s': %w", key, err)
 			}
@@ -708,7 +708,8 @@ func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
 		return fmt.Errorf("failed to set LDAP test config: %w", err)
 	}
 
-	if err := s.appConfigService.LoadDbConfig(ctx); err != nil {
+	err = s.appConfigService.LoadDbConfig(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to load app config: %w", err)
 	}
 

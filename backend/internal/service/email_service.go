@@ -103,7 +103,7 @@ func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Addr
 }
 
 // getEmailer builds an emailer.Emailer from the current app config.
-func (srv *EmailService) getEmailer(ctx context.Context, dbConfig *model.AppConfig) (emailer.Emailer, error) {
+func (srv *EmailService) getEmailer(ctx context.Context, dbConfig *appconfig.AppConfigModel) (emailer.Emailer, error) {
 	// We support SMTP only (for now)
 	connString, err := smtpConnString(dbConfig)
 	if err != nil {
@@ -117,8 +117,8 @@ func (srv *EmailService) getEmailer(ctx context.Context, dbConfig *model.AppConf
 
 // smtpConnString builds the SMTP connection string that go-kit's emailer expects:
 // smtp://<username>:<password>@<host>:<port>?fromAddress=<address>&fromName=<name>&tls=<none|starttls|tls>&insecureSkipVerify=<true|false>
-func smtpConnString(dbConfig *model.AppConfig) (string, error) {
-	host := dbConfig.SmtpHost.Value
+func smtpConnString(dbConfig *appconfig.AppConfigModel) (string, error) {
+	host := dbConfig.SmtpHost.String()
 	if host == "" {
 		return "", errors.New("SMTP host is not configured")
 	}
@@ -127,28 +127,28 @@ func smtpConnString(dbConfig *model.AppConfig) (string, error) {
 		Scheme: "smtp",
 		Host:   host,
 	}
-	port := dbConfig.SmtpPort.Value
+	port := dbConfig.SmtpPort.String()
 	if port != "" {
 		u.Host = net.JoinHostPort(host, port)
 	}
 
 	// Include credentials when set
-	smtpUser := dbConfig.SmtpUser.Value
-	smtpPassword := dbConfig.SmtpPassword.Value
+	smtpUser := dbConfig.SmtpUser.String()
+	smtpPassword := dbConfig.SmtpPassword.String()
 	if smtpUser != "" || smtpPassword != "" {
 		u.User = url.UserPassword(smtpUser, smtpPassword)
 	}
 
 	// TLS values from config: none, starttls, tls
-	tlsMode := dbConfig.SmtpTls.Value
+	tlsMode := dbConfig.SmtpTls.String()
 	if tlsMode == "" {
 		tlsMode = "none"
 	}
 
 	// Build the query string args
 	q := url.Values{}
-	q.Set("fromAddress", dbConfig.SmtpFrom.Value)
-	q.Set("fromName", dbConfig.AppName.Value)
+	q.Set("fromAddress", dbConfig.SmtpFrom.String())
+	q.Set("fromName", dbConfig.AppName.String())
 	q.Set("tls", tlsMode)
 	if dbConfig.SmtpSkipCertVerify.IsTrue() {
 		q.Set("insecureSkipVerify", "true")
