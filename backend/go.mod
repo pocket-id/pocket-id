@@ -249,5 +249,3 @@ require (
 )
 
 replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260708083902-56a3c0f378d6
-
-replace github.com/italypaleale/francis => /Users/alessandro/Desktop/Code/actors
