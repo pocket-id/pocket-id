@@ -16,7 +16,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -38,11 +37,10 @@ const (
 )
 
 type OidcService struct {
-	db               *gorm.DB
-	jwtService       *JwtService
-	appConfigService *appconfig.AppConfigService
-	previewBuilder   oidcClientPreviewBuilder
-	scimService      *ScimService
+	db             *gorm.DB
+	jwtService     *JwtService
+	previewBuilder oidcClientPreviewBuilder
+	scimService    *ScimService
 
 	httpClient  *http.Client
 	fileStorage storage.FileStorage
@@ -55,20 +53,18 @@ type oidcClientPreviewBuilder interface {
 func NewOidcService(
 	db *gorm.DB,
 	jwtService *JwtService,
-	appConfigService *appconfig.AppConfigService,
 	previewBuilder oidcClientPreviewBuilder,
 	scimService *ScimService,
 	httpClient *http.Client,
 	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
 	s = &OidcService{
-		db:               db,
-		jwtService:       jwtService,
-		appConfigService: appConfigService,
-		previewBuilder:   previewBuilder,
-		scimService:      scimService,
-		httpClient:       httpClient,
-		fileStorage:      fileStorage,
+		db:             db,
+		jwtService:     jwtService,
+		previewBuilder: previewBuilder,
+		scimService:    scimService,
+		httpClient:     httpClient,
+		fileStorage:    fileStorage,
 	}
 
 	return s, nil

@@ -20,13 +20,12 @@ import (
 )
 
 type EmailService struct {
-	appConfigService *appconfig.AppConfigService
-	db               *gorm.DB
-	htmlTemplates    map[string]*htemplate.Template
-	textTemplates    map[string]*ttemplate.Template
+	db            *gorm.DB
+	htmlTemplates map[string]*htemplate.Template
+	textTemplates map[string]*ttemplate.Template
 }
 
-func NewEmailService(db *gorm.DB, appConfigService *appconfig.AppConfigService) (*EmailService, error) {
+func NewEmailService(db *gorm.DB) (*EmailService, error) {
 	htmlTemplates, err := email.PrepareHTMLTemplates(emailTemplatesPaths)
 	if err != nil {
 		return nil, fmt.Errorf("prepare html templates: %w", err)
@@ -38,10 +37,9 @@ func NewEmailService(db *gorm.DB, appConfigService *appconfig.AppConfigService) 
 	}
 
 	return &EmailService{
-		appConfigService: appConfigService,
-		db:               db,
-		htmlTemplates:    htmlTemplates,
-		textTemplates:    textTemplates,
+		db:            db,
+		htmlTemplates: htmlTemplates,
+		textTemplates: textTemplates,
 	}, nil
 }
 
@@ -67,10 +65,19 @@ func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId stri
 }
 
 func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
-	dbConfig := srv.appConfigService.GetDbConfig()
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	return SendEmailWithConfig(ctx, srv, dbConfig, toEmail, template, tData)
+}
+
+// SendEmailWithConfig sends an email with an explicitly loaded configuration for call chains that do not originate from an HTTP request
+func SendEmailWithConfig[V any](ctx context.Context, srv *EmailService, dbConfig *appconfig.AppConfigModel, toEmail email.Address, template email.Template[V], tData *V) error {
 
 	data := &email.TemplateData[V]{
-		AppName: dbConfig.AppName.Value,
+		AppName: dbConfig.AppName.String(),
 		LogoURL: common.EnvConfig.AppURL + "/api/application-images/email",
 		Data:    tData,
 	}

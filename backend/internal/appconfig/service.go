@@ -179,19 +179,19 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 
-		// Get the key and internal tag values
-		key, attrs, _ := strings.Cut(field.Tag.Get("key"), ",")
+		// Derive the environment variable name from the configuration's JSON key
+		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		envVarName := utils.CamelCaseToScreamingSnakeCase(key)
 
 		// Set the value if it's set
 		value, ok := os.LookupEnv(envVarName)
 		if ok {
-			rv.Field(i).Set(reflect.ValueOf(value))
+			rv.Field(i).SetString(value)
 			continue
 		}
 
 		// If it's sensitive, we also allow reading from file
-		if attrs == "sensitive" {
+		if field.Tag.Get("sensitive") == "true" {
 			fileName := os.Getenv(envVarName + "_FILE")
 			if fileName != "" {
 				// #nosec G703 - Value is provided by admin
@@ -200,7 +200,7 @@ func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
 					return nil, fmt.Errorf("failed to read secret '%s' from file '%s': %w", envVarName, fileName, err)
 				}
 
-				rv.Field(i).Set(reflect.ValueOf(string(b)))
+				rv.Field(i).SetString(string(b))
 				continue
 			}
 		}

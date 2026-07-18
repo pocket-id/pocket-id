@@ -216,7 +216,7 @@ func TestAppConfigModel_Update(t *testing.T) {
 
 		err := m.Update(map[string]string{"thisKeyDoesNotExist": "value"})
 		require.Error(t, err)
-		assert.EqualError(t, err, "cannot find config key 'thisKeyDoesNotExist'")
+		require.EqualError(t, err, "cannot find config key 'thisKeyDoesNotExist'")
 
 		notFound, ok := errors.AsType[AppConfigKeyNotFoundError](err)
 		require.True(t, ok)

@@ -20,22 +20,20 @@ import (
 )
 
 type OneTimeAccessService struct {
-	db               *gorm.DB
-	userService      *UserService
-	appConfigService *appconfig.AppConfigService
-	jwtService       *JwtService
-	auditLogService  *AuditLogService
-	emailService     *EmailService
+	db              *gorm.DB
+	userService     *UserService
+	jwtService      *JwtService
+	auditLogService *AuditLogService
+	emailService    *EmailService
 }
 
-func NewOneTimeAccessService(db *gorm.DB, userService *UserService, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *appconfig.AppConfigService) *OneTimeAccessService {
+func NewOneTimeAccessService(db *gorm.DB, userService *UserService, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService) *OneTimeAccessService {
 	return &OneTimeAccessService{
-		db:               db,
-		userService:      userService,
-		appConfigService: appConfigService,
-		jwtService:       jwtService,
-		auditLogService:  auditLogService,
-		emailService:     emailService,
+		db:              db,
+		userService:     userService,
+		jwtService:      jwtService,
+		auditLogService: auditLogService,
+		emailService:    emailService,
 	}
 }
 

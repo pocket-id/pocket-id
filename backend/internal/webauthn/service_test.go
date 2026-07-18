@@ -28,7 +28,7 @@ func newFakeSigner() *fakeSigner {
 	return &fakeSigner{tokens: map[string]jwt.Token{}}
 }
 
-func (s *fakeSigner) GenerateAccessToken(user model.User, authenticationMethod string) (string, error) {
+func (s *fakeSigner) GenerateAccessToken(user model.User, authenticationMethod string, _ time.Duration) (string, error) {
 	builder := jwt.NewBuilder().
 		Subject(user.ID).
 		IssuedAt(time.Now())
@@ -85,7 +85,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 	t.Run("accepts a fresh access token from WebAuthn login", func(t *testing.T) {
 		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, authenticationMethodPhishingResistant)
+		accessToken, err := signer.GenerateAccessToken(user, authenticationMethodPhishingResistant, time.Hour)
 		require.NoError(t, err)
 
 		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
@@ -96,7 +96,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 	t.Run("rejects a fresh access token from one-time access login", func(t *testing.T) {
 		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, "otp")
+		accessToken, err := signer.GenerateAccessToken(user, "otp", time.Hour)
 		require.NoError(t, err)
 
 		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)
@@ -108,7 +108,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 	t.Run("rejects a fresh access token without an authentication method", func(t *testing.T) {
 		service, signer, user := setupService(t)
-		accessToken, err := signer.GenerateAccessToken(user, "")
+		accessToken, err := signer.GenerateAccessToken(user, "", time.Hour)
 		require.NoError(t, err)
 
 		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), accessToken)

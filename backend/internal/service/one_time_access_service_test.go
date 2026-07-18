@@ -18,8 +18,8 @@ func TestExchangeOneTimeAccessTokenRejectsDisabledUser(t *testing.T) {
 	appConfig := appconfig.NewTestAppConfigService(nil)
 	instanceID := newInstanceID(t, db)
 	jwtService := initJwtService(t, db, instanceID, appConfig, newTestEnvConfig())
-	auditLogService := NewAuditLogService(db, appConfig, nil, &GeoLiteService{})
-	oneTimeAccessService := NewOneTimeAccessService(db, nil, jwtService, auditLogService, nil, appConfig)
+	auditLogService := NewAuditLogService(db, nil, &GeoLiteService{})
+	oneTimeAccessService := NewOneTimeAccessService(db, nil, jwtService, auditLogService, nil)
 
 	user := model.User{
 		Base:     model.Base{ID: "disabled-user"},
@@ -36,7 +36,8 @@ func TestExchangeOneTimeAccessTokenRejectsDisabledUser(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&loginCode).Error)
 
-	exchangedUser, accessToken, err := oneTimeAccessService.ExchangeOneTimeAccessToken(t.Context(), loginCode.Token, "", "", "")
+	ctx := appconfig.NewTestContext(t.Context(), nil)
+	exchangedUser, accessToken, err := oneTimeAccessService.ExchangeOneTimeAccessToken(ctx, loginCode.Token, "", "", "")
 
 	var userDisabledErr *common.UserDisabledError
 	require.ErrorAs(t, err, &userDisabledErr)

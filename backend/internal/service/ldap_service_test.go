@@ -110,7 +110,8 @@ func TestLdapServiceSyncAllReconcilesUsersAndGroups(t *testing.T) {
 		LdapID:       &oldGroupLdapID,
 	}).Error)
 
-	require.NoError(t, service.SyncAll(t.Context()))
+	err := service.SyncAllWithConfig(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
 
 	var alice model.User
 	require.NoError(t, db.First(&alice, "ldap_id = ?", aliceLdapID).Error)
@@ -176,7 +177,8 @@ func TestLdapServiceSyncAllMapsPosixGroupMemberUid(t *testing.T) {
 		),
 	))
 
-	require.NoError(t, service.SyncAll(t.Context()))
+	err := service.SyncAllWithConfig(t.Context(), appCfg)
+	require.NoError(t, err)
 
 	var group model.UserGroup
 	require.NoError(t, db.Preload("Users").First(&group, "ldap_id = ?", "g-users").Error)
@@ -218,7 +220,8 @@ func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 		),
 	))
 
-	require.NoError(t, service.SyncAll(t.Context()))
+	err := service.SyncAllWithConfig(t.Context(), defaultTestLDAPAppConfig())
+	require.NoError(t, err)
 
 	var users []model.User
 	require.NoError(t, db.Find(&users, "ldap_id = ?", "u-dup").Error)
@@ -289,7 +292,8 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 				ldapSearchResult(tt.groupEntry),
 			))
 
-			require.NoError(t, service.SyncAll(t.Context()))
+			err := service.SyncAllWithConfig(t.Context(), tt.appConfig)
+			require.NoError(t, err)
 
 			var user model.User
 			require.NoError(t, db.First(&user, "ldap_id = ?", "u-testadmin").Error)
@@ -317,22 +321,19 @@ func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *appconfig.App
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
 
-	appConfig := appconfig.NewTestAppConfigService(appConfigModel)
-
-	groupService := NewUserGroupService(db, appConfig, nil)
+	groupService := NewUserGroupService(db, nil)
 	userService := NewUserService(
 		db,
 		nil,
 		nil,
 		nil,
-		appConfig,
 		NewCustomClaimService(db),
 		NewAppImagesService(map[string]string{}, fileStorage),
 		nil,
 		fileStorage,
 	)
 
-	service := NewLdapService(db, &http.Client{}, appConfig, userService, groupService, fileStorage)
+	service := NewLdapService(db, &http.Client{}, userService, groupService, fileStorage)
 	service.clientFactory = func(dbConfig *appconfig.AppConfigModel) (ldapClient, error) {
 		return client, nil
 	}

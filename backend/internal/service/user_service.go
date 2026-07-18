@@ -32,20 +32,18 @@ type UserService struct {
 	jwtService         *JwtService
 	auditLogService    *AuditLogService
 	emailService       *EmailService
-	appConfigService   *appconfig.AppConfigService
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
 	scimService        *ScimService
 	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *appconfig.AppConfigService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
 		auditLogService:    auditLogService,
 		emailService:       emailService,
-		appConfigService:   appConfigService,
 		customClaimService: customClaimService,
 		appImagesService:   appImagesService,
 		scimService:        scimService,
@@ -205,13 +203,8 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDe
 }
 
 func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userID string, allowLdapDelete bool) error {
-	cfg, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-
 	var user model.User
-	err = tx.
+	err := tx.
 		WithContext(ctx).
 		Where("id = ?", userID).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -222,8 +215,14 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 	}
 
 	// Disallow deleting the user if it is an LDAP user, LDAP is enabled, and the user is not disabled
-	if !allowLdapDelete && !user.Disabled && user.LdapID != nil && cfg.LdapEnabled.IsTrue() {
-		return &common.LdapUserUpdateError{}
+	if !allowLdapDelete && !user.Disabled && user.LdapID != nil {
+		cfg, err := appconfig.FromCtx(ctx)
+		if err != nil {
+			return fmt.Errorf("error loading app configuration: %w", err)
+		}
+		if cfg.LdapEnabled.IsTrue() {
+			return &common.LdapUserUpdateError{}
+		}
 	}
 
 	err = tx.WithContext(ctx).Delete(&user).Error
@@ -262,7 +261,10 @@ func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCrea
 	if err != nil {
 		return model.User{}, fmt.Errorf("error loading app configuration: %w", err)
 	}
+	return s.createUserInternal(ctx, input, isLdapSync, tx, cfg)
+}
 
+func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (model.User, error) {
 	if cfg.RequireUserEmail.IsTrue() && input.Email == nil {
 		return model.User{}, &common.UserEmailNotSetError{}
 	}
@@ -295,7 +297,7 @@ func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCrea
 		user.LdapID = &input.LdapID
 	}
 
-	err = tx.WithContext(ctx).Create(&user).Error
+	err := tx.WithContext(ctx).Create(&user).Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		// Do not follow this path if we're using LDAP, as we don't want to roll-back the transaction here
 		if !isLdapSync {
@@ -323,13 +325,13 @@ func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCrea
 	// Apply default groups and claims for new non-LDAP users
 	if !isLdapSync {
 		if len(input.UserGroupIds) == 0 {
-			err = s.applyDefaultGroups(ctx, &user, tx)
+			err = s.applyDefaultGroups(ctx, &user, tx, cfg)
 			if err != nil {
 				return model.User{}, err
 			}
 		}
 
-		err = s.applyDefaultCustomClaims(ctx, &user, tx)
+		err = s.applyDefaultCustomClaims(ctx, &user, tx, cfg)
 		if err != nil {
 			return model.User{}, err
 		}
@@ -342,16 +344,11 @@ func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCrea
 	return user, nil
 }
 
-func (s *UserService) applyDefaultGroups(ctx context.Context, user *model.User, tx *gorm.DB) error {
-	cfg, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *UserService) applyDefaultGroups(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
 	var groupIDs []string
 	v := cfg.SignupDefaultUserGroupIDs
 	if v != "" && v != "[]" {
-		err = json.Unmarshal([]byte(v), &groupIDs)
+		err := json.Unmarshal([]byte(v), &groupIDs)
 		if err != nil {
 			return fmt.Errorf("invalid SignupDefaultUserGroupIDs JSON: %w", err)
 		}
@@ -409,16 +406,11 @@ func (s *UserService) touchUserGroups(ctx context.Context, tx *gorm.DB, ids []st
 		Error
 }
 
-func (s *UserService) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB) error {
-	cfg, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *UserService) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB, cfg *appconfig.AppConfigModel) error {
 	var claims []dto.CustomClaimCreateDto
 	v := cfg.SignupDefaultCustomClaims
 	if v != "" && v != "[]" {
-		err = json.Unmarshal([]byte(v), &claims)
+		err := json.Unmarshal([]byte(v), &claims)
 		if err != nil {
 			return fmt.Errorf("invalid SignupDefaultCustomClaims JSON: %w", err)
 		}
@@ -434,12 +426,17 @@ func (s *UserService) applyDefaultCustomClaims(ctx context.Context, user *model.
 }
 
 func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool) (model.User, error) {
+	cfg, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return model.User{}, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	user, err := s.updateUserInternal(ctx, userID, updatedUser, updateOwnUser, isLdapSync, tx)
+	user, err := s.updateUserInternal(ctx, userID, updatedUser, updateOwnUser, isLdapSync, tx, cfg)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -452,18 +449,13 @@ func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser
 	return user, nil
 }
 
-func (s *UserService) updateUserInternal(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB) (model.User, error) {
-	cfg, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return model.User{}, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *UserService) updateUserInternal(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (model.User, error) {
 	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil {
 		return model.User{}, &common.UserEmailNotSetError{}
 	}
 
 	var user model.User
-	err = tx.
+	err := tx.
 		WithContext(ctx).
 		Where("id = ?", userID).
 		Clauses(clause.Locking{Strength: "UPDATE"}).

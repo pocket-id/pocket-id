@@ -51,7 +51,7 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 			continue
 		}
 
-		err = service.SendEmail(ctx, j.emailService, email.Address{
+		err = service.SendEmailWithConfig(ctx, j.emailService, dbConfig, email.Address{
 			Name:  key.User.FullName(),
 			Email: *key.User.Email,
 		}, service.ApiKeyExpiringSoonTemplate, &service.ApiKeyExpiringSoonTemplateData{

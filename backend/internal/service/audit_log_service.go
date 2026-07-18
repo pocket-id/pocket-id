@@ -14,18 +14,16 @@ import (
 )
 
 type AuditLogService struct {
-	db               *gorm.DB
-	appConfigService *appconfig.AppConfigService
-	emailService     *EmailService
-	geoliteService   *GeoLiteService
+	db             *gorm.DB
+	emailService   *EmailService
+	geoliteService *GeoLiteService
 }
 
-func NewAuditLogService(db *gorm.DB, appConfigService *appconfig.AppConfigService, emailService *EmailService, geoliteService *GeoLiteService) *AuditLogService {
+func NewAuditLogService(db *gorm.DB, emailService *EmailService, geoliteService *GeoLiteService) *AuditLogService {
 	return &AuditLogService{
-		db:               db,
-		appConfigService: appConfigService,
-		emailService:     emailService,
-		geoliteService:   geoliteService,
+		db:             db,
+		emailService:   emailService,
+		geoliteService: geoliteService,
 	}
 }
 

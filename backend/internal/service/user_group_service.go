@@ -17,13 +17,12 @@ import (
 )
 
 type UserGroupService struct {
-	db               *gorm.DB
-	scimService      *ScimService
-	appConfigService *appconfig.AppConfigService
+	db          *gorm.DB
+	scimService *ScimService
 }
 
-func NewUserGroupService(db *gorm.DB, appConfigService *appconfig.AppConfigService, scimService *ScimService) *UserGroupService {
-	return &UserGroupService{db: db, appConfigService: appConfigService, scimService: scimService}
+func NewUserGroupService(db *gorm.DB, scimService *ScimService) *UserGroupService {
+	return &UserGroupService{db: db, scimService: scimService}
 }
 
 func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
@@ -167,14 +166,15 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 		return model.UserGroup{}, err
 	}
 
-	cfg, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return model.UserGroup{}, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
 	// Disallow updating the group if it is an LDAP group and LDAP is enabled
-	if !isLdapSync && group.LdapID != nil && cfg.LdapEnabled.IsTrue() {
-		return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
+	if !isLdapSync && group.LdapID != nil {
+		cfg, err := appconfig.FromCtx(ctx)
+		if err != nil {
+			return model.UserGroup{}, fmt.Errorf("error loading app configuration: %w", err)
+		}
+		if cfg.LdapEnabled.IsTrue() {
+			return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
+		}
 	}
 
 	group.Name = input.Name

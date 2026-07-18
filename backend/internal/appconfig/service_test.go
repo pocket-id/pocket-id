@@ -104,6 +104,7 @@ func TestService_NewService(t *testing.T) {
 
 	t.Run("loads config from the environment when the UI config is disabled", func(t *testing.T) {
 		setUIConfigDisabled(t, true)
+		t.Setenv("APP_NAME", "Environment App")
 
 		// No actor host or database is needed when the UI config is disabled
 		svc, err := NewService(t.Context(), nil, nil)
@@ -112,7 +113,7 @@ func TestService_NewService(t *testing.T) {
 
 		cfg, err := svc.GetConfig(t.Context())
 		require.NoError(t, err)
-		assert.Equal(t, *getDefaultConfig(), *cfg)
+		assert.Equal(t, AppConfigValue("Environment App"), cfg.AppName)
 	})
 }
 

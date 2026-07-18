@@ -1,19 +1,20 @@
 package webauthn
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
 type handler struct {
-	service   *Service
-	appConfig AppConfigProvider
+	service *Service
 }
 
 func newHandler(service *Service) *handler {
@@ -67,6 +68,12 @@ func (h *handler) beginLogin(c *gin.Context) {
 }
 
 func (h *handler) verifyLogin(c *gin.Context) {
+	dbConfig, err := appconfig.FromCtx(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
 		_ = c.Error(&common.MissingSessionIdError{})
@@ -91,7 +98,7 @@ func (h *handler) verifyLogin(c *gin.Context) {
 		return
 	}
 
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)

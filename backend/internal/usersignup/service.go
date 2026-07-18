@@ -3,12 +3,14 @@ package usersignup
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -25,7 +27,6 @@ type Service struct {
 	userCreator UserCreator
 	signer      TokenService
 	auditLog    AuditLogger
-	appConfig   AppConfigProvider
 }
 
 func newService(deps Dependencies) *Service {
@@ -34,11 +35,15 @@ func newService(deps Dependencies) *Service {
 		userCreator: deps.UserCreator,
 		signer:      deps.Signer,
 		auditLog:    deps.AuditLog,
-		appConfig:   deps.AppConfig,
 	}
 }
 
 func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, userAgent string) (model.User, string, error) {
+	config, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return model.User{}, "", fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -46,8 +51,7 @@ func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, u
 
 	tokenProvided := signupData.Token != ""
 
-	config := s.appConfig.GetDbConfig()
-	if config.AllowUserSignups.Value != "open" && !tokenProvided {
+	if config.AllowUserSignups.String() != "open" && !tokenProvided {
 		return model.User{}, "", &common.OpenSignupDisabledError{}
 	}
 
@@ -84,7 +88,7 @@ func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, u
 		LastName:      signupData.LastName,
 		DisplayName:   strings.TrimSpace(signupData.FirstName + " " + signupData.LastName),
 		UserGroupIds:  userGroupIDs,
-		EmailVerified: s.appConfig.GetDbConfig().EmailsVerified.IsTrue(),
+		EmailVerified: config.EmailsVerified.IsTrue(),
 	}
 
 	user, err := s.userCreator.CreateUserInternal(ctx, userToCreate, false, tx)
@@ -92,7 +96,7 @@ func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, u
 		return model.User{}, "", err
 	}
 
-	accessToken, err := s.signer.GenerateAccessToken(user, "")
+	accessToken, err := s.signer.GenerateAccessToken(user, "", config.SessionDuration.AsDurationMinutes())
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -123,6 +127,11 @@ func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, u
 }
 
 func (s *Service) SignUpInitialAdmin(ctx context.Context, signUpData signUpDto) (model.User, string, error) {
+	config, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return model.User{}, "", fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -150,7 +159,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, signUpData signUpDto) 
 		return model.User{}, "", err
 	}
 
-	token, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword)
+	token, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, config.SessionDuration.AsDurationMinutes())
 	if err != nil {
 		return model.User{}, "", err
 	}

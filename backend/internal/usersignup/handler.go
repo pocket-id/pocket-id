@@ -1,11 +1,13 @@
 package usersignup
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -15,12 +17,11 @@ import (
 const defaultSignupTokenDuration = time.Hour
 
 type handler struct {
-	service   *Service
-	appConfig AppConfigProvider
+	service *Service
 }
 
-func newHandler(service *Service, appConfig AppConfigProvider) *handler {
-	return &handler{service: service, appConfig: appConfig}
+func newHandler(service *Service) *handler {
+	return &handler{service: service}
 }
 
 func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) {
@@ -48,6 +49,12 @@ func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) {
 // @Success 200 {object} dto.UserDto
 // @Router /api/signup/setup [post]
 func (h *handler) signUpInitialAdmin(c *gin.Context) {
+	config, err := appconfig.FromCtx(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input signUpDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
@@ -66,7 +73,7 @@ func (h *handler) signUpInitialAdmin(c *gin.Context) {
 		return
 	}
 
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
@@ -169,6 +176,12 @@ func (h *handler) deleteSignupToken(c *gin.Context) {
 // @Success 201 {object} dto.UserDto
 // @Router /api/signup [post]
 func (h *handler) signup(c *gin.Context) {
+	config, err := appconfig.FromCtx(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input signUpDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
@@ -184,7 +197,7 @@ func (h *handler) signup(c *gin.Context) {
 		return
 	}
 
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
 
 	var userDto dto.UserDto

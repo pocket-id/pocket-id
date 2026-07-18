@@ -36,11 +36,11 @@ func newTestEnvConfig() *common.EnvConfigSchema {
 	}
 }
 
-func initJwtService(t *testing.T, db *gorm.DB, instanceID string, appConfig *appconfig.AppConfigService, envConfig *common.EnvConfigSchema) *JwtService {
+func initJwtService(t *testing.T, db *gorm.DB, instanceID string, _ *appconfig.AppConfigService, envConfig *common.EnvConfigSchema) *JwtService {
 	t.Helper()
 
 	service := &JwtService{}
-	err := service.init(t.Context(), db, instanceID, appConfig, envConfig)
+	err := service.init(t.Context(), db, instanceID, envConfig)
 	require.NoError(t, err, "Failed to initialize JWT service")
 
 	return service

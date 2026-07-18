@@ -30,13 +30,12 @@ import (
 )
 
 type LdapService struct {
-	db               *gorm.DB
-	httpClient       *http.Client
-	appConfigService *appconfig.AppConfigService
-	userService      *UserService
-	groupService     *UserGroupService
-	fileStorage      storage.FileStorage
-	clientFactory    func(dbConfig *appconfig.AppConfigModel) (ldapClient, error)
+	db            *gorm.DB
+	httpClient    *http.Client
+	userService   *UserService
+	groupService  *UserGroupService
+	fileStorage   storage.FileStorage
+	clientFactory func(dbConfig *appconfig.AppConfigModel) (ldapClient, error)
 }
 
 type savePicture struct {
@@ -70,14 +69,13 @@ type ldapClient interface {
 	Close() error
 }
 
-func NewLdapService(db *gorm.DB, httpClient *http.Client, appConfigService *appconfig.AppConfigService, userService *UserService, groupService *UserGroupService, fileStorage storage.FileStorage) *LdapService {
+func NewLdapService(db *gorm.DB, httpClient *http.Client, userService *UserService, groupService *UserGroupService, fileStorage storage.FileStorage) *LdapService {
 	service := &LdapService{
-		db:               db,
-		httpClient:       httpClient,
-		appConfigService: appConfigService,
-		userService:      userService,
-		groupService:     groupService,
-		fileStorage:      fileStorage,
+		db:           db,
+		httpClient:   httpClient,
+		userService:  userService,
+		groupService: groupService,
+		fileStorage:  fileStorage,
 	}
 
 	service.clientFactory = service.createClient
@@ -110,7 +108,15 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
+	return s.syncAll(ctx, dbConfig)
+}
 
+// SyncAllWithConfig synchronizes LDAP with an explicitly loaded configuration for call chains that do not originate from an HTTP request
+func (s *LdapService) SyncAllWithConfig(ctx context.Context, dbConfig *appconfig.AppConfigModel) error {
+	return s.syncAll(ctx, dbConfig)
+}
+
+func (s *LdapService) syncAll(ctx context.Context, dbConfig *appconfig.AppConfigModel) error {
 	// Setup LDAP connection
 	client, err := s.clientFactory(dbConfig)
 	if err != nil {
@@ -173,7 +179,7 @@ func (s *LdapService) SyncAll(ctx context.Context) error {
 
 func (s *LdapService) fetchDesiredState(ctx context.Context, client ldapClient, dbConfig *appconfig.AppConfigModel) (ldapDesiredState, error) {
 	// Fetch users first so we can use their DNs when resolving group members
-	users, userIDs, usernamesByDN, err := s.fetchUsersFromLDAP(ctx, client)
+	users, userIDs, usernamesByDN, err := s.fetchUsersFromLDAP(ctx, client, dbConfig)
 	if err != nil {
 		return ldapDesiredState{}, err
 	}
@@ -290,12 +296,7 @@ func (s *LdapService) fetchGroupsFromLDAP(ctx context.Context, client ldapClient
 	return desiredGroups, ldapGroupIDs, nil
 }
 
-func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient) (desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, usernamesByDN map[string]string, err error) {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *LdapService) fetchUsersFromLDAP(ctx context.Context, client ldapClient, dbConfig *appconfig.AppConfigModel) (desiredUsers []ldapDesiredUser, ldapUserIDs map[string]struct{}, usernamesByDN map[string]string, err error) {
 	// Query LDAP for all users we want to manage
 	searchAttrs := []string{
 		"sn",
@@ -532,7 +533,7 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 
 		userID := databaseUser.ID
 		if databaseUser.ID == "" {
-			createdUser, err := s.userService.CreateUserInternal(ctx, desiredUser.input, true, tx)
+			createdUser, err := s.userService.createUserInternal(ctx, desiredUser.input, true, tx, dbConfig)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
 				slog.Warn("Skipping creating LDAP user", slog.String("username", desiredUser.input.Username), slog.Any("error", err))
 				continue
@@ -543,7 +544,7 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 			userID = createdUser.ID
 			ldapUsersByID[desiredUser.ldapID] = createdUser
 		} else {
-			_, err = s.userService.updateUserInternal(ctx, databaseUser.ID, desiredUser.input, false, true, tx)
+			_, err = s.userService.updateUserInternal(ctx, databaseUser.ID, desiredUser.input, false, true, tx, dbConfig)
 			if errors.Is(err, &common.AlreadyInUseError{}) {
 				slog.Warn("Skipping updating LDAP user", slog.String("username", desiredUser.input.Username), slog.Any("error", err))
 				continue

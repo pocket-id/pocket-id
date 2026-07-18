@@ -2,6 +2,7 @@ package usersignup
 
 import (
 	"context"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -11,15 +12,11 @@ import (
 )
 
 type TokenService interface {
-	GenerateAccessToken(user model.User, authenticationMethod string) (string, error)
+	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
 }
 
 type AuditLogger interface {
 	Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) (model.AuditLog, bool)
-}
-
-type AppConfigProvider interface {
-	GetDbConfig() *model.AppConfig
 }
 
 type UserCreator interface {
@@ -31,7 +28,6 @@ type Dependencies struct {
 
 	Signer      TokenService
 	AuditLog    AuditLogger
-	AppConfig   AppConfigProvider
 	UserCreator UserCreator
 }
 
@@ -44,7 +40,7 @@ func New(deps Dependencies) *Module {
 	service := newService(deps)
 	return &Module{
 		service: service,
-		handler: newHandler(service, deps.AppConfig),
+		handler: newHandler(service),
 	}
 }
 

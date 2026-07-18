@@ -68,24 +68,25 @@ func initServices(
 	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
 	svc.appLockService = service.NewAppLockService(db)
 
-	svc.emailService, err = service.NewEmailService(db, svc.appConfigService)
+	svc.emailService, err = service.NewEmailService(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create email service: %w", err)
 	}
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
-	svc.auditLogService = service.NewAuditLogService(db, svc.appConfigService, svc.emailService, svc.geoLiteService)
-	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID, svc.appConfigService)
+	svc.auditLogService = service.NewAuditLogService(db, svc.emailService, svc.geoLiteService)
+	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)
 	}
 
 	svc.customClaimService = service.NewCustomClaimService(db)
-	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
-		DB:       db,
-		AppURL:   common.EnvConfig.AppURL,
-		Signer:   svc.jwtService,
-		AuditLog: svc.auditLogService,
+	svc.webauthnModule, err = webauthn.New(ctx, webauthn.Dependencies{
+		DB:        db,
+		AppURL:    common.EnvConfig.AppURL,
+		Signer:    svc.jwtService,
+		AuditLog:  svc.auditLogService,
+		AppConfig: svc.appConfigService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
@@ -114,14 +115,14 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.appConfigService, svc.oidcModule.Preview, svc.scimService, httpClient, fileStorage)
+	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.scimService, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}
 
-	svc.userGroupService = service.NewUserGroupService(db, svc.appConfigService, svc.scimService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
-	svc.ldapService = service.NewLdapService(db, httpClient, svc.appConfigService, svc.userService, svc.userGroupService, fileStorage)
+	svc.userGroupService = service.NewUserGroupService(db, svc.scimService)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
+	svc.ldapService = service.NewLdapService(db, httpClient, svc.userService, svc.userGroupService, fileStorage)
 
 	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
 		DB:           db,
@@ -135,10 +136,9 @@ func initServices(
 		DB:          db,
 		Signer:      svc.jwtService,
 		AuditLog:    svc.auditLogService,
-		AppConfig:   svc.appConfigService,
 		UserCreator: svc.userService,
 	})
-	svc.oneTimeAccessService = service.NewOneTimeAccessService(db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService, svc.appConfigService)
+	svc.oneTimeAccessService = service.NewOneTimeAccessService(db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService)
 
 	svc.versionService = service.NewVersionService(httpClient)
 

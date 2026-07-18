@@ -31,9 +31,14 @@ type Service struct {
 	auditLog AuditLogger
 }
 
-func newService(deps Dependencies) (*Service, error) {
+func newService(ctx context.Context, deps Dependencies) (*Service, error) {
+	dbConfig, err := deps.AppConfig.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	wa, err := gowebauthn.New(&gowebauthn.Config{
-		RPDisplayName: deps.AppConfig.GetDbConfig().AppName.Value,
+		RPDisplayName: dbConfig.AppName.String(),
 		RPID:          utils.GetHostnameFromURL(deps.AppURL),
 		RPOrigins:     []string{deps.AppURL},
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
@@ -65,15 +70,18 @@ func newService(deps Dependencies) (*Service, error) {
 }
 
 func (s *Service) BeginRegistration(ctx context.Context, userID string) (*PublicKeyCredentialCreationOptions, error) {
+	err := s.updateWebAuthnConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	s.updateWebAuthnConfig()
-
 	var user model.User
-	err := tx.
+	err = tx.
 		WithContext(ctx).
 		Preload("Credentials").
 		Find(&user, "id = ?", userID).
@@ -274,7 +282,7 @@ func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialA
 		return model.User{}, "", &common.UserDisabledError{}
 	}
 
-	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant)
+	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant, dbConfig.SessionDuration.AsDurationMinutes())
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -377,8 +385,14 @@ func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, na
 }
 
 // updateWebAuthnConfig updates the WebAuthn configuration with the app name as it can change during runtime
-func (s *Service) updateWebAuthnConfig() {
-	s.webAuthn.Config.RPDisplayName = s.appConfig.GetDbConfig().AppName.Value
+func (s *Service) updateWebAuthnConfig(ctx context.Context) error {
+	dbConfig, err := appconfig.FromCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	s.webAuthn.Config.RPDisplayName = dbConfig.AppName.String()
+	return nil
 }
 
 func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string) (string, error) {

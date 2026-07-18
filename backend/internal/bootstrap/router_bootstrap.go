@@ -23,6 +23,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
@@ -140,13 +141,14 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	}
 
 	// Initialize middleware for specific routes
+	appConfigMiddleware := appconfig.NewAppConfigMiddleware(svc.appConfigService)
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyModule, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware(rateLimitServices)
 	apiRateLimitMiddleware := rateLimitMiddleware.Add(middleware.RateLimitAPI)
 
-	apiGroup := r.Group("/api", apiRateLimitMiddleware)
-	baseGroup := r.Group("/", apiRateLimitMiddleware)
+	apiGroup := r.Group("/api", appConfigMiddleware.Add(), apiRateLimitMiddleware)
+	baseGroup := r.Group("/", appConfigMiddleware.Add(), apiRateLimitMiddleware)
 
 	svc.apiKeyModule.RegisterRoutes(apiGroup,
 		authMiddleware.WithAdminNotRequired().Add(),
@@ -158,7 +160,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
 	)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
-	controller.NewUserController(apiGroup, authMiddleware, rateLimitMiddleware, svc.userService, svc.oneTimeAccessService, svc.webauthnModule, svc.appConfigService)
+	controller.NewUserController(apiGroup, authMiddleware, rateLimitMiddleware, svc.userService, svc.oneTimeAccessService, svc.webauthnModule)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)

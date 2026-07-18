@@ -6,13 +6,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-func newTestUserService(t *testing.T, appConfig *AppConfigService) (*UserService, *UserGroupService) {
+func newTestUserService(t *testing.T) (*UserService, *UserGroupService) {
 	t.Helper()
 
 	db := testutils.NewDatabaseForTest(t)
@@ -25,22 +25,20 @@ func newTestUserService(t *testing.T, appConfig *AppConfigService) (*UserService
 		nil,
 		nil,
 		nil,
-		appConfig,
 		NewCustomClaimService(db),
 		NewAppImagesService(map[string]string{}, fileStorage),
 		nil,
 		fileStorage,
 	)
-	groupService := NewUserGroupService(db, appConfig, nil)
+	groupService := NewUserGroupService(db, nil)
 
 	return userService, groupService
 }
 
 func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
-	appConfig := NewTestAppConfigService(&model.AppConfig{
-		RequireUserEmail: model.AppConfigVariable{Value: "false"},
-	})
-	userService, groupService := newTestUserService(t, appConfig)
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+	ctx := appconfig.NewTestContext(t.Context(), config)
+	userService, groupService := newTestUserService(t)
 
 	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
 		Name:         "members",
@@ -52,7 +50,7 @@ func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 	// Create a user that is a member of the group
 	// This mirrors signing up via an invite link that adds the user to a group
 	email := "member@example.com"
-	_, err = userService.CreateUser(t.Context(), dto.UserCreateDto{
+	_, err = userService.CreateUser(ctx, dto.UserCreateDto{
 		Username:     "member",
 		Email:        &email,
 		FirstName:    "Group",
@@ -70,10 +68,9 @@ func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 }
 
 func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
-	appConfig := NewTestAppConfigService(&model.AppConfig{
-		RequireUserEmail: model.AppConfigVariable{Value: "false"},
-	})
-	userService, groupService := newTestUserService(t, appConfig)
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+	ctx := appconfig.NewTestContext(t.Context(), config)
+	userService, groupService := newTestUserService(t)
 
 	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
 		Name:         "default",
@@ -85,11 +82,11 @@ func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
 	// Configure the group as a default signup group
 	defaultGroups, err := json.Marshal([]string{group.ID})
 	require.NoError(t, err)
-	appConfig.dbConfig.Load().SignupDefaultUserGroupIDs.Value = string(defaultGroups)
+	config.SignupDefaultUserGroupIDs = appconfig.AppConfigValue(defaultGroups)
 
 	// Create a user without explicit group IDs, so the default groups apply
 	email := "default@example.com"
-	_, err = userService.CreateUser(t.Context(), dto.UserCreateDto{
+	_, err = userService.CreateUser(ctx, dto.UserCreateDto{
 		Username:  "defaultmember",
 		Email:     &email,
 		FirstName: "Default",

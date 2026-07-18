@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -34,15 +33,13 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	appConfigService := appconfig.NewTestAppConfigService(nil)
-
 	instanceID, err := instanceid.Load(t.Context(), db)
 	require.NoError(t, err)
 
-	jwtService, err := service.NewJwtService(t.Context(), db, instanceID, appConfigService)
+	jwtService, err := service.NewJwtService(t.Context(), db, instanceID)
 	require.NoError(t, err)
 
-	userService := service.NewUserService(db, jwtService, nil, nil, appConfigService, nil, nil, nil, nil)
+	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db})
 	require.NoError(t, err)
 

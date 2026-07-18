@@ -23,12 +23,11 @@ const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *appconfig.AppConfigService) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module) {
 	uc := UserController{
 		userService:          userService,
 		oneTimeAccessService: oneTimeAccessService,
 		webAuthnService:      webAuthnService,
-		appConfigService:     appConfigService,
 	}
 
 	group.GET("/users", authMiddleware.Add(), uc.listUsersHandler)
@@ -66,7 +65,6 @@ type UserController struct {
 	userService          *service.UserService
 	oneTimeAccessService *service.OneTimeAccessService
 	webAuthnService      *webauthn.Module
-	appConfigService     *appconfig.AppConfigService
 }
 
 // getUserGroupsHandler godoc

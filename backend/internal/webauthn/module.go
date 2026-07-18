@@ -23,16 +23,13 @@ type AuditLogger interface {
 	CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB, dbConfig *appconfig.AppConfigModel) model.AuditLog
 }
 
-type AppConfigProvider interface {
-	GetDbConfig() *model.AppConfig
-}
-
 type Dependencies struct {
 	DB     *gorm.DB
 	AppURL string
 
-	Signer   TokenService
-	AuditLog AuditLogger
+	Signer    TokenService
+	AuditLog  AuditLogger
+	AppConfig *appconfig.AppConfigService
 }
 
 type Module struct {
@@ -40,8 +37,8 @@ type Module struct {
 	handler *handler
 }
 
-func New(deps Dependencies) (*Module, error) {
-	service, err := newService(deps)
+func New(ctx context.Context, deps Dependencies) (*Module, error) {
+	service, err := newService(ctx, deps)
 	if err != nil {
 		return nil, err
 	}
