@@ -27,9 +27,8 @@ type Dependencies struct {
 	DB     *gorm.DB
 	AppURL string
 
-	Signer    TokenService
-	AuditLog  AuditLogger
-	AppConfig *appconfig.AppConfigService
+	Signer   TokenService
+	AuditLog AuditLogger
 }
 
 type Module struct {
@@ -37,8 +36,8 @@ type Module struct {
 	handler *handler
 }
 
-func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	service, err := newService(ctx, deps)
+func New(deps Dependencies) (*Module, error) {
+	service, err := newService(deps)
 	if err != nil {
 		return nil, err
 	}

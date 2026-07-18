@@ -24,6 +24,8 @@ import (
 // It must match the value emitted by the JWT service in the access token's "amr" claim
 const authenticationMethodPhishingResistant = "phr"
 
+const defaultRPDisplayName = "Pocket ID"
+
 type Service struct {
 	db       *gorm.DB
 	webAuthn *gowebauthn.WebAuthn
@@ -31,14 +33,10 @@ type Service struct {
 	auditLog AuditLogger
 }
 
-func newService(ctx context.Context, deps Dependencies) (*Service, error) {
-	dbConfig, err := deps.AppConfig.GetConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func newService(deps Dependencies) (*Service, error) {
 	wa, err := gowebauthn.New(&gowebauthn.Config{
-		RPDisplayName: dbConfig.AppName.String(),
+		// Set a default value, it will be set again later
+		RPDisplayName: defaultRPDisplayName,
 		RPID:          utils.GetHostnameFromURL(deps.AppURL),
 		RPOrigins:     []string{deps.AppURL},
 		AuthenticatorSelection: protocol.AuthenticatorSelection{

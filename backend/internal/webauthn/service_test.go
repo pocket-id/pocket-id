@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -117,6 +118,20 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorAs(t, err, new(*common.ReauthenticationRequiredError))
 	})
+}
+
+func TestWebAuthnDisplayNameUsesRequestConfig(t *testing.T) {
+	service, err := newService(Dependencies{
+		DB:     testutils.NewDatabaseForTest(t),
+		AppURL: "https://example.com",
+	})
+	require.NoError(t, err)
+	require.Equal(t, defaultRPDisplayName, service.webAuthn.Config.RPDisplayName)
+
+	ctx := appconfig.NewTestContext(t.Context(), &appconfig.AppConfigModel{AppName: "Custom App"})
+	err = service.updateWebAuthnConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "Custom App", service.webAuthn.Config.RPDisplayName)
 }
 
 func TestConsumeReauthenticationTokenReturnsTokenCreationTime(t *testing.T) {
