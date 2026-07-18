@@ -10,6 +10,7 @@ import (
 
 	"github.com/italypaleale/go-kit/utils"
 
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 )
 
@@ -254,6 +255,50 @@ func (m *AppConfigModel) Update(values map[string]string) error {
 	}
 
 	return nil
+}
+
+// AppConfigVariable is a single application configuration property, as a key/value pair
+type AppConfigVariable struct {
+	Key   string
+	Value string
+}
+
+// ToAppConfigVariableSlice returns the configuration as a slice of key/value pairs
+// If showAll is false, only properties marked as public are included
+// If redactSensitiveValues is true, sensitive values are redacted when the UI config is disabled
+func (m *AppConfigModel) ToAppConfigVariableSlice(showAll bool, redactSensitiveValues bool) []AppConfigVariable {
+	// Iterate through all fields
+	cfgValue := reflect.ValueOf(m).Elem()
+	cfgType := cfgValue.Type()
+
+	res := make([]AppConfigVariable, 0, cfgType.NumField())
+	for i := range cfgType.NumField() {
+		field := cfgType.Field(i)
+
+		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if key == "" {
+			continue
+		}
+
+		// If we're only showing public variables and this is not public, skip it
+		if !showAll && field.Tag.Get("public") != "true" {
+			continue
+		}
+
+		value := cfgValue.Field(i).String()
+
+		// Redact sensitive values if the value isn't empty, the UI config is disabled, and redactSensitiveValues is true
+		if value != "" && common.EnvConfig.UiConfigDisabled && redactSensitiveValues && field.Tag.Get("sensitive") == "true" {
+			value = "XXXXXXXXXX"
+		}
+
+		res = append(res, AppConfigVariable{
+			Key:   key,
+			Value: value,
+		})
+	}
+
+	return res
 }
 
 type AppConfigKeyNotFoundError struct {

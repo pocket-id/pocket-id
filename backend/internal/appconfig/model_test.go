@@ -61,7 +61,7 @@ func TestAppConfigModel_Replace(t *testing.T) {
 		assert.Equal(t, defaults.LdapUserSearchFilter, m.LdapUserSearchFilter)
 
 		// A property that was provided keeps the provided value
-		assert.Equal(t, "marker-homePageUrl", m.HomePageURL)
+		assert.Equal(t, AppConfigValue("marker-homePageUrl"), m.HomePageURL)
 	})
 
 	t.Run("an empty DTO resets every property to its default", func(t *testing.T) {
@@ -88,7 +88,7 @@ func TestAppConfigModel_Replace(t *testing.T) {
 		m.Replace(input)
 
 		// Explicitly provided value wins
-		assert.Equal(t, "New Name", m.AppName)
+		assert.Equal(t, AppConfigValue("New Name"), m.AppName)
 		// Everything else in the DTO was empty, so it is reset to the default
 		assert.Equal(t, getDefaultConfig().LdapEnabled, m.LdapEnabled)
 	})
@@ -101,8 +101,8 @@ func TestAppConfigModel_Replace(t *testing.T) {
 		var m AppConfigModel
 		m.Replace(input)
 
-		assert.Equal(t, "120", m.SessionDuration)
-		assert.Equal(t, "true", m.LdapEnabled)
+		assert.Equal(t, AppConfigValue("120"), m.SessionDuration)
+		assert.Equal(t, AppConfigValue("true"), m.LdapEnabled)
 	})
 }
 
@@ -163,7 +163,7 @@ func TestAppConfigModel_Update(t *testing.T) {
 		err := m.Update(map[string]string{"appName": "My App"})
 		require.NoError(t, err)
 
-		assert.Equal(t, "My App", m.AppName)
+		assert.Equal(t, AppConfigValue("My App"), m.AppName)
 	})
 
 	t.Run("updates multiple properties and leaves others untouched", func(t *testing.T) {
@@ -172,9 +172,9 @@ func TestAppConfigModel_Update(t *testing.T) {
 		err := m.Update(map[string]string{"appName": "My App", "homePageUrl": "/home", "ldapEnabled": "true"})
 		require.NoError(t, err)
 
-		assert.Equal(t, "My App", m.AppName)
-		assert.Equal(t, "/home", m.HomePageURL)
-		assert.Equal(t, "true", m.LdapEnabled)
+		assert.Equal(t, AppConfigValue("My App"), m.AppName)
+		assert.Equal(t, AppConfigValue("/home"), m.HomePageURL)
+		assert.Equal(t, AppConfigValue("true"), m.LdapEnabled)
 		// A property that was not part of the update keeps its previous value
 		assert.Equal(t, getDefaultConfig().SessionDuration, m.SessionDuration)
 	})
@@ -197,8 +197,8 @@ func TestAppConfigModel_Update(t *testing.T) {
 		err := m.Update(map[string]string{"sessionDuration": "120", "disableAnimations": "true"})
 		require.NoError(t, err)
 
-		assert.Equal(t, "120", m.SessionDuration)
-		assert.Equal(t, "true", m.DisableAnimations)
+		assert.Equal(t, AppConfigValue("120"), m.SessionDuration)
+		assert.Equal(t, AppConfigValue("true"), m.DisableAnimations)
 	})
 
 	t.Run("an empty map is a no-op", func(t *testing.T) {

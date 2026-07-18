@@ -24,7 +24,7 @@ require (
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
-	github.com/italypaleale/francis v0.1.0-beta.10
+	github.com/italypaleale/francis v0.1.0-beta.11
 	github.com/italypaleale/go-kit v0.0.0-20260708054611-e276b65dd3be
 	github.com/italypaleale/go-sql-utils v0.2.4
 	github.com/jackc/pgx/v5 v5.10.0
@@ -249,3 +249,5 @@ require (
 )
 
 replace github.com/ory/fosite => github.com/pocket-id/fosite v0.0.0-20260708083902-56a3c0f378d6
+
+replace github.com/italypaleale/francis => /Users/alessandro/Desktop/Code/actors

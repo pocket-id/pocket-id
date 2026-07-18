@@ -2,6 +2,7 @@ package appconfig
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -139,52 +140,59 @@ func (a *appConfigActor) Invoke(parentCtx context.Context, method string, data a
 	case "replace":
 		// Replace the entire config
 		// The input data must be a dto.AppConfigUpdateDto
-		payload := dto.AppConfigUpdateDto{}
 		if data == nil {
-			return nil, fmt.Errorf("request body is empty for method 'replace': %w", err)
+			return nil, errors.New("request body is empty for method 'replace'")
 		}
+		payload := dto.AppConfigUpdateDto{}
 		err = data.Decode(&payload)
 		if err != nil {
 			return nil, fmt.Errorf("request body is not valid for method 'replace': %w", err)
 		}
 
 		// Update the in-memory data
-		// Work on a clone to avoid touching the cached object in case of errors (we'll update after we've committed the state)
+		// Work on a clone to avoid touching the cached object in case of errors
 		newState := state.Clone()
 		newState.Replace(payload)
 
-		// Save the updated state
+		// Save the updated state, which also updates the cached object
 		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		defer cancel()
-		err = a.client.SetState(ctx, state, nil)
+		err = a.client.SetState(ctx, newState, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error saving actor state: %w", err)
+		}
 
-		// Update the cached state too
-		*state = *newState
+		return newState, nil
 
 	case "update":
 		// Update the config
 		// The input data must be a map[string]string
-		var payload map[string]string
 		if data == nil {
-			return nil, fmt.Errorf("request body is empty for method 'update': %w", err)
+			return nil, errors.New("request body is empty for method 'update'")
 		}
+		payload := map[string]string{}
 		err = data.Decode(&payload)
 		if err != nil {
 			return nil, fmt.Errorf("request body is not valid for method 'update': %w", err)
 		}
 
 		// Update the in-memory data
-		// Work on a clone to avoid touching the cached object in case of errors (we'll update after we've committed the state)
+		// Work on a clone to avoid touching the cached object in case of errors
 		newState := state.Clone()
-		newState.Update(payload)
+		err = newState.Update(payload)
+		if err != nil {
+			return nil, fmt.Errorf("request body is not valid for method 'update': %w", err)
+		}
 
-		// Save the updated state
+		// Save the updated state, which also updates the cached object
 		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 		defer cancel()
-		err = a.client.SetState(ctx, state, nil)
+		err = a.client.SetState(ctx, newState, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error saving actor state: %w", err)
+		}
 
-		// Update the cached state too
-		*state = *newState
+		return newState, nil
 	}
 
 	// Return the state

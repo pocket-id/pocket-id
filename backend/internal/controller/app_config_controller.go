@@ -53,7 +53,11 @@ type AppConfigController struct {
 // @Success 200 {array} dto.PublicAppConfigVariableDto
 // @Router /api/application-configuration [get]
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
-	configuration := acc.appConfigService.ListAppConfig(false)
+	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), false)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
 
 	var configVariablesDto []dto.PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
@@ -87,7 +91,11 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 // @Success 200 {array} dto.AppConfigVariableDto
 // @Router /api/application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
-	configuration := acc.appConfigService.ListAppConfig(true)
+	configuration, err := acc.appConfigService.ListAppConfig(c.Request.Context(), true)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {

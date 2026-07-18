@@ -15,7 +15,6 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
@@ -95,73 +94,26 @@ func (s *AppConfigService) GetConfig(parentCtx context.Context) (*AppConfigModel
 	return &cfg, nil
 }
 
-func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]model.AppConfigVariable, error) {
+// UpdateAppConfig replaces the entire application configuration with the values from the input DTO.
+func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, &common.UiConfigDisabledError{}
 	}
 
-	// From here onwards, we know we are the only process/goroutine with exclusive access to the config
-	// Re-load the config from the database to be sure we have the correct data
-	cfg, err := s.loadDbConfigInternal(ctx, tx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reload config from database: %w", err)
-	}
-
-	defaultCfg := getDefaultConfig()
-
-	// Iterate through all the fields to update
-	// We update the in-memory data (in the cfg struct) and collect values to update in the database
-	rt := reflect.ValueOf(input).Type()
-	rv := reflect.ValueOf(input)
-	dbUpdate := make([]model.AppConfigVariable, 0, rt.NumField())
-	for field := range rt.Fields() {
-		value := rv.FieldByName(field.Name).String()
-
-		// Get the value of the json tag, taking only what's before the comma
-		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-
-		// Update the in-memory config value
-		// If the new value is an empty string, then we set the in-memory value to the default one
-		if value == "" {
-			// Ignore errors here as we know the key exists
-			defaultValue, _ := defaultCfg.FieldByKey(key)
-			err = cfg.UpdateField(key, defaultValue)
-		} else {
-			err = cfg.UpdateField(key, value)
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to update in-memory config for key '%s': %w", key, err)
-		}
-
-		// We always save "value" which can be an empty string
-		dbUpdate = append(dbUpdate, model.AppConfigVariable{
-			Key:   key,
-			Value: value,
-		})
-	}
-
-	// Update the values in the database
-	err = s.updateAppConfigUpdateDatabase(ctx, tx, &dbUpdate)
+	// Replace the entire config by invoking the actor
+	cfg, err := s.invokeConfigActor(ctx, "replace", input)
 	if err != nil {
 		return nil, err
 	}
 
-	// Commit the changes to the DB, then finally save the updated config in the object
-	err = tx.Commit().Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	s.dbConfig.Store(cfg)
-
 	// Return the updated config
-	res := cfg.ToAppConfigVariableSlice(true, false)
-	return res, nil
+	return cfg.ToAppConfigVariableSlice(true, false), nil
 }
 
-// UpdateAppConfigValues updates the application configuration values in the database.
+// UpdateAppConfigValues updates the provided application configuration values.
+// Keys correspond to the "json" tags on the config model.
+// An empty string value resets the property to its default value.
 func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndValues ...string) error {
 	// Count of keysAndValues must be even
 	if len(keysAndValues)%2 != 0 {
@@ -173,71 +125,48 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 		return &common.UiConfigDisabledError{}
 	}
 
-	// Start the transaction
-	tx, err := s.updateAppConfigStartTransaction(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	// From here onwards, we know we are the only process/goroutine with exclusive access to the config
-	// Re-load the config from the database to be sure we have the correct data
-	cfg, err := s.loadDbConfigInternal(ctx, tx)
-	if err != nil {
-		return fmt.Errorf("failed to reload config from database: %w", err)
-	}
-
-	defaultCfg := getDefaultDbConfig()
-
-	// Iterate through all the fields to update
-	// We update the in-memory data (in the cfg struct) and collect values to update in the database
+	// Collect the key-value pairs into a map for the actor
 	// (Note the += 2, as we are iterating through key-value pairs)
-	dbUpdate := make([]model.AppConfigVariable, 0, len(keysAndValues)/2)
+	values := make(map[string]string, len(keysAndValues)/2)
 	for i := 1; i < len(keysAndValues); i += 2 {
-		key := keysAndValues[i-1]
-		value := keysAndValues[i]
-
-		// Ensure that the field is valid
-		// We do this by grabbing the default value
-		var defaultValue string
-		defaultValue, err := defaultCfg.FieldByKey(key)
-		if err != nil {
-			return fmt.Errorf("invalid configuration key '%s': %w", key, err)
-		}
-
-		// Update the in-memory config value
-		// If the new value is an empty string, then we set the in-memory value to the default one
-		if value == "" {
-			err = cfg.UpdateField(key, defaultValue)
-		} else {
-			err = cfg.UpdateField(key, value)
-		}
-		if err != nil {
-			return fmt.Errorf("failed to update in-memory config for key '%s': %w", key, err)
-		}
-
-		// We always save "value" which can be an empty string
-		dbUpdate = append(dbUpdate, model.AppConfigVariable{
-			Key:   key,
-			Value: value,
-		})
+		values[keysAndValues[i-1]] = keysAndValues[i]
 	}
 
-	// Update the values in the database
-	err = s.updateAppConfigUpdateDatabase(ctx, tx, &dbUpdate)
+	// Update the config by invoking the actor
+	_, err := s.invokeConfigActor(ctx, "update", values)
+	return err
+}
+
+// ListAppConfig returns the application configuration as a slice of key/value pairs.
+// If showAll is false, only properties marked as public are included.
+func (s *AppConfigService) ListAppConfig(ctx context.Context, showAll bool) ([]AppConfigVariable, error) {
+	cfg, err := s.GetConfig(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Commit the changes to the DB, then finally save the updated config in the object
-	err = tx.Commit().Error
+	return cfg.ToAppConfigVariableSlice(showAll, true), nil
+}
+
+// invokeConfigActor invokes a method on the AppConfig actor and decodes the returned state.
+func (s *AppConfigService) invokeConfigActor(parentCtx context.Context, method string, data any) (*AppConfigModel, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
+	defer cancel()
+	res, err := s.actSvc.Invoke(ctx, AppConfigActorType, actor.SingletonActorID, method, data)
 	if err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, fmt.Errorf("error invoking config actor method '%s': %w", method, err)
+	}
+	if res == nil {
+		return nil, errors.New("config actor response was empty")
 	}
 
-	s.dbConfig.Store(cfg)
+	var cfg AppConfigModel
+	err = res.Decode(&cfg)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding config actor response: %w", err)
+	}
 
-	return nil
+	return &cfg, nil
 }
 
 func (s *AppConfigService) loadDbConfigFromEnv() (*AppConfigModel, error) {
