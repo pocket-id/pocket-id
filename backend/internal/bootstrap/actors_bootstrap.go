@@ -49,6 +49,12 @@ func NewActors(o NewActorsOpts) (*local.Host, map[string]*ratelimit.RateLimitSer
 		local.WithLogger(log.With("scope", "actor-host")),
 		local.WithRuntimePSKs(psk),
 		local.WithShutdownGracePeriod(10 * time.Second),
+		// TODO: Tweak these values once Pocket ID fully supports horizontal scaling.
+		// The relaxed intervals are appropriate for a single active host, but should be
+		// tuned for lower latency and better distribution across a multi-host cluster.
+		local.WithHostHealthCheckDeadline(90 * time.Second),
+		local.WithAlarmsPollInterval(5 * time.Minute),
+		local.WithAlarmsFetchAheadInterval(5 * time.Minute),
 	}
 
 	// Add the database connection
