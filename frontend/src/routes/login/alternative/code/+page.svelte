@@ -87,10 +87,11 @@
 					placeholder={m.code()}
 					aria-label={m.code()}
 					bind:value={code}
+					autofocus
 					type="text"
 				/>
 			{:else}
-				<InputOTP.Root maxlength={6} bind:value={code}>
+				<InputOTP.Root maxlength={6} bind:value={code} autofocus>
 					{#snippet children({ cells })}
 						<InputOTP.Group>
 							{#each cells as cell}
