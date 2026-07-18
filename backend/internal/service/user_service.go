@@ -311,6 +311,15 @@ func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCrea
 		return model.User{}, err
 	}
 
+	// Bump the UpdatedAt timestamp of the groups the new user was added to
+	// This is necessary for SCIM to work with the newly-created user, or groups may not be synced via SCIM
+	if len(userGroups) > 0 {
+		err = s.touchUserGroups(ctx, tx, groupIDs(userGroups))
+		if err != nil {
+			return model.User{}, err
+		}
+	}
+
 	// Apply default groups and claims for new non-LDAP users
 	if !isLdapSync {
 		if len(input.UserGroupIds) == 0 {
@@ -363,9 +372,41 @@ func (s *UserService) applyDefaultGroups(ctx context.Context, user *model.User, 
 			if err != nil {
 				return fmt.Errorf("failed to associate default user groups: %w", err)
 			}
+
+			// Bump the groups' UpdatedAt so the SCIM sync picks up the new
+			// membership (see touchUserGroups for details).
+			touchIDs := make([]string, len(groups))
+			for i := range groups {
+				touchIDs[i] = groups[i].ID
+			}
+			if err := s.touchUserGroups(ctx, tx, touchIDs); err != nil {
+				return fmt.Errorf("failed to update default user groups timestamp: %w", err)
+			}
 		}
 	}
 	return nil
+}
+
+// touchUserGroups updates the UpdatedAt timestamp of the given user groups.
+//
+// Group membership is stored in the user_groups_users join table, so adding or
+// removing a member does not modify the group row itself. The SCIM sync only
+// re-pushes a group to the provider when its UpdatedAt is not older than the
+// remote resource's last-modified time, so any code path that changes a group's
+// membership must bump this timestamp explicitly. Otherwise the membership
+// change is never synced to the SCIM provider.
+func (s *UserService) touchUserGroups(ctx context.Context, tx *gorm.DB, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	now := datatype.DateTime(time.Now())
+	return tx.
+		WithContext(ctx).
+		Model(&model.UserGroup{}).
+		Where("id IN ?", ids).
+		Update("updated_at", now).
+		Error
 }
 
 func (s *UserService) applyDefaultCustomClaims(ctx context.Context, user *model.User, tx *gorm.DB) error {
