@@ -1,0 +1,1 @@
+ALTER TABLE one_time_access_tokens DROP COLUMN permitted_client_id;

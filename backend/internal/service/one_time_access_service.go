@@ -87,7 +87,7 @@ func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Con
 		return nil, &common.UserEmailNotSetError{}
 	}
 
-	oneTimeAccessToken, deviceToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, ttl, withDeviceToken, tx)
+	oneTimeAccessToken, deviceToken, err := s.createOneTimeAccessTokenInternal(ctx, user.ID, ttl, withDeviceToken, nil, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Con
 	return deviceToken, nil
 }
 
-func (s *OneTimeAccessService) CreateOneTimeAccessToken(ctx context.Context, userID string, ttl time.Duration) (token string, err error) {
+func (s *OneTimeAccessService) CreateOneTimeAccessToken(ctx context.Context, userID string, permittedClient *string, ttl time.Duration) (token string, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -143,7 +143,7 @@ func (s *OneTimeAccessService) CreateOneTimeAccessToken(ctx context.Context, use
 	}
 
 	// Create the one-time access token
-	token, _, err = s.createOneTimeAccessTokenInternal(ctx, userID, ttl, false, tx)
+	token, _, err = s.createOneTimeAccessTokenInternal(ctx, userID, ttl, false, permittedClient, tx)
 	if err != nil {
 		return "", err
 	}
@@ -157,8 +157,8 @@ func (s *OneTimeAccessService) CreateOneTimeAccessToken(ctx context.Context, use
 	return token, nil
 }
 
-func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, ttl time.Duration, withDeviceToken bool, tx *gorm.DB) (token string, deviceToken *string, err error) {
-	oneTimeAccessToken, err := NewOneTimeAccessToken(userID, ttl, withDeviceToken)
+func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Context, userID string, ttl time.Duration, withDeviceToken bool, permittedClient *string, tx *gorm.DB) (token string, deviceToken *string, err error) {
+	oneTimeAccessToken, err := NewOneTimeAccessToken(userID, ttl, withDeviceToken, permittedClient)
 	if err != nil {
 		return "", nil, err
 	}
@@ -198,7 +198,7 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 		return model.User{}, "", &common.UserDisabledError{}
 	}
 
-	accessToken, err := s.jwtService.GenerateAccessToken(oneTimeAccessToken.User, AuthenticationMethodOneTimePassword)
+	accessToken, err := s.jwtService.GenerateAccessTokenForClient(oneTimeAccessToken.User, AuthenticationMethodOneTimePassword, oneTimeAccessToken.PermittedClientId)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -221,13 +221,18 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 	return oneTimeAccessToken.User, accessToken, nil
 }
 
-func NewOneTimeAccessToken(userID string, ttl time.Duration, withDeviceToken bool) (*model.OneTimeAccessToken, error) {
+func NewOneTimeAccessToken(userID string, ttl time.Duration, withDeviceToken bool, permittedClient *string) (*model.OneTimeAccessToken, error) {
 	// If expires at is less than 15 minutes, use a 6-character token instead of 16
 	tokenLength := 16
 	if ttl <= 15*time.Minute {
 		tokenLength = 6
 	}
 
+	// lock to a specific client if requested
+	permittedClientValue := ""
+	if permittedClient != nil {
+		permittedClientValue = *permittedClient
+	}
 	token, err := utils.GenerateRandomUnambiguousString(tokenLength)
 	if err != nil {
 		return nil, err
@@ -244,10 +249,11 @@ func NewOneTimeAccessToken(userID string, ttl time.Duration, withDeviceToken boo
 
 	now := time.Now().Round(time.Second)
 	o := &model.OneTimeAccessToken{
-		UserID:      userID,
-		ExpiresAt:   datatype.DateTime(now.Add(ttl)),
-		Token:       token,
-		DeviceToken: deviceToken,
+		UserID:            userID,
+		ExpiresAt:         datatype.DateTime(now.Add(ttl)),
+		Token:             token,
+		DeviceToken:       deviceToken,
+		PermittedClientId: permittedClientValue,
 	}
 
 	return o, nil

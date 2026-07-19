@@ -4,6 +4,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as Item from '$lib/components/ui/item/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
+	import * as Command from '$lib/components/ui/command/index.js';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import WebAuthnService from '$lib/services/webauthn-service';
@@ -32,6 +34,9 @@
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
 	let showLoginCodeModal: boolean = $state(false);
+	const clientsList = $derived(data.accessibleClients?.data ?? []);
+	let selectedClientId = $state('');
+	let comboboxOpen = $state(false);
 
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
@@ -69,6 +74,65 @@
 		}
 	}
 </script>
+
+{#snippet clientCombobox(buttonClass = '')}
+	<Popover.Root bind:open={comboboxOpen}>
+		<Popover.Trigger>
+			{#snippet child({ props })}
+				<div class="relative flex items-center {buttonClass}">
+					<Button
+						{...props}
+						variant="outline"
+						class="w-full justify-center text-center font-normal pr-8"
+						role="combobox"
+						aria-expanded={comboboxOpen}
+					>
+						<span class="truncate">
+							{clientsList.find((c: { id: string }) => c.id === selectedClientId)?.name ??
+								'Select client (optional)...'}
+						</span>
+					</Button>
+
+					{#if selectedClientId}
+						<button
+							type="button"
+							onclick={(e) => {
+								e.stopPropagation();
+								selectedClientId = '';
+							}}
+							class="absolute right-2.5 text-muted-foreground hover:text-foreground text-sm font-medium p-0.5"
+							aria-label="Clear selection"
+						>
+							✕
+						</button>
+					{/if}
+				</div>
+			{/snippet}
+		</Popover.Trigger>
+		<Popover.Content
+			class="w-[--bits-popover-anchor-width] min-w-[220px] p-0"
+			align="end"
+			onOpenAutoFocus={(e) => e.preventDefault()}
+		>
+			<Command.Root>
+				<Command.Input placeholder="Search clients..." />
+				<div class="max-h-[200px] overflow-y-auto p-1">
+					{#each clientsList as client}
+						<Command.Item
+							value={client.name}
+							onSelect={() => {
+								selectedClientId = client.id;
+								comboboxOpen = false;
+							}}
+						>
+							<span class="truncate">{client.name}</span>
+						</Command.Item>
+					{/each}
+				</div>
+			</Command.Root>
+		</Popover.Content>
+	</Popover.Root>
+{/snippet}
 
 <svelte:head>
 	<title>{m.account_settings()}</title>
@@ -115,8 +179,9 @@
 				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 			</Item.Description>
 		</Item.Content>
-		<Item.Actions class="w-full sm:w-auto">
-			<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
+		<Item.Actions class="flex w-full flex-col gap-2">
+			{@render clientCombobox('w-full')}
+			<Button class="w-full" onclick={() => (showLoginCodeModal = true)}>
 				{m.create()}
 			</Button>
 		</Item.Actions>
@@ -174,8 +239,9 @@
 				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
 			</Item.Description>
 		</Item.Content>
-		<Item.Actions>
-			<Button variant="outline" onclick={() => (showLoginCodeModal = true)}>
+		<Item.Actions class="flex gap-2 items-center">
+			{@render clientCombobox('flex-1 min-w-[340px]')}
+			<Button onclick={() => (showLoginCodeModal = true)} class="shrink-0">
 				{m.create()}
 			</Button>
 		</Item.Actions>
@@ -203,4 +269,4 @@
 	bind:passkey={passkeyToRename}
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
 />
-<LoginCodeModal bind:show={showLoginCodeModal} />
+<LoginCodeModal bind:show={showLoginCodeModal} clientId={selectedClientId || undefined} />

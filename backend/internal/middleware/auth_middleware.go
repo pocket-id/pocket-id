@@ -20,6 +20,7 @@ type AuthOptions struct {
 	AdminRequired   bool
 	SuccessOptional bool
 	AllowApiKeyAuth bool
+	IsolatedClient  bool
 }
 
 func NewAuthMiddleware(
@@ -50,6 +51,18 @@ func (m *AuthMiddleware) WithAdminNotRequired() *AuthMiddleware {
 	return clone
 }
 
+// WithIsolatedClient allows the middleware to continue even if the token type is isolated instead of access
+func (m *AuthMiddleware) WithIsolatedClient() *AuthMiddleware {
+	// Create a new instance to avoid modifying the original
+	clone := &AuthMiddleware{
+		apiKeyMiddleware: m.apiKeyMiddleware,
+		jwtMiddleware:    m.jwtMiddleware,
+		options:          m.options,
+	}
+	clone.options.IsolatedClient = true
+	return clone
+}
+
 // WithSuccessOptional allows the middleware to continue with the request even if authentication fails
 func (m *AuthMiddleware) WithSuccessOptional() *AuthMiddleware {
 	// Create a new instance to avoid modifying the original
@@ -75,15 +88,17 @@ func (m *AuthMiddleware) WithApiKeyAuthDisabled() *AuthMiddleware {
 
 func (m *AuthMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, isAdmin, authenticationMethod, authenticationTime, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired)
+		userID, isAdmin, authenticationMethod, authenticationTime, permittedClients, err := m.jwtMiddleware.Verify(c, m.options.AdminRequired, m.options.IsolatedClient)
 		if err == nil {
 			c.Set("userID", userID)
 			c.Set("userIsAdmin", isAdmin)
 			c.Set("authenticationMethod", authenticationMethod)
 			c.Set("authenticationTime", authenticationTime)
+			c.Set("permittedClients", permittedClients)
 			if c.IsAborted() {
 				return
 			}
+
 			c.Next()
 			return
 		}

@@ -90,6 +90,14 @@
 
 	async function completeInteraction(step: InteractionStep, skipRedirect = false) {
 		const result = await oidcService.completeAuthorizeInteractionStep(interactionSession.id, step);
+		if (result.invalidTokenDetected) {
+			errorMessage = m.webauthn_operation_not_allowed_or_timed_out();
+			success = false;
+			userStore.clearUser();
+			await invalidateAll();
+			return;
+		}
+
 		if (result.interaction) {
 			interactionSession = result.interaction;
 			if (interactionSession.currentStep == 'reauthenticate') {

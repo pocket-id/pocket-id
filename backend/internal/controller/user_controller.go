@@ -392,6 +392,7 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 		userID string
 		ttl    time.Duration
 	)
+
 	if own {
 		// Get user ID from context and force the default TTL
 		userID = c.GetString("userID")
@@ -409,7 +410,7 @@ func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bo
 		return
 	}
 
-	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(c.Request.Context(), userID, ttl)
+	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(c.Request.Context(), userID, input.PermittedClientId, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return
