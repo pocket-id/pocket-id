@@ -37,32 +37,22 @@ func NewOneTimeAccessService(db *gorm.DB, userService *UserService, jwtService *
 	}
 }
 
-func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, ttl time.Duration) error {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, ttl time.Duration) error {
 	if !dbConfig.EmailOneTimeAccessAsAdminEnabled.IsTrue() {
 		return &common.OneTimeAccessDisabledError{}
 	}
 
-	_, err = s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false)
+	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false, dbConfig)
 	return err
 }
 
-func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) (string, error) {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return "", fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, redirectPath string) (string, error) {
 	if !dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue() {
 		return "", &common.OneTimeAccessDisabledError{}
 	}
 
 	var userId string
-	err = s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
+	err := s.db.Model(&model.User{}).Select("id").Where("email = ?", userID).First(&userId).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Do not return error if user not found to prevent email enumeration
 		return "", nil
@@ -70,7 +60,7 @@ func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ct
 		return "", err
 	}
 
-	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true)
+	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true, dbConfig)
 	if err != nil {
 		return "", err
 	} else if deviceToken == nil {
@@ -80,7 +70,7 @@ func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ct
 	return *deviceToken, nil
 }
 
-func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool) (*string, error) {
+func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool, dbConfig *appconfig.AppConfigModel) (*string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -118,7 +108,7 @@ func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Con
 			linkWithCode = linkWithCode + "?redirect=" + encodedRedirectPath
 		}
 
-		errInternal := SendEmail(innerCtx, s.emailService, email.Address{
+		errInternal := SendEmail(innerCtx, s.emailService, dbConfig, email.Address{
 			Name:  user.FullName(),
 			Email: *user.Email,
 		}, OneTimeAccessTemplate, &OneTimeAccessTemplateData{
@@ -179,19 +169,14 @@ func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Cont
 	return oneTimeAccessToken.Token, oneTimeAccessToken.DeviceToken, nil
 }
 
-func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return model.User{}, "", fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	var oneTimeAccessToken model.OneTimeAccessToken
-	err = tx.
+	err := tx.
 		WithContext(ctx).
 		Where("token = ? AND expires_at > ?", token, datatype.DateTime(time.Now())).
 		Preload("User").

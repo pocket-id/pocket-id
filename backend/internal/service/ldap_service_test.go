@@ -110,7 +110,7 @@ func TestLdapServiceSyncAllReconcilesUsersAndGroups(t *testing.T) {
 		LdapID:       &oldGroupLdapID,
 	}).Error)
 
-	err := service.SyncAllWithConfig(t.Context(), defaultTestLDAPAppConfig())
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
 	require.NoError(t, err)
 
 	var alice model.User
@@ -177,7 +177,7 @@ func TestLdapServiceSyncAllMapsPosixGroupMemberUid(t *testing.T) {
 		),
 	))
 
-	err := service.SyncAllWithConfig(t.Context(), appCfg)
+	err := service.SyncAll(t.Context(), appCfg)
 	require.NoError(t, err)
 
 	var group model.UserGroup
@@ -220,7 +220,7 @@ func TestLdapServiceSyncAllHandlesDuplicateLDAPIDsInSingleRun(t *testing.T) {
 		),
 	))
 
-	err := service.SyncAllWithConfig(t.Context(), defaultTestLDAPAppConfig())
+	err := service.SyncAll(t.Context(), defaultTestLDAPAppConfig())
 	require.NoError(t, err)
 
 	var users []model.User
@@ -292,7 +292,7 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 				ldapSearchResult(tt.groupEntry),
 			))
 
-			err := service.SyncAllWithConfig(t.Context(), tt.appConfig)
+			err := service.SyncAll(t.Context(), tt.appConfig)
 			require.NoError(t, err)
 
 			var user model.User

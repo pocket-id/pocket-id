@@ -53,7 +53,7 @@ type AppConfigController struct {
 // @Success 200 {array} dto.PublicAppConfigVariableDto
 // @Router /api/application-configuration [get]
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
-	dbConfig, err := appconfig.FromCtx(c.Request.Context())
+	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -92,7 +92,7 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 // @Success 200 {array} dto.AppConfigVariableDto
 // @Router /api/application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
-	dbConfig, err := appconfig.FromCtx(c.Request.Context())
+	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -146,7 +146,13 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/application-configuration/sync-ldap [post]
 func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
-	err := acc.ldapService.SyncAll(c.Request.Context())
+	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	err = acc.ldapService.SyncAll(c.Request.Context(), dbConfig)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -162,9 +168,15 @@ func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/application-configuration/test-email [post]
 func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
+	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
 	userID := c.GetString("userID")
 
-	err := acc.emailService.SendTestEmail(c.Request.Context(), userID)
+	err = acc.emailService.SendTestEmail(c.Request.Context(), dbConfig, userID)
 	if err != nil {
 		_ = c.Error(err)
 		return

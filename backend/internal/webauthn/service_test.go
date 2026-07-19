@@ -128,9 +128,7 @@ func TestWebAuthnDisplayNameUsesRequestConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, defaultRPDisplayName, service.webAuthn.Config.RPDisplayName)
 
-	ctx := appconfig.NewTestContext(t.Context(), &appconfig.AppConfigModel{AppName: "Custom App"})
-	err = service.updateWebAuthnConfig(ctx)
-	require.NoError(t, err)
+	service.updateWebAuthnConfig(&appconfig.AppConfigModel{AppName: "Custom App"})
 	require.Equal(t, "Custom App", service.webAuthn.Config.RPDisplayName)
 }
 

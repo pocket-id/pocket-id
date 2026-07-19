@@ -36,8 +36,8 @@ func TestExchangeOneTimeAccessTokenRejectsDisabledUser(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&loginCode).Error)
 
-	ctx := appconfig.NewTestContext(t.Context(), nil)
-	exchangedUser, accessToken, err := oneTimeAccessService.ExchangeOneTimeAccessToken(ctx, loginCode.Token, "", "", "")
+	dbConfig := appconfig.NewTestConfig(nil)
+	exchangedUser, accessToken, err := oneTimeAccessService.ExchangeOneTimeAccessToken(t.Context(), dbConfig, loginCode.Token, "", "", "")
 
 	var userDisabledErr *common.UserDisabledError
 	require.ErrorAs(t, err, &userDisabledErr)

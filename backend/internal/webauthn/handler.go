@@ -7,23 +7,29 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
 
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
 type handler struct {
-	service *Service
+	service   *Service
+	appConfig AppConfigResolver
 }
 
-func newHandler(service *Service) *handler {
-	return &handler{service: service}
+func newHandler(service *Service, appConfig AppConfigResolver) *handler {
+	return &handler{service: service, appConfig: appConfig}
 }
 
 func (h *handler) beginRegistration(c *gin.Context) {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	userID := c.GetString("userID")
-	options, err := h.service.BeginRegistration(c.Request.Context(), userID)
+	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, userID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -68,7 +74,7 @@ func (h *handler) beginLogin(c *gin.Context) {
 }
 
 func (h *handler) verifyLogin(c *gin.Context) {
-	dbConfig, err := appconfig.FromCtx(c.Request.Context())
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
 	if err != nil {
 		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
 		return
@@ -86,7 +92,7 @@ func (h *handler) verifyLogin(c *gin.Context) {
 		return
 	}
 
-	user, token, err := h.service.VerifyLogin(c.Request.Context(), sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
+	user, token, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return

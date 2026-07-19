@@ -663,7 +663,11 @@ func (s *TestService) ResetLock(ctx context.Context) error {
 
 // SyncLdap triggers an LDAP synchronization
 func (s *TestService) SyncLdap(ctx context.Context) error {
-	return s.ldapService.SyncAll(ctx)
+	dbConfig, err := s.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+	return s.ldapService.SyncAll(ctx, dbConfig)
 }
 
 // SetLdapTestConfig updates the LDAP configuration used by the end-to-end test server

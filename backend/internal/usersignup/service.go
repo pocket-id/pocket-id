@@ -3,7 +3,6 @@ package usersignup
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -38,12 +37,7 @@ func newService(deps Dependencies) *Service {
 	}
 }
 
-func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, userAgent string) (model.User, string, error) {
-	config, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return model.User{}, "", fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, signupData signUpDto, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -91,7 +85,7 @@ func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, u
 		EmailVerified: config.EmailsVerified.IsTrue(),
 	}
 
-	user, err := s.userCreator.CreateUserInternal(ctx, userToCreate, false, tx)
+	user, err := s.userCreator.CreateUserInternal(ctx, config, userToCreate, false, tx)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -126,12 +120,7 @@ func (s *Service) SignUp(ctx context.Context, signupData signUpDto, ipAddress, u
 	return user, accessToken, nil
 }
 
-func (s *Service) SignUpInitialAdmin(ctx context.Context, signUpData signUpDto) (model.User, string, error) {
-	config, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return model.User{}, "", fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppConfigModel, signUpData signUpDto) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -154,7 +143,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, signUpData signUpDto) 
 		IsAdmin:     true,
 	}
 
-	user, err := s.userCreator.CreateUserInternal(ctx, userToCreate, false, tx)
+	user, err := s.userCreator.CreateUserInternal(ctx, config, userToCreate, false, tx)
 	if err != nil {
 		return model.User{}, "", err
 	}

@@ -67,11 +67,8 @@ func newService(deps Dependencies) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) BeginRegistration(ctx context.Context, userID string) (*PublicKeyCredentialCreationOptions, error) {
-	err := s.updateWebAuthnConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) (*PublicKeyCredentialCreationOptions, error) {
+	s.updateWebAuthnConfig(dbConfig)
 
 	tx := s.db.Begin()
 	defer func() {
@@ -79,7 +76,7 @@ func (s *Service) BeginRegistration(ctx context.Context, userID string) (*Public
 	}()
 
 	var user model.User
-	err = tx.
+	err := tx.
 		WithContext(ctx).
 		Preload("Credentials").
 		Find(&user, "id = ?", userID).
@@ -232,12 +229,7 @@ func (s *Service) BeginLogin(ctx context.Context) (*PublicKeyCredentialRequestOp
 	}, nil
 }
 
-func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (model.User, string, error) {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return model.User{}, "", fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, credentialAssertionData *protocol.ParsedCredentialAssertionData, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -245,7 +237,7 @@ func (s *Service) VerifyLogin(ctx context.Context, sessionID string, credentialA
 
 	// Load & delete the session row
 	var storedSession WebauthnSession
-	err = tx.
+	err := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
 		Delete(&storedSession, "id = ?", sessionID).
@@ -383,14 +375,8 @@ func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, na
 }
 
 // updateWebAuthnConfig updates the WebAuthn configuration with the app name as it can change during runtime
-func (s *Service) updateWebAuthnConfig(ctx context.Context) error {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *Service) updateWebAuthnConfig(dbConfig *appconfig.AppConfigModel) {
 	s.webAuthn.Config.RPDisplayName = dbConfig.AppName.String()
-	return nil
 }
 
 func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string) (string, error) {

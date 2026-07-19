@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
@@ -20,7 +21,12 @@ type AuditLogger interface {
 }
 
 type UserCreator interface {
-	CreateUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error)
+	CreateUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error)
+}
+
+// AppConfigResolver loads the current application configuration, so handlers can pass it explicitly to the service methods that need it
+type AppConfigResolver interface {
+	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
 }
 
 type Dependencies struct {
@@ -29,6 +35,7 @@ type Dependencies struct {
 	Signer      TokenService
 	AuditLog    AuditLogger
 	UserCreator UserCreator
+	AppConfig   AppConfigResolver
 }
 
 type Module struct {
@@ -40,7 +47,7 @@ func New(deps Dependencies) *Module {
 	service := newService(deps)
 	return &Module{
 		service: service,
-		handler: newHandler(service),
+		handler: newHandler(service, deps.AppConfig),
 	}
 }
 

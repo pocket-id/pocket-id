@@ -37,7 +37,6 @@ func newTestUserService(t *testing.T) (*UserService, *UserGroupService) {
 
 func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	ctx := appconfig.NewTestContext(t.Context(), config)
 	userService, groupService := newTestUserService(t)
 
 	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
@@ -50,7 +49,7 @@ func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 	// Create a user that is a member of the group
 	// This mirrors signing up via an invite link that adds the user to a group
 	email := "member@example.com"
-	_, err = userService.CreateUser(ctx, dto.UserCreateDto{
+	_, err = userService.CreateUser(t.Context(), config, dto.UserCreateDto{
 		Username:     "member",
 		Email:        &email,
 		FirstName:    "Group",
@@ -69,7 +68,6 @@ func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {
 
 func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
 	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
-	ctx := appconfig.NewTestContext(t.Context(), config)
 	userService, groupService := newTestUserService(t)
 
 	group, err := groupService.Create(t.Context(), dto.UserGroupCreateDto{
@@ -86,7 +84,7 @@ func TestCreateUserBumpsDefaultGroupUpdatedAt(t *testing.T) {
 
 	// Create a user without explicit group IDs, so the default groups apply
 	email := "default@example.com"
-	_, err = userService.CreateUser(ctx, dto.UserCreateDto{
+	_, err = userService.CreateUser(t.Context(), config, dto.UserCreateDto{
 		Username:  "defaultmember",
 		Email:     &email,
 		FirstName: "Default",

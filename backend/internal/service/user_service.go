@@ -184,9 +184,9 @@ func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, f
 	return nil
 }
 
-func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDelete bool) error {
+func (s *UserService) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		return s.deleteUserInternal(ctx, tx, userID, allowLdapDelete)
+		return s.deleteUserInternal(ctx, tx, userID, allowLdapDelete, dbConfig)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete user '%s': %w", userID, err)
@@ -202,7 +202,7 @@ func (s *UserService) DeleteUser(ctx context.Context, userID string, allowLdapDe
 	return nil
 }
 
-func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userID string, allowLdapDelete bool) error {
+func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userID string, allowLdapDelete bool, cfg *appconfig.AppConfigModel) error {
 	var user model.User
 	err := tx.
 		WithContext(ctx).
@@ -216,10 +216,6 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 
 	// Disallow deleting the user if it is an LDAP user, LDAP is enabled, and the user is not disabled
 	if !allowLdapDelete && !user.Disabled && user.LdapID != nil {
-		cfg, err := appconfig.FromCtx(ctx)
-		if err != nil {
-			return fmt.Errorf("error loading app configuration: %w", err)
-		}
 		if cfg.LdapEnabled.IsTrue() {
 			return &common.LdapUserUpdateError{}
 		}
@@ -237,13 +233,13 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 	return nil
 }
 
-func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (model.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto) (model.User, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	user, err := s.CreateUserInternal(ctx, input, false, tx)
+	user, err := s.CreateUserInternal(ctx, dbConfig, input, false, tx)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -256,12 +252,8 @@ func (s *UserService) CreateUser(ctx context.Context, input dto.UserCreateDto) (
 	return user, nil
 }
 
-func (s *UserService) CreateUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
-	cfg, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return model.User{}, fmt.Errorf("error loading app configuration: %w", err)
-	}
-	return s.createUserInternal(ctx, input, isLdapSync, tx, cfg)
+func (s *UserService) CreateUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error) {
+	return s.createUserInternal(ctx, input, isLdapSync, tx, dbConfig)
 }
 
 func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (model.User, error) {
@@ -425,12 +417,7 @@ func (s *UserService) applyDefaultCustomClaims(ctx context.Context, user *model.
 	return nil
 }
 
-func (s *UserService) UpdateUser(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool) (model.User, error) {
-	cfg, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return model.User{}, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool) (model.User, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -652,7 +639,7 @@ func (s *UserService) disableUserInternal(ctx context.Context, tx *gorm.DB, user
 	return nil
 }
 
-func (s *UserService) SendEmailVerification(ctx context.Context, userID string) error {
+func (s *UserService) SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error {
 	user, err := s.GetUser(ctx, userID)
 	if err != nil {
 		return err
@@ -679,7 +666,7 @@ func (s *UserService) SendEmailVerification(ctx context.Context, userID string) 
 		return err
 	}
 
-	return SendEmail(ctx, s.emailService, email.Address{
+	return SendEmail(ctx, s.emailService, dbConfig, email.Address{
 		Name:  user.FullName(),
 		Email: *user.Email,
 	}, EmailVerificationTemplate, &EmailVerificationTemplateData{

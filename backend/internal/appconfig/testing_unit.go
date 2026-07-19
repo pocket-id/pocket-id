@@ -3,10 +3,6 @@
 // This file contains utils for unit tests and it's only built when the "unit" tag is set
 package appconfig
 
-import (
-	"context"
-)
-
 // NewTestAppConfigService is a function used by tests to create AppConfigService objects with pre-defined configuration values
 func NewTestAppConfigService(config *AppConfigModel) *AppConfigService {
 	if config == nil {
@@ -21,15 +17,11 @@ func NewTestAppConfigService(config *AppConfigModel) *AppConfigService {
 	return service
 }
 
-// NewTestContext returns a context that resolves the provided application configuration
-func NewTestContext(ctx context.Context, config *AppConfigModel) context.Context {
+// NewTestConfig returns an application configuration for use in tests, falling back to the default configuration when none is provided
+func NewTestConfig(config *AppConfigModel) *AppConfigModel {
 	if config == nil {
 		config = getDefaultConfig()
 	}
 
-	resolver := appConfigResolver(func(context.Context) (*AppConfigModel, error) {
-		return config, nil
-	})
-
-	return context.WithValue(ctx, appConfigCtxKey{}, resolver)
+	return config
 }

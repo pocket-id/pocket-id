@@ -43,7 +43,7 @@ func NewEmailService(db *gorm.DB) (*EmailService, error) {
 	}, nil
 }
 
-func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId string) error {
+func (srv *EmailService) SendTestEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientUserId string) error {
 	var user model.User
 	err := srv.db.
 		WithContext(ctx).
@@ -57,24 +57,15 @@ func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId stri
 		return &common.UserEmailNotSetError{}
 	}
 
-	return SendEmail(ctx, srv,
+	return SendEmail(ctx, srv, dbConfig,
 		email.Address{
 			Email: *user.Email,
 			Name:  user.FullName(),
 		}, TestTemplate, nil)
 }
 
-func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-
-	return SendEmailWithConfig(ctx, srv, dbConfig, toEmail, template, tData)
-}
-
-// SendEmailWithConfig sends an email with an explicitly loaded configuration for call chains that do not originate from an HTTP request
-func SendEmailWithConfig[V any](ctx context.Context, srv *EmailService, dbConfig *appconfig.AppConfigModel, toEmail email.Address, template email.Template[V], tData *V) error {
+// SendEmail sends an email using the provided application configuration
+func SendEmail[V any](ctx context.Context, srv *EmailService, dbConfig *appconfig.AppConfigModel, toEmail email.Address, template email.Template[V], tData *V) error {
 
 	data := &email.TemplateData[V]{
 		AppName: dbConfig.AppName.String(),

@@ -82,10 +82,11 @@ func initServices(
 
 	svc.customClaimService = service.NewCustomClaimService(db)
 	svc.webauthnModule, err = webauthn.New(webauthn.Dependencies{
-		DB:       db,
-		AppURL:   common.EnvConfig.AppURL,
-		Signer:   svc.jwtService,
-		AuditLog: svc.auditLogService,
+		DB:        db,
+		AppURL:    common.EnvConfig.AppURL,
+		Signer:    svc.jwtService,
+		AuditLog:  svc.auditLogService,
+		AppConfig: svc.appConfigService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
@@ -136,6 +137,7 @@ func initServices(
 		Signer:      svc.jwtService,
 		AuditLog:    svc.auditLogService,
 		UserCreator: svc.userService,
+		AppConfig:   svc.appConfigService,
 	})
 	svc.oneTimeAccessService = service.NewOneTimeAccessService(db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService)
 

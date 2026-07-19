@@ -31,5 +31,5 @@ func (j *LdapJobs) syncLdap(ctx context.Context) error {
 		return nil
 	}
 
-	return j.ldapService.SyncAllWithConfig(ctx, dbConfig)
+	return j.ldapService.SyncAll(ctx, dbConfig)
 }

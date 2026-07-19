@@ -103,20 +103,8 @@ func (s *LdapService) createClient(dbConfig *appconfig.AppConfigModel) (ldapClie
 	return client, nil
 }
 
-func (s *LdapService) SyncAll(ctx context.Context) error {
-	dbConfig, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-	return s.syncAll(ctx, dbConfig)
-}
-
-// SyncAllWithConfig synchronizes LDAP with an explicitly loaded configuration for call chains that do not originate from an HTTP request
-func (s *LdapService) SyncAllWithConfig(ctx context.Context, dbConfig *appconfig.AppConfigModel) error {
-	return s.syncAll(ctx, dbConfig)
-}
-
-func (s *LdapService) syncAll(ctx context.Context, dbConfig *appconfig.AppConfigModel) error {
+// SyncAll synchronizes LDAP using the provided application configuration
+func (s *LdapService) SyncAll(ctx context.Context, dbConfig *appconfig.AppConfigModel) error {
 	// Setup LDAP connection
 	client, err := s.clientFactory(dbConfig)
 	if err != nil {
@@ -144,7 +132,7 @@ func (s *LdapService) syncAll(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	// Reconcile groups
-	err = s.reconcileGroups(ctx, tx, desiredState.groups, desiredState.groupIDs)
+	err = s.reconcileGroups(ctx, tx, desiredState.groups, desiredState.groupIDs, dbConfig)
 	if err != nil {
 		return fmt.Errorf("failed to sync groups: %w", err)
 	}
@@ -426,7 +414,7 @@ func (s *LdapService) resolveGroupMemberUsername(ctx context.Context, client lda
 	return norm.NFC.String(username)
 }
 
-func (s *LdapService) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}) error {
+func (s *LdapService) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredGroups []ldapDesiredGroup, ldapGroupIDs map[string]struct{}, dbConfig *appconfig.AppConfigModel) error {
 	// Load the current LDAP-managed state from the database
 	ldapGroupsInDB, ldapGroupsByID, err := s.loadLDAPGroupsInDB(ctx, tx)
 	if err != nil {
@@ -466,7 +454,7 @@ func (s *LdapService) reconcileGroups(ctx context.Context, tx *gorm.DB, desiredG
 			continue
 		}
 
-		_, err = s.groupService.updateInternal(ctx, databaseGroup.ID, desiredGroup.input, true, tx)
+		_, err = s.groupService.updateInternal(ctx, databaseGroup.ID, desiredGroup.input, true, tx, dbConfig)
 		if err != nil {
 			return fmt.Errorf("failed to update group '%s': %w", desiredGroup.input.Name, err)
 		}
@@ -583,7 +571,7 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 			continue
 		}
 
-		err = s.userService.deleteUserInternal(ctx, tx, user.ID, true)
+		err = s.userService.deleteUserInternal(ctx, tx, user.ID, true, dbConfig)
 		if err != nil {
 			if _, ok := errors.AsType[*common.LdapUserUpdateError](err); ok {
 				return nil, nil, fmt.Errorf("failed to delete user %s: LDAP user must be disabled before deletion", user.Username)

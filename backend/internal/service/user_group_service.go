@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -63,19 +62,14 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 	return group, err
 }
 
-func (s *UserGroupService) Delete(ctx context.Context, id string) error {
-	cfg, err := appconfig.FromCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("error loading app configuration: %w", err)
-	}
-
+func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigModel, id string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
 	var group model.UserGroup
-	err = tx.
+	err := tx.
 		WithContext(ctx).
 		Where("id = ?", id).
 		First(&group).
@@ -141,13 +135,13 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 	return group, nil
 }
 
-func (s *UserGroupService) Update(ctx context.Context, id string, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
+func (s *UserGroupService) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	group, err = s.updateInternal(ctx, id, input, false, tx)
+	group, err = s.updateInternal(ctx, id, input, false, tx, cfg)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -160,7 +154,7 @@ func (s *UserGroupService) Update(ctx context.Context, id string, input dto.User
 	return group, nil
 }
 
-func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB) (group model.UserGroup, err error) {
+func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (group model.UserGroup, err error) {
 	group, err = s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
@@ -168,10 +162,6 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 
 	// Disallow updating the group if it is an LDAP group and LDAP is enabled
 	if !isLdapSync && group.LdapID != nil {
-		cfg, err := appconfig.FromCtx(ctx)
-		if err != nil {
-			return model.UserGroup{}, fmt.Errorf("error loading app configuration: %w", err)
-		}
 		if cfg.LdapEnabled.IsTrue() {
 			return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
 		}
