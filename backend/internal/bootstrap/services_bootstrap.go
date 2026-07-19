@@ -74,7 +74,7 @@ func initServices(
 	}
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
-	svc.auditLogService = service.NewAuditLogService(db, svc.emailService, svc.geoLiteService)
+	svc.auditLogService = service.NewAuditLogService(db, svc.emailService, svc.geoLiteService, svc.appConfigService)
 	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)

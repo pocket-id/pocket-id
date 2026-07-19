@@ -277,7 +277,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		return model.User{}, "", err
 	}
 
-	s.auditLog.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx, dbConfig)
+	s.auditLog.CreateNewSignInWithEmail(ctx, ipAddress, userAgent, user.ID, tx, dbConfig.EmailLoginNotificationEnabled.IsTrue())
 
 	err = tx.Commit().Error
 	if err != nil {
