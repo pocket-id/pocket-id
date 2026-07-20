@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
@@ -19,7 +20,7 @@ import (
 func NewAppConfigController(
 	group *gin.RouterGroup,
 	authMiddleware *middleware.AuthMiddleware,
-	appConfigService *service.AppConfigService,
+	appConfigService *appconfig.AppConfigService,
 	emailService *service.EmailService,
 	ldapService *service.LdapService,
 ) {
@@ -38,7 +39,7 @@ func NewAppConfigController(
 }
 
 type AppConfigController struct {
-	appConfigService *service.AppConfigService
+	appConfigService *appconfig.AppConfigService
 	emailService     *service.EmailService
 	ldapService      *service.LdapService
 }
@@ -52,7 +53,12 @@ type AppConfigController struct {
 // @Success 200 {array} dto.PublicAppConfigVariableDto
 // @Router /api/application-configuration [get]
 func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
-	configuration := acc.appConfigService.ListAppConfig(false)
+	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	configuration := dbConfig.ToAppConfigVariableSlice(false, true)
 
 	var configVariablesDto []dto.PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
@@ -86,7 +92,12 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 // @Success 200 {array} dto.AppConfigVariableDto
 // @Router /api/application-configuration/all [get]
 func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
-	configuration := acc.appConfigService.ListAppConfig(true)
+	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	configuration := dbConfig.ToAppConfigVariableSlice(true, true)
 
 	var configVariablesDto []dto.AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &configVariablesDto); err != nil {
@@ -135,7 +146,13 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/application-configuration/sync-ldap [post]
 func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
-	err := acc.ldapService.SyncAll(c.Request.Context())
+	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	err = acc.ldapService.SyncAll(c.Request.Context(), dbConfig)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -151,9 +168,15 @@ func (acc *AppConfigController) syncLdapHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/application-configuration/test-email [post]
 func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
+	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
 	userID := c.GetString("userID")
 
-	err := acc.emailService.SendTestEmail(c.Request.Context(), userID)
+	err = acc.emailService.SendTestEmail(c.Request.Context(), dbConfig, userID)
 	if err != nil {
 		_ = c.Error(err)
 		return

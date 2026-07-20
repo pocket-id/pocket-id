@@ -43,19 +43,18 @@ const (
 )
 
 type JwtService struct {
-	db               *gorm.DB
-	envConfig        *common.EnvConfigSchema
-	privateKey       jwk.Key
-	keyId            string
-	appConfigService *AppConfigService
-	instanceID       string
-	jwksEncoded      []byte
+	db          *gorm.DB
+	envConfig   *common.EnvConfigSchema
+	privateKey  jwk.Key
+	keyId       string
+	instanceID  string
+	jwksEncoded []byte
 }
 
-func NewJwtService(ctx context.Context, db *gorm.DB, instanceID string, appConfigService *AppConfigService) (*JwtService, error) {
+func NewJwtService(ctx context.Context, db *gorm.DB, instanceID string) (*JwtService, error) {
 	service := &JwtService{}
 
-	err := service.init(ctx, db, instanceID, appConfigService, &common.EnvConfig)
+	err := service.init(ctx, db, instanceID, &common.EnvConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +62,7 @@ func NewJwtService(ctx context.Context, db *gorm.DB, instanceID string, appConfi
 	return service, nil
 }
 
-func (s *JwtService) init(ctx context.Context, db *gorm.DB, instanceID string, appConfigService *AppConfigService, envConfig *common.EnvConfigSchema) (err error) {
-	s.appConfigService = appConfigService
+func (s *JwtService) init(ctx context.Context, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema) (err error) {
 	s.envConfig = envConfig
 	s.db = db
 	s.instanceID = instanceID
@@ -183,12 +181,11 @@ func (s *JwtService) SetKey(privateKey jwk.Key) error {
 	return nil
 }
 
-func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod string) (string, error) {
-
+func (s *JwtService) GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error) {
 	now := time.Now()
 	token, err := jwt.NewBuilder().
 		Subject(user.ID).
-		Expiration(now.Add(s.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes())).
+		Expiration(now.Add(sessionDuration)).
 		IssuedAt(now).
 		Issuer(s.envConfig.AppURL).
 		JwtID(uuid.New().String()).

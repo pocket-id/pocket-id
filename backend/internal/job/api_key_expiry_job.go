@@ -8,17 +8,18 @@ import (
 	"github.com/go-co-op/gocron/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
 
 type ApiKeyEmailJobs struct {
 	apiKeyModule     *apikey.Module
-	appConfigService *service.AppConfigService
+	appConfigService *appconfig.AppConfigService
 	emailService     *service.EmailService
 }
 
-func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyModule *apikey.Module, appConfigService *service.AppConfigService, emailService *service.EmailService) error {
+func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyModule *apikey.Module, appConfigService *appconfig.AppConfigService, emailService *service.EmailService) error {
 	jobs := &ApiKeyEmailJobs{
 		apiKeyModule:     apiKeyModule,
 		appConfigService: appConfigService,
@@ -30,8 +31,13 @@ func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyModule *a
 }
 
 func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) error {
+	dbConfig, err := j.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error load app config: %w", err)
+	}
+
 	// Skip if the feature is disabled
-	if !j.appConfigService.GetDbConfig().EmailApiKeyExpirationEnabled.IsTrue() {
+	if !dbConfig.EmailApiKeyExpirationEnabled.IsTrue() {
 		return nil
 	}
 
@@ -45,7 +51,7 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 			continue
 		}
 
-		err = service.SendEmail(ctx, j.emailService, email.Address{
+		err = service.SendEmail(ctx, j.emailService, dbConfig, email.Address{
 			Name:  key.User.FullName(),
 			Email: *key.User.Email,
 		}, service.ApiKeyExpiringSoonTemplate, &service.ApiKeyExpiringSoonTemplateData{

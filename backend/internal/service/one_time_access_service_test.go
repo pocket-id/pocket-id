@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -14,11 +15,11 @@ import (
 
 func TestExchangeOneTimeAccessTokenRejectsDisabledUser(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	appConfig := NewTestAppConfigService((&AppConfigService{}).getDefaultDbConfig())
+	appConfig := appconfig.NewTestAppConfigService(nil)
 	instanceID := newInstanceID(t, db)
 	jwtService := initJwtService(t, db, instanceID, appConfig, newTestEnvConfig())
-	auditLogService := NewAuditLogService(db, appConfig, nil, &GeoLiteService{})
-	oneTimeAccessService := NewOneTimeAccessService(db, nil, jwtService, auditLogService, nil, appConfig)
+	auditLogService := NewAuditLogService(db, nil, &GeoLiteService{}, appConfig)
+	oneTimeAccessService := NewOneTimeAccessService(db, nil, jwtService, auditLogService, nil)
 
 	user := model.User{
 		Base:     model.Base{ID: "disabled-user"},
@@ -35,7 +36,8 @@ func TestExchangeOneTimeAccessTokenRejectsDisabledUser(t *testing.T) {
 	}
 	require.NoError(t, db.Create(&loginCode).Error)
 
-	exchangedUser, accessToken, err := oneTimeAccessService.ExchangeOneTimeAccessToken(t.Context(), loginCode.Token, "", "", "")
+	dbConfig := appconfig.NewTestConfig(nil)
+	exchangedUser, accessToken, err := oneTimeAccessService.ExchangeOneTimeAccessToken(t.Context(), dbConfig, loginCode.Token, "", "", "")
 
 	var userDisabledErr *common.UserDisabledError
 	require.ErrorAs(t, err, &userDisabledErr)

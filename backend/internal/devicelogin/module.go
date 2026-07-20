@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -24,7 +25,7 @@ type AuditLogger interface {
 }
 
 type AppConfigProvider interface {
-	GetDbConfig() *model.AppConfig
+	GetDbConfig() *appconfig.AppConfigModel
 }
 
 type Dependencies struct {

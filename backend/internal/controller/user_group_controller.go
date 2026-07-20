@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -14,8 +16,9 @@ import (
 // @Summary User group management controller
 // @Description Initializes all user group-related API endpoints
 // @Tags User Groups
-func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, userGroupService *service.UserGroupService) {
+func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, appConfigService *appconfig.AppConfigService, userGroupService *service.UserGroupService) {
 	ugc := UserGroupController{
+		appConfigService: appConfigService,
 		UserGroupService: userGroupService,
 	}
 
@@ -33,6 +36,7 @@ func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.A
 }
 
 type UserGroupController struct {
+	appConfigService *appconfig.AppConfigService
 	UserGroupService *service.UserGroupService
 }
 
@@ -146,13 +150,19 @@ func (ugc *UserGroupController) create(c *gin.Context) {
 // @Success 200 {object} dto.UserGroupDto "Updated user group"
 // @Router /api/user-groups/{id} [put]
 func (ugc *UserGroupController) update(c *gin.Context) {
+	dbConfig, err := ugc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input dto.UserGroupCreateDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	group, err := ugc.UserGroupService.Update(c.Request.Context(), c.Param("id"), input)
+	group, err := ugc.UserGroupService.Update(c.Request.Context(), dbConfig, c.Param("id"), input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -177,7 +187,13 @@ func (ugc *UserGroupController) update(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/user-groups/{id} [delete]
 func (ugc *UserGroupController) delete(c *gin.Context) {
-	if err := ugc.UserGroupService.Delete(c.Request.Context(), c.Param("id")); err != nil {
+	dbConfig, err := ugc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
+	if err := ugc.UserGroupService.Delete(c.Request.Context(), dbConfig, c.Param("id")); err != nil {
 		_ = c.Error(err)
 		return
 	}

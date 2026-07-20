@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
 
@@ -15,13 +16,12 @@ import (
 )
 
 type UserGroupService struct {
-	db               *gorm.DB
-	scimService      *ScimService
-	appConfigService *AppConfigService
+	db          *gorm.DB
+	scimService *ScimService
 }
 
-func NewUserGroupService(db *gorm.DB, appConfigService *AppConfigService, scimService *ScimService) *UserGroupService {
-	return &UserGroupService{db: db, appConfigService: appConfigService, scimService: scimService}
+func NewUserGroupService(db *gorm.DB, scimService *ScimService) *UserGroupService {
+	return &UserGroupService{db: db, scimService: scimService}
 }
 
 func (s *UserGroupService) List(ctx context.Context, name string, listRequestOptions utils.ListRequestOptions) (groups []model.UserGroup, response utils.PaginationResponse, err error) {
@@ -62,7 +62,7 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 	return group, err
 }
 
-func (s *UserGroupService) Delete(ctx context.Context, id string) error {
+func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigModel, id string) error {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -79,7 +79,7 @@ func (s *UserGroupService) Delete(ctx context.Context, id string) error {
 	}
 
 	// Disallow deleting the group if it is an LDAP group and LDAP is enabled
-	if group.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
+	if group.LdapID != nil && cfg.LdapEnabled.IsTrue() {
 		return &common.LdapUserGroupUpdateError{}
 	}
 
@@ -122,10 +122,9 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 		Preload("Users").
 		Create(&group).
 		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
-		}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
+	} else if err != nil {
 		return model.UserGroup{}, err
 	}
 
@@ -136,13 +135,13 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 	return group, nil
 }
 
-func (s *UserGroupService) Update(ctx context.Context, id string, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
+func (s *UserGroupService) Update(ctx context.Context, cfg *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
 	}()
 
-	group, err = s.updateInternal(ctx, id, input, false, tx)
+	group, err = s.updateInternal(ctx, id, input, false, tx, cfg)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -155,15 +154,17 @@ func (s *UserGroupService) Update(ctx context.Context, id string, input dto.User
 	return group, nil
 }
 
-func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB) (group model.UserGroup, err error) {
+func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (group model.UserGroup, err error) {
 	group, err = s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
 
 	// Disallow updating the group if it is an LDAP group and LDAP is enabled
-	if !isLdapSync && group.LdapID != nil && s.appConfigService.GetDbConfig().LdapEnabled.IsTrue() {
-		return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
+	if !isLdapSync && group.LdapID != nil {
+		if cfg.LdapEnabled.IsTrue() {
+			return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
+		}
 	}
 
 	group.Name = input.Name
@@ -216,7 +217,7 @@ func (s *UserGroupService) updateUsersInternal(ctx context.Context, id string, u
 	// Fetch the users based on the userIds
 	var users []model.User
 	if len(userIds) > 0 {
-		err := tx.
+		err = tx.
 			WithContext(ctx).
 			Where("id IN (?)", userIds).
 			Find(&users).
