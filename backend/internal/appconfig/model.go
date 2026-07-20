@@ -2,7 +2,6 @@ package appconfig
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -147,49 +146,6 @@ func getDefaultConfig() *AppConfigModel {
 		LdapAdminGroupName:                 "",
 		LdapSoftDeleteUsers:                "true",
 	}
-}
-
-// fromLegacyConfig builds an appConfigModel from a legacy config map
-// The map's keys correspond to the "json" tags on appConfigModel, and all values are strings that are cast to each field's type
-// Keys that are missing (or have an empty value) retain the default value
-func fromLegacyConfig(legacyCfg map[string]string) (*AppConfigModel, error) {
-	// Start from the default configuration, then override with the values from the legacy config
-	dest := getDefaultConfig()
-
-	rt := reflect.ValueOf(dest).Elem().Type()
-	rv := reflect.ValueOf(dest).Elem()
-	for i := range rt.NumField() {
-		field := rt.Field(i)
-
-		// Get the value of the json tag, taking only what's before the comma
-		key, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-
-		// Look up the value in the legacy config
-		// If the key is missing or the value is empty, we keep the default value
-		value, ok := legacyCfg[key]
-		if !ok || value == "" {
-			continue
-		}
-
-		// Cast the string value to the field's type
-		fv := rv.Field(i)
-		switch fv.Kind() { //nolint:exhaustive
-		case reflect.String:
-			fv.SetString(value)
-		case reflect.Bool:
-			fv.SetBool(utils.IsTruthy(value))
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			n, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse integer value for key '%s': %w", key, err)
-			}
-			fv.SetInt(n)
-		default:
-			return nil, fmt.Errorf("unsupported field type '%s' for key '%s'", fv.Kind(), key)
-		}
-	}
-
-	return dest, nil
 }
 
 // Replace updates every configuration property with the values from the input DTO
