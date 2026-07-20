@@ -137,15 +137,6 @@ func TestMigrateFromAppConfig(t *testing.T) {
 		}
 	}
 
-	// countLegacyInstanceID returns the number of "instanceId" rows left in the app_config_variables table
-	countLegacyInstanceID := func(t *testing.T, db *gorm.DB) int64 {
-		t.Helper()
-		var count int64
-		err := db.Table("app_config_variables").Where(`"key" = ?`, "instanceId").Count(&count).Error
-		require.NoError(t, err)
-		return count
-	}
-
 	t.Run("moves an existing instance ID from app_config_variables into the kv table", func(t *testing.T) {
 		legacyID := uuid.NewString()
 		db := testutils.NewDatabaseForTestWithMigrationSeed(t, versionBeforeMove, seedAppConfigInstanceID(legacyID))
@@ -155,8 +146,8 @@ func TestMigrateFromAppConfig(t *testing.T) {
 		require.Equal(t, 1, count)
 		require.Equal(t, legacyID, stored)
 
-		// The legacy row must have been removed from app_config_variables
-		require.Zero(t, countLegacyInstanceID(t, db))
+		// The final config migration removes the legacy table after freezing its remaining values
+		require.False(t, db.Migrator().HasTable("app_config_variables"))
 
 		// Load must return the migrated value without generating a new one
 		id, err := Load(t.Context(), db)
@@ -184,7 +175,8 @@ func TestMigrateFromAppConfig(t *testing.T) {
 		require.Equal(t, 1, count)
 		require.Equal(t, "kv-instance-id", stored)
 
-		// The legacy row must still be removed regardless of the conflict
-		require.Zero(t, countLegacyInstanceID(t, db))
+		// The final config migration removes the legacy table regardless of the conflict
+		ok := db.Migrator().HasTable("app_config_variables")
+		require.False(t, ok)
 	})
 }

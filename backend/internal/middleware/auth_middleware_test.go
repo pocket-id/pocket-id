@@ -33,23 +33,20 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 
 	db := testutils.NewDatabaseForTest(t)
 
-	appConfigService, err := service.NewAppConfigService(t.Context(), db)
-	require.NoError(t, err)
-
 	instanceID, err := instanceid.Load(t.Context(), db)
 	require.NoError(t, err)
 
-	jwtService, err := service.NewJwtService(t.Context(), db, instanceID, appConfigService)
+	jwtService, err := service.NewJwtService(t.Context(), db, instanceID)
 	require.NoError(t, err)
 
-	userService := service.NewUserService(db, jwtService, nil, nil, appConfigService, nil, nil, nil, nil)
+	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db})
 	require.NoError(t, err)
 
 	authMiddleware := NewAuthMiddleware(apiKeyModule, userService, jwtService)
 
 	user := createUserForAuthMiddlewareTest(t, db)
-	jwtToken, err := jwtService.GenerateAccessToken(user, "")
+	jwtToken, err := jwtService.GenerateAccessToken(user, "", time.Hour)
 	require.NoError(t, err)
 
 	apiKeyToken := "middleware-test-api-key-raw-token"

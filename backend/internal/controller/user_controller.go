@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
@@ -21,12 +23,12 @@ const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *service.AppConfigService) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module) {
 	uc := UserController{
+		appConfigService:     appConfigService,
 		userService:          userService,
 		oneTimeAccessService: oneTimeAccessService,
 		webAuthnService:      webAuthnService,
-		appConfigService:     appConfigService,
 	}
 
 	group.GET("/users", authMiddleware.Add(), uc.listUsersHandler)
@@ -61,10 +63,10 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 }
 
 type UserController struct {
+	appConfigService     *appconfig.AppConfigService
 	userService          *service.UserService
 	oneTimeAccessService *service.OneTimeAccessService
 	webAuthnService      *webauthn.Module
-	appConfigService     *service.AppConfigService
 }
 
 // getUserGroupsHandler godoc
@@ -207,7 +209,13 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/users/{id} [delete]
 func (uc *UserController) deleteUserHandler(c *gin.Context) {
-	if err := uc.userService.DeleteUser(c.Request.Context(), c.Param("id"), false); err != nil {
+	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
+	if err := uc.userService.DeleteUser(c.Request.Context(), dbConfig, c.Param("id"), false); err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -248,13 +256,19 @@ func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) {
 // @Success 201 {object} dto.UserDto
 // @Router /api/users [post]
 func (uc *UserController) createUserHandler(c *gin.Context) {
+	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input dto.UserCreateDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	user, err := uc.userService.CreateUser(c.Request.Context(), input)
+	user, err := uc.userService.CreateUser(c.Request.Context(), dbConfig, input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -452,13 +466,19 @@ func (uc *UserController) createAdminOneTimeAccessTokenHandler(c *gin.Context) {
 // @Success 204 "No Content"
 // @Router /api/one-time-access-email [post]
 func (uc *UserController) RequestOneTimeAccessEmailAsUnauthenticatedUserHandler(c *gin.Context) {
+	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input dto.OneTimeAccessEmailAsUnauthenticatedUserDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), input.Email, input.RedirectPath)
+	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), dbConfig, input.Email, input.RedirectPath)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -479,6 +499,12 @@ func (uc *UserController) RequestOneTimeAccessEmailAsUnauthenticatedUserHandler(
 // @Success 204 "No Content"
 // @Router /api/users/{id}/one-time-access-email [post]
 func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context) {
+	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input dto.OneTimeAccessEmailAsAdminDto
 	if err := c.ShouldBindJSON(&input); err != nil {
 		_ = c.Error(err)
@@ -491,7 +517,7 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 	if ttl <= 0 {
 		ttl = defaultOneTimeAccessTokenDuration
 	}
-	err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), userID, ttl)
+	err = uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), dbConfig, userID, ttl)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -508,6 +534,12 @@ func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context
 // @Success 200 {object} dto.UserDto
 // @Router /api/one-time-access-token/{token} [post]
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
+	cfg, err := uc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	loginCode := c.Param("token")
 	// reject invalid length login codes
 	if len(loginCode) != 6 && len(loginCode) != 16 {
@@ -516,19 +548,20 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
 	}
 
 	deviceToken, _ := c.Cookie(cookie.DeviceTokenCookieName)
-	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent())
+	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), cfg, loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
+	err = dto.MapStruct(user, &userDto)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(cfg.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
@@ -566,6 +599,12 @@ func (uc *UserController) updateUserGroups(c *gin.Context) {
 
 // updateUser is an internal helper method, not exposed as an API endpoint
 func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
+	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input dto.UserCreateDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
@@ -579,7 +618,7 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 		userID = c.Param("id")
 	}
 
-	user, err := uc.userService.UpdateUser(c.Request.Context(), userID, input, updateOwnUser, false)
+	user, err := uc.userService.UpdateUser(c.Request.Context(), dbConfig, userID, input, updateOwnUser, false)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -639,9 +678,15 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 // @Success 204 "No Content"
 // @Router /api/users/me/send-email-verification [post]
 func (uc *UserController) sendEmailVerificationHandler(c *gin.Context) {
+	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	userID := c.GetString("userID")
 
-	if err := uc.userService.SendEmailVerification(c.Request.Context(), userID); err != nil {
+	if err := uc.userService.SendEmailVerification(c.Request.Context(), dbConfig, userID); err != nil {
 		_ = c.Error(err)
 		return
 	}

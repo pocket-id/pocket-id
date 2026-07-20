@@ -13,19 +13,19 @@ import (
 	"github.com/italypaleale/go-kit/emailer"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
 
 type EmailService struct {
-	appConfigService *AppConfigService
-	db               *gorm.DB
-	htmlTemplates    map[string]*htemplate.Template
-	textTemplates    map[string]*ttemplate.Template
+	db            *gorm.DB
+	htmlTemplates map[string]*htemplate.Template
+	textTemplates map[string]*ttemplate.Template
 }
 
-func NewEmailService(db *gorm.DB, appConfigService *AppConfigService) (*EmailService, error) {
+func NewEmailService(db *gorm.DB) (*EmailService, error) {
 	htmlTemplates, err := email.PrepareHTMLTemplates(emailTemplatesPaths)
 	if err != nil {
 		return nil, fmt.Errorf("prepare html templates: %w", err)
@@ -37,14 +37,13 @@ func NewEmailService(db *gorm.DB, appConfigService *AppConfigService) (*EmailSer
 	}
 
 	return &EmailService{
-		appConfigService: appConfigService,
-		db:               db,
-		htmlTemplates:    htmlTemplates,
-		textTemplates:    textTemplates,
+		db:            db,
+		htmlTemplates: htmlTemplates,
+		textTemplates: textTemplates,
 	}, nil
 }
 
-func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId string) error {
+func (srv *EmailService) SendTestEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientUserId string) error {
 	var user model.User
 	err := srv.db.
 		WithContext(ctx).
@@ -58,18 +57,18 @@ func (srv *EmailService) SendTestEmail(ctx context.Context, recipientUserId stri
 		return &common.UserEmailNotSetError{}
 	}
 
-	return SendEmail(ctx, srv,
+	return SendEmail(ctx, srv, dbConfig,
 		email.Address{
 			Email: *user.Email,
 			Name:  user.FullName(),
 		}, TestTemplate, nil)
 }
 
-func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Address, template email.Template[V], tData *V) error {
-	dbConfig := srv.appConfigService.GetDbConfig()
+// SendEmail sends an email using the provided application configuration
+func SendEmail[V any](ctx context.Context, srv *EmailService, dbConfig *appconfig.AppConfigModel, toEmail email.Address, template email.Template[V], tData *V) error {
 
 	data := &email.TemplateData[V]{
-		AppName: dbConfig.AppName.Value,
+		AppName: dbConfig.AppName.String(),
 		LogoURL: common.EnvConfig.AppURL + "/api/application-images/email",
 		Data:    tData,
 	}
@@ -102,7 +101,7 @@ func SendEmail[V any](ctx context.Context, srv *EmailService, toEmail email.Addr
 }
 
 // getEmailer builds an emailer.Emailer from the current app config.
-func (srv *EmailService) getEmailer(ctx context.Context, dbConfig *model.AppConfig) (emailer.Emailer, error) {
+func (srv *EmailService) getEmailer(ctx context.Context, dbConfig *appconfig.AppConfigModel) (emailer.Emailer, error) {
 	// We support SMTP only (for now)
 	connString, err := smtpConnString(dbConfig)
 	if err != nil {
@@ -116,8 +115,8 @@ func (srv *EmailService) getEmailer(ctx context.Context, dbConfig *model.AppConf
 
 // smtpConnString builds the SMTP connection string that go-kit's emailer expects:
 // smtp://<username>:<password>@<host>:<port>?fromAddress=<address>&fromName=<name>&tls=<none|starttls|tls>&insecureSkipVerify=<true|false>
-func smtpConnString(dbConfig *model.AppConfig) (string, error) {
-	host := dbConfig.SmtpHost.Value
+func smtpConnString(dbConfig *appconfig.AppConfigModel) (string, error) {
+	host := dbConfig.SmtpHost.String()
 	if host == "" {
 		return "", errors.New("SMTP host is not configured")
 	}
@@ -126,28 +125,28 @@ func smtpConnString(dbConfig *model.AppConfig) (string, error) {
 		Scheme: "smtp",
 		Host:   host,
 	}
-	port := dbConfig.SmtpPort.Value
+	port := dbConfig.SmtpPort.String()
 	if port != "" {
 		u.Host = net.JoinHostPort(host, port)
 	}
 
 	// Include credentials when set
-	smtpUser := dbConfig.SmtpUser.Value
-	smtpPassword := dbConfig.SmtpPassword.Value
+	smtpUser := dbConfig.SmtpUser.String()
+	smtpPassword := dbConfig.SmtpPassword.String()
 	if smtpUser != "" || smtpPassword != "" {
 		u.User = url.UserPassword(smtpUser, smtpPassword)
 	}
 
 	// TLS values from config: none, starttls, tls
-	tlsMode := dbConfig.SmtpTls.Value
+	tlsMode := dbConfig.SmtpTls.String()
 	if tlsMode == "" {
 		tlsMode = "none"
 	}
 
 	// Build the query string args
 	q := url.Values{}
-	q.Set("fromAddress", dbConfig.SmtpFrom.Value)
-	q.Set("fromName", dbConfig.AppName.Value)
+	q.Set("fromAddress", dbConfig.SmtpFrom.String())
+	q.Set("fromName", dbConfig.AppName.String())
 	q.Set("tls", tlsMode)
 	if dbConfig.SmtpSkipCertVerify.IsTrue() {
 		q.Set("insecureSkipVerify", "true")

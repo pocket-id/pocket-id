@@ -39,6 +39,7 @@ func startRateLimitServices(t *testing.T, policies ...RateLimitPolicy) map[strin
 	for name, rl := range limiters {
 		services[name] = rl.Service(svc)
 	}
+
 	return services
 }
 

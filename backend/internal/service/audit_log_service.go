@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	userAgentParser "github.com/mileusna/useragent"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
@@ -14,17 +15,17 @@ import (
 
 type AuditLogService struct {
 	db               *gorm.DB
-	appConfigService *AppConfigService
 	emailService     *EmailService
 	geoliteService   *GeoLiteService
+	appConfigService *appconfig.AppConfigService
 }
 
-func NewAuditLogService(db *gorm.DB, appConfigService *AppConfigService, emailService *EmailService, geoliteService *GeoLiteService) *AuditLogService {
+func NewAuditLogService(db *gorm.DB, emailService *EmailService, geoliteService *GeoLiteService, appConfigService *appconfig.AppConfigService) *AuditLogService {
 	return &AuditLogService{
 		db:               db,
-		appConfigService: appConfigService,
 		emailService:     emailService,
 		geoliteService:   geoliteService,
+		appConfigService: appConfigService,
 	}
 }
 
@@ -64,7 +65,8 @@ func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent,
 }
 
 // CreateNewSignInWithEmail creates a new audit log entry in the database and sends an email if the device hasn't been used before
-func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog {
+// emailLoginNotificationEnabled gates whether the notification email is sent, so the caller decides using the config it already loaded
+func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB, emailLoginNotificationEnabled bool) model.AuditLog {
 	createdAuditLog, ok := s.Create(ctx, model.AuditLogEventSignIn, ipAddress, userAgent, userID, model.AuditLogData{}, tx)
 	if !ok {
 		// At this point the transaction has been canceled already, and error has been logged
@@ -90,15 +92,22 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 	}
 
 	// If the user hasn't logged in from the same device before and email notifications are enabled, send an email
-	if s.appConfigService.GetDbConfig().EmailLoginNotificationEnabled.IsTrue() && count <= 1 {
+	if emailLoginNotificationEnabled && count <= 1 {
 		go func() {
 			// This runs in background, so use a context without cancellation (or it would be stopped when the request ends)
 			// We still want to have a context derived from the request's to carry over tracing info
 			innerCtx := context.WithoutCancel(ctx)
 
+			// This runs after the request has completed, so we resolve the current config rather than threading the request's snapshot into the goroutine
+			dbConfig, innerErr := s.appConfigService.GetConfig(innerCtx)
+			if innerErr != nil {
+				slog.ErrorContext(innerCtx, "Failed to load app configuration to send notification email", slog.Any("error", innerErr))
+				return
+			}
+
 			// Note we don't use the transaction here because this is running in background
 			var user model.User
-			innerErr := s.db.
+			innerErr = s.db.
 				WithContext(innerCtx).
 				Where("id = ?", userID).
 				First(&user).
@@ -112,7 +121,7 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 				return
 			}
 
-			innerErr = SendEmail(innerCtx, s.emailService, email.Address{
+			innerErr = SendEmail(innerCtx, s.emailService, dbConfig, email.Address{
 				Name:  user.FullName(),
 				Email: *user.Email,
 			}, NewLoginTemplate, &NewLoginTemplateData{
