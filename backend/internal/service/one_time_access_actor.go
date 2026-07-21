@@ -19,7 +19,8 @@ import (
 const OneTimeAccessTokenActorType = "OneTimeAccessToken"
 
 // Methods exposed by the one-time access token actor
-// Because we cannot invoke an actor while a DB transaction is open (that would deadlock on SQLite), consuming a token is done by invoking the actor first (which atomically validates and deletes the token), and only afterwards performing the remaining work. On failure, the caller compensates by restoring the token via the "restore" method.
+// Because we cannot invoke an actor while a DB transaction is open (that would deadlock on SQLite), consuming a token is done by invoking the actor first (which atomically validates and deletes the token), and only afterwards performing the remaining work.
+// On failure, the caller compensates by restoring the token via the "restore" method as best-effort.
 const (
 	oneTimeAccessTokenMethodConsume = "consume"
 	oneTimeAccessTokenMethodRestore = "restore"
@@ -39,21 +40,21 @@ const (
 
 // oneTimeAccessTokenState is the persisted state of a one-time access token actor
 type oneTimeAccessTokenState struct {
-	UserID      string    `msgpack:"userId"`
-	DeviceToken *string   `msgpack:"deviceToken,omitempty"`
-	ExpiresAt   time.Time `msgpack:"expiresAt"`
+	UserID      string
+	DeviceToken *string
+	ExpiresAt   time.Time
 }
 
 // oneTimeAccessConsumeRequest is the payload for the "consume" method
 type oneTimeAccessConsumeRequest struct {
-	DeviceToken string `msgpack:"deviceToken"`
+	DeviceToken string
 }
 
 // oneTimeAccessConsumeResponse is the response of the "consume" method
 type oneTimeAccessConsumeResponse struct {
-	Status oneTimeAccessConsumeStatus `msgpack:"status"`
+	Status oneTimeAccessConsumeStatus
 	// State is included only when Status is "ok", so the caller can restore it if a later step fails
-	State oneTimeAccessTokenState `msgpack:"state"`
+	State oneTimeAccessTokenState
 }
 
 // oneTimeAccessTokenActor is the actor that manages a single one-time access token
@@ -62,8 +63,8 @@ type oneTimeAccessTokenActor struct {
 	client actor.Client[oneTimeAccessTokenState]
 }
 
-// NewOneTimeAccessTokenActor allocates a new one-time access token actor.
-// It satisfies actor.Factory.
+// NewOneTimeAccessTokenActor allocates a new one-time access token actor
+// It satisfies actor.Factory
 func NewOneTimeAccessTokenActor(actorID string, service *actor.Service) actor.Actor {
 	return &oneTimeAccessTokenActor{
 		log: slog.With(
@@ -105,13 +106,17 @@ func (a *oneTimeAccessTokenActor) consume(parentCtx context.Context, data actor.
 
 	// An empty UserID means there's no state: the token doesn't exist (or its state already expired and was purged)
 	if state.UserID == "" || state.ExpiresAt.Before(time.Now()) {
-		return oneTimeAccessConsumeResponse{Status: oneTimeAccessConsumeNotFound}, nil
+		return oneTimeAccessConsumeResponse{
+			Status: oneTimeAccessConsumeNotFound,
+		}, nil
 	}
 
 	// If the token requires a device token, it must match
 	// A mismatch leaves the token untouched, mirroring the pre-actor behavior
 	if state.DeviceToken != nil && req.DeviceToken != *state.DeviceToken {
-		return oneTimeAccessConsumeResponse{Status: oneTimeAccessConsumeDeviceMismatch}, nil
+		return oneTimeAccessConsumeResponse{
+			Status: oneTimeAccessConsumeDeviceMismatch,
+		}, nil
 	}
 
 	// The token is valid: delete the state (one-time use)
@@ -122,7 +127,10 @@ func (a *oneTimeAccessTokenActor) consume(parentCtx context.Context, data actor.
 		return oneTimeAccessConsumeResponse{}, fmt.Errorf("error deleting actor state: %w", err)
 	}
 
-	return oneTimeAccessConsumeResponse{Status: oneTimeAccessConsumeOK, State: state}, nil
+	return oneTimeAccessConsumeResponse{
+		Status: oneTimeAccessConsumeOK,
+		State:  state,
+	}, nil
 }
 
 // restore re-creates the token state, used to compensate when a step after consuming the token fails.

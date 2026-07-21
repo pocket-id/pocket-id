@@ -13,7 +13,7 @@ import (
 )
 
 // Signup tokens are stored in a single singleton actor that holds all of them in its state.
-// The state itself has no TTL: the actor keeps a single alarm scheduled for the moment the earliest-expiring token expires. When that alarm fires, the actor purges every expired token and, if any tokens remain, reschedules the alarm for the next earliest expiration. This replaces the periodic cleanup job.
+// The actor keeps a single alarm scheduled for the moment the earliest-expiring token expires. When that alarm fires, the actor purges every expired token and, if any tokens remain, reschedules the alarm for the next earliest expiration.
 // Because it's a singleton, read-only operations (such as listing tokens) are served via Peek, while mutations (create, delete, consume, release) go through Invoke.
 //
 // Consuming a token must happen outside of a DB transaction (invoking an actor while a transaction is open would deadlock on SQLite): the caller invokes the actor to atomically increment the usage count, performs the rest of its work in a transaction, and, on failure, compensates by invoking the actor again to decrement the usage count (best-effort).
@@ -35,7 +35,7 @@ const (
 )
 
 // signupTokenConsumeStatus is the outcome of a "consume" invocation.
-// It's returned as part of the response payload rather than as a Go error, because errors lose their concrete type when they cross the actor invocation boundary (which may be a different host in a cluster).
+// It's returned as part of the response payload rather than as a Go error, because errors lose their concrete type when they cross the actor invocation boundary.
 type signupTokenConsumeStatus string
 
 const (
@@ -47,13 +47,13 @@ const (
 
 // storedSignupToken is a single signup token as held in the actor state
 type storedSignupToken struct {
-	ID           string    `msgpack:"id"`
-	Token        string    `msgpack:"token"`
-	ExpiresAt    time.Time `msgpack:"expiresAt"`
-	UsageLimit   int       `msgpack:"usageLimit"`
-	UsageCount   int       `msgpack:"usageCount"`
-	UserGroupIDs []string  `msgpack:"userGroupIds"`
-	CreatedAt    time.Time `msgpack:"createdAt"`
+	ID           string
+	Token        string
+	ExpiresAt    time.Time
+	UsageLimit   int
+	UsageCount   int
+	UserGroupIDs []string
+	CreatedAt    time.Time
 }
 
 func (t storedSignupToken) isExpired(now time.Time) bool {
@@ -67,7 +67,7 @@ func (t storedSignupToken) isUsageLimitReached() bool {
 // signupTokenActorState is the persisted state of the signup token singleton actor.
 // Tokens are keyed by their token value.
 type signupTokenActorState struct {
-	Tokens map[string]storedSignupToken `msgpack:"tokens"`
+	Tokens map[string]storedSignupToken
 }
 
 // removeExpired deletes every token that has expired and returns the number removed.
@@ -97,32 +97,32 @@ func (s *signupTokenActorState) earliestExpiration() (earliest time.Time, found 
 // Payloads for the actor methods
 
 type signupTokenBootstrap struct {
-	Tokens []storedSignupToken `msgpack:"tokens"`
+	Tokens []storedSignupToken
 }
 
 type signupTokenDeleteRequest struct {
-	ID string `msgpack:"id"`
+	ID string
 }
 
 type signupTokenConsumeRequest struct {
-	Token string `msgpack:"token"`
+	Token string
 }
 
 type signupTokenConsumeResponse struct {
-	Status       signupTokenConsumeStatus `msgpack:"status"`
-	UserGroupIDs []string                 `msgpack:"userGroupIds"`
+	Status       signupTokenConsumeStatus
+	UserGroupIDs []string
 }
 
 type signupTokenReleaseRequest struct {
-	Token string `msgpack:"token"`
+	Token string
 }
 
 type signupTokenReplaceRequest struct {
-	Tokens []storedSignupToken `msgpack:"tokens"`
+	Tokens []storedSignupToken
 }
 
 type signupTokenListResponse struct {
-	Tokens []storedSignupToken `msgpack:"tokens"`
+	Tokens []storedSignupToken
 }
 
 // signupTokenActor is the singleton actor that manages all signup tokens
@@ -131,8 +131,8 @@ type signupTokenActor struct {
 	client actor.Client[*signupTokenActorState]
 }
 
-// NewSignupTokenActor allocates a new signup token actor.
-// It satisfies actor.Factory.
+// NewSignupTokenActor allocates a new signup token actor
+// It satisfies actor.Factory
 func NewSignupTokenActor(actorID string, service *actor.Service) actor.Actor {
 	return &signupTokenActor{
 		log: slog.With(
@@ -145,7 +145,8 @@ func NewSignupTokenActor(actorID string, service *actor.Service) actor.Actor {
 }
 
 // Bootstrap implements actor.ActorBootstrapper for the singleton actor.
-// On first startup it seeds the state from the tokens migrated from the database; on subsequent startups it just makes sure the cleanup alarm is scheduled.
+// On first startup it seeds the state from the tokens migrated from the database
+// On subsequent startups it just makes sure the cleanup alarm is scheduled.
 func (a *signupTokenActor) Bootstrap(parentCtx context.Context, data actor.Envelope) error {
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
@@ -169,6 +170,7 @@ func (a *signupTokenActor) Bootstrap(parentCtx context.Context, data actor.Envel
 		if err != nil {
 			return fmt.Errorf("request body is not valid for bootstrap: %w", err)
 		}
+
 		for _, t := range payload.Tokens {
 			state.Tokens[t.Token] = t
 		}
@@ -200,7 +202,9 @@ func (a *signupTokenActor) Peek(parentCtx context.Context, method string, data a
 		return nil, fmt.Errorf("error retrieving actor state: %w", err)
 	}
 
-	return signupTokenListResponse{Tokens: collectTokens(state)}, nil
+	return signupTokenListResponse{
+		Tokens: collectTokens(state),
+	}, nil
 }
 
 // Invoke implements actor.ActorInvoke for mutating operations
@@ -245,6 +249,7 @@ func (a *signupTokenActor) Alarm(parentCtx context.Context, name string, data ac
 		if err != nil {
 			return fmt.Errorf("error saving actor state: %w", err)
 		}
+
 		a.log.InfoContext(parentCtx, "Purged expired signup tokens", slog.Int("count", removed))
 	}
 
@@ -336,14 +341,19 @@ func (a *signupTokenActor) consume(parentCtx context.Context, data actor.Envelop
 	}
 
 	token, ok := state.Tokens[req.Token]
-	if !ok {
-		return signupTokenConsumeResponse{Status: signupTokenConsumeNotFound}, nil
-	}
-	if token.isExpired(time.Now()) {
-		return signupTokenConsumeResponse{Status: signupTokenConsumeExpired}, nil
-	}
-	if token.isUsageLimitReached() {
-		return signupTokenConsumeResponse{Status: signupTokenConsumeLimitReached}, nil
+	switch {
+	case !ok:
+		return signupTokenConsumeResponse{
+			Status: signupTokenConsumeNotFound,
+		}, nil
+	case token.isExpired(time.Now()):
+		return signupTokenConsumeResponse{
+			Status: signupTokenConsumeExpired,
+		}, nil
+	case token.isUsageLimitReached():
+		return signupTokenConsumeResponse{
+			Status: signupTokenConsumeLimitReached,
+		}, nil
 	}
 
 	// Atomically consume one use of the token
@@ -400,7 +410,9 @@ func (a *signupTokenActor) replace(parentCtx context.Context, data actor.Envelop
 		return fmt.Errorf("request body is not valid for method '%s': %w", signupTokenMethodReplace, err)
 	}
 
-	state := &signupTokenActorState{Tokens: make(map[string]storedSignupToken, len(req.Tokens))}
+	state := &signupTokenActorState{
+		Tokens: make(map[string]storedSignupToken, len(req.Tokens)),
+	}
 	for _, t := range req.Tokens {
 		state.Tokens[t.Token] = t
 	}
@@ -414,24 +426,25 @@ func (a *signupTokenActor) replace(parentCtx context.Context, data actor.Envelop
 }
 
 // scheduleCleanup sets the cleanup alarm to fire when the earliest-expiring token expires, or deletes it when there are no tokens left.
-func (a *signupTokenActor) scheduleCleanup(parentCtx context.Context, state *signupTokenActorState) error {
+func (a *signupTokenActor) scheduleCleanup(parentCtx context.Context, state *signupTokenActorState) (err error) {
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
 
 	earliest, found := state.earliestExpiration()
 	if !found {
 		// No tokens: remove the alarm (if any)
-		err := a.client.DeleteAlarm(ctx, cleanupAlarmName)
+		err = a.client.DeleteAlarm(ctx, cleanupAlarmName)
 		if err != nil && !errors.Is(err, actor.ErrAlarmNotFound) {
 			return fmt.Errorf("error deleting cleanup alarm: %w", err)
 		}
 		return nil
 	}
 
-	err := a.client.SetAlarm(ctx, cleanupAlarmName, actor.AlarmProperties{DueTime: earliest})
+	err = a.client.SetAlarm(ctx, cleanupAlarmName, actor.AlarmProperties{DueTime: earliest})
 	if err != nil {
 		return fmt.Errorf("error setting cleanup alarm: %w", err)
 	}
+
 	return nil
 }
 
@@ -443,11 +456,15 @@ func (a *signupTokenActor) mustGetState(parentCtx context.Context) (*signupToken
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving actor state: %w", err)
 	}
+
 	if state == nil {
-		state = &signupTokenActorState{Tokens: map[string]storedSignupToken{}}
+		state = &signupTokenActorState{
+			Tokens: map[string]storedSignupToken{},
+		}
 	} else if state.Tokens == nil {
 		state.Tokens = map[string]storedSignupToken{}
 	}
+
 	return state, nil
 }
 
@@ -458,6 +475,7 @@ func (a *signupTokenActor) saveState(parentCtx context.Context, state *signupTok
 	if err != nil {
 		return fmt.Errorf("error saving actor state: %w", err)
 	}
+
 	return nil
 }
 
@@ -466,9 +484,13 @@ func collectTokens(state *signupTokenActorState) []storedSignupToken {
 	if state == nil {
 		return nil
 	}
-	tokens := make([]storedSignupToken, 0, len(state.Tokens))
+
+	tokens := make([]storedSignupToken, len(state.Tokens))
+	var i int
 	for _, t := range state.Tokens {
-		tokens = append(tokens, t)
+		tokens[i] = t
+		i++
 	}
+
 	return tokens
 }

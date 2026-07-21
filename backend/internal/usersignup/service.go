@@ -312,6 +312,7 @@ func (s *Service) loadUserGroupsByID(ctx context.Context, tokens []storedSignupT
 	for _, g := range groups {
 		byID[g.ID] = g
 	}
+
 	return byID, nil
 }
 
@@ -320,12 +321,15 @@ func resolveUserGroups(ids []string, byID map[string]model.UserGroup) []model.Us
 	if len(ids) == 0 {
 		return nil
 	}
+
 	groups := make([]model.UserGroup, 0, len(ids))
 	for _, id := range ids {
-		if g, ok := byID[id]; ok {
+		g, ok := byID[id]
+		if ok {
 			groups = append(groups, g)
 		}
 	}
+
 	return groups
 }
 
@@ -366,14 +370,8 @@ func paginateSignupTokens(tokens []SignupToken, params utils.ListRequestOptions)
 		page = int(totalPages)
 	}
 
-	start := (page - 1) * pageSize
-	if start > len(tokens) {
-		start = len(tokens)
-	}
-	end := start + pageSize
-	if end > len(tokens) {
-		end = len(tokens)
-	}
+	start := min((page-1)*pageSize, len(tokens))
+	end := min(start+pageSize, len(tokens))
 
 	return tokens[start:end], utils.PaginationResponse{
 		TotalPages:   totalPages,
@@ -388,14 +386,24 @@ func paginateSignupTokens(tokens []SignupToken, params utils.ListRequestOptions)
 func sortSignupTokens(tokens []SignupToken, column, direction string) {
 	desc := utils.NormalizeSortDirection(direction) == "desc"
 
-	less := func(i, j int) bool { return time.Time(tokens[i].CreatedAt).Before(time.Time(tokens[j].CreatedAt)) }
+	less := func(i, j int) bool {
+		caI := time.Time(tokens[i].CreatedAt)
+		caJ := time.Time(tokens[j].CreatedAt)
+		return caI.Before(caJ)
+	}
 	switch column {
 	case "expiresAt":
-		less = func(i, j int) bool { return time.Time(tokens[i].ExpiresAt).Before(time.Time(tokens[j].ExpiresAt)) }
+		less = func(i, j int) bool {
+			eaI := time.Time(tokens[i].ExpiresAt)
+			eaJ := time.Time(tokens[j].ExpiresAt)
+			return eaI.Before(eaJ)
+		}
 	case "usageLimit":
 		less = func(i, j int) bool { return tokens[i].UsageLimit < tokens[j].UsageLimit }
 	case "usageCount":
-		less = func(i, j int) bool { return tokens[i].UsageCount < tokens[j].UsageCount }
+		less = func(i, j int) bool {
+			return tokens[i].UsageCount < tokens[j].UsageCount
+		}
 	case "createdAt", "":
 		// Use the default comparator (creation date)
 	default:
@@ -427,6 +435,7 @@ func loadExistingSignupTokens(ctx context.Context, db *gorm.DB) ([]storedSignupT
 		for j, g := range t.UserGroups {
 			groupIDs[j] = g.ID
 		}
+
 		result[i] = storedSignupToken{
 			ID:           t.ID,
 			Token:        t.Token,

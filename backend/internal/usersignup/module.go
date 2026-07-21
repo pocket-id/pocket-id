@@ -54,7 +54,9 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	}
 
 	// Register the singleton actor that holds all signup tokens
-	bootstrapData := &signupTokenBootstrap{Tokens: existing}
+	bootstrapData := &signupTokenBootstrap{
+		Tokens: existing,
+	}
 	err = deps.Actors.RegisterSingletonActor(
 		SignupTokenActorType, NewSignupTokenActor,
 		local.WithBootstrapData(bootstrapData),
