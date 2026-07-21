@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/italypaleale/francis/host/local"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -28,8 +29,11 @@ func TestHumaRouterOpenAPI(t *testing.T) {
 	require.NoError(t, err)
 	scheduler, err := job.NewScheduler()
 	require.NoError(t, err)
-	services, err := initServices(t.Context(), db, "test-instance", http.DefaultClient, map[string]string{}, fileStorage, scheduler)
-	require.NoError(t, err)
+	var services *services
+	testutils.NewActorHostForTest(t, func(t *testing.T, actors *local.Host) {
+		services, err = initServices(t.Context(), db, "test-instance", actors, http.DefaultClient, map[string]string{}, fileStorage, scheduler)
+		require.NoError(t, err)
+	})
 	router, err := initEngine()
 	require.NoError(t, err)
 	require.NoError(t, registerRoutes(router, db, services, nil))

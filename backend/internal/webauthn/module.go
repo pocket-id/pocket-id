@@ -9,23 +9,25 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
 type TokenService interface {
-	GenerateAccessToken(user model.User, authenticationMethod string) (string, error)
+	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
 	VerifyAccessToken(tokenString string) (jwt.Token, error)
 	GetAuthenticationMethod(token jwt.Token) (string, error)
 }
 
 type AuditLogger interface {
 	Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) (model.AuditLog, bool)
-	CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB) model.AuditLog
+	CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB, emailLoginNotificationEnabled bool) model.AuditLog
 }
 
-type AppConfigProvider interface {
-	GetDbConfig() *model.AppConfig
+// AppConfigResolver loads the current application configuration, so handlers can pass it explicitly to the service methods that need it
+type AppConfigResolver interface {
+	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
 }
 
 type Dependencies struct {
@@ -34,7 +36,7 @@ type Dependencies struct {
 
 	Signer    TokenService
 	AuditLog  AuditLogger
-	AppConfig AppConfigProvider
+	AppConfig AppConfigResolver
 }
 
 type Module struct {

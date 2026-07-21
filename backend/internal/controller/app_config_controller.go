@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
@@ -23,7 +24,7 @@ type appConfigUpdateInput struct {
 func NewAppConfigController(
 	api huma.API,
 	authMiddleware *middleware.AuthMiddleware,
-	appConfigService *service.AppConfigService,
+	appConfigService *appconfig.AppConfigService,
 	emailService *service.EmailService,
 	ldapService *service.LdapService,
 ) {
@@ -74,13 +75,16 @@ func NewAppConfigController(
 }
 
 type AppConfigController struct {
-	appConfigService *service.AppConfigService
+	appConfigService *appconfig.AppConfigService
 	emailService     *service.EmailService
 	ldapService      *service.LdapService
 }
 
-func (acc *AppConfigController) listAppConfigHandler(_ context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[[]dto.PublicAppConfigVariableDto], error) {
-	configuration := acc.appConfigService.ListAppConfig(false)
+func (acc *AppConfigController) listAppConfigHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[[]dto.PublicAppConfigVariableDto], error) {
+	configuration, err := acc.appConfigService.ListAppConfig(ctx, false)
+	if err != nil {
+		return nil, err
+	}
 
 	var output []dto.PublicAppConfigVariableDto
 	if err := dto.MapStructList(configuration, &output); err != nil {
@@ -93,8 +97,11 @@ func (acc *AppConfigController) listAppConfigHandler(_ context.Context, _ *httpa
 	return &httpapi.BodyOutput[[]dto.PublicAppConfigVariableDto]{Body: output}, nil
 }
 
-func (acc *AppConfigController) listAllAppConfigHandler(_ context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[[]dto.AppConfigVariableDto], error) {
-	configuration := acc.appConfigService.ListAppConfig(true)
+func (acc *AppConfigController) listAllAppConfigHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[[]dto.AppConfigVariableDto], error) {
+	configuration, err := acc.appConfigService.ListAppConfig(ctx, true)
+	if err != nil {
+		return nil, err
+	}
 	var output []dto.AppConfigVariableDto
 	if err := dto.MapStructList(configuration, &output); err != nil {
 		return nil, err
@@ -115,14 +122,24 @@ func (acc *AppConfigController) updateAppConfigHandler(ctx context.Context, inpu
 }
 
 func (acc *AppConfigController) syncLDAPHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
-	if err := acc.ldapService.SyncAll(ctx); err != nil {
+	dbConfig, err := acc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := acc.ldapService.SyncAll(ctx, dbConfig); err != nil {
 		return nil, err
 	}
 	return &httpapi.EmptyOutput{}, nil
 }
 
 func (acc *AppConfigController) testEmailHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
-	if err := acc.emailService.SendTestEmail(ctx, httpapi.UserID(ctx)); err != nil {
+	dbConfig, err := acc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := acc.emailService.SendTestEmail(ctx, dbConfig, httpapi.UserID(ctx)); err != nil {
 		return nil, err
 	}
 	return &httpapi.EmptyOutput{}, nil

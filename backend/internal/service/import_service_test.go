@@ -54,12 +54,14 @@ func seedActorHostSchema(t *testing.T, db *gorm.DB) {
 func requireActorHostSchemaPreserved(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	var tableRows int64
-	require.NoError(t, db.Raw(`SELECT count(*) FROM francis_active_actors`).Scan(&tableRows).Error)
+	err := db.Raw(`SELECT count(*) FROM francis_active_actors`).Scan(&tableRows).Error
+	require.NoError(t, err)
 	require.Equal(t, int64(1), tableRows, "francis_ tables and their rows must be preserved by an import")
 
 	// The view is only valid if its backing table was preserved as well
 	var viewCount int64
-	require.NoError(t, db.Raw(`SELECT n FROM francis_host_active_actor_count`).Scan(&viewCount).Error)
+	err = db.Raw(`SELECT n FROM francis_host_active_actor_count`).Scan(&viewCount).Error
+	require.NoError(t, err)
 	require.Equal(t, int64(1), viewCount, "francis_ views must be preserved by an import")
 }
 

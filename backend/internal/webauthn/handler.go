@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -43,15 +44,20 @@ type credentialUpdateInput struct {
 
 type handler struct {
 	service   *Service
-	appConfig AppConfigProvider
+	appConfig AppConfigResolver
 }
 
-func newHandler(service *Service, appConfig AppConfigProvider) *handler {
+func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
 func (h *handler) beginRegistration(ctx context.Context, _ *httpapi.EmptyInput) (*bodyOutput[protocol.PublicKeyCredentialCreationOptions], error) {
-	options, err := h.service.BeginRegistration(ctx, httpapi.UserID(ctx))
+	dbConfig, err := h.appConfig.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	options, err := h.service.BeginRegistration(ctx, dbConfig, httpapi.UserID(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +96,11 @@ func (h *handler) beginLogin(ctx context.Context, _ *httpapi.EmptyInput) (*bodyO
 }
 
 func (h *handler) verifyLogin(ctx context.Context, input *credentialBodyInput) (*bodyOutput[dto.UserDto], error) {
+	dbConfig, err := h.appConfig.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	sessionID, err := sessionID(ctx)
 	if err != nil {
 		return nil, err
@@ -98,7 +109,7 @@ func (h *handler) verifyLogin(ctx context.Context, input *credentialBodyInput) (
 	if err != nil {
 		return nil, err
 	}
-	user, token, err := h.service.VerifyLogin(ctx, sessionID, assertion, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
+	user, token, err := h.service.VerifyLogin(ctx, dbConfig, sessionID, assertion, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +117,7 @@ func (h *handler) verifyLogin(ctx context.Context, input *credentialBodyInput) (
 	if err := dto.MapStruct(user, &output); err != nil {
 		return nil, err
 	}
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	return &bodyOutput[dto.UserDto]{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(maxAge, token)}, Body: output}, nil
 }
 

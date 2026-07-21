@@ -2,6 +2,7 @@ package usersignup
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -33,10 +34,10 @@ type tokenIDInput struct {
 
 type handler struct {
 	service   *Service
-	appConfig AppConfigProvider
+	appConfig AppConfigResolver
 }
 
-func newHandler(service *Service, appConfig AppConfigProvider) *handler {
+func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
@@ -52,11 +53,17 @@ func (h *handler) checkInitialAdminSetupAvailable(ctx context.Context, _ *httpap
 }
 
 func (h *handler) signUpInitialAdmin(ctx context.Context, input *signupInput) (*userOutput, error) {
-	user, token, err := h.service.SignUpInitialAdmin(ctx, input.Body)
+	config, err := h.appConfig.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	user, token, err := h.service.SignUpInitialAdmin(ctx, config, input.Body)
 	if err != nil {
 		return nil, err
 	}
-	return h.userOutput(user, token)
+	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
+	return h.userOutput(user, token, maxAge)
 }
 
 func (h *handler) createSignupToken(ctx context.Context, input *tokenCreateInput) (*httpapi.BodyOutput[signupTokenDto], error) {
@@ -95,18 +102,23 @@ func (h *handler) deleteSignupToken(ctx context.Context, input *tokenIDInput) (*
 }
 
 func (h *handler) signup(ctx context.Context, input *signupInput) (*userOutput, error) {
-	user, accessToken, err := h.service.SignUp(ctx, input.Body, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
+	config, err := h.appConfig.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	user, accessToken, err := h.service.SignUp(ctx, config, input.Body, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
 	if err != nil {
 		return nil, err
 	}
-	return h.userOutput(user, accessToken)
+	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
+	return h.userOutput(user, accessToken, maxAge)
 }
 
-func (h *handler) userOutput(user model.User, accessToken string) (*userOutput, error) {
+func (h *handler) userOutput(user model.User, accessToken string, maxAge int) (*userOutput, error) {
 	var output dto.UserDto
 	if err := dto.MapStruct(user, &output); err != nil {
 		return nil, err
 	}
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
 	return &userOutput{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(maxAge, accessToken)}, Body: output}, nil
 }

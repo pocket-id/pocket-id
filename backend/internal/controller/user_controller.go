@@ -2,11 +2,14 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -101,7 +104,7 @@ type userPictureOutput struct {
 }
 
 // NewUserController registers user management endpoints
-func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *service.AppConfigService) {
+func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *appconfig.AppConfigService) {
 	controller := &UserController{userService: userService, oneTimeAccessService: oneTimeAccessService, webAuthnService: webAuthnService, appConfigService: appConfigService}
 	adminAuth := authMiddleware.Huma(api)
 	userAuth := authMiddleware.WithAdminNotRequired().Huma(api)
@@ -305,10 +308,10 @@ func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, 
 }
 
 type UserController struct {
+	appConfigService     *appconfig.AppConfigService
 	userService          *service.UserService
 	oneTimeAccessService *service.OneTimeAccessService
 	webAuthnService      *webauthn.Module
-	appConfigService     *service.AppConfigService
 }
 
 func (uc *UserController) getUserGroupsHandler(ctx context.Context, input *userIDInput) (*httpapi.BodyOutput[[]dto.UserGroupDto], error) {
@@ -367,7 +370,12 @@ func (uc *UserController) getCurrentUserHandler(ctx context.Context, _ *httpapi.
 }
 
 func (uc *UserController) deleteUserHandler(ctx context.Context, input *userIDInput) (*httpapi.EmptyOutput, error) {
-	if err := uc.userService.DeleteUser(ctx, input.ID, false); err != nil {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	if err := uc.userService.DeleteUser(ctx, dbConfig, input.ID, false); err != nil {
 		return nil, err
 	}
 	return &httpapi.EmptyOutput{}, nil
@@ -381,7 +389,12 @@ func (uc *UserController) deleteUserWebauthnCredentialHandler(ctx context.Contex
 }
 
 func (uc *UserController) createUserHandler(ctx context.Context, input *userCreateInput) (*httpapi.BodyOutput[dto.UserDto], error) {
-	user, err := uc.userService.CreateUser(ctx, input.Body)
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	user, err := uc.userService.CreateUser(ctx, dbConfig, input.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +410,12 @@ func (uc *UserController) updateCurrentUserHandler(ctx context.Context, input *u
 }
 
 func (uc *UserController) updateUser(ctx context.Context, userID string, input dto.UserCreateDto, ownUser bool) (*httpapi.BodyOutput[dto.UserDto], error) {
-	user, err := uc.userService.UpdateUser(ctx, userID, input, ownUser, false)
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	user, err := uc.userService.UpdateUser(ctx, dbConfig, userID, input, ownUser, false)
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +484,12 @@ func (uc *UserController) createOneTimeAccessToken(ctx context.Context, userID s
 }
 
 func (uc *UserController) requestOneTimeAccessEmailAsUnauthenticatedUserHandler(ctx context.Context, input *oneTimeAccessEmailInput) (*emptyOutputWithCookie, error) {
-	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx, input.Body.Email, input.Body.RedirectPath)
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx, dbConfig, input.Body.Email, input.Body.RedirectPath)
 	if err != nil {
 		return nil, err
 	}
@@ -474,17 +497,27 @@ func (uc *UserController) requestOneTimeAccessEmailAsUnauthenticatedUserHandler(
 }
 
 func (uc *UserController) requestOneTimeAccessEmailAsAdminHandler(ctx context.Context, input *oneTimeAccessEmailAdminInput) (*httpapi.EmptyOutput, error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	ttl := input.Body.TTL.Duration
 	if ttl <= 0 {
 		ttl = defaultOneTimeAccessTokenDuration
 	}
-	if err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(ctx, input.ID, ttl); err != nil {
+	if err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(ctx, dbConfig, input.ID, ttl); err != nil {
 		return nil, err
 	}
 	return &httpapi.EmptyOutput{}, nil
 }
 
 func (uc *UserController) exchangeOneTimeAccessTokenHandler(ctx context.Context, input *oneTimeAccessExchangeInput) (*userCookieOutput, error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	if len(input.Token) != 6 && len(input.Token) != 16 {
 		return nil, &common.TokenInvalidOrExpiredError{}
 	}
@@ -492,7 +525,7 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(ctx context.Context,
 	if requestCookie, err := httpapi.Cookie(ctx, cookie.DeviceTokenCookieName); err == nil {
 		deviceToken = requestCookie.Value
 	}
-	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(ctx, input.Token, deviceToken, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
+	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(ctx, dbConfig, input.Token, deviceToken, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -500,7 +533,7 @@ func (uc *UserController) exchangeOneTimeAccessTokenHandler(ctx context.Context,
 	if err := dto.MapStruct(user, &output); err != nil {
 		return nil, err
 	}
-	maxAge := int(uc.appConfigService.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	return &userCookieOutput{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(maxAge, token)}, Body: output}, nil
 }
 
@@ -527,7 +560,12 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(ctx context.Cont
 }
 
 func (uc *UserController) sendEmailVerificationHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
-	if err := uc.userService.SendEmailVerification(ctx, httpapi.UserID(ctx)); err != nil {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	if err := uc.userService.SendEmailVerification(ctx, dbConfig, httpapi.UserID(ctx)); err != nil {
 		return nil, err
 	}
 	return &httpapi.EmptyOutput{}, nil

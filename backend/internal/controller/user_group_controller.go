@@ -2,10 +2,12 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -42,8 +44,8 @@ type userGroupClientsInput struct {
 }
 
 // NewUserGroupController registers user group management routes
-func NewUserGroupController(api huma.API, authMiddleware *middleware.AuthMiddleware, userGroupService *service.UserGroupService) {
-	controller := &UserGroupController{UserGroupService: userGroupService}
+func NewUserGroupController(api huma.API, authMiddleware *middleware.AuthMiddleware, appConfigService *appconfig.AppConfigService, userGroupService *service.UserGroupService) {
+	controller := &UserGroupController{appConfigService: appConfigService, UserGroupService: userGroupService}
 	auth := authMiddleware.Huma(api)
 
 	httpapi.Register(api, huma.Operation{
@@ -106,6 +108,7 @@ func NewUserGroupController(api huma.API, authMiddleware *middleware.AuthMiddlew
 }
 
 type UserGroupController struct {
+	appConfigService *appconfig.AppConfigService
 	UserGroupService *service.UserGroupService
 }
 
@@ -146,7 +149,12 @@ func (ugc *UserGroupController) create(ctx context.Context, input *userGroupCrea
 }
 
 func (ugc *UserGroupController) update(ctx context.Context, input *userGroupUpdateInput) (*httpapi.BodyOutput[dto.UserGroupDto], error) {
-	group, err := ugc.UserGroupService.Update(ctx, input.ID, input.Body)
+	dbConfig, err := ugc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	group, err := ugc.UserGroupService.Update(ctx, dbConfig, input.ID, input.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +162,12 @@ func (ugc *UserGroupController) update(ctx context.Context, input *userGroupUpda
 }
 
 func (ugc *UserGroupController) delete(ctx context.Context, input *userGroupIDInput) (*httpapi.EmptyOutput, error) {
-	if err := ugc.UserGroupService.Delete(ctx, input.ID); err != nil {
+	dbConfig, err := ugc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	if err := ugc.UserGroupService.Delete(ctx, dbConfig, input.ID); err != nil {
 		return nil, err
 	}
 	return &httpapi.EmptyOutput{}, nil

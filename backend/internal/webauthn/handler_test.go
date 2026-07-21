@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
@@ -69,7 +70,7 @@ func TestReauthenticateFallsBackWithoutSessionCookie(t *testing.T) {
 	require.NoError(t, db.Create(&user).Error)
 
 	signer := newFakeSigner()
-	accessToken, err := signer.GenerateAccessToken(user, authenticationMethodPhishingResistant)
+	accessToken, err := signer.GenerateAccessToken(user, authenticationMethodPhishingResistant, time.Hour)
 	require.NoError(t, err)
 
 	gin.SetMode(gin.TestMode)

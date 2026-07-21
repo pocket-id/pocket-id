@@ -3,29 +3,32 @@ package usersignup
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
 type TokenService interface {
-	GenerateAccessToken(user model.User, authenticationMethod string) (string, error)
+	GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error)
 }
 
 type AuditLogger interface {
 	Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) (model.AuditLog, bool)
 }
 
-type AppConfigProvider interface {
-	GetDbConfig() *model.AppConfig
+type UserCreator interface {
+	CreateUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error)
 }
 
-type UserCreator interface {
-	CreateUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error)
+// AppConfigResolver loads the current application configuration, so handlers can pass it explicitly to the service methods that need it
+type AppConfigResolver interface {
+	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
 }
 
 type Dependencies struct {
@@ -33,8 +36,8 @@ type Dependencies struct {
 
 	Signer      TokenService
 	AuditLog    AuditLogger
-	AppConfig   AppConfigProvider
 	UserCreator UserCreator
+	AppConfig   AppConfigResolver
 }
 
 type Module struct {
