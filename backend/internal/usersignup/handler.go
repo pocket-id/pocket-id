@@ -1,6 +1,7 @@
 package usersignup
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -16,10 +17,10 @@ const defaultSignupTokenDuration = time.Hour
 
 type handler struct {
 	service   *Service
-	appConfig AppConfigProvider
+	appConfig AppConfigResolver
 }
 
-func newHandler(service *Service, appConfig AppConfigProvider) *handler {
+func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
@@ -48,13 +49,19 @@ func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) {
 // @Success 200 {object} dto.UserDto
 // @Router /api/signup/setup [post]
 func (h *handler) signUpInitialAdmin(c *gin.Context) {
+	config, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input signUpDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	user, token, err := h.service.SignUpInitialAdmin(c.Request.Context(), input)
+	user, token, err := h.service.SignUpInitialAdmin(c.Request.Context(), config, input)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -66,7 +73,7 @@ func (h *handler) signUpInitialAdmin(c *gin.Context) {
 		return
 	}
 
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
@@ -169,6 +176,12 @@ func (h *handler) deleteSignupToken(c *gin.Context) {
 // @Success 201 {object} dto.UserDto
 // @Router /api/signup [post]
 func (h *handler) signup(c *gin.Context) {
+	config, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	var input signUpDto
 	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
 		_ = c.Error(err)
@@ -178,13 +191,13 @@ func (h *handler) signup(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	user, accessToken, err := h.service.SignUp(c.Request.Context(), input, ipAddress, userAgent)
+	user, accessToken, err := h.service.SignUp(c.Request.Context(), config, input, ipAddress, userAgent)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
 
 	var userDto dto.UserDto

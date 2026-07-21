@@ -22,10 +22,12 @@ import (
 	"github.com/ory/fosite/compose"
 	fositejwt "github.com/ory/fosite/token/jwt"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -40,7 +42,7 @@ import (
 type TestService struct {
 	db               *gorm.DB
 	jwtService       *JwtService
-	appConfigService *AppConfigService
+	appConfigService *appconfig.AppConfigService
 	ldapService      *LdapService
 	fileStorage      storage.FileStorage
 	appLockService   *AppLockService
@@ -54,7 +56,7 @@ const (
 	e2eRefreshTokenExpiredFixtureToken = "X4vqwtRyCUaq51UafHea4Fsg8Km6CAns6vp3tuX4"
 )
 
-func NewTestService(db *gorm.DB, appConfigService *AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
+func NewTestService(db *gorm.DB, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		appConfigService: appConfigService,
@@ -624,8 +626,8 @@ func (s *TestService) ResetApplicationImages(ctx context.Context) error {
 }
 
 func (s *TestService) ResetAppConfig(ctx context.Context) error {
-	// Reset all app config variables to their default values in the database
-	err := s.db.Session(&gorm.Session{AllowGlobalUpdate: true}).Model(&model.AppConfigVariable{}).Update("value", "").Error
+	// Reset all application configuration values through the singleton actor
+	_, err := s.appConfigService.UpdateAppConfig(ctx, dto.AppConfigUpdateDto{})
 	if err != nil {
 		return err
 	}
@@ -646,12 +648,6 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 	// The instance ID is loaded once at startup, so we also set it directly on the JWT service so it takes effect immediately
 	s.jwtService.instanceID = testInstanceID
 
-	// Reload the app config from the database after resetting the values
-	err = s.appConfigService.LoadDbConfig(ctx)
-	if err != nil {
-		return err
-	}
-
 	// Reload the JWK
 	if err := s.jwtService.LoadOrGenerateKey(ctx); err != nil {
 		return err
@@ -667,48 +663,37 @@ func (s *TestService) ResetLock(ctx context.Context) error {
 
 // SyncLdap triggers an LDAP synchronization
 func (s *TestService) SyncLdap(ctx context.Context) error {
-	return s.ldapService.SyncAll(ctx)
+	dbConfig, err := s.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+	return s.ldapService.SyncAll(ctx, dbConfig)
 }
 
-// SetLdapTestConfig writes the test LDAP config variables directly to the database.
+// SetLdapTestConfig updates the LDAP configuration used by the end-to-end test server
 func (s *TestService) SetLdapTestConfig(ctx context.Context) error {
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		ldapConfigs := map[string]string{
-			"ldapUrl":                            "ldap://lldap:3890",
-			"ldapBindDn":                         "uid=admin,ou=people,dc=pocket-id,dc=org",
-			"ldapBindPassword":                   "admin_password",
-			"ldapBase":                           "dc=pocket-id,dc=org",
-			"ldapUserSearchFilter":               "(objectClass=person)",
-			"ldapUserGroupSearchFilter":          "(objectClass=groupOfNames)",
-			"ldapSkipCertVerify":                 "true",
-			"ldapAttributeUserUniqueIdentifier":  "uuid",
-			"ldapAttributeUserUsername":          "uid",
-			"ldapAttributeUserEmail":             "mail",
-			"ldapAttributeUserFirstName":         "givenName",
-			"ldapAttributeUserLastName":          "sn",
-			"ldapAttributeGroupUniqueIdentifier": "uuid",
-			"ldapAttributeGroupName":             "uid",
-			"ldapAttributeGroupMember":           "member",
-			"ldapAdminGroupName":                 "admin_group",
-			"ldapSoftDeleteUsers":                "true",
-			"ldapEnabled":                        "true",
-		}
-
-		for key, value := range ldapConfigs {
-			configVar := model.AppConfigVariable{Key: key, Value: value}
-			if err := tx.Create(&configVar).Error; err != nil {
-				return fmt.Errorf("failed to create config variable '%s': %w", key, err)
-			}
-		}
-		return nil
-	})
-
+	err := s.appConfigService.UpdateAppConfigValues(ctx,
+		"ldapUrl", "ldap://lldap:3890",
+		"ldapBindDn", "uid=admin,ou=people,dc=pocket-id,dc=org",
+		"ldapBindPassword", "admin_password",
+		"ldapBase", "dc=pocket-id,dc=org",
+		"ldapUserSearchFilter", "(objectClass=person)",
+		"ldapUserGroupSearchFilter", "(objectClass=groupOfNames)",
+		"ldapSkipCertVerify", "true",
+		"ldapAttributeUserUniqueIdentifier", "uuid",
+		"ldapAttributeUserUsername", "uid",
+		"ldapAttributeUserEmail", "mail",
+		"ldapAttributeUserFirstName", "givenName",
+		"ldapAttributeUserLastName", "sn",
+		"ldapAttributeGroupUniqueIdentifier", "uuid",
+		"ldapAttributeGroupName", "uid",
+		"ldapAttributeGroupMember", "member",
+		"ldapAdminGroupName", "admin_group",
+		"ldapSoftDeleteUsers", "true",
+		"ldapEnabled", "true",
+	)
 	if err != nil {
 		return fmt.Errorf("failed to set LDAP test config: %w", err)
-	}
-
-	if err := s.appConfigService.LoadDbConfig(ctx); err != nil {
-		return fmt.Errorf("failed to load app config: %w", err)
 	}
 
 	return nil

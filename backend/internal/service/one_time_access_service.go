@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -18,38 +20,34 @@ import (
 )
 
 type OneTimeAccessService struct {
-	db               *gorm.DB
-	userService      *UserService
-	appConfigService *AppConfigService
-	jwtService       *JwtService
-	auditLogService  *AuditLogService
-	emailService     *EmailService
+	db              *gorm.DB
+	userService     *UserService
+	jwtService      *JwtService
+	auditLogService *AuditLogService
+	emailService    *EmailService
 }
 
-func NewOneTimeAccessService(db *gorm.DB, userService *UserService, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, appConfigService *AppConfigService) *OneTimeAccessService {
+func NewOneTimeAccessService(db *gorm.DB, userService *UserService, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService) *OneTimeAccessService {
 	return &OneTimeAccessService{
-		db:               db,
-		userService:      userService,
-		appConfigService: appConfigService,
-		jwtService:       jwtService,
-		auditLogService:  auditLogService,
-		emailService:     emailService,
+		db:              db,
+		userService:     userService,
+		jwtService:      jwtService,
+		auditLogService: auditLogService,
+		emailService:    emailService,
 	}
 }
 
-func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, userID string, ttl time.Duration) error {
-	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsAdminEnabled.IsTrue()
-	if isDisabled {
+func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsAdmin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, ttl time.Duration) error {
+	if !dbConfig.EmailOneTimeAccessAsAdminEnabled.IsTrue() {
 		return &common.OneTimeAccessDisabledError{}
 	}
 
-	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false)
+	_, err := s.requestOneTimeAccessEmailInternal(ctx, userID, "", ttl, false, dbConfig)
 	return err
 }
 
-func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, userID, redirectPath string) (string, error) {
-	isDisabled := !s.appConfigService.GetDbConfig().EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue()
-	if isDisabled {
+func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID, redirectPath string) (string, error) {
+	if !dbConfig.EmailOneTimeAccessAsUnauthenticatedEnabled.IsTrue() {
 		return "", &common.OneTimeAccessDisabledError{}
 	}
 
@@ -62,7 +60,7 @@ func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ct
 		return "", err
 	}
 
-	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true)
+	deviceToken, err := s.requestOneTimeAccessEmailInternal(ctx, userId, redirectPath, 15*time.Minute, true, dbConfig)
 	if err != nil {
 		return "", err
 	} else if deviceToken == nil {
@@ -72,7 +70,7 @@ func (s *OneTimeAccessService) RequestOneTimeAccessEmailAsUnauthenticatedUser(ct
 	return *deviceToken, nil
 }
 
-func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool) (*string, error) {
+func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Context, userID, redirectPath string, ttl time.Duration, withDeviceToken bool, dbConfig *appconfig.AppConfigModel) (*string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -110,7 +108,7 @@ func (s *OneTimeAccessService) requestOneTimeAccessEmailInternal(ctx context.Con
 			linkWithCode = linkWithCode + "?redirect=" + encodedRedirectPath
 		}
 
-		errInternal := SendEmail(innerCtx, s.emailService, email.Address{
+		errInternal := SendEmail(innerCtx, s.emailService, dbConfig, email.Address{
 			Name:  user.FullName(),
 			Email: *user.Email,
 		}, OneTimeAccessTemplate, &OneTimeAccessTemplateData{
@@ -151,7 +149,7 @@ func (s *OneTimeAccessService) CreateOneTimeAccessToken(ctx context.Context, use
 	// Commit
 	err = tx.Commit().Error
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	return token, nil
@@ -171,7 +169,7 @@ func (s *OneTimeAccessService) createOneTimeAccessTokenInternal(ctx context.Cont
 	return oneTimeAccessToken.Token, oneTimeAccessToken.DeviceToken, nil
 }
 
-func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
+func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -198,7 +196,11 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 		return model.User{}, "", &common.UserDisabledError{}
 	}
 
-	accessToken, err := s.jwtService.GenerateAccessToken(oneTimeAccessToken.User, AuthenticationMethodOneTimePassword)
+	accessToken, err := s.jwtService.GenerateAccessToken(
+		oneTimeAccessToken.User,
+		AuthenticationMethodOneTimePassword,
+		dbConfig.SessionDuration.AsDurationMinutes(),
+	)
 	if err != nil {
 		return model.User{}, "", err
 	}
@@ -211,11 +213,16 @@ func (s *OneTimeAccessService) ExchangeOneTimeAccessToken(ctx context.Context, t
 		return model.User{}, "", err
 	}
 
-	s.auditLogService.Create(ctx, model.AuditLogEventOneTimeAccessTokenSignIn, ipAddress, userAgent, oneTimeAccessToken.User.ID, model.AuditLogData{}, tx)
+	s.auditLogService.Create(
+		ctx, model.AuditLogEventOneTimeAccessTokenSignIn,
+		ipAddress, userAgent,
+		oneTimeAccessToken.User.ID, model.AuditLogData{},
+		tx,
+	)
 
 	err = tx.Commit().Error
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, "", fmt.Errorf("error committing transaction: %w", err)
 	}
 
 	return oneTimeAccessToken.User, accessToken, nil

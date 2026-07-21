@@ -1,6 +1,7 @@
 package webauthn
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,16 +14,22 @@ import (
 
 type handler struct {
 	service   *Service
-	appConfig AppConfigProvider
+	appConfig AppConfigResolver
 }
 
-func newHandler(service *Service, appConfig AppConfigProvider) *handler {
+func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
 func (h *handler) beginRegistration(c *gin.Context) {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	userID := c.GetString("userID")
-	options, err := h.service.BeginRegistration(c.Request.Context(), userID)
+	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, userID)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -67,6 +74,12 @@ func (h *handler) beginLogin(c *gin.Context) {
 }
 
 func (h *handler) verifyLogin(c *gin.Context) {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
 		_ = c.Error(&common.MissingSessionIdError{})
@@ -79,7 +92,7 @@ func (h *handler) verifyLogin(c *gin.Context) {
 		return
 	}
 
-	user, token, err := h.service.VerifyLogin(c.Request.Context(), sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
+	user, token, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -91,7 +104,7 @@ func (h *handler) verifyLogin(c *gin.Context) {
 		return
 	}
 
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)

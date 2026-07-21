@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -35,17 +36,17 @@ func newTestEnvConfig() *common.EnvConfigSchema {
 	}
 }
 
-func initJwtService(t *testing.T, db *gorm.DB, instanceID string, appConfig *AppConfigService, envConfig *common.EnvConfigSchema) *JwtService {
+func initJwtService(t *testing.T, db *gorm.DB, instanceID string, _ *appconfig.AppConfigService, envConfig *common.EnvConfigSchema) *JwtService {
 	t.Helper()
 
 	service := &JwtService{}
-	err := service.init(t.Context(), db, instanceID, appConfig, envConfig)
+	err := service.init(t.Context(), db, instanceID, envConfig)
 	require.NoError(t, err, "Failed to initialize JWT service")
 
 	return service
 }
 
-func setupJwtService(t *testing.T, instanceID string, appConfig *AppConfigService) (*JwtService, *gorm.DB, *common.EnvConfigSchema) {
+func setupJwtService(t *testing.T, instanceID string, appConfig *appconfig.AppConfigService) (*JwtService, *gorm.DB, *common.EnvConfigSchema) {
 	t.Helper()
 
 	db := testutils.NewDatabaseForTest(t)
@@ -70,7 +71,7 @@ func newTestDbAndEnv(t *testing.T) (*gorm.DB, *common.EnvConfigSchema) {
 	return testutils.NewDatabaseForTest(t), newTestEnvConfig()
 }
 
-func saveKeyToDatabase(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *AppConfigService, key jwk.Key) string {
+func saveKeyToDatabase(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService, key jwk.Key) string {
 	t.Helper()
 
 	keyProvider, err := jwkutils.GetKeyProvider(db, envConfig, instanceID)
@@ -87,9 +88,7 @@ func saveKeyToDatabase(t *testing.T, db *gorm.DB, instanceID string, envConfig *
 }
 
 func TestJwtService_Init(t *testing.T) {
-	mockConfig := NewTestAppConfigService(&model.AppConfig{
-		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
-	})
+	mockConfig := appconfig.NewTestAppConfigService(nil)
 
 	t.Run("should generate new key when none exists", func(t *testing.T) {
 		db := testutils.NewDatabaseForTest(t)
@@ -192,9 +191,7 @@ func TestJwtService_Init(t *testing.T) {
 }
 
 func TestJwtService_GetPublicJWK(t *testing.T) {
-	mockConfig := NewTestAppConfigService(&model.AppConfig{
-		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
-	})
+	mockConfig := appconfig.NewTestAppConfigService(nil)
 	db := testutils.NewDatabaseForTest(t)
 	mockEnvConfig := newTestEnvConfig()
 	instanceID := newInstanceID(t, db)
@@ -310,9 +307,8 @@ func TestJwtService_GetPublicJWK(t *testing.T) {
 }
 
 func TestGenerateVerifyAccessToken(t *testing.T) {
-	mockConfig := NewTestAppConfigService(&model.AppConfig{
-		SessionDuration: model.AppConfigVariable{Value: "60"}, // 60 minutes
-	})
+	const sessionDuration = time.Hour
+	mockConfig := appconfig.NewTestAppConfigService(nil)
 	db, envConfig := newTestDbAndEnv(t)
 	instanceID := newInstanceID(t, db)
 
@@ -325,7 +321,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: false,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, "")
+		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -366,7 +362,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(adminUser, "")
+		tokenString, err := service.GenerateAccessToken(adminUser, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token")
 
 		claims, err := service.VerifyAccessToken(tokenString)
@@ -389,7 +385,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			Base: model.Base{ID: "user-with-auth-method"},
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, AuthenticationMethodPhishingResistant)
+		tokenString, err := service.GenerateAccessToken(user, AuthenticationMethodPhishingResistant, sessionDuration)
 		require.NoError(t, err, "Failed to generate access token")
 
 		claims, err := service.VerifyAccessToken(tokenString)
@@ -398,29 +394,6 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 		authenticationMethod, err := service.GetAuthenticationMethod(claims)
 		_ = assert.NoError(t, err, "Failed to get amr claim") &&
 			assert.Equal(t, AuthenticationMethodPhishingResistant, authenticationMethod, "amr should match")
-	})
-
-	t.Run("uses session duration from config", func(t *testing.T) {
-		customMockConfig := NewTestAppConfigService(&model.AppConfig{
-			SessionDuration: model.AppConfigVariable{Value: "30"}, // 30 minutes
-		})
-		service, _, _ := setupJwtService(t, instanceID, customMockConfig)
-
-		user := model.User{
-			Base: model.Base{ID: "user456"},
-		}
-
-		tokenString, err := service.GenerateAccessToken(user, "")
-		require.NoError(t, err, "Failed to generate access token")
-
-		claims, err := service.VerifyAccessToken(tokenString)
-		require.NoError(t, err, "Failed to verify generated token")
-
-		expectedExp := time.Now().Add(30 * time.Minute)
-		expiration, ok := claims.Expiration()
-		assert.True(t, ok, "Expiration not found in token")
-		timeDiff := expectedExp.Sub(expiration).Minutes()
-		assert.InDelta(t, 0, timeDiff, 1.0, "Token should expire in approximately 30 minutes")
 	})
 
 	t.Run("works with Ed25519 keys", func(t *testing.T) {
@@ -437,7 +410,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, "")
+		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token with Ed25519 key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -475,7 +448,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, "")
+		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token with ECDSA key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -513,7 +486,7 @@ func TestGenerateVerifyAccessToken(t *testing.T) {
 			IsAdmin: true,
 		}
 
-		tokenString, err := service.GenerateAccessToken(user, "")
+		tokenString, err := service.GenerateAccessToken(user, "", sessionDuration)
 		require.NoError(t, err, "Failed to generate access token with RSA key")
 		assert.NotEmpty(t, tokenString, "Token should not be empty")
 
@@ -582,7 +555,7 @@ func TestTokenTypeValidator(t *testing.T) {
 	})
 }
 
-func importKey(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *AppConfigService, privateKeyRaw any) string {
+func importKey(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService, privateKeyRaw any) string {
 	t.Helper()
 
 	privateKey, err := jwkutils.ImportRawKey(privateKeyRaw, "", "")
@@ -597,7 +570,7 @@ var (
 	rsaKeyPrecomputeOnce sync.Once
 )
 
-func createRSA4096KeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *AppConfigService) string {
+func createRSA4096KeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService) string {
 	t.Helper()
 
 	rsaKeyPrecomputeOnce.Do(func() {
@@ -612,7 +585,7 @@ func createRSA4096KeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig
 	return importKey(t, db, instanceID, envConfig, appConfig, rsaKeyPrecomputed)
 }
 
-func createECDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *AppConfigService) string {
+func createECDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService) string {
 	t.Helper()
 
 	// Generate a new P-256 ECDSA key
@@ -624,7 +597,7 @@ func createECDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *
 }
 
 // Helper function to create an Ed25519 key and save it as JWK
-func createEdDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *AppConfigService) string {
+func createEdDSAKeyJWK(t *testing.T, db *gorm.DB, instanceID string, envConfig *common.EnvConfigSchema, appConfig *appconfig.AppConfigService) string {
 	t.Helper()
 
 	// Generate a new Ed25519 key pair
