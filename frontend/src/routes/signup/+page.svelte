@@ -75,7 +75,11 @@
 		</p>
 	{/if}
 	{#if $appConfigStore.allowUserSignups === 'open' || data.token}
-		<SignupForm callback={handleSignup} {isLoading} />
+		<SignupForm
+			callback={handleSignup}
+			{isLoading}
+			requiredEmailDomain={data.requiredEmailDomain}
+		/>
 		<div class="mt-10 flex w-full items-center justify-between gap-2">
 			<a class="text-muted-foreground mt-5 flex text-sm" href="/login"
 				><LucideChevronLeft class="size-5" /> {m.back()}</a

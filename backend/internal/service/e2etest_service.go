@@ -488,6 +488,16 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				UsageLimit: 1,
 				UsageCount: 1, // Usage limit reached
 			},
+			{
+				Base: model.Base{
+					ID: "b2c3d4e5-f6a7-4890-bcde-f01234567891",
+				},
+				Token:       "DOMAIN1234567890",
+				ExpiresAt:   datatype.DateTime(time.Now().Add(24 * time.Hour)),
+				UsageLimit:  5,
+				UsageCount:  0,
+				EmailDomain: new("example.com"),
+			},
 		}
 		for _, token := range signupTokens {
 			if err := tx.Create(&token).Error; err != nil {

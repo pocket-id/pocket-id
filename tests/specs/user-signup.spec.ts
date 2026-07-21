@@ -62,6 +62,20 @@ test.describe('Signup Token Creation', () => {
 		await expect(row.getByRole('cell', { name: userGroups.developers.name })).toBeVisible();
 		await expect(row.getByRole('cell', { name: userGroups.designers.name })).toBeVisible();
 	});
+
+	test('Create signup token with email domain restriction', async ({ page }) => {
+		await page.goto('/settings/admin/users');
+
+		await page.getByRole('button', { name: 'Create options' }).click();
+		await page.getByRole('menuitem', { name: 'Create Signup Token' }).click();
+
+		await page.getByLabel('Email Domain').fill('@example.com');
+
+		await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+		// The success view shows the configured domain restriction
+		await expect(page.getByText('@example.com').first()).toBeVisible();
+	});
 });
 
 test.describe('Initial User Signup', () => {
@@ -239,6 +253,69 @@ test.describe('User Signup', () => {
 
 			await page.waitForURL('/settings/account');
 			await expect(page.getByText('Passkey missing')).toBeVisible();
+		});
+
+		test('Signup with token - email domain hint and placeholder are shown', async ({ page }) => {
+			await setSignupMode(page, 'Signup with token');
+
+			await page.goto(`/st/${signupTokens.domainRestricted.token}`);
+
+			await expect(
+				page.getByText('Must be an email address with the domain @example.com')
+			).toBeVisible();
+			await expect(page.getByPlaceholder('you@example.com')).toBeVisible();
+		});
+
+		test('Signup with token - wrong email domain shows validation error', async ({ page }) => {
+			await setSignupMode(page, 'Signup with token');
+
+			await page.goto(`/st/${signupTokens.domainRestricted.token}`);
+
+			await page.getByLabel('First name').fill('Domain');
+			await page.getByLabel('Last name').fill('User');
+			await page.getByLabel('Username').fill('domainuser');
+			await page.getByLabel('Email').fill('domain.user@wrong.com');
+
+			await page.getByRole('button', { name: 'Sign Up' }).click();
+
+			await expect(
+				page.getByText('The email address must use the domain @example.com')
+			).toBeVisible();
+		});
+
+		test('Signup with token - matching email domain succeeds', async ({ page }) => {
+			await setSignupMode(page, 'Signup with token');
+
+			await page.goto(`/st/${signupTokens.domainRestricted.token}`);
+
+			await page.getByLabel('First name').fill('Domain');
+			await page.getByLabel('Last name').fill('User');
+			await page.getByLabel('Username').fill('domainuser');
+			await page.getByLabel('Email').fill('domain.user@example.com');
+
+			await page.getByRole('button', { name: 'Sign Up' }).click();
+
+			await page.waitForURL('/signup/add-passkey');
+			await expect(page.getByText('Set up your passkey')).toBeVisible();
+		});
+
+		test('Signup with token - server enforces email domain restriction', async ({ page }) => {
+			await setSignupMode(page, 'Signup with token');
+
+			// Bypass the client-side validation to verify the domain is enforced server-side
+			const res = await page.request.post('/api/signup', {
+				data: {
+					username: 'apidomainuser',
+					email: 'api.user@wrong.com',
+					firstName: 'Api',
+					lastName: 'User',
+					token: signupTokens.domainRestricted.token
+				}
+			});
+
+			expect(res.status()).toBe(400);
+			const body = await res.json();
+			expect(body.error).toContain('example.com');
 		});
 
 		test('Token usage limit is enforced', async ({ page }) => {

@@ -18,14 +18,21 @@ type signupTokenCreateDto struct {
 	TTL          utils.JSONDuration `json:"ttl" binding:"required,ttl"`
 	UsageLimit   int                `json:"usageLimit" binding:"required,min=1,max=100"`
 	UserGroupIDs []string           `json:"userGroupIds"`
+	EmailDomain  *string            `json:"emailDomain"`
 }
 
 type signupTokenDto struct {
-	ID         string                    `json:"id"`
-	Token      string                    `json:"token"`
-	ExpiresAt  datatype.DateTime         `json:"expiresAt"`
-	UsageLimit int                       `json:"usageLimit"`
-	UsageCount int                       `json:"usageCount"`
-	UserGroups []dto.UserGroupMinimalDto `json:"userGroups"`
-	CreatedAt  datatype.DateTime         `json:"createdAt"`
+	ID          string                    `json:"id"`
+	Token       string                    `json:"token"`
+	ExpiresAt   datatype.DateTime         `json:"expiresAt"`
+	UsageLimit  int                       `json:"usageLimit"`
+	UsageCount  int                       `json:"usageCount"`
+	EmailDomain *string                   `json:"emailDomain" binding:"omitempty,email_domain"`
+	UserGroups  []dto.UserGroupMinimalDto `json:"userGroups"`
+	CreatedAt   datatype.DateTime         `json:"createdAt"`
+}
+
+// signupTokenInfoDto exposes the limited, publicly readable metadata of a signup token
+type signupTokenInfoDto struct {
+	EmailDomain *string `json:"emailDomain"`
 }

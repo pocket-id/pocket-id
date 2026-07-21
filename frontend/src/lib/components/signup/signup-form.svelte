@@ -12,10 +12,12 @@
 
 	let {
 		callback,
-		isLoading
+		isLoading,
+		requiredEmailDomain
 	}: {
 		callback: (user: UserSignUp) => Promise<boolean>;
 		isLoading: boolean;
+		requiredEmailDomain?: string | null;
 	} = $props();
 
 	const initialData: UserSignUp = {
@@ -25,11 +27,19 @@
 		username: ''
 	};
 
+	const emailSchema = requiredEmailDomain
+		? z.email().refine((v) => v.toLowerCase().endsWith(`@${requiredEmailDomain.toLowerCase()}`), {
+				message: m.email_must_use_domain({ domain: `@${requiredEmailDomain}` })
+			})
+		: get(appConfigStore).requireUserEmail
+			? z.email()
+			: emptyToUndefined(z.email().optional());
+
 	const formSchema = z.object({
 		firstName: z.string().max(50),
 		lastName: emptyToUndefined(z.string().max(50).optional()),
 		username: usernameSchema,
-		email: get(appConfigStore).requireUserEmail ? z.email() : emptyToUndefined(z.email().optional())
+		email: emailSchema
 	});
 	type FormSchema = typeof formSchema;
 
@@ -53,7 +63,15 @@
 <form id="sign-up-form" onsubmit={preventDefault(onSubmit)} class="w-full">
 	<div class="mt-7 space-y-4">
 		<FormInput label={m.username()} bind:input={$inputs.username} />
-		<FormInput label={m.email()} bind:input={$inputs.email} type="email" />
+		<FormInput
+			label={m.email()}
+			bind:input={$inputs.email}
+			type="email"
+			placeholder={requiredEmailDomain ? `you@${requiredEmailDomain}` : undefined}
+			description={requiredEmailDomain
+				? m.email_domain_required_hint({ domain: `@${requiredEmailDomain}` })
+				: undefined}
+		/>
 
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<FormInput label={m.first_name()} bind:input={$inputs.firstName} />

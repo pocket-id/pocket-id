@@ -44,18 +44,28 @@
 		ttl: number;
 		usageLimit: number;
 		userGroupIds: string[];
+		emailDomain: string;
 	};
 
 	const initialFormValues: SignupTokenForm = {
 		ttl: defaultExpiration,
 		usageLimit: 1,
-		userGroupIds: []
+		userGroupIds: [],
+		emailDomain: ''
 	};
 
 	const formSchema = z.object({
 		ttl: z.number(),
 		usageLimit: z.number().min(1).max(100),
-		userGroupIds: z.array(z.string()).default([])
+		userGroupIds: z.array(z.string()).default([]),
+		emailDomain: z
+			.string()
+			.trim()
+			.transform((v) => v.replace(/^@/, ''))
+			.refine((v) => v === '' || /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(v), {
+				message: m.invalid_email_domain()
+			})
+			.default('')
 	});
 
 	const { inputs, ...form } = createForm<typeof formSchema>(formSchema, initialFormValues);
@@ -85,7 +95,8 @@
 			signupToken = await userService.createSignupToken(
 				data.ttl,
 				data.usageLimit,
-				data.userGroupIds
+				data.userGroupIds,
+				data.emailDomain
 			);
 			signupLink = `${page.url.origin}/st/${signupToken}`;
 			createdSignupData = data;
@@ -166,6 +177,21 @@
 					/>
 				</FormInput>
 				<FormInput
+					labelFor="email-domain"
+					label={m.email_domain()}
+					description={m.signup_token_email_domain_description()}
+					input={$inputs.emailDomain}
+				>
+					<Input
+						id="email-domain"
+						type="text"
+						placeholder="example.com"
+						bind:value={$inputs.emailDomain.value}
+						aria-invalid={$inputs.emailDomain.error ? 'true' : undefined}
+						class="h-9"
+					/>
+				</FormInput>
+				<FormInput
 					labelFor="default-groups"
 					label={m.user_groups()}
 					description={m.signup_token_user_groups_description()}
@@ -197,6 +223,9 @@
 				<div class="text-muted-foreground mt-2 text-center text-sm">
 					<p>{m.usage_limit()}: {createdSignupData?.usageLimit}</p>
 					<p>{m.expiration()}: {getExpirationLabel(createdSignupData?.ttl ?? 0)}</p>
+					{#if createdSignupData?.emailDomain}
+						<p>{m.email_domain()}: @{createdSignupData.emailDomain}</p>
+					{/if}
 				</div>
 			</div>
 		{/if}

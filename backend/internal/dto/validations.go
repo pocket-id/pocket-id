@@ -21,6 +21,9 @@ var validateUsernameRegex = regexp.MustCompile("^[a-zA-Z0-9]([a-zA-Z0-9_.@-]*[a-
 
 var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9._-]+$")
 
+// emailDomainRegex validates the domain part of an email address (e.g. "example.com" or "mail.example.co.uk")
+var emailDomainRegex = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
+
 func init() {
 	engine := binding.Validator.Engine().(*validator.Validate)
 
@@ -33,6 +36,9 @@ func init() {
 		},
 		"client_id": func(fl validator.FieldLevel) bool {
 			return ValidateClientID(fl.Field().String())
+		},
+		"email_domain": func(fl validator.FieldLevel) bool {
+			return ValidateEmailDomain(fl.Field().String())
 		},
 		"ttl": func(fl validator.FieldLevel) bool {
 			ttl, ok := fl.Field().Interface().(utils.JSONDuration)
@@ -105,4 +111,23 @@ func ValidateCallbackURL(str string) bool {
 // ValidateCallbackURLPattern validates callback URL patterns, with support for wildcards.
 func ValidateCallbackURLPattern(raw string) bool {
 	return utils.ValidateCallbackURLPattern(raw) == nil
+}
+
+// ValidateEmailDomain validates an optional email domain.
+// It accepts inputs with or without a leading "@"
+func ValidateEmailDomain(domain string) bool {
+	if domain == "" {
+		return false
+	}
+
+	domain = strings.TrimPrefix(strings.ToLower(domain), "@")
+	if domain == "" {
+		return false
+	}
+
+	if !emailDomainRegex.MatchString(domain) {
+		return false
+	}
+
+	return true
 }
