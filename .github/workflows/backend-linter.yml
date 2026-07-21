@@ -17,7 +17,6 @@ permissions:
   pull-requests: read
   # Optional: allow write access to checks to allow the action to annotate code in the PR.
   checks: write
-  id-token: write
 
 jobs:
   golangci-lint:
