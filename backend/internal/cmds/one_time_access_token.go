@@ -24,57 +24,47 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		userArg := args[0]
 
 		// Connect to the database
-		db, _, err := bootstrap.NewDatabase(cmd.Context())
+		db, pg, err := bootstrap.NewDatabase(cmd.Context())
 		if err != nil {
 			return err
 		}
 
-		// Create the access token
-		var oneTimeAccessToken *model.OneTimeAccessToken
-		err = db.Transaction(func(tx *gorm.DB) error {
-			// Load the user to retrieve the user ID
-			var user model.User
-			queryCtx, queryCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-			defer queryCancel()
-			txErr := tx.
-				WithContext(queryCtx).
-				Where("username = ? OR email = ?", userArg, userArg).
-				First(&user).
-				Error
-			switch {
-			case errors.Is(txErr, gorm.ErrRecordNotFound):
-				return errors.New("user not found")
-			case txErr != nil:
-				return fmt.Errorf("failed to query for user: %w", txErr)
-			case user.ID == "":
-				return errors.New("invalid user loaded: ID is empty")
-			}
+		// Load the user to retrieve the user ID
+		var user model.User
+		queryCtx, queryCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+		defer queryCancel()
+		err = db.
+			WithContext(queryCtx).
+			Where("username = ? OR email = ?", userArg, userArg).
+			First(&user).
+			Error
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return errors.New("user not found")
+		case err != nil:
+			return fmt.Errorf("failed to query for user: %w", err)
+		case user.ID == "":
+			return errors.New("invalid user loaded: ID is empty")
+		}
 
-			// Create a new access token that expires in 1 hour
-			oneTimeAccessToken, txErr = service.NewOneTimeAccessToken(user.ID, time.Hour, false)
-			if txErr != nil {
-				return fmt.Errorf("failed to generate access token: %w", txErr)
-			}
-
-			queryCtx, queryCancel = context.WithTimeout(cmd.Context(), 10*time.Second)
-			defer queryCancel()
-			txErr = tx.
-				WithContext(queryCtx).
-				Create(oneTimeAccessToken).
-				Error
-			if txErr != nil {
-				return fmt.Errorf("failed to save access token: %w", txErr)
-			}
-
-			return nil
-		})
+		// One-time access tokens are stored in the actor state store
+		// The CLI doesn't run the full actor host, so it uses a minimal state store to persist the token directly
+		actorStore, err := bootstrap.NewActorStateStore(db, pg)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to initialize the actor state store: %w", err)
+		}
+
+		// Create a new access token that expires in 1 hour
+		tokenCtx, tokenCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+		defer tokenCancel()
+		token, _, err := service.StoreOneTimeAccessToken(tokenCtx, actorStore, user.ID, time.Hour, false)
+		if err != nil {
+			return fmt.Errorf("failed to create access token: %w", err)
 		}
 
 		// Print the result
 		fmt.Printf(`A one-time access token valid for 1 hour has been created for "%s".`+"\n", userArg)
-		fmt.Printf("Use the following URL to sign in once: %s/lc/%s\n", common.EnvConfig.AppURL, oneTimeAccessToken.Token)
+		fmt.Printf("Use the following URL to sign in once: %s/lc/%s\n", common.EnvConfig.AppURL, token)
 
 		return nil
 	},

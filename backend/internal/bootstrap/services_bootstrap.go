@@ -43,6 +43,7 @@ type services struct {
 	webauthnModule   *webauthn.Module
 	userSignUpModule *usersignup.Module
 	apiModule        *api.Module
+	actors           *local.Host
 }
 
 // Initializes all services
@@ -56,7 +57,9 @@ func initServices(
 	fileStorage storage.FileStorage,
 	scheduler *job.Scheduler,
 ) (svc *services, err error) {
-	svc = &services{}
+	svc = &services{
+		actors: actors,
+	}
 
 	// Init the app config service
 	svc.appConfigService, err = appconfig.NewService(ctx, actors, db)
@@ -132,14 +135,22 @@ func initServices(
 		return nil, fmt.Errorf("failed to create API key module: %w", err)
 	}
 
-	svc.userSignUpModule = usersignup.New(usersignup.Dependencies{
+	svc.userSignUpModule, err = usersignup.New(ctx, usersignup.Dependencies{
 		DB:          db,
+		Actors:      actors,
 		Signer:      svc.jwtService,
 		AuditLog:    svc.auditLogService,
 		UserCreator: svc.userService,
 		AppConfig:   svc.appConfigService,
 	})
-	svc.oneTimeAccessService = service.NewOneTimeAccessService(db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user signup module: %w", err)
+	}
+
+	svc.oneTimeAccessService, err = service.NewOneTimeAccessService(actors, db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create one-time access service: %w", err)
+	}
 
 	svc.versionService = service.NewVersionService(httpClient)
 

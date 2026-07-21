@@ -2,9 +2,11 @@ package usersignup
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -30,7 +32,8 @@ type AppConfigResolver interface {
 }
 
 type Dependencies struct {
-	DB *gorm.DB
+	DB     *gorm.DB
+	Actors *local.Host
 
 	Signer      TokenService
 	AuditLog    AuditLogger
@@ -43,12 +46,29 @@ type Module struct {
 	handler *handler
 }
 
-func New(deps Dependencies) *Module {
-	service := newService(deps)
+func New(ctx context.Context, deps Dependencies) (*Module, error) {
+	// Load the signup tokens currently stored in the database, so the singleton actor can be seeded (migrated) from them on first startup
+	existing, err := loadExistingSignupTokens(ctx, deps.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	// Register the singleton actor that holds all signup tokens
+	bootstrapData := &signupTokenBootstrap{Tokens: existing}
+	err = deps.Actors.RegisterSingletonActor(
+		SignupTokenActorType, NewSignupTokenActor,
+		local.WithBootstrapData(bootstrapData),
+		local.WithIdleTimeout(-1), // Disable idle timeout for this actor
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error registering the %s actor: %w", SignupTokenActorType, err)
+	}
+
+	service := newService(deps, deps.Actors.Service())
 	return &Module{
 		service: service,
 		handler: newHandler(service, deps.AppConfig),
-	}
+	}, nil
 }
 
 // RegisterRoutes mounts the signup and signup-token management endpoints
