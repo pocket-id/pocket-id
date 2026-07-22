@@ -15,7 +15,6 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/google/uuid"
-	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -531,7 +530,11 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 			UserID:    e2eRefreshTokenUserID,
 			ExpiresAt: time.Now().Add(t.ttl).Round(time.Second),
 		}
-		err := s.actors.SetState(ctx, OneTimeAccessTokenActorType, t.token, state, &actor.SetStateOpts{TTL: t.ttl})
+		// Seed through the actor's "restore" method (which sets the state) rather than writing the
+		// state directly: if an actor for this token is still active from a previous test (for
+		// example, one whose token was already consumed), invoking it refreshes its in-memory cache
+		// too, whereas a direct state write would leave that cache stale.
+		_, err := s.actors.Service().Invoke(ctx, OneTimeAccessTokenActorType, t.token, oneTimeAccessTokenMethodRestore, state)
 		if err != nil {
 			return fmt.Errorf("failed to seed one-time access token %q: %w", t.token, err)
 		}
