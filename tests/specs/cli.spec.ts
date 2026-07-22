@@ -59,7 +59,7 @@ test('Export via stdout', async ({ baseURL }) => {
 	compareExports(exampleExportPath, stdoutExtractPath);
 });
 
-test('Import', async () => {
+test('Import SQLite export', async () => {
 	// Reset the backend without seeding
 	await cleanupBackend({ skipSeed: true });
 
@@ -83,7 +83,7 @@ test('Import', async () => {
 	compareExports(exampleExportPath, exportExtracted);
 });
 
-test('Import via stdin', async () => {
+test('Import SQLite export via stdin', async () => {
 	await cleanupBackend({ skipSeed: true });
 
 	const exampleExportArchivePath = path.join(tmpDir, 'example-export-stdin.zip');

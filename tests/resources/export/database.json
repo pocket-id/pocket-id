@@ -1,7 +1,15 @@
 {
 	"provider": "sqlite",
-	"version": 20260708130000,
-	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens", "apis", "api_permissions", "oidc_clients_allowed_api_permissions"],
+	"version": 20260722120000,
+	"tableOrder": [
+		"users",
+		"user_groups",
+		"oidc_clients",
+		"signup_tokens",
+		"apis",
+		"api_permissions",
+		"oidc_clients_allowed_api_permissions"
+	],
 	"tables": {
 		"apis": [
 			{
@@ -261,6 +269,52 @@
 				"id": "defd5164-9d9b-4228-bbce-708e33f49360",
 				"token": "one-time-token",
 				"device_token": null,
+				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
+			}
+		],
+		"oauth2_jtis": [
+			{
+				"id": "bd0c8bf2-66ec-487a-9dd5-7d9d78d73543",
+				"created_at": "2026-07-22T12:00:00Z",
+				"jti": "cross-database-test-jti",
+				"expires_at": "2099-01-01T00:00:00Z"
+			}
+		],
+		"oauth2_sessions": [
+			{
+				"id": "551ab785-c830-47d3-8a07-60c9f3bb4859",
+				"created_at": "2026-07-22T12:00:00Z",
+				"kind": "access_token",
+				"key": "cross-database-test-session",
+				"request_id": "cross-database-test-request",
+				"access_token_signature": "",
+				"active": true,
+				"request_data": "eyJyZXF1ZXN0IjoidmFsdWUifQ==",
+				"expires_at": "2099-01-01T00:00:00Z"
+			}
+		],
+		"interaction_sessions": [
+			{
+				"id": "aaf5dd23-cd1f-4748-a2aa-baa6af94d800",
+				"created_at": "2026-07-22T12:00:00Z",
+				"consent_required": true,
+				"reauthentication_required": false,
+				"authentication_required": false,
+				"account_selection_required": false,
+				"scopes": "WyJvcGVuaWQiXQ==",
+				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
+				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
+				"requested_at": "2099-01-01T00:00:00Z",
+				"reauthenticated_at": null,
+				"parameters": "eyJjbGllbnRfaWQiOiIzNjU0YTc0Ni0zNWQ0LTQzMjEtYWM2MS0wYmRjZmYyYjQwNTUifQ=="
+			}
+		],
+		"reauthentication_tokens": [
+			{
+				"id": "71839ace-d978-4e6f-8fb1-b8648a21031b",
+				"created_at": "2026-07-22T12:00:00Z",
+				"token": "cross-database-reauthentication-token",
+				"expires_at": "2099-01-01T00:00:00Z",
 				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			}
 		],
