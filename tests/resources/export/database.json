@@ -238,6 +238,10 @@
 				"user_group_id": "adab18bf-f89d-4087-9ee1-70ff15b48211"
 			},
 			{
+				"oidc_client_id": "7c21a609-96b5-4011-9900-272b8d31a9d1",
+				"user_group_id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368"
+			},
+			{
 				"oidc_client_id": "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
 				"user_group_id": "adab18bf-f89d-4087-9ee1-70ff15b48211"
 			},
