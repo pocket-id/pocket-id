@@ -220,6 +220,9 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				LogoutCallbackURLs: model.UrlList{"http://tailscale.localhost/auth/logout/callback"},
 				IsGroupRestricted:  true,
 				CreatedByID:        new(users[0].ID),
+				AllowedUserGroups: []model.UserGroup{
+					userGroups[0],
+				},
 			},
 			{
 				Base: model.Base{
