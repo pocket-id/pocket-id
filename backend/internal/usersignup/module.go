@@ -47,15 +47,15 @@ type Module struct {
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	// Load the signup tokens currently stored in the database, so the singleton actor can be seeded (migrated) from them on first startup
-	existing, err := loadExistingSignupTokens(ctx, deps.DB)
+	// Load the signup tokens frozen into the kv table by the migration, so the singleton actor can be seeded (migrated) from them on first startup
+	migrated, err := loadMigratedSignupTokens(ctx, deps.DB)
 	if err != nil {
 		return nil, err
 	}
 
 	// Register the singleton actor that holds all signup tokens
 	bootstrapData := &signupTokenBootstrap{
-		Tokens: existing,
+		Tokens: migrated,
 	}
 	err = deps.Actors.RegisterSingletonActor(
 		SignupTokenActorType, NewSignupTokenActor,

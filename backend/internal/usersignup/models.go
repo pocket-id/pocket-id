@@ -13,5 +13,5 @@ type SignupToken struct {
 	ExpiresAt  datatype.DateTime `json:"expiresAt" sortable:"true"`
 	UsageLimit int               `json:"usageLimit" sortable:"true"`
 	UsageCount int               `json:"usageCount" sortable:"true"`
-	UserGroups []model.UserGroup `gorm:"many2many:signup_tokens_user_groups;"`
+	UserGroups []model.UserGroup `json:"userGroups"`
 }

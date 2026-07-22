@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"slices"
 	"strings"
 
@@ -293,13 +292,6 @@ func (s *ImportService) insertData(dbData DatabaseExport) error {
 
 		// Insert rows
 		for _, table := range tables {
-			// Skip tables that no longer exist in the current schema (for example, tables removed in a newer version, such as one_time_access_tokens which is now stored in the actor state store).
-			// This allows a backup taken by an older version, which may still include such tables, to be imported.
-			if schema[table] == nil {
-				slog.Warn("Skipping table during import because it's not present in the current schema", slog.String("table", table))
-				continue
-			}
-
 			for _, row := range dbData.Tables[table] {
 				err = normalizeRowWithSchema(row, table, schema)
 				if err != nil {

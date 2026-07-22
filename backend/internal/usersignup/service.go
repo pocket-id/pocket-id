@@ -417,35 +417,3 @@ func sortSignupTokens(tokens []SignupToken, column, direction string) {
 		return less(i, j)
 	})
 }
-
-// loadExistingSignupTokens loads all signup tokens currently stored in the database, so they can seed the actor's state on first startup
-func loadExistingSignupTokens(ctx context.Context, db *gorm.DB) ([]storedSignupToken, error) {
-	var tokens []SignupToken
-	err := db.WithContext(ctx).
-		Preload("UserGroups").
-		Find(&tokens).
-		Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to load existing signup tokens: %w", err)
-	}
-
-	result := make([]storedSignupToken, len(tokens))
-	for i, t := range tokens {
-		groupIDs := make([]string, len(t.UserGroups))
-		for j, g := range t.UserGroups {
-			groupIDs[j] = g.ID
-		}
-
-		result[i] = storedSignupToken{
-			ID:           t.ID,
-			Token:        t.Token,
-			ExpiresAt:    time.Time(t.ExpiresAt),
-			UsageLimit:   t.UsageLimit,
-			UsageCount:   t.UsageCount,
-			UserGroupIDs: groupIDs,
-			CreatedAt:    time.Time(t.CreatedAt),
-		}
-	}
-
-	return result, nil
-}
