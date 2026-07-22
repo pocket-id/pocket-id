@@ -8,9 +8,6 @@ import (
 
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-
-	"github.com/gin-gonic/gin/binding"
-	"github.com/go-playground/validator/v10"
 )
 
 // [a-zA-Z0-9]      : The username must start with an alphanumeric character
@@ -21,44 +18,7 @@ var validateUsernameRegex = regexp.MustCompile("^[a-zA-Z0-9]([a-zA-Z0-9_.@-]*[a-
 
 var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9._-]+$")
 
-func init() {
-	engine := binding.Validator.Engine().(*validator.Validate)
-
-	// Maximum allowed value for TTLs
-	const maxTTL = 31 * 24 * time.Hour
-
-	validators := map[string]validator.Func{
-		"username": func(fl validator.FieldLevel) bool {
-			return ValidateUsername(fl.Field().String())
-		},
-		"client_id": func(fl validator.FieldLevel) bool {
-			return ValidateClientID(fl.Field().String())
-		},
-		"ttl": func(fl validator.FieldLevel) bool {
-			ttl, ok := fl.Field().Interface().(utils.JSONDuration)
-			if !ok {
-				return false
-			}
-			// Allow zero, which means the field wasn't set
-			return ttl.Duration == 0 || (ttl.Duration > time.Second && ttl.Duration <= maxTTL)
-		},
-		"callback_url": func(fl validator.FieldLevel) bool {
-			return ValidateCallbackURL(fl.Field().String())
-		},
-		"callback_url_pattern": func(fl validator.FieldLevel) bool {
-			return ValidateCallbackURLPattern(fl.Field().String())
-		},
-		"resource_uri": func(fl validator.FieldLevel) bool {
-			return ValidateResourceURI(fl.Field().String())
-		},
-	}
-	for k, v := range validators {
-		err := engine.RegisterValidation(k, v)
-		if err != nil {
-			panic("Failed to register custom validation for " + k + ": " + err.Error())
-		}
-	}
-}
+const maxTTL = 31 * 24 * time.Hour
 
 // ValidateUsername validates username inputs
 func ValidateUsername(username string) bool {
@@ -68,6 +28,11 @@ func ValidateUsername(username string) bool {
 // ValidateClientID validates client ID inputs
 func ValidateClientID(clientID string) bool {
 	return validateClientIDRegex.MatchString(clientID)
+}
+
+// ValidateTTL validates optional API durations against the existing bounds
+func ValidateTTL(ttl utils.JSONDuration) bool {
+	return ttl.Duration == 0 || (ttl.Duration > time.Second && ttl.Duration <= maxTTL)
 }
 
 // isActiveContentScheme reports whether the URL scheme can carry executable content, so it must never be accepted where a URL might later be rendered as a link

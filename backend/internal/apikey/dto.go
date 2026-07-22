@@ -5,13 +5,13 @@ import (
 )
 
 type apiKeyCreateDto struct {
-	Name        string            `json:"name" binding:"required,min=3,max=50" unorm:"nfc"`
-	Description *string           `json:"description" unorm:"nfc"`
-	ExpiresAt   datatype.DateTime `json:"expiresAt" binding:"required"`
+	Name        string            `json:"name" required:"true" minLength:"3" maxLength:"50" unorm:"nfc"`
+	Description *string           `json:"description" required:"false" unorm:"nfc"`
+	ExpiresAt   datatype.DateTime `json:"expiresAt" required:"true"`
 }
 
 type apiKeyRenewDto struct {
-	ExpiresAt datatype.DateTime `json:"expiresAt" binding:"required"`
+	ExpiresAt datatype.DateTime `json:"expiresAt" required:"true"`
 }
 
 type apiKeyDto struct {

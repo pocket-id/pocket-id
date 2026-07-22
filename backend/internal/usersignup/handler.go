@@ -1,19 +1,36 @@
 package usersignup
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
 const defaultSignupTokenDuration = time.Hour
+
+type userOutput struct {
+	SetCookie []http.Cookie `header:"Set-Cookie"`
+	Body      dto.UserDto
+}
+
+type signupInput struct {
+	Body signUpDto
+}
+
+type tokenCreateInput struct {
+	Body signupTokenCreateDto
+}
+
+type tokenIDInput struct {
+	ID string `path:"id"`
+}
 
 type handler struct {
 	service   *Service
@@ -24,187 +41,84 @@ func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
-func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) {
-	setupCompleted, err := h.service.IsInitialAdminSetupCompleted(c.Request.Context())
+func (h *handler) checkInitialAdminSetupAvailable(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
+	setupCompleted, err := h.service.IsInitialAdminSetupCompleted(ctx)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
 	if setupCompleted {
-		_ = c.Error(&common.SetupNotAvailableError{})
-		return
+		return nil, &common.SetupNotAvailableError{}
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// signUpInitialAdmin godoc
-// @Summary Sign up initial admin user
-// @Description Sign up and generate setup access token for initial admin user
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param body body signUpDto true "User information"
-// @Success 200 {object} dto.UserDto
-// @Router /api/signup/setup [post]
-func (h *handler) signUpInitialAdmin(c *gin.Context) {
-	config, err := h.appConfig.GetConfig(c.Request.Context())
+func (h *handler) signUpInitialAdmin(ctx context.Context, input *signupInput) (*userOutput, error) {
+	config, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	var input signUpDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	user, token, err := h.service.SignUpInitialAdmin(c.Request.Context(), config, input)
+	user, token, err := h.service.SignUpInitialAdmin(ctx, config, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
 	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
-
-	c.JSON(http.StatusOK, userDto)
+	return h.userOutput(user, token, maxAge)
 }
 
-// createSignupTokenHandler godoc
-// @Summary Create signup token
-// @Description Create a new signup token that allows user registration
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param token body signupTokenCreateDto true "Signup token information"
-// @Success 201 {object} signupTokenDto
-// @Router /api/signup-tokens [post]
-func (h *handler) createSignupToken(c *gin.Context) {
-	var input signupTokenCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	ttl := input.TTL.Duration
+func (h *handler) createSignupToken(ctx context.Context, input *tokenCreateInput) (*httpapi.BodyOutput[signupTokenDto], error) {
+	ttl := input.Body.TTL.Duration
 	if ttl <= 0 {
 		ttl = defaultSignupTokenDuration
 	}
-
-	signupToken, err := h.service.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
+	token, err := h.service.CreateSignupToken(ctx, ttl, input.Body.UsageLimit, input.Body.UserGroupIDs)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var tokenDto signupTokenDto
-	err = dto.MapStruct(signupToken, &tokenDto)
-	if err != nil {
-		_ = c.Error(err)
-		return
+	var output signupTokenDto
+	if err := dto.MapStruct(token, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusCreated, tokenDto)
+	return &httpapi.BodyOutput[signupTokenDto]{Body: output}, nil
 }
 
-// listSignupTokensHandler godoc
-// @Summary List signup tokens
-// @Description Get a paginated list of signup tokens
-// @Tags Users
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[signupTokenDto]
-// @Router /api/signup-tokens [get]
-func (h *handler) listSignupTokens(c *gin.Context) {
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	tokens, pagination, err := h.service.ListSignupTokens(c.Request.Context(), listRequestOptions)
+func (h *handler) listSignupTokens(ctx context.Context, input *httpapi.ListInput) (*httpapi.BodyOutput[dto.Paginated[signupTokenDto]], error) {
+	tokens, pagination, err := h.service.ListSignupTokens(ctx, input.ListRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var tokensDto []signupTokenDto
-	if err := dto.MapStructList(tokens, &tokensDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []signupTokenDto
+	if err := dto.MapStructList(tokens, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, dto.Paginated[signupTokenDto]{
-		Data:       tokensDto,
-		Pagination: pagination,
-	})
+	return &httpapi.BodyOutput[dto.Paginated[signupTokenDto]]{Body: dto.Paginated[signupTokenDto]{Data: output, Pagination: pagination}}, nil
 }
 
-// deleteSignupTokenHandler godoc
-// @Summary Delete signup token
-// @Description Delete a signup token by ID
-// @Tags Users
-// @Param id path string true "Token ID"
-// @Success 204 "No Content"
-// @Router /api/signup-tokens/{id} [delete]
-func (h *handler) deleteSignupToken(c *gin.Context) {
-	tokenID := c.Param("id")
-
-	err := h.service.DeleteSignupToken(c.Request.Context(), tokenID)
-	if err != nil {
-		_ = c.Error(err)
-		return
+func (h *handler) deleteSignupToken(ctx context.Context, input *tokenIDInput) (*httpapi.EmptyOutput, error) {
+	if err := h.service.DeleteSignupToken(ctx, input.ID); err != nil {
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// signupHandler godoc
-// @Summary Sign up
-// @Description Create a new user account
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param user body signUpDto true "User information"
-// @Success 201 {object} dto.UserDto
-// @Router /api/signup [post]
-func (h *handler) signup(c *gin.Context) {
-	config, err := h.appConfig.GetConfig(c.Request.Context())
+func (h *handler) signup(ctx context.Context, input *signupInput) (*userOutput, error) {
+	config, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	var input signUpDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	ipAddress := c.ClientIP()
-	userAgent := c.GetHeader("User-Agent")
-
-	user, accessToken, err := h.service.SignUp(c.Request.Context(), config, input, ipAddress, userAgent)
+	user, accessToken, err := h.service.SignUp(ctx, config, input.Body, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
 	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
+	return h.userOutput(user, accessToken, maxAge)
+}
 
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+func (h *handler) userOutput(user model.User, accessToken string, maxAge int) (*userOutput, error) {
+	var output dto.UserDto
+	if err := dto.MapStruct(user, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusCreated, userDto)
+	return &userOutput{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(maxAge, accessToken)}, Body: output}, nil
 }

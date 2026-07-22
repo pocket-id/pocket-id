@@ -1,16 +1,46 @@
 package webauthn
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
+
+type emptyOutput struct {
+	SetCookie []http.Cookie `header:"Set-Cookie"`
+}
+
+type bodyOutput[T any] struct {
+	SetCookie []http.Cookie `header:"Set-Cookie"`
+	Body      T
+}
+
+type credentialBodyInput struct {
+	Body json.RawMessage
+}
+
+type optionalCredentialBodyInput struct {
+	Body *json.RawMessage `required:"false"`
+}
+
+type credentialIDInput struct {
+	ID string `path:"id"`
+}
+
+type credentialUpdateInput struct {
+	ID   string `path:"id"`
+	Body dto.WebauthnCredentialUpdateDto
+}
 
 type handler struct {
 	service   *Service
@@ -21,184 +51,158 @@ func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
-func (h *handler) beginRegistration(c *gin.Context) {
-	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+func (h *handler) beginRegistration(ctx context.Context, _ *httpapi.EmptyInput) (*bodyOutput[protocol.PublicKeyCredentialCreationOptions], error) {
+	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	userID := c.GetString("userID")
-	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, userID)
+	options, err := h.service.BeginRegistration(ctx, dbConfig, httpapi.UserID(ctx))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	cookie.AddSessionIdCookie(c, int(options.Timeout.Seconds()), options.SessionID)
-	c.JSON(http.StatusOK, options.Response)
+	return &bodyOutput[protocol.PublicKeyCredentialCreationOptions]{
+		SetCookie: []http.Cookie{*cookie.NewSessionIDCookie(int(options.Timeout.Seconds()), options.SessionID)},
+		Body:      options.Response,
+	}, nil
 }
 
-func (h *handler) verifyRegistration(c *gin.Context) {
-	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
+func (h *handler) verifyRegistration(ctx context.Context, input *credentialBodyInput) (*bodyOutput[dto.WebauthnCredentialDto], error) {
+	sessionID, err := sessionID(ctx)
 	if err != nil {
-		_ = c.Error(&common.MissingSessionIdError{})
-		return
+		return nil, err
 	}
-
-	userID := c.GetString("userID")
-	credential, err := h.service.VerifyRegistration(c.Request.Context(), sessionID, userID, c.Request, c.ClientIP())
+	request := requestWithBody(ctx, input.Body)
+	credential, err := h.service.VerifyRegistration(ctx, sessionID, httpapi.UserID(ctx), request, httpapi.ClientIP(ctx))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var credentialDto dto.WebauthnCredentialDto
-	if err := dto.MapStruct(credential, &credentialDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output dto.WebauthnCredentialDto
+	if err := dto.MapStruct(credential, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, credentialDto)
+	return &bodyOutput[dto.WebauthnCredentialDto]{Body: output}, nil
 }
 
-func (h *handler) beginLogin(c *gin.Context) {
-	options, err := h.service.BeginLogin(c.Request.Context())
+func (h *handler) beginLogin(ctx context.Context, _ *httpapi.EmptyInput) (*bodyOutput[protocol.PublicKeyCredentialRequestOptions], error) {
+	options, err := h.service.BeginLogin(ctx)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	cookie.AddSessionIdCookie(c, int(options.Timeout.Seconds()), options.SessionID)
-	c.JSON(http.StatusOK, options.Response)
+	return &bodyOutput[protocol.PublicKeyCredentialRequestOptions]{
+		SetCookie: []http.Cookie{*cookie.NewSessionIDCookie(int(options.Timeout.Seconds()), options.SessionID)},
+		Body:      options.Response,
+	}, nil
 }
 
-func (h *handler) verifyLogin(c *gin.Context) {
-	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+func (h *handler) verifyLogin(ctx context.Context, input *credentialBodyInput) (*bodyOutput[dto.UserDto], error) {
+	dbConfig, err := h.appConfig.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
+	sessionID, err := sessionID(ctx)
 	if err != nil {
-		_ = c.Error(&common.MissingSessionIdError{})
-		return
+		return nil, err
 	}
-
-	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
+	assertion, err := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(input.Body))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	user, token, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
+	user, token, err := h.service.VerifyLogin(ctx, dbConfig, sessionID, assertion, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output dto.UserDto
+	if err := dto.MapStruct(user, &output); err != nil {
+		return nil, err
 	}
-
 	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
-
-	c.JSON(http.StatusOK, userDto)
+	return &bodyOutput[dto.UserDto]{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(maxAge, token)}, Body: output}, nil
 }
 
-func (h *handler) listCredentials(c *gin.Context) {
-	userID := c.GetString("userID")
-	credentials, err := h.service.ListCredentials(c.Request.Context(), userID)
+func (h *handler) listCredentials(ctx context.Context, _ *httpapi.EmptyInput) (*bodyOutput[[]dto.WebauthnCredentialDto], error) {
+	credentials, err := h.service.ListCredentials(ctx, httpapi.UserID(ctx))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var credentialDtos []dto.WebauthnCredentialDto
-	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.WebauthnCredentialDto
+	if err := dto.MapStructList(credentials, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, credentialDtos)
+	return &bodyOutput[[]dto.WebauthnCredentialDto]{Body: output}, nil
 }
 
-func (h *handler) deleteCredential(c *gin.Context) {
-	userID := c.GetString("userID")
-	credentialID := c.Param("id")
-	clientIP := c.ClientIP()
-	userAgent := c.Request.UserAgent()
+func (h *handler) deleteCredential(ctx context.Context, input *credentialIDInput) (*emptyOutput, error) {
+	userID := httpapi.UserID(ctx)
+	if err := h.service.DeleteCredential(ctx, userID, input.ID, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx), userID); err != nil {
+		return nil, err
+	}
+	return &emptyOutput{}, nil
+}
 
-	err := h.service.DeleteCredential(c.Request.Context(), userID, credentialID, clientIP, userAgent, userID)
+func (h *handler) updateCredential(ctx context.Context, input *credentialUpdateInput) (*bodyOutput[dto.WebauthnCredentialDto], error) {
+	credential, err := h.service.UpdateCredential(ctx, httpapi.UserID(ctx), input.ID, input.Body.Name)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	var output dto.WebauthnCredentialDto
+	if err := dto.MapStruct(credential, &output); err != nil {
+		return nil, err
+	}
+	return &bodyOutput[dto.WebauthnCredentialDto]{Body: output}, nil
 }
 
-func (h *handler) updateCredential(c *gin.Context) {
-	userID := c.GetString("userID")
-	credentialID := c.Param("id")
-
-	var input dto.WebauthnCredentialUpdateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	credential, err := h.service.UpdateCredential(c.Request.Context(), userID, credentialID, input.Name)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var credentialDto dto.WebauthnCredentialDto
-	if err := dto.MapStruct(credential, &credentialDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, credentialDto)
+func (h *handler) logout(_ context.Context, _ *httpapi.EmptyInput) (*emptyOutput, error) {
+	return &emptyOutput{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(-1, "")}}, nil
 }
 
-func (h *handler) logout(c *gin.Context) {
-	cookie.AddAccessTokenCookie(c, 0, "")
-	c.Status(http.StatusNoContent)
-}
-
-func (h *handler) reauthenticate(c *gin.Context) {
-	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
-	if err != nil {
-		_ = c.Error(&common.MissingSessionIdError{})
-		return
-	}
-
+func (h *handler) reauthenticate(ctx context.Context, input *optionalCredentialBodyInput) (*emptyOutput, error) {
 	var token string
-
-	// Try to create a reauthentication token with WebAuthn
-	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
-	if err == nil {
-		token, err = h.service.CreateReauthenticationTokenWithWebauthn(c.Request.Context(), sessionID, credentialAssertionData)
-		if err != nil {
-			_ = c.Error(err)
-			return
+	var err error
+	if input.Body != nil {
+		assertion, parseErr := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(*input.Body))
+		if parseErr == nil {
+			sessionCookieID, sessionErr := sessionID(ctx)
+			if sessionErr != nil {
+				return nil, sessionErr
+			}
+			token, err = h.service.CreateReauthenticationTokenWithWebauthn(ctx, sessionCookieID, assertion)
+		} else {
+			token, err = h.reauthenticateWithAccessToken(ctx)
 		}
 	} else {
-		// If WebAuthn fails, try to create a reauthentication token with the access token
-		accessToken, _ := c.Cookie(cookie.AccessTokenCookieName)
-		token, err = h.service.CreateReauthenticationTokenWithAccessToken(c.Request.Context(), accessToken)
-		if err != nil {
-			_ = c.Error(err)
-			return
-		}
+		token, err = h.reauthenticateWithAccessToken(ctx)
 	}
+	if err != nil {
+		return nil, err
+	}
+	return &emptyOutput{SetCookie: []http.Cookie{*cookie.NewReauthenticationTokenCookie(token)}}, nil
+}
 
-	cookie.AddReauthenticationTokenCookie(c, token)
-	c.Status(http.StatusNoContent)
+func (h *handler) reauthenticateWithAccessToken(ctx context.Context) (string, error) {
+	accessToken, _ := httpapi.Cookie(ctx, cookie.AccessTokenCookieName)
+	value := ""
+	if accessToken != nil {
+		value = accessToken.Value
+	}
+	return h.service.CreateReauthenticationTokenWithAccessToken(ctx, value)
+}
+
+func sessionID(ctx context.Context) (string, error) {
+	id, err := httpapi.Cookie(ctx, cookie.SessionIdCookieName)
+	if err != nil {
+		return "", &common.MissingSessionIdError{}
+	}
+	return id.Value, nil
+}
+
+func requestWithBody(ctx context.Context, body []byte) *http.Request {
+	request := httpapi.Request(ctx).Clone(ctx)
+	request.Body = http.NoBody
+	if len(body) > 0 {
+		request.Body = io.NopCloser(bytes.NewReader(body))
+	}
+	request.ContentLength = int64(len(body))
+	return request
 }

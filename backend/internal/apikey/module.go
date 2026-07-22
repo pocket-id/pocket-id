@@ -2,11 +2,13 @@ package apikey
 
 import (
 	"context"
+	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
 type Dependencies struct {
@@ -33,12 +35,40 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the API key management endpoints
 // authWithoutApiKey disables API key authentication so an API key cannot be used to mint or renew further API keys
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth, authWithoutApiKey gin.HandlerFunc) {
-	group := apiGroup.Group("/api-keys")
-	group.GET("", auth, m.handler.list)
-	group.POST("", authWithoutApiKey, m.handler.create)
-	group.POST("/:id/renew", authWithoutApiKey, m.handler.renew)
-	group.DELETE("/:id", auth, m.handler.revoke)
+func (m *Module) RegisterRoutes(api huma.API, auth, authWithoutAPIKey func(*huma.Operation)) {
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-api-keys",
+		Method:      http.MethodGet,
+		Path:        "/api/api-keys",
+		Summary:     "List API keys",
+		Tags:        []string{"API Keys"},
+	}, m.handler.list, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-api-key",
+		Method:        http.MethodPost,
+		Path:          "/api/api-keys",
+		Summary:       "Create API key",
+		Tags:          []string{"API Keys"},
+		DefaultStatus: http.StatusCreated,
+	}, m.handler.create, authWithoutAPIKey)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "renew-api-key",
+		Method:      http.MethodPost,
+		Path:        "/api/api-keys/{id}/renew",
+		Summary:     "Renew API key",
+		Tags:        []string{"API Keys"},
+	}, m.handler.renew, authWithoutAPIKey)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "revoke-api-key",
+		Method:        http.MethodDelete,
+		Path:          "/api/api-keys/{id}",
+		Summary:       "Revoke API key",
+		Tags:          []string{"API Keys"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.revoke, auth)
 }
 
 // ValidateApiKey resolves the user that owns the given raw API key

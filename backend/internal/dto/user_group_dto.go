@@ -2,8 +2,8 @@ package dto
 
 import (
 	"errors"
+	"unicode/utf8"
 
-	"github.com/gin-gonic/gin/binding"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
@@ -29,26 +29,27 @@ type UserGroupMinimalDto struct {
 }
 
 type UserGroupUpdateAllowedOidcClientsDto struct {
-	OidcClientIDs []string `json:"oidcClientIds" binding:"required"`
+	OidcClientIDs []string `json:"oidcClientIds" required:"true"`
 }
 
 type UserGroupCreateDto struct {
-	FriendlyName string `json:"friendlyName" binding:"required,min=2,max=50" unorm:"nfc"`
-	Name         string `json:"name" binding:"required,min=2,max=255" unorm:"nfc"`
+	FriendlyName string `json:"friendlyName" required:"true" minLength:"2" maxLength:"50" unorm:"nfc"`
+	Name         string `json:"name" required:"true" minLength:"2" maxLength:"255" unorm:"nfc"`
 	LdapID       string `json:"-"`
 }
 
 func (g UserGroupCreateDto) Validate() error {
-	e, ok := binding.Validator.Engine().(interface {
-		Struct(s any) error
-	})
-	if !ok {
-		return errors.New("validator does not implement the expected interface")
+	friendlyNameLength := utf8.RuneCountInString(g.FriendlyName)
+	if friendlyNameLength < 2 || friendlyNameLength > 50 {
+		return errors.New("friendly name is invalid")
 	}
-
-	return e.Struct(g)
+	nameLength := utf8.RuneCountInString(g.Name)
+	if nameLength < 2 || nameLength > 255 {
+		return errors.New("name is invalid")
+	}
+	return nil
 }
 
 type UserGroupUpdateUsersDto struct {
-	UserIDs []string `json:"userIds" binding:"required"`
+	UserIDs []string `json:"userIds" required:"true"`
 }

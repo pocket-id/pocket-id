@@ -87,6 +87,14 @@ type NotSignedInError struct{}
 
 func (e NotSignedInError) Error() string       { return "You are not signed in" }
 func (e NotSignedInError) HttpStatusCode() int { return http.StatusUnauthorized }
+func (e NotSignedInError) Is(target error) bool {
+	switch target.(type) {
+	case NotSignedInError, *NotSignedInError:
+		return true
+	default:
+		return false
+	}
+}
 
 type MissingPermissionError struct{}
 

@@ -5,11 +5,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
 // DateTime custom type for time.Time to store date as unix timestamp for sqlite and as date for postgres
 type DateTime time.Time //nolint:recvcheck
+
+// Schema documents the JSON representation rather than the underlying time.Time structure
+func (date DateTime) Schema(huma.Registry) *huma.Schema {
+	return &huma.Schema{Type: huma.TypeString, Format: "date-time"}
+}
 
 func DateTimeFromString(str string) (DateTime, error) {
 	t, err := time.Parse(time.RFC3339Nano, str)

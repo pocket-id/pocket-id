@@ -1,8 +1,10 @@
 package dto
 
 import (
+	"net/url"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
@@ -16,9 +18,17 @@ type ScimServiceProviderDTO struct {
 }
 
 type ScimServiceProviderCreateDTO struct {
-	Endpoint     string `json:"endpoint" binding:"required,url"`
-	Token        string `json:"token"`
-	OidcClientID string `json:"oidcClientId" binding:"required"`
+	Endpoint     string `json:"endpoint" required:"true" format:"uri"`
+	Token        string `json:"token" required:"false"`
+	OidcClientID string `json:"oidcClientId" required:"true"`
+}
+
+func (d *ScimServiceProviderCreateDTO) Resolve(huma.Context) []error {
+	endpoint, err := url.Parse(d.Endpoint)
+	if err != nil || !endpoint.IsAbs() {
+		return []error{&huma.ErrorDetail{Location: "body.endpoint", Message: "Endpoint must be an absolute URI"}}
+	}
+	return nil
 }
 
 type ScimUser struct {

@@ -1,65 +1,310 @@
 package controller
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
-	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
+	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+
+	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
 const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 
-// NewUserController creates a new controller for user management endpoints
-// @Summary User management controller
-// @Description Initializes all user-related API endpoints
-// @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module) {
-	uc := UserController{
-		appConfigService:     appConfigService,
-		userService:          userService,
-		oneTimeAccessService: oneTimeAccessService,
-		webAuthnService:      webAuthnService,
-	}
+type userListInput struct {
+	utils.ListRequestOptions
+	Search string `query:"search" required:"false"`
+}
 
-	group.GET("/users", authMiddleware.Add(), uc.listUsersHandler)
-	group.GET("/users/me", authMiddleware.WithAdminNotRequired().Add(), uc.getCurrentUserHandler)
-	group.GET("/users/:id", authMiddleware.Add(), uc.getUserHandler)
-	group.POST("/users", authMiddleware.Add(), uc.createUserHandler)
-	group.PUT("/users/:id", authMiddleware.Add(), uc.updateUserHandler)
-	group.GET("/users/:id/groups", authMiddleware.Add(), uc.getUserGroupsHandler)
-	group.GET("/users/:id/webauthn-credentials", authMiddleware.Add(), uc.listUserWebauthnCredentialsHandler)
-	group.PUT("/users/me", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserHandler)
-	group.DELETE("/users/:id", authMiddleware.Add(), uc.deleteUserHandler)
-	group.DELETE("/users/:id/webauthn-credentials/:credentialId", authMiddleware.Add(), uc.deleteUserWebauthnCredentialHandler)
+type userIDInput struct {
+	ID string `path:"id"`
+}
 
-	group.PUT("/users/:id/user-groups", authMiddleware.Add(), uc.updateUserGroups)
+type userCredentialIDInput struct {
+	ID           string `path:"id"`
+	CredentialID string `path:"credentialId"`
+}
 
-	group.GET("/users/:id/profile-picture.png", uc.getUserProfilePictureHandler)
+type userCreateInput struct {
+	Body dto.UserCreateDto
+}
 
-	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), uc.updateUserProfilePictureHandler)
-	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserProfilePictureHandler)
+type userUpdateInput struct {
+	ID   string `path:"id"`
+	Body dto.UserCreateDto
+}
 
-	group.POST("/users/me/one-time-access-token", authMiddleware.WithAdminNotRequired().Add(), uc.createOwnOneTimeAccessTokenHandler)
-	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(), uc.createAdminOneTimeAccessTokenHandler)
-	group.POST("/users/:id/one-time-access-email", authMiddleware.Add(), uc.RequestOneTimeAccessEmailAsAdminHandler)
-	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken), uc.exchangeOneTimeAccessTokenHandler)
-	group.POST("/one-time-access-email", rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail), uc.RequestOneTimeAccessEmailAsUnauthenticatedUserHandler)
+type userGroupsInput struct {
+	ID   string `path:"id"`
+	Body dto.UserUpdateUserGroupDto
+}
 
-	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
-	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
+type userPictureUploadForm struct {
+	File huma.FormFile `form:"file" required:"true"`
+}
 
-	group.POST("/users/me/send-email-verification", rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification), authMiddleware.WithAdminNotRequired().Add(), uc.sendEmailVerificationHandler)
-	group.POST("/users/me/verify-email", rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail), authMiddleware.WithAdminNotRequired().Add(), uc.verifyEmailHandler)
+type userPictureUploadInput struct {
+	ID      string `path:"id"`
+	RawBody huma.MultipartFormFiles[userPictureUploadForm]
+}
+
+type currentUserPictureUploadInput struct {
+	RawBody huma.MultipartFormFiles[userPictureUploadForm]
+}
+
+type oneTimeAccessOwnInput struct {
+	Body dto.OneTimeAccessTokenCreateDto
+}
+
+type oneTimeAccessAdminInput struct {
+	ID   string `path:"id"`
+	Body dto.OneTimeAccessTokenCreateDto
+}
+
+type oneTimeAccessEmailAdminInput struct {
+	ID   string `path:"id"`
+	Body dto.OneTimeAccessEmailAsAdminDto
+}
+
+type oneTimeAccessEmailInput struct {
+	Body dto.OneTimeAccessEmailAsUnauthenticatedUserDto
+}
+
+type oneTimeAccessExchangeInput struct {
+	Token string `path:"token"`
+}
+
+type emailVerificationInput struct {
+	Body dto.EmailVerificationDto
+}
+
+type userCookieOutput struct {
+	SetCookie []http.Cookie `header:"Set-Cookie"`
+	Body      dto.UserDto
+}
+
+type userPictureOutput struct {
+	ContentType   string `header:"Content-Type"`
+	ContentLength int64  `header:"Content-Length"`
+	CacheControl  string `header:"Cache-Control"`
+	Body          func(huma.Context)
+}
+
+// NewUserController registers user management endpoints
+func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *appconfig.AppConfigService) {
+	controller := &UserController{userService: userService, oneTimeAccessService: oneTimeAccessService, webAuthnService: webAuthnService, appConfigService: appConfigService}
+	adminAuth := authMiddleware.Huma(api)
+	userAuth := authMiddleware.WithAdminNotRequired().Huma(api)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-users",
+		Method:      http.MethodGet,
+		Path:        "/api/users",
+		Summary:     "List users",
+		Tags:        []string{"Users"},
+	}, controller.listUsersHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-current-user",
+		Method:      http.MethodGet,
+		Path:        "/api/users/me",
+		Summary:     "Get current user",
+		Tags:        []string{"Users"},
+	}, controller.getCurrentUserHandler, userAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-user",
+		Method:      http.MethodGet,
+		Path:        "/api/users/{id}",
+		Summary:     "Get user by ID",
+		Tags:        []string{"Users"},
+	}, controller.getUserHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-user",
+		Method:        http.MethodPost,
+		Path:          "/api/users",
+		Summary:       "Create user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.createUserHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user",
+		Method:      http.MethodPut,
+		Path:        "/api/users/{id}",
+		Summary:     "Update user",
+		Tags:        []string{"Users"},
+	}, controller.updateUserHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-current-user",
+		Method:      http.MethodPut,
+		Path:        "/api/users/me",
+		Summary:     "Update current user",
+		Tags:        []string{"Users"},
+	}, controller.updateCurrentUserHandler, userAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-user-groups",
+		Method:      http.MethodGet,
+		Path:        "/api/users/{id}/groups",
+		Summary:     "Get user groups",
+		Tags:        []string{"Users"},
+	}, controller.getUserGroupsHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-user-webauthn-credentials",
+		Method:      http.MethodGet,
+		Path:        "/api/users/{id}/webauthn-credentials",
+		Summary:     "List user passkeys",
+		Tags:        []string{"Users"},
+	}, controller.listUserWebauthnCredentialsHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-user",
+		Method:        http.MethodDelete,
+		Path:          "/api/users/{id}",
+		Summary:       "Delete user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteUserHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-user-webauthn-credential",
+		Method:        http.MethodDelete,
+		Path:          "/api/users/{id}/webauthn-credentials/{credentialId}",
+		Summary:       "Delete user passkey",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.deleteUserWebauthnCredentialHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-groups",
+		Method:      http.MethodPut,
+		Path:        "/api/users/{id}/user-groups",
+		Summary:     "Update user groups",
+		Tags:        []string{"Users"},
+	}, controller.updateUserGroups, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-user-profile-picture",
+		Method:      http.MethodGet,
+		Path:        "/api/users/{id}/profile-picture.png",
+		Summary:     "Get user profile picture",
+		Tags:        []string{"Users"},
+	}, controller.getUserProfilePictureHandler)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-user-profile-picture",
+		Method:        http.MethodPut,
+		Path:          "/api/users/{id}/profile-picture",
+		Summary:       "Update user profile picture",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateUserProfilePictureHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "update-current-user-profile-picture",
+		Method:        http.MethodPut,
+		Path:          "/api/users/me/profile-picture",
+		Summary:       "Update current user profile picture",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.updateCurrentUserProfilePictureHandler, userAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-own-one-time-access-token",
+		Method:        http.MethodPost,
+		Path:          "/api/users/me/one-time-access-token",
+		Summary:       "Create one-time access token for current user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.createOwnOneTimeAccessTokenHandler, userAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-user-one-time-access-token",
+		Method:        http.MethodPost,
+		Path:          "/api/users/{id}/one-time-access-token",
+		Summary:       "Create one-time access token for user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.createAdminOneTimeAccessTokenHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "request-user-one-time-access-email",
+		Method:        http.MethodPost,
+		Path:          "/api/users/{id}/one-time-access-email",
+		Summary:       "Request one-time access email for user",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.requestOneTimeAccessEmailAsAdminHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "exchange-one-time-access-token",
+		Method:      http.MethodPost,
+		Path:        "/api/one-time-access-token/{token}",
+		Summary:     "Exchange one-time access token",
+		Tags:        []string{"Users"},
+	}, controller.exchangeOneTimeAccessTokenHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessToken)))
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "request-one-time-access-email",
+		Method:        http.MethodPost,
+		Path:          "/api/one-time-access-email",
+		Summary:       "Request one-time access email",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.requestOneTimeAccessEmailAsUnauthenticatedUserHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessEmail)))
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "reset-user-profile-picture",
+		Method:        http.MethodDelete,
+		Path:          "/api/users/{id}/profile-picture",
+		Summary:       "Reset user profile picture",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.resetUserProfilePictureHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "reset-current-user-profile-picture",
+		Method:        http.MethodDelete,
+		Path:          "/api/users/me/profile-picture",
+		Summary:       "Reset current user profile picture",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.resetCurrentUserProfilePictureHandler, userAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "send-email-verification",
+		Method:        http.MethodPost,
+		Path:          "/api/users/me/send-email-verification",
+		Summary:       "Send email verification",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.sendEmailVerificationHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitSendEmailVerification)), userAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "verify-email",
+		Method:        http.MethodPost,
+		Path:          "/api/users/me/verify-email",
+		Summary:       "Verify email",
+		Tags:          []string{"Users"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.verifyEmailHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitVerifyEmail)), userAuth)
 }
 
 type UserController struct {
@@ -69,650 +314,278 @@ type UserController struct {
 	webAuthnService      *webauthn.Module
 }
 
-// getUserGroupsHandler godoc
-// @Summary Get user groups
-// @Description Retrieve all groups a specific user belongs to
-// @Tags Users,User Groups
-// @Param id path string true "User ID"
-// @Success 200 {array} dto.UserGroupDto
-// @Router /api/users/{id}/groups [get]
-func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
-	userID := c.Param("id")
-	groups, err := uc.userService.GetUserGroups(c.Request.Context(), userID)
+func (uc *UserController) getUserGroupsHandler(ctx context.Context, input *userIDInput) (*httpapi.BodyOutput[[]dto.UserGroupDto], error) {
+	groups, err := uc.userService.GetUserGroups(ctx, input.ID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var groupsDto []dto.UserGroupDto
-	if err := dto.MapStructList(groups, &groupsDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.UserGroupDto
+	if err := dto.MapStructList(groups, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, groupsDto)
+	return &httpapi.BodyOutput[[]dto.UserGroupDto]{Body: output}, nil
 }
 
-// listUserWebauthnCredentialsHandler godoc
-// @Summary List user passkeys
-// @Description Retrieve all WebAuthn credentials for a specific user
-// @Tags Users
-// @Param id path string true "User ID"
-// @Success 200 {array} dto.WebauthnCredentialDto
-// @Router /api/users/{id}/webauthn-credentials [get]
-func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) {
-	userID := c.Param("id")
-
-	if _, err := uc.userService.GetUser(c.Request.Context(), userID); err != nil {
-		_ = c.Error(err)
-		return
+func (uc *UserController) listUserWebauthnCredentialsHandler(ctx context.Context, input *userIDInput) (*httpapi.BodyOutput[[]dto.WebauthnCredentialDto], error) {
+	if _, err := uc.userService.GetUser(ctx, input.ID); err != nil {
+		return nil, err
 	}
-
-	credentials, err := uc.webAuthnService.ListCredentials(c.Request.Context(), userID)
+	credentials, err := uc.webAuthnService.ListCredentials(ctx, input.ID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var credentialDtos []dto.WebauthnCredentialDto
-	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.WebauthnCredentialDto
+	if err := dto.MapStructList(credentials, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, credentialDtos)
+	return &httpapi.BodyOutput[[]dto.WebauthnCredentialDto]{Body: output}, nil
 }
 
-// listUsersHandler godoc
-// @Summary List users
-// @Description Get a paginated list of users with optional search and sorting
-// @Tags Users
-// @Param search query string false "Search term to filter users"
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.UserDto]
-// @Router /api/users [get]
-func (uc *UserController) listUsersHandler(c *gin.Context) {
-	searchTerm := c.Query("search")
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	users, pagination, err := uc.userService.ListUsers(c.Request.Context(), searchTerm, listRequestOptions)
+func (uc *UserController) listUsersHandler(ctx context.Context, input *userListInput) (*httpapi.BodyOutput[dto.Paginated[dto.UserDto]], error) {
+	users, pagination, err := uc.userService.ListUsers(ctx, input.Search, input.ListRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var usersDto []dto.UserDto
-	if err := dto.MapStructList(users, &usersDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []dto.UserDto
+	if err := dto.MapStructList(users, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, dto.Paginated[dto.UserDto]{
-		Data:       usersDto,
-		Pagination: pagination,
-	})
+	return &httpapi.BodyOutput[dto.Paginated[dto.UserDto]]{Body: dto.Paginated[dto.UserDto]{Data: output, Pagination: pagination}}, nil
 }
 
-// getUserHandler godoc
-// @Summary Get user by ID
-// @Description Retrieve detailed information about a specific user
-// @Tags Users
-// @Param id path string true "User ID"
-// @Success 200 {object} dto.UserDto
-// @Router /api/users/{id} [get]
-func (uc *UserController) getUserHandler(c *gin.Context) {
-	user, err := uc.userService.GetUser(c.Request.Context(), c.Param("id"))
+func (uc *UserController) getUserHandler(ctx context.Context, input *userIDInput) (*httpapi.BodyOutput[dto.UserDto], error) {
+	user, err := uc.userService.GetUser(ctx, input.ID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, userDto)
+	return mapUser(user)
 }
 
-// getCurrentUserHandler godoc
-// @Summary Get current user
-// @Description Retrieve information about the currently authenticated user
-// @Tags Users
-// @Success 200 {object} dto.UserDto
-// @Router /api/users/me [get]
-func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
-	user, err := uc.userService.GetUser(c.Request.Context(), c.GetString("userID"))
+func (uc *UserController) getCurrentUserHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[dto.UserDto], error) {
+	user, err := uc.userService.GetUser(ctx, httpapi.UserID(ctx))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, userDto)
+	return mapUser(user)
 }
 
-// deleteUserHandler godoc
-// @Summary Delete user
-// @Description Delete a specific user by ID
-// @Tags Users
-// @Param id path string true "User ID"
-// @Success 204 "No Content"
-// @Router /api/users/{id} [delete]
-func (uc *UserController) deleteUserHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+func (uc *UserController) deleteUserHandler(ctx context.Context, input *userIDInput) (*httpapi.EmptyOutput, error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	if err := uc.userService.DeleteUser(c.Request.Context(), dbConfig, c.Param("id"), false); err != nil {
-		_ = c.Error(err)
-		return
+	if err := uc.userService.DeleteUser(ctx, dbConfig, input.ID, false); err != nil {
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// deleteUserWebauthnCredentialHandler godoc
-// @Summary Delete user passkey
-// @Description Delete a specific WebAuthn credential for a user
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param credentialId path string true "Credential ID"
-// @Success 204 "No Content"
-// @Router /api/users/{id}/webauthn-credentials/{credentialId} [delete]
-func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) {
-	err := uc.webAuthnService.DeleteCredential(
-		c.Request.Context(),
-		c.Param("id"),
-		c.Param("credentialId"),
-		c.ClientIP(),
-		c.Request.UserAgent(),
-		c.GetString("userID"),
-	)
-	if err != nil {
-		_ = c.Error(err)
-		return
+func (uc *UserController) deleteUserWebauthnCredentialHandler(ctx context.Context, input *userCredentialIDInput) (*httpapi.EmptyOutput, error) {
+	if err := uc.webAuthnService.DeleteCredential(ctx, input.ID, input.CredentialID, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx), httpapi.UserID(ctx)); err != nil {
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// createUserHandler godoc
-// @Summary Create user
-// @Description Create a new user
-// @Tags Users
-// @Param user body dto.UserCreateDto true "User information"
-// @Success 201 {object} dto.UserDto
-// @Router /api/users [post]
-func (uc *UserController) createUserHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+func (uc *UserController) createUserHandler(ctx context.Context, input *userCreateInput) (*httpapi.BodyOutput[dto.UserDto], error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	var input dto.UserCreateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	user, err := uc.userService.CreateUser(c.Request.Context(), dbConfig, input)
+	user, err := uc.userService.CreateUser(ctx, dbConfig, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, userDto)
+	return mapUser(user)
 }
 
-// updateUserHandler godoc
-// @Summary Update user
-// @Description Update an existing user by ID
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param user body dto.UserCreateDto true "User information"
-// @Success 200 {object} dto.UserDto
-// @Router /api/users/{id} [put]
-func (uc *UserController) updateUserHandler(c *gin.Context) {
-	uc.updateUser(c, false)
+func (uc *UserController) updateUserHandler(ctx context.Context, input *userUpdateInput) (*httpapi.BodyOutput[dto.UserDto], error) {
+	return uc.updateUser(ctx, input.ID, input.Body, false)
 }
 
-// updateCurrentUserHandler godoc
-// @Summary Update current user
-// @Description Update the currently authenticated user's information
-// @Tags Users
-// @Param user body dto.UserCreateDto true "User information"
-// @Success 200 {object} dto.UserDto
-// @Router /api/users/me [put]
-func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
-	uc.updateUser(c, true)
+func (uc *UserController) updateCurrentUserHandler(ctx context.Context, input *userCreateInput) (*httpapi.BodyOutput[dto.UserDto], error) {
+	return uc.updateUser(ctx, httpapi.UserID(ctx), input.Body, true)
 }
 
-// getUserProfilePictureHandler godoc
-// @Summary Get user profile picture
-// @Description Retrieve a specific user's profile picture
-// @Tags Users
-// @Produce image/png
-// @Param id path string true "User ID"
-// @Success 200 {file} binary "PNG image"
-// @Router /api/users/{id}/profile-picture.png [get]
-func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
-	userID := c.Param("id")
-
-	picture, size, err := uc.userService.GetProfilePicture(c.Request.Context(), userID)
+func (uc *UserController) updateUser(ctx context.Context, userID string, input dto.UserCreateDto, ownUser bool) (*httpapi.BodyOutput[dto.UserDto], error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-	if picture != nil {
-		defer picture.Close()
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	utils.SetCacheControlHeader(c, 15*time.Minute, 1*time.Hour)
-
-	c.DataFromReader(http.StatusOK, size, "image/png", picture, nil)
+	user, err := uc.userService.UpdateUser(ctx, dbConfig, userID, input, ownUser, false)
+	if err != nil {
+		return nil, err
+	}
+	return mapUser(user)
 }
 
-// updateUserProfilePictureHandler godoc
-// @Summary Update user profile picture
-// @Description Update a specific user's profile picture
-// @Tags Users
-// @Accept multipart/form-data
-// @Produce json
-// @Param id path string true "User ID"
-// @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
-// @Success 204 "No Content"
-// @Router /api/users/{id}/profile-picture [put]
-func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
-	userID := c.Param("id")
-	fileHeader, err := c.FormFile("file")
+func (uc *UserController) getUserProfilePictureHandler(ctx context.Context, input *userIDInput) (*userPictureOutput, error) {
+	picture, size, err := uc.userService.GetProfilePicture(ctx, input.ID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-	file, err := fileHeader.Open()
-	if err != nil {
-		_ = c.Error(err)
-		return
+	cacheControl := ""
+	if !httpapi.QueryPresent(ctx, "skipCache") {
+		cacheControl = utils.CacheControlValue(15*time.Minute, time.Hour)
 	}
+	return &userPictureOutput{
+		ContentType:   "image/png",
+		ContentLength: size,
+		CacheControl:  cacheControl,
+		Body: func(streamCtx huma.Context) {
+			if picture != nil {
+				defer picture.Close()
+				_, _ = io.Copy(streamCtx.BodyWriter(), picture)
+			}
+		},
+	}, nil
+}
+
+func (uc *UserController) updateUserProfilePictureHandler(ctx context.Context, input *userPictureUploadInput) (*httpapi.EmptyOutput, error) {
+	return uc.updateProfilePicture(ctx, input.ID, input.RawBody.Data().File)
+}
+
+func (uc *UserController) updateCurrentUserProfilePictureHandler(ctx context.Context, input *currentUserPictureUploadInput) (*httpapi.EmptyOutput, error) {
+	return uc.updateProfilePicture(ctx, httpapi.UserID(ctx), input.RawBody.Data().File)
+}
+
+func (uc *UserController) updateProfilePicture(ctx context.Context, userID string, file huma.FormFile) (*httpapi.EmptyOutput, error) {
 	defer file.Close()
-
-	if err := uc.userService.UpdateProfilePicture(c.Request.Context(), userID, file); err != nil {
-		_ = c.Error(err)
-		return
+	if err := uc.userService.UpdateProfilePicture(ctx, userID, file); err != nil {
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// updateCurrentUserProfilePictureHandler godoc
-// @Summary Update current user's profile picture
-// @Description Update the currently authenticated user's profile picture
-// @Tags Users
-// @Accept multipart/form-data
-// @Produce json
-// @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
-// @Success 204 "No Content"
-// @Router /api/users/me/profile-picture [put]
-func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) {
-	userID := c.GetString("userID")
-	fileHeader, err := c.FormFile("file")
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-	file, err := fileHeader.Open()
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-	defer file.Close()
-
-	if err := uc.userService.UpdateProfilePicture(c.Request.Context(), userID, file); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+func (uc *UserController) createOwnOneTimeAccessTokenHandler(ctx context.Context, _ *oneTimeAccessOwnInput) (*httpapi.BodyOutput[map[string]string], error) {
+	return uc.createOneTimeAccessToken(ctx, httpapi.UserID(ctx), defaultOneTimeAccessTokenDuration)
 }
 
-func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bool) {
-	var input dto.OneTimeAccessTokenCreateDto
-	err := c.ShouldBindJSON(&input)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var (
-		userID string
-		ttl    time.Duration
-	)
-	if own {
-		// Get user ID from context and force the default TTL
-		userID = c.GetString("userID")
-		ttl = defaultOneTimeAccessTokenDuration
-	} else {
-		// Get user ID from URL parameter, and optional TTL from body
-		userID = c.Param("id")
-		ttl = input.TTL.Duration
-		if ttl <= 0 {
-			ttl = defaultOneTimeAccessTokenDuration
-		}
-	}
-	if userID == "" {
-		_ = c.Error(&common.UserIdNotProvidedError{})
-		return
-	}
-
-	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(c.Request.Context(), userID, ttl)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{"token": token})
-}
-
-// createOwnOneTimeAccessTokenHandler godoc
-// @Summary Create one-time access token for current user
-// @Description Generate a one-time access token for the currently authenticated user
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
-// @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Router /api/users/{id}/one-time-access-token [post]
-func (uc *UserController) createOwnOneTimeAccessTokenHandler(c *gin.Context) {
-	uc.createOneTimeAccessTokenHandler(c, true)
-}
-
-// createAdminOneTimeAccessTokenHandler godoc
-// @Summary Create one-time access token for user (admin)
-// @Description Generate a one-time access token for a specific user (admin only)
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
-// @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Router /api/users/{id}/one-time-access-token [post]
-func (uc *UserController) createAdminOneTimeAccessTokenHandler(c *gin.Context) {
-	uc.createOneTimeAccessTokenHandler(c, false)
-}
-
-// RequestOneTimeAccessEmailAsUnauthenticatedUserHandler godoc
-// @Summary Request one-time access email
-// @Description Request a one-time access email for unauthenticated users
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param body body dto.OneTimeAccessEmailAsUnauthenticatedUserDto true "Email request information"
-// @Success 204 "No Content"
-// @Router /api/one-time-access-email [post]
-func (uc *UserController) RequestOneTimeAccessEmailAsUnauthenticatedUserHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
-	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
-	}
-
-	var input dto.OneTimeAccessEmailAsUnauthenticatedUserDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), dbConfig, input.Email, input.RedirectPath)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	cookie.AddDeviceTokenCookie(c, deviceToken)
-	c.Status(http.StatusNoContent)
-}
-
-// RequestOneTimeAccessEmailAsAdminHandler godoc
-// @Summary Request one-time access email (admin)
-// @Description Request a one-time access email for a specific user (admin only)
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param id path string true "User ID"
-// @Param body body dto.OneTimeAccessEmailAsAdminDto true "Email request options"
-// @Success 204 "No Content"
-// @Router /api/users/{id}/one-time-access-email [post]
-func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
-	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
-	}
-
-	var input dto.OneTimeAccessEmailAsAdminDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	userID := c.Param("id")
-
-	ttl := input.TTL.Duration
+func (uc *UserController) createAdminOneTimeAccessTokenHandler(ctx context.Context, input *oneTimeAccessAdminInput) (*httpapi.BodyOutput[map[string]string], error) {
+	ttl := input.Body.TTL.Duration
 	if ttl <= 0 {
 		ttl = defaultOneTimeAccessTokenDuration
 	}
-	err = uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), dbConfig, userID, ttl)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	return uc.createOneTimeAccessToken(ctx, input.ID, ttl)
 }
 
-// exchangeOneTimeAccessTokenHandler godoc
-// @Summary Exchange one-time access token
-// @Description Exchange a one-time access token for a session token
-// @Tags Users
-// @Param token path string true "One-time access token"
-// @Success 200 {object} dto.UserDto
-// @Router /api/one-time-access-token/{token} [post]
-func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
-	cfg, err := uc.appConfigService.GetConfig(c.Request.Context())
+func (uc *UserController) createOneTimeAccessToken(ctx context.Context, userID string, ttl time.Duration) (*httpapi.BodyOutput[map[string]string], error) {
+	if userID == "" {
+		return nil, &common.UserIdNotProvidedError{}
+	}
+	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(ctx, userID, ttl)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, err
 	}
-
-	loginCode := c.Param("token")
-	// reject invalid length login codes
-	if len(loginCode) != 6 && len(loginCode) != 16 {
-		_ = c.Error(&common.TokenInvalidOrExpiredError{})
-		return
-	}
-
-	deviceToken, _ := c.Cookie(cookie.DeviceTokenCookieName)
-	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), cfg, loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent())
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var userDto dto.UserDto
-	err = dto.MapStruct(user, &userDto)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	maxAge := int(cfg.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
-
-	c.JSON(http.StatusOK, userDto)
+	return &httpapi.BodyOutput[map[string]string]{Body: map[string]string{"token": token}}, nil
 }
 
-// updateUserGroups godoc
-// @Summary Update user groups
-// @Description Update the groups a specific user belongs to
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param groups body dto.UserUpdateUserGroupDto true "User group IDs"
-// @Success 200 {object} dto.UserDto
-// @Router /api/users/{id}/user-groups [put]
-func (uc *UserController) updateUserGroups(c *gin.Context) {
-	var input dto.UserUpdateUserGroupDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	user, err := uc.userService.UpdateUserGroups(c.Request.Context(), c.Param("id"), input.UserGroupIds)
+func (uc *UserController) requestOneTimeAccessEmailAsUnauthenticatedUserHandler(ctx context.Context, input *oneTimeAccessEmailInput) (*emptyOutputWithCookie, error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, userDto)
-}
-
-// updateUser is an internal helper method, not exposed as an API endpoint
-func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx, dbConfig, input.Body.Email, input.Body.RedirectPath)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, err
 	}
+	return &emptyOutputWithCookie{SetCookie: []http.Cookie{*cookie.NewDeviceTokenCookie(deviceToken)}}, nil
+}
 
-	var input dto.UserCreateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var userID string
-	if updateOwnUser {
-		userID = c.GetString("userID")
-	} else {
-		userID = c.Param("id")
-	}
-
-	user, err := uc.userService.UpdateUser(c.Request.Context(), dbConfig, userID, input, updateOwnUser, false)
+func (uc *UserController) requestOneTimeAccessEmailAsAdminHandler(ctx context.Context, input *oneTimeAccessEmailAdminInput) (*httpapi.EmptyOutput, error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+	ttl := input.Body.TTL.Duration
+	if ttl <= 0 {
+		ttl = defaultOneTimeAccessTokenDuration
 	}
-
-	c.JSON(http.StatusOK, userDto)
+	if err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(ctx, dbConfig, input.ID, ttl); err != nil {
+		return nil, err
+	}
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// resetUserProfilePictureHandler godoc
-// @Summary Reset user profile picture
-// @Description Reset a specific user's profile picture to the default
-// @Tags Users
-// @Produce json
-// @Param id path string true "User ID"
-// @Success 204 "No Content"
-// @Router /api/users/{id}/profile-picture [delete]
-func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) {
-	userID := c.Param("id")
-
-	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// resetCurrentUserProfilePictureHandler godoc
-// @Summary Reset current user's profile picture
-// @Description Reset the currently authenticated user's profile picture to the default
-// @Tags Users
-// @Produce json
-// @Success 204 "No Content"
-// @Router /api/users/me/profile-picture [delete]
-func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) {
-	userID := c.GetString("userID")
-
-	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// sendEmailVerificationHandler godoc
-// @Summary Send email verification
-// @Description Send an email verification to the currently authenticated user
-// @Tags Users
-// @Produce json
-// @Success 204 "No Content"
-// @Router /api/users/me/send-email-verification [post]
-func (uc *UserController) sendEmailVerificationHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
+func (uc *UserController) exchangeOneTimeAccessTokenHandler(ctx context.Context, input *oneTimeAccessExchangeInput) (*userCookieOutput, error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	userID := c.GetString("userID")
-
-	if err := uc.userService.SendEmailVerification(c.Request.Context(), dbConfig, userID); err != nil {
-		_ = c.Error(err)
-		return
+	if len(input.Token) != 6 && len(input.Token) != 16 {
+		return nil, &common.TokenInvalidOrExpiredError{}
 	}
-
-	c.Status(http.StatusNoContent)
+	deviceToken := ""
+	if requestCookie, err := httpapi.Cookie(ctx, cookie.DeviceTokenCookieName); err == nil {
+		deviceToken = requestCookie.Value
+	}
+	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(ctx, dbConfig, input.Token, deviceToken, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
+	if err != nil {
+		return nil, err
+	}
+	var output dto.UserDto
+	if err := dto.MapStruct(user, &output); err != nil {
+		return nil, err
+	}
+	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
+	return &userCookieOutput{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(maxAge, token)}, Body: output}, nil
 }
 
-// verifyEmailHandler godoc
-// @Summary Verify email
-// @Description Verify the currently authenticated user's email using a verification token
-// @Tags Users
-// @Param body body dto.EmailVerificationDto true "Email verification token"
-// @Success 204 "No Content"
-// @Router /api/users/me/verify-email [post]
-func (uc *UserController) verifyEmailHandler(c *gin.Context) {
-	var input dto.EmailVerificationDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
+func (uc *UserController) updateUserGroups(ctx context.Context, input *userGroupsInput) (*httpapi.BodyOutput[dto.UserDto], error) {
+	user, err := uc.userService.UpdateUserGroups(ctx, input.ID, input.Body.UserGroupIds)
+	if err != nil {
+		return nil, err
+	}
+	return mapUser(user)
+}
+
+func (uc *UserController) resetUserProfilePictureHandler(ctx context.Context, input *userIDInput) (*httpapi.EmptyOutput, error) {
+	if err := uc.userService.ResetProfilePicture(ctx, input.ID); err != nil {
+		return nil, err
+	}
+	return &httpapi.EmptyOutput{}, nil
+}
+
+func (uc *UserController) resetCurrentUserProfilePictureHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
+	if err := uc.userService.ResetProfilePicture(ctx, httpapi.UserID(ctx)); err != nil {
+		return nil, err
+	}
+	return &httpapi.EmptyOutput{}, nil
+}
+
+func (uc *UserController) sendEmailVerificationHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.EmptyOutput, error) {
+	dbConfig, err := uc.appConfigService.GetConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	userID := c.GetString("userID")
-	if err := uc.userService.VerifyEmail(c.Request.Context(), userID, input.Token); err != nil {
-		_ = c.Error(err)
-		return
+	if err := uc.userService.SendEmailVerification(ctx, dbConfig, httpapi.UserID(ctx)); err != nil {
+		return nil, err
 	}
+	return &httpapi.EmptyOutput{}, nil
+}
 
-	c.Status(http.StatusNoContent)
+func (uc *UserController) verifyEmailHandler(ctx context.Context, input *emailVerificationInput) (*httpapi.EmptyOutput, error) {
+	if err := uc.userService.VerifyEmail(ctx, httpapi.UserID(ctx), input.Body.Token); err != nil {
+		return nil, err
+	}
+	return &httpapi.EmptyOutput{}, nil
+}
+
+type emptyOutputWithCookie struct {
+	SetCookie []http.Cookie `header:"Set-Cookie"`
+}
+
+func mapUser(user model.User) (*httpapi.BodyOutput[dto.UserDto], error) {
+	var output dto.UserDto
+	if err := dto.MapStruct(user, &output); err != nil {
+		return nil, err
+	}
+	return &httpapi.BodyOutput[dto.UserDto]{Body: output}, nil
 }

@@ -1,13 +1,24 @@
 package apikey
 
 import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
+	"context"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
+
+type createInput struct {
+	Body apiKeyCreateDto
+}
+
+type renewInput struct {
+	ID   string `path:"id"`
+	Body apiKeyRenewDto
+}
+
+type idInput struct {
+	ID string `path:"id"`
+}
 
 type handler struct {
 	service *Service
@@ -17,123 +28,46 @@ func newHandler(service *Service) *handler {
 	return &handler{service: service}
 }
 
-// list godoc
-// @Summary List API keys
-// @Description Get a paginated list of API keys belonging to the current user
-// @Tags API Keys
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[apiKeyDto]
-// @Router /api/api-keys [get]
-func (h *handler) list(c *gin.Context) {
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	userID := c.GetString("userID")
-
-	apiKeys, pagination, err := h.service.ListApiKeys(c.Request.Context(), userID, listRequestOptions)
+func (h *handler) list(ctx context.Context, input *httpapi.ListInput) (*httpapi.BodyOutput[dto.Paginated[apiKeyDto]], error) {
+	apiKeys, pagination, err := h.service.ListApiKeys(ctx, httpapi.UserID(ctx), input.ListRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
 
-	var apiKeysDto []apiKeyDto
-	if err := dto.MapStructList(apiKeys, &apiKeysDto); err != nil {
-		_ = c.Error(err)
-		return
+	var output []apiKeyDto
+	if err := dto.MapStructList(apiKeys, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, dto.Paginated[apiKeyDto]{
-		Data:       apiKeysDto,
-		Pagination: pagination,
-	})
+	return &httpapi.BodyOutput[dto.Paginated[apiKeyDto]]{Body: dto.Paginated[apiKeyDto]{Data: output, Pagination: pagination}}, nil
 }
 
-// create godoc
-// @Summary Create API key
-// @Description Create a new API key for the current user
-// @Tags API Keys
-// @Param api_key body apiKeyCreateDto true "API key information"
-// @Success 201 {object} apiKeyResponseDto "Created API key with token"
-// @Router /api/api-keys [post]
-func (h *handler) create(c *gin.Context) {
-	userID := c.GetString("userID")
-
-	var input apiKeyCreateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	apiKey, token, err := h.service.CreateApiKey(c.Request.Context(), userID, input)
+func (h *handler) create(ctx context.Context, input *createInput) (*httpapi.BodyOutput[apiKeyResponseDto], error) {
+	apiKey, token, err := h.service.CreateApiKey(ctx, httpapi.UserID(ctx), input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var responseDto apiKeyDto
-	if err := dto.MapStruct(apiKey, &responseDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, apiKeyResponseDto{
-		ApiKey: responseDto,
-		Token:  token,
-	})
+	return mapAPIKeyResponse(apiKey, token)
 }
 
-// renew godoc
-// @Summary Renew API key
-// @Description Renew an existing API key by ID
-// @Tags API Keys
-// @Param id path string true "API Key ID"
-// @Success 200 {object} apiKeyResponseDto "Renewed API key with new token"
-// @Router /api/api-keys/{id}/renew [post]
-func (h *handler) renew(c *gin.Context) {
-	userID := c.GetString("userID")
-	apiKeyID := c.Param("id")
-
-	var input apiKeyRenewDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	apiKey, token, err := h.service.RenewApiKey(c.Request.Context(), userID, apiKeyID, input.ExpiresAt.ToTime())
+func (h *handler) renew(ctx context.Context, input *renewInput) (*httpapi.BodyOutput[apiKeyResponseDto], error) {
+	apiKey, token, err := h.service.RenewApiKey(ctx, httpapi.UserID(ctx), input.ID, input.Body.ExpiresAt.ToTime())
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var responseDto apiKeyDto
-	if err := dto.MapStruct(apiKey, &responseDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, apiKeyResponseDto{
-		ApiKey: responseDto,
-		Token:  token,
-	})
+	return mapAPIKeyResponse(apiKey, token)
 }
 
-// revoke godoc
-// @Summary Revoke API key
-// @Description Revoke (delete) an existing API key by ID
-// @Tags API Keys
-// @Param id path string true "API Key ID"
-// @Success 204 "No Content"
-// @Router /api/api-keys/{id} [delete]
-func (h *handler) revoke(c *gin.Context) {
-	userID := c.GetString("userID")
-	apiKeyID := c.Param("id")
-
-	if err := h.service.RevokeApiKey(c.Request.Context(), userID, apiKeyID); err != nil {
-		_ = c.Error(err)
-		return
+func (h *handler) revoke(ctx context.Context, input *idInput) (*httpapi.EmptyOutput, error) {
+	if err := h.service.RevokeApiKey(ctx, httpapi.UserID(ctx), input.ID); err != nil {
+		return nil, err
 	}
+	return &httpapi.EmptyOutput{}, nil
+}
 
-	c.Status(http.StatusNoContent)
+func mapAPIKeyResponse(apiKey ApiKey, token string) (*httpapi.BodyOutput[apiKeyResponseDto], error) {
+	var output apiKeyDto
+	if err := dto.MapStruct(apiKey, &output); err != nil {
+		return nil, err
+	}
+	return &httpapi.BodyOutput[apiKeyResponseDto]{Body: apiKeyResponseDto{ApiKey: output, Token: token}}, nil
 }

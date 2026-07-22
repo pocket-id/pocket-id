@@ -1,6 +1,9 @@
 package dto
 
-import datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+import (
+	"github.com/danielgtaylor/huma/v2"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+)
 
 type OidcClientMetaDataDto struct {
 	ID                       string  `json:"id"`
@@ -36,27 +39,27 @@ type OidcClientWithAllowedGroupsCountDto struct {
 }
 
 type OidcClientUpdateDto struct {
-	Name                                string                   `json:"name" binding:"required,max=50" unorm:"nfc"`
-	Description                         string                   `json:"description" binding:"omitempty,max=150" unorm:"nfc"`
-	CallbackURLs                        []string                 `json:"callbackURLs" binding:"omitempty,dive,callback_url_pattern"`
-	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs" binding:"omitempty,dive,callback_url_pattern"`
-	IsPublic                            bool                     `json:"isPublic"`
-	PkceEnabled                         bool                     `json:"pkceEnabled"`
-	RequiresReauthentication            bool                     `json:"requiresReauthentication"`
-	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests"`
-	SkipConsent                         bool                     `json:"skipConsent"`
-	Credentials                         OidcClientCredentialsDto `json:"credentials"`
-	LaunchURL                           *string                  `json:"launchURL" binding:"omitempty,url"`
-	HasLogo                             bool                     `json:"hasLogo"`
-	HasDarkLogo                         bool                     `json:"hasDarkLogo"`
-	LogoURL                             *string                  `json:"logoUrl"`
-	DarkLogoURL                         *string                  `json:"darkLogoUrl"`
-	IsGroupRestricted                   bool                     `json:"isGroupRestricted"`
+	Name                                string                   `json:"name" required:"true" maxLength:"50" unorm:"nfc"`
+	Description                         string                   `json:"description" required:"false" maxLength:"150" unorm:"nfc"`
+	CallbackURLs                        []string                 `json:"callbackURLs" required:"false"`
+	LogoutCallbackURLs                  []string                 `json:"logoutCallbackURLs" required:"false"`
+	IsPublic                            bool                     `json:"isPublic" required:"false"`
+	PkceEnabled                         bool                     `json:"pkceEnabled" required:"false"`
+	RequiresReauthentication            bool                     `json:"requiresReauthentication" required:"false"`
+	RequiresPushedAuthorizationRequests bool                     `json:"requiresPushedAuthorizationRequests" required:"false"`
+	SkipConsent                         bool                     `json:"skipConsent" required:"false"`
+	Credentials                         OidcClientCredentialsDto `json:"credentials" required:"false"`
+	LaunchURL                           *string                  `json:"launchURL" required:"false" format:"uri"`
+	HasLogo                             bool                     `json:"hasLogo" required:"false"`
+	HasDarkLogo                         bool                     `json:"hasDarkLogo" required:"false"`
+	LogoURL                             *string                  `json:"logoUrl" required:"false"`
+	DarkLogoURL                         *string                  `json:"darkLogoUrl" required:"false"`
+	IsGroupRestricted                   bool                     `json:"isGroupRestricted" required:"false"`
 }
 
 type OidcClientCreateDto struct {
 	OidcClientUpdateDto
-	ID string `json:"id" binding:"omitempty,client_id,min=2,max=128"`
+	ID string `json:"id" required:"false" minLength:"2" maxLength:"128" pattern:"^[a-zA-Z0-9._-]+$" patternDescription:"letters, numbers, dots, underscores, and hyphens"`
 }
 
 type OidcClientCredentialsDto struct {
@@ -64,15 +67,42 @@ type OidcClientCredentialsDto struct {
 }
 
 type OidcClientFederatedIdentityDto struct {
-	Issuer           string `json:"issuer"`
+	Issuer           string `json:"issuer" required:"false"`
 	Subject          string `json:"subject,omitempty"`
 	Audience         string `json:"audience,omitempty"`
 	JWKS             string `json:"jwks,omitempty"`
-	ReplayProtection bool   `json:"replayProtection"`
+	ReplayProtection bool   `json:"replayProtection" required:"false"`
 }
 
 type OidcUpdateAllowedUserGroupsDto struct {
-	UserGroupIDs []string `json:"userGroupIds" binding:"required"`
+	UserGroupIDs []string `json:"userGroupIds" required:"true"`
+}
+
+func (d *OidcClientUpdateDto) Resolve(huma.Context) []error {
+	return validateCallbackURLLists(d.CallbackURLs, d.LogoutCallbackURLs)
+}
+
+func (d *OidcClientCreateDto) Resolve(huma.Context) []error {
+	errs := validateCallbackURLLists(d.CallbackURLs, d.LogoutCallbackURLs)
+	if d.ID != "" && !ValidateClientID(d.ID) {
+		errs = append(errs, &huma.ErrorDetail{Location: "body.id", Message: "Client ID is invalid"})
+	}
+	return errs
+}
+
+func validateCallbackURLLists(callbackURLs, logoutCallbackURLs []string) []error {
+	var errs []error
+	for _, callbackURL := range callbackURLs {
+		if !ValidateCallbackURLPattern(callbackURL) {
+			errs = append(errs, &huma.ErrorDetail{Location: "body.callbackURLs", Message: "Callback URL pattern is invalid"})
+		}
+	}
+	for _, callbackURL := range logoutCallbackURLs {
+		if !ValidateCallbackURLPattern(callbackURL) {
+			errs = append(errs, &huma.ErrorDetail{Location: "body.logoutCallbackURLs", Message: "Logout callback URL pattern is invalid"})
+		}
+	}
+	return errs
 }
 
 type OidcLogoutDto struct {

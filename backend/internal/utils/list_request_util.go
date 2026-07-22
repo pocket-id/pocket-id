@@ -1,10 +1,11 @@
 package utils
 
 import (
+	"net/url"
 	"reflect"
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -17,15 +18,11 @@ type PaginationResponse struct {
 }
 
 type ListRequestOptions struct {
-	Pagination struct {
-		Page  int `form:"pagination[page]"`
-		Limit int `form:"pagination[limit]"`
-	} `form:"pagination"`
-	Sort struct {
-		Column    string `form:"sort[column]"`
-		Direction string `form:"sort[direction]"`
-	} `form:"sort"`
-	Filters map[string][]any
+	Page          int    `query:"pagination[page]" required:"false"`
+	Limit         int    `query:"pagination[limit]" required:"false"`
+	SortColumn    string `query:"sort[column]" required:"false"`
+	SortDirection string `query:"sort[direction]" required:"false"`
+	Filters       map[string][]any
 }
 
 type FieldMeta struct {
@@ -34,22 +31,19 @@ type FieldMeta struct {
 	IsFilterable bool
 }
 
-func ParseListRequestOptions(ctx *gin.Context) (listRequestOptions ListRequestOptions) {
-	if err := ctx.ShouldBindQuery(&listRequestOptions); err != nil {
-		return listRequestOptions
-	}
-
-	listRequestOptions.Filters = parseNestedFilters(ctx)
-	return listRequestOptions
+func (options *ListRequestOptions) Resolve(ctx huma.Context) []error {
+	requestURL := ctx.URL()
+	options.Filters = parseNestedFilters(requestURL.Query())
+	return nil
 }
 
 func PaginateFilterAndSort(params ListRequestOptions, query *gorm.DB, result any) (PaginationResponse, error) {
 	meta := extractModelMetadata(result)
 
 	query = applyFilters(params.Filters, query, meta)
-	query = applySorting(params.Sort.Column, params.Sort.Direction, query, meta)
+	query = applySorting(params.SortColumn, params.SortDirection, query, meta)
 
-	return Paginate(params.Pagination.Page, params.Pagination.Limit, query, result)
+	return Paginate(params.Page, params.Limit, query, result)
 }
 
 func Paginate(page int, pageSize int, query *gorm.DB, result any) (PaginationResponse, error) {
@@ -105,9 +99,8 @@ func IsValidSortDirection(direction string) bool {
 }
 
 // parseNestedFilters handles ?filters[field][0]=val1&filters[field][1]=val2
-func parseNestedFilters(ctx *gin.Context) map[string][]any {
+func parseNestedFilters(query url.Values) map[string][]any {
 	result := make(map[string][]any)
-	query := ctx.Request.URL.Query()
 
 	for key, values := range query {
 		if !strings.HasPrefix(key, "filters[") {

@@ -2,12 +2,14 @@ package api
 
 import (
 	"context"
+	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
 type Dependencies struct {
@@ -59,20 +61,70 @@ func (m *Module) DescribePermissions(ctx context.Context, audience string, keys 
 }
 
 // RegisterRoutes mounts the admin CRUD endpoints
-// adminAuth is passed in as a gin handler so the module does not import internal/middleware
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, adminAuth gin.HandlerFunc) {
-	apis := apiGroup.Group("/apis")
-	apis.Use(adminAuth)
-	apis.GET("", m.handler.list)
-	apis.POST("", m.handler.create)
-	apis.GET("/:id", m.handler.get)
-	apis.PUT("/:id", m.handler.update)
-	apis.DELETE("/:id", m.handler.delete)
-	apis.PUT("/:id/permissions", m.handler.updatePermissions)
+func (m *Module) RegisterRoutes(api huma.API, adminAuth func(*huma.Operation)) {
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-apis",
+		Method:      http.MethodGet,
+		Path:        "/api/apis",
+		Summary:     "List APIs",
+		Tags:        []string{"APIs"},
+	}, m.handler.list, adminAuth)
 
-	// The per-client API-access allow-list lives on a separate path so it does not collide with the /apis/:id wildcard
-	access := apiGroup.Group("/api-access")
-	access.Use(adminAuth)
-	access.GET("/:clientId", m.handler.getClientAccess)
-	access.PUT("/:clientId", m.handler.updateClientAccess)
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-api",
+		Method:        http.MethodPost,
+		Path:          "/api/apis",
+		Summary:       "Create API",
+		Tags:          []string{"APIs"},
+		DefaultStatus: http.StatusCreated,
+	}, m.handler.create, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-api",
+		Method:      http.MethodGet,
+		Path:        "/api/apis/{id}",
+		Summary:     "Get API by ID",
+		Tags:        []string{"APIs"},
+	}, m.handler.get, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-api",
+		Method:      http.MethodPut,
+		Path:        "/api/apis/{id}",
+		Summary:     "Update API",
+		Tags:        []string{"APIs"},
+	}, m.handler.update, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-api",
+		Method:        http.MethodDelete,
+		Path:          "/api/apis/{id}",
+		Summary:       "Delete API",
+		Tags:          []string{"APIs"},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.delete, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-api-permissions",
+		Method:      http.MethodPut,
+		Path:        "/api/apis/{id}/permissions",
+		Summary:     "Update API permissions",
+		Tags:        []string{"APIs"},
+	}, m.handler.updatePermissions, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-client-api-access",
+		Method:      http.MethodGet,
+		Path:        "/api/api-access/{clientId}",
+		Summary:     "Get client API access",
+		Tags:        []string{"APIs"},
+	}, m.handler.getClientAccess, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-client-api-access",
+		Method:      http.MethodPut,
+		Path:        "/api/api-access/{clientId}",
+		Summary:     "Update client API access",
+		Tags:        []string{"APIs"},
+	}, m.handler.updateClientAccess, adminAuth)
 }

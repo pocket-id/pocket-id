@@ -1,6 +1,8 @@
 package api
 
 import (
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 )
 
@@ -23,25 +25,25 @@ type apiPermissionResponseDto struct {
 // apiCreateDto is the payload for creating an API
 // The resource identifier is only accepted here because changing it later would invalidate every token already minted for the API
 type apiCreateDto struct {
-	Name     string `json:"name" binding:"required,min=1,max=50" unorm:"nfc"`
-	Resource string `json:"resource" binding:"required,resource_uri,max=350" unorm:"nfc"`
+	Name     string `json:"name" required:"true" minLength:"1" maxLength:"50" unorm:"nfc"`
+	Resource string `json:"resource" required:"true" maxLength:"350" unorm:"nfc"`
 }
 
 // apiUpdateDto is the payload for updating an API
 // The resource identifier is intentionally not updatable
 type apiUpdateDto struct {
-	Name string `json:"name" binding:"required,min=1,max=50" unorm:"nfc"`
+	Name string `json:"name" required:"true" minLength:"1" maxLength:"50" unorm:"nfc"`
 }
 
 type apiPermissionInputDto struct {
-	Key         string  `json:"key" binding:"required,min=1,max=128" unorm:"nfc"`
-	Name        string  `json:"name" binding:"required,min=1,max=50" unorm:"nfc"`
-	Description *string `json:"description" binding:"omitempty,max=200"`
+	Key         string  `json:"key" required:"true" minLength:"1" maxLength:"128" unorm:"nfc"`
+	Name        string  `json:"name" required:"true" minLength:"1" maxLength:"50" unorm:"nfc"`
+	Description *string `json:"description" required:"false" maxLength:"200"`
 }
 
 // apiPermissionsUpdateDto replaces the full permission set of an API
 type apiPermissionsUpdateDto struct {
-	Permissions []apiPermissionInputDto `json:"permissions" binding:"omitempty,dive"`
+	Permissions []apiPermissionInputDto `json:"permissions" required:"false"`
 }
 
 // clientApiAccessDto is the set of API permissions a client is allowed to request, split by subject type
@@ -52,6 +54,28 @@ type clientApiAccessDto struct {
 }
 
 type clientApiAccessUpdateDto struct {
-	UserDelegatedPermissionIDs []string `json:"userDelegatedPermissionIds" binding:"omitempty,dive,required"`
-	ClientPermissionIDs        []string `json:"clientPermissionIds" binding:"omitempty,dive,required"`
+	UserDelegatedPermissionIDs []string `json:"userDelegatedPermissionIds" required:"false"`
+	ClientPermissionIDs        []string `json:"clientPermissionIds" required:"false"`
+}
+
+func (d *apiCreateDto) Resolve(huma.Context) []error {
+	if dto.ValidateResourceURI(d.Resource) {
+		return nil
+	}
+	return []error{&huma.ErrorDetail{Location: "body.resource", Message: "Resource must be an absolute URI without whitespace or a fragment"}}
+}
+
+func (d *clientApiAccessUpdateDto) Resolve(huma.Context) []error {
+	var errs []error
+	for _, id := range d.UserDelegatedPermissionIDs {
+		if id == "" {
+			errs = append(errs, &huma.ErrorDetail{Location: "body.userDelegatedPermissionIds", Message: "Permission IDs cannot be empty"})
+		}
+	}
+	for _, id := range d.ClientPermissionIDs {
+		if id == "" {
+			errs = append(errs, &huma.ErrorDetail{Location: "body.clientPermissionIds", Message: "Permission IDs cannot be empty"})
+		}
+	}
+	return errs
 }

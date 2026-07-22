@@ -10,7 +10,7 @@ type WebauthnCredentialDto struct {
 	Name            string                            `json:"name"`
 	CredentialID    string                            `json:"credentialID"`
 	AttestationType string                            `json:"attestationType"`
-	Transport       []protocol.AuthenticatorTransport `json:"transport" swaggertype:"array,string"`
+	Transport       []protocol.AuthenticatorTransport `json:"transport"`
 
 	BackupEligible bool `json:"backupEligible"`
 	BackupState    bool `json:"backupState"`
@@ -19,5 +19,5 @@ type WebauthnCredentialDto struct {
 }
 
 type WebauthnCredentialUpdateDto struct {
-	Name string `json:"name" binding:"required,min=1,max=50"`
+	Name string `json:"name" required:"true" minLength:"1" maxLength:"50"`
 }

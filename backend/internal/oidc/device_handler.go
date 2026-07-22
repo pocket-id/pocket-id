@@ -1,15 +1,17 @@
 package oidc
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
 type deviceHandler struct {
@@ -38,50 +40,38 @@ func (h *deviceHandler) authorizeDevice(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func (h *deviceHandler) verifyDeviceCode(c *gin.Context) {
-	authenticationTime, _ := c.Get("authenticationTime")
-	typedAuthenticationTime, _ := authenticationTime.(time.Time)
-	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
+type deviceCodeInput struct {
+	Code string `query:"code" required:"true"`
+}
 
-	userCode := c.Query("code")
-	if userCode == "" {
-		_ = c.Error(&common.ValidationError{Message: "code is required"})
-		return
+func (h *deviceHandler) verifyDeviceCode(ctx context.Context, input *deviceCodeInput) (*httpapi.EmptyOutput, error) {
+	reauthenticationToken := ""
+	if requestCookie, err := httpapi.Cookie(ctx, cookie.ReauthenticationTokenCookieName); err == nil {
+		reauthenticationToken = requestCookie.Value
 	}
 
 	err := h.deviceService.acceptDeviceCode(
-		c.Request.Context(),
-		userCode,
-		c.GetString("userID"),
-		c.GetString("authenticationMethod"),
-		typedAuthenticationTime,
+		ctx,
+		input.Code,
+		httpapi.UserID(ctx),
+		httpapi.AuthenticationMethod(ctx),
+		httpapi.AuthenticationTime(ctx),
 		reauthenticationToken,
-		requestMetaFromGin(c),
+		requestMetaFromContext(ctx),
 	)
 	if err != nil {
 		if errors.Is(err, fosite.ErrAccessDenied) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You're not allowed to access this service."})
-			return
+			return nil, &common.OidcAccessDeniedError{}
 		}
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-func (h *deviceHandler) deviceCodeInfo(c *gin.Context) {
-	userCode := c.Query("code")
-	if userCode == "" {
-		_ = c.Error(&common.ValidationError{Message: "code is required"})
-		return
-	}
-
-	deviceCodeInfo, err := h.deviceService.getDeviceCodeInfo(c.Request.Context(), userCode, c.GetString("userID"))
+func (h *deviceHandler) deviceCodeInfo(ctx context.Context, input *deviceCodeInput) (*httpapi.BodyOutput[dto.DeviceCodeInfoDto], error) {
+	deviceCodeInfo, err := h.deviceService.getDeviceCodeInfo(ctx, input.Code, httpapi.UserID(ctx))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, deviceCodeInfo)
+	return &httpapi.BodyOutput[dto.DeviceCodeInfoDto]{Body: *deviceCodeInfo}, nil
 }

@@ -5,11 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // JSONDuration is a type that allows marshalling/unmarshalling a Duration
-type JSONDuration struct {
+type JSONDuration struct { //nolint:recvcheck
 	time.Duration
+}
+
+// Schema documents the string and numeric representations accepted by UnmarshalJSON
+func (d JSONDuration) Schema(huma.Registry) *huma.Schema {
+	return &huma.Schema{OneOf: []*huma.Schema{{Type: huma.TypeString}, {Type: huma.TypeNumber}}}
 }
 
 func (d JSONDuration) MarshalJSON() ([]byte, error) {

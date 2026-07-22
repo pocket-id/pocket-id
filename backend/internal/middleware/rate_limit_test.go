@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	"github.com/italypaleale/francis/host/local"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -146,4 +148,34 @@ func TestRateLimitMiddleware(t *testing.T) {
 		r := newRateLimitRouter(t, services, "does-not-exist")
 		require.Equal(t, http.StatusInternalServerError, doRateLimitRequest(t.Context(), r, "203.0.113.6").Code)
 	})
+}
+
+func TestHumaRateLimitMiddleware(t *testing.T) {
+	originalEnvConfig := common.EnvConfig
+	t.Cleanup(func() { common.EnvConfig = originalEnvConfig })
+	common.EnvConfig.AppEnv = common.AppEnvProduction
+	common.EnvConfig.DisableRateLimiting = false
+
+	const policy = "huma-test-limit"
+	services := startRateLimitServices(t, RateLimitPolicy{Name: policy, Rate: 1, Per: time.Hour, Burst: 1})
+	router := gin.New()
+	require.NoError(t, router.SetTrustedProxies(nil))
+	api := httpapi.New(router, router.Group("/"))
+	operation := huma.Operation{OperationID: "huma-rate-limit", Method: http.MethodGet, Path: "/api/rate-limit"}
+	operation.Middlewares = append(operation.Middlewares, NewRateLimitMiddleware(services).Huma(api, policy))
+	httpapi.Register(api, operation, func(context.Context, *struct{}) (*struct{}, error) { return &struct{}{}, nil })
+
+	request := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/rate-limit", nil)
+		req.RemoteAddr = net.JoinHostPort("203.0.113.10", "12345")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		return response
+	}
+
+	require.Equal(t, http.StatusNoContent, request().Code)
+	response := request()
+	require.Equal(t, http.StatusTooManyRequests, response.Code)
+	require.NotEmpty(t, response.Header().Get("Retry-After"))
+	require.JSONEq(t, `{"error":"Too many requests"}`, response.Body.String())
 }

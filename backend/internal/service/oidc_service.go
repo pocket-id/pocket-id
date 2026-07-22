@@ -103,13 +103,13 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 	}
 
 	// As allowedUserGroupsCount is not a column, we need to manually sort it
-	if listRequestOptions.Sort.Column == "allowedUserGroupsCount" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.SortColumn == "allowedUserGroupsCount" && utils.IsValidSortDirection(listRequestOptions.SortDirection) {
 		query = query.Select("oidc_clients.*, COUNT(oidc_clients_allowed_user_groups.oidc_client_id)").
 			Joins("LEFT JOIN oidc_clients_allowed_user_groups ON oidc_clients.id = oidc_clients_allowed_user_groups.oidc_client_id").
 			Group("oidc_clients.id").
-			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + listRequestOptions.Sort.Direction)
+			Order("COUNT(oidc_clients_allowed_user_groups.oidc_client_id) " + listRequestOptions.SortDirection)
 
-		response, err := utils.Paginate(listRequestOptions.Pagination.Page, listRequestOptions.Pagination.Limit, query, &clients)
+		response, err := utils.Paginate(listRequestOptions.Page, listRequestOptions.Limit, query, &clients)
 		return clients, response, err
 	}
 
@@ -208,6 +208,8 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 }
 
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
+	dto.Normalize(input)
+
 	// Base fields
 	client.Name = input.Name
 	client.Description = input.Description
@@ -609,10 +611,10 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 
 	// Handle custom sorting for lastUsedAt column
 	var response utils.PaginationResponse
-	if listRequestOptions.Sort.Column == "lastUsedAt" && utils.IsValidSortDirection(listRequestOptions.Sort.Direction) {
+	if listRequestOptions.SortColumn == "lastUsedAt" && utils.IsValidSortDirection(listRequestOptions.SortDirection) {
 		query = query.
 			Joins("LEFT JOIN user_authorized_oidc_clients ON oidc_clients.id = user_authorized_oidc_clients.client_id AND user_authorized_oidc_clients.user_id = ?", userID).
-			Order("user_authorized_oidc_clients.last_used_at " + listRequestOptions.Sort.Direction + " NULLS LAST")
+			Order("user_authorized_oidc_clients.last_used_at " + listRequestOptions.SortDirection + " NULLS LAST")
 	}
 
 	response, err = utils.PaginateFilterAndSort(listRequestOptions, query, &clients)

@@ -3,8 +3,6 @@ package dto
 import (
 	"reflect"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -67,8 +65,4 @@ loop:
 		val = form.String(val)
 		fv.SetString(val)
 	}
-}
-
-func ShouldBindWithNormalizedJSON(ctx *gin.Context, obj any) error {
-	return ctx.ShouldBindWith(obj, binding.JSON)
 }

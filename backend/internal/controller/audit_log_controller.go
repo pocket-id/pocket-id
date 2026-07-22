@@ -1,145 +1,114 @@
 package controller
 
 import (
+	"context"
 	"net/http"
+
+	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
-
-	"github.com/gin-gonic/gin"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
-// NewAuditLogController creates a new controller for audit log management
-// @Summary Audit log controller
-// @Description Initializes API endpoints for accessing audit logs
-// @Tags Audit Logs
-func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.AuditLogService, authMiddleware *middleware.AuthMiddleware) {
-	alc := AuditLogController{
-		auditLogService: auditLogService,
-	}
+// NewAuditLogController registers audit log routes
+func NewAuditLogController(api huma.API, auditLogService *service.AuditLogService, authMiddleware *middleware.AuthMiddleware) {
+	controller := &AuditLogController{auditLogService: auditLogService}
+	adminAuth := authMiddleware.Huma(api)
+	userAuth := authMiddleware.WithAdminNotRequired().Huma(api)
 
-	group.GET("/audit-logs/all", authMiddleware.Add(), alc.listAllAuditLogsHandler)
-	group.GET("/audit-logs", authMiddleware.WithAdminNotRequired().Add(), alc.listAuditLogsForUserHandler)
-	group.GET("/audit-logs/filters/client-names", authMiddleware.Add(), alc.listClientNamesHandler)
-	group.GET("/audit-logs/filters/users", authMiddleware.Add(), alc.listUserNamesWithIdsHandler)
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-all-audit-logs",
+		Method:      http.MethodGet,
+		Path:        "/api/audit-logs/all",
+		Summary:     "List all audit logs",
+		Tags:        []string{"Audit Logs"},
+	}, controller.listAllAuditLogsHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-current-user-audit-logs",
+		Method:      http.MethodGet,
+		Path:        "/api/audit-logs",
+		Summary:     "List audit logs for the current user",
+		Tags:        []string{"Audit Logs"},
+	}, controller.listAuditLogsForUserHandler, userAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-audit-log-client-names",
+		Method:      http.MethodGet,
+		Path:        "/api/audit-logs/filters/client-names",
+		Summary:     "List client names",
+		Tags:        []string{"Audit Logs"},
+	}, controller.listClientNamesHandler, adminAuth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-audit-log-users",
+		Method:      http.MethodGet,
+		Path:        "/api/audit-logs/filters/users",
+		Summary:     "List users with IDs",
+		Tags:        []string{"Audit Logs"},
+	}, controller.listUserNamesWithIDsHandler, adminAuth)
 }
 
 type AuditLogController struct {
 	auditLogService *service.AuditLogService
 }
 
-// listAuditLogsForUserHandler godoc
-// @Summary List audit logs
-// @Description Get a paginated list of audit logs for the current user
-// @Tags Audit Logs
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.AuditLogDto]
-// @Router /api/audit-logs [get]
-func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	userID := c.GetString("userID")
-
-	// Fetch audit logs for the user
-	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(c.Request.Context(), userID, listRequestOptions)
+func (alc *AuditLogController) listAuditLogsForUserHandler(ctx context.Context, input *httpapi.ListInput) (*httpapi.BodyOutput[dto.Paginated[dto.AuditLogDto]], error) {
+	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(ctx, httpapi.UserID(ctx), input.ListRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
 
-	// Map the audit logs to DTOs
-	var logsDtos []dto.AuditLogDto
-	err = dto.MapStructList(logs, &logsDtos)
+	logsDTOs, err := alc.mapAuditLogs(logs, false)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	// Add device information to the logs
-	for i, logsDto := range logsDtos {
-		logsDto.Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
-		logsDto.ActorUsername = logsDto.Data["actorUsername"]
-		logsDtos[i] = logsDto
-	}
-
-	c.JSON(http.StatusOK, dto.Paginated[dto.AuditLogDto]{
-		Data:       logsDtos,
-		Pagination: pagination,
-	})
+	return &httpapi.BodyOutput[dto.Paginated[dto.AuditLogDto]]{Body: dto.Paginated[dto.AuditLogDto]{Data: logsDTOs, Pagination: pagination}}, nil
 }
 
-// listAllAuditLogsHandler godoc
-// @Summary List all audit logs
-// @Description Get a paginated list of all audit logs (admin only)
-// @Tags Audit Logs
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.AuditLogDto]
-// @Router /api/audit-logs/all [get]
-func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(c.Request.Context(), listRequestOptions)
+func (alc *AuditLogController) listAllAuditLogsHandler(ctx context.Context, input *httpapi.ListInput) (*httpapi.BodyOutput[dto.Paginated[dto.AuditLogDto]], error) {
+	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(ctx, input.ListRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
 
-	var logsDtos []dto.AuditLogDto
-	err = dto.MapStructList(logs, &logsDtos)
+	logsDTOs, err := alc.mapAuditLogs(logs, true)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	for i, logsDto := range logsDtos {
-		logsDto.Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
-		logsDto.Username = logs[i].User.Username
-		logsDto.ActorUsername = logsDto.Data["actorUsername"]
-		logsDtos[i] = logsDto
-	}
-
-	c.JSON(http.StatusOK, dto.Paginated[dto.AuditLogDto]{
-		Data:       logsDtos,
-		Pagination: pagination,
-	})
+	return &httpapi.BodyOutput[dto.Paginated[dto.AuditLogDto]]{Body: dto.Paginated[dto.AuditLogDto]{Data: logsDTOs, Pagination: pagination}}, nil
 }
 
-// listClientNamesHandler godoc
-// @Summary List client names
-// @Description Get a list of all client names for audit log filtering
-// @Tags Audit Logs
-// @Success 200 {array} string "List of client names"
-// @Router /api/audit-logs/filters/client-names [get]
-func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) {
-	names, err := alc.auditLogService.ListClientNames(c.Request.Context())
-	if err != nil {
-		_ = c.Error(err)
-		return
+func (alc *AuditLogController) mapAuditLogs(logs []model.AuditLog, includeUsername bool) ([]dto.AuditLogDto, error) {
+	var logsDTOs []dto.AuditLogDto
+	if err := dto.MapStructList(logs, &logsDTOs); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, names)
+	for i := range logsDTOs {
+		logsDTOs[i].Device = alc.auditLogService.DeviceStringFromUserAgent(logs[i].UserAgent)
+		logsDTOs[i].ActorUsername = logsDTOs[i].Data["actorUsername"]
+		if includeUsername {
+			logsDTOs[i].Username = logs[i].User.Username
+		}
+	}
+	return logsDTOs, nil
 }
 
-// listUserNamesWithIdsHandler godoc
-// @Summary List users with IDs
-// @Description Get a list of all usernames with their IDs for audit log filtering
-// @Tags Audit Logs
-// @Success 200 {object} map[string]string "Map of user IDs to usernames"
-// @Router /api/audit-logs/filters/users [get]
-func (alc *AuditLogController) listUserNamesWithIdsHandler(c *gin.Context) {
-	users, err := alc.auditLogService.ListUsernamesWithIds(c.Request.Context())
+func (alc *AuditLogController) listClientNamesHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[[]string], error) {
+	names, err := alc.auditLogService.ListClientNames(ctx)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
+	return &httpapi.BodyOutput[[]string]{Body: names}, nil
+}
 
-	c.JSON(http.StatusOK, users)
+func (alc *AuditLogController) listUserNamesWithIDsHandler(ctx context.Context, _ *httpapi.EmptyInput) (*httpapi.BodyOutput[map[string]string], error) {
+	users, err := alc.auditLogService.ListUsernamesWithIds(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &httpapi.BodyOutput[map[string]string]{Body: users}, nil
 }

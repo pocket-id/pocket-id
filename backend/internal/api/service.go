@@ -56,8 +56,8 @@ func (s *Service) List(ctx context.Context, search string, listRequestOptions ut
 		Preload("Permissions").
 		Model(&API{})
 
-	if listRequestOptions.Sort.Column == "resource" {
-		listRequestOptions.Sort.Column = "audience"
+	if listRequestOptions.SortColumn == "resource" {
+		listRequestOptions.SortColumn = "audience"
 	}
 
 	if search != "" {

@@ -1,38 +1,110 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 )
 
-// NewUserGroupController creates a new controller for user group management
-// @Summary User group management controller
-// @Description Initializes all user group-related API endpoints
-// @Tags User Groups
-func NewUserGroupController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, appConfigService *appconfig.AppConfigService, userGroupService *service.UserGroupService) {
-	ugc := UserGroupController{
-		appConfigService: appConfigService,
-		UserGroupService: userGroupService,
-	}
+type userGroupListInput struct {
+	utils.ListRequestOptions
+	Search string `query:"search" required:"false"`
+}
 
-	userGroupsGroup := group.Group("/user-groups")
-	userGroupsGroup.Use(authMiddleware.Add())
-	{
-		userGroupsGroup.GET("", ugc.list)
-		userGroupsGroup.GET("/:id", ugc.get)
-		userGroupsGroup.POST("", ugc.create)
-		userGroupsGroup.PUT("/:id", ugc.update)
-		userGroupsGroup.DELETE("/:id", ugc.delete)
-		userGroupsGroup.PUT("/:id/users", ugc.updateUsers)
-		userGroupsGroup.PUT("/:id/allowed-oidc-clients", ugc.updateAllowedOidcClients)
-	}
+type userGroupIDInput struct {
+	ID string `path:"id"`
+}
+
+type userGroupCreateInput struct {
+	Body dto.UserGroupCreateDto
+}
+
+type userGroupUpdateInput struct {
+	ID   string `path:"id"`
+	Body dto.UserGroupCreateDto
+}
+
+type userGroupUsersInput struct {
+	ID   string `path:"id"`
+	Body dto.UserGroupUpdateUsersDto
+}
+
+type userGroupClientsInput struct {
+	ID   string `path:"id"`
+	Body dto.UserGroupUpdateAllowedOidcClientsDto
+}
+
+// NewUserGroupController registers user group management routes
+func NewUserGroupController(api huma.API, authMiddleware *middleware.AuthMiddleware, appConfigService *appconfig.AppConfigService, userGroupService *service.UserGroupService) {
+	controller := &UserGroupController{appConfigService: appConfigService, UserGroupService: userGroupService}
+	auth := authMiddleware.Huma(api)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "list-user-groups",
+		Method:      http.MethodGet,
+		Path:        "/api/user-groups",
+		Summary:     "List user groups",
+		Tags:        []string{"User Groups"},
+	}, controller.list, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "get-user-group",
+		Method:      http.MethodGet,
+		Path:        "/api/user-groups/{id}",
+		Summary:     "Get user group by ID",
+		Tags:        []string{"User Groups"},
+	}, controller.get, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "create-user-group",
+		Method:        http.MethodPost,
+		Path:          "/api/user-groups",
+		Summary:       "Create user group",
+		Tags:          []string{"User Groups"},
+		DefaultStatus: http.StatusCreated,
+	}, controller.create, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-group",
+		Method:      http.MethodPut,
+		Path:        "/api/user-groups/{id}",
+		Summary:     "Update user group",
+		Tags:        []string{"User Groups"},
+	}, controller.update, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID:   "delete-user-group",
+		Method:        http.MethodDelete,
+		Path:          "/api/user-groups/{id}",
+		Summary:       "Delete user group",
+		Tags:          []string{"User Groups"},
+		DefaultStatus: http.StatusNoContent,
+	}, controller.delete, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-group-users",
+		Method:      http.MethodPut,
+		Path:        "/api/user-groups/{id}/users",
+		Summary:     "Update users in a group",
+		Tags:        []string{"User Groups"},
+	}, controller.updateUsers, auth)
+
+	httpapi.Register(api, huma.Operation{
+		OperationID: "update-user-group-allowed-oidc-clients",
+		Method:      http.MethodPut,
+		Path:        "/api/user-groups/{id}/allowed-oidc-clients",
+		Summary:     "Update allowed OIDC clients",
+		Tags:        []string{"User Groups"},
+	}, controller.updateAllowedOIDCClients, auth)
 }
 
 type UserGroupController struct {
@@ -40,227 +112,87 @@ type UserGroupController struct {
 	UserGroupService *service.UserGroupService
 }
 
-// list godoc
-// @Summary List user groups
-// @Description Get a paginated list of user groups with optional search and sorting
-// @Tags User Groups
-// @Param search query string false "Search term to filter user groups by name"
-// @Param pagination[page] query int false "Page number for pagination" default(1)
-// @Param pagination[limit] query int false "Number of items per page" default(20)
-// @Param sort[column] query string false "Column to sort by"
-// @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
-// @Success 200 {object} dto.Paginated[dto.UserGroupMinimalDto]
-// @Router /api/user-groups [get]
-func (ugc *UserGroupController) list(c *gin.Context) {
-	searchTerm := c.Query("search")
-	listRequestOptions := utils.ParseListRequestOptions(c)
-
-	groups, pagination, err := ugc.UserGroupService.List(c, searchTerm, listRequestOptions)
+func (ugc *UserGroupController) list(ctx context.Context, input *userGroupListInput) (*httpapi.BodyOutput[dto.Paginated[dto.UserGroupMinimalDto]], error) {
+	groups, pagination, err := ugc.UserGroupService.List(ctx, input.Search, input.ListRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
 
-	// Map the user groups to DTOs
-	var groupsDto = make([]dto.UserGroupMinimalDto, len(groups))
+	groupsDTO := make([]dto.UserGroupMinimalDto, len(groups))
 	for i, group := range groups {
-		var groupDto dto.UserGroupMinimalDto
-		if err := dto.MapStruct(group, &groupDto); err != nil {
-			_ = c.Error(err)
-			return
+		if err := dto.MapStruct(group, &groupsDTO[i]); err != nil {
+			return nil, err
 		}
-		groupDto.UserCount, err = ugc.UserGroupService.GetUserCountOfGroup(c.Request.Context(), group.ID)
+		groupsDTO[i].UserCount, err = ugc.UserGroupService.GetUserCountOfGroup(ctx, group.ID)
 		if err != nil {
-			_ = c.Error(err)
-			return
+			return nil, err
 		}
-		groupsDto[i] = groupDto
 	}
 
-	c.JSON(http.StatusOK, dto.Paginated[dto.UserGroupMinimalDto]{
-		Data:       groupsDto,
-		Pagination: pagination,
-	})
+	return &httpapi.BodyOutput[dto.Paginated[dto.UserGroupMinimalDto]]{Body: dto.Paginated[dto.UserGroupMinimalDto]{Data: groupsDTO, Pagination: pagination}}, nil
 }
 
-// get godoc
-// @Summary Get user group by ID
-// @Description Retrieve detailed information about a specific user group including its users
-// @Tags User Groups
-// @Accept json
-// @Produce json
-// @Param id path string true "User Group ID"
-// @Success 200 {object} dto.UserGroupDto
-// @Router /api/user-groups/{id} [get]
-func (ugc *UserGroupController) get(c *gin.Context) {
-	group, err := ugc.UserGroupService.Get(c.Request.Context(), c.Param("id"))
+func (ugc *UserGroupController) get(ctx context.Context, input *userGroupIDInput) (*httpapi.BodyOutput[dto.UserGroupDto], error) {
+	group, err := ugc.UserGroupService.Get(ctx, input.ID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var groupDto dto.UserGroupDto
-	if err := dto.MapStruct(group, &groupDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, groupDto)
+	return mapUserGroup(group)
 }
 
-// create godoc
-// @Summary Create user group
-// @Description Create a new user group
-// @Tags User Groups
-// @Accept json
-// @Produce json
-// @Param userGroup body dto.UserGroupCreateDto true "User group information"
-// @Success 201 {object} dto.UserGroupDto "Created user group"
-// @Router /api/user-groups [post]
-func (ugc *UserGroupController) create(c *gin.Context) {
-	var input dto.UserGroupCreateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	group, err := ugc.UserGroupService.Create(c.Request.Context(), input)
+func (ugc *UserGroupController) create(ctx context.Context, input *userGroupCreateInput) (*httpapi.BodyOutput[dto.UserGroupDto], error) {
+	group, err := ugc.UserGroupService.Create(ctx, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var groupDto dto.UserGroupDto
-	if err := dto.MapStruct(group, &groupDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, groupDto)
+	return mapUserGroup(group)
 }
 
-// update godoc
-// @Summary Update user group
-// @Description Update an existing user group by ID
-// @Tags User Groups
-// @Accept json
-// @Produce json
-// @Param id path string true "User Group ID"
-// @Param userGroup body dto.UserGroupCreateDto true "User group information"
-// @Success 200 {object} dto.UserGroupDto "Updated user group"
-// @Router /api/user-groups/{id} [put]
-func (ugc *UserGroupController) update(c *gin.Context) {
-	dbConfig, err := ugc.appConfigService.GetConfig(c.Request.Context())
+func (ugc *UserGroupController) update(ctx context.Context, input *userGroupUpdateInput) (*httpapi.BodyOutput[dto.UserGroupDto], error) {
+	dbConfig, err := ugc.appConfigService.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	var input dto.UserGroupCreateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	group, err := ugc.UserGroupService.Update(c.Request.Context(), dbConfig, c.Param("id"), input)
+	group, err := ugc.UserGroupService.Update(ctx, dbConfig, input.ID, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var groupDto dto.UserGroupDto
-	if err := dto.MapStruct(group, &groupDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, groupDto)
+	return mapUserGroup(group)
 }
 
-// delete godoc
-// @Summary Delete user group
-// @Description Delete a specific user group by ID
-// @Tags User Groups
-// @Accept json
-// @Produce json
-// @Param id path string true "User Group ID"
-// @Success 204 "No Content"
-// @Router /api/user-groups/{id} [delete]
-func (ugc *UserGroupController) delete(c *gin.Context) {
-	dbConfig, err := ugc.appConfigService.GetConfig(c.Request.Context())
+func (ugc *UserGroupController) delete(ctx context.Context, input *userGroupIDInput) (*httpapi.EmptyOutput, error) {
+	dbConfig, err := ugc.appConfigService.GetConfig(ctx)
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return nil, fmt.Errorf("error loading app configuration: %w", err)
 	}
 
-	if err := ugc.UserGroupService.Delete(c.Request.Context(), dbConfig, c.Param("id")); err != nil {
-		_ = c.Error(err)
-		return
+	if err := ugc.UserGroupService.Delete(ctx, dbConfig, input.ID); err != nil {
+		return nil, err
 	}
-
-	c.Status(http.StatusNoContent)
+	return &httpapi.EmptyOutput{}, nil
 }
 
-// updateUsers godoc
-// @Summary Update users in a group
-// @Description Update the list of users belonging to a specific user group
-// @Tags User Groups
-// @Accept json
-// @Produce json
-// @Param id path string true "User Group ID"
-// @Param users body dto.UserGroupUpdateUsersDto true "List of user IDs to assign to this group"
-// @Success 200 {object} dto.UserGroupDto
-// @Router /api/user-groups/{id}/users [put]
-func (ugc *UserGroupController) updateUsers(c *gin.Context) {
-	var input dto.UserGroupUpdateUsersDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	group, err := ugc.UserGroupService.UpdateUsers(c.Request.Context(), c.Param("id"), input.UserIDs)
+func (ugc *UserGroupController) updateUsers(ctx context.Context, input *userGroupUsersInput) (*httpapi.BodyOutput[dto.UserGroupDto], error) {
+	group, err := ugc.UserGroupService.UpdateUsers(ctx, input.ID, input.Body.UserIDs)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
-
-	var groupDto dto.UserGroupDto
-	if err := dto.MapStruct(group, &groupDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusOK, groupDto)
+	return mapUserGroup(group)
 }
 
-// updateAllowedOidcClients godoc
-// @Summary Update allowed OIDC clients
-// @Description Update the OIDC clients allowed for a specific user group
-// @Tags OIDC
-// @Accept json
-// @Produce json
-// @Param id path string true "User Group ID"
-// @Param groups body dto.UserGroupUpdateAllowedOidcClientsDto true "OIDC client IDs to allow"
-// @Success 200 {object} dto.UserGroupDto "Updated user group"
-// @Router /api/user-groups/{id}/allowed-oidc-clients [put]
-func (ugc *UserGroupController) updateAllowedOidcClients(c *gin.Context) {
-	var input dto.UserGroupUpdateAllowedOidcClientsDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	userGroup, err := ugc.UserGroupService.UpdateAllowedOidcClient(c.Request.Context(), c.Param("id"), input)
+func (ugc *UserGroupController) updateAllowedOIDCClients(ctx context.Context, input *userGroupClientsInput) (*httpapi.BodyOutput[dto.UserGroupDto], error) {
+	group, err := ugc.UserGroupService.UpdateAllowedOidcClient(ctx, input.ID, input.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return nil, err
 	}
+	return mapUserGroup(group)
+}
 
-	var userGroupDto dto.UserGroupDto
-	if err := dto.MapStruct(userGroup, &userGroupDto); err != nil {
-		_ = c.Error(err)
-		return
+func mapUserGroup(group any) (*httpapi.BodyOutput[dto.UserGroupDto], error) {
+	var output dto.UserGroupDto
+	if err := dto.MapStruct(group, &output); err != nil {
+		return nil, err
 	}
-
-	c.JSON(http.StatusOK, userGroupDto)
+	return &httpapi.BodyOutput[dto.UserGroupDto]{Body: output}, nil
 }

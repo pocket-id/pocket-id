@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/fsnotify/fsnotify"
 	sloggin "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
@@ -27,11 +28,12 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/controller"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
+	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/systemd"
 )
 
 // This is used to register additional controllers for tests
-var registerTestControllers []func(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services)
+var registerTestControllers []func(api huma.API, db *gorm.DB, svc *services)
 
 func initRouter(db *gorm.DB, svc *services, rateLimitServices map[string]*ratelimit.RateLimitService) (servicerunner.Service, error) {
 	r, err := initEngine()
@@ -143,45 +145,51 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	authMiddleware := middleware.NewAuthMiddleware(svc.apiKeyModule, svc.userService, svc.jwtService)
 	fileSizeLimitMiddleware := middleware.NewFileSizeLimitMiddleware()
 	rateLimitMiddleware := middleware.NewRateLimitMiddleware(rateLimitServices)
-	apiRateLimitMiddleware := rateLimitMiddleware.Add(middleware.RateLimitAPI)
+	baseGroup := r.Group("/", rateLimitMiddleware.Add(middleware.RateLimitAPI))
+	apiGroup := baseGroup.Group("/api")
+	api := httpapi.New(r, baseGroup)
 
-	apiGroup := r.Group("/api", apiRateLimitMiddleware)
-	baseGroup := r.Group("/", apiRateLimitMiddleware)
-
-	svc.apiKeyModule.RegisterRoutes(apiGroup,
-		authMiddleware.WithAdminNotRequired().Add(),
-		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(),
+	svc.apiKeyModule.RegisterRoutes(api,
+		authMiddleware.WithAdminNotRequired().Huma(api),
+		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Huma(api),
 	)
-	svc.webauthnModule.RegisterRoutes(apiGroup,
-		authMiddleware.WithAdminNotRequired().Add(),
-		rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin),
-		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
+	svc.webauthnModule.RegisterRoutes(api,
+		authMiddleware.WithAdminNotRequired().Huma(api),
+		rateLimitMiddleware.Huma(api, middleware.RateLimitWebauthnLogin),
+		rateLimitMiddleware.Huma(api, middleware.RateLimitWebauthnReauthenticate),
 	)
-	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
-	controller.NewUserController(apiGroup, authMiddleware, rateLimitMiddleware, svc.appConfigService, svc.userService, svc.oneTimeAccessService, svc.webauthnModule)
-	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
-	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
-	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
-	controller.NewUserGroupController(apiGroup, authMiddleware, svc.appConfigService, svc.userGroupService)
-	svc.apiModule.RegisterRoutes(apiGroup, authMiddleware.Add())
-	controller.NewCustomClaimController(apiGroup, authMiddleware, svc.customClaimService)
-	controller.NewVersionController(apiGroup, authMiddleware, svc.versionService)
-	controller.NewScimController(apiGroup, authMiddleware, svc.scimService)
-	svc.userSignUpModule.RegisterRoutes(apiGroup,
-		authMiddleware.Add(),
-		rateLimitMiddleware.Add(middleware.RateLimitSignup),
+	controller.NewOidcController(api, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
+	controller.NewUserController(api, authMiddleware, rateLimitMiddleware, svc.userService, svc.oneTimeAccessService, svc.webauthnModule, svc.appConfigService)
+	controller.NewAppConfigController(api, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
+	controller.NewAppImagesController(api, authMiddleware, fileSizeLimitMiddleware, svc.appImagesService)
+	controller.NewAuditLogController(api, svc.auditLogService, authMiddleware)
+	controller.NewUserGroupController(api, authMiddleware, svc.appConfigService, svc.userGroupService)
+	svc.apiModule.RegisterRoutes(api, authMiddleware.Huma(api))
+	controller.NewCustomClaimController(api, authMiddleware, svc.customClaimService)
+	controller.NewVersionController(api, authMiddleware, svc.versionService)
+	controller.NewScimController(api, authMiddleware, svc.scimService)
+	svc.userSignUpModule.RegisterRoutes(api,
+		authMiddleware.Huma(api),
+		rateLimitMiddleware.Huma(api, middleware.RateLimitSignup),
 	)
 
 	optionalBrowserAuth := authMiddleware.WithAdminNotRequired().WithSuccessOptional().WithApiKeyAuthDisabled().Add()
-	browserAuth := authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add()
-	svc.oidcModule.RegisterRoutes(baseGroup, apiGroup, optionalBrowserAuth, browserAuth)
+	svc.oidcModule.RegisterRawRoutes(baseGroup, apiGroup, optionalBrowserAuth, api)
+	svc.oidcModule.RegisterTypedRoutes(api, authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Huma(api))
 
-	registerTestRoutes(apiGroup, db, svc)
+	registerTestRoutes(api, db, svc)
 
-	controller.NewWellKnownController(baseGroup, svc.jwtService)
+	controller.NewWellKnownController(api, svc.jwtService)
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)
+	httpapi.AddRawOperation(api, huma.Operation{
+		OperationID: "healthz",
+		Method:      http.MethodGet,
+		Path:        "/healthz",
+		Summary:     "Health check",
+		Tags:        []string{"Health"},
+	}, http.StatusNoContent)
 
 	// Receives OTLP trace payloads from the browser SPA (POST /internal/telemetry/traces) and forwards them to the collector, when trace export is enabled.
 	// Outside /api, so it's unauthenticated and not traced, but it is rate-limited.
@@ -190,13 +198,13 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	return nil
 }
 
-func registerTestRoutes(apiGroup *gin.RouterGroup, db *gorm.DB, svc *services) {
+func registerTestRoutes(api huma.API, db *gorm.DB, svc *services) {
 	if common.EnvConfig.AppEnv.IsProduction() {
 		return
 	}
 
 	for _, f := range registerTestControllers {
-		f(apiGroup, db, svc)
+		f(api, db, svc)
 	}
 }
 
