@@ -66,8 +66,8 @@ require (
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
-	github.com/ClickHouse/ch-go v0.61.5 // indirect
-	github.com/ClickHouse/clickhouse-go/v2 v2.30.0 // indirect
+	github.com/ClickHouse/ch-go v0.65.0 // indirect
+	github.com/ClickHouse/clickhouse-go/v2 v2.32.0 // indirect
 	github.com/alphadose/haxmap v1.4.1 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
@@ -136,7 +136,7 @@ require (
 	github.com/h2non/filetype v1.1.3 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
-	github.com/hashicorp/go-version v1.6.0 // indirect
+	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -172,7 +172,7 @@ require (
 	github.com/paulmach/orb v0.11.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/pierrec/lz4/v4 v4.1.21 // indirect
+	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect

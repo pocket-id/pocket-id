@@ -200,6 +200,9 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				LogoutCallbackURLs: model.UrlList{"http://tailscale.localhost/auth/logout/callback"},
 				IsGroupRestricted:  true,
 				CreatedByID:        new(users[0].ID),
+				AllowedUserGroups: []model.UserGroup{
+					userGroups[0],
+				},
 			},
 			{
 				Base: model.Base{
@@ -261,6 +264,64 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				return err
 			}
 		}
+
+		farFuture := datatype.DateTime(time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC))
+		oauth2Session := oidc.OAuth2Session{
+			Base: model.Base{
+				ID: "551ab785-c830-47d3-8a07-60c9f3bb4859",
+			},
+			Kind:                 "access_token",
+			Key:                  "cross-database-test-session",
+			RequestID:            "cross-database-test-request",
+			AccessTokenSignature: "",
+			Active:               true,
+			RequestData:          `{"request":"value"}`,
+			ExpiresAt:            &farFuture,
+		}
+		if err := tx.Create(&oauth2Session).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Table("oauth2_jtis").Create(map[string]any{
+			"id":         "bd0c8bf2-66ec-487a-9dd5-7d9d78d73543",
+			"created_at": datatype.DateTime(time.Now()),
+			"jti":        "cross-database-test-jti",
+			"expires_at": farFuture,
+		}).Error; err != nil {
+			return err
+		}
+
+		interactionSession := oidc.InteractionSession{
+			Base: model.Base{
+				ID: "aaf5dd23-cd1f-4748-a2aa-baa6af94d800",
+			},
+			Scopes:          datatype.StringList{"openid"},
+			ClientID:        oidcClients[0].ID,
+			UserID:          new(users[0].ID),
+			ConsentRequired: true,
+			RequestedAt:     farFuture,
+			Parameters: oidc.InteractionSessionParameters{
+				"client_id": oidcClients[0].ID,
+			},
+		}
+		if err := tx.Create(&interactionSession).Error; err != nil {
+			return err
+		}
+
+		reauthenticationToken := webauthn.ReauthenticationToken{
+			Base: model.Base{
+				ID: "71839ace-d978-4e6f-8fb1-b8648a21031b",
+			},
+			Token:     "cross-database-reauthentication-token",
+			ExpiresAt: farFuture,
+			UserID:    users[0].ID,
+		}
+		if err := tx.Create(&reauthenticationToken).Error; err != nil {
+			return err
+		}
+
+		// One-time access tokens (including "one-time-token") are seeded into the actor state store
+		// after this transaction commits, in seedOneTimeAccessTokens.
 
 		userAuthorizedClients := []model.UserAuthorizedOidcClient{
 			{

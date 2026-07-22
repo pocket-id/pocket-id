@@ -1,7 +1,15 @@
 {
 	"provider": "sqlite",
-	"version": 20260708130000,
-	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens", "apis", "api_permissions", "oidc_clients_allowed_api_permissions"],
+	"version": 20260723000000,
+	"tableOrder": [
+		"users",
+		"user_groups",
+		"oidc_clients",
+		"signup_tokens",
+		"apis",
+		"api_permissions",
+		"oidc_clients_allowed_api_permissions"
+	],
 	"tables": {
 		"apis": [
 			{
@@ -230,12 +238,62 @@
 				"user_group_id": "adab18bf-f89d-4087-9ee1-70ff15b48211"
 			},
 			{
+				"oidc_client_id": "7c21a609-96b5-4011-9900-272b8d31a9d1",
+				"user_group_id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368"
+			},
+			{
 				"oidc_client_id": "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
 				"user_group_id": "adab18bf-f89d-4087-9ee1-70ff15b48211"
 			},
 			{
 				"oidc_client_id": "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
 				"user_group_id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368"
+			}
+		],
+		"oauth2_jtis": [
+			{
+				"id": "bd0c8bf2-66ec-487a-9dd5-7d9d78d73543",
+				"created_at": "2026-07-22T12:00:00Z",
+				"jti": "cross-database-test-jti",
+				"expires_at": "2099-01-01T00:00:00Z"
+			}
+		],
+		"oauth2_sessions": [
+			{
+				"id": "551ab785-c830-47d3-8a07-60c9f3bb4859",
+				"created_at": "2026-07-22T12:00:00Z",
+				"kind": "access_token",
+				"key": "cross-database-test-session",
+				"request_id": "cross-database-test-request",
+				"access_token_signature": "",
+				"active": true,
+				"request_data": "eyJyZXF1ZXN0IjoidmFsdWUifQ==",
+				"expires_at": "2099-01-01T00:00:00Z"
+			}
+		],
+		"interaction_sessions": [
+			{
+				"id": "aaf5dd23-cd1f-4748-a2aa-baa6af94d800",
+				"created_at": "2026-07-22T12:00:00Z",
+				"consent_required": true,
+				"reauthentication_required": false,
+				"authentication_required": false,
+				"account_selection_required": false,
+				"scopes": "WyJvcGVuaWQiXQ==",
+				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
+				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
+				"requested_at": "2099-01-01T00:00:00Z",
+				"reauthenticated_at": null,
+				"parameters": "eyJjbGllbnRfaWQiOiIzNjU0YTc0Ni0zNWQ0LTQzMjEtYWM2MS0wYmRjZmYyYjQwNTUifQ=="
+			}
+		],
+		"reauthentication_tokens": [
+			{
+				"id": "71839ace-d978-4e6f-8fb1-b8648a21031b",
+				"created_at": "2026-07-22T12:00:00Z",
+				"token": "cross-database-reauthentication-token",
+				"expires_at": "2099-01-01T00:00:00Z",
+				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			}
 		],
 		"user_authorized_oidc_clients": [

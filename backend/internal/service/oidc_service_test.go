@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -537,4 +538,46 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
 	assert.Empty(t, fetched.Description)
+}
+
+func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	allowedGroup := model.UserGroup{Name: "allowed", FriendlyName: "Allowed"}
+	otherGroup := model.UserGroup{Name: "other", FriendlyName: "Other"}
+	require.NoError(t, db.Create(&allowedGroup).Error)
+	require.NoError(t, db.Create(&otherGroup).Error)
+
+	userWithGroup := model.User{Username: "with-group", UserGroups: []model.UserGroup{allowedGroup}}
+	userWithoutGroup := model.User{Username: "without-group"}
+	require.NoError(t, db.Create(&userWithGroup).Error)
+	require.NoError(t, db.Create(&userWithoutGroup).Error)
+
+	clients := []model.OidcClient{
+		{Name: "Unrestricted", CallbackURLs: model.UrlList{"https://unrestricted.example.com/callback"}},
+		{Name: "Restricted without groups", CallbackURLs: model.UrlList{"https://empty.example.com/callback"}, IsGroupRestricted: true},
+		{Name: "Restricted to user group", CallbackURLs: model.UrlList{"https://allowed.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
+		{Name: "Restricted to other group", CallbackURLs: model.UrlList{"https://other.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{otherGroup}},
+	}
+	for i := range clients {
+		require.NoError(t, db.Create(&clients[i]).Error)
+	}
+
+	groupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithGroup.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"Unrestricted", "Restricted to user group"}, accessibleClientNames(groupClients))
+
+	noGroupClients, _, err := s.ListAccessibleOidcClients(t.Context(), userWithoutGroup.ID, utils.ListRequestOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Unrestricted"}, accessibleClientNames(noGroupClients))
+}
+
+func accessibleClientNames(clients []dto.AccessibleOidcClientDto) []string {
+	names := make([]string, len(clients))
+	for i := range clients {
+		names[i] = clients[i].Name
+	}
+	return names
 }

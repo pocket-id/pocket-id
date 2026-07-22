@@ -11,8 +11,8 @@ import (
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
-// versionBeforeMoveTokens is the migration version right before the "move tokens to actor state" migration.
-const versionBeforeMoveTokens = 20260718000000
+// versionBeforeMoveTokens is the migration version right before the "actor tokens" migration.
+const versionBeforeMoveTokens = 20260722120000
 
 // seedSignupTokensForMigration seeds two signup tokens (one with a user group, one without) into the pre-migration schema.
 func seedSignupTokensForMigration(t *testing.T, db *gorm.DB, createdAt, expiresAt time.Time) {
