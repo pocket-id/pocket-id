@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/google/uuid"
+	"github.com/italypaleale/francis/host/local"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -41,6 +42,7 @@ import (
 
 type TestService struct {
 	db               *gorm.DB
+	actors           *local.Host
 	jwtService       *JwtService
 	appConfigService *appconfig.AppConfigService
 	ldapService      *LdapService
@@ -56,9 +58,10 @@ const (
 	e2eRefreshTokenExpiredFixtureToken = "X4vqwtRyCUaq51UafHea4Fsg8Km6CAns6vp3tuX4"
 )
 
-func NewTestService(db *gorm.DB, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
+func NewTestService(db *gorm.DB, actors *local.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
+		actors:           actors,
 		appConfigService: appConfigService,
 		jwtService:       jwtService,
 		ldapService:      ldapService,
@@ -132,29 +135,6 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		}
 		for _, user := range users {
 			if err := tx.Create(&user).Error; err != nil {
-				return err
-			}
-		}
-
-		oneTimeAccessTokens := []model.OneTimeAccessToken{{
-			Base: model.Base{
-				ID: "bf877753-4ea4-4c9c-bbbd-e198bb201cb8",
-			},
-			Token:     "HPe6k6uiDRRVuAQV",
-			ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
-			UserID:    users[0].ID,
-		},
-			{
-				Base: model.Base{
-					ID: "d3afae24-fe2d-4a98-abec-cf0b8525096a",
-				},
-				Token:     "YCGDtftvsvYWiXd0",
-				ExpiresAt: datatype.DateTime(time.Now().Add(-1 * time.Second)), // expired
-				UserID:    users[0].ID,
-			},
-		}
-		for _, token := range oneTimeAccessTokens {
-			if err := tx.Create(&token).Error; err != nil {
 				return err
 			}
 		}
@@ -340,14 +320,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
-		accessToken := model.OneTimeAccessToken{
-			Token:     "one-time-token",
-			ExpiresAt: datatype.DateTime(time.Now().Add(1 * time.Hour)),
-			UserID:    users[0].ID,
-		}
-		if err := tx.Create(&accessToken).Error; err != nil {
-			return err
-		}
+		// One-time access tokens (including "one-time-token") are seeded into the actor state store
+		// after this transaction commits, in seedOneTimeAccessTokens.
 
 		userAuthorizedClients := []model.UserAuthorizedOidcClient{
 			{
@@ -506,53 +480,6 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		signupTokens := []usersignup.SignupToken{
-			{
-				Base: model.Base{
-					ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-				},
-				Token:      "VALID1234567890A",
-				ExpiresAt:  datatype.DateTime(time.Now().Add(24 * time.Hour)),
-				UsageLimit: 1,
-				UsageCount: 0,
-				UserGroups: []model.UserGroup{
-					userGroups[0],
-				},
-			},
-			{
-				Base: model.Base{
-					ID: "dc3c9c96-714e-48eb-926e-2d7c7858e6cf",
-				},
-				Token:      "PARTIAL567890ABC",
-				ExpiresAt:  datatype.DateTime(time.Now().Add(7 * 24 * time.Hour)),
-				UsageLimit: 5,
-				UsageCount: 2,
-			},
-			{
-				Base: model.Base{
-					ID: "44de1863-ffa5-4db1-9507-4887cd7a1e3f",
-				},
-				Token:      "EXPIRED34567890B",
-				ExpiresAt:  datatype.DateTime(time.Now().Add(-24 * time.Hour)), // Expired
-				UsageLimit: 3,
-				UsageCount: 1,
-			},
-			{
-				Base: model.Base{
-					ID: "f1b1678b-7720-4d8b-8f91-1dbff1e2d02b",
-				},
-				Token:      "FULLYUSED567890C",
-				ExpiresAt:  datatype.DateTime(time.Now().Add(24 * time.Hour)),
-				UsageLimit: 1,
-				UsageCount: 1, // Usage limit reached
-			},
-		}
-		for _, token := range signupTokens {
-			if err := tx.Create(&token).Error; err != nil {
-				return err
-			}
-		}
-
 		emailVerificationTokens := []model.EmailVerificationToken{
 			{
 				Base: model.Base{
@@ -597,6 +524,81 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 
 	if err != nil {
 		return err
+	}
+
+	// One-time access tokens and signup tokens live in the actor state store, so they're seeded separately from the DB transaction above.
+	err = s.seedOneTimeAccessTokens(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to seed one-time access tokens: %w", err)
+	}
+
+	err = s.seedSignupTokens(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to seed signup tokens: %w", err)
+	}
+
+	return nil
+}
+
+// seedSignupTokens seeds the signup tokens used by E2E tests into the signup token singleton actor.
+// The already-expired fixture token is intentionally not seeded, since the actor would purge it right away via its cleanup alarm.
+func (s *TestService) seedSignupTokens(ctx context.Context) error {
+	now := time.Now().Round(time.Second)
+	seeds := []usersignup.SignupTokenSeed{
+		{
+			ID:           "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+			Token:        "VALID1234567890A",
+			ExpiresAt:    now.Add(24 * time.Hour),
+			UsageLimit:   1,
+			UsageCount:   0,
+			UserGroupIDs: []string{"c7ae7c01-28a3-4f3c-9572-1ee734ea8368"},
+			CreatedAt:    now,
+		},
+		{
+			ID:         "dc3c9c96-714e-48eb-926e-2d7c7858e6cf",
+			Token:      "PARTIAL567890ABC",
+			ExpiresAt:  now.Add(7 * 24 * time.Hour),
+			UsageLimit: 5,
+			UsageCount: 2,
+			CreatedAt:  now,
+		},
+		{
+			ID:         "f1b1678b-7720-4d8b-8f91-1dbff1e2d02b",
+			Token:      "FULLYUSED567890C",
+			ExpiresAt:  now.Add(24 * time.Hour),
+			UsageLimit: 1,
+			UsageCount: 1, // Usage limit reached
+			CreatedAt:  now,
+		},
+	}
+
+	return usersignup.SeedSignupTokens(ctx, s.actors, seeds)
+}
+
+// seedOneTimeAccessTokens seeds the one-time access tokens used by E2E tests into the actor state store.
+// Expired tokens are intentionally not seeded: with actor-backed storage an expired token is simply one that has no state, which the exchange flow already reports as invalid/expired.
+func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
+	tokens := []struct {
+		token string
+		ttl   time.Duration
+	}{
+		{token: "HPe6k6uiDRRVuAQV", ttl: time.Hour},
+		{token: "one-time-token", ttl: time.Hour},
+	}
+
+	for _, t := range tokens {
+		state := oneTimeAccessTokenState{
+			UserID:    e2eRefreshTokenUserID,
+			ExpiresAt: time.Now().Add(t.ttl).Round(time.Second),
+		}
+		// Seed through the actor's "restore" method (which sets the state) rather than writing the
+		// state directly: if an actor for this token is still active from a previous test (for
+		// example, one whose token was already consumed), invoking it refreshes its in-memory cache
+		// too, whereas a direct state write would leave that cache stale.
+		_, err := s.actors.Service().Invoke(ctx, OneTimeAccessTokenActorType, t.token, oneTimeAccessTokenMethodRestore, state)
+		if err != nil {
+			return fmt.Errorf("failed to seed one-time access token %q: %w", t.token, err)
+		}
 	}
 
 	return nil
