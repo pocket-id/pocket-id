@@ -285,6 +285,9 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		Disabled:      input.Disabled,
 		UserGroups:    userGroups,
 	}
+	if input.ID != "" {
+		user.ID = input.ID
+	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
 	}
