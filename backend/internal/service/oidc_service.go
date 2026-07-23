@@ -266,7 +266,7 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	return nil
 }
 
-func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string) (string, error) {
+func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, input dto.OidcClientSecretDto) (string, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -281,9 +281,12 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string) (
 		return "", err
 	}
 
-	clientSecret, err := utils.GenerateRandomAlphanumericString(32)
-	if err != nil {
-		return "", err
+	clientSecret := input.Secret
+	if clientSecret == "" {
+		clientSecret, err = utils.GenerateRandomAlphanumericString(32)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	hashedSecret, err := bcrypt.GenerateFromPassword([]byte(clientSecret), bcrypt.DefaultCost)
