@@ -3,15 +3,18 @@ package cmds
 import (
 	"archive/zip"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/italypaleale/francis/clusteradmin"
+	"github.com/italypaleale/francis/components"
 	"github.com/spf13/cobra"
-	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
@@ -38,7 +41,7 @@ func init() {
 
 	importCmd.Flags().StringVarP(&flags.Path, "path", "p", "pocket-id-export.zip", "Path to the ZIP file to import the data from, or '-' to read from stdin")
 	importCmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "Skip confirmation prompts")
-	importCmd.Flags().BoolVarP(&flags.ForcefullyAcquireLock, "forcefully-acquire-lock", "", false, "Forcefully acquire the application lock by terminating the Pocket ID instance")
+	importCmd.Flags().BoolVarP(&flags.ForcefullyAcquireLock, "forcefully-acquire-lock", "", false, "Forcefully acquire exclusive access by terminating any running Pocket ID instance")
 
 	rootCmd.AddCommand(importCmd)
 }
@@ -73,23 +76,50 @@ func runImport(ctx context.Context, flags importFlags) error {
 	}
 	defer zipReader.Close()
 
-	db, _, err := bootstrap.ConnectDatabase(ctx)
+	// Connect to the database without running migrations: the import re-creates the Pocket ID schema itself
+	db, pg, err := bootstrap.ConnectDatabase(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = acquireImportLock(ctx, db, flags.ForcefullyAcquireLock)
+	// The cluster admin talks to the same database as the actor host, so build its provider options the same way the host does
+	var sqliteDB *sql.DB
+	if pg == nil {
+		sqliteDB, err = db.DB()
+		if err != nil {
+			return fmt.Errorf("failed to get sql.DB connection: %w", err)
+		}
+	}
+	providerOpts, err := bootstrap.ActorsProviderOptions(pg, sqliteDB)
 	if err != nil {
 		return err
 	}
 
-	storage, err := bootstrap.InitStorage(ctx, db)
+	// Take exclusive access to the cluster so no Pocket ID replica is running while we overwrite the database
+	release, lost, err := acquireExclusiveAccess(ctx, providerOpts, flags.ForcefullyAcquireLock)
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	// Abort the import if exclusive access is lost partway through (for example if the lease can no longer be renewed)
+	importCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		select {
+		case <-lost:
+			cancel()
+		case <-importCtx.Done():
+		}
+	}()
+
+	storage, err := bootstrap.InitStorage(importCtx, db)
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
 
 	importService := service.NewImportService(db, storage)
-	err = importService.ImportFromZip(ctx, &zipReader.Reader)
+	err = importService.ImportFromZip(importCtx, &zipReader.Reader)
 	if err != nil {
 		return fmt.Errorf("failed to import data from zip: %w", err)
 	}
@@ -98,41 +128,45 @@ func runImport(ctx context.Context, flags importFlags) error {
 	return nil
 }
 
-func acquireImportLock(ctx context.Context, db *gorm.DB, force bool) error {
-	// Check if the kv table exists, in case we are starting from an empty database
-	exists, err := utils.DBTableExists(db, "kv")
+// acquireExclusiveAccess takes an exclusive-access lease on the cluster so the import can safely overwrite the database.
+//
+// It returns a release function that must be called once the import is done, and a channel that is closed if the lease is lost while it is held.
+func acquireExclusiveAccess(ctx context.Context, providerOpts components.ProviderOptions, force bool) (release func(), lost <-chan struct{}, err error) {
+	// New initializes the provider, applying the actor host's schema migrations, so this also works against a brand-new (empty) database
+	admin, err := clusteradmin.New(ctx, providerOpts, clusteradmin.Options{
+		// Match the actor host so the admin waits the right amount of time for hosts to drain
+		HostHealthCheckDeadline: bootstrap.ActorsHostHealthCheckDeadline(common.EnvConfig.HAEnabled),
+		Logger:                  slog.Default(),
+	})
 	if err != nil {
-		return fmt.Errorf("failed to check if kv table exists: %w", err)
-	}
-	if !exists {
-		// This either means the database is empty, or the import is into an old version of PocketID that doesn't support locks
-		// In either case, there's no lock to acquire
-		fmt.Println("Could not acquire a lock because the 'kv' table does not exist. This is fine if you're importing into a new database, but make sure that there isn't an instance of Pocket ID currently running and using the same database.")
-		return nil
+		return nil, nil, fmt.Errorf("failed to create cluster admin: %w", err)
 	}
 
-	// Note that we do not call a deferred Release if the data was imported
-	// This is because we are overriding the contents of the database, so the lock is automatically lost
-	appLockService := service.NewAppLockService(db)
-
-	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	waitUntil, err := appLockService.Acquire(opCtx, force)
-	if errors.Is(err, service.ErrLockUnavailable) {
-		//nolint:staticcheck
-		return errors.New("Pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
-	} else if err != nil {
-		return fmt.Errorf("failed to acquire application lock: %w", err)
+	lost, err = admin.AcquireExclusive(ctx, clusteradmin.AcquireOptions{Force: force})
+	if err != nil {
+		_ = admin.Close()
+		switch {
+		case errors.Is(err, components.ErrHostsConnected):
+			//nolint:staticcheck
+			return nil, nil, errors.New("Pocket ID must be stopped before importing data; please stop the running instance or run with --forcefully-acquire-lock to terminate the other instance")
+		case errors.Is(err, components.ErrExclusiveHeld):
+			return nil, nil, errors.New("another exclusive operation, such as another import, is already in progress; please wait for it to complete and try again")
+		default:
+			return nil, nil, fmt.Errorf("failed to acquire exclusive access: %w", err)
+		}
 	}
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(time.Until(waitUntil)):
+	release = func() {
+		// The import preserves the actor host's "francis_" tables, including the lease row, so the lease must be released explicitly
+		// Detach from ctx so the release still runs even if the import was canceled
+		releaseCtx, cancelRelease := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancelRelease()
+		if rerr := admin.ReleaseExclusive(releaseCtx); rerr != nil {
+			slog.WarnContext(ctx, "Failed to release exclusive access", slog.Any("error", rerr))
+		}
+		_ = admin.Close()
 	}
-
-	return nil
+	return release, lost, nil
 }
 
 func askForConfirmation() (bool, error) {

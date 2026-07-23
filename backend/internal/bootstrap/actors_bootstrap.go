@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/italypaleale/francis/builtin/ratelimit"
+	"github.com/italypaleale/francis/components"
 	"github.com/italypaleale/francis/components/postgres"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,22 +44,34 @@ func NewActors(o NewActorsOpts) (*local.Host, map[string]*ratelimit.RateLimitSer
 		return nil, nil, fmt.Errorf("failed to derive PSK: %w", err)
 	}
 
+	// Derive the cluster host limit from the HA setting
+	// With HA disabled the cluster is capped at a single replica; enabling HA lifts the cap
+	maxHosts := 1
+	if o.EnvConfig.HAEnabled {
+		maxHosts = 0
+	}
+
 	// Options for the host
 	opts := []local.HostOption{
 		local.WithAddress(net.JoinHostPort(o.EnvConfig.ActorsHost, o.EnvConfig.ActorsPort)),
 		local.WithLogger(log.With("scope", "actor-host")),
 		local.WithRuntimePSKs(psk),
 		local.WithShutdownGracePeriod(10 * time.Second),
-		// TODO: Tweak these values once Pocket ID fully supports horizontal scaling.
-		// The relaxed intervals are appropriate for a single active host, but should be
-		// tuned for lower latency and better distribution across a multi-host cluster.
-		local.WithHostHealthCheckDeadline(90 * time.Second),
-		local.WithAlarmsPollInterval(5 * time.Minute),
-		local.WithAlarmsFetchAheadInterval(5 * time.Minute),
+		local.WithMaxHosts(maxHosts),
+		local.WithHostHealthCheckDeadline(ActorsHostHealthCheckDeadline(o.EnvConfig.HAEnabled)),
+	}
+
+	// With a single active host the relaxed alarm intervals reduce database load
+	// When HA is enabled they are dropped so Francis uses its tighter defaults, which distribute alarm work and fail over faster across multiple hosts
+	if !o.EnvConfig.HAEnabled {
+		opts = append(opts,
+			local.WithAlarmsPollInterval(5*time.Minute),
+			local.WithAlarmsFetchAheadInterval(5*time.Minute),
+		)
 	}
 
 	// Add the database connection
-	providerOpt, err := o.getProvider()
+	providerOpt, err := o.getProviderOption()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -98,20 +111,47 @@ func (o *NewActorsOpts) getPSK() ([]byte, error) {
 	return crypto.DeriveKey(o.EnvConfig.EncryptionKey, "pocketid/actors-psk/"+o.InstanceID)
 }
 
-func (o *NewActorsOpts) getProvider() (local.HostOption, error) {
+// nonHAHostHealthCheckDeadline is the relaxed host health-check deadline used when HA is disabled
+// A single active host does not need aggressive health checks, so a longer deadline reduces database load
+const nonHAHostHealthCheckDeadline = 90 * time.Second
+
+// ActorsHostHealthCheckDeadline returns the health-check deadline the actor host uses for the given HA setting
+// The cluster admin used during import must pass the same value so it waits the right amount of time for hosts to drain
+func ActorsHostHealthCheckDeadline(haEnabled bool) time.Duration {
+	if haEnabled {
+		return components.DefaultHostHealthCheckDeadline
+	}
+	return nonHAHostHealthCheckDeadline
+}
+
+// ActorsProviderOptions builds the Francis provider options for the given database handles
+// The actor host and the cluster admin must use the same options so they address the same cluster
+func ActorsProviderOptions(pg *pgxpool.Pool, sqliteDB *sql.DB) (components.ProviderOptions, error) {
 	switch {
-	case o.Postgres != nil && o.SQLite != nil:
+	case pg != nil && sqliteDB != nil:
 		return nil, errors.New("cannot have both Postgres and SQLite connections")
-	case o.Postgres != nil:
-		return local.WithPostgresProvider(postgres.PostgresProviderOptions{
-			DB: o.Postgres,
-		}), nil
-	case o.SQLite != nil:
-		return local.WithSQLiteProvider(local.SQLiteProviderOptions{
-			DB: o.SQLite,
-		}), nil
+	case pg != nil:
+		return postgres.PostgresProviderOptions{DB: pg}, nil
+	case sqliteDB != nil:
+		return local.SQLiteProviderOptions{DB: sqliteDB}, nil
 	default:
 		return nil, errors.New("one of Postgres and SQLite must be set")
+	}
+}
+
+// getProviderOption wraps the shared provider options in the host option the local host expects
+func (o *NewActorsOpts) getProviderOption() (local.HostOption, error) {
+	providerOpts, err := ActorsProviderOptions(o.Postgres, o.SQLite)
+	if err != nil {
+		return nil, err
+	}
+	switch v := providerOpts.(type) {
+	case postgres.PostgresProviderOptions:
+		return local.WithPostgresProvider(v), nil
+	case local.SQLiteProviderOptions:
+		return local.WithSQLiteProvider(v), nil
+	default:
+		return nil, fmt.Errorf("unsupported provider options type: %T", providerOpts)
 	}
 }
 

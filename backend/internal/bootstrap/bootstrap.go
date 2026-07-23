@@ -9,14 +9,15 @@ import (
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
+	"github.com/italypaleale/francis/components"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/italypaleale/go-kit/servicerunner"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/haconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
@@ -43,7 +44,7 @@ func Bootstrap(ctx context.Context) error {
 	}
 	if pg != nil {
 		defer func() {
-			// Close the database connection pool only after the shutdown functions have run: some of them (e.g. releasing the application lock) still need to query the database.
+			// Close the database connection pool only after the shutdown functions have run: some of them (e.g. the actor host deregistering itself from the cluster) still need to query the database.
 			pg.Close()
 		}()
 	}
@@ -53,6 +54,13 @@ func Bootstrap(ctx context.Context) error {
 	instanceID, err := instanceid.Load(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to initialize instance ID: %w", err)
+	}
+
+	// Enforce that the HA mode setting has not changed since the cluster was created
+	// The value is fixed on first startup and stored in the "kv" table; a mismatch means the operator changed it against an existing database, which is unsupported, so we stop here rather than run with an inconsistent configuration
+	err = haconfig.Check(ctx, db, common.EnvConfig.HAEnabled)
+	if err != nil {
+		return err
 	}
 
 	// Init storage
@@ -104,29 +112,8 @@ func Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
-	services = append(services, svc.appLockService.RunRenewal)
-
-	// Acquire the lock from the app lock service
-	waitUntil, err := svc.appLockService.Acquire(ctx, false)
-	if errors.Is(err, service.ErrLockUnavailable) {
-		return errors.New("it appears that there's already one instance of Pocket ID running; running multiple replicas of Pocket ID is currently not supported")
-	} else if err != nil {
-		return fmt.Errorf("failed to acquire application lock: %w", err)
-	}
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(time.Until(waitUntil)):
-	}
-
-	shutdowns.Add(func(shutdownCtx context.Context) error {
-		sErr := svc.appLockService.Release(shutdownCtx)
-		if sErr != nil {
-			return fmt.Errorf("failed to release application lock: %w", sErr)
-		}
-		return nil
-	})
+	// Single-replica enforcement now comes from the actor host itself
+	// With HA disabled it registers with a host limit of 1, so a second replica fails to register and the process exits with ErrClusterFull, which is translated to a friendly message where the services run below
 
 	// Register scheduled jobs, only in non-test mode
 	if common.EnvConfig.AppEnv != "test" {
@@ -151,7 +138,9 @@ func Bootstrap(ctx context.Context) error {
 	// Run all background services
 	// This call blocks until the context is canceled
 	err = servicerunner.NewServiceRunner(services...).Run(ctx)
-	if err != nil {
+	if errors.Is(err, components.ErrClusterFull) {
+		return errors.New("it appears that there's already one instance of Pocket ID running; running multiple replicas requires enabling HA mode, which is not yet supported")
+	} else if err != nil {
 		return fmt.Errorf("failed to run services: %w", err)
 	}
 
