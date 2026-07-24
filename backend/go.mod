@@ -32,6 +32,7 @@ require (
 	github.com/lestrrat-go/httprc/v3 v3.0.5
 	github.com/lestrrat-go/jwx/v3 v3.1.1
 	github.com/lmittmann/tint v1.1.3
+	github.com/maruel/natural v1.3.0
 	github.com/mattn/go-isatty v0.0.22
 	github.com/mileusna/useragent v1.3.5
 	github.com/orandin/slog-gorm v1.4.0
@@ -132,7 +133,6 @@ require (
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/lib/pq v1.12.3 // indirect
-	github.com/maruel/natural v1.3.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.42 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
