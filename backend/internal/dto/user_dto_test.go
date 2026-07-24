@@ -24,6 +24,18 @@ func TestUserCreateDto_Validate(t *testing.T) {
 			wantErr: "",
 		},
 		{
+			name: "with custom id",
+			input: UserCreateDto{
+				ID:          "e8b81981-1c92-46e3-bfbf-07096560e6bb",
+				Username:    "testuser",
+				Email:       new("test@example.com"),
+				FirstName:   "John",
+				LastName:    "Doe",
+				DisplayName: "John Doe",
+			},
+			wantErr: "",
+		},
+		{
 			name: "missing username",
 			input: UserCreateDto{
 				Email:       new("test@example.com"),
