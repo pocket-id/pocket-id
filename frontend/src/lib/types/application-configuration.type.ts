@@ -14,6 +14,7 @@ export type AppConfig = {
 	accentColor: string;
 	requireUserEmail: boolean;
 	tracingEnabled: boolean;
+	cimdEnabled: boolean;
 };
 
 export type AllAppConfig = AppConfig & {
@@ -52,6 +53,9 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeGroupName: string;
 	ldapAdminGroupName: string;
 	ldapSoftDeleteUsers: boolean;
+	// Dynamic clients (e.g. CIMD)
+	cimdUrlAllowlist: string[];
+	dynamicClientRetentionDays: number;
 };
 
 export type AppConfigRawResponse = {

@@ -10,6 +10,7 @@ import (
 	backoff "github.com/cenkalti/backoff/v5"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -19,8 +20,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
-func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) error {
-	jobs := &DbCleanupJobs{db: db}
+func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB, appConfigService *appconfig.AppConfigService) error {
+	jobs := &DbCleanupJobs{db: db, appConfigService: appConfigService}
 
 	newBackOff := func() *backoff.ExponentialBackOff {
 		bo := backoff.NewExponentialBackOff()
@@ -42,11 +43,13 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 		s.RegisterJob(ctx, "ClearInteractionSessions", jobDefWithJitter(24*time.Hour), jobs.clearInteractionSessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearReauthenticationTokens", jobDefWithJitter(24*time.Hour), jobs.clearReauthenticationTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearAuditLogs", jobDefWithJitter(24*time.Hour), jobs.clearAuditLogs, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
+		s.RegisterJob(ctx, "ClearInactiveDynamicClients", jobDefWithJitter(24*time.Hour), jobs.clearInactiveDynamicClients, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 	)
 }
 
 type DbCleanupJobs struct {
-	db *gorm.DB
+	db               *gorm.DB
+	appConfigService *appconfig.AppConfigService
 }
 
 // clearWebauthnSessions deletes expired WebAuthn challenge sessions.
@@ -148,6 +151,36 @@ func (j *DbCleanupJobs) clearAuditLogs(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "Deleted old audit logs", slog.Int64("count", st.RowsAffected))
+
+	return nil
+}
+
+// clearInactiveDynamicClients deletes dynamically registered clients that have
+// been inactive for longer than the configured retention window.
+//
+// For CIMD, the metadata_expires_at column is bumped every time a client's
+// metadata document is resolved, so a value far in the past means the client
+// has been inactive since then.
+//
+// A retention of 0 (or less) disables the cleanup.
+func (j *DbCleanupJobs) clearInactiveDynamicClients(ctx context.Context) error {
+	retention := j.appConfigService.GetDynamicClientRetention()
+	if retention <= 0 {
+		return nil
+	}
+
+	cutoff := time.Now().Add(-retention)
+
+	st := j.db.
+		WithContext(ctx).
+		Where("client_type = ?", model.OidcClientTypeCIMD).
+		Where("metadata_expires_at IS NOT NULL AND metadata_expires_at < ?", datatype.DateTime(cutoff)).
+		Delete(&model.OidcClient{})
+	if st.Error != nil {
+		return fmt.Errorf("failed to delete inactive dynamic clients: %w", st.Error)
+	}
+
+	slog.InfoContext(ctx, "Deleted inactive dynamic clients", slog.Int64("count", st.RowsAffected))
 
 	return nil
 }

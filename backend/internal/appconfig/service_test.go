@@ -342,3 +342,53 @@ func TestService_ListAppConfig(t *testing.T) {
 		assert.Equal(t, "XXXXXXXXXX", got)
 	})
 }
+
+func TestService_CIMDURLAllowlist(t *testing.T) {
+	t.Run("defaults to empty", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		assert.Empty(t, svc.GetCIMDURLAllowlist())
+	})
+
+	t.Run("round-trips a valid allowlist", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+			AppName:          "App",
+			SessionDuration:  "60",
+			CIMDURLAllowlist: `["https://app.example.com/**","https://*.trusted.com/oauth"]`,
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t,
+			[]string{"https://app.example.com/**", "https://*.trusted.com/oauth"},
+			svc.GetCIMDURLAllowlist(),
+		)
+	})
+
+	t.Run("rejects an invalid pattern", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+			AppName:          "App",
+			SessionDuration:  "60",
+			CIMDURLAllowlist: `["javascript:alert(1)"]`,
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("returns empty on malformed value", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		require.NoError(t, svc.UpdateAppConfigValues(t.Context(), "cimdUrlAllowlist", "not-json"))
+		assert.Empty(t, svc.GetCIMDURLAllowlist())
+	})
+}

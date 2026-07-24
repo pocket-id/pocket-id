@@ -97,13 +97,15 @@ func initServices(
 	svc.apiModule = api.New(api.Dependencies{DB: db, Issuer: common.EnvConfig.AppURL})
 
 	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
-		DB:         db,
-		HTTPClient: httpClient,
+		DB:                  db,
+		HTTPClient:          httpClient,
+		GetCIMDURLAllowlist: svc.appConfigService.GetCIMDURLAllowlist,
 		Config: oidc.Config{
 			BaseURL:                   common.EnvConfig.AppURL,
 			TokenBaseURL:              common.EnvConfig.AppURL,
 			Secret:                    common.EnvConfig.EncryptionKey,
 			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
+			CIMDEnabled:               common.EnvConfig.CIMDEnabled,
 		},
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,
@@ -115,7 +117,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create OIDC module: %w", err)
 	}
 
-	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.scimService, httpClient, fileStorage)
+	svc.oidcService, err = service.NewOidcService(db, svc.jwtService, svc.oidcModule.Preview, svc.oidcModule, svc.scimService, httpClient, fileStorage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC service: %w", err)
 	}

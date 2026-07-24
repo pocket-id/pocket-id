@@ -123,6 +123,18 @@ func GetCallbackURLFromList(urls []string, inputCallbackURL string) (callbackURL
 	return "", nil
 }
 
+// MatchesAnyURLPattern reports whether input matches any pattern in the list,
+// using the same wildcard rules as callback URLs. An empty list never matches.
+func MatchesAnyURLPattern(patterns []string, input string) bool {
+	for _, pattern := range patterns {
+		matches, err := matchCallbackURL(pattern, input)
+		if err == nil && matches {
+			return true
+		}
+	}
+	return false
+}
+
 func loopbackURLWithWildcardPort(input string) string {
 	u, _ := url.Parse(input)
 

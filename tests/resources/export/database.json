@@ -87,6 +87,7 @@
 		"oidc_clients": [
 			{
 				"callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
+				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				"credentials": "e30=",
@@ -97,6 +98,7 @@
 				"is_public": false,
 				"launch_url": "https://nextcloud.local",
 				"logout_callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkLmxvY2FsaG9zdC9hdXRoL2xvZ291dC9jYWxsYmFjayJd",
+				"metadata_expires_at": null,
 				"name": "Nextcloud",
 				"description": "This is an example description for Nextcloud",
 				"pkce_enabled": false,
@@ -108,6 +110,7 @@
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vaW1taWNoLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
+				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
 				"credentials": "e30=",
@@ -118,6 +121,7 @@
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "bnVsbA==",
+				"metadata_expires_at": null,
 				"name": "Immich",
 				"description": "",
 				"pkce_enabled": false,
@@ -129,6 +133,7 @@
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
+				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				"credentials": "e30=",
@@ -139,6 +144,7 @@
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlLmxvY2FsaG9zdC9hdXRoL2xvZ291dC9jYWxsYmFjayJd",
+				"metadata_expires_at": null,
 				"name": "Tailscale",
 				"description": "",
 				"pkce_enabled": false,
@@ -150,6 +156,7 @@
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vZmVkZXJhdGVkLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
+				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036",
 				"credentials": "eyJmZWRlcmF0ZWRJZGVudGl0aWVzIjpbeyJpc3N1ZXIiOiJodHRwczovL2V4dGVybmFsLWlkcC5sb2NhbCIsInN1YmplY3QiOiJjNDgyMzJmZi1mZjY1LTQ1ZWQtYWU5Ni03YWZhOGE5YjQ0M2IiLCJhdWRpZW5jZSI6ImFwaTovL1BvY2tldElEIiwiandrcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6MTQxMS9hcGkvZXh0ZXJuYWxpZHAvandrcy5qc29uIn1dfQ==",
@@ -160,6 +167,7 @@
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "bnVsbA==",
+				"metadata_expires_at": null,
 				"name": "Federated",
 				"description": "",
 				"pkce_enabled": false,
@@ -171,6 +179,7 @@
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vc2NpbWNsaWVudC5sb2NhbGhvc3QvYXV0aC9jYWxsYmFjayJd",
+				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				"dark_image_type": null,
@@ -180,6 +189,7 @@
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "bnVsbA==",
+				"metadata_expires_at": null,
 				"name": "SCIM Client",
 				"description": "",
 				"pkce_enabled": false,
@@ -191,6 +201,7 @@
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vcGFyLWNsaWVudC5sb2NhbGhvc3QvYXV0aC9jYWxsYmFjayJd",
+				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				"credentials": "e30=",
@@ -201,6 +212,7 @@
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "bnVsbA==",
+				"metadata_expires_at": null,
 				"name": "PAR Test Client",
 				"description": "",
 				"pkce_enabled": false,
@@ -212,6 +224,7 @@
 			},
 			{
 				"callback_urls": "WyJodHRwOi8vc2tpcC1jb25zZW50LmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
+				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
 				"created_by_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
 				"credentials": "e30=",
@@ -222,6 +235,7 @@
 				"is_public": false,
 				"launch_url": null,
 				"logout_callback_urls": "bnVsbA==",
+				"metadata_expires_at": null,
 				"name": "Skip Consent Client",
 				"description": "",
 				"pkce_enabled": false,

@@ -455,7 +455,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	description := "A test client description"
@@ -480,7 +480,7 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	input := dto.OidcClientCreateDto{
@@ -502,7 +502,7 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 func TestOidcService_UpdateClient_description(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	// Create a client without a description

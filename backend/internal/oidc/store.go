@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/ory/fosite"
@@ -15,6 +17,7 @@ import (
 	fositestorage "github.com/ory/fosite/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -51,6 +54,13 @@ type Store struct {
 	db        *gorm.DB
 	apiAccess APIAccessProvider
 	issuer    string
+
+	httpClient          *http.Client
+	auditLog            AuditLogger
+	cimdEnabled         bool
+	getCIMDURLAllowlist func() []string
+	metadataFetcher     fosite.CIMDFetcher
+	metadataFetcherOnce sync.Once
 }
 
 // WithIssuer sets the issuer that is added as an extra audience to access tokens carrying an identity scope, so they can be presented to Pocket ID's own endpoints such as /userinfo
@@ -58,6 +68,51 @@ type Store struct {
 func (s *Store) WithIssuer(issuer string) *Store {
 	s.issuer = issuer
 	return s
+}
+
+// WithAuditLogger sets the audit logger used to record metadata-document changes.
+func (s *Store) WithAuditLogger(auditLog AuditLogger) *Store {
+	s.auditLog = auditLog
+	return s
+}
+
+// WithCIMDEnabled enables the use of OAuth Client ID Metadata Documents.
+func (s *Store) WithCIMDEnabled(cimdEnabled bool) *Store {
+	s.cimdEnabled = cimdEnabled
+	return s
+}
+
+// WithGetCIMDURLAllowlist sets the provider for the CIMD URL allowlist.
+func (s *Store) WithGetCIMDURLAllowlist(fn func() []string) *Store {
+	s.getCIMDURLAllowlist = fn
+	return s
+}
+
+// WithHTTPClient sets the HTTP client used by OAuth Client ID Metadata Documents.
+func (s *Store) WithHTTPClient(httpClient *http.Client) *Store {
+	s.httpClient = httpClient
+	return s
+}
+
+// cimdFetcher lazily builds the CIMD metadata fetcher on first use. The With* setters
+// run at construction time in any order, so the fetcher is built once here from the
+// configured HTTP client rather than eagerly in a constructor.
+func (s *Store) cimdFetcher() fosite.CIMDFetcher {
+	s.metadataFetcherOnce.Do(func() {
+		if s.metadataFetcher != nil {
+			return
+		}
+		var transport http.RoundTripper
+		if s.httpClient != nil {
+			transport = s.httpClient.Transport
+		}
+		s.metadataFetcher = fosite.NewDefaultCIMDFetcher(
+			fosite.WithCIMDTransport(transport),
+			fosite.WithCIMDUserAgent("pocket-id/oidc-client-metadata-fetcher"),
+			fosite.WithCIMDExtraPrivateRanges(utils.LocalIPv6IPNets()),
+		)
+	})
+	return s.metadataFetcher
 }
 
 type storedRequester struct {
@@ -86,13 +141,23 @@ type storedRequester struct {
 // Satisfies fosite.Storage
 
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
+	if s.cimdEnabled && fosite.LooksLikeCIMDURL(id) {
+		if !s.cimdURLAllowed(id) {
+			return nil, fosite.ErrInvalidClient.WithHint("The client_id is not in the metadata document allowlist.")
+		}
+		client, err := s.resolveMetadataClient(ctx, id, false)
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return nil, fosite.ErrNotFound
+		case err != nil:
+			return nil, fosite.ErrInvalidClient.WithHint("The client metadata document could not be resolved.").WithWrap(err).WithDebug(err.Error())
+		}
+		return Client{OidcClient: client}, nil
+	}
+
 	tx := s.dbFor(ctx)
 
-	var clientModel model.OidcClient
-	err := tx.
-		Preload("AllowedUserGroups").
-		First(&clientModel, "id = ?", id).
-		Error
+	clientModel, err := s.firstClientByID(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fosite.ErrNotFound
 	} else if err != nil {
@@ -113,6 +178,13 @@ func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error)
 	}
 
 	return client, nil
+}
+
+func (s *Store) cimdURLAllowed(id string) bool {
+	if s.getCIMDURLAllowlist == nil {
+		return false
+	}
+	return utils.MatchesAnyURLPattern(s.getCIMDURLAllowlist(), id)
 }
 
 func (s *Store) ClientAssertionJWTValid(ctx context.Context, jti string) error {
@@ -140,6 +212,18 @@ func (s *Store) SetClientAssertionJWT(ctx context.Context, jti string, exp time.
 		return fosite.ErrJTIKnown
 	}
 	return err
+}
+
+func (s *Store) firstClientByID(ctx context.Context, id string) (model.OidcClient, error) {
+	var client model.OidcClient
+	err := s.dbFor(ctx).
+		Preload("AllowedUserGroups").
+		First(&client, "id = ?", id).
+		Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+	return client, nil
 }
 
 // Satisfies fositeoauth2.CoreStorage

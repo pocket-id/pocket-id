@@ -9,6 +9,7 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideInfo } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import AppConfigDynamicClientsForm from './forms/app-config-dynamic-clients-form.svelte';
 	import AppConfigEmailForm from './forms/app-config-email-form.svelte';
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
 	import AppConfigLdapForm from './forms/app-config-ldap-form.svelte';
@@ -110,6 +111,9 @@
 			<Tabs.Trigger value="ldap">
 				{m.ldap()}
 			</Tabs.Trigger>
+			<Tabs.Trigger value="dynamic-clients">
+				{m.dynamic_clients()}
+			</Tabs.Trigger>
 			<Tabs.Trigger value="images">
 				{m.images()}
 			</Tabs.Trigger>
@@ -161,6 +165,18 @@
 			</Card.Header>
 			<Card.Content>
 				<AppConfigLdapForm {appConfig} callback={updateAppConfig} />
+			</Card.Content>
+		</Card.Root>
+	</Tabs.Content>
+
+	<Tabs.Content value="dynamic-clients" id="application-configuration-dynamic-clients">
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.dynamic_clients()}</Card.Title>
+				<Card.Description>{m.configure_dynamic_clients()}</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<AppConfigDynamicClientsForm {appConfig} callback={updateAppConfig} />
 			</Card.Content>
 		</Card.Root>
 	</Tabs.Content>

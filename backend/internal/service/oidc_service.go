@@ -37,10 +37,11 @@ const (
 )
 
 type OidcService struct {
-	db             *gorm.DB
-	jwtService     *JwtService
-	previewBuilder oidcClientPreviewBuilder
-	scimService    *ScimService
+	db                *gorm.DB
+	jwtService        *JwtService
+	previewBuilder    oidcClientPreviewBuilder
+	metadataRefresher metadataRefresher
+	scimService       *ScimService
 
 	httpClient  *http.Client
 	fileStorage storage.FileStorage
@@ -50,21 +51,27 @@ type oidcClientPreviewBuilder interface {
 	BuildClientPreview(ctx context.Context, client model.OidcClient, userID string, scopes []string, authenticationMethod string) (*oidc.ClientPreview, error)
 }
 
+type metadataRefresher interface {
+	RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error)
+}
+
 func NewOidcService(
 	db *gorm.DB,
 	jwtService *JwtService,
 	previewBuilder oidcClientPreviewBuilder,
+	metadataRefresher metadataRefresher,
 	scimService *ScimService,
 	httpClient *http.Client,
 	fileStorage storage.FileStorage,
 ) (s *OidcService, err error) {
 	s = &OidcService{
-		db:             db,
-		jwtService:     jwtService,
-		previewBuilder: previewBuilder,
-		scimService:    scimService,
-		httpClient:     httpClient,
-		fileStorage:    fileStorage,
+		db:                db,
+		jwtService:        jwtService,
+		previewBuilder:    previewBuilder,
+		metadataRefresher: metadataRefresher,
+		scimService:       scimService,
+		httpClient:        httpClient,
+		fileStorage:       fileStorage,
 	}
 
 	return s, nil
@@ -72,6 +79,22 @@ func NewOidcService(
 
 func (s *OidcService) GetClient(ctx context.Context, clientID string) (model.OidcClient, error) {
 	return s.getClientInternal(ctx, clientID, s.db, false)
+}
+
+// RefreshClientMetadata forces a re-fetch of the OAuth Client ID Metadata Document
+// for a CIMD client, bypassing the cache TTL, and returns the refreshed client.
+func (s *OidcService) RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error) {
+	if s.metadataRefresher == nil {
+		return model.OidcClient{}, &common.ValidationError{Message: "client ID metadata documents are not enabled"}
+	}
+	client, err := s.metadataRefresher.RefreshClientMetadata(ctx, clientID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return model.OidcClient{}, err
+		}
+		return model.OidcClient{}, &common.ValidationError{Message: err.Error()}
+	}
+	return client, nil
 }
 
 func (s *OidcService) getClientInternal(ctx context.Context, clientID string, tx *gorm.DB, forUpdate bool) (model.OidcClient, error) {
@@ -616,12 +639,14 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 		}
 		dtos[i] = dto.AccessibleOidcClientDto{
 			OidcClientMetaDataDto: dto.OidcClientMetaDataDto{
-				ID:          client.ID,
-				Name:        client.Name,
-				Description: client.Description,
-				LaunchURL:   client.LaunchURL,
-				HasLogo:     client.HasLogo(),
-				HasDarkLogo: client.HasDarkLogo(),
+				ID:           client.ID,
+				Name:         client.Name,
+				Description:  client.Description,
+				LaunchURL:    client.LaunchURL,
+				HasLogo:      client.HasLogo(),
+				HasDarkLogo:  client.HasDarkLogo(),
+				ClientType:   string(client.ClientType),
+				ClientIdHost: client.ClientIDHost(),
 			},
 			LastUsedAt: lastUsedAt,
 		}

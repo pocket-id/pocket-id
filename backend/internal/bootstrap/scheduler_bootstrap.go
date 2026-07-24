@@ -18,7 +18,7 @@ func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, sche
 	if err != nil {
 		return fmt.Errorf("failed to register GeoLite DB update service: %w", err)
 	}
-	err = scheduler.RegisterDbCleanupJobs(ctx, db)
+	err = scheduler.RegisterDbCleanupJobs(ctx, db, svc.appConfigService)
 	if err != nil {
 		return fmt.Errorf("failed to register DB cleanup jobs in scheduler: %w", err)
 	}

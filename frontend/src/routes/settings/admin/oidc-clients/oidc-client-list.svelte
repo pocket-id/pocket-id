@@ -11,8 +11,9 @@
 	} from '$lib/types/advanced-table.type';
 	import type { OidcClient, OidcClientWithAllowedUserGroupsCount } from '$lib/types/oidc.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
+	import { encodeClientIdParam } from '$lib/utils/client-id-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
-	import { LucidePencil, LucideTrash } from '@lucide/svelte';
+	import { LucidePencil, LucideRefreshCcw, LucideTrash } from '@lucide/svelte';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -30,6 +31,11 @@
 		{ label: m.no(), value: false }
 	];
 
+	const clientTypeFilterValues = [
+		{ label: m.client_type_standard(), value: 'standard' },
+		{ label: m.client_type_metadata_document(), value: 'cimd' }
+	];
+
 	const columns: AdvancedTableColumn<OidcClientWithAllowedUserGroupsCount>[] = [
 		{ label: 'ID', column: 'id', hidden: true },
 		{ label: m.logo(), key: 'logo', cell: LogoCell },
@@ -45,6 +51,14 @@
 			column: 'isGroupRestricted',
 			sortable: true,
 			filterableValues: booleanFilterValues
+		},
+		{
+			label: m.client_type(),
+			column: 'clientType',
+			sortable: true,
+			filterableValues: clientTypeFilterValues,
+			value: (item) =>
+				item.clientType === 'cimd' ? m.client_type_metadata_document() : m.client_type_standard()
 		},
 		{
 			label: m.pkce(),
@@ -79,12 +93,18 @@
 		}
 	];
 
-	const actions: CreateAdvancedTableActions<OidcClientWithAllowedUserGroupsCount> = (_) => [
+	const actions: CreateAdvancedTableActions<OidcClientWithAllowedUserGroupsCount> = (client) => [
 		{
 			label: m.edit(),
 			primary: true,
 			icon: LucidePencil,
-			onClick: (client) => goto(`/settings/admin/oidc-clients/${client.id}`)
+			onClick: (client) => goto(`/settings/admin/oidc-clients/${encodeClientIdParam(client.id)}`)
+		},
+		{
+			label: m.refresh(),
+			icon: LucideRefreshCcw,
+			hidden: client.clientType !== 'cimd',
+			onClick: (client) => refreshClient(client)
 		},
 		{
 			label: m.delete(),
@@ -93,6 +113,16 @@
 			onClick: (client) => deleteClient(client)
 		}
 	];
+
+	async function refreshClient(client: OidcClient) {
+		try {
+			await oidcService.refreshClient(client.id);
+			await refresh();
+			toast.success(m.oidc_client_metadata_refreshed_successfully());
+		} catch (e) {
+			axiosErrorToast(e);
+		}
+	}
 
 	async function deleteClient(client: OidcClient) {
 		openConfirmDialog({

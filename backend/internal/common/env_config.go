@@ -57,6 +57,7 @@ type EnvConfigSchema struct {
 	DisableRateLimiting       bool             `env:"DISABLE_RATE_LIMITING"`
 	VersionCheckDisabled      bool             `env:"VERSION_CHECK_DISABLED"`
 	StaticApiKey              string           `env:"STATIC_API_KEY" options:"file"`
+	CIMDEnabled               bool             `env:"CIMD_ENABLED"`
 
 	FileBackend                     string `env:"FILE_BACKEND" options:"toLower"`
 	UploadPath                      string `env:"UPLOAD_PATH"`
