@@ -23,6 +23,7 @@ type UserDto struct {
 }
 
 type UserCreateDto struct {
+	ID            string   `json:"id" binding:"omitempty,uuid"`
 	Username      string   `json:"username" binding:"required,username,min=1,max=50" unorm:"nfc"`
 	Email         *string  `json:"email" binding:"omitempty,email" unorm:"nfc"`
 	EmailVerified bool     `json:"emailVerified"`
