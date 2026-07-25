@@ -320,8 +320,6 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
-		// One-time access tokens (including "one-time-token") are seeded into the actor state store
-		// after this transaction commits, in seedOneTimeAccessTokens.
 
 		userAuthorizedClients := []model.UserAuthorizedOidcClient{
 			{
