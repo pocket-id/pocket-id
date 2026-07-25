@@ -99,7 +99,7 @@ func initOtelLogging(ctx context.Context, resource *resource.Resource) (shutdown
 			Level: level,
 		})
 	} else {
-		handler = tint.NewHandler(os.Stdout, &tint.Options{
+		handler = tint.NewTextHandler(os.Stdout, &tint.Options{
 			TimeFormat: time.Stamp,
 			Level:      level,
 			NoColor:    !isatty.IsTerminal(os.Stdout.Fd()),
