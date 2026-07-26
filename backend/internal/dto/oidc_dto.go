@@ -62,6 +62,10 @@ type OidcClientCreateDto struct {
 	ID string `json:"id" required:"false" minLength:"2" maxLength:"128" pattern:"^[a-zA-Z0-9._-]+$" patternDescription:"letters, numbers, dots, underscores, and hyphens"`
 }
 
+type OidcClientSecretDto struct {
+	Secret string `json:"secret" required:"false" minLength:"16" pattern:"^[\\x20-\\x7E]+$" patternDescription:"printable ASCII characters" binding:"omitempty,min=16,printascii"`
+}
+
 type OidcClientCredentialsDto struct {
 	FederatedIdentities []OidcClientFederatedIdentityDto `json:"federatedIdentities,omitempty"`
 }

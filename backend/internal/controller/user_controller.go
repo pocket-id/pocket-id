@@ -10,19 +10,14 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-
-	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 	httpapi "github.com/pocket-id/pocket-id/backend/internal/utils/huma"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
-
-const defaultOneTimeAccessTokenDuration = 15 * time.Minute
 
 type userListInput struct {
 	utils.ListRequestOptions
@@ -65,35 +60,8 @@ type currentUserPictureUploadInput struct {
 	RawBody huma.MultipartFormFiles[userPictureUploadForm]
 }
 
-type oneTimeAccessOwnInput struct {
-	Body dto.OneTimeAccessTokenCreateDto
-}
-
-type oneTimeAccessAdminInput struct {
-	ID   string `path:"id"`
-	Body dto.OneTimeAccessTokenCreateDto
-}
-
-type oneTimeAccessEmailAdminInput struct {
-	ID   string `path:"id"`
-	Body dto.OneTimeAccessEmailAsAdminDto
-}
-
-type oneTimeAccessEmailInput struct {
-	Body dto.OneTimeAccessEmailAsUnauthenticatedUserDto
-}
-
-type oneTimeAccessExchangeInput struct {
-	Token string `path:"token"`
-}
-
 type emailVerificationInput struct {
 	Body dto.EmailVerificationDto
-}
-
-type userCookieOutput struct {
-	SetCookie []http.Cookie `header:"Set-Cookie"`
-	Body      dto.UserDto
 }
 
 type userPictureOutput struct {
@@ -104,8 +72,8 @@ type userPictureOutput struct {
 }
 
 // NewUserController registers user management endpoints
-func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module, appConfigService *appconfig.AppConfigService) {
-	controller := &UserController{userService: userService, oneTimeAccessService: oneTimeAccessService, webAuthnService: webAuthnService, appConfigService: appConfigService}
+func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
+	controller := &UserController{appConfigService: appConfigService, userService: userService, webAuthnService: webAuthnService}
 	adminAuth := authMiddleware.Huma(api)
 	userAuth := authMiddleware.WithAdminNotRequired().Huma(api)
 
@@ -227,50 +195,6 @@ func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, 
 	}, controller.updateCurrentUserProfilePictureHandler, userAuth)
 
 	httpapi.Register(api, huma.Operation{
-		OperationID:   "create-own-one-time-access-token",
-		Method:        http.MethodPost,
-		Path:          "/api/users/me/one-time-access-token",
-		Summary:       "Create one-time access token for current user",
-		Tags:          []string{"Users"},
-		DefaultStatus: http.StatusCreated,
-	}, controller.createOwnOneTimeAccessTokenHandler, userAuth)
-
-	httpapi.Register(api, huma.Operation{
-		OperationID:   "create-user-one-time-access-token",
-		Method:        http.MethodPost,
-		Path:          "/api/users/{id}/one-time-access-token",
-		Summary:       "Create one-time access token for user",
-		Tags:          []string{"Users"},
-		DefaultStatus: http.StatusCreated,
-	}, controller.createAdminOneTimeAccessTokenHandler, adminAuth)
-
-	httpapi.Register(api, huma.Operation{
-		OperationID:   "request-user-one-time-access-email",
-		Method:        http.MethodPost,
-		Path:          "/api/users/{id}/one-time-access-email",
-		Summary:       "Request one-time access email for user",
-		Tags:          []string{"Users"},
-		DefaultStatus: http.StatusNoContent,
-	}, controller.requestOneTimeAccessEmailAsAdminHandler, adminAuth)
-
-	httpapi.Register(api, huma.Operation{
-		OperationID: "exchange-one-time-access-token",
-		Method:      http.MethodPost,
-		Path:        "/api/one-time-access-token/{token}",
-		Summary:     "Exchange one-time access token",
-		Tags:        []string{"Users"},
-	}, controller.exchangeOneTimeAccessTokenHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessToken)))
-
-	httpapi.Register(api, huma.Operation{
-		OperationID:   "request-one-time-access-email",
-		Method:        http.MethodPost,
-		Path:          "/api/one-time-access-email",
-		Summary:       "Request one-time access email",
-		Tags:          []string{"Users"},
-		DefaultStatus: http.StatusNoContent,
-	}, controller.requestOneTimeAccessEmailAsUnauthenticatedUserHandler, httpapi.WithMiddleware(rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessEmail)))
-
-	httpapi.Register(api, huma.Operation{
 		OperationID:   "reset-user-profile-picture",
 		Method:        http.MethodDelete,
 		Path:          "/api/users/{id}/profile-picture",
@@ -308,10 +232,9 @@ func NewUserController(api huma.API, authMiddleware *middleware.AuthMiddleware, 
 }
 
 type UserController struct {
-	appConfigService     *appconfig.AppConfigService
-	userService          *service.UserService
-	oneTimeAccessService *service.OneTimeAccessService
-	webAuthnService      *webauthn.Module
+	appConfigService *appconfig.AppConfigService
+	userService      *service.UserService
+	webAuthnService  *webauthn.Module
 }
 
 func (uc *UserController) getUserGroupsHandler(ctx context.Context, input *userIDInput) (*httpapi.BodyOutput[[]dto.UserGroupDto], error) {
@@ -460,83 +383,6 @@ func (uc *UserController) updateProfilePicture(ctx context.Context, userID strin
 	return &httpapi.EmptyOutput{}, nil
 }
 
-func (uc *UserController) createOwnOneTimeAccessTokenHandler(ctx context.Context, _ *oneTimeAccessOwnInput) (*httpapi.BodyOutput[map[string]string], error) {
-	return uc.createOneTimeAccessToken(ctx, httpapi.UserID(ctx), defaultOneTimeAccessTokenDuration)
-}
-
-func (uc *UserController) createAdminOneTimeAccessTokenHandler(ctx context.Context, input *oneTimeAccessAdminInput) (*httpapi.BodyOutput[map[string]string], error) {
-	ttl := input.Body.TTL.Duration
-	if ttl <= 0 {
-		ttl = defaultOneTimeAccessTokenDuration
-	}
-	return uc.createOneTimeAccessToken(ctx, input.ID, ttl)
-}
-
-func (uc *UserController) createOneTimeAccessToken(ctx context.Context, userID string, ttl time.Duration) (*httpapi.BodyOutput[map[string]string], error) {
-	if userID == "" {
-		return nil, &common.UserIdNotProvidedError{}
-	}
-	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(ctx, userID, ttl)
-	if err != nil {
-		return nil, err
-	}
-	return &httpapi.BodyOutput[map[string]string]{Body: map[string]string{"token": token}}, nil
-}
-
-func (uc *UserController) requestOneTimeAccessEmailAsUnauthenticatedUserHandler(ctx context.Context, input *oneTimeAccessEmailInput) (*emptyOutputWithCookie, error) {
-	dbConfig, err := uc.appConfigService.GetConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
-	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(ctx, dbConfig, input.Body.Email, input.Body.RedirectPath)
-	if err != nil {
-		return nil, err
-	}
-	return &emptyOutputWithCookie{SetCookie: []http.Cookie{*cookie.NewDeviceTokenCookie(deviceToken)}}, nil
-}
-
-func (uc *UserController) requestOneTimeAccessEmailAsAdminHandler(ctx context.Context, input *oneTimeAccessEmailAdminInput) (*httpapi.EmptyOutput, error) {
-	dbConfig, err := uc.appConfigService.GetConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
-	ttl := input.Body.TTL.Duration
-	if ttl <= 0 {
-		ttl = defaultOneTimeAccessTokenDuration
-	}
-	if err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(ctx, dbConfig, input.ID, ttl); err != nil {
-		return nil, err
-	}
-	return &httpapi.EmptyOutput{}, nil
-}
-
-func (uc *UserController) exchangeOneTimeAccessTokenHandler(ctx context.Context, input *oneTimeAccessExchangeInput) (*userCookieOutput, error) {
-	dbConfig, err := uc.appConfigService.GetConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error loading app configuration: %w", err)
-	}
-
-	if len(input.Token) != 6 && len(input.Token) != 16 {
-		return nil, &common.TokenInvalidOrExpiredError{}
-	}
-	deviceToken := ""
-	if requestCookie, err := httpapi.Cookie(ctx, cookie.DeviceTokenCookieName); err == nil {
-		deviceToken = requestCookie.Value
-	}
-	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(ctx, dbConfig, input.Token, deviceToken, httpapi.ClientIP(ctx), httpapi.UserAgent(ctx))
-	if err != nil {
-		return nil, err
-	}
-	var output dto.UserDto
-	if err := dto.MapStruct(user, &output); err != nil {
-		return nil, err
-	}
-	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
-	return &userCookieOutput{SetCookie: []http.Cookie{*cookie.NewAccessTokenCookie(maxAge, token)}, Body: output}, nil
-}
-
 func (uc *UserController) updateUserGroups(ctx context.Context, input *userGroupsInput) (*httpapi.BodyOutput[dto.UserDto], error) {
 	user, err := uc.userService.UpdateUserGroups(ctx, input.ID, input.Body.UserGroupIds)
 	if err != nil {
@@ -576,10 +422,6 @@ func (uc *UserController) verifyEmailHandler(ctx context.Context, input *emailVe
 		return nil, err
 	}
 	return &httpapi.EmptyOutput{}, nil
-}
-
-type emptyOutputWithCookie struct {
-	SetCookie []http.Cookie `header:"Set-Cookie"`
 }
 
 func mapUser(user model.User) (*httpapi.BodyOutput[dto.UserDto], error) {

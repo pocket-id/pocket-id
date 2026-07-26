@@ -25,6 +25,7 @@ type UserDto struct {
 }
 
 type UserCreateDto struct {
+	ID            string   `json:"id" required:"false" format:"uuid"`
 	Username      string   `json:"username" required:"true" minLength:"1" maxLength:"50" pattern:"^[a-zA-Z0-9]([a-zA-Z0-9_.@-]*[a-zA-Z0-9])?$" patternDescription:"letters, numbers, underscores, dots, hyphens, and @ symbols without leading or trailing special characters" unorm:"nfc"`
 	Email         *string  `json:"email" required:"false" format:"email" unorm:"nfc"`
 	EmailVerified bool     `json:"emailVerified" required:"false"`

@@ -23,6 +23,11 @@ type oidcClientIDInput struct {
 	ID string `path:"id"`
 }
 
+type oidcClientSecretInput struct {
+	ID   string                   `path:"id"`
+	Body *dto.OidcClientSecretDto `required:"false"`
+}
+
 type oidcClientListInput struct {
 	utils.ListRequestOptions
 	Search string `query:"search" required:"false"`
@@ -294,8 +299,12 @@ func (oc *OidcController) updateClientHandler(ctx context.Context, input *oidcCl
 	return mapOIDCClient(client)
 }
 
-func (oc *OidcController) createClientSecretHandler(ctx context.Context, input *oidcClientIDInput) (*httpapi.BodyOutput[map[string]string], error) {
-	secret, err := oc.oidcService.CreateClientSecret(ctx, input.ID)
+func (oc *OidcController) createClientSecretHandler(ctx context.Context, input *oidcClientSecretInput) (*httpapi.BodyOutput[map[string]string], error) {
+	body := dto.OidcClientSecretDto{}
+	if input.Body != nil {
+		body = *input.Body
+	}
+	secret, err := oc.oidcService.CreateClientSecret(ctx, input.ID, body)
 	if err != nil {
 		return nil, err
 	}

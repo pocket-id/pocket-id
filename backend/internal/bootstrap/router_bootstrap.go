@@ -159,7 +159,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 		rateLimitMiddleware.Huma(api, middleware.RateLimitWebauthnReauthenticate),
 	)
 	controller.NewOidcController(api, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
-	controller.NewUserController(api, authMiddleware, rateLimitMiddleware, svc.userService, svc.oneTimeAccessService, svc.webauthnModule, svc.appConfigService)
+	controller.NewUserController(api, authMiddleware, rateLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
 	controller.NewAppConfigController(api, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
 	controller.NewAppImagesController(api, authMiddleware, fileSizeLimitMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(api, svc.auditLogService, authMiddleware)
@@ -171,6 +171,12 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	svc.userSignUpModule.RegisterRoutes(api,
 		authMiddleware.Huma(api),
 		rateLimitMiddleware.Huma(api, middleware.RateLimitSignup),
+	)
+	svc.oneTimeAccessModule.RegisterRoutes(api,
+		authMiddleware.Huma(api),
+		authMiddleware.WithAdminNotRequired().Huma(api),
+		rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessToken),
+		rateLimitMiddleware.Huma(api, middleware.RateLimitOneTimeAccessEmail),
 	)
 
 	optionalBrowserAuth := authMiddleware.WithAdminNotRequired().WithSuccessOptional().WithApiKeyAuthDisabled().Add()

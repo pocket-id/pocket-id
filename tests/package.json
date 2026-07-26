@@ -15,6 +15,6 @@
 		"prettier": "^3.8.3"
 	},
 	"dependencies": {
-		"adm-zip": "^0.5.17"
+		"adm-zip": "^0.6.0"
 	}
 }

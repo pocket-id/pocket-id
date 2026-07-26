@@ -2,10 +2,12 @@ package usersignup
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
@@ -32,7 +34,8 @@ type AppConfigResolver interface {
 }
 
 type Dependencies struct {
-	DB *gorm.DB
+	DB     *gorm.DB
+	Actors *local.Host
 
 	Signer      TokenService
 	AuditLog    AuditLogger
@@ -45,12 +48,32 @@ type Module struct {
 	handler *handler
 }
 
-func New(deps Dependencies) *Module {
-	service := newService(deps)
+func New(deps Dependencies) (*Module, error) {
+	// Register the actor that manages a signup token
+	// Each token is its own actor, whose actor ID is the token's value
+	err := deps.Actors.RegisterActor(SignupTokenActorType, NewSignupTokenActor)
+	if err != nil {
+		return nil, fmt.Errorf("error registering the %s actor: %w", SignupTokenActorType, err)
+	}
+
+	service := newService(deps, deps.Actors.Service())
 	return &Module{
 		service: service,
 		handler: newHandler(service, deps.AppConfig),
+	}, nil
+}
+
+// RunSignupTokenMigration performs the one-time migration of the pre-actor signup tokens, then blocks until the context is canceled.
+// It's meant to be started as a background service gated on the actor host being ready, since the migration needs the actor state store.
+// Note that it must not return before the context is canceled, as the service runner stops the application as soon as any of its services returns.
+func (m *Module) RunSignupTokenMigration(ctx context.Context) error {
+	err := m.service.migrateSignupTokens(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to migrate signup tokens: %w", err)
 	}
+
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 // RegisterRoutes mounts the signup and signup-token management endpoints
