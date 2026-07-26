@@ -43,6 +43,11 @@ func runExport(ctx context.Context, flags exportFlags) error {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
 
+	// Close filesystem storage handles before the command exits
+	defer func() {
+		_ = storage.Close()
+	}()
+
 	exportService := service.NewExportService(db, storage)
 
 	var w io.Writer

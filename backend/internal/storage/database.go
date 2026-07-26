@@ -35,6 +35,10 @@ func (s *databaseStorage) Type() string {
 	return TypeDatabase
 }
 
+func (s *databaseStorage) Close() error {
+	return nil
+}
+
 func (s *databaseStorage) Save(ctx context.Context, relativePath string, data io.Reader) error {
 	// Normalize the path
 	relativePath = filepath.ToSlash(filepath.Clean(relativePath))
