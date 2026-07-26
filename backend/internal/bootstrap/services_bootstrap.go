@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
+	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
@@ -21,29 +22,29 @@ import (
 )
 
 type services struct {
-	appConfigService     *appconfig.AppConfigService
-	appImagesService     *service.AppImagesService
-	emailService         *service.EmailService
-	geoLiteService       *service.GeoLiteService
-	auditLogService      *service.AuditLogService
-	jwtService           *service.JwtService
-	scimService          *service.ScimService
-	userService          *service.UserService
-	customClaimService   *service.CustomClaimService
-	oidcService          *service.OidcService
-	userGroupService     *service.UserGroupService
-	ldapService          *service.LdapService
-	versionService       *service.VersionService
-	fileStorage          storage.FileStorage
-	appLockService       *service.AppLockService
-	oneTimeAccessService *service.OneTimeAccessService
+	appConfigService   *appconfig.AppConfigService
+	appImagesService   *service.AppImagesService
+	emailService       *service.EmailService
+	geoLiteService     *service.GeoLiteService
+	auditLogService    *service.AuditLogService
+	jwtService         *service.JwtService
+	scimService        *service.ScimService
+	userService        *service.UserService
+	customClaimService *service.CustomClaimService
+	oidcService        *service.OidcService
+	userGroupService   *service.UserGroupService
+	ldapService        *service.LdapService
+	versionService     *service.VersionService
+	fileStorage        storage.FileStorage
+	appLockService     *service.AppLockService
 
-	apiKeyModule     *apikey.Module
-	oidcModule       *oidc.Module
-	webauthnModule   *webauthn.Module
-	userSignUpModule *usersignup.Module
-	apiModule        *api.Module
-	actors           *local.Host
+	apiKeyModule        *apikey.Module
+	oidcModule          *oidc.Module
+	webauthnModule      *webauthn.Module
+	userSignUpModule    *usersignup.Module
+	oneTimeAccessModule *onetimeaccess.Module
+	apiModule           *api.Module
+	actors              *local.Host
 }
 
 // Initializes all services
@@ -135,7 +136,7 @@ func initServices(
 		return nil, fmt.Errorf("failed to create API key module: %w", err)
 	}
 
-	svc.userSignUpModule, err = usersignup.New(ctx, usersignup.Dependencies{
+	svc.userSignUpModule, err = usersignup.New(usersignup.Dependencies{
 		DB:          db,
 		Actors:      actors,
 		Signer:      svc.jwtService,
@@ -147,9 +148,17 @@ func initServices(
 		return nil, fmt.Errorf("failed to create user signup module: %w", err)
 	}
 
-	svc.oneTimeAccessService, err = service.NewOneTimeAccessService(actors, db, svc.userService, svc.jwtService, svc.auditLogService, svc.emailService)
+	svc.oneTimeAccessModule, err = onetimeaccess.New(onetimeaccess.Dependencies{
+		DB:           db,
+		Actors:       actors,
+		Signer:       svc.jwtService,
+		AuditLog:     svc.auditLogService,
+		UserProvider: svc.userService,
+		EmailSender:  service.NewOneTimeAccessEmailSender(svc.emailService),
+		AppConfig:    svc.appConfigService,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create one-time access service: %w", err)
+		return nil, fmt.Errorf("failed to create one-time access module: %w", err)
 	}
 
 	svc.versionService = service.NewVersionService(httpClient)

@@ -12,123 +12,62 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
-// Signup tokens are stored in a single singleton actor that holds all of them in its state.
-// The actor keeps a single alarm scheduled for the moment the earliest-expiring token expires. When that alarm fires, the actor purges every expired token and, if any tokens remain, reschedules the alarm for the next earliest expiration.
-// Because it's a singleton, read-only operations (such as listing tokens) are served via Peek, while mutations (create, delete, consume, release) go through Invoke.
-//
-// Consuming a token must happen outside of a DB transaction (invoking an actor while a transaction is open would deadlock on SQLite): the caller invokes the actor to atomically increment the usage count, performs the rest of its work in a transaction, and, on failure, compensates by invoking the actor again to decrement the usage count (best-effort).
+// Signup tokens are stored entirely in the actor state store.
+// Each token is its own actor, whose actor ID is the token value itself.
+// The state is persisted with a TTL equal to the token's lifetime, so it's purged automatically when the token expires (there's no separate cleanup job and no expiration alarm).
+// Listing tokens uses ListStates, which only returns states that haven't expired yet.
 
-// SignupTokenActorType is the actor type for the signup token singleton actor
+// SignupTokenActorType is the actor type for the signup token actor
 const SignupTokenActorType = "SignupToken"
 
-// cleanupAlarmName is the name of the alarm used to purge expired tokens
-const cleanupAlarmName = "cleanup"
-
 // Methods exposed by the signup token actor
+// Because we cannot invoke an actor while a DB transaction is open (that would deadlock on SQLite), consuming a token is done by invoking the actor first (which atomically validates it and increments its usage count), and only afterwards performing the remaining work.
+// On failure, the caller compensates by releasing the token via the "release" method as best-effort.
 const (
-	signupTokenMethodCreate  = "create"
-	signupTokenMethodDelete  = "delete"
+	// SignupTokenMethodCreate stores a new signup token, replacing any existing state
+	SignupTokenMethodCreate = "create"
+	// SignupTokenMethodDelete removes a signup token
+	SignupTokenMethodDelete = "delete"
+
+	signupTokenMethodMigrate = "migrate"
 	signupTokenMethodConsume = "consume"
 	signupTokenMethodRelease = "release"
-	signupTokenMethodReplace = "replace"
-	signupTokenMethodList    = "list"
 )
 
 // signupTokenConsumeStatus is the outcome of a "consume" invocation.
-// It's returned as part of the response payload rather than as a Go error, because errors lose their concrete type when they cross the actor invocation boundary.
 type signupTokenConsumeStatus string
 
 const (
-	signupTokenConsumeOK           signupTokenConsumeStatus = "ok"
-	signupTokenConsumeNotFound     signupTokenConsumeStatus = "not_found"
-	signupTokenConsumeExpired      signupTokenConsumeStatus = "expired"
+	// signupTokenConsumeOK indicates the token was valid and one use has been consumed
+	signupTokenConsumeOK signupTokenConsumeStatus = "ok"
+	// signupTokenConsumeNotFound indicates the token doesn't exist (or has expired)
+	signupTokenConsumeNotFound signupTokenConsumeStatus = "not_found"
+	// signupTokenConsumeLimitReached indicates the token has no uses left
 	signupTokenConsumeLimitReached signupTokenConsumeStatus = "limit_reached"
 )
 
-// storedSignupToken is a single signup token as held in the actor state
-type storedSignupToken struct {
+// SignupTokenState is the persisted state of a signup token actor.
+// The token value itself is the actor's ID, so it isn't repeated here.
+type SignupTokenState struct {
 	ID           string
-	Token        string
-	ExpiresAt    time.Time
 	UsageLimit   int
 	UsageCount   int
 	UserGroupIDs []string
 	CreatedAt    time.Time
+	ExpiresAt    time.Time
 }
 
-func (t storedSignupToken) isExpired(now time.Time) bool {
-	return t.ExpiresAt.Before(now)
-}
-
-func (t storedSignupToken) isUsageLimitReached() bool {
-	return t.UsageCount >= t.UsageLimit
-}
-
-// signupTokenActorState is the persisted state of the signup token singleton actor.
-// Tokens are keyed by their token value.
-type signupTokenActorState struct {
-	Tokens map[string]storedSignupToken
-}
-
-// removeExpired deletes every token that has expired and returns the number removed.
-func (s *signupTokenActorState) removeExpired(now time.Time) (removed int) {
-	for k, t := range s.Tokens {
-		if t.isExpired(now) {
-			delete(s.Tokens, k)
-			removed++
-		}
-	}
-
-	return removed
-}
-
-// earliestExpiration returns the earliest expiration time among all tokens, and whether there's at least one token.
-func (s *signupTokenActorState) earliestExpiration() (earliest time.Time, found bool) {
-	for _, t := range s.Tokens {
-		if !found || t.ExpiresAt.Before(earliest) {
-			earliest = t.ExpiresAt
-			found = true
-		}
-	}
-
-	return earliest, found
-}
-
-// Payloads for the actor methods
-
-type signupTokenBootstrap struct {
-	Tokens []storedSignupToken
-}
-
-type signupTokenDeleteRequest struct {
-	ID string
-}
-
-type signupTokenConsumeRequest struct {
-	Token string
-}
-
+// signupTokenConsumeResponse is the response of the "consume" method
 type signupTokenConsumeResponse struct {
-	Status       signupTokenConsumeStatus
+	Status signupTokenConsumeStatus
+	// UserGroupIDs is set only when Status is "ok", and contains the groups the new user should join
 	UserGroupIDs []string
 }
 
-type signupTokenReleaseRequest struct {
-	Token string
-}
-
-type signupTokenReplaceRequest struct {
-	Tokens []storedSignupToken
-}
-
-type signupTokenListResponse struct {
-	Tokens []storedSignupToken
-}
-
-// signupTokenActor is the singleton actor that manages all signup tokens
+// signupTokenActor is the actor that manages a single signup token
 type signupTokenActor struct {
 	log    *slog.Logger
-	client actor.Client[*signupTokenActorState]
+	client actor.Client[SignupTokenState]
 }
 
 // NewSignupTokenActor allocates a new signup token actor
@@ -138,359 +77,140 @@ func NewSignupTokenActor(actorID string, service *actor.Service) actor.Actor {
 		log: slog.With(
 			slog.String("scope", "actor"),
 			slog.String("actorType", SignupTokenActorType),
-			slog.String("actorID", actorID),
 		),
-		client: actor.NewActorClient[*signupTokenActorState](SignupTokenActorType, actorID, service),
+		client: actor.NewActorClient[SignupTokenState](SignupTokenActorType, actorID, service),
 	}
 }
 
-// Bootstrap implements actor.ActorBootstrapper for the singleton actor.
-// On first startup it seeds the state from the tokens migrated from the database
-// On subsequent startups it just makes sure the cleanup alarm is scheduled.
-func (a *signupTokenActor) Bootstrap(parentCtx context.Context, data actor.Envelope) error {
-	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-	defer cancel()
-	state, err := a.client.GetState(ctx)
-	if err != nil {
-		return fmt.Errorf("error retrieving actor state: %w", err)
-	}
-
-	// If we already have a state, just make sure the cleanup alarm is scheduled and we're done
-	if state != nil {
-		return a.scheduleCleanup(parentCtx, state)
-	}
-
-	// Initialize the state, seeding it from the migrated tokens (if any)
-	state = &signupTokenActorState{
-		Tokens: map[string]storedSignupToken{},
-	}
-	if data != nil {
-		payload := signupTokenBootstrap{}
-		err = data.Decode(&payload)
-		if err != nil {
-			return fmt.Errorf("request body is not valid for bootstrap: %w", err)
-		}
-
-		for _, t := range payload.Tokens {
-			state.Tokens[t.Token] = t
-		}
-	}
-
-	// Don't carry over tokens that have already expired
-	state.removeExpired(time.Now())
-
-	ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
-	defer cancel()
-	err = a.client.SetState(ctx, state, nil)
-	if err != nil {
-		return fmt.Errorf("error saving actor state: %w", err)
-	}
-
-	return a.scheduleCleanup(parentCtx, state)
-}
-
-// Peek implements actor.ActorPeek for read-only operations
-func (a *signupTokenActor) Peek(parentCtx context.Context, method string, data actor.Envelope) (any, error) {
-	if method != signupTokenMethodList {
-		return nil, common.ErrUnsupportedActorMethod{Method: method}
-	}
-
-	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-	defer cancel()
-	state, err := a.client.GetState(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving actor state: %w", err)
-	}
-
-	return signupTokenListResponse{
-		Tokens: collectTokens(state),
-	}, nil
-}
-
-// Invoke implements actor.ActorInvoke for mutating operations
+// Invoke implements actor.ActorInvoke
 func (a *signupTokenActor) Invoke(parentCtx context.Context, method string, data actor.Envelope) (any, error) {
 	switch method {
-	case signupTokenMethodCreate:
-		return a.create(parentCtx, data)
-	case signupTokenMethodDelete:
-		return nil, a.delete(parentCtx, data)
+	case SignupTokenMethodCreate:
+		return nil, a.create(parentCtx, data, false)
+	case signupTokenMethodMigrate:
+		return nil, a.create(parentCtx, data, true)
 	case signupTokenMethodConsume:
-		return a.consume(parentCtx, data)
+		return a.consume(parentCtx)
 	case signupTokenMethodRelease:
-		return nil, a.release(parentCtx, data)
-	case signupTokenMethodReplace:
-		return nil, a.replace(parentCtx, data)
+		return nil, a.release(parentCtx)
+	case SignupTokenMethodDelete:
+		return nil, a.delete(parentCtx)
 	default:
 		return nil, common.ErrUnsupportedActorMethod{Method: method}
 	}
 }
 
-// Alarm implements actor.ActorAlarm: it purges expired tokens and reschedules the alarm.
-func (a *signupTokenActor) Alarm(parentCtx context.Context, name string, data actor.Envelope) error {
-	if name != cleanupAlarmName {
-		return common.ErrUnsupportedActorMethod{Method: name}
+// create stores the token's state.
+// When onlyIfMissing is true the write is skipped if the actor already has state: this is used by the one-time migration of the pre-actor tokens, so a token that has already been migrated (and possibly used since) is never reset.
+func (a *signupTokenActor) create(parentCtx context.Context, data actor.Envelope, onlyIfMissing bool) error {
+	if data == nil {
+		return fmt.Errorf("request body is empty for method '%s'", SignupTokenMethodCreate)
 	}
 
+	var state SignupTokenState
+	err := data.Decode(&state)
+	if err != nil {
+		return fmt.Errorf("request body is not valid for method '%s': %w", SignupTokenMethodCreate, err)
+	}
+
+	if onlyIfMissing {
+		ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
+		defer cancel()
+		current, err := a.client.GetState(ctx)
+		if err != nil {
+			return fmt.Errorf("error retrieving actor state: %w", err)
+		}
+		// An empty ID means there's no state yet
+		if current.ID != "" {
+			return nil
+		}
+	}
+
+	return a.setState(parentCtx, state)
+}
+
+// consume atomically validates the token and, if it's still usable, records one more use.
+func (a *signupTokenActor) consume(parentCtx context.Context) (signupTokenConsumeResponse, error) {
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
 	state, err := a.client.GetState(ctx)
 	if err != nil {
-		return fmt.Errorf("error retrieving actor state: %w", err)
-	}
-	if state == nil {
-		return nil
+		return signupTokenConsumeResponse{}, fmt.Errorf("error retrieving actor state: %w", err)
 	}
 
-	removed := state.removeExpired(time.Now())
-	if removed > 0 {
-		ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
-		defer cancel()
-		err = a.client.SetState(ctx, state, nil)
-		if err != nil {
-			return fmt.Errorf("error saving actor state: %w", err)
-		}
-
-		a.log.InfoContext(parentCtx, "Purged expired signup tokens", slog.Int("count", removed))
-	}
-
-	return a.scheduleCleanup(parentCtx, state)
-}
-
-func (a *signupTokenActor) create(parentCtx context.Context, data actor.Envelope) (storedSignupToken, error) {
-	if data == nil {
-		return storedSignupToken{}, fmt.Errorf("request body is empty for method '%s'", signupTokenMethodCreate)
-	}
-
-	var token storedSignupToken
-	err := data.Decode(&token)
-	if err != nil {
-		return storedSignupToken{}, fmt.Errorf("request body is not valid for method '%s': %w", signupTokenMethodCreate, err)
-	}
-
-	state, err := a.mustGetState(parentCtx)
-	if err != nil {
-		return storedSignupToken{}, err
-	}
-
-	state.Tokens[token.Token] = token
-
-	err = a.saveState(parentCtx, state)
-	if err != nil {
-		return storedSignupToken{}, err
-	}
-
-	err = a.scheduleCleanup(parentCtx, state)
-	if err != nil {
-		return storedSignupToken{}, err
-	}
-
-	return token, nil
-}
-
-func (a *signupTokenActor) delete(parentCtx context.Context, data actor.Envelope) error {
-	if data == nil {
-		return fmt.Errorf("request body is empty for method '%s'", signupTokenMethodDelete)
-	}
-
-	var req signupTokenDeleteRequest
-	err := data.Decode(&req)
-	if err != nil {
-		return fmt.Errorf("request body is not valid for method '%s': %w", signupTokenMethodDelete, err)
-	}
-
-	state, err := a.mustGetState(parentCtx)
-	if err != nil {
-		return err
-	}
-
-	// Tokens are keyed by their value, so find the one matching the given ID
-	var deleted bool
-	for k, t := range state.Tokens {
-		if t.ID == req.ID {
-			delete(state.Tokens, k)
-			deleted = true
-			break
-		}
-	}
-	if !deleted {
-		return nil
-	}
-
-	err = a.saveState(parentCtx, state)
-	if err != nil {
-		return err
-	}
-
-	return a.scheduleCleanup(parentCtx, state)
-}
-
-func (a *signupTokenActor) consume(parentCtx context.Context, data actor.Envelope) (signupTokenConsumeResponse, error) {
-	if data == nil {
-		return signupTokenConsumeResponse{}, fmt.Errorf("request body is empty for method '%s'", signupTokenMethodConsume)
-	}
-
-	var req signupTokenConsumeRequest
-	err := data.Decode(&req)
-	if err != nil {
-		return signupTokenConsumeResponse{}, fmt.Errorf("request body is not valid for method '%s': %w", signupTokenMethodConsume, err)
-	}
-
-	state, err := a.mustGetState(parentCtx)
-	if err != nil {
-		return signupTokenConsumeResponse{}, err
-	}
-
-	token, ok := state.Tokens[req.Token]
-	switch {
-	case !ok:
+	// An empty ID means there's no state: the token doesn't exist (or its state already expired and was purged)
+	if state.ID == "" || state.ExpiresAt.Before(time.Now()) {
 		return signupTokenConsumeResponse{
 			Status: signupTokenConsumeNotFound,
 		}, nil
-	case token.isExpired(time.Now()):
-		return signupTokenConsumeResponse{
-			Status: signupTokenConsumeExpired,
-		}, nil
-	case token.isUsageLimitReached():
+	}
+
+	if state.UsageCount >= state.UsageLimit {
 		return signupTokenConsumeResponse{
 			Status: signupTokenConsumeLimitReached,
 		}, nil
 	}
 
-	// Atomically consume one use of the token
-	token.UsageCount++
-	state.Tokens[req.Token] = token
-
-	err = a.saveState(parentCtx, state)
+	// Consume one use of the token
+	state.UsageCount++
+	err = a.setState(parentCtx, state)
 	if err != nil {
 		return signupTokenConsumeResponse{}, err
 	}
 
 	return signupTokenConsumeResponse{
 		Status:       signupTokenConsumeOK,
-		UserGroupIDs: token.UserGroupIDs,
+		UserGroupIDs: state.UserGroupIDs,
 	}, nil
 }
 
-func (a *signupTokenActor) release(parentCtx context.Context, data actor.Envelope) error {
-	if data == nil {
-		return fmt.Errorf("request body is empty for method '%s'", signupTokenMethodRelease)
-	}
-
-	var req signupTokenReleaseRequest
-	err := data.Decode(&req)
-	if err != nil {
-		return fmt.Errorf("request body is not valid for method '%s': %w", signupTokenMethodRelease, err)
-	}
-
-	state, err := a.mustGetState(parentCtx)
-	if err != nil {
-		return err
-	}
-
-	token, ok := state.Tokens[req.Token]
-	if !ok || token.UsageCount <= 0 {
-		// The token is gone (for example, expired and purged) or was never consumed: nothing to compensate
-		return nil
-	}
-
-	token.UsageCount--
-	state.Tokens[req.Token] = token
-
-	return a.saveState(parentCtx, state)
-}
-
-func (a *signupTokenActor) replace(parentCtx context.Context, data actor.Envelope) error {
-	if data == nil {
-		return fmt.Errorf("request body is empty for method '%s'", signupTokenMethodReplace)
-	}
-
-	var req signupTokenReplaceRequest
-	err := data.Decode(&req)
-	if err != nil {
-		return fmt.Errorf("request body is not valid for method '%s': %w", signupTokenMethodReplace, err)
-	}
-
-	state := &signupTokenActorState{
-		Tokens: make(map[string]storedSignupToken, len(req.Tokens)),
-	}
-	for _, t := range req.Tokens {
-		state.Tokens[t.Token] = t
-	}
-
-	err = a.saveState(parentCtx, state)
-	if err != nil {
-		return err
-	}
-
-	return a.scheduleCleanup(parentCtx, state)
-}
-
-// scheduleCleanup sets the cleanup alarm to fire when the earliest-expiring token expires, or deletes it when there are no tokens left.
-func (a *signupTokenActor) scheduleCleanup(parentCtx context.Context, state *signupTokenActorState) (err error) {
+// release reverts the usage count increment performed while consuming the token, to compensate when the signup could not be completed.
+func (a *signupTokenActor) release(parentCtx context.Context) error {
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
+	state, err := a.client.GetState(ctx)
+	if err != nil {
+		return fmt.Errorf("error retrieving actor state: %w", err)
+	}
 
-	earliest, found := state.earliestExpiration()
-	if !found {
-		// No tokens: remove the alarm (if any)
-		err = a.client.DeleteAlarm(ctx, cleanupAlarmName)
-		if err != nil && !errors.Is(err, actor.ErrAlarmNotFound) {
-			return fmt.Errorf("error deleting cleanup alarm: %w", err)
-		}
+	// The token is gone (for example, it expired and was purged) or was never consumed: nothing to compensate
+	if state.ID == "" || state.UsageCount <= 0 {
 		return nil
 	}
 
-	err = a.client.SetAlarm(ctx, cleanupAlarmName, actor.AlarmProperties{DueTime: earliest})
-	if err != nil {
-		return fmt.Errorf("error setting cleanup alarm: %w", err)
+	state.UsageCount--
+	return a.setState(parentCtx, state)
+}
+
+// delete removes the token.
+func (a *signupTokenActor) delete(parentCtx context.Context) error {
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
+	defer cancel()
+	err := a.client.DeleteState(ctx)
+	// Deleting a token that doesn't exist (for example, one that expired in the meanwhile) already reaches the desired end state
+	if err != nil && !errors.Is(err, actor.ErrStateNotFound) {
+		return fmt.Errorf("error deleting actor state: %w", err)
 	}
 
 	return nil
 }
 
-// mustGetState retrieves the actor state, initializing an empty one if it doesn't exist yet.
-func (a *signupTokenActor) mustGetState(parentCtx context.Context) (*signupTokenActorState, error) {
-	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
-	defer cancel()
-	state, err := a.client.GetState(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving actor state: %w", err)
+// setState saves the state with a TTL matching the token's remaining lifetime, so it's purged automatically once the token expires.
+// Saving is skipped if the token has already expired, since there would be nothing left to store.
+func (a *signupTokenActor) setState(parentCtx context.Context, state SignupTokenState) error {
+	ttl := time.Until(state.ExpiresAt)
+	if ttl <= 0 {
+		return nil
 	}
 
-	if state == nil {
-		state = &signupTokenActorState{
-			Tokens: map[string]storedSignupToken{},
-		}
-	} else if state.Tokens == nil {
-		state.Tokens = map[string]storedSignupToken{}
-	}
-
-	return state, nil
-}
-
-func (a *signupTokenActor) saveState(parentCtx context.Context, state *signupTokenActorState) error {
 	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
-	err := a.client.SetState(ctx, state, nil)
+	err := a.client.SetState(ctx, state, &actor.SetStateOpts{
+		TTL: ttl,
+	})
 	if err != nil {
 		return fmt.Errorf("error saving actor state: %w", err)
 	}
 
 	return nil
-}
-
-// collectTokens returns all tokens in the state as a slice.
-func collectTokens(state *signupTokenActorState) []storedSignupToken {
-	if state == nil {
-		return nil
-	}
-
-	tokens := make([]storedSignupToken, len(state.Tokens))
-	var i int
-	for _, t := range state.Tokens {
-		tokens[i] = t
-		i++
-	}
-
-	return tokens
 }

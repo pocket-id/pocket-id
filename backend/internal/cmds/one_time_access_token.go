@@ -12,7 +12,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
+	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 )
 
 var oneTimeAccessTokenCmd = &cobra.Command{
@@ -57,7 +57,7 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 		// Create a new access token that expires in 1 hour
 		tokenCtx, tokenCancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer tokenCancel()
-		token, _, err := service.StoreOneTimeAccessToken(tokenCtx, actorStore, user.ID, time.Hour, false)
+		token, _, err := onetimeaccess.StoreToken(tokenCtx, actorStore, user.ID, time.Hour, false)
 		if err != nil {
 			return fmt.Errorf("failed to create access token: %w", err)
 		}

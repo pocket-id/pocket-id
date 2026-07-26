@@ -46,22 +46,10 @@ type Module struct {
 	handler *handler
 }
 
-func New(ctx context.Context, deps Dependencies) (*Module, error) {
-	// Load the signup tokens frozen into the kv table by the migration, so the singleton actor can be seeded (migrated) from them on first startup
-	migrated, err := loadMigratedSignupTokens(ctx, deps.DB)
-	if err != nil {
-		return nil, err
-	}
-
-	// Register the singleton actor that holds all signup tokens
-	bootstrapData := &signupTokenBootstrap{
-		Tokens: migrated,
-	}
-	err = deps.Actors.RegisterSingletonActor(
-		SignupTokenActorType, NewSignupTokenActor,
-		local.WithBootstrapData(bootstrapData),
-		local.WithIdleTimeout(-1), // Disable idle timeout for this actor
-	)
+func New(deps Dependencies) (*Module, error) {
+	// Register the actor that manages a signup token
+	// Each token is its own actor, whose actor ID is the token's value
+	err := deps.Actors.RegisterActor(SignupTokenActorType, NewSignupTokenActor)
 	if err != nil {
 		return nil, fmt.Errorf("error registering the %s actor: %w", SignupTokenActorType, err)
 	}
@@ -71,6 +59,19 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		service: service,
 		handler: newHandler(service, deps.AppConfig),
 	}, nil
+}
+
+// RunSignupTokenMigration performs the one-time migration of the pre-actor signup tokens, then blocks until the context is canceled.
+// It's meant to be started as a background service gated on the actor host being ready, since the migration needs the actor state store.
+// Note that it must not return before the context is canceled, as the service runner stops the application as soon as any of its services returns.
+func (m *Module) RunSignupTokenMigration(ctx context.Context) error {
+	err := m.service.migrateSignupTokens(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to migrate signup tokens: %w", err)
+	}
+
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 // RegisterRoutes mounts the signup and signup-token management endpoints

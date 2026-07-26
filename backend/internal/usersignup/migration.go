@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"gorm.io/gorm"
@@ -13,8 +14,8 @@ import (
 )
 
 // This file holds the one-time migration of the pre-actor signup tokens.
-// The "move tokens to actor state" migration freezes the signup_tokens table (and its user-group associations) into a JSON document stored in the "kv" table under the "signup_tokens_migrated" key.
-// It's loaded here to seed the singleton signup token actor on first startup.
+// The "actor tokens" migration freezes the signup_tokens table (and its user-group associations) into a JSON document stored in the "kv" table under the "signup_tokens_migrated" key.
+// It's loaded here to create the per-token actors on first startup.
 
 // signupTokensMigratedKey is the kv key under which the pre-actor signup tokens were frozen.
 const signupTokensMigratedKey = "signup_tokens_migrated" //nolint:gosec // G101 false positive: this is the name of a kv key, not a credential
@@ -31,9 +32,52 @@ type migratedSignupToken struct {
 	CreatedAt    int64    `json:"createdAt"`
 }
 
-// loadMigratedSignupTokens reads the signup tokens frozen into the kv table by the migration, so the singleton actor can seed its state from them on first startup
+// migrateSignupTokens creates an actor for every signup token frozen into the kv table by the migration.
+// It requires the actor state store to be available, so it must run after the actor host is ready.
+// It is idempotent: tokens that have already been migrated are left untouched, so a token that has been used since it was migrated is never reset.
+func (s *Service) migrateSignupTokens(ctx context.Context) error {
+	migrated, err := loadMigratedSignupTokens(ctx, s.db)
+	if err != nil {
+		return err
+	}
+	if len(migrated) == 0 {
+		return nil
+	}
+
+	var count int
+	for _, m := range migrated {
+		// Skip tokens that have already expired, since there would be nothing left to store
+		expiresAt := time.Unix(m.ExpiresAt, 0)
+		if !expiresAt.After(time.Now()) {
+			continue
+		}
+
+		state := SignupTokenState{
+			ID:           m.ID,
+			ExpiresAt:    expiresAt,
+			UsageLimit:   m.UsageLimit,
+			UsageCount:   m.UsageCount,
+			UserGroupIDs: m.UserGroupIDs,
+			CreatedAt:    time.Unix(m.CreatedAt, 0),
+		}
+
+		// The token's value is the actor's ID
+		// The "migrate" method only writes the state if the actor doesn't have one already
+		_, err = s.actorService.Invoke(ctx, SignupTokenActorType, m.Token, signupTokenMethodMigrate, state)
+		if err != nil {
+			return fmt.Errorf("error migrating signup token '%s': %w", m.ID, err)
+		}
+		count++
+	}
+
+	slog.InfoContext(ctx, "Migrated signup tokens to actors", slog.Int("count", count))
+
+	return nil
+}
+
+// loadMigratedSignupTokens reads the signup tokens frozen into the kv table by the migration
 // It returns nil if there's nothing to migrate
-func loadMigratedSignupTokens(ctx context.Context, db *gorm.DB) ([]storedSignupToken, error) {
+func loadMigratedSignupTokens(ctx context.Context, db *gorm.DB) ([]migratedSignupToken, error) {
 	row := model.KV{
 		Key: signupTokensMigratedKey,
 	}
@@ -57,18 +101,5 @@ func loadMigratedSignupTokens(ctx context.Context, db *gorm.DB) ([]storedSignupT
 		return nil, fmt.Errorf("error parsing migrated signup tokens: %w", err)
 	}
 
-	tokens := make([]storedSignupToken, len(migrated))
-	for i, m := range migrated {
-		tokens[i] = storedSignupToken{
-			ID:           m.ID,
-			Token:        m.Token,
-			ExpiresAt:    time.Unix(m.ExpiresAt, 0),
-			UsageLimit:   m.UsageLimit,
-			UsageCount:   m.UsageCount,
-			UserGroupIDs: m.UserGroupIDs,
-			CreatedAt:    time.Unix(m.CreatedAt, 0),
-		}
-	}
-
-	return tokens, nil
+	return migrated, nil
 }

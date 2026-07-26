@@ -70,7 +70,7 @@ func TestLoadMigratedSignupTokens(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, tokens, 2)
 
-	byID := make(map[string]storedSignupToken, len(tokens))
+	byID := make(map[string]migratedSignupToken, len(tokens))
 	for _, tok := range tokens {
 		byID[tok.ID] = tok
 	}
@@ -80,14 +80,66 @@ func TestLoadMigratedSignupTokens(t *testing.T) {
 	require.Equal(t, 3, tok1.UsageLimit)
 	require.Equal(t, 1, tok1.UsageCount)
 	require.Equal(t, []string{"grp-1"}, tok1.UserGroupIDs)
-	require.Equal(t, expiresAt.Unix(), tok1.ExpiresAt.Unix())
-	require.Equal(t, createdAt.Unix(), tok1.CreatedAt.Unix())
+	require.Equal(t, expiresAt.Unix(), tok1.ExpiresAt)
+	require.Equal(t, createdAt.Unix(), tok1.CreatedAt)
 
 	tok2 := byID["tok-2"]
 	require.Equal(t, "TOKENNOGROUP0002", tok2.Token)
 	require.Equal(t, 1, tok2.UsageLimit)
 	require.Equal(t, 0, tok2.UsageCount)
 	require.Empty(t, tok2.UserGroupIDs)
+}
+
+// TestMigrateSignupTokens verifies that the frozen signup tokens are turned into per-token actors, and that already-expired ones are skipped
+func TestMigrateSignupTokens(t *testing.T) {
+	createdAt := time.Now().Add(-time.Hour).Truncate(time.Second)
+	expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
+
+	db := testutils.NewDatabaseForTestWithMigrationSeed(t, versionBeforeMoveTokens, func(t *testing.T, db *gorm.DB) {
+		seedSignupTokensForMigration(t, db, createdAt, expiresAt)
+
+		// A token that has already expired: it must not be migrated
+		err := db.Exec(
+			`INSERT INTO signup_tokens (id, created_at, token, expires_at, usage_limit, usage_count) VALUES (?, ?, ?, ?, ?, ?)`,
+			"tok-expired", createdAt.Unix(), "EXPIREDTOKEN0003", time.Now().Add(-time.Hour).Unix(), 1, 0,
+		).Error
+		require.NoError(t, err)
+	})
+
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{})
+
+	err := svc.migrateSignupTokens(t.Context())
+	require.NoError(t, err)
+
+	entries, err := svc.listSignupTokenStates(t.Context())
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+
+	byToken := make(map[string]SignupTokenState, len(entries))
+	for _, e := range entries {
+		byToken[e.Token] = e.State
+	}
+
+	tok1 := byToken["TOKENWITHGROUP01"]
+	require.Equal(t, "tok-1", tok1.ID)
+	require.Equal(t, 3, tok1.UsageLimit)
+	require.Equal(t, 1, tok1.UsageCount)
+	require.Equal(t, []string{"grp-1"}, tok1.UserGroupIDs)
+	require.Equal(t, expiresAt.Unix(), tok1.ExpiresAt.Unix())
+	require.Equal(t, createdAt.Unix(), tok1.CreatedAt.Unix())
+
+	tok2 := byToken["TOKENNOGROUP0002"]
+	require.Equal(t, "tok-2", tok2.ID)
+	require.Empty(t, tok2.UserGroupIDs)
+
+	// The expired token must not have been migrated
+	require.NotContains(t, byToken, "EXPIREDTOKEN0003")
+
+	// The migration is idempotent: re-running it doesn't reset a token that has been used since
+	require.Equal(t, signupTokenConsumeOK, consumeSignupTokenForTest(t, svc.actorService, "TOKENNOGROUP0002").Status)
+	err = svc.migrateSignupTokens(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, signupTokenConsumeLimitReached, consumeSignupTokenForTest(t, svc.actorService, "TOKENNOGROUP0002").Status)
 }
 
 // TestLoadMigratedSignupTokensEmpty verifies that when there were no signup tokens, nothing is frozen and nothing is loaded.

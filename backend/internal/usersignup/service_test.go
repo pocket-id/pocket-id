@@ -43,7 +43,7 @@ func (fakeAuditLogger) Create(_ context.Context, _ model.AuditLogEvent, _, _, _ 
 
 func newSignupServiceForTest(t *testing.T, db *gorm.DB, userCreator UserCreator) *Service {
 	t.Helper()
-	actorService := newSignupTokenActorService(t, nil)
+	actorService := newSignupTokenActorService(t)
 	return newService(Dependencies{
 		DB:          db,
 		UserCreator: userCreator,

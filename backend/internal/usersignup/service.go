@@ -53,9 +53,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 	if tokenProvided {
 		// Consume the signup token by invoking its actor: this atomically validates it and increments its usage count
 		// Note: must invoke outside of a DB transaction, since invoking an actor while a transaction is open would deadlock on SQLite
-		res, err := s.actorService.Invoke(ctx, SignupTokenActorType, actor.SingletonActorID, signupTokenMethodConsume, signupTokenConsumeRequest{
-			Token: signupData.Token,
-		})
+		res, err := s.actorService.Invoke(ctx, SignupTokenActorType, signupData.Token, signupTokenMethodConsume, nil)
 		if err != nil {
 			return model.User{}, "", fmt.Errorf("error invoking signup token actor: %w", err)
 		}
@@ -138,9 +136,7 @@ func (s *Service) releaseSignupToken(parentCtx context.Context, token string) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 10*time.Second)
 	defer cancel()
 
-	_, err := s.actorService.Invoke(ctx, SignupTokenActorType, actor.SingletonActorID, signupTokenMethodRelease, signupTokenReleaseRequest{
-		Token: token,
-	})
+	_, err := s.actorService.Invoke(ctx, SignupTokenActorType, token, signupTokenMethodRelease, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to release signup token after a failed signup", slog.Any("error", err))
 	}
@@ -203,40 +199,93 @@ func (s *Service) isInitialAdminSetupCompleted(ctx context.Context, db *gorm.DB)
 }
 
 func (s *Service) ListSignupTokens(ctx context.Context, listRequestOptions utils.ListRequestOptions) ([]SignupToken, utils.PaginationResponse, error) {
-	// Signup tokens are held in the singleton actor's state, so we retrieve them all via a read-only Peek and then sort and paginate in memory.
-	res, err := s.actorService.Peek(ctx, SignupTokenActorType, actor.SingletonActorID, signupTokenMethodList, nil)
-	if err != nil {
-		return nil, utils.PaginationResponse{}, fmt.Errorf("error listing signup tokens from actor: %w", err)
-	}
-
-	var listRes signupTokenListResponse
-	err = res.Decode(&listRes)
-	if err != nil {
-		return nil, utils.PaginationResponse{}, fmt.Errorf("error decoding signup token actor response: %w", err)
-	}
-
-	// Resolve the referenced user groups so they can be included in the response
-	groupsByID, err := s.loadUserGroupsByID(ctx, listRes.Tokens)
+	// Each signup token is its own actor, so we enumerate the stored states (expired ones are filtered out by the state store), then sort and paginate in memory
+	entries, err := s.listSignupTokenStates(ctx)
 	if err != nil {
 		return nil, utils.PaginationResponse{}, err
 	}
 
-	tokens := make([]SignupToken, len(listRes.Tokens))
-	for i, t := range listRes.Tokens {
-		tokens[i] = signupTokenModelFromStored(t, resolveUserGroups(t.UserGroupIDs, groupsByID))
+	// Resolve the referenced user groups so they can be included in the response
+	groupsByID, err := s.loadUserGroupsByID(ctx, entries)
+	if err != nil {
+		return nil, utils.PaginationResponse{}, err
+	}
+
+	tokens := make([]SignupToken, len(entries))
+	for i, e := range entries {
+		tokens[i] = signupTokenModelFromState(e.Token, e.State, resolveUserGroups(e.State.UserGroupIDs, groupsByID))
 	}
 
 	return paginateSignupTokens(tokens, listRequestOptions)
 }
 
 func (s *Service) DeleteSignupToken(ctx context.Context, tokenID string) error {
-	_, err := s.actorService.Invoke(ctx, SignupTokenActorType, actor.SingletonActorID, signupTokenMethodDelete, signupTokenDeleteRequest{
-		ID: tokenID,
-	})
+	// Tokens are addressed by their value (the actor ID), while the API deletes them by ID, so we look up the matching token first
+	entries, err := s.listSignupTokenStates(ctx)
 	if err != nil {
-		return fmt.Errorf("error deleting signup token via actor: %w", err)
+		return err
 	}
+
+	for _, e := range entries {
+		if e.State.ID != tokenID {
+			continue
+		}
+
+		_, err = s.actorService.Invoke(ctx, SignupTokenActorType, e.Token, SignupTokenMethodDelete, nil)
+		if err != nil {
+			return fmt.Errorf("error deleting signup token via actor: %w", err)
+		}
+		return nil
+	}
+
+	// The token doesn't exist (or has expired): deleting it already reaches the desired end state
 	return nil
+}
+
+// signupTokenEntry pairs a signup token's value (which is its actor ID) with its stored state
+type signupTokenEntry struct {
+	Token string
+	State SignupTokenState
+}
+
+// listSignupTokenStates returns every signup token currently stored in the actor state store.
+// Expired tokens are not returned, since the state store filters out states whose TTL has passed.
+func (s *Service) listSignupTokenStates(ctx context.Context) ([]signupTokenEntry, error) {
+	var (
+		entries []signupTokenEntry
+		after   string
+	)
+	for {
+		res, err := s.actorService.ListStates(ctx, SignupTokenActorType, &actor.ListStatesOpts{
+			IncludeData: true,
+			After:       after,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error listing signup token states: %w", err)
+		}
+
+		for _, st := range res.States {
+			if st.Data == nil {
+				continue
+			}
+
+			var state SignupTokenState
+			err = st.Data.Decode(&state)
+			if err != nil {
+				return nil, fmt.Errorf("error decoding state of signup token actor '%s': %w", st.ActorID, err)
+			}
+
+			entries = append(entries, signupTokenEntry{Token: st.ActorID, State: state})
+		}
+
+		// An empty cursor means we've just read the last page
+		after = res.AfterID()
+		if after == "" {
+			break
+		}
+	}
+
+	return entries, nil
 }
 
 func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usageLimit int, userGroupIDs []string) (SignupToken, error) {
@@ -264,9 +313,8 @@ func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usag
 	}
 
 	now := time.Now().Round(time.Second)
-	stored := storedSignupToken{
+	state := SignupTokenState{
 		ID:           uuid.NewString(),
-		Token:        randomString,
 		ExpiresAt:    now.Add(ttl),
 		UsageLimit:   usageLimit,
 		UsageCount:   0,
@@ -274,19 +322,20 @@ func (s *Service) CreateSignupToken(ctx context.Context, ttl time.Duration, usag
 		CreatedAt:    now,
 	}
 
-	_, err = s.actorService.Invoke(ctx, SignupTokenActorType, actor.SingletonActorID, signupTokenMethodCreate, stored)
+	// The token's value is the actor's ID
+	_, err = s.actorService.Invoke(ctx, SignupTokenActorType, randomString, SignupTokenMethodCreate, state)
 	if err != nil {
 		return SignupToken{}, fmt.Errorf("error creating signup token via actor: %w", err)
 	}
 
-	return signupTokenModelFromStored(stored, userGroups), nil
+	return signupTokenModelFromState(randomString, state, userGroups), nil
 }
 
 // loadUserGroupsByID loads every user group referenced by the given tokens, keyed by ID.
-func (s *Service) loadUserGroupsByID(ctx context.Context, tokens []storedSignupToken) (map[string]model.UserGroup, error) {
+func (s *Service) loadUserGroupsByID(ctx context.Context, entries []signupTokenEntry) (map[string]model.UserGroup, error) {
 	idSet := make(map[string]struct{})
-	for _, t := range tokens {
-		for _, id := range t.UserGroupIDs {
+	for _, e := range entries {
+		for _, id := range e.State.UserGroupIDs {
 			idSet[id] = struct{}{}
 		}
 	}
@@ -333,17 +382,17 @@ func resolveUserGroups(ids []string, byID map[string]model.UserGroup) []model.Us
 	return groups
 }
 
-// signupTokenModelFromStored builds the API/model representation of a signup token from its stored form.
-func signupTokenModelFromStored(t storedSignupToken, groups []model.UserGroup) SignupToken {
+// signupTokenModelFromState builds the API/model representation of a signup token from its actor ID (the token's value) and stored state.
+func signupTokenModelFromState(token string, state SignupTokenState, groups []model.UserGroup) SignupToken {
 	return SignupToken{
 		Base: model.Base{
-			ID:        t.ID,
-			CreatedAt: datatype.DateTime(t.CreatedAt),
+			ID:        state.ID,
+			CreatedAt: datatype.DateTime(state.CreatedAt),
 		},
-		Token:      t.Token,
-		ExpiresAt:  datatype.DateTime(t.ExpiresAt),
-		UsageLimit: t.UsageLimit,
-		UsageCount: t.UsageCount,
+		Token:      token,
+		ExpiresAt:  datatype.DateTime(state.ExpiresAt),
+		UsageLimit: state.UsageLimit,
+		UsageCount: state.UsageCount,
 		UserGroups: groups,
 	}
 }

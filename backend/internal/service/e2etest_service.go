@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/google/uuid"
+	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -32,6 +33,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
+	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -320,7 +322,6 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			return err
 		}
 
-
 		userAuthorizedClients := []model.UserAuthorizedOidcClient{
 			{
 				Scope:      datatype.StringList{"openid", "profile", "email"},
@@ -542,27 +543,24 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 // The already-expired fixture token is intentionally not seeded, since the actor would purge it right away via its cleanup alarm.
 func (s *TestService) seedSignupTokens(ctx context.Context) error {
 	now := time.Now().Round(time.Second)
-	seeds := []usersignup.SignupTokenSeed{
-		{
+	tokens := map[string]usersignup.SignupTokenState{
+		"VALID1234567890A": {
 			ID:           "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-			Token:        "VALID1234567890A",
 			ExpiresAt:    now.Add(24 * time.Hour),
 			UsageLimit:   1,
 			UsageCount:   0,
 			UserGroupIDs: []string{"c7ae7c01-28a3-4f3c-9572-1ee734ea8368"},
 			CreatedAt:    now,
 		},
-		{
+		"PARTIAL567890ABC": {
 			ID:         "dc3c9c96-714e-48eb-926e-2d7c7858e6cf",
-			Token:      "PARTIAL567890ABC",
 			ExpiresAt:  now.Add(7 * 24 * time.Hour),
 			UsageLimit: 5,
 			UsageCount: 2,
 			CreatedAt:  now,
 		},
-		{
+		"FULLYUSED567890C": {
 			ID:         "f1b1678b-7720-4d8b-8f91-1dbff1e2d02b",
-			Token:      "FULLYUSED567890C",
 			ExpiresAt:  now.Add(24 * time.Hour),
 			UsageLimit: 1,
 			UsageCount: 1, // Usage limit reached
@@ -570,7 +568,45 @@ func (s *TestService) seedSignupTokens(ctx context.Context) error {
 		},
 	}
 
-	return usersignup.SeedSignupTokens(ctx, s.actors, seeds)
+	// The actor state store isn't wiped by ResetDatabase, so remove any signup token left over from a previous test first
+	err := s.deleteAllSignupTokens(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Each signup token is its own actor, whose actor ID is the token's value
+	for token, state := range tokens {
+		_, err = s.actors.Service().Invoke(ctx, usersignup.SignupTokenActorType, token, usersignup.SignupTokenMethodCreate, state)
+		if err != nil {
+			return fmt.Errorf("failed to seed signup token %q: %w", token, err)
+		}
+	}
+
+	return nil
+}
+
+// deleteAllSignupTokens removes every signup token currently stored in the actor state store
+func (s *TestService) deleteAllSignupTokens(ctx context.Context) error {
+	var after string
+	for {
+		res, err := s.actors.Service().ListStates(ctx, usersignup.SignupTokenActorType, &actor.ListStatesOpts{After: after})
+		if err != nil {
+			return fmt.Errorf("failed to list signup tokens: %w", err)
+		}
+
+		for _, st := range res.States {
+			_, err = s.actors.Service().Invoke(ctx, usersignup.SignupTokenActorType, st.ActorID, usersignup.SignupTokenMethodDelete, nil)
+			if err != nil {
+				return fmt.Errorf("failed to delete signup token %q: %w", st.ActorID, err)
+			}
+		}
+
+		// An empty cursor means we've just read the last page
+		after = res.AfterID()
+		if after == "" {
+			return nil
+		}
+	}
 }
 
 // seedOneTimeAccessTokens seeds the one-time access tokens used by E2E tests into the actor state store.
@@ -585,7 +621,7 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 	}
 
 	for _, t := range tokens {
-		state := oneTimeAccessTokenState{
+		state := onetimeaccess.TokenState{
 			UserID:    e2eRefreshTokenUserID,
 			ExpiresAt: time.Now().Add(t.ttl).Round(time.Second),
 		}
@@ -593,7 +629,7 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 		// state directly: if an actor for this token is still active from a previous test (for
 		// example, one whose token was already consumed), invoking it refreshes its in-memory cache
 		// too, whereas a direct state write would leave that cache stale.
-		_, err := s.actors.Service().Invoke(ctx, OneTimeAccessTokenActorType, t.token, oneTimeAccessTokenMethodRestore, state)
+		_, err := s.actors.Service().Invoke(ctx, onetimeaccess.TokenActorType, t.token, onetimeaccess.TokenMethodRestore, state)
 		if err != nil {
 			return fmt.Errorf("failed to seed one-time access token %q: %w", t.token, err)
 		}

@@ -106,6 +106,9 @@ func Bootstrap(ctx context.Context) error {
 	}
 	services = append(services, svc.appLockService.RunRenewal)
 
+	// Migrate the pre-actor signup tokens into their actors, once the actor host is ready
+	services = append(services, actorsReady.Await(svc.userSignUpModule.RunSignupTokenMigration))
+
 	// Acquire the lock from the app lock service
 	waitUntil, err := svc.appLockService.Acquire(ctx, false)
 	if errors.Is(err, service.ErrLockUnavailable) {
