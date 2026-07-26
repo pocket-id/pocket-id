@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -234,14 +236,22 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 
 // createClientSecretHandler godoc
 // @Summary Create client secret
-// @Description Generate a new secret for an OIDC client
+// @Description Set or generate a new secret for an OIDC client
 // @Tags OIDC
+// @Accept json
 // @Produce json
 // @Param id path string true "Client ID"
+// @Param payload body dto.OidcClientSecretDto false "Client secret"
 // @Success 200 {object} object "{ \"secret\": \"string\" }"
 // @Router /api/oidc/clients/{id}/secret [post]
 func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
-	secret, err := oc.oidcService.CreateClientSecret(c.Request.Context(), c.Param("id"))
+	var input dto.OidcClientSecretDto
+	if err := c.ShouldBindJSON(&input); err != nil && !errors.Is(err, io.EOF) {
+		_ = c.Error(err)
+		return
+	}
+
+	secret, err := oc.oidcService.CreateClientSecret(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		_ = c.Error(err)
 		return
