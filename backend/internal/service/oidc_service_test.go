@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -497,6 +499,29 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
 	assert.Empty(t, fetched.Description)
+}
+
+func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{Name: "Test Client"}
+	err = db.Create(&client).Error
+	require.NoError(t, err)
+
+	customSecret := "custom-client-secret-with-a-minimum-length"
+	input := dto.OidcClientSecretDto{Secret: customSecret}
+
+	secret, err := s.CreateClientSecret(t.Context(), client.ID, input)
+	require.NoError(t, err)
+	assert.Equal(t, customSecret, secret)
+
+	var fetched model.OidcClient
+	err = db.First(&fetched, "id = ?", client.ID).Error
+	require.NoError(t, err)
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(fetched.Secret), []byte(customSecret)))
 }
 
 func TestOidcService_UpdateClient_description(t *testing.T) {

@@ -59,6 +59,10 @@ type OidcClientCreateDto struct {
 	ID string `json:"id" binding:"omitempty,client_id,min=2,max=128"`
 }
 
+type OidcClientSecretDto struct {
+	Secret string `json:"secret" binding:"omitempty,min=16,printascii"`
+}
+
 type OidcClientCredentialsDto struct {
 	FederatedIdentities []OidcClientFederatedIdentityDto `json:"federatedIdentities,omitempty"`
 }
