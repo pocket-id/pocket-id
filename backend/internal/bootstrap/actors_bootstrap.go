@@ -98,6 +98,34 @@ func (o *NewActorsOpts) getPSK() ([]byte, error) {
 	return crypto.DeriveKey(o.EnvConfig.EncryptionKey, "pocketid/actors-psk/"+o.InstanceID)
 }
 
+// NewActorStateStore creates a minimal actor host that can read and write actor state directly, without joining the cluster or binding a network port.
+// It's meant for short-lived contexts such as CLI commands that need to persist actor state (for example, one-time access tokens) without running the full actor host.
+// The returned host must NOT be Run(): only direct state operations (Get/Set/Delete on state) are supported, and they require the actor state tables to already exist, which is the case whenever the server has run at least once against this database.
+func NewActorStateStore(db *gorm.DB, pg *pgxpool.Pool) (*local.Host, error) {
+	opts := &NewActorsOpts{DB: db, Postgres: pg}
+	if pg == nil {
+		sqlDB, err := db.DB()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
+		}
+		opts.SQLite = sqlDB
+	}
+
+	providerOpt, err := opts.getProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return local.NewHost(
+		// The address is required by the host but never bound, since the host is not Run
+		local.WithAddress("127.0.0.1:1"),
+		local.WithLogger(slog.Default().With("scope", "actor-state-store")),
+		// The health-check deadline only needs to exceed the provider's query timeout to pass validation
+		local.WithHostHealthCheckDeadline(90*time.Second),
+		providerOpt,
+	)
+}
+
 func (o *NewActorsOpts) getProvider() (local.HostOption, error) {
 	switch {
 	case o.Postgres != nil && o.SQLite != nil:

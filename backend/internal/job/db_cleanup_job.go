@@ -15,7 +15,6 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
@@ -34,8 +33,6 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 	// Use exponential backoff for each DB cleanup job so transient query failures are retried automatically rather than causing an immediate job failure
 	return errors.Join(
 		s.RegisterJob(ctx, "ClearWebauthnSessions", jobDefWithJitter(24*time.Hour), jobs.clearWebauthnSessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
-		s.RegisterJob(ctx, "ClearOneTimeAccessTokens", jobDefWithJitter(24*time.Hour), jobs.clearOneTimeAccessTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
-		s.RegisterJob(ctx, "ClearSignupTokens", jobDefWithJitter(24*time.Hour), jobs.clearSignupTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearEmailVerificationTokens", jobDefWithJitter(24*time.Hour), jobs.clearEmailVerificationTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearOAuth2Sessions", jobDefWithJitter(24*time.Hour), jobs.clearOAuth2Sessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearOAuth2JTIs", jobDefWithJitter(24*time.Hour), jobs.clearOAuth2JTIs, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
@@ -57,32 +54,6 @@ func (j *DbCleanupJobs) clearWebauthnSessions(ctx context.Context) error {
 	}
 
 	slog.InfoContext(ctx, "Cleaned expired WebAuthn sessions", slog.Int64("count", count))
-
-	return nil
-}
-
-// ClearOneTimeAccessTokens deletes one-time access tokens that have expired
-func (j *DbCleanupJobs) clearOneTimeAccessTokens(ctx context.Context) error {
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.OneTimeAccessToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired one-time access tokens: %w", st.Error)
-	}
-
-	slog.InfoContext(ctx, "Cleaned expired one-time access tokens", slog.Int64("count", st.RowsAffected))
-
-	return nil
-}
-
-// clearSignupTokens deletes signup tokens that have expired
-func (j *DbCleanupJobs) clearSignupTokens(ctx context.Context) error {
-	count, err := usersignup.CleanupExpiredSignupTokens(ctx, j.db)
-	if err != nil {
-		return fmt.Errorf("failed to clean expired signup tokens: %w", err)
-	}
-
-	slog.InfoContext(ctx, "Cleaned expired signup tokens", slog.Int64("count", count))
 
 	return nil
 }
