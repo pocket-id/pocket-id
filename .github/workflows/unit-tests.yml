@@ -11,11 +11,19 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   test-backend:
-    runs-on: depot-ubuntu-latest
+    name: Backend (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: depot-ubuntu-latest
+          - name: Windows
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -28,12 +36,4 @@ jobs:
           go get ./...
       - name: Run backend unit tests
         working-directory: backend
-        run: |
-          set -e -o pipefail
-          go test -tags=exclude_frontend,unit -v ./... | tee /tmp/TestResults.log
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: backend-unit-tests
-          path: /tmp/TestResults.log
-          retention-days: 15
+        run: go test "-tags=exclude_frontend,unit" -v ./...
