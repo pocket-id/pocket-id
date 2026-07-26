@@ -74,12 +74,15 @@ func (h *handler) exchangeRequest(c *gin.Context) {
 	user, accessToken, status, err := h.service.Exchange(c.Request.Context(), requestID, deviceToken, c.ClientIP(), c.Request.UserAgent(), sessionDuration)
 	if err != nil {
 		if c.Request.Context().Err() != nil {
+			// Context canceled = the client stopped the request
+			// Nothing to do here
 			return
 		}
 		_ = c.Error(err)
 		return
 	}
 	if status == RequestStatusPending {
+		// Request is pending, so respond with a 202
 		c.Status(http.StatusAccepted)
 		return
 	}
@@ -100,7 +103,8 @@ func (h *handler) exchangeRequest(c *gin.Context) {
 // @Router /api/device-login/verification [post]
 func (h *handler) inspectRequest(c *gin.Context) {
 	var input verificationDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -124,13 +128,15 @@ func (h *handler) inspectRequest(c *gin.Context) {
 // @Router /api/device-login/verification/decision [post]
 func (h *handler) decideRequest(c *gin.Context) {
 	var input decisionDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
 	reauthenticationToken, _ := c.Cookie(cookie.ReauthenticationTokenCookieName)
-	if err := h.service.Decide(c.Request.Context(), input.Code, input.Decision, c.GetString("userID"), reauthenticationToken); err != nil {
+	err = h.service.Decide(c.Request.Context(), input.Code, input.Decision, c.GetString("userID"), reauthenticationToken)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}

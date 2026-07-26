@@ -64,24 +64,26 @@ func (s *Service) Create(ctx context.Context, ipAddress, userAgent string) (Requ
 		if codeErr != nil {
 			return Request{}, "", codeErr
 		}
+
 		actorID, actorIDErr := s.actorIDForCode(code)
 		if actorIDErr != nil {
 			return Request{}, "", actorIDErr
 		}
 
-		result, invokeErr := s.invoke(ctx, actorID, requestActorMethodCreate, requestActorCreateInput{
+		result, err := s.invoke(ctx, actorID, requestActorMethodCreate, requestActorCreateInput{
 			Code:            code,
 			DeviceTokenHash: deviceTokenHash,
 			IPAddress:       ipAddress,
 			UserAgent:       userAgent,
 		})
-		if invokeErr != nil {
-			return Request{}, "", invokeErr
+		if err != nil {
+			return Request{}, "", err
 		}
 		if result.Code == requestActorResultCollision {
 			continue
 		}
-		if err = actorResultError(result.Code); err != nil {
+		err = actorResultError(result.Code)
+		if err != nil {
 			return Request{}, "", err
 		}
 
@@ -107,7 +109,9 @@ func (s *Service) Inspect(ctx context.Context, code string) (VerificationInfo, e
 	if err != nil {
 		return VerificationInfo{}, err
 	}
-	if err = actorResultError(result.Code); err != nil {
+
+	err = actorResultError(result.Code)
+	if err != nil {
 		return VerificationInfo{}, err
 	}
 
@@ -147,10 +151,9 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 	if err != nil {
 		return dto.UserDto{}, "", preflightStatus, err
 	}
+
 	timeout := time.NewTimer(longPollingDuration)
-	defer timeout.Stop()
 	ticker := time.NewTicker(actorPollingInterval)
-	defer ticker.Stop()
 
 	for {
 		// Poll the actor's activation cache so the long-lived HTTP request does not repeatedly query the database
@@ -158,26 +161,32 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 		if err != nil {
 			return dto.UserDto{}, "", "", err
 		}
-		if resultErr := actorResultError(result.Code); resultErr != nil {
-			return dto.UserDto{}, "", result.Status, resultErr
+
+		err = actorResultError(result.Code)
+		if err != nil {
+			return dto.UserDto{}, "", result.Status, err
 		}
 
 		switch result.Status {
 		case RequestStatusApproved:
-			exchange, invokeErr := s.invoke(ctx, requestID, requestActorMethodExchange, requestActorExchangeInput{
+			exchange, err := s.invoke(ctx, requestID, requestActorMethodExchange, requestActorExchangeInput{
 				DeviceTokenHash: deviceTokenHash,
 				IPAddress:       ipAddress,
 				UserAgent:       userAgent,
 				SessionDuration: sessionDuration,
 			})
-			if invokeErr != nil {
-				return dto.UserDto{}, "", "", invokeErr
+			if err != nil {
+				return dto.UserDto{}, "", "", err
 			}
-			if resultErr := actorResultError(exchange.Code); resultErr != nil {
-				return dto.UserDto{}, "", exchange.Status, resultErr
+
+			err = actorResultError(exchange.Code)
+			if err != nil {
+				return dto.UserDto{}, "", exchange.Status, err
 			}
+
 			return exchange.User, exchange.AccessToken, exchange.Status, nil
 		case RequestStatusPending:
+			// no-op
 		case RequestStatusDenied:
 			return dto.UserDto{}, "", result.Status, &common.DeviceLoginDeniedError{}
 		default:
@@ -186,6 +195,7 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 
 		select {
 		case <-ticker.C:
+			// no-op
 		case <-timeout.C:
 			return dto.UserDto{}, "", RequestStatusPending, nil
 		case <-ctx.Done():
@@ -201,11 +211,10 @@ func (s *Service) preflightExchange(ctx context.Context, requestID, deviceTokenH
 	err := s.actService.GetState(ctx, requestActorType, requestID, &state)
 	if errors.Is(err, actor.ErrStateNotFound) {
 		return "", &common.DeviceLoginRequestInvalidOrExpiredError{}
-	}
-	if err != nil {
+	} else if err != nil {
 		return "", fmt.Errorf("failed to preflight device login actor state: %w", err)
 	}
-	if state.Code == "" || !constantTimeStringEqual(state.DeviceTokenHash, deviceTokenHash) {
+	if state.Code == "" || !utils.ConstantTimeStringEqual(state.DeviceTokenHash, deviceTokenHash) {
 		return "", &common.DeviceLoginRequestInvalidOrExpiredError{}
 	}
 
@@ -225,6 +234,7 @@ func (s *Service) actorIDForCode(code string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to derive device login actor ID: %w", err)
 	}
+
 	return hex.EncodeToString(derived), nil
 }
 
@@ -233,6 +243,7 @@ func (s *Service) invoke(ctx context.Context, actorID, method string, input any)
 	if err != nil {
 		return requestActorResult{}, err
 	}
+
 	return decodeActorResult(envelope)
 }
 
@@ -241,6 +252,7 @@ func (s *Service) peek(ctx context.Context, actorID, method string, input any) (
 	if err != nil {
 		return requestActorResult{}, err
 	}
+
 	return decodeActorResult(envelope)
 }
 
@@ -248,8 +260,10 @@ func decodeActorResult(envelope actor.Envelope) (requestActorResult, error) {
 	if envelope == nil {
 		return requestActorResult{}, errors.New("device login actor returned an empty response")
 	}
+
 	var result requestActorResult
-	if err := envelope.Decode(&result); err != nil {
+	err := envelope.Decode(&result)
+	if err != nil {
 		return requestActorResult{}, fmt.Errorf("failed to decode device login actor response: %w", err)
 	}
 	return result, nil
@@ -287,5 +301,6 @@ func newUserCode() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return codePrefix + randomCode, nil
 }
