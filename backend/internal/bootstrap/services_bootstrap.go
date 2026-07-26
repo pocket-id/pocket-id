@@ -97,14 +97,13 @@ func initServices(
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
 	}
 	svc.deviceLoginModule, err = devicelogin.New(devicelogin.Dependencies{
-		DB:         db,
-		BaseURL:    common.EnvConfig.AppURL,
-		Actors:     actors,
-		ActorIDKey: common.EnvConfig.EncryptionKey,
-		Signer:     svc.jwtService,
-		Reauth:     svc.webauthnModule,
-		AuditLog:   svc.auditLogService,
-		AppConfig:  svc.appConfigService,
+		DB:        db,
+		BaseURL:   common.EnvConfig.AppURL,
+		Actors:    actors,
+		Signer:    svc.jwtService,
+		Reauth:    svc.webauthnModule,
+		AuditLog:  svc.auditLogService,
+		AppConfig: svc.appConfigService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create device login module: %w", err)

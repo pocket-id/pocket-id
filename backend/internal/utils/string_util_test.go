@@ -62,7 +62,7 @@ func TestGenerateRandomUnambiguousString(t *testing.T) {
 			t.Errorf("Expected length %d, got %d", length, len(str))
 		}
 
-		matched, err := regexp.MatchString(`^[abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789]+$`, str)
+		matched, err := regexp.MatchString(`^[abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ0123456789]+$`, str)
 		if err != nil {
 			t.Errorf("Regex match failed: %v", err)
 		}
@@ -95,8 +95,14 @@ func TestGenerateRandomUppercaseUnambiguousString(t *testing.T) {
 	if len(str) != length {
 		t.Errorf("Expected length %d, got %d", length, len(str))
 	}
-	if !regexp.MustCompile(`^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]+$`).MatchString(str) {
+	if !regexp.MustCompile(`^[ABCDEFGHJKMNPQRSTUVWXYZ0123456789]+$`).MatchString(str) {
 		t.Errorf("String contains lowercase or ambiguous characters: %s", str)
+	}
+}
+
+func TestNormalizeUnambiguousString(t *testing.T) {
+	if normalized := NormalizeUnambiguousString("iIoO-abc"); normalized != "1100-abc" {
+		t.Errorf("Expected ambiguous letters to be converted, got %s", normalized)
 	}
 }
 

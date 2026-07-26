@@ -39,7 +39,9 @@
 	let authorizationRequired = $state(false);
 	let reauthenticationRequired = $state(false);
 	let reauthenticated = $state(false);
-	let normalizedUserCode = $derived(userCode.trim().toUpperCase());
+	let normalizedUserCode = $derived(
+		userCode.trim().toUpperCase().replaceAll('I', '1').replaceAll('O', '0')
+	);
 	let codeComplete = $derived(normalizedUserCode.length === 8);
 	let completed = $derived(success || deviceLoginOutcome !== undefined);
 

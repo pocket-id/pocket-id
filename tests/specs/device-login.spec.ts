@@ -107,7 +107,7 @@ async function openWaitingDevice(browser: Browser, redirect = '/settings') {
 	const response = await createResponse;
 	expect(response.status()).toBe(201);
 	const request = await response.json();
-	expect(request.userCode).toMatch(/^P[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{7}$/);
+	expect(request.userCode).toMatch(/^P[ABCDEFGHJKMNPQRSTUVWXYZ0123456789]{7}$/);
 	return {
 		context,
 		page,

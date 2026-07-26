@@ -23,7 +23,6 @@ import (
 )
 
 const (
-	testActorIDKey      = "0123456789abcdef0123456789abcdef"
 	testSessionDuration = time.Hour
 )
 
@@ -48,6 +47,7 @@ type fakeTokenService struct {
 	authenticationMethod string
 	sessionDuration      time.Duration
 	generated            int
+	err                  error
 }
 
 func (f *fakeTokenService) GenerateAccessToken(user model.User, authenticationMethod string, sessionDuration time.Duration) (string, error) {
@@ -57,6 +57,9 @@ func (f *fakeTokenService) GenerateAccessToken(user model.User, authenticationMe
 	f.authenticationMethod = authenticationMethod
 	f.sessionDuration = sessionDuration
 	f.generated++
+	if f.err != nil {
+		return "", f.err
+	}
 	return "device-login-access-token", nil
 }
 
@@ -121,8 +124,8 @@ func TestRequestLifecycle(t *testing.T) {
 
 	request, deviceToken, err := fixture.service.Create(t.Context(), "192.0.2.10", "Mozilla/5.0 Chrome/125.0.0.0")
 	require.NoError(t, err)
-	require.Regexp(t, `^P[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{7}$`, request.Code)
-	require.Regexp(t, `^[a-f0-9]{64}$`, request.ID)
+	require.Regexp(t, `^P[ABCDEFGHJKMNPQRSTUVWXYZ0123456789]{7}$`, request.Code)
+	require.Equal(t, request.Code, request.ID)
 	require.Equal(t, RequestStatusPending, request.Status)
 
 	state := getRequestActorState(t, fixture.actors, request.ID)
@@ -231,8 +234,10 @@ func TestRejectsInvalidAndExpiredRequestsWhileActorIsActive(t *testing.T) {
 	unknownRequestID := strings.Repeat("a", 64)
 	_, _, _, err = fixture.service.Exchange(t.Context(), unknownRequestID, "device-token", "", "", testSessionDuration)
 	assertInvalidRequestError(t, err)
-	_, err = fixture.actors.Peek(t.Context(), requestActorType, unknownRequestID, requestActorMethodInspect, nil, actor.WithInvokeActiveOnly())
-	require.ErrorIs(t, err, actor.ErrActorNotActive)
+	_, err = fixture.service.Inspect(t.Context(), unknownRequestID)
+	assertInvalidRequestError(t, err)
+	err = fixture.service.Decide(t.Context(), unknownRequestID, "deny", "device-login-user", "")
+	assertInvalidRequestError(t, err)
 
 	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, "wrong-token", "", "", testSessionDuration)
 	assertInvalidRequestError(t, err)
@@ -271,6 +276,29 @@ func TestRejectsDisabledUserAtExchange(t *testing.T) {
 	require.Equal(t, RequestStatusApproved, getRequestActorState(t, fixture.actors, request.ID).Status)
 }
 
+func TestFailedTokenGenerationRestoresApprovedRequest(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	fixture := newServiceFixture(t, db)
+	fixture.signer.err = errors.New("token generation failed")
+
+	user := model.User{
+		Base:     model.Base{ID: "token-failure-device-login-user"},
+		Username: "token-failure-device-login-user",
+	}
+	require.NoError(t, db.Create(&user).Error)
+
+	request, deviceToken, err := fixture.service.Create(t.Context(), "", "requesting-agent")
+	require.NoError(t, err)
+	require.NoError(t, fixture.service.Decide(t.Context(), request.Code, "approve", user.ID, "fresh-proof"))
+
+	_, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	require.EqualError(t, err, "token generation failed")
+	require.Empty(t, accessToken)
+	require.Equal(t, RequestStatusApproved, status)
+	require.Equal(t, RequestStatusApproved, getRequestActorState(t, fixture.actors, request.ID).Status)
+	require.Equal(t, 0, fixture.auditLog.entryCount())
+}
+
 func TestApprovalRejectsMissingAndStaleReauthentication(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	fixture := newServiceFixture(t, db)
@@ -287,6 +315,10 @@ func TestApprovalRejectsMissingAndStaleReauthentication(t *testing.T) {
 	err = fixture.service.Decide(t.Context(), request.Code, "approve", "device-login-user", "stale-proof")
 	require.ErrorAs(t, err, &reauthenticationError)
 	require.Equal(t, RequestStatusPending, getRequestActorState(t, fixture.actors, request.ID).Status)
+}
+
+func TestNormalizeUserCodeAliases(t *testing.T) {
+	require.Equal(t, "P100-110", normalizeUserCode(" piO0-i1o "))
 }
 
 func TestConcurrentExchangeAllowsOnlyOneSuccess(t *testing.T) {
@@ -445,12 +477,11 @@ func newServiceFixture(t *testing.T, db *gorm.DB) serviceFixture {
 	host := testutils.NewActorHostForTest(t, func(t *testing.T, host *local.Host) {
 		var err error
 		module, err = New(Dependencies{
-			DB:         db,
-			Actors:     host,
-			ActorIDKey: []byte(testActorIDKey),
-			Signer:     signer,
-			AuditLog:   auditLog,
-			Reauth:     reauth,
+			DB:       db,
+			Actors:   host,
+			Signer:   signer,
+			AuditLog: auditLog,
+			Reauth:   reauth,
 		})
 		require.NoError(t, err)
 	})
@@ -485,11 +516,10 @@ func assertInvalidRequestError(t *testing.T, err error) {
 
 func persistentTestDependencies(db *gorm.DB) Dependencies {
 	return Dependencies{
-		DB:         db,
-		ActorIDKey: []byte(testActorIDKey),
-		Signer:     &fakeTokenService{},
-		AuditLog:   &fakeAuditLogger{},
-		Reauth:     &fakeReauthenticationTokenConsumer{expectedValue: "fresh-proof"},
+		DB:       db,
+		Signer:   &fakeTokenService{},
+		AuditLog: &fakeAuditLogger{},
+		Reauth:   &fakeReauthenticationTokenConsumer{expectedValue: "fresh-proof"},
 	}
 }
 

@@ -7,32 +7,27 @@ import (
 	"time"
 
 	"github.com/italypaleale/francis/actor"
-	"gorm.io/gorm"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/dto"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 const (
-	requestActorType           = "device-login-request"
-	requestActorMethodCreate   = "create"
-	requestActorMethodInspect  = "inspect"
-	requestActorMethodPoll     = "poll"
-	requestActorMethodDecide   = "decide"
-	requestActorMethodExchange = "exchange"
+	requestActorType          = "device-login-request"
+	requestActorMethodCreate  = "create"
+	requestActorMethodInspect = "inspect"
+	requestActorMethodPoll    = "poll"
+	requestActorMethodDecide  = "decide"
+	requestActorMethodConsume = "consume"
+	requestActorMethodRestore = "restore"
 )
 
 type requestActorResultCode string
 
 const (
-	requestActorResultNone                     requestActorResultCode = ""
-	requestActorResultCollision                requestActorResultCode = "collision"
-	requestActorResultInvalid                  requestActorResultCode = "invalid"
-	requestActorResultDenied                   requestActorResultCode = "denied"
-	requestActorResultReauthenticationRequired requestActorResultCode = "reauthentication_required"
-	requestActorResultUserDisabled             requestActorResultCode = "user_disabled"
+	requestActorResultNone      requestActorResultCode = ""
+	requestActorResultCollision requestActorResultCode = "collision"
+	requestActorResultInvalid   requestActorResultCode = "invalid"
+	requestActorResultDenied    requestActorResultCode = "denied"
 )
 
 type requestActorState struct {
@@ -46,14 +41,13 @@ type requestActorState struct {
 }
 
 type requestActorResult struct {
-	Code        requestActorResultCode
-	Status      RequestStatus
-	UserCode    string
-	IPAddress   string
-	UserAgent   string
-	ExpiresAt   time.Time
-	User        dto.UserDto
-	AccessToken string
+	Code      requestActorResultCode
+	Status    RequestStatus
+	UserCode  string
+	IPAddress string
+	UserAgent string
+	ExpiresAt time.Time
+	State     requestActorState
 }
 
 type requestActorCreateInput struct {
@@ -68,35 +62,21 @@ type requestActorPollInput struct {
 }
 
 type requestActorDecisionInput struct {
-	Decision              string
-	UserID                string
-	ReauthenticationToken string
+	Decision string
+	UserID   string
 }
 
-type requestActorExchangeInput struct {
+type requestActorConsumeInput struct {
 	DeviceTokenHash string
-	IPAddress       string
-	UserAgent       string
-	SessionDuration time.Duration
 }
 
 type requestActor struct {
-	db       *gorm.DB
-	signer   TokenService
-	auditLog AuditLogger
-	reauth   ReauthenticationTokenConsumer
-	client   actor.Client[requestActorState]
+	client actor.Client[requestActorState]
 }
 
-func newRequestActor(deps Dependencies) actor.Factory {
-	return func(actorID string, actorService *actor.Service) actor.Actor {
-		return &requestActor{
-			db:       deps.DB,
-			signer:   deps.Signer,
-			auditLog: deps.AuditLog,
-			reauth:   deps.Reauth,
-			client:   actor.NewActorClient[requestActorState](requestActorType, actorID, actorService),
-		}
+func newRequestActor(actorID string, actorService *actor.Service) actor.Actor {
+	return &requestActor{
+		client: actor.NewActorClient[requestActorState](requestActorType, actorID, actorService),
 	}
 }
 
@@ -116,13 +96,20 @@ func (a *requestActor) Invoke(ctx context.Context, method string, data actor.Env
 			return nil, err
 		}
 		return a.decide(ctx, input)
-	case requestActorMethodExchange:
-		var input requestActorExchangeInput
+	case requestActorMethodConsume:
+		var input requestActorConsumeInput
 		err := decodeActorInput(data, &input)
 		if err != nil {
 			return nil, err
 		}
-		return a.exchange(ctx, input)
+		return a.consume(ctx, input)
+	case requestActorMethodRestore:
+		var state requestActorState
+		err := decodeActorInput(data, &state)
+		if err != nil {
+			return nil, err
+		}
+		return a.restore(ctx, state)
 	default:
 		return nil, fmt.Errorf("unsupported device login actor method %q", method)
 	}
@@ -239,11 +226,6 @@ func (a *requestActor) decide(ctx context.Context, input requestActorDecisionInp
 	case "deny":
 		state.Status = RequestStatusDenied
 	case "approve":
-		// Consume the fresh passkey proof before persisting approval so a state failure cannot bypass reauthentication
-		result, approvalErr := a.consumeReauthenticationProof(ctx, input)
-		if approvalErr != nil || result.Code != requestActorResultNone {
-			return result, approvalErr
-		}
 		state.Status = RequestStatusApproved
 		state.UserID = input.UserID
 	default:
@@ -258,43 +240,8 @@ func (a *requestActor) decide(ctx context.Context, input requestActorDecisionInp
 	return requestActorResult{Status: state.Status, ExpiresAt: state.ExpiresAt}, nil
 }
 
-func (a *requestActor) consumeReauthenticationProof(ctx context.Context, input requestActorDecisionInput) (requestActorResult, error) {
-	if input.ReauthenticationToken == "" {
-		return requestActorResult{Code: requestActorResultReauthenticationRequired}, nil
-	}
-
-	tx := a.db.WithContext(ctx).Begin()
-	if tx.Error != nil {
-		return requestActorResult{}, tx.Error
-	}
-	defer tx.Rollback()
-
-	reauthenticatedAt, err := a.reauth.ConsumeReauthenticationToken(ctx, tx, input.ReauthenticationToken, input.UserID)
-	if err != nil {
-		_, ok := errors.AsType[*common.ReauthenticationRequiredError](err)
-		if ok {
-			return requestActorResult{Code: requestActorResultReauthenticationRequired}, nil
-		}
-		return requestActorResult{}, err
-	}
-	if time.Since(reauthenticatedAt) > reauthenticationMaxAge {
-		return requestActorResult{Code: requestActorResultReauthenticationRequired}, nil
-	}
-
-	err = tx.Commit().Error
-	if err != nil {
-		return requestActorResult{}, fmt.Errorf("error committing database transaction: %w", err)
-	}
-
-	return requestActorResult{}, nil
-}
-
-func (a *requestActor) exchange(ctx context.Context, input requestActorExchangeInput) (requestActorResult, error) {
-	if input.SessionDuration <= 0 {
-		return requestActorResult{Code: requestActorResultInvalid}, nil
-	}
-
-	// Serialize exchange attempts and validate the device binding inside the actor turn
+func (a *requestActor) consume(ctx context.Context, input requestActorConsumeInput) (requestActorResult, error) {
+	// Serialize consume attempts and validate the device binding inside the actor turn
 	state, err := a.loadState(ctx)
 	if err != nil {
 		return requestActorResult{}, err
@@ -311,53 +258,39 @@ func (a *requestActor) exchange(ctx context.Context, input requestActorExchangeI
 		if state.UserID == "" {
 			return requestActorResult{Code: requestActorResultInvalid}, nil
 		}
-		return a.completeApprovedExchange(ctx, state, input)
+		// Delete the approved request before returning its state so only one exchange can continue
+		if err = a.client.DeleteState(ctx); err != nil {
+			return requestActorResult{}, fmt.Errorf("failed to delete consumed device login actor state: %w", err)
+		}
+		return requestActorResult{
+			Status:    state.Status,
+			ExpiresAt: state.ExpiresAt,
+			State:     state,
+		}, nil
 	default:
 		return requestActorResult{Code: requestActorResultInvalid}, nil
 	}
 }
 
-func (a *requestActor) completeApprovedExchange(ctx context.Context, state requestActorState, input requestActorExchangeInput) (requestActorResult, error) {
-	var user model.User
-	err := a.db.WithContext(ctx).First(&user, "id = ?", state.UserID).Error
-	switch {
-	case errors.Is(err, gorm.ErrRecordNotFound):
-		return requestActorResult{Code: requestActorResultInvalid}, nil
-	case err != nil:
-		return requestActorResult{}, err
-	case user.Disabled:
-		return requestActorResult{Code: requestActorResultUserDisabled, Status: state.Status}, nil
+func (a *requestActor) restore(ctx context.Context, state requestActorState) (requestActorResult, error) {
+	// Ignore a restore after expiry because the original request is no longer usable
+	if state.Code == "" || !state.ExpiresAt.After(time.Now()) {
+		return requestActorResult{}, nil
 	}
 
-	var userDTO dto.UserDto
-	err = dto.MapStruct(user, &userDTO)
-	if err != nil {
-		return requestActorResult{}, fmt.Errorf("failed to map exchanged device login user: %w", err)
-	}
-
-	// Consume the request before producing the one-shot response.
-	err = a.client.DeleteState(ctx)
-	if err != nil {
-		return requestActorResult{}, fmt.Errorf("failed to delete consumed device login actor state: %w", err)
-	}
-
-	// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
-	accessToken, err := a.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, input.SessionDuration)
+	// Never overwrite a new live request that reused the same short code
+	current, valid, err := a.liveState(ctx)
 	if err != nil {
 		return requestActorResult{}, err
 	}
-
-	_, created := a.auditLog.Create(ctx, model.AuditLogEventRemoteSignIn, input.IPAddress, input.UserAgent, user.ID, model.AuditLogData{}, a.db)
-	if !created {
-		return requestActorResult{}, errors.New("failed to create device login audit log")
+	if valid && current.Code != "" {
+		return requestActorResult{Code: requestActorResultCollision}, nil
 	}
 
-	return requestActorResult{
-		Status:      RequestStatusApproved,
-		ExpiresAt:   state.ExpiresAt,
-		User:        userDTO,
-		AccessToken: accessToken,
-	}, nil
+	if err = a.persistState(ctx, state); err != nil {
+		return requestActorResult{}, err
+	}
+	return requestActorResult{Status: state.Status, ExpiresAt: state.ExpiresAt}, nil
 }
 
 func (a *requestActor) liveState(ctx context.Context) (requestActorState, bool, error) {

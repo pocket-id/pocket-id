@@ -31,10 +31,9 @@ type AppConfigProvider interface {
 }
 
 type Dependencies struct {
-	DB         *gorm.DB
-	Actors     *local.Host
-	BaseURL    string
-	ActorIDKey []byte
+	DB      *gorm.DB
+	Actors  *local.Host
+	BaseURL string
 
 	Signer    TokenService
 	Reauth    ReauthenticationTokenConsumer
@@ -48,7 +47,7 @@ type Module struct {
 }
 
 func New(deps Dependencies) (*Module, error) {
-	service := NewService(deps.Actors.Service(), deps.ActorIDKey, deps.AuditLog)
+	service := NewService(deps.Actors.Service(), deps.DB, deps.Signer, deps.Reauth, deps.AuditLog)
 	module := &Module{
 		service: service,
 		handler: newHandler(service, deps.BaseURL, deps.AppConfig),
@@ -57,7 +56,7 @@ func New(deps Dependencies) (*Module, error) {
 	// Register the durable request actor before the host starts
 	err := deps.Actors.RegisterActor(
 		requestActorType,
-		newRequestActor(deps),
+		newRequestActor,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to register device login actor: %w", err)

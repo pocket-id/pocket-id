@@ -148,6 +148,8 @@ func (s *Service) CreateToken(ctx context.Context, userID string, ttl time.Durat
 }
 
 func (s *Service) ExchangeToken(ctx context.Context, dbConfig *appconfig.AppConfigModel, token, deviceToken, ipAddress, userAgent string) (model.User, string, error) {
+	token = utils.NormalizeUnambiguousString(token)
+
 	// Consume the token by invoking its actor: this atomically validates it and, if valid, deletes it.
 	// It must happen outside of a DB transaction, since invoking an actor while a transaction is open would deadlock on SQLite.
 	res, err := s.actorService.Invoke(ctx, TokenActorType, token, tokenMethodConsume, tokenConsumeRequest{

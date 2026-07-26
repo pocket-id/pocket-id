@@ -2,19 +2,20 @@ package devicelogin
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/italypaleale/francis/actor"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	cryptoutils "github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
 )
 
 const (
@@ -31,7 +32,9 @@ const (
 
 type Service struct {
 	actService *actor.Service
-	actorIDKey []byte
+	db         *gorm.DB
+	signer     TokenService
+	reauth     ReauthenticationTokenConsumer
 	auditLog   AuditLogger
 }
 
@@ -42,10 +45,12 @@ type VerificationInfo struct {
 	ExpiresAt datatype.DateTime
 }
 
-func NewService(actService *actor.Service, actorIDKey []byte, auditLog AuditLogger) *Service {
+func NewService(actService *actor.Service, db *gorm.DB, signer TokenService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger) *Service {
 	return &Service{
 		actService: actService,
-		actorIDKey: actorIDKey,
+		db:         db,
+		signer:     signer,
+		reauth:     reauth,
 		auditLog:   auditLog,
 	}
 }
@@ -65,12 +70,7 @@ func (s *Service) Create(ctx context.Context, ipAddress, userAgent string) (Requ
 			return Request{}, "", codeErr
 		}
 
-		actorID, actorIDErr := s.actorIDForCode(code)
-		if actorIDErr != nil {
-			return Request{}, "", actorIDErr
-		}
-
-		result, err := s.invoke(ctx, actorID, requestActorMethodCreate, requestActorCreateInput{
+		result, err := s.invoke(ctx, code, requestActorMethodCreate, requestActorCreateInput{
 			Code:            code,
 			DeviceTokenHash: deviceTokenHash,
 			IPAddress:       ipAddress,
@@ -88,7 +88,7 @@ func (s *Service) Create(ctx context.Context, ipAddress, userAgent string) (Requ
 		}
 
 		return Request{
-			ID:        actorID,
+			ID:        code,
 			Code:      code,
 			Status:    result.Status,
 			ExpiresAt: datatype.DateTime(result.ExpiresAt),
@@ -99,10 +99,7 @@ func (s *Service) Create(ctx context.Context, ipAddress, userAgent string) (Requ
 }
 
 func (s *Service) Inspect(ctx context.Context, code string) (VerificationInfo, error) {
-	actorID, err := s.actorIDForCode(code)
-	if err != nil {
-		return VerificationInfo{}, err
-	}
+	actorID := normalizeUserCode(code)
 
 	// Read the pending actor state without taking an exclusive actor turn
 	result, err := s.peek(ctx, actorID, requestActorMethodInspect, nil)
@@ -124,16 +121,19 @@ func (s *Service) Inspect(ctx context.Context, code string) (VerificationInfo, e
 }
 
 func (s *Service) Decide(ctx context.Context, code, decision, userID, reauthenticationToken string) error {
-	actorID, err := s.actorIDForCode(code)
-	if err != nil {
-		return err
+	actorID := normalizeUserCode(code)
+
+	// Consume the fresh passkey proof outside the actor before approving the request
+	if decision == "approve" {
+		if err := s.consumeReauthenticationProof(ctx, reauthenticationToken, userID); err != nil {
+			return err
+		}
 	}
 
 	// Let the actor serialize the decision with every competing exchange
 	result, err := s.invoke(ctx, actorID, requestActorMethodDecide, requestActorDecisionInput{
-		Decision:              decision,
-		UserID:                userID,
-		ReauthenticationToken: reauthenticationToken,
+		Decision: decision,
+		UserID:   userID,
 	})
 	if err != nil {
 		return err
@@ -142,18 +142,15 @@ func (s *Service) Decide(ctx context.Context, code, decision, userID, reauthenti
 }
 
 func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent string, sessionDuration time.Duration) (dto.UserDto, string, RequestStatus, error) {
-	if deviceToken == "" || !validRequestActorID(requestID) {
+	if requestID == "" || deviceToken == "" || sessionDuration <= 0 {
 		return dto.UserDto{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
 	}
 
 	deviceTokenHash := utils.CreateSha256Hash(deviceToken)
-	preflightStatus, err := s.preflightExchange(ctx, requestID, deviceTokenHash)
-	if err != nil {
-		return dto.UserDto{}, "", preflightStatus, err
-	}
-
 	timeout := time.NewTimer(longPollingDuration)
+	defer timeout.Stop()
 	ticker := time.NewTicker(actorPollingInterval)
+	defer ticker.Stop()
 
 	for {
 		// Poll the actor's activation cache so the long-lived HTTP request does not repeatedly query the database
@@ -169,22 +166,25 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 
 		switch result.Status {
 		case RequestStatusApproved:
-			exchange, err := s.invoke(ctx, requestID, requestActorMethodExchange, requestActorExchangeInput{
+			consume, err := s.invoke(ctx, requestID, requestActorMethodConsume, requestActorConsumeInput{
 				DeviceTokenHash: deviceTokenHash,
-				IPAddress:       ipAddress,
-				UserAgent:       userAgent,
-				SessionDuration: sessionDuration,
 			})
 			if err != nil {
 				return dto.UserDto{}, "", "", err
 			}
 
-			err = actorResultError(exchange.Code)
+			err = actorResultError(consume.Code)
 			if err != nil {
-				return dto.UserDto{}, "", exchange.Status, err
+				return dto.UserDto{}, "", consume.Status, err
 			}
 
-			return exchange.User, exchange.AccessToken, exchange.Status, nil
+			user, accessToken, err := s.completeApprovedExchange(ctx, consume.State, ipAddress, userAgent, sessionDuration)
+			if err != nil {
+				s.restoreRequest(ctx, requestID, consume.State)
+				return dto.UserDto{}, "", consume.Status, err
+			}
+
+			return user, accessToken, consume.Status, nil
 		case RequestStatusPending:
 			// no-op
 		case RequestStatusDenied:
@@ -204,38 +204,84 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 	}
 }
 
-// preflightExchange checks the request state before starting the long-polling exchange.
-func (s *Service) preflightExchange(ctx context.Context, requestID, deviceTokenHash string) (RequestStatus, error) {
-	// Read durable state once before activation so random public IDs cannot allocate actors
-	var state requestActorState
-	err := s.actService.GetState(ctx, requestActorType, requestID, &state)
-	if errors.Is(err, actor.ErrStateNotFound) {
-		return "", &common.DeviceLoginRequestInvalidOrExpiredError{}
-	} else if err != nil {
-		return "", fmt.Errorf("failed to preflight device login actor state: %w", err)
-	}
-	if state.Code == "" || !utils.ConstantTimeStringEqual(state.DeviceTokenHash, deviceTokenHash) {
-		return "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+func (s *Service) consumeReauthenticationProof(ctx context.Context, token, userID string) error {
+	if token == "" {
+		return &common.ReauthenticationRequiredError{}
 	}
 
-	switch state.Status {
-	case RequestStatusPending, RequestStatusApproved:
-		return state.Status, nil
-	case RequestStatusDenied:
-		return state.Status, &common.DeviceLoginDeniedError{}
-	default:
-		return "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+	tx := s.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer tx.Rollback()
+
+	reauthenticatedAt, err := s.reauth.ConsumeReauthenticationToken(ctx, tx, token, userID)
+	if err != nil {
+		var reauthenticationRequiredError *common.ReauthenticationRequiredError
+		if errors.As(err, &reauthenticationRequiredError) {
+			return &common.ReauthenticationRequiredError{}
+		}
+		return err
+	}
+	if time.Since(reauthenticatedAt) > reauthenticationMaxAge {
+		return &common.ReauthenticationRequiredError{}
+	}
+
+	if err = tx.Commit().Error; err != nil {
+		return fmt.Errorf("error committing database transaction: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) completeApprovedExchange(ctx context.Context, state requestActorState, ipAddress, userAgent string, sessionDuration time.Duration) (dto.UserDto, string, error) {
+	var user model.User
+	err := s.db.WithContext(ctx).First(&user, "id = ?", state.UserID).Error
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return dto.UserDto{}, "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+	case err != nil:
+		return dto.UserDto{}, "", err
+	case user.Disabled:
+		return dto.UserDto{}, "", &common.UserDisabledError{}
+	}
+
+	var userDTO dto.UserDto
+	if err = dto.MapStruct(user, &userDTO); err != nil {
+		return dto.UserDto{}, "", fmt.Errorf("failed to map exchanged device login user: %w", err)
+	}
+
+	// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
+	accessToken, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, sessionDuration)
+	if err != nil {
+		return dto.UserDto{}, "", err
+	}
+
+	_, created := s.auditLog.Create(ctx, model.AuditLogEventRemoteSignIn, ipAddress, userAgent, user.ID, model.AuditLogData{}, s.db)
+	if !created {
+		return dto.UserDto{}, "", errors.New("failed to create device login audit log")
+	}
+
+	return userDTO, accessToken, nil
+}
+
+func (s *Service) restoreRequest(parentCtx context.Context, requestID string, state requestActorState) {
+	// Use a detached bounded context because the failed request may already be canceled
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 10*time.Second)
+	defer cancel()
+
+	result, err := s.invoke(ctx, requestID, requestActorMethodRestore, state)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to restore device login request after a failed exchange", slog.Any("error", err))
+		return
+	}
+	if result.Code == requestActorResultCollision {
+		slog.WarnContext(ctx, "Skipped restoring device login request because its code was reused")
 	}
 }
 
-func (s *Service) actorIDForCode(code string) (string, error) {
+func normalizeUserCode(code string) string {
 	code = strings.ToUpper(strings.TrimSpace(code))
-	derived, err := cryptoutils.DeriveKey(s.actorIDKey, "pocketid/device-login-request/"+code)
-	if err != nil {
-		return "", fmt.Errorf("failed to derive device login actor ID: %w", err)
-	}
-
-	return hex.EncodeToString(derived), nil
+	return utils.NormalizeUnambiguousString(code)
 }
 
 func (s *Service) invoke(ctx context.Context, actorID, method string, input any) (requestActorResult, error) {
@@ -279,21 +325,9 @@ func actorResultError(code requestActorResultCode) error {
 		return &common.DeviceLoginRequestInvalidOrExpiredError{}
 	case requestActorResultDenied:
 		return &common.DeviceLoginDeniedError{}
-	case requestActorResultReauthenticationRequired:
-		return &common.ReauthenticationRequiredError{}
-	case requestActorResultUserDisabled:
-		return &common.UserDisabledError{}
 	default:
 		return fmt.Errorf("unsupported device login actor result %q", code)
 	}
-}
-
-func validRequestActorID(actorID string) bool {
-	if len(actorID) != 64 {
-		return false
-	}
-	_, err := hex.DecodeString(actorID)
-	return err == nil
 }
 
 func newUserCode() (string, error) {
