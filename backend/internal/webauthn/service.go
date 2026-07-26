@@ -248,8 +248,10 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	session := gowebauthn.SessionData{
-		Challenge: storedSession.Challenge,
-		Expires:   storedSession.ExpiresAt.ToTime(),
+		Challenge:        storedSession.Challenge,
+		Expires:          storedSession.ExpiresAt.ToTime(),
+		UserVerification: protocol.UserVerificationRequirement(storedSession.UserVerification),
+		CredParams:       storedSession.CredentialParams,
 	}
 
 	var user *model.User
@@ -450,8 +452,10 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	}
 
 	session := gowebauthn.SessionData{
-		Challenge: storedSession.Challenge,
-		Expires:   storedSession.ExpiresAt.ToTime(),
+		Challenge:        storedSession.Challenge,
+		Expires:          storedSession.ExpiresAt.ToTime(),
+		UserVerification: protocol.UserVerificationRequirement(storedSession.UserVerification),
+		CredParams:       storedSession.CredentialParams,
 	}
 
 	// Validate the credential assertion
