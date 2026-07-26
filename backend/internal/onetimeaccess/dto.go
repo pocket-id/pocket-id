@@ -1,6 +1,8 @@
 package onetimeaccess
 
-import "github.com/pocket-id/pocket-id/backend/internal/utils"
+import (
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
+)
 
 type tokenCreateDto struct {
 	TTL utils.JSONDuration `json:"ttl" binding:"ttl"`

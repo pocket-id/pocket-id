@@ -101,7 +101,8 @@ func (h *handler) requestEmailAsUnauthenticatedUser(c *gin.Context) {
 	}
 
 	var input emailAsUnauthenticatedUserDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
+	err = dto.ShouldBindWithNormalizedJSON(c, &input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -134,7 +135,8 @@ func (h *handler) requestEmailAsAdmin(c *gin.Context) {
 	}
 
 	var input emailAsAdminDto
-	if err := c.ShouldBindJSON(&input); err != nil {
+	err = c.ShouldBindJSON(&input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}

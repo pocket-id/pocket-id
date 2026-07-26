@@ -112,7 +112,7 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 			linkWithCode = linkWithCode + "?redirect=" + encodedRedirectPath
 		}
 
-		errInternal := s.emailSender.SendOneTimeAccessEmail(innerCtx, dbConfig, email.Address{
+		innerErr := s.emailSender.SendOneTimeAccessEmail(innerCtx, dbConfig, email.Address{
 			Name:  user.FullName(),
 			Email: *user.Email,
 		}, EmailData{
@@ -121,8 +121,8 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 			LoginLinkWithCode: linkWithCode,
 			ExpirationString:  utils.DurationToString(ttl),
 		})
-		if errInternal != nil {
-			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", errInternal), slog.String("address", *user.Email))
+		if innerErr != nil {
+			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", innerErr), slog.String("address", *user.Email))
 			return
 		}
 	}()

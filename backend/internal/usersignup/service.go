@@ -275,7 +275,10 @@ func (s *Service) listSignupTokenStates(ctx context.Context) ([]signupTokenEntry
 				return nil, fmt.Errorf("error decoding state of signup token actor '%s': %w", st.ActorID, err)
 			}
 
-			entries = append(entries, signupTokenEntry{Token: st.ActorID, State: state})
+			entries = append(entries, signupTokenEntry{
+				Token: st.ActorID,
+				State: state,
+			})
 		}
 
 		// An empty cursor means we've just read the last page
