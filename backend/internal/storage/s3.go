@@ -62,6 +62,10 @@ func (s *s3Storage) Type() string {
 	return TypeS3
 }
 
+func (s *s3Storage) Close() error {
+	return nil
+}
+
 func (s *s3Storage) Save(ctx context.Context, path string, data io.Reader) error {
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),

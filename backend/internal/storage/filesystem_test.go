@@ -15,6 +15,9 @@ func TestFilesystemStorageOperations(t *testing.T) {
 	ctx := context.Background()
 	store, err := NewFilesystemStorage(t.TempDir())
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, store.Close())
+	})
 
 	t.Run("save, open and list files", func(t *testing.T) {
 		err := store.Save(ctx, "images/logo.png", bytes.NewBufferString("logo-data"))

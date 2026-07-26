@@ -20,8 +20,7 @@ import (
 )
 
 func TestAppImagesService_GetImage(t *testing.T) {
-	store, err := storage.NewFilesystemStorage(t.TempDir())
-	require.NoError(t, err)
+	store := newFilesystemStorageForTest(t)
 
 	require.NoError(t, store.Save(context.Background(), path.Join("application-images", "background.webp"), bytes.NewReader([]byte("data"))))
 
@@ -38,8 +37,7 @@ func TestAppImagesService_GetImage(t *testing.T) {
 }
 
 func TestAppImagesService_UpdateImage(t *testing.T) {
-	store, err := storage.NewFilesystemStorage(t.TempDir())
-	require.NoError(t, err)
+	store := newFilesystemStorageForTest(t)
 
 	require.NoError(t, store.Save(context.Background(), path.Join("application-images", "logoLight.svg"), bytes.NewReader([]byte("old"))))
 
@@ -58,8 +56,7 @@ func TestAppImagesService_UpdateImage(t *testing.T) {
 }
 
 func TestAppImagesService_UpdateImageStripsMetadata(t *testing.T) {
-	store, err := storage.NewFilesystemStorage(t.TempDir())
-	require.NoError(t, err)
+	store := newFilesystemStorageForTest(t)
 
 	service := NewAppImagesService(map[string]string{}, store)
 
@@ -81,8 +78,7 @@ func TestAppImagesService_UpdateImageStripsMetadata(t *testing.T) {
 }
 
 func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
-	store, err := storage.NewFilesystemStorage(t.TempDir())
-	require.NoError(t, err)
+	store := newFilesystemStorageForTest(t)
 
 	service := NewAppImagesService(map[string]string{}, store)
 
@@ -112,6 +108,17 @@ func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
 		var imageErr *common.ImageNotFoundError
 		assert.ErrorAs(t, err, &imageErr)
 	})
+}
+
+func newFilesystemStorageForTest(t *testing.T) storage.FileStorage {
+	t.Helper()
+
+	store, err := storage.NewFilesystemStorage(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, store.Close())
+	})
+	return store
 }
 
 func newFileHeader(t *testing.T, filename string, content []byte) *multipart.FileHeader {

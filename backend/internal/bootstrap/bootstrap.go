@@ -61,6 +61,14 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
 	}
 
+	// Close file storage after every service that depends on it has stopped
+	defer func() {
+		closeErr := fileStorage.Close()
+		if closeErr != nil {
+			slog.ErrorContext(ctx, "Failed to close file storage", slog.Any("error", closeErr))
+		}
+	}()
+
 	// Init application images
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
