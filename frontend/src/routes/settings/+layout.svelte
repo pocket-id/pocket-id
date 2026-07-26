@@ -63,7 +63,7 @@
 				</div>
 			</div>
 
-			<div class="flex w-full flex-col gap-4 overflow-hidden pb-2">
+			<div class="flex w-full flex-col gap-4 overflow-hidden pb-2 px-2">
 				<FadeWrapper>
 					<EmailVerificationStateBox />
 					{@render children()}

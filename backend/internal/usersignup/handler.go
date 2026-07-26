@@ -56,7 +56,8 @@ func (h *handler) signUpInitialAdmin(c *gin.Context) {
 	}
 
 	var input signUpDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
+	err = dto.ShouldBindWithNormalizedJSON(c, &input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -68,7 +69,8 @@ func (h *handler) signUpInitialAdmin(c *gin.Context) {
 	}
 
 	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
+	err = dto.MapStruct(user, &userDto)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -136,7 +138,8 @@ func (h *handler) listSignupTokens(c *gin.Context) {
 	}
 
 	var tokensDto []signupTokenDto
-	if err := dto.MapStructList(tokens, &tokensDto); err != nil {
+	err = dto.MapStructList(tokens, &tokensDto)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
@@ -183,15 +186,13 @@ func (h *handler) signup(c *gin.Context) {
 	}
 
 	var input signUpDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
+	err = dto.ShouldBindWithNormalizedJSON(c, &input)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}
 
-	ipAddress := c.ClientIP()
-	userAgent := c.GetHeader("User-Agent")
-
-	user, accessToken, err := h.service.SignUp(c.Request.Context(), config, input, ipAddress, userAgent)
+	user, accessToken, err := h.service.SignUp(c.Request.Context(), config, input, c.ClientIP(), c.GetHeader("User-Agent"))
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -201,7 +202,8 @@ func (h *handler) signup(c *gin.Context) {
 	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
 
 	var userDto dto.UserDto
-	if err := dto.MapStruct(user, &userDto); err != nil {
+	err = dto.MapStruct(user, &userDto)
+	if err != nil {
 		_ = c.Error(err)
 		return
 	}

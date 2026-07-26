@@ -140,10 +140,11 @@ func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, user
 	}
 
 	session := gowebauthn.SessionData{
-		Challenge:  storedSession.Challenge,
-		Expires:    storedSession.ExpiresAt.ToTime(),
-		CredParams: storedSession.CredentialParams,
-		UserID:     []byte(userID),
+		Challenge:        storedSession.Challenge,
+		Expires:          storedSession.ExpiresAt.ToTime(),
+		CredParams:       storedSession.CredentialParams,
+		UserVerification: protocol.UserVerificationRequirement(storedSession.UserVerification),
+		UserID:           []byte(userID),
 	}
 
 	var user model.User
