@@ -7,13 +7,20 @@ import type {
 import APIService from './api-service';
 
 export default class DeviceLoginService extends APIService {
-	createRequest = async () => {
-		const response = await this.api.post('/device-login/requests');
+	createRequest = async (signal?: AbortSignal) => {
+		const response = await this.api.post('/device-login/requests', undefined, { signal });
 		return response.data as DeviceLoginRequest;
 	};
 
-	exchangeRequest = async (requestId: string): Promise<DeviceLoginExchangeResult> => {
-		const response = await this.api.post(`/device-login/requests/${requestId}/exchange`);
+	exchangeRequest = async (
+		requestId: string,
+		signal?: AbortSignal
+	): Promise<DeviceLoginExchangeResult> => {
+		const response = await this.api.post(
+			`/device-login/requests/${requestId}/exchange`,
+			undefined,
+			{ signal }
+		);
 		return response.status === 202 ? null : response.data;
 	};
 

@@ -129,6 +129,7 @@
 
 	function retry() {
 		errorMessage = null;
+		userCode = '';
 		if (!deviceLoginInfo) {
 			deviceInfo = undefined;
 			authorizationRequired = false;

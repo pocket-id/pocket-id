@@ -2,23 +2,26 @@ package devicelogin
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/italypaleale/francis/actor"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
+	cryptoutils "github.com/pocket-id/pocket-id/backend/internal/utils/crypto"
 )
 
 const (
 	RequestDuration        = 15 * time.Minute
 	PollingInterval        = 3
+	longPollingDuration    = 25 * time.Second
+	actorPollingInterval   = 250 * time.Millisecond
 	codePrefix             = "P"
 	codeRandomLength       = 7
 	reauthenticationMaxAge = time.Minute
@@ -27,10 +30,9 @@ const (
 )
 
 type Service struct {
-	db       *gorm.DB
-	signer   TokenService
-	auditLog AuditLogger
-	reauth   ReauthenticationTokenConsumer
+	actService *actor.Service
+	actorIDKey []byte
+	auditLog   AuditLogger
 }
 
 type VerificationInfo struct {
@@ -40,12 +42,11 @@ type VerificationInfo struct {
 	ExpiresAt datatype.DateTime
 }
 
-func newService(deps Dependencies) *Service {
+func NewService(actService *actor.Service, actorIDKey []byte, auditLog AuditLogger) *Service {
 	return &Service{
-		db:       deps.DB,
-		signer:   deps.Signer,
-		auditLog: deps.AuditLog,
-		reauth:   deps.Reauth,
+		actService: actService,
+		actorIDKey: actorIDKey,
+		auditLog:   auditLog,
 	}
 }
 
@@ -55,182 +56,230 @@ func (s *Service) Create(ctx context.Context, ipAddress, userAgent string) (Requ
 	if err != nil {
 		return Request{}, "", err
 	}
+	deviceTokenHash := utils.CreateSha256Hash(deviceToken)
 
-	now := time.Now().Round(time.Second)
-	request := Request{
-		DeviceTokenHash: utils.CreateSha256Hash(deviceToken),
-		Status:          RequestStatusPending,
-		ExpiresAt:       datatype.DateTime(now.Add(RequestDuration)),
-		UserAgent:       userAgent,
-		IpAddress:       ipAddress,
-	}
-
-	// Retry code generation because of the small but non-zero chance of a collision with an existing code
+	// Retry code generation because of the small but non-zero chance of a live actor collision
 	for range 3 {
-		request.Code, err = newUserCode()
-		if err != nil {
+		code, codeErr := newUserCode()
+		if codeErr != nil {
+			return Request{}, "", codeErr
+		}
+		actorID, actorIDErr := s.actorIDForCode(code)
+		if actorIDErr != nil {
+			return Request{}, "", actorIDErr
+		}
+
+		result, invokeErr := s.invoke(ctx, actorID, requestActorMethodCreate, requestActorCreateInput{
+			Code:            code,
+			DeviceTokenHash: deviceTokenHash,
+			IPAddress:       ipAddress,
+			UserAgent:       userAgent,
+		})
+		if invokeErr != nil {
+			return Request{}, "", invokeErr
+		}
+		if result.Code == requestActorResultCollision {
+			continue
+		}
+		if err = actorResultError(result.Code); err != nil {
 			return Request{}, "", err
 		}
 
-		err = s.db.WithContext(ctx).Create(&request).Error
-		if err == nil {
-			return request, deviceToken, nil
-		}
-		if !errors.Is(err, gorm.ErrDuplicatedKey) {
-			return Request{}, "", err
-		}
+		return Request{
+			ID:        actorID,
+			Code:      code,
+			Status:    result.Status,
+			ExpiresAt: datatype.DateTime(result.ExpiresAt),
+		}, deviceToken, nil
 	}
 
 	return Request{}, "", errors.New("failed to generate a unique device login code")
 }
 
 func (s *Service) Inspect(ctx context.Context, code string) (VerificationInfo, error) {
-	code = strings.ToUpper(strings.TrimSpace(code))
-
-	// Return requester metadata only while the request can still be decided
-	var request Request
-	err := s.db.
-		WithContext(ctx).
-		Where("code = ? AND status = ? AND expires_at > ?", code, RequestStatusPending, datatype.DateTime(time.Now())).
-		First(&request).
-		Error
+	actorID, err := s.actorIDForCode(code)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return VerificationInfo{}, &common.DeviceLoginRequestInvalidOrExpiredError{}
-		}
+		return VerificationInfo{}, err
+	}
+
+	// Read the pending actor state without taking an exclusive actor turn
+	result, err := s.peek(ctx, actorID, requestActorMethodInspect, nil)
+	if err != nil {
+		return VerificationInfo{}, err
+	}
+	if err = actorResultError(result.Code); err != nil {
 		return VerificationInfo{}, err
 	}
 
 	return VerificationInfo{
-		UserCode:  request.Code,
-		Device:    s.auditLog.DeviceStringFromUserAgent(request.UserAgent),
-		IPAddress: request.IpAddress,
-		ExpiresAt: request.ExpiresAt,
+		UserCode:  result.UserCode,
+		Device:    s.auditLog.DeviceStringFromUserAgent(result.UserAgent),
+		IPAddress: result.IPAddress,
+		ExpiresAt: datatype.DateTime(result.ExpiresAt),
 	}, nil
 }
 
 func (s *Service) Decide(ctx context.Context, code, decision, userID, reauthenticationToken string) error {
-	code = strings.ToUpper(strings.TrimSpace(code))
-
-	tx := s.db.Begin()
-	defer tx.Rollback()
-
-	var request Request
-	err := tx.
-		WithContext(ctx).
-		Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("code = ? AND status = ? AND expires_at > ?", code, RequestStatusPending, datatype.DateTime(time.Now())).
-		First(&request).
-		Error
+	actorID, err := s.actorIDForCode(code)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &common.DeviceLoginRequestInvalidOrExpiredError{}
-		}
 		return err
 	}
 
-	switch decision {
-	case "approve":
-		// Consume the fresh passkey proof in the same transaction as the approval
-		if reauthenticationToken == "" {
-			return &common.ReauthenticationRequiredError{}
-		}
-		reauthenticatedAt, consumeErr := s.reauth.ConsumeReauthenticationToken(ctx, tx, reauthenticationToken, userID)
-		if consumeErr != nil {
-			return consumeErr
-		}
-		if time.Since(reauthenticatedAt) > reauthenticationMaxAge {
-			return &common.ReauthenticationRequiredError{}
-		}
-		request.Status = RequestStatusApproved
-		request.UserID = &userID
-	case "deny":
-		request.Status = RequestStatusDenied
-	default:
-		return fmt.Errorf("unsupported device login decision %q", decision)
+	// Let the actor serialize the decision with every competing exchange
+	result, err := s.invoke(ctx, actorID, requestActorMethodDecide, requestActorDecisionInput{
+		Decision:              decision,
+		UserID:                userID,
+		ReauthenticationToken: reauthenticationToken,
+	})
+	if err != nil {
+		return err
 	}
-
-	result := tx.
-		WithContext(ctx).
-		Model(&Request{}).
-		Where("id = ? AND status = ? AND expires_at > ?", request.ID, RequestStatusPending, datatype.DateTime(time.Now())).
-		Updates(map[string]any{"status": request.Status, "user_id": request.UserID})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected != 1 {
-		return &common.DeviceLoginRequestInvalidOrExpiredError{}
-	}
-
-	return tx.Commit().Error
+	return actorResultError(result.Code)
 }
 
-func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent string) (model.User, string, RequestStatus, error) {
-	if deviceToken == "" {
-		return model.User{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent string, sessionDuration time.Duration) (dto.UserDto, string, RequestStatus, error) {
+	if deviceToken == "" || !validRequestActorID(requestID) {
+		return dto.UserDto{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
 	}
 
-	tx := s.db.Begin()
-	defer tx.Rollback()
-
-	var request Request
-	err := tx.
-		WithContext(ctx).
-		Clauses(clause.Locking{Strength: "UPDATE"}).
-		Preload("User").
-		Where("id = ? AND device_token_hash = ? AND expires_at > ?", requestID, utils.CreateSha256Hash(deviceToken), datatype.DateTime(time.Now())).
-		First(&request).
-		Error
+	deviceTokenHash := utils.CreateSha256Hash(deviceToken)
+	preflightStatus, err := s.preflightExchange(ctx, requestID, deviceTokenHash)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.User{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+		return dto.UserDto{}, "", preflightStatus, err
+	}
+	timeout := time.NewTimer(longPollingDuration)
+	defer timeout.Stop()
+	ticker := time.NewTicker(actorPollingInterval)
+	defer ticker.Stop()
+
+	for {
+		// Poll the actor's activation cache so the long-lived HTTP request does not repeatedly query the database
+		result, err := s.peek(ctx, requestID, requestActorMethodPoll, requestActorPollInput{DeviceTokenHash: deviceTokenHash})
+		if err != nil {
+			return dto.UserDto{}, "", "", err
 		}
-		return model.User{}, "", "", err
+		if resultErr := actorResultError(result.Code); resultErr != nil {
+			return dto.UserDto{}, "", result.Status, resultErr
+		}
+
+		switch result.Status {
+		case RequestStatusApproved:
+			exchange, invokeErr := s.invoke(ctx, requestID, requestActorMethodExchange, requestActorExchangeInput{
+				DeviceTokenHash: deviceTokenHash,
+				IPAddress:       ipAddress,
+				UserAgent:       userAgent,
+				SessionDuration: sessionDuration,
+			})
+			if invokeErr != nil {
+				return dto.UserDto{}, "", "", invokeErr
+			}
+			if resultErr := actorResultError(exchange.Code); resultErr != nil {
+				return dto.UserDto{}, "", exchange.Status, resultErr
+			}
+			return exchange.User, exchange.AccessToken, exchange.Status, nil
+		case RequestStatusPending:
+		case RequestStatusDenied:
+			return dto.UserDto{}, "", result.Status, &common.DeviceLoginDeniedError{}
+		default:
+			return dto.UserDto{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+		}
+
+		select {
+		case <-ticker.C:
+		case <-timeout.C:
+			return dto.UserDto{}, "", RequestStatusPending, nil
+		case <-ctx.Done():
+			return dto.UserDto{}, "", "", ctx.Err()
+		}
+	}
+}
+
+// preflightExchange checks the request state before starting the long-polling exchange.
+func (s *Service) preflightExchange(ctx context.Context, requestID, deviceTokenHash string) (RequestStatus, error) {
+	// Read durable state once before activation so random public IDs cannot allocate actors
+	var state requestActorState
+	err := s.actService.GetState(ctx, requestActorType, requestID, &state)
+	if errors.Is(err, actor.ErrStateNotFound) {
+		return "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to preflight device login actor state: %w", err)
+	}
+	if state.Code == "" || !constantTimeStringEqual(state.DeviceTokenHash, deviceTokenHash) {
+		return "", &common.DeviceLoginRequestInvalidOrExpiredError{}
 	}
 
-	switch request.Status {
-	case RequestStatusPending:
-		// Leave pending requests untouched so the waiting device can continue polling
-		return model.User{}, "", request.Status, nil
+	switch state.Status {
+	case RequestStatusPending, RequestStatusApproved:
+		return state.Status, nil
 	case RequestStatusDenied:
-		return model.User{}, "", request.Status, &common.DeviceLoginDeniedError{}
-	case RequestStatusApproved:
+		return state.Status, &common.DeviceLoginDeniedError{}
 	default:
-		return model.User{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+		return "", &common.DeviceLoginRequestInvalidOrExpiredError{}
 	}
+}
 
-	if request.UserID == nil || request.User.ID == "" {
-		return model.User{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
-	}
-	if request.User.Disabled {
-		return model.User{}, "", "", &common.UserDisabledError{}
-	}
-
-	// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
-	accessToken, err := s.signer.GenerateAccessToken(request.User, authenticationMethodOneTimePassword)
+func (s *Service) actorIDForCode(code string) (string, error) {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	derived, err := cryptoutils.DeriveKey(s.actorIDKey, "pocketid/device-login-request/"+code)
 	if err != nil {
-		return model.User{}, "", "", err
+		return "", fmt.Errorf("failed to derive device login actor ID: %w", err)
 	}
+	return hex.EncodeToString(derived), nil
+}
 
-	result := tx.
-		WithContext(ctx).
-		Where("id = ? AND status = ?", request.ID, RequestStatusApproved).
-		Delete(&Request{})
-	if result.Error != nil {
-		return model.User{}, "", "", result.Error
-	}
-	if result.RowsAffected != 1 {
-		return model.User{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
-	}
-
-	s.auditLog.Create(ctx, model.AuditLogEventRemoteSignIn, ipAddress, userAgent, request.User.ID, model.AuditLogData{}, tx)
-
-	err = tx.Commit().Error
+func (s *Service) invoke(ctx context.Context, actorID, method string, input any) (requestActorResult, error) {
+	envelope, err := s.actService.Invoke(ctx, requestActorType, actorID, method, input)
 	if err != nil {
-		return model.User{}, "", "", err
+		return requestActorResult{}, err
 	}
+	return decodeActorResult(envelope)
+}
 
-	return request.User, accessToken, request.Status, nil
+func (s *Service) peek(ctx context.Context, actorID, method string, input any) (requestActorResult, error) {
+	envelope, err := s.actService.Peek(ctx, requestActorType, actorID, method, input)
+	if err != nil {
+		return requestActorResult{}, err
+	}
+	return decodeActorResult(envelope)
+}
+
+func decodeActorResult(envelope actor.Envelope) (requestActorResult, error) {
+	if envelope == nil {
+		return requestActorResult{}, errors.New("device login actor returned an empty response")
+	}
+	var result requestActorResult
+	if err := envelope.Decode(&result); err != nil {
+		return requestActorResult{}, fmt.Errorf("failed to decode device login actor response: %w", err)
+	}
+	return result, nil
+}
+
+func actorResultError(code requestActorResultCode) error {
+	switch code {
+	case requestActorResultNone:
+		return nil
+	case requestActorResultCollision:
+		return errors.New("unexpected live device login actor collision")
+	case requestActorResultInvalid:
+		return &common.DeviceLoginRequestInvalidOrExpiredError{}
+	case requestActorResultDenied:
+		return &common.DeviceLoginDeniedError{}
+	case requestActorResultReauthenticationRequired:
+		return &common.ReauthenticationRequiredError{}
+	case requestActorResultUserDisabled:
+		return &common.UserDisabledError{}
+	default:
+		return fmt.Errorf("unsupported device login actor result %q", code)
+	}
+}
+
+func validRequestActorID(actorID string) bool {
+	if len(actorID) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(actorID)
+	return err == nil
 }
 
 func newUserCode() (string, error) {

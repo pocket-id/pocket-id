@@ -25,53 +25,69 @@
 	let errorMessage: string | null = $state(null);
 	let isStarting = $state(true);
 	let pollTimer: ReturnType<typeof setTimeout> | undefined;
+	let requestController: AbortController | undefined;
 
 	onMount(() => {
-		startRequest();
+		void startRequest();
 
 		return () => {
-			clearTimers();
+			stopRequest();
 		};
 	});
 
 	async function startRequest() {
-		clearTimers();
+		stopRequest();
+		const controller = new AbortController();
+		requestController = controller;
 		request = undefined;
 		errorMessage = null;
 		isStarting = true;
 
 		try {
-			request = await deviceLoginService.createRequest();
-			schedulePoll();
+			request = await deviceLoginService.createRequest(controller.signal);
+			if (requestController !== controller) return;
+			schedulePoll(controller);
 		} catch (error) {
+			if (controller.signal.aborted) return;
 			errorMessage = getAxiosErrorMessage(error);
 		} finally {
-			isStarting = false;
+			if (requestController === controller) {
+				isStarting = false;
+			}
 		}
 	}
 
-	function schedulePoll() {
-		if (!request) return;
-		pollTimer = setTimeout(exchangeRequest, request.interval * 1000);
+	function schedulePoll(controller: AbortController) {
+		if (!request || requestController !== controller) return;
+		pollTimer = setTimeout(() => void exchangeRequest(controller), request.interval * 1000);
 	}
 
-	async function exchangeRequest() {
-		if (!request) return;
+	async function exchangeRequest(controller: AbortController) {
+		if (!request || requestController !== controller) return;
 
 		try {
-			const user = await deviceLoginService.exchangeRequest(request.id);
+			const user = await deviceLoginService.exchangeRequest(request.id, controller.signal);
+			if (requestController !== controller) return;
 			if (!user) {
-				schedulePoll();
+				schedulePoll(controller);
 				return;
 			}
 
 			clearTimers();
 			await userStore.setUser(user);
+			if (requestController !== controller) return;
 			await goto(data.redirect);
 		} catch (error) {
+			if (controller.signal.aborted) return;
 			clearTimers();
 			errorMessage = getAxiosErrorMessage(error);
 		}
+	}
+
+	function stopRequest() {
+		requestController?.abort();
+		requestController = undefined;
+		clearTimers();
 	}
 
 	function clearTimers() {

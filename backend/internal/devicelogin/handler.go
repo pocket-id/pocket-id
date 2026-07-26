@@ -1,6 +1,7 @@
 package devicelogin
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -53,7 +54,7 @@ func (h *handler) createRequest(c *gin.Context) {
 
 // exchangeRequest godoc
 // @Summary Exchange device login request
-// @Description Poll a device login request and create a browser session after it has been approved
+// @Description Wait for a device login decision and create a browser session after it has been approved
 // @Tags Device Login
 // @Produce json
 // @Param id path string true "Device login request ID"
@@ -61,10 +62,20 @@ func (h *handler) createRequest(c *gin.Context) {
 // @Success 202 "Authorization pending"
 // @Router /api/device-login/requests/{id}/exchange [post]
 func (h *handler) exchangeRequest(c *gin.Context) {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
+		return
+	}
+
 	requestID := c.Param("id")
 	deviceToken, _ := c.Cookie(cookie.DeviceLoginTokenCookieName)
-	user, accessToken, status, err := h.service.Exchange(c.Request.Context(), requestID, deviceToken, c.ClientIP(), c.Request.UserAgent())
+	sessionDuration := dbConfig.SessionDuration.AsDurationMinutes()
+	user, accessToken, status, err := h.service.Exchange(c.Request.Context(), requestID, deviceToken, c.ClientIP(), c.Request.UserAgent(), sessionDuration)
 	if err != nil {
+		if c.Request.Context().Err() != nil {
+			return
+		}
 		_ = c.Error(err)
 		return
 	}
@@ -73,15 +84,9 @@ func (h *handler) exchangeRequest(c *gin.Context) {
 		return
 	}
 
-	var userDto dto.UserDto
-	if err = dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	maxAge := int(h.appConfig.GetDbConfig().SessionDuration.AsDurationMinutes().Seconds())
+	maxAge := int(sessionDuration.Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, accessToken)
-	c.JSON(http.StatusOK, userDto)
+	c.JSON(http.StatusOK, dto.UserDto(user))
 }
 
 // inspectRequest godoc

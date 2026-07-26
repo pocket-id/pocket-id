@@ -39,6 +39,7 @@ type services struct {
 	appLockService     *service.AppLockService
 
 	apiKeyModule        *apikey.Module
+	deviceLoginModule   *devicelogin.Module
 	oidcModule          *oidc.Module
 	webauthnModule      *webauthn.Module
 	userSignUpModule    *usersignup.Module
@@ -95,14 +96,19 @@ func initServices(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
 	}
-	svc.deviceLoginModule = devicelogin.New(devicelogin.Dependencies{
-		DB:        db,
-		BaseURL:   common.EnvConfig.AppURL,
-		Signer:    svc.jwtService,
-		Reauth:    svc.webauthnModule,
-		AuditLog:  svc.auditLogService,
-		AppConfig: svc.appConfigService,
+	svc.deviceLoginModule, err = devicelogin.New(devicelogin.Dependencies{
+		DB:         db,
+		BaseURL:    common.EnvConfig.AppURL,
+		Actors:     actors,
+		ActorIDKey: common.EnvConfig.EncryptionKey,
+		Signer:     svc.jwtService,
+		Reauth:     svc.webauthnModule,
+		AuditLog:   svc.auditLogService,
+		AppConfig:  svc.appConfigService,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create device login module: %w", err)
+	}
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
 

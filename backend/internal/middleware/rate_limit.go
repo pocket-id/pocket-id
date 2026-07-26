@@ -26,6 +26,7 @@ const (
 	RateLimitOneTimeAccessToken      = "one-time-access-token"
 	RateLimitOneTimeAccessEmail      = "one-time-access-email"
 	RateLimitDeviceLoginCreate       = "device-login-create"
+	RateLimitDeviceLoginExchange     = "device-login-exchange"
 	RateLimitDeviceLoginVerification = "device-login-verification"
 	RateLimitSendEmailVerification   = "send-email-verification"
 	RateLimitVerifyEmail             = "verify-email"
@@ -56,6 +57,7 @@ func RateLimitPolicies() []RateLimitPolicy {
 		{Name: RateLimitOneTimeAccessToken, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitOneTimeAccessEmail, Rate: 2, Per: 10 * time.Minute, Burst: 5},
 		{Name: RateLimitDeviceLoginCreate, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		{Name: RateLimitDeviceLoginExchange, Rate: 1, Per: 2 * time.Second, Burst: 10},
 		{Name: RateLimitDeviceLoginVerification, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitSendEmailVerification, Rate: 2, Per: 10 * time.Minute, Burst: 1},
 		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Burst: 5},
