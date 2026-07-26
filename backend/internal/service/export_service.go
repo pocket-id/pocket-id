@@ -11,6 +11,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/haconfig"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -109,10 +110,10 @@ func (s *ExportService) dumpTable(table string, types utils.DBSchemaTableTypes, 
 			rowMap[col] = vals[i]
 		}
 
-		// Skip the app lock row in the kv table
+		// Skip the HA mode row in the kv table: it records the mode the cluster was created with, and is re-established from config (not the export) when the data is imported into a new database
 		if table == "kv" {
 			keyPtr, ok := rowMap["key"].(*string)
-			if ok && keyPtr != nil && *keyPtr == lockKey {
+			if ok && keyPtr != nil && *keyPtr == haconfig.KVKey {
 				continue
 			}
 		}

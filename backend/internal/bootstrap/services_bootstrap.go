@@ -36,7 +36,6 @@ type services struct {
 	ldapService        *service.LdapService
 	versionService     *service.VersionService
 	fileStorage        storage.FileStorage
-	appLockService     *service.AppLockService
 
 	apiKeyModule        *apikey.Module
 	oidcModule          *oidc.Module
@@ -70,7 +69,6 @@ func initServices(
 
 	svc.fileStorage = fileStorage
 	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
-	svc.appLockService = service.NewAppLockService(db)
 
 	svc.emailService, err = service.NewEmailService(db)
 	if err != nil {
