@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/italypaleale/francis/actor"
 	"github.com/italypaleale/francis/host/local"
@@ -167,6 +168,84 @@ func TestVerifyDoesNotConsumeStateForWrongToken(t *testing.T) {
 	var state State
 	require.NoError(t, host.GetState(t.Context(), ActorType, user.ID, &state))
 	require.NotEmpty(t, state.TokenHash)
+}
+
+func TestVerifyRejectsExpiredToken(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, host, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-expired", "user@example.test")
+	token := "expired-verification-token"
+
+	require.NoError(t, host.SetState(t.Context(), ActorType, user.ID, State{
+		TokenHash: utils.CreateSha256Hash(token),
+		Email:     *user.Email,
+		ExpiresAt: time.Now().Add(time.Hour),
+	}, &actor.SetStateOpts{TTL: time.Millisecond}))
+	require.Eventually(t, func() bool {
+		var state State
+		return errors.Is(host.GetState(t.Context(), ActorType, user.ID, &state), actor.ErrStateNotFound)
+	}, time.Second, time.Millisecond)
+
+	err := service.Verify(t.Context(), user.ID, token)
+	var invalidTokenError *common.InvalidEmailVerificationTokenError
+	require.ErrorAs(t, err, &invalidTokenError)
+
+	var updated model.User
+	require.NoError(t, db.Where("id = ?", user.ID).First(&updated).Error)
+	require.False(t, updated.EmailVerified)
+}
+
+func TestVerifyRestoresActorStateAfterDatabaseWriteFailure(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, host, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-restore", "user@example.test")
+
+	require.NoError(t, service.Send(t.Context(), &appconfig.AppConfigModel{}, user.ID))
+	token := verificationTokenFromEmail(t, emailSender.sent[0])
+
+	forcedError := errors.New("forced database write failure")
+	require.NoError(t, db.Callback().Update().Before("gorm:update").Register("test:fail-email-verification-update", func(tx *gorm.DB) {
+		_ = tx.AddError(forcedError)
+	}))
+
+	require.ErrorIs(t, service.Verify(t.Context(), user.ID, token), forcedError)
+
+	var state State
+	require.NoError(t, host.GetState(t.Context(), ActorType, user.ID, &state))
+	require.Equal(t, utils.CreateSha256Hash(token), state.TokenHash)
+	require.Equal(t, *user.Email, state.Email)
+}
+
+func TestVerifyPreservesNewActorStateAfterDatabaseWriteFailure(t *testing.T) {
+	emailSender := &testEmailSender{}
+	service, host, db := newServiceForTest(t, emailSender)
+	user := createTestUser(t, db, "user-concurrent-issue", "user@example.test")
+
+	require.NoError(t, service.Send(t.Context(), &appconfig.AppConfigModel{}, user.ID))
+	token := verificationTokenFromEmail(t, emailSender.sent[0])
+	replacement := State{
+		TokenHash: "new-token-hash",
+		Email:     *user.Email,
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+
+	forcedError := errors.New("forced database write failure")
+	require.NoError(t, db.Callback().Update().Before("gorm:update").Register("test:issue-token-before-email-verification-update-fails", func(tx *gorm.DB) {
+		_, err := host.Service().Invoke(tx.Statement.Context, ActorType, user.ID, MethodIssue, replacement)
+		if err != nil {
+			_ = tx.AddError(err)
+			return
+		}
+		_ = tx.AddError(forcedError)
+	}))
+
+	require.ErrorIs(t, service.Verify(t.Context(), user.ID, token), forcedError)
+
+	var state State
+	require.NoError(t, host.GetState(t.Context(), ActorType, user.ID, &state))
+	require.Equal(t, replacement.TokenHash, state.TokenHash)
+	require.Equal(t, replacement.Email, state.Email)
+	require.True(t, replacement.ExpiresAt.Equal(state.ExpiresAt))
 }
 
 func TestSendDiscardsTokenWhenEmailDeliveryFails(t *testing.T) {
