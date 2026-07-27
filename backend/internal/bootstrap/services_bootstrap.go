@@ -12,6 +12,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -25,7 +26,7 @@ import (
 type services struct {
 	appConfigService   *appconfig.AppConfigService
 	appImagesService   *service.AppImagesService
-	emailService       *service.EmailService
+	emailModule        *email.Module
 	geoLiteService     *service.GeoLiteService
 	auditLogService    *service.AuditLogService
 	jwtService         *service.JwtService
@@ -74,13 +75,13 @@ func initServices(
 	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
 	svc.appLockService = service.NewAppLockService(db)
 
-	svc.emailService, err = service.NewEmailService(db)
+	svc.emailModule, err = email.New(db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create email service: %w", err)
+		return nil, fmt.Errorf("failed to create email module: %w", err)
 	}
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
-	svc.auditLogService = service.NewAuditLogService(db, svc.emailService, svc.geoLiteService, svc.appConfigService)
+	svc.auditLogService = service.NewAuditLogService(db, svc.emailModule, svc.geoLiteService, svc.appConfigService)
 	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)
@@ -156,7 +157,7 @@ func initServices(
 		Signer:       svc.jwtService,
 		AuditLog:     svc.auditLogService,
 		UserProvider: svc.userService,
-		EmailSender:  service.NewOneTimeAccessEmailSender(svc.emailService),
+		EmailSender:  svc.emailModule,
 		AppConfig:    svc.appConfigService,
 	})
 	if err != nil {
@@ -167,7 +168,7 @@ func initServices(
 		DB:          db,
 		Actors:      actors,
 		Users:       svc.userService,
-		EmailSender: service.NewEmailVerificationEmailSender(svc.emailService),
+		EmailSender: svc.emailModule,
 		AppConfig:   svc.appConfigService,
 		AppURL:      common.EnvConfig.AppURL,
 	})

@@ -14,23 +14,16 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
 
 const tokenLifetime = 24 * time.Hour
-
-// EmailData is the data rendered in the email verification message
-type EmailData struct {
-	UserFullName     string
-	VerificationLink string
-}
 
 type UserProvider interface {
 	GetUser(ctx context.Context, userID string) (model.User, error)
 }
 
 type EmailSender interface {
-	SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, to email.Address, data EmailData) error
+	SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, verificationLink string) error
 }
 
 type Service struct {
@@ -77,13 +70,13 @@ func (s *Service) Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, 
 	}
 
 	// Send the email verification message to the user
-	err = s.emailSender.SendEmailVerification(ctx, dbConfig, email.Address{
-		Name:  user.FullName(),
-		Email: *user.Email,
-	}, EmailData{
-		UserFullName:     user.FullName(),
-		VerificationLink: s.appURL + "/verify-email?token=" + token,
-	})
+	err = s.emailSender.SendEmailVerification(
+		ctx,
+		dbConfig,
+		user.FullName(),
+		*user.Email,
+		s.appURL+"/verify-email?token="+token,
+	)
 	if err != nil {
 		// If the email delivery fails, discard the token in the actor to avoid leaving a valid token in the system
 		s.discardAfterSendFailure(ctx, user.ID, state.TokenHash)

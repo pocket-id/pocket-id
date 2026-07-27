@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -13,6 +14,10 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 )
 
+type TestEmailSender interface {
+	SendTestEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, recipientUserID string) error
+}
+
 // NewAppConfigController creates a new controller for application configuration endpoints
 // @Summary Create a new application configuration controller
 // @Description Initialize routes for application configuration
@@ -21,13 +26,13 @@ func NewAppConfigController(
 	group *gin.RouterGroup,
 	authMiddleware *middleware.AuthMiddleware,
 	appConfigService *appconfig.AppConfigService,
-	emailService *service.EmailService,
+	emailSender TestEmailSender,
 	ldapService *service.LdapService,
 ) {
 
 	acc := &AppConfigController{
 		appConfigService: appConfigService,
-		emailService:     emailService,
+		emailSender:      emailSender,
 		ldapService:      ldapService,
 	}
 	group.GET("/application-configuration", acc.listAppConfigHandler)
@@ -40,7 +45,7 @@ func NewAppConfigController(
 
 type AppConfigController struct {
 	appConfigService *appconfig.AppConfigService
-	emailService     *service.EmailService
+	emailSender      TestEmailSender
 	ldapService      *service.LdapService
 }
 
@@ -176,7 +181,7 @@ func (acc *AppConfigController) testEmailHandler(c *gin.Context) {
 
 	userID := c.GetString("userID")
 
-	err = acc.emailService.SendTestEmail(c.Request.Context(), dbConfig, userID)
+	err = acc.emailSender.SendTestEmail(c.Request.Context(), dbConfig, userID)
 	if err != nil {
 		_ = c.Error(err)
 		return

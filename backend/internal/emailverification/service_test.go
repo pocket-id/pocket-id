@@ -15,7 +15,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -31,15 +30,25 @@ func (p testUserProvider) GetUser(ctx context.Context, userID string) (model.Use
 
 type testEmailSender struct {
 	err  error
-	sent []EmailData
+	sent []sentVerificationEmail
 }
 
-func (s *testEmailSender) SendEmailVerification(_ context.Context, _ *appconfig.AppConfigModel, _ email.Address, data EmailData) error {
+type sentVerificationEmail struct {
+	userFullName     string
+	userEmail        string
+	verificationLink string
+}
+
+func (s *testEmailSender) SendEmailVerification(_ context.Context, _ *appconfig.AppConfigModel, userFullName, userEmail, verificationLink string) error {
 	if s.err != nil {
 		return s.err
 	}
 
-	s.sent = append(s.sent, data)
+	s.sent = append(s.sent, sentVerificationEmail{
+		userFullName:     userFullName,
+		userEmail:        userEmail,
+		verificationLink: verificationLink,
+	})
 	return nil
 }
 
@@ -73,10 +82,10 @@ func createTestUser(t *testing.T, db *gorm.DB, userID, address string) model.Use
 	return user
 }
 
-func verificationTokenFromEmail(t *testing.T, data EmailData) string {
+func verificationTokenFromEmail(t *testing.T, sentEmail sentVerificationEmail) string {
 	t.Helper()
 
-	verificationURL, err := url.Parse(data.VerificationLink)
+	verificationURL, err := url.Parse(sentEmail.verificationLink)
 	require.NoError(t, err)
 
 	token := verificationURL.Query().Get("token")
