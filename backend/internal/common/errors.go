@@ -124,6 +124,13 @@ type MissingSessionIdError struct{}
 func (e MissingSessionIdError) Error() string       { return "Missing session id" }
 func (e MissingSessionIdError) HttpStatusCode() int { return http.StatusBadRequest }
 
+type InvalidWebauthnSessionError struct{}
+
+func (e InvalidWebauthnSessionError) Error() string {
+	return "WebAuthn session is invalid or has expired"
+}
+func (e InvalidWebauthnSessionError) HttpStatusCode() int { return http.StatusBadRequest }
+
 type ReservedClaimError struct {
 	Key string
 }

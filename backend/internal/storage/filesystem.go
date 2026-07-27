@@ -39,6 +39,10 @@ func (s *filesystemStorage) Type() string {
 	return TypeFileSystem
 }
 
+func (s *filesystemStorage) Close() error {
+	return s.root.Close()
+}
+
 func (s *filesystemStorage) Save(_ context.Context, path string, data io.Reader) error {
 	path = filepath.FromSlash(path)
 

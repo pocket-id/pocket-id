@@ -19,7 +19,7 @@ import (
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
 	uc := UserController{
 		appConfigService: appConfigService,
 		userService:      userService,
@@ -46,9 +46,6 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
-
-	group.POST("/users/me/send-email-verification", rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification), authMiddleware.WithAdminNotRequired().Add(), uc.sendEmailVerificationHandler)
-	group.POST("/users/me/verify-email", rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail), authMiddleware.WithAdminNotRequired().Add(), uc.verifyEmailHandler)
 }
 
 type UserController struct {
@@ -478,53 +475,6 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 	userID := c.GetString("userID")
 
 	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// sendEmailVerificationHandler godoc
-// @Summary Send email verification
-// @Description Send an email verification to the currently authenticated user
-// @Tags Users
-// @Produce json
-// @Success 204 "No Content"
-// @Router /api/users/me/send-email-verification [post]
-func (uc *UserController) sendEmailVerificationHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
-	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
-	}
-
-	userID := c.GetString("userID")
-
-	if err := uc.userService.SendEmailVerification(c.Request.Context(), dbConfig, userID); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// verifyEmailHandler godoc
-// @Summary Verify email
-// @Description Verify the currently authenticated user's email using a verification token
-// @Tags Users
-// @Param body body dto.EmailVerificationDto true "Email verification token"
-// @Success 204 "No Content"
-// @Router /api/users/me/verify-email [post]
-func (uc *UserController) verifyEmailHandler(c *gin.Context) {
-	var input dto.EmailVerificationDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	userID := c.GetString("userID")
-	if err := uc.userService.VerifyEmail(c.Request.Context(), userID, input.Token); err != nil {
 		_ = c.Error(err)
 		return
 	}

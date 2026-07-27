@@ -76,6 +76,11 @@ func openInMemoryTestDB(t *testing.T) *gorm.DB {
 	sqlDB, err := db.DB()
 	require.NoError(t, err, "Failed to get sql.DB")
 
+	// Close the connection before the test removes any database resources
+	t.Cleanup(func() {
+		require.NoError(t, sqlDB.Close(), "Failed to close test database")
+	})
+
 	// For in-memory SQLite databases, we must limit to 1 open connection at the same time, or they won't see the whole data
 	// The other workaround, of using shared caches, doesn't work well with multiple write transactions trying to happen at once
 	sqlDB.SetMaxOpenConns(1)
@@ -93,6 +98,14 @@ func openFileTestDB(t *testing.T) *gorm.DB {
 
 	db, err := gorm.Open(sqlite.Open(connString), newTestGormConfig(t))
 	require.NoError(t, err, "Failed to connect to test database")
+
+	sqlDB, err := db.DB()
+	require.NoError(t, err, "Failed to get sql.DB")
+
+	// Close the connection before TempDir removes the database file
+	t.Cleanup(func() {
+		require.NoError(t, sqlDB.Close(), "Failed to close test database")
+	})
 
 	return db
 }

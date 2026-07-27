@@ -4,26 +4,30 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	userAgentParser "github.com/mileusna/useragent"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	"gorm.io/gorm"
 )
 
+type NewLoginEmailSender interface {
+	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device string, dateTime time.Time) error
+}
+
 type AuditLogService struct {
 	db               *gorm.DB
-	emailService     *EmailService
+	emailSender      NewLoginEmailSender
 	geoliteService   *GeoLiteService
 	appConfigService *appconfig.AppConfigService
 }
 
-func NewAuditLogService(db *gorm.DB, emailService *EmailService, geoliteService *GeoLiteService, appConfigService *appconfig.AppConfigService) *AuditLogService {
+func NewAuditLogService(db *gorm.DB, emailSender NewLoginEmailSender, geoliteService *GeoLiteService, appConfigService *appconfig.AppConfigService) *AuditLogService {
 	return &AuditLogService{
 		db:               db,
-		emailService:     emailService,
+		emailSender:      emailSender,
 		geoliteService:   geoliteService,
 		appConfigService: appConfigService,
 	}
@@ -121,16 +125,17 @@ func (s *AuditLogService) CreateNewSignInWithEmail(ctx context.Context, ipAddres
 				return
 			}
 
-			innerErr = SendEmail(innerCtx, s.emailService, dbConfig, email.Address{
-				Name:  user.FullName(),
-				Email: *user.Email,
-			}, NewLoginTemplate, &NewLoginTemplateData{
-				IPAddress: ipAddress,
-				Country:   createdAuditLog.Country,
-				City:      createdAuditLog.City,
-				Device:    s.DeviceStringFromUserAgent(userAgent),
-				DateTime:  createdAuditLog.CreatedAt.UTC(),
-			})
+			innerErr = s.emailSender.SendNewLogin(
+				innerCtx,
+				dbConfig,
+				user.FullName(),
+				*user.Email,
+				ipAddress,
+				createdAuditLog.Country,
+				createdAuditLog.City,
+				s.DeviceStringFromUserAgent(userAgent),
+				createdAuditLog.CreatedAt.UTC(),
+			)
 			if innerErr != nil {
 				slog.ErrorContext(innerCtx, "Failed to send notification email", slog.Any("error", innerErr), slog.String("address", *user.Email))
 				return

@@ -88,6 +88,11 @@ func runImport(ctx context.Context, flags importFlags) error {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
 
+	// Close filesystem storage handles before the command exits
+	defer func() {
+		_ = storage.Close()
+	}()
+
 	importService := service.NewImportService(db, storage)
 	err = importService.ImportFromZip(ctx, &zipReader.Reader)
 	if err != nil {

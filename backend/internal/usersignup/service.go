@@ -148,6 +148,13 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 		tx.Rollback()
 	}()
 
+	// We lock the users table to prevent concurrent initial admin setups from racing to create the first user
+	// This is only necessary for Postgres, since SQLite serializes all writes anyway
+	if err := lockInitialAdminSetup(ctx, tx); err != nil {
+		return model.User{}, "", err
+	}
+
+	// Reject setup when a committed user already exists
 	setupCompleted, err := s.isInitialAdminSetupCompleted(ctx, tx)
 	if err != nil {
 		return model.User{}, "", err
@@ -156,6 +163,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 		return model.User{}, "", &common.SetupNotAvailableError{}
 	}
 
+	// Build the first user with administrator privileges
 	userToCreate := dto.UserCreateDto{
 		FirstName:   signUpData.FirstName,
 		LastName:    signUpData.LastName,
@@ -170,6 +178,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 		return model.User{}, "", err
 	}
 
+	// Issue the setup session before committing so failures roll back the transaction
 	token, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, config.SessionDuration.AsDurationMinutes())
 	if err != nil {
 		return model.User{}, "", err
@@ -181,6 +190,18 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 	}
 
 	return user, token, nil
+}
+
+func lockInitialAdminSetup(ctx context.Context, tx *gorm.DB) error {
+	if tx.Name() != "postgres" {
+		return nil
+	}
+
+	if err := tx.WithContext(ctx).Exec("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE").Error; err != nil {
+		return fmt.Errorf("failed to lock users table for initial admin setup: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) IsInitialAdminSetupCompleted(ctx context.Context) (bool, error) {

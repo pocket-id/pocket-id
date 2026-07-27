@@ -130,13 +130,15 @@ func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, user
 
 	// Load & delete the session row
 	var storedSession WebauthnSession
-	err := tx.
+	result := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
-		Delete(&storedSession, "id = ?", sessionID).
-		Error
-	if err != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", err)
+		Delete(&storedSession, "id = ?", sessionID)
+	if result.Error != nil {
+		return model.WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return model.WebauthnCredential{}, &common.InvalidWebauthnSessionError{}
 	}
 
 	session := gowebauthn.SessionData{
@@ -148,7 +150,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, user
 	}
 
 	var user model.User
-	err = tx.
+	err := tx.
 		WithContext(ctx).
 		Find(&user, "id = ?", userID).
 		Error
@@ -238,13 +240,15 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 
 	// Load & delete the session row
 	var storedSession WebauthnSession
-	err := tx.
+	result := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
-		Delete(&storedSession, "id = ?", sessionID).
-		Error
-	if err != nil {
-		return model.User{}, "", fmt.Errorf("failed to load WebAuthn session: %w", err)
+		Delete(&storedSession, "id = ?", sessionID)
+	if result.Error != nil {
+		return model.User{}, "", fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return model.User{}, "", &common.InvalidWebauthnSessionError{}
 	}
 
 	session := gowebauthn.SessionData{
@@ -255,7 +259,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	var user *model.User
-	_, err = s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
+	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
 		innerErr := tx.
 			WithContext(ctx).
 			Preload("Credentials").
@@ -442,13 +446,15 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 
 	// Retrieve and delete the session
 	var storedSession WebauthnSession
-	err := tx.
+	result := tx.
 		WithContext(ctx).
 		Clauses(clause.Returning{}).
-		Delete(&storedSession, "id = ? AND expires_at > ?", sessionID, datatype.DateTime(time.Now())).
-		Error
-	if err != nil {
-		return "", fmt.Errorf("failed to load WebAuthn session: %w", err)
+		Delete(&storedSession, "id = ? AND expires_at > ?", sessionID, datatype.DateTime(time.Now()))
+	if result.Error != nil {
+		return "", fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return "", &common.InvalidWebauthnSessionError{}
 	}
 
 	session := gowebauthn.SessionData{
@@ -460,7 +466,7 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 
 	// Validate the credential assertion
 	var user *model.User
-	_, err = s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
+	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
 		innerErr := tx.
 			WithContext(ctx).
 			Preload("Credentials").

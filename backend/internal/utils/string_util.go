@@ -67,7 +67,7 @@ func GenerateRandomString(length int, charset string) (string, error) {
 
 		// Discard bytes that are outside of the range
 		// This allows making sure that we maintain uniform distribution
-		idx := int(randomBytes[j%length] & letterIdxMask)
+		idx := int(randomBytes[j%bufferSize] & letterIdxMask)
 		if idx < len(charset) {
 			result.WriteByte(charset[idx])
 			i++

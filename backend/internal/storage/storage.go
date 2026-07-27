@@ -19,6 +19,7 @@ type ObjectInfo struct {
 }
 
 type FileStorage interface {
+	Close() error
 	Save(ctx context.Context, relativePath string, data io.Reader) error
 	Open(ctx context.Context, relativePath string) (io.ReadCloser, int64, error)
 	Delete(ctx context.Context, relativePath string) error

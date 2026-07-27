@@ -164,8 +164,8 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginVerification),
 	)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
-	controller.NewUserController(apiGroup, authMiddleware, rateLimitMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
-	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailService, svc.ldapService)
+	controller.NewUserController(apiGroup, authMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
+	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailModule, svc.ldapService)
 	controller.NewAppImagesController(apiGroup, authMiddleware, svc.appImagesService)
 	controller.NewAuditLogController(apiGroup, svc.auditLogService, authMiddleware)
 	controller.NewUserGroupController(apiGroup, authMiddleware, svc.appConfigService, svc.userGroupService)
@@ -182,6 +182,12 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 		authMiddleware.WithAdminNotRequired().Add(),
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken),
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail),
+	)
+	svc.emailVerificationModule.RegisterRoutes(
+		apiGroup,
+		authMiddleware.WithAdminNotRequired().Add(),
+		rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification),
+		rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail),
 	)
 
 	optionalBrowserAuth := authMiddleware.WithAdminNotRequired().WithSuccessOptional().WithApiKeyAuthDisabled().Add()

@@ -11,20 +11,11 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
-
-// EmailData is the data rendered in the one-time access email
-type EmailData struct {
-	Code              string
-	LoginLink         string
-	LoginLinkWithCode string
-	ExpirationString  string
-}
 
 // EmailSender sends the one-time access email
 type EmailSender interface {
-	SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, to email.Address, data EmailData) error
+	SendOneTimeAccessEmail(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, code, loginLink, loginLinkWithCode, expirationString string) error
 }
 
 type TokenService interface {
