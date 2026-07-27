@@ -86,6 +86,33 @@ func TestGenerateRandomUnambiguousString(t *testing.T) {
 	})
 }
 
+func TestGenerateRandomUnambiguousStringCharacterIndependence(t *testing.T) {
+	const (
+		sampleCount                = 100_000
+		tokenLength                = 6
+		maxAcceptableCollisionRate = 0.03
+	)
+
+	// Count first-to-last character collisions to detect reuse of random bytes within each token
+	collisions := 0
+	for range sampleCount {
+		token, err := GenerateRandomUnambiguousString(tokenLength)
+		if err != nil {
+			t.Fatalf("GenerateRandomUnambiguousString() returned an error: %v", err)
+		}
+
+		if token[0] == token[tokenLength-1] {
+			collisions++
+		}
+	}
+
+	// Independently generated characters collide about 1/54 of the time, so three percent leaves a generous margin for random variation
+	collisionRate := float64(collisions) / sampleCount
+	if collisionRate > maxAcceptableCollisionRate {
+		t.Errorf("first and last character collision rate = %.4f, want at most %.4f", collisionRate, maxAcceptableCollisionRate)
+	}
+}
+
 func TestGenerateRandomString(t *testing.T) {
 	t.Run("valid length returns characters from charset", func(t *testing.T) {
 		const length = 20

@@ -12,6 +12,8 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/email"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
@@ -24,7 +26,7 @@ import (
 type services struct {
 	appConfigService   *appconfig.AppConfigService
 	appImagesService   *service.AppImagesService
-	emailService       *service.EmailService
+	emailModule        *email.Module
 	geoLiteService     *service.GeoLiteService
 	auditLogService    *service.AuditLogService
 	jwtService         *service.JwtService
@@ -37,13 +39,14 @@ type services struct {
 	versionService     *service.VersionService
 	fileStorage        storage.FileStorage
 
-	apiKeyModule        *apikey.Module
-	oidcModule          *oidc.Module
-	webauthnModule      *webauthn.Module
-	userSignUpModule    *usersignup.Module
-	oneTimeAccessModule *onetimeaccess.Module
-	apiModule           *api.Module
-	actors              *local.Host
+	apiKeyModule            *apikey.Module
+	oidcModule              *oidc.Module
+	webauthnModule          *webauthn.Module
+	userSignUpModule        *usersignup.Module
+	oneTimeAccessModule     *onetimeaccess.Module
+	emailVerificationModule *emailverification.Module
+	apiModule               *api.Module
+	actors                  *local.Host
 }
 
 // Initializes all services
@@ -70,13 +73,13 @@ func initServices(
 	svc.fileStorage = fileStorage
 	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
 
-	svc.emailService, err = service.NewEmailService(db)
+	svc.emailModule, err = email.New(db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create email service: %w", err)
+		return nil, fmt.Errorf("failed to create email module: %w", err)
 	}
 
 	svc.geoLiteService = service.NewGeoLiteService(httpClient)
-	svc.auditLogService = service.NewAuditLogService(db, svc.emailService, svc.geoLiteService, svc.appConfigService)
+	svc.auditLogService = service.NewAuditLogService(db, svc.emailModule, svc.geoLiteService, svc.appConfigService)
 	svc.jwtService, err = service.NewJwtService(ctx, db, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWT service: %w", err)
@@ -123,7 +126,7 @@ func initServices(
 	}
 
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.userService, svc.userGroupService, fileStorage)
 
 	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
@@ -152,11 +155,23 @@ func initServices(
 		Signer:       svc.jwtService,
 		AuditLog:     svc.auditLogService,
 		UserProvider: svc.userService,
-		EmailSender:  service.NewOneTimeAccessEmailSender(svc.emailService),
+		EmailSender:  svc.emailModule,
 		AppConfig:    svc.appConfigService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create one-time access module: %w", err)
+	}
+
+	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
+		DB:          db,
+		Actors:      actors,
+		Users:       svc.userService,
+		EmailSender: svc.emailModule,
+		AppConfig:   svc.appConfigService,
+		AppURL:      common.EnvConfig.AppURL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
 	svc.versionService = service.NewVersionService(httpClient)

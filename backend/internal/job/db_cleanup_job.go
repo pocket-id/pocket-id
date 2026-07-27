@@ -33,7 +33,6 @@ func (s *Scheduler) RegisterDbCleanupJobs(ctx context.Context, db *gorm.DB) erro
 	// Use exponential backoff for each DB cleanup job so transient query failures are retried automatically rather than causing an immediate job failure
 	return errors.Join(
 		s.RegisterJob(ctx, "ClearWebauthnSessions", jobDefWithJitter(24*time.Hour), jobs.clearWebauthnSessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
-		s.RegisterJob(ctx, "ClearEmailVerificationTokens", jobDefWithJitter(24*time.Hour), jobs.clearEmailVerificationTokens, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearOAuth2Sessions", jobDefWithJitter(24*time.Hour), jobs.clearOAuth2Sessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearOAuth2JTIs", jobDefWithJitter(24*time.Hour), jobs.clearOAuth2JTIs, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
 		s.RegisterJob(ctx, "ClearInteractionSessions", jobDefWithJitter(24*time.Hour), jobs.clearInteractionSessions, service.RegisterJobOpts{RunImmediately: true, BackOff: newBackOff()}),
@@ -120,18 +119,5 @@ func (j *DbCleanupJobs) clearAuditLogs(ctx context.Context) error {
 
 	slog.InfoContext(ctx, "Deleted old audit logs", slog.Int64("count", st.RowsAffected))
 
-	return nil
-}
-
-// ClearEmailVerificationTokens deletes email verification tokens that have expired
-func (j *DbCleanupJobs) clearEmailVerificationTokens(ctx context.Context) error {
-	st := j.db.
-		WithContext(ctx).
-		Delete(&model.EmailVerificationToken{}, "expires_at < ?", datatype.DateTime(time.Now()))
-	if st.Error != nil {
-		return fmt.Errorf("failed to clean expired email verification tokens: %w", st.Error)
-	}
-
-	slog.InfoContext(ctx, "Cleaned expired email verification tokens", slog.Int64("count", st.RowsAffected))
 	return nil
 }

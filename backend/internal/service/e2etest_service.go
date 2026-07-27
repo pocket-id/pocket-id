@@ -30,6 +30,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -57,6 +58,9 @@ const (
 	e2eRefreshTokenClientID            = "3654a746-35d4-4321-ac61-0bdcff2b4055"
 	e2eRefreshTokenValidFixtureToken   = "ou87UDg249r1StBLYkMEqy9TXDbV5HmGuDpMcZDo"
 	e2eRefreshTokenExpiredFixtureToken = "X4vqwtRyCUaq51UafHea4Fsg8Km6CAns6vp3tuX4"
+	e2eEmailVerificationUserID         = "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
+	e2eEmailVerificationUserEmail      = "craig.federighi@test.com"
+	e2eEmailVerificationToken          = "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup"
 )
 
 func NewTestService(db *gorm.DB, actors *local.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapService *LdapService, fileStorage storage.FileStorage) (*TestService, error) {
@@ -477,31 +481,6 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			}
 		}
 
-		emailVerificationTokens := []model.EmailVerificationToken{
-			{
-				Base: model.Base{
-					ID: "ef9ca469-b178-4857-bd39-26639dca45de",
-				},
-				Token:     "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup",
-				ExpiresAt: datatype.DateTime(time.Now().Add(2 * time.Hour)),
-				UserID:    users[1].ID,
-			},
-			{
-				Base: model.Base{
-					ID: "a3dcb4d2-7f3c-4e8a-9f4d-5b6c7d8e9f00",
-				},
-				Token:     "EXPIRED1234567890ABCDE",
-				ExpiresAt: datatype.DateTime(time.Now().Add(-1 * time.Hour)),
-				UserID:    users[1].ID,
-			},
-		}
-
-		for _, token := range emailVerificationTokens {
-			if err := tx.Create(&token).Error; err != nil {
-				return err
-			}
-		}
-
 		keyValues := []model.KV{
 			{
 				Key: jwkutils.PrivateKeyDBKey,
@@ -523,7 +502,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		return err
 	}
 
-	// One-time access tokens and signup tokens live in the actor state store, so they're seeded separately from the DB transaction above.
+	// Actor-backed token fixtures are seeded separately from the database transaction to avoid invoking actors while SQLite holds a transaction
 	err = s.seedOneTimeAccessTokens(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to seed one-time access tokens: %w", err)
@@ -534,7 +513,24 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 		return fmt.Errorf("failed to seed signup tokens: %w", err)
 	}
 
+	err = s.seedEmailVerificationToken(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to seed email verification token: %w", err)
+	}
+
 	return nil
+}
+
+// seedEmailVerificationToken replaces the outstanding verification state so every E2E reset starts from the same valid token
+func (s *TestService) seedEmailVerificationToken(ctx context.Context) error {
+	state := emailverification.State{
+		TokenHash: utils.CreateSha256Hash(e2eEmailVerificationToken),
+		Email:     e2eEmailVerificationUserEmail,
+		ExpiresAt: time.Now().Add(24 * time.Hour).Round(time.Second),
+	}
+
+	_, err := s.actors.Service().Invoke(ctx, emailverification.ActorType, e2eEmailVerificationUserID, emailverification.MethodIssue, state)
+	return err
 }
 
 // seedSignupTokens seeds the signup tokens used by E2E tests into the signup token singleton actor.

@@ -432,34 +432,63 @@ func (s *Store) GetDeviceCodeSessionByUserCodeSignature(ctx context.Context, sig
 }
 
 func (s *Store) AcceptDeviceCodeSessionByUserCodeSignature(ctx context.Context, signature string, request fosite.DeviceRequester) (string, error) {
-	userCodeSession, err := s.getSession(ctx, sessionKindUserCode, signature)
-	if err != nil {
-		return "", err
-	}
-	request.SetUserCodeState(fosite.UserCodeAccepted)
+	var deviceCodeSignature string
+	err := withTx(ctx, s.db, func(ctx context.Context) error {
+		// Verify the currently persisted user-code state because the caller may hold a stale unused request
+		userCodeSession, err := s.getSession(ctx, sessionKindUserCode, signature)
+		if err != nil {
+			return err
+		}
+		storedRequest, err := s.decodeDeviceRequester(ctx, userCodeSession.RequestData)
+		if err != nil {
+			return err
+		}
+		if !userCodeSession.Active || storedRequest.GetUserCodeState() != fosite.UserCodeUnused {
+			return fosite.ErrNotFound
+		}
 
-	requestData, err := s.encodeDeviceRequester(request)
-	if err != nil {
-		return "", err
-	}
+		// Prepare the accepted request before claiming the persisted unused state
+		request.SetUserCodeState(fosite.UserCodeAccepted)
+		requestData, err := s.encodeDeviceRequester(request)
+		if err != nil {
+			return err
+		}
+		deviceCodeSession, err := s.getSessionByRequestID(ctx, sessionKindDeviceCode, userCodeSession.RequestID)
+		if err != nil {
+			return err
+		}
 
-	deviceCodeSession, err := s.getSessionByRequestID(ctx, sessionKindDeviceCode, userCodeSession.RequestID)
-	if err != nil {
-		return "", err
-	}
+		// Claim the user code by deactivating it only if no competing acceptance already did so
+		result := s.dbFor(ctx).
+			Model(&OAuth2Session{}).
+			Where("kind = ? AND key = ? AND request_id = ? AND active = ?", sessionKindUserCode, signature, userCodeSession.RequestID, true).
+			Updates(map[string]any{
+				"active":       false,
+				"request_data": requestData,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return fosite.ErrNotFound
+		}
 
-	err = s.dbFor(ctx).
-		Model(&OAuth2Session{}).
-		Where("kind IN ? AND request_id = ?", []string{sessionKindDeviceCode, sessionKindUserCode}, userCodeSession.RequestID).
-		Updates(map[string]any{
-			"request_data": requestData,
-		}).
-		Error
-	if err != nil {
-		return "", err
-	}
+		// Update the paired device-code session only after the user-code claim succeeds
+		result = s.dbFor(ctx).
+			Model(&OAuth2Session{}).
+			Where("kind = ? AND request_id = ? AND active = ?", sessionKindDeviceCode, userCodeSession.RequestID, true).
+			Update("request_data", requestData)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return fosite.ErrNotFound
+		}
 
-	return deviceCodeSession.Key, nil
+		deviceCodeSignature = deviceCodeSession.Key
+		return nil
+	})
+	return deviceCodeSignature, err
 }
 
 // Satisfies fositestorage.Transactional
