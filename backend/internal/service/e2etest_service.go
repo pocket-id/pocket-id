@@ -612,8 +612,8 @@ func (s *TestService) seedOneTimeAccessTokens(ctx context.Context) error {
 		token string
 		ttl   time.Duration
 	}{
-		{token: "HPe6k6uiDRRVuAQV", ttl: time.Hour},
-		{token: "one-time-token", ttl: time.Hour},
+		{token: "HPe6k6u1DRRVuAQV", ttl: time.Hour},
+		{token: "0ne-t1me-t0ken", ttl: time.Hour},
 	}
 
 	for _, t := range tokens {
