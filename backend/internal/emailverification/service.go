@@ -64,7 +64,7 @@ func (s *Service) Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, 
 		Email:     *user.Email,
 		ExpiresAt: time.Now().Add(tokenLifetime),
 	}
-	_, err = s.actors.Invoke(ctx, ActorType, user.ID, methodIssue, state)
+	_, err = s.actors.Invoke(ctx, ActorType, user.ID, MethodIssue, state)
 	if err != nil {
 		return fmt.Errorf("error issuing email verification token: %w", err)
 	}

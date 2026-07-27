@@ -16,7 +16,8 @@ import (
 const ActorType = "EmailVerification"
 
 const (
-	methodIssue   = "issue"
+	// MethodIssue replaces the outstanding verification state for a user
+	MethodIssue   = "issue"
 	methodConsume = "consume"
 	methodDiscard = "discard"
 	methodRestore = "restore"
@@ -59,7 +60,7 @@ func NewActor(actorID string, service *actor.Service) actor.Actor {
 // Invoke implements actor.ActorInvoke
 func (a *emailVerificationActor) Invoke(ctx context.Context, method string, data actor.Envelope) (any, error) {
 	switch method {
-	case methodIssue:
+	case MethodIssue:
 		return nil, a.issue(ctx, data)
 	case methodConsume:
 		return a.consume(ctx, data)
@@ -73,7 +74,7 @@ func (a *emailVerificationActor) Invoke(ctx context.Context, method string, data
 }
 
 func (a *emailVerificationActor) issue(ctx context.Context, data actor.Envelope) error {
-	state, err := decodeState(data, methodIssue)
+	state, err := decodeState(data, MethodIssue)
 	if err != nil {
 		return err
 	}
