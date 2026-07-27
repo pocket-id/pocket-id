@@ -19,8 +19,19 @@ func GenerateRandomAlphanumericString(length int) (string, error) {
 
 // GenerateRandomUnambiguousString generates a random string of the given length using unambiguous characters
 func GenerateRandomUnambiguousString(length int) (string, error) {
-	const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"
+	const charset = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ0123456789"
 	return GenerateRandomString(length, charset)
+}
+
+// GenerateRandomUppercaseUnambiguousString generates a random uppercase string of the given length using unambiguous characters
+func GenerateRandomUppercaseUnambiguousString(length int) (string, error) {
+	const charset = "ABCDEFGHJKMNPQRSTUVWXYZ0123456789"
+	return GenerateRandomString(length, charset)
+}
+
+// NormalizeUnambiguousString converts commonly confused letters to the canonical digits used by generated codes
+func NormalizeUnambiguousString(value string) string {
+	return strings.NewReplacer("I", "1", "i", "1", "O", "0", "o", "0").Replace(value)
 }
 
 // GenerateRandomString generates a random string of the given length using the provided character set
@@ -28,6 +39,10 @@ func GenerateRandomString(length int, charset string) (string, error) {
 
 	if length <= 0 {
 		return "", errors.New("length must be a positive integer")
+	}
+
+	if len(charset) == 0 {
+		return "", errors.New("character set must not be empty")
 	}
 
 	// The algorithm below is adapted from https://stackoverflow.com/a/35615565

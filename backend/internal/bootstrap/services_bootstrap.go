@@ -6,12 +6,11 @@ import (
 	"net/http"
 
 	"github.com/italypaleale/francis/host/local"
-	"gorm.io/gorm"
-
 	"github.com/pocket-id/pocket-id/backend/internal/api"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/devicelogin"
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
@@ -21,6 +20,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/usersignup"
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
+	"gorm.io/gorm"
 )
 
 type services struct {
@@ -41,6 +41,7 @@ type services struct {
 	appLockService     *service.AppLockService
 
 	apiKeyModule            *apikey.Module
+	deviceLoginModule       *devicelogin.Module
 	oidcModule              *oidc.Module
 	webauthnModule          *webauthn.Module
 	userSignUpModule        *usersignup.Module
@@ -97,6 +98,18 @@ func initServices(
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create WebAuthn module: %w", err)
+	}
+	svc.deviceLoginModule, err = devicelogin.New(devicelogin.Dependencies{
+		DB:        db,
+		BaseURL:   common.EnvConfig.AppURL,
+		Actors:    actors,
+		Signer:    svc.jwtService,
+		Reauth:    svc.webauthnModule,
+		AuditLog:  svc.auditLogService,
+		AppConfig: svc.appConfigService,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create device login module: %w", err)
 	}
 
 	svc.scimService = service.NewScimService(db, scheduler, httpClient)
