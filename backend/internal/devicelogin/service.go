@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -166,6 +165,13 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 
 		switch result.Status {
 		case RequestStatusApproved:
+			// Validate the approved user before consuming so lookup failures leave the request untouched
+			user, userDTO, err := s.loadExchangeUser(ctx, result.UserID)
+			if err != nil {
+				return dto.UserDto{}, "", result.Status, err
+			}
+
+			// Consume inside the actor so only one concurrent exchange can mint a token
 			consume, err := s.invoke(ctx, requestID, requestActorMethodConsume, requestActorConsumeInput{
 				DeviceTokenHash: deviceTokenHash,
 			})
@@ -178,13 +184,19 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 				return dto.UserDto{}, "", consume.Status, err
 			}
 
-			user, accessToken, err := s.completeApprovedExchange(ctx, consume.State, ipAddress, userAgent, sessionDuration)
+			// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
+			accessToken, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, sessionDuration)
 			if err != nil {
-				s.restoreRequest(ctx, requestID, consume.State)
 				return dto.UserDto{}, "", consume.Status, err
 			}
 
-			return user, accessToken, consume.Status, nil
+			// Record the successful remote sign-in after the request has been consumed
+			_, created := s.auditLog.Create(ctx, model.AuditLogEventRemoteSignIn, ipAddress, userAgent, user.ID, model.AuditLogData{}, s.db)
+			if !created {
+				return dto.UserDto{}, "", consume.Status, errors.New("failed to create device login audit log")
+			}
+
+			return userDTO, accessToken, consume.Status, nil
 		case RequestStatusPending:
 			// no-op
 		case RequestStatusDenied:
@@ -233,50 +245,24 @@ func (s *Service) consumeReauthenticationProof(ctx context.Context, token, userI
 	return nil
 }
 
-func (s *Service) completeApprovedExchange(ctx context.Context, state requestActorState, ipAddress, userAgent string, sessionDuration time.Duration) (dto.UserDto, string, error) {
+func (s *Service) loadExchangeUser(ctx context.Context, userID string) (model.User, dto.UserDto, error) {
 	var user model.User
-	err := s.db.WithContext(ctx).First(&user, "id = ?", state.UserID).Error
+	err := s.db.WithContext(ctx).First(&user, "id = ?", userID).Error
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		return dto.UserDto{}, "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+		return model.User{}, dto.UserDto{}, &common.DeviceLoginRequestInvalidOrExpiredError{}
 	case err != nil:
-		return dto.UserDto{}, "", err
+		return model.User{}, dto.UserDto{}, err
 	case user.Disabled:
-		return dto.UserDto{}, "", &common.UserDisabledError{}
+		return model.User{}, dto.UserDto{}, &common.UserDisabledError{}
 	}
 
 	var userDTO dto.UserDto
 	if err = dto.MapStruct(user, &userDTO); err != nil {
-		return dto.UserDto{}, "", fmt.Errorf("failed to map exchanged device login user: %w", err)
+		return model.User{}, dto.UserDto{}, fmt.Errorf("failed to map exchanged device login user: %w", err)
 	}
 
-	// Mint the session with login-code semantics because the waiting device did not perform WebAuthn
-	accessToken, err := s.signer.GenerateAccessToken(user, authenticationMethodOneTimePassword, sessionDuration)
-	if err != nil {
-		return dto.UserDto{}, "", err
-	}
-
-	_, created := s.auditLog.Create(ctx, model.AuditLogEventRemoteSignIn, ipAddress, userAgent, user.ID, model.AuditLogData{}, s.db)
-	if !created {
-		return dto.UserDto{}, "", errors.New("failed to create device login audit log")
-	}
-
-	return userDTO, accessToken, nil
-}
-
-func (s *Service) restoreRequest(parentCtx context.Context, requestID string, state requestActorState) {
-	// Use a detached bounded context because the failed request may already be canceled
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 10*time.Second)
-	defer cancel()
-
-	result, err := s.invoke(ctx, requestID, requestActorMethodRestore, state)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to restore device login request after a failed exchange", slog.Any("error", err))
-		return
-	}
-	if result.Code == requestActorResultCollision {
-		slog.WarnContext(ctx, "Skipped restoring device login request because its code was reused")
-	}
+	return user, userDTO, nil
 }
 
 func normalizeUserCode(code string) string {

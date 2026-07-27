@@ -18,7 +18,6 @@ const (
 	requestActorMethodPoll    = "poll"
 	requestActorMethodDecide  = "decide"
 	requestActorMethodConsume = "consume"
-	requestActorMethodRestore = "restore"
 )
 
 type requestActorResultCode string
@@ -47,7 +46,7 @@ type requestActorResult struct {
 	IPAddress string
 	UserAgent string
 	ExpiresAt time.Time
-	State     requestActorState
+	UserID    string
 }
 
 type requestActorCreateInput struct {
@@ -103,13 +102,6 @@ func (a *requestActor) Invoke(ctx context.Context, method string, data actor.Env
 			return nil, err
 		}
 		return a.consume(ctx, input)
-	case requestActorMethodRestore:
-		var state requestActorState
-		err := decodeActorInput(data, &state)
-		if err != nil {
-			return nil, err
-		}
-		return a.restore(ctx, state)
 	default:
 		return nil, fmt.Errorf("unsupported device login actor method %q", method)
 	}
@@ -196,10 +188,16 @@ func (a *requestActor) poll(ctx context.Context, input requestActorPollInput) (r
 
 	result := requestActorResult{Status: state.Status, ExpiresAt: state.ExpiresAt}
 	switch state.Status {
-	case RequestStatusPending, RequestStatusApproved:
+	case RequestStatusPending:
 		if !state.ExpiresAt.After(time.Now()) {
 			return requestActorResult{Code: requestActorResultInvalid}, nil
 		}
+		return result, nil
+	case RequestStatusApproved:
+		if state.UserID == "" || !state.ExpiresAt.After(time.Now()) {
+			return requestActorResult{Code: requestActorResultInvalid}, nil
+		}
+		result.UserID = state.UserID
 		return result, nil
 	case RequestStatusDenied:
 		if !state.ExpiresAt.After(time.Now()) {
@@ -258,39 +256,17 @@ func (a *requestActor) consume(ctx context.Context, input requestActorConsumeInp
 		if state.UserID == "" {
 			return requestActorResult{Code: requestActorResultInvalid}, nil
 		}
-		// Delete the approved request before returning its state so only one exchange can continue
+		// Delete the approved request before returning so only one exchange can continue
 		if err = a.client.DeleteState(ctx); err != nil {
 			return requestActorResult{}, fmt.Errorf("failed to delete consumed device login actor state: %w", err)
 		}
 		return requestActorResult{
 			Status:    state.Status,
 			ExpiresAt: state.ExpiresAt,
-			State:     state,
 		}, nil
 	default:
 		return requestActorResult{Code: requestActorResultInvalid}, nil
 	}
-}
-
-func (a *requestActor) restore(ctx context.Context, state requestActorState) (requestActorResult, error) {
-	// Ignore a restore after expiry because the original request is no longer usable
-	if state.Code == "" || !state.ExpiresAt.After(time.Now()) {
-		return requestActorResult{}, nil
-	}
-
-	// Never overwrite a new live request that reused the same short code
-	current, valid, err := a.liveState(ctx)
-	if err != nil {
-		return requestActorResult{}, err
-	}
-	if valid && current.Code != "" {
-		return requestActorResult{Code: requestActorResultCollision}, nil
-	}
-
-	if err = a.persistState(ctx, state); err != nil {
-		return requestActorResult{}, err
-	}
-	return requestActorResult{Status: state.Status, ExpiresAt: state.ExpiresAt}, nil
 }
 
 func (a *requestActor) liveState(ctx context.Context) (requestActorState, bool, error) {

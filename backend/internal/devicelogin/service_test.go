@@ -276,7 +276,7 @@ func TestRejectsDisabledUserAtExchange(t *testing.T) {
 	require.Equal(t, RequestStatusApproved, getRequestActorState(t, fixture.actors, request.ID).Status)
 }
 
-func TestFailedTokenGenerationRestoresApprovedRequest(t *testing.T) {
+func TestFailedTokenGenerationConsumesApprovedRequest(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	fixture := newServiceFixture(t, db)
 	fixture.signer.err = errors.New("token generation failed")
@@ -295,8 +295,11 @@ func TestFailedTokenGenerationRestoresApprovedRequest(t *testing.T) {
 	require.EqualError(t, err, "token generation failed")
 	require.Empty(t, accessToken)
 	require.Equal(t, RequestStatusApproved, status)
-	require.Equal(t, RequestStatusApproved, getRequestActorState(t, fixture.actors, request.ID).Status)
+	requireRequestActorStateDeleted(t, fixture.actors, request.ID)
 	require.Equal(t, 0, fixture.auditLog.entryCount())
+
+	_, _, _, err = fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
+	assertInvalidRequestError(t, err)
 }
 
 func TestApprovalRejectsMissingAndStaleReauthentication(t *testing.T) {
