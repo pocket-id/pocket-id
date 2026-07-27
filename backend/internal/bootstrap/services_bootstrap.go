@@ -12,6 +12,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
@@ -38,13 +39,14 @@ type services struct {
 	fileStorage        storage.FileStorage
 	appLockService     *service.AppLockService
 
-	apiKeyModule        *apikey.Module
-	oidcModule          *oidc.Module
-	webauthnModule      *webauthn.Module
-	userSignUpModule    *usersignup.Module
-	oneTimeAccessModule *onetimeaccess.Module
-	apiModule           *api.Module
-	actors              *local.Host
+	apiKeyModule            *apikey.Module
+	oidcModule              *oidc.Module
+	webauthnModule          *webauthn.Module
+	userSignUpModule        *usersignup.Module
+	oneTimeAccessModule     *onetimeaccess.Module
+	emailVerificationModule *emailverification.Module
+	apiModule               *api.Module
+	actors                  *local.Host
 }
 
 // Initializes all services
@@ -125,7 +127,7 @@ func initServices(
 	}
 
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimService)
-	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.emailService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
+	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
 	svc.ldapService = service.NewLdapService(db, httpClient, svc.userService, svc.userGroupService, fileStorage)
 
 	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
@@ -159,6 +161,18 @@ func initServices(
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create one-time access module: %w", err)
+	}
+
+	svc.emailVerificationModule, err = emailverification.New(emailverification.Dependencies{
+		DB:          db,
+		Actors:      actors,
+		Users:       svc.userService,
+		EmailSender: service.NewEmailVerificationEmailSender(svc.emailService),
+		AppConfig:   svc.appConfigService,
+		AppURL:      common.EnvConfig.AppURL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create email verification module: %w", err)
 	}
 
 	svc.versionService = service.NewVersionService(httpClient)

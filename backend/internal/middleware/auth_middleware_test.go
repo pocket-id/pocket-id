@@ -39,7 +39,7 @@ func TestWithApiKeyAuthDisabled(t *testing.T) {
 	jwtService, err := service.NewJwtService(t.Context(), db, instanceID)
 	require.NoError(t, err)
 
-	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil, nil)
+	userService := service.NewUserService(db, jwtService, nil, nil, nil, nil, nil)
 	apiKeyModule, err := apikey.New(t.Context(), apikey.Dependencies{DB: db})
 	require.NoError(t, err)
 
