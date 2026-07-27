@@ -16,7 +16,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
 
 // authenticationMethodOneTimePassword identifies one-time password/code authentication
@@ -112,15 +111,16 @@ func (s *Service) requestOneTimeAccessEmailInternal(ctx context.Context, userID,
 			linkWithCode = linkWithCode + "?redirect=" + encodedRedirectPath
 		}
 
-		innerErr := s.emailSender.SendOneTimeAccessEmail(innerCtx, dbConfig, email.Address{
-			Name:  user.FullName(),
-			Email: *user.Email,
-		}, EmailData{
-			Code:              oneTimeAccessToken,
-			LoginLink:         link,
-			LoginLinkWithCode: linkWithCode,
-			ExpirationString:  utils.DurationToString(ttl),
-		})
+		innerErr := s.emailSender.SendOneTimeAccessEmail(
+			innerCtx,
+			dbConfig,
+			user.FullName(),
+			*user.Email,
+			oneTimeAccessToken,
+			link,
+			linkWithCode,
+			utils.DurationToString(ttl),
+		)
 		if innerErr != nil {
 			slog.ErrorContext(innerCtx, "Failed to send one-time access token email", slog.Any("error", innerErr), slog.String("address", *user.Email))
 			return
