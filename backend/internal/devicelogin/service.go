@@ -22,7 +22,7 @@ const (
 	RequestDuration        = 15 * time.Minute
 	PollingInterval        = 3
 	longPollingDuration    = 25 * time.Second
-	actorPollingInterval   = 250 * time.Millisecond
+	actorPollingInterval   = 2 * time.Second
 	codePrefix             = "P"
 	codeRandomLength       = 7
 	reauthenticationMaxAge = time.Minute
