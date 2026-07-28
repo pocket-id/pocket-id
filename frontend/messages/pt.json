@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Seleciona as permissões que este cliente pode solicitar em nome do utilizador que está a iniciar sessão (acesso delegado pelo utilizador) e para si próprio, sem um utilizador, através da concessão de credenciais do cliente (acesso do cliente).",
 	"i_have_a_longer_code": "Tenho um código mais longo",
 	"pkce_supported_client_title": "Este cliente suporta PKCE",
-	"pkce_supported_client_description": "Este cliente suporta o Proof Key for Code Exchange (PKCE). O PKCE é uma funcionalidade de segurança que ajuda a proteger contra certos ataques durante o processo de autorização do OAuth 2.0. Recomenda-se ativá-lo."
+	"pkce_supported_client_description": "Este cliente suporta o Proof Key for Code Exchange (PKCE). O PKCE é uma funcionalidade de segurança que ajuda a proteger contra certos ataques durante o processo de autorização do OAuth 2.0. Recomenda-se ativá-lo.",
+	"sign_in_with_another_device": "Iniciar sessão com outro dispositivo",
+	"sign_in_with_another_device_description": "Lê um código QR com um dispositivo que tenha a tua chave de acesso.",
+	"creating_device_login_request": "A criar um pedido de início de sessão...",
+	"device_login_qr_code": "Código QR para iniciar sessão no dispositivo",
+	"waiting_for_approval": "À espera de aprovação",
+	"remote_sign_in": "Início de sessão remoto",
+	"the_requesting_device_has_been_signed_in": "O dispositivo que fez o pedido já está conectado.",
+	"the_sign_in_request_was_denied": "O pedido de início de sessão foi recusado.",
+	"review_the_request_before_approving_it": "Verifica o dispositivo que está a fazer o pedido antes de aprovares este início de sessão.",
+	"sign_in_request": "Pedido de início de sessão",
+	"only_approve_if_you_started_this_sign_in": "Só aproves se tiveres iniciado este início de sessão no dispositivo que está a fazer o pedido.",
+	"deny": "Negar",
+	"approve": "Aprovar",
+	"or": "ou",
+	"visit_and_enter": "Visita o site {url} e introduz:"
 }
