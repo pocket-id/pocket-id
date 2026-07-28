@@ -75,12 +75,11 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		return nil, err
 	}
 
-	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
-	if deps.HTTPClient != nil {
-		store.
-			WithGetCIMDURLAllowlist(deps.GetCIMDURLAllowlist).
-			WithHTTPClient(deps.HTTPClient)
-	}
+	store := NewStore(deps.DB, deps.APIAccess).
+		WithIssuer(deps.Config.BaseURL).
+		WithGetCIMDURLAllowlist(deps.GetCIMDURLAllowlist).
+		WithHTTPClient(deps.HTTPClient)
+
 	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
