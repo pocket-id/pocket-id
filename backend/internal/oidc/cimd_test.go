@@ -110,26 +110,26 @@ func TestRefreshMetadataClient(t *testing.T) {
 	const id = "https://8.8.8.8/oauth/client"
 	body := `{"client_id":"https://8.8.8.8/oauth/client","client_name":"App","redirect_uris":["https://app/cb"],"token_endpoint_auth_method":"none"}`
 
-	t.Run("feature disabled", func(t *testing.T) {
-		s := newMetadataStore(t, nil)
+	t.Run("empty allowlist", func(t *testing.T) {
+		s := newMetadataStore(t, nil, withGetCIMDURLAllowlist(func() []string { return nil }))
 		_, err := s.RefreshMetadataClient(t.Context(), id)
 		require.Error(t, err)
 	})
 
 	t.Run("non-URL id", func(t *testing.T) {
-		s := newMetadataStore(t, nil, withCIMDEnabled(true))
+		s := newMetadataStore(t, nil)
 		_, err := s.RefreshMetadataClient(t.Context(), "not-a-url")
 		require.Error(t, err)
 	})
 
 	t.Run("unknown client yields not found", func(t *testing.T) {
-		s := newMetadataStore(t, nil, withCIMDEnabled(true))
+		s := newMetadataStore(t, nil)
 		_, err := s.RefreshMetadataClient(t.Context(), id)
 		require.ErrorIs(t, err, gorm.ErrRecordNotFound)
 	})
 
 	t.Run("non-metadata client is rejected", func(t *testing.T) {
-		s := newMetadataStore(t, nil, withCIMDEnabled(true))
+		s := newMetadataStore(t, nil)
 		seed := model.OidcClient{Base: model.Base{ID: id}, Name: "Standard"}
 		require.NoError(t, s.db.Create(&seed).Error)
 		_, err := s.RefreshMetadataClient(t.Context(), id)
@@ -139,7 +139,7 @@ func TestRefreshMetadataClient(t *testing.T) {
 
 	t.Run("forces re-fetch even when cache is fresh", func(t *testing.T) {
 		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
-		s := newMetadataStore(t, map[string]*http.Response{id: resp}, withCIMDEnabled(true))
+		s := newMetadataStore(t, map[string]*http.Response{id: resp})
 
 		fresh := datatype.DateTime(time.Now().Add(time.Hour))
 		seed := model.OidcClient{Base: model.Base{ID: id}, Name: "Old", ClientType: model.OidcClientTypeCIMD, MetadataExpiresAt: &fresh}
@@ -169,10 +169,6 @@ func newMetadataStore(t *testing.T, responses map[string]*http.Response, opts ..
 	return s
 }
 
-func withCIMDEnabled(enabled bool) func(*Store) {
-	return func(s *Store) { s.WithCIMDEnabled(enabled) }
-}
-
 func withGetCIMDURLAllowlist(fn func() []string) func(*Store) {
 	return func(s *Store) { s.WithGetCIMDURLAllowlist(fn) }
 }
@@ -184,7 +180,6 @@ func TestGetClient_CIMDURLAllowlist(t *testing.T) {
 	t.Run("empty allowlist denies without fetching", func(t *testing.T) {
 		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
 		s := newMetadataStore(t, map[string]*http.Response{id: resp},
-			withCIMDEnabled(true),
 			withGetCIMDURLAllowlist(func() []string { return nil }),
 		)
 		_, err := s.GetClient(t.Context(), id)
@@ -198,7 +193,6 @@ func TestGetClient_CIMDURLAllowlist(t *testing.T) {
 	t.Run("non-matching allowlist denies", func(t *testing.T) {
 		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
 		s := newMetadataStore(t, map[string]*http.Response{id: resp},
-			withCIMDEnabled(true),
 			withGetCIMDURLAllowlist(func() []string { return []string{"https://other.example.com/**"} }),
 		)
 		_, err := s.GetClient(t.Context(), id)
@@ -208,7 +202,6 @@ func TestGetClient_CIMDURLAllowlist(t *testing.T) {
 	t.Run("matching allowlist allows", func(t *testing.T) {
 		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
 		s := newMetadataStore(t, map[string]*http.Response{id: resp},
-			withCIMDEnabled(true),
 			withGetCIMDURLAllowlist(func() []string { return []string{"https://8.8.8.8/**"} }),
 		)
 		fc, err := s.GetClient(t.Context(), id)
@@ -219,7 +212,6 @@ func TestGetClient_CIMDURLAllowlist(t *testing.T) {
 	t.Run("refresh denied when not allowlisted", func(t *testing.T) {
 		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
 		s := newMetadataStore(t, map[string]*http.Response{id: resp},
-			withCIMDEnabled(true),
 			withGetCIMDURLAllowlist(func() []string { return nil }),
 		)
 		_, err := s.RefreshMetadataClient(t.Context(), id)
@@ -232,24 +224,35 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 	body := `{"client_id":"https://8.8.8.8/oauth/client","client_name":"App","redirect_uris":["https://app/cb"],"token_endpoint_auth_method":"none"}`
 
 	t.Run("non-URL id falls through to the database", func(t *testing.T) {
-		s := newMetadataStore(t, nil, withCIMDEnabled(true))
+		s := newMetadataStore(t, nil)
 		_, err := s.GetClient(t.Context(), "does-not-exist")
 		require.ErrorIs(t, err, fosite.ErrNotFound)
 	})
 
-	t.Run("feature disabled yields not found without fetching", func(t *testing.T) {
-		//nolint:bodyclose
-		s := newMetadataStore(t, map[string]*http.Response{
-			id: testutils.NewMockResponse(http.StatusOK, body),
-		})
+	t.Run("allowlist changes apply without rebuilding the store", func(t *testing.T) {
+		allowlist := []string(nil)
+		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
+		s := newMetadataStore(t, map[string]*http.Response{id: resp},
+			withGetCIMDURLAllowlist(func() []string { return allowlist }),
+		)
+
 		_, err := s.GetClient(t.Context(), id)
-		require.ErrorIs(t, err, fosite.ErrNotFound)
+		require.ErrorIs(t, err, fosite.ErrInvalidClient)
+
+		allowlist = []string{"https://8.8.8.8/**"}
+		fc, err := s.GetClient(t.Context(), id)
+		require.NoError(t, err)
+		assert.Equal(t, id, fc.(Client).ID)
+
+		allowlist = nil
+		_, err = s.GetClient(t.Context(), id)
+		require.ErrorIs(t, err, fosite.ErrInvalidClient)
 	})
 
 	t.Run("fetches, upserts, and reuses the cache", func(t *testing.T) {
 		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
 		resp.Header.Set("Cache-Control", "max-age=600")
-		s := newMetadataStore(t, map[string]*http.Response{id: resp}, withCIMDEnabled(true))
+		s := newMetadataStore(t, map[string]*http.Response{id: resp})
 
 		fc, err := s.GetClient(t.Context(), id)
 		require.NoError(t, err)
@@ -271,7 +274,7 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 
 	t.Run("refetch when stale preserves consent", func(t *testing.T) {
 		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
-		s := newMetadataStore(t, map[string]*http.Response{id: resp}, withCIMDEnabled(true))
+		s := newMetadataStore(t, map[string]*http.Response{id: resp})
 
 		stale := datatype.DateTime(time.Now().Add(-time.Hour))
 		seed := model.OidcClient{Base: model.Base{ID: id}, Name: "Old", ClientType: model.OidcClientTypeCIMD, MetadataExpiresAt: &stale}

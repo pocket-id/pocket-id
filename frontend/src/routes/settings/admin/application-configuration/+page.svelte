@@ -111,8 +111,8 @@
 			<Tabs.Trigger value="ldap">
 				{m.ldap()}
 			</Tabs.Trigger>
-			<Tabs.Trigger value="dynamic-clients">
-				{m.dynamic_clients()}
+			<Tabs.Trigger value="oidc">
+				{m.oidc()}
 			</Tabs.Trigger>
 			<Tabs.Trigger value="images">
 				{m.images()}
@@ -169,11 +169,11 @@
 		</Card.Root>
 	</Tabs.Content>
 
-	<Tabs.Content value="dynamic-clients" id="application-configuration-dynamic-clients">
+	<Tabs.Content value="oidc" id="application-configuration-oidc">
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>{m.dynamic_clients()}</Card.Title>
-				<Card.Description>{m.configure_dynamic_clients()}</Card.Description>
+				<Card.Title>{m.client_id_metadata_documents()}</Card.Title>
+				<Card.Description>{m.client_id_metadata_documents_description()}</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				<AppConfigDynamicClientsForm {appConfig} callback={updateAppConfig} />

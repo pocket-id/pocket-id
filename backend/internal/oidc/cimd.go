@@ -58,14 +58,9 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 	return client, nil
 }
 
-// RefreshMetadataClient forces a re-fetch of the metadata document for an
-// already-cached CIMD client, bypassing the cache TTL. It returns an error if
-// CIMD is disabled, the id is not a CIMD URL, or no metadata-document client with
-// that id exists.
+// RefreshMetadataClient forces a re-fetch of the metadata document for an already-cached CIMD client, bypassing the cache TTL
+// It returns an error if the id is not allowed, is not a CIMD URL, or no metadata-document client with that id exists
 func (s *Store) RefreshMetadataClient(ctx context.Context, id string) (model.OidcClient, error) {
-	if !s.cimdEnabled {
-		return model.OidcClient{}, errors.New("client ID metadata documents are not enabled")
-	}
 	if !fosite.LooksLikeCIMDURL(id) {
 		return model.OidcClient{}, errors.New("client is not a client ID metadata document client")
 	}

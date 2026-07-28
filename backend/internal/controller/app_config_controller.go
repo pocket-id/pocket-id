@@ -84,13 +84,6 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 		Value: strconv.FormatBool(tracing.FrontendTracingEnabled()),
 	})
 
-	// Manually add cimdEnabled which isn't in the database but defined with an environment variable
-	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
-		Key:   "cimdEnabled",
-		Value: strconv.FormatBool(common.EnvConfig.CIMDEnabled),
-		Type:  "boolean",
-	})
-
 	c.JSON(http.StatusOK, configVariablesDto)
 }
 
@@ -115,15 +108,6 @@ func (acc *AppConfigController) listAllAppConfigHandler(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-
-	configVariablesDto = append(configVariablesDto, dto.AppConfigVariableDto{
-		PublicAppConfigVariableDto: dto.PublicAppConfigVariableDto{
-			Key:   "cimdEnabled",
-			Value: strconv.FormatBool(common.EnvConfig.CIMDEnabled),
-			Type:  "boolean",
-		},
-		IsPublic: true,
-	})
 
 	c.JSON(http.StatusOK, configVariablesDto)
 }

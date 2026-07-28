@@ -57,7 +57,6 @@ type Store struct {
 
 	httpClient          *http.Client
 	auditLog            AuditLogger
-	cimdEnabled         bool
 	getCIMDURLAllowlist func() []string
 	metadataFetcher     fosite.CIMDFetcher
 	metadataFetcherOnce sync.Once
@@ -73,12 +72,6 @@ func (s *Store) WithIssuer(issuer string) *Store {
 // WithAuditLogger sets the audit logger used to record metadata-document changes.
 func (s *Store) WithAuditLogger(auditLog AuditLogger) *Store {
 	s.auditLog = auditLog
-	return s
-}
-
-// WithCIMDEnabled enables the use of OAuth Client ID Metadata Documents.
-func (s *Store) WithCIMDEnabled(cimdEnabled bool) *Store {
-	s.cimdEnabled = cimdEnabled
 	return s
 }
 
@@ -141,7 +134,7 @@ type storedRequester struct {
 // Satisfies fosite.Storage
 
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
-	if s.cimdEnabled && fosite.LooksLikeCIMDURL(id) {
+	if fosite.LooksLikeCIMDURL(id) {
 		if !s.cimdURLAllowed(id) {
 			return nil, fosite.ErrInvalidClient.WithHint("The client_id is not in the metadata document allowlist.")
 		}

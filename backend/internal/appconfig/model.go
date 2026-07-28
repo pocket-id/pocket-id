@@ -61,7 +61,7 @@ type AppConfigModel struct {
 	LdapAttributeGroupName             AppConfigValue `json:"ldapAttributeGroupName"`
 	LdapAdminGroupName                 AppConfigValue `json:"ldapAdminGroupName"`
 	LdapSoftDeleteUsers                AppConfigValue `json:"ldapSoftDeleteUsers" type:"bool"`
-	// Dynamic clients (e.g. CIMD)
+	// OIDC
 	CIMDURLAllowlist           AppConfigValue `json:"cimdUrlAllowlist"` // JSON-encoded array of strings
 	DynamicClientRetentionDays AppConfigValue `json:"dynamicClientRetentionDays" type:"int"`
 }
@@ -148,7 +148,7 @@ func getDefaultConfig() *AppConfigModel {
 		LdapAttributeGroupName:             "",
 		LdapAdminGroupName:                 "",
 		LdapSoftDeleteUsers:                "true",
-		// Dynamic clients (e.g. CIMD)
+		// OIDC
 		CIMDURLAllowlist:           "[]",
 		DynamicClientRetentionDays: "180", // ~6 months
 	}

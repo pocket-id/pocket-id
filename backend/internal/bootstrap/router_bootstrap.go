@@ -198,7 +198,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 
 	registerTestRoutes(apiGroup, db, svc)
 
-	controller.NewWellKnownController(baseGroup, svc.jwtService)
+	controller.NewWellKnownController(baseGroup, svc.jwtService, svc.appConfigService.GetCIMDURLAllowlist)
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)

@@ -309,14 +309,12 @@
 	"client_type_standard": "Standard",
 	"client_type_metadata_document": "Metadata Document",
 	"client_id_metadata_documents": "Client ID Metadata Documents",
-	"configure_cimd_allowlist": "Restrict which client ID metadata document URLs are accepted. Supports wildcards. An empty list blocks all URLs.",
+	"client_id_metadata_documents_description": "Client ID Metadata Documents (CIMD) let OAuth clients identify themselves using a URL. No preregistration necessary.",
 	"cimd_url_allowlist": "Allowed metadata document URLs",
-	"cimd_url_allowlist_description": "Only client_id URLs matching one of these patterns will be fetched and trusted.",
+	"cimd_url_allowlist_description": "Restrict which client ID metadata document URLs are accepted. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Wildcards</link> are supported. An empty list blocks all URLs.",
 	"cimd_url_allowlist_updated_successfully": "Metadata document allowlist updated successfully",
-	"dynamic_clients": "Dynamic Clients",
-	"configure_dynamic_clients": "Configure settings for dynamically registered clients.",
 	"dynamic_client_retention": "Delete inactive clients after (days)",
-	"dynamic_client_retention_description": "Automatically delete dynamically registered clients (such as client ID metadata documents) whose metadata has not been refreshed within this many days. Set to 0 to disable automatic deletion.",
+	"dynamic_client_retention_description": "Automatically delete dynamically registered clients whose metadata has not been refreshed within this many days. Set to 0 to disable automatic deletion.",
 	"refresh": "Refresh",
 	"oidc_client_metadata_refreshed_successfully": "Client metadata document refreshed successfully",
 	"create_new_client_secret": "Create new client secret",
@@ -593,5 +591,6 @@
 	"deny": "Deny",
 	"approve": "Approve",
 	"or": "or",
-	"visit_and_enter": "Visit {url} and enter:"
+	"visit_and_enter": "Visit {url} and enter:",
+	"oidc": "OIDC"
 }

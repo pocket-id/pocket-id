@@ -17,7 +17,6 @@ type Config struct {
 	TokenBaseURL              string
 	Secret                    []byte
 	AllowInsecureCallbackURLs bool
-	CIMDEnabled               bool
 }
 
 type TokenSigner interface {
@@ -69,10 +68,9 @@ type Module struct {
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
-	if deps.Config.CIMDEnabled && deps.HTTPClient != nil && deps.AuditLog != nil {
+	if deps.HTTPClient != nil && deps.AuditLog != nil {
 		store.
 			WithAuditLogger(deps.AuditLog).
-			WithCIMDEnabled(true).
 			WithGetCIMDURLAllowlist(deps.GetCIMDURLAllowlist).
 			WithHTTPClient(deps.HTTPClient)
 	}

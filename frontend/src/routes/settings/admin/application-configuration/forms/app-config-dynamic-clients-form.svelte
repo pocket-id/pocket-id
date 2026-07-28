@@ -37,11 +37,9 @@
 		isLoading = true;
 
 		const update: Partial<AllAppConfig> = {
+			cimdUrlAllowlist: cimdUrlAllowlist.filter((u) => u.trim() !== ''),
 			dynamicClientRetentionDays: data.dynamicClientRetentionDays
 		};
-		if ($appConfigStore.cimdEnabled) {
-			update.cimdUrlAllowlist = cimdUrlAllowlist.filter((u) => u.trim() !== '');
-		}
 
 		await callback(update).finally(() => (isLoading = false));
 		toast.success(m.application_configuration_updated_successfully());
@@ -50,22 +48,15 @@
 
 <form onsubmit={preventDefault(onSubmit)}>
 	<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
+		<FormInput label={m.cimd_url_allowlist()} description={m.cimd_url_allowlist_description()}>
+			<UrlListInput bind:urls={cimdUrlAllowlist} testIdPrefix="cimd-url-allowlist" />
+		</FormInput>
 		<FormInput
 			label={m.dynamic_client_retention()}
 			type="number"
 			description={m.dynamic_client_retention_description()}
 			bind:input={$inputs.dynamicClientRetentionDays}
 		/>
-
-		{#if $appConfigStore.cimdEnabled}
-			<Field.Field>
-				<Field.Label>{m.cimd_url_allowlist()}</Field.Label>
-				<Field.Description>
-					{m.cimd_url_allowlist_description()}
-				</Field.Description>
-				<UrlListInput bind:urls={cimdUrlAllowlist} testIdPrefix="cimd-url-allowlist" />
-			</Field.Field>
-		{/if}
 
 		<div class="flex justify-end pt-2">
 			<Button {isLoading} type="submit">{m.save()}</Button>

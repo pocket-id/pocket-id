@@ -24,20 +24,24 @@ func newMinimalJwtService(t *testing.T) *service.JwtService {
 	return svc
 }
 
-func TestClientIDMetadataDocumentDiscoveryFlag(t *testing.T) {
-	origFlag := common.EnvConfig.CIMDEnabled
+func TestClientIDMetadataDocumentDiscoveryFollowsAllowlist(t *testing.T) {
 	origURL := common.EnvConfig.AppURL
 	t.Cleanup(func() {
-		common.EnvConfig.CIMDEnabled = origFlag
 		common.EnvConfig.AppURL = origURL
 	})
 
 	common.EnvConfig.AppURL = "https://test.example.com"
 	jwtSvc := newMinimalJwtService(t)
+	cimdURLAllowlist := []string(nil)
+	wkc := &WellKnownController{
+		jwtService: jwtSvc,
+		getCIMDURLAllowlist: func() []string {
+			return cimdURLAllowlist
+		},
+	}
 
 	parse := func(t *testing.T) map[string]any {
 		t.Helper()
-		wkc := &WellKnownController{jwtService: jwtSvc}
 		raw, err := wkc.computeOIDCConfiguration()
 		require.NoError(t, err)
 		var cfg map[string]any
@@ -45,9 +49,9 @@ func TestClientIDMetadataDocumentDiscoveryFlag(t *testing.T) {
 		return cfg
 	}
 
-	common.EnvConfig.CIMDEnabled = true
+	cimdURLAllowlist = []string{"https://client.example.com/**"}
 	assert.Equal(t, true, parse(t)["client_id_metadata_document_supported"])
 
-	common.EnvConfig.CIMDEnabled = false
+	cimdURLAllowlist = nil
 	assert.Equal(t, false, parse(t)["client_id_metadata_document_supported"])
 }

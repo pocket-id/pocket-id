@@ -125,7 +125,6 @@ func initServices(
 			TokenBaseURL:              common.EnvConfig.AppURL,
 			Secret:                    common.EnvConfig.EncryptionKey,
 			AllowInsecureCallbackURLs: common.EnvConfig.AllowInsecureCallbackURLs,
-			CIMDEnabled:               common.EnvConfig.CIMDEnabled,
 		},
 		Signer:       svc.jwtService,
 		CustomClaims: svc.customClaimService,
