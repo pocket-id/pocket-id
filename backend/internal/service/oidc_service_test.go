@@ -504,7 +504,7 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{Name: "Test Client"}
@@ -567,7 +567,7 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 
 func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	allowedGroup := model.UserGroup{Name: "allowed", FriendlyName: "Allowed"}

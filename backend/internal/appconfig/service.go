@@ -114,19 +114,16 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 	return patterns
 }
 
-// GetDynamicClientRetention returns the retention window for dynamically
-// registered clients (e.g. CIMD). A value of 0 (or less) disables dynamic
-// client pruning. Returns 0 if the value is unset or malformed.
-func (s *AppConfigService) GetDynamicClientRetention() time.Duration {
-	cfg, err := s.GetConfig(context.Background())
+// GetDynamicClientRetention returns the retention window for dynamically registered clients such as CIMD clients
+// A value of 0 or less disables dynamic client pruning
+// It returns 0 if the value is unset or malformed
+func (s *AppConfigService) GetDynamicClientRetention(ctx context.Context) (time.Duration, error) {
+	cfg, err := s.GetConfig(ctx)
 	if err != nil {
-		return 0
+		return 0, err
 	}
-	days, err := strconv.Atoi(string(cfg.DynamicClientRetentionDays))
-	if err != nil {
-		return 0
-	}
-	return time.Duration(days) * 24 * time.Hour
+	days, _ := strconv.Atoi(string(cfg.DynamicClientRetentionDays))
+	return time.Duration(days) * 24 * time.Hour, nil
 }
 
 // UpdateAppConfig replaces the entire application configuration with the values from the input DTO.

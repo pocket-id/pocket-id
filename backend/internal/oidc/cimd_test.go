@@ -206,7 +206,7 @@ func TestGetClient_CIMDURLAllowlist(t *testing.T) {
 		)
 		fc, err := s.GetClient(t.Context(), id)
 		require.NoError(t, err)
-		assert.Equal(t, id, fc.(Client).OidcClient.ID)
+		assert.Equal(t, id, fc.(Client).ID)
 	})
 
 	t.Run("refresh denied when not allowlisted", func(t *testing.T) {

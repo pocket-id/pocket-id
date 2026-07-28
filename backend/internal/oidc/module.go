@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/italypaleale/francis/host/local"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"
@@ -39,10 +40,12 @@ type AuditLogger interface {
 
 type Dependencies struct {
 	DB         *gorm.DB
+	Actors     *local.Host
 	Config     Config
 	HTTPClient *http.Client
 
-	GetCIMDURLAllowlist func() []string
+	GetCIMDURLAllowlist       func() []string
+	GetDynamicClientRetention func(context.Context) (time.Duration, error)
 
 	Signer       TokenSigner
 	CustomClaims CustomClaimSource
@@ -67,6 +70,11 @@ type Module struct {
 }
 
 func New(ctx context.Context, deps Dependencies) (*Module, error) {
+	err := registerMetadataClientsActor(deps.Actors, deps.DB, deps.GetDynamicClientRetention)
+	if err != nil {
+		return nil, err
+	}
+
 	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
 	if deps.HTTPClient != nil && deps.AuditLog != nil {
 		store.
