@@ -51,7 +51,7 @@
 			{m.if_you_do_not_have_access_to_your_passkey_you_can_sign_in_using_one_of_the_following_methods()}
 		</p>
 		<Item.Group class="mt-5 gap-3">
-			{#each methods as method}
+			{#each methods as method (method.href)}
 				<Item.Root variant="outline" class="gap-5">
 					{#snippet child({ props })}
 						<a href={method.href + page.url.search} {...props}>

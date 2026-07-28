@@ -5,20 +5,18 @@
 	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
 	import { m } from '$lib/paraglide/messages';
-	import type { OidcClient, OidcClientFederatedIdentity } from '$lib/types/oidc.type';
+	import type { OidcClientFederatedIdentity } from '$lib/types/oidc.type';
 	import { LucideMinus, LucidePlus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { z } from 'zod/v4';
 
 	let {
-		client,
 		federatedIdentities = $bindable([]),
 		errors,
 		disabled = false,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
-		client?: OidcClient;
 		federatedIdentities: OidcClientFederatedIdentity[];
 		errors?: z.core.$ZodIssue[];
 		disabled?: boolean;
@@ -69,7 +67,7 @@
 		{disabled}
 	>
 		<div class="space-y-4">
-			{#each federatedIdentities as identity, i}
+			{#each federatedIdentities as identity, i (identity)}
 				<div class="space-y-3 rounded-lg border p-4">
 					<div class="flex items-center justify-between">
 						<Field.Label>Identity {i + 1}</Field.Label>

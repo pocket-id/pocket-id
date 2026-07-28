@@ -5,17 +5,14 @@
 	import type { UserSignUp } from '$lib/types/user.type';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
-	import { tryCatch } from '$lib/utils/try-catch-util';
 	import { emptyToUndefined, usernameSchema } from '$lib/utils/zod-util';
 	import { get } from 'svelte/store';
 	import { z } from 'zod/v4';
 
 	let {
-		callback,
-		isLoading
+		callback
 	}: {
 		callback: (user: UserSignUp) => Promise<boolean>;
-		isLoading: boolean;
 	} = $props();
 
 	const initialData: UserSignUp = {
@@ -35,18 +32,11 @@
 
 	const { inputs, ...form } = createForm<FormSchema>(formSchema, initialData);
 
-	let userData: UserSignUp | null = $state(null);
-
 	async function onSubmit() {
 		const data = form.validate();
 		if (!data) return;
 
-		isLoading = true;
-		const result = await tryCatch(callback(data));
-		if (result.data) {
-			userData = data;
-			isLoading = false;
-		}
+		await callback(data);
 	}
 </script>
 

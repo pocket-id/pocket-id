@@ -79,7 +79,7 @@
 {#if typeof parsedContent === 'string'}
 	{parsedContent}
 {:else}
-	{#each parsedContent as part}
+	{#each parsedContent as part, i (i)}
 		{#if part.type === 'text'}
 			{part.content}
 		{:else if part.type === 'bold'}

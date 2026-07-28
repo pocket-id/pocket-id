@@ -42,7 +42,7 @@
 		}
 	}}
 >
-	{#each accentColors as accent}
+	{#each accentColors as accent (accent.color)}
 		{@render colorOption(accent.label, accent.color, selectedColor === accent.color)}
 	{/each}
 	{#if isCustomColor || isPreviousColorCustom}

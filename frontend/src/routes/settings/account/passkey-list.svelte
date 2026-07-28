@@ -38,7 +38,7 @@
 </script>
 
 <Item.Group class="mt-3">
-	{#each passkeys as passkey}
+	{#each passkeys as passkey (passkey.id)}
 		<GlassRowItem
 			label={passkey.name}
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}

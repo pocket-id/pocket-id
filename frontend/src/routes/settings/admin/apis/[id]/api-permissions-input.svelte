@@ -11,15 +11,15 @@
 </script>
 
 <div class="flex flex-col gap-y-3">
-	{#each permissions as _, i}
+	{#each permissions as permission, i (permission)}
 		<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 			<Input
 				class="font-mono sm:w-1/3"
 				placeholder={m.api_permission_key()}
-				bind:value={permissions[i].key}
+				bind:value={permission.key}
 			/>
-			<Input class="sm:w-1/4" placeholder={m.name()} bind:value={permissions[i].name} />
-			<Input placeholder={m.description()} bind:value={permissions[i].description} />
+			<Input class="sm:w-1/4" placeholder={m.name()} bind:value={permission.name} />
+			<Input placeholder={m.description()} bind:value={permission.description} />
 			<Button
 				variant="outline"
 				size="sm"

@@ -10,7 +10,7 @@
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
 	import type { Passkey } from '$lib/types/passkey.type';
-	import type { AccountUpdate, UserCreate } from '$lib/types/user.type';
+	import type { AccountUpdate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import {
 		KeyRound,

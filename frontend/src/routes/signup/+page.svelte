@@ -18,22 +18,17 @@
 	let { data } = $props();
 	const userService = new UserService();
 
-	let isLoading = $state(false);
 	let error: string | undefined = $state();
 
 	async function handleSignup(userData: UserSignUp) {
-		isLoading = true;
-
 		const result = await tryCatch(userService.signup({ ...userData, token: data.token }));
 
 		if (result.error) {
 			error = getAxiosErrorMessage(result.error);
-			isLoading = false;
 			return false;
 		}
 
 		await userStore.setUser(result.data);
-		isLoading = false;
 
 		goto('/signup/add-passkey');
 		return true;
@@ -75,7 +70,7 @@
 		</p>
 	{/if}
 	{#if $appConfigStore.allowUserSignups === 'open' || data.token}
-		<SignupForm callback={handleSignup} {isLoading} />
+		<SignupForm callback={handleSignup} />
 		<div class="mt-10 flex w-full items-center justify-between gap-2">
 			<a class="text-muted-foreground mt-5 flex text-sm" href="/login"
 				><LucideChevronLeft class="size-5" /> {m.back()}</a

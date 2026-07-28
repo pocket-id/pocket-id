@@ -6,6 +6,7 @@
 	import { preventDefault } from '$lib/utils/event-util';
 	import { createForm } from '$lib/utils/form-util';
 	import { emptyToUndefined } from '$lib/utils/zod-util';
+	import { SvelteDate } from 'svelte/reactivity';
 	import { z } from 'zod/v4';
 
 	let {
@@ -17,7 +18,7 @@
 	let isLoading = $state(false);
 
 	// Set default expiration to 30 days from now
-	const defaultExpiry = new Date();
+	const defaultExpiry = new SvelteDate();
 	defaultExpiry.setDate(defaultExpiry.getDate() + 30);
 	defaultExpiry.setHours(0, 0, 0, 0);
 

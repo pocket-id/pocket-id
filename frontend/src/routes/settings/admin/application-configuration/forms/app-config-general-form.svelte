@@ -83,7 +83,7 @@
 							?.label ?? $inputs.homePageUrl.value}
 					</Select.Trigger>
 					<Select.Content>
-						{#each homePageUrlOptions as option}
+						{#each homePageUrlOptions as option (option.value)}
 							<Select.Item value={option.value}>
 								{option.label}
 							</Select.Item>

@@ -93,7 +93,7 @@
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
-			{#each apis as api}
+			{#each apis as api (api.id)}
 				<Table.Row>
 					<Table.Cell>
 						<div class="flex flex-col gap-1">

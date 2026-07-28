@@ -2,14 +2,8 @@
 	import SignInWrapper from '$lib/components/login-wrapper.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
-	import OidcService from '$lib/services/oidc-service';
-	import WebAuthnService from '$lib/services/webauthn-service';
-	import userStore from '$lib/stores/user-store';
 	import ClientProviderImages from '../../authorize/components/client-provider-images.svelte';
 	import type { PageProps } from './$types';
-
-	const webauthnService = new WebAuthnService();
-	const oidcService = new OidcService();
 
 	let { data }: PageProps = $props();
 	let { error } = data;

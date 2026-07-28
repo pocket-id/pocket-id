@@ -237,13 +237,13 @@
 			>
 				{#snippet children({ cells })}
 					<InputOTP.Group>
-						{#each cells.slice(0, 4) as cell}
+						{#each cells.slice(0, 4) as cell (cell)}
 							<InputOTP.Slot {cell} />
 						{/each}
 					</InputOTP.Group>
 					<InputOTP.Separator />
 					<InputOTP.Group>
-						{#each cells.slice(4) as cell}
+						{#each cells.slice(4) as cell (cell)}
 							<InputOTP.Slot {cell} />
 						{/each}
 					</InputOTP.Group>

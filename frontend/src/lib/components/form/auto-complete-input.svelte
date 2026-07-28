@@ -91,7 +91,7 @@
 			avoidCollisions={false}
 			strategy="absolute"
 		>
-			{#each filteredSuggestions as suggestion, index}
+			{#each filteredSuggestions as suggestion, index (suggestion)}
 				<div
 					role="button"
 					tabindex="0"

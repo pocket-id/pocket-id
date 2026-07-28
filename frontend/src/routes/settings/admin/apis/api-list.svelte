@@ -27,7 +27,7 @@
 		{ label: m.api_permissions(), key: 'permissions', value: (item) => item.permissions.length }
 	];
 
-	const actions: CreateAdvancedTableActions<Api> = (api) => [
+	const actions: CreateAdvancedTableActions<Api> = () => [
 		{
 			label: m.edit(),
 			primary: true,

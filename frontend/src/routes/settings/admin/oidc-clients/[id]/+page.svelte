@@ -304,7 +304,7 @@
 					{/if}
 					{#if showAllDetails}
 						<div transition:slide>
-							{#each Object.entries(setupDetails) as [key, value]}
+							{#each Object.entries(setupDetails) as [key, value] (key)}
 								<div class="mb-2 flex flex-col sm:flex-row sm:items-center">
 									<Field.Label class="w-52">{key}</Field.Label>
 									<CopyToClipboard {value}>

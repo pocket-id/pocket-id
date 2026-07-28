@@ -7,7 +7,7 @@
 	let error = $state(false);
 
 	$effect(() => {
-		props.src;
+		void props.src;
 		error = false;
 	});
 </script>
