@@ -56,7 +56,6 @@ type Store struct {
 	issuer    string
 
 	httpClient          *http.Client
-	auditLog            AuditLogger
 	getCIMDURLAllowlist func() []string
 	metadataFetcher     fosite.CIMDFetcher
 	metadataFetcherOnce sync.Once
@@ -66,12 +65,6 @@ type Store struct {
 // It returns the store to allow chaining at construction
 func (s *Store) WithIssuer(issuer string) *Store {
 	s.issuer = issuer
-	return s
-}
-
-// WithAuditLogger sets the audit logger used to record metadata-document changes.
-func (s *Store) WithAuditLogger(auditLog AuditLogger) *Store {
-	s.auditLog = auditLog
 	return s
 }
 

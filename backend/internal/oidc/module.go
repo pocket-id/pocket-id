@@ -76,9 +76,8 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	}
 
 	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
-	if deps.HTTPClient != nil && deps.AuditLog != nil {
+	if deps.HTTPClient != nil {
 		store.
-			WithAuditLogger(deps.AuditLog).
 			WithGetCIMDURLAllowlist(deps.GetCIMDURLAllowlist).
 			WithHTTPClient(deps.HTTPClient)
 	}

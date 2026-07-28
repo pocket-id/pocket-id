@@ -11,7 +11,7 @@
 	import WebAuthnService from '$lib/services/webauthn-service';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store';
-	import type { InteractionStep } from '$lib/types/oidc.type';
+	import type { InteractionStep, OidcClientMetaData } from '$lib/types/oidc.type';
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
@@ -105,9 +105,10 @@
 		}
 	}
 
-	function getClientIDHost(clientId: string) {
+	function getClientIDHost(client: OidcClientMetaData) {
+		if (client.clientType !== 'cimd') return null;
 		try {
-			const url = new URL(clientId);
+			const url = new URL(client.id);
 			return url.host;
 		} catch {
 			return null;
@@ -134,7 +135,7 @@
 		{:else}
 			<FormattedMessage
 				m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
-					client: getClientIDHost(interactionSession.client.id) ?? interactionSession.client.name,
+					client: getClientIDHost(interactionSession.client) ?? interactionSession.client.name,
 					appName: $appConfigStore.appName
 				})}
 			/>

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/ory/fosite"
@@ -102,11 +102,11 @@ func (s *Store) resolveMetadataClient(ctx context.Context, id string, force bool
 
 	db := s.dbFor(ctx)
 	if found {
-		if changes := metadataClientChanges(existing, client); len(changes) > 0 && s.auditLog != nil {
-			s.auditLog.Create(ctx, model.AuditLogEventClientMetadataChanged, "", "", "", model.AuditLogData{
-				"clientID":      id,
-				"changedFields": strings.Join(changes, ","),
-			}, db)
+		if changes := metadataClientChanges(existing, client); len(changes) > 0 {
+			slog.InfoContext(ctx, "Client metadata changed",
+				slog.String("client_id", id),
+				slog.Any("changed_fields", changes),
+			)
 		}
 	}
 	if err := s.upsertMetadataClient(ctx, db, &client, found); err != nil {

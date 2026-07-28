@@ -37,7 +37,6 @@ const (
 	AuditLogEventNewDeviceCodeAuthorization AuditLogEvent = "NEW_DEVICE_CODE_AUTHORIZATION"
 	AuditLogEventPasskeyAdded               AuditLogEvent = "PASSKEY_ADDED"
 	AuditLogEventPasskeyRemoved             AuditLogEvent = "PASSKEY_REMOVED"
-	AuditLogEventClientMetadataChanged      AuditLogEvent = "CLIENT_METADATA_CHANGED"
 )
 
 // Scan and Value methods for GORM to handle the custom type
