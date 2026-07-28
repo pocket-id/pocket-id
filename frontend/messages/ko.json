@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "이 클라이언트가 로그인한 사용자를 대신하여 요청할 수 있는 권한(사용자 위임 액세스)과, 클라이언트 자격 증명 부여(클라이언트 액세스)를 통해 사용자 없이 자체적으로 요청할 수 있는 권한을 선택하십시오.",
 	"i_have_a_longer_code": "코드가 좀 더 길어요",
 	"pkce_supported_client_title": "이 클라이언트는 PKCE를 지원합니다.",
-	"pkce_supported_client_description": "이 클라이언트는 PKCE(Proof Key for Code Exchange)를 지원합니다. PKCE는 OAuth 2.0 인증 과정에서 발생할 수 있는 특정 공격으로부터 보호하는 데 도움이 되는 보안 기능입니다. 이 기능을 활성화하는 것이 좋습니다."
+	"pkce_supported_client_description": "이 클라이언트는 PKCE(Proof Key for Code Exchange)를 지원합니다. PKCE는 OAuth 2.0 인증 과정에서 발생할 수 있는 특정 공격으로부터 보호하는 데 도움이 되는 보안 기능입니다. 이 기능을 활성화하는 것이 좋습니다.",
+	"sign_in_with_another_device": "다른 기기로 로그인하기",
+	"sign_in_with_another_device_description": "패스키가 저장된 기기로 QR 코드를 스캔하세요.",
+	"creating_device_login_request": "로그인 요청 생성 중...",
+	"device_login_qr_code": "기기 로그인용 QR 코드",
+	"waiting_for_approval": "승인 대기 중",
+	"remote_sign_in": "원격 로그인",
+	"the_requesting_device_has_been_signed_in": "요청한 기기가 로그인되었습니다.",
+	"the_sign_in_request_was_denied": "로그인 요청이 거부되었습니다.",
+	"review_the_request_before_approving_it": "이 로그인을 승인하기 전에 요청한 기기를 확인하십시오.",
+	"sign_in_request": "로그인 요청",
+	"only_approve_if_you_started_this_sign_in": "이 로그인을 요청한 기기에서 직접 시작한 경우에만 승인하십시오.",
+	"deny": "거부",
+	"approve": "승인",
+	"or": "또는",
+	"visit_and_enter": "{url} 에 접속하여 다음을 입력하세요:"
 }

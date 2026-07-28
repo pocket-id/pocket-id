@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Wähle die Berechtigungen aus, die dieser Client im Namen des angemeldeten Benutzers (benutzerdelegierter Zugriff) und für sich selbst ohne Benutzer über die Client-Anmeldeinformationen-Vergabe (Client-Zugriff) anfordern darf.",
 	"i_have_a_longer_code": "Ich habe einen längeren Code",
 	"pkce_supported_client_title": "Dieser Client unterstützt PKCE",
-	"pkce_supported_client_description": "Dieser Client unterstützt „Proof Key for Code Exchange“ (PKCE). PKCE ist eine Sicherheitsfunktion, die beim OAuth 2.0-Autorisierungsvorgang vor bestimmten Angriffen schützt. Es wird empfohlen, diese Funktion zu aktivieren."
+	"pkce_supported_client_description": "Dieser Client unterstützt „Proof Key for Code Exchange“ (PKCE). PKCE ist eine Sicherheitsfunktion, die beim OAuth 2.0-Autorisierungsvorgang vor bestimmten Angriffen schützt. Es wird empfohlen, diese Funktion zu aktivieren.",
+	"sign_in_with_another_device": "Mit einem anderen Gerät anmelden",
+	"sign_in_with_another_device_description": "Scanne einen QR-Code mit einem Gerät, auf dem dein Passkey gespeichert ist.",
+	"creating_device_login_request": "Anmeldeanfrage wird erstellt...",
+	"device_login_qr_code": "QR-Code für die Geräteanmeldung",
+	"waiting_for_approval": "Warten auf die Genehmigung",
+	"remote_sign_in": "Fernanmeldung",
+	"the_requesting_device_has_been_signed_in": "Das anfragende Gerät ist angemeldet.",
+	"the_sign_in_request_was_denied": "Die Anmeldeanfrage wurde abgelehnt.",
+	"review_the_request_before_approving_it": "Überprüfe das anfragende Gerät, bevor du diese Anmeldung genehmigst.",
+	"sign_in_request": "Anmeldeanfrage",
+	"only_approve_if_you_started_this_sign_in": "Bestätige das nur, wenn du diese Anmeldung auf dem anfragenden Gerät gestartet hast.",
+	"deny": "Ablehnen",
+	"approve": "Genehmigen",
+	"or": "oder",
+	"visit_and_enter": "Geh auf {url} und gib Folgendes ein:"
 }

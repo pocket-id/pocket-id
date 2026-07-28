@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Izvēlieties atļaujas, ko šis klients var pieprasīt pieteiktā lietotāja vārdā (lietotāja deleģēta piekļuve) un savā vārdā bez lietotāja, izmantojot klienta autentifikācijas datu piešķiršanu (klienta piekļuve).",
 	"i_have_a_longer_code": "Man ir garāks kods",
 	"pkce_supported_client_title": "Šis klients atbalsta PKCE",
-	"pkce_supported_client_description": "Šis klients atbalsta „Proof Key for Code Exchange“ (PKCE). PKCE ir drošības funkcija, kas palīdz aizsargāties pret noteiktiem uzbrukumiem OAuth 2.0 autorizācijas procesa laikā. Ieteicams to ieslēgt."
+	"pkce_supported_client_description": "Šis klients atbalsta „Proof Key for Code Exchange“ (PKCE). PKCE ir drošības funkcija, kas palīdz aizsargāties pret noteiktiem uzbrukumiem OAuth 2.0 autorizācijas procesa laikā. Ieteicams to ieslēgt.",
+	"sign_in_with_another_device": "Piesakies ar citu ierīci",
+	"sign_in_with_another_device_description": "Noskenējiet QR kodu ar ierīci, kurā ir jūsu piekļuves atslēga.",
+	"creating_device_login_request": "Izveidojas pieteikšanās pieprasījums...",
+	"device_login_qr_code": "QR kods ierīces pieteikšanai",
+	"waiting_for_approval": "Gaida apstiprinājumu",
+	"remote_sign_in": "Pieslēgšanās no attāluma",
+	"the_requesting_device_has_been_signed_in": "Pieprasījuma nosūtītā ierīce ir pieteikusies.",
+	"the_sign_in_request_was_denied": "Pieteikšanās pieprasījums tika noraidīts.",
+	"review_the_request_before_approving_it": "Pirms apstiprināt šo pieteikšanos, pārbaudiet ierīci, no kuras tiek veikts pieprasījums.",
+	"sign_in_request": "Pieteikšanās pieprasījums",
+	"only_approve_if_you_started_this_sign_in": "Apstipriniet tikai tad, ja šo pieteikšanos esat uzsācis tieši tajā ierīcē, no kuras tiek veikts pieprasījums.",
+	"deny": "Noliegt",
+	"approve": "Apstiprināt",
+	"or": "vai",
+	"visit_and_enter": "Apmeklējiet vietni {url} un ievadiet:"
 }

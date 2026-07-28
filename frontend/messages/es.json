@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Selecciona los permisos que este cliente puede solicitar en nombre del usuario que ha iniciado sesión (acceso delegado por el usuario) y para sí mismo sin un usuario mediante la concesión de credenciales de cliente (acceso de cliente).",
 	"i_have_a_longer_code": "Tengo un código más largo",
 	"pkce_supported_client_title": "Este cliente es compatible con PKCE",
-	"pkce_supported_client_description": "Este cliente es compatible con Proof Key for Code Exchange (PKCE). PKCE es una función de seguridad que ayuda a protegerte contra ciertos ataques durante el proceso de autorización de OAuth 2.0. Te recomendamos que la actives."
+	"pkce_supported_client_description": "Este cliente es compatible con Proof Key for Code Exchange (PKCE). PKCE es una función de seguridad que ayuda a protegerte contra ciertos ataques durante el proceso de autorización de OAuth 2.0. Te recomendamos que la actives.",
+	"sign_in_with_another_device": "Inicia sesión con otro dispositivo",
+	"sign_in_with_another_device_description": "Escanea un código QR con un dispositivo en el que tengas tu clave de acceso.",
+	"creating_device_login_request": "Generando solicitud de inicio de sesión...",
+	"device_login_qr_code": "Código QR para iniciar sesión en el dispositivo",
+	"waiting_for_approval": "A la espera de la aprobación",
+	"remote_sign_in": "Inicio de sesión remoto",
+	"the_requesting_device_has_been_signed_in": "El dispositivo que ha realizado la solicitud ha iniciado sesión.",
+	"the_sign_in_request_was_denied": "Se ha rechazado la solicitud de inicio de sesión.",
+	"review_the_request_before_approving_it": "Comprueba el dispositivo desde el que se realiza la solicitud antes de aprobar este inicio de sesión.",
+	"sign_in_request": "Solicitud de inicio de sesión",
+	"only_approve_if_you_started_this_sign_in": "Solo apruébalo si has iniciado este inicio de sesión en el dispositivo que está haciendo la solicitud.",
+	"deny": "Negar",
+	"approve": "Aprobar",
+	"or": "o",
+	"visit_and_enter": "Entra en {url} e introduce:"
 }
