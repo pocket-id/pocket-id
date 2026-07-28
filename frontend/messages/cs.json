@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Vyberte oprávnění, o která může tento klient požádat jménem přihlášeného uživatele (přístup delegovaný uživatelem) a pro sebe samotného bez uživatele prostřednictvím udělení oprávnění na základě klientských pověření (přístup klienta).",
 	"i_have_a_longer_code": "Mám delší kód",
 	"pkce_supported_client_title": "Tento klient podporuje PKCE",
-	"pkce_supported_client_description": "Tento klient podporuje funkci Proof Key for Code Exchange (PKCE). PKCE je bezpečnostní funkce, která pomáhá chránit před určitými útoky během procesu autorizace OAuth 2.0. Doporučujeme ji povolit."
+	"pkce_supported_client_description": "Tento klient podporuje funkci Proof Key for Code Exchange (PKCE). PKCE je bezpečnostní funkce, která pomáhá chránit před určitými útoky během procesu autorizace OAuth 2.0. Doporučujeme ji povolit.",
+	"sign_in_with_another_device": "Přihlásit se pomocí jiného zařízení",
+	"sign_in_with_another_device_description": "Naskenujte QR kód pomocí zařízení, na kterém máte uložen svůj přístupový klíč.",
+	"creating_device_login_request": "Vytváří se žádost o přihlášení...",
+	"device_login_qr_code": "QR kód pro přihlášení k zařízení",
+	"waiting_for_approval": "Čekání na schválení",
+	"remote_sign_in": "Vzdálené přihlášení",
+	"the_requesting_device_has_been_signed_in": "Žádající zařízení se přihlásilo.",
+	"the_sign_in_request_was_denied": "Žádost o přihlášení byla zamítnuta.",
+	"review_the_request_before_approving_it": "Před schválením tohoto přihlášení zkontrolujte zařízení, ze kterého byla žádost odeslána.",
+	"sign_in_request": "Žádost o přihlášení",
+	"only_approve_if_you_started_this_sign_in": "Potvrďte pouze v případě, že jste toto přihlášení zahájili na zařízení, ze kterého pochází žádost.",
+	"deny": "Odmítnout",
+	"approve": "Schválit",
+	"or": "nebo",
+	"visit_and_enter": "Navštivte stránku {url} a zadejte:"
 }
