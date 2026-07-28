@@ -10,19 +10,21 @@
 		description,
 		callbackURLs = $bindable(),
 		error = $bindable(null),
+		disabled = false,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
 		label: string;
 		description: string;
 		callbackURLs: string[];
 		error?: string | null;
+		disabled?: boolean;
 		children?: Snippet;
 	} = $props();
 </script>
 
 <div {...restProps}>
-	<FormInput {label} {description}>
-		<UrlListInput bind:urls={callbackURLs} {error} testIdPrefix="callback-url" />
+	<FormInput {label} {description} {disabled}>
+		<UrlListInput bind:urls={callbackURLs} {error} {disabled} testIdPrefix="callback-url" />
 	</FormInput>
 	{#if error}
 		<Field.Error>{error}</Field.Error>

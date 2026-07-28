@@ -308,6 +308,8 @@
 	"client_type": "Type",
 	"client_type_standard": "Standard",
 	"client_type_metadata_document": "Metadata Document",
+	"cimd_client_managed_fields_title": "Some properties are read-only",
+	"cimd_client_managed_fields_description": "This client is managed through a Client ID Metadata Document (CIMD), so properties supplied by the document can't be edited here.",
 	"client_id_metadata_documents": "Client ID Metadata Documents",
 	"client_id_metadata_documents_description": "Client ID Metadata Documents (CIMD) let OAuth clients identify themselves using a URL. No preregistration necessary.",
 	"cimd_url_allowlist": "Allowed metadata document URLs",

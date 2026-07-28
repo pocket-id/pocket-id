@@ -231,25 +231,32 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 }
 
 func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClientUpdateDto) {
-	// Base fields
-	client.Name = input.Name
+	// Update fields that remain locally managed for every client type
 	client.Description = input.Description
-	client.CallbackURLs = input.CallbackURLs
-	client.LogoutCallbackURLs = input.LogoutCallbackURLs
-	client.IsPublic = input.IsPublic
-	// PKCE is required for public clients
-	client.PkceEnabled = input.IsPublic || input.PkceEnabled
-	// Reset any pkce support prompt if previously flagged
-	if !input.PkceEnabled {
-		client.PkceSupported = false
-	}
 	client.RequiresReauthentication = input.RequiresReauthentication
 	client.RequiresPushedAuthorizationRequests = input.RequiresPushedAuthorizationRequests
 	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
 
-	// Credentials
+	// Preserve fields that are sourced from the client metadata document
+	if client.IsMetadataDocument() {
+		return
+	}
+
+	// Update registration fields for manually configured clients
+	client.Name = input.Name
+	client.CallbackURLs = input.CallbackURLs
+	client.LogoutCallbackURLs = input.LogoutCallbackURLs
+	client.IsPublic = input.IsPublic
+	// PKCE is required for public clients
+	client.PkceEnabled = input.IsPublic || input.PkceEnabled
+	// Reset any PKCE support prompt if previously flagged
+	if !input.PkceEnabled {
+		client.PkceSupported = false
+	}
+
+	// Replace the federated credentials with the submitted configuration
 	client.Credentials.FederatedIdentities = make([]model.OidcClientFederatedIdentity, len(input.Credentials.FederatedIdentities))
 	for i, fi := range input.Credentials.FederatedIdentities {
 		client.Credentials.FederatedIdentities[i] = model.OidcClientFederatedIdentity{

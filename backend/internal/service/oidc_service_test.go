@@ -565,6 +565,69 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	assert.Empty(t, fetched.Description)
 }
 
+func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{
+		Name:               "Metadata Client",
+		CallbackURLs:       model.UrlList{"https://metadata.example.com/callback"},
+		LogoutCallbackURLs: model.UrlList{"https://metadata.example.com/logout"},
+		IsPublic:           true,
+		PkceEnabled:        true,
+		Credentials: model.OidcClientCredentials{
+			FederatedIdentities: []model.OidcClientFederatedIdentity{{
+				Issuer:  "https://metadata.example.com/client.json",
+				Subject: "https://metadata.example.com/client.json",
+				JWKS:    "https://metadata.example.com/jwks.json",
+			}},
+		},
+		ClientType: model.OidcClientTypeCIMD,
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	launchURL := "https://app.example.com"
+	input := dto.OidcClientUpdateDto{
+		Name:                                "Overridden Client",
+		Description:                         "Locally managed description",
+		CallbackURLs:                        []string{"https://override.example.com/callback"},
+		LogoutCallbackURLs:                  []string{"https://override.example.com/logout"},
+		IsPublic:                            false,
+		PkceEnabled:                         false,
+		RequiresReauthentication:            true,
+		RequiresPushedAuthorizationRequests: true,
+		SkipConsent:                         true,
+		LaunchURL:                           &launchURL,
+		IsGroupRestricted:                   true,
+		Credentials: dto.OidcClientCredentialsDto{
+			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{
+				Issuer: "https://override.example.com",
+				JWKS:   "https://override.example.com/jwks.json",
+			}},
+		},
+	}
+
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.Equal(t, client.Name, fetched.Name)
+	assert.Equal(t, client.CallbackURLs, fetched.CallbackURLs)
+	assert.Equal(t, client.LogoutCallbackURLs, fetched.LogoutCallbackURLs)
+	assert.Equal(t, client.IsPublic, fetched.IsPublic)
+	assert.Equal(t, client.PkceEnabled, fetched.PkceEnabled)
+	assert.Equal(t, client.Credentials, fetched.Credentials)
+	assert.Equal(t, input.Description, fetched.Description)
+	assert.Equal(t, input.RequiresReauthentication, fetched.RequiresReauthentication)
+	assert.Equal(t, input.RequiresPushedAuthorizationRequests, fetched.RequiresPushedAuthorizationRequests)
+	assert.Equal(t, input.SkipConsent, fetched.SkipConsent)
+	assert.Equal(t, input.LaunchURL, fetched.LaunchURL)
+	assert.Equal(t, input.IsGroupRestricted, fetched.IsGroupRestricted)
+}
+
 func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)

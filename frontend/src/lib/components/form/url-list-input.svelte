@@ -7,11 +7,13 @@
 	let {
 		urls = $bindable(),
 		error = null,
-		testIdPrefix = 'url'
+		testIdPrefix = 'url',
+		disabled = false
 	}: {
 		urls: string[];
 		error?: string | null;
 		testIdPrefix?: string;
+		disabled?: boolean;
 	} = $props();
 </script>
 
@@ -26,18 +28,26 @@
 					inputmode="url"
 					autocomplete="url"
 					bind:value={urls[i]}
+					{disabled}
 				/>
 				<Button
 					variant="outline"
 					size="sm"
 					onclick={() => (urls = urls.filter((_, index) => index !== i))}
+					{disabled}
 				>
 					<LucideMinus class="size-4" />
 				</Button>
 			</div>
 		{/each}
 	</div>
-	<Button class="mt-2" variant="secondary" size="sm" onclick={() => (urls = [...urls, ''])}>
+	<Button
+		class="mt-2"
+		variant="secondary"
+		size="sm"
+		onclick={() => (urls = [...urls, ''])}
+		{disabled}
+	>
 		<LucidePlus class="mr-1 size-4" />
 		{urls.length === 0 ? m.add() : m.add_another()}
 	</Button>
