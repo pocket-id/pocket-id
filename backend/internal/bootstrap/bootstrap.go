@@ -15,7 +15,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/haconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
@@ -54,12 +53,6 @@ func Bootstrap(ctx context.Context) error {
 	instanceID, err := instanceid.Load(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to initialize instance ID: %w", err)
-	}
-
-	// Enforce that the HA mode setting has not changed since the cluster was created
-	err = haconfig.Check(ctx, db, common.EnvConfig.HAEnabled)
-	if err != nil {
-		return err
 	}
 
 	// Init storage
