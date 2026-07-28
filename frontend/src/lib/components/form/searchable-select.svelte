@@ -100,7 +100,7 @@
 				{/if}
 			</Command.Empty>
 			<Command.Group>
-				{#each filteredItems as item}
+				{#each filteredItems as item (item.value)}
 					<Command.Item
 						value={item.value}
 						onSelect={() => {

@@ -68,10 +68,10 @@
 
 	$effect(() => {
 		if (filters) {
-			filters.userID;
-			filters.event;
-			filters.location;
-			filters.clientName;
+			void filters.userID;
+			void filters.event;
+			void filters.location;
+			void filters.clientName;
 			untrack(() => tableRef?.refresh());
 		}
 	});
@@ -94,7 +94,7 @@
 		if (!filters) return undefined;
 		return Object.fromEntries(
 			Object.entries(filters)
-				.filter(([_, value]) => value !== undefined && value !== null && value !== '')
+				.filter(([, value]) => value !== undefined && value !== null && value !== '')
 				.map(([key, value]) => [key, [value]])
 		);
 	}

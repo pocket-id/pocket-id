@@ -95,17 +95,15 @@
 		await callback(data);
 
 		// Update the app config to don't display the unsaved changes warning
-		Object.entries(data).forEach(([key, value]) => {
-			// @ts-ignore
-			appConfig[key] = value;
-		});
+		Object.assign(appConfig, data);
 
 		toast.success(m.email_configuration_updated_successfully());
 		return true;
 	}
 	async function onTestEmail() {
-		// @ts-ignore
-		const hasChanges = Object.keys($inputs).some((key) => $inputs[key].value !== appConfig[key]);
+		const hasChanges = Object.entries($inputs).some(
+			([key, input]) => input.value !== appConfig[key as keyof AllAppConfig]
+		);
 
 		if (hasChanges) {
 			openConfirmDialog({

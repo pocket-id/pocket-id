@@ -39,14 +39,14 @@
 <div {...restProps}>
 	<FormInput>
 		<div class="flex flex-col gap-y-2">
-			{#each customClaims as _, i}
+			{#each customClaims as customClaim, i (customClaim)}
 				<div class="flex gap-x-2">
 					<AutoCompleteInput
 						placeholder={m.key()}
 						suggestions={filteredSuggestions}
-						bind:value={customClaims[i].key}
+						bind:value={customClaim.key}
 					/>
-					<Input placeholder={m.value()} bind:value={customClaims[i].value} />
+					<Input placeholder={m.value()} bind:value={customClaim.value} />
 					<Button
 						variant="outline"
 						size="sm"

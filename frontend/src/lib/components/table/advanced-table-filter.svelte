@@ -1,4 +1,4 @@
-<script lang="ts" generics="TData, TValue">
+<script lang="ts">
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Command from '$lib/components/ui/command/index.js';
@@ -15,7 +15,7 @@
 		options,
 		selectedValues = new Set<string | boolean>(),
 		showCheckboxes = true,
-		onChanged = (selected: Set<string | boolean>) => {}
+		onChanged = () => {}
 	}: {
 		title: string;
 		options: {

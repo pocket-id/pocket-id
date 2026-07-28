@@ -13,25 +13,19 @@
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../../login/components/login-logo-error-success-indicator.svelte';
 
-	let { data } = $props();
 	const userService = new UserService();
 
-	let isLoading = $state(false);
 	let error: string | undefined = $state();
 
 	async function handleSignup(userData: UserSignUp) {
-		isLoading = true;
-
 		const result = await tryCatch(userService.signupInitialUser(userData));
 
 		if (result.error) {
 			error = getAxiosErrorMessage(result.error);
-			isLoading = false;
 			return false;
 		}
 
 		await userStore.setUser(result.data);
-		isLoading = false;
 
 		goto('/signup/add-passkey');
 		return true;
@@ -61,7 +55,7 @@
 		</p>
 	{/if}
 
-	<SignupForm callback={handleSignup} {isLoading} />
+	<SignupForm callback={handleSignup} />
 	<div class="mt-10 flex w-full justify-end">
 		<Button type="submit" form="sign-up-form" onclick={() => (error = undefined)}
 			>{m.signup()}</Button

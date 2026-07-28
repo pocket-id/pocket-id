@@ -140,7 +140,7 @@
 							{getExpirationLabel($inputs.ttl.value)}
 						</Select.Trigger>
 						<Select.Content>
-							{#each availableExpirations as expiration}
+							{#each availableExpirations as expiration (expiration.value)}
 								<Select.Item value={expiration.value.toString()}>
 									{expiration.label}
 								</Select.Item>

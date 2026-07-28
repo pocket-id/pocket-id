@@ -154,7 +154,9 @@
 				darkLogo = input;
 				darkLogoDataURL = URL.createObjectURL(input);
 			}
-			logoUrlInput && (logoUrlInput.value = '');
+			if (logoUrlInput) {
+				logoUrlInput.value = '';
+			}
 		}
 	}
 
@@ -162,11 +164,15 @@
 		if (light) {
 			logo = null;
 			logoDataURL = null;
-			$inputs.logoUrl && ($inputs.logoUrl.value = '');
+			if ($inputs.logoUrl) {
+				$inputs.logoUrl.value = '';
+			}
 		} else {
 			darkLogo = null;
 			darkLogoDataURL = null;
-			$inputs.darkLogoUrl && ($inputs.darkLogoUrl.value = '');
+			if ($inputs.darkLogoUrl) {
+				$inputs.darkLogoUrl.value = '';
+			}
 		}
 	}
 
@@ -317,7 +323,6 @@
 				/>
 			{/if}
 			<FederatedIdentitiesInput
-				client={existingClient}
 				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
 				errors={getFederatedIdentityErrors($errors)}
 			/>

@@ -33,7 +33,7 @@
 			description={m.view_the_groups_you_are_a_member_of()}
 		/>
 	{/if}
-	{#each customScopes as scope}
+	{#each customScopes as scope (scope)}
 		<ScopeItem
 			icon={LucideKeyRound}
 			name={infoByKey.get(scope)?.name ?? scope}

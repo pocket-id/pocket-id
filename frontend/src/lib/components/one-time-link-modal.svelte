@@ -89,7 +89,7 @@
 						{selectedExpiration}
 					</Select.Trigger>
 					<Select.Content>
-						{#each Object.keys(availableExpirations) as key}
+						{#each Object.keys(availableExpirations) as key (key)}
 							<Select.Item value={key}>{key}</Select.Item>
 						{/each}
 					</Select.Content>
