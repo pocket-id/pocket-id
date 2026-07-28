@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Chọn các quyền mà ứng dụng khách này có thể yêu cầu thay mặt cho người dùng đã đăng nhập (quyền truy cập được ủy quyền bởi người dùng) và cho chính nó mà không cần người dùng thông qua cơ chế cấp quyền bằng thông tin xác thực của ứng dụng khách (quyền truy cập của ứng dụng khách).",
 	"i_have_a_longer_code": "Tôi có một đoạn mã dài hơn",
 	"pkce_supported_client_title": "Khách hàng này hỗ trợ PKCE",
-	"pkce_supported_client_description": "Ứng dụng khách này hỗ trợ tính năng Proof Key for Code Exchange (PKCE). PKCE là một tính năng bảo mật giúp bảo vệ khỏi một số cuộc tấn công nhất định trong quá trình ủy quyền OAuth 2.0. Bạn nên bật tính năng này."
+	"pkce_supported_client_description": "Ứng dụng khách này hỗ trợ tính năng Proof Key for Code Exchange (PKCE). PKCE là một tính năng bảo mật giúp bảo vệ khỏi một số cuộc tấn công nhất định trong quá trình ủy quyền OAuth 2.0. Bạn nên bật tính năng này.",
+	"sign_in_with_another_device": "Đăng nhập bằng thiết bị khác",
+	"sign_in_with_another_device_description": "Quét mã QR bằng thiết bị có chứa khóa truy cập của bạn.",
+	"creating_device_login_request": "Đang tạo yêu cầu đăng nhập...",
+	"device_login_qr_code": "Mã QR đăng nhập thiết bị",
+	"waiting_for_approval": "Đang chờ phê duyệt",
+	"remote_sign_in": "Đăng nhập từ xa",
+	"the_requesting_device_has_been_signed_in": "Thiết bị yêu cầu đã đăng nhập thành công.",
+	"the_sign_in_request_was_denied": "Yêu cầu đăng nhập đã bị từ chối.",
+	"review_the_request_before_approving_it": "Hãy kiểm tra thiết bị yêu cầu trước khi chấp thuận lần đăng nhập này.",
+	"sign_in_request": "Yêu cầu đăng nhập",
+	"only_approve_if_you_started_this_sign_in": "Chỉ chấp nhận nếu bạn là người đã bắt đầu quá trình đăng nhập này trên thiết bị đang gửi yêu cầu.",
+	"deny": "Từ chối",
+	"approve": "Phê duyệt",
+	"or": "hoặc",
+	"visit_and_enter": "Hãy truy cập trang web {url} và nhập:"
 }

@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Vælg de tilladelser, som denne klient kan anmode om på vegne af den indloggede bruger (brugerdelegeret adgang) og for sig selv uden en bruger via tildeling af klientlegitimationsoplysninger (klientadgang).",
 	"i_have_a_longer_code": "Jeg har en længere kodestykke",
 	"pkce_supported_client_title": "Denne klient understøtter PKCE",
-	"pkce_supported_client_description": "Denne klient understøtter Proof Key for Code Exchange (PKCE). PKCE er en sikkerhedsfunktion, der hjælper med at beskytte mod visse angreb under OAuth 2.0-godkendelsesprocessen. Det anbefales at aktivere den."
+	"pkce_supported_client_description": "Denne klient understøtter Proof Key for Code Exchange (PKCE). PKCE er en sikkerhedsfunktion, der hjælper med at beskytte mod visse angreb under OAuth 2.0-godkendelsesprocessen. Det anbefales at aktivere den.",
+	"sign_in_with_another_device": "Log ind med en anden enhed",
+	"sign_in_with_another_device_description": "Scan en QR-kode med en enhed, der har din adgangskode.",
+	"creating_device_login_request": "Opretter anmodning om login...",
+	"device_login_qr_code": "QR-kode til enhedslogin",
+	"waiting_for_approval": "Afventer godkendelse",
+	"remote_sign_in": "Fjernlogin",
+	"the_requesting_device_has_been_signed_in": "Den anmodende enhed er nu logget ind.",
+	"the_sign_in_request_was_denied": "Login-anmodningen blev afvist.",
+	"review_the_request_before_approving_it": "Kontroller den enhed, der fremsætter anmodningen, inden du godkender denne login.",
+	"sign_in_request": "Anmodning om login",
+	"only_approve_if_you_started_this_sign_in": "Godkend kun, hvis du selv har startet denne login-proces på den enhed, der anmoder om det.",
+	"deny": "Afvis",
+	"approve": "Godkend",
+	"or": "eller",
+	"visit_and_enter": "Besøg {url} og indtast:"
 }

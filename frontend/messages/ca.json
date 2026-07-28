@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Seleccioneu els permisos que aquest client pot sol·licitar en nom de l'usuari que ha iniciat sessió (accés delegat per l'usuari) i per a si mateix sense cap usuari mitjançant l'atorgament amb credencials (accés de client).",
 	"i_have_a_longer_code": "Tinc un codi més llarg",
 	"pkce_supported_client_title": "Aquest client admet PKCE.",
-	"pkce_supported_client_description": "Aquest client admet Proof Key for Code Exchange (PKCE). PKCE és una característica de seguretat que ajuda a protegir contra certs atacs durant el procés d'autorització OAuth 2.0. Es recomana habilitar-la."
+	"pkce_supported_client_description": "Aquest client admet Proof Key for Code Exchange (PKCE). PKCE és una característica de seguretat que ajuda a protegir contra certs atacs durant el procés d'autorització OAuth 2.0. Es recomana habilitar-la.",
+	"sign_in_with_another_device": "Inicia la sessió amb un altre dispositiu",
+	"sign_in_with_another_device_description": "Escaneja un codi QR amb un dispositiu que tingui la teva clau d'accés.",
+	"creating_device_login_request": "Creant la sol·licitud d'inici de sessió...",
+	"device_login_qr_code": "Codi QR d'inici de sessió del dispositiu",
+	"waiting_for_approval": "Esperant l'aprovació",
+	"remote_sign_in": "Inici de sessió remot",
+	"the_requesting_device_has_been_signed_in": "El dispositiu sol·licitant ha iniciat la sessió.",
+	"the_sign_in_request_was_denied": "La sol·licitud d'inici de sessió ha estat denegada.",
+	"review_the_request_before_approving_it": "Revisa el dispositiu que fa la sol·licitud abans d'aprovar aquest inici de sessió.",
+	"sign_in_request": "Sol·licitud d'inici de sessió",
+	"only_approve_if_you_started_this_sign_in": "Només aprova si has iniciat aquesta sessió a l'aparell que fa la sol·licitud.",
+	"deny": "Negar",
+	"approve": "Aprovar",
+	"or": "o",
+	"visit_and_enter": "Visita {url} i introdueix:"
 }
