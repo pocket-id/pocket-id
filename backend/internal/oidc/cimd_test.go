@@ -249,6 +249,21 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 		require.ErrorIs(t, err, fosite.ErrInvalidClient)
 	})
 
+	t.Run("non-metadata client is rejected", func(t *testing.T) {
+		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
+		s := newMetadataStore(t, map[string]*http.Response{id: resp})
+		seed := model.OidcClient{Base: model.Base{ID: id}, Name: "Standard"}
+		require.NoError(t, s.db.Create(&seed).Error)
+
+		_, err := s.resolveMetadataClient(t.Context(), id, false)
+		require.EqualError(t, err, "client is not a client ID metadata document client")
+
+		stored, err := s.firstClientByID(t.Context(), id)
+		require.NoError(t, err)
+		assert.Equal(t, "Standard", stored.Name)
+		assert.False(t, stored.IsMetadataDocument())
+	})
+
 	t.Run("fetches, upserts, and reuses the cache", func(t *testing.T) {
 		resp := testutils.NewMockResponse(http.StatusOK, body) //nolint:bodyclose // mock response, no real body
 		resp.Header.Set("Cache-Control", "max-age=600")

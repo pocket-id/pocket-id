@@ -7,6 +7,7 @@
 	"key": "Key",
 	"value": "Value",
 	"remove_custom_claim": "Remove custom claim",
+	"remove_url": "Remove URL {identifier}",
 	"add_custom_claim": "Add custom claim",
 	"add_another": "Add another",
 	"select_a_date": "Select a date",

@@ -19,7 +19,7 @@
 
 <div>
 	<div class="flex flex-col gap-y-2">
-		{#each urls as _, i}
+		{#each urls as url, i (i)}
 			<div class="flex gap-x-2">
 				<Input
 					aria-invalid={!!error}
@@ -33,6 +33,7 @@
 				<Button
 					variant="outline"
 					size="sm"
+					aria-label={m.remove_url({ identifier: url || i + 1 })}
 					onclick={() => (urls = urls.filter((_, index) => index !== i))}
 					{disabled}
 				>

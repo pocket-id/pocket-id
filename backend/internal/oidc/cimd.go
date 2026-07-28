@@ -85,6 +85,9 @@ func (s *Store) resolveMetadataClient(ctx context.Context, id string, force bool
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.OidcClient{}, err
 	}
+	if found && !existing.IsMetadataDocument() {
+		return model.OidcClient{}, errors.New("client is not a client ID metadata document client")
+	}
 	if !force && found && existing.MetadataExpiresAt != nil && time.Time(*existing.MetadataExpiresAt).After(time.Now()) {
 		return existing, nil
 	}

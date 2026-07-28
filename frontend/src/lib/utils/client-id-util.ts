@@ -25,8 +25,12 @@ export function decodeClientIdParam(param: string): string {
 	if (!param.startsWith('~')) {
 		return param;
 	}
-	const base64 = param.slice(1).replace(/-/g, '+').replace(/_/g, '/');
-	const binary = atob(base64);
-	const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-	return new TextDecoder().decode(bytes);
+	try {
+		const base64 = param.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+		const binary = atob(base64);
+		const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+		return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+	} catch {
+		return param;
+	}
 }
