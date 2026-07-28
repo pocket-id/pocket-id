@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Valige õigused, mida see klient võib taotleda sisseloginud kasutaja nimel (kasutaja poolt delegeeritud juurdepääs) ning enda nimel ilma kasutajata kliendi volituste andmise kaudu (kliendi juurdepääs).",
 	"i_have_a_longer_code": "Mul on pikem kood",
 	"pkce_supported_client_title": "See klient toetab PKCE-d",
-	"pkce_supported_client_description": "See klient toetab funktsiooni „Proof Key for Code Exchange“ (PKCE). PKCE on turvaelement, mis aitab kaitsta teatud rünnakute eest OAuth 2.0 autoriseerimisprotsessi käigus. Soovitame selle sisse lülitada."
+	"pkce_supported_client_description": "See klient toetab funktsiooni „Proof Key for Code Exchange“ (PKCE). PKCE on turvaelement, mis aitab kaitsta teatud rünnakute eest OAuth 2.0 autoriseerimisprotsessi käigus. Soovitame selle sisse lülitada.",
+	"sign_in_with_another_device": "Logi sisse teise seadmega",
+	"sign_in_with_another_device_description": "Skannige QR-kood seadmega, millel on teie juurdepääsukood.",
+	"creating_device_login_request": "Logimispäringu loomine...",
+	"device_login_qr_code": "Seadme sisselogimise QR-kood",
+	"waiting_for_approval": "Oodatakse heakskiitu",
+	"remote_sign_in": "Kaugjuurdepääs",
+	"the_requesting_device_has_been_signed_in": "Päringu teinud seade on sisse logitud.",
+	"the_sign_in_request_was_denied": "Sisselogimistaotlus lükati tagasi.",
+	"review_the_request_before_approving_it": "Enne sisselogimise heakskiitmist kontrollige taotluse esitanud seadet.",
+	"sign_in_request": "Sisselogimispalve",
+	"only_approve_if_you_started_this_sign_in": "Kinnita seda ainult juhul, kui oled selle sisselogimise algatanud taotluse esitanud seadmel.",
+	"deny": "Eita",
+	"approve": "Kinnita",
+	"or": "või",
+	"visit_and_enter": "Külasta veebilehte {url} ja sisesta:"
 }
