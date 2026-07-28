@@ -23,7 +23,6 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 	profilepicture "github.com/pocket-id/pocket-id/backend/internal/utils/image"
 )
 
@@ -31,19 +30,17 @@ type UserService struct {
 	db                 *gorm.DB
 	jwtService         *JwtService
 	auditLogService    *AuditLogService
-	emailService       *EmailService
 	customClaimService *CustomClaimService
 	appImagesService   *AppImagesService
 	scimService        *ScimService
 	fileStorage        storage.FileStorage
 }
 
-func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, emailService *EmailService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
+func NewUserService(db *gorm.DB, jwtService *JwtService, auditLogService *AuditLogService, customClaimService *CustomClaimService, appImagesService *AppImagesService, scimService *ScimService, fileStorage storage.FileStorage) *UserService {
 	return &UserService{
 		db:                 db,
 		jwtService:         jwtService,
 		auditLogService:    auditLogService,
-		emailService:       emailService,
 		customClaimService: customClaimService,
 		appImagesService:   appImagesService,
 		scimService:        scimService,
@@ -284,6 +281,9 @@ func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCrea
 		Locale:        input.Locale,
 		Disabled:      input.Disabled,
 		UserGroups:    userGroups,
+	}
+	if input.ID != "" {
+		user.ID = input.ID
 	}
 	if input.LdapID != "" {
 		user.LdapID = &input.LdapID
@@ -637,74 +637,4 @@ func (s *UserService) disableUserInternal(ctx context.Context, tx *gorm.DB, user
 	}
 
 	return nil
-}
-
-func (s *UserService) SendEmailVerification(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string) error {
-	user, err := s.GetUser(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	if user.Email == nil {
-		return &common.UserEmailNotSetError{}
-	}
-
-	randomToken, err := utils.GenerateRandomAlphanumericString(32)
-	if err != nil {
-		return err
-	}
-
-	expiration := time.Now().Add(24 * time.Hour)
-	emailVerificationToken := &model.EmailVerificationToken{
-		UserID:    user.ID,
-		Token:     randomToken,
-		ExpiresAt: datatype.DateTime(expiration),
-	}
-
-	err = s.db.WithContext(ctx).Create(emailVerificationToken).Error
-	if err != nil {
-		return err
-	}
-
-	return SendEmail(ctx, s.emailService, dbConfig, email.Address{
-		Name:  user.FullName(),
-		Email: *user.Email,
-	}, EmailVerificationTemplate, &EmailVerificationTemplateData{
-		UserFullName:     user.FullName(),
-		VerificationLink: common.EnvConfig.AppURL + "/verify-email?token=" + emailVerificationToken.Token,
-	})
-}
-
-func (s *UserService) VerifyEmail(ctx context.Context, userID string, token string) error {
-	tx := s.db.Begin()
-	defer tx.Rollback()
-
-	var emailVerificationToken model.EmailVerificationToken
-	err := tx.WithContext(ctx).Where("token = ? AND user_id = ? AND expires_at > ?",
-		token, userID, datatype.DateTime(time.Now())).First(&emailVerificationToken).Error
-
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return &common.InvalidEmailVerificationTokenError{}
-	} else if err != nil {
-		return err
-	}
-
-	user, err := s.getUserInternal(ctx, emailVerificationToken.UserID, tx)
-	if err != nil {
-		return err
-	}
-
-	user.EmailVerified = true
-	user.UpdatedAt = new(datatype.DateTime(time.Now()))
-	err = tx.WithContext(ctx).Save(&user).Error
-	if err != nil {
-		return err
-	}
-
-	err = tx.WithContext(ctx).Delete(&emailVerificationToken).Error
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit().Error
 }

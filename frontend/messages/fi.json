@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Valitse ne käyttöoikeudet, joita tämä asiakasohjelma voi pyytää kirjautuneen käyttäjän puolesta (käyttäjän valtuuttama pääsy) sekä itselleen ilman käyttäjää asiakasohjelman tunnistetietojen myöntämisen kautta (asiakasohjelman pääsy).",
 	"i_have_a_longer_code": "Minulla on pidempi koodi",
 	"pkce_supported_client_title": "Tämä asiakasohjelma tukee PKCE:tä",
-	"pkce_supported_client_description": "Tämä asiakasohjelma tukee Proof Key for Code Exchange (PKCE) -ominaisuutta. PKCE on turvallisuusominaisuus, joka auttaa suojautumaan tietyiltä hyökkäyksiltä OAuth 2.0 -valtuutusprosessin aikana. On suositeltavaa ottaa se käyttöön."
+	"pkce_supported_client_description": "Tämä asiakasohjelma tukee Proof Key for Code Exchange (PKCE) -ominaisuutta. PKCE on turvallisuusominaisuus, joka auttaa suojautumaan tietyiltä hyökkäyksiltä OAuth 2.0 -valtuutusprosessin aikana. On suositeltavaa ottaa se käyttöön.",
+	"sign_in_with_another_device": "Kirjaudu sisään toisella laitteella",
+	"sign_in_with_another_device_description": "Skannaa QR-koodi laitteella, johon salasanasi on tallennettu.",
+	"creating_device_login_request": "Kirjautumispyyntöä luodaan...",
+	"device_login_qr_code": "Laitteen kirjautumisen QR-koodi",
+	"waiting_for_approval": "Odotetaan hyväksyntää",
+	"remote_sign_in": "Etäkirjautuminen",
+	"the_requesting_device_has_been_signed_in": "Pyynnön lähettänyt laite on kirjautunut sisään.",
+	"the_sign_in_request_was_denied": "Kirjautumispyyntö hylättiin.",
+	"review_the_request_before_approving_it": "Tarkista pyynnön lähettänyt laite ennen tämän kirjautumisen hyväksymistä.",
+	"sign_in_request": "Kirjautumispyyntö",
+	"only_approve_if_you_started_this_sign_in": "Hyväksy tämä vain, jos olet aloittanut tämän kirjautumisen pyynnön esittäneellä laitteella.",
+	"deny": "Hylkää",
+	"approve": "Hyväksy",
+	"or": "tai",
+	"visit_and_enter": "Käy osoitteessa {url} ja kirjoita:"
 }

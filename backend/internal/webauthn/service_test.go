@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,6 +131,74 @@ func TestWebAuthnDisplayNameUsesRequestConfig(t *testing.T) {
 
 	service.updateWebAuthnConfig(&appconfig.AppConfigModel{AppName: "Custom App"})
 	require.Equal(t, "Custom App", service.webAuthn.Config.RPDisplayName)
+}
+
+// A ceremony that references a session which does not exist must be rejected outright
+// The delete-and-return leaves the struct zero-valued when nothing matched, and a zero session has an
+// empty user verification requirement, a zero expiry and an empty challenge, so letting it reach the
+// library would validate the assertion with user verification and expiry enforcement silently disabled
+func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
+	const userID = "ceremony-user"
+
+	setupService := func(t *testing.T) *Service {
+		t.Helper()
+
+		db := testutils.NewDatabaseForTest(t)
+		require.NoError(t, db.Create(&model.User{
+			Base:     model.Base{ID: userID},
+			Username: userID,
+		}).Error)
+
+		return &Service{db: db}
+	}
+
+	t.Run("registration rejects an unknown session", func(t *testing.T) {
+		service := setupService(t)
+
+		_, err := service.VerifyRegistration(t.Context(), "does-not-exist", userID, nil, "127.0.0.1")
+
+		require.Error(t, err)
+		assert.ErrorAs(t, err, new(*common.InvalidWebauthnSessionError))
+	})
+
+	t.Run("login rejects an unknown session", func(t *testing.T) {
+		service := setupService(t)
+
+		_, token, err := service.VerifyLogin(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", nil, "127.0.0.1", "test-agent")
+
+		assert.Empty(t, token)
+		require.Error(t, err)
+		assert.ErrorAs(t, err, new(*common.InvalidWebauthnSessionError))
+	})
+
+	t.Run("reauthentication rejects an unknown session", func(t *testing.T) {
+		service := setupService(t)
+
+		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), "does-not-exist", nil)
+
+		assert.Empty(t, token)
+		require.Error(t, err)
+		assert.ErrorAs(t, err, new(*common.InvalidWebauthnSessionError))
+	})
+
+	// The reauthentication query filters expired rows out in SQL, so an expired session matches no row
+	// and previously produced the same zero-valued session as an unknown one
+	t.Run("reauthentication rejects an expired session", func(t *testing.T) {
+		service := setupService(t)
+
+		expiredSession := WebauthnSession{
+			Challenge:        "expired-challenge",
+			ExpiresAt:        datatype.DateTime(time.Now().Add(-time.Minute)),
+			UserVerification: string(protocol.VerificationRequired),
+		}
+		require.NoError(t, service.db.Create(&expiredSession).Error)
+
+		token, err := service.CreateReauthenticationTokenWithWebauthn(t.Context(), expiredSession.ID, nil)
+
+		assert.Empty(t, token)
+		require.Error(t, err)
+		assert.ErrorAs(t, err, new(*common.InvalidWebauthnSessionError))
+	})
 }
 
 func TestConsumeReauthenticationTokenReturnsTokenCreationTime(t *testing.T) {

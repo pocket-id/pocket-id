@@ -4,26 +4,30 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/go-co-op/gocron/v2"
 
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/email"
 )
+
+type APIKeyExpiryEmailSender interface {
+	SendAPIKeyExpiringSoon(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, firstName, apiKeyName string, expiresAt time.Time) error
+}
 
 type ApiKeyEmailJobs struct {
 	apiKeyModule     *apikey.Module
 	appConfigService *appconfig.AppConfigService
-	emailService     *service.EmailService
+	emailSender      APIKeyExpiryEmailSender
 }
 
-func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyModule *apikey.Module, appConfigService *appconfig.AppConfigService, emailService *service.EmailService) error {
+func (s *Scheduler) RegisterApiKeyExpiryJob(ctx context.Context, apiKeyModule *apikey.Module, appConfigService *appconfig.AppConfigService, emailSender APIKeyExpiryEmailSender) error {
 	jobs := &ApiKeyEmailJobs{
 		apiKeyModule:     apiKeyModule,
 		appConfigService: appConfigService,
-		emailService:     emailService,
+		emailSender:      emailSender,
 	}
 
 	// Send every day at midnight
@@ -51,14 +55,15 @@ func (j *ApiKeyEmailJobs) checkAndNotifyExpiringApiKeys(ctx context.Context) err
 			continue
 		}
 
-		err = service.SendEmail(ctx, j.emailService, dbConfig, email.Address{
-			Name:  key.User.FullName(),
-			Email: *key.User.Email,
-		}, service.ApiKeyExpiringSoonTemplate, &service.ApiKeyExpiringSoonTemplateData{
-			Name:       key.User.FirstName,
-			ApiKeyName: key.Name,
-			ExpiresAt:  key.ExpiresAt.ToTime(),
-		})
+		err = j.emailSender.SendAPIKeyExpiringSoon(
+			ctx,
+			dbConfig,
+			key.User.FullName(),
+			*key.User.Email,
+			key.User.FirstName,
+			key.Name,
+			key.ExpiresAt.ToTime(),
+		)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to send expiring API key notification email",
 				slog.String("key", key.ID),

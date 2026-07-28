@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Sélectionne les autorisations que ce client peut demander au nom de l'utilisateur connecté (accès délégué par l'utilisateur) et pour lui-même, sans utilisateur, via l'octroi d'identifiants client (accès client).",
 	"i_have_a_longer_code": "J'ai un code plus long",
 	"pkce_supported_client_title": "Ce client prend en charge PKCE",
-	"pkce_supported_client_description": "Ce client prend en charge la fonctionnalité « Proof Key for Code Exchange » (PKCE). Le PKCE est une fonctionnalité de sécurité qui permet de se protéger contre certaines attaques pendant le processus d'autorisation OAuth 2.0. Il est recommandé de l'activer."
+	"pkce_supported_client_description": "Ce client prend en charge la fonctionnalité « Proof Key for Code Exchange » (PKCE). Le PKCE est une fonctionnalité de sécurité qui permet de se protéger contre certaines attaques pendant le processus d'autorisation OAuth 2.0. Il est recommandé de l'activer.",
+	"sign_in_with_another_device": "Te connecter avec un autre appareil",
+	"sign_in_with_another_device_description": "Scanne un code QR avec un appareil sur lequel tu as enregistré ta clé d'accès.",
+	"creating_device_login_request": "Création d'une demande de connexion...",
+	"device_login_qr_code": "Code QR pour se connecter à l'appareil",
+	"waiting_for_approval": "En attente de validation",
+	"remote_sign_in": "Connexion à distance",
+	"the_requesting_device_has_been_signed_in": "L'appareil qui a envoyé la demande est désormais connecté.",
+	"the_sign_in_request_was_denied": "La demande de connexion a été refusée.",
+	"review_the_request_before_approving_it": "Vérifie l'appareil qui envoie la demande avant d'approuver cette connexion.",
+	"sign_in_request": "Demande de connexion",
+	"only_approve_if_you_started_this_sign_in": "N'approuve que si c'est toi qui as lancé cette connexion sur l'appareil qui en fait la demande.",
+	"deny": "Refuser",
+	"approve": "Valider",
+	"or": "ou",
+	"visit_and_enter": "Rends-toi sur {url} et saisis :"
 }

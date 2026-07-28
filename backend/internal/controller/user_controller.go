@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
@@ -17,18 +15,15 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/webauthn"
 )
 
-const defaultOneTimeAccessTokenDuration = 15 * time.Minute
-
 // NewUserController creates a new controller for user management endpoints
 // @Summary User management controller
 // @Description Initializes all user-related API endpoints
 // @Tags Users
-func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, rateLimitMiddleware *middleware.RateLimitMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, oneTimeAccessService *service.OneTimeAccessService, webAuthnService *webauthn.Module) {
+func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware, appConfigService *appconfig.AppConfigService, userService *service.UserService, webAuthnService *webauthn.Module) {
 	uc := UserController{
-		appConfigService:     appConfigService,
-		userService:          userService,
-		oneTimeAccessService: oneTimeAccessService,
-		webAuthnService:      webAuthnService,
+		appConfigService: appConfigService,
+		userService:      userService,
+		webAuthnService:  webAuthnService,
 	}
 
 	group.GET("/users", authMiddleware.Add(), uc.listUsersHandler)
@@ -49,24 +44,14 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), uc.updateUserProfilePictureHandler)
 	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserProfilePictureHandler)
 
-	group.POST("/users/me/one-time-access-token", authMiddleware.WithAdminNotRequired().Add(), uc.createOwnOneTimeAccessTokenHandler)
-	group.POST("/users/:id/one-time-access-token", authMiddleware.Add(), uc.createAdminOneTimeAccessTokenHandler)
-	group.POST("/users/:id/one-time-access-email", authMiddleware.Add(), uc.RequestOneTimeAccessEmailAsAdminHandler)
-	group.POST("/one-time-access-token/:token", rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken), uc.exchangeOneTimeAccessTokenHandler)
-	group.POST("/one-time-access-email", rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail), uc.RequestOneTimeAccessEmailAsUnauthenticatedUserHandler)
-
 	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
 	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
-
-	group.POST("/users/me/send-email-verification", rateLimitMiddleware.Add(middleware.RateLimitSendEmailVerification), authMiddleware.WithAdminNotRequired().Add(), uc.sendEmailVerificationHandler)
-	group.POST("/users/me/verify-email", rateLimitMiddleware.Add(middleware.RateLimitVerifyEmail), authMiddleware.WithAdminNotRequired().Add(), uc.verifyEmailHandler)
 }
 
 type UserController struct {
-	appConfigService     *appconfig.AppConfigService
-	userService          *service.UserService
-	oneTimeAccessService *service.OneTimeAccessService
-	webAuthnService      *webauthn.Module
+	appConfigService *appconfig.AppConfigService
+	userService      *service.UserService
+	webAuthnService  *webauthn.Module
 }
 
 // getUserGroupsHandler godoc
@@ -394,179 +379,6 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 	c.Status(http.StatusNoContent)
 }
 
-func (uc *UserController) createOneTimeAccessTokenHandler(c *gin.Context, own bool) {
-	var input dto.OneTimeAccessTokenCreateDto
-	err := c.ShouldBindJSON(&input)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var (
-		userID string
-		ttl    time.Duration
-	)
-	if own {
-		// Get user ID from context and force the default TTL
-		userID = c.GetString("userID")
-		ttl = defaultOneTimeAccessTokenDuration
-	} else {
-		// Get user ID from URL parameter, and optional TTL from body
-		userID = c.Param("id")
-		ttl = input.TTL.Duration
-		if ttl <= 0 {
-			ttl = defaultOneTimeAccessTokenDuration
-		}
-	}
-	if userID == "" {
-		_ = c.Error(&common.UserIdNotProvidedError{})
-		return
-	}
-
-	token, err := uc.oneTimeAccessService.CreateOneTimeAccessToken(c.Request.Context(), userID, ttl)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{"token": token})
-}
-
-// createOwnOneTimeAccessTokenHandler godoc
-// @Summary Create one-time access token for current user
-// @Description Generate a one-time access token for the currently authenticated user
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
-// @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Router /api/users/{id}/one-time-access-token [post]
-func (uc *UserController) createOwnOneTimeAccessTokenHandler(c *gin.Context) {
-	uc.createOneTimeAccessTokenHandler(c, true)
-}
-
-// createAdminOneTimeAccessTokenHandler godoc
-// @Summary Create one-time access token for user (admin)
-// @Description Generate a one-time access token for a specific user (admin only)
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param body body dto.OneTimeAccessTokenCreateDto true "Token options"
-// @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Router /api/users/{id}/one-time-access-token [post]
-func (uc *UserController) createAdminOneTimeAccessTokenHandler(c *gin.Context) {
-	uc.createOneTimeAccessTokenHandler(c, false)
-}
-
-// RequestOneTimeAccessEmailAsUnauthenticatedUserHandler godoc
-// @Summary Request one-time access email
-// @Description Request a one-time access email for unauthenticated users
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param body body dto.OneTimeAccessEmailAsUnauthenticatedUserDto true "Email request information"
-// @Success 204 "No Content"
-// @Router /api/one-time-access-email [post]
-func (uc *UserController) RequestOneTimeAccessEmailAsUnauthenticatedUserHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
-	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
-	}
-
-	var input dto.OneTimeAccessEmailAsUnauthenticatedUserDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	deviceToken, err := uc.oneTimeAccessService.RequestOneTimeAccessEmailAsUnauthenticatedUser(c.Request.Context(), dbConfig, input.Email, input.RedirectPath)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	cookie.AddDeviceTokenCookie(c, deviceToken)
-	c.Status(http.StatusNoContent)
-}
-
-// RequestOneTimeAccessEmailAsAdminHandler godoc
-// @Summary Request one-time access email (admin)
-// @Description Request a one-time access email for a specific user (admin only)
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param id path string true "User ID"
-// @Param body body dto.OneTimeAccessEmailAsAdminDto true "Email request options"
-// @Success 204 "No Content"
-// @Router /api/users/{id}/one-time-access-email [post]
-func (uc *UserController) RequestOneTimeAccessEmailAsAdminHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
-	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
-	}
-
-	var input dto.OneTimeAccessEmailAsAdminDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	userID := c.Param("id")
-
-	ttl := input.TTL.Duration
-	if ttl <= 0 {
-		ttl = defaultOneTimeAccessTokenDuration
-	}
-	err = uc.oneTimeAccessService.RequestOneTimeAccessEmailAsAdmin(c.Request.Context(), dbConfig, userID, ttl)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// exchangeOneTimeAccessTokenHandler godoc
-// @Summary Exchange one-time access token
-// @Description Exchange a one-time access token for a session token
-// @Tags Users
-// @Param token path string true "One-time access token"
-// @Success 200 {object} dto.UserDto
-// @Router /api/one-time-access-token/{token} [post]
-func (uc *UserController) exchangeOneTimeAccessTokenHandler(c *gin.Context) {
-	cfg, err := uc.appConfigService.GetConfig(c.Request.Context())
-	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
-	}
-
-	loginCode := c.Param("token")
-	// reject invalid length login codes
-	if len(loginCode) != 6 && len(loginCode) != 16 {
-		_ = c.Error(&common.TokenInvalidOrExpiredError{})
-		return
-	}
-
-	deviceToken, _ := c.Cookie(cookie.DeviceTokenCookieName)
-	user, token, err := uc.oneTimeAccessService.ExchangeOneTimeAccessToken(c.Request.Context(), cfg, loginCode, deviceToken, c.ClientIP(), c.Request.UserAgent())
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	var userDto dto.UserDto
-	err = dto.MapStruct(user, &userDto)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	maxAge := int(cfg.SessionDuration.AsDurationMinutes().Seconds())
-	cookie.AddAccessTokenCookie(c, maxAge, token)
-
-	c.JSON(http.StatusOK, userDto)
-}
-
 // updateUserGroups godoc
 // @Summary Update user groups
 // @Description Update the groups a specific user belongs to
@@ -663,53 +475,6 @@ func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) 
 	userID := c.GetString("userID")
 
 	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// sendEmailVerificationHandler godoc
-// @Summary Send email verification
-// @Description Send an email verification to the currently authenticated user
-// @Tags Users
-// @Produce json
-// @Success 204 "No Content"
-// @Router /api/users/me/send-email-verification [post]
-func (uc *UserController) sendEmailVerificationHandler(c *gin.Context) {
-	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
-	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
-	}
-
-	userID := c.GetString("userID")
-
-	if err := uc.userService.SendEmailVerification(c.Request.Context(), dbConfig, userID); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// verifyEmailHandler godoc
-// @Summary Verify email
-// @Description Verify the currently authenticated user's email using a verification token
-// @Tags Users
-// @Param body body dto.EmailVerificationDto true "Email verification token"
-// @Success 204 "No Content"
-// @Router /api/users/me/verify-email [post]
-func (uc *UserController) verifyEmailHandler(c *gin.Context) {
-	var input dto.EmailVerificationDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	userID := c.GetString("userID")
-	if err := uc.userService.VerifyEmail(c.Request.Context(), userID, input.Token); err != nil {
 		_ = c.Error(err)
 		return
 	}

@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Wybierz uprawnienia, o które ten klient może wnioskować w imieniu zalogowanego użytkownika (dostęp delegowany przez użytkownika) oraz dla siebie samego, bez udziału użytkownika, w ramach procedury przyznawania uprawnień na podstawie poświadczeń klienta (dostęp klienta).",
 	"i_have_a_longer_code": "Mam dłuższy kod",
 	"pkce_supported_client_title": "Ten klient obsługuje PKCE",
-	"pkce_supported_client_description": "Ten klient obsługuje funkcję Proof Key for Code Exchange (PKCE). PKCE to funkcja zabezpieczająca, która pomaga chronić przed niektórymi atakami podczas procesu autoryzacji OAuth 2.0. Zaleca się jej włączenie."
+	"pkce_supported_client_description": "Ten klient obsługuje funkcję Proof Key for Code Exchange (PKCE). PKCE to funkcja zabezpieczająca, która pomaga chronić przed niektórymi atakami podczas procesu autoryzacji OAuth 2.0. Zaleca się jej włączenie.",
+	"sign_in_with_another_device": "Zaloguj się na innym urządzeniu",
+	"sign_in_with_another_device_description": "Zeskanuj kod QR za pomocą urządzenia, na którym masz swój klucz dostępu.",
+	"creating_device_login_request": "Tworzenie prośby o logowanie...",
+	"device_login_qr_code": "Kod QR do logowania na urządzeniu",
+	"waiting_for_approval": "Czekam na zatwierdzenie",
+	"remote_sign_in": "Zdalne logowanie",
+	"the_requesting_device_has_been_signed_in": "Urządzenie, z którego wysłano żądanie, jest zalogowane.",
+	"the_sign_in_request_was_denied": "Prośba o zalogowanie się została odrzucona.",
+	"review_the_request_before_approving_it": "Sprawdź urządzenie, z którego pochodzi żądanie, zanim zatwierdzisz to logowanie.",
+	"sign_in_request": "Prośba o logowanie",
+	"only_approve_if_you_started_this_sign_in": "Zatwierdź to tylko wtedy, gdy to ty rozpocząłeś to logowanie na urządzeniu, z którego pochodzi żądanie.",
+	"deny": "Odrzuć",
+	"approve": "Zatwierdź",
+	"or": "albo",
+	"visit_and_enter": "Wejdź na stronę {url} i wpisz:"
 }

@@ -61,6 +61,14 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize file storage (backend: %s): %w", common.EnvConfig.FileBackend, err)
 	}
 
+	// Close file storage after every service that depends on it has stopped
+	defer func() {
+		closeErr := fileStorage.Close()
+		if closeErr != nil {
+			slog.ErrorContext(ctx, "Failed to close file storage", slog.Any("error", closeErr))
+		}
+	}()
+
 	// Init application images
 	imageExtensions, err := initApplicationImages(ctx, fileStorage)
 	if err != nil {
@@ -105,6 +113,9 @@ func Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
 	services = append(services, svc.appLockService.RunRenewal)
+
+	// Migrate the pre-actor signup tokens into their actors, once the actor host is ready
+	services = append(services, actorsReady.Await(svc.userSignUpModule.RunSignupTokenMigration))
 
 	// Acquire the lock from the app lock service
 	waitUntil, err := svc.appLockService.Acquire(ctx, false)

@@ -1,7 +1,15 @@
 {
 	"provider": "sqlite",
-	"version": 20260708130000,
-	"tableOrder": ["users", "user_groups", "oidc_clients", "signup_tokens", "apis", "api_permissions", "oidc_clients_allowed_api_permissions"],
+	"version": 20260723000000,
+	"tableOrder": [
+		"users",
+		"user_groups",
+		"oidc_clients",
+		"signup_tokens",
+		"apis",
+		"api_permissions",
+		"oidc_clients_allowed_api_permissions"
+	],
 	"tables": {
 		"apis": [
 			{
@@ -244,6 +252,10 @@
 				"user_group_id": "adab18bf-f89d-4087-9ee1-70ff15b48211"
 			},
 			{
+				"oidc_client_id": "7c21a609-96b5-4011-9900-272b8d31a9d1",
+				"user_group_id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368"
+			},
+			{
 				"oidc_client_id": "c46d2090-37a0-4f2b-8748-6aa53b0c1afa",
 				"user_group_id": "adab18bf-f89d-4087-9ee1-70ff15b48211"
 			},
@@ -252,70 +264,50 @@
 				"user_group_id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368"
 			}
 		],
-		"one_time_access_tokens": [
+		"oauth2_jtis": [
 			{
-				"created_at": "2025-11-25T12:39:02Z",
-				"expires_at": "2025-11-25T13:39:02Z",
-				"id": "bf877753-4ea4-4c9c-bbbd-e198bb201cb8",
-				"token": "HPe6k6uiDRRVuAQV",
-				"device_token": null,
-				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
-			},
-			{
-				"created_at": "2025-11-25T12:39:02Z",
-				"expires_at": "2025-11-25T12:39:01Z",
-				"id": "d3afae24-fe2d-4a98-abec-cf0b8525096a",
-				"token": "YCGDtftvsvYWiXd0",
-				"device_token": null,
-				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
-			},
-			{
-				"created_at": "2025-11-25T12:39:02Z",
-				"expires_at": "2025-11-25T13:39:02Z",
-				"id": "defd5164-9d9b-4228-bbce-708e33f49360",
-				"token": "one-time-token",
-				"device_token": null,
-				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
+				"id": "bd0c8bf2-66ec-487a-9dd5-7d9d78d73543",
+				"created_at": "2026-07-22T12:00:00Z",
+				"jti": "cross-database-test-jti",
+				"expires_at": "2099-01-01T00:00:00Z"
 			}
 		],
-		"signup_tokens": [
+		"oauth2_sessions": [
 			{
-				"created_at": "2025-11-25T12:39:02Z",
-				"expires_at": "2025-11-26T12:39:02Z",
-				"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-				"token": "VALID1234567890A",
-				"usage_count": 0,
-				"usage_limit": 1
-			},
-			{
-				"created_at": "2025-11-25T12:39:02Z",
-				"expires_at": "2025-12-02T12:39:02Z",
-				"id": "dc3c9c96-714e-48eb-926e-2d7c7858e6cf",
-				"token": "PARTIAL567890ABC",
-				"usage_count": 2,
-				"usage_limit": 5
-			},
-			{
-				"created_at": "2025-11-25T12:39:02Z",
-				"expires_at": "2025-11-24T12:39:02Z",
-				"id": "44de1863-ffa5-4db1-9507-4887cd7a1e3f",
-				"token": "EXPIRED34567890B",
-				"usage_count": 1,
-				"usage_limit": 3
-			},
-			{
-				"created_at": "2025-11-25T12:39:02Z",
-				"expires_at": "2025-11-26T12:39:02Z",
-				"id": "f1b1678b-7720-4d8b-8f91-1dbff1e2d02b",
-				"token": "FULLYUSED567890C",
-				"usage_count": 1,
-				"usage_limit": 1
+				"id": "551ab785-c830-47d3-8a07-60c9f3bb4859",
+				"created_at": "2026-07-22T12:00:00Z",
+				"kind": "access_token",
+				"key": "cross-database-test-session",
+				"request_id": "cross-database-test-request",
+				"access_token_signature": "",
+				"active": true,
+				"request_data": "eyJyZXF1ZXN0IjoidmFsdWUifQ==",
+				"expires_at": "2099-01-01T00:00:00Z"
 			}
 		],
-		"signup_tokens_user_groups": [
+		"interaction_sessions": [
 			{
-				"signup_token_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-				"user_group_id": "c7ae7c01-28a3-4f3c-9572-1ee734ea8368"
+				"id": "aaf5dd23-cd1f-4748-a2aa-baa6af94d800",
+				"created_at": "2026-07-22T12:00:00Z",
+				"consent_required": true,
+				"reauthentication_required": false,
+				"authentication_required": false,
+				"account_selection_required": false,
+				"scopes": "WyJvcGVuaWQiXQ==",
+				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
+				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e",
+				"requested_at": "2099-01-01T00:00:00Z",
+				"reauthenticated_at": null,
+				"parameters": "eyJjbGllbnRfaWQiOiIzNjU0YTc0Ni0zNWQ0LTQzMjEtYWM2MS0wYmRjZmYyYjQwNTUifQ=="
+			}
+		],
+		"reauthentication_tokens": [
+			{
+				"id": "71839ace-d978-4e6f-8fb1-b8648a21031b",
+				"created_at": "2026-07-22T12:00:00Z",
+				"token": "cross-database-reauthentication-token",
+				"expires_at": "2099-01-01T00:00:00Z",
+				"user_id": "f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e"
 			}
 		],
 		"user_authorized_oidc_clients": [
@@ -457,22 +449,6 @@
 				"expires_at": "2025-11-25T13:39:02Z",
 				"id": "267f6907-7bc8-4ea1-9d47-c42a172dc1c7",
 				"user_verification": "preferred"
-			}
-		],
-		"email_verification_tokens": [
-			{
-				"created_at": "2025-11-25T12:39:02Z",
-				"expires_at": "2025-11-26T12:39:02Z",
-				"id": "ef9ca469-b178-4857-bd39-26639dca45de",
-				"token": "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup",
-				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
-			},
-			{
-				"created_at": "2025-11-24T12:39:02Z",
-				"expires_at": "2025-11-25T12:39:02Z",
-				"id": "a3dcb4d2-7f3c-4e8a-9f4d-5b6c7d8e9f00",
-				"token": "EXPIRED1234567890ABCDE",
-				"user_id": "1cd19686-f9a6-43f4-a41f-14a0bf5b4036"
 			}
 		]
 	}

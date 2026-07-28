@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Seleziona le autorizzazioni che questo client può richiedere per conto dell'utente che ha effettuato l'accesso (accesso delegato dall'utente) e per sé stesso senza un utente tramite la concessione delle credenziali del client (accesso client).",
 	"i_have_a_longer_code": "Ho un codice più lungo",
 	"pkce_supported_client_title": "Questo client supporta PKCE",
-	"pkce_supported_client_description": "Questo client supporta la funzione Proof Key for Code Exchange (PKCE). Il PKCE è una funzionalità di sicurezza che aiuta a proteggerti da determinati attacchi durante il processo di autorizzazione OAuth 2.0. Ti consigliamo di attivarla."
+	"pkce_supported_client_description": "Questo client supporta la funzione Proof Key for Code Exchange (PKCE). Il PKCE è una funzionalità di sicurezza che aiuta a proteggerti da determinati attacchi durante il processo di autorizzazione OAuth 2.0. Ti consigliamo di attivarla.",
+	"sign_in_with_another_device": "Accedi con un altro dispositivo",
+	"sign_in_with_another_device_description": "Scansiona un codice QR con un dispositivo su cui hai salvato la tua passkey.",
+	"creating_device_login_request": "Creazione della richiesta di accesso...",
+	"device_login_qr_code": "Codice QR per l'accesso al dispositivo",
+	"waiting_for_approval": "In attesa di approvazione",
+	"remote_sign_in": "Accesso remoto",
+	"the_requesting_device_has_been_signed_in": "Il dispositivo che ha effettuato la richiesta ha effettuato l'accesso.",
+	"the_sign_in_request_was_denied": "La richiesta di accesso è stata rifiutata.",
+	"review_the_request_before_approving_it": "Controlla il dispositivo da cui proviene la richiesta prima di approvare questo accesso.",
+	"sign_in_request": "Richiesta di accesso",
+	"only_approve_if_you_started_this_sign_in": "Conferma solo se hai avviato questa sessione di accesso sul dispositivo da cui proviene la richiesta.",
+	"deny": "Negare",
+	"approve": "Approva",
+	"or": "oppure",
+	"visit_and_enter": "Visita il sito {url} e inserisci:"
 }

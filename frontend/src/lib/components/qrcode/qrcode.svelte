@@ -32,9 +32,14 @@
 				}
 			};
 
-			QRCode.toCanvas(canvasEl, value, options).catch((error: Error) => {
-				console.error('Error generating QR Code:', error);
-			});
+			QRCode.toCanvas(canvasEl, value, options)
+				.then(() => {
+					canvasEl?.style.removeProperty('height');
+					canvasEl?.style.removeProperty('width');
+				})
+				.catch((error: Error) => {
+					console.error('Error generating QR Code:', error);
+				});
 		}
 	});
 </script>

@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "Kies de rechten die deze client mag aanvragen namens de aangemelde gebruiker (door de gebruiker gedelegeerde toegang) en voor zichzelf zonder gebruiker via de ‘client credentials grant’ (clienttoegang).",
 	"i_have_a_longer_code": "Ik heb een langere code",
 	"pkce_supported_client_title": "Deze client ondersteunt PKCE",
-	"pkce_supported_client_description": "Deze client ondersteunt Proof Key for Code Exchange (PKCE). PKCE is een beveiligingsfunctie die bescherming biedt tegen bepaalde aanvallen tijdens het OAuth 2.0-autorisatieproces. Het wordt aanbevolen om deze functie in te schakelen."
+	"pkce_supported_client_description": "Deze client ondersteunt Proof Key for Code Exchange (PKCE). PKCE is een beveiligingsfunctie die bescherming biedt tegen bepaalde aanvallen tijdens het OAuth 2.0-autorisatieproces. Het wordt aanbevolen om deze functie in te schakelen.",
+	"sign_in_with_another_device": "Log in met een ander apparaat",
+	"sign_in_with_another_device_description": "Scan een QR-code met een apparaat waarop je toegangscode staat.",
+	"creating_device_login_request": "Aanmeldverzoek wordt aangemaakt...",
+	"device_login_qr_code": "QR-code om in te loggen op je apparaat",
+	"waiting_for_approval": "In afwachting van goedkeuring",
+	"remote_sign_in": "Inloggen op afstand",
+	"the_requesting_device_has_been_signed_in": "Het apparaat dat de aanvraag heeft gedaan, is aangemeld.",
+	"the_sign_in_request_was_denied": "De aanvraag om in te loggen is afgewezen.",
+	"review_the_request_before_approving_it": "Controleer het apparaat waarmee de aanvraag is gedaan voordat je deze aanmelding goedkeurt.",
+	"sign_in_request": "Aanvraag om in te loggen",
+	"only_approve_if_you_started_this_sign_in": "Bevestig dit alleen als je deze aanmelding zelf op het apparaat dat de aanvraag doet hebt gestart.",
+	"deny": "Ontkennen",
+	"approve": "Goedkeuren",
+	"or": "of",
+	"visit_and_enter": "Ga naar {url} en voer het volgende in:"
 }

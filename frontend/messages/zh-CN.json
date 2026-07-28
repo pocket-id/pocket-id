@@ -564,5 +564,20 @@
 	"select_the_permissions_this_client_may_request": "选择该客户端可代表已登录用户请求的权限（用户授权访问），以及通过客户端凭据授权（客户端访问）在无需用户授权的情况下为自身请求的权限。",
 	"i_have_a_longer_code": "我有一段较长的代码",
 	"pkce_supported_client_title": "该客户端支持 PKCE",
-	"pkce_supported_client_description": "此客户端支持“代码交换证明密钥”（PKCE）。PKCE 是一项安全功能，有助于在 OAuth 2.0 授权过程中防范某些攻击。建议启用该功能。"
+	"pkce_supported_client_description": "此客户端支持“代码交换证明密钥”（PKCE）。PKCE 是一项安全功能，有助于在 OAuth 2.0 授权过程中防范某些攻击。建议启用该功能。",
+	"sign_in_with_another_device": "使用另一台设备登录",
+	"sign_in_with_another_device_description": "使用已保存您的密钥的设备扫描二维码。",
+	"creating_device_login_request": "正在创建登录请求...",
+	"device_login_qr_code": "设备登录二维码",
+	"waiting_for_approval": "等待审批",
+	"remote_sign_in": "远程登录",
+	"the_requesting_device_has_been_signed_in": "请求设备已登录。",
+	"the_sign_in_request_was_denied": "登录请求被拒绝。",
+	"review_the_request_before_approving_it": "在批准此次登录之前，请先核查请求登录的设备。",
+	"sign_in_request": "登录请求",
+	"only_approve_if_you_started_this_sign_in": "仅当您是在请求设备上启动了此登录操作时，才予以批准。",
+	"deny": "拒绝",
+	"approve": "批准",
+	"or": "或",
+	"visit_and_enter": "请访问 {url} 并输入："
 }
