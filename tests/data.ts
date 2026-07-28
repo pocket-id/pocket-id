@@ -121,8 +121,8 @@ export const userGroups = {
 };
 
 export const oneTimeAccessTokens = [
-	{ token: 'HPe6k6uiDRRVuAQV', expired: false },
-	{ token: 'YCGDtftvsvYWiXd0', expired: true }
+	{ token: 'HPe6k6u1DRRVuAQV', expired: false },
+	{ token: 'YCGDtftvsvYW1Xd0', expired: true }
 ];
 
 export const emailVerificationTokens = [

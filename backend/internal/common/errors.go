@@ -124,6 +124,13 @@ type MissingSessionIdError struct{}
 func (e MissingSessionIdError) Error() string       { return "Missing session id" }
 func (e MissingSessionIdError) HttpStatusCode() int { return http.StatusBadRequest }
 
+type InvalidWebauthnSessionError struct{}
+
+func (e InvalidWebauthnSessionError) Error() string {
+	return "WebAuthn session is invalid or has expired"
+}
+func (e InvalidWebauthnSessionError) HttpStatusCode() int { return http.StatusBadRequest }
+
 type ReservedClaimError struct {
 	Key string
 }
@@ -180,6 +187,20 @@ type OneTimeAccessDisabledError struct{}
 
 func (e OneTimeAccessDisabledError) Error() string       { return "One-time access is disabled" }
 func (e OneTimeAccessDisabledError) HttpStatusCode() int { return http.StatusBadRequest }
+
+type DeviceLoginRequestInvalidOrExpiredError struct{}
+
+func (e DeviceLoginRequestInvalidOrExpiredError) Error() string {
+	return "Device login request is invalid or expired"
+}
+func (e DeviceLoginRequestInvalidOrExpiredError) HttpStatusCode() int {
+	return http.StatusUnauthorized
+}
+
+type DeviceLoginDeniedError struct{}
+
+func (e DeviceLoginDeniedError) Error() string       { return "Device login request was denied" }
+func (e DeviceLoginDeniedError) HttpStatusCode() int { return http.StatusForbidden }
 
 type InvalidAPIKeyError struct{}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ory/fosite"
@@ -11,6 +12,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -219,6 +221,9 @@ func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID 
 }
 
 func (s *deviceService) deviceRequestFromUserCode(ctx context.Context, userCode string) (fosite.DeviceRequester, string, error) {
+	userCode = strings.ToUpper(strings.TrimSpace(userCode))
+	userCode = utils.NormalizeUnambiguousString(userCode)
+
 	userCodeSignature, err := s.userCodeStrategy.UserCodeSignature(ctx, userCode)
 	if err != nil {
 		return nil, "", err

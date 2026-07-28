@@ -99,6 +99,28 @@ func TestExchangeTokenSuccess(t *testing.T) {
 	require.Equal(t, []model.AuditLogEvent{model.AuditLogEventOneTimeAccessTokenSignIn}, auditLog.events)
 }
 
+func TestExchangeTokenAcceptsAmbiguousAliases(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc, host, _ := newServiceForTest(t, db)
+
+	user := model.User{
+		Base:     model.Base{ID: "alias-user"},
+		Username: "alias-user",
+	}
+	require.NoError(t, db.Create(&user).Error)
+
+	const token = "a10bc2"
+	require.NoError(t, host.SetState(t.Context(), TokenActorType, token, TokenState{
+		UserID:    user.ID,
+		ExpiresAt: time.Now().Add(time.Minute),
+	}, &actor.SetStateOpts{TTL: time.Minute}))
+
+	dbConfig := appconfig.NewTestConfig(nil)
+	exchangedUser, _, err := svc.ExchangeToken(t.Context(), dbConfig, "aIObc2", "", "", "")
+	require.NoError(t, err)
+	require.Equal(t, user.ID, exchangedUser.ID)
+}
+
 func TestExchangeTokenInvalidToken(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 	svc, _, _ := newServiceForTest(t, db)

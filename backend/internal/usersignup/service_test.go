@@ -118,6 +118,46 @@ func TestSignUpRejectsInvalidToken(t *testing.T) {
 	require.ErrorAs(t, err, &invalidErr)
 }
 
+func TestSignUpInitialAdminCreatesAdmin(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-admin"}}})
+	config := appconfig.NewTestConfig(nil)
+
+	// Complete setup and return the generated administrator session
+	user, accessToken, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"})
+	require.NoError(t, err)
+	require.Equal(t, "new-admin", user.ID)
+	require.Equal(t, "access-token", accessToken)
+}
+
+func TestSignUpInitialAdminAllowsRetryAfterFailure(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	boom := errors.New("could not create initial admin")
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{err: boom})
+	config := appconfig.NewTestConfig(nil)
+
+	// Fail the first setup transaction before it can commit
+	_, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "failed-admin"})
+	require.ErrorIs(t, err, boom)
+
+	// Confirm a later setup can complete after the failed transaction rolls back
+	svc.userCreator = fakeUserCreator{user: model.User{Base: model.Base{ID: "new-admin"}}}
+	user, _, err := svc.SignUpInitialAdmin(t.Context(), config, signUpDto{Username: "new-admin"})
+	require.NoError(t, err)
+	require.Equal(t, "new-admin", user.ID)
+}
+
+func TestSignUpInitialAdminRejectsExistingInstallation(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Create(&model.User{Username: "existing-admin", IsAdmin: true}).Error)
+	svc := newSignupServiceForTest(t, db, fakeUserCreator{user: model.User{Base: model.Base{ID: "new-admin"}}})
+
+	// Reject setup when the installation already contains a user
+	_, _, err := svc.SignUpInitialAdmin(t.Context(), appconfig.NewTestConfig(nil), signUpDto{Username: "new-admin"})
+	var setupNotAvailableErr *common.SetupNotAvailableError
+	require.ErrorAs(t, err, &setupNotAvailableErr)
+}
+
 // listAllOptions returns list options that return every token on a single page.
 func listAllOptions() utils.ListRequestOptions {
 	var opts utils.ListRequestOptions

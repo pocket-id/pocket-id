@@ -81,6 +81,37 @@ test.describe('Initial User Signup', () => {
 		await expect(page.getByText('Set up your passkey')).toBeVisible();
 	});
 
+	test('Initial Signup - concurrent requests create one administrator', async ({ request }) => {
+		await cleanupBackend({ skipSeed: true });
+
+		const requestCount = 20;
+		const responses = await Promise.all(
+			Array.from({ length: requestCount }, (_, index) =>
+				request.post('/api/signup/setup', {
+					data: {
+						username: `race-admin-${index}`,
+						email: `race-admin-${index}@example.invalid`,
+						firstName: 'Race',
+						lastName: `${index}`
+					}
+				})
+			)
+		);
+
+		const successfulResponses = responses.filter((response) => response.status() === 200);
+		const rejectedResponses = responses.filter((response) => response.status() === 404);
+
+		expect(successfulResponses).toHaveLength(1);
+		expect(rejectedResponses).toHaveLength(requestCount - 1);
+		await expect(successfulResponses[0].json()).resolves.toMatchObject({ isAdmin: true });
+
+		const usersResponse = await request.get('/api/users');
+		expect(usersResponse.status()).toBe(200);
+		const users = await usersResponse.json();
+		expect(users.data).toHaveLength(1);
+		expect(users.data[0]).toMatchObject({ isAdmin: true });
+	});
+
 	test('Initial Signup - setup route unavailable after completion', async ({ page }) => {
 		await cleanupBackend();
 		await page.goto('/setup');

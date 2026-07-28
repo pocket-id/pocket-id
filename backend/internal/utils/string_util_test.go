@@ -62,7 +62,7 @@ func TestGenerateRandomUnambiguousString(t *testing.T) {
 			t.Errorf("Expected length %d, got %d", length, len(str))
 		}
 
-		matched, err := regexp.MatchString(`^[abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789]+$`, str)
+		matched, err := regexp.MatchString(`^[abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ0123456789]+$`, str)
 		if err != nil {
 			t.Errorf("Regex match failed: %v", err)
 		}
@@ -84,6 +84,26 @@ func TestGenerateRandomUnambiguousString(t *testing.T) {
 			t.Error("Expected error for negative length, got nil")
 		}
 	})
+}
+
+func TestGenerateRandomUppercaseUnambiguousString(t *testing.T) {
+	const length = 10
+	str, err := GenerateRandomUppercaseUnambiguousString(length)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if len(str) != length {
+		t.Errorf("Expected length %d, got %d", length, len(str))
+	}
+	if !regexp.MustCompile(`^[ABCDEFGHJKMNPQRSTUVWXYZ0123456789]+`).MatchString(str) {
+		t.Errorf("String contains lowercase or ambiguous characters: %s", str)
+	}
+}
+
+func TestNormalizeUnambiguousString(t *testing.T) {
+	if normalized := NormalizeUnambiguousString("iIoO-abc"); normalized != "1100-abc" {
+		t.Errorf("Expected ambiguous letters to be converted, got %s", normalized)
+	}
 }
 
 func TestGenerateRandomUnambiguousStringCharacterIndependence(t *testing.T) {
@@ -112,7 +132,6 @@ func TestGenerateRandomUnambiguousStringCharacterIndependence(t *testing.T) {
 		t.Errorf("first and last character collision rate = %.4f, want at most %.4f", collisionRate, maxAcceptableCollisionRate)
 	}
 }
-
 func TestGenerateRandomString(t *testing.T) {
 	t.Run("valid length returns characters from charset", func(t *testing.T) {
 		const length = 20
@@ -146,6 +165,14 @@ func TestGenerateRandomString(t *testing.T) {
 			t.Error("Expected error for negative length, got nil")
 		}
 	})
+
+	t.Run("empty charset returns error", func(t *testing.T) {
+		_, err := GenerateRandomString(10, "")
+		if err == nil {
+			t.Error("Expected error for empty charset, got nil")
+		}
+	})
+
 }
 
 func TestCapitalizeFirstLetter(t *testing.T) {
