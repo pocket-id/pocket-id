@@ -104,6 +104,15 @@
 			window.location.href = result.redirectUrl;
 		}
 	}
+
+	function getClientIDHost(clientId: string) {
+		try {
+			const url = new URL(clientId);
+			return url.host;
+		} catch {
+			return null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -125,11 +134,7 @@
 		{:else}
 			<FormattedMessage
 				m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
-					client:
-						interactionSession.client.clientType === 'cimd' &&
-						interactionSession.client.clientIdHost
-							? interactionSession.client.clientIdHost
-							: interactionSession.client.name,
+					client: getClientIDHost(interactionSession.client.id) ?? interactionSession.client.name,
 					appName: $appConfigStore.appName
 				})}
 			/>

@@ -649,7 +649,6 @@ func (s *OidcService) ListAccessibleOidcClients(ctx context.Context, userID stri
 				HasLogo:      client.HasLogo(),
 				HasDarkLogo:  client.HasDarkLogo(),
 				ClientType:   string(client.ClientType),
-				ClientIdHost: client.ClientIDHost(),
 			},
 			LastUsedAt: lastUsedAt,
 		}

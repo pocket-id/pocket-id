@@ -261,7 +261,6 @@ func TestGetClient_MetadataDocument(t *testing.T) {
 		assert.True(t, c.IsMetadataDocument())
 		assert.True(t, c.IsPublic)
 		require.NotNil(t, c.MetadataExpiresAt)
-		assert.Equal(t, "8.8.8.8", c.ClientIDHost())
 
 		var count int64
 		require.NoError(t, s.db.Model(&model.OidcClient{}).Where("id = ?", id).Count(&count).Error)

@@ -11,7 +11,6 @@ export type OidcClientMetaData = {
 	requiresReauthentication: boolean;
 	launchURL?: string;
 	clientType: OidcClientType;
-	clientIdHost?: string;
 };
 
 export type OidcClientFederatedIdentity = {

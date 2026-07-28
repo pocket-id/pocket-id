@@ -3,7 +3,6 @@ package model
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"net/url"
 
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -62,27 +61,13 @@ func (c OidcClient) HasLogo() bool {
 }
 
 func (c OidcClient) HasDarkLogo() bool {
-	return c.DarkImageType != nil && *c.DarkImageType != ""
+	return true
 }
 
 // IsMetadataDocument reports whether the client was synthesized from an OAuth
 // Client ID Metadata Document. Its ID is then the https URL of the document.
 func (c OidcClient) IsMetadataDocument() bool {
 	return c.ClientType == OidcClientTypeCIMD
-}
-
-// ClientIDHost returns the host component of a metadata-document client's ID
-// (which is a URL), or an empty string for normal clients. It is shown in the
-// authorization UI so users can verify the origin of a dynamically-fetched client.
-func (c OidcClient) ClientIDHost() string {
-	if !c.IsMetadataDocument() {
-		return ""
-	}
-	u, err := url.Parse(c.ID)
-	if err != nil {
-		return ""
-	}
-	return u.Host
 }
 
 type OidcClientCredentials struct { //nolint:recvcheck

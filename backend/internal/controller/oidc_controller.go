@@ -77,9 +77,6 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 	clientDto := dto.OidcClientMetaDataDto{}
 	err = dto.MapStruct(client, &clientDto)
 	if err == nil {
-		clientDto.HasDarkLogo = client.HasDarkLogo()
-		clientDto.ClientType = string(client.ClientType)
-		clientDto.ClientIdHost = client.ClientIDHost()
 		c.JSON(http.StatusOK, clientDto)
 		return
 	}
@@ -142,7 +139,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 			_ = c.Error(err)
 			return
 		}
-		clientDto.HasDarkLogo = client.HasDarkLogo()
+
 		clientDto.AllowedUserGroupsCount, err = oc.oidcService.GetAllowedGroupsCountOfClient(c, client.ID)
 		if err != nil {
 			_ = c.Error(err)

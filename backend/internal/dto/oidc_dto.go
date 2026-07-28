@@ -11,7 +11,6 @@ type OidcClientMetaDataDto struct {
 	LaunchURL                *string `json:"launchURL"`
 	RequiresReauthentication bool    `json:"requiresReauthentication"`
 	ClientType               string  `json:"clientType"`
-	ClientIdHost             string  `json:"clientIdHost,omitempty"`
 }
 
 type OidcClientDto struct {
