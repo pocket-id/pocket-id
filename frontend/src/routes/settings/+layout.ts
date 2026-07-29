@@ -7,7 +7,7 @@ export const load: LayoutLoad = async () => {
 	const currentVersion = versionService.getCurrentVersion();
 
 	let newestVersion = null;
-	let isUpToDate = true;
+	let isUpToDate: boolean;
 	try {
 		newestVersion = await versionService.getNewestVersion();
 		// If newestVersion is empty, it means the check is disabled or failed.

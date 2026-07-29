@@ -36,7 +36,10 @@
 		{ href: '/settings/admin/oidc-clients', label: m.oidc_clients() },
 		{ href: '/settings/admin/apis', label: m.apis() },
 		{ href: '/settings/admin/api-keys', label: m.api_keys() },
-		{ href: '/settings/admin/application-configuration', label: m.application_configuration() }
+		{
+			href: '/settings/admin/application-configuration',
+			label: m.application_configuration()
+		}
 	];
 
 	if (user?.isAdmin || $userStore?.isAdmin) {

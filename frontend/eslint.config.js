@@ -28,11 +28,13 @@ export default [
 		}
 	},
 	{
-		ignores: ['build/', '.svelte-kit/', 'dist/']
+		ignores: ['build/', '.svelte-kit/', 'dist/', 'src/lib/paraglide/', 'src/paraglide/']
 	},
 	{
 		rules: {
-			'@typescript-eslint/no-explicit-any': 'off'
+			'@typescript-eslint/no-explicit-any': 'off',
+			// Pocket ID does not support deployments under a SvelteKit base path
+			'svelte/no-navigation-without-resolve': 'off'
 		}
 	}
 ];

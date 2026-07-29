@@ -66,10 +66,9 @@
 	}
 
 	async function onSync() {
-		const hasChanges = Object.keys($inputs).some(
-			// @ts-ignore
-			(key) => $inputs[key].value !== (existingProvider as any)[key]
-		);
+		const hasChanges =
+			$inputs.endpoint.value !== existingProvider?.endpoint ||
+			($inputs.token?.value ?? '') !== (existingProvider?.token ?? '');
 
 		if (hasChanges) {
 			openConfirmDialog({

@@ -201,7 +201,7 @@
 {:else}
 	{#if !items}
 		<div>
-			{#each Array((tablePreferences.current.length || 10) + 1) as _}
+			{#each Array.from({ length: (tablePreferences.current.length || 10) + 1 }, (_, i) => i) as i (i)}
 				<div>
 					<Skeleton class="mt-3 h-[45px] w-full rounded-lg" />
 				</div>
@@ -222,7 +222,7 @@
 							</Table.Head>
 						{/if}
 
-						{#each visibleColumns as column}
+						{#each visibleColumns as column (column.key ?? column.column ?? column.label)}
 							<Table.Head
 								class={cn(column.sortable && 'p-0')}
 								aria-sort={column.sortable
@@ -266,7 +266,7 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each items.data as item}
+					{#each items.data as item (item.id)}
 						<Table.Row
 							class={{
 								'bg-muted/20': selectedIds?.includes(item.id),
@@ -283,7 +283,7 @@
 									/>
 								</Table.Cell>
 							{/if}
-							{#each visibleColumns as column}
+							{#each visibleColumns as column (column.key ?? column.column ?? column.label)}
 								<Table.Cell>
 									{#if column.value}
 										{column.value(item)}
@@ -306,7 +306,7 @@
 											<span class="sr-only">{m.toggle_menu()}</span>
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
-											{#each actions(item).filter((a) => !a.hidden) as action}
+											{#each actions(item).filter((a) => !a.hidden) as action (action.label)}
 												<DropdownMenu.Item
 													onclick={() => action.onClick(item)}
 													disabled={action.disabled}
@@ -342,7 +342,7 @@
 					{items?.pagination.itemsPerPage}
 				</Select.Trigger>
 				<Select.Content>
-					{#each availablePageSizes as size}
+					{#each availablePageSizes as size (size)}
 						<Select.Item value={size.toString()}>{size}</Select.Item>
 					{/each}
 				</Select.Content>

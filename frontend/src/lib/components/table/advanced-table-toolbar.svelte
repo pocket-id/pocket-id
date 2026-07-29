@@ -54,7 +54,7 @@
 			/>
 		{/if}
 
-		{#each filterableColumns as col}
+		{#each filterableColumns as col (col.column)}
 			<AdvancedTableFilter
 				title={col.name}
 				options={col.options}

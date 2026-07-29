@@ -190,7 +190,7 @@
 			</CopyToClipboard>
 		</div>
 		<div class="space-y-3">
-			{#each Object.entries(data || {}) as [key, value]}
+			{#each Object.entries(data || {}) as [key, value] (key)}
 				<div class="grid grid-cols-1 items-start gap-4 border-b pb-3 md:grid-cols-[200px_1fr]">
 					<Field.Label class="pt-1">{key}</Field.Label>
 					<div class="min-w-0">

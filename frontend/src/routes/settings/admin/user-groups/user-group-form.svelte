@@ -39,7 +39,7 @@
 		}
 	}
 
-	function onNameInput(_: Event) {
+	function onNameInput() {
 		hasManualNameEdit = true;
 	}
 

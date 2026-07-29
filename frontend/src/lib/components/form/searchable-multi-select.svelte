@@ -86,7 +86,7 @@
 				<div class="flex items-center justify-between w-full">
 					<div class="flex flex-wrap items-center gap-1">
 						{#if selectedItems.length > 0}
-							{#each selectedLabels as label}
+							{#each selectedLabels as label, i (i)}
 								<Badge variant="secondary">{label}</Badge>
 							{/each}
 						{:else}
@@ -118,7 +118,7 @@
 				{/if}
 			</Command.Empty>
 			<Command.Group class="max-h-60 overflow-y-auto">
-				{#each filteredItems as item}
+				{#each filteredItems as item (item.value)}
 					<Command.Item
 						aria-checked={selectedItems.includes(item.value)}
 						value={item.value}

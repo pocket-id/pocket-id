@@ -22,7 +22,7 @@
 
 	function onTabChange(newValue: string) {
 		if (useHash && page.url.hash !== newValue) {
-			history.replaceState(history.state, "",location.pathname + location.search + `#${newValue}`);
+			history.replaceState(history.state, '', location.pathname + location.search + `#${newValue}`);
 		}
 	}
 </script>

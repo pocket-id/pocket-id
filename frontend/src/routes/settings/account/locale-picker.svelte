@@ -50,7 +50,7 @@
 		{locales[currentLocale]}
 	</Select.Trigger>
 	<Select.Content class="max-h-100">
-		{#each Object.entries(locales) as [value, label]}
+		{#each Object.entries(locales) as [value, label] (value)}
 			<Select.Item {value}>{label}</Select.Item>
 		{/each}
 	</Select.Content>

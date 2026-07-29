@@ -16,7 +16,7 @@
 	let containerNode: HTMLElement | null = $state(null);
 
 	$effect(() => {
-		page.route;
+		void page.route;
 		applyAnimationDelays();
 	});
 

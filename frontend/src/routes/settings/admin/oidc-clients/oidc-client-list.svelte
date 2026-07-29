@@ -79,7 +79,7 @@
 		}
 	];
 
-	const actions: CreateAdvancedTableActions<OidcClientWithAllowedUserGroupsCount> = (_) => [
+	const actions: CreateAdvancedTableActions<OidcClientWithAllowedUserGroupsCount> = () => [
 		{
 			label: m.edit(),
 			primary: true,

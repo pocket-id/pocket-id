@@ -108,7 +108,9 @@ function parseValue(value: string) {
 			return parsed;
 		}
 		value = String(parsed);
-	} catch {}
+	} catch {
+		// Keep the original string when the value is not valid JSON
+	}
 
 	// Handle rest of the types
 	if (value === 'true') {

@@ -33,7 +33,7 @@
 	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
 			<Button {...props} variant="outline">
-				{#each items.filter((item) => selectedItems.includes(item.value)) as item}
+				{#each items.filter((item) => selectedItems.includes(item.value)) as item (item.value)}
 					<Badge variant="secondary">
 						{item.label}
 					</Badge>
@@ -43,7 +43,7 @@
 		{/snippet}
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content align="start" class="w-[var(--bits-dropdown-menu-anchor-width)]">
-		{#each items as item}
+		{#each items as item (item.value)}
 			<DropdownMenu.CheckboxItem
 				checked={selectedItems.includes(item.value)}
 				onCheckedChange={() => handleItemSelect(item.value)}

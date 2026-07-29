@@ -82,7 +82,7 @@
 	aria-label={m.settings()}
 	data-sveltekit-keepfocus
 >
-	{#each items as item, i}
+	{#each items as item, i (groupId(item, i))}
 		{#if item.children?.length}
 			{@const id = groupId(item, i)}
 			<div class="group">
@@ -110,7 +110,7 @@
 						class="border-border/50 ml-2 border-l pl-2"
 						transition:slide|local={{ duration: 120 }}
 					>
-						{#each item.children as child, j}
+						{#each item.children as child, j (child.href ?? child.label)}
 							<li>
 								<a
 									href={child.href}

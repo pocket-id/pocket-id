@@ -45,7 +45,7 @@
 </script>
 
 <Item.Group class="mt-3">
-	{#each [...passkeys].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) as passkey}
+	{#each [...passkeys].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) as passkey (passkey.id)}
 		<PasskeyRow
 			label={passkey.name}
 			description={m.added_on() + ' ' + new Date(passkey.createdAt).toLocaleDateString()}

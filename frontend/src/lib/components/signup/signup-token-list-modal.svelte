@@ -121,7 +121,7 @@
 		}
 	];
 
-	const actions: CreateAdvancedTableActions<SignupToken> = (_) => [
+	const actions: CreateAdvancedTableActions<SignupToken> = () => [
 		{
 			label: m.copy(),
 			icon: Copy,
