@@ -104,6 +104,7 @@ func initServices(
 		Signer:    svc.jwtService,
 		Reauth:    svc.webauthnModule,
 		AuditLog:  svc.auditLogService,
+		IPLocator: svc.geoLiteService,
 		AppConfig: svc.appConfigService,
 	})
 	if err != nil {

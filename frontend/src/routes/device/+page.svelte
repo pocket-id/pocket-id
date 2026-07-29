@@ -44,6 +44,11 @@
 	);
 	let codeComplete = $derived(normalizedUserCode.length === 8);
 	let completed = $derived(success || deviceLoginOutcome !== undefined);
+	let deviceLoginLocation = $derived(
+		deviceLoginInfo?.city && deviceLoginInfo.country
+			? `${deviceLoginInfo.city}, ${deviceLoginInfo.country}`
+			: deviceLoginInfo?.city || deviceLoginInfo?.country || m.unknown()
+	);
 
 	onMount(() => {
 		if (data.code && $userStore) {
@@ -190,6 +195,10 @@
 						<div class="flex items-start justify-between gap-6">
 							<dt class="text-muted-foreground">{m.ip_address()}</dt>
 							<dd class="font-medium">{deviceLoginInfo.ipAddress || m.unknown()}</dd>
+						</div>
+						<div class="flex items-start justify-between gap-6">
+							<dt class="text-muted-foreground">{m.approximate_location()}</dt>
+							<dd class="text-right font-medium">{deviceLoginLocation}</dd>
 						</div>
 					</dl>
 				</Card.Content>

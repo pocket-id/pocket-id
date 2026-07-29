@@ -26,6 +26,10 @@ type AuditLogger interface {
 	DeviceStringFromUserAgent(userAgent string) string
 }
 
+type IPLocationResolver interface {
+	GetLocationByIP(ipAddress string) (country, city string, err error)
+}
+
 type AppConfigProvider interface {
 	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
 }
@@ -38,6 +42,7 @@ type Dependencies struct {
 	Signer    TokenService
 	Reauth    ReauthenticationTokenConsumer
 	AuditLog  AuditLogger
+	IPLocator IPLocationResolver
 	AppConfig AppConfigProvider
 }
 
@@ -47,7 +52,7 @@ type Module struct {
 }
 
 func New(deps Dependencies) (*Module, error) {
-	service := NewService(deps.Actors.Service(), deps.DB, deps.Signer, deps.Reauth, deps.AuditLog)
+	service := NewService(deps.Actors.Service(), deps.DB, deps.Signer, deps.Reauth, deps.AuditLog, deps.IPLocator)
 	module := &Module{
 		service: service,
 		handler: newHandler(service, deps.BaseURL, deps.AppConfig),
