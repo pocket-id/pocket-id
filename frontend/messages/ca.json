@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Gestiona les claus d'accés que pots utilitzar per autenticar-te.",
 	"manage_this_users_passkeys": "Gestiona les claus d'accés d'aquest usuari.",
 	"add_passkey": "Afegeix clau d'accés",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Crea un codi d'un sol ús per iniciar la sessió des d'un altre dispositiu sense clau d'accés.",
 	"create": "Crea",
 	"first_name": "Nom",
 	"last_name": "Cognom",
