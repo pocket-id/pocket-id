@@ -7,7 +7,6 @@ on:
       - "frontend/src/**"
       - ".github/svelte-check-matcher.json"
       - "frontend/package.json"
-      - "frontend/package-lock.json"
       - "frontend/tsconfig.json"
       - "frontend/svelte.config.js"
   pull_request:
@@ -16,7 +15,6 @@ on:
       - "frontend/src/**"
       - ".github/svelte-check-matcher.json"
       - "frontend/package.json"
-      - "frontend/package-lock.json"
       - "frontend/tsconfig.json"
       - "frontend/svelte.config.js"
   workflow_dispatch:
