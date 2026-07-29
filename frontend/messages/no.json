@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Behandle tilgangsnøkkelene dine som du kan bruke til å autentisere deg selv.",
 	"manage_this_users_passkeys": "Behandle denne brukerens tilgangsnøkkeler.",
 	"add_passkey": "Legg til passnøkkel",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Opprett en engangskode for å logge inn fra en annen enhet uten tilgangsnøkkel.",
 	"create": "Opprett",
 	"first_name": "Fornavn",
 	"last_name": "Etternavn",

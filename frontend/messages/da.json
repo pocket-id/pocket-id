@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Administrér dine adgangsnøgler, som du kan bruge til at godkende dig selv.",
 	"manage_this_users_passkeys": "Administrer denne brugers adgangsnøgler.",
 	"add_passkey": "Tilføj adgangsnøgle",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Opret en engangskode for at logge ind fra en anden enhed uden en adgangsnøgle.",
 	"create": "Opret",
 	"first_name": "Fornavn",
 	"last_name": "Efternavn",
