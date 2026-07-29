@@ -51,7 +51,7 @@ func TestUserInfoHandler(t *testing.T) {
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	handler := newUserInfoHandler(provider, newClaimsService(db, nil, baseURL, nil), baseURL)

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
+	"log/slog"
 	"net/url"
-	"sync"
+	"slices"
 	"time"
 
 	"github.com/ory/fosite"
@@ -17,7 +17,6 @@ import (
 	fositestorage "github.com/ory/fosite/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
-	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -51,14 +50,10 @@ func NewStore(db *gorm.DB, apiAccess APIAccessProvider) *Store {
 }
 
 type Store struct {
-	db        *gorm.DB
-	apiAccess APIAccessProvider
-	issuer    string
-
-	httpClient          *http.Client
-	getCIMDURLAllowlist func() []string
-	metadataFetcher     fosite.CIMDFetcher
-	metadataFetcherOnce sync.Once
+	db             *gorm.DB
+	apiAccess      APIAccessProvider
+	issuer         string
+	clientResolver fosite.ClientResolver
 }
 
 // WithIssuer sets the issuer that is added as an extra audience to access tokens carrying an identity scope, so they can be presented to Pocket ID's own endpoints such as /userinfo
@@ -66,39 +61,6 @@ type Store struct {
 func (s *Store) WithIssuer(issuer string) *Store {
 	s.issuer = issuer
 	return s
-}
-
-// WithGetCIMDURLAllowlist sets the provider for the CIMD URL allowlist.
-func (s *Store) WithGetCIMDURLAllowlist(fn func() []string) *Store {
-	s.getCIMDURLAllowlist = fn
-	return s
-}
-
-// WithHTTPClient sets the HTTP client used by OAuth Client ID Metadata Documents.
-func (s *Store) WithHTTPClient(httpClient *http.Client) *Store {
-	s.httpClient = httpClient
-	return s
-}
-
-// cimdFetcher lazily builds the CIMD metadata fetcher on first use. The With* setters
-// run at construction time in any order, so the fetcher is built once here from the
-// configured HTTP client rather than eagerly in a constructor.
-func (s *Store) cimdFetcher() fosite.CIMDFetcher {
-	s.metadataFetcherOnce.Do(func() {
-		if s.metadataFetcher != nil {
-			return
-		}
-		var transport http.RoundTripper
-		if s.httpClient != nil {
-			transport = s.httpClient.Transport
-		}
-		s.metadataFetcher = fosite.NewDefaultCIMDFetcher(
-			fosite.WithCIMDTransport(transport),
-			fosite.WithCIMDUserAgent("pocket-id/oidc-client-metadata-fetcher"),
-			fosite.WithCIMDExtraPrivateRanges(utils.LocalIPv6IPNets()),
-		)
-	})
-	return s.metadataFetcher
 }
 
 type storedRequester struct {
@@ -127,23 +89,13 @@ type storedRequester struct {
 // Satisfies fosite.Storage
 
 func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error) {
-	if fosite.LooksLikeCIMDURL(id) {
-		if !s.cimdURLAllowed(id) {
-			return nil, fosite.ErrInvalidClient.WithHint("The client_id is not in the metadata document allowlist.")
-		}
-		client, err := s.resolveMetadataClient(ctx, id, false)
-		switch {
-		case errors.Is(err, gorm.ErrRecordNotFound):
-			return nil, fosite.ErrNotFound
-		case err != nil:
-			return nil, fosite.ErrInvalidClient.WithHint("The client metadata document could not be resolved.").WithWrap(err).WithDebug(err.Error())
-		}
-		return Client{OidcClient: client}, nil
-	}
-
 	tx := s.dbFor(ctx)
 
-	clientModel, err := s.firstClientByID(ctx, id)
+	var clientModel model.OidcClient
+	err := tx.
+		Preload("AllowedUserGroups").
+		First(&clientModel, "id = ?", id).
+		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fosite.ErrNotFound
 	} else if err != nil {
@@ -166,11 +118,123 @@ func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error)
 	return client, nil
 }
 
-func (s *Store) cimdURLAllowed(id string) bool {
-	if s.getCIMDURLAllowlist == nil {
-		return false
+// resolvePersistedClient restores a client from storage and falls back to the configured generic resolver for uncached clients
+func (s *Store) resolvePersistedClient(ctx context.Context, id string) (fosite.Client, error) {
+	if s.clientResolver != nil {
+		return s.clientResolver.ResolveClient(ctx, id, s.GetClient)
 	}
-	return utils.MatchesAnyURLPattern(s.getCIMDURLAllowlist(), id)
+	return s.GetClient(ctx, id)
+}
+
+// clientFromModel populates the provider-specific runtime fields on a stored client
+func (s *Store) clientFromModel(ctx context.Context, tx *gorm.DB, clientModel model.OidcClient) (Client, error) {
+	client := Client{OidcClient: clientModel}
+
+	// Populate the custom-API scopes and audiences the client may request only when the API feature is wired
+	if s.apiAccess != nil {
+		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, clientModel.ID)
+		if err != nil {
+			return Client{}, err
+		}
+
+		client.apiScopes = apiScopes
+		client.apiAudiences = apiAudiences
+	}
+
+	return client, nil
+}
+
+// LoadCIMDClient loads only clients that Pocket ID previously associated with a metadata document
+func (s *Store) LoadCIMDClient(ctx context.Context, id string) (fosite.CIMDCachedClient, bool, error) {
+	clientModel, err := s.firstClientByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return fosite.CIMDCachedClient{}, false, nil
+	}
+	if err != nil {
+		return fosite.CIMDCachedClient{}, false, err
+	}
+	if !clientModel.IsMetadataDocument() {
+		return fosite.CIMDCachedClient{}, false, nil
+	}
+
+	client, err := s.clientFromModel(ctx, s.dbFor(ctx), clientModel)
+	if err != nil {
+		return fosite.CIMDCachedClient{}, false, err
+	}
+	var expiresAt time.Time
+	if clientModel.MetadataExpiresAt != nil {
+		expiresAt = time.Time(*clientModel.MetadataExpiresAt)
+	}
+	// Force incompatible cached entries through discovery so current policy applies before they can be used
+	if !clientModel.IsPublic || !clientModel.PkceEnabled || len(clientModel.Credentials.FederatedIdentities) > 0 {
+		expiresAt = time.Time{}
+	}
+	return fosite.CIMDCachedClient{Client: client, ExpiresAt: expiresAt}, true, nil
+}
+
+// StoreCIMDClient persists metadata-derived fields while preserving local consent and policy state
+func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *fosite.ClientMetadataDocument, expiresAt time.Time) (fosite.Client, error) {
+	client, ok := resolved.(Client)
+	if !ok {
+		return nil, errors.New("metadata resolver returned an incompatible client")
+	}
+	expiry := datatype.DateTime(expiresAt)
+	client.MetadataExpiresAt = &expiry
+
+	existing, err := s.firstClientByID(ctx, client.ID)
+	found := err == nil
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	if found && !existing.IsMetadataDocument() {
+		return nil, errors.New("client is already registered without a metadata document")
+	}
+	if found {
+		if changes := metadataClientChanges(existing, client.OidcClient); len(changes) > 0 {
+			slog.InfoContext(ctx, "Client metadata changed",
+				slog.String("client_id", client.ID),
+				slog.Any("changed_fields", changes),
+			)
+		}
+	}
+	if err := s.upsertMetadataClient(ctx, s.dbFor(ctx), &client.OidcClient, found); err != nil {
+		return nil, err
+	}
+
+	// Reload so DB-managed columns and preloads are populated
+	return s.GetClient(ctx, client.ID)
+}
+
+// metadataClientChanges returns the names of security-relevant metadata fields that differ between the stored client and a freshly fetched one
+func metadataClientChanges(old, next model.OidcClient) []string {
+	var changed []string
+	if !slices.Equal([]string(old.CallbackURLs), []string(next.CallbackURLs)) {
+		changed = append(changed, "redirect_uris")
+	}
+	if !slices.Equal([]string(old.LogoutCallbackURLs), []string(next.LogoutCallbackURLs)) {
+		changed = append(changed, "post_logout_redirect_uris")
+	}
+	if old.IsPublic != next.IsPublic {
+		changed = append(changed, "token_endpoint_auth_method")
+	}
+	if old.Name != next.Name {
+		changed = append(changed, "client_name")
+	}
+	return changed
+}
+
+// upsertMetadataClient inserts a new managed client or updates the metadata-derived columns of an existing one, leaving consent, grants, and group links untouched
+func (s *Store) upsertMetadataClient(ctx context.Context, tx *gorm.DB, client *model.OidcClient, update bool) error {
+	if !update {
+		return tx.WithContext(ctx).
+			Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoNothing: true}).
+			Create(client).Error
+	}
+	return tx.WithContext(ctx).
+		Model(&model.OidcClient{Base: model.Base{ID: client.ID}}).
+		Select("Name", "CallbackURLs", "LogoutCallbackURLs", "Credentials",
+			"IsPublic", "PkceEnabled", "ClientType", "MetadataExpiresAt").
+		Updates(client).Error
 }
 
 func (s *Store) ClientAssertionJWTValid(ctx context.Context, jti string) error {
@@ -812,7 +876,7 @@ func (s *Store) decodeDeviceRequester(ctx context.Context, data string) (fosite.
 }
 
 func (s *Store) requesterFromStored(ctx context.Context, stored storedRequester) (fosite.Requester, error) {
-	client, err := s.GetClient(ctx, stored.ClientID)
+	client, err := s.resolvePersistedClient(ctx, stored.ClientID)
 	if err != nil {
 		return nil, err
 	}

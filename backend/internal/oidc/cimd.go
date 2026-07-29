@@ -4,23 +4,119 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
+	"net/http"
 	"net/url"
-	"slices"
-	"time"
 
 	"github.com/ory/fosite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
-	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
-// buildClientFromMetadata maps a validated client metadata document to an
-// OidcClient. The document is expected to have already been validated against its
-// URL by the fetcher (see fosite.ClientMetadataDocument.Validate); this function
-// only performs the pocket-id-specific mapping.
+type cimdResolverConfig struct {
+	httpClient         *http.Client
+	getURLAllowlist    func() []string
+	transportDecorator func(http.RoundTripper) http.RoundTripper
+}
+
+type cimdClientResolver struct {
+	resolver *fosite.CIMDResolver
+	store    *Store
+	policy   cimdPolicy
+}
+
+var _ fosite.ClientResolver = (*cimdClientResolver)(nil)
+var _ fosite.CIMDClientPolicy = (cimdPolicy{})
+
+func newCIMDClientResolver(store *Store, config cimdResolverConfig) *cimdClientResolver {
+	options := []fosite.CIMDFetcherOption{
+		fosite.WithCIMDUserAgent("pocket-id/oidc-client-metadata-fetcher"),
+		fosite.WithCIMDExtraPrivateRanges(utils.LocalIPv6IPNets()),
+	}
+	if config.transportDecorator != nil {
+		options = append(options, fosite.WithCIMDTransportDecorator(config.transportDecorator))
+		if config.httpClient != nil {
+			if transport, ok := config.httpClient.Transport.(*http.Transport); ok {
+				options = append(options, fosite.WithCIMDTransport(transport))
+			}
+		}
+	} else if config.httpClient != nil {
+		options = append(options, fosite.WithCIMDTransport(config.httpClient.Transport))
+	}
+
+	policy := cimdPolicy{getURLAllowlist: config.getURLAllowlist}
+	return &cimdClientResolver{
+		resolver: &fosite.CIMDResolver{
+			Fetcher:      fosite.NewDefaultCIMDFetcher(options...),
+			Cache:        store,
+			Materializer: store,
+			Policy:       policy,
+		},
+		store:  store,
+		policy: policy,
+	}
+}
+
+func (r *cimdClientResolver) ResolveClient(ctx context.Context, clientID string, next fosite.ClientLookupFunc) (fosite.Client, error) {
+	return r.resolver.ResolveClient(ctx, clientID, next)
+}
+
+// RefreshMetadataClient forces a re-fetch of the metadata document for an already-cached CIMD client, bypassing the cache TTL
+func (r *cimdClientResolver) RefreshMetadataClient(ctx context.Context, id string) (model.OidcClient, error) {
+	if !fosite.LooksLikeCIMDURL(id) {
+		return model.OidcClient{}, errors.New("client is not a client ID metadata document client")
+	}
+	if err := r.policy.AllowCIMDClient(ctx, id); err != nil {
+		return model.OidcClient{}, err
+	}
+	existing, err := r.store.firstClientByID(ctx, id)
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+	if !existing.IsMetadataDocument() {
+		return model.OidcClient{}, errors.New("client is not a client ID metadata document client")
+	}
+	client, err := r.resolver.RefreshClient(ctx, id)
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+	pocketIDClient, ok := client.(Client)
+	if !ok {
+		return model.OidcClient{}, errors.New("metadata resolver returned an incompatible client")
+	}
+	return pocketIDClient.OidcClient, nil
+}
+
+type cimdPolicy struct {
+	getURLAllowlist func() []string
+}
+
+func (p cimdPolicy) cimdURLAllowed(id string) bool {
+	if p.getURLAllowlist == nil {
+		return false
+	}
+	return utils.MatchesAnyURLPattern(p.getURLAllowlist(), id)
+}
+
+// AllowCIMDClient applies Pocket ID's operator-managed dynamic-client allowlist
+func (p cimdPolicy) AllowCIMDClient(_ context.Context, id string) error {
+	if !p.cimdURLAllowed(id) {
+		return errors.New("client ID is not in the metadata document allowlist")
+	}
+	return nil
+}
+
+// ValidateCIMDClient restricts generic CIMD features to those supported by Pocket ID's client model
+func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetadataDocument) error {
+	switch doc.TokenEndpointAuthMethod {
+	case "", "none":
+		return nil
+	default:
+		return fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
+	}
+}
+
+// buildClientFromMetadata applies Pocket ID's persisted-client projection to validated generic metadata
 func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) (model.OidcClient, error) {
 	client := model.OidcClient{
 		Base:               model.Base{ID: rawURL},
@@ -34,19 +130,8 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 	case "", "none":
 		client.IsPublic = true
 		client.PkceEnabled = true
-	case "private_key_jwt":
-		if doc.JwksURI == "" {
-			return model.OidcClient{}, errors.New("private_key_jwt requires jwks_uri")
-		}
-		client.Credentials = model.OidcClientCredentials{
-			FederatedIdentities: []model.OidcClientFederatedIdentity{{
-				Issuer:  rawURL,
-				Subject: rawURL,
-				JWKS:    doc.JwksURI,
-			}},
-		}
 	default:
-		return model.OidcClient{}, fmt.Errorf("unsupported token_endpoint_auth_method %q", doc.TokenEndpointAuthMethod)
+		return model.OidcClient{}, fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
 	}
 
 	if client.Name == "" {
@@ -58,110 +143,11 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 	return client, nil
 }
 
-// RefreshMetadataClient forces a re-fetch of the metadata document for an already-cached CIMD client, bypassing the cache TTL
-// It returns an error if the id is not allowed, is not a CIMD URL, or no metadata-document client with that id exists
-func (s *Store) RefreshMetadataClient(ctx context.Context, id string) (model.OidcClient, error) {
-	if !fosite.LooksLikeCIMDURL(id) {
-		return model.OidcClient{}, errors.New("client is not a client ID metadata document client")
-	}
-	if !s.cimdURLAllowed(id) {
-		return model.OidcClient{}, errors.New("client ID is not in the metadata document allowlist")
-	}
-	existing, err := s.firstClientByID(ctx, id)
+// MaterializeCIMDClient converts validated generic metadata into Pocket ID's runtime client
+func (s *Store) MaterializeCIMDClient(_ context.Context, doc *fosite.ClientMetadataDocument) (fosite.Client, error) {
+	client, err := buildClientFromMetadata(doc, doc.ClientID)
 	if err != nil {
-		return model.OidcClient{}, err
+		return nil, err
 	}
-	if !existing.IsMetadataDocument() {
-		return model.OidcClient{}, errors.New("client is not a client ID metadata document client")
-	}
-	return s.resolveMetadataClient(ctx, id, true)
-}
-
-// resolveMetadataClient resolves a CIMD client_id (an https URL) to an OidcClient,
-// fetching and caching the metadata document as needed.
-func (s *Store) resolveMetadataClient(ctx context.Context, id string, force bool) (model.OidcClient, error) {
-	existing, err := s.firstClientByID(ctx, id)
-	found := err == nil
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return model.OidcClient{}, err
-	}
-	if found && !existing.IsMetadataDocument() {
-		return model.OidcClient{}, errors.New("client is not a client ID metadata document client")
-	}
-	if !force && found && existing.MetadataExpiresAt != nil && time.Time(*existing.MetadataExpiresAt).After(time.Now()) {
-		return existing, nil
-	}
-
-	doc, ttl, err := s.cimdFetcher().Fetch(ctx, id)
-	if err != nil {
-		return model.OidcClient{}, fmt.Errorf("failed to fetch client metadata document: %w", err)
-	}
-	client, err := buildClientFromMetadata(doc, id)
-	if err != nil {
-		return model.OidcClient{}, fmt.Errorf("invalid client metadata document: %w", err)
-	}
-	expiresAt := datatype.DateTime(time.Now().Add(ttl))
-	client.MetadataExpiresAt = &expiresAt
-
-	db := s.dbFor(ctx)
-	if found {
-		if changes := metadataClientChanges(existing, client); len(changes) > 0 {
-			slog.InfoContext(ctx, "Client metadata changed",
-				slog.String("client_id", id),
-				slog.Any("changed_fields", changes),
-			)
-		}
-	}
-	if err := s.upsertMetadataClient(ctx, db, &client, found); err != nil {
-		return model.OidcClient{}, err
-	}
-
-	// Reload so DB-managed columns and preloads (e.g. AllowedUserGroups) are populated.
-	return s.firstClientByID(ctx, id)
-}
-
-// metadataClientChanges returns the names of security-relevant metadata fields
-// that differ between the stored client and a freshly fetched one.
-func metadataClientChanges(old, next model.OidcClient) []string {
-	var changed []string
-	if !slices.Equal([]string(old.CallbackURLs), []string(next.CallbackURLs)) {
-		changed = append(changed, "redirect_uris")
-	}
-	if !slices.Equal([]string(old.LogoutCallbackURLs), []string(next.LogoutCallbackURLs)) {
-		changed = append(changed, "post_logout_redirect_uris")
-	}
-	if old.IsPublic != next.IsPublic {
-		changed = append(changed, "token_endpoint_auth_method")
-	}
-	if metadataJWKSURL(old) != metadataJWKSURL(next) {
-		changed = append(changed, "jwks_uri")
-	}
-	if old.Name != next.Name {
-		changed = append(changed, "client_name")
-	}
-	return changed
-}
-
-// metadataJWKSURL returns the JWKS URL of the client's single synthesized
-// federated identity (buildClientFromMetadata always creates at most one).
-func metadataJWKSURL(c model.OidcClient) string {
-	if len(c.Credentials.FederatedIdentities) == 0 {
-		return ""
-	}
-	return c.Credentials.FederatedIdentities[0].JWKS
-}
-
-// upsertMetadataClient inserts a new managed client or updates the metadata-derived
-// columns of an existing one, leaving consent, grants, and group links untouched.
-func (s *Store) upsertMetadataClient(ctx context.Context, tx *gorm.DB, client *model.OidcClient, update bool) error {
-	if !update {
-		return tx.WithContext(ctx).
-			Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoNothing: true}).
-			Create(client).Error
-	}
-	return tx.WithContext(ctx).
-		Model(&model.OidcClient{Base: model.Base{ID: client.ID}}).
-		Select("Name", "CallbackURLs", "LogoutCallbackURLs", "Credentials",
-			"IsPublic", "PkceEnabled", "ClientType", "MetadataExpiresAt").
-		Updates(client).Error
+	return Client{OidcClient: client}, nil
 }

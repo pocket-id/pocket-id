@@ -60,7 +60,7 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	session := NewEmptySession()
@@ -128,7 +128,7 @@ func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
 				TokenBaseURL:              "https://issuer.example.com",
 				Secret:                    []byte("test-secret"),
 				AllowInsecureCallbackURLs: tt.allowInsecureCallbackURLs,
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			req := httptest.NewRequestWithContext(
@@ -164,7 +164,7 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
@@ -197,7 +197,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
@@ -229,7 +229,7 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://evil.example.net/callback"
@@ -269,7 +269,7 @@ func TestProviderAcceptsUnsignedRequestObject(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	requestObject := encodeRequestObject(t,
@@ -310,7 +310,7 @@ func TestProviderRejectsSignedRequestObject(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// The signature is never verified: the request object must already be rejected because only
@@ -386,7 +386,7 @@ func TestProviderIssuesAndValidatesTokensForSupportedAlgorithms(t *testing.T) {
 				BaseURL:      "https://issuer.example.com",
 				TokenBaseURL: "https://issuer.example.com",
 				Secret:       []byte("test-secret"),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			session := NewEmptySession()
@@ -453,7 +453,7 @@ func TestProviderIgnoresUnknownScopes(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Clients such as MCP clients blindly request scopes Pocket ID does not support, like

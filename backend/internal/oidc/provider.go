@@ -29,7 +29,7 @@ type tokenStrategies struct {
 	config      *fosite.Config
 }
 
-func newProvider(store *Store, authenticator *federatedClientAuthenticator, signer TokenSigner, config Config) (*oidcProvider, error) {
+func newProvider(store *Store, authenticator *federatedClientAuthenticator, signer TokenSigner, config Config, clientResolver fosite.ClientResolver) (*oidcProvider, error) {
 	secret, err := DeriveGlobalSecret(config.Secret)
 	if err != nil {
 		return nil, err
@@ -56,6 +56,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		RefreshTokenScopes:                      []string{},
 		GlobalSecret:                            secret,
 		JWTScopeClaimKey:                        jwt.JWTScopeFieldBoth,
+		ClientResolver:                          clientResolver,
 	}
 
 	keyGetter := func(context.Context) (interface{}, error) {

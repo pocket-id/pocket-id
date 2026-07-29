@@ -61,7 +61,7 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       []byte(secret),
-	})
+	}, nil)
 	require.NoError(t, err)
 	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
 
@@ -115,7 +115,7 @@ func TestTokenHandlerClientCredentialsDropsIdentityScopes(t *testing.T) {
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       []byte(secret),
-	})
+	}, nil)
 	require.NoError(t, err)
 	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
 
@@ -177,7 +177,7 @@ func TestTokenHandlerClientCredentialsUsesClientSubjectGrants(t *testing.T) {
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       []byte(secret),
-	})
+	}, nil)
 	require.NoError(t, err)
 	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
 
@@ -250,7 +250,7 @@ func TestTokenHandlerClientCredentialsDefaultsResourceScopes(t *testing.T) {
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       []byte(secret),
-	})
+	}, nil)
 	require.NoError(t, err)
 	handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
 
@@ -405,7 +405,7 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 			BaseURL:      baseURL,
 			TokenBaseURL: baseURL,
 			Secret:       []byte(secret),
-		})
+		}, nil)
 		require.NoError(t, err)
 		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), nil)
 
@@ -549,7 +549,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 			BaseURL:      baseURL,
 			TokenBaseURL: baseURL,
 			Secret:       []byte(secret),
-		})
+		}, nil)
 		require.NoError(t, err)
 		handler := newTokenHandler(provider, newClaimsService(db, nil, baseURL, nil), apiAccess)
 

@@ -10,6 +10,7 @@ import (
 	"github.com/italypaleale/francis/host/local"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"gorm.io/gorm"
 )
 
@@ -57,8 +58,9 @@ type Dependencies struct {
 type Module struct {
 	Preview *ClientPreviewBuilder
 
-	config Config
-	store  *Store
+	config       Config
+	store        *Store
+	cimdResolver *cimdClientResolver
 
 	authorizationHandler *authorizationHandler
 	tokenHandler         *tokenHandler
@@ -75,16 +77,21 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 		return nil, err
 	}
 
-	store := NewStore(deps.DB, deps.APIAccess).
-		WithIssuer(deps.Config.BaseURL).
-		WithGetCIMDURLAllowlist(deps.GetCIMDURLAllowlist).
-		WithHTTPClient(deps.HTTPClient)
+	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
+	cimdResolver := newCIMDClientResolver(store, cimdResolverConfig{
+		httpClient:      deps.HTTPClient,
+		getURLAllowlist: deps.GetCIMDURLAllowlist,
+		transportDecorator: func(transport http.RoundTripper) http.RoundTripper {
+			return otelhttp.NewTransport(transport)
+		},
+	})
+	store.clientResolver = cimdResolver
 
 	authenticator, err := newFederatedClientAuthenticator(ctx, store, deps.HTTPClient, deps.Config.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create federated client authenticator: %w", err)
 	}
-	provider, err := newProvider(store, authenticator, deps.Signer, deps.Config)
+	provider, err := newProvider(store, authenticator, deps.Signer, deps.Config, cimdResolver)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OAuth2 provider: %w", err)
 	}
@@ -99,8 +106,9 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 	return &Module{
 		Preview: previewBuilder,
 
-		config: deps.Config,
-		store:  store,
+		config:       deps.Config,
+		store:        store,
+		cimdResolver: cimdResolver,
 
 		authorizationHandler: newAuthorizationHandler(provider, authorizationService, deps.Config.BaseURL),
 		tokenHandler:         newTokenHandler(provider, claimsService, deps.APIAccess),
@@ -114,7 +122,7 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 
 // RefreshClientMetadata forces a re-fetch of the OAuth Client ID Metadata Document.
 func (m *Module) RefreshClientMetadata(ctx context.Context, clientID string) (model.OidcClient, error) {
-	return m.store.RefreshMetadataClient(ctx, clientID)
+	return m.cimdResolver.RefreshMetadataClient(ctx, clientID)
 }
 
 func (m *Module) RegisterRoutes(rootGroup *gin.RouterGroup, apiGroup *gin.RouterGroup, optionalBrowserAuth gin.HandlerFunc, browserAuth gin.HandlerFunc) {
