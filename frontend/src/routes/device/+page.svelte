@@ -229,6 +229,7 @@
 			class="mt-7 flex w-full max-w-112.5 justify-center"
 		>
 			<InputOTP.Root
+				class="gap-1 sm:gap-2"
 				maxlength={8}
 				aria-label={m.code()}
 				bind:value={userCode}
@@ -236,15 +237,15 @@
 				pasteTransformer={(value) => value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}
 			>
 				{#snippet children({ cells })}
-					<InputOTP.Group>
+					<InputOTP.Group class="gap-0.5 sm:gap-1.5">
 						{#each cells.slice(0, 4) as cell (cell)}
-							<InputOTP.Slot {cell} />
+							<InputOTP.Slot class="h-12 w-8 sm:h-13 sm:w-10" {cell} />
 						{/each}
 					</InputOTP.Group>
 					<InputOTP.Separator />
-					<InputOTP.Group>
+					<InputOTP.Group class="gap-0.5 sm:gap-1.5">
 						{#each cells.slice(4) as cell (cell)}
-							<InputOTP.Slot {cell} />
+							<InputOTP.Slot class="h-12 w-8 sm:h-13 sm:w-10" {cell} />
 						{/each}
 					</InputOTP.Group>
 				{/snippet}
@@ -274,10 +275,10 @@
 				<Button
 					form="device-code-form"
 					class="flex-1"
-					disabled={isLoading || !codeComplete}
+					disabled={!codeComplete}
+					{isLoading}
 					onclick={authorize}
 				>
-					{#if isLoading}<Spinner data-icon="inline-start" />{/if}
 					{m.authorize()}
 				</Button>
 			{/if}

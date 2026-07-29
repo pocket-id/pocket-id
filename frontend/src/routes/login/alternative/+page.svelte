@@ -14,17 +14,17 @@
 
 	const methods = [
 		{
+			icon: LucideQrCode,
+			title: m.sign_in_with_another_device(),
+			description: m.sign_in_with_another_device_description(),
+			href: '/login/alternative/device'
+		},
+		{
 			icon: LucideRectangleEllipsis,
 			title: m.login_code(),
 			description: m.enter_a_login_code_to_sign_in(),
 			href: '/login/alternative/code'
 		},
-		{
-			icon: LucideQrCode,
-			title: m.sign_in_with_another_device(),
-			description: m.sign_in_with_another_device_description(),
-			href: '/login/alternative/device'
-		}
 	];
 
 	if ($appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled) {

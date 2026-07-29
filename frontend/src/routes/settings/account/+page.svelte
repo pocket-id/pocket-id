@@ -12,18 +12,11 @@
 	import type { Passkey } from '$lib/types/passkey.type';
 	import type { AccountUpdate } from '$lib/types/user.type';
 	import { axiosErrorToast, getWebauthnErrorMessage } from '$lib/utils/error-util';
-	import {
-		KeyRound,
-		Languages,
-		LucideAlertTriangle,
-		RectangleEllipsis,
-		UserCog
-	} from '@lucide/svelte';
+	import { KeyRound, Languages, LucideAlertTriangle, UserCog } from '@lucide/svelte';
 	import { startRegistration } from '@simplewebauthn/browser';
 	import { toast } from 'svelte-sonner';
 	import AccountForm from './account-form.svelte';
 	import LocalePicker from './locale-picker.svelte';
-	import LoginCodeModal from './login-code-modal.svelte';
 	import PasskeyList from './passkey-list.svelte';
 	import RenamePasskeyModal from './rename-passkey-modal.svelte';
 
@@ -31,8 +24,6 @@
 	let account = $state(data.account);
 	let passkeys = $state(data.passkeys);
 	let passkeyToRename: Passkey | null = $state(null);
-	let showLoginCodeModal: boolean = $state(false);
-
 	const userService = new UserService();
 	const webauthnService = new WebAuthnService();
 
@@ -103,26 +94,6 @@
 	</Alert.Root>
 {/if}
 
-<!-- Login code card mobile -->
-<div class="block sm:hidden">
-	<Item.Root variant="outline">
-		<Item.Media class="text-primary/80">
-			<RectangleEllipsis class="size-5" />
-		</Item.Media>
-		<Item.Content>
-			<Item.Title>{m.login_code()}</Item.Title>
-			<Item.Description>
-				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
-			</Item.Description>
-		</Item.Content>
-		<Item.Actions class="w-full sm:w-auto">
-			<Button variant="outline" class="w-full" onclick={() => (showLoginCodeModal = true)}>
-				{m.create()}
-			</Button>
-		</Item.Actions>
-	</Item.Root>
-</div>
-
 <Card.Root>
 	<Card.Header>
 		<Card.Title>
@@ -163,25 +134,6 @@
 	{/if}
 </Item.Group>
 
-<div class="hidden sm:block">
-	<Item.Root variant="card" class="border-border">
-		<Item.Media class="text-primary/80">
-			<RectangleEllipsis class="size-5" />
-		</Item.Media>
-		<Item.Content>
-			<Item.Title>{m.login_code()}</Item.Title>
-			<Item.Description>
-				{m.create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey()}
-			</Item.Description>
-		</Item.Content>
-		<Item.Actions>
-			<Button variant="outline" onclick={() => (showLoginCodeModal = true)}>
-				{m.create()}
-			</Button>
-		</Item.Actions>
-	</Item.Root>
-</div>
-
 <Item.Root variant="card" class="border-border mb-2">
 	<Item.Media class="text-primary/80">
 		<Languages class="size-5" />
@@ -203,4 +155,3 @@
 	bind:passkey={passkeyToRename}
 	callback={async () => (passkeys = await webauthnService.listCredentials())}
 />
-<LoginCodeModal bind:show={showLoginCodeModal} />
