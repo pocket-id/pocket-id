@@ -294,8 +294,8 @@ github.com/jcmturner/gokrb5/v8 v8.4.4/go.mod h1:1btQEpgT6k+unzCwX1KdWMEwPPkkgBtP
 github.com/jcmturner/rpc/v2 v2.0.3 h1:7FXXj8Ti1IaVFpSAziCZWNzbNuZmnvw/i6CqLNdWfZY=
 github.com/jcmturner/rpc/v2 v2.0.3/go.mod h1:VUJYCIDm3PVOEHw8sgt091/20OJjskO/YJki3ELg/Hc=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
-github.com/jfroy/fosite v0.0.0-20260708153501-b4144df39763 h1:k5wE4No0oqJxFQMVA9nCJ9UeFuFJ21DK/XDYwNrA1lY=
-github.com/jfroy/fosite v0.0.0-20260708153501-b4144df39763/go.mod h1:KeQ7tTIBm3DyeBnKcKLnPbSdrd6ttM6w3TD3yy9x8rM=
+github.com/jfroy/fosite v0.0.0-20260729192655-937bab64475c h1:djdN9/0LHMcAXeKI58NaQiwCFL7e/u9V7TZf7csSQqw=
+github.com/jfroy/fosite v0.0.0-20260729192655-937bab64475c/go.mod h1:v0FwUcx6Xd7xu/V6hLbIqtFfqRSWcJRJl1f8t0cnIuU=
 github.com/jinzhu/copier v0.4.0 h1:w3ciUoD19shMCRargcpm0cm91ytaBhDvuRpz1ODO/U8=
 github.com/jinzhu/copier v0.4.0/go.mod h1:DfbEm0FYsaqBcKcFuvmOZb218JkPGtvSHsKg8S8hyyg=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
