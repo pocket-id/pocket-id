@@ -85,6 +85,11 @@ type EnvConfigSchema struct {
 	ActorsPort string `env:"ACTORS_PORT"`
 	ActorsHost string `env:"ACTORS_HOST" options:"toLower"`
 
+	// HAEnabled turns on high-availability mode, allowing more than one replica of Pocket ID to run against the same database at once
+	// It is intentionally not bound to an environment variable while HA support is still being completed
+	// TODO: Add env var when HA mode is ready
+	HAEnabled bool
+
 	LogLevel string `env:"LOG_LEVEL" options:"toLower"`
 	LogJSON  bool   `env:"LOG_JSON"`
 }
