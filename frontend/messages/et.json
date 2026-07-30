@@ -562,5 +562,6 @@
 	"deny": "Eita",
 	"approve": "Kinnita",
 	"or": "või",
-	"visit_and_enter": "Külasta veebilehte {url} ja sisesta:"
+	"visit_and_enter": "Külasta veebilehte {url} ja sisesta:",
+	"device_login_request_expired": "Teie QR-kood on aegunud. Palun alustage sisselogimist uuesti."
 }
