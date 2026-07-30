@@ -12,13 +12,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
+
+func TestListAuthorizedClientsRejectsMissingUser(t *testing.T) {
+	service := &OidcService{db: testutils.NewDatabaseForTest(t)}
+
+	_, _, err := service.ListAuthorizedClients(t.Context(), "missing-user", utils.ListRequestOptions{})
+
+	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
+}
 
 func TestOidcService_updateClientLogoType(t *testing.T) {
 	// Create a test database
@@ -148,7 +156,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 	t.Run("Returns error for non-existent client", func(t *testing.T) {
 		err := s.updateClientLogoType(t.Context(), "non-existent-client-id", "png", true)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "failed to look up client")
+		require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 	})
 }
 
@@ -346,6 +354,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, "://invalid-url", true)
 		require.Error(t, err)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	})
 
 	t.Run("Returns error for non-200 status code", func(t *testing.T) {
@@ -367,7 +376,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/not-found.png", true)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "failed to fetch logo")
+		require.True(t, apperror.IsCode(err, apperror.CodeLogoDownloadFailed))
 	})
 
 	t.Run("Returns error for too large content", func(t *testing.T) {
@@ -397,7 +406,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/large.png", true)
 		require.Error(t, err)
-		require.ErrorIs(t, err, errLogoTooLarge)
+		require.True(t, apperror.IsCode(err, apperror.CodeLogoTooLarge))
 	})
 
 	t.Run("Returns error for unsupported file type", func(t *testing.T) {
@@ -423,8 +432,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		err := s.downloadAndSaveLogoFromURL(t.Context(), client.ID, publicLogoHost+"/file.txt", true)
 		require.Error(t, err)
-		var fileTypeErr *common.FileTypeNotSupportedError
-		require.ErrorAs(t, err, &fileTypeErr)
+		require.True(t, apperror.IsCode(err, apperror.CodeLogoTypeNotSupported))
 	})
 
 	t.Run("Returns error for non-existent client", func(t *testing.T) {
@@ -450,7 +458,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 
 		err := s.downloadAndSaveLogoFromURL(t.Context(), "non-existent-client-id", publicLogoHost+"/logo.png", true)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "failed to look up client")
+		require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 	})
 }
 

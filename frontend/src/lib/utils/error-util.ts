@@ -1,17 +1,64 @@
 import { m } from '$lib/paraglide/messages';
 import { WebAuthnError } from '@simplewebauthn/browser';
-import { AxiosError } from 'axios';
+import { isAxiosError } from 'axios';
 import { toast } from 'svelte-sonner';
+
+interface ApiErrorResponse {
+	error?: unknown;
+	code?: string;
+	request_id?: string;
+}
+
+const codeMessages: Record<string, () => string> = {
+	internal_error: () => m.an_unknown_error_occurred(),
+	request_timeout: () => m.please_try_again(),
+	rate_limited: () => m.please_try_again(),
+	not_signed_in: () => m.please_try_to_sign_in_again(),
+	reauthentication_required: () => m.please_try_to_sign_in_again(),
+	invalid_webauthn_session: () => m.passkey_request_expired(),
+	invalid_webauthn_response: () => m.passkey_response_invalid(),
+	webauthn_authentication_failed: () => m.passkey_verification_failed(),
+	device_login_expired: () => m.device_login_request_expired()
+};
+
+function getApiErrorResponse(e: unknown): ApiErrorResponse | undefined {
+	if (!isAxiosError(e)) {
+		return undefined;
+	}
+
+	const data = e.response?.data;
+	if (!data || typeof data !== 'object') {
+		return undefined;
+	}
+
+	return data as ApiErrorResponse;
+}
 
 export function getAxiosErrorMessage(
 	e: unknown,
 	defaultMessage: string = m.an_unknown_error_occurred()
 ) {
-	let message = defaultMessage;
-	if (e instanceof AxiosError) {
-		message = e.response?.data.error || message;
+	const response = getApiErrorResponse(e);
+	if (!response) {
+		return defaultMessage;
 	}
-	return message;
+
+	const codeMessage = response.code ? codeMessages[response.code]?.() : undefined;
+	return codeMessage || (typeof response.error === 'string' ? response.error : defaultMessage);
+}
+
+export function getAxiosErrorRequestId(e: unknown): string | undefined {
+	if (!isAxiosError(e)) {
+		return undefined;
+	}
+
+	const bodyRequestId = getApiErrorResponse(e)?.request_id;
+	if (bodyRequestId) {
+		return bodyRequestId;
+	}
+
+	const headerRequestId = e.response?.headers?.['x-request-id'];
+	return typeof headerRequestId === 'string' ? headerRequestId : undefined;
 }
 
 export function axiosErrorToast(
@@ -39,13 +86,14 @@ export function getWebauthnErrorMessage(e: unknown) {
 		NotAllowedError: m.webauthn_operation_not_allowed_or_timed_out()
 	};
 
+	const response = getApiErrorResponse(e);
 	let message: string = m.an_unknown_error_occurred();
 	if (e instanceof WebAuthnError && e.code in errors) {
 		message = errors[e.code as keyof typeof errors];
 	} else if (e instanceof WebAuthnError && e.cause instanceof Error && e.cause.name in errors) {
 		message = errors[e.cause.name as keyof typeof errors];
-	} else if (e instanceof AxiosError && e.response?.data.error) {
-		message = e.response?.data.error;
+	} else if (isAxiosError(e) && (response?.code || response?.error)) {
+		message = getAxiosErrorMessage(e);
 	} else {
 		console.error(e);
 	}

@@ -3,7 +3,7 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -39,15 +39,15 @@ func (m *ApiKeyAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (userI
 
 	user, err := m.apiKeyModule.ValidateApiKey(c.Request.Context(), apiKey)
 	if err != nil {
-		return "", false, &common.NotSignedInError{}
+		return "", false, apperror.NotSignedIn()
 	}
 
 	if user.Disabled {
-		return "", false, &common.UserDisabledError{}
+		return "", false, apperror.UserDisabled()
 	}
 
 	if adminRequired && !user.IsAdmin {
-		return "", false, &common.MissingPermissionError{}
+		return "", false, apperror.MissingPermission()
 	}
 
 	return user.ID, user.IsAdmin, nil

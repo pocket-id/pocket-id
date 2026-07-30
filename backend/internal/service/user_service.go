@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -80,13 +80,16 @@ func (s *UserService) getUserInternal(ctx context.Context, userID string, tx *go
 		Where("id = ?", userID).
 		First(&user).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	}
 	return user, err
 }
 
 func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.ReadCloser, int64, error) {
 	// Validate the user ID to prevent directory traversal
 	if err := uuid.Validate(userID); err != nil {
-		return nil, 0, &common.InvalidUUIDError{}
+		return nil, 0, apperror.InvalidUserID()
 	}
 
 	user, err := s.GetUser(ctx, userID)
@@ -110,7 +113,7 @@ func (s *UserService) GetProfilePicture(ctx context.Context, userID string) (io.
 		if err == nil {
 			return reader, size, nil
 		}
-		if !errors.Is(err, &common.ImageNotFoundError{}) {
+		if !apperror.IsCode(err, apperror.CodeImageNotFound) {
 			return nil, 0, err
 		}
 	}
@@ -153,6 +156,9 @@ func (s *UserService) GetUserGroups(ctx context.Context, userID string) ([]model
 		Where("id = ?", userID).
 		First(&user).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperror.UserNotFound()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -163,11 +169,18 @@ func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, f
 	// Validate the user ID to prevent directory traversal
 	err := uuid.Validate(userID)
 	if err != nil {
-		return &common.InvalidUUIDError{}
+		return apperror.InvalidUserID()
+	}
+
+	if _, err := s.GetUser(ctx, userID); err != nil {
+		return err
 	}
 
 	// Convert the image to a smaller square image
 	profilePicture, err := profilepicture.CreateProfilePicture(file)
+	if errors.Is(err, profilepicture.ErrInvalidImage) {
+		return apperror.InvalidImage(err)
+	}
 	if err != nil {
 		return err
 	}
@@ -207,6 +220,9 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&user).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperror.UserNotFound()
+	}
 	if err != nil {
 		return fmt.Errorf("failed to load user to delete: %w", err)
 	}
@@ -214,7 +230,7 @@ func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userI
 	// Disallow deleting the user if it is an LDAP user, LDAP is enabled, and the user is not disabled
 	if !allowLdapDelete && !user.Disabled && user.LdapID != nil {
 		if cfg.LdapEnabled.IsTrue() {
-			return &common.LdapUserUpdateError{}
+			return apperror.LdapUserUpdate()
 		}
 	}
 
@@ -255,7 +271,7 @@ func (s *UserService) CreateUserInternal(ctx context.Context, dbConfig *appconfi
 
 func (s *UserService) createUserInternal(ctx context.Context, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (model.User, error) {
 	if cfg.RequireUserEmail.IsTrue() && input.Email == nil {
-		return model.User{}, &common.UserEmailNotSetError{}
+		return model.User{}, apperror.MissingField("email")
 	}
 
 	var userGroups []model.UserGroup
@@ -438,7 +454,7 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 
 func (s *UserService) updateUserInternal(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (model.User, error) {
 	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil {
-		return model.User{}, &common.UserEmailNotSetError{}
+		return model.User{}, apperror.MissingField("email")
 	}
 
 	var user model.User
@@ -448,6 +464,9 @@ func (s *UserService) updateUserInternal(ctx context.Context, userID string, upd
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		First(&user).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	}
 	if err != nil {
 		return model.User{}, err
 	}
@@ -588,7 +607,7 @@ func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User
 		return err
 	}
 	if result.Found {
-		return &common.AlreadyInUseError{Property: "email"}
+		return apperror.AlreadyInUse("email")
 	}
 
 	err = tx.
@@ -600,7 +619,7 @@ func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User
 		return err
 	}
 	if result.Found {
-		return &common.AlreadyInUseError{Property: "username"}
+		return apperror.AlreadyInUse("username")
 	}
 
 	return nil
@@ -610,7 +629,11 @@ func (s *UserService) checkDuplicatedFields(ctx context.Context, user model.User
 func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) error {
 	// Validate the user ID to prevent directory traversal
 	if err := uuid.Validate(userID); err != nil {
-		return &common.InvalidUUIDError{}
+		return apperror.InvalidUserID()
+	}
+
+	if _, err := s.GetUser(ctx, userID); err != nil {
+		return err
 	}
 
 	profilePicturePath := path.Join("profile-pictures", userID+".png")

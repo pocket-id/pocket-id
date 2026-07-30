@@ -13,6 +13,7 @@ import (
 	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
@@ -98,7 +99,7 @@ func (s *AppConfigService) GetConfig(parentCtx context.Context) (*AppConfigModel
 func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
-		return nil, &common.UiConfigDisabledError{}
+		return nil, apperror.UIConfigDisabled()
 	}
 
 	// Replace the entire config by invoking the actor
@@ -122,7 +123,7 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
-		return &common.UiConfigDisabledError{}
+		return apperror.UIConfigDisabled()
 	}
 
 	// Collect the key-value pairs into a map for the actor

@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -54,7 +55,7 @@ func (s *Service) ListApiKeys(ctx context.Context, userID string, listRequestOpt
 func (s *Service) CreateApiKey(ctx context.Context, userID string, input apiKeyCreateDto) (ApiKey, string, error) {
 	// Check if expiration is in the future
 	if !input.ExpiresAt.ToTime().After(time.Now()) {
-		return ApiKey{}, "", &common.APIKeyExpirationDateError{}
+		return ApiKey{}, "", apperror.InvalidAPIKeyExpiration()
 	}
 
 	// Generate a secure random API key
@@ -77,7 +78,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, input apiKeyC
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return ApiKey{}, "", &common.AlreadyInUseError{Property: "API key name"}
+			return ApiKey{}, "", apperror.AlreadyInUse("API key name")
 		}
 		return ApiKey{}, "", err
 	}
@@ -89,7 +90,7 @@ func (s *Service) CreateApiKey(ctx context.Context, userID string, input apiKeyC
 func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expiration time.Time) (ApiKey, string, error) {
 	// Check if expiration is in the future
 	if !expiration.After(time.Now()) {
-		return ApiKey{}, "", &common.APIKeyExpirationDateError{}
+		return ApiKey{}, "", apperror.InvalidAPIKeyExpiration()
 	}
 
 	tx := s.db.Begin()
@@ -105,14 +106,14 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ApiKey{}, "", &common.APIKeyNotFoundError{}
+			return ApiKey{}, "", apperror.APIKeyNotFound()
 		}
 		return ApiKey{}, "", err
 	}
 
 	// Only allow renewal if the key has already expired
 	if apiKey.ExpiresAt.ToTime().After(time.Now()) {
-		return ApiKey{}, "", &common.APIKeyNotExpiredError{}
+		return ApiKey{}, "", apperror.APIKeyNotExpired()
 	}
 
 	// Generate a secure random API key
@@ -138,16 +139,15 @@ func (s *Service) RenewApiKey(ctx context.Context, userID, apiKeyID string, expi
 
 func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string) error {
 	var apiKey ApiKey
-	err := s.db.
+	result := s.db.
 		WithContext(ctx).
 		Where("id = ? AND user_id = ?", apiKeyID, userID).
-		Delete(&apiKey).
-		Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return &common.APIKeyNotFoundError{}
-		}
-		return err
+		Delete(&apiKey)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return apperror.APIKeyNotFound()
 	}
 
 	return nil
@@ -155,7 +155,7 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, apiKeyID string) err
 
 func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (model.User, error) {
 	if apiKey == "" {
-		return model.User{}, &common.NoAPIKeyProvidedError{}
+		return model.User{}, apperror.NoAPIKeyProvided()
 	}
 
 	if s.staticApiKey != "" && apiKey == s.staticApiKey {
@@ -179,7 +179,7 @@ func (s *Service) ValidateApiKey(ctx context.Context, apiKey string) (model.User
 		Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return model.User{}, &common.InvalidAPIKeyError{}
+			return model.User{}, apperror.InvalidAPIKey()
 		}
 
 		return model.User{}, err

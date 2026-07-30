@@ -18,7 +18,7 @@ import (
 // It's loaded here to create the per-token actors on first startup.
 
 // signupTokensMigratedKey is the kv key under which the pre-actor signup tokens were frozen.
-const signupTokensMigratedKey = "signup_tokens_migrated" //nolint:gosec // G101 false positive: this is the name of a kv key, not a credential
+const signupTokensMigratedKey = "signup_tokens_migrated"
 
 // migratedSignupToken is the JSON shape of a signup token frozen into the kv table by the migration.
 // All timestamps are expressed as Unix seconds.

@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -17,6 +18,14 @@ import (
 
 type fakeLDAPClient struct {
 	searchFn func(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error)
+}
+
+func TestCreateLDAPClientRejectsDisabledConfiguration(t *testing.T) {
+	service := NewLdapService(nil, nil, nil, nil, nil)
+
+	_, err := service.createClient(&appconfig.AppConfigModel{LdapEnabled: "false"})
+
+	require.True(t, apperror.IsCode(err, apperror.CodeLdapDisabled))
 }
 
 func (c *fakeLDAPClient) Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error) {

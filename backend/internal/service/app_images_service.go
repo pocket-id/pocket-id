@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	imageutil "github.com/pocket-id/pocket-id/backend/internal/utils/image"
@@ -40,7 +40,7 @@ func (s *AppImagesService) GetImage(ctx context.Context, name string) (io.ReadCl
 	reader, size, err := s.storage.Open(ctx, imagePath)
 	if err != nil {
 		if storage.IsNotExist(err) {
-			return nil, 0, "", &common.ImageNotFoundError{}
+			return nil, 0, "", apperror.ImageNotFound()
 		}
 		return nil, 0, "", err
 	}
@@ -51,7 +51,7 @@ func (s *AppImagesService) UpdateImage(ctx context.Context, file *multipart.File
 	fileType := strings.ToLower(utils.GetFileExtension(file.Filename))
 	mimeType := utils.GetImageMimeType(fileType)
 	if mimeType == "" {
-		return &common.FileTypeNotSupportedError{}
+		return apperror.UnsupportedFileType("")
 	}
 
 	s.mu.Lock()
@@ -96,7 +96,7 @@ func (s *AppImagesService) DeleteImage(ctx context.Context, imageName string) er
 
 	ext, ok := s.extensions[imageName]
 	if !ok || ext == "" {
-		return &common.ImageNotFoundError{}
+		return apperror.ImageNotFound()
 	}
 
 	imagePath := path.Join("application-images", imageName+"."+ext)
@@ -122,7 +122,7 @@ func (s *AppImagesService) getExtension(name string) (string, error) {
 
 	ext, ok := s.extensions[name]
 	if !ok || ext == "" {
-		return "", &common.ImageNotFoundError{}
+		return "", apperror.ImageNotFound()
 	}
 
 	return strings.ToLower(ext), nil

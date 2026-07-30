@@ -56,7 +56,7 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
@@ -123,7 +123,7 @@ func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
 				CallbackURLs: model.UrlList{"http://client.example.com/callback"},
 			}).Error)
 
-			provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+			provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 				BaseURL:                   "https://issuer.example.com",
 				TokenBaseURL:              "https://issuer.example.com",
 				Secret:                    []byte("test-secret"),
@@ -160,7 +160,7 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
 	}).Error)
 
-	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
@@ -193,7 +193,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 		IsPublic:     true,
 	}).Error)
 
-	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
@@ -225,7 +225,7 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
 	}).Error)
 
-	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
@@ -265,7 +265,7 @@ func TestProviderAcceptsUnsignedRequestObject(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
 	}).Error)
 
-	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
@@ -306,7 +306,7 @@ func TestProviderRejectsSignedRequestObject(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
 	}).Error)
 
-	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
@@ -382,7 +382,7 @@ func TestProviderIssuesAndValidatesTokensForSupportedAlgorithms(t *testing.T) {
 			db := testutils.NewDatabaseForTest(t)
 			require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "test-client"}, Name: "Test Client"}).Error)
 
-			provider, err := newProvider(NewStore(db, nil), nil, algTestSigner{key: tc.gen(t), alg: tc.alg}, Config{ //nolint:gosec // static test-only provider secret
+			provider, err := newProvider(NewStore(db, nil), nil, algTestSigner{key: tc.gen(t), alg: tc.alg}, Config{
 				BaseURL:      "https://issuer.example.com",
 				TokenBaseURL: "https://issuer.example.com",
 				Secret:       []byte("test-secret"),
@@ -449,7 +449,7 @@ func TestProviderIgnoresUnknownScopes(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://app.example.com/callback"},
 	}).Error)
 
-	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),

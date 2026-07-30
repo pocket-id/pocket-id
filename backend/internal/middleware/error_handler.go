@@ -1,17 +1,66 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"reflect"
 	"strings"
+	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
-	"gorm.io/gorm"
+	"github.com/google/uuid"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
+	"go.opentelemetry.io/otel/trace"
 )
+
+const requestIDHeader = "X-Request-ID"
+
+type requestIDContextKey struct{}
+type requestErrorCodeContextKey struct{}
+
+// RequestID returns the identifier assigned to the current request
+func RequestID(c *gin.Context) string {
+	if c == nil {
+		return ""
+	}
+
+	requestID, exists := c.Get(requestIDContextKey{})
+	if !exists {
+		return ""
+	}
+
+	value, ok := requestID.(string)
+	if !ok {
+		return ""
+	}
+
+	return value
+}
+
+// RequestErrorCode returns the stable code of the error handled for the current request
+func RequestErrorCode(c *gin.Context) apperror.Code {
+	if c == nil {
+		return ""
+	}
+
+	code, exists := c.Get(requestErrorCodeContextKey{})
+	if !exists {
+		return ""
+	}
+
+	value, ok := code.(apperror.Code)
+	if !ok {
+		return ""
+	}
+
+	return value
+}
 
 type ErrorHandlerMiddleware struct{}
 
@@ -19,107 +68,211 @@ func NewErrorHandlerMiddleware() *ErrorHandlerMiddleware {
 	return &ErrorHandlerMiddleware{}
 }
 
+type classifiedError struct {
+	code       apperror.Code
+	status     int
+	message    string
+	details    map[string]string
+	fields     []apperror.FieldError
+	retryAfter time.Duration
+}
+
+// Add records a request ID before executing the request and serializes the first returned error afterward
 func (m *ErrorHandlerMiddleware) Add() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		requestID := uuid.NewString()
+		c.Set(requestIDContextKey{}, requestID)
+		c.Header(requestIDHeader, requestID)
+
 		c.Next()
-		for _, err := range c.Errors {
-			// Check for record not found errors
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				errorResponse(c, http.StatusNotFound, "Record not found")
-				return
-			}
-
-			// Check for validation errors
-			var validationErrors validator.ValidationErrors
-			if errors.As(err, &validationErrors) {
-				message := handleValidationError(validationErrors)
-				errorResponse(c, http.StatusBadRequest, message)
-				return
-			}
-
-			// Check for slice validation errors
-			svErr, ok := errors.AsType[binding.SliceValidationError](err)
-			if ok {
-				if errors.As(svErr[0], &validationErrors) {
-					message := handleValidationError(validationErrors)
-					errorResponse(c, http.StatusBadRequest, message)
-					return
-				}
-			}
-
-			// AppError with description
-			appDescErr, ok := errors.AsType[common.AppErrorDescription](err)
-			if ok {
-				errorResponseWithDescription(c, appDescErr.HttpStatusCode(), appDescErr.Error(), appDescErr.Description())
-				return
-			}
-
-			// AppError (without description)
-			appErr, ok := errors.AsType[common.AppError](err)
-			if ok {
-				errorResponse(c, appErr.HttpStatusCode(), appErr.Error())
-				return
-			}
-
-			c.JSON(http.StatusInternalServerError, errorResponseBody{
-				Error: "Something went wrong",
-			})
+		if len(c.Errors) == 0 {
+			return
 		}
+
+		err := c.Errors[0].Err
+		classified := classifyError(err)
+		c.Set(requestErrorCodeContextKey{}, classified.code)
+		logRequestError(c, err, classified, requestID)
+
+		if c.Writer.Written() {
+			return
+		}
+
+		if classified.retryAfter > 0 {
+			c.Header("Retry-After", formatRetryAfter(classified.retryAfter))
+		}
+		writeErrorResponse(c, classified, requestID)
 	}
 }
 
 type errorResponseBody struct {
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description,omitempty"`
+	Error     string         `json:"error"`
+	Code      apperror.Code  `json:"code"`
+	Details   map[string]any `json:"details,omitempty"`
+	RequestID string         `json:"request_id,omitempty"`
 }
 
-func errorResponse(c *gin.Context, statusCode int, message string) {
-	// Capitalize the first letter of the message
-	message = strings.ToUpper(message[:1]) + message[1:]
-	c.JSON(statusCode, errorResponseBody{
-		Error: message,
-	})
-}
-
-func errorResponseWithDescription(c *gin.Context, statusCode int, message string, description string) {
-	// Capitalize the first letter of the message
-	message = strings.ToUpper(message[:1]) + message[1:]
-	c.JSON(statusCode, errorResponseBody{
-		Error:            message,
-		ErrorDescription: description,
-	})
-}
-
-func handleValidationError(validationErrors validator.ValidationErrors) string {
-	var errorMessages []string
-
-	for _, ve := range validationErrors {
-		fieldName := ve.Field()
-		var errorMessage string
-		switch ve.Tag() {
-		case "required":
-			errorMessage = fmt.Sprintf("%s is required", fieldName)
-		case "email":
-			errorMessage = fmt.Sprintf("%s must be a valid email address", fieldName)
-		case "username":
-			errorMessage = fmt.Sprintf("%s must only contain letters, numbers, underscores, dots, hyphens, and '@' symbols and not start or end with a special character", fieldName)
-		case "url":
-			errorMessage = fmt.Sprintf("%s must be a valid URL", fieldName)
-		case "resource_uri":
-			errorMessage = fmt.Sprintf("%s must be an absolute URI without whitespace or a fragment", fieldName)
-		case "min":
-			errorMessage = fmt.Sprintf("%s must be at least %s characters long", fieldName, ve.Param())
-		case "max":
-			errorMessage = fmt.Sprintf("%s must be at most %s characters long", fieldName, ve.Param())
-		default:
-			errorMessage = fmt.Sprintf("%s is invalid", fieldName)
+func classifyError(err error) classifiedError {
+	var structuredErr *apperror.Error
+	if errors.As(err, &structuredErr) && structuredErr != nil {
+		return classifiedError{
+			code:       structuredErr.Code(),
+			status:     normalizeStatus(structuredErr.HTTPStatus()),
+			message:    structuredErr.ClientMessage(),
+			details:    structuredErr.Details(),
+			fields:     structuredErr.Fields(),
+			retryAfter: structuredErr.RetryAfter(),
 		}
-
-		errorMessages = append(errorMessages, errorMessage)
 	}
 
-	// Join all the error messages into a single string
-	combinedErrors := strings.Join(errorMessages, ", ")
+	if errors.Is(err, context.DeadlineExceeded) {
+		return classifiedError{
+			code:    apperror.CodeRequestTimeout,
+			status:  http.StatusGatewayTimeout,
+			message: "Request timed out",
+		}
+	}
 
-	return combinedErrors
+	var validationErrors validator.ValidationErrors
+	if errors.As(err, &validationErrors) && len(validationErrors) > 0 {
+		return classifiedValidationError(validationErrors)
+	}
+
+	var sliceValidationErrors binding.SliceValidationError
+	if errors.As(err, &sliceValidationErrors) && len(sliceValidationErrors) > 0 {
+		if errors.As(sliceValidationErrors[0], &validationErrors) {
+			return classifiedValidationError(validationErrors)
+		}
+	}
+
+	return classifiedError{
+		code:    apperror.CodeInternal,
+		status:  http.StatusInternalServerError,
+		message: "Something went wrong",
+	}
+}
+
+func classifiedValidationError(validationErrors validator.ValidationErrors) classifiedError {
+	fields := make([]apperror.FieldError, 0, len(validationErrors))
+	messages := make([]string, 0, len(validationErrors))
+
+	for _, validationError := range validationErrors {
+		fieldName := validationError.Field()
+		code, message := validationFieldError(validationError)
+		fields = append(fields, apperror.FieldError{
+			Field:   fieldName,
+			Code:    code,
+			Message: message,
+		})
+		messages = append(messages, fmt.Sprintf("%s %s", fieldName, message))
+	}
+
+	return classifiedError{
+		code:    apperror.CodeValidationFailed,
+		status:  http.StatusBadRequest,
+		message: capitalizeFirst(strings.Join(messages, ", ")),
+		fields:  fields,
+	}
+}
+
+func validationFieldError(validationError validator.FieldError) (string, string) {
+	switch validationError.Tag() {
+	case "required":
+		return "required", "is required"
+	case "email":
+		return "invalid_format", "must be a valid email address"
+	case "username":
+		return "invalid_format", "must only contain letters, numbers, underscores, dots, hyphens, and '@' symbols and not start or end with a special character"
+	case "url":
+		return "invalid_format", "must be a valid URL"
+	case "resource_uri":
+		return "invalid_format", "must be an absolute URI without whitespace or a fragment"
+	case "min":
+		return "too_short", fmt.Sprintf("must be at least %s characters long", validationError.Param())
+	case "max":
+		return "too_long", fmt.Sprintf("must be at most %s characters long", validationError.Param())
+	default:
+		return validationError.Tag(), "is invalid"
+	}
+}
+
+func writeErrorResponse(c *gin.Context, classified classifiedError, requestID string) {
+	details := make(map[string]any, len(classified.details)+1)
+	for key, value := range classified.details {
+		details[key] = value
+	}
+	if len(classified.fields) > 0 {
+		details["fields"] = classified.fields
+	}
+	if len(details) == 0 {
+		details = nil
+	}
+
+	response := errorResponseBody{
+		Error:     classified.message,
+		Code:      classified.code,
+		Details:   details,
+		RequestID: requestID,
+	}
+
+	c.JSON(classified.status, response)
+}
+
+func logRequestError(c *gin.Context, err error, classified classifiedError, requestID string) {
+	if classified.status < http.StatusInternalServerError {
+		return
+	}
+
+	attrs := []any{
+		slog.String("error_code", string(classified.code)),
+		slog.String("error_type", errorTypeName(err)),
+		slog.Int("http_status", classified.status),
+		slog.String("request_id", requestID),
+		slog.String("http_method", c.Request.Method),
+		slog.String("http_path", c.Request.URL.Path),
+		slog.Any("error", err),
+	}
+	if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
+		attrs = append(attrs, slog.String("trace_id", spanContext.TraceID().String()))
+	}
+
+	slog.ErrorContext(c.Request.Context(), "Request failed", attrs...)
+}
+
+func errorTypeName(err error) string {
+	if err == nil {
+		return "<nil>"
+	}
+
+	return reflect.TypeOf(err).String()
+}
+
+func normalizeStatus(status int) int {
+	if status < http.StatusBadRequest || status > 599 {
+		return http.StatusInternalServerError
+	}
+
+	return status
+}
+
+func formatRetryAfter(retryAfter time.Duration) string {
+	seconds := int(retryAfter / time.Second)
+	if retryAfter%time.Second != 0 {
+		seconds++
+	}
+	if seconds < 1 {
+		seconds = 1
+	}
+
+	return fmt.Sprintf("%d", seconds)
+}
+
+func capitalizeFirst(message string) string {
+	runes := []rune(message)
+	if len(runes) == 0 {
+		return message
+	}
+
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }

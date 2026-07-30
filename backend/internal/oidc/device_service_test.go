@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/ory/fosite"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 	"github.com/stretchr/testify/require"
@@ -30,7 +30,7 @@ type fakeReauthenticationConsumer struct {
 func (f *fakeReauthenticationConsumer) ConsumeReauthenticationToken(_ context.Context, _ *gorm.DB, token string, userID string) (time.Time, error) {
 	f.calls++
 	if token != f.token || userID != f.userID {
-		return time.Time{}, &common.ReauthenticationRequiredError{}
+		return time.Time{}, apperror.ReauthenticationRequired()
 	}
 
 	return f.reauthenticatedAt, nil
@@ -41,7 +41,7 @@ func TestDeviceServiceAcceptRequiresReauthenticationTokenWhenClientRequiresIt(t 
 		userID   = "test-user"
 		clientID = "test-client"
 	)
-	reauth := &fakeReauthenticationConsumer{ //nolint:gosec // test fixture token, not a real credential
+	reauth := &fakeReauthenticationConsumer{
 		token:             "valid-reauth-token",
 		userID:            userID,
 		reauthenticatedAt: time.Now().UTC().Truncate(time.Second),
@@ -49,7 +49,7 @@ func TestDeviceServiceAcceptRequiresReauthenticationTokenWhenClientRequiresIt(t 
 	service, _, _, userCode, _ := newTestDeviceServiceWithCode(t, clientID, userID, true, reauth)
 
 	err := service.acceptDeviceCode(t.Context(), userCode, userID, "phr", time.Now().UTC(), "", requestMeta{})
-	require.ErrorAs(t, err, new(*common.ReauthenticationRequiredError))
+	require.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
 	require.Zero(t, reauth.calls)
 
 	info, err := service.getDeviceCodeInfo(t.Context(), userCode, userID)
@@ -75,7 +75,7 @@ func TestDeviceServiceAcceptUsesReauthenticationTimeForDeviceSession(t *testing.
 		clientID = "test-client"
 	)
 	reauthenticatedAt := time.Now().Add(-30 * time.Second).UTC().Truncate(time.Second)
-	reauth := &fakeReauthenticationConsumer{ //nolint:gosec // test fixture token, not a real credential
+	reauth := &fakeReauthenticationConsumer{
 		token:             "valid-reauth-token",
 		userID:            userID,
 		reauthenticatedAt: reauthenticatedAt,
@@ -153,7 +153,7 @@ func newTestDeviceService(t *testing.T, clientID, userID string, requiresReauthe
 	store := NewStore(db, apiAccess)
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	provider, err := newProvider(store, nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(store, nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),

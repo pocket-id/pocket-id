@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -105,7 +106,7 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 		assert.Empty(t, reauthenticationToken)
 		require.Error(t, err)
-		assert.ErrorAs(t, err, new(*common.ReauthenticationRequiredError))
+		assert.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
 	})
 
 	t.Run("rejects a fresh access token without an authentication method", func(t *testing.T) {
@@ -117,7 +118,16 @@ func TestCreateReauthenticationTokenWithAccessToken(t *testing.T) {
 
 		assert.Empty(t, reauthenticationToken)
 		require.Error(t, err)
-		assert.ErrorAs(t, err, new(*common.ReauthenticationRequiredError))
+		assert.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
+	})
+
+	t.Run("classifies an invalid access token as missing reauthentication", func(t *testing.T) {
+		service, _, _ := setupService(t)
+
+		reauthenticationToken, err := service.CreateReauthenticationTokenWithAccessToken(t.Context(), "invalid")
+
+		assert.Empty(t, reauthenticationToken)
+		require.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
 	})
 }
 
@@ -131,6 +141,23 @@ func TestWebAuthnDisplayNameUsesRequestConfig(t *testing.T) {
 
 	service.updateWebAuthnConfig(&appconfig.AppConfigModel{AppName: "Custom App"})
 	require.Equal(t, "Custom App", service.webAuthn.Config.RPDisplayName)
+}
+
+func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) {
+	service, err := newService(Dependencies{
+		DB:     testutils.NewDatabaseForTest(t),
+		AppURL: "https://example.com",
+	})
+	require.NoError(t, err)
+
+	_, err = service.BeginRegistration(t.Context(), &appconfig.AppConfigModel{}, "missing-user")
+	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
+
+	_, err = service.UpdateCredential(t.Context(), "missing-user", "missing-passkey", "New name")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
+
+	err = service.DeleteCredential(t.Context(), "missing-user", "missing-passkey", "", "", "")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
 // A ceremony that references a session which does not exist must be rejected outright
@@ -158,7 +185,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 		_, err := service.VerifyRegistration(t.Context(), "does-not-exist", userID, nil, "127.0.0.1")
 
 		require.Error(t, err)
-		assert.ErrorAs(t, err, new(*common.InvalidWebauthnSessionError))
+		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))
 	})
 
 	t.Run("login rejects an unknown session", func(t *testing.T) {
@@ -168,7 +195,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 
 		assert.Empty(t, token)
 		require.Error(t, err)
-		assert.ErrorAs(t, err, new(*common.InvalidWebauthnSessionError))
+		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))
 	})
 
 	t.Run("reauthentication rejects an unknown session", func(t *testing.T) {
@@ -178,7 +205,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 
 		assert.Empty(t, token)
 		require.Error(t, err)
-		assert.ErrorAs(t, err, new(*common.InvalidWebauthnSessionError))
+		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))
 	})
 
 	// The reauthentication query filters expired rows out in SQL, so an expired session matches no row
@@ -197,7 +224,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 
 		assert.Empty(t, token)
 		require.Error(t, err)
-		assert.ErrorAs(t, err, new(*common.InvalidWebauthnSessionError))
+		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))
 	})
 }
 

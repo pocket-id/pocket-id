@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"errors"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,8 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -26,30 +25,30 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 		oidcService: oidcService,
 	}
 
-	group.GET("/oidc/clients", authMiddleware.Add(), oc.listClientsHandler)
-	group.POST("/oidc/clients", authMiddleware.Add(), oc.createClientHandler)
-	group.GET("/oidc/clients/:id", authMiddleware.Add(), oc.getClientHandler)
-	group.GET("/oidc/clients/:id/meta", oc.getClientMetaDataHandler)
-	group.PUT("/oidc/clients/:id", authMiddleware.Add(), oc.updateClientHandler)
-	group.DELETE("/oidc/clients/:id", authMiddleware.Add(), oc.deleteClientHandler)
+	group.GET("/oidc/clients", authMiddleware.Add(), httpserver.Handle(oc.listClientsHandler))
+	group.POST("/oidc/clients", authMiddleware.Add(), httpserver.Handle(oc.createClientHandler))
+	group.GET("/oidc/clients/:id", authMiddleware.Add(), httpserver.Handle(oc.getClientHandler))
+	group.GET("/oidc/clients/:id/meta", httpserver.Handle(oc.getClientMetaDataHandler))
+	group.PUT("/oidc/clients/:id", authMiddleware.Add(), httpserver.Handle(oc.updateClientHandler))
+	group.DELETE("/oidc/clients/:id", authMiddleware.Add(), httpserver.Handle(oc.deleteClientHandler))
 
-	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), oc.updateAllowedUserGroupsHandler)
-	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), oc.createClientSecretHandler)
+	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), httpserver.Handle(oc.updateAllowedUserGroupsHandler))
+	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), httpserver.Handle(oc.createClientSecretHandler))
 
-	group.GET("/oidc/clients/:id/logo", oc.getClientLogoHandler)
-	group.DELETE("/oidc/clients/:id/logo", authMiddleware.Add(), oc.deleteClientLogoHandler)
-	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), oc.updateClientLogoHandler)
+	group.GET("/oidc/clients/:id/logo", httpserver.Handle(oc.getClientLogoHandler))
+	group.DELETE("/oidc/clients/:id/logo", authMiddleware.Add(), httpserver.Handle(oc.deleteClientLogoHandler))
+	group.POST("/oidc/clients/:id/logo", authMiddleware.Add(), fileSizeLimitMiddleware.Add(2<<20), httpserver.Handle(oc.updateClientLogoHandler))
 
-	group.GET("/oidc/clients/:id/preview/:userId", authMiddleware.Add(), oc.getClientPreviewHandler)
+	group.GET("/oidc/clients/:id/preview/:userId", authMiddleware.Add(), httpserver.Handle(oc.getClientPreviewHandler))
 
-	group.GET("/oidc/users/me/authorized-clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAuthorizedClientsHandler)
-	group.GET("/oidc/users/:id/authorized-clients", authMiddleware.Add(), oc.listAuthorizedClientsHandler)
+	group.GET("/oidc/users/me/authorized-clients", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(oc.listOwnAuthorizedClientsHandler))
+	group.GET("/oidc/users/:id/authorized-clients", authMiddleware.Add(), httpserver.Handle(oc.listAuthorizedClientsHandler))
 
-	group.DELETE("/oidc/users/me/authorized-clients/:clientId", authMiddleware.WithAdminNotRequired().Add(), oc.revokeOwnClientAuthorizationHandler)
+	group.DELETE("/oidc/users/me/authorized-clients/:clientId", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(oc.revokeOwnClientAuthorizationHandler))
 
-	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), oc.listOwnAccessibleClientsHandler)
+	group.GET("/oidc/users/me/clients", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(oc.listOwnAccessibleClientsHandler))
 
-	group.GET("/oidc/clients/:id/scim-service-provider", authMiddleware.Add(), oc.getClientScimServiceProviderHandler)
+	group.GET("/oidc/clients/:id/scim-service-provider", authMiddleware.Add(), httpserver.Handle(oc.getClientScimServiceProviderHandler))
 
 }
 
@@ -65,23 +64,21 @@ type OidcController struct {
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientMetaDataDto "Client metadata"
 // @Router /api/oidc/clients/{id}/meta [get]
-func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
+func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) error {
 	clientId := c.Param("id")
 	client, err := oc.oidcService.GetClient(c.Request.Context(), clientId)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	clientDto := dto.OidcClientMetaDataDto{}
-	err = dto.MapStruct(client, &clientDto)
-	if err == nil {
-		clientDto.HasDarkLogo = client.HasDarkLogo()
-		c.JSON(http.StatusOK, clientDto)
-		return
+	if err := dto.MapStruct(client, &clientDto); err != nil {
+		return err
 	}
 
-	_ = c.Error(err)
+	clientDto.HasDarkLogo = client.HasDarkLogo()
+	c.JSON(http.StatusOK, clientDto)
+	return nil
 }
 
 // getClientHandler godoc
@@ -92,22 +89,21 @@ func (oc *OidcController) getClientMetaDataHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Client information"
 // @Router /api/oidc/clients/{id} [get]
-func (oc *OidcController) getClientHandler(c *gin.Context) {
+func (oc *OidcController) getClientHandler(c *gin.Context) error {
 	clientId := c.Param("id")
 	client, err := oc.oidcService.GetClient(c.Request.Context(), clientId)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	clientDto := dto.OidcClientWithAllowedUserGroupsDto{}
 	err = dto.MapStruct(client, &clientDto)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, clientDto)
+	return nil
 }
 
 // listClientsHandler godoc
@@ -121,14 +117,13 @@ func (oc *OidcController) getClientHandler(c *gin.Context) {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.OidcClientWithAllowedGroupsCountDto]
 // @Router /api/oidc/clients [get]
-func (oc *OidcController) listClientsHandler(c *gin.Context) {
+func (oc *OidcController) listClientsHandler(c *gin.Context) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	clients, pagination, err := oc.oidcService.ListClients(c.Request.Context(), searchTerm, listRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	// Map the user groups to DTOs
@@ -136,14 +131,12 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 	for i, client := range clients {
 		var clientDto dto.OidcClientWithAllowedGroupsCountDto
 		if err := dto.MapStruct(client, &clientDto); err != nil {
-			_ = c.Error(err)
-			return
+			return err
 		}
 		clientDto.HasDarkLogo = client.HasDarkLogo()
 		clientDto.AllowedUserGroupsCount, err = oc.oidcService.GetAllowedGroupsCountOfClient(c, client.ID)
 		if err != nil {
-			_ = c.Error(err)
-			return
+			return err
 		}
 		clientsDto[i] = clientDto
 	}
@@ -152,6 +145,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 		Data:       clientsDto,
 		Pagination: pagination,
 	})
+	return nil
 }
 
 // createClientHandler godoc
@@ -163,26 +157,24 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) {
 // @Param client body dto.OidcClientCreateDto true "Client information"
 // @Success 201 {object} dto.OidcClientWithAllowedUserGroupsDto "Created client"
 // @Router /api/oidc/clients [post]
-func (oc *OidcController) createClientHandler(c *gin.Context) {
+func (oc *OidcController) createClientHandler(c *gin.Context) error {
 	var input dto.OidcClientCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	client, err := oc.oidcService.CreateClient(c.Request.Context(), input, c.GetString("userID"))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var clientDto dto.OidcClientWithAllowedUserGroupsDto
 	if err := dto.MapStruct(client, &clientDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusCreated, clientDto)
+	return nil
 }
 
 // deleteClientHandler godoc
@@ -192,14 +184,14 @@ func (oc *OidcController) createClientHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 204 "No Content"
 // @Router /api/oidc/clients/{id} [delete]
-func (oc *OidcController) deleteClientHandler(c *gin.Context) {
+func (oc *OidcController) deleteClientHandler(c *gin.Context) error {
 	err := oc.oidcService.DeleteClient(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // updateClientHandler godoc
@@ -212,26 +204,24 @@ func (oc *OidcController) deleteClientHandler(c *gin.Context) {
 // @Param client body dto.OidcClientUpdateDto true "Client information"
 // @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Updated client"
 // @Router /api/oidc/clients/{id} [put]
-func (oc *OidcController) updateClientHandler(c *gin.Context) {
+func (oc *OidcController) updateClientHandler(c *gin.Context) error {
 	var input dto.OidcClientUpdateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	client, err := oc.oidcService.UpdateClient(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var clientDto dto.OidcClientWithAllowedUserGroupsDto
 	if err := dto.MapStruct(client, &clientDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, clientDto)
+	return nil
 }
 
 // createClientSecretHandler godoc
@@ -244,20 +234,19 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) {
 // @Param payload body dto.OidcClientSecretDto false "Client secret"
 // @Success 200 {object} object "{ \"secret\": \"string\" }"
 // @Router /api/oidc/clients/{id}/secret [post]
-func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
+func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
 	var input dto.OidcClientSecretDto
-	if err := c.ShouldBindJSON(&input); err != nil && !errors.Is(err, io.EOF) {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindOptionalJSON(c, &input); err != nil {
+		return err
 	}
 
 	secret, err := oc.oidcService.CreateClientSecret(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, gin.H{"secret": secret})
+	return nil
 }
 
 // getClientLogoHandler godoc
@@ -271,13 +260,12 @@ func (oc *OidcController) createClientSecretHandler(c *gin.Context) {
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 200 {file} binary "Logo image"
 // @Router /api/oidc/clients/{id}/logo [get]
-func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
+func (oc *OidcController) getClientLogoHandler(c *gin.Context) error {
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	reader, size, mimeType, err := oc.oidcService.GetClientLogo(c.Request.Context(), c.Param("id"), lightLogo)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 	defer reader.Close()
 
@@ -285,6 +273,7 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 
 	c.Header("Content-Type", mimeType)
 	c.DataFromReader(http.StatusOK, size, mimeType, reader, nil)
+	return nil
 }
 
 // updateClientLogoHandler godoc
@@ -297,22 +286,21 @@ func (oc *OidcController) getClientLogoHandler(c *gin.Context) {
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 204 "No Content"
 // @Router /api/oidc/clients/{id}/logo [post]
-func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
-	file, err := c.FormFile("file")
+func (oc *OidcController) updateClientLogoHandler(c *gin.Context) error {
+	file, err := httpserver.FormFile(c, "file")
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
 
 	err = oc.oidcService.UpdateClientLogo(c.Request.Context(), c.Param("id"), file, lightLogo)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // deleteClientLogoHandler godoc
@@ -323,7 +311,7 @@ func (oc *OidcController) updateClientLogoHandler(c *gin.Context) {
 // @Param light query boolean false "Light mode logo (true) or dark mode logo (false)"
 // @Success 204 "No Content"
 // @Router /api/oidc/clients/{id}/logo [delete]
-func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
+func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) error {
 	var err error
 
 	lightLogo, _ := strconv.ParseBool(c.DefaultQuery("light", "true"))
@@ -334,11 +322,11 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 	}
 
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // updateAllowedUserGroupsHandler godoc
@@ -351,27 +339,25 @@ func (oc *OidcController) deleteClientLogoHandler(c *gin.Context) {
 // @Param groups body dto.OidcUpdateAllowedUserGroupsDto true "User group IDs"
 // @Success 200 {object} dto.OidcClientDto "Updated client"
 // @Router /api/oidc/clients/{id}/allowed-user-groups [put]
-func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
+func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) error {
 	var input dto.OidcUpdateAllowedUserGroupsDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	oidcClient, err := oc.oidcService.UpdateAllowedUserGroups(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var oidcClientDto dto.OidcClientDto
 	if err := dto.MapStruct(oidcClient, &oidcClientDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 	oidcClientDto.HasDarkLogo = oidcClient.HasDarkLogo()
 
 	c.JSON(http.StatusOK, oidcClientDto)
+	return nil
 }
 
 // listOwnAuthorizedClientsHandler godoc
@@ -384,9 +370,9 @@ func (oc *OidcController) updateAllowedUserGroupsHandler(c *gin.Context) {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
 // @Router /api/oidc/users/me/authorized-clients [get]
-func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) {
+func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) error {
 	userID := c.GetString("userID")
-	oc.listAuthorizedClients(c, userID)
+	return oc.listAuthorizedClients(c, userID)
 }
 
 // listAuthorizedClientsHandler godoc
@@ -400,31 +386,30 @@ func (oc *OidcController) listOwnAuthorizedClientsHandler(c *gin.Context) {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuthorizedOidcClientDto]
 // @Router /api/oidc/users/{id}/authorized-clients [get]
-func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) {
+func (oc *OidcController) listAuthorizedClientsHandler(c *gin.Context) error {
 	userID := c.Param("id")
-	oc.listAuthorizedClients(c, userID)
+	return oc.listAuthorizedClients(c, userID)
 }
 
-func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) {
+func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	authorizedClients, pagination, err := oc.oidcService.ListAuthorizedClients(c.Request.Context(), userID, listRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	// Map the clients to DTOs
 	var authorizedClientsDto []dto.AuthorizedOidcClientDto
 	if err := dto.MapStructList(authorizedClients, &authorizedClientsDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, dto.Paginated[dto.AuthorizedOidcClientDto]{
 		Data:       authorizedClientsDto,
 		Pagination: pagination,
 	})
+	return nil
 }
 
 // revokeOwnClientAuthorizationHandler godoc
@@ -434,18 +419,18 @@ func (oc *OidcController) listAuthorizedClients(c *gin.Context, userID string) {
 // @Param clientId path string true "Client ID to revoke authorization for"
 // @Success 204 "No Content"
 // @Router /api/oidc/users/me/authorized-clients/{clientId} [delete]
-func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) {
+func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) error {
 	clientID := c.Param("clientId")
 
 	userID := c.GetString("userID")
 
 	err := oc.oidcService.RevokeAuthorizedClient(c.Request.Context(), userID, clientID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // listOwnAccessibleClientsHandler godoc
@@ -458,21 +443,21 @@ func (oc *OidcController) revokeOwnClientAuthorizationHandler(c *gin.Context) {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AccessibleOidcClientDto]
 // @Router /api/oidc/users/me/clients [get]
-func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) {
+func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	userID := c.GetString("userID")
 
 	clients, pagination, err := oc.oidcService.ListAccessibleOidcClients(c.Request.Context(), userID, listRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, dto.Paginated[dto.AccessibleOidcClientDto]{
 		Data:       clients,
 		Pagination: pagination,
 	})
+	return nil
 }
 
 // getClientPreviewHandler godoc
@@ -486,24 +471,21 @@ func (oc *OidcController) listOwnAccessibleClientsHandler(c *gin.Context) {
 // @Success 200 {object} dto.OidcClientPreviewDto "Preview data including ID token, access token, and userinfo payloads"
 // @Security BearerAuth
 // @Router /api/oidc/clients/{id}/preview/{userId} [get]
-func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
+func (oc *OidcController) getClientPreviewHandler(c *gin.Context) error {
 	clientID := c.Param("id")
 	userID := c.Param("userId")
 	scopes := c.Query("scopes")
 
 	if clientID == "" {
-		_ = c.Error(&common.ValidationError{Message: "client ID is required"})
-		return
+		return apperror.MissingField("clientId")
 	}
 
 	if userID == "" {
-		_ = c.Error(&common.ValidationError{Message: "user ID is required"})
-		return
+		return apperror.MissingField("userId")
 	}
 
 	if scopes == "" {
-		_ = c.Error(&common.ValidationError{Message: "scopes are required"})
-		return
+		return apperror.MissingField("scopes")
 	}
 
 	preview, err := oc.oidcService.GetClientPreview(
@@ -514,11 +496,11 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 		c.GetString("authenticationMethod"))
 
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, preview)
+	return nil
 }
 
 // getClientScimServiceProviderHandler godoc
@@ -529,20 +511,19 @@ func (oc *OidcController) getClientPreviewHandler(c *gin.Context) {
 // @Param id path string true "Client ID"
 // @Success 200 {object} dto.ScimServiceProviderDTO "SCIM service provider configuration"
 // @Router /api/oidc/clients/{id}/scim-service-provider [get]
-func (oc *OidcController) getClientScimServiceProviderHandler(c *gin.Context) {
+func (oc *OidcController) getClientScimServiceProviderHandler(c *gin.Context) error {
 	clientID := c.Param("id")
 
 	provider, err := oc.oidcService.GetClientScimServiceProvider(c.Request.Context(), clientID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var providerDto dto.ScimServiceProviderDTO
 	if err := dto.MapStruct(provider, &providerDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, providerDto)
+	return nil
 }

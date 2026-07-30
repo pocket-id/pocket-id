@@ -1,11 +1,9 @@
 package middleware
 
 import (
-	"errors"
-
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/apikey"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -88,8 +86,8 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 			return
 		}
 
-		// If JWT auth failed and the error is not a NotSignedInError, abort the request
-		if !errors.Is(err, &common.NotSignedInError{}) {
+		// If JWT auth failed for a reason other than missing credentials, abort the request
+		if !apperror.IsCode(err, apperror.CodeNotSignedIn) {
 			c.Abort()
 			_ = c.Error(err)
 			return
@@ -103,7 +101,7 @@ func (m *AuthMiddleware) Add() gin.HandlerFunc {
 
 			c.Abort()
 			if c.GetHeader("X-API-Key") != "" {
-				_ = c.Error(&common.APIKeyAuthNotAllowedError{})
+				_ = c.Error(apperror.APIKeyAuthNotAllowed())
 				return
 			}
 			_ = c.Error(err)

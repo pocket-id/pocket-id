@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"gorm.io/gorm"
@@ -62,6 +64,10 @@ func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, user
 		tx.Rollback()
 	}()
 
+	if err := ensureCustomClaimOwnerExists(ctx, tx, UserID, userID); err != nil {
+		return nil, err
+	}
+
 	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserID, userID, claims, tx)
 	if err != nil {
 		return nil, err
@@ -82,6 +88,10 @@ func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context,
 		tx.Rollback()
 	}()
 
+	if err := ensureCustomClaimOwnerExists(ctx, tx, UserGroupID, userGroupID); err != nil {
+		return nil, err
+	}
+
 	updatedClaims, err := s.updateCustomClaimsInternal(ctx, UserGroupID, userGroupID, claims, tx)
 	if err != nil {
 		return nil, err
@@ -95,13 +105,40 @@ func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context,
 	return updatedClaims, nil
 }
 
+func ensureCustomClaimOwnerExists(ctx context.Context, tx *gorm.DB, ownerType idType, ownerID string) error {
+	var (
+		target   any
+		notFound error
+	)
+	switch ownerType {
+	case UserID:
+		target = &model.User{}
+		notFound = apperror.UserNotFound()
+	case UserGroupID:
+		target = &model.UserGroup{}
+		notFound = apperror.NotFound("User group")
+	default:
+		return fmt.Errorf("unsupported custom claim owner type %q", ownerType)
+	}
+
+	err := tx.WithContext(ctx).
+		Select("id").
+		First(target, "id = ?", ownerID).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return notFound
+	}
+
+	return err
+}
+
 // updateCustomClaimsInternal updates the custom claims for a user or user group within a transaction
 func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idType idType, value string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
 	// Check for duplicate keys in the claims slice
 	seenKeys := make(map[string]struct{})
 	for _, claim := range claims {
 		if _, ok := seenKeys[claim.Key]; ok {
-			return nil, &common.DuplicateClaimError{Key: claim.Key}
+			return nil, apperror.DuplicateClaim(claim.Key)
 		}
 		seenKeys[claim.Key] = struct{}{}
 	}
@@ -140,7 +177,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 	// Add or update claims
 	for _, claim := range claims {
 		if isReservedClaim(claim.Key) {
-			return nil, &common.ReservedClaimError{Key: claim.Key}
+			return nil, apperror.ReservedClaim(claim.Key)
 		}
 		customClaim := model.CustomClaim{
 			Key:   claim.Key,

@@ -44,6 +44,10 @@ linters:
     - unused
     - usestdlibvars
     - zerologlint
+  settings:
+    gosec:
+      excludes:
+        - G101
   exclusions:
     generated: lax
     presets:

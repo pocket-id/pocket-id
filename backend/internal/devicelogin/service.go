@@ -11,7 +11,7 @@ import (
 	"github.com/italypaleale/francis/actor"
 	"gorm.io/gorm"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -154,7 +154,7 @@ func (s *Service) Decide(ctx context.Context, code, decision, userID, reauthenti
 
 func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddress, userAgent string, sessionDuration time.Duration) (dto.UserDto, string, RequestStatus, error) {
 	if requestID == "" || deviceToken == "" || sessionDuration <= 0 {
-		return dto.UserDto{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+		return dto.UserDto{}, "", "", apperror.DeviceLoginRequestInvalidOrExpired()
 	}
 
 	deviceTokenHash := utils.CreateSha256Hash(deviceToken)
@@ -212,9 +212,9 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 		case RequestStatusPending:
 			// no-op
 		case RequestStatusDenied:
-			return dto.UserDto{}, "", result.Status, &common.DeviceLoginDeniedError{}
+			return dto.UserDto{}, "", result.Status, apperror.DeviceLoginDenied()
 		default:
-			return dto.UserDto{}, "", "", &common.DeviceLoginRequestInvalidOrExpiredError{}
+			return dto.UserDto{}, "", "", apperror.DeviceLoginRequestInvalidOrExpired()
 		}
 
 		select {
@@ -230,7 +230,7 @@ func (s *Service) Exchange(ctx context.Context, requestID, deviceToken, ipAddres
 
 func (s *Service) consumeReauthenticationProof(ctx context.Context, token, userID string) error {
 	if token == "" {
-		return &common.ReauthenticationRequiredError{}
+		return apperror.ReauthenticationRequired()
 	}
 
 	tx := s.db.WithContext(ctx).Begin()
@@ -241,14 +241,13 @@ func (s *Service) consumeReauthenticationProof(ctx context.Context, token, userI
 
 	reauthenticatedAt, err := s.reauth.ConsumeReauthenticationToken(ctx, tx, token, userID)
 	if err != nil {
-		var reauthenticationRequiredError *common.ReauthenticationRequiredError
-		if errors.As(err, &reauthenticationRequiredError) {
-			return &common.ReauthenticationRequiredError{}
+		if apperror.IsCode(err, apperror.CodeReauthenticationRequired) {
+			return apperror.ReauthenticationRequired()
 		}
 		return err
 	}
 	if time.Since(reauthenticatedAt) > reauthenticationMaxAge {
-		return &common.ReauthenticationRequiredError{}
+		return apperror.ReauthenticationRequired()
 	}
 
 	if err = tx.Commit().Error; err != nil {
@@ -262,11 +261,11 @@ func (s *Service) loadExchangeUser(ctx context.Context, userID string) (model.Us
 	err := s.db.WithContext(ctx).First(&user, "id = ?", userID).Error
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		return model.User{}, dto.UserDto{}, &common.DeviceLoginRequestInvalidOrExpiredError{}
+		return model.User{}, dto.UserDto{}, apperror.DeviceLoginRequestInvalidOrExpired()
 	case err != nil:
 		return model.User{}, dto.UserDto{}, err
 	case user.Disabled:
-		return model.User{}, dto.UserDto{}, &common.UserDisabledError{}
+		return model.User{}, dto.UserDto{}, apperror.UserDisabled()
 	}
 
 	var userDTO dto.UserDto
@@ -320,9 +319,9 @@ func actorResultError(code requestActorResultCode) error {
 	case requestActorResultCollision:
 		return errors.New("unexpected live device login actor collision")
 	case requestActorResultInvalid:
-		return &common.DeviceLoginRequestInvalidOrExpiredError{}
+		return apperror.DeviceLoginRequestInvalidOrExpired()
 	case requestActorResultDenied:
-		return &common.DeviceLoginDeniedError{}
+		return apperror.DeviceLoginDenied()
 	default:
 		return fmt.Errorf("unsupported device login actor result %q", code)
 	}

@@ -38,7 +38,7 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
@@ -142,7 +142,7 @@ func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) 
 
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	provider, err := newProvider(store, authenticator, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
+	provider, err := newProvider(store, authenticator, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       []byte("test-secret"),
