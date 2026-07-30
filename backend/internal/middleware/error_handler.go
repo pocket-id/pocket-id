@@ -118,7 +118,7 @@ func classifyError(err error) classifiedError {
 		return classifiedError{
 			code:       structuredErr.Code(),
 			status:     normalizeStatus(structuredErr.HTTPStatus()),
-			message:    structuredErr.ClientMessage(),
+			message:    capitalizeFirst(structuredErr.ClientMessage()),
 			details:    structuredErr.Details(),
 			fields:     structuredErr.Fields(),
 			retryAfter: structuredErr.RetryAfter(),

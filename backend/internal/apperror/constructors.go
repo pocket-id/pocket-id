@@ -24,7 +24,7 @@ func MissingField(field string) *Error {
 }
 
 func InvalidField(field, code, message string) *Error {
-	return Validation([]FieldError{{
+	return New(CodeValidationFailed, http.StatusBadRequest, fmt.Sprintf("%s %s", field, message)).WithFields([]FieldError{{
 		Field:   field,
 		Code:    code,
 		Message: message,

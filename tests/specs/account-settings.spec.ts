@@ -134,8 +134,8 @@ test('Email verification fails with expired token', async ({ page, context }) =>
 
 	await page.getByRole('button', { name: 'Authenticate' }).click();
 	await page.waitForURL(
-		'/settings/account?emailVerificationState=Invalid+email+verification+token'
+		'/settings/account?emailVerificationState=Email+verification+token+is+invalid'
 	);
 
-	await expect(page.getByText('Invalid email verification token')).toBeVisible();
+	await expect(page.getByText('Email verification token is invalid')).toBeVisible();
 });

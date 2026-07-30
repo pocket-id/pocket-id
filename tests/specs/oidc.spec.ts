@@ -758,7 +758,7 @@ test('Authorize client with device authorization flow with invalid code', async 
 	await page.goto('/device?user_code=invalid-code');
 
 	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'Invalid device code.' })
+		page.getByRole('paragraph').filter({ hasText: 'Device code is invalid. Please try again.' })
 	).toBeVisible();
 });
 
@@ -1098,7 +1098,7 @@ test.describe('OIDC prompt parameter', () => {
 		await expect(selectionCard).toContainText('Tim Cook');
 
 		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-			page.getByRole('button', { name: 'Sign In' }).click()
+			page.getByRole('button', { name: /sign in/i }).click()
 		);
 	});
 
@@ -1470,6 +1470,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		}
 
 		await page.getByRole('button', { name: /save/i }).click();
+		await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
 		await page.reload();
 
 		await page.getByRole('button', { name: 'Show Advanced Options' }).click();
