@@ -562,5 +562,6 @@
 	"deny": "Afvis",
 	"approve": "Godkend",
 	"or": "eller",
-	"visit_and_enter": "Besøg {url} og indtast:"
+	"visit_and_enter": "Besøg {url} og indtast:",
+	"device_login_request_expired": "Din QR-kode er udløbet. Start venligst log-in-processen forfra."
 }
