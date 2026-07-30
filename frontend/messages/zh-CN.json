@@ -562,5 +562,6 @@
 	"deny": "拒绝",
 	"approve": "批准",
 	"or": "或",
-	"visit_and_enter": "请访问 {url} 并输入："
+	"visit_and_enter": "请访问 {url} 并输入：",
+	"device_login_request_expired": "您的二维码已过期。请重新开始登录流程。"
 }
