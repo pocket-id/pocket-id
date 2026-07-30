@@ -562,5 +562,6 @@
 	"deny": "Förneka",
 	"approve": "Godkänn",
 	"or": "eller",
-	"visit_and_enter": "Besök {url} och ange:"
+	"visit_and_enter": "Besök {url} och ange:",
+	"device_login_request_expired": "Din QR-kod har gått ut. Vänligen börja inloggningsprocessen på nytt."
 }
