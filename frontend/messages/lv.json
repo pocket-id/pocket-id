@@ -562,5 +562,6 @@
 	"deny": "Noliegt",
 	"approve": "Apstiprināt",
 	"or": "vai",
-	"visit_and_enter": "Apmeklējiet vietni {url} un ievadiet:"
+	"visit_and_enter": "Apmeklējiet vietni {url} un ievadiet:",
+	"device_login_request_expired": "Jūsu QR-kods ir zaudējis derīgumu. Lūdzu, sāciet pieteikšanās procesu no jauna."
 }
