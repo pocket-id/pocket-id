@@ -562,5 +562,6 @@
 	"deny": "Odrzuć",
 	"approve": "Zatwierdź",
 	"or": "albo",
-	"visit_and_enter": "Wejdź na stronę {url} i wpisz:"
+	"visit_and_enter": "Wejdź na stronę {url} i wpisz:",
+	"device_login_request_expired": "Twój kod QR stracił ważność. Rozpocznij proces logowania od nowa."
 }
