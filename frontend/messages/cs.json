@@ -562,5 +562,6 @@
 	"deny": "Odmítnout",
 	"approve": "Schválit",
 	"or": "nebo",
-	"visit_and_enter": "Navštivte stránku {url} a zadejte:"
+	"visit_and_enter": "Navštivte stránku {url} a zadejte:",
+	"device_login_request_expired": "Platnost vašeho QR kódu vypršela. Zahajte prosím proces přihlášení znovu."
 }
