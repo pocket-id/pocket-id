@@ -562,5 +562,6 @@
 	"deny": "拒絕",
 	"approve": "批准",
 	"or": "或",
-	"visit_and_enter": "請造訪 {url} 並輸入："
+	"visit_and_enter": "請造訪 {url} 並輸入：",
+	"device_login_request_expired": "您的 QR 碼已過期。請重新開始登入程序。"
 }
