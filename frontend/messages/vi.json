@@ -562,5 +562,6 @@
 	"deny": "Từ chối",
 	"approve": "Phê duyệt",
 	"or": "hoặc",
-	"visit_and_enter": "Hãy truy cập trang web {url} và nhập:"
+	"visit_and_enter": "Hãy truy cập trang web {url} và nhập:",
+	"device_login_request_expired": "Mã QR của bạn đã hết hạn. Vui lòng thực hiện lại quy trình đăng nhập."
 }
