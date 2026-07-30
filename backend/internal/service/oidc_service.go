@@ -784,7 +784,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 	if errors.Is(err, utils.ErrSizeExceeded) {
 		return apperror.LogoTooLarge("2 MB")
 	} else if err != nil {
-		return err
+		return apperror.LogoDownloadFailed(err)
 	}
 
 	err = s.updateClientLogoType(ctx, clientID, ext, light)

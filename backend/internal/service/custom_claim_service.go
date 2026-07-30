@@ -64,6 +64,7 @@ func (s *CustomClaimService) UpdateCustomClaimsForUser(ctx context.Context, user
 		tx.Rollback()
 	}()
 
+	// Reject missing owners before replacing claims so invalid IDs cannot appear successful
 	if err := ensureCustomClaimOwnerExists(ctx, tx, UserID, userID); err != nil {
 		return nil, err
 	}
@@ -88,6 +89,7 @@ func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context,
 		tx.Rollback()
 	}()
 
+	// Reject missing owners before replacing claims so invalid IDs cannot appear successful
 	if err := ensureCustomClaimOwnerExists(ctx, tx, UserGroupID, userGroupID); err != nil {
 		return nil, err
 	}
@@ -106,6 +108,7 @@ func (s *CustomClaimService) UpdateCustomClaimsForUserGroup(ctx context.Context,
 }
 
 func ensureCustomClaimOwnerExists(ctx context.Context, tx *gorm.DB, ownerType idType, ownerID string) error {
+	// Select the owner model and corresponding client-safe not-found error
 	var (
 		target   any
 		notFound error
@@ -121,6 +124,7 @@ func ensureCustomClaimOwnerExists(ctx context.Context, tx *gorm.DB, ownerType id
 		return fmt.Errorf("unsupported custom claim owner type %q", ownerType)
 	}
 
+	// Verify the owner in the active transaction before changing its claims
 	err := tx.WithContext(ctx).
 		Select("id").
 		First(target, "id = ?", ownerID).
@@ -132,9 +136,9 @@ func ensureCustomClaimOwnerExists(ctx context.Context, tx *gorm.DB, ownerType id
 	return err
 }
 
-// updateCustomClaimsInternal updates the custom claims for a user or user group within a transaction
+// updateCustomClaimsInternal keeps claim replacements within the caller's transaction
 func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idType idType, value string, claims []dto.CustomClaimCreateDto, tx *gorm.DB) ([]model.CustomClaim, error) {
-	// Check for duplicate keys in the claims slice
+	// Reject duplicate keys before changing persisted claims
 	seenKeys := make(map[string]struct{})
 	for _, claim := range claims {
 		if _, ok := seenKeys[claim.Key]; ok {
@@ -153,7 +157,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 		return nil, err
 	}
 
-	// Delete claims that are not in the new list
+	// Remove stale claims before applying the requested replacement set
 	for _, existingClaim := range existingClaims {
 		found := false
 		for _, claim := range claims {
@@ -174,7 +178,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 		}
 	}
 
-	// Add or update claims
+	// Reject reserved keys and persist each requested claim
 	for _, claim := range claims {
 		if isReservedClaim(claim.Key) {
 			return nil, apperror.ReservedClaim(claim.Key)
@@ -191,7 +195,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 			customClaim.UserGroupID = &value
 		}
 
-		// Update the claim if it already exists or create a new one
+		// Preserve claim identity when updating an existing owner and key pair
 		err = tx.
 			WithContext(ctx).
 			Where(string(idType)+" = ? AND key = ?", value, claim.Key).
@@ -203,7 +207,7 @@ func (s *CustomClaimService) updateCustomClaimsInternal(ctx context.Context, idT
 		}
 	}
 
-	// Get the updated claims
+	// Return the persisted replacement set to the caller
 	var updatedClaims []model.CustomClaim
 	err = tx.
 		WithContext(ctx).

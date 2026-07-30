@@ -20,6 +20,7 @@ func (m *FileSizeLimitMiddleware) Add(maxSize int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSize)
 		if err := c.Request.ParseMultipartForm(maxSize); err != nil {
+			// Classify only size-limit failures as file_too_large so malformed multipart bodies remain invalid requests
 			var maxBytesError *http.MaxBytesError
 			if errors.As(err, &maxBytesError) || errors.Is(err, multipart.ErrMessageTooLarge) {
 				err = apperror.FileTooLarge(formatFileSize(maxSize))

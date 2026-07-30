@@ -24,6 +24,8 @@ var validateClientIDRegex = regexp.MustCompile("^[a-zA-Z0-9._-]+$")
 
 func init() {
 	engine := binding.Validator.Engine().(*validator.Validate)
+
+	// Use JSON tags to keep client-visible validation field names stable
 	engine.RegisterTagNameFunc(func(field reflect.StructField) string {
 		name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
 		if name == "" || name == "-" {
