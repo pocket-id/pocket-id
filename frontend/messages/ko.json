@@ -46,7 +46,7 @@
 	"webauthn_error_invalid_rp_id": "구성된 신뢰 당사자 ID가 유효하지 않습니다.",
 	"webauthn_error_invalid_domain": "구성된 도메인이 유효하지 않습니다.",
 	"contact_administrator_to_fix": "이 문제를 해결하려면 관리자에게 문의하십시오.",
-	"webauthn_operation_not_allowed_or_timed_out": "작업이 허용되지 않았거나 시간 초과되었습니다.",
+	"webauthn_operation_not_allowed_or_timed_out": "작업이 허용되지 않았거나 시간 초과되었습니다",
 	"webauthn_not_supported_by_browser": "이 브라우저에서는 패스키를 지원하지 않습니다. 다른 로그인 방법을 사용해 주세요.",
 	"critical_error_occurred_contact_administrator": "치명적인 오류가 발생했습니다. 관리자에게 연락해주세요.",
 	"sign_in_to": "{name}에 로그인",
