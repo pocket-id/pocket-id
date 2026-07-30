@@ -562,5 +562,6 @@
 	"deny": "Negare",
 	"approve": "Approva",
 	"or": "oppure",
-	"visit_and_enter": "Visita il sito {url} e inserisci:"
+	"visit_and_enter": "Visita il sito {url} e inserisci:",
+	"device_login_request_expired": "Il tuo codice QR è scaduto. Ricomincia la procedura di accesso."
 }
