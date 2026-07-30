@@ -562,5 +562,6 @@
 	"deny": "拒否する",
 	"approve": "承認する",
 	"or": "または",
-	"visit_and_enter": "{url} にアクセスし、以下を入力してください："
+	"visit_and_enter": "{url} にアクセスし、以下を入力してください：",
+	"device_login_request_expired": "QRコードの有効期限が切れています。サインインの手順を最初からやり直してください。"
 }
