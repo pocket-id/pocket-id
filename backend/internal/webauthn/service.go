@@ -26,6 +26,9 @@ const authenticationMethodPhishingResistant = "phr"
 
 const defaultRPDisplayName = "Pocket ID"
 
+// go-webauthn exposes the missing user-verification reason only through DevInfo
+const missingUserVerificationErrorInfo = "User verification required but flag not set by authenticator"
+
 type Service struct {
 	db       *gorm.DB
 	webAuthn *gowebauthn.WebAuthn
@@ -166,7 +169,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, user
 
 	credential, err := s.webAuthn.FinishRegistration(&user, session, r)
 	if err != nil {
-		return model.WebauthnCredential{}, apperror.InvalidWebAuthnResponse(err)
+		return model.WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
 	}
 
 	// Determine passkey name using AAGUID and User-Agent
@@ -283,7 +286,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		if userLookupErr != nil && !errors.Is(userLookupErr, gorm.ErrRecordNotFound) {
 			return model.User{}, "", userLookupErr
 		}
-		return model.User{}, "", apperror.WebAuthnAuthenticationFailed(err)
+		return model.User{}, "", classifyPasskeyError(err, apperror.WebAuthnAuthenticationFailed)
 	}
 	if user == nil {
 		return model.User{}, "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
@@ -507,7 +510,7 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 		if userLookupErr != nil && !errors.Is(userLookupErr, gorm.ErrRecordNotFound) {
 			return "", userLookupErr
 		}
-		return "", apperror.WebAuthnAuthenticationFailed(err)
+		return "", classifyPasskeyError(err, apperror.WebAuthnAuthenticationFailed)
 	}
 	if user == nil {
 		return "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
@@ -525,6 +528,17 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	}
 
 	return token, nil
+}
+
+func classifyPasskeyError(err error, fallback func(error) *apperror.Error) *apperror.Error {
+	var protocolError *protocol.Error
+	if errors.As(err, &protocolError) &&
+		protocolError.Type == protocol.ErrVerification.Type &&
+		protocolError.DevInfo == missingUserVerificationErrorInfo {
+		return apperror.PasskeyUserVerificationRequired(err)
+	}
+
+	return fallback(err)
 }
 
 func (s *Service) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) (time.Time, error) {

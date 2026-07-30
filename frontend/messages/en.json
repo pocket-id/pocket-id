@@ -51,6 +51,7 @@
 	"passkey_request_expired": "Your passkey request has expired",
 	"passkey_response_invalid": "We couldn't process the response from your passkey",
 	"passkey_verification_failed": "We couldn't verify your passkey",
+	"passkey_user_verification_required": "Your passkey couldn't verify you. If you're using a security key, configure a FIDO2 PIN and try again",
 	"critical_error_occurred_contact_administrator": "A critical error occurred. Please contact your administrator.",
 	"sign_in_to": "Sign in to {name}",
 	"account_selection_signin_confirmation": "Do you want to use the following account to continue to <b>{name}</b>?",

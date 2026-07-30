@@ -143,6 +143,25 @@ func TestWebAuthnDisplayNameUsesRequestConfig(t *testing.T) {
 	require.Equal(t, "Custom App", service.webAuthn.Config.RPDisplayName)
 }
 
+func TestClassifyPasskeyErrorRecognizesMissingUserVerification(t *testing.T) {
+	rpIDHash := make([]byte, 32)
+	authenticatorData := protocol.AuthenticatorData{
+		RPIDHash: rpIDHash,
+		Flags:    protocol.FlagUserPresent,
+	}
+	cause := authenticatorData.Verify(rpIDHash, nil, true, true)
+	require.Error(t, cause)
+
+	err := classifyPasskeyError(cause, apperror.WebAuthnAuthenticationFailed)
+
+	require.True(t, apperror.IsCode(err, apperror.CodePasskeyUserVerificationRequired))
+	require.ErrorIs(t, err, cause)
+
+	other := protocol.ErrVerification.WithInfo("RP Hash mismatch")
+	err = classifyPasskeyError(other, apperror.WebAuthnAuthenticationFailed)
+	require.True(t, apperror.IsCode(err, apperror.CodeWebAuthnAuthenticationFailed))
+}
+
 func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) {
 	service, err := newService(Dependencies{
 		DB:     testutils.NewDatabaseForTest(t),
