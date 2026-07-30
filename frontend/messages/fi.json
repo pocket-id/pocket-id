@@ -562,5 +562,6 @@
 	"deny": "Hylkää",
 	"approve": "Hyväksy",
 	"or": "tai",
-	"visit_and_enter": "Käy osoitteessa {url} ja kirjoita:"
+	"visit_and_enter": "Käy osoitteessa {url} ja kirjoita:",
+	"device_login_request_expired": "QR-koodisi on vanhentunut. Aloita kirjautuminen alusta."
 }
