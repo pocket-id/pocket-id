@@ -562,5 +562,6 @@
 	"deny": "Negar",
 	"approve": "Aprobar",
 	"or": "o",
-	"visit_and_enter": "Entra en {url} e introduce:"
+	"visit_and_enter": "Entra en {url} e introduce:",
+	"device_login_request_expired": "Tu código QR ha caducado. Por favor, vuelve a iniciar el proceso de inicio de sesión."
 }
