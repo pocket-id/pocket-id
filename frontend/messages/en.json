@@ -562,5 +562,6 @@
 	"deny": "Deny",
 	"approve": "Approve",
 	"or": "or",
-	"visit_and_enter": "Visit {url} and enter:"
+	"visit_and_enter": "Visit {url} and enter:",
+	"device_login_request_expired": "Your QR-Code has expired. Please start the sign-in process again."
 }

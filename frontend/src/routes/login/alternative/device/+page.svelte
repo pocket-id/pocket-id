@@ -95,6 +95,11 @@
 			}
 			// Stop retrying when the server reports a non-transient failure
 			clearTimers();
+
+			if (isAxiosError(error) && error.response?.status === 401) {
+				errorMessage = m.device_login_request_expired();
+				return;
+			}
 			errorMessage = getAxiosErrorMessage(error);
 		}
 	}
