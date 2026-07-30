@@ -562,5 +562,6 @@
 	"deny": "Ablehnen",
 	"approve": "Genehmigen",
 	"or": "oder",
-	"visit_and_enter": "Geh auf {url} und gib Folgendes ein:"
+	"visit_and_enter": "Geh auf {url} und gib Folgendes ein:",
+	"device_login_request_expired": "Dein QR-Code ist abgelaufen. Bitte starte den Anmeldevorgang erneut."
 }
