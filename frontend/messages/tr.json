@@ -562,5 +562,6 @@
 	"deny": "Reddet",
 	"approve": "Onayla",
 	"or": "veya",
-	"visit_and_enter": "{url} adresini ziyaret edin ve şunları girin:"
+	"visit_and_enter": "{url} adresini ziyaret edin ve şunları girin:",
+	"device_login_request_expired": "QR kodunuzun geçerlilik süresi dolmuştur. Lütfen oturum açma işlemini yeniden başlatın."
 }
