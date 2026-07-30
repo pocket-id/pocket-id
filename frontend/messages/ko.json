@@ -562,5 +562,6 @@
 	"deny": "거부",
 	"approve": "승인",
 	"or": "또는",
-	"visit_and_enter": "{url} 에 접속하여 다음을 입력하세요:"
+	"visit_and_enter": "{url} 에 접속하여 다음을 입력하세요:",
+	"device_login_request_expired": "귀하의 QR 코드가 만료되었습니다. 로그인 절차를 다시 시작해 주세요."
 }
