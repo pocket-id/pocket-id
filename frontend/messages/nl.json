@@ -562,5 +562,6 @@
 	"deny": "Ontkennen",
 	"approve": "Goedkeuren",
 	"or": "of",
-	"visit_and_enter": "Ga naar {url} en voer het volgende in:"
+	"visit_and_enter": "Ga naar {url} en voer het volgende in:",
+	"device_login_request_expired": "Je QR-code is verlopen. Begin alsjeblieft opnieuw met het inlogproces."
 }
