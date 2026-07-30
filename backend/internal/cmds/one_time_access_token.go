@@ -11,6 +11,7 @@ import (
 
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/instanceid"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 )
@@ -47,9 +48,19 @@ var oneTimeAccessTokenCmd = &cobra.Command{
 			return errors.New("invalid user loaded: ID is empty")
 		}
 
+		instanceID, err := instanceid.Load(cmd.Context(), db)
+		if err != nil {
+			return err
+		}
+
 		// One-time access tokens are stored in the actor state store
 		// The CLI doesn't run the full actor host, so it uses a minimal state store to persist the token directly
-		actorStore, err := bootstrap.NewActorStateStore(db, pg)
+		actorStore, err := bootstrap.NewActorStateStore(bootstrap.NewActorsOpts{
+			DB:         db,
+			Postgres:   pg,
+			EnvConfig:  &common.EnvConfig,
+			InstanceID: instanceID,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to initialize the actor state store: %w", err)
 		}
