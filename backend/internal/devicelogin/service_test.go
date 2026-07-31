@@ -81,6 +81,16 @@ type fakeAuditLogger struct {
 	entries []auditEntry
 }
 
+type fakeIPLocationResolver struct {
+	country string
+	city    string
+	err     error
+}
+
+func (f *fakeIPLocationResolver) GetLocationByIP(string) (string, string, error) {
+	return f.country, f.city, f.err
+}
+
 func (f *fakeAuditLogger) Create(_ context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, _ model.AuditLogData, _ *gorm.DB) (model.AuditLog, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -138,6 +148,8 @@ func TestRequestLifecycle(t *testing.T) {
 	require.Equal(t, request.Code, info.UserCode)
 	require.Equal(t, "192.0.2.10", info.IPAddress)
 	require.Equal(t, "Parsed Mozilla/5.0 Chrome/125.0.0.0", info.Device)
+	require.Equal(t, "Switzerland", info.Country)
+	require.Equal(t, "Zurich", info.City)
 
 	err = fixture.service.Decide(t.Context(), strings.ToLower(request.Code), "approve", user.ID, "fresh-proof")
 	require.NoError(t, err)
@@ -475,16 +487,18 @@ func newServiceFixture(t *testing.T, db *gorm.DB) serviceFixture {
 	t.Helper()
 	signer := &fakeTokenService{}
 	auditLog := &fakeAuditLogger{}
+	ipLocator := &fakeIPLocationResolver{country: "Switzerland", city: "Zurich"}
 	reauth := &fakeReauthenticationTokenConsumer{expectedValue: "fresh-proof"}
 	var module *Module
 	host := testutils.NewActorHostForTest(t, func(t *testing.T, host *local.Host) {
 		var err error
 		module, err = New(Dependencies{
-			DB:       db,
-			Actors:   host,
-			Signer:   signer,
-			AuditLog: auditLog,
-			Reauth:   reauth,
+			DB:        db,
+			Actors:    host,
+			Signer:    signer,
+			AuditLog:  auditLog,
+			IPLocator: ipLocator,
+			Reauth:    reauth,
 		})
 		require.NoError(t, err)
 	})
@@ -519,10 +533,11 @@ func assertInvalidRequestError(t *testing.T, err error) {
 
 func persistentTestDependencies(db *gorm.DB) Dependencies {
 	return Dependencies{
-		DB:       db,
-		Signer:   &fakeTokenService{},
-		AuditLog: &fakeAuditLogger{},
-		Reauth:   &fakeReauthenticationTokenConsumer{expectedValue: "fresh-proof"},
+		DB:        db,
+		Signer:    &fakeTokenService{},
+		AuditLog:  &fakeAuditLogger{},
+		IPLocator: &fakeIPLocationResolver{},
+		Reauth:    &fakeReauthenticationTokenConsumer{expectedValue: "fresh-proof"},
 	}
 }
 

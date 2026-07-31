@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Kendinizi doğrulamak için kullanabileceğiniz geçiş anahtarlarınızı yönetin.",
 	"manage_this_users_passkeys": "Bu kullanıcının şifre anahtarlarını yönet.",
 	"add_passkey": "Geçiş Anahtarı Ekle",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Geçiş anahtarı olmadan farklı bir cihazdan giriş yapmak için tek kullanımlık bir giriş kodu oluşturun.",
 	"create": "Oluştur",
 	"first_name": "İsim",
 	"last_name": "Soyadı",

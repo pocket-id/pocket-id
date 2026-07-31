@@ -23,7 +23,15 @@ func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
-func (h *handler) createToken(c *gin.Context, own bool) {
+// createTokenForUser godoc
+// @Summary Create one-time access token for user (admin)
+// @Description Generate a one-time access token for a specific user (admin only)
+// @Tags Users
+// @Param id path string true "User ID"
+// @Param body body tokenCreateDto true "Token options"
+// @Success 201 {object} object "{ \"token\": \"string\" }"
+// @Router /api/users/{id}/one-time-access-token [post]
+func (h *handler) createTokenForUser(c *gin.Context) {
 	var input tokenCreateDto
 	err := c.ShouldBindJSON(&input)
 	if err != nil {
@@ -31,21 +39,11 @@ func (h *handler) createToken(c *gin.Context, own bool) {
 		return
 	}
 
-	var (
-		userID string
-		ttl    time.Duration
-	)
-	if own {
-		// Get user ID from context and force the default TTL
-		userID = c.GetString("userID")
+	// Get the target user ID from the URL and apply the default expiration when no TTL is provided
+	userID := c.Param("id")
+	ttl := input.TTL.Duration
+	if ttl <= 0 {
 		ttl = defaultTokenDuration
-	} else {
-		// Get user ID from URL parameter, and optional TTL from body
-		userID = c.Param("id")
-		ttl = input.TTL.Duration
-		if ttl <= 0 {
-			ttl = defaultTokenDuration
-		}
 	}
 	if userID == "" {
 		_ = c.Error(&common.UserIdNotProvidedError{})
@@ -59,29 +57,6 @@ func (h *handler) createToken(c *gin.Context, own bool) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"token": token})
-}
-
-// createOwnToken godoc
-// @Summary Create one-time access token for current user
-// @Description Generate a one-time access token for the currently authenticated user
-// @Tags Users
-// @Param body body tokenCreateDto true "Token options"
-// @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Router /api/users/me/one-time-access-token [post]
-func (h *handler) createOwnToken(c *gin.Context) {
-	h.createToken(c, true)
-}
-
-// createTokenForUser godoc
-// @Summary Create one-time access token for user (admin)
-// @Description Generate a one-time access token for a specific user (admin only)
-// @Tags Users
-// @Param id path string true "User ID"
-// @Param body body tokenCreateDto true "Token options"
-// @Success 201 {object} object "{ \"token\": \"string\" }"
-// @Router /api/users/{id}/one-time-access-token [post]
-func (h *handler) createTokenForUser(c *gin.Context) {
-	h.createToken(c, false)
 }
 
 // requestEmailAsUnauthenticatedUser godoc

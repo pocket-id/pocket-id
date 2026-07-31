@@ -13,6 +13,8 @@ export type DeviceLoginVerificationInfo = {
 	userCode: string;
 	device: string;
 	ipAddress?: string;
+	country?: string;
+	city?: string;
 	expiresAt: string;
 };
 

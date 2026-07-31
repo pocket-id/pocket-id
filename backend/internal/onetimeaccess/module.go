@@ -67,9 +67,8 @@ func New(deps Dependencies) (*Module, error) {
 }
 
 // RegisterRoutes mounts the one-time access token endpoints
-// auth guards the admin routes and ownAuth the current user's own token, while the rate limiters throttle the public exchange and email endpoints
-func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth, ownAuth, exchangeRateLimit, emailRateLimit gin.HandlerFunc) {
-	apiGroup.POST("/users/me/one-time-access-token", ownAuth, m.handler.createOwnToken)
+// auth guards the admin routes, while the rate limiters throttle the public exchange and email endpoints
+func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth, exchangeRateLimit, emailRateLimit gin.HandlerFunc) {
 	apiGroup.POST("/users/:id/one-time-access-token", auth, m.handler.createTokenForUser)
 	apiGroup.POST("/users/:id/one-time-access-email", auth, m.handler.requestEmailAsAdmin)
 	apiGroup.POST("/one-time-access-token/:token", exchangeRateLimit, m.handler.exchangeToken)

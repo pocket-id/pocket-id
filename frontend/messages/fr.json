@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Gérez vos clés d'accès que vous pouvez utiliser pour vous authentifier.",
 	"manage_this_users_passkeys": "Gérer les mots de passe de cet utilisateur.",
 	"add_passkey": "Ajouter une clé d'accès",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Créez un code de connexion unique pour vous connecter depuis un autre appareil sans mot de passe.",
 	"create": "Créer",
 	"first_name": "Prénom",
 	"last_name": "Nom",

@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Zarządzaj swoimi kluczami, których możesz użyć do uwierzytelnienia siebie.",
 	"manage_this_users_passkeys": "Zarządzaj kluczami dostępu tego użytkownika.",
 	"add_passkey": "Dodaj klucz",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Utwórz jednorazowy kod logowania, aby zalogować się z innego urządzenia bez klucza.",
 	"create": "Utwórz",
 	"first_name": "Imię",
 	"last_name": "Nazwisko",

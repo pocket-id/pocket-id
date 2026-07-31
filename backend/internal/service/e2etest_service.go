@@ -50,7 +50,6 @@ type TestService struct {
 	appConfigService *appconfig.AppConfigService
 	ldapService      *LdapService
 	fileStorage      storage.FileStorage
-	appLockService   *AppLockService
 	externalIdPKey   jwk.Key
 }
 
@@ -64,14 +63,13 @@ const (
 	e2eEmailVerificationToken          = "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup"
 )
 
-func NewTestService(db *gorm.DB, actors *local.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapService *LdapService, appLockService *AppLockService, fileStorage storage.FileStorage) (*TestService, error) {
+func NewTestService(db *gorm.DB, actors *local.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapService *LdapService, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		actors:           actors,
 		appConfigService: appConfigService,
 		jwtService:       jwtService,
 		ldapService:      ldapService,
-		appLockService:   appLockService,
 		fileStorage:      fileStorage,
 	}
 	err := s.initExternalIdP()
@@ -744,11 +742,6 @@ func (s *TestService) ResetAppConfig(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (s *TestService) ResetLock(ctx context.Context) error {
-	_, err := s.appLockService.Acquire(ctx, true)
-	return err
 }
 
 // SyncLdap triggers an LDAP synchronization

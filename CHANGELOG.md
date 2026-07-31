@@ -1,3 +1,50 @@
+## v2.12.0
+
+### Bug Fixes
+
+- sync group membership for users added at creation time ([#1600](https://github.com/pocket-id/pocket-id/pull/1600) by @ItalyPaleAle)
+- relax Francis DB usage while HA is still WIP ([#1602](https://github.com/pocket-id/pocket-id/pull/1602) by @ItalyPaleAle)
+- honor webauthn user verification setting ([0983e91](https://github.com/pocket-id/pocket-id/commit/0983e911693396d8c807331ed867be5369f501f2) by @stonith404)
+- horizontal shadow of cards in light mode cut off ([599f7d1](https://github.com/pocket-id/pocket-id/commit/599f7d118df0225abf96429c42c26d7c627942a3) by @stonith404)
+- datatype mismatch between postgres and sqlite causes import to fail ([ad06ea6](https://github.com/pocket-id/pocket-id/commit/ad06ea6e008ea61edd5a84df0fbab3125ff047c7) by @stonith404)
+- show only accessible clients on "My Apps" page ([e10f66c](https://github.com/pocket-id/pocket-id/commit/e10f66c07a8f4a8d42a03bb7edda14d4bf9ba31d) by @stonith404)
+- autofocus one time input fields ([#1605](https://github.com/pocket-id/pocket-id/pull/1605) by @James18232)
+- enforce user verification for login assertions ([4743d59](https://github.com/pocket-id/pocket-id/commit/4743d5967a6b7e53d6d8c670c62f0bdea3abd4af) by @stonith404)
+- make oidc device code redemption atomic ([6bd058a](https://github.com/pocket-id/pocket-id/commit/6bd058ac46c771ff7dc133b72f42c6c341dba6f4) by @stonith404)
+- race condition in initial admin setup ([ca28ddc](https://github.com/pocket-id/pocket-id/commit/ca28ddcb04ce2905aaad0c5255caceae723cda56) by @stonith404)
+- fail early if webauthn session invalid ([968f97f](https://github.com/pocket-id/pocket-id/commit/968f97fa6174a1319bd33309bf647be3d11bd816) by @stonith404)
+
+### Features
+
+- add support for proxy protocol ([807bd9e](https://github.com/pocket-id/pocket-id/commit/807bd9e037f201ba1d87c65387091a61c5e65e54) by @stonith404)
+- add declaritive user id configuration ([#1622](https://github.com/pocket-id/pocket-id/pull/1622) by @schnz)
+- migrate one-time and signup tokens to an actor ([#1611](https://github.com/pocket-id/pocket-id/pull/1611) by @ItalyPaleAle)
+- add support for declaritive client secret configuration ([#1619](https://github.com/pocket-id/pocket-id/pull/1619) by @schnz)
+- add qr code alternative sign in method ([#1594](https://github.com/pocket-id/pocket-id/pull/1594) by @stonith404)
+- migrate app locks to Francis ([#1624](https://github.com/pocket-id/pocket-id/pull/1624) by @ItalyPaleAle)
+- drop user initiated one time access token login method ([0c27f73](https://github.com/pocket-id/pocket-id/commit/0c27f733b95de63855264327443cc65cf2ccefba) by @stonith404)
+- display country and city on qr code login approval screen ([9e72bc1](https://github.com/pocket-id/pocket-id/commit/9e72bc1c70506146919a21058f5e20b0f042082a) by @stonith404)
+
+### Other
+
+- Bump the "all-dependencies" group with 3 updates across multiple ecosystems ([#1599](https://github.com/pocket-id/pocket-id/pull/1599) by @dependabot[bot])
+- update AAGUIDs ([#1608](https://github.com/pocket-id/pocket-id/pull/1608) by @github-actions[bot])
+- use actors for db configuration ([#1604](https://github.com/pocket-id/pocket-id/pull/1604) by @ItalyPaleAle)
+- remove not used permissions ([942bb3b](https://github.com/pocket-id/pocket-id/commit/942bb3be2e92bd7b6bf1d89c40cab49544194d43) by @stonith404)
+- upgrade vulnerable dependencies ([f6b02ef](https://github.com/pocket-id/pocket-id/commit/f6b02efe4542cd3a57ba222c42fafe1e968a32d8) by @stonith404)
+- fix missing data in `database.json` ([6e859de](https://github.com/pocket-id/pocket-id/commit/6e859de2dd55dfc59d9cde3fab5d7a9789c6aca9) by @stonith404)
+- Bump the "all-dependencies" group with 3 updates across multiple ecosystems ([#1621](https://github.com/pocket-id/pocket-id/pull/1621) by @dependabot[bot])
+- use `NewTextHandler` instead  of `NewHandler` for tint ([8563934](https://github.com/pocket-id/pocket-id/commit/8563934fd5d410c13e9ff58e56a07bef0ea22726) by @stonith404)
+- run unit tests on windows and linux ([31d62c6](https://github.com/pocket-id/pocket-id/commit/31d62c65e59f184d13aeef74860839665c183c78) by @stonith404)
+- correctly close filesystems ([6bd4679](https://github.com/pocket-id/pocket-id/commit/6bd4679bab03e16b85a0591d2c95ebdd530cf785) by @stonith404)
+- modularize email module and use actor for email verification ([#1625](https://github.com/pocket-id/pocket-id/pull/1625) by @stonith404)
+- pin version of fosite fork ([91d3712](https://github.com/pocket-id/pocket-id/commit/91d37126fa916932a1097a4a60c161965aa24e50) by @stonith404)
+- translations remove unused translation strings ([d5eb3fe](https://github.com/pocket-id/pocket-id/commit/d5eb3fe62c5ddbfd7f2bc5c116f755dccd40d6b4) by @stonith404)
+- enforce eslint rules ([9060291](https://github.com/pocket-id/pocket-id/commit/9060291475aaadb5be2149213cfb647bb8381247) by @stonith404)
+- upgrade vulnerable dependencies ([0c5e014](https://github.com/pocket-id/pocket-id/commit/0c5e0149cd070b39e5da7722471885432d5b5452) by @stonith404)
+
+**Full Changelog**: https://github.com/pocket-id/pocket-id/compare/v2.11.0...v2.12.0
+
 ## v2.11.0
 
 ### Bug Fixes

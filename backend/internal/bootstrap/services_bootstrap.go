@@ -38,7 +38,6 @@ type services struct {
 	ldapService        *service.LdapService
 	versionService     *service.VersionService
 	fileStorage        storage.FileStorage
-	appLockService     *service.AppLockService
 
 	apiKeyModule            *apikey.Module
 	deviceLoginModule       *devicelogin.Module
@@ -74,7 +73,6 @@ func initServices(
 
 	svc.fileStorage = fileStorage
 	svc.appImagesService = service.NewAppImagesService(imageExtensions, fileStorage)
-	svc.appLockService = service.NewAppLockService(db)
 
 	svc.emailModule, err = email.New(db)
 	if err != nil {
@@ -106,6 +104,7 @@ func initServices(
 		Signer:    svc.jwtService,
 		Reauth:    svc.webauthnModule,
 		AuditLog:  svc.auditLogService,
+		IPLocator: svc.geoLiteService,
 		AppConfig: svc.appConfigService,
 	})
 	if err != nil {

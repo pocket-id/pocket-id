@@ -11,8 +11,7 @@
   "dependencies": {
     "@react-email/components": "1.0.12",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "tailwind-merge": "^3.6.0"
+    "react-dom": "^19.2.6"
   },
   "devDependencies": {
     "@react-email/preview-server": "5.2.10",

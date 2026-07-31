@@ -6,6 +6,7 @@
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
+	import appConfigStore from '$lib/stores/application-configuration-store';
 	import userStore from '$lib/stores/user-store.js';
 	import { getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
@@ -18,8 +19,10 @@
 	let error: string | undefined = $state();
 	let backHref = $state('/login/alternative');
 
-	let longCodeRequested = $state(code.length > 6);
-	let showLongCodeOption = $state(true);
+	let longCodeRequested = $state(
+		code.length > 6 || !$appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled
+	);
+	let showLongCodeOption = $state($appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled);
 	let codeComplete = $derived(longCodeRequested ? code.length === 16 : code.length === 6);
 
 	const userService = new UserService();

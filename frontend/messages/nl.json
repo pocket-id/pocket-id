@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Beheer de passkeys waarmee je jezelf kunt verifiëren.",
 	"manage_this_users_passkeys": "Beheer de toegangscodes van deze gebruiker.",
 	"add_passkey": "Passkey toevoegen",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Maak een eenmalige inlogcode aan om in te loggen vanaf een ander apparaat zonder passkey.",
 	"create": "Aanmaken",
 	"first_name": "Voornaam",
 	"last_name": "Achternaam",

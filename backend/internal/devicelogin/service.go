@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	RequestDuration        = 15 * time.Minute
+	RequestDuration        = 5 * time.Minute
 	PollingInterval        = 3
 	longPollingDuration    = 25 * time.Second
 	actorPollingInterval   = 2 * time.Second
@@ -35,22 +36,26 @@ type Service struct {
 	signer     TokenService
 	reauth     ReauthenticationTokenConsumer
 	auditLog   AuditLogger
+	ipLocator  IPLocationResolver
 }
 
 type VerificationInfo struct {
 	UserCode  string
 	Device    string
 	IPAddress string
+	Country   string
+	City      string
 	ExpiresAt datatype.DateTime
 }
 
-func NewService(actService *actor.Service, db *gorm.DB, signer TokenService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger) *Service {
+func NewService(actService *actor.Service, db *gorm.DB, signer TokenService, reauth ReauthenticationTokenConsumer, auditLog AuditLogger, ipLocator IPLocationResolver) *Service {
 	return &Service{
 		actService: actService,
 		db:         db,
 		signer:     signer,
 		reauth:     reauth,
 		auditLog:   auditLog,
+		ipLocator:  ipLocator,
 	}
 }
 
@@ -111,10 +116,17 @@ func (s *Service) Inspect(ctx context.Context, code string) (VerificationInfo, e
 		return VerificationInfo{}, err
 	}
 
+	country, city, err := s.ipLocator.GetLocationByIP(result.IPAddress)
+	if err != nil {
+		slog.WarnContext(ctx, "Failed to get device login request IP location", slog.String("ip", result.IPAddress), slog.Any("error", err))
+	}
+
 	return VerificationInfo{
 		UserCode:  result.UserCode,
 		Device:    s.auditLog.DeviceStringFromUserAgent(result.UserAgent),
 		IPAddress: result.IPAddress,
+		Country:   country,
+		City:      city,
 		ExpiresAt: datatype.DateTime(result.ExpiresAt),
 	}, nil
 }

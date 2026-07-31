@@ -24,5 +24,7 @@ type verificationInfoDto struct {
 	UserCode  string            `json:"userCode"`
 	Device    string            `json:"device"`
 	IPAddress string            `json:"ipAddress"`
+	Country   string            `json:"country"`
+	City      string            `json:"city"`
 	ExpiresAt datatype.DateTime `json:"expiresAt"`
 }

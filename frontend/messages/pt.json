@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Gere as tuas chaves-passe que podes usar para te autenticares.",
 	"manage_this_users_passkeys": "Gerir as chaves de acesso deste utilizador.",
 	"add_passkey": "Adicionar chave-passe",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Criar um código de início de sessão único para iniciar sessão num dispositivo diferente sem uma chave-passe.",
 	"create": "Criar",
 	"first_name": "Nome próprio",
 	"last_name": "Apelido",

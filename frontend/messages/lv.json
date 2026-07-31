@@ -116,7 +116,6 @@
 	"manage_your_passkeys_that_you_can_use_to_authenticate_yourself": "Pārvaldiet savas piekļuves atslēgas, kuras varat izmantot autentifikācijai.",
 	"manage_this_users_passkeys": "Pārvaldīt šī lietotāja piekļuves atslēgas.",
 	"add_passkey": "Pievienot piekļuves atslēgu",
-	"create_a_one_time_login_code_to_sign_in_from_a_different_device_without_a_passkey": "Izveidojiet vienreizēju pieteikšanās kodu, lai pierakstītos no citas ierīces bez piekļuves atslēgas.",
 	"create": "Izveidot",
 	"first_name": "Vārds",
 	"last_name": "Uzvārds",

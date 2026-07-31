@@ -181,7 +181,6 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	)
 	svc.oneTimeAccessModule.RegisterRoutes(apiGroup,
 		authMiddleware.Add(),
-		authMiddleware.WithAdminNotRequired().Add(),
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessToken),
 		rateLimitMiddleware.Add(middleware.RateLimitOneTimeAccessEmail),
 	)
