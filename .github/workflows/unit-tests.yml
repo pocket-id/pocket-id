@@ -37,3 +37,20 @@ jobs:
       - name: Run backend unit tests
         working-directory: backend
         run: go test "-tags=exclude_frontend,unit" -v ./...
+
+  test-backend-race:
+    name: Backend (race detector)
+    runs-on: depot-ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: "backend/go.mod"
+          cache-dependency-path: "backend/go.sum"
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          go get ./...
+      - name: Run backend unit tests with the race detector
+        working-directory: backend
+        run: go test -race "-tags=exclude_frontend,unit" ./...

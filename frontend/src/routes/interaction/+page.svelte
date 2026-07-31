@@ -13,6 +13,7 @@
 	import userStore from '$lib/stores/user-store';
 	import type { InteractionStep, OidcClientMetaData } from '$lib/types/oidc.type';
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
+	import { getClientIDHost } from '$lib/utils/client-id-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { slide } from 'svelte/transition';
@@ -104,16 +105,6 @@
 			window.location.href = result.redirectUrl;
 		}
 	}
-
-	function getClientIDHost(client: OidcClientMetaData) {
-		if (client.clientType !== 'cimd') return null;
-		try {
-			const url = new URL(client.id);
-			return url.host;
-		} catch {
-			return null;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -185,7 +176,7 @@
 					<p class="text-muted-foreground text-start">
 						<FormattedMessage
 							m={m.client_wants_to_access_the_following_information({
-								client: interactionSession.client.name
+								client: getClientIDHost(interactionSession.client) ?? interactionSession.client.name
 							})}
 						/>
 					</p>

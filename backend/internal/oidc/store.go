@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"slices"
@@ -181,37 +182,70 @@ func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *
 	expiry := datatype.DateTime(expiresAt)
 	client.MetadataExpiresAt = &expiry
 
-	existing, err := s.firstClientByID(ctx, client.ID)
-	found := err == nil
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
-	}
-	if found && !existing.IsMetadataDocument() {
-		return nil, errors.New("client is already registered without a metadata document")
-	}
-	if found {
-		if changes := metadataClientChanges(existing, client.OidcClient); len(changes) > 0 {
-			slog.InfoContext(ctx, "Client metadata changed",
-				slog.String("client_id", client.ID),
-				slog.Any("changed_fields", changes),
-			)
+	var changes []string
+	var revokeConsent bool
+	var stored fosite.Client
+	err := withTx(ctx, s.db, func(ctx context.Context) error {
+		existing, err := s.firstClientByID(ctx, client.ID)
+		found := err == nil
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
 		}
-	}
-	if err := s.upsertMetadataClient(ctx, s.dbFor(ctx), &client.OidcClient, found); err != nil {
+		if found && !existing.IsMetadataDocument() {
+			return errors.New("client is already registered without a metadata document")
+		}
+		if found {
+			changes = metadataClientChanges(existing, client.OidcClient)
+			// Every detected change except the display name invalidates what the user agreed to
+			revokeConsent = slices.ContainsFunc(changes, func(field string) bool { return field != "client_name" })
+		}
+
+		// Persist the refreshed metadata and consent invalidation together so a failed deletion cannot suppress the next revocation attempt
+		if err := s.upsertMetadataClient(ctx, s.dbFor(ctx), &client.OidcClient, found); err != nil {
+			return err
+		}
+
+		// A security-relevant document change invalidates consent because it changes what the user previously approved
+		if revokeConsent {
+			err := s.dbFor(ctx).
+				Where("client_id = ?", client.ID).
+				Delete(&model.UserAuthorizedOidcClient{}).
+				Error
+			if err != nil {
+				return fmt.Errorf("failed to revoke consent after metadata change: %w", err)
+			}
+		}
+
+		// Reload inside the transaction so DB-managed columns and preloads are populated consistently
+		stored, err = s.GetClient(ctx, client.ID)
+		return err
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	// Reload so DB-managed columns and preloads are populated
-	return s.GetClient(ctx, client.ID)
+	if len(changes) > 0 {
+		slog.InfoContext(ctx, "Client metadata changed",
+			slog.String("client_id", client.ID),
+			slog.Any("changed_fields", changes),
+		)
+	}
+	if revokeConsent {
+		slog.WarnContext(ctx, "Revoked existing user consent after a security-relevant client metadata change",
+			slog.String("client_id", client.ID),
+		)
+	}
+
+	return stored, nil
 }
 
 // metadataClientChanges returns the names of security-relevant metadata fields that differ between the stored client and a freshly fetched one
 func metadataClientChanges(old, next model.OidcClient) []string {
 	var changed []string
-	if !slices.Equal([]string(old.CallbackURLs), []string(next.CallbackURLs)) {
+	if !slices.Equal([]string(old.CallbackURLs), next.CallbackURLs) {
 		changed = append(changed, "redirect_uris")
 	}
-	if !slices.Equal([]string(old.LogoutCallbackURLs), []string(next.LogoutCallbackURLs)) {
+	if !slices.Equal([]string(old.LogoutCallbackURLs), next.LogoutCallbackURLs) {
 		changed = append(changed, "post_logout_redirect_uris")
 	}
 	if old.IsPublic != next.IsPublic {
@@ -220,7 +254,17 @@ func metadataClientChanges(old, next model.OidcClient) []string {
 	if old.Name != next.Name {
 		changed = append(changed, "client_name")
 	}
+	if !slices.Equal(effectiveMetadataGrantTypes(old.MetadataGrantTypes), effectiveMetadataGrantTypes(next.MetadataGrantTypes)) {
+		changed = append(changed, "grant_types")
+	}
 	return changed
+}
+
+func effectiveMetadataGrantTypes(grantTypes datatype.StringList) []string {
+	if len(grantTypes) == 0 {
+		return []string{string(fosite.GrantTypeAuthorizationCode)}
+	}
+	return grantTypes
 }
 
 // upsertMetadataClient inserts a new managed client or updates the metadata-derived columns of an existing one, leaving consent, grants, and group links untouched
@@ -233,7 +277,8 @@ func (s *Store) upsertMetadataClient(ctx context.Context, tx *gorm.DB, client *m
 	return tx.WithContext(ctx).
 		Model(&model.OidcClient{Base: model.Base{ID: client.ID}}).
 		Select("Name", "CallbackURLs", "LogoutCallbackURLs", "Credentials",
-			"IsPublic", "PkceEnabled", "ClientType", "MetadataExpiresAt").
+			"IsPublic", "PkceEnabled", "ClientType", "MetadataExpiresAt",
+			"MetadataGrantTypes").
 		Updates(client).Error
 }
 

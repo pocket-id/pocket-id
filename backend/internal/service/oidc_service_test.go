@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -37,7 +38,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 	// Create a test client
 	client := model.OidcClient{
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://example.com/callback"},
 	}
 	err = db.Create(&client).Error
 	require.NoError(t, err)
@@ -165,7 +166,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 	// Create a test client
 	client := model.OidcClient{
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://example.com/callback"},
 	}
 	err = db.Create(&client).Error
 	require.NoError(t, err)
@@ -533,7 +534,7 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	// Create a client without a description
 	client := model.OidcClient{
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://example.com/callback"},
 	}
 	err = db.Create(&client).Error
 	require.NoError(t, err)
@@ -573,8 +574,8 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 
 	client := model.OidcClient{
 		Name:               "Metadata Client",
-		CallbackURLs:       model.UrlList{"https://metadata.example.com/callback"},
-		LogoutCallbackURLs: model.UrlList{"https://metadata.example.com/logout"},
+		CallbackURLs:       datatype.StringList{"https://metadata.example.com/callback"},
+		LogoutCallbackURLs: datatype.StringList{"https://metadata.example.com/logout"},
 		IsPublic:           true,
 		PkceEnabled:        true,
 		Credentials: model.OidcClientCredentials{
@@ -644,10 +645,10 @@ func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t
 	require.NoError(t, db.Create(&userWithoutGroup).Error)
 
 	clients := []model.OidcClient{
-		{Name: "Unrestricted", CallbackURLs: model.UrlList{"https://unrestricted.example.com/callback"}},
-		{Name: "Restricted without groups", CallbackURLs: model.UrlList{"https://empty.example.com/callback"}, IsGroupRestricted: true},
-		{Name: "Restricted to user group", CallbackURLs: model.UrlList{"https://allowed.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
-		{Name: "Restricted to other group", CallbackURLs: model.UrlList{"https://other.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{otherGroup}},
+		{Name: "Unrestricted", CallbackURLs: datatype.StringList{"https://unrestricted.example.com/callback"}},
+		{Name: "Restricted without groups", CallbackURLs: datatype.StringList{"https://empty.example.com/callback"}, IsGroupRestricted: true},
+		{Name: "Restricted to user group", CallbackURLs: datatype.StringList{"https://allowed.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
+		{Name: "Restricted to other group", CallbackURLs: datatype.StringList{"https://other.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{otherGroup}},
 	}
 	for i := range clients {
 		require.NoError(t, db.Create(&clients[i]).Error)

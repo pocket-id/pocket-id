@@ -213,8 +213,14 @@ func normalizeToURLPatternStandard(pattern string) string {
 	var result strings.Builder
 	result.Grow(len(pattern) + 5) // Add 5 for some extra capacity, hoping to avoid many re-allocations
 
-	// First, process the base
+	writeNormalizedBase(&result, patternBase)
+	writeNormalizedPath(&result, patternPath)
 
+	return result.String()
+}
+
+// writeNormalizedBase escapes the colons in the scheme and authority that urlpattern would otherwise read as wildcards
+func writeNormalizedBase(result *strings.Builder, patternBase string) {
 	// 0 = scheme
 	// 1 = hostname (optionally with username/password) - before IPv6 start (no `[` found)
 	// 2 = is matching IPv6 (until `]`)
@@ -235,6 +241,12 @@ func normalizeToURLPatternStandard(pattern string) string {
 			case '[':
 				// Start of IPv6 match
 				step = 2
+			case ':':
+				// urlpattern reads ":name" as a single-segment wildcard, but the only wildcards this package supports are * and **
+				// A colon that introduces a port is followed by a digit, so it stays structural and everything else is escaped to a literal
+				if !isPortSeparator(patternBase, i) {
+					result.WriteByte('\\')
+				}
 			}
 		case 2:
 			if patternBase[i] == '/' || patternBase[i] == ']' || patternBase[i] == '[' {
@@ -255,8 +267,10 @@ func normalizeToURLPatternStandard(pattern string) string {
 		// Write the byte
 		result.WriteByte(patternBase[i])
 	}
+}
 
-	// Next, process the path
+// writeNormalizedPath converts * and ** into the wildcards urlpattern understands, leaving every other character literal
+func writeNormalizedPath(result *strings.Builder, patternPath string) {
 	for i := 0; i < len(patternPath); i++ {
 		if patternPath[i] == '*' {
 			// Replace globstar with a single asterisk
@@ -269,11 +283,19 @@ func normalizeToURLPatternStandard(pattern string) string {
 				result.WriteString(strconv.Itoa(i))
 			}
 		} else {
+			// A literal colon in the path would otherwise be read as a ":name" wildcard
+			if patternPath[i] == ':' {
+				result.WriteByte('\\')
+			}
 			// Add the byte
 			result.WriteByte(patternPath[i])
 		}
 	}
-	return result.String()
+}
+
+// isPortSeparator reports whether the colon at index i separates the host from a port
+func isPortSeparator(s string, i int) bool {
+	return i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '9'
 }
 
 func extractPath(url string) (base string, path string) {

@@ -34,3 +34,16 @@ export function decodeClientIdParam(param: string): string {
 		return param;
 	}
 }
+
+/**
+ * Returns the host of a CIMD client's Client Identifier URL, or null for an administrator-configured client.
+ *
+ */
+export function getClientIDHost(client: { id: string; clientType?: string }): string | null {
+	if (client.clientType !== 'cimd') return null;
+	try {
+		return new URL(client.id).host;
+	} catch {
+		return null;
+	}
+}

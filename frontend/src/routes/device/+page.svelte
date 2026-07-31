@@ -6,6 +6,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as InputOTP from '$lib/components/ui/input-otp';
 	import { Spinner } from '$lib/components/ui/spinner';
+	import { getClientIDHost } from '$lib/utils/client-id-util';
 	import { m } from '$lib/paraglide/messages';
 	import DeviceLoginService from '$lib/services/device-login-service';
 	import OIDCService from '$lib/services/oidc-service';
@@ -208,7 +209,7 @@
 		<p class="text-muted-foreground mt-2">
 			<FormattedMessage
 				m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
-					client: deviceInfo.client.name,
+					client: getClientIDHost(deviceInfo.client) ?? deviceInfo.client.name,
 					appName: $appConfigStore.appName
 				})}
 			/>
@@ -220,7 +221,7 @@
 					<Card.Description class="text-start">
 						<FormattedMessage
 							m={m.client_wants_to_access_the_following_information({
-								client: deviceInfo!.client.name
+								client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name
 							})}
 						/>
 					</Card.Description>

@@ -79,7 +79,6 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 
 	store := NewStore(deps.DB, deps.APIAccess).WithIssuer(deps.Config.BaseURL)
 	cimdResolver := newCIMDClientResolver(store, cimdResolverConfig{
-		httpClient:      deps.HTTPClient,
 		getURLAllowlist: deps.GetCIMDURLAllowlist,
 		transportDecorator: func(transport http.RoundTripper) http.RoundTripper {
 			return otelhttp.NewTransport(transport)

@@ -311,6 +311,10 @@ func (s *OidcService) CreateClientSecret(ctx context.Context, clientID string, i
 		return "", err
 	}
 
+	if client.IsPublic {
+		return "", &common.ValidationError{Message: "cannot create a secret for a public client"}
+	}
+
 	clientSecret := input.Secret
 	if clientSecret == "" {
 		clientSecret, err = utils.GenerateRandomAlphanumericString(32)

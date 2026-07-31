@@ -19,6 +19,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -120,7 +121,7 @@ func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
 			require.NoError(t, db.Create(&model.OidcClient{
 				Base:         model.Base{ID: "test-client"},
 				Name:         "Test Client",
-				CallbackURLs: model.UrlList{"http://client.example.com/callback"},
+				CallbackURLs: datatype.StringList{"http://client.example.com/callback"},
 			}).Error)
 
 			provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -157,7 +158,7 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -189,7 +190,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 		IsPublic:     true,
 	}).Error)
 
@@ -222,7 +223,7 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -262,7 +263,7 @@ func TestProviderAcceptsUnsignedRequestObject(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://client.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -303,7 +304,7 @@ func TestProviderRejectsSignedRequestObject(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://client.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -446,7 +447,7 @@ func TestProviderIgnoresUnknownScopes(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://app.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://app.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
