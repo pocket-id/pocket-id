@@ -306,8 +306,6 @@
 	"client_id_metadata_documents_description": "Client ID Metadata Documents (CIMD) let OAuth clients identify themselves using a URL. No preregistration necessary.",
 	"cimd_url_allowlist": "Allowed metadata document URLs",
 	"cimd_url_allowlist_description": "Restrict which client ID metadata document URLs are accepted. <link href='https://pocket-id.org/docs/advanced/callback-url-wildcards'>Wildcards</link> are supported. An empty list blocks all URLs.",
-	"dynamic_client_retention": "Delete inactive clients after (days)",
-	"dynamic_client_retention_description": "Automatically delete dynamically registered clients whose metadata has not been refreshed within this many days. Set to 0 to disable automatic deletion.",
 	"refresh": "Refresh",
 	"oidc_client_metadata_refreshed_successfully": "Client metadata document refreshed successfully",
 	"create_new_client_secret": "Create new client secret",

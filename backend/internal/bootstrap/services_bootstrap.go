@@ -116,11 +116,9 @@ func initServices(
 	svc.apiModule = api.New(api.Dependencies{DB: db, Issuer: common.EnvConfig.AppURL})
 
 	svc.oidcModule, err = oidc.New(ctx, oidc.Dependencies{
-		DB:                        db,
-		Actors:                    actors,
-		HTTPClient:                httpClient,
-		GetCIMDURLAllowlist:       svc.appConfigService.GetCIMDURLAllowlist,
-		GetDynamicClientRetention: svc.appConfigService.GetDynamicClientRetention,
+		DB:                  db,
+		HTTPClient:          httpClient,
+		GetCIMDURLAllowlist: svc.appConfigService.GetCIMDURLAllowlist,
 		Config: oidc.Config{
 			BaseURL:                   common.EnvConfig.AppURL,
 			TokenBaseURL:              common.EnvConfig.AppURL,

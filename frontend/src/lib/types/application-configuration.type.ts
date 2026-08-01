@@ -54,7 +54,6 @@ export type AllAppConfig = AppConfig & {
 	ldapSoftDeleteUsers: boolean;
 	// OIDC
 	cimdUrlAllowlist: string[];
-	dynamicClientRetentionDays: number;
 };
 
 export type AppConfigRawResponse = {

@@ -2,14 +2,11 @@
 	import FormInput from '$lib/components/form/form-input.svelte';
 	import UrlListInput from '$lib/components/form/url-list-input.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as Field from '$lib/components/ui/field';
 	import { m } from '$lib/paraglide/messages';
 	import appConfigStore from '$lib/stores/application-configuration-store';
 	import type { AllAppConfig } from '$lib/types/application-configuration.type';
 	import { preventDefault } from '$lib/utils/event-util';
-	import { createForm } from '$lib/utils/form-util';
 	import { toast } from 'svelte-sonner';
-	import { z } from 'zod/v4';
 
 	let {
 		appConfig,
@@ -22,23 +19,11 @@
 	let cimdUrlAllowlist: string[] = $derived(appConfig.cimdUrlAllowlist || []);
 	let isLoading = $state(false);
 
-	const formSchema = z.object({
-		dynamicClientRetentionDays: z.number().int().min(0).max(36500)
-	});
-	let { inputs, ...form } = $derived(
-		createForm(formSchema, {
-			dynamicClientRetentionDays: appConfig.dynamicClientRetentionDays
-		})
-	);
-
 	async function onSubmit() {
-		const data = form.validate();
-		if (!data) return;
 		isLoading = true;
 
 		const update: Partial<AllAppConfig> = {
-			cimdUrlAllowlist: cimdUrlAllowlist.filter((u) => u.trim() !== ''),
-			dynamicClientRetentionDays: data.dynamicClientRetentionDays
+			cimdUrlAllowlist: cimdUrlAllowlist.filter((u) => u.trim() !== '')
 		};
 
 		await callback(update).finally(() => (isLoading = false));
@@ -51,12 +36,6 @@
 		<FormInput label={m.cimd_url_allowlist()} description={m.cimd_url_allowlist_description()}>
 			<UrlListInput bind:urls={cimdUrlAllowlist} testIdPrefix="cimd-url-allowlist" />
 		</FormInput>
-		<FormInput
-			label={m.dynamic_client_retention()}
-			type="number"
-			description={m.dynamic_client_retention_description()}
-			bind:input={$inputs.dynamicClientRetentionDays}
-		/>
 
 		<div class="flex justify-end pt-2">
 			<Button {isLoading} type="submit">{m.save()}</Button>
