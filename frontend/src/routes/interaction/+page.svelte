@@ -121,14 +121,16 @@
 			{errorMessage}.
 		{:else if currentStep == 'select_account' && $userStore}
 			<FormattedMessage
-				m={m.account_selection_signin_confirmation({ name: interactionSession.client.name })}
+				message={m.account_selection_signin_confirmation}
+				inputs={{ name: interactionSession.client.name }}
 			/>
 		{:else}
 			<FormattedMessage
-				m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
+				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
+				inputs={{
 					client: getClientIDHost(interactionSession.client) ?? interactionSession.client.name,
 					appName: $appConfigStore.appName
-				})}
+				}}
 			/>
 		{/if}
 	</p>
@@ -176,7 +178,7 @@
 					<p class="text-muted-foreground text-start">
 						<FormattedMessage
 							m={m.client_wants_to_access_the_following_information({
-								client: getClientIDHost(interactionSession.client) ?? interactionSession.client.name
+								client: interactionSession.client.name
 							})}
 						/>
 					</p>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import SwitchWithLabel from '$lib/components/form/switch-with-label.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Tabs from '$lib/components/ui/tabs';
@@ -187,6 +188,14 @@
 	}
 </script>
 
+{#snippet callbackUrlDescription()}
+	<FormattedMessage message={m.callback_url_description} />
+{/snippet}
+
+{#snippet logoutCallbackUrlDescription()}
+	<FormattedMessage message={m.logout_callback_url_description} />
+{/snippet}
+
 <form onsubmit={preventDefault(onSubmit)}>
 	<div class="grid grid-cols-1 gap-x-3 gap-y-7 sm:flex-row md:grid-cols-2">
 		<FormInput
@@ -211,7 +220,7 @@
 		/>
 		<OidcCallbackUrlInput
 			label={m.callback_urls()}
-			description={m.callback_url_description()}
+			description={callbackUrlDescription}
 			class="w-full"
 			bind:callbackURLs={$inputs.callbackURLs.value}
 			bind:error={$inputs.callbackURLs.error}
@@ -219,7 +228,7 @@
 		/>
 		<OidcCallbackUrlInput
 			label={m.logout_callback_urls()}
-			description={m.logout_callback_url_description()}
+			description={logoutCallbackUrlDescription}
 			class="w-full"
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
 			bind:error={$inputs.logoutCallbackURLs.error}

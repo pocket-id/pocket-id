@@ -46,9 +46,9 @@
 						<LucidePlus class="text-primary/80 size-5" />
 						{m.create_api()}
 					</Card.Title>
-					<Card.Description
-						><FormattedMessage m={m.create_a_new_api_description()} /></Card.Description
-					>
+					<Card.Description>
+						<FormattedMessage message={m.create_a_new_api_description} />
+					</Card.Description>
 				</div>
 				{#if !expandAddApi}
 					<Button class="w-full md:w-auto" onclick={() => (expandAddApi = true)}
