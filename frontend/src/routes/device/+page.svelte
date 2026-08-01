@@ -207,10 +207,11 @@
 	{:else if reauthenticationRequired && deviceInfo?.client}
 		<p class="text-muted-foreground mt-2">
 			<FormattedMessage
-				m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
+				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
+				inputs={{
 					client: deviceInfo.client.name,
 					appName: $appConfigStore.appName
-				})}
+				}}
 			/>
 		</p>
 	{:else if authorizationRequired}
@@ -219,9 +220,10 @@
 				<Card.Header>
 					<Card.Description class="text-start">
 						<FormattedMessage
-							m={m.client_wants_to_access_the_following_information({
+							message={m.client_wants_to_access_the_following_information}
+							inputs={{
 								client: deviceInfo!.client.name
-							})}
+							}}
 						/>
 					</Card.Description>
 				</Card.Header>

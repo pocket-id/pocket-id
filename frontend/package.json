@@ -14,6 +14,7 @@
 		"format": "prettier --write ."
 	},
 	"dependencies": {
+		"@inlang/paraglide-js-svelte": "^1.0.3",
 		"@opentelemetry/api": "^1.9.1",
 		"@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
 		"@opentelemetry/resources": "^2.8.0",

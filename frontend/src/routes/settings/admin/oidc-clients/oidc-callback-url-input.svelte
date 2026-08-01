@@ -16,7 +16,7 @@
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
 		label: string;
-		description: string;
+		description: string | Snippet;
 		callbackURLs: string[];
 		error?: string | null;
 		children?: Snippet;

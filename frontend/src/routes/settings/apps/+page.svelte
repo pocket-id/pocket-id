@@ -28,9 +28,10 @@
 	async function revokeAuthorizedClient(client: OidcClientMetaData) {
 		openConfirmDialog({
 			title: m.revoke_access(),
-			message: m.revoke_access_description({
-				clientName: client.name
-			}),
+			message: {
+				message: m.revoke_access_description,
+				inputs: { clientName: client.name }
+			},
 			confirm: {
 				label: m.revoke(),
 				destructive: true,

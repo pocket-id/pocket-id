@@ -1,8 +1,20 @@
 import { m } from '$lib/paraglide/messages';
 import { writable } from 'svelte/store';
+import type { AnyFormattedMessage, AnyMessage, FormattedMessageProps } from '../formatted-message';
 import ConfirmDialog from './confirm-dialog.svelte';
 
-export const confirmDialogStore = writable({
+interface ConfirmDialogState {
+	open: boolean;
+	title: string;
+	message:  string | AnyFormattedMessage;
+	confirm: {
+		label: string;
+		destructive: boolean;
+		action: () => void;
+	};
+}
+
+export const confirmDialogStore = writable<ConfirmDialogState>({
 	open: false,
 	title: '',
 	message: '',
@@ -13,13 +25,13 @@ export const confirmDialogStore = writable({
 	}
 });
 
-function openConfirmDialog({
+function openConfirmDialog<TMessage extends AnyMessage = AnyMessage>({
 	title,
 	message,
 	confirm
 }: {
 	title: string;
-	message: string;
+	message: string | FormattedMessageProps<TMessage>;
 	confirm: {
 		label?: string;
 		destructive?: boolean;

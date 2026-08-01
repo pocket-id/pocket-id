@@ -10,7 +10,11 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>{$confirmDialogStore.title}</AlertDialog.Title>
 			<AlertDialog.Description>
-				<FormattedMessage m={$confirmDialogStore.message} />
+				{#if typeof $confirmDialogStore.message === 'string'}
+					{$confirmDialogStore.message}
+				{:else}
+					<FormattedMessage {...$confirmDialogStore.message} />
+				{/if}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>

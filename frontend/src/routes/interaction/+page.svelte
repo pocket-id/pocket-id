@@ -120,14 +120,16 @@
 			{errorMessage}.
 		{:else if currentStep == 'select_account' && $userStore}
 			<FormattedMessage
-				m={m.account_selection_signin_confirmation({ name: interactionSession.client.name })}
+				message={m.account_selection_signin_confirmation}
+				inputs={{ name: interactionSession.client.name }}
 			/>
 		{:else}
 			<FormattedMessage
-				m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
+				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
+				inputs={{
 					client: interactionSession.client.name,
 					appName: $appConfigStore.appName
-				})}
+				}}
 			/>
 		{/if}
 	</p>
@@ -174,9 +176,10 @@
 				<Card.Header>
 					<p class="text-muted-foreground text-start">
 						<FormattedMessage
-							m={m.client_wants_to_access_the_following_information({
+							message={m.client_wants_to_access_the_following_information}
+							inputs={{
 								client: interactionSession.client.name
-							})}
+							}}
 						/>
 					</p>
 				</Card.Header>

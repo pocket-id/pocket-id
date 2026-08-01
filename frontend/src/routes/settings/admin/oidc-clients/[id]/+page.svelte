@@ -127,7 +127,10 @@
 	function disableGroupRestriction() {
 		openConfirmDialog({
 			title: m.unrestrict_oidc_client({ clientName: client.name }),
-			message: m.confirm_unrestrict_oidc_client_description({ clientName: client.name }),
+			message: {
+				message: m.confirm_unrestrict_oidc_client_description,
+				inputs: { clientName: client.name }
+			},
 			confirm: {
 				label: m.unrestrict(),
 				destructive: true,
@@ -373,7 +376,7 @@
 			<Card.Header>
 				<Card.Title>{m.scim_provisioning()}</Card.Title>
 				<Card.Description>
-					<FormattedMessage m={m.scim_provisioning_description()} />
+					<FormattedMessage message={m.scim_provisioning_description} />
 				</Card.Description>
 			</Card.Header>
 			<Card.Content>
