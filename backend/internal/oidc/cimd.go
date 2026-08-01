@@ -57,7 +57,22 @@ func newCIMDClientResolver(store *Store, config cimdResolverConfig) *cimdClientR
 }
 
 func (r *cimdClientResolver) ResolveClient(ctx context.Context, clientID string, next fosite.ClientLookupFunc) (fosite.Client, error) {
-	return r.resolver.ResolveClient(ctx, clientID, next)
+	if next == nil {
+		return nil, errors.New("registered client resolver is required")
+	}
+
+	// Exclude persisted metadata clients so Fosite can apply its cache policy while still giving real registrations precedence
+	registeredOnly := func(ctx context.Context, clientID string) (fosite.Client, error) {
+		client, err := next(ctx, clientID)
+		if err != nil {
+			return nil, err
+		}
+		if pocketIDClient, ok := client.(Client); ok && pocketIDClient.IsMetadataDocument() {
+			return nil, fosite.ErrNotFound
+		}
+		return client, nil
+	}
+	return r.resolver.ResolveClient(ctx, clientID, registeredOnly)
 }
 
 // RefreshMetadataClient forces a re-fetch of the metadata document for an already-cached CIMD client, bypassing the cache TTL
@@ -109,7 +124,7 @@ func (p cimdPolicy) AllowCIMDClient(_ context.Context, id string) error {
 func (cimdPolicy) ValidateCIMDClient(_ context.Context, doc *fosite.ClientMetadataDocument) error {
 	// Require public-client authentication because Pocket ID does not persist CIMD key material
 	switch doc.TokenEndpointAuthMethod {
-	case "", "none":
+	case "none":
 	default:
 		return fmt.Errorf("client metadata documents only support token_endpoint_auth_method %q, got %q", "none", doc.TokenEndpointAuthMethod)
 	}
@@ -195,7 +210,7 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 	}
 
 	switch doc.TokenEndpointAuthMethod {
-	case "", "none":
+	case "none":
 		client.IsPublic = true
 		client.PkceEnabled = true
 	default:

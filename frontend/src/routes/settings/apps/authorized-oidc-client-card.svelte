@@ -80,7 +80,8 @@
 							<DropdownMenu.Content align="end">
 								{#if $userStore?.isAdmin}
 									<DropdownMenu.Item
-										onclick={() => goto(`/settings/admin/oidc-clients/${encodeClientIdParam(client.id)}`)}
+										onclick={() =>
+											goto(`/settings/admin/oidc-clients/${encodeClientIdParam(client.id)}`)}
 										><LucidePencil class="mr-2 size-4" /> {m.edit()}</DropdownMenu.Item
 									>
 								{/if}

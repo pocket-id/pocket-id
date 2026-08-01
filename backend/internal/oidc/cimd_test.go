@@ -75,8 +75,9 @@ func TestCIMDPolicyValidate(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			err := policy.ValidateCIMDClient(t.Context(), &fosite.ClientMetadataDocument{
-				GrantTypes:    test.grantTypes,
-				ResponseTypes: test.responseTypes,
+				TokenEndpointAuthMethod: "none",
+				GrantTypes:              test.grantTypes,
+				ResponseTypes:           test.responseTypes,
 			})
 			if test.wantError == "" {
 				require.NoError(t, err)
@@ -85,6 +86,11 @@ func TestCIMDPolicyValidate(t *testing.T) {
 			require.ErrorContains(t, err, test.wantError)
 		})
 	}
+
+	t.Run("omitted authentication method is rejected", func(t *testing.T) {
+		err := policy.ValidateCIMDClient(t.Context(), &fosite.ClientMetadataDocument{})
+		require.ErrorContains(t, err, "token_endpoint_auth_method")
+	})
 }
 
 func TestMetadataClientChanges(t *testing.T) {

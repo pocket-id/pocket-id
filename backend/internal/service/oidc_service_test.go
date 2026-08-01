@@ -153,6 +153,18 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 	})
 }
 
+func TestOidcClientImagePath(t *testing.T) {
+	const metadataClientID = "https://app.example.com/oauth/client"
+
+	assert.Equal(t, "oidc-client-images/client-id.png", oidcClientImagePath("client-id", "", "png"))
+	assert.Equal(
+		t,
+		"oidc-client-images/cimd-"+utils.CreateSha256Hash(metadataClientID)+"-dark.webp",
+		oidcClientImagePath(metadataClientID, "-dark", "webp"),
+	)
+	assert.NotContains(t, oidcClientImagePath(metadataClientID, "", "png"), "app.example.com")
+}
+
 func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 	const publicLogoHost = "https://8.8.8.8"
 
@@ -627,6 +639,38 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	assert.Equal(t, input.SkipConsent, fetched.SkipConsent)
 	assert.Equal(t, input.LaunchURL, fetched.LaunchURL)
 	assert.Equal(t, input.IsGroupRestricted, fetched.IsGroupRestricted)
+}
+
+func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{
+		Name:         "Original metadata name",
+		CallbackURLs: datatype.StringList{"https://metadata.example.com/callback"},
+		ClientType:   model.OidcClientTypeCIMD,
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	// Simulate metadata refresh changing a document-owned column after the admin request read its snapshot
+	require.NoError(t, db.Exec(`
+		CREATE TRIGGER refresh_metadata_before_admin_update
+		BEFORE UPDATE OF description ON oidc_clients
+		BEGIN
+			UPDATE oidc_clients SET name = 'Refreshed metadata name' WHERE id = OLD.id;
+		END;
+	`).Error)
+
+	input := dto.OidcClientUpdateDto{Description: "Locally managed description"}
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.Equal(t, "Refreshed metadata name", fetched.Name)
+	assert.Equal(t, input.Description, fetched.Description)
 }
 
 func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {

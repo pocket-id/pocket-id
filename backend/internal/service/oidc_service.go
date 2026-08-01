@@ -184,10 +184,7 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		tx.Rollback()
 	}()
 
-	var client model.OidcClient
-	err := tx.WithContext(ctx).
-		Preload("CreatedBy").
-		First(&client, "id = ?", clientID).Error
+	client, err := s.getClientInternal(ctx, clientID, tx, true)
 	if err != nil {
 		return model.OidcClient{}, err
 	}
@@ -202,7 +199,22 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 		}
 	}
 
-	err = tx.WithContext(ctx).Save(&client).Error
+	// Metadata refresh owns all other CIMD columns, so an admin update must never write back a stale metadata snapshot
+	if client.IsMetadataDocument() {
+		err = tx.WithContext(ctx).
+			Model(&client).
+			Select(
+				"Description",
+				"RequiresReauthentication",
+				"RequiresPushedAuthorizationRequests",
+				"SkipConsent",
+				"LaunchURL",
+				"IsGroupRestricted",
+			).
+			Updates(&client).Error
+	} else {
+		err = tx.WithContext(ctx).Save(&client).Error
+	}
 	if err != nil {
 		return model.OidcClient{}, err
 	}
@@ -285,11 +297,11 @@ func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
 	// Delete images if present
 	// Note that storage operations must be done outside of a transaction
 	if client.ImageType != nil && *client.ImageType != "" {
-		old := path.Join("oidc-client-images", client.ID+"."+*client.ImageType)
+		old := oidcClientImagePath(client.ID, "", *client.ImageType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 	if client.DarkImageType != nil && *client.DarkImageType != "" {
-		old := path.Join("oidc-client-images", client.ID+"-dark."+*client.DarkImageType)
+		old := oidcClientImagePath(client.ID, "-dark", *client.DarkImageType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 
@@ -373,7 +385,7 @@ func (s *OidcService) GetClientLogo(ctx context.Context, clientID string, light 
 	if mimeType == "" {
 		return nil, 0, "", fmt.Errorf("unsupported image type '%s'", ext)
 	}
-	key := path.Join("oidc-client-images", client.ID+suffix+"."+ext)
+	key := oidcClientImagePath(client.ID, suffix, ext)
 	reader, size, err := s.fileStorage.Open(ctx, key)
 	if err != nil {
 		return nil, 0, "", err
@@ -393,7 +405,7 @@ func (s *OidcService) UpdateClientLogo(ctx context.Context, clientID string, fil
 		darkSuffix = "-dark"
 	}
 
-	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+fileType)
+	imagePath := oidcClientImagePath(clientID, darkSuffix, fileType)
 	reader, err := file.Open()
 	if err != nil {
 		return err
@@ -475,7 +487,7 @@ func (s *OidcService) deleteClientLogoInternal(ctx context.Context, clientID str
 	}
 
 	// All storage operations must be performed outside of a database transaction
-	imagePath := path.Join("oidc-client-images", client.ID+imagePathSuffix+"."+oldImageType)
+	imagePath := oidcClientImagePath(client.ID, imagePathSuffix, oldImageType)
 	err = s.fileStorage.Delete(ctx, imagePath)
 	if err != nil {
 		return err
@@ -796,7 +808,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 		return err
 	}
 
-	imagePath := path.Join("oidc-client-images", clientID+darkSuffix+"."+ext)
+	imagePath := oidcClientImagePath(clientID, darkSuffix, ext)
 	err = s.fileStorage.Save(ctx, imagePath, strippedReader)
 	if errors.Is(err, utils.ErrSizeExceeded) {
 		return errLogoTooLarge
@@ -858,11 +870,19 @@ func (s *OidcService) updateClientLogoType(ctx context.Context, clientID string,
 
 	// Storage operations must be executed outside of a transaction
 	if currentType != nil && *currentType != ext {
-		old := path.Join("oidc-client-images", client.ID+darkSuffix+"."+*currentType)
+		old := oidcClientImagePath(client.ID, darkSuffix, *currentType)
 		_ = s.fileStorage.Delete(ctx, old)
 	}
 
 	return nil
+}
+
+func oidcClientImagePath(clientID string, suffix string, extension string) string {
+	storageID := clientID
+	if !dto.ValidateClientID(clientID) {
+		storageID = "cimd-" + utils.CreateSha256Hash(clientID)
+	}
+	return path.Join("oidc-client-images", storageID+suffix+"."+extension)
 }
 
 func (s *OidcService) GetClientScimServiceProvider(ctx context.Context, clientID string) (model.ScimServiceProvider, error) {

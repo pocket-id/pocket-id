@@ -6,7 +6,6 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as InputOTP from '$lib/components/ui/input-otp';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { getClientIDHost } from '$lib/utils/client-id-util';
 	import { m } from '$lib/paraglide/messages';
 	import DeviceLoginService from '$lib/services/device-login-service';
 	import OIDCService from '$lib/services/oidc-service';
@@ -15,6 +14,7 @@
 	import userStore from '$lib/stores/user-store';
 	import type { DeviceLoginVerificationInfo } from '$lib/types/device-login.type';
 	import type { OidcDeviceCodeInfo } from '$lib/types/oidc.type';
+	import { getClientIDHost } from '$lib/utils/client-id-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
@@ -210,7 +210,7 @@
 			<FormattedMessage
 				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
 				inputs={{
-					client: getClientIDHost(deviceInfo.client) ?? deviceInfo.client.name,
+					client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name,
 					appName: $appConfigStore.appName
 				}}
 			/>
@@ -221,9 +221,8 @@
 				<Card.Header>
 					<Card.Description class="text-start">
 						<FormattedMessage
-							m={m.client_wants_to_access_the_following_information({
-								client: deviceInfo!.client.name
-							})}
+							message={m.client_wants_to_access_the_following_information}
+							inputs={{ client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name }}
 						/>
 					</Card.Description>
 				</Card.Header>

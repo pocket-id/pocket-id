@@ -1,7 +1,11 @@
 package model
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/utils"
 )
 
 type UserAuthorizedOidcClient struct {
@@ -20,8 +24,7 @@ type OidcClientType string
 
 const (
 	OidcClientTypeStandard OidcClientType = "standard"
-	// OAuth Client ID Metadata Document
-	OidcClientTypeCIMD OidcClientType = "cimd"
+	OidcClientTypeCIMD     OidcClientType = "cimd"
 )
 
 type OidcClient struct {
