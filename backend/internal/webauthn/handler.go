@@ -7,8 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
@@ -21,113 +22,105 @@ func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
-func (h *handler) beginRegistration(c *gin.Context) {
+func (h *handler) beginRegistration(c *gin.Context) error {
 	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
 	userID := c.GetString("userID")
 	options, err := h.service.BeginRegistration(c.Request.Context(), dbConfig, userID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	cookie.AddSessionIdCookie(c, int(options.Timeout.Seconds()), options.SessionID)
 	c.JSON(http.StatusOK, options.Response)
+	return nil
 }
 
-func (h *handler) verifyRegistration(c *gin.Context) {
+func (h *handler) verifyRegistration(c *gin.Context) error {
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
-		_ = c.Error(&common.MissingSessionIdError{})
-		return
+		return apperror.MissingSessionID()
 	}
 
 	userID := c.GetString("userID")
 	credential, err := h.service.VerifyRegistration(c.Request.Context(), sessionID, userID, c.Request, c.ClientIP())
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var credentialDto dto.WebauthnCredentialDto
 	if err := dto.MapStruct(credential, &credentialDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, credentialDto)
+	return nil
 }
 
-func (h *handler) beginLogin(c *gin.Context) {
+func (h *handler) beginLogin(c *gin.Context) error {
 	options, err := h.service.BeginLogin(c.Request.Context())
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	cookie.AddSessionIdCookie(c, int(options.Timeout.Seconds()), options.SessionID)
 	c.JSON(http.StatusOK, options.Response)
+	return nil
 }
 
-func (h *handler) verifyLogin(c *gin.Context) {
+func (h *handler) verifyLogin(c *gin.Context) error {
 	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
-		_ = c.Error(&common.MissingSessionIdError{})
-		return
+		return apperror.MissingSessionID()
 	}
 
 	credentialAssertionData, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return apperror.InvalidWebAuthnResponse(err)
 	}
 
 	user, token, err := h.service.VerifyLogin(c.Request.Context(), dbConfig, sessionID, credentialAssertionData, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	maxAge := int(dbConfig.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
+	return nil
 }
 
-func (h *handler) listCredentials(c *gin.Context) {
+func (h *handler) listCredentials(c *gin.Context) error {
 	userID := c.GetString("userID")
 	credentials, err := h.service.ListCredentials(c.Request.Context(), userID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var credentialDtos []dto.WebauthnCredentialDto
 	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, credentialDtos)
+	return nil
 }
 
-func (h *handler) deleteCredential(c *gin.Context) {
+func (h *handler) deleteCredential(c *gin.Context) error {
 	userID := c.GetString("userID")
 	credentialID := c.Param("id")
 	clientIP := c.ClientIP()
@@ -135,48 +128,46 @@ func (h *handler) deleteCredential(c *gin.Context) {
 
 	err := h.service.DeleteCredential(c.Request.Context(), userID, credentialID, clientIP, userAgent, userID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
-func (h *handler) updateCredential(c *gin.Context) {
+func (h *handler) updateCredential(c *gin.Context) error {
 	userID := c.GetString("userID")
 	credentialID := c.Param("id")
 
 	var input dto.WebauthnCredentialUpdateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	credential, err := h.service.UpdateCredential(c.Request.Context(), userID, credentialID, input.Name)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var credentialDto dto.WebauthnCredentialDto
 	if err := dto.MapStruct(credential, &credentialDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, credentialDto)
+	return nil
 }
 
-func (h *handler) logout(c *gin.Context) {
+func (h *handler) logout(c *gin.Context) error {
 	cookie.AddAccessTokenCookie(c, 0, "")
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
-func (h *handler) reauthenticate(c *gin.Context) {
+func (h *handler) reauthenticate(c *gin.Context) error {
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
-		_ = c.Error(&common.MissingSessionIdError{})
-		return
+		return apperror.MissingSessionID()
 	}
 
 	var token string
@@ -186,19 +177,18 @@ func (h *handler) reauthenticate(c *gin.Context) {
 	if err == nil {
 		token, err = h.service.CreateReauthenticationTokenWithWebauthn(c.Request.Context(), sessionID, credentialAssertionData)
 		if err != nil {
-			_ = c.Error(err)
-			return
+			return err
 		}
 	} else {
 		// If WebAuthn fails, try to create a reauthentication token with the access token
 		accessToken, _ := c.Cookie(cookie.AccessTokenCookieName)
 		token, err = h.service.CreateReauthenticationTokenWithAccessToken(c.Request.Context(), accessToken)
 		if err != nil {
-			_ = c.Error(err)
-			return
+			return err
 		}
 	}
 
 	cookie.AddReauthenticationTokenCookie(c, token)
 	c.Status(http.StatusNoContent)
+	return nil
 }

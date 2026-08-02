@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ory/fosite"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
@@ -81,13 +81,16 @@ func (s *Service) Get(ctx context.Context, tx *gorm.DB, id string) (api API, err
 		Where("id = ?", id).
 		First(&api).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return API{}, apperror.NotFound("API")
+	}
 	return api, err
 }
 
 func (s *Service) Create(ctx context.Context, input apiCreateDto) (api API, err error) {
 	// Reject the issuer as an audience so a custom API cannot impersonate Pocket ID's own identity tokens
 	if isIssuerAudience(input.Resource, s.issuer) {
-		return API{}, &common.ValidationError{Message: "the resource is reserved by Pocket ID and cannot be used for a custom API"}
+		return API{}, apperror.InvalidField("resource", "reserved", "is reserved by Pocket ID and cannot be used for a custom API")
 	}
 
 	api = API{
@@ -98,7 +101,7 @@ func (s *Service) Create(ctx context.Context, input apiCreateDto) (api API, err 
 	err = s.db.WithContext(ctx).Create(&api).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return API{}, &common.AlreadyInUseError{Property: "resource"}
+			return API{}, apperror.AlreadyInUse("resource")
 		}
 		return API{}, err
 	}
@@ -170,16 +173,17 @@ func (s *Service) UpdatePermissions(ctx context.Context, id string, input apiPer
 	// Reject keys with invalid characters, that collide with Pocket ID's reserved scopes and claims, or that repeat within the request before persisting anything
 	// A duplicate key would otherwise be silently coalesced last-wins into the map below, dropping a row behind a 200
 	seen := make(map[string]struct{}, len(input.Permissions))
-	for _, permission := range input.Permissions {
+	for index, permission := range input.Permissions {
+		field := fmt.Sprintf("permissions[%d].key", index)
 		if !isValidPermissionKey(permission.Key) {
-			return API{}, &common.ValidationError{Message: fmt.Sprintf("the permission key %q contains invalid characters", permission.Key)}
+			return API{}, apperror.InvalidField(field, "invalid_format", "contains characters that are not valid in an OAuth scope")
 		}
 		if isPermissionKeyReserved(permission.Key) {
-			return API{}, &common.ValidationError{Message: fmt.Sprintf("the permission key %q is reserved by Pocket ID", permission.Key)}
+			return API{}, apperror.InvalidField(field, "reserved", "is reserved by Pocket ID")
 		}
 		_, ok := seen[permission.Key]
 		if ok {
-			return API{}, &common.ValidationError{Message: fmt.Sprintf("the permission key %q is listed more than once", permission.Key)}
+			return API{}, apperror.InvalidField(field, "duplicate", "is listed more than once")
 		}
 		seen[permission.Key] = struct{}{}
 	}
@@ -261,8 +265,17 @@ type ClientAPIAccess struct {
 // GetClientAPIAccess returns the API permissions a client is allowed to request, split by subject type
 // Only custom-API permissions are tracked here because the identity scopes are freely requestable by every client
 func (s *Service) GetClientAPIAccess(ctx context.Context, clientID string) (access ClientAPIAccess, err error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	if err := ensureOIDCClientExists(ctx, tx, clientID); err != nil {
+		return ClientAPIAccess{}, err
+	}
+
 	var rows []OidcClientAllowedAPIPermission
-	err = s.db.WithContext(ctx).
+	err = tx.WithContext(ctx).
 		Where("oidc_client_id = ?", clientID).
 		Find(&rows).
 		Error
@@ -293,9 +306,7 @@ func (s *Service) SetClientAPIAccess(ctx context.Context, clientID string, acces
 		tx.Rollback()
 	}()
 
-	// Ensure the client exists so callers get a 404 for an unknown client
-	var client model.OidcClient
-	if err = tx.WithContext(ctx).Select("id").Where("id = ?", clientID).First(&client).Error; err != nil {
+	if err = ensureOIDCClientExists(ctx, tx, clientID); err != nil {
 		return ClientAPIAccess{}, err
 	}
 
@@ -335,6 +346,20 @@ func (s *Service) SetClientAPIAccess(ctx context.Context, clientID string, acces
 	}
 
 	return applied, nil
+}
+
+func ensureOIDCClientExists(ctx context.Context, db *gorm.DB, clientID string) error {
+	var client model.OidcClient
+	err := db.WithContext(ctx).
+		Select("id").
+		Where("id = ?", clientID).
+		First(&client).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperror.NotFound("OIDC client")
+	}
+
+	return err
 }
 
 // ClientAPIScopesAndAudiences returns the permission keys a client may request and the distinct audiences of the custom APIs those permissions belong to, across both subject types

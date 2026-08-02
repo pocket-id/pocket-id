@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -134,8 +134,16 @@ func TestSendTestEmailRequiresUserEmail(t *testing.T) {
 	require.NoError(t, err)
 
 	err = module.SendTestEmail(t.Context(), &appconfig.AppConfigModel{}, user.ID)
-	var emailNotSetError *common.UserEmailNotSetError
-	require.ErrorAs(t, err, &emailNotSetError)
+	require.True(t, apperror.IsCode(err, apperror.CodeUserEmailNotSet))
+}
+
+func TestSendTestEmailRejectsMissingUser(t *testing.T) {
+	module, err := New(testutils.NewDatabaseForTest(t))
+	require.NoError(t, err)
+
+	err = module.SendTestEmail(t.Context(), &appconfig.AppConfigModel{}, "missing-user")
+
+	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 }
 
 func TestSMTPConnStringPreservesConfiguration(t *testing.T) {

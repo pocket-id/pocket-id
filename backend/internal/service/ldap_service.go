@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -24,7 +23,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 	"gorm.io/gorm"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
@@ -84,7 +83,7 @@ func NewLdapService(db *gorm.DB, httpClient *http.Client, userService *UserServi
 
 func (s *LdapService) createClient(dbConfig *appconfig.AppConfigModel) (ldapClient, error) {
 	if !dbConfig.LdapEnabled.IsTrue() {
-		return nil, fmt.Errorf("LDAP is not enabled")
+		return nil, apperror.LdapDisabled()
 	}
 
 	// Setup LDAP connection
@@ -522,7 +521,7 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 		userID := databaseUser.ID
 		if databaseUser.ID == "" {
 			createdUser, err := s.userService.createUserInternal(ctx, desiredUser.input, true, tx, dbConfig)
-			if errors.Is(err, &common.AlreadyInUseError{}) {
+			if apperror.IsCode(err, apperror.CodeAlreadyInUse) {
 				slog.Warn("Skipping creating LDAP user", slog.String("username", desiredUser.input.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
@@ -533,7 +532,7 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 			ldapUsersByID[desiredUser.ldapID] = createdUser
 		} else {
 			_, err = s.userService.updateUserInternal(ctx, databaseUser.ID, desiredUser.input, false, true, tx, dbConfig)
-			if errors.Is(err, &common.AlreadyInUseError{}) {
+			if apperror.IsCode(err, apperror.CodeAlreadyInUse) {
 				slog.Warn("Skipping updating LDAP user", slog.String("username", desiredUser.input.Username), slog.Any("error", err))
 				continue
 			} else if err != nil {
@@ -573,7 +572,7 @@ func (s *LdapService) reconcileUsers(ctx context.Context, tx *gorm.DB, desiredUs
 
 		err = s.userService.deleteUserInternal(ctx, tx, user.ID, true, dbConfig)
 		if err != nil {
-			if _, ok := errors.AsType[*common.LdapUserUpdateError](err); ok {
+			if apperror.IsCode(err, apperror.CodeLdapUserUpdate) {
 				return nil, nil, fmt.Errorf("failed to delete user %s: LDAP user must be disabled before deletion", user.Username)
 			}
 			return nil, nil, fmt.Errorf("failed to delete user %s: %w", user.Username, err)

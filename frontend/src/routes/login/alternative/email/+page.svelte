@@ -6,6 +6,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import UserService from '$lib/services/user-service';
 	import { preventDefault } from '$lib/utils/event-util';
+	import { getAxiosErrorMessage } from '$lib/utils/error-util';
 	import { fade } from 'svelte/transition';
 	import LoginLogoErrorSuccessIndicator from '../../components/login-logo-error-success-indicator.svelte';
 
@@ -23,7 +24,7 @@
 		await userService
 			.requestOneTimeAccessEmailAsUnauthenticatedUser(email, data.redirect)
 			.then(() => (success = true))
-			.catch((e) => (error = e.response?.data.error || m.an_unknown_error_occurred()));
+			.catch((e) => (error = getAxiosErrorMessage(e)));
 
 		isLoading = false;
 	}

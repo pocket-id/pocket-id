@@ -9,7 +9,7 @@ import (
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"gorm.io/gorm"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -59,6 +59,9 @@ func (s *UserGroupService) getInternal(ctx context.Context, id string, tx *gorm.
 		Preload("AllowedOidcClients").
 		First(&group).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.UserGroup{}, apperror.NotFound("User group")
+	}
 	return group, err
 }
 
@@ -74,13 +77,16 @@ func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigM
 		Where("id = ?", id).
 		First(&group).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperror.NotFound("User group")
+	}
 	if err != nil {
 		return err
 	}
 
 	// Disallow deleting the group if it is an LDAP group and LDAP is enabled
 	if group.LdapID != nil && cfg.LdapEnabled.IsTrue() {
-		return &common.LdapUserGroupUpdateError{}
+		return apperror.LdapUserGroupUpdate()
 	}
 
 	err = tx.
@@ -123,7 +129,7 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 		Create(&group).
 		Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
+		return model.UserGroup{}, apperror.AlreadyInUse("name")
 	} else if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -163,7 +169,7 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 	// Disallow updating the group if it is an LDAP group and LDAP is enabled
 	if !isLdapSync && group.LdapID != nil {
 		if cfg.LdapEnabled.IsTrue() {
-			return model.UserGroup{}, &common.LdapUserGroupUpdateError{}
+			return model.UserGroup{}, apperror.LdapUserGroupUpdate()
 		}
 	}
 
@@ -177,7 +183,7 @@ func (s *UserGroupService) updateInternal(ctx context.Context, id string, input 
 		Save(&group).
 		Error
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return model.UserGroup{}, &common.AlreadyInUseError{Property: "name"}
+		return model.UserGroup{}, apperror.AlreadyInUse("name")
 	} else if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -269,6 +275,9 @@ func (s *UserGroupService) GetUserCountOfGroup(ctx context.Context, id string) (
 		Where("id = ?", id).
 		First(&group).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, apperror.NotFound("User group")
+	}
 	if err != nil {
 		return 0, err
 	}

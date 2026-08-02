@@ -2,6 +2,7 @@ package profilepicture
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -19,6 +20,8 @@ import (
 
 const profilePictureSize = 300
 
+var ErrInvalidImage = errors.New("invalid image")
+
 // CreateProfilePicture resizes the profile picture to a square and encodes it as PNG
 func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
 	// Attempt standard formats first
@@ -30,7 +33,10 @@ func CreateProfilePicture(file io.ReadSeeker) (io.ReadSeeker, error) {
 		// Try WebP
 		webpImg, webpErr := webp.Decode(file)
 		if webpErr != nil {
-			return nil, fmt.Errorf("failed to decode image: %w", err)
+			return nil, fmt.Errorf("%w: %w", ErrInvalidImage, errors.Join(
+				fmt.Errorf("standard formats: %w", err),
+				fmt.Errorf("WebP: %w", webpErr),
+			))
 		}
 
 		img = webpImg

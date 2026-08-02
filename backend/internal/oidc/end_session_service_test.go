@@ -13,6 +13,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -58,8 +59,7 @@ func TestLogoutCallbackURL(t *testing.T) {
 
 	t.Run("unregistered URL is rejected (no open redirect)", func(t *testing.T) {
 		_, err := logoutCallbackURL(withURLs, "https://evil.example/steal")
-		var target *common.OidcInvalidCallbackURLError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeOidcInvalidCallbackURL))
 	})
 }
 
@@ -144,15 +144,13 @@ func TestEndSessionService(t *testing.T) {
 	t.Run("missing id_token_hint is rejected", func(t *testing.T) {
 		service, _ := newService(t)
 		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{}, userID)
-		var target *common.TokenInvalidError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
 	t.Run("malformed id_token_hint is rejected", func(t *testing.T) {
 		service, _ := newService(t)
 		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: "not-a-jwt"}, userID)
-		var target *common.TokenInvalidError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
 	t.Run("token signed by a foreign key is rejected", func(t *testing.T) {
@@ -166,8 +164,7 @@ func TestEndSessionService(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: string(signed)}, userID)
-		var target *common.TokenInvalidError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
 	t.Run("non-ID token (missing type claim) is rejected as id_token_hint", func(t *testing.T) {
@@ -176,24 +173,21 @@ func TestEndSessionService(t *testing.T) {
 		service, _ := newService(t)
 		token := signToken(t, tokenOptions{issuer: baseURL, subject: userID, audience: clientID, jti: jti, omitType: true})
 		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
-		var target *common.TokenInvalidError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
 	t.Run("subject not matching the logged-in user is rejected", func(t *testing.T) {
 		service, _ := newService(t)
 		token := signToken(t, tokenOptions{issuer: baseURL, subject: "someone-else", audience: clientID, jti: jti})
 		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, userID)
-		var target *common.TokenInvalidError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeInvalidToken))
 	})
 
 	t.Run("client_id parameter not matching the token audience is rejected", func(t *testing.T) {
 		service, _ := newService(t)
 		token := signToken(t, validToken)
 		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token, ClientId: "different-client"}, userID)
-		var target *common.OidcClientIdNotMatchingError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeOidcClientIDNotMatching))
 	})
 
 	t.Run("user that never authorized the client is rejected", func(t *testing.T) {
@@ -201,8 +195,7 @@ func TestEndSessionService(t *testing.T) {
 		// A valid token for a user that has no authorization record for the client.
 		token := signToken(t, tokenOptions{issuer: baseURL, subject: "ghost-user", audience: clientID, jti: jti})
 		_, err := service.endSession(t.Context(), dto.OidcLogoutDto{IdTokenHint: token}, "ghost-user")
-		var target *common.OidcMissingAuthorizationError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeOidcMissingAuthorization))
 	})
 
 	t.Run("unregistered post_logout_redirect_uri is rejected", func(t *testing.T) {
@@ -212,8 +205,7 @@ func TestEndSessionService(t *testing.T) {
 			IdTokenHint:           token,
 			PostLogoutRedirectUri: "https://evil.example/steal",
 		}, userID)
-		var target *common.OidcInvalidCallbackURLError
-		require.ErrorAs(t, err, &target)
+		require.True(t, apperror.IsCode(err, apperror.CodeOidcInvalidCallbackURL))
 	})
 
 	t.Run("valid logout returns the callback URL and revokes the sessions", func(t *testing.T) {

@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -33,7 +33,7 @@ type fakeReauthenticationTokenConsumer struct {
 
 func (f *fakeReauthenticationTokenConsumer) ConsumeReauthenticationToken(_ context.Context, _ *gorm.DB, token string, _ string) (time.Time, error) {
 	if token != f.expectedValue {
-		return time.Time{}, &common.ReauthenticationRequiredError{}
+		return time.Time{}, apperror.ReauthenticationRequired()
 	}
 	if !f.createdAt.IsZero() {
 		return f.createdAt, nil
@@ -200,8 +200,7 @@ func TestPendingAndDeniedRequests(t *testing.T) {
 	require.NoError(t, err)
 
 	user, accessToken, status, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
-	var deniedError *common.DeviceLoginDeniedError
-	require.ErrorAs(t, err, &deniedError)
+	require.True(t, apperror.IsCode(err, apperror.CodeDeviceLoginDenied))
 	require.Equal(t, RequestStatusDenied, status)
 	require.Empty(t, user.ID)
 	require.Empty(t, accessToken)
@@ -228,8 +227,7 @@ func TestPendingExchangeObservesDecisionDuringLongPoll(t *testing.T) {
 
 	select {
 	case outcome := <-result:
-		var deniedError *common.DeviceLoginDeniedError
-		require.ErrorAs(t, outcome.err, &deniedError)
+		require.True(t, apperror.IsCode(outcome.err, apperror.CodeDeviceLoginDenied))
 		require.Equal(t, RequestStatusDenied, outcome.status)
 	case <-time.After(2 * time.Second):
 		t.Fatal("exchange did not observe the actor decision")
@@ -282,8 +280,7 @@ func TestRejectsDisabledUserAtExchange(t *testing.T) {
 	require.NoError(t, fixture.service.Decide(t.Context(), request.Code, "approve", user.ID, "fresh-proof"))
 
 	_, accessToken, _, err := fixture.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
-	var disabledError *common.UserDisabledError
-	require.ErrorAs(t, err, &disabledError)
+	require.True(t, apperror.IsCode(err, apperror.CodeUserDisabled))
 	require.Empty(t, accessToken)
 	require.Equal(t, RequestStatusApproved, getRequestActorState(t, fixture.actors, request.ID).Status)
 }
@@ -322,13 +319,12 @@ func TestApprovalRejectsMissingAndStaleReauthentication(t *testing.T) {
 	require.NoError(t, err)
 
 	err = fixture.service.Decide(t.Context(), request.Code, "approve", "device-login-user", "")
-	var reauthenticationError *common.ReauthenticationRequiredError
-	require.ErrorAs(t, err, &reauthenticationError)
+	require.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
 
 	fixture.reauth.expectedValue = "stale-proof"
 	fixture.reauth.createdAt = time.Now().Add(-2 * time.Minute)
 	err = fixture.service.Decide(t.Context(), request.Code, "approve", "device-login-user", "stale-proof")
-	require.ErrorAs(t, err, &reauthenticationError)
+	require.True(t, apperror.IsCode(err, apperror.CodeReauthenticationRequired))
 	require.Equal(t, RequestStatusPending, getRequestActorState(t, fixture.actors, request.ID).Status)
 }
 
@@ -374,8 +370,7 @@ func TestConcurrentExchangeAllowsOnlyOneSuccess(t *testing.T) {
 			successfulTokens = append(successfulTokens, result.token)
 			continue
 		}
-		var invalidRequestError *common.DeviceLoginRequestInvalidOrExpiredError
-		require.ErrorAs(t, result.err, &invalidRequestError)
+		require.True(t, apperror.IsCode(result.err, apperror.CodeDeviceLoginExpired))
 		invalidExchanges++
 	}
 	require.Equal(t, []string{"device-login-access-token"}, successfulTokens)
@@ -422,8 +417,7 @@ func TestRequestStateSurvivesActorHostRestart(t *testing.T) {
 	require.Equal(t, "persistent-agent", strings.TrimPrefix(info.Device, "Parsed "))
 	require.NoError(t, secondModule.service.Decide(t.Context(), request.Code, "deny", "device-login-user", ""))
 	_, _, status, err := secondModule.service.Exchange(t.Context(), request.ID, deviceToken, "", "", testSessionDuration)
-	var deniedError *common.DeviceLoginDeniedError
-	require.ErrorAs(t, err, &deniedError)
+	require.True(t, apperror.IsCode(err, apperror.CodeDeviceLoginDenied))
 	require.Equal(t, RequestStatusDenied, status)
 }
 
@@ -527,8 +521,7 @@ func requireRequestActorStateDeleted(t *testing.T, actors *actor.Service, actorI
 
 func assertInvalidRequestError(t *testing.T, err error) {
 	t.Helper()
-	var invalidError *common.DeviceLoginRequestInvalidOrExpiredError
-	require.ErrorAs(t, err, &invalidError)
+	require.True(t, apperror.IsCode(err, apperror.CodeDeviceLoginExpired))
 }
 
 func persistentTestDependencies(db *gorm.DB) Dependencies {

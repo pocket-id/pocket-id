@@ -9,7 +9,7 @@ import (
 
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/handler/rfc8628"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -93,12 +93,12 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	// logged-in user from rebinding a pending device authorization to themselves before the device
 	// polls for its token.
 	if request.GetUserCodeState() != fosite.UserCodeUnused {
-		return &common.OidcInvalidDeviceCodeError{}
+		return apperror.OidcInvalidDeviceCode()
 	}
 
 	client := request.GetClient().(Client)
-	var user model.User
-	if err = s.db.WithContext(ctx).Preload("UserGroups").First(&user, "id = ?", userID).Error; err != nil {
+	user, err := s.loadDeviceAuthorizationUser(ctx, userID)
+	if err != nil {
 		return err
 	}
 	if !IsUserGroupAllowedToAuthorize(user, client.OidcClient) {
@@ -118,7 +118,7 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 	return withTx(ctx, s.db, func(ctx context.Context) error {
 		if client.RequiresReauthentication {
 			if reauthenticationToken == "" || s.authorizationService == nil || s.authorizationService.reauth == nil {
-				return &common.ReauthenticationRequiredError{}
+				return apperror.ReauthenticationRequired()
 			}
 
 			reauthenticatedAt, err := s.authorizationService.reauth.ConsumeReauthenticationToken(ctx, dbFromContext(ctx, s.db), reauthenticationToken, userID)
@@ -162,6 +162,25 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 
 		return nil
 	})
+}
+
+func (s *deviceService) loadDeviceAuthorizationUser(ctx context.Context, userID string) (model.User, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	var user model.User
+	err := tx.
+		WithContext(ctx).
+		Preload("UserGroups").
+		First(&user, "id = ?", userID).
+		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.User{}, apperror.UserNotFound()
+	}
+
+	return user, err
 }
 
 func (s *deviceService) getDeviceCodeInfo(ctx context.Context, userCode, userID string) (*dto.DeviceCodeInfoDto, error) {
@@ -232,7 +251,7 @@ func (s *deviceService) deviceRequestFromUserCode(ctx context.Context, userCode 
 
 	request, err := s.store.GetDeviceCodeSessionByUserCodeSignature(ctx, userCodeSignature)
 	if errors.Is(err, fosite.ErrNotFound) {
-		return nil, "", &common.OidcInvalidDeviceCodeError{}
+		return nil, "", apperror.OidcInvalidDeviceCode()
 	}
 	if err != nil {
 		return nil, "", err
@@ -240,7 +259,7 @@ func (s *deviceService) deviceRequestFromUserCode(ctx context.Context, userCode 
 
 	if err = s.userCodeStrategy.ValidateUserCode(ctx, request, userCode); err != nil {
 		if errors.Is(err, fosite.ErrDeviceExpiredToken) {
-			return nil, "", &common.OidcDeviceCodeExpiredError{}
+			return nil, "", apperror.OidcDeviceCodeExpired()
 		}
 		return nil, "", err
 	}

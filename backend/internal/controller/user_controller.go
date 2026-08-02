@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -26,26 +27,26 @@ func NewUserController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 		webAuthnService:  webAuthnService,
 	}
 
-	group.GET("/users", authMiddleware.Add(), uc.listUsersHandler)
-	group.GET("/users/me", authMiddleware.WithAdminNotRequired().Add(), uc.getCurrentUserHandler)
-	group.GET("/users/:id", authMiddleware.Add(), uc.getUserHandler)
-	group.POST("/users", authMiddleware.Add(), uc.createUserHandler)
-	group.PUT("/users/:id", authMiddleware.Add(), uc.updateUserHandler)
-	group.GET("/users/:id/groups", authMiddleware.Add(), uc.getUserGroupsHandler)
-	group.GET("/users/:id/webauthn-credentials", authMiddleware.Add(), uc.listUserWebauthnCredentialsHandler)
-	group.PUT("/users/me", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserHandler)
-	group.DELETE("/users/:id", authMiddleware.Add(), uc.deleteUserHandler)
-	group.DELETE("/users/:id/webauthn-credentials/:credentialId", authMiddleware.Add(), uc.deleteUserWebauthnCredentialHandler)
+	group.GET("/users", authMiddleware.Add(), httpserver.Handle(uc.listUsersHandler))
+	group.GET("/users/me", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.getCurrentUserHandler))
+	group.GET("/users/:id", authMiddleware.Add(), httpserver.Handle(uc.getUserHandler))
+	group.POST("/users", authMiddleware.Add(), httpserver.Handle(uc.createUserHandler))
+	group.PUT("/users/:id", authMiddleware.Add(), httpserver.Handle(uc.updateUserHandler))
+	group.GET("/users/:id/groups", authMiddleware.Add(), httpserver.Handle(uc.getUserGroupsHandler))
+	group.GET("/users/:id/webauthn-credentials", authMiddleware.Add(), httpserver.Handle(uc.listUserWebauthnCredentialsHandler))
+	group.PUT("/users/me", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.updateCurrentUserHandler))
+	group.DELETE("/users/:id", authMiddleware.Add(), httpserver.Handle(uc.deleteUserHandler))
+	group.DELETE("/users/:id/webauthn-credentials/:credentialId", authMiddleware.Add(), httpserver.Handle(uc.deleteUserWebauthnCredentialHandler))
 
-	group.PUT("/users/:id/user-groups", authMiddleware.Add(), uc.updateUserGroups)
+	group.PUT("/users/:id/user-groups", authMiddleware.Add(), httpserver.Handle(uc.updateUserGroups))
 
-	group.GET("/users/:id/profile-picture.png", uc.getUserProfilePictureHandler)
+	group.GET("/users/:id/profile-picture.png", httpserver.Handle(uc.getUserProfilePictureHandler))
 
-	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), uc.updateUserProfilePictureHandler)
-	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.updateCurrentUserProfilePictureHandler)
+	group.PUT("/users/:id/profile-picture", authMiddleware.Add(), httpserver.Handle(uc.updateUserProfilePictureHandler))
+	group.PUT("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.updateCurrentUserProfilePictureHandler))
 
-	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), uc.resetUserProfilePictureHandler)
-	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), uc.resetCurrentUserProfilePictureHandler)
+	group.DELETE("/users/:id/profile-picture", authMiddleware.Add(), httpserver.Handle(uc.resetUserProfilePictureHandler))
+	group.DELETE("/users/me/profile-picture", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(uc.resetCurrentUserProfilePictureHandler))
 }
 
 type UserController struct {
@@ -61,21 +62,20 @@ type UserController struct {
 // @Param id path string true "User ID"
 // @Success 200 {array} dto.UserGroupDto
 // @Router /api/users/{id}/groups [get]
-func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
+func (uc *UserController) getUserGroupsHandler(c *gin.Context) error {
 	userID := c.Param("id")
 	groups, err := uc.userService.GetUserGroups(c.Request.Context(), userID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var groupsDto []dto.UserGroupDto
 	if err := dto.MapStructList(groups, &groupsDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, groupsDto)
+	return nil
 }
 
 // listUserWebauthnCredentialsHandler godoc
@@ -85,27 +85,25 @@ func (uc *UserController) getUserGroupsHandler(c *gin.Context) {
 // @Param id path string true "User ID"
 // @Success 200 {array} dto.WebauthnCredentialDto
 // @Router /api/users/{id}/webauthn-credentials [get]
-func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) {
+func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) error {
 	userID := c.Param("id")
 
 	if _, err := uc.userService.GetUser(c.Request.Context(), userID); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	credentials, err := uc.webAuthnService.ListCredentials(c.Request.Context(), userID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var credentialDtos []dto.WebauthnCredentialDto
 	if err := dto.MapStructList(credentials, &credentialDtos); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, credentialDtos)
+	return nil
 }
 
 // listUsersHandler godoc
@@ -119,26 +117,25 @@ func (uc *UserController) listUserWebauthnCredentialsHandler(c *gin.Context) {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.UserDto]
 // @Router /api/users [get]
-func (uc *UserController) listUsersHandler(c *gin.Context) {
+func (uc *UserController) listUsersHandler(c *gin.Context) error {
 	searchTerm := c.Query("search")
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	users, pagination, err := uc.userService.ListUsers(c.Request.Context(), searchTerm, listRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var usersDto []dto.UserDto
 	if err := dto.MapStructList(users, &usersDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, dto.Paginated[dto.UserDto]{
 		Data:       usersDto,
 		Pagination: pagination,
 	})
+	return nil
 }
 
 // getUserHandler godoc
@@ -148,20 +145,19 @@ func (uc *UserController) listUsersHandler(c *gin.Context) {
 // @Param id path string true "User ID"
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/{id} [get]
-func (uc *UserController) getUserHandler(c *gin.Context) {
+func (uc *UserController) getUserHandler(c *gin.Context) error {
 	user, err := uc.userService.GetUser(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, userDto)
+	return nil
 }
 
 // getCurrentUserHandler godoc
@@ -170,20 +166,19 @@ func (uc *UserController) getUserHandler(c *gin.Context) {
 // @Tags Users
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/me [get]
-func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
+func (uc *UserController) getCurrentUserHandler(c *gin.Context) error {
 	user, err := uc.userService.GetUser(c.Request.Context(), c.GetString("userID"))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, userDto)
+	return nil
 }
 
 // deleteUserHandler godoc
@@ -193,19 +188,18 @@ func (uc *UserController) getCurrentUserHandler(c *gin.Context) {
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
 // @Router /api/users/{id} [delete]
-func (uc *UserController) deleteUserHandler(c *gin.Context) {
+func (uc *UserController) deleteUserHandler(c *gin.Context) error {
 	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
 	if err := uc.userService.DeleteUser(c.Request.Context(), dbConfig, c.Param("id"), false); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // deleteUserWebauthnCredentialHandler godoc
@@ -216,7 +210,7 @@ func (uc *UserController) deleteUserHandler(c *gin.Context) {
 // @Param credentialId path string true "Credential ID"
 // @Success 204 "No Content"
 // @Router /api/users/{id}/webauthn-credentials/{credentialId} [delete]
-func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) {
+func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) error {
 	err := uc.webAuthnService.DeleteCredential(
 		c.Request.Context(),
 		c.Param("id"),
@@ -226,11 +220,11 @@ func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) {
 		c.GetString("userID"),
 	)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // createUserHandler godoc
@@ -240,32 +234,29 @@ func (uc *UserController) deleteUserWebauthnCredentialHandler(c *gin.Context) {
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 201 {object} dto.UserDto
 // @Router /api/users [post]
-func (uc *UserController) createUserHandler(c *gin.Context) {
+func (uc *UserController) createUserHandler(c *gin.Context) error {
 	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
 	var input dto.UserCreateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	user, err := uc.userService.CreateUser(c.Request.Context(), dbConfig, input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusCreated, userDto)
+	return nil
 }
 
 // updateUserHandler godoc
@@ -276,8 +267,8 @@ func (uc *UserController) createUserHandler(c *gin.Context) {
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/{id} [put]
-func (uc *UserController) updateUserHandler(c *gin.Context) {
-	uc.updateUser(c, false)
+func (uc *UserController) updateUserHandler(c *gin.Context) error {
+	return uc.updateUser(c, false)
 }
 
 // updateCurrentUserHandler godoc
@@ -287,8 +278,8 @@ func (uc *UserController) updateUserHandler(c *gin.Context) {
 // @Param user body dto.UserCreateDto true "User information"
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/me [put]
-func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
-	uc.updateUser(c, true)
+func (uc *UserController) updateCurrentUserHandler(c *gin.Context) error {
+	return uc.updateUser(c, true)
 }
 
 // getUserProfilePictureHandler godoc
@@ -299,13 +290,12 @@ func (uc *UserController) updateCurrentUserHandler(c *gin.Context) {
 // @Param id path string true "User ID"
 // @Success 200 {file} binary "PNG image"
 // @Router /api/users/{id}/profile-picture.png [get]
-func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
+func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.Param("id")
 
 	picture, size, err := uc.userService.GetProfilePicture(c.Request.Context(), userID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 	if picture != nil {
 		defer picture.Close()
@@ -314,6 +304,7 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 	utils.SetCacheControlHeader(c, 15*time.Minute, 1*time.Hour)
 
 	c.DataFromReader(http.StatusOK, size, "image/png", picture, nil)
+	return nil
 }
 
 // updateUserProfilePictureHandler godoc
@@ -326,26 +317,24 @@ func (uc *UserController) getUserProfilePictureHandler(c *gin.Context) {
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
 // @Success 204 "No Content"
 // @Router /api/users/{id}/profile-picture [put]
-func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
+func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.Param("id")
-	fileHeader, err := c.FormFile("file")
+	fileHeader, err := httpserver.FormFile(c, "file")
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 	file, err := fileHeader.Open()
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 	defer file.Close()
 
 	if err := uc.userService.UpdateProfilePicture(c.Request.Context(), userID, file); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // updateCurrentUserProfilePictureHandler godoc
@@ -357,26 +346,24 @@ func (uc *UserController) updateUserProfilePictureHandler(c *gin.Context) {
 // @Param file formData file true "Profile picture image file (PNG, JPG, or JPEG)"
 // @Success 204 "No Content"
 // @Router /api/users/me/profile-picture [put]
-func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) {
+func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.GetString("userID")
-	fileHeader, err := c.FormFile("file")
+	fileHeader, err := httpserver.FormFile(c, "file")
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 	file, err := fileHeader.Open()
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 	defer file.Close()
 
 	if err := uc.userService.UpdateProfilePicture(c.Request.Context(), userID, file); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // updateUserGroups godoc
@@ -387,40 +374,36 @@ func (uc *UserController) updateCurrentUserProfilePictureHandler(c *gin.Context)
 // @Param groups body dto.UserUpdateUserGroupDto true "User group IDs"
 // @Success 200 {object} dto.UserDto
 // @Router /api/users/{id}/user-groups [put]
-func (uc *UserController) updateUserGroups(c *gin.Context) {
+func (uc *UserController) updateUserGroups(c *gin.Context) error {
 	var input dto.UserUpdateUserGroupDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	user, err := uc.userService.UpdateUserGroups(c.Request.Context(), c.Param("id"), input.UserGroupIds)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, userDto)
+	return nil
 }
 
 // updateUser is an internal helper method, not exposed as an API endpoint
-func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
+func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) error {
 	dbConfig, err := uc.appConfigService.GetConfig(c.Request.Context())
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
 	var input dto.UserCreateDto
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	var userID string
@@ -432,17 +415,16 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 
 	user, err := uc.userService.UpdateUser(c.Request.Context(), dbConfig, userID, input, updateOwnUser, false)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var userDto dto.UserDto
 	if err := dto.MapStruct(user, &userDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, userDto)
+	return nil
 }
 
 // resetUserProfilePictureHandler godoc
@@ -453,15 +435,15 @@ func (uc *UserController) updateUser(c *gin.Context, updateOwnUser bool) {
 // @Param id path string true "User ID"
 // @Success 204 "No Content"
 // @Router /api/users/{id}/profile-picture [delete]
-func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) {
+func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.Param("id")
 
 	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // resetCurrentUserProfilePictureHandler godoc
@@ -471,13 +453,13 @@ func (uc *UserController) resetUserProfilePictureHandler(c *gin.Context) {
 // @Produce json
 // @Success 204 "No Content"
 // @Router /api/users/me/profile-picture [delete]
-func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) {
+func (uc *UserController) resetCurrentUserProfilePictureHandler(c *gin.Context) error {
 	userID := c.GetString("userID")
 
 	if err := uc.userService.ResetProfilePicture(c.Request.Context(), userID); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }

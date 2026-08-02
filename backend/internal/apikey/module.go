@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
@@ -35,10 +36,10 @@ func New(ctx context.Context, deps Dependencies) (*Module, error) {
 // authWithoutApiKey disables API key authentication so an API key cannot be used to mint or renew further API keys
 func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth, authWithoutApiKey gin.HandlerFunc) {
 	group := apiGroup.Group("/api-keys")
-	group.GET("", auth, m.handler.list)
-	group.POST("", authWithoutApiKey, m.handler.create)
-	group.POST("/:id/renew", authWithoutApiKey, m.handler.renew)
-	group.DELETE("/:id", auth, m.handler.revoke)
+	group.GET("", auth, httpserver.Handle(m.handler.list))
+	group.POST("", authWithoutApiKey, httpserver.Handle(m.handler.create))
+	group.POST("/:id/renew", authWithoutApiKey, httpserver.Handle(m.handler.renew))
+	group.DELETE("/:id", auth, httpserver.Handle(m.handler.revoke))
 }
 
 // ValidateApiKey resolves the user that owns the given raw API key

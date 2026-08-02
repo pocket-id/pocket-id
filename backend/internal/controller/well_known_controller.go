@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
 
@@ -21,8 +22,8 @@ func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtServi
 		getCIMDURLAllowlist: getCIMDURLAllowlist,
 	}
 
-	group.GET("/.well-known/jwks.json", wkc.jwksHandler)
-	group.GET("/.well-known/openid-configuration", wkc.openIDConfigurationHandler)
+	group.GET("/.well-known/jwks.json", httpserver.Handle(wkc.jwksHandler))
+	group.GET("/.well-known/openid-configuration", httpserver.Handle(wkc.openIDConfigurationHandler))
 }
 
 type WellKnownController struct {
@@ -37,14 +38,14 @@ type WellKnownController struct {
 // @Produce json
 // @Success 200 {object} object "{ \"keys\": []interface{} }"
 // @Router /.well-known/jwks.json [get]
-func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
+func (wkc *WellKnownController) jwksHandler(c *gin.Context) error {
 	jwks, err := wkc.jwtService.GetPublicJWKSAsJSON()
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Data(http.StatusOK, "application/json; charset=utf-8", jwks)
+	return nil
 }
 
 // openIDConfigurationHandler godoc
@@ -53,13 +54,13 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 // @Tags Well Known
 // @Success 200 {object} object "OpenID Connect configuration"
 // @Router /.well-known/openid-configuration [get]
-func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
+func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) error {
 	oidcConfig, err := wkc.computeOIDCConfiguration()
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 	c.Data(http.StatusOK, "application/json; charset=utf-8", oidcConfig)
+	return nil
 }
 
 func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {

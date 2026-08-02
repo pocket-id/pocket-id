@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
@@ -73,6 +74,9 @@ func (s *ScimService) GetServiceProvider(
 		Preload("OidcClient.AllowedUserGroups").
 		First(&provider, "id = ?", serviceProviderID).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.ScimServiceProvider{}, apperror.NotFound("SCIM service provider")
+	}
 	if err != nil {
 		return model.ScimServiceProvider{}, err
 	}
@@ -94,13 +98,25 @@ func (s *ScimService) ListServiceProviders(ctx context.Context) ([]model.ScimSer
 func (s *ScimService) CreateServiceProvider(
 	ctx context.Context,
 	input *dto.ScimServiceProviderCreateDTO) (model.ScimServiceProvider, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	if err := ensureScimOIDCClientExists(ctx, tx, input.OidcClientID); err != nil {
+		return model.ScimServiceProvider{}, err
+	}
+
 	provider := model.ScimServiceProvider{
 		Endpoint:     input.Endpoint,
 		Token:        datatype.EncryptedString(input.Token),
 		OidcClientID: input.OidcClientID,
 	}
 
-	if err := s.db.WithContext(ctx).Create(&provider).Error; err != nil {
+	if err := tx.WithContext(ctx).Create(&provider).Error; err != nil {
+		return model.ScimServiceProvider{}, err
+	}
+	if err := tx.Commit().Error; err != nil {
 		return model.ScimServiceProvider{}, err
 	}
 
@@ -111,11 +127,23 @@ func (s *ScimService) UpdateServiceProvider(ctx context.Context,
 	serviceProviderID string,
 	input *dto.ScimServiceProviderCreateDTO,
 ) (model.ScimServiceProvider, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var provider model.ScimServiceProvider
-	err := s.db.WithContext(ctx).
+	err := tx.WithContext(ctx).
 		First(&provider, "id = ?", serviceProviderID).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.ScimServiceProvider{}, apperror.NotFound("SCIM service provider")
+	}
 	if err != nil {
+		return model.ScimServiceProvider{}, err
+	}
+
+	if err := ensureScimOIDCClientExists(ctx, tx, input.OidcClientID); err != nil {
 		return model.ScimServiceProvider{}, err
 	}
 
@@ -123,17 +151,40 @@ func (s *ScimService) UpdateServiceProvider(ctx context.Context,
 	provider.Token = datatype.EncryptedString(input.Token)
 	provider.OidcClientID = input.OidcClientID
 
-	if err := s.db.WithContext(ctx).Save(&provider).Error; err != nil {
+	if err := tx.WithContext(ctx).Save(&provider).Error; err != nil {
+		return model.ScimServiceProvider{}, err
+	}
+	if err := tx.Commit().Error; err != nil {
 		return model.ScimServiceProvider{}, err
 	}
 
 	return provider, nil
 }
 
-func (s *ScimService) DeleteServiceProvider(ctx context.Context, serviceProviderID string) error {
-	return s.db.WithContext(ctx).
-		Delete(&model.ScimServiceProvider{}, "id = ?", serviceProviderID).
+func ensureScimOIDCClientExists(ctx context.Context, db *gorm.DB, clientID string) error {
+	var client model.OidcClient
+	err := db.WithContext(ctx).
+		Select("id").
+		First(&client, "id = ?", clientID).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperror.NotFound("OIDC client")
+	}
+
+	return err
+}
+
+func (s *ScimService) DeleteServiceProvider(ctx context.Context, serviceProviderID string) error {
+	result := s.db.WithContext(ctx).
+		Delete(&model.ScimServiceProvider{}, "id = ?", serviceProviderID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return apperror.NotFound("SCIM service provider")
+	}
+
+	return nil
 }
 
 //nolint:contextcheck

@@ -20,6 +20,7 @@ import (
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	"github.com/italypaleale/go-kit/servicerunner"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/frontend"
@@ -404,6 +405,12 @@ func initLogger(r *gin.Engine) {
 		sloggin.WithLogger(func(_ *gin.Context, _ *slog.Logger) *slog.Logger {
 			return slog.Default()
 		}),
+		sloggin.WithClientErrorLevel(slog.LevelInfo),
+		sloggin.WithSpecificLogLevelByStatusCode(map[int]slog.Level{
+			http.StatusTooManyRequests: slog.LevelWarn,
+		}),
+		sloggin.WithContext(enrichRequestLog),
+		// Skip logging for certain paths to reduce noise in the logs
 		sloggin.WithSkipper(func(c *gin.Context) bool {
 			for _, prefix := range loggerSkipPathsPrefix {
 				if strings.HasPrefix(c.Request.Method+" "+c.Request.URL.String(), prefix) {
@@ -413,6 +420,33 @@ func initLogger(r *gin.Engine) {
 			return false
 		}),
 	))
+}
+
+// enrichRequestLog enriches the slog.Record with additional attributes from the request context, such as request ID, error code, and trace/span IDs.
+func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
+	enriched := slog.NewRecord(record.Time, record.Level, "HTTP request completed", record.PC)
+	// Add request ID if present in the context
+	if requestID := middleware.RequestID(c); requestID != "" {
+		enriched.AddAttrs(slog.String("request_id", requestID))
+	}
+	// Add error code if present in the context
+	if errorCode := middleware.RequestErrorCode(c); errorCode != "" {
+		enriched.AddAttrs(slog.String("error_code", string(errorCode)))
+	}
+
+	// Add trace and span IDs if present in the context
+	if spanContext := trace.SpanFromContext(c.Request.Context()).SpanContext(); spanContext.IsValid() {
+		enriched.AddAttrs(
+			slog.String("trace_id", spanContext.TraceID().String()),
+			slog.String("span_id", spanContext.SpanID().String()),
+		)
+	}
+	record.Attrs(func(attr slog.Attr) bool {
+		enriched.AddAttrs(attr)
+		return true
+	})
+
+	return &enriched
 }
 
 // tlsCertProvider holds certificates that can be dynamically reloaded
