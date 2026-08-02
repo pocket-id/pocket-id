@@ -743,8 +743,7 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 
 	resp, err := client.Do(req)
 	if err != nil {
-		var appErr *apperror.Error
-		if errors.As(err, &appErr) {
+		if appErr, ok := errors.AsType[*apperror.Error](err); ok {
 			return appErr
 		}
 		return apperror.LogoDownloadFailed(err)

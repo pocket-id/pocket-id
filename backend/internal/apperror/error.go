@@ -133,8 +133,7 @@ func (e *Error) Unwrap() error {
 
 // Is matches application errors by stable code while ignoring message and detail differences
 func (e *Error) Is(target error) bool {
-	var targetError *Error
-	ok := errors.As(target, &targetError)
+	targetError, ok := target.(*Error)
 	return ok && e != nil && targetError != nil && e.code == targetError.code
 }
 

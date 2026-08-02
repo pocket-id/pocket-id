@@ -24,6 +24,7 @@ func TestErrorsMatchByCode(t *testing.T) {
 	require.True(t, IsCode(err, CodeAlreadyInUse))
 	require.True(t, IsCode(wrapped, CodeAlreadyInUse))
 	require.ErrorIs(t, err, New(CodeAlreadyInUse, http.StatusBadRequest, "username is already in use"))
+	require.NotErrorIs(t, err, errors.Join(New(CodeAlreadyInUse, http.StatusBadRequest, "username is already in use")))
 	require.False(t, IsCode(wrapped, CodeNotFound))
 }
 

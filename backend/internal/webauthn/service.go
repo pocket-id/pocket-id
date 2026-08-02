@@ -531,8 +531,7 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 }
 
 func classifyPasskeyError(err error, fallback func(error) *apperror.Error) *apperror.Error {
-	var protocolError *protocol.Error
-	if errors.As(err, &protocolError) &&
+	if protocolError, ok := errors.AsType[*protocol.Error](err); ok &&
 		protocolError.Type == protocol.ErrVerification.Type &&
 		protocolError.DevInfo == missingUserVerificationErrorInfo {
 		return apperror.PasskeyUserVerificationRequired(err)

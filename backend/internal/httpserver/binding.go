@@ -57,13 +57,11 @@ func classifyBindingError(err error) error {
 		return nil
 	}
 
-	var validationErrors validator.ValidationErrors
-	if errors.As(err, &validationErrors) {
+	if _, ok := errors.AsType[validator.ValidationErrors](err); ok {
 		return err
 	}
 
-	var sliceValidationErrors binding.SliceValidationError
-	if errors.As(err, &sliceValidationErrors) {
+	if _, ok := errors.AsType[binding.SliceValidationError](err); ok {
 		return err
 	}
 

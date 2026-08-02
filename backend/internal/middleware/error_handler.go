@@ -164,7 +164,7 @@ func classifiedValidationError(validationErrors validator.ValidationErrors) clas
 			Code:    code,
 			Message: message,
 		})
-		messages = append(messages, fieldName + " " + message)
+		messages = append(messages, fieldName+" "+message)
 	}
 
 	return classifiedError{
