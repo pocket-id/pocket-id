@@ -141,10 +141,6 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 }
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
-	if err := validateOIDCClientTokenDurations(input.AccessTokenDurationSeconds, input.RefreshTokenDurationSeconds); err != nil {
-		return model.OidcClient{}, err
-	}
-
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
@@ -185,10 +181,6 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 }
 
 func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
-	if err := validateOIDCClientTokenDurations(input.AccessTokenDurationSeconds, input.RefreshTokenDurationSeconds); err != nil {
-		return model.OidcClient{}, err
-	}
-
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -294,16 +286,6 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 		}
 	}
 
-}
-
-func validateOIDCClientTokenDurations(accessTokenDurationSeconds, refreshTokenDurationSeconds int64) error {
-	if !model.IsValidTokenDurationSeconds(accessTokenDurationSeconds) {
-		return &common.ValidationError{Message: "access token duration must be between 60 and 31536000 seconds and use whole-minute increments"}
-	}
-	if !model.IsValidTokenDurationSeconds(refreshTokenDurationSeconds) {
-		return &common.ValidationError{Message: "refresh token duration must be between 60 and 31536000 seconds and use whole-minute increments"}
-	}
-	return nil
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {
