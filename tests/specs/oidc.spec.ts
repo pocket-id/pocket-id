@@ -5,6 +5,11 @@ import { generateIdToken } from '../utils/jwt.util';
 import * as oidcUtil from '../utils/oidc.util';
 import passkeyUtil from '../utils/passkey.util';
 
+const defaultTokenLifetimes = {
+	accessTokenDurationSeconds: 60 * 60,
+	refreshTokenDurationSeconds: 30 * 24 * 60 * 60
+};
+
 test.beforeEach(async () => await cleanupBackend());
 
 async function generateSeededOauthAccessToken(
@@ -718,6 +723,7 @@ test('Device authorization flow forces reauthentication when client requires it'
 	const client = oidcClients.nextcloud;
 	await request.put(`/api/oidc/clients/${client.id}`, {
 		data: {
+			...defaultTokenLifetimes,
 			name: client.name,
 			callbackURLs: [client.callbackUrl],
 			logoutCallbackURLs: [client.logoutCallbackUrl],
@@ -843,6 +849,7 @@ test('Forces reauthentication when client requires it', async ({ page, request }
 
 	await request.put(`/api/oidc/clients/${oidcClients.nextcloud.id}`, {
 		data: {
+			...defaultTokenLifetimes,
 			name: oidcClients.nextcloud.name,
 			callbackURLs: [oidcClients.nextcloud.callbackUrl],
 			logoutCallbackURLs: [oidcClients.nextcloud.logoutCallbackUrl],
@@ -1396,6 +1403,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		await page.request.put(`/api/oidc/clients/${client.id}`, {
 			headers: { 'Content-Type': 'application/json' },
 			data: {
+				...defaultTokenLifetimes,
 				name: client.name,
 				callbackURLs: [client.callbackUrl],
 				logoutCallbackURLs: [],
@@ -1439,6 +1447,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		await request.put(`/api/oidc/clients/${client.id}`, {
 			headers: { 'Content-Type': 'application/json' },
 			data: {
+				...defaultTokenLifetimes,
 				name: client.name,
 				callbackURLs: [client.callbackUrl],
 				logoutCallbackURLs: [],
@@ -1472,7 +1481,8 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 			await parToggle.click();
 		}
 
-		await page.getByRole('button', { name: /save/i }).click();
+		const clientForm = parToggle.locator('xpath=ancestor::form');
+		await clientForm.getByRole('button', { name: 'Save', exact: true }).click();
 		await page.reload();
 
 		await page.getByRole('button', { name: 'Show Advanced Options' }).click();
@@ -1521,7 +1531,8 @@ test.describe('OIDC skip consent', () => {
 		// Disabling it and saving must persist across a reload
 		await toggle.click();
 		await expect(toggle).not.toBeChecked();
-		await page.getByRole('button', { name: /save/i }).click();
+		const clientForm = toggle.locator('xpath=ancestor::form');
+		await clientForm.getByRole('button', { name: 'Save', exact: true }).click();
 		await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
 		await page.reload();
 
