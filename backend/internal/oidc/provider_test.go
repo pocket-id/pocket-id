@@ -20,6 +20,7 @@ import (
 	"github.com/ory/fosite"
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -61,7 +62,7 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	session := NewEmptySession()
@@ -135,7 +136,7 @@ func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
 			require.NoError(t, db.Create(&model.OidcClient{
 				Base:         model.Base{ID: "test-client"},
 				Name:         "Test Client",
-				CallbackURLs: model.UrlList{"http://client.example.com/callback"},
+				CallbackURLs: datatype.StringList{"http://client.example.com/callback"},
 			}).Error)
 
 			provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
@@ -143,7 +144,7 @@ func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
 				TokenBaseURL:              "https://issuer.example.com",
 				Secret:                    []byte("test-secret"),
 				AllowInsecureCallbackURLs: tt.allowInsecureCallbackURLs,
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			req := httptest.NewRequestWithContext(
@@ -172,14 +173,14 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
@@ -204,7 +205,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 		IsPublic:     true,
 	}).Error)
 
@@ -212,7 +213,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
@@ -237,14 +238,14 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://evil.example.net/callback"
@@ -277,14 +278,14 @@ func TestProviderAcceptsUnsignedRequestObject(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://client.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	requestObject := encodeRequestObject(t,
@@ -318,14 +319,14 @@ func TestProviderRejectsSignedRequestObject(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://client.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// The signature is never verified: the request object must already be rejected because only
@@ -401,7 +402,7 @@ func TestProviderIssuesAndValidatesTokensForSupportedAlgorithms(t *testing.T) {
 				BaseURL:      "https://issuer.example.com",
 				TokenBaseURL: "https://issuer.example.com",
 				Secret:       []byte("test-secret"),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			session := NewEmptySession()
@@ -464,14 +465,14 @@ func TestProviderIgnoresUnknownScopes(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://app.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://app.example.com/callback"},
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{ //nolint:gosec // static test-only provider secret
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Clients such as MCP clients blindly request scopes Pocket ID does not support, like

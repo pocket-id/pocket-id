@@ -62,3 +62,6 @@ yarn-error.log*
 backend/cmd/__debug_*
 # Added by goreleaser init:
 dist/
+
+/backend/go.work
+/backend/go.work.sum

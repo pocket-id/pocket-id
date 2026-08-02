@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/ory/fosite"
@@ -48,9 +51,10 @@ func NewStore(db *gorm.DB, apiAccess APIAccessProvider) *Store {
 }
 
 type Store struct {
-	db        *gorm.DB
-	apiAccess APIAccessProvider
-	issuer    string
+	db             *gorm.DB
+	apiAccess      APIAccessProvider
+	issuer         string
+	clientResolver fosite.ClientResolver
 }
 
 // WithIssuer sets the issuer that is added as an extra audience to access tokens carrying an identity scope, so they can be presented to Pocket ID's own endpoints such as /userinfo
@@ -115,6 +119,169 @@ func (s *Store) GetClient(ctx context.Context, id string) (fosite.Client, error)
 	return client, nil
 }
 
+// resolvePersistedClient restores a client from storage and falls back to the configured generic resolver for uncached clients
+func (s *Store) resolvePersistedClient(ctx context.Context, id string) (fosite.Client, error) {
+	if s.clientResolver != nil {
+		return s.clientResolver.ResolveClient(ctx, id, s.GetClient)
+	}
+	return s.GetClient(ctx, id)
+}
+
+// clientFromModel populates the provider-specific runtime fields on a stored client
+func (s *Store) clientFromModel(ctx context.Context, tx *gorm.DB, clientModel model.OidcClient) (Client, error) {
+	client := Client{OidcClient: clientModel}
+
+	// Populate the custom-API scopes and audiences the client may request only when the API feature is wired
+	if s.apiAccess != nil {
+		apiScopes, apiAudiences, err := s.apiAccess.ClientAPIScopes(ctx, tx, clientModel.ID)
+		if err != nil {
+			return Client{}, err
+		}
+
+		client.apiScopes = apiScopes
+		client.apiAudiences = apiAudiences
+	}
+
+	return client, nil
+}
+
+// LoadCIMDClient loads only clients that Pocket ID previously associated with a metadata document
+func (s *Store) LoadCIMDClient(ctx context.Context, id string) (fosite.CIMDCachedClient, bool, error) {
+	clientModel, err := s.firstClientByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return fosite.CIMDCachedClient{}, false, nil
+	}
+	if err != nil {
+		return fosite.CIMDCachedClient{}, false, err
+	}
+	if !clientModel.IsMetadataDocument() {
+		return fosite.CIMDCachedClient{}, false, nil
+	}
+
+	client, err := s.clientFromModel(ctx, s.dbFor(ctx), clientModel)
+	if err != nil {
+		return fosite.CIMDCachedClient{}, false, err
+	}
+	var expiresAt time.Time
+	if clientModel.MetadataExpiresAt != nil {
+		expiresAt = time.Time(*clientModel.MetadataExpiresAt)
+	}
+	// Force incompatible cached entries through discovery so current policy applies before they can be used
+	if !clientModel.IsPublic || !clientModel.PkceEnabled || len(clientModel.Credentials.FederatedIdentities) > 0 {
+		expiresAt = time.Time{}
+	}
+	return fosite.CIMDCachedClient{Client: client, ExpiresAt: expiresAt}, true, nil
+}
+
+// StoreCIMDClient persists metadata-derived fields while preserving local consent and policy state
+func (s *Store) StoreCIMDClient(ctx context.Context, resolved fosite.Client, _ *fosite.ClientMetadataDocument, expiresAt time.Time) (fosite.Client, error) {
+	client, ok := resolved.(Client)
+	if !ok {
+		return nil, errors.New("metadata resolver returned an incompatible client")
+	}
+	expiry := datatype.DateTime(expiresAt)
+	client.MetadataExpiresAt = &expiry
+
+	var changes []string
+	var revokeConsent bool
+	var stored fosite.Client
+	err := withTx(ctx, s.db, func(ctx context.Context) error {
+		existing, err := s.firstClientByID(ctx, client.ID)
+		found := err == nil
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if found && !existing.IsMetadataDocument() {
+			return errors.New("client is already registered without a metadata document")
+		}
+		if found {
+			changes = metadataClientChanges(existing, client.OidcClient)
+			// Every detected change except the display name invalidates what the user agreed to
+			revokeConsent = slices.ContainsFunc(changes, func(field string) bool { return field != "client_name" })
+		}
+
+		// Persist the refreshed metadata and consent invalidation together so a failed deletion cannot suppress the next revocation attempt
+		if err := s.upsertMetadataClient(ctx, s.dbFor(ctx), &client.OidcClient, found); err != nil {
+			return err
+		}
+
+		// A security-relevant document change invalidates consent because it changes what the user previously approved
+		if revokeConsent {
+			err := s.dbFor(ctx).
+				Where("client_id = ?", client.ID).
+				Delete(&model.UserAuthorizedOidcClient{}).
+				Error
+			if err != nil {
+				return fmt.Errorf("failed to revoke consent after metadata change: %w", err)
+			}
+		}
+
+		// Reload inside the transaction so DB-managed columns and preloads are populated consistently
+		stored, err = s.GetClient(ctx, client.ID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(changes) > 0 {
+		slog.InfoContext(ctx, "Client metadata changed",
+			slog.String("client_id", client.ID),
+			slog.Any("changed_fields", changes),
+		)
+	}
+	if revokeConsent {
+		slog.WarnContext(ctx, "Revoked existing user consent after a security-relevant client metadata change",
+			slog.String("client_id", client.ID),
+		)
+	}
+
+	return stored, nil
+}
+
+// metadataClientChanges returns the names of security-relevant metadata fields that differ between the stored client and a freshly fetched one
+func metadataClientChanges(old, next model.OidcClient) []string {
+	var changed []string
+	if !slices.Equal([]string(old.CallbackURLs), next.CallbackURLs) {
+		changed = append(changed, "redirect_uris")
+	}
+	if !slices.Equal([]string(old.LogoutCallbackURLs), next.LogoutCallbackURLs) {
+		changed = append(changed, "post_logout_redirect_uris")
+	}
+	if old.IsPublic != next.IsPublic {
+		changed = append(changed, "token_endpoint_auth_method")
+	}
+	if old.Name != next.Name {
+		changed = append(changed, "client_name")
+	}
+	if !slices.Equal(effectiveMetadataGrantTypes(old.MetadataGrantTypes), effectiveMetadataGrantTypes(next.MetadataGrantTypes)) {
+		changed = append(changed, "grant_types")
+	}
+	return changed
+}
+
+func effectiveMetadataGrantTypes(grantTypes datatype.StringList) []string {
+	if len(grantTypes) == 0 {
+		return []string{string(fosite.GrantTypeAuthorizationCode)}
+	}
+	return grantTypes
+}
+
+// upsertMetadataClient inserts a new managed client or updates the metadata-derived columns of an existing one, leaving consent, grants, and group links untouched
+func (s *Store) upsertMetadataClient(ctx context.Context, tx *gorm.DB, client *model.OidcClient, update bool) error {
+	if !update {
+		return tx.WithContext(ctx).
+			Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "id"}}, DoNothing: true}).
+			Create(client).Error
+	}
+	return tx.WithContext(ctx).
+		Model(&model.OidcClient{Base: model.Base{ID: client.ID}}).
+		Select("Name", "CallbackURLs", "LogoutCallbackURLs", "Credentials",
+			"IsPublic", "PkceEnabled", "ClientType", "MetadataExpiresAt",
+			"MetadataGrantTypes").
+		Updates(client).Error
+}
+
 func (s *Store) ClientAssertionJWTValid(ctx context.Context, jti string) error {
 	var count int64
 	err := s.dbFor(ctx).
@@ -140,6 +307,18 @@ func (s *Store) SetClientAssertionJWT(ctx context.Context, jti string, exp time.
 		return fosite.ErrJTIKnown
 	}
 	return err
+}
+
+func (s *Store) firstClientByID(ctx context.Context, id string) (model.OidcClient, error) {
+	var client model.OidcClient
+	err := s.dbFor(ctx).
+		Preload("AllowedUserGroups").
+		First(&client, "id = ?", id).
+		Error
+	if err != nil {
+		return model.OidcClient{}, err
+	}
+	return client, nil
 }
 
 // Satisfies fositeoauth2.CoreStorage
@@ -742,7 +921,7 @@ func (s *Store) decodeDeviceRequester(ctx context.Context, data string) (fosite.
 }
 
 func (s *Store) requesterFromStored(ctx context.Context, stored storedRequester) (fosite.Requester, error) {
-	client, err := s.GetClient(ctx, stored.ClientID)
+	client, err := s.resolvePersistedClient(ctx, stored.ClientID)
 	if err != nil {
 		return nil, err
 	}

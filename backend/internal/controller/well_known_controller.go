@@ -3,9 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 
@@ -17,16 +15,10 @@ import (
 // @Summary OIDC Discovery controller
 // @Description Initializes OIDC discovery and JWKS endpoints
 // @Tags Well Known
-func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService) {
-	wkc := &WellKnownController{jwtService: jwtService}
-
-	// Pre-compute the OIDC configuration document, which is static
-	var err error
-	wkc.oidcConfig, err = wkc.computeOIDCConfiguration()
-	if err != nil {
-		slog.Error("Failed to pre-compute OpenID Connect configuration document", slog.Any("error", err))
-		os.Exit(1)
-		return
+func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService, getCIMDURLAllowlist func() []string) {
+	wkc := &WellKnownController{
+		jwtService:          jwtService,
+		getCIMDURLAllowlist: getCIMDURLAllowlist,
 	}
 
 	group.GET("/.well-known/jwks.json", wkc.jwksHandler)
@@ -34,8 +26,8 @@ func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtServi
 }
 
 type WellKnownController struct {
-	jwtService *service.JwtService
-	oidcConfig []byte
+	jwtService          *service.JwtService
+	getCIMDURLAllowlist func() []string
 }
 
 // jwksHandler godoc
@@ -62,7 +54,12 @@ func (wkc *WellKnownController) jwksHandler(c *gin.Context) {
 // @Success 200 {object} object "OpenID Connect configuration"
 // @Router /.well-known/openid-configuration [get]
 func (wkc *WellKnownController) openIDConfigurationHandler(c *gin.Context) {
-	c.Data(http.StatusOK, "application/json; charset=utf-8", wkc.oidcConfig)
+	oidcConfig, err := wkc.computeOIDCConfiguration()
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.Data(http.StatusOK, "application/json; charset=utf-8", oidcConfig)
 }
 
 func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
@@ -74,6 +71,11 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key algorithm: %w", err)
 	}
+	cimdSupported := false
+	if wkc.getCIMDURLAllowlist != nil {
+		cimdSupported = len(wkc.getCIMDURLAllowlist()) > 0
+	}
+
 	config := map[string]any{
 		"issuer":                                         appUrl,
 		"authorization_endpoint":                         appUrl + "/authorize",
@@ -98,6 +100,7 @@ func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {
 		"token_endpoint_auth_methods_supported":          []string{"client_secret_basic", "client_secret_post", "none"},
 		"pushed_authorization_request_endpoint":          internalAppUrl + "/api/oidc/par",
 		"require_pushed_authorization_requests":          false,
+		"client_id_metadata_document_supported":          cimdSupported,
 	}
 	return json.Marshal(config)
 }

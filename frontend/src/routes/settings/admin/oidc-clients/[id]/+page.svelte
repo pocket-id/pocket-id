@@ -232,6 +232,16 @@
 	</Alert.Root>
 {/if}
 
+{#if client.clientType === 'cimd'}
+	<Alert.Root variant="info">
+		<LucideInfo class="size-4" />
+		<Alert.Title>{m.cimd_client_managed_fields_title()}</Alert.Title>
+		<Alert.Description>
+			{m.cimd_client_managed_fields_description()}
+		</Alert.Description>
+	</Alert.Root>
+{/if}
+
 <div>
 	<button type="button" class="text-muted-foreground flex text-sm" onclick={backNavigation.go}
 		><LucideChevronLeft class="size-5" /> {m.back()}</button

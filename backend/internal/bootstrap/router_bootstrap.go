@@ -146,6 +146,8 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	apiRateLimitMiddleware := rateLimitMiddleware.Add(middleware.RateLimitAPI)
 
 	apiGroup := r.Group("/api", apiRateLimitMiddleware)
+	// Decode "~<base64url>" client ID path params (used for CIMD URL client IDs).
+	apiGroup.Use(middleware.NewClientIDParamMiddleware().Add())
 	baseGroup := r.Group("/", apiRateLimitMiddleware)
 
 	svc.apiKeyModule.RegisterRoutes(apiGroup,
@@ -195,7 +197,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 
 	registerTestRoutes(apiGroup, db, svc)
 
-	controller.NewWellKnownController(baseGroup, svc.jwtService)
+	controller.NewWellKnownController(baseGroup, svc.jwtService, svc.appConfigService.GetCIMDURLAllowlist)
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)

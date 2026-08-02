@@ -24,7 +24,7 @@
 			title: m.login_code(),
 			description: m.enter_a_login_code_to_sign_in(),
 			href: '/login/alternative/code'
-		},
+		}
 	];
 
 	if ($appConfigStore.emailOneTimeAccessAsUnauthenticatedEnabled) {

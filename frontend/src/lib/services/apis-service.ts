@@ -6,6 +6,7 @@ import type {
 	ClientApiAccess
 } from '$lib/types/api.type';
 import type { ListRequestOptions, Paginated } from '$lib/types/list-request.type';
+import { encodeClientIdParam } from '$lib/utils/client-id-util';
 import APIService from './api-service';
 
 export default class ApisService extends APIService {
@@ -44,12 +45,12 @@ export default class ApisService extends APIService {
 	};
 
 	getClientAccess = async (clientId: string) => {
-		const res = await this.api.get(`/api-access/${clientId}`);
+		const res = await this.api.get(`/api-access/${encodeClientIdParam(clientId)}`);
 		return res.data as ClientApiAccess;
 	};
 
 	updateClientAccess = async (clientId: string, access: ClientApiAccess) => {
-		const res = await this.api.put(`/api-access/${clientId}`, access);
+		const res = await this.api.put(`/api-access/${encodeClientIdParam(clientId)}`, access);
 		return res.data as ClientApiAccess;
 	};
 }

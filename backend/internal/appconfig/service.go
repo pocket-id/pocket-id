@@ -2,6 +2,7 @@ package appconfig
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -94,11 +95,42 @@ func (s *AppConfigService) GetConfig(parentCtx context.Context) (*AppConfigModel
 	return &cfg, nil
 }
 
+// GetCIMDURLAllowlist returns the configured CIMD metadata-document URL
+// allowlist. Returns an empty slice if unset or malformed (which denies all).
+func (s *AppConfigService) GetCIMDURLAllowlist() []string {
+	cfg, err := s.GetConfig(context.Background())
+	if err != nil {
+		return nil
+	}
+	raw := string(cfg.CIMDURLAllowlist)
+	if raw == "" {
+		return nil
+	}
+	var patterns []string
+	if err := json.Unmarshal([]byte(raw), &patterns); err != nil {
+		return nil
+	}
+	return patterns
+}
+
 // UpdateAppConfig replaces the entire application configuration with the values from the input DTO.
 func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
 		return nil, &common.UiConfigDisabledError{}
+	}
+
+	// Validate the CIMD URL allowlist patterns, if provided
+	if input.CIMDURLAllowlist != "" {
+		var patterns []string
+		if err := json.Unmarshal([]byte(input.CIMDURLAllowlist), &patterns); err != nil {
+			return nil, &common.InvalidCIMDURLPatternError{Pattern: input.CIMDURLAllowlist}
+		}
+		for _, p := range patterns {
+			if err := utils.ValidateCallbackURLPattern(p); err != nil {
+				return nil, &common.InvalidCIMDURLPatternError{Pattern: p}
+			}
+		}
 	}
 
 	// Replace the entire config by invoking the actor

@@ -6,7 +6,7 @@ import ConfirmDialog from './confirm-dialog.svelte';
 interface ConfirmDialogState {
 	open: boolean;
 	title: string;
-	message:  string | AnyFormattedMessage;
+	message: string | AnyFormattedMessage;
 	confirm: {
 		label: string;
 		destructive: boolean;

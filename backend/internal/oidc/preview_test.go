@@ -21,7 +21,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil), provider.tokenStrategies)
@@ -70,7 +70,7 @@ func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	require.NoError(t, db.Create(&model.User{

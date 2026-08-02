@@ -14,6 +14,7 @@
 	import userStore from '$lib/stores/user-store';
 	import type { DeviceLoginVerificationInfo } from '$lib/types/device-login.type';
 	import type { OidcDeviceCodeInfo } from '$lib/types/oidc.type';
+	import { getClientIDHost } from '$lib/utils/client-id-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
@@ -209,7 +210,7 @@
 			<FormattedMessage
 				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
 				inputs={{
-					client: deviceInfo.client.name,
+					client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name,
 					appName: $appConfigStore.appName
 				}}
 			/>
@@ -221,9 +222,7 @@
 					<Card.Description class="text-start">
 						<FormattedMessage
 							message={m.client_wants_to_access_the_following_information}
-							inputs={{
-								client: deviceInfo!.client.name
-							}}
+							inputs={{ client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name }}
 						/>
 					</Card.Description>
 				</Card.Header>

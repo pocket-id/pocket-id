@@ -41,6 +41,7 @@
 	let darkLogoDataURL: string | null = $state(
 		existingClient?.hasDarkLogo ? cachedOidcClientLogo.getUrl(existingClient!.id, false) : null
 	);
+	const isCIMDClient = $derived(existingClient?.clientType === 'cimd');
 
 	const client = {
 		id: '',
@@ -202,6 +203,7 @@
 			class="w-full"
 			description={m.client_name_description()}
 			bind:input={$inputs.name}
+			disabled={isCIMDClient}
 		/>
 		<FormInput
 			label={m.client_description()}
@@ -222,6 +224,7 @@
 			class="w-full"
 			bind:callbackURLs={$inputs.callbackURLs.value}
 			bind:error={$inputs.callbackURLs.error}
+			disabled={isCIMDClient}
 		/>
 		<OidcCallbackUrlInput
 			label={m.logout_callback_urls()}
@@ -229,6 +232,7 @@
 			class="w-full"
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
 			bind:error={$inputs.logoutCallbackURLs.error}
+			disabled={isCIMDClient}
 		/>
 		<div>
 			<SwitchWithLabel
@@ -241,6 +245,7 @@
 					}
 				}}
 				bind:checked={$inputs.isPublic.value}
+				disabled={isCIMDClient}
 			/>
 		</div>
 		<div
@@ -252,7 +257,7 @@
 				id="pkce"
 				label={m.pkce()}
 				description={m.proof_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
-				disabled={$inputs.isPublic.value}
+				disabled={isCIMDClient || $inputs.isPublic.value}
 				bind:checked={$inputs.pkceEnabled.value}
 			/>
 		</div>
@@ -334,6 +339,7 @@
 			<FederatedIdentitiesInput
 				bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
 				errors={getFederatedIdentityErrors($errors)}
+				disabled={isCIMDClient}
 			/>
 		</div>
 	{/if}

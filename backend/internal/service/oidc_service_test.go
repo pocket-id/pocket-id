@@ -15,6 +15,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -37,7 +38,7 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 	// Create a test client
 	client := model.OidcClient{
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://example.com/callback"},
 	}
 	err = db.Create(&client).Error
 	require.NoError(t, err)
@@ -152,6 +153,18 @@ func TestOidcService_updateClientLogoType(t *testing.T) {
 	})
 }
 
+func TestOidcClientImagePath(t *testing.T) {
+	const metadataClientID = "https://app.example.com/oauth/client"
+
+	assert.Equal(t, "oidc-client-images/client-id.png", oidcClientImagePath("client-id", "", "png"))
+	assert.Equal(
+		t,
+		"oidc-client-images/cimd-"+utils.CreateSha256Hash(metadataClientID)+"-dark.webp",
+		oidcClientImagePath(metadataClientID, "-dark", "webp"),
+	)
+	assert.NotContains(t, oidcClientImagePath(metadataClientID, "", "png"), "app.example.com")
+}
+
 func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 	const publicLogoHost = "https://8.8.8.8"
 
@@ -165,7 +178,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 	// Create a test client
 	client := model.OidcClient{
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://example.com/callback"},
 	}
 	err = db.Create(&client).Error
 	require.NoError(t, err)
@@ -457,7 +470,7 @@ func TestOidcService_downloadAndSaveLogoFromURL(t *testing.T) {
 func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	description := "A test client description"
@@ -482,7 +495,7 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	input := dto.OidcClientCreateDto{
@@ -504,7 +517,7 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	client := model.OidcClient{Name: "Test Client"}
@@ -527,13 +540,13 @@ func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
 func TestOidcService_UpdateClient_description(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
 
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	// Create a client without a description
 	client := model.OidcClient{
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://example.com/callback"},
 	}
 	err = db.Create(&client).Error
 	require.NoError(t, err)
@@ -565,9 +578,104 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	assert.Empty(t, fetched.Description)
 }
 
+func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{
+		Name:               "Metadata Client",
+		CallbackURLs:       datatype.StringList{"https://metadata.example.com/callback"},
+		LogoutCallbackURLs: datatype.StringList{"https://metadata.example.com/logout"},
+		IsPublic:           true,
+		PkceEnabled:        true,
+		Credentials: model.OidcClientCredentials{
+			FederatedIdentities: []model.OidcClientFederatedIdentity{{
+				Issuer:  "https://metadata.example.com/client.json",
+				Subject: "https://metadata.example.com/client.json",
+				JWKS:    "https://metadata.example.com/jwks.json",
+			}},
+		},
+		ClientType: model.OidcClientTypeCIMD,
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	launchURL := "https://app.example.com"
+	input := dto.OidcClientUpdateDto{
+		Name:                                "Overridden Client",
+		Description:                         "Locally managed description",
+		CallbackURLs:                        []string{"https://override.example.com/callback"},
+		LogoutCallbackURLs:                  []string{"https://override.example.com/logout"},
+		IsPublic:                            false,
+		PkceEnabled:                         false,
+		RequiresReauthentication:            true,
+		RequiresPushedAuthorizationRequests: true,
+		SkipConsent:                         true,
+		LaunchURL:                           &launchURL,
+		IsGroupRestricted:                   true,
+		Credentials: dto.OidcClientCredentialsDto{
+			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{
+				Issuer: "https://override.example.com",
+				JWKS:   "https://override.example.com/jwks.json",
+			}},
+		},
+	}
+
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.Equal(t, client.Name, fetched.Name)
+	assert.Equal(t, client.CallbackURLs, fetched.CallbackURLs)
+	assert.Equal(t, client.LogoutCallbackURLs, fetched.LogoutCallbackURLs)
+	assert.Equal(t, client.IsPublic, fetched.IsPublic)
+	assert.Equal(t, client.PkceEnabled, fetched.PkceEnabled)
+	assert.Equal(t, client.Credentials, fetched.Credentials)
+	assert.Equal(t, input.Description, fetched.Description)
+	assert.Equal(t, input.RequiresReauthentication, fetched.RequiresReauthentication)
+	assert.Equal(t, input.RequiresPushedAuthorizationRequests, fetched.RequiresPushedAuthorizationRequests)
+	assert.Equal(t, input.SkipConsent, fetched.SkipConsent)
+	assert.Equal(t, input.LaunchURL, fetched.LaunchURL)
+	assert.Equal(t, input.IsGroupRestricted, fetched.IsGroupRestricted)
+}
+
+func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{
+		Name:         "Original metadata name",
+		CallbackURLs: datatype.StringList{"https://metadata.example.com/callback"},
+		ClientType:   model.OidcClientTypeCIMD,
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	// Simulate metadata refresh changing a document-owned column after the admin request read its snapshot
+	require.NoError(t, db.Exec(`
+		CREATE TRIGGER refresh_metadata_before_admin_update
+		BEFORE UPDATE OF description ON oidc_clients
+		BEGIN
+			UPDATE oidc_clients SET name = 'Refreshed metadata name' WHERE id = OLD.id;
+		END;
+	`).Error)
+
+	input := dto.OidcClientUpdateDto{Description: "Locally managed description"}
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.Equal(t, "Refreshed metadata name", fetched.Name)
+	assert.Equal(t, input.Description, fetched.Description)
+}
+
 func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t *testing.T) {
 	db := testutils.NewDatabaseForTest(t)
-	s, err := NewOidcService(db, nil, nil, nil, nil, nil)
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	allowedGroup := model.UserGroup{Name: "allowed", FriendlyName: "Allowed"}
@@ -581,10 +689,10 @@ func TestOidcService_ListAccessibleOidcClients_requiresExplicitGroupPermission(t
 	require.NoError(t, db.Create(&userWithoutGroup).Error)
 
 	clients := []model.OidcClient{
-		{Name: "Unrestricted", CallbackURLs: model.UrlList{"https://unrestricted.example.com/callback"}},
-		{Name: "Restricted without groups", CallbackURLs: model.UrlList{"https://empty.example.com/callback"}, IsGroupRestricted: true},
-		{Name: "Restricted to user group", CallbackURLs: model.UrlList{"https://allowed.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
-		{Name: "Restricted to other group", CallbackURLs: model.UrlList{"https://other.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{otherGroup}},
+		{Name: "Unrestricted", CallbackURLs: datatype.StringList{"https://unrestricted.example.com/callback"}},
+		{Name: "Restricted without groups", CallbackURLs: datatype.StringList{"https://empty.example.com/callback"}, IsGroupRestricted: true},
+		{Name: "Restricted to user group", CallbackURLs: datatype.StringList{"https://allowed.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{allowedGroup}},
+		{Name: "Restricted to other group", CallbackURLs: datatype.StringList{"https://other.example.com/callback"}, IsGroupRestricted: true, AllowedUserGroups: []model.UserGroup{otherGroup}},
 	}
 	for i := range clients {
 		require.NoError(t, db.Create(&clients[i]).Error)

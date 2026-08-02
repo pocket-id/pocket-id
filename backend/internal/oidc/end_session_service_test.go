@@ -16,6 +16,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
 
@@ -25,7 +26,7 @@ import (
 // would be an open redirect.
 func TestLogoutCallbackURL(t *testing.T) {
 	noURLs := &model.OidcClient{Base: model.Base{ID: "c"}}
-	withURLs := &model.OidcClient{Base: model.Base{ID: "c"}, LogoutCallbackURLs: model.UrlList{
+	withURLs := &model.OidcClient{Base: model.Base{ID: "c"}, LogoutCallbackURLs: datatype.StringList{
 		"https://app.example/logout",
 		"https://app.example/logout2",
 		"https://*.example/logout",
@@ -130,7 +131,7 @@ func TestEndSessionService(t *testing.T) {
 		require.NoError(t, db.Create(&model.OidcClient{
 			Base:               model.Base{ID: clientID},
 			Name:               "Test Client",
-			LogoutCallbackURLs: model.UrlList{"https://app.example/logout"},
+			LogoutCallbackURLs: datatype.StringList{"https://app.example/logout"},
 		}).Error)
 		require.NoError(t, db.Create(&model.User{Base: model.Base{ID: userID}, Username: "tim"}).Error)
 		require.NoError(t, db.Create(&model.UserAuthorizedOidcClient{UserID: userID, ClientID: clientID}).Error)

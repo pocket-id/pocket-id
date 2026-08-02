@@ -13,6 +13,7 @@
 	import userStore from '$lib/stores/user-store';
 	import type { InteractionStep } from '$lib/types/oidc.type';
 	import { cachedProfilePicture } from '$lib/utils/cached-image-util';
+	import { getClientIDHost } from '$lib/utils/client-id-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
 	import { slide } from 'svelte/transition';
@@ -121,13 +122,15 @@
 		{:else if currentStep == 'select_account' && $userStore}
 			<FormattedMessage
 				message={m.account_selection_signin_confirmation}
-				inputs={{ name: interactionSession.client.name }}
+				inputs={{
+					name: getClientIDHost(interactionSession.client) ?? interactionSession.client.name
+				}}
 			/>
 		{:else}
 			<FormattedMessage
 				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
 				inputs={{
-					client: interactionSession.client.name,
+					client: getClientIDHost(interactionSession.client) ?? interactionSession.client.name,
 					appName: $appConfigStore.appName
 				}}
 			/>
@@ -178,7 +181,7 @@
 						<FormattedMessage
 							message={m.client_wants_to_access_the_following_information}
 							inputs={{
-								client: interactionSession.client.name
+								client: getClientIDHost(interactionSession.client) ?? interactionSession.client.name
 							}}
 						/>
 					</p>

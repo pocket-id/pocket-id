@@ -176,8 +176,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				Description:        "This is an example description for Nextcloud",
 				LaunchURL:          new("https://nextcloud.local"),
 				Secret:             "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
-				CallbackURLs:       model.UrlList{"http://nextcloud.localhost/auth/callback"},
-				LogoutCallbackURLs: model.UrlList{"http://nextcloud.localhost/auth/logout/callback"},
+				CallbackURLs:       datatype.StringList{"http://nextcloud.localhost/auth/callback"},
+				LogoutCallbackURLs: datatype.StringList{"http://nextcloud.localhost/auth/logout/callback"},
 				ImageType:          new("png"),
 				CreatedByID:        new(users[0].ID),
 			},
@@ -187,7 +187,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:              "Immich",
 				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
-				CallbackURLs:      model.UrlList{"http://immich.localhost/auth/callback"},
+				CallbackURLs:      datatype.StringList{"http://immich.localhost/auth/callback"},
 				CreatedByID:       new(users[1].ID),
 				IsGroupRestricted: true,
 				AllowedUserGroups: []model.UserGroup{
@@ -200,8 +200,8 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:               "Tailscale",
 				Secret:             "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a", // n4VfQeXlTzA6yKpWbR9uJcMdSx2qH0Lo
-				CallbackURLs:       model.UrlList{"http://tailscale.localhost/auth/callback"},
-				LogoutCallbackURLs: model.UrlList{"http://tailscale.localhost/auth/logout/callback"},
+				CallbackURLs:       datatype.StringList{"http://tailscale.localhost/auth/callback"},
+				LogoutCallbackURLs: datatype.StringList{"http://tailscale.localhost/auth/logout/callback"},
 				IsGroupRestricted:  true,
 				CreatedByID:        new(users[0].ID),
 				AllowedUserGroups: []model.UserGroup{
@@ -214,7 +214,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:              "Federated",
 				Secret:            "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe", // PYjrE9u4v9GVqXKi52eur0eb2Ci4kc0x
-				CallbackURLs:      model.UrlList{"http://federated.localhost/auth/callback"},
+				CallbackURLs:      datatype.StringList{"http://federated.localhost/auth/callback"},
 				CreatedByID:       new(users[1].ID),
 				AllowedUserGroups: []model.UserGroup{},
 				Credentials: model.OidcClientCredentials{
@@ -234,7 +234,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:              "SCIM Client",
 				Secret:            "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK", // nQbiuMRG7FpdK2EnDd5MBivWQeKFXohn
-				CallbackURLs:      model.UrlList{"http://scimclient.localhost/auth/callback"},
+				CallbackURLs:      datatype.StringList{"http://scimclient.localhost/auth/callback"},
 				CreatedByID:       new(users[0].ID),
 				IsGroupRestricted: true,
 				AllowedUserGroups: []model.UserGroup{
@@ -248,7 +248,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:         "PAR Test Client",
 				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
-				CallbackURLs: model.UrlList{"http://par-client.localhost/auth/callback"},
+				CallbackURLs: datatype.StringList{"http://par-client.localhost/auth/callback"},
 				CreatedByID:  new(users[0].ID),
 			},
 			{
@@ -257,7 +257,7 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 				},
 				Name:         "Skip Consent Client",
 				Secret:       "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC", // w2mUeZISmEvIDMEDvpY0PnxQIpj1m3zY
-				CallbackURLs: model.UrlList{"http://skip-consent.localhost/auth/callback"},
+				CallbackURLs: datatype.StringList{"http://skip-consent.localhost/auth/callback"},
 				CreatedByID:  new(users[0].ID),
 				// Trusted client that bypasses the consent screen by default
 				SkipConsent: true,

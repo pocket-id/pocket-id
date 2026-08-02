@@ -699,6 +699,29 @@ func TestGetCallbackURLFromList_LoopbackSpecialHandling(t *testing.T) {
 	}
 }
 
+func TestMatchesAnyURLPattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		patterns []string
+		input    string
+		want     bool
+	}{
+		{"empty list denies", nil, "https://app.example.com/oauth/client", false},
+		{"empty slice denies", []string{}, "https://app.example.com/oauth/client", false},
+		{"exact match", []string{"https://app.example.com/oauth/client"}, "https://app.example.com/oauth/client", true},
+		{"wildcard path", []string{"https://app.example.com/**"}, "https://app.example.com/oauth/client", true},
+		{"wildcard host segment", []string{"https://*.example.com/oauth/client"}, "https://app.example.com/oauth/client", true},
+		{"star matches all", []string{"*"}, "https://anything.example.com/x", true},
+		{"no match", []string{"https://other.example.com/**"}, "https://app.example.com/oauth/client", false},
+		{"second pattern matches", []string{"https://a.example.com/**", "https://app.example.com/**"}, "https://app.example.com/oauth/client", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, MatchesAnyURLPattern(tt.patterns, tt.input))
+		})
+	}
+}
+
 func TestLoopbackURLWithWildcardPort(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -835,6 +858,45 @@ func TestGetCallbackURLFromList_MultiplePatterns(t *testing.T) {
 			} else {
 				assert.Empty(t, result)
 			}
+		})
+	}
+}
+
+// The only wildcards this package supports are * and **
+// urlpattern additionally reads ":name" as a single-segment wildcard, so a literal colon in a
+// pattern must never widen what it matches
+func TestMatchCallbackURL_ColonIsNotAWildcard(t *testing.T) {
+	tests := []struct {
+		name    string
+		pattern string
+		input   string
+		want    bool
+	}{
+		{"host label is literal", "https://:host.example.com/cb", "https://evil.example.com/cb", false},
+		{"host label matches itself", "https://:host.example.com/cb", "https://:host.example.com/cb", true},
+		{"path segment is literal", "https://app.example.com/a:b", "https://app.example.com/a:other", false},
+		{"path segment matches itself", "https://app.example.com/a:b", "https://app.example.com/a:b", true},
+		{"userinfo is literal", "https://user:pass@app.example.com/cb", "https://user:other@app.example.com/cb", false},
+		{"userinfo matches itself", "https://user:pass@app.example.com/cb", "https://user:pass@app.example.com/cb", true},
+
+		// Structural colons must keep working
+		{"port is matched exactly", "https://app.example.com:8080/cb", "https://app.example.com:8080/cb", true},
+		{"port mismatch is rejected", "https://app.example.com:8080/cb", "https://app.example.com:9090/cb", false},
+		{"ipv6 host", "https://[::1]/cb", "https://[::1]/cb", true},
+		{"ipv6 host with port", "https://[::1]:8080/cb", "https://[::1]:8080/cb", true},
+
+		// The supported wildcards are unaffected
+		{"single asterisk spans one segment", "https://app.example.com/*/cb", "https://app.example.com/x/cb", true},
+		{"single asterisk does not span two", "https://app.example.com/*/cb", "https://app.example.com/x/y/cb", false},
+		{"globstar spans many segments", "https://app.example.com/**", "https://app.example.com/a/b/c", true},
+		{"asterisk in host", "https://*.example.com/cb", "https://sub.example.com/cb", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := matchCallbackURL(tt.pattern, tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
