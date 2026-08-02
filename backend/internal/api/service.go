@@ -265,12 +265,17 @@ type ClientAPIAccess struct {
 // GetClientAPIAccess returns the API permissions a client is allowed to request, split by subject type
 // Only custom-API permissions are tracked here because the identity scopes are freely requestable by every client
 func (s *Service) GetClientAPIAccess(ctx context.Context, clientID string) (access ClientAPIAccess, err error) {
-	if err := ensureOIDCClientExists(ctx, s.db, clientID); err != nil {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	if err := ensureOIDCClientExists(ctx, tx, clientID); err != nil {
 		return ClientAPIAccess{}, err
 	}
 
 	var rows []OidcClientAllowedAPIPermission
-	err = s.db.WithContext(ctx).
+	err = tx.WithContext(ctx).
 		Where("oidc_client_id = ?", clientID).
 		Find(&rows).
 		Error

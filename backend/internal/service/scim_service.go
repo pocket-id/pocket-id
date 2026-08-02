@@ -98,7 +98,12 @@ func (s *ScimService) ListServiceProviders(ctx context.Context) ([]model.ScimSer
 func (s *ScimService) CreateServiceProvider(
 	ctx context.Context,
 	input *dto.ScimServiceProviderCreateDTO) (model.ScimServiceProvider, error) {
-	if err := ensureScimOIDCClientExists(ctx, s.db, input.OidcClientID); err != nil {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
+	if err := ensureScimOIDCClientExists(ctx, tx, input.OidcClientID); err != nil {
 		return model.ScimServiceProvider{}, err
 	}
 
@@ -108,7 +113,10 @@ func (s *ScimService) CreateServiceProvider(
 		OidcClientID: input.OidcClientID,
 	}
 
-	if err := s.db.WithContext(ctx).Create(&provider).Error; err != nil {
+	if err := tx.WithContext(ctx).Create(&provider).Error; err != nil {
+		return model.ScimServiceProvider{}, err
+	}
+	if err := tx.Commit().Error; err != nil {
 		return model.ScimServiceProvider{}, err
 	}
 
@@ -119,8 +127,13 @@ func (s *ScimService) UpdateServiceProvider(ctx context.Context,
 	serviceProviderID string,
 	input *dto.ScimServiceProviderCreateDTO,
 ) (model.ScimServiceProvider, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var provider model.ScimServiceProvider
-	err := s.db.WithContext(ctx).
+	err := tx.WithContext(ctx).
 		First(&provider, "id = ?", serviceProviderID).
 		Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -130,7 +143,7 @@ func (s *ScimService) UpdateServiceProvider(ctx context.Context,
 		return model.ScimServiceProvider{}, err
 	}
 
-	if err := ensureScimOIDCClientExists(ctx, s.db, input.OidcClientID); err != nil {
+	if err := ensureScimOIDCClientExists(ctx, tx, input.OidcClientID); err != nil {
 		return model.ScimServiceProvider{}, err
 	}
 
@@ -138,7 +151,10 @@ func (s *ScimService) UpdateServiceProvider(ctx context.Context,
 	provider.Token = datatype.EncryptedString(input.Token)
 	provider.OidcClientID = input.OidcClientID
 
-	if err := s.db.WithContext(ctx).Save(&provider).Error; err != nil {
+	if err := tx.WithContext(ctx).Save(&provider).Error; err != nil {
+		return model.ScimServiceProvider{}, err
+	}
+	if err := tx.Commit().Error; err != nil {
 		return model.ScimServiceProvider{}, err
 	}
 

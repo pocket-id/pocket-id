@@ -165,8 +165,13 @@ func (s *deviceService) acceptDeviceCode(ctx context.Context, userCode, userID, 
 }
 
 func (s *deviceService) loadDeviceAuthorizationUser(ctx context.Context, userID string) (model.User, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var user model.User
-	err := s.db.
+	err := tx.
 		WithContext(ctx).
 		Preload("UserGroups").
 		First(&user, "id = ?", userID).

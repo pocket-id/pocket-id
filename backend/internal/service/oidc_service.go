@@ -512,8 +512,13 @@ func (s *OidcService) GetAllowedGroupsCountOfClient(ctx context.Context, id stri
 }
 
 func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, listRequestOptions utils.ListRequestOptions) ([]model.UserAuthorizedOidcClient, utils.PaginationResponse, error) {
+	tx := s.db.Begin()
+	defer func() {
+		tx.Rollback()
+	}()
+
 	var user model.User
-	err := s.db.
+	err := tx.
 		WithContext(ctx).
 		Select("id").
 		First(&user, "id = ?", userID).
@@ -525,7 +530,7 @@ func (s *OidcService) ListAuthorizedClients(ctx context.Context, userID string, 
 		return nil, utils.PaginationResponse{}, err
 	}
 
-	query := s.db.
+	query := tx.
 		WithContext(ctx).
 		Model(&model.UserAuthorizedOidcClient{}).
 		Preload("Client").
