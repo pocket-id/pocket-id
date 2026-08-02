@@ -5,6 +5,7 @@
 		"users",
 		"user_groups",
 		"oidc_clients",
+		"oauth2_sessions",
 		"signup_tokens",
 		"apis",
 		"api_permissions",
@@ -286,9 +287,10 @@
 				"kind": "access_token",
 				"key": "cross-database-test-session",
 				"request_id": "cross-database-test-request",
+				"client_id": "3654a746-35d4-4321-ac61-0bdcff2b4055",
 				"access_token_signature": "",
 				"active": true,
-				"request_data": "eyJyZXF1ZXN0IjoidmFsdWUifQ==",
+				"request_data": "eyJjbGllbnRfaWQiOiIzNjU0YTc0Ni0zNWQ0LTQzMjEtYWM2MS0wYmRjZmYyYjQwNTUiLCJzZXNzaW9uIjp7InN1YmplY3QiOiJmNGI4OWRjMi02MmZiLTQ2YmYtOWY1Zi1jMzRmNGVhZmU5M2UiLCJpZF90b2tlbl9jbGFpbXMiOnsianRpIjoiY3Jvc3MtZGF0YWJhc2UtdGVzdC1pZC10b2tlbi1qdGkifX19",
 				"expires_at": "2099-01-01T00:00:00Z"
 			}
 		],

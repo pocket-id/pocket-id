@@ -16,10 +16,54 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
+	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
+
+func TestOidcService_DeleteClientDeletesOAuth2Sessions(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	require.NoError(t, db.Exec("PRAGMA foreign_keys = ON").Error)
+
+	client := model.OidcClient{Base: model.Base{ID: "deleted-client"}, Name: "Deleted Client"}
+	otherClient := model.OidcClient{Base: model.Base{ID: "other-client"}, Name: "Other Client"}
+	require.NoError(t, db.Create(&client).Error)
+	require.NoError(t, db.Create(&otherClient).Error)
+
+	for i, kind := range []string{"authorize_code", "access_token", "refresh_token", "par", "device_code"} {
+		session := oidc.OAuth2Session{
+			Base:        model.Base{ID: "deleted-client-session-" + strconv.Itoa(i)},
+			Kind:        kind,
+			Key:         "deleted-client-key-" + strconv.Itoa(i),
+			RequestID:   "deleted-client-request",
+			ClientID:    client.ID,
+			Active:      true,
+			RequestData: `{"client_id":"deleted-client","session":{"subject":"test-user","id_token_claims":{"jti":"test-jti"}}}`,
+		}
+		require.NoError(t, db.Create(&session).Error)
+	}
+	require.NoError(t, db.Create(&oidc.OAuth2Session{
+		Base:        model.Base{ID: "other-client-session"},
+		Kind:        "refresh_token",
+		Key:         "other-client-key",
+		RequestID:   "other-client-request",
+		ClientID:    otherClient.ID,
+		Active:      true,
+		RequestData: `{"client_id":"other-client","session":{"subject":"test-user"}}`,
+	}).Error)
+
+	service := &OidcService{db: db}
+	require.NoError(t, service.DeleteClient(t.Context(), client.ID))
+
+	var deletedClientSessionCount int64
+	require.NoError(t, db.Model(&oidc.OAuth2Session{}).Where("client_id = ?", client.ID).Count(&deletedClientSessionCount).Error)
+	assert.Zero(t, deletedClientSessionCount)
+
+	var otherClientSessionCount int64
+	require.NoError(t, db.Model(&oidc.OAuth2Session{}).Where("client_id = ?", otherClient.ID).Count(&otherClientSessionCount).Error)
+	assert.Equal(t, int64(1), otherClientSessionCount)
+}
 
 func TestOidcService_updateClientLogoType(t *testing.T) {
 	// Create a test database

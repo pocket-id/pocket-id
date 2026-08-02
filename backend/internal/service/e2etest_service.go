@@ -277,9 +277,10 @@ func (s *TestService) SeedDatabase(baseURL string) error {
 			Kind:                 "access_token",
 			Key:                  "cross-database-test-session",
 			RequestID:            "cross-database-test-request",
+			ClientID:             oidcClients[0].ID,
 			AccessTokenSignature: "",
 			Active:               true,
-			RequestData:          `{"request":"value"}`,
+			RequestData:          `{"client_id":"3654a746-35d4-4321-ac61-0bdcff2b4055","session":{"subject":"f4b89dc2-62fb-46bf-9f5f-c34f4eafe93e","id_token_claims":{"jti":"cross-database-test-id-token-jti"}}}`,
 			ExpiresAt:            &farFuture,
 		}
 		if err := tx.Create(&oauth2Session).Error; err != nil {

@@ -401,7 +401,7 @@ func (s *Store) RevokeAccessToken(ctx context.Context, requestID string) error {
 }
 
 func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientID, idTokenJTI string) error {
-	_, jtiMatches, err := s.findUserClientRequestIDs(ctx, userID, clientID, idTokenJTI)
+	_, jtiMatches, err := s.findActiveRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, idTokenJTI)
 	if err != nil {
 		return err
 	}
@@ -411,17 +411,30 @@ func (s *Store) RevokeSessionsByIDTokenHint(ctx context.Context, userID, clientI
 
 func RevokeUserClientSessions(ctx context.Context, db *gorm.DB, userID, clientID string) error {
 	s := NewStore(db, nil)
-	requestIDs, _, err := s.findUserClientRequestIDs(ctx, userID, clientID, "")
+	requestIDs, _, err := s.findActiveRefreshTokenRequestIDsForUserClient(ctx, userID, clientID, "")
 	if err != nil {
 		return err
 	}
 	return s.revokeRequestIDs(ctx, requestIDs)
 }
 
-func (s *Store) findUserClientRequestIDs(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
+// findActiveRefreshTokenRequestIDsForUserClient returns request IDs for active refresh-token sessions belonging to the user and client, plus the subset matching the optional ID token JTI
+func (s *Store) findActiveRefreshTokenRequestIDsForUserClient(ctx context.Context, userID, clientID, idTokenJTI string) (candidates []string, jtiMatches []string, err error) {
 	var sessions []OAuth2Session
-	err = s.dbFor(ctx).
-		Where("kind = ? AND active = ?", sessionKindRefreshToken, true).
+	query := s.dbFor(ctx).
+		Select("request_id", "request_data").
+		Where("kind = ? AND active = ? AND client_id = ?", sessionKindRefreshToken, true, clientID)
+
+	// Filter by the user ID stored in the JSON request data
+	switch query.Name() {
+	case "sqlite":
+		query = query.Where("json_extract(CAST(request_data AS TEXT), '$.session.subject') = ?", userID)
+	case "postgres":
+		query = query.Where("request_data #>> '{session,subject}' = ?", userID)
+	default:
+		return nil, nil, fmt.Errorf("unsupported database dialect: %s", query.Name())
+	}
+	err = query.
 		Find(&sessions).
 		Error
 	if err != nil {
@@ -431,19 +444,17 @@ func (s *Store) findUserClientRequestIDs(ctx context.Context, userID, clientID, 
 	candidateRequestIDs := map[string]struct{}{}
 	matchingRequestIDs := map[string]struct{}{}
 	for _, session := range sessions {
-		requester, err := s.decodeRequester(ctx, session.RequestData)
-		if err != nil {
-			return nil, nil, err
-		}
-		requestSession := requester.GetSession()
-		if requestSession == nil || requester.GetClient().GetID() != clientID || requestSession.GetSubject() != userID {
-			continue
-		}
-
 		// Add all sessions that match the user and client
 		candidateRequestIDs[session.RequestID] = struct{}{}
 		// Only add sessions that also match the ID token hint JTI
-		if storedSession, ok := requestSession.(*Session); ok && idTokenJTI != "" && storedSession.IDTokenClaims().JTI == idTokenJTI {
+		if idTokenJTI == "" {
+			continue
+		}
+		var stored storedRequester
+		if err := json.Unmarshal([]byte(session.RequestData), &stored); err != nil {
+			return nil, nil, err
+		}
+		if stored.Session != nil && stored.Session.Claims != nil && stored.Session.Claims.JTI == idTokenJTI {
 			matchingRequestIDs[session.RequestID] = struct{}{}
 		}
 	}
@@ -715,10 +726,16 @@ func (s *Store) upsertAuthorizeSession(ctx context.Context, kind string, key str
 }
 
 func (s *Store) storeSession(ctx context.Context, kind string, key string, requestID string, accessTokenSignature string, active bool, requestData string, exp *datatype.DateTime) error {
+	clientID, err := sessionClientID(requestData)
+	if err != nil {
+		return err
+	}
+
 	session := OAuth2Session{
 		Kind:                 kind,
 		Key:                  key,
 		RequestID:            requestID,
+		ClientID:             clientID,
 		AccessTokenSignature: accessTokenSignature,
 		Active:               active,
 		RequestData:          requestData,
@@ -730,6 +747,7 @@ func (s *Store) storeSession(ctx context.Context, kind string, key string, reque
 			Columns: []clause.Column{{Name: "kind"}, {Name: "key"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"request_id",
+				"client_id",
 				"access_token_signature",
 				"active",
 				"request_data",
@@ -738,6 +756,15 @@ func (s *Store) storeSession(ctx context.Context, kind string, key string, reque
 		}).
 		Create(&session).
 		Error
+}
+
+func sessionClientID(requestData string) (string, error) {
+	var stored storedRequester
+	if err := json.Unmarshal([]byte(requestData), &stored); err != nil {
+		return "", err
+	}
+
+	return stored.ClientID, nil
 }
 
 func (s *Store) getRequesterSession(ctx context.Context, kind string, key string) (fosite.Requester, bool, error) {

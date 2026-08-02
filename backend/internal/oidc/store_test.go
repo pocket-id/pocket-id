@@ -9,6 +9,7 @@ import (
 	fositejwt "github.com/ory/fosite/token/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -125,7 +126,15 @@ func TestStoreRevokeSessionsByIDTokenHintRevokesMatchingFositeSessions(t *testin
 	require.NoError(t, store.CreateRefreshTokenSession(t.Context(), "other-client-same-jti", "other-client-access", newTestRequester("other-client-request", otherClientID, userID, idTokenJTI)))
 	require.NoError(t, store.CreateAccessTokenSession(t.Context(), "other-client-access", newTestRequester("other-client-request", otherClientID, userID, idTokenJTI)))
 
+	queryCount := 0
+	const queryCounterCallback = "test:count_session_revocation_queries"
+	require.NoError(t, db.Callback().Query().Before("gorm:query").Register(queryCounterCallback, func(*gorm.DB) {
+		queryCount++
+	}))
+
 	require.NoError(t, store.RevokeSessionsByIDTokenHint(t.Context(), userID, clientID, idTokenJTI))
+	assert.Equal(t, 1, queryCount)
+	require.NoError(t, db.Callback().Query().Remove(queryCounterCallback))
 
 	var sessions []OAuth2Session
 	require.NoError(t, db.Order("key").Find(&sessions).Error)
