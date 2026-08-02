@@ -6,7 +6,7 @@ ALTER TABLE oidc_clients
 ALTER TABLE oidc_clients
     ADD COLUMN metadata_expires_at DATETIME;
 ALTER TABLE oidc_clients
-    ADD COLUMN metadata_grant_types TEXT;
+    ADD COLUMN metadata_grant_types BLOB;
 
 COMMIT;
 PRAGMA foreign_keys= ON;
