@@ -204,12 +204,21 @@ func TestUserInfoHandler(t *testing.T) {
 		require.Contains(t, rec.Header().Get("WWW-Authenticate"), `Bearer error=`)
 	})
 
-	t.Run("token without a resource owner is rejected", func(t *testing.T) {
-		// client_credentials-style token: valid, but no subject -> must not return PII.
-		token := issueAccessToken(t, "req-no-subject", "", "openid")
-		rec, c := call(t, token)
-		require.Empty(t, c.Errors)
-		require.Equal(t, http.StatusUnauthorized, rec.Code)
-		require.Contains(t, rec.Header().Get("WWW-Authenticate"), `Bearer error="request_unauthorized"`)
+	t.Run("access token without a subject is not issued", func(t *testing.T) {
+		// Rejecting a subjectless token at issuance enforces the RFC 9068 invariant before it can reach UserInfo
+		session := NewEmptySession()
+		session.SetExpiresAt(fosite.AccessToken, time.Now().UTC().Add(time.Hour))
+
+		request := fosite.NewAccessRequest(session)
+		request.ID = "req-no-subject"
+		request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: clientID}}}
+		request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
+		request.RequestedScope = fosite.Arguments{"openid"}
+		request.GrantedScope = fosite.Arguments{"openid"}
+		request.RequestedAudience = fosite.Arguments{clientID}
+		request.GrantedAudience = fosite.Arguments{clientID}
+
+		_, err := provider.NewAccessResponse(t.Context(), request)
+		require.ErrorContains(t, err, "without a subject")
 	})
 }

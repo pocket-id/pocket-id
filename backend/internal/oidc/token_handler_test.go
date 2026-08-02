@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
+	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	fositejwt "github.com/ory/fosite/token/jwt"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -79,9 +80,14 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.NotEmpty(t, body["access_token"], "client_credentials must issue a token, got error: %v", body["error"])
 
-	claims := decodeJWTPart(t, body["access_token"].(string), 1)
+	accessToken := body["access_token"].(string)
+	header := decodeJWTPart(t, accessToken, 0)
+	claims := decodeJWTPart(t, accessToken, 1)
 	// With no resource requested, the client_credentials token is a plain token bound to the requesting client
+	require.Equal(t, fositeoauth2.RFC9068JWTType, header["typ"])
 	require.Contains(t, jwtAudience(claims), clientID, "access token must be audience-bound to the client")
+	require.Equal(t, "client-"+clientID, claims["sub"])
+	require.Equal(t, clientID, claims["client_id"])
 }
 
 // TestTokenHandlerClientCredentialsDropsIdentityScopes guards that a machine token never
@@ -599,6 +605,7 @@ func TestTokenHandlerRefreshGrantPreservesAudienceAndScope(t *testing.T) {
 		claims := decodeJWTPart(t, body["access_token"].(string), 1)
 		// The refreshed access token stays bound to the original API audience and re-adds the issuer so it keeps working at userinfo, never widening to any other API
 		require.ElementsMatch(t, []string{apiResource, baseURL}, jwtAudience(claims))
+		require.Equal(t, clientID, claims["client_id"])
 		// A token that requested openid alongside the API keeps the identity scope on the access token, matching what it was granted
 		require.Equal(t, []string{"openid", "read:orders"}, jwtScopes(claims))
 	})

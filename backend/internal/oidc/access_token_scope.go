@@ -8,6 +8,14 @@ import (
 	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 )
 
+// NewAccessTokenStrategy applies Pocket ID's identity-audience policy to the provided access token strategy
+func NewAccessTokenStrategy(coreStrategy fositeoauth2.CoreStrategy, issuer string) fositeoauth2.CoreStrategy {
+	return identityAudienceAccessTokenStrategy{
+		CoreStrategy: coreStrategy,
+		issuer:       issuer,
+	}
+}
+
 // isIdentityScope reports whether the scope is an OIDC identity scope whose presence lets a token be presented to Pocket ID's own identity endpoints such as /userinfo
 // offline_access is deliberately excluded: it only requests a refresh token and is not tied to any resource server
 func isIdentityScope(scope string) bool {
