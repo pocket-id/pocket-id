@@ -32,8 +32,8 @@ const (
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
 	GrantTypeClientCredentials = "client_credentials"
 
-	AccessTokenDuration  = time.Hour
-	RefreshTokenDuration = 30 * 24 * time.Hour // 30 days
+	AccessTokenDuration  = time.Duration(model.DefaultAccessTokenDurationSeconds) * time.Second
+	RefreshTokenDuration = time.Duration(model.DefaultRefreshTokenDurationSeconds) * time.Second
 )
 
 type OidcService struct {
@@ -141,11 +141,17 @@ func (s *OidcService) ListClients(ctx context.Context, name string, listRequestO
 }
 
 func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCreateDto, userID string) (model.OidcClient, error) {
+	if err := validateOIDCClientTokenDurations(input.AccessTokenDurationSeconds, input.RefreshTokenDurationSeconds); err != nil {
+		return model.OidcClient{}, err
+	}
+
 	client := model.OidcClient{
 		Base: model.Base{
 			ID: input.ID,
 		},
-		CreatedByID: new(userID),
+		CreatedByID:                 new(userID),
+		AccessTokenDurationSeconds:  model.DefaultAccessTokenDurationSeconds,
+		RefreshTokenDurationSeconds: model.DefaultRefreshTokenDurationSeconds,
 	}
 	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
@@ -179,6 +185,10 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 }
 
 func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input dto.OidcClientUpdateDto) (model.OidcClient, error) {
+	if err := validateOIDCClientTokenDurations(input.AccessTokenDurationSeconds, input.RefreshTokenDurationSeconds); err != nil {
+		return model.OidcClient{}, err
+	}
+
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -210,6 +220,8 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 				"SkipConsent",
 				"LaunchURL",
 				"IsGroupRestricted",
+				"AccessTokenDurationSeconds",
+				"RefreshTokenDurationSeconds",
 			).
 			Updates(&client).Error
 	} else {
@@ -250,6 +262,8 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
+	client.AccessTokenDurationSeconds = input.AccessTokenDurationSeconds
+	client.RefreshTokenDurationSeconds = input.RefreshTokenDurationSeconds
 
 	// Preserve fields that are sourced from the client metadata document
 	if client.IsMetadataDocument() {
@@ -280,6 +294,16 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 		}
 	}
 
+}
+
+func validateOIDCClientTokenDurations(accessTokenDurationSeconds, refreshTokenDurationSeconds int64) error {
+	if !model.IsValidTokenDurationSeconds(accessTokenDurationSeconds) {
+		return &common.ValidationError{Message: "access token duration must be between 60 and 31536000 seconds and use whole-minute increments"}
+	}
+	if !model.IsValidTokenDurationSeconds(refreshTokenDurationSeconds) {
+		return &common.ValidationError{Message: "refresh token duration must be between 60 and 31536000 seconds and use whole-minute increments"}
+	}
+	return nil
 }
 
 func (s *OidcService) DeleteClient(ctx context.Context, clientID string) error {

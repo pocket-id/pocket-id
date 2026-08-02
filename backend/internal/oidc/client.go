@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"slices"
+	"time"
 
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -13,6 +14,8 @@ type Client struct {
 	apiScopes    []string
 	apiAudiences []string
 }
+
+var _ fosite.ClientWithCustomTokenLifespans = Client{}
 
 func (c Client) GetID() string {
 	return c.ID
@@ -85,4 +88,31 @@ func (c Client) GetResponseModes() []fosite.ResponseModeType {
 		fosite.ResponseModeFragment,
 		fosite.ResponseModeFormPost,
 	}
+}
+
+func (c Client) GetEffectiveLifespan(grantType fosite.GrantType, tokenType fosite.TokenType, fallback time.Duration) time.Duration {
+	var seconds int64
+	switch tokenType {
+	case fosite.AccessToken:
+		switch grantType {
+		case fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode, fosite.GrantTypeClientCredentials:
+			seconds = c.AccessTokenDurationSeconds
+		default:
+			return fallback
+		}
+	case fosite.RefreshToken:
+		switch grantType {
+		case fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode:
+			seconds = c.RefreshTokenDurationSeconds
+		default:
+			return fallback
+		}
+	default:
+		return fallback
+	}
+
+	if !model.IsValidTokenDurationSeconds(seconds) {
+		return fallback
+	}
+	return time.Duration(seconds) * time.Second
 }

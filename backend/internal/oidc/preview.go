@@ -94,12 +94,14 @@ func (b *ClientPreviewBuilder) validatedScopes(ctx context.Context, client model
 
 func (b *ClientPreviewBuilder) newPreviewRequest(ctx context.Context, client model.OidcClient, userID string, scopes fosite.Arguments, authenticationMethod string) *fosite.Request {
 	now := time.Now().UTC()
+	runtimeClient := Client{OidcClient: client}
 	session := NewAuthenticatedSession(userID, authenticationMethod, now, now)
-	session.SetExpiresAt(fosite.AccessToken, now.Add(b.strategies.config.GetAccessTokenLifespan(ctx)))
+	accessTokenLifespan := fosite.GetEffectiveLifespan(runtimeClient, fosite.GrantTypeAuthorizationCode, fosite.AccessToken, b.strategies.config.GetAccessTokenLifespan(ctx))
+	session.SetExpiresAt(fosite.AccessToken, now.Add(accessTokenLifespan))
 
 	request := fosite.NewRequest()
 	request.RequestedAt = now
-	request.Client = Client{OidcClient: client}
+	request.Client = runtimeClient
 	request.RequestedScope = scopes
 	request.GrantedScope = scopes
 	request.RequestedAudience = fosite.Arguments{client.ID}

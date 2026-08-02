@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ory/fosite"
+	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 
 	"github.com/gin-gonic/gin/binding"
@@ -50,6 +51,9 @@ func init() {
 		},
 		"resource_uri": func(fl validator.FieldLevel) bool {
 			return ValidateResourceURI(fl.Field().String())
+		},
+		"token_duration": func(fl validator.FieldLevel) bool {
+			return model.IsValidTokenDurationSeconds(fl.Field().Int())
 		},
 	}
 	for k, v := range validators {

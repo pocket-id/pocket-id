@@ -20,7 +20,6 @@
 		federatedIdentities: OidcClientFederatedIdentity[];
 		errors?: z.core.$ZodIssue[];
 		disabled?: boolean;
-
 		children?: Snippet;
 	} = $props();
 
@@ -60,15 +59,10 @@
 </script>
 
 <div {...restProps}>
-	<FormInput
-		label={m.federated_client_credentials()}
-		description={m.federated_client_credentials_description()}
-		docsLink="https://pocket-id.org/docs/guides/oidc-client-authentication"
-		{disabled}
-	>
-		<div class="space-y-4">
+	<FormInput {disabled}>
+		<div class="flex flex-col gap-4">
 			{#each federatedIdentities as identity, i (identity)}
-				<div class="space-y-3 rounded-lg border p-4">
+				<div class="flex flex-col gap-3">
 					<div class="flex items-center justify-between">
 						<Field.Label>Identity {i + 1}</Field.Label>
 						{#if federatedIdentities.length > 0}
@@ -79,7 +73,7 @@
 								aria-label="Remove federated identity"
 								{disabled}
 							>
-								<LucideMinus class="size-4" />
+								<LucideMinus data-icon="inline-start" />
 							</Button>
 						{/if}
 					</div>
@@ -159,14 +153,14 @@
 	</FormInput>
 
 	<Button
-		class="mt-3"
+		class="mt-7"
 		variant="secondary"
 		size="sm"
 		onclick={addFederatedIdentity}
 		type="button"
 		{disabled}
 	>
-		<LucidePlus class="mr-1 size-4" />
+		<LucidePlus data-icon="inline-start" />
 		{federatedIdentities.length === 0
 			? m.add_federated_client_credential()
 			: m.add_another_federated_client_credential()}
