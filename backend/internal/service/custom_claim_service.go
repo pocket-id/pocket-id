@@ -39,6 +39,7 @@ func isReservedClaim(key string) bool {
 		"acr",
 		"amr",
 		"azp",
+		"client_id",
 		"nbf",
 		"jti":
 		return true

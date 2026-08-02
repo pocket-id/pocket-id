@@ -864,7 +864,7 @@ func (s *TestService) SignAccessToken(ctx context.Context, userID, clientID stri
 	keyGetter := func(context.Context) (interface{}, error) {
 		return oidc.SigningKeyFromSigner(s.jwtService)
 	}
-	strategy := compose.NewOAuth2JWTStrategy(keyGetter, coreStrategy, fositeConfig)
+	strategy := oidc.NewAccessTokenStrategy(compose.NewOAuth2RFC9068JWTStrategy(keyGetter, coreStrategy, fositeConfig), common.EnvConfig.AppURL)
 
 	expiresAt := time.Now().UTC().Add(AccessTokenDuration)
 	if expired {
