@@ -19,7 +19,7 @@ import (
 	"github.com/ory/fosite"
 )
 
-const clientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+const clientAssertionTypeJWTBearer = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" // #nosec G101 -- OAuth assertion type identifier, not a credential
 
 var errNoFederatedClientAssertion = errors.New("no federated client assertion")
 

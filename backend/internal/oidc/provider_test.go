@@ -56,6 +56,7 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
+	// #nosec G101
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
@@ -123,6 +124,7 @@ func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
 				CallbackURLs: model.UrlList{"http://client.example.com/callback"},
 			}).Error)
 
+			// #nosec G101
 			provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 				BaseURL:                   "https://issuer.example.com",
 				TokenBaseURL:              "https://issuer.example.com",
@@ -160,6 +162,7 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
 	}).Error)
 
+	// #nosec G101
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
@@ -193,6 +196,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 		IsPublic:     true,
 	}).Error)
 
+	// #nosec G101
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
@@ -225,6 +229,7 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
 	}).Error)
 
+	// #nosec G101
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
@@ -265,6 +270,7 @@ func TestProviderAcceptsUnsignedRequestObject(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
 	}).Error)
 
+	// #nosec G101
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
@@ -306,6 +312,7 @@ func TestProviderRejectsSignedRequestObject(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
 	}).Error)
 
+	// #nosec G101
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
@@ -382,6 +389,7 @@ func TestProviderIssuesAndValidatesTokensForSupportedAlgorithms(t *testing.T) {
 			db := testutils.NewDatabaseForTest(t)
 			require.NoError(t, db.Create(&model.OidcClient{Base: model.Base{ID: "test-client"}, Name: "Test Client"}).Error)
 
+			// #nosec G101
 			provider, err := newProvider(NewStore(db, nil), nil, algTestSigner{key: tc.gen(t), alg: tc.alg}, Config{
 				BaseURL:      "https://issuer.example.com",
 				TokenBaseURL: "https://issuer.example.com",
@@ -449,6 +457,7 @@ func TestProviderIgnoresUnknownScopes(t *testing.T) {
 		CallbackURLs: model.UrlList{"https://app.example.com/callback"},
 	}).Error)
 
+	// #nosec G101
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",

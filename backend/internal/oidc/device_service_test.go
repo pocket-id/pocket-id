@@ -20,6 +20,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// #nosec G101
+const testReauthenticationToken = "valid-reauth-token"
+
 type fakeReauthenticationConsumer struct {
 	token             string
 	userID            string
@@ -42,7 +45,7 @@ func TestDeviceServiceAcceptRequiresReauthenticationTokenWhenClientRequiresIt(t 
 		clientID = "test-client"
 	)
 	reauth := &fakeReauthenticationConsumer{
-		token:             "valid-reauth-token",
+		token:             testReauthenticationToken,
 		userID:            userID,
 		reauthenticatedAt: time.Now().UTC().Truncate(time.Second),
 	}
@@ -76,7 +79,7 @@ func TestDeviceServiceAcceptUsesReauthenticationTimeForDeviceSession(t *testing.
 	)
 	reauthenticatedAt := time.Now().Add(-30 * time.Second).UTC().Truncate(time.Second)
 	reauth := &fakeReauthenticationConsumer{
-		token:             "valid-reauth-token",
+		token:             testReauthenticationToken,
 		userID:            userID,
 		reauthenticatedAt: reauthenticatedAt,
 	}
@@ -153,6 +156,7 @@ func newTestDeviceService(t *testing.T, clientID, userID string, requiresReauthe
 	store := NewStore(db, apiAccess)
 	signerKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
+	// #nosec G101
 	provider, err := newProvider(store, nil, testTokenSigner{key: signerKey}, Config{
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",

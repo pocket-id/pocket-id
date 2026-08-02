@@ -10,6 +10,7 @@ import (
 
 type Code string
 
+// #nosec G101 -- these are client-visible error codes, not credentials
 const (
 	CodeInternal                        Code = "internal_error"
 	CodeValidationFailed                Code = "validation_failed"

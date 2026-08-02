@@ -8,9 +8,9 @@ import (
 
 var AccessTokenCookieName = "__Host-access_token"
 var SessionIdCookieName = "__Host-session"
-var DeviceTokenCookieName = "__Secure-device_token"
-var DeviceLoginTokenCookieName = "__Secure-device_login_token"
-var ReauthenticationTokenCookieName = "__Secure-reauthentication_token"
+var DeviceTokenCookieName = "__Secure-device_token"                     // #nosec G101 -- cookie name, not a credential
+var DeviceLoginTokenCookieName = "__Secure-device_login_token"          // #nosec G101 -- cookie name, not a credential
+var ReauthenticationTokenCookieName = "__Secure-reauthentication_token" // #nosec G101 -- cookie name, not a credential
 
 func init() {
 	if strings.HasPrefix(common.EnvConfig.AppURL, "http://") {
