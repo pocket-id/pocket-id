@@ -18,7 +18,9 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/ory/fosite"
+	fositeoauth2 "github.com/ory/fosite/handler/oauth2"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -61,7 +63,7 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	session := NewEmptySession()
@@ -72,19 +74,33 @@ func TestProviderIssuesJWTAccessTokens(t *testing.T) {
 	request.ID = "test-request"
 	request.Client = Client{OidcClient: model.OidcClient{Base: model.Base{ID: "test-client"}}}
 	request.GrantTypes = fosite.Arguments{string(fosite.GrantTypeClientCredentials)}
-	request.RequestedScope = fosite.Arguments{"openid"}
-	request.GrantedScope = fosite.Arguments{"openid"}
-	request.RequestedAudience = fosite.Arguments{"test-client"}
-	request.GrantedAudience = fosite.Arguments{"test-client"}
+	request.RequestedScope = fosite.Arguments{"read:orders"}
+	request.GrantedScope = fosite.Arguments{"read:orders"}
+	request.RequestedAudience = fosite.Arguments{"https://api.orders.example.com"}
+	request.GrantedAudience = fosite.Arguments{"https://api.orders.example.com"}
 
 	response, err := provider.NewAccessResponse(t.Context(), request)
 	require.NoError(t, err)
 	require.Len(t, strings.Split(response.GetAccessToken(), "."), 3)
 
-	// The issued JWT must carry a `kid` header matching the signing key so RPs can
-	// select the verification key from the published JWKS (esp. after key rotation).
 	header := decodeJWTPart(t, response.GetAccessToken(), 0)
+	claims := decodeJWTPart(t, response.GetAccessToken(), 1)
+
+	// The access token header explicitly distinguishes RFC 9068 access tokens from other JWT types
+	require.Equal(t, fositeoauth2.RFC9068JWTType, header["typ"])
 	require.Equal(t, "test-key-id", header["kid"])
+	require.Equal(t, "ES256", header["alg"])
+
+	// The payload carries every claim required by RFC 9068 section 2.2
+	require.Equal(t, "https://issuer.example.com", claims["iss"])
+	require.Equal(t, "test-user", claims["sub"])
+	require.Equal(t, "test-client", claims["client_id"])
+	require.Equal(t, []string{"https://api.orders.example.com"}, jwtAudience(claims))
+	require.Equal(t, "read:orders", claims["scope"])
+	require.NotEmpty(t, claims["jti"])
+	require.NotZero(t, claims["iat"])
+	require.NotZero(t, claims["exp"])
+	require.NotContains(t, claims, "azp")
 }
 
 func TestRedirectSecureChecker(t *testing.T) {
@@ -121,7 +137,7 @@ func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
 			require.NoError(t, db.Create(&model.OidcClient{
 				Base:         model.Base{ID: "test-client"},
 				Name:         "Test Client",
-				CallbackURLs: model.UrlList{"http://client.example.com/callback"},
+				CallbackURLs: datatype.StringList{"http://client.example.com/callback"},
 			}).Error)
 
 			// #nosec G101
@@ -130,7 +146,7 @@ func TestProviderInsecureCallbackURLCompatibility(t *testing.T) {
 				TokenBaseURL:              "https://issuer.example.com",
 				Secret:                    []byte("test-secret"),
 				AllowInsecureCallbackURLs: tt.allowInsecureCallbackURLs,
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			req := httptest.NewRequestWithContext(
@@ -159,7 +175,7 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 	}).Error)
 
 	// #nosec G101
@@ -167,7 +183,7 @@ func TestProviderAcceptsWildcardRedirectURI(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
@@ -192,7 +208,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 		IsPublic:     true,
 	}).Error)
 
@@ -201,7 +217,7 @@ func TestProviderAcceptsPushedAuthorizationWildcardRedirectURI(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://tenant.example.com/callback"
@@ -226,7 +242,7 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://*.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://*.example.com/callback"},
 	}).Error)
 
 	// #nosec G101
@@ -234,7 +250,7 @@ func TestProviderRejectsUnmatchedWildcardRedirectURI(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	const requestedRedirectURI = "https://evil.example.net/callback"
@@ -267,7 +283,7 @@ func TestProviderAcceptsUnsignedRequestObject(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://client.example.com/callback"},
 	}).Error)
 
 	// #nosec G101
@@ -275,7 +291,7 @@ func TestProviderAcceptsUnsignedRequestObject(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	requestObject := encodeRequestObject(t,
@@ -309,7 +325,7 @@ func TestProviderRejectsSignedRequestObject(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://client.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://client.example.com/callback"},
 	}).Error)
 
 	// #nosec G101
@@ -317,7 +333,7 @@ func TestProviderRejectsSignedRequestObject(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// The signature is never verified: the request object must already be rejected because only
@@ -394,7 +410,7 @@ func TestProviderIssuesAndValidatesTokensForSupportedAlgorithms(t *testing.T) {
 				BaseURL:      "https://issuer.example.com",
 				TokenBaseURL: "https://issuer.example.com",
 				Secret:       []byte("test-secret"),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			session := NewEmptySession()
@@ -417,6 +433,9 @@ func TestProviderIssuesAndValidatesTokensForSupportedAlgorithms(t *testing.T) {
 			require.Len(t, strings.Split(accessToken, "."), 3)
 			header := decodeJWTPart(t, accessToken, 0)
 			require.Equal(t, tc.alg.String(), header["alg"])
+			require.Equal(t, fositeoauth2.RFC9068JWTType, header["typ"])
+			claims := decodeJWTPart(t, accessToken, 1)
+			require.Equal(t, "test-client", claims["client_id"])
 
 			tokenUse, introspected, err := provider.IntrospectToken(t.Context(), accessToken, fosite.AccessToken, NewEmptySession())
 			require.NoError(t, err)
@@ -454,7 +473,7 @@ func TestProviderIgnoresUnknownScopes(t *testing.T) {
 	require.NoError(t, db.Create(&model.OidcClient{
 		Base:         model.Base{ID: "test-client"},
 		Name:         "Test Client",
-		CallbackURLs: model.UrlList{"https://app.example.com/callback"},
+		CallbackURLs: datatype.StringList{"https://app.example.com/callback"},
 	}).Error)
 
 	// #nosec G101
@@ -462,7 +481,7 @@ func TestProviderIgnoresUnknownScopes(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Clients such as MCP clients blindly request scopes Pocket ID does not support, like

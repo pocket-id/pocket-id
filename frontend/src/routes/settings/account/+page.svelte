@@ -143,7 +143,7 @@
 		<Item.Description>
 			{m.select_the_language_you_want_to_use()}
 			<br />
-			<FormattedMessage m={m.contribute_to_translation()} />
+			<FormattedMessage message={m.contribute_to_translation} />
 		</Item.Description>
 	</Item.Content>
 	<Item.Actions>

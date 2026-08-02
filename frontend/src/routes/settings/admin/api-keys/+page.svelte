@@ -42,9 +42,9 @@
 					<ShieldPlus class="text-primary/80 size-5" />
 					{m.create_api_key()}
 				</Card.Title>
-				<Card.Description
-					><FormattedMessage m={m.add_a_new_api_key_for_programmatic_access()} /></Card.Description
-				>
+				<Card.Description>
+					<FormattedMessage message={m.add_a_new_api_key_for_programmatic_access} />
+				</Card.Description>
 			</div>
 			{#if !expandAddApiKey}
 				<Button class="w-full md:w-auto" onclick={() => (expandAddApiKey = true)}

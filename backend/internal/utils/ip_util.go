@@ -28,6 +28,13 @@ var tailscaleIPNets = []*net.IPNet{
 	{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}, // 100.64.0.0/10
 }
 
+// LocalIPv6IPNets returns the extra IPv6 ranges configured via LOCAL_IPV6_RANGES
+// that are treated as local/private. It is used to extend SSRF protection in
+// components that classify IPs independently (e.g. the fosite CIMD fetcher).
+func LocalIPv6IPNets() []*net.IPNet {
+	return localIPv6Ranges
+}
+
 func IsLocalIPv6(ip net.IP) bool {
 	if ip.To4() != nil {
 		return false

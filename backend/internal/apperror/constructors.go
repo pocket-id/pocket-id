@@ -59,6 +59,16 @@ func OidcInvalidCallbackURL() *Error {
 	return New(CodeOidcInvalidCallbackURL, http.StatusBadRequest, "Callback URL is invalid and may need to be corrected by an administrator")
 }
 
+func InvalidCIMDURLPattern(pattern string) *Error {
+	return New(CodeValidationFailed, http.StatusBadRequest, "Metadata document URL pattern is invalid").
+		WithDetail("pattern", pattern).
+		WithFields([]FieldError{{
+			Field:   "cimdUrlAllowlist",
+			Code:    "invalid_value",
+			Message: "contains an invalid URL pattern",
+		}})
+}
+
 func UnsupportedFileType(expected string) *Error {
 	if expected == "" {
 		return New(CodeFileTypeNotSupported, http.StatusUnsupportedMediaType, "File type is not supported")

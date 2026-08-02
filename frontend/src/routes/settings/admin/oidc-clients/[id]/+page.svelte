@@ -127,7 +127,10 @@
 	function disableGroupRestriction() {
 		openConfirmDialog({
 			title: m.unrestrict_oidc_client({ clientName: client.name }),
-			message: m.confirm_unrestrict_oidc_client_description({ clientName: client.name }),
+			message: {
+				message: m.confirm_unrestrict_oidc_client_description,
+				inputs: { clientName: client.name }
+			},
 			confirm: {
 				label: m.unrestrict(),
 				destructive: true,
@@ -225,6 +228,16 @@
 		<Alert.Title>{m.pkce_supported_client_title()}</Alert.Title>
 		<Alert.Description>
 			{m.pkce_supported_client_description()}
+		</Alert.Description>
+	</Alert.Root>
+{/if}
+
+{#if client.clientType === 'cimd'}
+	<Alert.Root variant="info">
+		<LucideInfo class="size-4" />
+		<Alert.Title>{m.cimd_client_managed_fields_title()}</Alert.Title>
+		<Alert.Description>
+			{m.cimd_client_managed_fields_description()}
 		</Alert.Description>
 	</Alert.Root>
 {/if}
@@ -373,7 +386,7 @@
 			<Card.Header>
 				<Card.Title>{m.scim_provisioning()}</Card.Title>
 				<Card.Description>
-					<FormattedMessage m={m.scim_provisioning_description()} />
+					<FormattedMessage message={m.scim_provisioning_description} />
 				</Card.Description>
 			</Card.Header>
 			<Card.Content>

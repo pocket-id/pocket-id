@@ -1,3 +1,5 @@
+import { encodeClientIdParam } from './client-id-util';
+
 type SkipCacheUntil = {
 	[key: string]: number;
 };
@@ -56,12 +58,18 @@ export const cachedProfilePicture: CachableImage = {
 
 export const cachedOidcClientLogo: CachableImage = {
 	getUrl: (clientId: string, light = true) => {
-		const url = new URL(`/api/oidc/clients/${clientId}/logo`, window.location.origin);
+		const url = new URL(
+			`/api/oidc/clients/${encodeClientIdParam(clientId)}/logo`,
+			window.location.origin
+		);
 		if (!light) url.searchParams.set('light', 'false');
 		return getCachedImageUrl(url);
 	},
 	bustCache: (clientId: string, light = true) => {
-		const url = new URL(`/api/oidc/clients/${clientId}/logo`, window.location.origin);
+		const url = new URL(
+			`/api/oidc/clients/${encodeClientIdParam(clientId)}/logo`,
+			window.location.origin
+		);
 		if (!light) url.searchParams.set('light', 'false');
 		bustImageCache(url);
 	}

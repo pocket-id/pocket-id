@@ -19,14 +19,22 @@ type UserAuthorizedOidcClient struct {
 	Client   OidcClient
 }
 
+// OidcClientType identifies how an OIDC client was registered.
+type OidcClientType string
+
+const (
+	OidcClientTypeStandard OidcClientType = "standard"
+	OidcClientTypeCIMD     OidcClientType = "cimd"
+)
+
 type OidcClient struct {
 	Base
 
 	Name                                string `sortable:"true"`
 	Description                         string
 	Secret                              string
-	CallbackURLs                        UrlList
-	LogoutCallbackURLs                  UrlList
+	CallbackURLs                        datatype.StringList
+	LogoutCallbackURLs                  datatype.StringList
 	ImageType                           *string
 	DarkImageType                       *string
 	IsPublic                            bool
@@ -36,8 +44,11 @@ type OidcClient struct {
 	SkipConsent                         bool `sortable:"true" filterable:"true"`
 	Credentials                         OidcClientCredentials
 	LaunchURL                           *string
-	IsGroupRestricted                   bool `sortable:"true" filterable:"true"`
-	PkceSupported                       bool `sortable:"true" filterable:"true"`
+	IsGroupRestricted                   bool           `sortable:"true" filterable:"true"`
+	PkceSupported                       bool           `sortable:"true" filterable:"true"`
+	ClientType                          OidcClientType `gorm:"default:standard" sortable:"true" filterable:"true"`
+	MetadataExpiresAt                   *datatype.DateTime
+	MetadataGrantTypes                  datatype.StringList
 
 	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID               *string
@@ -51,6 +62,12 @@ func (c OidcClient) HasLogo() bool {
 
 func (c OidcClient) HasDarkLogo() bool {
 	return c.DarkImageType != nil && *c.DarkImageType != ""
+}
+
+// IsMetadataDocument reports whether the client was synthesized from an OAuth
+// Client ID Metadata Document. Its ID is then the https URL of the document.
+func (c OidcClient) IsMetadataDocument() bool {
+	return c.ClientType == OidcClientTypeCIMD
 }
 
 type OidcClientCredentials struct { //nolint:recvcheck
@@ -85,14 +102,4 @@ func (occ *OidcClientCredentials) Scan(value any) error {
 
 func (occ OidcClientCredentials) Value() (driver.Value, error) {
 	return json.Marshal(occ)
-}
-
-type UrlList []string //nolint:recvcheck
-
-func (cu *UrlList) Scan(value any) error {
-	return utils.UnmarshalJSONFromDatabase(cu, value)
-}
-
-func (cu UrlList) Value() (driver.Value, error) {
-	return json.Marshal(cu)
 }

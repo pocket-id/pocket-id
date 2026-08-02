@@ -10,6 +10,7 @@ type OidcClientMetaDataDto struct {
 	HasDarkLogo              bool    `json:"hasDarkLogo"`
 	LaunchURL                *string `json:"launchURL"`
 	RequiresReauthentication bool    `json:"requiresReauthentication"`
+	ClientType               string  `json:"clientType"`
 }
 
 type OidcClientDto struct {

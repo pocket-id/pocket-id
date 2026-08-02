@@ -43,7 +43,7 @@ func TestIntrospectionHandlerBindsTokenToCallerClient(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	issueAccessToken := func(t *testing.T, requestID, clientID, subject string) string {
@@ -147,7 +147,7 @@ func TestIntrospectionHandlerAllowsReusedFederatedClientAssertion(t *testing.T) 
 		BaseURL:      baseURL,
 		TokenBaseURL: baseURL,
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	session := NewEmptySession()

@@ -161,7 +161,7 @@ func newTestDeviceService(t *testing.T, clientID, userID string, requiresReauthe
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	claimsService := newClaimsService(db, nil, "", nil)

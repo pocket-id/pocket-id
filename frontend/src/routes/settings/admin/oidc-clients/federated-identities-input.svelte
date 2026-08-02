@@ -14,10 +14,12 @@
 	let {
 		federatedIdentities = $bindable([]),
 		errors,
+		disabled = false,
 		...restProps
 	}: HTMLAttributes<HTMLDivElement> & {
 		federatedIdentities: OidcClientFederatedIdentity[];
 		errors?: z.core.$ZodIssue[];
+		disabled?: boolean;
 
 		children?: Snippet;
 	} = $props();
@@ -62,6 +64,7 @@
 		label={m.federated_client_credentials()}
 		description={m.federated_client_credentials_description()}
 		docsLink="https://pocket-id.org/docs/guides/oidc-client-authentication"
+		{disabled}
 	>
 		<div class="space-y-4">
 			{#each federatedIdentities as identity, i (identity)}
@@ -74,6 +77,7 @@
 								size="sm"
 								onclick={() => removeFederatedIdentity(i)}
 								aria-label="Remove federated identity"
+								{disabled}
 							>
 								<LucideMinus class="size-4" />
 							</Button>
@@ -89,6 +93,7 @@
 								value={identity.issuer}
 								oninput={(e) => updateFederatedIdentity(i, 'issuer', e.currentTarget.value)}
 								aria-invalid={!!getFieldError(i, 'issuer')}
+								{disabled}
 							/>
 							{#if getFieldError(i, 'issuer')}
 								<Field.Error>{getFieldError(i, 'issuer')}</Field.Error>
@@ -103,6 +108,7 @@
 								value={identity.subject || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'subject', e.currentTarget.value)}
 								aria-invalid={!!getFieldError(i, 'subject')}
+								{disabled}
 							/>
 							{#if getFieldError(i, 'subject')}
 								<Field.Error>{getFieldError(i, 'subject')}</Field.Error>
@@ -117,6 +123,7 @@
 								value={identity.audience || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'audience', e.currentTarget.value)}
 								aria-invalid={!!getFieldError(i, 'audience')}
+								{disabled}
 							/>
 							{#if getFieldError(i, 'audience')}
 								<Field.Error>{getFieldError(i, 'audience')}</Field.Error>
@@ -131,6 +138,7 @@
 								value={identity.jwks || ''}
 								oninput={(e) => updateFederatedIdentity(i, 'jwks', e.currentTarget.value)}
 								aria-invalid={!!getFieldError(i, 'jwks')}
+								{disabled}
 							/>
 							{#if getFieldError(i, 'jwks')}
 								<Field.Error>{getFieldError(i, 'jwks')}</Field.Error>
@@ -142,6 +150,7 @@
 							description={m.replay_protection_description()}
 							checked={identity.replayProtection}
 							onCheckedChange={(checked) => updateFederatedIdentity(i, 'replayProtection', checked)}
+							{disabled}
 						/>
 					</div>
 				</div>
@@ -149,7 +158,14 @@
 		</div>
 	</FormInput>
 
-	<Button class="mt-3" variant="secondary" size="sm" onclick={addFederatedIdentity} type="button">
+	<Button
+		class="mt-3"
+		variant="secondary"
+		size="sm"
+		onclick={addFederatedIdentity}
+		type="button"
+		{disabled}
+	>
 		<LucidePlus class="mr-1 size-4" />
 		{federatedIdentities.length === 0
 			? m.add_federated_client_credential()

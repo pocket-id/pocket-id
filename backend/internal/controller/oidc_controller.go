@@ -30,6 +30,7 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.GET("/oidc/clients/:id", authMiddleware.Add(), httpserver.Handle(oc.getClientHandler))
 	group.GET("/oidc/clients/:id/meta", httpserver.Handle(oc.getClientMetaDataHandler))
 	group.PUT("/oidc/clients/:id", authMiddleware.Add(), httpserver.Handle(oc.updateClientHandler))
+	group.POST("/oidc/clients/:id/refresh", authMiddleware.Add(), httpserver.Handle(oc.refreshClientMetadataHandler))
 	group.DELETE("/oidc/clients/:id", authMiddleware.Add(), httpserver.Handle(oc.deleteClientHandler))
 
 	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), httpserver.Handle(oc.updateAllowedUserGroupsHandler))
@@ -134,6 +135,7 @@ func (oc *OidcController) listClientsHandler(c *gin.Context) error {
 			return err
 		}
 		clientDto.HasDarkLogo = client.HasDarkLogo()
+
 		clientDto.AllowedUserGroupsCount, err = oc.oidcService.GetAllowedGroupsCountOfClient(c, client.ID)
 		if err != nil {
 			return err
@@ -220,6 +222,30 @@ func (oc *OidcController) updateClientHandler(c *gin.Context) error {
 		return err
 	}
 
+	c.JSON(http.StatusOK, clientDto)
+	return nil
+}
+
+// refreshClientMetadataHandler godoc
+// @Summary Refresh client metadata document
+// @Description Force a re-fetch of the OAuth Client ID Metadata Document for a CIMD client
+// @Tags OIDC
+// @Produce json
+// @Param id path string true "Client ID"
+// @Success 200 {object} dto.OidcClientWithAllowedUserGroupsDto "Refreshed client"
+// @Router /api/oidc/clients/{id}/refresh [post]
+func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) error {
+	client, err := oc.oidcService.RefreshClientMetadata(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		return err
+	}
+
+	var clientDto dto.OidcClientWithAllowedUserGroupsDto
+	if err := dto.MapStruct(client, &clientDto); err != nil {
+		return err
+	}
+
+	clientDto.HasDarkLogo = client.HasDarkLogo()
 	c.JSON(http.StatusOK, clientDto)
 	return nil
 }

@@ -81,7 +81,7 @@
 			{/if}
 
 			<p class="text-muted-foreground mt-2 text-xs">
-				<FormattedMessage m={m.logo_from_url_description()} />
+				<FormattedMessage message={m.logo_from_url_description} />
 			</p>
 		</Popover.Content>
 	</Popover.Root>

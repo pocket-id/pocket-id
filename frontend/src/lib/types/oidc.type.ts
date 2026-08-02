@@ -1,5 +1,7 @@
 import type { UserGroup } from './user-group.type';
 
+export type OidcClientType = 'standard' | 'cimd';
+
 export type OidcClientMetaData = {
 	id: string;
 	name: string;
@@ -8,6 +10,7 @@ export type OidcClientMetaData = {
 	hasDarkLogo: boolean;
 	requiresReauthentication: boolean;
 	launchURL?: string;
+	clientType: OidcClientType;
 };
 
 export type OidcClientFederatedIdentity = {
@@ -55,7 +58,7 @@ export type OidcClientWithAllowedUserGroupsCount = OidcClient & {
 
 export type OidcClientUpdate = Omit<
 	OidcClient,
-	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported'
+	'id' | 'logoURL' | 'hasLogo' | 'hasDarkLogo' | 'pkceSupported' | 'clientType'
 >;
 export type OidcClientCreate = OidcClientUpdate & {
 	id?: string;
