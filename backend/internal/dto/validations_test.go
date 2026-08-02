@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin/binding"
-	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

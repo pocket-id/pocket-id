@@ -97,6 +97,8 @@ func (c Client) GetEffectiveLifespan(grantType fosite.GrantType, tokenType fosit
 		switch grantType {
 		case fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode, fosite.GrantTypeClientCredentials:
 			seconds = c.AccessTokenDurationSeconds
+		case fosite.GrantTypeImplicit, fosite.GrantTypePassword, fosite.GrantTypeJWTBearer:
+			return fallback
 		default:
 			return fallback
 		}
@@ -104,9 +106,13 @@ func (c Client) GetEffectiveLifespan(grantType fosite.GrantType, tokenType fosit
 		switch grantType {
 		case fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode:
 			seconds = c.RefreshTokenDurationSeconds
+		case fosite.GrantTypeImplicit, fosite.GrantTypePassword, fosite.GrantTypeClientCredentials, fosite.GrantTypeJWTBearer:
+			return fallback
 		default:
 			return fallback
 		}
+	case fosite.AuthorizeCode, fosite.IDToken, fosite.UserCode, fosite.DeviceCode, fosite.PushedAuthorizeRequestContext:
+		return fallback
 	default:
 		return fallback
 	}
