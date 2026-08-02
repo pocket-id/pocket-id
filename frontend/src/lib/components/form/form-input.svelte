@@ -7,7 +7,6 @@
 	import { LucideExternalLink } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import FormattedMessage from '../formatted-message.svelte';
 	import { cn } from '$lib/utils/style';
 
 	type WithoutChildren = {
@@ -38,7 +37,7 @@
 	}: HTMLAttributes<HTMLDivElement> &
 		(WithChildren | WithoutChildren) & {
 			label?: string;
-			description?: string;
+			description?: string | Snippet;
 			docsLink?: string;
 			placeholder?: string;
 			disabled?: boolean;
@@ -63,7 +62,11 @@
 		{/if}
 		{#if description}
 			<Field.Description>
-				<FormattedMessage m={description} />
+				{#if typeof description === 'string'}
+					{description}
+				{:else}
+					{@render description()}
+				{/if}
 				{#if docsLink}
 					<a
 						class="relative text-black after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:-translate-y-px after:bg-white dark:text-white"

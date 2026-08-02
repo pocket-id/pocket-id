@@ -21,7 +21,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	builder := newClientPreviewBuilder(newClaimsService(db, nil, "https://issuer.example.com", nil), provider.tokenStrategies)
@@ -45,6 +45,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "https://issuer.example.com", preview.AccessToken["iss"])
+	require.Equal(t, clientID, preview.AccessToken["client_id"])
 	require.ElementsMatch(t, []string{"openid", "email"}, stringSliceClaim(t, preview.AccessToken["scp"]))
 	// The identity scopes add the issuer to the audience so the previewed token would also work at /userinfo
 	require.ElementsMatch(t, []string{clientID, "https://issuer.example.com"}, stringSliceClaim(t, preview.AccessToken["aud"]))
@@ -69,7 +70,7 @@ func TestClientPreviewBuilderIgnoresUnknownScopes(t *testing.T) {
 		BaseURL:      "https://issuer.example.com",
 		TokenBaseURL: "https://issuer.example.com",
 		Secret:       []byte("test-secret"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	require.NoError(t, db.Create(&model.User{

@@ -14,6 +14,7 @@
 	import userStore from '$lib/stores/user-store';
 	import type { DeviceLoginVerificationInfo } from '$lib/types/device-login.type';
 	import type { OidcDeviceCodeInfo } from '$lib/types/oidc.type';
+	import { getClientIDHost } from '$lib/utils/client-id-util';
 	import { getWebauthnErrorMessage } from '$lib/utils/error-util';
 	import { preventDefault } from '$lib/utils/event-util';
 	import { startAuthentication } from '@simplewebauthn/browser';
@@ -207,10 +208,11 @@
 	{:else if reauthenticationRequired && deviceInfo?.client}
 		<p class="text-muted-foreground mt-2">
 			<FormattedMessage
-				m={m.do_you_want_to_sign_in_to_client_with_your_app_name_account({
-					client: deviceInfo.client.name,
+				message={m.do_you_want_to_sign_in_to_client_with_your_app_name_account}
+				inputs={{
+					client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name,
 					appName: $appConfigStore.appName
-				})}
+				}}
 			/>
 		</p>
 	{:else if authorizationRequired}
@@ -219,9 +221,8 @@
 				<Card.Header>
 					<Card.Description class="text-start">
 						<FormattedMessage
-							m={m.client_wants_to_access_the_following_information({
-								client: deviceInfo!.client.name
-							})}
+							message={m.client_wants_to_access_the_following_information}
+							inputs={{ client: getClientIDHost(deviceInfo!.client) ?? deviceInfo!.client.name }}
 						/>
 					</Card.Description>
 				</Card.Header>

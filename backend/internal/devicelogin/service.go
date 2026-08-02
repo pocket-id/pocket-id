@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	RequestDuration        = 15 * time.Minute
+	RequestDuration        = 5 * time.Minute
 	PollingInterval        = 3
 	longPollingDuration    = 25 * time.Second
 	actorPollingInterval   = 2 * time.Second

@@ -38,10 +38,11 @@
 
 	<p class="text-muted-foreground mt-2">
 		<FormattedMessage
-			m={m.do_you_want_to_sign_out_of_pocketid_with_the_account({
+			message={m.do_you_want_to_sign_out_of_pocketid_with_the_account}
+			inputs={{
 				username: $userStore?.username ?? '',
 				appName: $appConfigStore.appName
-			})}
+			}}
 		/>
 	</p>
 	<div class="mt-10 flex w-full justify-stretch gap-2">

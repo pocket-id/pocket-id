@@ -29,7 +29,7 @@ type tokenStrategies struct {
 	config      *fosite.Config
 }
 
-func newProvider(store *Store, authenticator *federatedClientAuthenticator, signer TokenSigner, config Config) (*oidcProvider, error) {
+func newProvider(store *Store, authenticator *federatedClientAuthenticator, signer TokenSigner, config Config, clientResolver fosite.ClientResolver) (*oidcProvider, error) {
 	secret, err := DeriveGlobalSecret(config.Secret)
 	if err != nil {
 		return nil, err
@@ -56,6 +56,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		RefreshTokenScopes:                      []string{},
 		GlobalSecret:                            secret,
 		JWTScopeClaimKey:                        jwt.JWTScopeFieldBoth,
+		ClientResolver:                          clientResolver,
 	}
 
 	keyGetter := func(context.Context) (interface{}, error) {
@@ -64,15 +65,17 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 	sig := newJWTSigner(keyGetter)
 	coreStrategy := compose.NewOAuth2HMACStrategy(fositeConfig)
 	deviceStrategy := &deviceStrategy{DefaultDeviceStrategy: compose.NewDeviceStrategy(fositeConfig)}
-	accessTokenStrategy := &fositeoauth2.DefaultJWTStrategy{
+	defaultAccessTokenStrategy := &fositeoauth2.DefaultJWTStrategy{
 		Signer:          sig,
 		HMACSHAStrategy: coreStrategy,
 		Config:          fositeConfig,
 	}
+	rfc9068AccessTokenStrategy := &fositeoauth2.RFC9068JWTStrategy{
+		DefaultJWTStrategy: defaultAccessTokenStrategy,
+	}
 
-	// Wrap the access token strategy so an access token granted an identity scope also lists the issuer in its audience
-	// This lets it be presented to Pocket ID's own identity endpoints such as /userinfo, while a token audienced only to a custom API is not accepted there
-	apiAccessTokenStrategy := identityAudienceAccessTokenStrategy{CoreStrategy: accessTokenStrategy, issuer: config.BaseURL}
+	// Apply Pocket ID's identity-audience policy outside Fosite's reusable RFC 9068 token profile
+	accessTokenStrategy := NewAccessTokenStrategy(rfc9068AccessTokenStrategy, config.BaseURL)
 	idTokenStrategy := &openid.DefaultStrategy{
 		Signer: sig,
 		Config: fositeConfig,
@@ -81,7 +84,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		fositeConfig,
 		store,
 		&compose.CommonStrategy{
-			CoreStrategy:               apiAccessTokenStrategy,
+			CoreStrategy:               accessTokenStrategy,
 			RFC8628CodeStrategy:        deviceStrategy,
 			OpenIDConnectTokenStrategy: idTokenStrategy,
 			Signer:                     sig,
@@ -104,7 +107,7 @@ func newProvider(store *Store, authenticator *federatedClientAuthenticator, sign
 		OAuth2Provider: provider,
 		deviceStrategy: deviceStrategy,
 		tokenStrategies: tokenStrategies{
-			accessToken: apiAccessTokenStrategy,
+			accessToken: accessTokenStrategy,
 			idToken:     idTokenStrategy,
 			config:      fositeConfig,
 		},

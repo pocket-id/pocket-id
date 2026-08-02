@@ -17,6 +17,7 @@ type OAuth2Session struct {
 	Kind                 string
 	Key                  string
 	RequestID            string
+	ClientID             string
 	AccessTokenSignature string
 	Active               bool
 	RequestData          string

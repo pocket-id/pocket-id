@@ -115,19 +115,23 @@ func (o *NewActorsOpts) getPSK() ([]byte, error) {
 // NewActorStateStore creates a minimal actor host that can read and write actor state directly, without joining the cluster or binding a network port.
 // It's meant for short-lived contexts such as CLI commands that need to persist actor state (for example, one-time access tokens) without running the full actor host.
 // The returned host must NOT be Run(): only direct state operations (Get/Set/Delete on state) are supported, and they require the actor state tables to already exist, which is the case whenever the server has run at least once against this database.
-func NewActorStateStore(db *gorm.DB, pg *pgxpool.Pool) (*local.Host, error) {
-	opts := &NewActorsOpts{DB: db, Postgres: pg}
-	if pg == nil {
-		sqlDB, err := db.DB()
+func NewActorStateStore(o NewActorsOpts) (*local.Host, error) {
+	if o.Postgres == nil {
+		sqlDB, err := o.DB.DB()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
 		}
-		opts.SQLite = sqlDB
+		o.SQLite = sqlDB
 	}
 
-	providerOpt, err := opts.getProviderOption()
+	providerOpt, err := o.getProviderOption()
 	if err != nil {
 		return nil, err
+	}
+
+	psk, err := o.getPSK()
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive PSK: %w", err)
 	}
 
 	return local.NewHost(
@@ -136,6 +140,7 @@ func NewActorStateStore(db *gorm.DB, pg *pgxpool.Pool) (*local.Host, error) {
 		local.WithLogger(slog.Default().With("scope", "actor-state-store")),
 		// The health-check deadline only needs to exceed the provider's query timeout to pass validation
 		local.WithHostHealthCheckDeadline(90*time.Second),
+		local.WithRuntimePSKs(psk),
 		providerOpt,
 	)
 }

@@ -1,6 +1,8 @@
 package oidc
 
 import (
+	"slices"
+
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
@@ -33,7 +35,22 @@ func (c Client) GetGrantTypes() fosite.Arguments {
 	if !c.IsPublic() {
 		grantTypes = append(grantTypes, string(fosite.GrantTypeClientCredentials))
 	}
-	return grantTypes
+
+	if !c.IsMetadataDocument() {
+		return grantTypes
+	}
+	if len(c.MetadataGrantTypes) == 0 {
+		return fosite.Arguments{string(fosite.GrantTypeAuthorizationCode)}
+	}
+
+	// If the client is a CIMD client, we need to filter the grant types based on the metadata document.
+	allowed := make(fosite.Arguments, 0, len(c.MetadataGrantTypes))
+	for _, value := range c.MetadataGrantTypes {
+		if slices.Contains([]string(grantTypes), value) {
+			allowed = append(allowed, value)
+		}
+	}
+	return allowed
 }
 
 func (c Client) GetResponseTypes() fosite.Arguments {

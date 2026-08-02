@@ -82,7 +82,6 @@ func (acc *AppConfigController) listAppConfigHandler(c *gin.Context) {
 	configVariablesDto = append(configVariablesDto, dto.PublicAppConfigVariableDto{
 		Key:   "tracingEnabled",
 		Value: strconv.FormatBool(tracing.FrontendTracingEnabled()),
-		Type:  "boolean",
 	})
 
 	c.JSON(http.StatusOK, configVariablesDto)
