@@ -74,6 +74,28 @@ func TestErrorHandlerMiddlewareHidesUnexpectedError(t *testing.T) {
 	require.NotEmpty(t, body["request_id"])
 }
 
+func TestErrorHandlerMiddlewareHidesRecoveredPanic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(NewErrorHandlerMiddleware().Add())
+	router.GET("/panic", httpserver.Handle(func(*gin.Context) error {
+		panic("private panic details")
+	}))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/panic", nil)
+	router.ServeHTTP(recorder, request)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+	require.Equal(t, http.StatusInternalServerError, recorder.Code)
+	require.Equal(t, "Something went wrong", body["error"])
+	require.Equal(t, string(apperror.CodeInternal), body["code"])
+	require.NotContains(t, recorder.Body.String(), "private panic details")
+	require.NotEmpty(t, body["request_id"])
+}
+
 func TestErrorHandlerMiddlewareIncludesSafeDetails(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
