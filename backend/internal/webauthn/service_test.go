@@ -162,6 +162,18 @@ func TestClassifyPasskeyErrorRecognizesMissingUserVerification(t *testing.T) {
 	require.True(t, apperror.IsCode(err, apperror.CodeWebAuthnAuthenticationFailed))
 }
 
+func TestClassifyPasskeyErrorPreservesStructuredLookupFailure(t *testing.T) {
+	// Wrap a structured database failure exactly as go-webauthn wraps callback errors
+	cause := errors.New("database unavailable")
+	lookupErr := protocol.ErrBadRequest.WithError(apperror.Internal(cause))
+
+	// Verify the structured failure and diagnostic cause both survive classification
+	err := classifyPasskeyError(lookupErr, apperror.WebAuthnAuthenticationFailed)
+
+	require.True(t, apperror.IsCode(err, apperror.CodeInternal))
+	require.ErrorIs(t, err, cause)
+}
+
 func TestWebAuthnManagementOperationsReturnSpecificNotFoundErrors(t *testing.T) {
 	service, err := newService(Dependencies{
 		DB:     testutils.NewDatabaseForTest(t),

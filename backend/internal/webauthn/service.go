@@ -268,24 +268,23 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 	}
 
 	var user *model.User
-	var userLookupErr error
 	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
 		innerErr := tx.
 			WithContext(ctx).
 			Preload("Credentials").
 			First(&user, "id = ?", string(userHandle)).
 			Error
+		// Preserve infrastructure failures through go-webauthn's wrapped callback error
 		if innerErr != nil {
-			userLookupErr = innerErr
+			if !errors.Is(innerErr, gorm.ErrRecordNotFound) {
+				return nil, apperror.Internal(innerErr)
+			}
 			return nil, innerErr
 		}
 		return user, nil
 	}, session, credentialAssertionData)
 
 	if err != nil {
-		if userLookupErr != nil && !errors.Is(userLookupErr, gorm.ErrRecordNotFound) {
-			return model.User{}, "", userLookupErr
-		}
 		return model.User{}, "", classifyPasskeyError(err, apperror.WebAuthnAuthenticationFailed)
 	}
 	if user == nil {
@@ -492,24 +491,23 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 
 	// Validate the credential assertion
 	var user *model.User
-	var userLookupErr error
 	_, err := s.webAuthn.ValidateDiscoverableLogin(func(_, userHandle []byte) (gowebauthn.User, error) {
 		innerErr := tx.
 			WithContext(ctx).
 			Preload("Credentials").
 			First(&user, "id = ?", string(userHandle)).
 			Error
+		// Preserve infrastructure failures through go-webauthn's wrapped callback error
 		if innerErr != nil {
-			userLookupErr = innerErr
+			if !errors.Is(innerErr, gorm.ErrRecordNotFound) {
+				return nil, apperror.Internal(innerErr)
+			}
 			return nil, innerErr
 		}
 		return user, nil
 	}, session, credentialAssertionData)
 
 	if err != nil {
-		if userLookupErr != nil && !errors.Is(userLookupErr, gorm.ErrRecordNotFound) {
-			return "", userLookupErr
-		}
 		return "", classifyPasskeyError(err, apperror.WebAuthnAuthenticationFailed)
 	}
 	if user == nil {
@@ -531,6 +529,10 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 }
 
 func classifyPasskeyError(err error, fallback func(error) *apperror.Error) *apperror.Error {
+	if appErr, ok := errors.AsType[*apperror.Error](err); ok {
+		return appErr
+	}
+
 	if protocolError, ok := errors.AsType[*protocol.Error](err); ok &&
 		protocolError.Type == protocol.ErrVerification.Type &&
 		protocolError.DevInfo == missingUserVerificationErrorInfo {
