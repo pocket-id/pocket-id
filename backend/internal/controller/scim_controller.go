@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
@@ -14,10 +15,10 @@ func NewScimController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 		scimService: scimService,
 	}
 
-	group.POST("/scim/service-provider", authMiddleware.Add(), ugc.createServiceProviderHandler)
-	group.POST("/scim/service-provider/:id/sync", authMiddleware.Add(), ugc.syncServiceProviderHandler)
-	group.PUT("/scim/service-provider/:id", authMiddleware.Add(), ugc.updateServiceProviderHandler)
-	group.DELETE("/scim/service-provider/:id", authMiddleware.Add(), ugc.deleteServiceProviderHandler)
+	group.POST("/scim/service-provider", authMiddleware.Add(), httpserver.Handle(ugc.createServiceProviderHandler))
+	group.POST("/scim/service-provider/:id/sync", authMiddleware.Add(), httpserver.Handle(ugc.syncServiceProviderHandler))
+	group.PUT("/scim/service-provider/:id", authMiddleware.Add(), httpserver.Handle(ugc.updateServiceProviderHandler))
+	group.DELETE("/scim/service-provider/:id", authMiddleware.Add(), httpserver.Handle(ugc.deleteServiceProviderHandler))
 }
 
 type ScimController struct {
@@ -31,14 +32,14 @@ type ScimController struct {
 // @Param id path string true "Service Provider ID"
 // @Success 200 "OK"
 // @Router /api/scim/service-provider/{id}/sync [post]
-func (c *ScimController) syncServiceProviderHandler(ctx *gin.Context) {
+func (c *ScimController) syncServiceProviderHandler(ctx *gin.Context) error {
 	err := c.scimService.SyncServiceProvider(ctx.Request.Context(), ctx.Param("id"))
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return err
 	}
 
 	ctx.Status(http.StatusOK)
+	return nil
 }
 
 // createServiceProviderHandler godoc
@@ -50,26 +51,24 @@ func (c *ScimController) syncServiceProviderHandler(ctx *gin.Context) {
 // @Param serviceProvider body dto.ScimServiceProviderCreateDTO true "SCIM service provider information"
 // @Success 201 {object} dto.ScimServiceProviderDTO "Created SCIM service provider"
 // @Router /api/scim/service-provider [post]
-func (c *ScimController) createServiceProviderHandler(ctx *gin.Context) {
+func (c *ScimController) createServiceProviderHandler(ctx *gin.Context) error {
 	var input dto.ScimServiceProviderCreateDTO
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		_ = ctx.Error(err)
-		return
+	if err := httpserver.BindJSON(ctx, &input); err != nil {
+		return err
 	}
 
 	provider, err := c.scimService.CreateServiceProvider(ctx.Request.Context(), &input)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return err
 	}
 
 	var providerDTO dto.ScimServiceProviderDTO
 	if err := dto.MapStruct(provider, &providerDTO); err != nil {
-		_ = ctx.Error(err)
-		return
+		return err
 	}
 
 	ctx.JSON(http.StatusCreated, providerDTO)
+	return nil
 }
 
 // updateServiceProviderHandler godoc
@@ -82,26 +81,24 @@ func (c *ScimController) createServiceProviderHandler(ctx *gin.Context) {
 // @Param serviceProvider body dto.ScimServiceProviderCreateDTO true "SCIM service provider information"
 // @Success 200 {object} dto.ScimServiceProviderDTO "Updated SCIM service provider"
 // @Router /api/scim/service-provider/{id} [put]
-func (c *ScimController) updateServiceProviderHandler(ctx *gin.Context) {
+func (c *ScimController) updateServiceProviderHandler(ctx *gin.Context) error {
 	var input dto.ScimServiceProviderCreateDTO
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		_ = ctx.Error(err)
-		return
+	if err := httpserver.BindJSON(ctx, &input); err != nil {
+		return err
 	}
 
 	provider, err := c.scimService.UpdateServiceProvider(ctx.Request.Context(), ctx.Param("id"), &input)
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return err
 	}
 
 	var providerDTO dto.ScimServiceProviderDTO
 	if err := dto.MapStruct(provider, &providerDTO); err != nil {
-		_ = ctx.Error(err)
-		return
+		return err
 	}
 
 	ctx.JSON(http.StatusOK, providerDTO)
+	return nil
 }
 
 // deleteServiceProviderHandler godoc
@@ -111,12 +108,12 @@ func (c *ScimController) updateServiceProviderHandler(ctx *gin.Context) {
 // @Param id path string true "Service Provider ID"
 // @Success 204 "No Content"
 // @Router /api/scim/service-provider/{id} [delete]
-func (c *ScimController) deleteServiceProviderHandler(ctx *gin.Context) {
+func (c *ScimController) deleteServiceProviderHandler(ctx *gin.Context) error {
 	err := c.scimService.DeleteServiceProvider(ctx.Request.Context(), ctx.Param("id"))
 	if err != nil {
-		_ = ctx.Error(err)
-		return
+		return err
 	}
 
 	ctx.Status(http.StatusNoContent)
+	return nil
 }

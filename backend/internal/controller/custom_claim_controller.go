@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 )
@@ -19,9 +20,9 @@ func NewCustomClaimController(group *gin.RouterGroup, authMiddleware *middleware
 	customClaimsGroup := group.Group("/custom-claims")
 	customClaimsGroup.Use(authMiddleware.Add())
 	{
-		customClaimsGroup.GET("/suggestions", wkc.getSuggestionsHandler)
-		customClaimsGroup.PUT("/user/:userId", wkc.UpdateCustomClaimsForUserHandler)
-		customClaimsGroup.PUT("/user-group/:userGroupId", wkc.UpdateCustomClaimsForUserGroupHandler)
+		customClaimsGroup.GET("/suggestions", httpserver.Handle(wkc.getSuggestionsHandler))
+		customClaimsGroup.PUT("/user/:userId", httpserver.Handle(wkc.UpdateCustomClaimsForUserHandler))
+		customClaimsGroup.PUT("/user-group/:userGroupId", httpserver.Handle(wkc.UpdateCustomClaimsForUserGroupHandler))
 	}
 }
 
@@ -36,14 +37,14 @@ type CustomClaimController struct {
 // @Produce json
 // @Success 200 {array} string "List of suggested custom claim names"
 // @Router /api/custom-claims/suggestions [get]
-func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) {
+func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) error {
 	claims, err := ccc.customClaimService.GetSuggestions(c.Request.Context())
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, claims)
+	return nil
 }
 
 // UpdateCustomClaimsForUserHandler godoc
@@ -56,28 +57,26 @@ func (ccc *CustomClaimController) getSuggestionsHandler(c *gin.Context) {
 // @Param claims body []dto.CustomClaimCreateDto true "List of custom claims to set for the user"
 // @Success 200 {array} dto.CustomClaimDto "Updated custom claims"
 // @Router /api/custom-claims/user/{userId} [put]
-func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Context) {
+func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Context) error {
 	var input []dto.CustomClaimCreateDto
 
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	userId := c.Param("userId")
 	claims, err := ccc.customClaimService.UpdateCustomClaimsForUser(c.Request.Context(), userId, input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var customClaimsDto []dto.CustomClaimDto
 	if err := dto.MapStructList(claims, &customClaimsDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, customClaimsDto)
+	return nil
 }
 
 // UpdateCustomClaimsForUserGroupHandler godoc
@@ -90,26 +89,24 @@ func (ccc *CustomClaimController) UpdateCustomClaimsForUserHandler(c *gin.Contex
 // @Param claims body []dto.CustomClaimCreateDto true "List of custom claims to set for the user group"
 // @Success 200 {array} dto.CustomClaimDto "Updated custom claims"
 // @Router /api/custom-claims/user-group/{userGroupId} [put]
-func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.Context) {
+func (ccc *CustomClaimController) UpdateCustomClaimsForUserGroupHandler(c *gin.Context) error {
 	var input []dto.CustomClaimCreateDto
 
-	if err := dto.ShouldBindWithNormalizedJSON(c, &input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	userGroupId := c.Param("userGroupId")
 	claims, err := ccc.customClaimService.UpdateCustomClaimsForUserGroup(c.Request.Context(), userGroupId, input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var customClaimsDto []dto.CustomClaimDto
 	if err := dto.MapStructList(claims, &customClaimsDto); err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, customClaimsDto)
+	return nil
 }

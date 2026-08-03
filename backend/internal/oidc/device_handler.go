@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ory/fosite"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
 
@@ -45,7 +45,7 @@ func (h *deviceHandler) verifyDeviceCode(c *gin.Context) {
 
 	userCode := c.Query("code")
 	if userCode == "" {
-		_ = c.Error(&common.ValidationError{Message: "code is required"})
+		_ = c.Error(apperror.MissingField("code"))
 		return
 	}
 
@@ -73,7 +73,7 @@ func (h *deviceHandler) verifyDeviceCode(c *gin.Context) {
 func (h *deviceHandler) deviceCodeInfo(c *gin.Context) {
 	userCode := c.Query("code")
 	if userCode == "" {
-		_ = c.Error(&common.ValidationError{Message: "code is required"})
+		_ = c.Error(apperror.MissingField("code"))
 		return
 	}
 

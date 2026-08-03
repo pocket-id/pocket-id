@@ -43,7 +43,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				LastName:    "Doe",
 				DisplayName: "John Doe",
 			},
-			wantErr: "Field validation for 'Username' failed on the 'required' tag",
+			wantErr: "Field validation for 'username' failed on the 'required' tag",
 		},
 		{
 			name: "missing first name",
@@ -73,7 +73,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				LastName:    "Doe",
 				DisplayName: "John Doe",
 			},
-			wantErr: "Field validation for 'Username' failed on the 'username' tag",
+			wantErr: "Field validation for 'username' failed on the 'username' tag",
 		},
 		{
 			name: "invalid email",
@@ -84,7 +84,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				LastName:    "Doe",
 				DisplayName: "John Doe",
 			},
-			wantErr: "Field validation for 'Email' failed on the 'email' tag",
+			wantErr: "Field validation for 'email' failed on the 'email' tag",
 		},
 		{
 			name: "first name too short",
@@ -106,7 +106,7 @@ func TestUserCreateDto_Validate(t *testing.T) {
 				LastName:    "abcdfghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
 				DisplayName: "John Doe",
 			},
-			wantErr: "Field validation for 'LastName' failed on the 'max' tag",
+			wantErr: "Field validation for 'lastName' failed on the 'max' tag",
 		},
 	}
 

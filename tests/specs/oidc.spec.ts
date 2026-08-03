@@ -128,7 +128,7 @@ test('Authorize new client while not signed in', async ({ page }) => {
 	);
 });
 
-test('Authorize new client fails with user group not allowed', async ({ page }) => {
+test('Authorize new client shows Pocket ID error when user group not allowed', async ({ page }) => {
 	const oidcClient = oidcClients.immich;
 	const urlParams = createUrlParams(oidcClient);
 
@@ -140,15 +140,12 @@ test('Authorize new client fails with user group not allowed', async ({ page }) 
 
 	await expectScopes(page, ['Email', 'Profile']);
 
-	const callbackUrl = await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-		page.getByRole('button', { name: 'Sign in' }).click()
-	);
+	await page.getByRole('button', { name: 'Sign in' }).click();
 
-	expect(callbackUrl.searchParams.get('error')).toBe('access_denied');
-	expect(callbackUrl.searchParams.get('error_description')).toContain(
-		'You are not allowed to access this service.'
-	);
-	expect(callbackUrl.searchParams.get('state')).toBe(urlParams.get('state'));
+	await expect(page).toHaveURL(/\/interaction\/error\?error=/);
+	await expect(
+		page.getByRole('paragraph').filter({ hasText: 'You are not allowed to access this service.' })
+	).toBeVisible();
 });
 
 function createUrlParams(oidcClient: { id: string; callbackUrl: string }) {
@@ -761,7 +758,7 @@ test('Authorize client with device authorization flow with invalid code', async 
 	await page.goto('/device?user_code=invalid-code');
 
 	await expect(
-		page.getByRole('paragraph').filter({ hasText: 'Invalid device code.' })
+		page.getByRole('paragraph').filter({ hasText: 'Device code is invalid. Please try again.' })
 	).toBeVisible();
 });
 
@@ -1101,7 +1098,7 @@ test.describe('OIDC prompt parameter', () => {
 		await expect(selectionCard).toContainText('Tim Cook');
 
 		await expectCallbackRedirect(page, oidcClient.callbackUrl, () =>
-			page.getByRole('button', { name: 'Sign In' }).click()
+			page.getByRole('button', { name: /sign in/i }).click()
 		);
 	});
 
@@ -1473,6 +1470,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 		}
 
 		await page.getByRole('button', { name: /save/i }).click();
+		await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
 		await page.reload();
 
 		await page.getByRole('button', { name: 'Show Advanced Options' }).click();

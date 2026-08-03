@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -44,37 +44,37 @@ func (m *JwtAuthMiddleware) Verify(c *gin.Context, adminRequired bool) (subject 
 		var ok bool
 		_, accessToken, ok = strings.Cut(c.GetHeader("Authorization"), " ")
 		if !ok || accessToken == "" {
-			return "", false, "", time.Time{}, &common.NotSignedInError{}
+			return "", false, "", time.Time{}, apperror.NotSignedIn()
 		}
 	}
 
 	token, err := m.jwtService.VerifyAccessToken(accessToken)
 	if err != nil {
-		return "", false, "", time.Time{}, &common.NotSignedInError{}
+		return "", false, "", time.Time{}, apperror.NotSignedIn()
 	}
 	authenticationMethod, err = m.jwtService.GetAuthenticationMethod(token)
 	if err != nil {
-		return "", false, "", time.Time{}, &common.NotSignedInError{}
+		return "", false, "", time.Time{}, apperror.NotSignedIn()
 	}
 	authenticationTime, _ = token.IssuedAt()
 
 	subject, ok := token.Subject()
 	if !ok {
-		_ = c.Error(&common.TokenInvalidError{})
-		return "", false, "", time.Time{}, &common.TokenInvalidError{}
+		_ = c.Error(apperror.TokenInvalid())
+		return "", false, "", time.Time{}, apperror.TokenInvalid()
 	}
 
 	user, err := m.userService.GetUser(c, subject)
 	if err != nil {
-		return "", false, "", time.Time{}, &common.NotSignedInError{}
+		return "", false, "", time.Time{}, apperror.NotSignedIn()
 	}
 
 	if user.Disabled {
-		return "", false, "", time.Time{}, &common.UserDisabledError{}
+		return "", false, "", time.Time{}, apperror.UserDisabled()
 	}
 
 	if adminRequired && !user.IsAdmin {
-		return "", false, "", time.Time{}, &common.MissingPermissionError{}
+		return "", false, "", time.Time{}, apperror.MissingPermission()
 	}
 
 	return subject, user.IsAdmin, authenticationMethod, authenticationTime, nil

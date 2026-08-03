@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/resources"
@@ -69,12 +70,15 @@ func (m *Module) SendTestEmail(ctx context.Context, dbConfig *appconfig.AppConfi
 		WithContext(ctx).
 		First(&user, "id = ?", recipientUserID).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperror.UserNotFound()
+	}
 	if err != nil {
 		return err
 	}
 
 	if user.Email == nil {
-		return &common.UserEmailNotSetError{}
+		return apperror.UserEmailNotSet()
 	}
 
 	return send(ctx, m, dbConfig, address{

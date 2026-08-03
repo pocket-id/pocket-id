@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
 type AppConfigResolver interface {
@@ -45,6 +46,6 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the email verification endpoints
 func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, userAuth, sendRateLimit, verifyRateLimit gin.HandlerFunc) {
-	apiGroup.POST("/users/me/send-email-verification", sendRateLimit, userAuth, m.handler.send)
-	apiGroup.POST("/users/me/verify-email", verifyRateLimit, userAuth, m.handler.verify)
+	apiGroup.POST("/users/me/send-email-verification", sendRateLimit, userAuth, httpserver.Handle(m.handler.send))
+	apiGroup.POST("/users/me/verify-email", verifyRateLimit, userAuth, httpserver.Handle(m.handler.verify))
 }

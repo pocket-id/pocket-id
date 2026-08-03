@@ -174,7 +174,7 @@ test.describe('Update application images', () => {
 		await page.getByRole('button', { name: 'Save' }).click();
 
 		await expect(page.locator('[data-type="error"]')).toHaveText(
-			'File must be of type .png or .jpg/jpeg'
+			'File must be of type PNG or JPEG'
 		);
 	});
 });

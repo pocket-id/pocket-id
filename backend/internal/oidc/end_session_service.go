@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -34,35 +35,35 @@ func newEndSessionService(db *gorm.DB, store *Store, signer TokenSigner, baseURL
 // client's post-logout callback URL (empty if none is configured).
 func (s *endSessionService) endSession(ctx context.Context, input dto.OidcLogoutDto, userID string) (string, error) {
 	if input.IdTokenHint == "" {
-		return "", &common.TokenInvalidError{}
+		return "", apperror.TokenInvalid()
 	}
 
 	token, err := s.verifyIDTokenHint(input.IdTokenHint)
 	if err != nil {
-		return "", &common.TokenInvalidError{}
+		return "", apperror.TokenInvalid()
 	}
 
 	clientIDs, ok := token.Audience()
 	if !ok || len(clientIDs) == 0 {
-		return "", &common.TokenInvalidError{}
+		return "", apperror.TokenInvalid()
 	}
 	clientID := clientIDs[0]
 	if input.ClientId != "" && clientID != input.ClientId {
-		return "", &common.OidcClientIdNotMatchingError{}
+		return "", apperror.OidcClientIDNotMatching()
 	}
 
 	subject, ok := token.Subject()
 	if !ok || subject == "" {
-		return "", &common.TokenInvalidError{}
+		return "", apperror.TokenInvalid()
 	}
 	if userID != "" && subject != userID {
-		return "", &common.TokenInvalidError{}
+		return "", apperror.TokenInvalid()
 	}
 	userID = subject
 
 	idTokenJTI, ok := token.JwtID()
 	if !ok {
-		return "", &common.TokenInvalidError{}
+		return "", apperror.TokenInvalid()
 	}
 
 	var callbackURL string
@@ -74,7 +75,7 @@ func (s *endSessionService) endSession(ctx context.Context, input dto.OidcLogout
 			Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return &common.OidcMissingAuthorizationError{}
+				return apperror.OidcMissingAuthorization()
 			}
 			return err
 		}
@@ -117,7 +118,7 @@ func (s *endSessionService) verifyIDTokenHint(tokenString string) (jwt.Token, er
 	// key). An expired ID token is still accepted here, as required by OIDC RP-Initiated Logout.
 	var tokenType string
 	if err := token.Get(common.TokenTypeClaim, &tokenType); err != nil || tokenType != idTokenType {
-		return nil, &common.TokenInvalidError{}
+		return nil, apperror.TokenInvalid()
 	}
 
 	return token, nil
@@ -133,7 +134,7 @@ func logoutCallbackURL(client *model.OidcClient, inputLogoutCallbackURL string) 
 
 	matched, err := utils.GetCallbackURLFromList(client.LogoutCallbackURLs, inputLogoutCallbackURL)
 	if err != nil || matched == "" {
-		return "", &common.OidcInvalidCallbackURLError{}
+		return "", apperror.OidcInvalidCallbackURL()
 	}
 
 	return matched, nil

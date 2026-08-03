@@ -3,16 +3,15 @@ package middleware
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
-	"math"
 	"net"
-	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/italypaleale/francis/builtin/ratelimit"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 )
 
@@ -82,11 +81,12 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 		}
 	}
 
-	// A missing service means the policy was never registered on the actor host, which is a development-time errror
+	// A missing service means the policy was never registered on the actor host, which is a development-time error
 	svc := m.services[policy]
 	if svc == nil {
 		return func(c *gin.Context) {
-			c.AbortWithStatus(http.StatusInternalServerError)
+			_ = c.Error(apperror.Internal(fmt.Errorf("rate limiter service is not configured for policy %q", policy)))
+			c.Abort()
 		}
 	}
 
@@ -113,11 +113,8 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 		}
 
 		if !allowed {
-			// Advertise when the caller may retry, mapping the limiter's delay onto a Retry-After header
-			if retryAfter > 0 {
-				c.Header("Retry-After", strconv.Itoa(int(math.Ceil(retryAfter.Seconds()))))
-			}
-			_ = c.Error(&common.TooManyRequestsError{})
+			// Advertise when the caller may retry, mapping the limiter's delay onto a structured application error
+			_ = c.Error(apperror.TooManyRequests().WithRetryAfter(retryAfter))
 			c.Abort()
 			return
 		}

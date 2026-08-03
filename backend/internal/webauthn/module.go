@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
@@ -56,19 +57,19 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the WebAuthn registration, login and reauthentication endpoints
 func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, userAuth, loginRateLimit, reauthRateLimit gin.HandlerFunc) {
-	apiGroup.GET("/webauthn/register/start", userAuth, m.handler.beginRegistration)
-	apiGroup.POST("/webauthn/register/finish", userAuth, m.handler.verifyRegistration)
+	apiGroup.GET("/webauthn/register/start", userAuth, httpserver.Handle(m.handler.beginRegistration))
+	apiGroup.POST("/webauthn/register/finish", userAuth, httpserver.Handle(m.handler.verifyRegistration))
 
-	apiGroup.GET("/webauthn/login/start", m.handler.beginLogin)
-	apiGroup.POST("/webauthn/login/finish", loginRateLimit, m.handler.verifyLogin)
+	apiGroup.GET("/webauthn/login/start", httpserver.Handle(m.handler.beginLogin))
+	apiGroup.POST("/webauthn/login/finish", loginRateLimit, httpserver.Handle(m.handler.verifyLogin))
 
-	apiGroup.POST("/webauthn/logout", userAuth, m.handler.logout)
+	apiGroup.POST("/webauthn/logout", userAuth, httpserver.Handle(m.handler.logout))
 
-	apiGroup.POST("/webauthn/reauthenticate", userAuth, reauthRateLimit, m.handler.reauthenticate)
+	apiGroup.POST("/webauthn/reauthenticate", userAuth, reauthRateLimit, httpserver.Handle(m.handler.reauthenticate))
 
-	apiGroup.GET("/webauthn/credentials", userAuth, m.handler.listCredentials)
-	apiGroup.PATCH("/webauthn/credentials/:id", userAuth, m.handler.updateCredential)
-	apiGroup.DELETE("/webauthn/credentials/:id", userAuth, m.handler.deleteCredential)
+	apiGroup.GET("/webauthn/credentials", userAuth, httpserver.Handle(m.handler.listCredentials))
+	apiGroup.PATCH("/webauthn/credentials/:id", userAuth, httpserver.Handle(m.handler.updateCredential))
+	apiGroup.DELETE("/webauthn/credentials/:id", userAuth, httpserver.Handle(m.handler.deleteCredential))
 }
 
 // ConsumeReauthenticationToken implements the OIDC module's ReauthenticationTokenConsumer interface

@@ -7,8 +7,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
 )
@@ -24,19 +25,18 @@ func newHandler(service *Service, appConfig AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 
-func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) {
+func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) error {
 	setupCompleted, err := h.service.IsInitialAdminSetupCompleted(c.Request.Context())
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	if setupCompleted {
-		_ = c.Error(&common.SetupNotAvailableError{})
-		return
+		return apperror.SetupNotAvailable()
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // signUpInitialAdmin godoc
@@ -48,37 +48,34 @@ func (h *handler) checkInitialAdminSetupAvailable(c *gin.Context) {
 // @Param body body signUpDto true "User information"
 // @Success 200 {object} dto.UserDto
 // @Router /api/signup/setup [post]
-func (h *handler) signUpInitialAdmin(c *gin.Context) {
+func (h *handler) signUpInitialAdmin(c *gin.Context) error {
 	config, err := h.appConfig.GetConfig(c.Request.Context())
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
 	var input signUpDto
-	err = dto.ShouldBindWithNormalizedJSON(c, &input)
+	err = httpserver.BindJSON(c, &input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	user, token, err := h.service.SignUpInitialAdmin(c.Request.Context(), config, input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var userDto dto.UserDto
 	err = dto.MapStruct(user, &userDto)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
 	cookie.AddAccessTokenCookie(c, maxAge, token)
 
 	c.JSON(http.StatusOK, userDto)
+	return nil
 }
 
 // createSignupTokenHandler godoc
@@ -90,11 +87,10 @@ func (h *handler) signUpInitialAdmin(c *gin.Context) {
 // @Param token body signupTokenCreateDto true "Signup token information"
 // @Success 201 {object} signupTokenDto
 // @Router /api/signup-tokens [post]
-func (h *handler) createSignupToken(c *gin.Context) {
+func (h *handler) createSignupToken(c *gin.Context) error {
 	var input signupTokenCreateDto
-	if err := c.ShouldBindJSON(&input); err != nil {
-		_ = c.Error(err)
-		return
+	if err := httpserver.BindJSON(c, &input); err != nil {
+		return err
 	}
 
 	ttl := input.TTL.Duration
@@ -104,18 +100,17 @@ func (h *handler) createSignupToken(c *gin.Context) {
 
 	signupToken, err := h.service.CreateSignupToken(c.Request.Context(), ttl, input.UsageLimit, input.UserGroupIDs)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var tokenDto signupTokenDto
 	err = dto.MapStruct(signupToken, &tokenDto)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusCreated, tokenDto)
+	return nil
 }
 
 // listSignupTokensHandler godoc
@@ -128,26 +123,25 @@ func (h *handler) createSignupToken(c *gin.Context) {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[signupTokenDto]
 // @Router /api/signup-tokens [get]
-func (h *handler) listSignupTokens(c *gin.Context) {
+func (h *handler) listSignupTokens(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	tokens, pagination, err := h.service.ListSignupTokens(c.Request.Context(), listRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var tokensDto []signupTokenDto
 	err = dto.MapStructList(tokens, &tokensDto)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, dto.Paginated[signupTokenDto]{
 		Data:       tokensDto,
 		Pagination: pagination,
 	})
+	return nil
 }
 
 // deleteSignupTokenHandler godoc
@@ -157,16 +151,16 @@ func (h *handler) listSignupTokens(c *gin.Context) {
 // @Param id path string true "Token ID"
 // @Success 204 "No Content"
 // @Router /api/signup-tokens/{id} [delete]
-func (h *handler) deleteSignupToken(c *gin.Context) {
+func (h *handler) deleteSignupToken(c *gin.Context) error {
 	tokenID := c.Param("id")
 
 	err := h.service.DeleteSignupToken(c.Request.Context(), tokenID)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.Status(http.StatusNoContent)
+	return nil
 }
 
 // signupHandler godoc
@@ -178,24 +172,21 @@ func (h *handler) deleteSignupToken(c *gin.Context) {
 // @Param user body signUpDto true "User information"
 // @Success 201 {object} dto.UserDto
 // @Router /api/signup [post]
-func (h *handler) signup(c *gin.Context) {
+func (h *handler) signup(c *gin.Context) error {
 	config, err := h.appConfig.GetConfig(c.Request.Context())
 	if err != nil {
-		_ = c.Error(fmt.Errorf("error loading app configuration: %w", err))
-		return
+		return fmt.Errorf("error loading app configuration: %w", err)
 	}
 
 	var input signUpDto
-	err = dto.ShouldBindWithNormalizedJSON(c, &input)
+	err = httpserver.BindJSON(c, &input)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	user, accessToken, err := h.service.SignUp(c.Request.Context(), config, input, c.ClientIP(), c.GetHeader("User-Agent"))
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	maxAge := int(config.SessionDuration.AsDurationMinutes().Seconds())
@@ -204,9 +195,9 @@ func (h *handler) signup(c *gin.Context) {
 	var userDto dto.UserDto
 	err = dto.MapStruct(user, &userDto)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusCreated, userDto)
+	return nil
 }

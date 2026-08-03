@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -25,6 +25,9 @@ import (
 const authenticationMethodPhishingResistant = "phr"
 
 const defaultRPDisplayName = "Pocket ID"
+
+// go-webauthn exposes the missing user-verification reason only through DevInfo
+const missingUserVerificationErrorInfo = "User verification required but flag not set by authenticator"
 
 type Service struct {
 	db       *gorm.DB
@@ -79,8 +82,11 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	err := tx.
 		WithContext(ctx).
 		Preload("Credentials").
-		Find(&user, "id = ?", userID).
+		First(&user, "id = ?", userID).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperror.UserNotFound()
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to load user: %w", err)
 	}
@@ -138,7 +144,7 @@ func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, user
 		return model.WebauthnCredential{}, fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return model.WebauthnCredential{}, &common.InvalidWebauthnSessionError{}
+		return model.WebauthnCredential{}, apperror.InvalidWebAuthnSession()
 	}
 
 	session := gowebauthn.SessionData{
@@ -152,15 +158,18 @@ func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, user
 	var user model.User
 	err := tx.
 		WithContext(ctx).
-		Find(&user, "id = ?", userID).
+		First(&user, "id = ?", userID).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.WebauthnCredential{}, apperror.UserNotFound()
+	}
 	if err != nil {
 		return model.WebauthnCredential{}, fmt.Errorf("failed to load user: %w", err)
 	}
 
 	credential, err := s.webAuthn.FinishRegistration(&user, session, r)
 	if err != nil {
-		return model.WebauthnCredential{}, fmt.Errorf("failed to finish WebAuthn registration: %w", err)
+		return model.WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
 	}
 
 	// Determine passkey name using AAGUID and User-Agent
@@ -248,7 +257,7 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 		return model.User{}, "", fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return model.User{}, "", &common.InvalidWebauthnSessionError{}
+		return model.User{}, "", apperror.InvalidWebAuthnSession()
 	}
 
 	session := gowebauthn.SessionData{
@@ -265,18 +274,25 @@ func (s *Service) VerifyLogin(ctx context.Context, dbConfig *appconfig.AppConfig
 			Preload("Credentials").
 			First(&user, "id = ?", string(userHandle)).
 			Error
+		// Preserve infrastructure failures through go-webauthn's wrapped callback error
 		if innerErr != nil {
+			if !errors.Is(innerErr, gorm.ErrRecordNotFound) {
+				return nil, apperror.Internal(innerErr)
+			}
 			return nil, innerErr
 		}
 		return user, nil
 	}, session, credentialAssertionData)
 
 	if err != nil {
-		return model.User{}, "", err
+		return model.User{}, "", classifyPasskeyError(err, apperror.WebAuthnAuthenticationFailed)
+	}
+	if user == nil {
+		return model.User{}, "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
 	}
 
 	if user.Disabled {
-		return model.User{}, "", &common.UserDisabledError{}
+		return model.User{}, "", apperror.UserDisabled()
 	}
 
 	token, err := s.signer.GenerateAccessToken(*user, authenticationMethodPhishingResistant, dbConfig.SessionDuration.AsDurationMinutes())
@@ -321,7 +337,7 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 		return fmt.Errorf("failed to delete record: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+		return apperror.NotFound("Passkey")
 	}
 
 	auditLogData := model.AuditLogData{"credentialID": hex.EncodeToString(credential.CredentialID), "passkeyName": credential.Name}
@@ -331,6 +347,9 @@ func (s *Service) DeleteCredential(ctx context.Context, userID string, credentia
 			WithContext(ctx).
 			First(&actor, "id = ?", actorUserID).
 			Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperror.UserNotFound()
+		}
 		if err != nil {
 			return fmt.Errorf("failed to load actor user: %w", err)
 		}
@@ -359,6 +378,9 @@ func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, na
 		Where("id = ? AND user_id = ?", credentialID, userID).
 		First(&credential).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.WebauthnCredential{}, apperror.NotFound("Passkey")
+	}
 	if err != nil {
 		return credential, err
 	}
@@ -394,26 +416,26 @@ func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context
 
 	token, err := s.signer.VerifyAccessToken(accessToken)
 	if err != nil {
-		return "", fmt.Errorf("invalid access token: %w", err)
+		return "", apperror.ReauthenticationRequiredWithCause(err)
 	}
 
 	userID, ok := token.Subject()
 	if !ok {
-		return "", errors.New("access token does not contain user ID")
+		return "", apperror.ReauthenticationRequiredWithCause(errors.New("access token does not contain user ID"))
 	}
 
 	authenticationMethod, err := s.signer.GetAuthenticationMethod(token)
 	if err != nil {
-		return "", err
+		return "", apperror.ReauthenticationRequiredWithCause(err)
 	}
 	if authenticationMethod != authenticationMethodPhishingResistant {
-		return "", &common.ReauthenticationRequiredError{}
+		return "", apperror.ReauthenticationRequired()
 	}
 
 	// Check if token is issued less than a minute ago
 	tokenExpiration, ok := token.IssuedAt()
 	if !ok || time.Since(tokenExpiration) > time.Minute {
-		return "", &common.ReauthenticationRequiredError{}
+		return "", apperror.ReauthenticationRequired()
 	}
 
 	var user model.User
@@ -421,6 +443,9 @@ func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context
 		WithContext(ctx).
 		First(&user, "id = ?", userID).
 		Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", apperror.ReauthenticationRequiredWithCause(err)
+	}
 	if err != nil {
 		return "", fmt.Errorf("failed to load user: %w", err)
 	}
@@ -454,7 +479,7 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 		return "", fmt.Errorf("failed to load WebAuthn session: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return "", &common.InvalidWebauthnSessionError{}
+		return "", apperror.InvalidWebAuthnSession()
 	}
 
 	session := gowebauthn.SessionData{
@@ -472,14 +497,21 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 			Preload("Credentials").
 			First(&user, "id = ?", string(userHandle)).
 			Error
+		// Preserve infrastructure failures through go-webauthn's wrapped callback error
 		if innerErr != nil {
+			if !errors.Is(innerErr, gorm.ErrRecordNotFound) {
+				return nil, apperror.Internal(innerErr)
+			}
 			return nil, innerErr
 		}
 		return user, nil
 	}, session, credentialAssertionData)
 
-	if err != nil || user == nil {
-		return "", err
+	if err != nil {
+		return "", classifyPasskeyError(err, apperror.WebAuthnAuthenticationFailed)
+	}
+	if user == nil {
+		return "", apperror.WebAuthnAuthenticationFailed(errors.New("WebAuthn response did not resolve to a user"))
 	}
 
 	// Create reauthentication token
@@ -496,6 +528,20 @@ func (s *Service) CreateReauthenticationTokenWithWebauthn(ctx context.Context, s
 	return token, nil
 }
 
+func classifyPasskeyError(err error, fallback func(error) *apperror.Error) *apperror.Error {
+	if appErr, ok := errors.AsType[*apperror.Error](err); ok {
+		return appErr
+	}
+
+	if protocolError, ok := errors.AsType[*protocol.Error](err); ok &&
+		protocolError.Type == protocol.ErrVerification.Type &&
+		protocolError.DevInfo == missingUserVerificationErrorInfo {
+		return apperror.PasskeyUserVerificationRequired(err)
+	}
+
+	return fallback(err)
+}
+
 func (s *Service) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB, token string, userID string) (time.Time, error) {
 	hashedToken := utils.CreateSha256Hash(token)
 	var reauthToken ReauthenticationToken
@@ -507,7 +553,7 @@ func (s *Service) ConsumeReauthenticationToken(ctx context.Context, tx *gorm.DB,
 		return time.Time{}, result.Error
 	}
 	if result.RowsAffected == 0 {
-		return time.Time{}, &common.ReauthenticationRequiredError{}
+		return time.Time{}, apperror.ReauthenticationRequired()
 	}
 	return reauthToken.CreatedAt.UTC(), nil
 }

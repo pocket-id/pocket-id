@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
@@ -69,8 +70,8 @@ func New(deps Dependencies) (*Module, error) {
 // RegisterRoutes mounts the one-time access token endpoints
 // auth guards the admin routes, while the rate limiters throttle the public exchange and email endpoints
 func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, auth, exchangeRateLimit, emailRateLimit gin.HandlerFunc) {
-	apiGroup.POST("/users/:id/one-time-access-token", auth, m.handler.createTokenForUser)
-	apiGroup.POST("/users/:id/one-time-access-email", auth, m.handler.requestEmailAsAdmin)
-	apiGroup.POST("/one-time-access-token/:token", exchangeRateLimit, m.handler.exchangeToken)
-	apiGroup.POST("/one-time-access-email", emailRateLimit, m.handler.requestEmailAsUnauthenticatedUser)
+	apiGroup.POST("/users/:id/one-time-access-token", auth, httpserver.Handle(m.handler.createTokenForUser))
+	apiGroup.POST("/users/:id/one-time-access-email", auth, httpserver.Handle(m.handler.requestEmailAsAdmin))
+	apiGroup.POST("/one-time-access-token/:token", exchangeRateLimit, httpserver.Handle(m.handler.exchangeToken))
+	apiGroup.POST("/one-time-access-email", emailRateLimit, httpserver.Handle(m.handler.requestEmailAsUnauthenticatedUser))
 }

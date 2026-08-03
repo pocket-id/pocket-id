@@ -1,7 +1,9 @@
 import AppConfigService from '$lib/services/app-config-service';
 import UserService from '$lib/services/user-service';
+import { m } from '$lib/paraglide/messages';
 import appConfigStore from '$lib/stores/application-configuration-store';
 import userStore from '$lib/stores/user-store';
+import { getAxiosErrorMessage, getAxiosErrorRequestId } from '$lib/utils/error-util';
 import { setLocaleForLibraries } from '$lib/utils/locale.util';
 import { getAuthRedirectPath } from '$lib/utils/redirection-util';
 import { setTracingEnabled } from '$lib/utils/tracing-util';
@@ -17,8 +19,12 @@ export const load: LayoutLoad = async ({ url }) => {
 	const userPromise = userService.getCurrent().catch(() => null);
 
 	const appConfigPromise = appConfigService.list().catch((e) => {
+		const fallbackMessage = e instanceof Error ? e.message : m.an_unknown_error_occurred();
 		console.error(
-			`Failed to get application configuration: ${e.response?.data.error || e.message}`
+			`Failed to get application configuration: ${getAxiosErrorMessage(e, fallbackMessage)}`,
+			{
+				requestId: getAxiosErrorRequestId(e)
+			}
 		);
 		return null;
 	});

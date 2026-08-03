@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -114,8 +114,7 @@ func TestSignUpRejectsInvalidToken(t *testing.T) {
 		Token:    "not-a-real-token",
 	}, "1.2.3.4", "test-agent")
 
-	var invalidErr *common.TokenInvalidOrExpiredError
-	require.ErrorAs(t, err, &invalidErr)
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
 }
 
 func TestSignUpInitialAdminCreatesAdmin(t *testing.T) {
@@ -154,8 +153,7 @@ func TestSignUpInitialAdminRejectsExistingInstallation(t *testing.T) {
 
 	// Reject setup when the installation already contains a user
 	_, _, err := svc.SignUpInitialAdmin(t.Context(), appconfig.NewTestConfig(nil), signUpDto{Username: "new-admin"})
-	var setupNotAvailableErr *common.SetupNotAvailableError
-	require.ErrorAs(t, err, &setupNotAvailableErr)
+	require.True(t, apperror.IsCode(err, apperror.CodeSetupAlreadyCompleted))
 }
 
 // listAllOptions returns list options that return every token on a single page.

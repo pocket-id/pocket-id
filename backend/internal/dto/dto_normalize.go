@@ -3,72 +3,83 @@ package dto
 import (
 	"reflect"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"golang.org/x/text/unicode/norm"
 )
 
-// Normalize iterates through an object and performs Unicode normalization on all string fields with the `unorm` tag.
+// Normalize iterates through an object and performs Unicode normalization on all string fields with the `unorm` tag
 func Normalize(obj any) {
-	v := reflect.ValueOf(obj)
-	if v.Kind() != reflect.Pointer || v.IsNil() {
+	normalizeValue(reflect.ValueOf(obj))
+}
+
+func normalizeValue(value reflect.Value) {
+	if !value.IsValid() {
 		return
 	}
-	v = v.Elem()
 
-	// Handle case where obj is a slice of models
-	if v.Kind() == reflect.Slice {
-		for i := 0; i < v.Len(); i++ {
-			elem := v.Index(i)
-			if elem.Kind() == reflect.Pointer && !elem.IsNil() && elem.Elem().Kind() == reflect.Struct {
-				Normalize(elem.Interface())
-			} else if elem.Kind() == reflect.Struct && elem.CanAddr() {
-				Normalize(elem.Addr().Interface())
-			}
+	// Unwrap interfaces and pointers so nested DTOs share the same traversal
+	kind := value.Kind()
+	if kind == reflect.Interface || kind == reflect.Pointer {
+		if !value.IsNil() {
+			normalizeValue(value.Elem())
 		}
 		return
 	}
 
-	if v.Kind() != reflect.Struct {
+	// Walk collections because request DTOs may contain nested slices or arrays
+	if kind == reflect.Slice || kind == reflect.Array {
+		for i := range value.Len() {
+			normalizeValue(value.Index(i))
+		}
 		return
 	}
 
-	// Iterate through all fields looking for those with the "unorm" tag
-	t := v.Type()
-loop:
-	for i := range t.NumField() {
-		field := t.Field(i)
+	// Ignore scalar values because normalization is opt-in through struct field tags
+	if kind != reflect.Struct {
+		return
+	}
 
-		unormTag := field.Tag.Get("unorm")
-		if unormTag == "" {
+	// Normalize tagged fields directly and recursively inspect untagged nested values
+	valueType := value.Type()
+	for i := range value.NumField() {
+		field := value.Field(i)
+		form, tagged := normalizationForm(valueType.Field(i).Tag.Get("unorm"))
+		if tagged {
+			normalizeString(field, form)
 			continue
 		}
 
-		fv := v.Field(i)
-		if !fv.CanSet() || fv.Kind() != reflect.String {
-			continue
-		}
-
-		var form norm.Form
-		switch unormTag {
-		case "nfc":
-			form = norm.NFC
-		case "nfkc":
-			form = norm.NFKC
-		case "nfd":
-			form = norm.NFD
-		case "nfkd":
-			form = norm.NFKD
-		default:
-			continue loop
-		}
-
-		val := fv.String()
-		val = form.String(val)
-		fv.SetString(val)
+		normalizeValue(field)
 	}
 }
 
-func ShouldBindWithNormalizedJSON(ctx *gin.Context, obj any) error {
-	return ctx.ShouldBindWith(obj, binding.JSON)
+func normalizationForm(tag string) (norm.Form, bool) {
+	switch tag {
+	case "nfc":
+		return norm.NFC, true
+	case "nfkc":
+		return norm.NFKC, true
+	case "nfd":
+		return norm.NFD, true
+	case "nfkd":
+		return norm.NFKD, true
+	default:
+		return 0, false
+	}
+}
+
+func normalizeString(value reflect.Value, form norm.Form) {
+	// Dereference optional string fields while leaving nil values unchanged
+	if value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return
+		}
+		value = value.Elem()
+	}
+
+	// Ignore incompatible or read-only fields because reflection cannot safely update them
+	if value.Kind() != reflect.String || !value.CanSet() {
+		return
+	}
+
+	value.SetString(form.String(value.String()))
 }

@@ -1,12 +1,14 @@
 import type { HandleClientError } from '@sveltejs/kit';
-import { AxiosError } from 'axios';
+import { isAxiosError } from 'axios';
+import { getAxiosErrorMessage, getAxiosErrorRequestId } from '$lib/utils/error-util';
 
 export const handleError: HandleClientError = async ({ error, message, status }) => {
-	if (error instanceof AxiosError) {
-		message = error.response?.data.error || message;
+	if (isAxiosError(error)) {
+		message = getAxiosErrorMessage(error, message);
 		status = error.response?.status || status;
 		console.error(
-			`Axios error: ${error.request.path} - ${error.response?.data.error ?? error.message}`
+			`Axios error: ${error.request?.path ?? 'unknown path'} - ${getAxiosErrorMessage(error, error.message)}`,
+			{ requestId: getAxiosErrorRequestId(error) }
 		);
 	} else {
 		console.error(error);

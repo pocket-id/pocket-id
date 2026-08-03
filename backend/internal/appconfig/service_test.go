@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -199,14 +200,13 @@ func TestService_UpdateAppConfig(t *testing.T) {
 		assert.Equal(t, getDefaultConfig().SmtpTls, cfg.SmtpTls)
 	})
 
-	t.Run("returns UiConfigDisabledError when the UI config is disabled", func(t *testing.T) {
+	t.Run("returns a UI-config-disabled error when the UI config is disabled", func(t *testing.T) {
 		setUIConfigDisabled(t, true)
 		svc := NewTestAppConfigService(nil)
 
 		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{AppName: "X"})
 		require.Error(t, err)
-		var target *common.UiConfigDisabledError
-		assert.ErrorAs(t, err, &target)
+		assert.True(t, apperror.IsCode(err, apperror.CodeUIConfigDisabled))
 	})
 }
 
@@ -269,15 +269,14 @@ func TestService_UpdateAppConfigValues(t *testing.T) {
 		assert.Equal(t, *getDefaultConfig(), *cfg)
 	})
 
-	t.Run("returns UiConfigDisabledError when the UI config is disabled", func(t *testing.T) {
+	t.Run("returns a UI-config-disabled error when the UI config is disabled", func(t *testing.T) {
 		setUIConfigDisabled(t, true)
 		svc := NewTestAppConfigService(nil)
 
 		// An even number of arguments so the count check passes and we reach the UI-config check
 		err := svc.UpdateAppConfigValues(t.Context(), "appName", "X")
 		require.Error(t, err)
-		var target *common.UiConfigDisabledError
-		assert.ErrorAs(t, err, &target)
+		assert.True(t, apperror.IsCode(err, apperror.CodeUIConfigDisabled))
 	})
 }
 

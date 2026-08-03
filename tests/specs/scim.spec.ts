@@ -98,11 +98,11 @@ test.describe('SCIM Sync', () => {
 	test('Sync client', async ({ page }) => {
 		await syncScimServiceProvider(page);
 
+		await expectScimResourceCount('Users', 2);
 		const scimUsers = await getScimResources('Users');
-		await expect(scimUsers.length).toBe(2);
 
+		await expectScimResourceCount('Groups', 2);
 		const groups = await getScimResources('Groups');
-		await expect(groups.length).toBe(2);
 
 		const timUser = scimUsers.find((u: any) => u.userName === 'tim');
 		await expect(timUser).toBeDefined();
@@ -135,16 +135,18 @@ test.describe('SCIM Sync', () => {
 		await expect(developersCheckbox).toHaveAttribute('data-state', 'unchecked');
 
 		await page.getByRole('button', { name: 'Save' }).click();
-		await expect(page.getByText('Allowed user groups updated successfully', { exact: true })).toBeVisible();
+		await expect(
+			page.getByText('Allowed user groups updated successfully', { exact: true })
+		).toBeVisible();
 
 		await syncScimServiceProvider(page);
 
+		await expectScimResourceCount('Users', 1);
 		const scimUsers = await getScimResources('Users');
-		await expect(scimUsers.length).toBe(1);
 		await expect(scimUsers.find((u: any) => u.userName === users.tim.username)).toBeDefined();
 
+		await expectScimResourceCount('Groups', 1);
 		const scimGroups = await getScimResources('Groups');
-		await expect(scimGroups.length).toBe(1);
 		await expect(
 			scimGroups.find((g: any) => g.displayName === userGroups.designers.friendlyName)
 		).toBeDefined();
@@ -157,16 +159,20 @@ test.describe('SCIM Sync', () => {
 
 		await page.getByRole('button', { name: 'Unrestrict' }).click();
 		await page.getByRole('button', { name: 'Unrestrict' }).nth(1).click();
+		await expect(
+			page.getByText('User groups restriction updated successfully', { exact: true })
+		).toBeVisible();
 
 		await syncScimServiceProvider(page);
 
-		const scimUsers = await getScimResources('Users');
-		await expect(scimUsers.length).toBe(3);
-
-		const scimGroups = await getScimResources('Groups');
-		await expect(scimGroups.length).toBe(2);
+		await expectScimResourceCount('Users', 3);
+		await expectScimResourceCount('Groups', 2);
 	});
 });
+
+async function expectScimResourceCount(resourceType: 'Users' | 'Groups', count: number) {
+	await expect.poll(async () => (await getScimResources(resourceType)).length).toBe(count);
+}
 
 async function getScimResources(resourceType: 'Users' | 'Groups') {
 	const response = await fetch(`${process.env.SCIM_SERVICE_PROVIDER_URL}/${resourceType}`).then(

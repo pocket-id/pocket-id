@@ -9,7 +9,7 @@ import (
 	"github.com/ory/fosite"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -315,6 +315,17 @@ func TestInteractionSessionServiceGetRejectsExpiredSession(t *testing.T) {
 
 	_, err = service.get(t.Context(), interactionID)
 	require.ErrorIs(t, err, gorm.ErrRecordNotFound)
+}
+
+func TestInteractionAPIClassifiesMissingSession(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+	service := newAuthorizationService(db, newInteractionSessionService(db), newClaimsService(db, nil, "", nil), nil, nil, nil)
+
+	_, err := service.getInteractionSession(t.Context(), "missing-interaction")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
+
+	_, err = service.completeInteractionStep(t.Context(), "missing-interaction", "user", interactionStepConsent, "", time.Now().UTC(), requestMeta{})
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
 func TestAuthorizationServiceAuthorizeBindsScopesToInteractionSession(t *testing.T) {
@@ -735,8 +746,7 @@ func TestAuthorizationServiceAuthorizePARRequiredClient(t *testing.T) {
 
 	// Without a pushed authorization request the client must be rejected
 	_, err := authorize("", false)
-	var parRequiredError *common.OidcPARRequiredError
-	require.ErrorAs(t, err, &parRequiredError)
+	require.True(t, apperror.IsCode(err, apperror.CodeOidcPARRequired))
 
 	// Re-entry after a completed interaction carries no request_uri, but the bound
 	// interaction session proves the original request was PAR-validated
