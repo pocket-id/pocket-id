@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -46,7 +47,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 	tokenProvided := signupData.Token != ""
 
 	if config.AllowUserSignups.String() != "open" && !tokenProvided {
-		return model.User{}, "", &common.OpenSignupDisabledError{}
+		return model.User{}, "", apperror.OpenSignupDisabled()
 	}
 
 	var userGroupIDs []string
@@ -65,7 +66,7 @@ func (s *Service) SignUp(ctx context.Context, config *appconfig.AppConfigModel, 
 		}
 
 		if consumeRes.Status != signupTokenConsumeOK {
-			return model.User{}, "", &common.TokenInvalidOrExpiredError{}
+			return model.User{}, "", apperror.TokenInvalidOrExpired()
 		}
 		userGroupIDs = consumeRes.UserGroupIDs
 	}
@@ -160,7 +161,7 @@ func (s *Service) SignUpInitialAdmin(ctx context.Context, config *appconfig.AppC
 		return model.User{}, "", err
 	}
 	if setupCompleted {
-		return model.User{}, "", &common.SetupNotAvailableError{}
+		return model.User{}, "", apperror.SetupAlreadyCompleted()
 	}
 
 	// Build the first user with administrator privileges

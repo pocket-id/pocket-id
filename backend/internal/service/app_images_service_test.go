@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 )
 
@@ -85,15 +85,13 @@ func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
 	t.Run("get missing image returns not found", func(t *testing.T) {
 		_, _, _, err := service.GetImage(context.Background(), "missing")
 		require.Error(t, err)
-		var imageErr *common.ImageNotFoundError
-		assert.ErrorAs(t, err, &imageErr)
+		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 	})
 
 	t.Run("reject unsupported file types", func(t *testing.T) {
 		err := service.UpdateImage(context.Background(), newFileHeader(t, "logo.txt", []byte("nope")), "logo")
 		require.Error(t, err)
-		var fileTypeErr *common.FileTypeNotSupportedError
-		assert.ErrorAs(t, err, &fileTypeErr)
+		assert.True(t, apperror.IsCode(err, apperror.CodeFileTypeNotSupported))
 	})
 
 	t.Run("delete and extension tracking", func(t *testing.T) {
@@ -105,8 +103,7 @@ func TestAppImagesService_ErrorsAndFlags(t *testing.T) {
 
 		err := service.DeleteImage(context.Background(), "default-profile-picture")
 		require.Error(t, err)
-		var imageErr *common.ImageNotFoundError
-		assert.ErrorAs(t, err, &imageErr)
+		assert.True(t, apperror.IsCode(err, apperror.CodeImageNotFound))
 	})
 }
 

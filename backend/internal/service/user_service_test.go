@@ -2,11 +2,14 @@ package service
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -32,6 +35,48 @@ func newTestUserService(t *testing.T) (*UserService, *UserGroupService) {
 	groupService := NewUserGroupService(db, nil)
 
 	return userService, groupService
+}
+
+func TestUserAndGroupLookupsReturnSpecificNotFoundErrors(t *testing.T) {
+	userService, groupService := newTestUserService(t)
+
+	_, err := userService.GetUser(t.Context(), "missing-user")
+	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
+
+	_, err = groupService.Get(t.Context(), "missing-group")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
+	var appErr *apperror.Error
+	require.ErrorAs(t, err, &appErr)
+	require.Equal(t, "User group", appErr.Details()["resource"])
+}
+
+func TestUpdateProfilePictureRejectsInvalidImageData(t *testing.T) {
+	userService, _ := newTestUserService(t)
+	config := &appconfig.AppConfigModel{RequireUserEmail: "false"}
+	user, err := userService.CreateUser(t.Context(), config, dto.UserCreateDto{
+		ID:       uuid.NewString(),
+		Username: "image-test",
+	})
+	require.NoError(t, err)
+
+	err = userService.UpdateProfilePicture(
+		t.Context(),
+		user.ID,
+		strings.NewReader("not an image"),
+	)
+
+	require.True(t, apperror.IsCode(err, apperror.CodeInvalidImage))
+}
+
+func TestProfilePictureUpdatesRejectMissingUser(t *testing.T) {
+	userService, _ := newTestUserService(t)
+	missingUserID := uuid.NewString()
+
+	err := userService.UpdateProfilePicture(t.Context(), missingUserID, strings.NewReader("not an image"))
+	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
+
+	err = userService.ResetProfilePicture(t.Context(), missingUserID)
+	require.True(t, apperror.IsCode(err, apperror.CodeUserNotFound))
 }
 
 func TestCreateUserBumpsGroupUpdatedAt(t *testing.T) {

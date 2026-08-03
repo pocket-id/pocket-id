@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 )
 
@@ -72,8 +73,8 @@ func New(deps Dependencies) (*Module, error) {
 
 // RegisterRoutes mounts the public exchange and authenticated verification endpoints
 func (m *Module) RegisterRoutes(apiGroup *gin.RouterGroup, browserAuth, createRateLimit, exchangeRateLimit, verificationRateLimit gin.HandlerFunc) {
-	apiGroup.POST("/device-login/requests", createRateLimit, m.handler.createRequest)
-	apiGroup.POST("/device-login/requests/:id/exchange", exchangeRateLimit, m.handler.exchangeRequest)
-	apiGroup.POST("/device-login/verification", verificationRateLimit, browserAuth, m.handler.inspectRequest)
-	apiGroup.POST("/device-login/verification/decision", verificationRateLimit, browserAuth, m.handler.decideRequest)
+	apiGroup.POST("/device-login/requests", createRateLimit, httpserver.Handle(m.handler.createRequest))
+	apiGroup.POST("/device-login/requests/:id/exchange", exchangeRateLimit, httpserver.Handle(m.handler.exchangeRequest))
+	apiGroup.POST("/device-login/verification", verificationRateLimit, browserAuth, httpserver.Handle(m.handler.inspectRequest))
+	apiGroup.POST("/device-login/verification/decision", verificationRateLimit, browserAuth, httpserver.Handle(m.handler.decideRequest))
 }

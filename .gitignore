@@ -65,3 +65,4 @@ dist/
 
 /backend/go.work
 /backend/go.work.sum
+.deepsec/

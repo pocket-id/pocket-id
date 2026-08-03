@@ -8,6 +8,9 @@ import (
 )
 
 func TestValidateCallbackURLPattern(t *testing.T) {
+	// #nosec G101
+	const wildcardUserinfoPattern = "https://user:*@example.com/callback"
+
 	tests := []struct {
 		name        string
 		pattern     string
@@ -35,7 +38,7 @@ func TestValidateCallbackURLPattern(t *testing.T) {
 		},
 		{
 			name:        "wildcard userinfo",
-			pattern:     "https://user:*@example.com/callback", // #nosec G101 - Test credential
+			pattern:     wildcardUserinfoPattern,
 			shouldError: false,
 		},
 		{

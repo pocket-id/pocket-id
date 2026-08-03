@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	datatype "github.com/pocket-id/pocket-id/backend/internal/model/types"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -50,7 +50,7 @@ func (s *Service) Send(ctx context.Context, dbConfig *appconfig.AppConfigModel, 
 		return err
 	}
 	if user.Email == nil {
-		return &common.UserEmailNotSetError{}
+		return apperror.UserEmailNotSet()
 	}
 
 	token, err := utils.GenerateRandomAlphanumericString(32)
@@ -104,7 +104,7 @@ func (s *Service) Verify(ctx context.Context, userID, token string) error {
 		return fmt.Errorf("error decoding email verification actor response: %w", err)
 	}
 	if result.Status != consumeOK {
-		return &common.InvalidEmailVerificationTokenError{}
+		return apperror.InvalidEmailVerificationToken()
 	}
 
 	// Update the user's email_verified field in the database
@@ -123,7 +123,7 @@ func (s *Service) Verify(ctx context.Context, userID, token string) error {
 		return update.Error
 	}
 	if update.RowsAffected != 1 {
-		return &common.InvalidEmailVerificationTokenError{}
+		return apperror.InvalidEmailVerificationToken()
 	}
 
 	return nil

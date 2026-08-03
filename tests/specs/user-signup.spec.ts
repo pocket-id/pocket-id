@@ -99,7 +99,7 @@ test.describe('Initial User Signup', () => {
 		);
 
 		const successfulResponses = responses.filter((response) => response.status() === 200);
-		const rejectedResponses = responses.filter((response) => response.status() === 404);
+		const rejectedResponses = responses.filter((response) => response.status() === 409);
 
 		expect(successfulResponses).toHaveLength(1);
 		expect(rejectedResponses).toHaveLength(requestCount - 1);

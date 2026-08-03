@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -142,8 +142,7 @@ func TestVerifyRejectsTokenAfterAddressChanges(t *testing.T) {
 	}).Error)
 
 	err := service.Verify(t.Context(), user.ID, token)
-	var invalidTokenError *common.InvalidEmailVerificationTokenError
-	require.ErrorAs(t, err, &invalidTokenError)
+	require.True(t, apperror.IsCode(err, apperror.CodeEmailVerificationTokenInvalid))
 
 	var updated model.User
 	require.NoError(t, db.Where("id = ?", user.ID).First(&updated).Error)
@@ -162,8 +161,7 @@ func TestVerifyDoesNotConsumeStateForWrongToken(t *testing.T) {
 	require.NoError(t, service.Send(t.Context(), &appconfig.AppConfigModel{}, user.ID))
 
 	err := service.Verify(t.Context(), user.ID, "wrong-verification-code")
-	var invalidTokenError *common.InvalidEmailVerificationTokenError
-	require.ErrorAs(t, err, &invalidTokenError)
+	require.True(t, apperror.IsCode(err, apperror.CodeEmailVerificationTokenInvalid))
 
 	var state State
 	require.NoError(t, host.GetState(t.Context(), ActorType, user.ID, &state))
@@ -187,8 +185,7 @@ func TestVerifyRejectsExpiredToken(t *testing.T) {
 	}, time.Second, time.Millisecond)
 
 	err := service.Verify(t.Context(), user.ID, token)
-	var invalidTokenError *common.InvalidEmailVerificationTokenError
-	require.ErrorAs(t, err, &invalidTokenError)
+	require.True(t, apperror.IsCode(err, apperror.CodeEmailVerificationTokenInvalid))
 
 	var updated model.User
 	require.NoError(t, db.Where("id = ?", user.ID).First(&updated).Error)

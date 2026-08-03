@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -128,8 +128,7 @@ func TestExchangeTokenInvalidToken(t *testing.T) {
 	dbConfig := appconfig.NewTestConfig(nil)
 	_, _, err := svc.ExchangeToken(t.Context(), dbConfig, "does-not-exist", "", "", "")
 
-	var invalidErr *common.TokenInvalidOrExpiredError
-	require.ErrorAs(t, err, &invalidErr)
+	require.True(t, apperror.IsCode(err, apperror.CodeTokenInvalidOrExpired))
 }
 
 func TestExchangeTokenDeviceMismatch(t *testing.T) {
@@ -150,8 +149,7 @@ func TestExchangeTokenDeviceMismatch(t *testing.T) {
 	dbConfig := appconfig.NewTestConfig(nil)
 	_, _, err = svc.ExchangeToken(t.Context(), dbConfig, token, "wrong-device-token", "", "")
 
-	var deviceErr *common.DeviceCodeInvalid
-	require.ErrorAs(t, err, &deviceErr)
+	require.True(t, apperror.IsCode(err, apperror.CodeDeviceCodeInvalid))
 
 	// The token must not have been consumed on a device-token mismatch
 	var state TokenState
@@ -178,8 +176,7 @@ func TestExchangeTokenRejectsDisabledUser(t *testing.T) {
 	dbConfig := appconfig.NewTestConfig(nil)
 	exchangedUser, accessToken, err := svc.ExchangeToken(t.Context(), dbConfig, token, "", "", "")
 
-	var userDisabledErr *common.UserDisabledError
-	require.ErrorAs(t, err, &userDisabledErr)
+	require.True(t, apperror.IsCode(err, apperror.CodeUserDisabled))
 	require.Empty(t, exchangedUser.ID)
 	require.Empty(t, accessToken)
 

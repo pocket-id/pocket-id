@@ -272,6 +272,7 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 
 	// Deselect "Yes" and select "No" to invert the filter
 	await page.getByTestId('facet-par-option-true').click();
+	await expect(page.getByRole('row', { name: oidcClients.nextcloud.name })).toBeVisible();
 	await page.getByTestId('facet-par-option-false').click();
 
 	// PAR client should be hidden, others visible

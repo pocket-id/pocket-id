@@ -60,7 +60,9 @@ test('Cannot create an API with the issuer as resource', async ({ page }) => {
 	await page.getByLabel('Resource').fill(issuer);
 	await page.getByRole('button', { name: 'Save' }).click();
 
-	await expect(page.locator('[data-type="error"]')).toContainText('reserved');
+	await expect(page.locator('[data-type="error"]')).toHaveText(
+		'Resource is reserved by Pocket ID and cannot be used for a custom API'
+	);
 });
 
 test('Edit the name of an API', async ({ page }) => {

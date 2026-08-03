@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
+	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
 
@@ -20,10 +21,10 @@ func NewAuditLogController(group *gin.RouterGroup, auditLogService *service.Audi
 		auditLogService: auditLogService,
 	}
 
-	group.GET("/audit-logs/all", authMiddleware.Add(), alc.listAllAuditLogsHandler)
-	group.GET("/audit-logs", authMiddleware.WithAdminNotRequired().Add(), alc.listAuditLogsForUserHandler)
-	group.GET("/audit-logs/filters/client-names", authMiddleware.Add(), alc.listClientNamesHandler)
-	group.GET("/audit-logs/filters/users", authMiddleware.Add(), alc.listUserNamesWithIdsHandler)
+	group.GET("/audit-logs/all", authMiddleware.Add(), httpserver.Handle(alc.listAllAuditLogsHandler))
+	group.GET("/audit-logs", authMiddleware.WithAdminNotRequired().Add(), httpserver.Handle(alc.listAuditLogsForUserHandler))
+	group.GET("/audit-logs/filters/client-names", authMiddleware.Add(), httpserver.Handle(alc.listClientNamesHandler))
+	group.GET("/audit-logs/filters/users", authMiddleware.Add(), httpserver.Handle(alc.listUserNamesWithIdsHandler))
 }
 
 type AuditLogController struct {
@@ -40,7 +41,7 @@ type AuditLogController struct {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /api/audit-logs [get]
-func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
+func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	userID := c.GetString("userID")
@@ -48,16 +49,14 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 	// Fetch audit logs for the user
 	logs, pagination, err := alc.auditLogService.ListAuditLogsForUser(c.Request.Context(), userID, listRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	// Map the audit logs to DTOs
 	var logsDtos []dto.AuditLogDto
 	err = dto.MapStructList(logs, &logsDtos)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	// Add device information to the logs
@@ -71,6 +70,7 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 		Data:       logsDtos,
 		Pagination: pagination,
 	})
+	return nil
 }
 
 // listAllAuditLogsHandler godoc
@@ -83,20 +83,18 @@ func (alc *AuditLogController) listAuditLogsForUserHandler(c *gin.Context) {
 // @Param sort[direction] query string false "Sort direction (asc or desc)" default("asc")
 // @Success 200 {object} dto.Paginated[dto.AuditLogDto]
 // @Router /api/audit-logs/all [get]
-func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
+func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) error {
 	listRequestOptions := utils.ParseListRequestOptions(c)
 
 	logs, pagination, err := alc.auditLogService.ListAllAuditLogs(c.Request.Context(), listRequestOptions)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	var logsDtos []dto.AuditLogDto
 	err = dto.MapStructList(logs, &logsDtos)
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	for i, logsDto := range logsDtos {
@@ -110,6 +108,7 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 		Data:       logsDtos,
 		Pagination: pagination,
 	})
+	return nil
 }
 
 // listClientNamesHandler godoc
@@ -118,14 +117,14 @@ func (alc *AuditLogController) listAllAuditLogsHandler(c *gin.Context) {
 // @Tags Audit Logs
 // @Success 200 {array} string "List of client names"
 // @Router /api/audit-logs/filters/client-names [get]
-func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) {
+func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) error {
 	names, err := alc.auditLogService.ListClientNames(c.Request.Context())
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, names)
+	return nil
 }
 
 // listUserNamesWithIdsHandler godoc
@@ -134,12 +133,12 @@ func (alc *AuditLogController) listClientNamesHandler(c *gin.Context) {
 // @Tags Audit Logs
 // @Success 200 {object} map[string]string "Map of user IDs to usernames"
 // @Router /api/audit-logs/filters/users [get]
-func (alc *AuditLogController) listUserNamesWithIdsHandler(c *gin.Context) {
+func (alc *AuditLogController) listUserNamesWithIdsHandler(c *gin.Context) error {
 	users, err := alc.auditLogService.ListUsernamesWithIds(c.Request.Context())
 	if err != nil {
-		_ = c.Error(err)
-		return
+		return err
 	}
 
 	c.JSON(http.StatusOK, users)
+	return nil
 }

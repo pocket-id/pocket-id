@@ -14,6 +14,7 @@ import (
 	"github.com/italypaleale/francis/host/local"
 	"gorm.io/gorm"
 
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
@@ -117,18 +118,18 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
-		return nil, &common.UiConfigDisabledError{}
+		return nil, apperror.UIConfigDisabled()
 	}
 
 	// Validate the CIMD URL allowlist patterns, if provided
 	if input.CIMDURLAllowlist != "" {
 		var patterns []string
 		if err := json.Unmarshal([]byte(input.CIMDURLAllowlist), &patterns); err != nil {
-			return nil, &common.InvalidCIMDURLPatternError{Pattern: input.CIMDURLAllowlist}
+			return nil, apperror.InvalidCIMDURLPattern(input.CIMDURLAllowlist)
 		}
 		for _, p := range patterns {
 			if err := utils.ValidateCallbackURLPattern(p); err != nil {
-				return nil, &common.InvalidCIMDURLPatternError{Pattern: p}
+				return nil, apperror.InvalidCIMDURLPattern(p)
 			}
 		}
 	}
@@ -154,7 +155,7 @@ func (s *AppConfigService) UpdateAppConfigValues(ctx context.Context, keysAndVal
 
 	// If the UI config is disabled, we cannot continue
 	if common.EnvConfig.UiConfigDisabled {
-		return &common.UiConfigDisabledError{}
+		return apperror.UIConfigDisabled()
 	}
 
 	// Collect the key-value pairs into a map for the actor

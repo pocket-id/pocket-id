@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pocket-id/pocket-id/backend/internal/common"
+	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
@@ -22,7 +22,7 @@ func TestAPICrudAndPermissionDiff(t *testing.T) {
 
 	// The resource is unique.
 	_, err = svc.Create(t.Context(), apiCreateDto{Name: "Dup", Resource: "https://api.orders.example.com"})
-	require.ErrorIs(t, err, &common.AlreadyInUseError{})
+	require.True(t, apperror.IsCode(err, apperror.CodeAlreadyInUse))
 
 	desc := "Read orders"
 	updated, err := svc.UpdatePermissions(t.Context(), created.ID, apiPermissionsUpdateDto{Permissions: []apiPermissionInputDto{
@@ -59,7 +59,7 @@ func TestAPICrudAndPermissionDiff(t *testing.T) {
 
 	require.NoError(t, svc.Delete(t.Context(), created.ID))
 	_, err = svc.Get(t.Context(), nil, created.ID)
-	require.Error(t, err)
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
 func TestClientApiAccessAllowList(t *testing.T) {
@@ -121,7 +121,10 @@ func TestClientApiAccessAllowList(t *testing.T) {
 
 	// An unknown client is rejected (surfaces as 404 at the HTTP layer).
 	_, err = svc.SetClientAPIAccess(t.Context(), "nope", ClientAPIAccess{UserDelegatedPermissionIDs: []string{readID}})
-	require.Error(t, err)
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
+
+	_, err = svc.GetClientAPIAccess(t.Context(), "nope")
+	require.True(t, apperror.IsCode(err, apperror.CodeNotFound))
 }
 
 // TestAllowedScopesForAudienceFiltersBySubjectType guards that the scopes resolved for a flow
@@ -177,8 +180,7 @@ func TestUpdatePermissionsRejectsReservedKeys(t *testing.T) {
 			{Key: key, Name: "Reserved"},
 		}})
 		require.Error(t, err, "key %q must be rejected", key)
-		var validationErr *common.ValidationError
-		require.ErrorAs(t, err, &validationErr)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	}
 }
 
@@ -195,8 +197,7 @@ func TestUpdatePermissionsRejectsDuplicateKeys(t *testing.T) {
 		{Key: "read:orders", Name: "Read again"},
 	}})
 	require.Error(t, err)
-	var validationErr *common.ValidationError
-	require.ErrorAs(t, err, &validationErr)
+	require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 }
 
 func TestUpdatePermissionsRejectsInvalidKeyCharacters(t *testing.T) {
@@ -212,8 +213,7 @@ func TestUpdatePermissionsRejectsInvalidKeyCharacters(t *testing.T) {
 			{Key: key, Name: "Invalid"},
 		}})
 		require.Error(t, err, "key %q must be rejected", key)
-		var validationErr *common.ValidationError
-		require.ErrorAs(t, err, &validationErr)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	}
 
 	// A valid scope-token key is accepted
@@ -232,8 +232,7 @@ func TestCreateRejectsIssuerResource(t *testing.T) {
 	for _, resource := range []string{issuer, issuer + "/", "https://ID.example.com"} {
 		_, err := svc.Create(t.Context(), apiCreateDto{Name: "Reserved", Resource: resource})
 		require.Error(t, err, "resource %q must be rejected", resource)
-		var validationErr *common.ValidationError
-		require.ErrorAs(t, err, &validationErr)
+		require.True(t, apperror.IsCode(err, apperror.CodeValidationFailed))
 	}
 
 	// A normal resource is accepted
