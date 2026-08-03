@@ -3,8 +3,10 @@ package httpserver
 import (
 	"errors"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -16,6 +18,10 @@ import (
 
 // BindJSON binds and normalizes a JSON request while distinguishing invalid input from internal failures
 func BindJSON(c *gin.Context, value any) error {
+	if err := requireJSONContentType(c); err != nil {
+		return err
+	}
+
 	err := classifyBindingError(c.ShouldBindJSON(value))
 	if err != nil {
 		return err
@@ -27,6 +33,13 @@ func BindJSON(c *gin.Context, value any) error {
 
 // BindOptionalJSON accepts an empty body while normalizing valid input and classifying malformed JSON as invalid input
 func BindOptionalJSON(c *gin.Context, value any) error {
+	if c.Request.ContentLength == 0 {
+		return nil
+	}
+	if err := requireJSONContentType(c); err != nil {
+		return err
+	}
+
 	err := c.ShouldBindJSON(value)
 	if errors.Is(err, io.EOF) {
 		return nil
@@ -50,6 +63,31 @@ func FormFile(c *gin.Context, field string) (*multipart.FileHeader, error) {
 	}
 
 	return file, nil
+}
+
+func requireJSONContentType(c *gin.Context) error {
+	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
+	if err != nil {
+		return apperror.InvalidRequestBody(err)
+	}
+	if !isJSONMediaType(mediaType) {
+		return apperror.InvalidRequestBody(errors.New("request Content-Type is not JSON"))
+	}
+
+	return nil
+}
+
+func isJSONMediaType(mediaType string) bool {
+	topLevelType, subtype, ok := strings.Cut(mediaType, "/")
+	if !ok || topLevelType != "application" {
+		return false
+	}
+	if subtype == "json" {
+		return true
+	}
+
+	baseSubtype, ok := strings.CutSuffix(subtype, "+json")
+	return ok && baseSubtype != ""
 }
 
 func classifyBindingError(err error) error {
