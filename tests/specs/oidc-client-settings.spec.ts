@@ -3,8 +3,8 @@ import { oidcClients, userGroups } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
 const defaultTokenLifetimes = {
-	accessTokenDurationSeconds: 60 * 60,
-	refreshTokenDurationSeconds: 30 * 24 * 60 * 60
+	accessTokenDurationMinutes: 60,
+	refreshTokenDurationMinutes: 30 * 24 * 60
 };
 
 test.beforeEach(async () => await cleanupBackend());

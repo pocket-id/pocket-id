@@ -63,7 +63,7 @@ func init() {
 			return ValidateResourceURI(fl.Field().String())
 		},
 		"token_duration": func(fl validator.FieldLevel) bool {
-			return model.IsValidTokenDurationSeconds(fl.Field().Int())
+			return model.IsValidTokenDurationMinutes(fl.Field().Int())
 		},
 	}
 	for k, v := range validators {

@@ -207,8 +207,8 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 		LogoutCallbackURLs:          datatype.StringList(doc.PostLogoutRedirectURIs),
 		ClientType:                  model.OidcClientTypeCIMD,
 		MetadataGrantTypes:          datatype.StringList(grantTypes),
-		AccessTokenDurationSeconds:  model.DefaultAccessTokenDurationSeconds,
-		RefreshTokenDurationSeconds: model.DefaultRefreshTokenDurationSeconds,
+		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
+		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
 	}
 
 	switch doc.TokenEndpointAuthMethod {

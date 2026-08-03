@@ -19,8 +19,8 @@ var (
 
 func TestClientGetEffectiveLifespan(t *testing.T) {
 	client := Client{OidcClient: model.OidcClient{
-		AccessTokenDurationSeconds:  2 * 60 * 60,
-		RefreshTokenDurationSeconds: 7 * 24 * 60 * 60,
+		AccessTokenDurationMinutes:  2 * 60,
+		RefreshTokenDurationMinutes: 7 * 24 * 60,
 	}}
 	fallback := 13 * time.Minute
 
@@ -46,8 +46,8 @@ func TestClientGetEffectiveLifespan(t *testing.T) {
 		})
 	}
 
-	client.AccessTokenDurationSeconds = 61
-	client.RefreshTokenDurationSeconds = model.MaxTokenDurationSeconds + 60
+	client.AccessTokenDurationMinutes = 0
+	client.RefreshTokenDurationMinutes = model.MaxTokenDurationMinutes + 1
 	require.Equal(t, fallback, client.GetEffectiveLifespan(fosite.GrantTypeAuthorizationCode, fosite.AccessToken, fallback))
 	require.Equal(t, fallback, client.GetEffectiveLifespan(fosite.GrantTypeAuthorizationCode, fosite.RefreshToken, fallback))
 }

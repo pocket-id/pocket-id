@@ -8,13 +8,13 @@
 
 	type DurationUnit = 'minutes' | 'hours' | 'days';
 
-	const secondsPerUnit: Record<DurationUnit, number> = {
-		minutes: 60,
-		hours: 60 * 60,
-		days: 24 * 60 * 60
+	const minutesPerUnit: Record<DurationUnit, number> = {
+		minutes: 1,
+		hours: 60,
+		days: 24 * 60
 	};
-	const minimumSeconds = 60;
-	const maximumSeconds = 365 * 24 * 60 * 60;
+	const minimumMinutes = 1;
+	const maximumMinutes = 365 * 24 * 60;
 
 	let {
 		id,
@@ -28,9 +28,9 @@
 		input: FormInput<number>;
 	} = $props();
 
-	function preferredUnit(seconds: number): DurationUnit {
-		if (seconds % secondsPerUnit.days === 0) return 'days';
-		if (seconds % secondsPerUnit.hours === 0) return 'hours';
+	function preferredUnit(minutes: number): DurationUnit {
+		if (minutes % minutesPerUnit.days === 0) return 'days';
+		if (minutes % minutesPerUnit.hours === 0) return 'hours';
 		return 'minutes';
 	}
 
@@ -39,11 +39,11 @@
 	}
 
 	let unit = $state<DurationUnit>(preferredUnit(input.value));
-	let amount = $state(formatAmount(input.value / secondsPerUnit[unit]));
+	let amount = $state(formatAmount(input.value / minutesPerUnit[unit]));
 
 	function updateAmount(event: Event) {
 		amount = (event.currentTarget as HTMLInputElement).value;
-		input.value = amount === '' ? Number.NaN : Number(amount) * secondsPerUnit[unit];
+		input.value = amount === '' ? Number.NaN : Number(amount) * minutesPerUnit[unit];
 	}
 
 	function updateUnit(value: string | undefined) {
@@ -51,7 +51,7 @@
 
 		unit = value as DurationUnit;
 		if (Number.isFinite(input.value)) {
-			amount = formatAmount(input.value / secondsPerUnit[unit]);
+			amount = formatAmount(input.value / minutesPerUnit[unit]);
 		}
 	}
 
@@ -78,9 +78,9 @@
 				{id}
 				type="number"
 				value={amount}
-				min={minimumSeconds / secondsPerUnit[unit]}
-				max={maximumSeconds / secondsPerUnit[unit]}
-				step={minimumSeconds / secondsPerUnit[unit]}
+				min={minimumMinutes / minutesPerUnit[unit]}
+				max={maximumMinutes / minutesPerUnit[unit]}
+				step={minimumMinutes / minutesPerUnit[unit]}
 				aria-invalid={!!input.error}
 				oninput={updateAmount}
 			/>

@@ -531,8 +531,8 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 			Name:                        "Test Client",
 			Description:                 description,
 			CallbackURLs:                []string{"https://example.com/callback"},
-			AccessTokenDurationSeconds:  model.DefaultAccessTokenDurationSeconds,
-			RefreshTokenDurationSeconds: model.DefaultRefreshTokenDurationSeconds,
+			AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
+			RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
 		},
 	}
 
@@ -556,8 +556,8 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 		OidcClientUpdateDto: dto.OidcClientUpdateDto{
 			Name:                        "Test Client",
 			CallbackURLs:                []string{"https://example.com/callback"},
-			AccessTokenDurationSeconds:  model.DefaultAccessTokenDurationSeconds,
-			RefreshTokenDurationSeconds: model.DefaultRefreshTokenDurationSeconds,
+			AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
+			RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
 		},
 	}
 
@@ -613,8 +613,8 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 		Name:                        "Test Client",
 		Description:                 description,
 		CallbackURLs:                []string{"https://example.com/callback"},
-		AccessTokenDurationSeconds:  model.DefaultAccessTokenDurationSeconds,
-		RefreshTokenDurationSeconds: model.DefaultRefreshTokenDurationSeconds,
+		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
+		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
 	}
 
 	_, err = s.UpdateClient(t.Context(), client.ID, input)
@@ -660,8 +660,8 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	require.NoError(t, db.Create(&client).Error)
 
 	launchURL := "https://app.example.com"
-	accessDuration := int64(2 * 60 * 60)
-	refreshDuration := int64(7 * 24 * 60 * 60)
+	accessDuration := int64(2 * 60)
+	refreshDuration := int64(7 * 24 * 60)
 	input := dto.OidcClientUpdateDto{
 		Name:                                "Overridden Client",
 		Description:                         "Locally managed description",
@@ -674,8 +674,8 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 		SkipConsent:                         true,
 		LaunchURL:                           &launchURL,
 		IsGroupRestricted:                   true,
-		AccessTokenDurationSeconds:          accessDuration,
-		RefreshTokenDurationSeconds:         refreshDuration,
+		AccessTokenDurationMinutes:          accessDuration,
+		RefreshTokenDurationMinutes:         refreshDuration,
 		Credentials: dto.OidcClientCredentialsDto{
 			FederatedIdentities: []dto.OidcClientFederatedIdentityDto{{
 				Issuer: "https://override.example.com",
@@ -701,8 +701,8 @@ func TestOidcService_UpdateClient_CIMDPreservesMetadataFields(t *testing.T) {
 	assert.Equal(t, input.SkipConsent, fetched.SkipConsent)
 	assert.Equal(t, input.LaunchURL, fetched.LaunchURL)
 	assert.Equal(t, input.IsGroupRestricted, fetched.IsGroupRestricted)
-	assert.Equal(t, accessDuration, fetched.AccessTokenDurationSeconds)
-	assert.Equal(t, refreshDuration, fetched.RefreshTokenDurationSeconds)
+	assert.Equal(t, accessDuration, fetched.AccessTokenDurationMinutes)
+	assert.Equal(t, refreshDuration, fetched.RefreshTokenDurationMinutes)
 }
 
 func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(t *testing.T) {
@@ -729,8 +729,8 @@ func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(
 
 	input := dto.OidcClientUpdateDto{
 		Description:                 "Locally managed description",
-		AccessTokenDurationSeconds:  model.DefaultAccessTokenDurationSeconds,
-		RefreshTokenDurationSeconds: model.DefaultRefreshTokenDurationSeconds,
+		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
+		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
 	}
 	_, err = s.UpdateClient(t.Context(), client.ID, input)
 	require.NoError(t, err)

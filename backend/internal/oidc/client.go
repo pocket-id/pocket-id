@@ -15,8 +15,6 @@ type Client struct {
 	apiAudiences []string
 }
 
-var _ fosite.ClientWithCustomTokenLifespans = Client{}
-
 func (c Client) GetID() string {
 	return c.ID
 }
@@ -91,12 +89,12 @@ func (c Client) GetResponseModes() []fosite.ResponseModeType {
 }
 
 func (c Client) GetEffectiveLifespan(grantType fosite.GrantType, tokenType fosite.TokenType, fallback time.Duration) time.Duration {
-	var seconds int64
+	var minutes int64
 	switch tokenType {
 	case fosite.AccessToken:
 		switch grantType {
 		case fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode, fosite.GrantTypeClientCredentials:
-			seconds = c.AccessTokenDurationSeconds
+			minutes = c.AccessTokenDurationMinutes
 		case fosite.GrantTypeImplicit, fosite.GrantTypePassword, fosite.GrantTypeJWTBearer:
 			return fallback
 		default:
@@ -105,7 +103,7 @@ func (c Client) GetEffectiveLifespan(grantType fosite.GrantType, tokenType fosit
 	case fosite.RefreshToken:
 		switch grantType {
 		case fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode:
-			seconds = c.RefreshTokenDurationSeconds
+			minutes = c.RefreshTokenDurationMinutes
 		case fosite.GrantTypeImplicit, fosite.GrantTypePassword, fosite.GrantTypeClientCredentials, fosite.GrantTypeJWTBearer:
 			return fallback
 		default:
@@ -117,8 +115,8 @@ func (c Client) GetEffectiveLifespan(grantType fosite.GrantType, tokenType fosit
 		return fallback
 	}
 
-	if !model.IsValidTokenDurationSeconds(seconds) {
+	if !model.IsValidTokenDurationMinutes(minutes) {
 		return fallback
 	}
-	return time.Duration(seconds) * time.Second
+	return time.Duration(minutes) * time.Minute
 }

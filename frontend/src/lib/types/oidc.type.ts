@@ -46,13 +46,13 @@ export type OidcClient = OidcClientMetaData & {
 	launchURL?: string;
 	isGroupRestricted: boolean;
 	pkceSupported: boolean;
-	accessTokenDurationSeconds: number;
-	refreshTokenDurationSeconds: number;
+	accessTokenDurationMinutes: number;
+	refreshTokenDurationMinutes: number;
 };
 
 export type OidcClientTokenLifetimes = Pick<
 	OidcClient,
-	'accessTokenDurationSeconds' | 'refreshTokenDurationSeconds'
+	'accessTokenDurationMinutes' | 'refreshTokenDurationMinutes'
 >;
 
 export type OidcClientWithAllowedUserGroups = OidcClient & {

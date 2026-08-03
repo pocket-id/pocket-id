@@ -20,10 +20,9 @@ func TestTokenDurationValidation(t *testing.T) {
 	}{
 		{name: "omitted", wantErr: true},
 		{name: "below minimum", value: 0, wantErr: true},
-		{name: "minimum", value: 60},
-		{name: "whole minute", value: 90 * 60},
-		{name: "not whole minute", value: 61, wantErr: true},
-		{name: "above maximum", value: 365*24*60*60 + 60, wantErr: true},
+		{name: "minimum", value: 1},
+		{name: "custom duration", value: 90},
+		{name: "above maximum", value: 365*24*60 + 1, wantErr: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			err := binding.Validator.ValidateStruct(input{Duration: test.value})

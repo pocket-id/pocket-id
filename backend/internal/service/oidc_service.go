@@ -32,8 +32,8 @@ const (
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
 	GrantTypeClientCredentials = "client_credentials"
 
-	AccessTokenDuration  = time.Duration(model.DefaultAccessTokenDurationSeconds) * time.Second
-	RefreshTokenDuration = time.Duration(model.DefaultRefreshTokenDurationSeconds) * time.Second
+	AccessTokenDuration  = time.Duration(model.DefaultAccessTokenDurationMinutes) * time.Minute
+	RefreshTokenDuration = time.Duration(model.DefaultRefreshTokenDurationMinutes) * time.Minute
 )
 
 type OidcService struct {
@@ -149,8 +149,8 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 			ID: input.ID,
 		},
 		CreatedByID:                 new(userID),
-		AccessTokenDurationSeconds:  model.DefaultAccessTokenDurationSeconds,
-		RefreshTokenDurationSeconds: model.DefaultRefreshTokenDurationSeconds,
+		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
+		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
 	}
 	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
@@ -215,8 +215,8 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 				"SkipConsent",
 				"LaunchURL",
 				"IsGroupRestricted",
-				"AccessTokenDurationSeconds",
-				"RefreshTokenDurationSeconds",
+				"AccessTokenDurationMinutes",
+				"RefreshTokenDurationMinutes",
 			).
 			Updates(&client).Error
 	} else {
@@ -257,8 +257,8 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
-	client.AccessTokenDurationSeconds = input.AccessTokenDurationSeconds
-	client.RefreshTokenDurationSeconds = input.RefreshTokenDurationSeconds
+	client.AccessTokenDurationMinutes = input.AccessTokenDurationMinutes
+	client.RefreshTokenDurationMinutes = input.RefreshTokenDurationMinutes
 
 	// Preserve fields that are sourced from the client metadata document
 	if client.IsMetadataDocument() {

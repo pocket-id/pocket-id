@@ -119,8 +119,8 @@
 	async function updateTokenLifetimes(lifetimes: OidcClientTokenLifetimes) {
 		const success = await updateClient({ ...client, ...lifetimes });
 		if (success) {
-			client.accessTokenDurationSeconds = lifetimes.accessTokenDurationSeconds;
-			client.refreshTokenDurationSeconds = lifetimes.refreshTokenDurationSeconds;
+			client.accessTokenDurationMinutes = lifetimes.accessTokenDurationMinutes;
+			client.refreshTokenDurationMinutes = lifetimes.refreshTokenDurationMinutes;
 		}
 		return success;
 	}

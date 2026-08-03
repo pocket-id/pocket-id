@@ -40,8 +40,8 @@ func TestBuildClientFromMetadata(t *testing.T) {
 		assert.Equal(t, []string{"https://app.example.com/logout"}, []string(c.LogoutCallbackURLs))
 		assert.Equal(t, []string{"authorization_code"}, []string(c.MetadataGrantTypes))
 		assert.Empty(t, c.Credentials.FederatedIdentities)
-		assert.Equal(t, model.DefaultAccessTokenDurationSeconds, c.AccessTokenDurationSeconds)
-		assert.Equal(t, model.DefaultRefreshTokenDurationSeconds, c.RefreshTokenDurationSeconds)
+		assert.Equal(t, model.DefaultAccessTokenDurationMinutes, c.AccessTokenDurationMinutes)
+		assert.Equal(t, model.DefaultRefreshTokenDurationMinutes, c.RefreshTokenDurationMinutes)
 	})
 
 	t.Run("authenticated clients are rejected", func(t *testing.T) {
@@ -170,8 +170,8 @@ func TestRefreshMetadataClient(t *testing.T) {
 			PkceEnabled:                 true,
 			ClientType:                  model.OidcClientTypeCIMD,
 			MetadataExpiresAt:           &fresh,
-			AccessTokenDurationSeconds:  2 * 60 * 60,
-			RefreshTokenDurationSeconds: 7 * 24 * 60 * 60,
+			AccessTokenDurationMinutes:  2 * 60,
+			RefreshTokenDurationMinutes: 7 * 24 * 60,
 		}
 		require.NoError(t, s.db.Create(&seed).Error)
 
@@ -185,8 +185,8 @@ func TestRefreshMetadataClient(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "App", c.Name)
 		assert.True(t, c.IsMetadataDocument())
-		assert.Equal(t, int64(2*60*60), c.AccessTokenDurationSeconds)
-		assert.Equal(t, int64(7*24*60*60), c.RefreshTokenDurationSeconds)
+		assert.Equal(t, int64(2*60), c.AccessTokenDurationMinutes)
+		assert.Equal(t, int64(7*24*60), c.RefreshTokenDurationMinutes)
 	})
 }
 

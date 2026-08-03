@@ -43,7 +43,7 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	preview, err := builder.BuildClientPreview(t.Context(), model.OidcClient{
 		Base:                       model.Base{ID: clientID},
 		Name:                       "Test Client",
-		AccessTokenDurationSeconds: 2 * 60 * 60,
+		AccessTokenDurationMinutes: 2 * 60,
 	}, userID, []string{"openid", "email"}, "phr")
 	require.NoError(t, err)
 

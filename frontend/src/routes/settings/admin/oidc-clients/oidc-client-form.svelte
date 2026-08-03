@@ -58,8 +58,8 @@
 		logoUrl: '',
 		darkLogoUrl: '',
 		pkceSupported: existingClient?.pkceSupported || false,
-		accessTokenDurationSeconds: existingClient?.accessTokenDurationSeconds ?? 60 * 60,
-		refreshTokenDurationSeconds: existingClient?.refreshTokenDurationSeconds ?? 30 * 24 * 60 * 60
+		accessTokenDurationMinutes: existingClient?.accessTokenDurationMinutes ?? 60,
+		refreshTokenDurationMinutes: existingClient?.refreshTokenDurationMinutes ?? 30 * 24 * 60
 	};
 
 	const formSchema = z.object({
@@ -85,16 +85,16 @@
 		launchURL: optionalUrl,
 		logoUrl: optionalUrl,
 		darkLogoUrl: optionalUrl,
-		accessTokenDurationSeconds: z
+		accessTokenDurationMinutes: z
 			.number()
-			.min(60)
-			.max(365 * 24 * 60 * 60)
-			.multipleOf(60),
-		refreshTokenDurationSeconds: z
+			.min(1)
+			.max(365 * 24 * 60)
+			.int(),
+		refreshTokenDurationMinutes: z
 			.number()
-			.min(60)
-			.max(365 * 24 * 60 * 60)
-			.multipleOf(60)
+			.min(1)
+			.max(365 * 24 * 60)
+			.int()
 	});
 
 	type FormSchema = typeof formSchema;

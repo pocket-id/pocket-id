@@ -20,18 +20,18 @@
 
 	const durationSchema = z
 		.number()
-		.min(60, { message: m.token_lifetime_minimum() })
-		.max(365 * 24 * 60 * 60, { message: m.token_lifetime_maximum() })
-		.refine((seconds) => Number.isInteger(seconds) && seconds % 60 === 0, {
+		.min(1, { message: m.token_lifetime_minimum() })
+		.max(365 * 24 * 60, { message: m.token_lifetime_maximum() })
+		.refine((minutes) => Number.isInteger(minutes), {
 			message: m.token_lifetime_whole_minutes()
 		});
 	const formSchema = z.object({
-		accessTokenDurationSeconds: durationSchema,
-		refreshTokenDurationSeconds: durationSchema
+		accessTokenDurationMinutes: durationSchema,
+		refreshTokenDurationMinutes: durationSchema
 	});
 	const { inputs, ...form } = createForm(formSchema, {
-		accessTokenDurationSeconds: client.accessTokenDurationSeconds,
-		refreshTokenDurationSeconds: client.refreshTokenDurationSeconds
+		accessTokenDurationMinutes: client.accessTokenDurationMinutes,
+		refreshTokenDurationMinutes: client.refreshTokenDurationMinutes
 	});
 
 	async function onSubmit() {
@@ -55,13 +55,13 @@
 					id="access-token-lifetime"
 					label={m.access_token_lifetime()}
 					description={m.access_token_lifetime_description()}
-					bind:input={$inputs.accessTokenDurationSeconds}
+					bind:input={$inputs.accessTokenDurationMinutes}
 				/>
 				<DurationInput
 					id="refresh-token-lifetime"
 					label={m.refresh_token_inactivity_timeout()}
 					description={m.refresh_token_inactivity_timeout_description()}
-					bind:input={$inputs.refreshTokenDurationSeconds}
+					bind:input={$inputs.refreshTokenDurationMinutes}
 				/>
 			</div>
 		</Card.Content>

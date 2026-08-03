@@ -6,8 +6,8 @@ import * as oidcUtil from '../utils/oidc.util';
 import passkeyUtil from '../utils/passkey.util';
 
 const defaultTokenLifetimes = {
-	accessTokenDurationSeconds: 60 * 60,
-	refreshTokenDurationSeconds: 30 * 24 * 60 * 60
+	accessTokenDurationMinutes: 60,
+	refreshTokenDurationMinutes: 30 * 24 * 60
 };
 
 test.beforeEach(async () => await cleanupBackend());

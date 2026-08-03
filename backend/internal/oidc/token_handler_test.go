@@ -56,7 +56,7 @@ func TestTokenHandlerClientCredentialsGrant(t *testing.T) {
 		Name:                       "Client Credentials Client",
 		Secret:                     string(hashed),
 		IsPublic:                   false,
-		AccessTokenDurationSeconds: 2 * 60 * 60,
+		AccessTokenDurationMinutes: 2 * 60,
 	}).Error)
 
 	provider, err := newProvider(NewStore(db, nil), nil, testTokenSigner{key: key}, Config{
@@ -473,8 +473,8 @@ func TestTokenHandlerRefreshGrantRevalidatesUser(t *testing.T) {
 		require.NotNil(t, existingBeforeUpdate.ExpiresAt)
 
 		require.NoError(t, db.Model(&model.OidcClient{}).Where("id = ?", clientID).Updates(map[string]any{
-			"access_token_duration_seconds":  int64(accessDuration / time.Second),
-			"refresh_token_duration_seconds": int64(refreshDuration / time.Second),
+			"access_token_duration_minutes":  int64(accessDuration / time.Minute),
+			"refresh_token_duration_minutes": int64(refreshDuration / time.Minute),
 		}).Error)
 		var existingAfterUpdate OAuth2Session
 		require.NoError(t, db.First(&existingAfterUpdate, "kind = ? AND key = ?", sessionKindRefreshToken, existingSignature).Error)
