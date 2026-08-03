@@ -1,28 +1,34 @@
 package cookie
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 func AddAccessTokenCookie(c *gin.Context, maxAgeInSeconds int, token string) {
-	c.SetCookie(AccessTokenCookieName, token, maxAgeInSeconds, "/", "", true, true)
+	addCookie(c, AccessTokenCookieName, token, maxAgeInSeconds, "/")
 }
 
 func AddSessionIdCookie(c *gin.Context, maxAgeInSeconds int, sessionID string) {
-	c.SetCookie(SessionIdCookieName, sessionID, maxAgeInSeconds, "/", "", true, true)
+	addCookie(c, SessionIdCookieName, sessionID, maxAgeInSeconds, "/")
 }
 
 func AddDeviceTokenCookie(c *gin.Context, deviceToken string) {
-	c.SetCookie(DeviceTokenCookieName, deviceToken, int(15*time.Minute.Seconds()), "/api/one-time-access-token", "", true, true)
+	addCookie(c, DeviceTokenCookieName, deviceToken, int(15*time.Minute.Seconds()), "/api/one-time-access-token")
 }
 
 func AddDeviceLoginTokenCookie(c *gin.Context, requestID, deviceToken string) {
 	path := "/api/device-login/requests/" + requestID + "/exchange"
-	c.SetCookie(DeviceLoginTokenCookieName, deviceToken, int(15*time.Minute.Seconds()), path, "", true, true)
+	addCookie(c, DeviceLoginTokenCookieName, deviceToken, int(15*time.Minute.Seconds()), path)
 }
 
 func AddReauthenticationTokenCookie(c *gin.Context, reauthenticationToken string) {
-	c.SetCookie(ReauthenticationTokenCookieName, reauthenticationToken, int(3*time.Minute.Seconds()), "/", "", true, true)
+	addCookie(c, ReauthenticationTokenCookieName, reauthenticationToken, int(3*time.Minute.Seconds()), "/")
+}
+
+func addCookie(c *gin.Context, name, value string, maxAge int, path string) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(name, value, maxAge, path, "", true, true)
 }
