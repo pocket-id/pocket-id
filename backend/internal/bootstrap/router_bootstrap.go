@@ -157,6 +157,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 	)
 	svc.webauthnModule.RegisterRoutes(apiGroup,
 		authMiddleware.WithAdminNotRequired().Add(),
+		authMiddleware.WithAdminNotRequired().WithApiKeyAuthDisabled().Add(),
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnLogin),
 		rateLimitMiddleware.Add(middleware.RateLimitWebauthnReauthenticate),
 	)
