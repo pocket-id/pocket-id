@@ -1478,7 +1478,7 @@ test.describe('Pushed Authorization Requests (PAR)', () => {
 			await parToggle.click();
 		}
 
-		await page.getByRole('button', { name: /save/i }).click();
+		await page.getByRole('button', { name: 'Save', exact: true }).first().click();
 		await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
 		await page.reload();
 
