@@ -37,6 +37,51 @@ test('Authorize existing client', async ({ page }) => {
 	);
 });
 
+test('Authorize existing client with POST while signed in', async ({ page }, testInfo) => {
+	const oidcClient = oidcClients.nextcloud;
+	const formFields = Array.from(createUrlParams(oidcClient));
+	const authorizeURL = new URL('/authorize', testInfo.project.use.baseURL).toString();
+	const clientPageURL = new URL('/post-authorize-test', oidcClient.callbackUrl).toString();
+
+	await page.route(clientPageURL, async (route) => {
+		await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html>' });
+	});
+	await page.goto(clientPageURL);
+
+	const authorizeRequestPromise = page.waitForRequest(
+		(request) => request.method() === 'POST' && new URL(request.url()).pathname === '/authorize'
+	);
+	await expectCallbackRedirect(page, oidcClient.callbackUrl, async () => {
+		// Create and submit a form with the OIDC parameters to simulate a POST request to the /authorize endpoint
+		await page.evaluate(
+			({ fields, target }) => {
+				const doc = (globalThis as any).document;
+				const form = doc.createElement('form');
+				form.method = 'POST';
+				form.action = target;
+
+				for (const [name, value] of fields) {
+					const input = doc.createElement('input');
+					input.type = 'hidden';
+					input.name = name;
+					input.value = value;
+					form.append(input);
+				}
+
+				doc.body.append(form);
+				form.submit();
+			},
+			{ fields: formFields, target: authorizeURL }
+		);
+
+		// Since the access token isn't sent with the POST request because of SameSite cookie restrictions,
+		// /authorize thinks the user is not signed in and shows the login page.
+		// The interaction page has the access token so the user just needs to click "Sign in" to continue the flow.
+		await page.getByRole('button', { name: 'Sign in' }).click();
+	});
+	await authorizeRequestPromise;
+});
+
 test('Authorize existing client while not signed in', async ({ page }) => {
 	const oidcClient = oidcClients.nextcloud;
 	const urlParams = createUrlParams(oidcClient);

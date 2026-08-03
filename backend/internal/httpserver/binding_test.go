@@ -63,6 +63,40 @@ func TestBindJSONNormalizesTaggedFieldsRecursively(t *testing.T) {
 	require.Equal(t, norm.NFC.String("Résumé"), input.Items[0].Label)
 }
 
+func TestBindJSONRejectsFormCompatibleContentTypes(t *testing.T) {
+	for _, contentType := range []string{"text/plain", "application/x-www-form-urlencoded", "multipart/form-data; boundary=test"} {
+		t.Run(contentType, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"name":"admin"}`))
+			c.Request.Header.Set("Content-Type", contentType)
+
+			var input struct {
+				Name string `json:"name"`
+			}
+			err := BindJSON(c, &input)
+
+			require.True(t, apperror.IsCode(err, apperror.CodeInvalidRequestBody))
+			require.Empty(t, input.Name)
+		})
+	}
+}
+
+func TestBindJSONAcceptsStructuredJSONContentType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"name":"admin"}`))
+	c.Request.Header.Set("Content-Type", "application/scim+json")
+
+	var input struct {
+		Name string `json:"name"`
+	}
+	err := BindJSON(c, &input)
+
+	require.NoError(t, err)
+	require.Equal(t, "admin", input.Name)
+}
+
 func TestFormFileClassifiesMissingField(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
