@@ -2,6 +2,11 @@ import test, { expect, Page } from '@playwright/test';
 import { oidcClients, userGroups } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
+const defaultTokenLifetimes = {
+	accessTokenDurationMinutes: 60,
+	refreshTokenDurationMinutes: 30 * 24 * 60
+};
+
 test.beforeEach(async () => await cleanupBackend());
 
 test.describe('Create OIDC client', () => {
@@ -78,7 +83,8 @@ test('Edit OIDC client', async ({ page }) => {
 	await page.locator('[role="tab"][data-value="dark-logo"]').first().click();
 	await page.setInputFiles('#oidc-client-logo-dark', 'resources/images/cloud-logo.png');
 	await page.getByLabel('Client Launch URL').fill(oidcClient.launchURL);
-	await page.getByRole('button', { name: 'Save' }).click();
+	const clientForm = page.getByLabel('Name').locator('xpath=ancestor::form');
+	await clientForm.getByRole('button', { name: 'Save' }).click();
 
 	await expect(page.locator('[data-type="success"]')).toHaveText(
 		'OIDC client updated successfully'
@@ -108,6 +114,98 @@ test('Displays OIDC client endpoints from discovery configuration', async ({ pag
 	await expect(page.getByText(oidcConfiguration.token_endpoint, { exact: true })).toBeVisible();
 	await expect(page.getByText(oidcConfiguration.userinfo_endpoint, { exact: true })).toBeVisible();
 	await expect(page.getByText(oidcConfiguration.jwks_uri, { exact: true })).toBeVisible();
+});
+
+test('Update OIDC client token lifetimes', async ({ page }) => {
+	await page.goto(`/settings/admin/oidc-clients/${oidcClients.nextcloud.id}`);
+
+	const card = page.getByTestId('token-lifetimes-card');
+	const accessLifetime = card.getByLabel('Access token lifetime', { exact: true });
+	const accessUnit = card.getByLabel('Access token lifetime unit');
+	const refreshLifetime = card.getByLabel('Refresh token inactivity timeout', { exact: true });
+	const refreshUnit = card.getByLabel('Refresh token inactivity timeout unit');
+
+	await expect(accessLifetime).toHaveValue('1');
+	await expect(accessUnit).toHaveText('Hours');
+	await expect(refreshLifetime).toHaveValue('30');
+	await expect(refreshUnit).toHaveText('Days');
+
+	await accessUnit.click();
+	await page.getByRole('option', { name: 'Minutes' }).click();
+	await expect(accessLifetime).toHaveValue('60');
+	await accessLifetime.fill('90');
+
+	await refreshUnit.click();
+	await page.getByRole('option', { name: 'Hours' }).click();
+	await expect(refreshLifetime).toHaveValue('720');
+	await refreshLifetime.fill('336');
+
+	await card.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
+
+	await page.reload();
+	await expect(card.getByLabel('Access token lifetime', { exact: true })).toHaveValue('90');
+	await expect(card.getByLabel('Access token lifetime unit')).toHaveText('Minutes');
+	await expect(card.getByLabel('Refresh token inactivity timeout', { exact: true })).toHaveValue(
+		'14'
+	);
+	await expect(card.getByLabel('Refresh token inactivity timeout unit')).toHaveText('Days');
+
+	await card.getByLabel('Access token lifetime', { exact: true }).fill('0');
+	await card.getByRole('button', { name: 'Save' }).click();
+	await expect(card.getByText('Token lifetime must be at least 1 minute.')).toBeVisible();
+
+	await card.getByLabel('Access token lifetime', { exact: true }).fill('525601');
+	await card.getByRole('button', { name: 'Save' }).click();
+	await expect(card.getByText('Token lifetime cannot exceed 365 days.')).toBeVisible();
+
+	await card.getByLabel('Access token lifetime', { exact: true }).fill('1.5');
+	await card.getByRole('button', { name: 'Save' }).click();
+	await expect(card.getByText('Token lifetime must use whole-minute increments.')).toBeVisible();
+
+	await card.getByLabel('Access token lifetime', { exact: true }).fill('60');
+	await card.getByLabel('Refresh token inactivity timeout', { exact: true }).fill('30');
+	await card.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('OIDC client updated successfully', { exact: true })).toBeVisible();
+});
+
+test('Update OIDC client federated credentials', async ({ page }) => {
+	const client = oidcClients.nextcloud;
+	await page.goto(`/settings/admin/oidc-clients/${client.id}`);
+
+	const card = page.getByTestId('federated-credentials-card');
+	await card.getByRole('button', { name: 'Create', exact: true }).click();
+	await card.getByLabel('Issuer').fill('https://issuer.example.com');
+	await card.getByLabel('Subject').fill('workload-client');
+	await card.getByLabel('Audience').fill('https://pocket-id.example.com');
+
+	const cardUpdate = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PUT' &&
+			response.url().endsWith(`/api/oidc/clients/${client.id}`)
+	);
+	await card.getByRole('button', { name: 'Save' }).click();
+	expect((await cardUpdate).ok()).toBeTruthy();
+
+	await page.reload();
+	await expect(card.getByLabel('Issuer')).toHaveValue('https://issuer.example.com');
+	await expect(card.getByLabel('Subject')).toHaveValue('workload-client');
+	await expect(card.getByLabel('Audience')).toHaveValue('https://pocket-id.example.com');
+
+	// Saving the main client form must preserve credentials managed by the separate card
+	const description = page.getByLabel('Description');
+	await description.fill('Updated without replacing federated credentials');
+	const clientForm = description.locator('xpath=ancestor::form');
+	const formUpdate = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'PUT' &&
+			response.url().endsWith(`/api/oidc/clients/${client.id}`)
+	);
+	await clientForm.getByRole('button', { name: 'Save' }).click();
+	expect((await formUpdate).ok()).toBeTruthy();
+
+	await page.reload();
+	await expect(card.getByLabel('Issuer')).toHaveValue('https://issuer.example.com');
 });
 
 test('Create new OIDC client secret', async ({ page }) => {
@@ -148,6 +246,7 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	// Enable PAR on the PAR test client
 	await request.put(`/api/oidc/clients/${parClient.id}`, {
 		data: {
+			...defaultTokenLifetimes,
 			name: parClient.name,
 			callbackURLs: [parClient.callbackUrl],
 			logoutCallbackURLs: [],

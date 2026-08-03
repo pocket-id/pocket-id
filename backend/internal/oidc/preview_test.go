@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -40,8 +41,9 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	}).Error)
 
 	preview, err := builder.BuildClientPreview(t.Context(), model.OidcClient{
-		Base: model.Base{ID: clientID},
-		Name: "Test Client",
+		Base:                       model.Base{ID: clientID},
+		Name:                       "Test Client",
+		AccessTokenDurationMinutes: 2 * 60,
 	}, userID, []string{"openid", "email"}, "phr")
 	require.NoError(t, err)
 
@@ -51,6 +53,11 @@ func TestClientPreviewBuilderUsesFositeTokenStrategies(t *testing.T) {
 	// The identity scopes add the issuer to the audience so the previewed token would also work at /userinfo
 	require.ElementsMatch(t, []string{clientID, "https://issuer.example.com"}, stringSliceClaim(t, preview.AccessToken["aud"]))
 	require.NotContains(t, preview.AccessToken, "type")
+	issuedAt, ok := preview.AccessToken["iat"].(time.Time)
+	require.Truef(t, ok, "expected time.Time iat, got %T", preview.AccessToken["iat"])
+	expiresAt, ok := preview.AccessToken["exp"].(time.Time)
+	require.Truef(t, ok, "expected time.Time exp, got %T", preview.AccessToken["exp"])
+	require.Equal(t, 2*time.Hour, expiresAt.Sub(issuedAt))
 
 	require.Equal(t, userID, preview.IDToken["sub"])
 	// ID tokens carry the "type" marker (so the end-session endpoint can reject access tokens

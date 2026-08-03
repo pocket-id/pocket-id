@@ -13,7 +13,11 @@
 	import OidcService from '$lib/services/oidc-service';
 	import ScimService from '$lib/services/scim-service';
 	import clientSecretStore from '$lib/stores/client-secret-store';
-	import type { OidcClientCreateWithLogo } from '$lib/types/oidc.type';
+	import type {
+		OidcClientCreateWithLogo,
+		OidcClientCredentials,
+		OidcClientTokenLifetimes
+	} from '$lib/types/oidc.type';
 	import type { ScimServiceProviderCreate } from '$lib/types/scim.type';
 	import { cachedOidcClientLogo } from '$lib/utils/cached-image-util';
 	import { axiosErrorToast } from '$lib/utils/error-util';
@@ -29,6 +33,8 @@
 	import OidcForm from '../oidc-client-form.svelte';
 	import OidcClientPreviewModal from '../oidc-client-preview-modal.svelte';
 	import ApiAccessCard from './api-access-card.svelte';
+	import OidcClientFederatedCredentialsCard from './oidc-client-federated-credentials-card.svelte';
+	import OidcClientTokenLifetimesCard from './oidc-client-token-lifetimes-card.svelte';
 	import ScimResourceProviderForm from './scim-resource-provider-form.svelte';
 
 	let { data } = $props();
@@ -107,6 +113,23 @@
 				success = false;
 			});
 
+		return success;
+	}
+
+	async function updateTokenLifetimes(lifetimes: OidcClientTokenLifetimes) {
+		const success = await updateClient({ ...client, ...lifetimes });
+		if (success) {
+			client.accessTokenDurationMinutes = lifetimes.accessTokenDurationMinutes;
+			client.refreshTokenDurationMinutes = lifetimes.refreshTokenDurationMinutes;
+		}
+		return success;
+	}
+
+	async function updateFederatedCredentials(credentials: OidcClientCredentials) {
+		const success = await updateClient({ ...client, credentials });
+		if (success) {
+			client.credentials = credentials;
+		}
 		return success;
 	}
 
@@ -334,6 +357,10 @@
 				<OidcForm mode="update" existingClient={client} callback={updateClient} />
 			</Card.Content>
 		</Card.Root>
+
+		<OidcClientTokenLifetimesCard {client} callback={updateTokenLifetimes} />
+
+		<OidcClientFederatedCredentialsCard {client} callback={updateFederatedCredentials} />
 	</Tabs.Content>
 
 	<Tabs.Content value="user-groups" id="allowed-user-groups">

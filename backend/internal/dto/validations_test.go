@@ -3,8 +3,37 @@ package dto
 import (
 	"testing"
 
+	"github.com/gin-gonic/gin/binding"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestTokenDurationValidation(t *testing.T) {
+	type input struct {
+		Duration int64 `binding:"required,token_duration"`
+	}
+
+	for _, test := range []struct {
+		name    string
+		value   int64
+		wantErr bool
+	}{
+		{name: "omitted", wantErr: true},
+		{name: "below minimum", value: 0, wantErr: true},
+		{name: "minimum", value: 1},
+		{name: "custom duration", value: 90},
+		{name: "above maximum", value: 365*24*60 + 1, wantErr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			err := binding.Validator.ValidateStruct(input{Duration: test.value})
+			if test.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
 
 func TestValidateUsername(t *testing.T) {
 	tests := []struct {

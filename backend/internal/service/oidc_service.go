@@ -32,8 +32,8 @@ const (
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
 	GrantTypeClientCredentials = "client_credentials"
 
-	AccessTokenDuration  = time.Hour
-	RefreshTokenDuration = 30 * 24 * time.Hour // 30 days
+	AccessTokenDuration  = time.Duration(model.DefaultAccessTokenDurationMinutes) * time.Minute
+	RefreshTokenDuration = time.Duration(model.DefaultRefreshTokenDurationMinutes) * time.Minute
 )
 
 type OidcService struct {
@@ -148,7 +148,9 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		Base: model.Base{
 			ID: input.ID,
 		},
-		CreatedByID: new(userID),
+		CreatedByID:                 new(userID),
+		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
+		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
 	}
 	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
@@ -213,6 +215,8 @@ func (s *OidcService) UpdateClient(ctx context.Context, clientID string, input d
 				"SkipConsent",
 				"LaunchURL",
 				"IsGroupRestricted",
+				"AccessTokenDurationMinutes",
+				"RefreshTokenDurationMinutes",
 			).
 			Updates(&client).Error
 	} else {
@@ -253,6 +257,8 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
+	client.AccessTokenDurationMinutes = input.AccessTokenDurationMinutes
+	client.RefreshTokenDurationMinutes = input.RefreshTokenDurationMinutes
 
 	// Preserve fields that are sourced from the client metadata document
 	if client.IsMetadataDocument() {

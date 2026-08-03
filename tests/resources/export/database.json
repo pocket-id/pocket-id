@@ -1,6 +1,6 @@
 {
 	"provider": "sqlite",
-	"version": 20260731120000,
+	"version": 20260802120000,
 	"tableOrder": [
 		"users",
 		"user_groups",
@@ -87,6 +87,7 @@
 		],
 		"oidc_clients": [
 			{
+				"access_token_duration_minutes": 60,
 				"callback_urls": "WyJodHRwOi8vbmV4dGNsb3VkLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
@@ -107,10 +108,12 @@
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
+				"refresh_token_duration_minutes": 43200,
 				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC",
 				"skip_consent": false
 			},
 			{
+				"access_token_duration_minutes": 60,
 				"callback_urls": "WyJodHRwOi8vaW1taWNoLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
@@ -131,10 +134,12 @@
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
+				"refresh_token_duration_minutes": 43200,
 				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe",
 				"skip_consent": false
 			},
 			{
+				"access_token_duration_minutes": 60,
 				"callback_urls": "WyJodHRwOi8vdGFpbHNjYWxlLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
@@ -155,10 +160,12 @@
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
+				"refresh_token_duration_minutes": 43200,
 				"secret": "$2a$10$xcRReBsvkI1XI6FG8xu/pOgzeF00bH5Wy4d/NThwcdi3ZBpVq/B9a",
 				"skip_consent": false
 			},
 			{
+				"access_token_duration_minutes": 60,
 				"callback_urls": "WyJodHRwOi8vZmVkZXJhdGVkLmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
@@ -179,10 +186,12 @@
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
+				"refresh_token_duration_minutes": 43200,
 				"secret": "$2a$10$Ak.FP8riD1ssy2AGGbG.gOpnp/rBpymd74j0nxNMtW0GG1Lb4gzxe",
 				"skip_consent": false
 			},
 			{
+				"access_token_duration_minutes": 60,
 				"callback_urls": "WyJodHRwOi8vc2NpbWNsaWVudC5sb2NhbGhvc3QvYXV0aC9jYWxsYmFjayJd",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
@@ -202,10 +211,12 @@
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
+				"refresh_token_duration_minutes": 43200,
 				"secret": "$2a$10$h4wfa8gI7zavDAxwzSq1sOwYU4e8DwK1XZ8ZweNnY5KzlJ3Iz.qdK",
 				"skip_consent": false
 			},
 			{
+				"access_token_duration_minutes": 60,
 				"callback_urls": "WyJodHRwOi8vcGFyLWNsaWVudC5sb2NhbGhvc3QvYXV0aC9jYWxsYmFjayJd",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
@@ -226,10 +237,12 @@
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
+				"refresh_token_duration_minutes": 43200,
 				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC",
 				"skip_consent": false
 			},
 			{
+				"access_token_duration_minutes": 60,
 				"callback_urls": "WyJodHRwOi8vc2tpcC1jb25zZW50LmxvY2FsaG9zdC9hdXRoL2NhbGxiYWNrIl0=",
 				"client_type": "standard",
 				"created_at": "2025-11-25T12:39:02Z",
@@ -250,6 +263,7 @@
 				"pkce_supported": false,
 				"requires_pushed_authorization_requests": false,
 				"requires_reauthentication": false,
+				"refresh_token_duration_minutes": 43200,
 				"secret": "$2a$10$9dypwot8nGuCjT6wQWWpJOckZfRprhe2EkwpKizxS/fpVHrOLEJHC",
 				"skip_consent": true
 			}

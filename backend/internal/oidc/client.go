@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"slices"
+	"time"
 
 	"github.com/ory/fosite"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -85,4 +86,37 @@ func (c Client) GetResponseModes() []fosite.ResponseModeType {
 		fosite.ResponseModeFragment,
 		fosite.ResponseModeFormPost,
 	}
+}
+
+func (c Client) GetEffectiveLifespan(grantType fosite.GrantType, tokenType fosite.TokenType, fallback time.Duration) time.Duration {
+	var minutes int64
+	switch tokenType {
+	case fosite.AccessToken:
+		switch grantType {
+		case fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode, fosite.GrantTypeClientCredentials:
+			minutes = c.AccessTokenDurationMinutes
+		case fosite.GrantTypeImplicit, fosite.GrantTypePassword, fosite.GrantTypeJWTBearer:
+			return fallback
+		default:
+			return fallback
+		}
+	case fosite.RefreshToken:
+		switch grantType {
+		case fosite.GrantTypeAuthorizationCode, fosite.GrantTypeRefreshToken, fosite.GrantTypeDeviceCode:
+			minutes = c.RefreshTokenDurationMinutes
+		case fosite.GrantTypeImplicit, fosite.GrantTypePassword, fosite.GrantTypeClientCredentials, fosite.GrantTypeJWTBearer:
+			return fallback
+		default:
+			return fallback
+		}
+	case fosite.AuthorizeCode, fosite.IDToken, fosite.UserCode, fosite.DeviceCode, fosite.PushedAuthorizeRequestContext:
+		return fallback
+	default:
+		return fallback
+	}
+
+	if !model.IsValidTokenDurationMinutes(minutes) {
+		return fallback
+	}
+	return time.Duration(minutes) * time.Minute
 }

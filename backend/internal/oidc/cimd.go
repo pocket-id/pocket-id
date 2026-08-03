@@ -201,12 +201,14 @@ func buildClientFromMetadata(doc *fosite.ClientMetadataDocument, rawURL string) 
 	}
 
 	client := model.OidcClient{
-		Base:               model.Base{ID: rawURL},
-		Name:               doc.ClientName,
-		CallbackURLs:       datatype.StringList(doc.RedirectURIs),
-		LogoutCallbackURLs: datatype.StringList(doc.PostLogoutRedirectURIs),
-		ClientType:         model.OidcClientTypeCIMD,
-		MetadataGrantTypes: datatype.StringList(grantTypes),
+		Base:                        model.Base{ID: rawURL},
+		Name:                        doc.ClientName,
+		CallbackURLs:                datatype.StringList(doc.RedirectURIs),
+		LogoutCallbackURLs:          datatype.StringList(doc.PostLogoutRedirectURIs),
+		ClientType:                  model.OidcClientTypeCIMD,
+		MetadataGrantTypes:          datatype.StringList(grantTypes),
+		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
+		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
 	}
 
 	switch doc.TokenEndpointAuthMethod {

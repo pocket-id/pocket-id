@@ -25,6 +25,15 @@ type OidcClientType string
 const (
 	OidcClientTypeStandard OidcClientType = "standard"
 	OidcClientTypeCIMD     OidcClientType = "cimd"
+
+	// DefaultAccessTokenDurationMinutes is the access-token lifetime used for new clients
+	DefaultAccessTokenDurationMinutes int64 = 60
+	// DefaultRefreshTokenDurationMinutes is the refresh-token lifetime used for new clients
+	DefaultRefreshTokenDurationMinutes int64 = 30 * 24 * 60
+	// MinTokenDurationMinutes is the shortest configurable token lifetime
+	MinTokenDurationMinutes int64 = 1
+	// MaxTokenDurationMinutes is the longest configurable token lifetime
+	MaxTokenDurationMinutes int64 = 365 * 24 * 60
 )
 
 type OidcClient struct {
@@ -49,11 +58,18 @@ type OidcClient struct {
 	ClientType                          OidcClientType `gorm:"default:standard" sortable:"true" filterable:"true"`
 	MetadataExpiresAt                   *datatype.DateTime
 	MetadataGrantTypes                  datatype.StringList
+	AccessTokenDurationMinutes          int64 `gorm:"default:60"`
+	RefreshTokenDurationMinutes         int64 `gorm:"default:43200"`
 
 	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID               *string
 	CreatedBy                 *User
 	UserAuthorizedOidcClients []UserAuthorizedOidcClient `gorm:"foreignKey:ClientID;references:ID"`
+}
+
+// IsValidTokenDurationMinutes reports whether a duration is within the configurable range
+func IsValidTokenDurationMinutes(minutes int64) bool {
+	return minutes >= MinTokenDurationMinutes && minutes <= MaxTokenDurationMinutes
 }
 
 func (c OidcClient) HasLogo() bool {
