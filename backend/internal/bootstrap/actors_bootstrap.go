@@ -1,7 +1,7 @@
 package bootstrap
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,6 +12,7 @@ import (
 	"github.com/italypaleale/francis/builtin/ratelimit"
 	"github.com/italypaleale/francis/components"
 	"github.com/italypaleale/francis/components/postgres"
+	"github.com/italypaleale/francis/components/sqlite"
 	"github.com/italypaleale/francis/host/local"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"gorm.io/gorm"
@@ -24,7 +25,6 @@ import (
 )
 
 type NewActorsOpts struct {
-	SQLite   *sql.DB
 	Postgres *pgxpool.Pool
 
 	EnvConfig   *common.EnvConfigSchema
@@ -116,14 +116,6 @@ func (o *NewActorsOpts) getPSK() ([]byte, error) {
 // It's meant for short-lived contexts such as CLI commands that need to persist actor state (for example, one-time access tokens) without running the full actor host.
 // The returned host must NOT be Run(): only direct state operations (Get/Set/Delete on state) are supported, and they require the actor state tables to already exist, which is the case whenever the server has run at least once against this database.
 func NewActorStateStore(o NewActorsOpts) (*local.Host, error) {
-	if o.Postgres == nil {
-		sqlDB, err := o.DB.DB()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
-		}
-		o.SQLite = sqlDB
-	}
-
 	providerOpt, err := o.getProviderOption()
 	if err != nil {
 		return nil, err
@@ -156,29 +148,69 @@ func ActorsHostHealthCheckDeadline(haEnabled bool) time.Duration {
 	return 90 * time.Second
 }
 
-// ActorsProviderOptions builds the Francis provider options for the given database handles
-// The actor host and the cluster admin must use the same options so they address the same cluster
-// This is implemented separately and exported because the import method needs it too
-func ActorsProviderOptions(pg *pgxpool.Pool, sqliteDB *sql.DB) (components.ProviderOptions, error) {
+// ActorsProviderOptions builds the Francis provider options for the given database
+// The actor host, the cluster admin, and the backup provider must all use these so they address the same cluster
+// A Postgres deployment passes both handles, since the Gorm one wraps the same pool, and the pool is what the provider takes
+func ActorsProviderOptions(db *gorm.DB, pg *pgxpool.Pool) (components.ProviderOptions, error) {
 	switch {
-	case pg != nil && sqliteDB != nil:
-		return nil, errors.New("cannot have both Postgres and SQLite connections")
 	case pg != nil:
 		return postgres.PostgresProviderOptions{
 			DB: pg,
 		}, nil
-	case sqliteDB != nil:
+	case db != nil:
+		// The SQLite provider takes the raw connection, which only Gorm holds
+		sqliteDB, err := db.DB()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
+		}
 		return local.SQLiteProviderOptions{
 			DB: sqliteDB,
 		}, nil
 	default:
-		return nil, errors.New("one of Postgres and SQLite must be set")
+		return nil, errors.New("one of the Postgres pool and the database connection must be set")
 	}
+}
+
+// NewActorsBackupProvider creates a Francis provider that talks to the same cluster as the actor host, without registering a host or joining the cluster
+// It's meant for backing up and restoring the actor host's own data
+// The caller owns the returned provider and must Close it: the database connection stays owned by the caller and is not closed.
+func NewActorsBackupProvider(ctx context.Context, providerOpts components.ProviderOptions) (components.ActorProvider, error) {
+	// The health check deadline must match the actor host's, since it decides when a host that stopped health-checking is considered gone, and a restore refuses to run while any host is still connected
+	// The remaining values are irrelevant here, because this provider never registers a host nor processes alarms
+	cfg := components.NewProviderConfig()
+	cfg.HostHealthCheckDeadline = ActorsHostHealthCheckDeadline(common.EnvConfig.HAEnabled)
+
+	log := slog.Default().With("scope", "actors-backup")
+
+	var (
+		provider components.ActorProvider
+		err      error
+	)
+	switch v := providerOpts.(type) {
+	case postgres.PostgresProviderOptions:
+		provider, err = postgres.NewPostgresProvider(log, v, cfg)
+	case sqlite.SQLiteProviderOptions:
+		provider, err = sqlite.NewSQLiteProvider(log, v, cfg)
+	default:
+		err = fmt.Errorf("unsupported provider options type: %T", providerOpts)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create actor provider: %w", err)
+	}
+
+	// Init applies the provider's schema migrations, so this also works against a database the actor host has never run against
+	err = provider.Init(ctx)
+	if err != nil {
+		_ = provider.Close()
+		return nil, fmt.Errorf("failed to initialize actor provider: %w", err)
+	}
+
+	return provider, nil
 }
 
 // getProviderOption wraps the shared provider options in the host option the local host expects
 func (o *NewActorsOpts) getProviderOption() (local.HostOption, error) {
-	providerOpts, err := ActorsProviderOptions(o.Postgres, o.SQLite)
+	providerOpts, err := ActorsProviderOptions(o.DB, o.Postgres)
 	if err != nil {
 		return nil, err
 	}

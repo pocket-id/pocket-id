@@ -42,6 +42,7 @@ test('Export', async ({ baseURL }) => {
 	unzipExport(exportPath, extractPath);
 
 	compareExports(exampleExportPath, extractPath);
+	expectActorsBackup(path.join(extractPath, 'francis.bin'));
 });
 
 test('Export via stdout', async ({ baseURL }) => {
@@ -63,9 +64,12 @@ test('Import SQLite export', async () => {
 	// Reset the backend without seeding
 	await cleanupBackend({ skipSeed: true });
 
+	// The example export predates the actor host's data, so take a backup of it from the running instance and import that alongside, which exercises the restore path
+	const actorsBackup = exportActorsBackup();
+
 	// Run the import with the example export data
 	const exampleExportArchivePath = path.join(tmpDir, 'example-export.zip');
-	archiveExampleExport(exampleExportArchivePath);
+	archiveExampleExport(exampleExportArchivePath, actorsBackup);
 
 	try {
 		runDockerComposeCommand(['stop', containerName]);
@@ -135,7 +139,7 @@ function compareExports(dir1: string, dir2: string): void {
 	expect(normalizedActual).toEqual(normalizedExpected);
 }
 
-function archiveExampleExport(outputPath: string): Buffer {
+function archiveExampleExport(outputPath: string, actorsBackup?: Buffer): Buffer {
 	fs.rmSync(outputPath, { force: true });
 
 	const zip = new AdmZip();
@@ -149,9 +153,31 @@ function archiveExampleExport(outputPath: string): Buffer {
 		}
 	}
 
+	if (actorsBackup) {
+		zip.addFile('francis.bin', actorsBackup);
+	}
+
 	const buffer = zip.toBuffer();
 	fs.writeFileSync(outputPath, buffer);
 	return buffer;
+}
+
+// exportActorsBackup exports the running instance and returns the actor host's data from the archive
+function exportActorsBackup(): Buffer {
+	const exportPath = path.join(tmpDir, 'actors-backup-source.zip');
+	runExport(exportPath);
+
+	const entry = new AdmZip(exportPath).getEntry('francis.bin');
+	expect(entry, 'francis.bin should be included in the export').not.toBeNull();
+	return entry!.getData();
+}
+
+// expectActorsBackup asserts the file is a Francis backup stream, whose header carries the format name
+// Its contents (alarm due times, actor state, …) change between runs, so they are not compared against the example export
+function expectActorsBackup(filePath: string): void {
+	expect(fs.existsSync(filePath), `${filePath} should exist`).toBe(true);
+	const header = fs.readFileSync(filePath).subarray(0, 64).toString('latin1');
+	expect(header).toContain('francis-backup');
 }
 
 // Helper to load JSON files
@@ -315,7 +341,8 @@ function hashFile(filePath: string): string {
 
 function getAllFiles(dir: string, root = dir): string[] {
 	return fs.readdirSync(dir).flatMap((entry) => {
-		if (['.DS_Store', 'database.json'].includes(entry)) return [];
+		// The actor host's data is not part of the example export and its contents differ between runs, so it is checked separately
+		if (['.DS_Store', 'database.json', 'francis.bin'].includes(entry)) return [];
 
 		const fullPath = path.join(dir, entry);
 		const stat = fs.statSync(fullPath);
