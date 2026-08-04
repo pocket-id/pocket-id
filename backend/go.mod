@@ -24,9 +24,9 @@ require (
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
-	github.com/italypaleale/francis v0.1.0-beta.18
-	github.com/italypaleale/go-kit v0.0.0-20260729024436-06ef4dfe084c
-	github.com/italypaleale/go-sql-utils v0.3.1
+	github.com/italypaleale/francis v0.1.0-beta.19
+	github.com/italypaleale/go-kit v0.0.0-20260804130631-7f274d362cca
+	github.com/italypaleale/go-sql-utils v0.3.3
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
@@ -60,7 +60,7 @@ require (
 	gorm.io/driver/postgres v1.6.1
 	gorm.io/gorm v1.31.2
 	gorm.io/plugin/opentelemetry v0.1.16
-	modernc.org/sqlite v1.55.0
+	modernc.org/sqlite v1.56.0
 )
 
 require (
