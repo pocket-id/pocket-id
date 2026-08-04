@@ -92,6 +92,10 @@ type EnvConfigSchema struct {
 
 	LogLevel string `env:"LOG_LEVEL" options:"toLower"`
 	LogJSON  bool   `env:"LOG_JSON"`
+
+	// LogQueryArgs includes the values of SQL query parameters in traces and in the query logs printed when LogLevel is "debug"
+	// Note that these may can contain sensitive data
+	LogQueryArgs bool `env:"LOG_QUERY_ARGS"`
 }
 
 var EnvConfig = defaultConfig()

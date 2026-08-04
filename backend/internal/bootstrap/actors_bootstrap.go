@@ -152,10 +152,17 @@ func ActorsHostHealthCheckDeadline(haEnabled bool) time.Duration {
 // The actor host, the cluster admin, and the backup provider must all use these so they address the same cluster
 // A Postgres deployment passes both handles, since the Gorm one wraps the same pool, and the pool is what the provider takes
 func ActorsProviderOptions(db *gorm.DB, pg *pgxpool.Pool) (components.ProviderOptions, error) {
+	// Log each provider operation, such as a lease renewal or an actor lookup, while debugging
+	// The statements those operations run are logged separately, by the instrumentation attached to the connection in ConnectDatabase
+	operationLog := components.OperationLogConfig{
+		Enabled: common.EnvConfig.LogLevel == "debug",
+	}
+
 	switch {
 	case pg != nil:
 		return postgres.PostgresProviderOptions{
-			DB: pg,
+			DB:           pg,
+			OperationLog: operationLog,
 		}, nil
 	case db != nil:
 		// The SQLite provider takes the raw connection, which only Gorm holds
@@ -164,7 +171,8 @@ func ActorsProviderOptions(db *gorm.DB, pg *pgxpool.Pool) (components.ProviderOp
 			return nil, fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
 		}
 		return local.SQLiteProviderOptions{
-			DB: sqliteDB,
+			DB:           sqliteDB,
+			OperationLog: operationLog,
 		}, nil
 	default:
 		return nil, errors.New("one of the Postgres pool and the database connection must be set")

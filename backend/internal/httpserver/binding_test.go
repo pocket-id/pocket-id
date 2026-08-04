@@ -97,6 +97,32 @@ func TestBindJSONAcceptsStructuredJSONContentType(t *testing.T) {
 	require.Equal(t, "admin", input.Name)
 }
 
+func TestBindOptionalJSONDoesNotRelyOnContentLength(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		contentLength int64
+	}{
+		{name: "zero", contentLength: 0},
+		{name: "unknown", contentLength: -1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(`{"secret":"custom-secret"}`))
+			c.Request.ContentLength = test.contentLength
+			c.Request.Header.Set("Content-Type", "application/json")
+
+			var input struct {
+				Secret string `json:"secret"`
+			}
+			err := BindOptionalJSON(c, &input)
+
+			require.NoError(t, err)
+			require.Equal(t, "custom-secret", input.Secret)
+		})
+	}
+}
+
 func TestFormFileClassifiesMissingField(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
