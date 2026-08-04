@@ -78,3 +78,55 @@ func TestRequestLoggerKeepsRateLimitsAtWarningLevel(t *testing.T) {
 	require.Contains(t, output.String(), "level=WARN")
 	require.Contains(t, output.String(), "error_code=rate_limited")
 }
+
+func TestRequestLoggerRespectsConfiguredMinimumLevel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var output bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&output, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	})))
+	t.Cleanup(func() {
+		slog.SetDefault(previousLogger)
+	})
+
+	router := gin.New()
+	initLogger(router)
+	router.GET("/api/status", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/status", nil)
+	router.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code)
+	require.Empty(t, output.String())
+}
+
+func TestRequestLoggerLogsAtConfiguredMinimumLevel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var output bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&output, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
+	t.Cleanup(func() {
+		slog.SetDefault(previousLogger)
+	})
+
+	router := gin.New()
+	initLogger(router)
+	router.GET("/api/status", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/status", nil)
+	router.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code)
+	require.Contains(t, output.String(), "level=INFO")
+}

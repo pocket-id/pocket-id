@@ -404,7 +404,9 @@ func initLogger(r *gin.Engine) {
 
 	r.Use(sloggin.SetLogger(
 		sloggin.WithLogger(func(_ *gin.Context, _ *slog.Logger) *slog.Logger {
-			return slog.Default()
+			// gin-contrib/slog calls Handler.Handle directly instead of Logger.LogAttrs
+			// Wrapping the default handler in MultiHandler restores the Enabled check that enforces LOG_LEVEL
+			return slog.New(slog.NewMultiHandler(slog.Default().Handler()))
 		}),
 		sloggin.WithClientErrorLevel(slog.LevelInfo),
 		sloggin.WithSpecificLogLevelByStatusCode(map[int]slog.Level{
