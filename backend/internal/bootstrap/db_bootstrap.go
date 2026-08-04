@@ -158,6 +158,8 @@ func sqlInstrumentOptions() *sqlinstrument.Options {
 		Log: slog.Default().With("scope", "sql"),
 		// Logging every statement is only useful while debugging, and the instrumentation drops the records anyway unless the logger is at debug level
 		QueryLog: common.EnvConfig.LogLevel == "debug",
+		// Query parameter values can contain sensitive data, so they are optional and disabled by default
+		IncludeParameters: common.EnvConfig.LogQueryArgs,
 		// Slow statements are worth a warning at any log level
 		SlowThreshold: 250 * time.Millisecond,
 	}

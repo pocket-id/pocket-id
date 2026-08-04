@@ -43,6 +43,23 @@ func TestSqlInstrumentOptions(t *testing.T) {
 			assert.Equalf(t, 250*time.Millisecond, sqlInstrumentOptions().SlowQueryThreshold(), "slow statements must be reported at %s level", level)
 		}
 	})
+
+	t.Run("query parameters are omitted unless LOG_QUERY_ARGS is set", func(t *testing.T) {
+		common.EnvConfig.LogLevel = "debug"
+		common.EnvConfig.LogQueryArgs = false
+
+		assert.False(t, sqlInstrumentOptions().QueryParametersIncluded(), "parameter values must not be included by default, not even at debug level")
+	})
+
+	t.Run("query parameters are included when LOG_QUERY_ARGS is set", func(t *testing.T) {
+		// The option is independent of the log level, because it also controls whether parameters are attached to trace spans
+		for _, level := range []string{"debug", "info", "warn", "error"} {
+			common.EnvConfig.LogLevel = level
+			common.EnvConfig.LogQueryArgs = true
+
+			assert.Truef(t, sqlInstrumentOptions().QueryParametersIncluded(), "parameter values must be included at %s level", level)
+		}
+	})
 }
 
 func TestAddSqliteDatetimeParams(t *testing.T) {
