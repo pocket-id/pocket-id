@@ -2,23 +2,25 @@ package bootstrap
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
-	"path/filepath"
+	"net/url"
+	"strings"
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/github"
+	sqlinstrument "github.com/italypaleale/go-sql-utils/instrument"
+	postgresinstrument "github.com/italypaleale/go-sql-utils/instrument/postgres"
+	sqliteinstrument "github.com/italypaleale/go-sql-utils/instrument/sqlite"
 	sqlitekit "github.com/italypaleale/go-sql-utils/sqlite"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/libtnb/sqlite"
-	slogGorm "github.com/orandin/slog-gorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
-	tracingGorm "gorm.io/plugin/opentelemetry/tracing"
+	gormMetrics "gorm.io/plugin/opentelemetry/metrics"
 
 	"github.com/pocket-id/pocket-id/backend/internal/common"
 	"github.com/pocket-id/pocket-id/backend/internal/utils"
@@ -44,12 +46,10 @@ func NewDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error)
 	return db, pg, nil
 }
 
-//nolint:gocognit
 func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err error) {
 	var dialector gorm.Dialector
 
 	// Choose the correct database provider
-	var onConnFn func(conn *sql.DB)
 	switch common.EnvConfig.DbProvider {
 	case common.DbProviderSqlite:
 		if common.EnvConfig.DbConnectionString == "" {
@@ -58,54 +58,44 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 
 		sqliteutil.RegisterSqliteFunctions()
 
-		connString, dbPath, isMemoryDB, err := sqlitekit.ParseConnectionString(common.EnvConfig.DbConnectionString, slog.Default())
+		// The connector validates the connection string and performs the filesystem setup SQLite needs: it creates the database and temporary directories
+		// It also warns when the database lives on a networked filesystem, which is unsupported
+		connector, err := sqlitekit.NewConnector(sqlitekit.ConnectOpts{
+			ConnString: addSqliteDatetimeParams(common.EnvConfig.DbConnectionString),
+			Logger:     slog.Default(),
+		})
 		if err != nil {
 			return nil, nil, err
 		}
 
-		if !isMemoryDB {
-			err = sqlitekit.EnsureDatabaseDir(dbPath)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			var sqliteNetworkFilesystem bool
-			sqliteNetworkFilesystem, err = sqlitekit.IsNetworkedFileSystem(filepath.Dir(dbPath))
-			if err != nil {
-				// Log the error only
-				slog.Warn("Failed to detect filesystem type for the SQLite database directory", slog.String("path", filepath.Dir(dbPath)), slog.Any("error", err))
-			} else if sqliteNetworkFilesystem {
-				slog.Warn("⚠️⚠️⚠️ SQLite databases should not be stored on a networked file system like NFS, SMB, or FUSE, as there's a risk of crashes and even database corruption", slog.String("path", filepath.Dir(dbPath)))
-			}
-		}
-
-		// Before we connect, also make sure that there's a temporary folder for SQLite to write its data
-		err = sqlitekit.EnsureTempDir(filepath.Dir(dbPath), slog.Default())
+		// We open the connection ourselves, rather than letting Gorm do it, so it goes through the instrumented driver
+		// It also caps in-memory databases to a single connection, which they need to see the whole data
+		sqliteDB, err := sqliteinstrument.Open(connector, sqlInstrumentOptions())
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to open SQLite database: %w", err)
 		}
 
-		if isMemoryDB {
-			// For in-memory SQLite databases, we must limit to 1 open connection at the same time, or they won't see the whole data
-			// The other workaround, of using shared caches, doesn't work well with multiple write transactions trying to happen at once
-			onConnFn = func(conn *sql.DB) {
-				conn.SetMaxOpenConns(1)
-			}
-		}
-
-		dialector = sqlite.Open(connString)
+		dialector = sqlite.New(sqlite.Config{Conn: sqliteDB})
 	case common.DbProviderPostgres:
 		if common.EnvConfig.DbConnectionString == "" {
 			return nil, nil, errors.New("missing required env var 'DB_CONNECTION_STRING' for Postgres database")
 		}
 
 		// We need a pgxpool object for francis, so we open this as a pgxpool...
-		pg, err = pgxpool.New(ctx, common.EnvConfig.DbConnectionString)
+		poolCfg, err := pgxpool.ParseConfig(common.EnvConfig.DbConnectionString)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse Postgres connection string: %w", err)
+		}
+
+		// ...with the instrumented tracer attached, chaining any tracer the connection string may have configured
+		poolCfg.ConnConfig.Tracer = postgresinstrument.NewTracer(sqlInstrumentOptions(), poolCfg.ConnConfig.Tracer)
+
+		pg, err = pgxpool.NewWithConfig(ctx, poolCfg)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create Postgres pool: %w", err)
 		}
 
-		// ...test it with a ping...
+		// Test it with a ping
 		pingCtx, pingCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer pingCancel()
 		err = pg.Ping(pingCtx)
@@ -126,29 +116,23 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 	for i := 1; i <= 3; i++ {
 		db, err = gorm.Open(dialector, &gorm.Config{
 			TranslateError: true,
-			Logger:         getGormLogger(),
+			// Disable logging in Gorm because the driver itself is instrumented
+			Logger: gormLogger.Discard,
 		})
 		if err == nil {
 			slog.Info("Connected to database", slog.String("provider", string(common.EnvConfig.DbProvider)))
 
-			// Configure tracing and metrics
-			err = db.Use(tracingGorm.NewPlugin())
+			conn, err := db.DB()
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to configure tracing for DB: %w", err)
-			}
-
-			// Invoke the onConnFn callback if any
-			if onConnFn != nil {
-				conn, err := db.DB()
-				if err != nil {
-					if pg != nil {
-						pg.Close()
-					}
-					return nil, nil, fmt.Errorf("failed to get database connection for onConnFn callback: %w", err)
+				if pg != nil {
+					pg.Close()
 				}
-
-				onConnFn(conn)
+				return nil, nil, fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
 			}
+
+			// Report the metrics for the connection pool
+			// Gorm's OpenTelemetry plugin is not used for this: it would wrap every statement span the instrumentation already emits in a second span
+			gormMetrics.ReportDBStatsMetrics(conn)
 
 			return db, pg, nil
 		}
@@ -167,26 +151,46 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 	return nil, nil, err
 }
 
-func getGormLogger() gormLogger.Interface {
-	loggerOpts := make([]slogGorm.Option, 0, 5)
-	loggerOpts = append(loggerOpts,
-		slogGorm.WithSlowThreshold(200*time.Millisecond),
-		slogGorm.WithErrorField("error"),
-	)
+// sqlInstrumentOptions returns the instrumentation applied to the database connection, shared by both providers
+// This enables tracing in addition to logs
+func sqlInstrumentOptions() *sqlinstrument.Options {
+	return &sqlinstrument.Options{
+		Log: slog.Default().With("scope", "sql"),
+		// Logging every statement is only useful while debugging, and the instrumentation drops the records anyway unless the logger is at debug level
+		QueryLog: common.EnvConfig.LogLevel == "debug",
+		// Slow statements are worth a warning at any log level
+		SlowThreshold: 250 * time.Millisecond,
+	}
+}
 
-	if common.EnvConfig.LogLevel == "debug" {
-		loggerOpts = append(loggerOpts,
-			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelDebug),
-			slogGorm.WithRecordNotFoundError(),
-			slogGorm.WithTraceAll(),
-		)
-
-	} else {
-		loggerOpts = append(loggerOpts,
-			slogGorm.SetLogLevel(slogGorm.DefaultLogType, slog.LevelWarn),
-			slogGorm.WithIgnoreTrace(),
-		)
+// addSqliteDatetimeParams adds the datetime parameters to a SQLite connection string, leaving any the user set explicitly alone.
+func addSqliteDatetimeParams(connString string) string {
+	// sqliteDatetimeParams are the DSN parameters the Gorm SQLite driver injects when it opens the connection itself.
+	// Pocket ID opens the connection instead, to instrument it, so they have to be set here or modernc.org/sqlite stops returning time.Time for datetime columns.
+	// See injectDSNParams in github.com/libtnb/sqlite.
+	var sqliteDatetimeParams = map[string]string{
+		"_texttotime":  "1",
+		"_inttotime":   "1",
+		"_time_format": "sqlite",
 	}
 
-	return slogGorm.New(loggerOpts...)
+	path, rawQuery, _ := strings.Cut(connString, "?")
+	if path == "" {
+		// Return the connection string so the driver reports an error
+		return connString
+	}
+
+	qs, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		// Return the connection string so the driver reports an error
+		return connString
+	}
+
+	for k, v := range sqliteDatetimeParams {
+		if len(qs[k]) == 0 {
+			qs.Set(k, v)
+		}
+	}
+
+	return path + "?" + qs.Encode()
 }
