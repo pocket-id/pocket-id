@@ -160,16 +160,24 @@ func ActorsHostHealthCheckDeadline(haEnabled bool) time.Duration {
 // The actor host and the cluster admin must use the same options so they address the same cluster
 // This is implemented separately and exported because the import method needs it too
 func ActorsProviderOptions(pg *pgxpool.Pool, sqliteDB *sql.DB) (components.ProviderOptions, error) {
+	// Log each provider operation, such as a lease renewal or an actor lookup, while debugging
+	// The statements those operations run are logged separately, by the instrumentation attached to the connection in ConnectDatabase
+	operationLog := components.OperationLogConfig{
+		Enabled: common.EnvConfig.LogLevel == "debug",
+	}
+
 	switch {
 	case pg != nil && sqliteDB != nil:
 		return nil, errors.New("cannot have both Postgres and SQLite connections")
 	case pg != nil:
 		return postgres.PostgresProviderOptions{
-			DB: pg,
+			DB:           pg,
+			OperationLog: operationLog,
 		}, nil
 	case sqliteDB != nil:
 		return local.SQLiteProviderOptions{
-			DB: sqliteDB,
+			DB:           sqliteDB,
+			OperationLog: operationLog,
 		}, nil
 	default:
 		return nil, errors.New("one of Postgres and SQLite must be set")
