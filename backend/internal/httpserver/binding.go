@@ -33,16 +33,12 @@ func BindJSON(c *gin.Context, value any) error {
 
 // BindOptionalJSON accepts an empty body while normalizing valid input and classifying malformed JSON as invalid input
 func BindOptionalJSON(c *gin.Context, value any) error {
-	if c.Request.ContentLength == 0 {
-		return nil
-	}
-	if err := requireJSONContentType(c); err != nil {
-		return err
-	}
-
 	err := c.ShouldBindJSON(value)
 	if errors.Is(err, io.EOF) {
 		return nil
+	}
+	if contentTypeErr := requireJSONContentType(c); contentTypeErr != nil {
+		return contentTypeErr
 	}
 	if err = classifyBindingError(err); err != nil {
 		return err
