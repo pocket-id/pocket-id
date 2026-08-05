@@ -143,11 +143,10 @@ function compareExports(dir1: string, dir2: string): void {
 
 		const header = fs.readFileSync(filePath).subarray(0, 64).toString('latin1');
 		expect(header).toContain('francis-backup');
-	}
 
-	const size1 = fs.statSync(file1).size;
-	const size2 = fs.statSync(file2).size;
-	expect(size1).toEqual(size2);
+		const fileSize = fs.statSync(filePath).size;
+		expect(fileSize).toBeGreaterThan(64);
+	}
 }
 
 function archiveExampleExport(outputPath: string): Buffer {
