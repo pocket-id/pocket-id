@@ -3,7 +3,6 @@ package cmds
 import (
 	"archive/zip"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -83,14 +82,7 @@ func runImport(ctx context.Context, flags importFlags) error {
 	}
 
 	// The cluster admin talks to the same database as the actor host, so build its provider options the same way the host does
-	var sqliteDB *sql.DB
-	if pg == nil {
-		sqliteDB, err = db.DB()
-		if err != nil {
-			return fmt.Errorf("failed to get sql.DB connection: %w", err)
-		}
-	}
-	providerOpts, err := bootstrap.ActorsProviderOptions(pg, sqliteDB)
+	providerOpts, err := bootstrap.ActorsProviderOptions(db, pg)
 	if err != nil {
 		return err
 	}
@@ -124,8 +116,18 @@ func runImport(ctx context.Context, flags importFlags) error {
 		_ = storage.Close()
 	}()
 
+	// The actor host's data lives outside of the Pocket ID schema, so it's restored through Francis
+	// Restoring requires exclusive access to the cluster, which was acquired above
+	actorsProvider, err := bootstrap.NewActorsBackupProvider(importCtx, providerOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize the actor host's data provider: %w", err)
+	}
+	defer func() {
+		_ = actorsProvider.Close()
+	}()
+
 	// Create the import service
-	importService := service.NewImportService(db, storage)
+	importService := service.NewImportService(db, storage, actorsProvider)
 
 	// Load from ZIP
 	err = importService.ImportFromZip(importCtx, &zipReader.Reader)

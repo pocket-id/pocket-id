@@ -133,6 +133,20 @@ function compareExports(dir1: string, dir2: string): void {
 	const normalizedExpected = normalizeJSON(expectedData);
 	const normalizedActual = normalizeJSON(actualData);
 	expect(normalizedActual).toEqual(normalizedExpected);
+
+	// Compare francis.bin contents
+	const file1 = path.join(dir1, 'francis.bin');
+	const file2 = path.join(dir2, 'francis.bin');
+	 
+	for (const filePath of [file1, file2]) {
+		expect(fs.existsSync(filePath), `${filePath} should exist`).toBe(true);
+
+		const header = fs.readFileSync(filePath).subarray(0, 64).toString('latin1');
+		expect(header).toContain('francis-backup');
+
+		const fileSize = fs.statSync(filePath).size;
+		expect(fileSize).toBeGreaterThan(64);
+	}
 }
 
 function archiveExampleExport(outputPath: string): Buffer {
@@ -153,6 +167,7 @@ function archiveExampleExport(outputPath: string): Buffer {
 	fs.writeFileSync(outputPath, buffer);
 	return buffer;
 }
+
 
 // Helper to load JSON files
 function loadJSON(path: string) {
@@ -315,7 +330,8 @@ function hashFile(filePath: string): string {
 
 function getAllFiles(dir: string, root = dir): string[] {
 	return fs.readdirSync(dir).flatMap((entry) => {
-		if (['.DS_Store', 'database.json'].includes(entry)) return [];
+		// The actor host's data is not part of the example export and its contents differ between runs, so it is checked separately
+		if (['.DS_Store', 'database.json', 'francis.bin'].includes(entry)) return [];
 
 		const fullPath = path.join(dir, entry);
 		const stat = fs.statSync(fullPath);
