@@ -123,6 +123,9 @@ func Bootstrap(ctx context.Context) error {
 			return fmt.Errorf("failed to register scheduled jobs: %w", err)
 		}
 
+		// Refresh the GeoLite database (this is cached per each replica)
+		services = append(services, svc.geoLiteModule.Run)
+
 		// The scheduler must wait on the actor host being ready, since jobs invoke actors
 		services = append(services, actorsReady.Await(scheduler.Run))
 	}

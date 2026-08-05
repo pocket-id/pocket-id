@@ -87,7 +87,7 @@ type fakeIPLocationResolver struct {
 	err     error
 }
 
-func (f *fakeIPLocationResolver) GetLocationByIP(string) (string, string, error) {
+func (f *fakeIPLocationResolver) GetLocationByIP(context.Context, string) (string, string, error) {
 	return f.country, f.city, f.err
 }
 
