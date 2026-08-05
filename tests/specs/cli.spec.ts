@@ -145,7 +145,7 @@ function compareExports(dir1: string, dir2: string): void {
 		expect(header).toContain('francis-backup');
 
 		const fileSize = fs.statSync(filePath).size;
-		expect(fileSize).toBeGreaterThan(64);
+		expect(fileSize).toBeGreaterThan(1000);
 	}
 }
 
