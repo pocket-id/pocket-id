@@ -14,10 +14,6 @@ func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, sche
 	if err != nil {
 		return fmt.Errorf("failed to register LDAP jobs in scheduler: %w", err)
 	}
-	err = scheduler.RegisterGeoLiteUpdateJobs(ctx, svc.geoLiteService)
-	if err != nil {
-		return fmt.Errorf("failed to register GeoLite DB update service: %w", err)
-	}
 	err = scheduler.RegisterDbCleanupJobs(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to register DB cleanup jobs in scheduler: %w", err)

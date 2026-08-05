@@ -28,7 +28,7 @@ type AuditLogger interface {
 }
 
 type IPLocationResolver interface {
-	GetLocationByIP(ipAddress string) (country, city string, err error)
+	GetLocationByIP(ctx context.Context, ipAddress string) (country string, city string, err error)
 }
 
 type AppConfigProvider interface {

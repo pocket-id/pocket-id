@@ -116,7 +116,7 @@ func (s *Service) Inspect(ctx context.Context, code string) (VerificationInfo, e
 		return VerificationInfo{}, err
 	}
 
-	country, city, err := s.ipLocator.GetLocationByIP(result.IPAddress)
+	country, city, err := s.ipLocator.GetLocationByIP(ctx, result.IPAddress)
 	if err != nil {
 		slog.WarnContext(ctx, "Failed to get device login request IP location", slog.String("ip", result.IPAddress), slog.Any("error", err))
 	}
