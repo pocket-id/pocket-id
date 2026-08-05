@@ -15,9 +15,7 @@ import (
 func newRefresherForTest(t *testing.T, dir string, httpClient *http.Client) *refresher {
 	t.Helper()
 
-	svc := newService(testLogger(), filepath.Join(dir, "GeoLite2-City.mmdb"))
-	err := svc.load(t.Context())
-	require.NoError(t, err)
+	svc := newServiceAtPathForTest(t, filepath.Join(dir, "GeoLite2-City.mmdb"))
 
 	return &refresher{
 		log:         testLogger(),

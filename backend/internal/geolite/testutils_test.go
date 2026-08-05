@@ -48,11 +48,21 @@ func newServiceForTest(t *testing.T, data []byte) (*Service, string) {
 		writeDatabaseFileForTest(t, dbPath, data)
 	}
 
+	return newServiceAtPathForTest(t, dbPath), dbPath
+}
+
+// newServiceAtPathForTest returns a Service backed by the database file at dbPath, loaded and unmapped when the test ends
+// Unmapping is required on Windows
+func newServiceAtPathForTest(t *testing.T, dbPath string) *Service {
+	t.Helper()
+
 	svc := newService(testLogger(), dbPath)
+	t.Cleanup(svc.unload)
+
 	err := svc.load(t.Context())
 	require.NoError(t, err)
 
-	return svc, dbPath
+	return svc
 }
 
 // writeDatabaseFileForTest puts a database at path the same way the refresher does: written elsewhere, then moved into place
