@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -93,9 +92,8 @@ func (m *RateLimitMiddleware) Add(policy string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 
-		// Skip rate limiting for localhost and test environment
-		// If the client ip is localhost the request comes from the frontend
-		if common.EnvConfig.AppEnv == common.AppEnvTest || net.ParseIP(ip).IsLoopback() {
+		// Skip rate limiting in test environments
+		if common.EnvConfig.AppEnv == common.AppEnvTest {
 			c.Next()
 			return
 		}
