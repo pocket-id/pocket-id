@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -148,9 +149,7 @@ func (s *OidcService) CreateClient(ctx context.Context, input dto.OidcClientCrea
 		Base: model.Base{
 			ID: input.ID,
 		},
-		CreatedByID:                 new(userID),
-		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
-		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
+		CreatedByID: new(userID),
 	}
 	updateOIDCClientModelFromDto(&client, &input.OidcClientUpdateDto)
 
@@ -257,8 +256,10 @@ func updateOIDCClientModelFromDto(client *model.OidcClient, input *dto.OidcClien
 	client.SkipConsent = input.SkipConsent
 	client.LaunchURL = input.LaunchURL
 	client.IsGroupRestricted = input.IsGroupRestricted
-	client.AccessTokenDurationMinutes = input.AccessTokenDurationMinutes
-	client.RefreshTokenDurationMinutes = input.RefreshTokenDurationMinutes
+
+	// Token lifetimes are optional, so a zero value falls back to the default
+	client.AccessTokenDurationMinutes = cmp.Or(input.AccessTokenDurationMinutes, model.DefaultAccessTokenDurationMinutes)
+	client.RefreshTokenDurationMinutes = cmp.Or(input.RefreshTokenDurationMinutes, model.DefaultRefreshTokenDurationMinutes)
 
 	// Preserve fields that are sourced from the client metadata document
 	if client.IsMetadataDocument() {

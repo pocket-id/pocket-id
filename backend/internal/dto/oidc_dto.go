@@ -55,8 +55,8 @@ type OidcClientUpdateDto struct {
 	LogoURL                             *string                  `json:"logoUrl"`
 	DarkLogoURL                         *string                  `json:"darkLogoUrl"`
 	IsGroupRestricted                   bool                     `json:"isGroupRestricted"`
-	AccessTokenDurationMinutes          int64                    `json:"accessTokenDurationMinutes" binding:"required,token_duration"`
-	RefreshTokenDurationMinutes         int64                    `json:"refreshTokenDurationMinutes" binding:"required,token_duration"`
+	AccessTokenDurationMinutes          int64                    `json:"accessTokenDurationMinutes" binding:"omitempty,token_duration"`
+	RefreshTokenDurationMinutes         int64                    `json:"refreshTokenDurationMinutes" binding:"omitempty,token_duration"`
 }
 
 type OidcClientCreateDto struct {

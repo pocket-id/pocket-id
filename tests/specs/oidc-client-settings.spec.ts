@@ -2,11 +2,6 @@ import test, { expect, Page } from '@playwright/test';
 import { oidcClients, userGroups } from '../data';
 import { cleanupBackend } from '../utils/cleanup.util';
 
-const defaultTokenLifetimes = {
-	accessTokenDurationMinutes: 60,
-	refreshTokenDurationMinutes: 30 * 24 * 60
-};
-
 test.beforeEach(async () => await cleanupBackend());
 
 test.describe('Create OIDC client', () => {
@@ -246,7 +241,6 @@ test('Filter OIDC clients by PAR requirement', async ({ page, request }) => {
 	// Enable PAR on the PAR test client
 	await request.put(`/api/oidc/clients/${parClient.id}`, {
 		data: {
-			...defaultTokenLifetimes,
 			name: parClient.name,
 			callbackURLs: [parClient.callbackUrl],
 			logoutCallbackURLs: [],
