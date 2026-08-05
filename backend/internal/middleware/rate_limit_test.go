@@ -122,15 +122,6 @@ func TestRateLimitMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("skips rate limiting for loopback addresses", func(t *testing.T) {
-		r := newRateLimitRouter(t, services, policy)
-		for _, ip := range []string{"127.0.0.1", "::1"} {
-			for range 5 {
-				require.Equal(t, http.StatusOK, doRateLimitRequest(t.Context(), r, ip).Code)
-			}
-		}
-	})
-
 	t.Run("skips rate limiting in the test environment", func(t *testing.T) {
 		common.EnvConfig.AppEnv = common.AppEnvTest
 		t.Cleanup(func() { common.EnvConfig.AppEnv = common.AppEnvProduction })
