@@ -42,7 +42,6 @@ test('Export', async ({ baseURL }) => {
 	unzipExport(exportPath, extractPath);
 
 	compareExports(exampleExportPath, extractPath);
-	expectActorsBackup(path.join(extractPath, 'francis.bin'));
 });
 
 test('Export via stdout', async ({ baseURL }) => {
@@ -64,12 +63,9 @@ test('Import SQLite export', async () => {
 	// Reset the backend without seeding
 	await cleanupBackend({ skipSeed: true });
 
-	// The example export predates the actor host's data, so take a backup of it from the running instance and import that alongside, which exercises the restore path
-	const actorsBackup = exportActorsBackup();
-
 	// Run the import with the example export data
 	const exampleExportArchivePath = path.join(tmpDir, 'example-export.zip');
-	archiveExampleExport(exampleExportArchivePath, actorsBackup);
+	archiveExampleExport(exampleExportArchivePath);
 
 	try {
 		runDockerComposeCommand(['stop', containerName]);
@@ -137,9 +133,24 @@ function compareExports(dir1: string, dir2: string): void {
 	const normalizedExpected = normalizeJSON(expectedData);
 	const normalizedActual = normalizeJSON(actualData);
 	expect(normalizedActual).toEqual(normalizedExpected);
+
+	// Compare francis.bin contents
+	const file1 = path.join(dir1, 'francis.bin');
+	const file2 = path.join(dir2, 'francis.bin');
+	 
+	for (const filePath of [file1, file2]) {
+		expect(fs.existsSync(filePath), `${filePath} should exist`).toBe(true);
+
+		const header = fs.readFileSync(filePath).subarray(0, 64).toString('latin1');
+		expect(header).toContain('francis-backup');
+	}
+
+	const size1 = fs.statSync(file1).size;
+	const size2 = fs.statSync(file2).size;
+	expect(size1).toEqual(size2);
 }
 
-function archiveExampleExport(outputPath: string, actorsBackup?: Buffer): Buffer {
+function archiveExampleExport(outputPath: string): Buffer {
 	fs.rmSync(outputPath, { force: true });
 
 	const zip = new AdmZip();
@@ -153,32 +164,11 @@ function archiveExampleExport(outputPath: string, actorsBackup?: Buffer): Buffer
 		}
 	}
 
-	if (actorsBackup) {
-		zip.addFile('francis.bin', actorsBackup);
-	}
-
 	const buffer = zip.toBuffer();
 	fs.writeFileSync(outputPath, buffer);
 	return buffer;
 }
 
-// exportActorsBackup exports the running instance and returns the actor host's data from the archive
-function exportActorsBackup(): Buffer {
-	const exportPath = path.join(tmpDir, 'actors-backup-source.zip');
-	runExport(exportPath);
-
-	const entry = new AdmZip(exportPath).getEntry('francis.bin');
-	expect(entry, 'francis.bin should be included in the export').not.toBeNull();
-	return entry!.getData();
-}
-
-// expectActorsBackup asserts the file is a Francis backup stream, whose header carries the format name
-// Its contents (alarm due times, actor state, …) change between runs, so they are not compared against the example export
-function expectActorsBackup(filePath: string): void {
-	expect(fs.existsSync(filePath), `${filePath} should exist`).toBe(true);
-	const header = fs.readFileSync(filePath).subarray(0, 64).toString('latin1');
-	expect(header).toContain('francis-backup');
-}
 
 // Helper to load JSON files
 function loadJSON(path: string) {
