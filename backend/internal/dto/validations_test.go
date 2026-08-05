@@ -10,7 +10,7 @@ import (
 
 func TestTokenDurationValidation(t *testing.T) {
 	type input struct {
-		Duration int64 `binding:"required,token_duration"`
+		Duration int64 `binding:"omitempty,token_duration"`
 	}
 
 	for _, test := range []struct {
@@ -18,10 +18,11 @@ func TestTokenDurationValidation(t *testing.T) {
 		value   int64
 		wantErr bool
 	}{
-		{name: "omitted", wantErr: true},
-		{name: "below minimum", value: 0, wantErr: true},
+		{name: "omitted (default)"},
+		{name: "negative", value: -1, wantErr: true},
 		{name: "minimum", value: 1},
 		{name: "custom duration", value: 90},
+		{name: "maximum", value: 365 * 24 * 60},
 		{name: "above maximum", value: 365*24*60 + 1, wantErr: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {

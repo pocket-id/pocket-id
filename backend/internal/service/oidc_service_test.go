@@ -528,11 +528,9 @@ func TestOidcService_CreateClient_withDescription(t *testing.T) {
 	description := "A test client description"
 	input := dto.OidcClientCreateDto{
 		OidcClientUpdateDto: dto.OidcClientUpdateDto{
-			Name:                        "Test Client",
-			Description:                 description,
-			CallbackURLs:                []string{"https://example.com/callback"},
-			AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
-			RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
+			Name:         "Test Client",
+			Description:  description,
+			CallbackURLs: []string{"https://example.com/callback"},
 		},
 	}
 
@@ -554,10 +552,8 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 
 	input := dto.OidcClientCreateDto{
 		OidcClientUpdateDto: dto.OidcClientUpdateDto{
-			Name:                        "Test Client",
-			CallbackURLs:                []string{"https://example.com/callback"},
-			AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
-			RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
+			Name:         "Test Client",
+			CallbackURLs: []string{"https://example.com/callback"},
 		},
 	}
 
@@ -568,6 +564,97 @@ func TestOidcService_CreateClient_withoutDescription(t *testing.T) {
 	err = db.First(&fetched, "id = ?", client.ID).Error
 	require.NoError(t, err)
 	assert.Empty(t, fetched.Description)
+}
+
+func TestOidcService_CreateClient_tokenLifetimes(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		access      int64
+		refresh     int64
+		wantAccess  int64
+		wantRefresh int64
+	}{
+		{
+			name:        "omitted lifetimes fall back to the defaults",
+			wantAccess:  model.DefaultAccessTokenDurationMinutes,
+			wantRefresh: model.DefaultRefreshTokenDurationMinutes,
+		},
+		{
+			name:        "only one lifetime provided",
+			access:      2 * 60,
+			wantAccess:  2 * 60,
+			wantRefresh: model.DefaultRefreshTokenDurationMinutes,
+		},
+		{
+			name:        "both lifetimes provided",
+			access:      2 * 60,
+			refresh:     7 * 24 * 60,
+			wantAccess:  2 * 60,
+			wantRefresh: 7 * 24 * 60,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+
+			s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+			require.NoError(t, err)
+
+			input := dto.OidcClientCreateDto{
+				OidcClientUpdateDto: dto.OidcClientUpdateDto{
+					Name:                        "Test Client",
+					CallbackURLs:                []string{"https://example.com/callback"},
+					AccessTokenDurationMinutes:  test.access,
+					RefreshTokenDurationMinutes: test.refresh,
+				},
+			}
+
+			client, err := s.CreateClient(t.Context(), input, "user-id")
+			require.NoError(t, err)
+
+			var fetched model.OidcClient
+			err = db.First(&fetched, "id = ?", client.ID).Error
+			require.NoError(t, err)
+			assert.Equal(t, test.wantAccess, fetched.AccessTokenDurationMinutes)
+			assert.Equal(t, test.wantRefresh, fetched.RefreshTokenDurationMinutes)
+		})
+	}
+}
+
+func TestOidcService_UpdateClient_tokenLifetimes(t *testing.T) {
+	db := testutils.NewDatabaseForTest(t)
+
+	s, err := NewOidcService(db, nil, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	client := model.OidcClient{
+		Name:                        "Test Client",
+		CallbackURLs:                datatype.StringList{"https://example.com/callback"},
+		AccessTokenDurationMinutes:  2 * 60,
+		RefreshTokenDurationMinutes: 7 * 24 * 60,
+	}
+	require.NoError(t, db.Create(&client).Error)
+
+	// A request that predates the token lifetime fields must be accepted, and resets them to the defaults
+	input := dto.OidcClientUpdateDto{
+		Name:         "Test Client",
+		CallbackURLs: []string{"https://example.com/callback"},
+	}
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	var fetched model.OidcClient
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.Equal(t, model.DefaultAccessTokenDurationMinutes, fetched.AccessTokenDurationMinutes)
+	assert.Equal(t, model.DefaultRefreshTokenDurationMinutes, fetched.RefreshTokenDurationMinutes)
+
+	// Providing only one of them leaves the other at its default
+	input.AccessTokenDurationMinutes = 3 * 60
+	_, err = s.UpdateClient(t.Context(), client.ID, input)
+	require.NoError(t, err)
+
+	require.NoError(t, db.First(&fetched, "id = ?", client.ID).Error)
+	assert.Equal(t, int64(3*60), fetched.AccessTokenDurationMinutes)
+	assert.Equal(t, model.DefaultRefreshTokenDurationMinutes, fetched.RefreshTokenDurationMinutes)
 }
 
 func TestOidcService_CreateClientSecret_withCustomSecret(t *testing.T) {
@@ -610,11 +697,9 @@ func TestOidcService_UpdateClient_description(t *testing.T) {
 	// Update with a description
 	description := "Updated description"
 	input := dto.OidcClientUpdateDto{
-		Name:                        "Test Client",
-		Description:                 description,
-		CallbackURLs:                []string{"https://example.com/callback"},
-		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
-		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
+		Name:         "Test Client",
+		Description:  description,
+		CallbackURLs: []string{"https://example.com/callback"},
 	}
 
 	_, err = s.UpdateClient(t.Context(), client.ID, input)
@@ -728,9 +813,7 @@ func TestOidcService_UpdateClient_CIMDDoesNotOverwriteConcurrentMetadataRefresh(
 	`).Error)
 
 	input := dto.OidcClientUpdateDto{
-		Description:                 "Locally managed description",
-		AccessTokenDurationMinutes:  model.DefaultAccessTokenDurationMinutes,
-		RefreshTokenDurationMinutes: model.DefaultRefreshTokenDurationMinutes,
+		Description: "Locally managed description",
 	}
 	_, err = s.UpdateClient(t.Context(), client.ID, input)
 	require.NoError(t, err)
