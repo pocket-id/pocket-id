@@ -1,4 +1,4 @@
-package service
+package ldapsync
 
 import (
 	"net/http"
@@ -12,6 +12,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
+	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/storage"
 	testutils "github.com/pocket-id/pocket-id/backend/internal/utils/testing"
 )
@@ -21,9 +22,9 @@ type fakeLDAPClient struct {
 }
 
 func TestCreateLDAPClientRejectsDisabledConfiguration(t *testing.T) {
-	service := NewLdapService(nil, nil, nil, nil, nil)
+	svc := newService(Dependencies{})
 
-	_, err := service.createClient(&appconfig.AppConfigModel{LdapEnabled: "false"})
+	_, err := svc.createClient(&appconfig.AppConfigModel{LdapEnabled: "false"})
 
 	require.True(t, apperror.IsCode(err, apperror.CodeLdapDisabled))
 }
@@ -316,13 +317,13 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 	}
 }
 
-func newTestLdapService(t *testing.T, client ldapClient) (*LdapService, *gorm.DB) {
+func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
 	t.Helper()
 
 	return newTestLdapServiceWithAppConfig(t, defaultTestLDAPAppConfig(), client)
 }
 
-func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *appconfig.AppConfigModel, client ldapClient) (*LdapService, *gorm.DB) {
+func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *appconfig.AppConfigModel, client ldapClient) (*Service, *gorm.DB) {
 	t.Helper()
 
 	db := testutils.NewDatabaseForTest(t)
@@ -330,23 +331,30 @@ func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *appconfig.App
 	fileStorage, err := storage.NewDatabaseStorage(db)
 	require.NoError(t, err)
 
-	groupService := NewUserGroupService(db, nil)
-	userService := NewUserService(
+	// The sync is exercised against the real user and group services, so the assertions below can check what actually lands in the database
+	groupService := service.NewUserGroupService(db, nil)
+	userService := service.NewUserService(
 		db,
 		nil,
 		nil,
-		NewCustomClaimService(db),
-		NewAppImagesService(map[string]string{}, fileStorage),
+		service.NewCustomClaimService(db),
+		service.NewAppImagesService(map[string]string{}, fileStorage),
 		nil,
 		fileStorage,
 	)
 
-	service := NewLdapService(db, &http.Client{}, userService, groupService, fileStorage)
-	service.clientFactory = func(dbConfig *appconfig.AppConfigModel) (ldapClient, error) {
+	svc := newService(Dependencies{
+		DB:          db,
+		HTTPClient:  &http.Client{},
+		FileStorage: fileStorage,
+		Users:       userService,
+		Groups:      groupService,
+	})
+	svc.clientFactory = func(dbConfig *appconfig.AppConfigModel) (ldapClient, error) {
 		return client, nil
 	}
 
-	return service, db
+	return svc, db
 }
 
 func defaultTestLDAPAppConfig() *appconfig.AppConfigModel {

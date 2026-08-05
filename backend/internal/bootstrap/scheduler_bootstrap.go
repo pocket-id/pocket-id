@@ -10,11 +10,7 @@ import (
 )
 
 func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, scheduler *job.Scheduler) error {
-	err := scheduler.RegisterLdapJobs(ctx, svc.ldapService, svc.appConfigService)
-	if err != nil {
-		return fmt.Errorf("failed to register LDAP jobs in scheduler: %w", err)
-	}
-	err = scheduler.RegisterGeoLiteUpdateJobs(ctx, svc.geoLiteService)
+	err := scheduler.RegisterGeoLiteUpdateJobs(ctx, svc.geoLiteService)
 	if err != nil {
 		return fmt.Errorf("failed to register GeoLite DB update service: %w", err)
 	}

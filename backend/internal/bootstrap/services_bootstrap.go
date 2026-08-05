@@ -14,6 +14,7 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/email"
 	"github.com/pocket-id/pocket-id/backend/internal/emailverification"
 	"github.com/pocket-id/pocket-id/backend/internal/job"
+	"github.com/pocket-id/pocket-id/backend/internal/ldapsync"
 	"github.com/pocket-id/pocket-id/backend/internal/oidc"
 	"github.com/pocket-id/pocket-id/backend/internal/onetimeaccess"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
@@ -35,12 +36,12 @@ type services struct {
 	customClaimService *service.CustomClaimService
 	oidcService        *service.OidcService
 	userGroupService   *service.UserGroupService
-	ldapService        *service.LdapService
 	versionService     *service.VersionService
 	fileStorage        storage.FileStorage
 
 	apiKeyModule            *apikey.Module
 	deviceLoginModule       *devicelogin.Module
+	ldapSyncModule          *ldapsync.Module
 	oidcModule              *oidc.Module
 	webauthnModule          *webauthn.Module
 	userSignUpModule        *usersignup.Module
@@ -142,7 +143,21 @@ func initServices(
 
 	svc.userGroupService = service.NewUserGroupService(db, svc.scimService)
 	svc.userService = service.NewUserService(db, svc.jwtService, svc.auditLogService, svc.customClaimService, svc.appImagesService, svc.scimService, fileStorage)
-	svc.ldapService = service.NewLdapService(db, httpClient, svc.userService, svc.userGroupService, fileStorage)
+
+	svc.ldapSyncModule, err = ldapsync.New(ldapsync.Dependencies{
+		DB:          db,
+		Actors:      actors,
+		HTTPClient:  httpClient,
+		FileStorage: fileStorage,
+		Users:       svc.userService,
+		Groups:      svc.userGroupService,
+		AppConfig:   svc.appConfigService,
+		// Disable in test environment
+		ScheduleDisabled: common.EnvConfig.AppEnv.IsTest(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create LDAP sync module: %w", err)
+	}
 
 	svc.apiKeyModule, err = apikey.New(ctx, apikey.Dependencies{
 		DB:           db,

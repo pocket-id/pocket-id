@@ -113,6 +113,12 @@ func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreate
 	return s.createInternal(ctx, input, s.db)
 }
 
+// CreateInternal creates a user group within an existing transaction
+// It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
+func (s *UserGroupService) CreateInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (model.UserGroup, error) {
+	return s.createInternal(ctx, input, tx)
+}
+
 func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (group model.UserGroup, err error) {
 	group = model.UserGroup{
 		FriendlyName: input.FriendlyName,
@@ -158,6 +164,12 @@ func (s *UserGroupService) Update(ctx context.Context, cfg *appconfig.AppConfigM
 	}
 
 	return group, nil
+}
+
+// UpdateInternal updates a user group within an existing transaction
+// It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
+func (s *UserGroupService) UpdateInternal(ctx context.Context, cfg *appconfig.AppConfigModel, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB) (model.UserGroup, error) {
+	return s.updateInternal(ctx, id, input, isLdapSync, tx, cfg)
 }
 
 func (s *UserGroupService) updateInternal(ctx context.Context, id string, input dto.UserGroupCreateDto, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (group model.UserGroup, err error) {
@@ -212,6 +224,12 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 	}
 
 	return group, nil
+}
+
+// UpdateUsersInternal replaces the members of a user group within an existing transaction
+// It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
+func (s *UserGroupService) UpdateUsersInternal(ctx context.Context, id string, userIds []string, tx *gorm.DB) (model.UserGroup, error) {
+	return s.updateUsersInternal(ctx, id, userIds, tx)
 }
 
 func (s *UserGroupService) updateUsersInternal(ctx context.Context, id string, userIds []string, tx *gorm.DB) (group model.UserGroup, err error) {
