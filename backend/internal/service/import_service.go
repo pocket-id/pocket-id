@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 type ImportService struct {
 	db      *gorm.DB
 	storage storage.FileStorage
+	actors  ActorsBackupProvider
 }
 
 type DatabaseExport struct {
@@ -33,16 +35,27 @@ type DatabaseExport struct {
 	TableOrder []string                    `json:"tableOrder"`
 }
 
-func NewImportService(db *gorm.DB, storage storage.FileStorage) *ImportService {
+// NewImportService creates a new ImportService.
+//
+// actors is used to restore the actor host's data, which is stored outside of the Pocket ID schema - when nil, the actor host's existing data is left untouched.
+func NewImportService(db *gorm.DB, storage storage.FileStorage, actors ActorsBackupProvider) *ImportService {
 	return &ImportService{
 		db:      db,
 		storage: storage,
+		actors:  actors,
 	}
 }
 
 // ImportFromZip performs the full import process from the given ZIP reader.
 func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error {
 	dbData, err := processZipDatabaseJson(r.File)
+	if err != nil {
+		return err
+	}
+
+	// The actor host's data is restored first because it's an atomic operation that validates its own preconditions, most importantly that no Pocket ID instance is still running
+	// Restoring it before the Pocket ID schema is dropped means such a failure leaves the existing data untouched
+	err = s.importActorsBackup(ctx, r.File)
 	if err != nil {
 		return err
 	}
@@ -55,6 +68,39 @@ func (s *ImportService) ImportFromZip(ctx context.Context, r *zip.Reader) error 
 	err = s.importUploads(ctx, r.File)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// importActorsBackup restores the actor host's data (actor state, alarms, and dead-lettered jobs) from the Francis backup stream in the ZIP archive.
+func (s *ImportService) importActorsBackup(ctx context.Context, files []*zip.File) error {
+	if s.actors == nil {
+		return nil
+	}
+
+	var backupFile *zip.File
+	for _, f := range files {
+		if f.Name == actorsBackupFileName {
+			backupFile = f
+			break
+		}
+	}
+	if backupFile == nil {
+		// Archives exported before Pocket ID included the actor host's data don't have that entry, in which case the existing data is left untouched
+		slog.WarnContext(ctx, "The archive does not contain the actor host's data, which will be left unchanged", slog.String("file", actorsBackupFileName))
+		return nil
+	}
+
+	rc, err := backupFile.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open %s: %w", actorsBackupFileName, err)
+	}
+	defer rc.Close()
+
+	err = s.actors.Restore(ctx, rc)
+	if err != nil {
+		return fmt.Errorf("failed to restore the actor host's data: %w", err)
 	}
 
 	return nil

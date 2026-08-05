@@ -92,12 +92,6 @@ func Bootstrap(ctx context.Context) error {
 		DB:          db,
 		FileStorage: fileStorage,
 	}
-	if pg == nil {
-		actorsOpts.SQLite, err = db.DB()
-		if err != nil {
-			return fmt.Errorf("failed to get *sql.DB connection from Gorm: %w", err)
-		}
-	}
 	actors, rateLimitServices, err := NewActors(actorsOpts)
 	if err != nil {
 		return fmt.Errorf("failed to initialize actors: %w", err)
