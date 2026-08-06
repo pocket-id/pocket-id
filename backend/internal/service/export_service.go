@@ -3,6 +3,7 @@ package service
 import (
 	"archive/zip"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,18 +21,23 @@ import (
 type ExportService struct {
 	db      *gorm.DB
 	storage storage.FileStorage
+	actors  ActorsBackupProvider
 }
 
-func NewExportService(db *gorm.DB, storage storage.FileStorage) *ExportService {
+// NewExportService creates a new ExportService.
+//
+// actors is used to back up the actor host's data, which is stored outside of the Pocket ID schema; when nil, the export does not include it.
+func NewExportService(db *gorm.DB, storage storage.FileStorage, actors ActorsBackupProvider) *ExportService {
 	return &ExportService{
 		db:      db,
 		storage: storage,
+		actors:  actors,
 	}
 }
 
 // ExportToZip performs the full export process and writes the ZIP data to the given writer.
 func (s *ExportService) ExportToZip(ctx context.Context, w io.Writer) error {
-	dbData, err := s.extractDatabase()
+	dbData, err := s.extractDatabase(ctx)
 	if err != nil {
 		return err
 	}
@@ -40,19 +46,52 @@ func (s *ExportService) ExportToZip(ctx context.Context, w io.Writer) error {
 }
 
 // extractDatabase reads all tables into a DatabaseExport struct
-func (s *ExportService) extractDatabase() (DatabaseExport, error) {
-	schema, err := utils.LoadDBSchemaTypes(s.db)
+//
+// Every table is read inside a single read transaction, so the dump is a consistent snapshot of one point in time
+func (s *ExportService) extractDatabase(ctx context.Context) (out DatabaseExport, err error) {
+	err = s.db.
+		WithContext(ctx).
+		Transaction(func(tx *gorm.DB) error {
+			out, err = extractDatabaseTx(tx)
+			return err
+		}, snapshotTxOptions(s.db.Name()))
+	if err != nil {
+		return DatabaseExport{}, err
+	}
+
+	return out, nil
+}
+
+// snapshotTxOptions returns the transaction options that give a read a consistent snapshot on the given database provider, without blocking concurrent writers
+func snapshotTxOptions(provider string) *sql.TxOptions {
+	opts := &sql.TxOptions{
+		ReadOnly: true,
+	}
+
+	// Postgres defaults to read committed, which takes a new snapshot for every statement, so tables read later in the export would include writes that landed after it started
+	// Repeatable read instead pins a single snapshot for the whole transaction
+	// SQLite is left at the driver's default: in WAL mode (the one used by Pocket ID) a read transaction already sees one consistent snapshot, and the driver rejects nothing but also honors no other isolation level
+	if provider == "postgres" {
+		opts.Isolation = sql.LevelRepeatableRead
+	}
+
+	return opts
+}
+
+// extractDatabaseTx dumps every exported table using the given transaction
+func extractDatabaseTx(tx *gorm.DB) (DatabaseExport, error) {
+	schema, err := utils.LoadDBSchemaTypes(tx)
 	if err != nil {
 		return DatabaseExport{}, fmt.Errorf("failed to load schema types: %w", err)
 	}
 
-	version, err := s.schemaVersion()
+	version, err := schemaVersion(tx)
 	if err != nil {
 		return DatabaseExport{}, err
 	}
 
 	out := DatabaseExport{
-		Provider: s.db.Name(),
+		Provider: tx.Name(),
 		Version:  version,
 		Tables:   map[string][]map[string]any{},
 		// These tables need to be inserted in a specific order because of foreign key constraints
@@ -65,7 +104,7 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 		if table == "storage" || table == "schema_migrations" || strings.HasPrefix(table, "francis_") {
 			continue
 		}
-		err = s.dumpTable(table, schema[table], &out)
+		err = dumpTable(tx, table, schema[table], &out)
 		if err != nil {
 			return DatabaseExport{}, err
 		}
@@ -74,9 +113,9 @@ func (s *ExportService) extractDatabase() (DatabaseExport, error) {
 	return out, nil
 }
 
-func (s *ExportService) schemaVersion() (uint, error) {
+func schemaVersion(tx *gorm.DB) (uint, error) {
 	var version uint
-	err := s.db.Raw("SELECT version FROM schema_migrations").Row().Scan(&version)
+	err := tx.Raw("SELECT version FROM schema_migrations").Row().Scan(&version)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query schema version: %w", err)
 	}
@@ -84,8 +123,8 @@ func (s *ExportService) schemaVersion() (uint, error) {
 }
 
 // dumpTable selects all rows from a table and appends them to out.Tables
-func (s *ExportService) dumpTable(table string, types utils.DBSchemaTableTypes, out *DatabaseExport) error {
-	rows, err := s.db.Raw("SELECT * FROM " + table).Rows()
+func dumpTable(tx *gorm.DB, table string, types utils.DBSchemaTableTypes, out *DatabaseExport) error {
+	rows, err := tx.Raw("SELECT * FROM " + table).Rows()
 	if err != nil {
 		return fmt.Errorf("failed to read table %s: %w", table, err)
 	}
@@ -98,7 +137,7 @@ func (s *ExportService) dumpTable(table string, types utils.DBSchemaTableTypes, 
 	}
 
 	for rows.Next() {
-		vals := s.getScanValuesForTable(cols, types)
+		vals := getScanValuesForTable(cols, types)
 		err = rows.Scan(vals...)
 		if err != nil {
 			return fmt.Errorf("failed to scan row in table %s: %w", table, err)
@@ -115,7 +154,7 @@ func (s *ExportService) dumpTable(table string, types utils.DBSchemaTableTypes, 
 	return rows.Err()
 }
 
-func (s *ExportService) getScanValuesForTable(cols []string, types utils.DBSchemaTableTypes) []any {
+func getScanValuesForTable(cols []string, types utils.DBSchemaTableTypes) []any {
 	res := make([]any, len(cols))
 	for i, col := range cols {
 		// Store a pointer
@@ -182,6 +221,12 @@ func (s *ExportService) writeExportZipStream(ctx context.Context, w io.Writer, d
 		return fmt.Errorf("failed to encode database.json: %w", err)
 	}
 
+	// Add the actor host's data
+	err = s.addActorsBackupToZip(ctx, zipWriter)
+	if err != nil {
+		return fmt.Errorf("error adding the actor host's data to the export zip: %w", err)
+	}
+
 	// Add uploaded files
 	err = s.addUploadsToZip(ctx, zipWriter)
 	if err != nil {
@@ -191,6 +236,26 @@ func (s *ExportService) writeExportZipStream(ctx context.Context, w io.Writer, d
 	err = zipWriter.Close()
 	if err != nil {
 		return fmt.Errorf("error closing the zip writer: %w", err)
+	}
+
+	return nil
+}
+
+// addActorsBackupToZip adds the actor host's data (actor state, alarms, and dead-lettered jobs) to the ZIP archive as a Francis backup stream
+// That data lives in the actor host's own tables, so it's exported through Francis' own portable backup format instead
+func (s *ExportService) addActorsBackupToZip(ctx context.Context, zipWriter *zip.Writer) error {
+	if s.actors == nil {
+		return nil
+	}
+
+	w, err := zipWriter.Create(actorsBackupFileName)
+	if err != nil {
+		return fmt.Errorf("failed to create %s in zip: %w", actorsBackupFileName, err)
+	}
+
+	err = s.actors.Backup(ctx, w)
+	if err != nil {
+		return fmt.Errorf("failed to back up the actor host's data: %w", err)
 	}
 
 	return nil

@@ -17,28 +17,32 @@ type NewLoginEmailSender interface {
 	SendNewLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel, userFullName, userEmail, ipAddress, country, city, device string, dateTime time.Time) error
 }
 
+type IPLocationResolver interface {
+	GetLocationByIP(ctx context.Context, ipAddress string) (country string, city string, err error)
+}
+
 type AuditLogService struct {
 	db               *gorm.DB
 	emailSender      NewLoginEmailSender
-	geoliteService   *GeoLiteService
+	ipLocator        IPLocationResolver
 	appConfigService *appconfig.AppConfigService
 }
 
-func NewAuditLogService(db *gorm.DB, emailSender NewLoginEmailSender, geoliteService *GeoLiteService, appConfigService *appconfig.AppConfigService) *AuditLogService {
+func NewAuditLogService(db *gorm.DB, emailSender NewLoginEmailSender, ipLocator IPLocationResolver, appConfigService *appconfig.AppConfigService) *AuditLogService {
 	return &AuditLogService{
 		db:               db,
 		emailSender:      emailSender,
-		geoliteService:   geoliteService,
+		ipLocator:        ipLocator,
 		appConfigService: appConfigService,
 	}
 }
 
 // Create creates a new audit log entry in the database
 func (s *AuditLogService) Create(ctx context.Context, event model.AuditLogEvent, ipAddress, userAgent, userID string, data model.AuditLogData, tx *gorm.DB) (model.AuditLog, bool) {
-	country, city, err := s.geoliteService.GetLocationByIP(ipAddress)
+	country, city, err := s.ipLocator.GetLocationByIP(ctx, ipAddress)
 	if err != nil {
 		// Log the error but don't interrupt the operation
-		slog.Warn("Failed to get IP location", slog.String("ip", ipAddress), slog.Any("error", err))
+		slog.WarnContext(ctx, "Failed to get IP location", slog.String("ip", ipAddress), slog.Any("error", err))
 	}
 
 	auditLog := model.AuditLog{

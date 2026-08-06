@@ -6,9 +6,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/pocket-id/pocket-id/backend/internal/bootstrap"
 	"github.com/pocket-id/pocket-id/backend/internal/service"
-	"github.com/spf13/cobra"
 )
 
 type exportFlags struct {
@@ -33,7 +34,7 @@ func init() {
 
 // runExport orchestrates the export flow
 func runExport(ctx context.Context, flags exportFlags) error {
-	db, _, err := bootstrap.NewDatabase(ctx)
+	db, pg, err := bootstrap.NewDatabase(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -48,7 +49,20 @@ func runExport(ctx context.Context, flags exportFlags) error {
 		_ = storage.Close()
 	}()
 
-	exportService := service.NewExportService(db, storage)
+	// The actor host's data lives outside of the Pocket ID schema, so it's exported through Francis
+	providerOpts, err := bootstrap.ActorsProviderOptions(db, pg)
+	if err != nil {
+		return err
+	}
+	actorsProvider, err := bootstrap.NewActorsBackupProvider(ctx, providerOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize the actor host's data provider: %w", err)
+	}
+	defer func() {
+		_ = actorsProvider.Close()
+	}()
+
+	exportService := service.NewExportService(db, storage, actorsProvider)
 
 	var w io.Writer
 	if flags.Path == "-" {

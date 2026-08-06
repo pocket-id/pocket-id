@@ -82,7 +82,7 @@ func importAndRestart(importCfg func(*sql.DB)) func(t *testing.T) {
 		// Import: reset the schema (drop + migrate) and load data. Empty tables keep the test focused
 		// on the schema reset.
 		imp := openImportTestDB(t, dbPath, importCfg)
-		err = NewImportService(imp, nil).ImportDatabase(t.Context(), DatabaseExport{
+		err = NewImportService(imp, nil, nil).ImportDatabase(t.Context(), DatabaseExport{
 			Provider: "sqlite",
 			Version:  importResetTargetVersion,
 			Tables:   map[string][]map[string]any{},
@@ -107,7 +107,8 @@ func TestImportResetSchema(t *testing.T) {
 
 // TestImportResetSchemaFreshConnections guards the schema reset against connection pooling.
 // resetSchema must drop tables with foreign keys disabled on the connection that performs the drops.
-// With MaxIdleConns(0) every statement runs on a fresh connection (which the DSN opens with foreign_keys(1)); before dropPocketIDTablesSQLite this reproduced the CI failure where DROP TABLE tripped foreign-key cascades/triggers and left the database dirty, breaking the container restart.
+// With MaxIdleConns(0) every statement runs on a fresh connection (which the DSN opens with foreign_keys(1))
+// Before dropPocketIDTablesSQLite this reproduced the CI failure where DROP TABLE tripped foreign-key cascades/triggers and left the database dirty, breaking the container restart.
 func TestImportResetSchemaFreshConnections(t *testing.T) {
 	importAndRestart(func(db *sql.DB) { db.SetMaxIdleConns(0) })(t)
 }
