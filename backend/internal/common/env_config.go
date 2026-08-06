@@ -75,6 +75,7 @@ type EnvConfigSchema struct {
 	SystemdSocket   bool   `env:"SYSTEMD_SOCKET"`
 	LocalIPv6Ranges string `env:"LOCAL_IPV6_RANGES"`
 
+    // TLS cert and key need special treatment with fsnotify, so we aren't using `options:"file"`
 	TLSCert     string `env:"TLS_CERT"`
 	TLSKey      string `env:"TLS_KEY"`
 	TLSCertFile string `env:"TLS_CERT_FILE"`
