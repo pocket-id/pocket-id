@@ -2,7 +2,6 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
-import viteCompression from 'vite-plugin-compression';
 
 export default defineConfig((mode) => {
 	return {
@@ -15,22 +14,6 @@ export default defineConfig((mode) => {
 				emitTsDeclarations: true,
 				cookieName: 'locale',
 				strategy: ['cookie', 'preferredLanguage', 'baseLocale']
-			}),
-
-			// Create gzip-compressed files
-			viteCompression({
-				disable: mode.isPreview,
-				algorithm: 'gzip',
-				ext: '.gz',
-				filter: /\.(js|mjs|json|css)$/i
-			}),
-
-			// Create brotli-compressed files
-			viteCompression({
-				disable: mode.isPreview,
-				algorithm: 'brotliCompress',
-				ext: '.br',
-				filter: /\.(js|mjs|json|css)$/i
 			})
 		],
 
