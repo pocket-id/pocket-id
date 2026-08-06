@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"mime"
 	"net/http"
 	"path"
 	"strconv"
@@ -42,7 +41,7 @@ const (
 
 // Extensions of the assets that are worth compressing, mapped to the content type they are served with
 // Anything not listed here is either already compressed (fonts, images) or unknown, and is served as-is
-// The content type in this map is only used when the system's MIME database doesn't know the extension, which is the case for source maps and web manifests on most platforms
+// These take the place of mime.TypeByExtension because that reads the platform's MIME database, which is the Windows registry on Windows and /etc/mime.types on Linux, so the same bundle would otherwise be served with different content types depending on the host
 var compressibleContentTypes = map[string]string{
 	".css":         "text/css; charset=utf-8",
 	".html":        "text/html; charset=utf-8",
@@ -116,9 +115,17 @@ func (f *FileServerWithCaching) serveCompressed(w http.ResponseWriter, r *http.R
 		return false
 	}
 
-	// Assets that are never compressed must not get a "Vary" header below, as that would fragment caches for no reason
-	name, contentType, ok := f.compressibleAsset(r.URL.Path)
+	// Assets we don't recognize are left entirely to the file server, including the content type it picks for them
+	name, contentType, size, ok := f.bundledAsset(r.URL.Path)
 	if !ok {
+		return false
+	}
+
+	// Setting the content type here, rather than letting http.ServeContent derive it, keeps it identical whether or not the asset ends up compressed
+	w.Header().Set("Content-Type", contentType)
+
+	// Assets outside the size range are always served as-is, so they must not get the "Vary" header below
+	if size < minCompressibleSize || size > maxCompressibleSize {
 		return false
 	}
 
@@ -143,8 +150,6 @@ func (f *FileServerWithCaching) serveCompressed(w http.ResponseWriter, r *http.R
 		return false
 	}
 
-	// The content type must be set explicitly, or http.ServeContent would sniff it from the compressed bytes
-	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Encoding", encoding)
 
 	// http.ServeContent refuses to set a content length on encoded responses, so we set it ourselves to avoid falling back to a chunked response
@@ -157,34 +162,28 @@ func (f *FileServerWithCaching) serveCompressed(w http.ResponseWriter, r *http.R
 	return true
 }
 
-// compressibleAsset maps a request path to a file in the bundle that is worth compressing, returning the name to look it up with and the content type to serve it with
-func (f *FileServerWithCaching) compressibleAsset(urlPath string) (name string, contentType string, ok bool) {
+// bundledAsset maps a request path to a compressible file in the bundle, returning the name to look it up with, the content type to serve it with, and its uncompressed size
+func (f *FileServerWithCaching) bundledAsset(urlPath string) (name string, contentType string, size int64, ok bool) {
 	// Assets whose extension isn't in the list are served as-is
 	ext := strings.ToLower(path.Ext(urlPath))
 	contentType, ok = compressibleContentTypes[ext]
 	if !ok {
-		return "", "", false
+		return "", "", 0, false
 	}
 
 	// Resolve the request path the same way http.FileServer does, so the compressed copy is cached under the name of the file that is actually served
 	name = strings.TrimPrefix(path.Clean("/"+strings.TrimPrefix(urlPath, "/")), "/")
 	if !fs.ValidPath(name) {
-		return "", "", false
+		return "", "", 0, false
 	}
 
-	// Only regular files within the size boundaries are compressed
+	// Directories and paths that aren't in the bundle are left to the file server, which knows how to handle them
 	info, err := fs.Stat(f.distFS, name)
-	if err != nil || info.IsDir() || info.Size() < minCompressibleSize || info.Size() > maxCompressibleSize {
-		return "", "", false
+	if err != nil || info.IsDir() {
+		return "", "", 0, false
 	}
 
-	// The system's MIME database wins over the built-in list, so compressed and uncompressed responses report the same content type
-	systemType := mime.TypeByExtension(ext)
-	if systemType != "" {
-		contentType = systemType
-	}
-
-	return name, contentType, true
+	return name, contentType, info.Size(), true
 }
 
 func isImmutableAsset(r *http.Request) bool {

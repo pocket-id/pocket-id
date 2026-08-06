@@ -34,7 +34,7 @@ func testDistFS() fstest.MapFS {
 func serveAsset(t *testing.T, f *FileServerWithCaching, method string, path string, acceptEncoding string) *http.Response {
 	t.Helper()
 
-	r := httptest.NewRequest(method, path, nil)
+	r := httptest.NewRequestWithContext(t.Context(), method, path, nil)
 	if acceptEncoding != "" {
 		r.Header.Set("Accept-Encoding", acceptEncoding)
 	}
@@ -116,6 +116,9 @@ func TestFileServerCompression(t *testing.T) {
 		assert.Equal(t, http.StatusOK, res.StatusCode)
 		assert.Empty(t, res.Header.Get("Content-Encoding"))
 		assert.Empty(t, res.Header.Get("Vary"))
+
+		// Assets we recognize get their content type from the built-in list even when they are served uncompressed
+		assert.Equal(t, "text/javascript; charset=utf-8", res.Header.Get("Content-Type"))
 	})
 
 	t.Run("compresses non-immutable assets too", func(t *testing.T) {
@@ -164,7 +167,7 @@ func TestFileServerCacheHeaders(t *testing.T) {
 	})
 
 	t.Run("If-Modified-Since returns 304", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/robots.txt", nil)
 		r.Header.Set("Accept-Encoding", "br")
 		r.Header.Set("If-Modified-Since", f.lastModified.UTC().Add(time.Minute).Format(http.TimeFormat))
 
