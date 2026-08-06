@@ -25,9 +25,10 @@ const testActorHostPSK = "pocket-id-test-actor-host-psk-32bytes"
 
 // NewActorHostForTest starts a single-host Francis cluster backed by the in-memory provider, runs it, and waits until it is ready to serve invocations
 // The register callback, if not nil, runs after the host is created but before it starts, so callers can register actors with host.RegisterActor/host.RegisterBuiltInActor (must be called before the host is running)
+// Any extra options are appended last, so they override the defaults set here, which lets a test reproduce a production host setting such as the alarm poll interval
 // The host is stopped when the test ends
 // The in-memory provider keeps no state on disk, so the test never touches a real database
-func NewActorHostForTest(t *testing.T, register func(t *testing.T, h *local.Host)) *local.Host {
+func NewActorHostForTest(t *testing.T, register func(t *testing.T, h *local.Host), extraOpts ...local.HostOption) *local.Host {
 	t.Helper()
 
 	address := freeLoopbackUDPAddr(t)
@@ -37,6 +38,7 @@ func NewActorHostForTest(t *testing.T, register func(t *testing.T, h *local.Host
 		local.WithStandaloneMemoryProvider(standalone.StandaloneMemoryOptions{}),
 		local.WithShutdownGracePeriod(time.Second),
 	}
+	hostOpts = append(hostOpts, extraOpts...)
 
 	h, err := local.NewHost(hostOpts...)
 	require.NoError(t, err)

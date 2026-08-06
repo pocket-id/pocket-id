@@ -38,8 +38,9 @@ func TestSyncActorBootstrapArmsRecurringAlarm(t *testing.T) {
 	props, err := host.GetAlarm(t.Context(), SyncActorType, actor.SingletonActorID, alarmSync)
 	require.NoError(t, err)
 	assert.Equal(t, syncInterval, props.Interval)
-	// The first occurrence is due right away, so a restart re-syncs the directory
-	assert.WithinDuration(t, time.Now(), props.DueTime, time.Minute)
+	// The first occurrence is due after the initial delay, so a restart re-syncs the directory shortly after startup
+	// The tolerance is tight enough to catch the delay being dropped, which would put the due time at "now"
+	assert.WithinDuration(t, time.Now().Add(initialSyncDelay), props.DueTime, time.Second)
 }
 
 func TestSyncActorBootstrapIsIdempotent(t *testing.T) {
@@ -173,10 +174,16 @@ func TestSyncActorRegisteredSingletonBootstrapsAndFires(t *testing.T) {
 		ldapSearchResult(),
 	))
 
-	host := testutils.NewActorHostForTest(t, func(t *testing.T, h *local.Host) {
-		err := h.RegisterSingletonActor(SyncActorType, NewSyncActor(service, fakeAppConfigResolver{config: appCfg}, false))
-		require.NoError(t, err)
-	})
+	// The host uses the same relaxed alarm intervals the application configures when HA is disabled, since those are what decide how soon the first occurrence is picked up
+	// Francis only performs an early first fetch when the poll interval is long, so with the default (short) test interval this test would pass even if that behavior regressed
+	host := testutils.NewActorHostForTest(t,
+		func(t *testing.T, h *local.Host) {
+			err := h.RegisterSingletonActor(SyncActorType, NewSyncActor(service, fakeAppConfigResolver{config: appCfg}, false))
+			require.NoError(t, err)
+		},
+		local.WithAlarmsPollInterval(5*time.Minute),
+		local.WithAlarmsFetchAheadInterval(5*time.Minute),
+	)
 
 	// The host bootstraps singletons in the background once it's ready, so wait for the alarm to show up
 	require.Eventually(t, func() bool {
@@ -184,12 +191,17 @@ func TestSyncActorRegisteredSingletonBootstrapsAndFires(t *testing.T) {
 		return err == nil
 	}, 10*time.Second, 20*time.Millisecond, "the sync alarm was never armed")
 
-	// The alarm is due immediately, so the first occurrence syncs the directory without waiting for the interval
-	require.Eventually(t, func() bool {
-		var count int64
-		require.NoError(t, db.Model(&model.User{}).Where("ldap_id = ?", "u-alice").Count(&count).Error)
-		return count == 1
-	}, 20*time.Second, 50*time.Millisecond, "the sync alarm never ran")
+	// The first occurrence runs shortly after startup rather than waiting out the poll interval, so the deadline here is far below it
+	require.Eventually(t,
+		func() bool {
+			var count int64
+			require.NoError(t, db.Model(&model.User{}).Where("ldap_id = ?", "u-alice").Count(&count).Error)
+			return count == 1
+		},
+		initialSyncDelay+30*time.Second,
+		50*time.Millisecond,
+		"the sync alarm never ran",
+	)
 }
 
 // newSyncActorForTest starts a test actor host and allocates the sync actor against it
