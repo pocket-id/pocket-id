@@ -110,17 +110,13 @@ func (s *UserGroupService) Delete(ctx context.Context, cfg *appconfig.AppConfigM
 }
 
 func (s *UserGroupService) Create(ctx context.Context, input dto.UserGroupCreateDto) (group model.UserGroup, err error) {
-	return s.createInternal(ctx, input, s.db)
+	return s.CreateInternal(ctx, input, s.db)
 }
 
 // CreateInternal creates a user group within an existing transaction
 // It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
 func (s *UserGroupService) CreateInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (model.UserGroup, error) {
-	return s.createInternal(ctx, input, tx)
-}
-
-func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGroupCreateDto, tx *gorm.DB) (group model.UserGroup, err error) {
-	group = model.UserGroup{
+	group := model.UserGroup{
 		FriendlyName: input.FriendlyName,
 		Name:         input.Name,
 	}
@@ -129,7 +125,7 @@ func (s *UserGroupService) createInternal(ctx context.Context, input dto.UserGro
 		group.LdapID = &input.LdapID
 	}
 
-	err = tx.
+	err := tx.
 		WithContext(ctx).
 		Preload("Users").
 		Create(&group).
@@ -213,7 +209,7 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 		tx.Rollback()
 	}()
 
-	group, err = s.updateUsersInternal(ctx, id, userIds, tx)
+	group, err = s.UpdateUsersInternal(ctx, id, userIds, tx)
 	if err != nil {
 		return model.UserGroup{}, err
 	}
@@ -229,11 +225,7 @@ func (s *UserGroupService) UpdateUsers(ctx context.Context, id string, userIds [
 // UpdateUsersInternal replaces the members of a user group within an existing transaction
 // It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
 func (s *UserGroupService) UpdateUsersInternal(ctx context.Context, id string, userIds []string, tx *gorm.DB) (model.UserGroup, error) {
-	return s.updateUsersInternal(ctx, id, userIds, tx)
-}
-
-func (s *UserGroupService) updateUsersInternal(ctx context.Context, id string, userIds []string, tx *gorm.DB) (group model.UserGroup, err error) {
-	group, err = s.getInternal(ctx, id, tx)
+	group, err := s.getInternal(ctx, id, tx)
 	if err != nil {
 		return model.UserGroup{}, err
 	}

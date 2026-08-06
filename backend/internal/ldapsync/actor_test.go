@@ -82,7 +82,7 @@ func TestSyncActorBootstrapWithScheduleDisabledAndNoAlarm(t *testing.T) {
 
 func TestSyncActorAlarmRunsSync(t *testing.T) {
 	appCfg := defaultTestLDAPAppConfig()
-	service, db := newTestLdapServiceWithAppConfig(t, appCfg, newFakeLDAPClient(
+	service, db := newTestLdapService(t, newFakeLDAPClient(
 		ldapSearchResult(
 			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
 				"entryUUID":   {"u-alice"},
@@ -106,8 +106,7 @@ func TestSyncActorAlarmRunsSync(t *testing.T) {
 }
 
 func TestSyncActorAlarmSkipsSyncWhenLdapIsDisabled(t *testing.T) {
-	appCfg := defaultTestLDAPAppConfig()
-	service, db := newTestLdapServiceWithAppConfig(t, appCfg, newFakeLDAPClient(
+	service, db := newTestLdapService(t, newFakeLDAPClient(
 		ldapSearchResult(
 			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
 				"entryUUID": {"u-alice"},
@@ -160,7 +159,7 @@ func TestSyncActorAlarmRejectsUnknownAlarm(t *testing.T) {
 func TestSyncActorRegisteredSingletonBootstrapsAndFires(t *testing.T) {
 	// This exercises the wiring the unit tests above bypass: the host bootstraps the singleton on its own, and the alarm it arms is delivered back to the actor
 	appCfg := defaultTestLDAPAppConfig()
-	service, db := newTestLdapServiceWithAppConfig(t, appCfg, newFakeLDAPClient(
+	service, db := newTestLdapService(t, newFakeLDAPClient(
 		ldapSearchResult(
 			ldapEntry("uid=alice,ou=people,dc=example,dc=com", map[string][]string{
 				"entryUUID":   {"u-alice"},

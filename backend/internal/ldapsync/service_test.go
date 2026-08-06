@@ -159,7 +159,7 @@ func TestLdapServiceSyncAllMapsPosixGroupMemberUid(t *testing.T) {
 	appCfg.LdapUserGroupSearchFilter = "(objectClass=posixGroup)"
 	appCfg.LdapAttributeGroupMember = "memberUid"
 
-	service, db := newTestLdapServiceWithAppConfig(t, appCfg, newFakeLDAPClient(
+	service, db := newTestLdapService(t, newFakeLDAPClient(
 		ldapSearchResult(
 			ldapEntry("uid=alice,ou=users,dc=example,dc=com", map[string][]string{
 				"entryUUID":   {"u-alice"},
@@ -288,7 +288,7 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, db := newTestLdapServiceWithAppConfig(t, tt.appConfig, newFakeLDAPClient(
+			service, db := newTestLdapService(t, newFakeLDAPClient(
 				ldapSearchResult(
 					ldapEntry("uid=testadmin,ou=people,dc=example,dc=com", map[string][]string{
 						"entryUUID":   {"u-testadmin"},
@@ -318,12 +318,6 @@ func TestLdapServiceSyncAllSetsAdminFromGroupMembership(t *testing.T) {
 }
 
 func newTestLdapService(t *testing.T, client ldapClient) (*Service, *gorm.DB) {
-	t.Helper()
-
-	return newTestLdapServiceWithAppConfig(t, defaultTestLDAPAppConfig(), client)
-}
-
-func newTestLdapServiceWithAppConfig(t *testing.T, appConfigModel *appconfig.AppConfigModel, client ldapClient) (*Service, *gorm.DB) {
 	t.Helper()
 
 	db := testutils.NewDatabaseForTest(t)
