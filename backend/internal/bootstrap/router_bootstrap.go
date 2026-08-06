@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -467,21 +466,14 @@ func enrichRequestLog(c *gin.Context, record *slog.Record) *slog.Record {
 
 // tlsCertProvider holds certificates that can be dynamically reloaded
 type tlsCertProvider struct {
-	certMutex   sync.RWMutex
-	cert        *tls.Certificate
-	certFile    string
-	keyFile     string
-	forceReload atomic.Bool
+	certMutex sync.RWMutex
+	cert      *tls.Certificate
+	certFile  string
+	keyFile   string
 }
 
 // GetCertificate implements tls.GetCertificate interface for dynamic certificate loading
 func (p *tlsCertProvider) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	if p.forceReload.Load() {
-		p.certMutex.Lock()
-		p.forceReload.Store(false)
-		p.certMutex.Unlock()
-	}
-
 	p.certMutex.RLock()
 	defer p.certMutex.RUnlock()
 	return p.cert, nil
@@ -576,7 +568,6 @@ func (p *tlsCertProvider) StartWatching(ctx context.Context, watcher *fsnotify.W
 			if err := p.reloadCertificate(); err != nil {
 				slog.Error("Failed to reload TLS certificate", "error", err)
 			} else {
-				p.forceReload.Store(true)
 				slog.Info("TLS certificate reloaded successfully")
 			}
 
