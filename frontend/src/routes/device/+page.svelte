@@ -271,10 +271,10 @@
 				<Button
 					class="flex-1"
 					variant="secondary"
-					disabled={isLoading}
+					isLoading={deviceLoginDecision === 'deny' || isLoading}
 					onclick={() => decideDeviceLogin('deny')}
 				>
-					{#if deviceLoginDecision === 'deny'}<Spinner data-icon="inline-start" />{/if}
+					<Spinner data-icon="inline-start" />
 					{m.deny()}
 				</Button>
 				<Button class="flex-1" {isLoading} onclick={() => decideDeviceLogin('approve')}>

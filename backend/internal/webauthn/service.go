@@ -93,6 +93,10 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 
 	options, session, err := s.webAuthn.BeginRegistration(
 		&user,
+		gowebauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
+			AuthenticatorAttachment: authenticatorAttachment(dbConfig),
+			UserVerification:        userVerificationRequirement(dbConfig),
+		}),
 		gowebauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 		gowebauthn.WithExclusions(user.WebAuthnCredentialDescriptors()),
 		gowebauthn.WithExtensions(map[string]any{"credProps": true}), // Required for Firefox Android to properly save the key in Google password manager
@@ -128,7 +132,7 @@ func (s *Service) BeginRegistration(ctx context.Context, dbConfig *appconfig.App
 	}, nil
 }
 
-func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, userID string, r *http.Request, ipAddress string) (model.WebauthnCredential, error) {
+func (s *Service) VerifyRegistration(ctx context.Context, dbConfig *appconfig.AppConfigModel, sessionID string, userID string, r *http.Request, ipAddress string) (model.WebauthnCredential, error) {
 	tx := s.db.Begin()
 	defer func() {
 		tx.Rollback()
@@ -170,6 +174,9 @@ func (s *Service) VerifyRegistration(ctx context.Context, sessionID string, user
 	credential, err := s.webAuthn.FinishRegistration(&user, session, r)
 	if err != nil {
 		return model.WebauthnCredential{}, classifyPasskeyError(err, apperror.InvalidWebAuthnResponse)
+	}
+	if err := validateCredentialPolicy(dbConfig, credential); err != nil {
+		return model.WebauthnCredential{}, err
 	}
 
 	// Determine passkey name using AAGUID and User-Agent
@@ -214,8 +221,10 @@ func (s *Service) determinePasskeyName(aaguid []byte) string {
 	return "New Passkey" // Default fallback
 }
 
-func (s *Service) BeginLogin(ctx context.Context) (*PublicKeyCredentialRequestOptions, error) {
-	options, session, err := s.webAuthn.BeginDiscoverableLogin()
+func (s *Service) BeginLogin(ctx context.Context, dbConfig *appconfig.AppConfigModel) (*PublicKeyCredentialRequestOptions, error) {
+	options, session, err := s.webAuthn.BeginDiscoverableLogin(
+		gowebauthn.WithUserVerification(userVerificationRequirement(dbConfig)),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -406,6 +415,37 @@ func (s *Service) UpdateCredential(ctx context.Context, userID, credentialID, na
 // updateWebAuthnConfig updates the WebAuthn configuration with the app name as it can change during runtime
 func (s *Service) updateWebAuthnConfig(dbConfig *appconfig.AppConfigModel) {
 	s.webAuthn.Config.RPDisplayName = dbConfig.AppName.String()
+}
+
+func userVerificationRequirement(dbConfig *appconfig.AppConfigModel) protocol.UserVerificationRequirement {
+	if dbConfig.WebauthnUserVerification == "preferred" {
+		return protocol.VerificationPreferred
+	}
+
+	return protocol.VerificationRequired
+}
+
+func authenticatorAttachment(dbConfig *appconfig.AppConfigModel) protocol.AuthenticatorAttachment {
+	switch dbConfig.WebauthnAuthenticatorAttachment {
+	case "platform":
+		return protocol.Platform
+	case "cross-platform":
+		return protocol.CrossPlatform
+	default:
+		return ""
+	}
+}
+
+func allowsSyncedPasskeys(dbConfig *appconfig.AppConfigModel) bool {
+	return dbConfig.WebauthnAllowSyncedPasskeys != "false"
+}
+
+func validateCredentialPolicy(dbConfig *appconfig.AppConfigModel, credential *gowebauthn.Credential) error {
+	if !allowsSyncedPasskeys(dbConfig) && credential.Flags.BackupEligible {
+		return apperror.SyncedPasskeyNotAllowed()
+	}
+
+	return nil
 }
 
 func (s *Service) CreateReauthenticationTokenWithAccessToken(ctx context.Context, accessToken string) (string, error) {
