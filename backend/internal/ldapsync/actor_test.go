@@ -205,7 +205,7 @@ func TestSyncActorRegisteredSingletonBootstrapsAndFires(t *testing.T) {
 
 // newSyncActorForTest starts a test actor host and allocates the sync actor against it
 // The actor is not registered on the host, so the host never bootstraps or fires it on its own and the test drives it explicitly
-func newSyncActorForTest(t *testing.T, service *Service, appConfig AppConfigResolver, scheduleDisabled bool) (*local.Host, *syncActor) {
+func newSyncActorForTest(t *testing.T, service *Service, appConfig appconfig.AppConfigResolver, scheduleDisabled bool) (*local.Host, *syncActor) {
 	t.Helper()
 
 	host := testutils.NewActorHostForTest(t, nil)

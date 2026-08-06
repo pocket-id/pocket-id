@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/italypaleale/francis/actor"
+
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 )
 
 // The LdapSync singleton actor decides when the recurring LDAP synchronization runs.
@@ -34,14 +36,14 @@ const (
 type syncActor struct {
 	log       *slog.Logger
 	service   *Service
-	appConfig AppConfigResolver
+	appConfig appconfig.AppConfigResolver
 	// scheduleDisabled removes the alarm instead of arming it, for environments that drive syncs explicitly
 	scheduleDisabled bool
 	client           actor.Client[struct{}]
 }
 
 // NewSyncActor returns the factory that allocates the LDAP sync actor
-func NewSyncActor(service *Service, appConfig AppConfigResolver, scheduleDisabled bool) actor.Factory {
+func NewSyncActor(service *Service, appConfig appconfig.AppConfigResolver, scheduleDisabled bool) actor.Factory {
 	return func(actorID string, actorService *actor.Service) actor.Actor {
 		return &syncActor{
 			log: slog.With(

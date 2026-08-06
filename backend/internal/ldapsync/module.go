@@ -36,11 +36,6 @@ type GroupSyncer interface {
 	UpdateUsersInternal(ctx context.Context, id string, userIDs []string, tx *gorm.DB) (model.UserGroup, error)
 }
 
-// AppConfigResolver loads the current application configuration, which both the actor and the handler pass explicitly to the service
-type AppConfigResolver interface {
-	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
-}
-
 type Dependencies struct {
 	DB          *gorm.DB
 	Actors      *local.Host
@@ -49,7 +44,7 @@ type Dependencies struct {
 
 	Users     UserSyncer
 	Groups    GroupSyncer
-	AppConfig AppConfigResolver
+	AppConfig appconfig.AppConfigResolver
 
 	// ScheduleDisabled keeps the recurring sync from being armed
 	// It's set in the test environment, where syncs are driven explicitly by the end-to-end tests

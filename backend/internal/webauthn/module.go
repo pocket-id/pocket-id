@@ -24,18 +24,13 @@ type AuditLogger interface {
 	CreateNewSignInWithEmail(ctx context.Context, ipAddress, userAgent, userID string, tx *gorm.DB, emailLoginNotificationEnabled bool) model.AuditLog
 }
 
-// AppConfigResolver loads the current application configuration, so handlers can pass it explicitly to the service methods that need it
-type AppConfigResolver interface {
-	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
-}
-
 type Dependencies struct {
 	DB     *gorm.DB
 	AppURL string
 
 	Signer    TokenService
 	AuditLog  AuditLogger
-	AppConfig AppConfigResolver
+	AppConfig appconfig.AppConfigResolver
 }
 
 type Module struct {
