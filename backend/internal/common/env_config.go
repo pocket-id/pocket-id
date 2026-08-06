@@ -43,6 +43,9 @@ type EnvConfigSchema struct {
 	AppEnv                    AppEnv `env:"APP_ENV" options:"toLower"`
 	EncryptionKey             []byte `env:"ENCRYPTION_KEY" options:"file"`
 	AppURL                    string `env:"APP_URL" options:"toLower,trimTrailingSlash"`
+	// Extra allowed WebAuthn origins besides AppURL (comma-separated), e.g.
+	// "android:apk-key-hash:..." for native app WebViews using Credential Manager.
+	AdditionalWebauthnOrigins []string `env:"ADDITIONAL_WEBAUTHN_ORIGINS"`
 	DbProvider                DbProvider
 	DbConnectionString        string           `env:"DB_CONNECTION_STRING" options:"file"`
 	TrustProxy                TrustProxyConfig `env:"TRUST_PROXY"`

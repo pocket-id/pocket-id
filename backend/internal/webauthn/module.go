@@ -32,6 +32,9 @@ type AppConfigResolver interface {
 type Dependencies struct {
 	DB     *gorm.DB
 	AppURL string
+	// Extra allowed WebAuthn origins besides AppURL (e.g. Android apk-key-hash
+	// origins for native app WebViews).
+	AdditionalOrigins []string
 
 	Signer    TokenService
 	AuditLog  AuditLogger

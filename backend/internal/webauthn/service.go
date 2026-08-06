@@ -41,7 +41,7 @@ func newService(deps Dependencies) (*Service, error) {
 		// Set a default value, it will be set again later
 		RPDisplayName: defaultRPDisplayName,
 		RPID:          utils.GetHostnameFromURL(deps.AppURL),
-		RPOrigins:     []string{deps.AppURL},
+		RPOrigins:     append([]string{deps.AppURL}, deps.AdditionalOrigins...),
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
 			UserVerification: protocol.VerificationRequired,
 		},
