@@ -89,7 +89,8 @@ func RegisterFrontend(router *gin.Engine) error {
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.Header("Cache-Control", "no-store")
 			c.Status(http.StatusOK)
-			if err := writeIndexFn(c.Writer, nonce); err != nil {
+			err = writeIndexFn(c.Writer, nonce)
+			if err != nil {
 				_ = c.Error(fmt.Errorf("failed to write index.html file: %w", err))
 			}
 			return
