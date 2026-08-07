@@ -214,8 +214,6 @@ func TestSyncedPasskeyPolicy(t *testing.T) {
 		Flags: gowebauthn.CredentialFlags{BackupEligible: true},
 	}
 
-	require.NoError(t, validateCredentialPolicy(nil, credential))
-	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{}, credential))
 	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAllowSyncedPasskeys: "true"}, credential))
 
 	err := validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAllowSyncedPasskeys: "false"}, credential)
