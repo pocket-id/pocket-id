@@ -437,7 +437,7 @@ func authenticatorAttachment(dbConfig *appconfig.AppConfigModel) protocol.Authen
 }
 
 func allowsSyncedPasskeys(dbConfig *appconfig.AppConfigModel) bool {
-	return dbConfig.WebauthnAllowSyncedPasskeys != "false"
+	return dbConfig.WebauthnAllowSyncedPasskeys.IsTrue()
 }
 
 func validateCredentialPolicy(dbConfig *appconfig.AppConfigModel, credential *gowebauthn.Credential) error {
