@@ -10,7 +10,8 @@
     "dev": "pnpm --filter pocket-id-frontend dev",
     "build": "pnpm --filter pocket-id-frontend build",
     "test": "pnpm --filter pocket-id-tests test",
-    "format": "pnpm --filter pocket-id-frontend format"
+    "format": "pnpm --filter pocket-id-frontend format",
+    "check": "pnpm --filter pocket-id-frontend check"
   },
-  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
+  "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee"
 }
