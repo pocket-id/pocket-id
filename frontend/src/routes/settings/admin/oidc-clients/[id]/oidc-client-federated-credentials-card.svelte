@@ -18,7 +18,9 @@
 	} = $props();
 
 	let isLoading = $state(false);
-	const isCIMDClient = $derived(client.clientType === 'cimd');
+	// Self-managed clients (CIMD documents, dynamically registered clients) source
+	// their credentials externally, so they are read-only here.
+	const isSelfManaged = $derived(client.clientType === 'cimd' || client.clientType === 'dynamic');
 
 	const formSchema = z.object({
 		credentials: z.object({
@@ -66,7 +68,7 @@
 	}
 
 	async function onSubmit() {
-		if (isCIMDClient) return;
+		if (isSelfManaged) return;
 
 		const data = form.validate();
 		if (!data) return;
@@ -95,7 +97,7 @@
 					</Card.Description>
 				</div>
 				{#if !hasFederatedIdentities}
-					<Button disabled={isCIMDClient} onclick={addFederatedIdentity}>
+					<Button disabled={isSelfManaged} onclick={addFederatedIdentity}>
 						{m.create()}
 					</Button>
 				{/if}
@@ -107,12 +109,12 @@
 					<FederatedIdentitiesInput
 						bind:federatedIdentities={$inputs.credentials.value.federatedIdentities}
 						errors={getFederatedIdentityErrors($errors)}
-						disabled={isCIMDClient}
+						disabled={isSelfManaged}
 					/>
 				</Card.Content>
 			</div>
 		{/if}
-		{#if !isCIMDClient && hasFederatedIdentities}
+		{#if !isSelfManaged && hasFederatedIdentities}
 			<Card.Footer class="justify-end">
 				<Button type="submit" disabled={isLoading}>{m.save()}</Button>
 			</Card.Footer>

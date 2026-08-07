@@ -40,7 +40,11 @@
 	let darkLogoDataURL: string | null = $state(
 		existingClient?.hasDarkLogo ? cachedOidcClientLogo.getUrl(existingClient!.id, false) : null
 	);
-	const isCIMDClient = $derived(existingClient?.clientType === 'cimd');
+	// Self-managed clients (CIMD, dynamically registered) source their basic data
+	// externally, so those fields are read-only in the admin UI.
+	const isSelfManaged = $derived(
+		existingClient?.clientType === 'cimd' || existingClient?.clientType === 'dynamic'
+	);
 
 	const client = {
 		id: '',
@@ -192,7 +196,7 @@
 			class="w-full"
 			description={m.client_name_description()}
 			bind:input={$inputs.name}
-			disabled={isCIMDClient}
+			disabled={isSelfManaged}
 		/>
 		<FormInput
 			label={m.client_description()}
@@ -213,7 +217,7 @@
 			class="w-full"
 			bind:callbackURLs={$inputs.callbackURLs.value}
 			bind:error={$inputs.callbackURLs.error}
-			disabled={isCIMDClient}
+			disabled={isSelfManaged}
 		/>
 		<OidcCallbackUrlInput
 			label={m.logout_callback_urls()}
@@ -221,7 +225,7 @@
 			class="w-full"
 			bind:callbackURLs={$inputs.logoutCallbackURLs.value}
 			bind:error={$inputs.logoutCallbackURLs.error}
-			disabled={isCIMDClient}
+			disabled={isSelfManaged}
 		/>
 		<div>
 			<SwitchWithLabel
@@ -234,7 +238,7 @@
 					}
 				}}
 				bind:checked={$inputs.isPublic.value}
-				disabled={isCIMDClient}
+				disabled={isSelfManaged}
 			/>
 		</div>
 		<div
@@ -246,7 +250,7 @@
 				id="pkce"
 				label={m.pkce()}
 				description={m.proof_key_code_exchange_is_a_security_feature_to_prevent_csrf_and_authorization_code_interception_attacks()}
-				disabled={isCIMDClient || $inputs.isPublic.value}
+				disabled={isSelfManaged || $inputs.isPublic.value}
 				bind:checked={$inputs.pkceEnabled.value}
 			/>
 		</div>

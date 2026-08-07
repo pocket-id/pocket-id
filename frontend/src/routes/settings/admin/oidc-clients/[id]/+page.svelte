@@ -47,6 +47,10 @@
 	let showAllDetails = $state(false);
 	let showPreview = $state(false);
 
+	// Self-managed clients (CIMD, dynamically registered) have their basic data
+	// sourced externally and are read-only in the admin UI.
+	const isSelfManaged = $derived(client.clientType === 'cimd' || client.clientType === 'dynamic');
+
 	const oidcService = new OidcService();
 	const scimService = new ScimService();
 	const backNavigation = backNavigate('/settings/admin/oidc-clients');
@@ -255,12 +259,18 @@
 	</Alert.Root>
 {/if}
 
-{#if client.clientType === 'cimd'}
+{#if isSelfManaged}
 	<Alert.Root variant="info">
 		<LucideInfo class="size-4" />
-		<Alert.Title>{m.cimd_client_managed_fields_title()}</Alert.Title>
+		<Alert.Title>
+			{client.clientType === 'cimd'
+				? m.cimd_client_managed_fields_title()
+				: m.dynamic_client_managed_fields_title()}
+		</Alert.Title>
 		<Alert.Description>
-			{m.cimd_client_managed_fields_description()}
+			{client.clientType === 'cimd'
+				? m.cimd_client_managed_fields_description()
+				: m.dynamic_client_managed_fields_description()}
 		</Alert.Description>
 	</Alert.Root>
 {/if}

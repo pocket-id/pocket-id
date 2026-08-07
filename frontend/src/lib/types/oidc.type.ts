@@ -1,6 +1,6 @@
 import type { UserGroup } from './user-group.type';
 
-export type OidcClientType = 'standard' | 'cimd';
+export type OidcClientType = 'standard' | 'cimd' | 'dynamic';
 
 export type OidcClientMetaData = {
 	id: string;

@@ -58,6 +58,7 @@ export type AllAppConfig = AppConfig & {
 	webauthnAuthenticatorAttachment: 'any' | 'platform' | 'cross-platform';
 	// OIDC
 	cimdUrlAllowlist: string[];
+	dynamicClientRedirectUriAllowlist: string[];
 };
 
 export type AppConfigRawResponse = {
