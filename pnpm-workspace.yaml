@@ -3,11 +3,9 @@ packages:
   - tests
   - email-templates
 
-onlyBuiltDependencies:
-  - esbuild
-  - sharp
-
-minimumReleaseAge: 1440
+allowBuilds:
+  esbuild: true
+  sharp: true
 
 overrides:
   esbuild@>=0.27.3 <0.28.1: ">=0.28.1"
