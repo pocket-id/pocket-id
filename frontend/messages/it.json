@@ -129,7 +129,7 @@
 	"allow_synced_passkeys_description": "Consenti l'uso di nuove passkey che possano essere salvate e utilizzate su più dispositivi.",
 	"allowed_authenticator_type": "Tipi di autenticatori consentiti",
 	"allowed_authenticator_type_description": "Scegli quale tipo di autenticatore gli utenti possono utilizzare quando registrano una nuova passkey.",
-	"any_authenticator": "Qualsiasi password",
+	"any_authenticator": "Qualsiasi autenticatore",
 	"any_authenticator_description": "Consenti sia i passkey dei dispositivi che le chiavi di sicurezza esterne.",
 	"device_passkeys_only": "Solo chiavi di accesso dei dispositivi",
 	"device_passkeys_only_description": "Consenti solo le passkey integrate nel dispositivo dell'utente.",
