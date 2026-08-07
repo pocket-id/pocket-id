@@ -9,6 +9,7 @@
 	import { axiosErrorToast } from '$lib/utils/error-util';
 	import { LucideInfo } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import AppConfigDcrForm from './forms/app-config-dcr-form.svelte';
 	import AppConfigDynamicClientsForm from './forms/app-config-dynamic-clients-form.svelte';
 	import AppConfigEmailForm from './forms/app-config-email-form.svelte';
 	import AppConfigGeneralForm from './forms/app-config-general-form.svelte';
@@ -200,6 +201,16 @@
 			</Card.Header>
 			<Card.Content>
 				<AppConfigDynamicClientsForm {appConfig} callback={updateAppConfig} />
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root class="mt-4">
+			<Card.Header>
+				<Card.Title>{m.dynamic_client_registration()}</Card.Title>
+				<Card.Description>{m.dynamic_client_registration_description()}</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<AppConfigDcrForm {appConfig} callback={updateAppConfig} />
 			</Card.Content>
 		</Card.Root>
 	</Tabs.Content>

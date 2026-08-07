@@ -168,6 +168,10 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 		rateLimitMiddleware.Add(middleware.RateLimitDeviceLoginVerification),
 	)
 	controller.NewOidcController(apiGroup, authMiddleware, fileSizeLimitMiddleware, svc.oidcService)
+	controller.NewOidcRegistrationController(apiGroup, svc.oidcService,
+		rateLimitMiddleware.Add(middleware.RateLimitClientRegistration),
+		rateLimitMiddleware.Add(middleware.RateLimitClientConfiguration),
+	)
 	controller.NewUserController(apiGroup, authMiddleware, svc.appConfigService, svc.userService, svc.webauthnModule)
 	controller.NewAppConfigController(apiGroup, authMiddleware, svc.appConfigService, svc.emailModule)
 	svc.ldapSyncModule.RegisterRoutes(apiGroup, authMiddleware.Add())
@@ -200,7 +204,7 @@ func registerRoutes(r *gin.Engine, db *gorm.DB, svc *services, rateLimitServices
 
 	registerTestRoutes(apiGroup, db, svc)
 
-	controller.NewWellKnownController(baseGroup, svc.jwtService, svc.appConfigService.GetCIMDURLAllowlist)
+	controller.NewWellKnownController(baseGroup, svc.jwtService, svc.appConfigService.GetCIMDURLAllowlist, svc.appConfigService.GetDynamicClientRedirectUriAllowlist)
 
 	// These are not rate-limited.
 	controller.NewHealthzController(r)

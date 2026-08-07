@@ -391,3 +391,46 @@ func TestService_CIMDURLAllowlist(t *testing.T) {
 		assert.Empty(t, svc.GetCIMDURLAllowlist())
 	})
 }
+
+func TestService_DynamicClientRedirectUriAllowlist(t *testing.T) {
+	t.Run("defaults to empty", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+		assert.Empty(t, svc.GetDynamicClientRedirectUriAllowlist())
+	})
+
+	t.Run("round-trips a valid allowlist", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+			AppName:                           "App",
+			SessionDuration:                   "60",
+			DynamicClientRedirectUriAllowlist: `["https://app.example.com/**"]`,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"https://app.example.com/**"}, svc.GetDynamicClientRedirectUriAllowlist())
+	})
+
+	t.Run("rejects an invalid pattern", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+		_, err := svc.UpdateAppConfig(t.Context(), dto.AppConfigUpdateDto{
+			AppName:                           "App",
+			SessionDuration:                   "60",
+			DynamicClientRedirectUriAllowlist: `["javascript:alert(1)"]`,
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("returns empty on malformed value", func(t *testing.T) {
+		setUIConfigDisabled(t, false)
+		db := testutils.NewDatabaseForTest(t)
+		svc := newActorBackedService(t, db)
+
+		require.NoError(t, svc.UpdateAppConfigValues(t.Context(), "dynamicClientRedirectUriAllowlist", "not-json"))
+		assert.Empty(t, svc.GetDynamicClientRedirectUriAllowlist())
+	})
+}

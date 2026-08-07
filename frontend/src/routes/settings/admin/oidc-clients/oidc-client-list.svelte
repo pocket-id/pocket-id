@@ -33,7 +33,8 @@
 
 	const clientTypeFilterValues = [
 		{ label: m.client_type_standard(), value: 'standard' },
-		{ label: m.client_type_metadata_document(), value: 'cimd' }
+		{ label: m.client_type_metadata_document(), value: 'cimd' },
+		{ label: m.client_type_dynamic(), value: 'dynamic' }
 	];
 
 	const columns: AdvancedTableColumn<OidcClientWithAllowedUserGroupsCount>[] = [
@@ -58,7 +59,11 @@
 			sortable: true,
 			filterableValues: clientTypeFilterValues,
 			value: (item) =>
-				item.clientType === 'cimd' ? m.client_type_metadata_document() : m.client_type_standard()
+				item.clientType === 'cimd'
+					? m.client_type_metadata_document()
+					: item.clientType === 'dynamic'
+						? m.client_type_dynamic()
+						: m.client_type_standard()
 		},
 		{
 			label: m.pkce(),

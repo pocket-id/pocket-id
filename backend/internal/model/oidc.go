@@ -24,7 +24,10 @@ type OidcClientType string
 
 const (
 	OidcClientTypeStandard OidcClientType = "standard"
-	OidcClientTypeCIMD     OidcClientType = "cimd"
+	// OAuth Client ID Metadata Document
+	OidcClientTypeCIMD OidcClientType = "cimd"
+	// Dynamically registered via OpenID Connect Dynamic Client Registration
+	OidcClientTypeDynamic OidcClientType = "dynamic"
 
 	// DefaultAccessTokenDurationMinutes is the access-token lifetime used for new clients
 	DefaultAccessTokenDurationMinutes int64 = 60
@@ -60,6 +63,7 @@ type OidcClient struct {
 	MetadataGrantTypes                  datatype.StringList
 	AccessTokenDurationMinutes          int64 `gorm:"default:60"`
 	RefreshTokenDurationMinutes         int64 `gorm:"default:43200"`
+	RegistrationAccessTokenHash         *string
 
 	AllowedUserGroups         []UserGroup `gorm:"many2many:oidc_clients_allowed_user_groups;"`
 	CreatedByID               *string
@@ -84,6 +88,17 @@ func (c OidcClient) HasDarkLogo() bool {
 // Client ID Metadata Document. Its ID is then the https URL of the document.
 func (c OidcClient) IsMetadataDocument() bool {
 	return c.ClientType == OidcClientTypeCIMD
+}
+
+// IsDynamic reports whether the client was created via Dynamic Client Registration.
+func (c OidcClient) IsDynamic() bool {
+	return c.ClientType == OidcClientTypeDynamic
+}
+
+// IsSelfManaged reports whether the client's basic data is managed outside the admin
+// UI (CIMD documents and dynamically-registered clients).
+func (c OidcClient) IsSelfManaged() bool {
+	return c.ClientType == OidcClientTypeCIMD || c.ClientType == OidcClientTypeDynamic
 }
 
 type OidcClientCredentials struct { //nolint:recvcheck

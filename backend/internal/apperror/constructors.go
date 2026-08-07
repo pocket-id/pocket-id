@@ -291,3 +291,36 @@ func OidcPARRequired() *Error {
 func InvalidEmailVerificationToken() *Error {
 	return New(CodeEmailVerificationTokenInvalid, http.StatusBadRequest, "Email verification token is invalid")
 }
+
+// InvalidDynamicClientRedirectURIPattern is returned when the dynamic client
+// redirect URI allowlist contains a pattern that is not a valid URL pattern.
+func InvalidDynamicClientRedirectURIPattern(pattern string) *Error {
+	return New(CodeValidationFailed, http.StatusBadRequest, "Dynamic client redirect URI pattern is invalid").
+		WithDetail("pattern", pattern).
+		WithFields([]FieldError{{
+			Field:   "dynamicClientRedirectUriAllowlist",
+			Code:    "invalid_value",
+			Message: "contains an invalid URL pattern",
+		}})
+}
+
+// InvalidRegistrationToken is returned when the registration access token presented
+// to an RFC 7592 client-configuration endpoint does not authenticate the client.
+// The same error is returned for an unknown client so the endpoints cannot be used
+// to enumerate client IDs.
+func InvalidRegistrationToken() *Error {
+	return New(CodeInvalidToken, http.StatusUnauthorized, "Registration access token is invalid")
+}
+
+// InvalidRegistrationRedirectURI is returned when a dynamically registered client
+// requests a redirect URI that is not permitted. message must be a complete,
+// client-safe sentence explaining the rejection.
+func InvalidRegistrationRedirectURI(uri, message string) *Error {
+	return New(CodeValidationFailed, http.StatusBadRequest, message).
+		WithDetail("redirect_uri", uri).
+		WithFields([]FieldError{{
+			Field:   "redirect_uris",
+			Code:    "invalid_value",
+			Message: message,
+		}})
+}
