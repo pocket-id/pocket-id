@@ -34,7 +34,10 @@ func NewOidcController(group *gin.RouterGroup, authMiddleware *middleware.AuthMi
 	group.DELETE("/oidc/clients/:id", authMiddleware.Add(), httpserver.Handle(oc.deleteClientHandler))
 
 	group.PUT("/oidc/clients/:id/allowed-user-groups", authMiddleware.Add(), httpserver.Handle(oc.updateAllowedUserGroupsHandler))
-	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), httpserver.Handle(oc.createClientSecretHandler))
+	group.POST("/oidc/clients/:id/secret", authMiddleware.Add(), httpserver.Handle(oc.replaceClientSecretHandler))
+	group.GET("/oidc/clients/:id/secrets", authMiddleware.Add(), httpserver.Handle(oc.listClientSecretsHandler))
+	group.POST("/oidc/clients/:id/secrets", authMiddleware.Add(), httpserver.Handle(oc.createClientSecretHandler))
+	group.DELETE("/oidc/clients/:id/secrets/:secretId", authMiddleware.Add(), httpserver.Handle(oc.deleteClientSecretHandler))
 
 	group.GET("/oidc/clients/:id/logo", httpserver.Handle(oc.getClientLogoHandler))
 	group.DELETE("/oidc/clients/:id/logo", authMiddleware.Add(), httpserver.Handle(oc.deleteClientLogoHandler))
@@ -250,28 +253,101 @@ func (oc *OidcController) refreshClientMetadataHandler(c *gin.Context) error {
 	return nil
 }
 
-// createClientSecretHandler godoc
-// @Summary Create client secret
-// @Description Set or generate a new secret for an OIDC client
+// replaceClientSecretHandler godoc
+// @Summary Replace client secrets
+// @Description Set or generate a new secret for an OIDC client, removing all of its existing secrets. Deprecated: use POST /api/oidc/clients/{id}/secrets to add a secret without invalidating the existing ones.
 // @Tags OIDC
 // @Accept json
 // @Produce json
 // @Param id path string true "Client ID"
-// @Param payload body dto.OidcClientSecretDto false "Client secret"
+// @Param payload body dto.OidcClientSecretCreateDto false "Client secret"
 // @Success 200 {object} object "{ \"secret\": \"string\" }"
+// @Deprecated true
 // @Router /api/oidc/clients/{id}/secret [post]
-func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
-	var input dto.OidcClientSecretDto
+func (oc *OidcController) replaceClientSecretHandler(c *gin.Context) error {
+	var input dto.OidcClientSecretCreateDto
 	if err := httpserver.BindOptionalJSON(c, &input); err != nil {
 		return err
 	}
 
-	secret, err := oc.oidcService.CreateClientSecret(c.Request.Context(), c.Param("id"), input)
+	_, secret, err := oc.oidcService.ReplaceClientSecrets(c.Request.Context(), c.Param("id"), input)
 	if err != nil {
 		return err
 	}
 
 	c.JSON(http.StatusOK, gin.H{"secret": secret})
+	return nil
+}
+
+// listClientSecretsHandler godoc
+// @Summary List client secrets
+// @Description List the secrets of an OIDC client, without disclosing their values
+// @Tags OIDC
+// @Produce json
+// @Param id path string true "Client ID"
+// @Success 200 {array} dto.OidcClientSecretDto "Client secrets"
+// @Router /api/oidc/clients/{id}/secrets [get]
+func (oc *OidcController) listClientSecretsHandler(c *gin.Context) error {
+	secrets, err := oc.oidcService.ListClientSecrets(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		return err
+	}
+
+	var secretsDto []dto.OidcClientSecretDto
+	if err := dto.MapStructList(secrets, &secretsDto); err != nil {
+		return err
+	}
+
+	c.JSON(http.StatusOK, secretsDto)
+	return nil
+}
+
+// createClientSecretHandler godoc
+// @Summary Create client secret
+// @Description Add a new secret to an OIDC client, leaving the existing ones usable. The value is only returned by this endpoint and cannot be retrieved later.
+// @Tags OIDC
+// @Accept json
+// @Produce json
+// @Param id path string true "Client ID"
+// @Param payload body dto.OidcClientSecretCreateDto false "Client secret"
+// @Success 201 {object} dto.OidcClientSecretCreatedDto "Created client secret"
+// @Router /api/oidc/clients/{id}/secrets [post]
+func (oc *OidcController) createClientSecretHandler(c *gin.Context) error {
+	var input dto.OidcClientSecretCreateDto
+	if err := httpserver.BindOptionalJSON(c, &input); err != nil {
+		return err
+	}
+
+	created, secret, err := oc.oidcService.CreateClientSecret(c.Request.Context(), c.Param("id"), input)
+	if err != nil {
+		return err
+	}
+
+	var secretDto dto.OidcClientSecretCreatedDto
+	if err := dto.MapStruct(created, &secretDto); err != nil {
+		return err
+	}
+	secretDto.Secret = secret
+
+	c.JSON(http.StatusCreated, secretDto)
+	return nil
+}
+
+// deleteClientSecretHandler godoc
+// @Summary Delete client secret
+// @Description Delete a single secret of an OIDC client, making it immediately unusable
+// @Tags OIDC
+// @Param id path string true "Client ID"
+// @Param secretId path string true "Client secret ID"
+// @Success 204 "No content"
+// @Router /api/oidc/clients/{id}/secrets/{secretId} [delete]
+func (oc *OidcController) deleteClientSecretHandler(c *gin.Context) error {
+	err := oc.oidcService.DeleteClientSecret(c.Request.Context(), c.Param("id"), c.Param("secretId"))
+	if err != nil {
+		return err
+	}
+
+	c.Status(http.StatusNoContent)
 	return nil
 }
 
