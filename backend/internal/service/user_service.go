@@ -196,7 +196,7 @@ func (s *UserService) UpdateProfilePicture(ctx context.Context, userID string, f
 
 func (s *UserService) DeleteUser(ctx context.Context, dbConfig *appconfig.AppConfigModel, userID string, allowLdapDelete bool) error {
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		return s.deleteUserInternal(ctx, tx, userID, allowLdapDelete, dbConfig)
+		return s.DeleteUserInternal(ctx, dbConfig, tx, userID, allowLdapDelete)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete user '%s': %w", userID, err)
@@ -212,7 +212,10 @@ func (s *UserService) DeleteUser(ctx context.Context, dbConfig *appconfig.AppCon
 	return nil
 }
 
-func (s *UserService) deleteUserInternal(ctx context.Context, tx *gorm.DB, userID string, allowLdapDelete bool, cfg *appconfig.AppConfigModel) error {
+// DeleteUserInternal deletes a user within an existing transaction
+// It's exported for the LDAP sync, which deletes users that are no longer in the directory
+// Note that the caller is responsible for removing the user's profile picture from the storage layer, which must happen outside of the transaction
+func (s *UserService) DeleteUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, tx *gorm.DB, userID string, allowLdapDelete bool) error {
 	var user model.User
 	err := tx.
 		WithContext(ctx).
@@ -439,7 +442,7 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 		tx.Rollback()
 	}()
 
-	user, err := s.updateUserInternal(ctx, userID, updatedUser, updateOwnUser, isLdapSync, tx, cfg)
+	user, err := s.UpdateUserInternal(ctx, cfg, userID, updatedUser, updateOwnUser, isLdapSync, tx)
 	if err != nil {
 		return model.User{}, err
 	}
@@ -452,7 +455,9 @@ func (s *UserService) UpdateUser(ctx context.Context, cfg *appconfig.AppConfigMo
 	return user, nil
 }
 
-func (s *UserService) updateUserInternal(ctx context.Context, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB, cfg *appconfig.AppConfigModel) (model.User, error) {
+// UpdateUserInternal updates a user within an existing transaction
+// It's exported for the LDAP sync, which reconciles users and groups in a single transaction of its own
+func (s *UserService) UpdateUserInternal(ctx context.Context, cfg *appconfig.AppConfigModel, userID string, updatedUser dto.UserCreateDto, updateOwnUser bool, isLdapSync bool, tx *gorm.DB) (model.User, error) {
 	if cfg.RequireUserEmail.IsTrue() && updatedUser.Email == nil {
 		return model.User{}, apperror.MissingField("email")
 	}
@@ -643,7 +648,9 @@ func (s *UserService) ResetProfilePicture(ctx context.Context, userID string) er
 	return nil
 }
 
-func (s *UserService) disableUserInternal(ctx context.Context, tx *gorm.DB, userID string) error {
+// DisableUserInternal disables a user within an existing transaction
+// It's exported for the LDAP sync, which soft-deletes users that are no longer in the directory
+func (s *UserService) DisableUserInternal(ctx context.Context, tx *gorm.DB, userID string) error {
 	err := tx.
 		WithContext(ctx).
 		Model(&model.User{}).

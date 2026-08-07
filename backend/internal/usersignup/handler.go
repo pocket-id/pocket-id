@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
@@ -18,10 +19,10 @@ const defaultSignupTokenDuration = time.Hour
 
 type handler struct {
 	service   *Service
-	appConfig AppConfigResolver
+	appConfig appconfig.AppConfigResolver
 }
 
-func newHandler(service *Service, appConfig AppConfigResolver) *handler {
+func newHandler(service *Service, appConfig appconfig.AppConfigResolver) *handler {
 	return &handler{service: service, appConfig: appConfig}
 }
 

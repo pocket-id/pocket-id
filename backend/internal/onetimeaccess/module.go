@@ -31,11 +31,6 @@ type UserProvider interface {
 	GetUser(ctx context.Context, userID string) (model.User, error)
 }
 
-// AppConfigResolver loads the current application configuration, so handlers can pass it explicitly to the service methods that need it
-type AppConfigResolver interface {
-	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
-}
-
 type Dependencies struct {
 	DB     *gorm.DB
 	Actors *local.Host
@@ -44,7 +39,7 @@ type Dependencies struct {
 	AuditLog     AuditLogger
 	UserProvider UserProvider
 	EmailSender  EmailSender
-	AppConfig    AppConfigResolver
+	AppConfig    appconfig.AppConfigResolver
 }
 
 type Module struct {

@@ -11,7 +11,6 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/middleware"
-	"github.com/pocket-id/pocket-id/backend/internal/service"
 	"github.com/pocket-id/pocket-id/backend/internal/tracing"
 )
 
@@ -28,26 +27,22 @@ func NewAppConfigController(
 	authMiddleware *middleware.AuthMiddleware,
 	appConfigService *appconfig.AppConfigService,
 	emailSender TestEmailSender,
-	ldapService *service.LdapService,
 ) {
 
 	acc := &AppConfigController{
 		appConfigService: appConfigService,
 		emailSender:      emailSender,
-		ldapService:      ldapService,
 	}
 	group.GET("/application-configuration", httpserver.Handle(acc.listAppConfigHandler))
 	group.GET("/application-configuration/all", authMiddleware.Add(), httpserver.Handle(acc.listAllAppConfigHandler))
 	group.PUT("/application-configuration", authMiddleware.Add(), httpserver.Handle(acc.updateAppConfigHandler))
 
 	group.POST("/application-configuration/test-email", authMiddleware.Add(), httpserver.Handle(acc.testEmailHandler))
-	group.POST("/application-configuration/sync-ldap", authMiddleware.Add(), httpserver.Handle(acc.syncLdapHandler))
 }
 
 type AppConfigController struct {
 	appConfigService *appconfig.AppConfigService
 	emailSender      TestEmailSender
-	ldapService      *service.LdapService
 }
 
 // listAppConfigHandler godoc
@@ -137,27 +132,6 @@ func (acc *AppConfigController) updateAppConfigHandler(c *gin.Context) error {
 	}
 
 	c.JSON(http.StatusOK, configVariablesDto)
-	return nil
-}
-
-// syncLdapHandler godoc
-// @Summary Synchronize LDAP
-// @Description Manually trigger LDAP synchronization
-// @Tags Application Configuration
-// @Success 204 "No Content"
-// @Router /api/application-configuration/sync-ldap [post]
-func (acc *AppConfigController) syncLdapHandler(c *gin.Context) error {
-	dbConfig, err := acc.appConfigService.GetConfig(c.Request.Context())
-	if err != nil {
-		return err
-	}
-
-	err = acc.ldapService.SyncAll(c.Request.Context(), dbConfig)
-	if err != nil {
-		return err
-	}
-
-	c.Status(http.StatusNoContent)
 	return nil
 }
 
