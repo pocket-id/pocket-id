@@ -27,11 +27,6 @@ type UserCreator interface {
 	CreateUserInternal(ctx context.Context, dbConfig *appconfig.AppConfigModel, input dto.UserCreateDto, isLdapSync bool, tx *gorm.DB) (model.User, error)
 }
 
-// AppConfigResolver loads the current application configuration, so handlers can pass it explicitly to the service methods that need it
-type AppConfigResolver interface {
-	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
-}
-
 type Dependencies struct {
 	DB     *gorm.DB
 	Actors *local.Host
@@ -39,7 +34,7 @@ type Dependencies struct {
 	Signer      TokenService
 	AuditLog    AuditLogger
 	UserCreator UserCreator
-	AppConfig   AppConfigResolver
+	AppConfig   appconfig.AppConfigResolver
 }
 
 type Module struct {

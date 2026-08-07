@@ -1,7 +1,6 @@
 package emailverification
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -12,17 +11,13 @@ import (
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 )
 
-type AppConfigResolver interface {
-	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
-}
-
 type Dependencies struct {
 	DB     *gorm.DB
 	Actors *local.Host
 
 	Users       UserProvider
 	EmailSender EmailSender
-	AppConfig   AppConfigResolver
+	AppConfig   appconfig.AppConfigResolver
 	AppURL      string
 }
 

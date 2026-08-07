@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/httpserver"
 	"github.com/pocket-id/pocket-id/backend/internal/utils/cookie"
@@ -15,10 +16,10 @@ import (
 type handler struct {
 	service   *Service
 	baseURL   string
-	appConfig AppConfigProvider
+	appConfig appconfig.AppConfigResolver
 }
 
-func newHandler(service *Service, baseURL string, appConfig AppConfigProvider) *handler {
+func newHandler(service *Service, baseURL string, appConfig appconfig.AppConfigResolver) *handler {
 	return &handler{
 		service:   service,
 		baseURL:   baseURL,
