@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
+	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -143,6 +144,85 @@ func TestWebAuthnDisplayNameUsesRequestConfig(t *testing.T) {
 	require.Equal(t, "Custom App", service.webAuthn.Config.RPDisplayName)
 }
 
+func TestBeginCeremoniesUseRequestConfig(t *testing.T) {
+	tests := []struct {
+		name                 string
+		userVerification     appconfig.AppConfigValue
+		authenticator        appconfig.AppConfigValue
+		wantUserVerification protocol.UserVerificationRequirement
+		wantAuthenticator    protocol.AuthenticatorAttachment
+	}{
+		{
+			name:                 "required verification with any authenticator",
+			userVerification:     "required",
+			authenticator:        "any",
+			wantUserVerification: protocol.VerificationRequired,
+			wantAuthenticator:    "",
+		},
+		{
+			name:                 "required verification with a platform authenticator",
+			userVerification:     "required",
+			authenticator:        "platform",
+			wantUserVerification: protocol.VerificationRequired,
+			wantAuthenticator:    protocol.Platform,
+		},
+		{
+			name:                 "preferred verification with a cross-platform authenticator",
+			userVerification:     "preferred",
+			authenticator:        "cross-platform",
+			wantUserVerification: protocol.VerificationPreferred,
+			wantAuthenticator:    protocol.CrossPlatform,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db := testutils.NewDatabaseForTest(t)
+			user := model.User{
+				Base:     model.Base{ID: "configured-user"},
+				Username: "configured-user",
+			}
+			require.NoError(t, db.Create(&user).Error)
+
+			service, err := newService(Dependencies{
+				DB:     db,
+				AppURL: "https://example.com",
+			})
+			require.NoError(t, err)
+
+			dbConfig := &appconfig.AppConfigModel{
+				AppName:                         "Configured App",
+				WebauthnUserVerification:        tc.userVerification,
+				WebauthnAuthenticatorAttachment: tc.authenticator,
+			}
+
+			registration, err := service.BeginRegistration(t.Context(), dbConfig, user.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantUserVerification, registration.Response.AuthenticatorSelection.UserVerification)
+			assert.Equal(t, tc.wantAuthenticator, registration.Response.AuthenticatorSelection.AuthenticatorAttachment)
+			assert.Equal(t, protocol.ResidentKeyRequirementRequired, registration.Response.AuthenticatorSelection.ResidentKey)
+
+			login, err := service.BeginLogin(t.Context(), dbConfig)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantUserVerification, login.Response.UserVerification)
+		})
+	}
+}
+
+func TestSyncedPasskeyPolicy(t *testing.T) {
+	credential := &gowebauthn.Credential{
+		Flags: gowebauthn.CredentialFlags{BackupEligible: true},
+	}
+
+	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAllowSyncedPasskeys: "true"}, credential))
+
+	err := validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAllowSyncedPasskeys: "false"}, credential)
+	require.True(t, apperror.IsCode(err, apperror.CodeSyncedPasskeyNotAllowed))
+
+	credential.Flags.BackupEligible = false
+	require.NoError(t, validateCredentialPolicy(&appconfig.AppConfigModel{WebauthnAllowSyncedPasskeys: "false"}, credential))
+}
+
 func TestClassifyPasskeyErrorRecognizesMissingUserVerification(t *testing.T) {
 	rpIDHash := make([]byte, 32)
 	authenticatorData := protocol.AuthenticatorData{
@@ -213,7 +293,7 @@ func TestCeremoniesRejectSessionThatDoesNotExist(t *testing.T) {
 	t.Run("registration rejects an unknown session", func(t *testing.T) {
 		service := setupService(t)
 
-		_, err := service.VerifyRegistration(t.Context(), "does-not-exist", userID, nil, "127.0.0.1")
+		_, err := service.VerifyRegistration(t.Context(), &appconfig.AppConfigModel{}, "does-not-exist", userID, nil, "127.0.0.1")
 
 		require.Error(t, err)
 		assert.True(t, apperror.IsCode(err, apperror.CodeInvalidWebAuthnSession))

@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +21,21 @@ import (
 
 //go:embed all:dist/*
 var frontendFS embed.FS
+
+// SvelteKit generates both gzip and Brotli sidecars for these extensions when precompress is enabled
+var precompressedExtensions = map[string]struct{}{
+	".css":  {},
+	".html": {},
+	".js":   {},
+	".json": {},
+	".md":   {},
+	".mdx":  {},
+	".mjs":  {},
+	".svg":  {},
+	".txt":  {},
+	".wasm": {},
+	".xml":  {},
+}
 
 // This function, created by the init() method, writes to "w" the index.html page, populating the nonce
 var writeIndexFn func(w io.Writer, nonce string) error
@@ -59,14 +75,8 @@ func RegisterFrontend(router *gin.Engine) error {
 		return fmt.Errorf("failed to create sub FS: %w", err)
 	}
 
-	// Load a map of all files to see which ones are available pre-compressed
-	preCompressed, err := listPreCompressedAssets(distFS)
-	if err != nil {
-		return fmt.Errorf("failed to index pre-compressed frontend assets: %w", err)
-	}
-
 	// Init the file server
-	fileServer := NewFileServerWithCaching(http.FS(distFS), preCompressed)
+	fileServer := NewFileServerWithCaching(http.FS(distFS))
 
 	// Handler for Gin
 	handler := func(c *gin.Context) {
@@ -123,15 +133,13 @@ type FileServerWithCaching struct {
 	root                    http.FileSystem
 	lastModified            time.Time
 	lastModifiedHeaderValue string
-	preCompressed           preCompressedMap
 }
 
-func NewFileServerWithCaching(root http.FileSystem, preCompressed preCompressedMap) *FileServerWithCaching {
+func NewFileServerWithCaching(root http.FileSystem) *FileServerWithCaching {
 	return &FileServerWithCaching{
 		root:                    root,
 		lastModified:            time.Now(),
 		lastModifiedHeaderValue: time.Now().UTC().Format(http.TimeFormat),
-		preCompressed:           preCompressed,
 	}
 }
 
@@ -158,14 +166,14 @@ func (f *FileServerWithCaching) ServeHTTP(w http.ResponseWriter, r *http.Request
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 	}
 
-	// Check if the asset is available pre-compressed
-	_, ok := f.preCompressed[r.URL.Path]
+	// SvelteKit creates both sidecars for every asset with a precompressed extension
+	_, ok := precompressedExtensions[path.Ext(r.URL.Path)]
 	if ok {
 		// Add a "Vary" with "Accept-Encoding" so CDNs are aware that content is pre-compressed
 		w.Header().Add("Vary", "Accept-Encoding")
 
 		// Select the encoding if any
-		ext, ce := f.selectEncoding(r)
+		ext, ce := selectEncoding(r)
 		if ext != "" {
 			// Set the content type explicitly before changing the path
 			ct := mime.TypeByExtension(path.Ext(r.URL.Path))
@@ -182,23 +190,58 @@ func (f *FileServerWithCaching) ServeHTTP(w http.ResponseWriter, r *http.Request
 	http.FileServer(f.root).ServeHTTP(w, r)
 }
 
-func (f *FileServerWithCaching) selectEncoding(r *http.Request) (ext string, contentEnc string) {
-	available, ok := f.preCompressed[r.URL.Path]
-	if !ok {
-		return "", ""
-	}
-
-	// Check if the client accepts compressed files
-	acceptEncoding := strings.TrimSpace(strings.ToLower(r.Header.Get("Accept-Encoding")))
+func selectEncoding(r *http.Request) (ext string, contentEnc string) {
+	// Check which available encoding the client prefers
+	acceptEncoding := r.Header.Get("Accept-Encoding")
 	if acceptEncoding == "" {
 		return "", ""
 	}
 
-	// Prefer brotli over gzip when both are accepted.
-	if available.br && (acceptEncoding == "*" || acceptEncoding == "br" || strings.Contains(acceptEncoding, "br")) {
+	// Header can have multiple encodings with optional quality values, e.g. "gzip;q=1.0, br;q=0.8, *;q=0.5"
+	brWeight, gzipWeight, wildcardWeight := -1.0, -1.0, -1.0
+	for part := range strings.SplitSeq(acceptEncoding, ",") {
+		codingAndParams := strings.Split(part, ";")
+		coding := strings.ToLower(strings.TrimSpace(codingAndParams[0]))
+		weight := 1.0
+
+		for _, param := range codingAndParams[1:] {
+			key, value, found := strings.Cut(param, "=")
+			if !found || !strings.EqualFold(strings.TrimSpace(key), "q") {
+				continue
+			}
+
+			// Parse the quality value
+			parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+			if err != nil || parsed < 0 || parsed > 1 {
+				weight = 0
+				break
+			}
+			weight = parsed
+		}
+
+		switch coding {
+		case "br":
+			brWeight = weight
+		case "gzip":
+			gzipWeight = weight
+		case "*":
+			wildcardWeight = weight
+		}
+	}
+
+	// Apply the wildcard only to encodings the client did not name explicitly
+	if brWeight < 0 {
+		brWeight = wildcardWeight
+	}
+	if gzipWeight < 0 {
+		gzipWeight = wildcardWeight
+	}
+
+	// Prefer brotli when both available encodings have the same quality
+	if brWeight > 0 && brWeight >= gzipWeight {
 		return "br", "br"
 	}
-	if available.gz && (acceptEncoding == "gzip" || strings.Contains(acceptEncoding, "gzip")) {
+	if gzipWeight > 0 {
 		return "gz", "gzip"
 	}
 
@@ -218,42 +261,4 @@ func isImmutableAsset(r *http.Request) bool {
 	default:
 		return false
 	}
-}
-
-type preCompressedMap map[string]struct {
-	br bool
-	gz bool
-}
-
-func listPreCompressedAssets(distFS fs.FS) (preCompressedMap, error) {
-	preCompressed := make(preCompressedMap, 0)
-	err := fs.WalkDir(distFS, ".", func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
-		switch {
-		case strings.HasSuffix(path, ".br"):
-			originalPath := "/" + strings.TrimSuffix(path, ".br")
-			entry := preCompressed[originalPath]
-			entry.br = true
-			preCompressed[originalPath] = entry
-		case strings.HasSuffix(path, ".gz"):
-			originalPath := "/" + strings.TrimSuffix(path, ".gz")
-			entry := preCompressed[originalPath]
-			entry.gz = true
-			preCompressed[originalPath] = entry
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return preCompressed, nil
 }

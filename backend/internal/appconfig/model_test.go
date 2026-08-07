@@ -106,6 +106,25 @@ func TestAppConfigModel_Replace(t *testing.T) {
 	})
 }
 
+func TestAppConfigModel_ApplyDefaults(t *testing.T) {
+	m := &AppConfigModel{AppName: "Custom Name"}
+
+	assert.True(t, m.applyDefaults())
+	assert.Equal(t, AppConfigValue("Custom Name"), m.AppName)
+
+	defaults := reflect.ValueOf(getDefaultConfig()).Elem()
+	values := reflect.ValueOf(m).Elem()
+	modelType := values.Type()
+	for i := range values.NumField() {
+		if modelType.Field(i).Name == "AppName" {
+			continue
+		}
+		assert.Equal(t, defaults.Field(i).Interface(), values.Field(i).Interface(), modelType.Field(i).Name)
+	}
+
+	assert.False(t, m.applyDefaults())
+}
+
 func TestAppConfigModel_Clone(t *testing.T) {
 	t.Run("clones every property", func(t *testing.T) {
 		// Populate every property with a unique marker so we can assert each one is copied

@@ -8,13 +8,24 @@
 		urls = $bindable(),
 		error = null,
 		testIdPrefix = 'url',
-		disabled = false
+		disabled = false,
+		keepAtLeastOne = false
 	}: {
 		urls: string[];
 		error?: string | null;
 		testIdPrefix?: string;
 		disabled?: boolean;
+		keepAtLeastOne?: boolean;
 	} = $props();
+
+	function removeUrl(index: number) {
+		if (keepAtLeastOne && urls.length === 1) {
+			urls = [''];
+			return;
+		}
+
+		urls = urls.filter((_, urlIndex) => urlIndex !== index);
+	}
 </script>
 
 <div>
@@ -34,7 +45,7 @@
 					variant="outline"
 					size="sm"
 					aria-label={m.remove_url({ identifier: url || i + 1 })}
-					onclick={() => (urls = urls.filter((_, index) => index !== i))}
+					onclick={() => removeUrl(i)}
 					{disabled}
 				>
 					<LucideMinus class="size-4" />

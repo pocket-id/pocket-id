@@ -31,10 +31,6 @@ type IPLocationResolver interface {
 	GetLocationByIP(ctx context.Context, ipAddress string) (country string, city string, err error)
 }
 
-type AppConfigProvider interface {
-	GetConfig(ctx context.Context) (*appconfig.AppConfigModel, error)
-}
-
 type Dependencies struct {
 	DB      *gorm.DB
 	Actors  *local.Host
@@ -44,7 +40,7 @@ type Dependencies struct {
 	Reauth    ReauthenticationTokenConsumer
 	AuditLog  AuditLogger
 	IPLocator IPLocationResolver
-	AppConfig AppConfigProvider
+	AppConfig appconfig.AppConfigResolver
 }
 
 type Module struct {

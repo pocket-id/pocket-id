@@ -122,6 +122,10 @@ func PasskeyUserVerificationRequired(cause error) *Error {
 	return Wrap(cause, CodePasskeyUserVerificationRequired, http.StatusBadRequest, "Your passkey couldn't verify you. If you're using a security key, configure a FIDO2 PIN and try again")
 }
 
+func SyncedPasskeyNotAllowed() *Error {
+	return New(CodeSyncedPasskeyNotAllowed, http.StatusBadRequest, "Synced passkeys are not allowed")
+}
+
 func ReservedClaim(key string) *Error {
 	return New(CodeReservedClaim, http.StatusBadRequest, fmt.Sprintf("Claim %s is reserved and can't be used", key)).
 		WithDetail("key", key).

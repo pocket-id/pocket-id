@@ -43,12 +43,18 @@ import (
 	"github.com/pocket-id/pocket-id/backend/resources"
 )
 
+// LdapSyncer runs a full LDAP synchronization
+// It's an interface so this package doesn't import the ldapsync package, which imports this one in its tests
+type LdapSyncer interface {
+	SyncAll(ctx context.Context, dbConfig *appconfig.AppConfigModel) error
+}
+
 type TestService struct {
 	db               *gorm.DB
 	actors           *local.Host
 	jwtService       *JwtService
 	appConfigService *appconfig.AppConfigService
-	ldapService      *LdapService
+	ldapSyncer       LdapSyncer
 	fileStorage      storage.FileStorage
 	externalIdPKey   jwk.Key
 }
@@ -63,13 +69,13 @@ const (
 	e2eEmailVerificationToken          = "2FZFSoupBdHyqIL65bWTsgCgHIhxlXup"
 )
 
-func NewTestService(db *gorm.DB, actors *local.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapService *LdapService, fileStorage storage.FileStorage) (*TestService, error) {
+func NewTestService(db *gorm.DB, actors *local.Host, appConfigService *appconfig.AppConfigService, jwtService *JwtService, ldapSyncer LdapSyncer, fileStorage storage.FileStorage) (*TestService, error) {
 	s := &TestService{
 		db:               db,
 		actors:           actors,
 		appConfigService: appConfigService,
 		jwtService:       jwtService,
-		ldapService:      ldapService,
+		ldapSyncer:       ldapSyncer,
 		fileStorage:      fileStorage,
 	}
 	err := s.initExternalIdP()
@@ -771,7 +777,7 @@ func (s *TestService) SyncLdap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error loading app configuration: %w", err)
 	}
-	return s.ldapService.SyncAll(ctx, dbConfig)
+	return s.ldapSyncer.SyncAll(ctx, dbConfig)
 }
 
 // SetLdapTestConfig updates the LDAP configuration used by the end-to-end test server

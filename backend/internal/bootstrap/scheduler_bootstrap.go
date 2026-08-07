@@ -10,11 +10,7 @@ import (
 )
 
 func registerScheduledJobs(ctx context.Context, db *gorm.DB, svc *services, scheduler *job.Scheduler) error {
-	err := scheduler.RegisterLdapJobs(ctx, svc.ldapService, svc.appConfigService)
-	if err != nil {
-		return fmt.Errorf("failed to register LDAP jobs in scheduler: %w", err)
-	}
-	err = scheduler.RegisterDbCleanupJobs(ctx, db)
+	err := scheduler.RegisterDbCleanupJobs(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to register DB cleanup jobs in scheduler: %w", err)
 	}

@@ -96,6 +96,54 @@ test.describe('Update user creation configuration', () => {
 	});
 });
 
+test('Update passkey configuration', async ({ page }) => {
+	await page.getByRole('tab', { name: 'Passkeys' }).click();
+
+	const userVerification = page.getByLabel('User verification');
+	const authenticatorType = page.getByLabel('Allowed authenticator type');
+	const allowSyncedPasskeys = page.getByRole('switch', { name: 'Allow synced passkeys' });
+
+	await expect(userVerification).toContainText('Required');
+	await userVerification.click();
+	await page.getByRole('option', { name: 'Preferred' }).click();
+
+	await expect(authenticatorType).toContainText('Any passkey');
+	await authenticatorType.click();
+	await page.getByRole('option', { name: 'External security keys only' }).click();
+
+	await expect(allowSyncedPasskeys).toBeChecked();
+	await allowSyncedPasskeys.click();
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.locator('[data-type="success"]')).toHaveText(
+		'Passkey configuration updated successfully'
+	);
+
+	const registrationResponse = await page.request.get('/api/webauthn/register/start');
+	expect(registrationResponse.ok()).toBeTruthy();
+	await expect(registrationResponse.json()).resolves.toMatchObject({
+		authenticatorSelection: {
+			authenticatorAttachment: 'cross-platform',
+			userVerification: 'preferred'
+		}
+	});
+
+	const loginResponse = await page.request.get('/api/webauthn/login/start');
+	expect(loginResponse.ok()).toBeTruthy();
+	await expect(loginResponse.json()).resolves.toMatchObject({
+		userVerification: 'preferred'
+	});
+
+	await page.reload();
+	await page.getByRole('tab', { name: 'Passkeys' }).click();
+
+	await expect(page.getByLabel('User verification')).toContainText('Preferred');
+	await expect(page.getByLabel('Allowed authenticator type')).toContainText(
+		'External security keys only'
+	);
+	await expect(page.getByRole('switch', { name: 'Allow synced passkeys' })).not.toBeChecked();
+});
+
 test('Update email configuration', async ({ page }) => {
 	await page.getByRole('tab', { name: 'Email' }).click();
 
@@ -129,10 +177,6 @@ test('Update email configuration', async ({ page }) => {
 });
 
 test.describe('Update application images', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.getByRole('tab', { name: 'Images' }).click();
-	});
-
 	test('should upload images', async ({ page }) => {
 		await page.getByLabel('Favicon').setInputFiles('resources/images/w3-schools-favicon.ico');
 		await page
@@ -144,7 +188,7 @@ test.describe('Update application images', () => {
 			.getByLabel('Default Profile Picture')
 			.setInputFiles('resources/images/pingvin-share-logo.png');
 		await page.getByLabel('Background Image').setInputFiles('resources/images/clouds.jpg');
-		await page.getByRole('button', { name: 'Save' }).click();
+		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
 
 		await expect(page.locator('[data-type="success"]')).toHaveText(
 			'Images updated successfully. It may take a few minutes to update.'
@@ -171,7 +215,7 @@ test.describe('Update application images', () => {
 		const emailLogoInput = page.getByLabel('Email Logo');
 
 		await emailLogoInput.setInputFiles('resources/images/cloud-logo.svg');
-		await page.getByRole('button', { name: 'Save' }).click();
+		await page.getByRole('button', { name: 'Save', exact: true }).nth(1).click();
 
 		await expect(page.locator('[data-type="error"]')).toHaveText(
 			'File must be of type PNG or JPEG'
