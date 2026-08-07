@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,10 +59,17 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 
 		sqliteutil.RegisterSqliteFunctions()
 
+		// "_maxconn" is a Pocket ID-specific parameter, not understood by the SQLite driver, so it's extracted before the
+		// connection string is handed off
+		connString, maxConns, err := extractSqliteMaxConns(common.EnvConfig.DbConnectionString)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		// The connector validates the connection string and performs the filesystem setup SQLite needs: it creates the database and temporary directories
 		// It also warns when the database lives on a networked filesystem, which is unsupported
 		connector, err := sqlitekit.NewConnector(sqlitekit.ConnectOpts{
-			ConnString: addSqliteDatetimeParams(common.EnvConfig.DbConnectionString),
+			ConnString: addSqliteDatetimeParams(connString),
 			Logger:     slog.Default(),
 		})
 		if err != nil {
@@ -73,6 +81,11 @@ func ConnectDatabase(ctx context.Context) (db *gorm.DB, pg *pgxpool.Pool, err er
 		sqliteDB, err := sqliteinstrument.Open(connector, sqlInstrumentOptions())
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to open SQLite database: %w", err)
+		}
+
+		// Apply the "_maxconn" override, unless the database is in-memory: those must stay capped at 1 connection to see the whole data
+		if maxConns > 0 && !isSqliteInMemory(connString) {
+			sqliteDB.SetMaxOpenConns(maxConns)
 		}
 
 		dialector = sqlite.New(sqlite.Config{Conn: sqliteDB})
@@ -195,4 +208,58 @@ func addSqliteDatetimeParams(connString string) string {
 	}
 
 	return path + "?" + qs.Encode()
+}
+
+// sqliteMaxConnParam is a Pocket ID-specific SQLite connection string parameter that sets the maximum number of connections in the pool.
+const sqliteMaxConnParam = "_maxconn"
+
+// extractSqliteMaxConns removes the "_maxconn" parameter from a SQLite connection string, since the SQLite driver doesn't understand it,
+// and returns the connection string without it along with the requested maximum number of pool connections.
+// A value that's zero, negative, or absent means "use the default", represented here as maxConns == 0.
+func extractSqliteMaxConns(connString string) (parsedConnString string, maxConns int, err error) {
+	path, rawQuery, found := strings.Cut(connString, "?")
+	if !found {
+		return connString, 0, nil
+	}
+
+	qs, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		// Return the connection string unmodified so the driver reports the parsing error
+		return connString, 0, nil
+	}
+
+	v := qs.Get(sqliteMaxConnParam)
+	if v == "" {
+		return connString, 0, nil
+	}
+	qs.Del(sqliteMaxConnParam)
+
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid value for '%s' in the SQLite connection string: %w", sqliteMaxConnParam, err)
+	}
+	if n > 0 {
+		maxConns = n
+	}
+
+	return path + "?" + qs.Encode(), maxConns, nil
+}
+
+// isSqliteInMemory returns true if the SQLite connection string points to an in-memory database.
+func isSqliteInMemory(connString string) bool {
+	lc := strings.ToLower(connString)
+
+	// First way to define an in-memory database is to use ":memory:" or "file::memory:" as connection string
+	if strings.HasPrefix(lc, ":memory:") || strings.HasPrefix(lc, "file::memory:") {
+		return true
+	}
+
+	// Another way is to pass "mode=memory" in the query string
+	_, rawQuery, found := strings.Cut(lc, "?")
+	if !found {
+		return false
+	}
+
+	qs, _ := url.ParseQuery(rawQuery)
+	return len(qs["mode"]) > 0 && qs["mode"][0] == "memory"
 }

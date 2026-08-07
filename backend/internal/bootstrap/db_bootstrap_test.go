@@ -120,6 +120,115 @@ func TestAddSqliteDatetimeParams(t *testing.T) {
 	})
 }
 
+func TestExtractSqliteMaxConns(t *testing.T) {
+	tests := []struct {
+		name           string
+		connString     string
+		wantConnString string
+		wantMaxConns   int
+	}{
+		{
+			name:           "no query string",
+			connString:     "data/pocket-id.db",
+			wantConnString: "data/pocket-id.db",
+			wantMaxConns:   0,
+		},
+		{
+			name:           "_maxconn absent",
+			connString:     "file:data/pocket-id.db?_txlock=immediate",
+			wantConnString: "file:data/pocket-id.db?_txlock=immediate",
+			wantMaxConns:   0,
+		},
+		{
+			name:           "_maxconn is applied and stripped",
+			connString:     "file:data/pocket-id.db?_maxconn=5",
+			wantConnString: "file:data/pocket-id.db?",
+			wantMaxConns:   5,
+		},
+		{
+			name:           "_maxconn is stripped alongside other params",
+			connString:     "file:data/pocket-id.db?_txlock=immediate&_maxconn=5",
+			wantConnString: "file:data/pocket-id.db?_txlock=immediate",
+			wantMaxConns:   5,
+		},
+		{
+			name:           "_maxconn=0 means use the default",
+			connString:     "file:data/pocket-id.db?_maxconn=0",
+			wantConnString: "file:data/pocket-id.db?",
+			wantMaxConns:   0,
+		},
+		{
+			name:           "a negative _maxconn means use the default",
+			connString:     "file:data/pocket-id.db?_maxconn=-5",
+			wantConnString: "file:data/pocket-id.db?",
+			wantMaxConns:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotConnString, gotMaxConns, err := extractSqliteMaxConns(tt.connString)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantMaxConns, gotMaxConns)
+
+			wantPath, wantRawQuery, _ := strings.Cut(tt.wantConnString, "?")
+			gotPath, gotRawQuery, _ := strings.Cut(gotConnString, "?")
+			assert.Equal(t, wantPath, gotPath, "path was modified")
+
+			wantQs, err := url.ParseQuery(wantRawQuery)
+			require.NoError(t, err)
+			gotQs, err := url.ParseQuery(gotRawQuery)
+			require.NoError(t, err)
+			assert.Equal(t, wantQs, gotQs)
+		})
+	}
+
+	t.Run("returns an error for a non-numeric value", func(t *testing.T) {
+		_, _, err := extractSqliteMaxConns("file:data/pocket-id.db?_maxconn=abc")
+		assert.Error(t, err)
+	})
+}
+
+func TestIsSqliteInMemory(t *testing.T) {
+	tests := []struct {
+		name       string
+		connString string
+		want       bool
+	}{
+		{
+			name:       "bare :memory: connection string",
+			connString: ":memory:",
+			want:       true,
+		},
+		{
+			name:       "file::memory: URI",
+			connString: "file::memory:?cache=shared",
+			want:       true,
+		},
+		{
+			name:       "mode=memory query parameter",
+			connString: "file:test.db?mode=memory",
+			want:       true,
+		},
+		{
+			name:       "file-based database",
+			connString: "file:data/pocket-id.db",
+			want:       false,
+		},
+		{
+			name:       "file-based database with unrelated query params",
+			connString: "file:data/pocket-id.db?mode=rwc",
+			want:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSqliteInMemory(tt.connString))
+		})
+	}
+}
+
 // TestConnectDatabaseSqlite checks that the connection Pocket ID now opens itself, so it can be instrumented, still behaves like the one Gorm used to open for us.
 // The datetime parameters are the part at risk: without them modernc.org/sqlite returns strings, not time.Time, for datetime columns.
 //
