@@ -59,10 +59,12 @@
 	<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
 		<div class="grid gap-2">
 			<Field.Field>
-				<Field.Label for="enable-user-signup">{m.enable_user_signups()}</Field.Label>
-				<Field.Description>
-					{m.enable_user_signups_description()}
-				</Field.Description>
+				<div>
+					<Field.Label for="enable-user-signup">{m.enable_user_signups()}</Field.Label>
+					<Field.Description>
+						{m.enable_user_signups_description()}
+					</Field.Description>
+				</div>
 				<Select.Root
 					type="single"
 					value={allowUserSignups}
@@ -107,17 +109,21 @@
 		</div>
 
 		<Field.Field>
-			<Field.Label for="default-groups">{m.user_groups()}</Field.Label>
-			<Field.Description>
-				{m.user_creation_groups_description()}
-			</Field.Description>
+			<div>
+				<Field.Label for="default-groups">{m.user_groups()}</Field.Label>
+				<Field.Description>
+					{m.user_creation_groups_description()}
+				</Field.Description>
+			</div>
 			<UserGroupInput bind:selectedGroupIds />
 		</Field.Field>
 		<Field.Field>
-			<Field.Label>{m.custom_claims()}</Field.Label>
-			<Field.Description>
-				{m.user_creation_claims_description()}
-			</Field.Description>
+			<div>
+				<Field.Label>{m.custom_claims()}</Field.Label>
+				<Field.Description>
+					{m.user_creation_claims_description()}
+				</Field.Description>
+			</div>
 			<CustomClaimsInput bind:customClaims />
 		</Field.Field>
 

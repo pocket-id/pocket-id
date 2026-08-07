@@ -63,11 +63,13 @@ func NewActors(o NewActorsOpts) (*local.Host, map[string]*ratelimit.RateLimitSer
 	}
 
 	// With a single active host the relaxed alarm intervals reduce database load
-	// When HA is enabled they are dropped so Francis uses its tighter defaults, which distribute alarm work and fail over faster across multiple hosts
+	// The longer lease duration also means fewer lease renewals, since Francis renews a lease 10s before it expires (no other host can claim the alarm anyways)
+	// When HA is enabled these are dropped so Francis uses its tighter defaults, which distribute alarm work and fail over faster across multiple hosts
 	if !o.EnvConfig.HAEnabled {
 		opts = append(opts,
 			local.WithAlarmsPollInterval(5*time.Minute),
 			local.WithAlarmsFetchAheadInterval(5*time.Minute),
+			local.WithAlarmsLeaseDuration(180*time.Second),
 		)
 	}
 

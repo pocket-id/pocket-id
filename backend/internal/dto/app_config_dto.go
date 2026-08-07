@@ -50,6 +50,9 @@ type AppConfigUpdateDto struct {
 	LdapAttributeGroupName                     string `json:"ldapAttributeGroupName"`
 	LdapAdminGroupName                         string `json:"ldapAdminGroupName"`
 	LdapSoftDeleteUsers                        string `json:"ldapSoftDeleteUsers"`
+	WebauthnUserVerification                   string `json:"webauthnUserVerification" binding:"required,oneof=required preferred"`
+	WebauthnAllowSyncedPasskeys                string `json:"webauthnAllowSyncedPasskeys" binding:"required,oneof=true false"`
+	WebauthnAuthenticatorAttachment            string `json:"webauthnAuthenticatorAttachment" binding:"required,oneof=any platform cross-platform"`
 	EmailOneTimeAccessAsAdminEnabled           string `json:"emailOneTimeAccessAsAdminEnabled" binding:"required"`
 	EmailOneTimeAccessAsUnauthenticatedEnabled string `json:"emailOneTimeAccessAsUnauthenticatedEnabled" binding:"required"`
 	EmailLoginNotificationEnabled              string `json:"emailLoginNotificationEnabled" binding:"required"`

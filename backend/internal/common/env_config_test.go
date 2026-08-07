@@ -268,33 +268,69 @@ func TestParseEnvConfig(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("TLS_CERT", "/path/to/cert.pem")
+		t.Setenv("TLS_CERT", "certificate")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "TLS_KEY_FILE must be set when TLS_CERT_FILE is set")
+		assert.ErrorContains(t, err, "TLS_KEY must be set when TLS_CERT is set")
 	})
 
 	t.Run("should fail when TLS key is set without cert", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("TLS_KEY", "/path/to/key.pem")
+		t.Setenv("TLS_KEY", "private key")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "TLS_CERT must be set when TLS_KEY is set")
+	})
+
+	t.Run("should fail when TLS cert file is set without key file", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("TLS_CERT_FILE", "/path/to/cert.pem")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "TLS_KEY_FILE must be set when TLS_CERT_FILE is set")
+	})
+
+	t.Run("should fail when TLS key file is set without cert file", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("TLS_KEY_FILE", "/path/to/key.pem")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "TLS_CERT_FILE must be set when TLS_KEY_FILE is set")
 	})
 
+	t.Run("should fail when inline and file TLS configuration are combined", func(t *testing.T) {
+		EnvConfig = defaultConfig()
+		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
+		t.Setenv("APP_URL", "http://localhost:3000")
+		t.Setenv("TLS_CERT", "certificate")
+		t.Setenv("TLS_KEY", "private key")
+		t.Setenv("TLS_CERT_FILE", "/path/to/cert.pem")
+		t.Setenv("TLS_KEY_FILE", "/path/to/key.pem")
+
+		err := parseAndValidateEnvConfig(t)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "TLS_CERT and TLS_KEY cannot be combined with TLS_CERT_FILE or TLS_KEY_FILE")
+	})
+
 	t.Run("should fail when TLS cert file does not exist", func(t *testing.T) {
 		EnvConfig = defaultConfig()
 		t.Setenv("DB_CONNECTION_STRING", "file:test.db")
 		t.Setenv("APP_URL", "http://localhost:3000")
-		t.Setenv("TLS_CERT", "/nonexistent/cert.pem")
+		t.Setenv("TLS_CERT_FILE", "/nonexistent/cert.pem")
 
 		keyFile := t.TempDir() + "/key.pem"
 		require.NoError(t, os.WriteFile(keyFile, []byte("key"), 0600))
-		t.Setenv("TLS_KEY", keyFile)
+		t.Setenv("TLS_KEY_FILE", keyFile)
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
@@ -308,8 +344,8 @@ func TestParseEnvConfig(t *testing.T) {
 
 		certFile := t.TempDir() + "/cert.pem"
 		require.NoError(t, os.WriteFile(certFile, []byte("cert"), 0600))
-		t.Setenv("TLS_CERT", certFile)
-		t.Setenv("TLS_KEY", "/nonexistent/key.pem")
+		t.Setenv("TLS_CERT_FILE", certFile)
+		t.Setenv("TLS_KEY_FILE", "/nonexistent/key.pem")
 
 		err := parseAndValidateEnvConfig(t)
 		require.Error(t, err)
@@ -363,8 +399,12 @@ func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
 		assert.Equal(t, binaryKeyContent, config.EncryptionKey)
 	})
 
-	t.Run("should load TLS cert and key file contents", func(t *testing.T) {
-		config := defaultConfig()
+	t.Run("should preserve TLS cert and key file paths", func(t *testing.T) {
+		originalConfig := EnvConfig
+		t.Cleanup(func() {
+			EnvConfig = originalConfig
+		})
+		EnvConfig = defaultConfig()
 
 		certFile := tempDir + "/cert.pem"
 		certContent := "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
@@ -379,9 +419,27 @@ func TestPrepareEnvConfig_FileBasedAndToLower(t *testing.T) {
 		t.Setenv("TLS_CERT_FILE", certFile)
 		t.Setenv("TLS_KEY_FILE", keyFile)
 
-		err = prepareEnvConfig(&config)
+		err = parseEnvConfig()
 		require.NoError(t, err)
-		assert.Equal(t, certContent, config.TLSCertFile)
-		assert.Equal(t, keyContent, config.TLSKeyFile)
+		assert.Equal(t, certFile, EnvConfig.TLSCertFile)
+		assert.Equal(t, keyFile, EnvConfig.TLSKeyFile)
+	})
+
+	t.Run("should preserve inline TLS cert and key data", func(t *testing.T) {
+		originalConfig := EnvConfig
+		t.Cleanup(func() {
+			EnvConfig = originalConfig
+		})
+		EnvConfig = defaultConfig()
+
+		certContent := "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+		keyContent := "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"
+		t.Setenv("TLS_CERT", certContent)
+		t.Setenv("TLS_KEY", keyContent)
+
+		err = parseEnvConfig()
+		require.NoError(t, err)
+		assert.Equal(t, certContent, EnvConfig.TLSCert)
+		assert.Equal(t, keyContent, EnvConfig.TLSKey)
 	})
 }

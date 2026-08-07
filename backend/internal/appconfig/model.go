@@ -61,6 +61,10 @@ type AppConfigModel struct {
 	LdapAttributeGroupName             AppConfigValue `json:"ldapAttributeGroupName"`
 	LdapAdminGroupName                 AppConfigValue `json:"ldapAdminGroupName"`
 	LdapSoftDeleteUsers                AppConfigValue `json:"ldapSoftDeleteUsers" type:"bool"`
+	// WebAuthn
+	WebauthnUserVerification        AppConfigValue `json:"webauthnUserVerification"`
+	WebauthnAllowSyncedPasskeys     AppConfigValue `json:"webauthnAllowSyncedPasskeys" type:"bool"`
+	WebauthnAuthenticatorAttachment AppConfigValue `json:"webauthnAuthenticatorAttachment"`
 	// OIDC
 	CIMDURLAllowlist AppConfigValue `json:"cimdUrlAllowlist"` // JSON-encoded array of strings
 }
@@ -147,9 +151,31 @@ func getDefaultConfig() *AppConfigModel {
 		LdapAttributeGroupName:             "",
 		LdapAdminGroupName:                 "",
 		LdapSoftDeleteUsers:                "true",
+		// WebAuthn
+		WebauthnUserVerification:        "required",
+		WebauthnAllowSyncedPasskeys:     "true",
+		WebauthnAuthenticatorAttachment: "any",
 		// OIDC
 		CIMDURLAllowlist: "[]",
 	}
+}
+
+// applyDefaults fills empty properties from the default configuration and reports whether the model changed
+func (m *AppConfigModel) applyDefaults() bool {
+	defaults := reflect.ValueOf(getDefaultConfig()).Elem()
+	values := reflect.ValueOf(m).Elem()
+	changed := false
+
+	for i := range values.NumField() {
+		if values.Field(i).String() != "" || defaults.Field(i).String() == "" {
+			continue
+		}
+
+		values.Field(i).Set(defaults.Field(i))
+		changed = true
+	}
+
+	return changed
 }
 
 // Replace updates every configuration property with the values from the input DTO

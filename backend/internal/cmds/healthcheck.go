@@ -72,9 +72,10 @@ func init() {
 	rootCmd.AddCommand(healthcheckCmd)
 }
 
-// The server only serves TLS when both a certificate and a key file are configured
+// The server serves TLS when either inline certificate data or certificate files are configured
 func tlsEnabled() bool {
-	return common.EnvConfig.TLSCertFile != "" && common.EnvConfig.TLSKeyFile != ""
+	return (common.EnvConfig.TLSCert != "" && common.EnvConfig.TLSKey != "") ||
+		(common.EnvConfig.TLSCertFile != "" && common.EnvConfig.TLSKeyFile != "")
 }
 
 func defaultEndpoint() string {

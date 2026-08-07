@@ -75,8 +75,11 @@ type EnvConfigSchema struct {
 	SystemdSocket   bool   `env:"SYSTEMD_SOCKET"`
 	LocalIPv6Ranges string `env:"LOCAL_IPV6_RANGES"`
 
-	TLSCertFile string `env:"TLS_CERT" options:"file"`
-	TLSKeyFile  string `env:"TLS_KEY" options:"file"`
+	// TLS cert and key need special treatment with fsnotify, so we aren't using `options:"file"`
+	TLSCert     string `env:"TLS_CERT"`
+	TLSKey      string `env:"TLS_KEY"`
+	TLSCertFile string `env:"TLS_CERT_FILE"`
+	TLSKeyFile  string `env:"TLS_KEY_FILE"`
 
 	MaxMindLicenseKey string `env:"MAXMIND_LICENSE_KEY" options:"file"`
 	GeoLiteDBPath     string `env:"GEOLITE_DB_PATH"`
@@ -289,7 +292,18 @@ func validateLocalIPv6Range(rangeStr string) error {
 }
 
 func validateTLSConfig(config *EnvConfigSchema) error {
+	inlineConfigured := config.TLSCert != "" || config.TLSKey != ""
+	fileConfigured := config.TLSCertFile != "" || config.TLSKeyFile != ""
+
+	if inlineConfigured && fileConfigured {
+		return errors.New("TLS_CERT and TLS_KEY cannot be combined with TLS_CERT_FILE or TLS_KEY_FILE")
+	}
+
 	switch {
+	case config.TLSCert != "" && config.TLSKey == "":
+		return errors.New("TLS_KEY must be set when TLS_CERT is set")
+	case config.TLSCert == "" && config.TLSKey != "":
+		return errors.New("TLS_CERT must be set when TLS_KEY is set")
 	case config.TLSCertFile != "" && config.TLSKeyFile == "":
 		return errors.New("TLS_KEY_FILE must be set when TLS_CERT_FILE is set")
 	case config.TLSCertFile == "" && config.TLSKeyFile != "":

@@ -44,13 +44,18 @@ func (h *handler) beginRegistration(c *gin.Context) error {
 }
 
 func (h *handler) verifyRegistration(c *gin.Context) error {
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+
 	sessionID, err := c.Cookie(cookie.SessionIdCookieName)
 	if err != nil {
 		return apperror.MissingSessionID()
 	}
 
 	userID := c.GetString("userID")
-	credential, err := h.service.VerifyRegistration(c.Request.Context(), sessionID, userID, c.Request, c.ClientIP())
+	credential, err := h.service.VerifyRegistration(c.Request.Context(), dbConfig, sessionID, userID, c.Request, c.ClientIP())
 	if err != nil {
 		return err
 	}
@@ -65,7 +70,12 @@ func (h *handler) verifyRegistration(c *gin.Context) error {
 }
 
 func (h *handler) beginLogin(c *gin.Context) error {
-	options, err := h.service.BeginLogin(c.Request.Context())
+	dbConfig, err := h.appConfig.GetConfig(c.Request.Context())
+	if err != nil {
+		return fmt.Errorf("error loading app configuration: %w", err)
+	}
+
+	options, err := h.service.BeginLogin(c.Request.Context(), dbConfig)
 	if err != nil {
 		return err
 	}

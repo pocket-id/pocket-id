@@ -104,8 +104,8 @@
 				<Tooltip.Provider>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
-							<p class="text-muted-foreground flex items-center text-xs">
-								<LucideLogIn class="mr-1 size-3" />
+							<p class="text-muted-foreground flex items-center text-xs text-start">
+								<LucideLogIn class="mr-2 size-3" />
 								{formatDistanceToNow(client.lastUsedAt, { addSuffix: true })}
 							</p>
 						</Tooltip.Trigger>

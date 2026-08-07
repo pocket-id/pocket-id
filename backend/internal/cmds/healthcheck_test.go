@@ -152,6 +152,11 @@ func TestDefaultEndpoint(t *testing.T) {
 		setTLSFiles(t)
 		assert.Equal(t, "https://localhost:"+common.EnvConfig.Port, defaultEndpoint())
 	})
+
+	t.Run("uses https if inline TLS certificate data is configured", func(t *testing.T) {
+		setInlineTLS(t)
+		assert.Equal(t, "https://localhost:"+common.EnvConfig.Port, defaultEndpoint())
+	})
 }
 
 // t.TempDir embeds the test name, which can exceed the maximum socket path length
@@ -178,6 +183,19 @@ func setTLSFiles(t *testing.T) {
 
 	common.EnvConfig.TLSCertFile = "cert.pem"
 	common.EnvConfig.TLSKeyFile = "key.pem"
+}
+
+// Only the presence of the data matters because the healthcheck never parses the certificate
+func setInlineTLS(t *testing.T) {
+	t.Helper()
+
+	cert, key := common.EnvConfig.TLSCert, common.EnvConfig.TLSKey
+	t.Cleanup(func() {
+		common.EnvConfig.TLSCert, common.EnvConfig.TLSKey = cert, key
+	})
+
+	common.EnvConfig.TLSCert = "certificate"
+	common.EnvConfig.TLSKey = "private key"
 }
 
 func newSelfSignedTLSConfig(t *testing.T) *tls.Config {
