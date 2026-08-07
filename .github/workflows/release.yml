@@ -46,14 +46,14 @@ jobs:
         run: depot configure-docker
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4.5.1
+        uses: docker/login-action@v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4.5.1
+        uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -76,12 +76,12 @@ jobs:
           DISCORD_WEBHOOK_TOKEN: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
 
       - name: Binary attestation
-        uses: actions/attest@v4.2.0
+        uses: actions/attest@v4.2.1
         with:
           subject-checksums: ./dist/checksums.txt
 
       - name: Container image attestation
-        uses: actions/attest@v4.2.0
+        uses: actions/attest@v4.2.1
         with:
           subject-checksums: ./dist/digests.txt
 

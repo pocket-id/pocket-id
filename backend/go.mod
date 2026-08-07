@@ -3,11 +3,11 @@ module github.com/pocket-id/pocket-id/backend
 go 1.26.5
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.43.0
-	github.com/aws/aws-sdk-go-v2/config v1.32.31
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.30
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.0
-	github.com/aws/smithy-go v1.27.4
+	github.com/aws/aws-sdk-go-v2 v1.43.2
+	github.com/aws/aws-sdk-go-v2/config v1.32.33
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.32
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.2
+	github.com/aws/smithy-go v1.27.5
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
@@ -31,7 +31,7 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lestrrat-go/httprc/v3 v3.0.6
-	github.com/lestrrat-go/jwx/v3 v3.1.1
+	github.com/lestrrat-go/jwx/v3 v3.2.0
 	github.com/libtnb/sqlite v1.2.1
 	github.com/lmittmann/tint v1.2.0
 	github.com/mattn/go-isatty v0.0.24
@@ -57,7 +57,7 @@ require (
 	golang.org/x/image v0.44.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/text v0.40.0
-	gorm.io/driver/postgres v1.6.1
+	gorm.io/driver/postgres v1.6.2
 	gorm.io/gorm v1.31.2
 	gorm.io/plugin/opentelemetry v0.1.16
 	modernc.org/sqlite v1.56.0
@@ -67,19 +67,19 @@ require (
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/alphadose/haxmap v1.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.14 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.31 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.31 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.31 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.32 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.13 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.24 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.31 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.32 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.5.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.33.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.38.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.45.0 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.15 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.33 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.33 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.33 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.34 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.14 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.26 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.33 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.34 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.5.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.33.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.38.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.45.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
@@ -142,7 +142,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
-	github.com/lestrrat-go/dsig v1.2.1 // indirect
+	github.com/lestrrat-go/dsig v1.3.0 // indirect
 	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
