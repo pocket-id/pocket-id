@@ -2,8 +2,11 @@ package controller
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,4 +57,30 @@ func TestClientIDMetadataDocumentDiscoveryFollowsAllowlist(t *testing.T) {
 
 	cimdURLAllowlist = nil
 	assert.Equal(t, false, parse(t)["client_id_metadata_document_supported"])
+}
+
+func TestOAuthAuthorizationServerMetadata(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	jwtSvc := newMinimalJwtService(t)
+
+	router := gin.New()
+	group := router.Group("/")
+	NewWellKnownController(group, jwtSvc, func() []string { return nil })
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/.well-known/oauth-authorization-server", http.NoBody)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &doc))
+
+	assert.Equal(t, common.EnvConfig.AppURL, doc["issuer"])
+	assert.Equal(t, common.EnvConfig.AppURL+"/authorize", doc["authorization_endpoint"])
+	assert.NotEmpty(t, doc["jwks_uri"])
+	assert.Contains(t, doc["code_challenge_methods_supported"], "S256")
+	assert.Equal(t, true, doc["resource_indicators_supported"])
+	assert.NotEmpty(t, doc["registration_endpoint"])
 }
