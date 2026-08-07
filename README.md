@@ -1,4 +1,4 @@
-# <div align="center"><img  src="https://github.com/user-attachments/assets/4ceb2708-9f29-4694-b797-be833efce17d" width="100"/> </br>Pocket ID</div>
+# <div align="center"><img  src="https://github.com/user-attachments/assets/5eadf059-dcf3-43f1-b52b-205ad94661a3" width="100"/> </br>Pocket ID</div>
 
 Pocket ID is an easy-to-use OpenID Connect Certified™ and OAuth 2.0 provider that lets users sign in to your applications with passkeys.
 
