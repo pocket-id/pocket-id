@@ -37,6 +37,25 @@ func (c Client) GetGrantTypes() fosite.Arguments {
 		grantTypes = append(grantTypes, string(fosite.GrantTypeClientCredentials))
 	}
 
+	// A dynamically registered client is created by an unauthenticated caller, and
+	// the only thing standing behind it is the administrator's redirect URI
+	// allowlist. That allowlist constrains where an authorization code may be sent,
+	// so it only secures the flows that actually redirect.
+	//
+	// The device flow never uses a redirect URI, so anyone who registers under an
+	// allowlisted pattern they do not control could still drive a device
+	// authorization and obtain user tokens. Client credentials likewise bypasses the
+	// redirect entirely and would let self-registration mint machine tokens.
+	//
+	// Dynamic clients are therefore limited to the redirect-based flows, which is
+	// also exactly what the RFC 7591 registration response advertises.
+	if c.IsDynamic() {
+		return fosite.Arguments{
+			string(fosite.GrantTypeAuthorizationCode),
+			string(fosite.GrantTypeRefreshToken),
+		}
+	}
+
 	if !c.IsMetadataDocument() {
 		return grantTypes
 	}

@@ -114,6 +114,29 @@ func (s *AppConfigService) GetCIMDURLAllowlist() []string {
 	return patterns
 }
 
+// GetDynamicClientRedirectUriAllowlist returns the redirect-URI patterns a
+// dynamically-registered client may declare. An empty slice denies all (fail-closed),
+// so this doubles as the on/off control for dynamic client registration.
+//
+// It takes no context for the same reason as GetCIMDURLAllowlist: both are passed
+// around as plain func() []string accessors so that consumers can read the current
+// allowlist without depending on the app config package.
+func (s *AppConfigService) GetDynamicClientRedirectUriAllowlist() []string {
+	cfg, err := s.GetConfig(context.Background())
+	if err != nil {
+		return nil
+	}
+	raw := string(cfg.DynamicClientRedirectUriAllowlist)
+	if raw == "" {
+		return nil
+	}
+	var patterns []string
+	if err := json.Unmarshal([]byte(raw), &patterns); err != nil {
+		return nil
+	}
+	return patterns
+}
+
 // UpdateAppConfig replaces the entire application configuration with the values from the input DTO.
 func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppConfigUpdateDto) ([]AppConfigVariable, error) {
 	// If the UI config is disabled, we cannot continue
@@ -130,6 +153,19 @@ func (s *AppConfigService) UpdateAppConfig(ctx context.Context, input dto.AppCon
 		for _, p := range patterns {
 			if err := utils.ValidateCallbackURLPattern(p); err != nil {
 				return nil, apperror.InvalidCIMDURLPattern(p)
+			}
+		}
+	}
+
+	// Validate the dynamic client redirect URI allowlist patterns, if provided
+	if input.DynamicClientRedirectUriAllowlist != "" {
+		var patterns []string
+		if err := json.Unmarshal([]byte(input.DynamicClientRedirectUriAllowlist), &patterns); err != nil {
+			return nil, apperror.InvalidDynamicClientRedirectURIPattern(input.DynamicClientRedirectUriAllowlist)
+		}
+		for _, p := range patterns {
+			if err := utils.ValidateCallbackURLPattern(p); err != nil {
+				return nil, apperror.InvalidDynamicClientRedirectURIPattern(p)
 			}
 		}
 	}

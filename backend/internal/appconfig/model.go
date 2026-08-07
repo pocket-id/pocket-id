@@ -66,7 +66,8 @@ type AppConfigModel struct {
 	WebauthnAllowSyncedPasskeys     AppConfigValue `json:"webauthnAllowSyncedPasskeys" type:"bool"`
 	WebauthnAuthenticatorAttachment AppConfigValue `json:"webauthnAuthenticatorAttachment"`
 	// OIDC
-	CIMDURLAllowlist AppConfigValue `json:"cimdUrlAllowlist"` // JSON-encoded array of strings
+	CIMDURLAllowlist                  AppConfigValue `json:"cimdUrlAllowlist"`                  // JSON-encoded array of strings
+	DynamicClientRedirectUriAllowlist AppConfigValue `json:"dynamicClientRedirectUriAllowlist"` // JSON-encoded array of strings
 }
 
 // Clone returns a deep copy of the AppConfigModel.
@@ -156,7 +157,8 @@ func getDefaultConfig() *AppConfigModel {
 		WebauthnAllowSyncedPasskeys:     "true",
 		WebauthnAuthenticatorAttachment: "any",
 		// OIDC
-		CIMDURLAllowlist: "[]",
+		CIMDURLAllowlist:                  "[]",
+		DynamicClientRedirectUriAllowlist: "[]",
 	}
 }
 

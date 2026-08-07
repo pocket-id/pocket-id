@@ -28,6 +28,8 @@ const (
 	RateLimitDeviceLoginVerification = "device-login-verification"
 	RateLimitSendEmailVerification   = "send-email-verification"
 	RateLimitVerifyEmail             = "verify-email"
+	RateLimitClientRegistration      = "client-registration"
+	RateLimitClientConfiguration     = "client-configuration"
 	RateLimitInternal                = "internal"
 )
 
@@ -59,6 +61,12 @@ func RateLimitPolicies() []RateLimitPolicy {
 		{Name: RateLimitDeviceLoginVerification, Rate: 1, Per: 10 * time.Second, Burst: 5},
 		{Name: RateLimitSendEmailVerification, Rate: 2, Per: 10 * time.Minute, Burst: 1},
 		{Name: RateLimitVerifyEmail, Rate: 1, Per: 10 * time.Second, Burst: 5},
+		// Dynamic Client Registration is unauthenticated when enabled, and every call
+		// creates a durable row, so it is limited far more tightly than the generic API
+		{Name: RateLimitClientRegistration, Rate: 1, Per: time.Minute, Burst: 5},
+		// The RFC 7592 configuration endpoints authenticate with a bearer registration
+		// access token, so they are throttled to blunt token brute-forcing
+		{Name: RateLimitClientConfiguration, Rate: 1, Per: 2 * time.Second, Burst: 10},
 		{Name: RateLimitInternal, Rate: 20, Per: time.Second, Burst: 20},
 	}
 }

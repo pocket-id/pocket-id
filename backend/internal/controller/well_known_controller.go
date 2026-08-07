@@ -16,10 +16,11 @@ import (
 // @Summary OIDC Discovery controller
 // @Description Initializes OIDC discovery and JWKS endpoints
 // @Tags Well Known
-func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService, getCIMDURLAllowlist func() []string) {
+func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtService, getCIMDURLAllowlist func() []string, getDCRRedirectURIAllowlist func() []string) {
 	wkc := &WellKnownController{
-		jwtService:          jwtService,
-		getCIMDURLAllowlist: getCIMDURLAllowlist,
+		jwtService:                 jwtService,
+		getCIMDURLAllowlist:        getCIMDURLAllowlist,
+		getDCRRedirectURIAllowlist: getDCRRedirectURIAllowlist,
 	}
 
 	group.GET("/.well-known/jwks.json", httpserver.Handle(wkc.jwksHandler))
@@ -28,8 +29,9 @@ func NewWellKnownController(group *gin.RouterGroup, jwtService *service.JwtServi
 }
 
 type WellKnownController struct {
-	jwtService          *service.JwtService
-	getCIMDURLAllowlist func() []string
+	jwtService                 *service.JwtService
+	getCIMDURLAllowlist        func() []string
+	getDCRRedirectURIAllowlist func() []string
 }
 
 // jwksHandler godoc
@@ -95,14 +97,18 @@ func (wkc *WellKnownController) computeBaseMetadata() (map[string]any, error) {
 		cimdSupported = len(wkc.getCIMDURLAllowlist()) > 0
 	}
 
-	return map[string]any{
+	dcrSupported := false
+	if wkc.getDCRRedirectURIAllowlist != nil {
+		dcrSupported = len(wkc.getDCRRedirectURIAllowlist()) > 0
+	}
+
+	metadata := map[string]any{
 		"issuer":                                         appUrl,
 		"authorization_endpoint":                         appUrl + "/authorize",
 		"token_endpoint":                                 internalAppUrl + "/api/oidc/token",
 		"introspection_endpoint":                         internalAppUrl + "/api/oidc/introspect",
 		"device_authorization_endpoint":                  appUrl + "/api/oidc/device/authorize",
 		"jwks_uri":                                       internalAppUrl + "/.well-known/jwks.json",
-		"registration_endpoint":                          appUrl + "/api/oidc/register",
 		"grant_types_supported":                          []string{service.GrantTypeAuthorizationCode, service.GrantTypeRefreshToken, service.GrantTypeDeviceCode, service.GrantTypeClientCredentials},
 		"scopes_supported":                               []string{"openid", "profile", "email", "groups", "offline_access"},
 		"response_types_supported":                       []string{"code", "id_token"},
@@ -117,7 +123,16 @@ func (wkc *WellKnownController) computeBaseMetadata() (map[string]any, error) {
 		// clients can detect that the `resource` parameter is supported.
 		"resource_indicators_supported":         true,
 		"client_id_metadata_document_supported": cimdSupported,
-	}, nil
+	}
+
+	if dcrSupported {
+		// Registration is a back-channel call made by the client itself, like the
+		// token, introspection and PAR endpoints, so it is advertised on the
+		// internal URL rather than the browser-facing one.
+		metadata["registration_endpoint"] = internalAppUrl + "/api/oidc/register"
+	}
+
+	return metadata, nil
 }
 
 func (wkc *WellKnownController) computeOIDCConfiguration() ([]byte, error) {

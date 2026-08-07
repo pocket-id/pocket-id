@@ -77,3 +77,13 @@ func NewMockResponse(statusCode int, body string) *http.Response {
 		ContentLength: int64(len(body)),
 	}
 }
+
+// SSRFGuardExempt marks this round tripper as exempt from fosite's connect-time
+// SSRF guard, implementing fosite.SSRFGuardExempt.
+//
+// The mock serves canned responses from an in-memory map and never resolves a
+// hostname or opens a socket, so there is no connection for the guard to inspect.
+// Without this the guard would fail closed and replace the mock with a real
+// guarded transport, and tests would silently exercise the network instead of the
+// double.
+func (*MockRoundTripper) SSRFGuardExempt() {}

@@ -13,10 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ory/fosite"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/pocket-id/pocket-id/backend/internal/appconfig"
 	"github.com/pocket-id/pocket-id/backend/internal/apperror"
 	"github.com/pocket-id/pocket-id/backend/internal/dto"
 	"github.com/pocket-id/pocket-id/backend/internal/model"
@@ -40,6 +43,7 @@ const (
 type OidcService struct {
 	db                *gorm.DB
 	jwtService        *JwtService
+	appConfigService  *appconfig.AppConfigService
 	previewBuilder    oidcClientPreviewBuilder
 	metadataRefresher metadataRefresher
 	scimService       *ScimService
@@ -59,6 +63,7 @@ type metadataRefresher interface {
 func NewOidcService(
 	db *gorm.DB,
 	jwtService *JwtService,
+	appConfigService *appconfig.AppConfigService,
 	previewBuilder oidcClientPreviewBuilder,
 	metadataRefresher metadataRefresher,
 	scimService *ScimService,
@@ -68,6 +73,7 @@ func NewOidcService(
 	s = &OidcService{
 		db:                db,
 		jwtService:        jwtService,
+		appConfigService:  appConfigService,
 		previewBuilder:    previewBuilder,
 		metadataRefresher: metadataRefresher,
 		scimService:       scimService,
@@ -790,6 +796,17 @@ func (s *OidcService) downloadAndSaveLogoFromURL(parentCtx context.Context, clie
 
 		return nil
 	})
+	// The checks above resolve DNS separately from the connection itself, so a name
+	// that flips between a public and an internal address (DNS rebinding) could still
+	// be dialed. fosite's guard enforces the same policy at connect time on the
+	// resolved address, and closes the proxy and custom-TLS-dialer bypasses.
+	//
+	// The guard has to own the dialer, so it fails closed on any base it cannot
+	// introspect rather than handing back something that only looks guarded. The
+	// shared client's transport is wrapped for tracing during bootstrap, so that
+	// wrapper is replaced here and re-applied around the guard instead of
+	// underneath it, keeping the spans while the guard still owns the dial.
+	client.Transport = otelhttp.NewTransport(fosite.SSRFGuardedTransport(client.Transport, utils.IsPrivateIP))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
