@@ -1,5 +1,6 @@
 <script lang="ts">
 	import FormInput from '$lib/components/form/form-input.svelte';
+	import FormattedMessage from '$lib/components/formatted-message.svelte';
 	import UrlListInput from '$lib/components/form/url-list-input.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages';
@@ -16,7 +17,9 @@
 		callback: (updatedConfig: Partial<AllAppConfig>) => Promise<void>;
 	} = $props();
 
-	let cimdUrlAllowlist: string[] = $derived(appConfig.cimdUrlAllowlist || []);
+	let cimdUrlAllowlist: string[] = $derived(
+		appConfig.cimdUrlAllowlist?.length ? appConfig.cimdUrlAllowlist : ['']
+	);
 	let isLoading = $state(false);
 
 	async function onSubmit() {
@@ -31,10 +34,14 @@
 	}
 </script>
 
+{#snippet cimdUrlAllowlistDescription()}
+	<FormattedMessage message={m.cimd_url_allowlist_description} />
+{/snippet}
+
 <form onsubmit={preventDefault(onSubmit)}>
 	<fieldset class="flex flex-col gap-5" disabled={$appConfigStore.uiConfigDisabled}>
-		<FormInput label={m.cimd_url_allowlist()} description={m.cimd_url_allowlist_description()}>
-			<UrlListInput bind:urls={cimdUrlAllowlist} testIdPrefix="cimd-url-allowlist" />
+		<FormInput label={m.cimd_url_allowlist()} description={cimdUrlAllowlistDescription}>
+			<UrlListInput bind:urls={cimdUrlAllowlist} testIdPrefix="cimd-url-allowlist" keepAtLeastOne />
 		</FormInput>
 
 		<div class="flex justify-end pt-2">

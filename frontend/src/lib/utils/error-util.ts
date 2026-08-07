@@ -19,6 +19,7 @@ const codeMessages: Record<string, () => string> = {
 	invalid_webauthn_response: () => m.passkey_response_invalid(),
 	webauthn_authentication_failed: () => m.passkey_verification_failed(),
 	passkey_user_verification_required: () => m.passkey_user_verification_required(),
+	synced_passkey_not_allowed: () => m.synced_passkeys_not_allowed(),
 	device_login_expired: () => m.device_login_request_expired()
 };
 

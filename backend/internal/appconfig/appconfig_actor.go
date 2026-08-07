@@ -59,13 +59,16 @@ func (a *appConfigActor) Bootstrap(parentCtx context.Context, data actor.Envelop
 		return fmt.Errorf("error retrieving actor state: %w", err)
 	}
 
-	// If we already have a state, nothing else to do
+	// Upgrade existing state with defaults added by newer Pocket ID versions
 	if state != nil {
-		return nil
+		state = state.Clone()
+		if !state.applyDefaults() {
+			return nil
+		}
 	}
 
-	// Check if the request data contains legacy config to init from
-	if data != nil {
+	// Check if a new state should be initialized from legacy configuration
+	if state == nil && data != nil {
 		payload := appConfigActorBootstrap{}
 		err = data.Decode(&payload)
 		if err != nil {
@@ -80,12 +83,12 @@ func (a *appConfigActor) Bootstrap(parentCtx context.Context, data actor.Envelop
 		}
 	}
 
-	// If we still have no state, generate a new default config
+	// Initialize a new state with defaults when no legacy configuration exists
 	if state == nil {
 		state = getDefaultConfig()
 	}
 
-	// Save the updated state
+	// Persist new and upgraded state eagerly so every later activation sees the complete model
 	ctx, cancel = context.WithTimeout(parentCtx, 10*time.Second)
 	defer cancel()
 	err = a.client.SetState(ctx, state, nil)

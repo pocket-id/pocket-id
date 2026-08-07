@@ -52,6 +52,10 @@ export type AllAppConfig = AppConfig & {
 	ldapAttributeGroupName: string;
 	ldapAdminGroupName: string;
 	ldapSoftDeleteUsers: boolean;
+	// WebAuthn
+	webauthnUserVerification: 'required' | 'preferred';
+	webauthnAllowSyncedPasskeys: boolean;
+	webauthnAuthenticatorAttachment: 'any' | 'platform' | 'cross-platform';
 	// OIDC
 	cimdUrlAllowlist: string[];
 };
