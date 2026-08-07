@@ -93,7 +93,7 @@ func openFileTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	connString, _, _, err := sqlitekit.ParseConnectionString(dbPath, slog.Default())
+	connString, _, _, _, err := sqlitekit.ParseConnectionString(dbPath, slog.Default())
 	require.NoError(t, err, "Failed to parse connection string")
 
 	db, err := gorm.Open(sqlite.Open(connString), newTestGormConfig(t))
